@@ -84,7 +84,48 @@ If you need remote access, place MikroDash **behind an authenticating reverse pr
 
 ## Quick Start
 
+### Option 1 — Docker Hub / GHCR (recommended)
+
+Pull and run the pre-built image directly — no need to clone the repo:
+
 ```bash
+docker pull ghcr.io/secops-7/mikrodash:latest
+```
+
+Create your `.env` file:
+
+```bash
+curl -o .env https://raw.githubusercontent.com/SecOps-7/MikroDash/main/.env.example
+# Edit .env — set ROUTER_HOST, ROUTER_USER, ROUTER_PASS, DEFAULT_IF
+```
+
+Run the container:
+
+```bash
+docker run -d   --name mikrodash   --restart unless-stopped   --env-file .env   -p 3081:3081   ghcr.io/secops-7/mikrodash:latest
+```
+
+Or with Docker Compose — create a `docker-compose.yml`:
+
+```yaml
+services:
+  mikrodash:
+    image: ghcr.io/secops-7/mikrodash:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3081:3081"
+```
+
+```bash
+docker compose up -d
+```
+
+### Option 2 — Build from source
+
+```bash
+git clone https://github.com/SecOps-7/MikroDash.git
+cd MikroDash
 cp .env.example .env
 # Edit .env — set ROUTER_HOST, ROUTER_USER, ROUTER_PASS, DEFAULT_IF
 docker compose up -d
