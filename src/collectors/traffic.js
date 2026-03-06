@@ -29,14 +29,14 @@ function bpsToMbps(bps) {
 
 class TrafficCollector {
   constructor({ ros, io, defaultIf, historyMinutes, state }) {
-    this.ros       = ros;
-    this.io        = io;
+    this.ros = ros;
+    this.io = io;
     this.defaultIf = defaultIf;
-    this.state     = state;
+    this.state = state;
     this.maxPoints = Math.max(60, historyMinutes * 60);
-    this.hist          = new Map();   // ifName -> RingBuffer
+    this.hist = new Map();   // ifName -> RingBuffer
     this.subscriptions = new Map();   // socketId -> ifName
-    this.timers        = new Map();   // ifName -> intervalId
+    this.timers = new Map();   // ifName -> intervalId
   }
 
   _ensureHistory(ifName) {
@@ -44,22 +44,38 @@ class TrafficCollector {
   }
 
   bindSocket(socket) {
-    // Subscribe this socket to the default interface immediately
-    this.subscriptions.set(socket.id, this.defaultIf);
+    this.attachSocket(socket.id, this.defaultIf);
 
     // Client changed interface selection
     socket.on('traffic:select', ({ ifName: newIf }) => {
-      if (!newIf) return;
-      this.subscriptions.set(socket.id, newIf);
-      this._ensureHistory(newIf);
-      this._startPoll(newIf);
+      const history = this.selectInterface(socket.id, newIf);
+      if (!history) return;
       socket.emit('traffic:history', {
         ifName: newIf,
-        points: this.hist.get(newIf).toArray(),
+        points: history,
       });
     });
 
-    socket.on('disconnect', () => this.subscriptions.delete(socket.id));
+    socket.on('disconnect', () => this.detachSocket(socket.id));
+  }
+
+  attachSocket(socketId, ifName) {
+    const targetIf = ifName || this.defaultIf;
+    this.subscriptions.set(socketId, targetIf);
+    this._ensureHistory(targetIf);
+    this._startPoll(targetIf);
+  }
+
+  detachSocket(socketId) {
+    this.subscriptions.delete(socketId);
+  }
+
+  selectInterface(socketId, ifName) {
+    if (!ifName) return null;
+    this.subscriptions.set(socketId, ifName);
+    this._ensureHistory(ifName);
+    this._startPoll(ifName);
+    return this.hist.get(ifName).toArray();
   }
 
   _startPoll(ifName) {
@@ -80,10 +96,10 @@ class TrafficCollector {
 
         const rxBps = parseBps(data['rx-bits-per-second']);
         const txBps = parseBps(data['tx-bits-per-second']);
-        const running  = data.running  !== 'false' && data.running  !== false;
-        const disabled = data.disabled === 'true'  || data.disabled === true;
+        const running = data.running !== 'false' && data.running !== false;
+        const disabled = data.disabled === 'true' || data.disabled === true;
 
-        const now    = Date.now();
+        const now = Date.now();
         const sample = {
           ifName, ts: now,
           rx_mbps: bpsToMbps(rxBps),
@@ -104,7 +120,7 @@ class TrafficCollector {
           this.io.emit('wan:status', { ifName, ts: now, running, disabled });
         }
 
-        this.state.lastTrafficTs  = now;
+        this.state.lastTrafficTs = now;
         this.state.lastTrafficErr = null;
 
       } catch (e) {

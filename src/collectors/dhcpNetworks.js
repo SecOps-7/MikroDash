@@ -5,12 +5,13 @@ function ipInCidr(ip, cidr) {
 }
 
 class DhcpNetworksCollector {
-  constructor({ ros, io, pollMs, dhcpLeases, state }) {
+  constructor({ ros, io, pollMs, dhcpLeases, state, wanIface }) {
     this.ros = ros;
     this.io = io;
     this.pollMs = pollMs;
     this.dhcpLeases = dhcpLeases;
     this.state = state;
+    this.wanIface = wanIface || process.env.DEFAULT_IF || 'WAN1';
     this.lanCidrs = [];
     this.networks = [];
     this.timer = null;
@@ -24,13 +25,12 @@ class DhcpNetworksCollector {
       this.ros.write('/ip/dhcp-server/network/print'),
       this.ros.write('/ip/address/print'),
     ]);
-    const netRows  = nets.status  === 'fulfilled' ? (nets.value  || []) : [];
+    const netRows = nets.status === 'fulfilled' ? (nets.value || []) : [];
     const addrRows = addrs.status === 'fulfilled' ? (addrs.value || []) : [];
 
-    const wanIface = process.env.DEFAULT_IF || 'WAN1';
     let wanIp = '';
     for (const a of addrRows) {
-      if (a.interface === wanIface && a.address) { wanIp = a.address; break; }
+      if (a.interface === this.wanIface && a.address) { wanIp = a.address; break; }
     }
 
     const leaseIps = this.dhcpLeases ? this.dhcpLeases.getActiveLeaseIPs() : [];

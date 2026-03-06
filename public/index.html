@@ -1,918 +1,2984 @@
 <!doctype html>
 <html lang="en" data-bs-theme="dark">
+
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MikroDash</title>
-  <link rel="stylesheet" href="https://unpkg.com/@tabler/core@latest/dist/css/tabler.min.css"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
-  <link rel="icon" type="image/png" href="/logo.png"/>
+  <link rel="stylesheet" href="https://unpkg.com/@tabler/core@latest/dist/css/tabler.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap"
+    rel="stylesheet" />
+  <link rel="icon" type="image/png" href="/logo.png" />
   <style>
-    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
-    html[data-theme="light"]{--bg-deep:#f0f2f7;--bg-card:rgba(255,255,255,.92);--border:rgba(100,120,160,.18);--text-muted:rgba(80,100,140,.55);--text-main:#1a2030;--nav-bg:rgba(240,242,247,.95);--topbar-bg:rgba(240,242,247,.85)}
-    *,*::before,*::after{box-sizing:border-box}
-    html,body{height:100%;margin:0}
-    body{background:var(--bg-deep);background-image:radial-gradient(ellipse 900px 600px at 10% 0%,rgba(56,189,248,.05) 0%,transparent 70%),radial-gradient(ellipse 600px 400px at 90% 80%,rgba(52,211,153,.04) 0%,transparent 70%);font-family:var(--font-ui);display:flex;min-height:100vh;color:var(--text-main)}
+    :root {
+      --bg-deep: #07090f;
+      --bg-card: rgba(13, 18, 30, .85);
+      --border: rgba(99, 130, 190, .13);
+      --accent-rx: #38bdf8;
+      --accent-tx: #34d399;
+      --accent-warn: #f59f00;
+      --accent-err: #f87171;
+      --accent-ok: #4ade80;
+      --text-muted: rgba(148, 163, 190, .55);
+      --text-main: rgba(200, 215, 240, .9);
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      --font-ui: 'Syne', sans-serif;
+      --nav-w: 52px;
+      --nav-w-open: 190px;
+      --nav-bg: rgba(5, 8, 16, .92);
+      --topbar-bg: rgba(5, 8, 16, .70)
+    }
+
+    html[data-theme="light"] {
+      --bg-deep: #f0f2f7;
+      --bg-card: rgba(255, 255, 255, .92);
+      --border: rgba(100, 120, 160, .18);
+      --text-muted: rgba(80, 100, 140, .55);
+      --text-main: #1a2030;
+      --nav-bg: rgba(240, 242, 247, .95);
+      --topbar-bg: rgba(240, 242, 247, .85)
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0
+    }
+
+    body {
+      background: var(--bg-deep);
+      background-image: radial-gradient(ellipse 900px 600px at 10% 0%, rgba(56, 189, 248, .05) 0%, transparent 70%), radial-gradient(ellipse 600px 400px at 90% 80%, rgba(52, 211, 153, .04) 0%, transparent 70%);
+      font-family: var(--font-ui);
+      display: flex;
+      min-height: 100vh;
+      color: var(--text-main)
+    }
+
     /* sidenav */
-    #sidenav{position:fixed;left:0;top:0;bottom:0;z-index:200;width:var(--nav-w);background:var(--nav-bg);border-right:1px solid var(--border);backdrop-filter:blur(12px);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1)}
-    #sidenav:hover{width:var(--nav-w-open)}
-    .nav-logo{height:52px;display:flex;align-items:center;justify-content:center;padding:0;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
-    .nav-logo img{width:36px;height:36px;object-fit:contain;flex-shrink:0;transition:width .22s cubic-bezier(.4,0,.2,1),height .22s cubic-bezier(.4,0,.2,1);border-radius:4px}
-    #sidenav:hover .nav-logo{justify-content:flex-start;padding:0 10px;}
-    #sidenav:hover .nav-logo img{width:32px;height:32px;}
-    .nav-items{flex:1;padding:8px 0;overflow:hidden}
-    .nav-item{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;cursor:pointer;color:var(--text-muted);text-decoration:none;transition:color .15s,background .15s;white-space:nowrap;overflow:hidden}
-    .nav-item:hover{color:var(--text-main);background:rgba(99,130,190,.07)}
-    .nav-item.active{color:var(--accent-rx);background:rgba(56,189,248,.08);border-right:2px solid var(--accent-rx)}
-    .nav-icon{width:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-    .nav-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
-    .nav-label{font-family:var(--font-mono);font-size:.73rem;font-weight:600;letter-spacing:.04em;opacity:0;transition:opacity .15s .08s}
-    #sidenav:hover .nav-label{opacity:1}
-    #sidenav.mobile-open .nav-label{opacity:1}
-    #sidenav.mobile-open .nav-badge{opacity:1}
-    .nav-badge{font-family:var(--font-mono);font-size:.6rem;font-weight:600;background:rgba(56,189,248,.15);color:var(--accent-rx);border-radius:8px;padding:1px 5px;margin-left:auto;opacity:0;transition:opacity .15s .08s;white-space:nowrap}
-    #sidenav:hover .nav-badge{opacity:1}
+    #sidenav {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      z-index: 200;
+      width: var(--nav-w);
+      background: var(--nav-bg);
+      border-right: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: width .22s cubic-bezier(.4, 0, .2, 1)
+    }
+
+    #sidenav:hover {
+      width: var(--nav-w-open)
+    }
+
+    .nav-logo {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      overflow: hidden
+    }
+
+    .nav-logo img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      flex-shrink: 0;
+      transition: width .22s cubic-bezier(.4, 0, .2, 1), height .22s cubic-bezier(.4, 0, .2, 1);
+      border-radius: 4px
+    }
+
+    #sidenav:hover .nav-logo {
+      justify-content: flex-start;
+      padding: 0 10px;
+    }
+
+    #sidenav:hover .nav-logo img {
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav-items {
+      flex: 1;
+      padding: 8px 0;
+      overflow: hidden
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 44px;
+      padding: 0 14px;
+      cursor: pointer;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color .15s, background .15s;
+      white-space: nowrap;
+      overflow: hidden
+    }
+
+    .nav-item:hover {
+      color: var(--text-main);
+      background: rgba(99, 130, 190, .07)
+    }
+
+    .nav-item.active {
+      color: var(--accent-rx);
+      background: rgba(56, 189, 248, .08);
+      border-right: 2px solid var(--accent-rx)
+    }
+
+    .nav-icon {
+      width: 24px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .nav-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round
+    }
+
+    .nav-label {
+      font-family: var(--font-mono);
+      font-size: .73rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      opacity: 0;
+      transition: opacity .15s .08s
+    }
+
+    #sidenav:hover .nav-label {
+      opacity: 1
+    }
+
+    #sidenav.mobile-open .nav-label {
+      opacity: 1
+    }
+
+    #sidenav.mobile-open .nav-badge {
+      opacity: 1
+    }
+
+    .nav-badge {
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      font-weight: 600;
+      background: rgba(56, 189, 248, .15);
+      color: var(--accent-rx);
+      border-radius: 8px;
+      padding: 1px 5px;
+      margin-left: auto;
+      opacity: 0;
+      transition: opacity .15s .08s;
+      white-space: nowrap
+    }
+
+    #sidenav:hover .nav-badge {
+      opacity: 1
+    }
+
     /* main */
-    #main{margin-left:var(--nav-w);flex:1;min-width:0;display:flex;flex-direction:column}
+    #main {
+      margin-left: var(--nav-w);
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column
+    }
+
     /* topbar */
-    #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);backdrop-filter:blur(10px);flex-shrink:0;position:sticky;top:0;z-index:100}
-    #topbarLogo{font-family:var(--font-ui);font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap}
-    #topbarLogo span{color:var(--accent-rx)}
-    .topbar-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
-    #pageTitle{font-family:var(--font-ui);font-weight:600;font-size:.85rem;color:var(--text-muted);letter-spacing:.01em}
-    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:.65rem}
-    #uptimeChip{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:5px;padding:2px 8px;white-space:nowrap;display:none}
-    #routerTag{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted)}
-    #themeToggle{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:rgba(99,130,190,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:color .15s,background .15s;flex-shrink:0}
-    #themeToggle:hover{color:var(--accent-rx);background:rgba(56,189,248,.1)}
-    #themeToggle svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    #topbar {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      padding: 0 1.25rem;
+      gap: 1rem;
+      background: var(--topbar-bg);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 100
+    }
+
+    #topbarLogo {
+      font-family: var(--font-ui);
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: -.02em;
+      color: var(--text-main);
+      white-space: nowrap
+    }
+
+    #topbarLogo span {
+      color: var(--accent-rx)
+    }
+
+    .topbar-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+      flex-shrink: 0
+    }
+
+    #pageTitle {
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: .85rem;
+      color: var(--text-muted);
+      letter-spacing: .01em
+    }
+
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: .65rem
+    }
+
+    #deviceSelect {
+      min-width: 130px;
+      max-width: 220px;
+      height: 28px;
+      font-family: var(--font-mono);
+      font-size: .66rem;
+      background: rgba(99, 130, 190, .08);
+      border: 1px solid var(--border);
+      color: var(--text-main)
+    }
+
+    #uptimeChip {
+      font-family: var(--font-mono);
+      font-size: .67rem;
+      color: var(--text-muted);
+      background: rgba(99, 130, 190, .08);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 8px;
+      white-space: nowrap;
+      display: none
+    }
+
+    #routerTag {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--text-muted)
+    }
+
+    #themeToggle {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: rgba(99, 130, 190, .08);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: color .15s, background .15s;
+      flex-shrink: 0
+    }
+
+    #themeToggle:hover {
+      color: var(--accent-rx);
+      background: rgba(56, 189, 248, .1)
+    }
+
+    #themeToggle svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round
+    }
+
     /* kbd hint */
-    #kbdHint{position:fixed;bottom:.85rem;right:.85rem;z-index:400;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;font-family:var(--font-mono);font-size:.66rem;color:var(--text-muted);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .25s}
-    #kbdHint.show{opacity:1}
-    kbd{background:rgba(99,130,190,.12);border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:.65rem;font-family:var(--font-mono)}
+    #kbdHint {
+      position: fixed;
+      bottom: .85rem;
+      right: .85rem;
+      z-index: 400;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .55rem .8rem;
+      font-family: var(--font-mono);
+      font-size: .66rem;
+      color: var(--text-muted);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s
+    }
+
+    #kbdHint.show {
+      opacity: 1
+    }
+
+    kbd {
+      background: rgba(99, 130, 190, .12);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0 4px;
+      font-size: .65rem;
+      font-family: var(--font-mono)
+    }
+
     /* reconnect */
-    #reconnectBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(248,113,113,.12);border-bottom:1px solid rgba(248,113,113,.35);backdrop-filter:blur(8px);text-align:center;padding:.4rem;font-family:var(--font-mono);font-size:.72rem;color:#fca5a5;animation:pulse-banner 2s ease infinite}
-    #reconnectBanner.show{display:block}
-    @keyframes pulse-banner{0%,100%{opacity:1}50%{opacity:.5}}
+    #reconnectBanner {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      background: rgba(248, 113, 113, .12);
+      border-bottom: 1px solid rgba(248, 113, 113, .35);
+      backdrop-filter: blur(8px);
+      text-align: center;
+      padding: .4rem;
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      color: #fca5a5;
+      animation: pulse-banner 2s ease infinite
+    }
+
+    #reconnectBanner.show {
+      display: block
+    }
+
+    @keyframes pulse-banner {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .5
+      }
+    }
+
     /* pages */
-    .page-view{display:none;flex:1;padding:1.25rem;overflow-y:auto}
-    .page-view.active{display:block}
+    .page-view {
+      display: none;
+      flex: 1;
+      padding: 1.25rem;
+      overflow-y: auto
+    }
+
+    .page-view.active {
+      display: block
+    }
+
     /* cards */
-    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.25);backdrop-filter:blur(6px);position:relative}
-    .card-header{border-bottom:1px solid var(--border);padding:.65rem 1rem}
-    .card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin:0}
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, .25);
+      backdrop-filter: blur(6px);
+      position: relative
+    }
+
+    .card-header {
+      border-bottom: 1px solid var(--border);
+      padding: .65rem 1rem
+    }
+
+    .card-title {
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: .82rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin: 0
+    }
+
     /* stale */
-    .stale-overlay{position:absolute;inset:0;border-radius:10px;background:rgba(7,9,15,.55);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted);z-index:10;opacity:0;pointer-events:none;transition:opacity .3s}
-    .card.is-stale .stale-overlay{opacity:1;pointer-events:auto}
+    .stale-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      background: rgba(7, 9, 15, .55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      color: var(--text-muted);
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s
+    }
+
+    .card.is-stale .stale-overlay {
+      opacity: 1;
+      pointer-events: auto
+    }
+
     /* traffic */
-    .chart-wrap{position:relative;height:200px;width:100%}
-    .chart-legend{display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
-    .legend-item{display:flex;align-items:center;gap:.4rem;font-family:var(--font-mono);font-size:.75rem}
-    .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-    .legend-rate{font-weight:600;font-size:.88rem}
-    #liveRx{color:var(--accent-rx)} #liveTx{color:var(--accent-tx)}
+    .chart-wrap {
+      position: relative;
+      height: 200px;
+      width: 100%
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-family: var(--font-mono);
+      font-size: .75rem
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0
+    }
+
+    .legend-rate {
+      font-weight: 600;
+      font-size: .88rem
+    }
+
+    #liveRx {
+      color: var(--accent-rx)
+    }
+
+    #liveTx {
+      color: var(--accent-tx)
+    }
+
     /* wan */
-    .wan-badge{font-family:var(--font-mono);font-size:.72rem;padding:.2em .6em;border-radius:4px;display:inline-flex;align-items:center;gap:.35rem}
-    .wan-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
-    .wan-up{background:rgba(74,222,128,.1);color:var(--accent-ok);border:1px solid rgba(74,222,128,.2)}
-    .wan-down{background:rgba(248,113,113,.1);color:var(--accent-err);border:1px solid rgba(248,113,113,.2)}
-    .wan-disabled{background:rgba(148,163,190,.08);color:var(--text-muted);border:1px solid var(--border)}
+    .wan-badge {
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      padding: .2em .6em;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem
+    }
+
+    .wan-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor
+    }
+
+    .wan-up {
+      background: rgba(74, 222, 128, .1);
+      color: var(--accent-ok);
+      border: 1px solid rgba(74, 222, 128, .2)
+    }
+
+    .wan-down {
+      background: rgba(248, 113, 113, .1);
+      color: var(--accent-err);
+      border: 1px solid rgba(248, 113, 113, .2)
+    }
+
+    .wan-disabled {
+      background: rgba(148, 163, 190, .08);
+      color: var(--text-muted);
+      border: 1px solid var(--border)
+    }
+
     /* gauges */
-    .gauge-row{display:flex;flex-direction:column;gap:.45rem}
-    .gauge-item{display:grid;grid-template-columns:60px 1fr 40px;align-items:center;gap:.5rem}
-    .gauge-label{font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)}
-    .gauge-track{height:5px;background:rgba(99,130,190,.15);border-radius:3px;overflow:hidden}
-    .gauge-fill{height:100%;border-radius:3px;transition:width .5s ease}
-    .gauge-fill.cpu{background:linear-gradient(90deg,var(--accent-rx),#818cf8)}
-    .gauge-fill.mem{background:linear-gradient(90deg,var(--accent-tx),#34d399)}
-    .gauge-fill.hdd{background:linear-gradient(90deg,#fb923c,#f59f00)}
-    .gauge-fill.warn{background:linear-gradient(90deg,var(--accent-warn),#fb923c)}
-    .gauge-fill.crit{background:linear-gradient(90deg,var(--accent-err),#ef4444)}
-    .gauge-val-warn{color:#fb923c !important;font-weight:700}
-    .gauge-val-crit{color:#f87171 !important;font-weight:700}
-    .gauge-val{font-family:var(--font-mono);font-size:.7rem;text-align:right;color:var(--text-muted)}
-    .sys-meta{display:flex;flex-wrap:wrap;gap:.35rem .7rem;margin-top:.65rem}
-    .sys-meta-item{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted)}
-    .sys-meta-item strong{color:var(--text-main)}
-    #uptimeDisplay{font-family:var(--font-mono);font-size:1rem;font-weight:600;color:var(--text-main);letter-spacing:.04em}
+    .gauge-row {
+      display: flex;
+      flex-direction: column;
+      gap: .45rem
+    }
+
+    .gauge-item {
+      display: grid;
+      grid-template-columns: 60px 1fr 40px;
+      align-items: center;
+      gap: .5rem
+    }
+
+    .gauge-label {
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      color: var(--text-muted)
+    }
+
+    .gauge-track {
+      height: 5px;
+      background: rgba(99, 130, 190, .15);
+      border-radius: 3px;
+      overflow: hidden
+    }
+
+    .gauge-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .5s ease
+    }
+
+    .gauge-fill.cpu {
+      background: linear-gradient(90deg, var(--accent-rx), #818cf8)
+    }
+
+    .gauge-fill.mem {
+      background: linear-gradient(90deg, var(--accent-tx), #34d399)
+    }
+
+    .gauge-fill.hdd {
+      background: linear-gradient(90deg, #fb923c, #f59f00)
+    }
+
+    .gauge-fill.warn {
+      background: linear-gradient(90deg, var(--accent-warn), #fb923c)
+    }
+
+    .gauge-fill.crit {
+      background: linear-gradient(90deg, var(--accent-err), #ef4444)
+    }
+
+    .gauge-val-warn {
+      color: #fb923c !important;
+      font-weight: 700
+    }
+
+    .gauge-val-crit {
+      color: #f87171 !important;
+      font-weight: 700
+    }
+
+    .gauge-val {
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      text-align: right;
+      color: var(--text-muted)
+    }
+
+    .sys-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .35rem .7rem;
+      margin-top: .65rem
+    }
+
+    .sys-meta-item {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--text-muted)
+    }
+
+    .sys-meta-item strong {
+      color: var(--text-main)
+    }
+
+    #uptimeDisplay {
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      letter-spacing: .04em
+    }
+
     /* lan */
-    .lan-divider{border-top:1px solid var(--border);margin:.8rem -.75rem 0;padding:.7rem .75rem 0}
-    .lan-section-label{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(99,130,190,.5);margin-bottom:.45rem}
-    .lan-net{padding:.18rem 0;border-bottom:1px solid var(--border)}
-    .lan-net:last-child{border-bottom:none}
-    .lan-cidr{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--text-main)}
-    .lan-meta{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);margin-top:.1rem}
+    .lan-divider {
+      border-top: 1px solid var(--border);
+      margin: .8rem -.75rem 0;
+      padding: .7rem .75rem 0
+    }
+
+    .lan-section-label {
+      font-family: var(--font-ui);
+      font-weight: 600;
+      font-size: .68rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: rgba(99, 130, 190, .5);
+      margin-bottom: .45rem
+    }
+
+    .lan-net {
+      padding: .18rem 0;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .lan-net:last-child {
+      border-bottom: none
+    }
+
+    .lan-cidr {
+      font-family: var(--font-mono);
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-main)
+    }
+
+    .lan-meta {
+      font-family: var(--font-mono);
+      font-size: .67rem;
+      color: var(--text-muted);
+      margin-top: .1rem
+    }
+
     /* connections */
-    .conn-stats{display:flex;gap:1.2rem;align-items:flex-end}
-    .conn-stat-val{font-family:var(--font-mono);font-size:1.3rem;font-weight:600;color:var(--text-main)}
-    .conn-stat-lbl{font-size:.67rem;font-family:var(--font-mono);color:var(--text-muted)}
+    .conn-stats {
+      display: flex;
+      gap: 1.2rem;
+      align-items: flex-end
+    }
+
+    .conn-stat-val {
+      font-family: var(--font-mono);
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-main)
+    }
+
+    .conn-stat-lbl {
+      font-size: .67rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted)
+    }
+
     /* proto bars */
-    .proto-bar-row{display:flex;align-items:center;gap:.45rem;margin:.2rem 0;font-family:var(--font-mono);font-size:.68rem}
-    .proto-label{width:36px;color:var(--text-muted);text-align:right}
-    .proto-track{flex:1;height:4px;background:rgba(99,130,190,.12);border-radius:2px;overflow:hidden}
-    .proto-fill{height:100%;border-radius:2px;transition:width .4s ease}
-    .proto-fill.tcp{background:#f472b6}
-    .proto-fill.udp{background:#fb923c}
-    .proto-fill.icmp{background:#a78bfa}
-    .proto-fill.other{background:rgba(148,163,190,.3)}
-    .proto-val{width:36px;color:var(--text-muted)}
+    .proto-bar-row {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      margin: .2rem 0;
+      font-family: var(--font-mono);
+      font-size: .68rem
+    }
+
+    .proto-label {
+      width: 36px;
+      color: var(--text-muted);
+      text-align: right
+    }
+
+    .proto-track {
+      flex: 1;
+      height: 4px;
+      background: rgba(99, 130, 190, .12);
+      border-radius: 2px;
+      overflow: hidden
+    }
+
+    .proto-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .4s ease
+    }
+
+    .proto-fill.tcp {
+      background: #f472b6
+    }
+
+    .proto-fill.udp {
+      background: #fb923c
+    }
+
+    .proto-fill.icmp {
+      background: #a78bfa
+    }
+
+    .proto-fill.other {
+      background: rgba(148, 163, 190, .3)
+    }
+
+    .proto-val {
+      width: 36px;
+      color: var(--text-muted)
+    }
+
     /* iface grid */
-    .iface-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.45rem}
-    .iface-tile{padding:.5rem .6rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s,background .2s}
-    .iface-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
-    .iface-tile.down{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.03);opacity:.6}
-    .iface-tile.disabled{opacity:.35}
-    .iface-name{font-weight:600;font-size:.77rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.1rem}
-    .iface-type{font-size:.62rem;color:var(--text-muted)}
-    .iface-ip{font-size:.65rem;color:var(--accent-rx);margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .iface-rate{font-size:.63rem;color:var(--text-muted);margin-top:.12rem}
-    .iface-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle}
-    .iface-dot.up{background:var(--accent-ok)} .iface-dot.down{background:var(--accent-err)} .iface-dot.dis{background:var(--text-muted)}
+    .iface-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+      gap: .45rem
+    }
+
+    .iface-tile {
+      padding: .5rem .6rem;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: rgba(99, 130, 190, .04);
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      transition: border-color .2s, background .2s
+    }
+
+    .iface-tile.up {
+      border-color: rgba(74, 222, 128, .22);
+      background: rgba(74, 222, 128, .04)
+    }
+
+    .iface-tile.down {
+      border-color: rgba(248, 113, 113, .2);
+      background: rgba(248, 113, 113, .03);
+      opacity: .6
+    }
+
+    .iface-tile.disabled {
+      opacity: .35
+    }
+
+    .iface-name {
+      font-weight: 600;
+      font-size: .77rem;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: .1rem
+    }
+
+    .iface-type {
+      font-size: .62rem;
+      color: var(--text-muted)
+    }
+
+    .iface-ip {
+      font-size: .65rem;
+      color: var(--accent-rx);
+      margin-top: .2rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .iface-rate {
+      font-size: .63rem;
+      color: var(--text-muted);
+      margin-top: .12rem
+    }
+
+    .iface-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 3px;
+      vertical-align: middle
+    }
+
+    .iface-dot.up {
+      background: var(--accent-ok)
+    }
+
+    .iface-dot.down {
+      background: var(--accent-err)
+    }
+
+    .iface-dot.dis {
+      background: var(--text-muted)
+    }
+
     /* tables */
-    .table{font-family:var(--font-mono);font-size:.76rem}
-    .table th{color:var(--text-muted);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;border-color:var(--border) !important;font-weight:400;padding:.45rem .75rem}
-    .table td{border-color:var(--border) !important;vertical-align:middle;padding:.45rem .75rem;color:var(--text-main)}
-    .table tbody tr:hover td{background:rgba(99,130,190,.05)}
+    .table {
+      font-family: var(--font-mono);
+      font-size: .76rem
+    }
+
+    .table th {
+      color: var(--text-muted);
+      font-size: .66rem;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      border-color: var(--border) !important;
+      font-weight: 400;
+      padding: .45rem .75rem
+    }
+
+    .table td {
+      border-color: var(--border) !important;
+      vertical-align: middle;
+      padding: .45rem .75rem;
+      color: var(--text-main)
+    }
+
+    .table tbody tr:hover td {
+      background: rgba(99, 130, 190, .05)
+    }
+
     /* signal bars */
-    .signal-bars{display:inline-flex;align-items:flex-end;gap:2px;height:13px}
-    .signal-bars span{width:3px;border-radius:1px;background:rgba(99,130,190,.2)}
-    .signal-bars span.lit{background:var(--accent-rx)}
-    .signal-bars span:nth-child(1){height:4px} .signal-bars span:nth-child(2){height:7px}
-    .signal-bars span:nth-child(3){height:10px} .signal-bars span:nth-child(4){height:13px}
+    .signal-bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 13px
+    }
+
+    .signal-bars span {
+      width: 3px;
+      border-radius: 1px;
+      background: rgba(99, 130, 190, .2)
+    }
+
+    .signal-bars span.lit {
+      background: var(--accent-rx)
+    }
+
+    .signal-bars span:nth-child(1) {
+      height: 4px
+    }
+
+    .signal-bars span:nth-child(2) {
+      height: 7px
+    }
+
+    .signal-bars span:nth-child(3) {
+      height: 10px
+    }
+
+    .signal-bars span:nth-child(4) {
+      height: 13px
+    }
+
     /* fw tabs */
-    .fw-tabs{display:flex;gap:.2rem;border-bottom:1px solid var(--border);padding:.5rem .75rem 0}
-    .fw-tab{font-family:var(--font-mono);font-size:.7rem;padding:.3rem .65rem;border-radius:5px 5px 0 0;cursor:pointer;color:var(--text-muted);border:1px solid transparent;border-bottom:none;transition:all .15s}
-    .fw-tab.active{background:rgba(56,189,248,.09);border-color:rgba(56,189,248,.18);color:var(--accent-rx)}
-    .fw-tab:hover:not(.active){background:rgba(99,130,190,.07)}
+    .fw-tabs {
+      display: flex;
+      gap: .2rem;
+      border-bottom: 1px solid var(--border);
+      padding: .5rem .75rem 0
+    }
+
+    .fw-tab {
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      padding: .3rem .65rem;
+      border-radius: 5px 5px 0 0;
+      cursor: pointer;
+      color: var(--text-muted);
+      border: 1px solid transparent;
+      border-bottom: none;
+      transition: all .15s
+    }
+
+    .fw-tab.active {
+      background: rgba(56, 189, 248, .09);
+      border-color: rgba(56, 189, 248, .18);
+      color: var(--accent-rx)
+    }
+
+    .fw-tab:hover:not(.active) {
+      background: rgba(99, 130, 190, .07)
+    }
+
     /* scroll */
-    .data-scroll{scrollbar-width:thin;scrollbar-color:rgba(99,130,190,.2) transparent}
-    .data-scroll::-webkit-scrollbar{width:4px}
-    .data-scroll::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
+    .data-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(99, 130, 190, .2) transparent
+    }
+
+    .data-scroll::-webkit-scrollbar {
+      width: 4px
+    }
+
+    .data-scroll::-webkit-scrollbar-thumb {
+      background: rgba(99, 130, 190, .2);
+      border-radius: 2px
+    }
+
     /* dhcp */
-    .lease-pill{display:inline-block;font-family:var(--font-mono);font-size:.63rem;padding:1px 6px;border-radius:4px;font-weight:600}
-    .lease-pill.bound{background:rgba(74,222,128,.1);color:var(--accent-ok);border:1px solid rgba(74,222,128,.2)}
-    .lease-pill.waiting{background:rgba(245,159,0,.1);color:var(--accent-warn);border:1px solid rgba(245,159,0,.25)}
-    .lease-pill.expired{background:rgba(148,163,190,.08);color:var(--text-muted);border:1px solid var(--border)}
-    .lease-online{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle}
-    .lease-online.yes{background:var(--accent-ok)} .lease-online.no{background:rgba(148,163,190,.3)}
+    .lease-pill {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: .63rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600
+    }
+
+    .lease-pill.bound {
+      background: rgba(74, 222, 128, .1);
+      color: var(--accent-ok);
+      border: 1px solid rgba(74, 222, 128, .2)
+    }
+
+    .lease-pill.waiting {
+      background: rgba(245, 159, 0, .1);
+      color: var(--accent-warn);
+      border: 1px solid rgba(245, 159, 0, .25)
+    }
+
+    .lease-pill.expired {
+      background: rgba(148, 163, 190, .08);
+      color: var(--text-muted);
+      border: 1px solid var(--border)
+    }
+
+    .lease-online {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle
+    }
+
+    .lease-online.yes {
+      background: var(--accent-ok)
+    }
+
+    .lease-online.no {
+      background: rgba(148, 163, 190, .3)
+    }
+
     /* logs */
-    #logs{background:rgba(2,5,14,.85);font-family:var(--font-mono);font-size:11.5px;height:calc(100vh - 160px);overflow-y:auto;white-space:pre-wrap;word-break:break-all;color:#d5d7de;padding:10px 12px;border-radius:6px;line-height:1.6}
-    html[data-theme="light"] #logs{background:rgba(230,235,245,.9);color:#1a2030}
-    #logs::-webkit-scrollbar{width:4px} #logs::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
-    .log-error{color:#fca5a5} .log-warning{color:#fcd34d} .log-debug{color:rgba(148,163,190,.45)} .log-info{color:#d5d7de}
-    .log-dhcp{color:#93c5fd} .log-wireless{color:#a5b4fc} .log-firewall{color:#fb923c} .log-system{color:#6ee7b7}
-    .log-topic{color:rgba(148,163,190,.6)} .log-time{color:rgba(148,163,190,.4)}
+    #logs {
+      background: rgba(2, 5, 14, .85);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      height: calc(100vh - 160px);
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #d5d7de;
+      padding: 10px 12px;
+      border-radius: 6px;
+      line-height: 1.6
+    }
+
+    html[data-theme="light"] #logs {
+      background: rgba(230, 235, 245, .9);
+      color: #1a2030
+    }
+
+    #logs::-webkit-scrollbar {
+      width: 4px
+    }
+
+    #logs::-webkit-scrollbar-thumb {
+      background: rgba(99, 130, 190, .2);
+      border-radius: 2px
+    }
+
+    .log-error {
+      color: #fca5a5
+    }
+
+    .log-warning {
+      color: #fcd34d
+    }
+
+    .log-debug {
+      color: rgba(148, 163, 190, .45)
+    }
+
+    .log-info {
+      color: #d5d7de
+    }
+
+    .log-dhcp {
+      color: #93c5fd
+    }
+
+    .log-wireless {
+      color: #a5b4fc
+    }
+
+    .log-firewall {
+      color: #fb923c
+    }
+
+    .log-system {
+      color: #6ee7b7
+    }
+
+    .log-topic {
+      color: rgba(148, 163, 190, .6)
+    }
+
+    .log-time {
+      color: rgba(148, 163, 190, .4)
+    }
+
     /* update */
-    .ros-update-row{display:flex;align-items:center;gap:.5rem;margin-top:.7rem;padding:.45rem .6rem;border-radius:6px;font-family:var(--font-mono);font-size:.72rem}
-    .ros-update-row.ok{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.18);color:var(--accent-ok)}
-    .ros-update-row.warn{background:rgba(245,159,0,.10);border:1px solid rgba(245,159,0,.3);color:var(--accent-warn)}
-    .ros-update-row.pending{background:rgba(99,130,190,.06);border:1px solid var(--border);color:var(--text-muted)}
-    .ros-update-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+    .ros-update-row {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: .7rem;
+      padding: .45rem .6rem;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: .72rem
+    }
+
+    .ros-update-row.ok {
+      background: rgba(74, 222, 128, .07);
+      border: 1px solid rgba(74, 222, 128, .18);
+      color: var(--accent-ok)
+    }
+
+    .ros-update-row.warn {
+      background: rgba(245, 159, 0, .10);
+      border: 1px solid rgba(245, 159, 0, .3);
+      color: var(--accent-warn)
+    }
+
+    .ros-update-row.pending {
+      background: rgba(99, 130, 190, .06);
+      border: 1px solid var(--border);
+      color: var(--text-muted)
+    }
+
+    .ros-update-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0
+    }
+
     /* wg pill */
-    .wg-up{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--accent-ok);background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:4px;padding:1px 6px}
-    .wg-idle{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--text-muted);background:rgba(99,130,190,.07);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
-    .wg-up::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent-ok);flex-shrink:0}
+    .wg-up {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      font-weight: 600;
+      color: var(--accent-ok);
+      background: rgba(74, 222, 128, .08);
+      border: 1px solid rgba(74, 222, 128, .2);
+      border-radius: 4px;
+      padding: 1px 6px
+    }
+
+    .wg-idle {
+      display: inline-flex;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: rgba(99, 130, 190, .07);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px
+    }
+
+    .wg-up::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-ok);
+      flex-shrink: 0
+    }
+
     /* misc */
-    .top-row{display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border)}
-    .top-row:last-child{border-bottom:none}
-    .top-name{font-size:.78rem;font-weight:600;color:var(--text-main)}
-    .top-sub{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted)}
-    .top-count{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--accent-rx)}
-    .top-geo{font-family:var(--font-mono);font-size:.62rem;color:#c084fc;background:rgba(192,132,252,.08);border:1px solid rgba(192,132,252,.2);border-radius:4px;padding:1px 6px;white-space:nowrap;flex-shrink:0;margin-right:.9rem}
-    .section-sep{font-family:var(--font-ui);font-weight:800;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(99,130,190,.4);padding:.45rem 0 .2rem}
-    .empty-state{font-family:var(--font-mono);font-size:.74rem;color:var(--text-muted);padding:.9rem 0;text-align:center}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
-    .row-deck>*{animation:fadeIn .3s ease both}
-    .row-deck>*:nth-child(1){animation-delay:.04s} .row-deck>*:nth-child(2){animation-delay:.09s}
-    .row-deck>*:nth-child(3){animation-delay:.14s} .row-deck>*:nth-child(4){animation-delay:.19s}
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: .38rem 0;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .top-row:last-child {
+      border-bottom: none
+    }
+
+    .top-name {
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--text-main)
+    }
+
+    .top-sub {
+      font-family: var(--font-mono);
+      font-size: .67rem;
+      color: var(--text-muted)
+    }
+
+    .top-count {
+      font-family: var(--font-mono);
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--accent-rx)
+    }
+
+    .top-geo {
+      font-family: var(--font-mono);
+      font-size: .62rem;
+      color: #c084fc;
+      background: rgba(192, 132, 252, .08);
+      border: 1px solid rgba(192, 132, 252, .2);
+      border-radius: 4px;
+      padding: 1px 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-right: .9rem
+    }
+
+    .section-sep {
+      font-family: var(--font-ui);
+      font-weight: 800;
+      font-size: .66rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: rgba(99, 130, 190, .4);
+      padding: .45rem 0 .2rem
+    }
+
+    .empty-state {
+      font-family: var(--font-mono);
+      font-size: .74rem;
+      color: var(--text-muted);
+      padding: .9rem 0;
+      text-align: center
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .row-deck>* {
+      animation: fadeIn .3s ease both
+    }
+
+    .row-deck>*:nth-child(1) {
+      animation-delay: .04s
+    }
+
+    .row-deck>*:nth-child(2) {
+      animation-delay: .09s
+    }
+
+    .row-deck>*:nth-child(3) {
+      animation-delay: .14s
+    }
+
+    .row-deck>*:nth-child(4) {
+      animation-delay: .19s
+    }
+
     /* ── Mobile burger menu ───────────────────────────────────────────── */
-    #burgerBtn{display:none;position:fixed;top:11px;left:11px;z-index:300;width:32px;height:32px;border-radius:7px;border:1px solid var(--border);background:var(--nav-bg);backdrop-filter:blur(8px);cursor:pointer;align-items:center;justify-content:center;color:var(--text-muted)}
-    #burgerBtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
-    #navOverlay{display:none;position:fixed;inset:0;z-index:190;background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
-    @media(max-width:767px){
-      #burgerBtn{display:flex}
-      #sidenav{transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1),width .22s;width:var(--nav-w-open) !important}
-      #sidenav.mobile-open{transform:translateX(0)}
-      #sidenav.mobile-open~#navOverlay,#navOverlay.show{display:block}
-      #main{margin-left:0 !important}
-      #topbar{padding-left:52px}
-      .topbar-right{gap:.45rem}
-      #uptimeChip{display:none !important}
-      .iface-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+    #burgerBtn {
+      display: none;
+      position: fixed;
+      top: 11px;
+      left: 11px;
+      z-index: 300;
+      width: 32px;
+      height: 32px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--nav-bg);
+      backdrop-filter: blur(8px);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted)
     }
-    #systemCard{align-self:flex-start;width:100%}
+
+    #burgerBtn svg {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round
+    }
+
+    #navOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 190;
+      background: rgba(0, 0, 0, .45);
+      backdrop-filter: blur(2px)
+    }
+
+    @media(max-width:767px) {
+      #burgerBtn {
+        display: flex
+      }
+
+      #sidenav {
+        transform: translateX(-100%);
+        transition: transform .25s cubic-bezier(.4, 0, .2, 1), width .22s;
+        width: var(--nav-w-open) !important
+      }
+
+      #sidenav.mobile-open {
+        transform: translateX(0)
+      }
+
+      #sidenav.mobile-open~#navOverlay,
+      #navOverlay.show {
+        display: block
+      }
+
+      #main {
+        margin-left: 0 !important
+      }
+
+      #topbar {
+        padding-left: 52px
+      }
+
+      .topbar-right {
+        gap: .45rem
+      }
+
+      #deviceSelect {
+        min-width: 96px;
+        max-width: 130px
+      }
+
+      #uptimeChip {
+        display: none !important
+      }
+
+      .iface-grid {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr))
+      }
+    }
+
+    #systemCard {
+      align-self: flex-start;
+      width: 100%
+    }
+
     /* Dashboard grid */
-    .mikrodash-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr auto;gap:.75rem;margin-bottom:1rem}
+    .mikrodash-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: 1fr auto;
+      gap: .75rem;
+      margin-bottom: 1rem
+    }
+
     /* Stacked columns span row 1, stack cards with gap */
-    .mikrodash-col{grid-row:1;display:flex;flex-direction:column;gap:.75rem}
-    .mikrodash-col>[data-card-id]{display:flex;flex-direction:column;flex:1}
-    .mikrodash-col>[data-card-id]>.card{flex:1;display:flex;flex-direction:column}
-    .mikrodash-col>[data-card-id]>.card>.card-body{flex:1}
+    .mikrodash-col {
+      grid-row: 1;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem
+    }
+
+    .mikrodash-col>[data-card-id] {
+      display: flex;
+      flex-direction: column;
+      flex: 1
+    }
+
+    .mikrodash-col>[data-card-id]>.card {
+      flex: 1;
+      display: flex;
+      flex-direction: column
+    }
+
+    .mikrodash-col>[data-card-id]>.card>.card-body {
+      flex: 1
+    }
+
     /* Connections in row 1, stretches full height */
-    [data-card-id="connCard"]{grid-row:1;display:flex;flex-direction:column}
-    [data-card-id="connCard"]>.card{flex:1;display:flex;flex-direction:column}
-    [data-card-id="connCard"]>.card>.card-body{flex:1}
-    [data-card-id="connCard"]>.card{height:100%}
-    @media(max-width:991px){
-      .mikrodash-grid{grid-template-columns:repeat(2,1fr);grid-template-rows:auto auto}
-      .mikrodash-col,[data-card-id="connCard"]{grid-row:auto}
+    [data-card-id="connCard"] {
+      grid-row: 1;
+      display: flex;
+      flex-direction: column
     }
-    @media(max-width:650px){
-      .mikrodash-grid{grid-template-columns:1fr;grid-template-rows:auto}
-      .mikrodash-col,[data-card-id="connCard"]{grid-row:auto;height:auto}
-      .mikrodash-col>[data-card-id]{flex:none}
-      .mikrodash-col>[data-card-id]>.card>.card-body{flex:none}
-      [data-card-id="connCard"]>.card>.card-body{flex:none}
+
+    [data-card-id="connCard"]>.card {
+      flex: 1;
+      display: flex;
+      flex-direction: column
     }
+
+    [data-card-id="connCard"]>.card>.card-body {
+      flex: 1
+    }
+
+    [data-card-id="connCard"]>.card {
+      height: 100%
+    }
+
+    @media(max-width:991px) {
+      .mikrodash-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: auto auto
+      }
+
+      .mikrodash-col,
+      [data-card-id="connCard"] {
+        grid-row: auto
+      }
+    }
+
+    @media(max-width:650px) {
+      .mikrodash-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto
+      }
+
+      .mikrodash-col,
+      [data-card-id="connCard"] {
+        grid-row: auto;
+        height: auto
+      }
+
+      .mikrodash-col>[data-card-id] {
+        flex: none
+      }
+
+      .mikrodash-col>[data-card-id]>.card>.card-body {
+        flex: none
+      }
+
+      [data-card-id="connCard"]>.card>.card-body {
+        flex: none
+      }
+    }
+
     /* Ping chart */
-    .ping-section{border-top:1px solid var(--border);padding:.4rem .5rem .35rem;margin-top:.25rem}
-    .ping-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;font-family:var(--font-mono);font-size:.7rem}
-    .ping-stat{display:flex;gap:.8rem}
-    .ping-val{font-weight:700;font-size:.82rem}
-    .ping-ok{color:var(--accent-ok)}
-    .ping-warn{color:#fb923c}
-    .ping-bad{color:#f87171}
-    .ping-canvas-wrap{position:relative;height:40px}
+    .ping-section {
+      border-top: 1px solid var(--border);
+      padding: .4rem .5rem .35rem;
+      margin-top: .25rem
+    }
+
+    .ping-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: .35rem;
+      font-family: var(--font-mono);
+      font-size: .7rem
+    }
+
+    .ping-stat {
+      display: flex;
+      gap: .8rem
+    }
+
+    .ping-val {
+      font-weight: 700;
+      font-size: .82rem
+    }
+
+    .ping-ok {
+      color: var(--accent-ok)
+    }
+
+    .ping-warn {
+      color: #fb923c
+    }
+
+    .ping-bad {
+      color: #f87171
+    }
+
+    .ping-canvas-wrap {
+      position: relative;
+      height: 40px
+    }
+
     /* VPN page */
-    .vpn-page-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
-    @media(max-width:650px){.vpn-page-grid{grid-template-columns:1fr}}
+    .vpn-page-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+      margin-bottom: .75rem
+    }
+
+    @media(max-width:650px) {
+      .vpn-page-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
     /* World map */
-    .map-country{fill:rgba(99,130,190,.12);stroke:rgba(99,130,190,.2);stroke-width:.4;transition:fill .5s,stroke .5s}
-    @keyframes mapPulse{0%{fill:rgba(255,255,255,.7)}50%{fill:rgba(56,189,248,.9)}100%{}}
-    .map-country.pulse{animation:mapPulse .7s ease-out forwards}
-    .map-country.active{fill:rgba(56,189,248,.35);stroke:rgba(56,189,248,.65);stroke-width:.6}
-    .map-country.hot{fill:rgba(56,189,248,.75);stroke:rgba(56,189,248,1);stroke-width:.8;filter:drop-shadow(0 0 3px rgba(56,189,248,.5))}
-    .conn-map-row{display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-radius:5px;background:rgba(99,130,190,.05);border:1px solid var(--border);font-family:var(--font-mono);font-size:.68rem;cursor:pointer;transition:background .15s}
-    .conn-map-row:hover,.conn-map-row.selected{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3)}
-    .conn-map-flag{font-size:.9rem;flex-shrink:0}
-    .conn-map-label{flex:1;color:var(--text-main);font-weight:600;min-width:0}
-    .conn-map-label-sub{font-size:.58rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .conn-map-count{color:var(--accent-rx);font-weight:700;flex-shrink:0}
-    .conn-proto-bar{display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:.25rem;gap:1px}
-    .conn-proto-tcp{background:var(--accent-rx)}
-    .conn-proto-udp{background:var(--accent-tx)}
-    .conn-proto-other{background:rgba(148,163,190,.4)}
-    .conn-sparkline{display:block;margin-top:.2rem}
-    .conn-port-row{display:flex;align-items:center;gap:.4rem;padding:.25rem .3rem;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:.68rem}
-    .conn-port-row:last-child{border-bottom:none}
-    .conn-port-num{color:var(--accent-rx);font-weight:700;width:46px;flex-shrink:0}
-    .conn-port-name{flex:1;color:var(--text-muted);font-size:.62rem}
-    .conn-port-bar{height:4px;background:rgba(56,189,248,.35);border-radius:2px;min-width:2px}
-    .conn-port-count{color:var(--text-main);font-weight:600;font-size:.65rem;width:32px;text-align:right;flex-shrink:0}
+    .map-country {
+      fill: rgba(99, 130, 190, .12);
+      stroke: rgba(99, 130, 190, .2);
+      stroke-width: .4;
+      transition: fill .5s, stroke .5s
+    }
+
+    @keyframes mapPulse {
+      0% {
+        fill: rgba(255, 255, 255, .7)
+      }
+
+      50% {
+        fill: rgba(56, 189, 248, .9)
+      }
+
+      100% {}
+    }
+
+    .map-country.pulse {
+      animation: mapPulse .7s ease-out forwards
+    }
+
+    .map-country.active {
+      fill: rgba(56, 189, 248, .35);
+      stroke: rgba(56, 189, 248, .65);
+      stroke-width: .6
+    }
+
+    .map-country.hot {
+      fill: rgba(56, 189, 248, .75);
+      stroke: rgba(56, 189, 248, 1);
+      stroke-width: .8;
+      filter: drop-shadow(0 0 3px rgba(56, 189, 248, .5))
+    }
+
+    .conn-map-row {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .35rem .5rem;
+      border-radius: 5px;
+      background: rgba(99, 130, 190, .05);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      cursor: pointer;
+      transition: background .15s
+    }
+
+    .conn-map-row:hover,
+    .conn-map-row.selected {
+      background: rgba(56, 189, 248, .1);
+      border-color: rgba(56, 189, 248, .3)
+    }
+
+    .conn-map-flag {
+      font-size: .9rem;
+      flex-shrink: 0
+    }
+
+    .conn-map-label {
+      flex: 1;
+      color: var(--text-main);
+      font-weight: 600;
+      min-width: 0
+    }
+
+    .conn-map-label-sub {
+      font-size: .58rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .conn-map-count {
+      color: var(--accent-rx);
+      font-weight: 700;
+      flex-shrink: 0
+    }
+
+    .conn-proto-bar {
+      display: flex;
+      height: 3px;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: .25rem;
+      gap: 1px
+    }
+
+    .conn-proto-tcp {
+      background: var(--accent-rx)
+    }
+
+    .conn-proto-udp {
+      background: var(--accent-tx)
+    }
+
+    .conn-proto-other {
+      background: rgba(148, 163, 190, .4)
+    }
+
+    .conn-sparkline {
+      display: block;
+      margin-top: .2rem
+    }
+
+    .conn-port-row {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .25rem .3rem;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: .68rem
+    }
+
+    .conn-port-row:last-child {
+      border-bottom: none
+    }
+
+    .conn-port-num {
+      color: var(--accent-rx);
+      font-weight: 700;
+      width: 46px;
+      flex-shrink: 0
+    }
+
+    .conn-port-name {
+      flex: 1;
+      color: var(--text-muted);
+      font-size: .62rem
+    }
+
+    .conn-port-bar {
+      height: 4px;
+      background: rgba(56, 189, 248, .35);
+      border-radius: 2px;
+      min-width: 2px
+    }
+
+    .conn-port-count {
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: .65rem;
+      width: 32px;
+      text-align: right;
+      flex-shrink: 0
+    }
+
     /* Map tooltip */
-    .map-tooltip{position:absolute;pointer-events:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.3rem .55rem;font-family:var(--font-mono);font-size:.68rem;color:var(--text-main);white-space:nowrap;display:none;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+    .map-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .3rem .55rem;
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--text-main);
+      white-space: nowrap;
+      display: none;
+      z-index: 10;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .4)
+    }
+
     /* Arc lines */
-    .map-arc{fill:none;stroke:rgba(56,189,248,.2);stroke-width:.8}
-    .map-arc.hot{stroke:rgba(56,189,248,.35);stroke-width:1.2}
-    .map-comet{fill:rgba(56,189,248,.9);filter:drop-shadow(0 0 3px rgba(56,189,248,.9))}
-    .map-comet.hot{fill:#fff;filter:drop-shadow(0 0 5px rgba(56,189,248,1))}
+    .map-arc {
+      fill: none;
+      stroke: rgba(56, 189, 248, .2);
+      stroke-width: .8
+    }
+
+    .map-arc.hot {
+      stroke: rgba(56, 189, 248, .35);
+      stroke-width: 1.2
+    }
+
+    .map-comet {
+      fill: rgba(56, 189, 248, .9);
+      filter: drop-shadow(0 0 3px rgba(56, 189, 248, .9))
+    }
+
+    .map-comet.hot {
+      fill: #fff;
+      filter: drop-shadow(0 0 5px rgba(56, 189, 248, 1))
+    }
+
     /* Map count labels */
-    .map-label{font-family:var(--font-mono);font-size:9px;fill:rgba(244,114,182,1);text-anchor:middle;pointer-events:none;font-weight:700;text-shadow:0 0 4px rgba(244,114,182,.6)}
-    .conn-bottom-grid{display:grid;grid-template-columns:1fr 260px;gap:.75rem;margin-top:.75rem}
-    @media(max-width:767px){.conn-bottom-grid{grid-template-columns:1fr}}
+    .map-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      fill: rgba(244, 114, 182, 1);
+      text-anchor: middle;
+      pointer-events: none;
+      font-weight: 700;
+      text-shadow: 0 0 4px rgba(244, 114, 182, .6)
+    }
+
+    .conn-bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 260px;
+      gap: .75rem;
+      margin-top: .75rem
+    }
+
+    @media(max-width:767px) {
+      .conn-bottom-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
     /* Wireless horizontal scroll on mobile */
-    @media(max-width:700px){
-      #page-wireless .card-body.p-0{ overflow-x:auto;-webkit-overflow-scrolling:touch }
+    @media(max-width:700px) {
+      #page-wireless .card-body.p-0 {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch
+      }
+
       #page-wireless .table-responsive,
-      #page-wireless .data-scroll{ overflow:visible }
-      #page-wireless table{ min-width:520px;table-layout:fixed;width:520px }
-      #page-wireless colgroup col:nth-child(1){ width:160px }
-      #page-wireless colgroup col:nth-child(2){ width:60px }
-      #page-wireless colgroup col:nth-child(3){ width:80px }
-      #page-wireless colgroup col:nth-child(4){ width:110px }
-      #page-wireless colgroup col:nth-child(5){ width:60px }
-      #page-wireless colgroup col:nth-child(6){ width:70px }
+      #page-wireless .data-scroll {
+        overflow: visible
+      }
+
+      #page-wireless table {
+        min-width: 520px;
+        table-layout: fixed;
+        width: 520px
+      }
+
+      #page-wireless colgroup col:nth-child(1) {
+        width: 160px
+      }
+
+      #page-wireless colgroup col:nth-child(2) {
+        width: 60px
+      }
+
+      #page-wireless colgroup col:nth-child(3) {
+        width: 80px
+      }
+
+      #page-wireless colgroup col:nth-child(4) {
+        width: 110px
+      }
+
+      #page-wireless colgroup col:nth-child(5) {
+        width: 60px
+      }
+
+      #page-wireless colgroup col:nth-child(6) {
+        width: 70px
+      }
     }
+
     /* Connections map fullscreen overlay */
-    #mapFsOverlay{display:none;position:fixed;inset:0;z-index:9999;background:var(--bg-deep);flex-direction:column}
-    #mapFsOverlay.active{display:flex}
-    #mapFsOverlay svg{flex:1;width:100%;display:block;touch-action:none}
-    #mapFsClose{position:absolute;top:.6rem;right:.6rem;width:34px;height:34px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:7px;color:var(--text-main);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10000}
-    @media(max-width:767px){
-      .conn-map-row{ padding:.25rem .35rem }
-      .conn-sparkline{ display:none }
+    #mapFsOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: var(--bg-deep);
+      flex-direction: column
     }
+
+    #mapFsOverlay.active {
+      display: flex
+    }
+
+    #mapFsOverlay svg {
+      flex: 1;
+      width: 100%;
+      display: block;
+      touch-action: none
+    }
+
+    #mapFsClose {
+      position: absolute;
+      top: .6rem;
+      right: .6rem;
+      width: 34px;
+      height: 34px;
+      background: rgba(13, 18, 30, .85);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000
+    }
+
+    @media(max-width:767px) {
+      .conn-map-row {
+        padding: .25rem .35rem
+      }
+
+      .conn-sparkline {
+        display: none
+      }
+    }
+
     /* Notification history dropdown */
-    .notif-wrap{position:relative}
-    .notif-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--accent-err);display:none;pointer-events:none}
-    .notif-panel{display:none;position:absolute;right:0;top:calc(100% + 6px);width:280px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:999;overflow:hidden}
-    .notif-panel.open{display:block}
-    .notif-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-bottom:1px solid var(--border);font-family:var(--font-ui);font-size:.72rem;font-weight:700;color:var(--text-main)}
-    .notif-clear-btn{font-size:.65rem;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0}
-    .notif-clear-btn:hover{color:var(--accent-err)}
-    .notif-list{max-height:260px;overflow-y:auto}
-    .notif-empty{padding:1.25rem;text-align:center;font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)}
-    .notif-item{padding:.45rem .75rem;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:.68rem}
-    .notif-item:last-child{border-bottom:none}
-    .notif-item-title{font-weight:700;color:var(--text-main);margin-bottom:.1rem}
-    .notif-item-body{color:var(--text-muted)}
-    .notif-item-time{font-size:.6rem;color:rgba(148,163,190,.35);margin-top:.1rem}
+    .notif-wrap {
+      position: relative
+    }
+
+    .notif-dot {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-err);
+      display: none;
+      pointer-events: none
+    }
+
+    .notif-panel {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      width: 280px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .45);
+      z-index: 999;
+      overflow: hidden
+    }
+
+    .notif-panel.open {
+      display: block
+    }
+
+    .notif-panel-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .5rem .75rem;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-ui);
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--text-main)
+    }
+
+    .notif-clear-btn {
+      font-size: .65rem;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0
+    }
+
+    .notif-clear-btn:hover {
+      color: var(--accent-err)
+    }
+
+    .notif-list {
+      max-height: 260px;
+      overflow-y: auto
+    }
+
+    .notif-empty {
+      padding: 1.25rem;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      color: var(--text-muted)
+    }
+
+    .notif-item {
+      padding: .45rem .75rem;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: .68rem
+    }
+
+    .notif-item:last-child {
+      border-bottom: none
+    }
+
+    .notif-item-title {
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: .1rem
+    }
+
+    .notif-item-body {
+      color: var(--text-muted)
+    }
+
+    .notif-item-time {
+      font-size: .6rem;
+      color: rgba(148, 163, 190, .35);
+      margin-top: .1rem
+    }
+
     /* Geo flag */
-    .geo-flag{font-size:.8rem;margin-right:.2rem}
+    .geo-flag {
+      font-size: .8rem;
+      margin-right: .2rem
+    }
+
     /* Wireless enhancements */
-    .wl-sort-btn{background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:.63rem;padding:2px 7px;cursor:pointer;transition:background .15s,color .15s}
-    .wl-sort-btn:hover{background:rgba(56,189,248,.12);color:var(--accent-rx)}
-    .wl-sort-btn.active{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.35);color:var(--accent-rx)}
-    .wl-group-row td{background:rgba(56,189,248,.04);border-top:1px solid rgba(56,189,248,.15)!important;padding:.3rem .75rem!important}
-    .wl-group-label{font-family:var(--font-mono);font-size:.68rem;font-weight:700;color:var(--accent-rx);letter-spacing:.03em}
-    .wl-group-sub{font-size:.62rem;color:var(--text-muted);margin-left:.5rem}
-    .wl-band{display:inline-block;font-family:var(--font-mono);font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap}
-    .wl-band-24{background:rgba(167,139,250,.15);color:rgba(167,139,250,.9);border:1px solid rgba(167,139,250,.25)}
-    .wl-band-5{background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25)}
-    .wl-band-6{background:rgba(52,211,153,.12);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.25)}
-    .wl-idle td{opacity:.55}
-    .wl-idle .wl-idle-tag{display:inline-block;font-family:var(--font-mono);font-size:.56rem;color:var(--text-muted);border:1px solid var(--border);border-radius:3px;padding:0 4px;margin-left:.3rem;vertical-align:middle}
-    .wl-rate{font-family:var(--font-mono);font-size:.7rem}
-    .wl-rate-rx{color:var(--accent-tx);font-size:.65rem}
+    .wl-sort-btn {
+      background: rgba(99, 130, 190, .08);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: .63rem;
+      padding: 2px 7px;
+      cursor: pointer;
+      transition: background .15s, color .15s
+    }
+
+    .wl-sort-btn:hover {
+      background: rgba(56, 189, 248, .12);
+      color: var(--accent-rx)
+    }
+
+    .wl-sort-btn.active {
+      background: rgba(56, 189, 248, .15);
+      border-color: rgba(56, 189, 248, .35);
+      color: var(--accent-rx)
+    }
+
+    .wl-group-row td {
+      background: rgba(56, 189, 248, .04);
+      border-top: 1px solid rgba(56, 189, 248, .15) !important;
+      padding: .3rem .75rem !important
+    }
+
+    .wl-group-label {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--accent-rx);
+      letter-spacing: .03em
+    }
+
+    .wl-group-sub {
+      font-size: .62rem;
+      color: var(--text-muted);
+      margin-left: .5rem
+    }
+
+    .wl-band {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: .58rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      white-space: nowrap
+    }
+
+    .wl-band-24 {
+      background: rgba(167, 139, 250, .15);
+      color: rgba(167, 139, 250, .9);
+      border: 1px solid rgba(167, 139, 250, .25)
+    }
+
+    .wl-band-5 {
+      background: rgba(56, 189, 248, .12);
+      color: var(--accent-rx);
+      border: 1px solid rgba(56, 189, 248, .25)
+    }
+
+    .wl-band-6 {
+      background: rgba(52, 211, 153, .12);
+      color: rgba(52, 211, 153, .9);
+      border: 1px solid rgba(52, 211, 153, .25)
+    }
+
+    .wl-idle td {
+      opacity: .55
+    }
+
+    .wl-idle .wl-idle-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: .56rem;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0 4px;
+      margin-left: .3rem;
+      vertical-align: middle
+    }
+
+    .wl-rate {
+      font-family: var(--font-mono);
+      font-size: .7rem
+    }
+
+    .wl-rate-rx {
+      color: var(--accent-tx);
+      font-size: .65rem
+    }
+
     /* Interface totals */
-    .iface-totals{font-size:.6rem;color:rgba(148,163,190,.4);margin-top:.1rem}
+    .iface-totals {
+      font-size: .6rem;
+      color: rgba(148, 163, 190, .4);
+      margin-top: .1rem
+    }
+
     /* Topbar clock */
-    @media(max-width:767px){#tobarClock{display:none}}
-    .info-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .8rem;border-radius:6px;font-size:.73rem;font-family:var(--font-mono);text-decoration:none;transition:background .15s,color .15s;cursor:pointer;border:none}
-    .info-btn-outline{background:rgba(99,130,190,.08);border:1px solid var(--border);color:var(--text-muted)}
-    .info-btn-outline:hover{background:rgba(56,189,248,.1);color:var(--accent-rx);border-color:rgba(56,189,248,.3)}
-    .info-btn-coffee{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.25);color:rgba(251,191,36,.9)}
-    .info-btn-coffee:hover{background:rgba(251,191,36,.2)}
+    @media(max-width:767px) {
+      #tobarClock {
+        display: none
+      }
+    }
+
+    .info-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .3rem .8rem;
+      border-radius: 6px;
+      font-size: .73rem;
+      font-family: var(--font-mono);
+      text-decoration: none;
+      transition: background .15s, color .15s;
+      cursor: pointer;
+      border: none
+    }
+
+    .info-btn-outline {
+      background: rgba(99, 130, 190, .08);
+      border: 1px solid var(--border);
+      color: var(--text-muted)
+    }
+
+    .info-btn-outline:hover {
+      background: rgba(56, 189, 248, .1);
+      color: var(--accent-rx);
+      border-color: rgba(56, 189, 248, .3)
+    }
+
+    .info-btn-coffee {
+      background: rgba(251, 191, 36, .12);
+      border: 1px solid rgba(251, 191, 36, .25);
+      color: rgba(251, 191, 36, .9)
+    }
+
+    .info-btn-coffee:hover {
+      background: rgba(251, 191, 36, .2)
+    }
+
     /* Topbar clock */
-        /* VPN page tiles */
-    .vpn-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.45rem}
-    .vpn-tile{padding:.55rem .65rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s}
-    .vpn-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
-    .vpn-tile.idle{opacity:.65}
-    .vpn-tile-name{font-weight:600;font-size:.77rem;color:var(--text-main);display:flex;align-items:center;gap:.35rem;margin-bottom:.18rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .vpn-tile-iface{font-size:.62rem;color:var(--text-muted);margin-bottom:.15rem}
-    .vpn-tile-ip{font-size:.65rem;color:var(--accent-rx);margin-bottom:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .vpn-tile-hs{font-size:.62rem;color:var(--text-muted)}
-    .vpn-tile-traffic{display:flex;gap:.6rem;margin-top:.25rem;font-size:.63rem}
-    @media(max-width:650px){.vpn-tile-grid{grid-template-columns:1fr}}
+    /* VPN page tiles */
+    .vpn-tile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: .45rem
+    }
+
+    .vpn-tile {
+      padding: .55rem .65rem;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: rgba(99, 130, 190, .04);
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      transition: border-color .2s
+    }
+
+    .vpn-tile.up {
+      border-color: rgba(74, 222, 128, .22);
+      background: rgba(74, 222, 128, .04)
+    }
+
+    .vpn-tile.idle {
+      opacity: .65
+    }
+
+    .vpn-tile-name {
+      font-weight: 600;
+      font-size: .77rem;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: .35rem;
+      margin-bottom: .18rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    .vpn-tile-iface {
+      font-size: .62rem;
+      color: var(--text-muted);
+      margin-bottom: .15rem
+    }
+
+    .vpn-tile-ip {
+      font-size: .65rem;
+      color: var(--accent-rx);
+      margin-bottom: .1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .vpn-tile-hs {
+      font-size: .62rem;
+      color: var(--text-muted)
+    }
+
+    .vpn-tile-traffic {
+      display: flex;
+      gap: .6rem;
+      margin-top: .25rem;
+      font-size: .63rem
+    }
+
+    @media(max-width:650px) {
+      .vpn-tile-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
     /* Network diagram */
-    .net-diagram-body{padding:.35rem .5rem .4rem!important;display:flex;flex-direction:column}
-    .nd-line{stroke:rgba(56,189,248,.25);stroke-width:1.5;stroke-dasharray:4 3}
-    .nd-line-wan{stroke:rgba(52,211,153,.25)}
-    .nd-node{fill:rgba(13,18,30,.9);stroke:rgba(99,130,190,.2);stroke-width:1}
-    .nd-router-bg{fill:rgba(56,189,248,.06);stroke:rgba(56,189,248,.3);stroke-width:1.2}
-    .nd-led{fill:#4ade80;filter:drop-shadow(0 0 3px #4ade80)}
-    .nd-label{font-family:var(--font-ui);font-size:7.5px;fill:rgba(148,163,190,.6);text-anchor:middle;dominant-baseline:middle}
-    .nd-count{font-family:var(--font-mono);font-size:11px;font-weight:700;fill:rgba(200,215,240,.9);text-anchor:middle;dominant-baseline:middle}
-    .nd-wan-ip{font-family:var(--font-mono);font-size:6.5px;fill:rgba(56,189,248,.8);text-anchor:middle;dominant-baseline:middle}
-    .nd-dot{fill:rgba(56,189,248,.7)}
-    .nd-dot-wan{fill:rgba(52,211,153,.7)}
-    .nd-dot-l2{fill:rgba(167,139,250,.7)}
+    .net-diagram-body {
+      padding: .35rem .5rem .4rem !important;
+      display: flex;
+      flex-direction: column
+    }
+
+    .nd-line {
+      stroke: rgba(56, 189, 248, .25);
+      stroke-width: 1.5;
+      stroke-dasharray: 4 3
+    }
+
+    .nd-line-wan {
+      stroke: rgba(52, 211, 153, .25)
+    }
+
+    .nd-node {
+      fill: rgba(13, 18, 30, .9);
+      stroke: rgba(99, 130, 190, .2);
+      stroke-width: 1
+    }
+
+    .nd-router-bg {
+      fill: rgba(56, 189, 248, .06);
+      stroke: rgba(56, 189, 248, .3);
+      stroke-width: 1.2
+    }
+
+    .nd-led {
+      fill: #4ade80;
+      filter: drop-shadow(0 0 3px #4ade80)
+    }
+
+    .nd-label {
+      font-family: var(--font-ui);
+      font-size: 7.5px;
+      fill: rgba(148, 163, 190, .6);
+      text-anchor: middle;
+      dominant-baseline: middle
+    }
+
+    .nd-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      fill: rgba(200, 215, 240, .9);
+      text-anchor: middle;
+      dominant-baseline: middle
+    }
+
+    .nd-wan-ip {
+      font-family: var(--font-mono);
+      font-size: 6.5px;
+      fill: rgba(56, 189, 248, .8);
+      text-anchor: middle;
+      dominant-baseline: middle
+    }
+
+    .nd-dot {
+      fill: rgba(56, 189, 248, .7)
+    }
+
+    .nd-dot-wan {
+      fill: rgba(52, 211, 153, .7)
+    }
+
+    .nd-dot-l2 {
+      fill: rgba(167, 139, 250, .7)
+    }
+
     /* Networks card */
 
-    .net-wan-row{display:flex;align-items:baseline;justify-content:space-between;padding:.25rem .45rem;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.14);border-radius:6px}
-    .net-field-label{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em}
-    .net-field-val{font-family:var(--font-mono);font-size:.82rem;font-weight:600;color:var(--accent-rx)}
-        html[data-theme="light"] select.form-select{background-color:rgba(255,255,255,.9)}
-    #dhcpSearch{background:rgba(13,18,30,.9);border-color:var(--border);color:var(--text-main)}
-    html[data-theme="light"] #dhcpSearch{background:rgba(255,255,255,.9)}
+    .net-wan-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: .25rem .45rem;
+      background: rgba(56, 189, 248, .06);
+      border: 1px solid rgba(56, 189, 248, .14);
+      border-radius: 6px
+    }
+
+    .net-field-label {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em
+    }
+
+    .net-field-val {
+      font-family: var(--font-mono);
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--accent-rx)
+    }
+
+    html[data-theme="light"] select.form-select {
+      background-color: rgba(255, 255, 255, .9)
+    }
+
+    #dhcpSearch {
+      background: rgba(13, 18, 30, .9);
+      border-color: var(--border);
+      color: var(--text-main)
+    }
+
+    html[data-theme="light"] #dhcpSearch {
+      background: rgba(255, 255, 255, .9)
+    }
   </style>
 </head>
+
 <body>
-<div id="reconnectBanner">&#9889; Reconnecting&#8230;</div>
+  <div id="reconnectBanner">&#9889; Reconnecting&#8230;</div>
 
-<button id="burgerBtn" aria-label="Open menu">
-  <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-</button>
-<div id="navOverlay"></div>
+  <button id="burgerBtn" aria-label="Open menu">
+    <svg viewBox="0 0 24 24">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  </button>
+  <div id="navOverlay"></div>
 
-<nav id="sidenav">
-  <div class="nav-logo"><img src="/logo.png" alt="MikroDash" /></div>
-  <div class="nav-items">
-    <a class="nav-item active" data-page="dashboard" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
-      <span class="nav-label">Dashboard</span>
-    </a>
-    <a class="nav-item" data-page="wireless" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
-      <span class="nav-label">Wireless</span>
-      <span class="nav-badge" id="wirelessNavBadge">0</span>
-    </a>
-    <a class="nav-item" data-page="interfaces" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="5" rx="1"/><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="16" y="3" width="6" height="5" rx="1"/><rect x="5" y="16" width="6" height="5" rx="1"/><rect x="13" y="16" width="6" height="5" rx="1"/><line x1="5" y1="8" x2="5" y2="13"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="19" y1="8" x2="19" y2="13"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="13" x2="8" y2="16"/><line x1="16" y1="13" x2="16" y2="16"/></svg></span>
-      <span class="nav-label">Interfaces</span>
-      <span class="nav-badge" id="ifacesNavBadge"></span>
-    </a>
-    <a class="nav-item" data-page="dhcp" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
-      <span class="nav-label">DHCP</span>
-      <span class="nav-badge" id="dhcpNavBadge">0</span>
-    </a>
-    <a class="nav-item" data-page="vpn" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h8"/><path d="M16 10v4"/><path d="M19 9v6"/></svg></span>
-      <span class="nav-label">VPN</span>
-      <span class="nav-badge" id="vpnNavBadge">0</span>
-    </a>
-    <a class="nav-item" data-page="connections" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
-      <span class="nav-label">Connections</span>
-      <span class="nav-badge" id="connNavBadge">0</span>
-    </a>
-    <a class="nav-item" data-page="firewall" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
-      <span class="nav-label">Firewall</span>
-    </a>
-    <a class="nav-item" data-page="logs" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
-      <span class="nav-label">Logs</span>
-    </a>
-    <div style="margin:8px 14px;border-top:1px solid var(--border);opacity:.4"></div>
-    <a class="nav-item" data-page="info" href="#">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
-      <span class="nav-label">About</span>
-    </a>
-  </div>
-
-</nav>
-
-<div id="main">
-  <div id="topbar">
-    <h1 id="topbarLogo">Mikro<span>Dash</span></h1>
-    <div class="topbar-sep"></div>
-    <span id="pageTitle">Dashboard</span>
-    <div class="topbar-right">
-      <div class="notif-wrap">
-        <button id="notifToggleBtn" title="Notifications" style="background:none;border:none;cursor:pointer;padding:2px 4px;display:flex;align-items:center;opacity:.85;transition:opacity .2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;stroke:var(--text-muted)"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
-        <span class="notif-dot" id="notifDot"></span>
-        <div class="notif-panel" id="notifPanel">
-          <div class="notif-panel-hdr">
-            <span>Alerts</span>
-            <button class="notif-clear-btn" id="notifClearBtn">Clear all</button>
-          </div>
-          <div class="notif-list" id="notifList">
-            <div class="notif-empty">No alerts yet</div>
-          </div>
-        </div>
-      </div>
-      <span id="tobarClock" style="font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);white-space:nowrap"></span>
-      <span id="uptimeChip" title="Router uptime"></span>
-      <span id="routerTag"></span>
-      <button id="themeToggle" title="Toggle light / dark">
-        <svg viewBox="0 0 24 24"><path id="themeIconPath" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-      </button>
+  <nav id="sidenav">
+    <div class="nav-logo"><img src="/logo.png" alt="MikroDash" /></div>
+    <div class="nav-items">
+      <a class="nav-item active" data-page="dashboard" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg></span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+      <a class="nav-item" data-page="wireless" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+            <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+            <circle cx="12" cy="20" r="1" fill="currentColor" stroke="none" />
+          </svg></span>
+        <span class="nav-label">Wireless</span>
+        <span class="nav-badge" id="wirelessNavBadge">0</span>
+      </a>
+      <a class="nav-item" data-page="interfaces" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <rect x="2" y="3" width="6" height="5" rx="1" />
+            <rect x="9" y="3" width="6" height="5" rx="1" />
+            <rect x="16" y="3" width="6" height="5" rx="1" />
+            <rect x="5" y="16" width="6" height="5" rx="1" />
+            <rect x="13" y="16" width="6" height="5" rx="1" />
+            <line x1="5" y1="8" x2="5" y2="13" />
+            <line x1="12" y1="8" x2="12" y2="13" />
+            <line x1="19" y1="8" x2="19" y2="13" />
+            <line x1="8" y1="13" x2="16" y2="13" />
+            <line x1="8" y1="13" x2="8" y2="16" />
+            <line x1="16" y1="13" x2="16" y2="16" />
+          </svg></span>
+        <span class="nav-label">Interfaces</span>
+        <span class="nav-badge" id="ifacesNavBadge"></span>
+      </a>
+      <a class="nav-item" data-page="dhcp" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+          </svg></span>
+        <span class="nav-label">DHCP</span>
+        <span class="nav-badge" id="dhcpNavBadge">0</span>
+      </a>
+      <a class="nav-item" data-page="vpn" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <circle cx="8" cy="12" r="4" />
+            <path d="M12 12h8" />
+            <path d="M16 10v4" />
+            <path d="M19 9v6" />
+          </svg></span>
+        <span class="nav-label">VPN</span>
+        <span class="nav-badge" id="vpnNavBadge">0</span>
+      </a>
+      <a class="nav-item" data-page="connections" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg></span>
+        <span class="nav-label">Connections</span>
+        <span class="nav-badge" id="connNavBadge">0</span>
+      </a>
+      <a class="nav-item" data-page="firewall" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg></span>
+        <span class="nav-label">Firewall</span>
+      </a>
+      <a class="nav-item" data-page="logs" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg></span>
+        <span class="nav-label">Logs</span>
+      </a>
+      <div style="margin:8px 14px;border-top:1px solid var(--border);opacity:.4"></div>
+      <a class="nav-item" data-page="info" href="#">
+        <span class="nav-icon"><svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg></span>
+        <span class="nav-label">About</span>
+      </a>
     </div>
-  </div>
 
-  <!-- DASHBOARD -->
-  <div class="page-view active" id="page-dashboard">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+  </nav>
 
-      <div class="row row-deck g-3 mb-3">
-        <div class="col-12">
-          <div class="card" id="trafficCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-              <div class="d-flex align-items-center gap-2 flex-wrap">
-                <h3 class="card-title mb-0">Traffic</h3>
-                <select id="ifaceSelect" class="form-select form-select-sm" style="min-width:90px;max-width:130px;font-size:.76rem"></select>
-                <select id="windowSelect" class="form-select form-select-sm" style="width:90px;font-size:.76rem" title="Time window">
-                  <option value="1m" selected>1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option>
-                </select>
-                <span id="wanStatusBadge" class="wan-badge wan-disabled">&#8212;</span>
-              </div>
-              <div class="chart-legend">
-                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-rx)"></div><span style="color:var(--text-muted)">RX</span><span class="legend-rate" id="liveRx">&#8212;</span></div>
-                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-tx)"></div><span style="color:var(--text-muted)">TX</span><span class="legend-rate" id="liveTx">&#8212;</span></div>
-              </div>
+  <div id="main">
+    <div id="topbar">
+      <h1 id="topbarLogo">Mikro<span>Dash</span></h1>
+      <div class="topbar-sep"></div>
+      <span id="pageTitle">Dashboard</span>
+      <div class="topbar-right">
+        <div class="notif-wrap">
+          <button id="notifToggleBtn" title="Notifications"
+            style="background:none;border:none;cursor:pointer;padding:2px 4px;display:flex;align-items:center;opacity:.85;transition:opacity .2s"><svg
+              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" style="width:16px;height:16px;stroke:var(--text-muted)">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg></button>
+          <span class="notif-dot" id="notifDot"></span>
+          <div class="notif-panel" id="notifPanel">
+            <div class="notif-panel-hdr">
+              <span>Alerts</span>
+              <button class="notif-clear-btn" id="notifClearBtn">Clear all</button>
             </div>
-            <div class="card-body" style="padding:.6rem 1rem .75rem"><div class="chart-wrap"><canvas id="trafficChart"></canvas></div></div>
+            <div class="notif-list" id="notifList">
+              <div class="notif-empty">No alerts yet</div>
+            </div>
           </div>
         </div>
+        <select id="deviceSelect" class="form-select form-select-sm" title="Select router"></select>
+        <span id="tobarClock"
+          style="font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);white-space:nowrap"></span>
+        <span id="uptimeChip" title="Router uptime"></span>
+        <span id="routerTag"></span>
+        <button id="themeToggle" title="Toggle light / dark">
+          <svg viewBox="0 0 24 24">
+            <path id="themeIconPath" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
       </div>
+    </div>
 
-            <div id="dashGrid" class="mikrodash-grid">
+    <!-- DASHBOARD -->
+    <div class="page-view active" id="page-dashboard">
+      <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
 
-        <!-- Col 1: Connections -->
-        <div data-card-id="connCard">
-          <div class="card" id="connCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center gap-2">
-              <h3 class="card-title">Connections</h3>
-            </div>
-            <div class="card-body" style="padding:.75rem">
-              <div class="conn-stats mb-2">
-                <div><div class="conn-stat-val" id="connTotal">&#8212;</div><div class="conn-stat-lbl">total</div></div>
-                <canvas id="connSparkCanvas" width="120" height="40"></canvas>
-              </div>
-              <div id="protoBars" class="mb-3"></div>
-              <div class="section-sep">Top Sources</div>
-              <div id="topSources"><div class="empty-state">&#8212;</div></div>
-              <div class="section-sep mt-2">Top Destinations</div>
-              <div id="topDests"><div class="empty-state">&#8212;</div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Col 2: System + Networks stacked -->
-        <div class="mikrodash-col">
-          <div data-card-id="systemCard">
-          <div class="card" id="systemCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center gap-2">
-              <h3 class="card-title">System</h3>
-            </div>
-            <div class="card-body" style="padding:.75rem">
-              <div id="uptimeDisplay" class="mb-3">&#8212;</div>
-              <div class="gauge-row" id="gaugeRow"><div class="empty-state">Waiting&#8230;</div></div>
-              <div class="sys-meta" id="sysMeta"></div>
-              <div id="rosUpdateRow"></div>
-            </div>
-          </div>
-          </div>
-          <div data-card-id="networksCard">
-          <div class="card" id="networksCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center gap-2">
-              <h3 class="card-title">Network</h3>
-            </div>
-            <div class="card-body net-diagram-body">
-              <!-- Original fields -->
-              <div class="net-wan-row" id="netWanRow" style="margin-bottom:.3rem">
-                <div class="net-field-label">WAN IP</div>
-                <div class="net-field-val" id="wanIpDisplay">&#8212;</div>
-              </div>
-              <div id="lanOverview" style="margin-bottom:.3rem"><div class="empty-state">&#8212;</div></div>
-              <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
-                <!-- Animated connection lines -->
-                <line id="ndLineWired"    x1="78"  y1="52"  x2="148" y2="75"  class="nd-line"/>
-                <line id="ndLineWireless" x1="78"  y1="124" x2="148" y2="85"  class="nd-line"/>
-                <line id="ndLineWan"      x1="262" y1="80"  x2="192" y2="80"  class="nd-line nd-line-wan"/>
-
-                <!-- Left: Wired clients -->
-                <g id="ndWiredGroup">
-                  <rect x="4" y="26" width="74" height="52" rx="7" class="nd-node"/>
-                  <!-- Ethernet icon: simple plug with pins -->
-                  <rect x="30" y="31" width="22" height="14" rx="2" fill="none" stroke="rgba(56,189,248,.6)" stroke-width="1.4"/>
-                  <line x1="35" y1="31" x2="35" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                  <line x1="41" y1="31" x2="41" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                  <line x1="47" y1="31" x2="47" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                  <line x1="41" y1="45" x2="41" y2="49" stroke="rgba(56,189,248,.4)" stroke-width="1.4" stroke-linecap="round"/>
-                  <text x="41" y="59" class="nd-label">Wired</text>
-                  <text id="ndWiredCount" x="41" y="71" class="nd-count">—</text>
-                </g>
-
-                <!-- Left: Wireless clients -->
-                <g id="ndWirelessGroup">
-                  <rect x="4" y="98" width="74" height="52" rx="7" class="nd-node"/>
-                  <!-- Wifi arc icon — shifted up to give count room -->
-                  <path d="M29,111 Q41,101 53,111" fill="none" stroke="rgba(167,139,250,.7)" stroke-width="1.4" stroke-linecap="round"/>
-                  <path d="M33,115 Q41,108 49,115" fill="none" stroke="rgba(167,139,250,.65)" stroke-width="1.4" stroke-linecap="round"/>
-                  <path d="M36,119 Q41,115 46,119" fill="none" stroke="rgba(167,139,250,.6)" stroke-width="1.4" stroke-linecap="round"/>
-                  <circle cx="41" cy="122" r="1.8" fill="rgba(167,139,250,.8)"/>
-                  <text x="41" y="131" class="nd-label">Wireless</text>
-                  <text id="ndWirelessCount" x="41" y="143" class="nd-count">—</text>
-                </g>
-
-                <!-- Center: Router -->
-                <g id="ndRouter">
-                  <rect x="148" y="52" width="44" height="56" rx="9" class="nd-router-bg"/>
-                  <!-- Router body -->
-                  <rect x="155" y="70" width="30" height="22" rx="3" fill="none" stroke="rgba(56,189,248,.7)" stroke-width="1.5"/>
-                  <!-- Antenna left -->
-                  <line x1="161" y1="70" x2="158" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5" stroke-linecap="round"/>
-                  <!-- Antenna right -->
-                  <line x1="179" y1="70" x2="182" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5" stroke-linecap="round"/>
-                  <!-- Port dots -->
-                  <circle cx="161" cy="85" r="2" fill="rgba(52,211,153,.7)"/>
-                  <circle cx="167" cy="85" r="2" fill="rgba(52,211,153,.7)"/>
-                  <circle cx="173" cy="85" r="2" fill="rgba(52,211,153,.5)"/>
-                  <circle cx="179" cy="85" r="2" fill="rgba(52,211,153,.3)"/>
-                  <!-- Status LED -->
-                  <circle cx="170" cy="97" r="3" class="nd-led"/>
-                </g>
-
-                <!-- Right: WAN -->
-                <g id="ndWanGroup">
-                  <rect x="262" y="52" width="74" height="56" rx="7" class="nd-node"/>
-                  <!-- Globe rings -->
-                  <ellipse cx="299" cy="68" rx="12" ry="12" fill="none" stroke="rgba(56,189,248,.5)" stroke-width="1.2"/>
-                  <ellipse cx="299" cy="68" rx="5"  ry="12" fill="none" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
-                  <line x1="287" y1="68" x2="311" y2="68" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
-                  <text x="299" y="93" class="nd-label">WAN</text>
-                  <text id="ndWanIp" x="299" y="104" class="nd-wan-ip">—</text>
-                </g>
-
-                <!-- Flow dots animated along lines -->
-                <circle r="2.5" class="nd-dot nd-dot-l1"><animateMotion dur="2.2s" repeatCount="indefinite" path="M78,52 L148,75"/></circle>
-                <circle r="2.5" class="nd-dot nd-dot-l2"><animateMotion dur="2.8s" repeatCount="indefinite" path="M78,124 L148,85"/></circle>
-                <circle r="2.5" class="nd-dot nd-dot-wan"><animateMotion dur="1.8s" repeatCount="indefinite" path="M192,80 L262,80"/></circle>
-              </svg>
-              <!-- Ping / Latency -->
-              <div class="ping-section">
-                <div class="ping-header">
-                  <span style="color:var(--text-muted)">Latency &rarr; 1.1.1.1</span>
-                  <div class="ping-stat">
-                    <span><span class="ping-val" id="ndPingRtt">—</span> <span style="color:var(--text-muted)">ms</span></span>
-                    <span><span class="ping-val" id="ndPingLoss">—</span> <span style="color:var(--text-muted)">loss</span></span>
+        <div class="row row-deck g-3 mb-3">
+          <div class="col-12">
+            <div class="card" id="trafficCard">
+              <div class="stale-overlay">&#9679; stale</div>
+              <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <h3 class="card-title mb-0">Traffic</h3>
+                  <select id="ifaceSelect" class="form-select form-select-sm"
+                    style="min-width:90px;max-width:130px;font-size:.76rem"></select>
+                  <select id="windowSelect" class="form-select form-select-sm" style="width:90px;font-size:.76rem"
+                    title="Time window">
+                    <option value="1m" selected>1m</option>
+                    <option value="5m">5m</option>
+                    <option value="15m">15m</option>
+                    <option value="30m">30m</option>
+                  </select>
+                  <span id="wanStatusBadge" class="wan-badge wan-disabled">&#8212;</span>
+                </div>
+                <div class="chart-legend">
+                  <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--accent-rx)"></div><span
+                      style="color:var(--text-muted)">RX</span><span class="legend-rate" id="liveRx">&#8212;</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--accent-tx)"></div><span
+                      style="color:var(--text-muted)">TX</span><span class="legend-rate" id="liveTx">&#8212;</span>
                   </div>
                 </div>
-                <div class="ping-canvas-wrap"><canvas id="pingChartNet"></canvas></div>
+              </div>
+              <div class="card-body" style="padding:.6rem 1rem .75rem">
+                <div class="chart-wrap"><canvas id="trafficChart"></canvas></div>
               </div>
             </div>
           </div>
-          </div>
         </div>
 
-        <!-- Col 3: Top Talkers + WireGuard stacked -->
-        <div class="mikrodash-col">
-          <div data-card-id="talkersCard">
-          <div class="card" id="talkersCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center gap-2">
-              <h3 class="card-title">Top Talkers</h3>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-vcenter mb-0">
-                  <thead><tr><th>Device</th><th>MAC</th><th class="text-end">&#8595;</th><th class="text-end">&#8593;</th></tr></thead>
-                  <tbody id="talkersTable"><tr><td colspan="4" class="empty-state">No devices</td></tr></tbody>
-                </table>
+        <div id="dashGrid" class="mikrodash-grid">
+
+          <!-- Col 1: Connections -->
+          <div data-card-id="connCard">
+            <div class="card" id="connCard">
+              <div class="stale-overlay">&#9679; stale</div>
+              <div class="card-header d-flex align-items-center gap-2">
+                <h3 class="card-title">Connections</h3>
+              </div>
+              <div class="card-body" style="padding:.75rem">
+                <div class="conn-stats mb-2">
+                  <div>
+                    <div class="conn-stat-val" id="connTotal">&#8212;</div>
+                    <div class="conn-stat-lbl">total</div>
+                  </div>
+                  <canvas id="connSparkCanvas" width="120" height="40"></canvas>
+                </div>
+                <div id="protoBars" class="mb-3"></div>
+                <div class="section-sep">Top Sources</div>
+                <div id="topSources">
+                  <div class="empty-state">&#8212;</div>
+                </div>
+                <div class="section-sep mt-2">Top Destinations</div>
+                <div id="topDests">
+                  <div class="empty-state">&#8212;</div>
+                </div>
               </div>
             </div>
           </div>
-          </div>
-          <div data-card-id="vpnCard">
-          <div class="card" id="vpnCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center justify-content-between">
-              <h3 class="card-title">WireGuard</h3>
-              <span id="vpnCount" class="badge bg-secondary" style="font-family:var(--font-mono);font-size:.68rem;color:#000">0</span>
+
+          <!-- Col 2: System + Networks stacked -->
+          <div class="mikrodash-col">
+            <div data-card-id="systemCard">
+              <div class="card" id="systemCard">
+                <div class="stale-overlay">&#9679; stale</div>
+                <div class="card-header d-flex align-items-center gap-2">
+                  <h3 class="card-title">System</h3>
+                </div>
+                <div class="card-body" style="padding:.75rem">
+                  <div id="uptimeDisplay" class="mb-3">&#8212;</div>
+                  <div class="gauge-row" id="gaugeRow">
+                    <div class="empty-state">Waiting&#8230;</div>
+                  </div>
+                  <div class="sys-meta" id="sysMeta"></div>
+                  <div id="rosUpdateRow"></div>
+                </div>
+              </div>
             </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-vcenter mb-0">
-                  <thead><tr><th style="width:55px">Status</th><th>Peer</th><th>Handshake</th></tr></thead>
-                  <tbody id="vpnTable"><tr><td colspan="3" class="empty-state">No active peers</td></tr></tbody>
-                </table>
+            <div data-card-id="networksCard">
+              <div class="card" id="networksCard">
+                <div class="stale-overlay">&#9679; stale</div>
+                <div class="card-header d-flex align-items-center gap-2">
+                  <h3 class="card-title">Network</h3>
+                </div>
+                <div class="card-body net-diagram-body">
+                  <!-- Original fields -->
+                  <div class="net-wan-row" id="netWanRow" style="margin-bottom:.3rem">
+                    <div class="net-field-label">WAN IP</div>
+                    <div class="net-field-val" id="wanIpDisplay">&#8212;</div>
+                  </div>
+                  <div id="lanOverview" style="margin-bottom:.3rem">
+                    <div class="empty-state">&#8212;</div>
+                  </div>
+                  <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg"
+                    style="width:100%;display:block">
+                    <!-- Animated connection lines -->
+                    <line id="ndLineWired" x1="78" y1="52" x2="148" y2="75" class="nd-line" />
+                    <line id="ndLineWireless" x1="78" y1="124" x2="148" y2="85" class="nd-line" />
+                    <line id="ndLineWan" x1="262" y1="80" x2="192" y2="80" class="nd-line nd-line-wan" />
+
+                    <!-- Left: Wired clients -->
+                    <g id="ndWiredGroup">
+                      <rect x="4" y="26" width="74" height="52" rx="7" class="nd-node" />
+                      <!-- Ethernet icon: simple plug with pins -->
+                      <rect x="30" y="31" width="22" height="14" rx="2" fill="none" stroke="rgba(56,189,248,.6)"
+                        stroke-width="1.4" />
+                      <line x1="35" y1="31" x2="35" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4"
+                        stroke-linecap="round" />
+                      <line x1="41" y1="31" x2="41" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4"
+                        stroke-linecap="round" />
+                      <line x1="47" y1="31" x2="47" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4"
+                        stroke-linecap="round" />
+                      <line x1="41" y1="45" x2="41" y2="49" stroke="rgba(56,189,248,.4)" stroke-width="1.4"
+                        stroke-linecap="round" />
+                      <text x="41" y="59" class="nd-label">Wired</text>
+                      <text id="ndWiredCount" x="41" y="71" class="nd-count">—</text>
+                    </g>
+
+                    <!-- Left: Wireless clients -->
+                    <g id="ndWirelessGroup">
+                      <rect x="4" y="98" width="74" height="52" rx="7" class="nd-node" />
+                      <!-- Wifi arc icon — shifted up to give count room -->
+                      <path d="M29,111 Q41,101 53,111" fill="none" stroke="rgba(167,139,250,.7)" stroke-width="1.4"
+                        stroke-linecap="round" />
+                      <path d="M33,115 Q41,108 49,115" fill="none" stroke="rgba(167,139,250,.65)" stroke-width="1.4"
+                        stroke-linecap="round" />
+                      <path d="M36,119 Q41,115 46,119" fill="none" stroke="rgba(167,139,250,.6)" stroke-width="1.4"
+                        stroke-linecap="round" />
+                      <circle cx="41" cy="122" r="1.8" fill="rgba(167,139,250,.8)" />
+                      <text x="41" y="131" class="nd-label">Wireless</text>
+                      <text id="ndWirelessCount" x="41" y="143" class="nd-count">—</text>
+                    </g>
+
+                    <!-- Center: Router -->
+                    <g id="ndRouter">
+                      <rect x="148" y="52" width="44" height="56" rx="9" class="nd-router-bg" />
+                      <!-- Router body -->
+                      <rect x="155" y="70" width="30" height="22" rx="3" fill="none" stroke="rgba(56,189,248,.7)"
+                        stroke-width="1.5" />
+                      <!-- Antenna left -->
+                      <line x1="161" y1="70" x2="158" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5"
+                        stroke-linecap="round" />
+                      <!-- Antenna right -->
+                      <line x1="179" y1="70" x2="182" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5"
+                        stroke-linecap="round" />
+                      <!-- Port dots -->
+                      <circle cx="161" cy="85" r="2" fill="rgba(52,211,153,.7)" />
+                      <circle cx="167" cy="85" r="2" fill="rgba(52,211,153,.7)" />
+                      <circle cx="173" cy="85" r="2" fill="rgba(52,211,153,.5)" />
+                      <circle cx="179" cy="85" r="2" fill="rgba(52,211,153,.3)" />
+                      <!-- Status LED -->
+                      <circle cx="170" cy="97" r="3" class="nd-led" />
+                    </g>
+
+                    <!-- Right: WAN -->
+                    <g id="ndWanGroup">
+                      <rect x="262" y="52" width="74" height="56" rx="7" class="nd-node" />
+                      <!-- Globe rings -->
+                      <ellipse cx="299" cy="68" rx="12" ry="12" fill="none" stroke="rgba(56,189,248,.5)"
+                        stroke-width="1.2" />
+                      <ellipse cx="299" cy="68" rx="5" ry="12" fill="none" stroke="rgba(56,189,248,.4)"
+                        stroke-width="1" />
+                      <line x1="287" y1="68" x2="311" y2="68" stroke="rgba(56,189,248,.4)" stroke-width="1" />
+                      <text x="299" y="93" class="nd-label">WAN</text>
+                      <text id="ndWanIp" x="299" y="104" class="nd-wan-ip">—</text>
+                    </g>
+
+                    <!-- Flow dots animated along lines -->
+                    <circle r="2.5" class="nd-dot nd-dot-l1">
+                      <animateMotion dur="2.2s" repeatCount="indefinite" path="M78,52 L148,75" />
+                    </circle>
+                    <circle r="2.5" class="nd-dot nd-dot-l2">
+                      <animateMotion dur="2.8s" repeatCount="indefinite" path="M78,124 L148,85" />
+                    </circle>
+                    <circle r="2.5" class="nd-dot nd-dot-wan">
+                      <animateMotion dur="1.8s" repeatCount="indefinite" path="M192,80 L262,80" />
+                    </circle>
+                  </svg>
+                  <!-- Ping / Latency -->
+                  <div class="ping-section">
+                    <div class="ping-header">
+                      <span style="color:var(--text-muted)">Latency &rarr; 1.1.1.1</span>
+                      <div class="ping-stat">
+                        <span><span class="ping-val" id="ndPingRtt">—</span> <span
+                            style="color:var(--text-muted)">ms</span></span>
+                        <span><span class="ping-val" id="ndPingLoss">—</span> <span
+                            style="color:var(--text-muted)">loss</span></span>
+                      </div>
+                    </div>
+                    <div class="ping-canvas-wrap"><canvas id="pingChartNet"></canvas></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          </div>
-        </div>
 
-
-      </div><!-- /dashGrid -->
-    </div>
-  </div><!-- /dashboard -->
-
-  <!-- CONNECTIONS MAP -->
-  <div class="page-view" id="page-connections">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
-      <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between">
-          <h3 class="card-title">Destination Countries</h3>
-          <div class="d-flex align-items-center gap-2">
-            <span style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)" id="connMapSub">Top connection destinations</span>
-            <button id="mapFullscreenBtn" title="Fullscreen map" style="display:none;align-items:center;justify-content:center;background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);width:26px;height:26px;cursor:pointer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
-          </div>
-        </div>
-        <div class="card-body" style="padding:.5rem">
-          <div id="worldMapWrap" style="width:100%;position:relative;overflow:hidden;border-radius:6px;background:rgba(56,189,248,.03);cursor:grab;user-select:none">
-            <svg id="worldMap" viewBox="0 0 1000 500" style="width:100%;display:block;touch-action:none"></svg>
-            <div class="map-tooltip" id="mapTooltip"></div>
-            <div style="position:absolute;bottom:.5rem;right:.5rem;display:flex;flex-direction:column;gap:3px">
-              <button id="mapZoomIn"  style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">+</button>
-              <button id="mapZoomOut" style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">−</button>
-              <button id="mapZoomReset" style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:.55rem;cursor:pointer;line-height:1">RST</button>
+          <!-- Col 3: Top Talkers + WireGuard stacked -->
+          <div class="mikrodash-col">
+            <div data-card-id="talkersCard">
+              <div class="card" id="talkersCard">
+                <div class="stale-overlay">&#9679; stale</div>
+                <div class="card-header d-flex align-items-center gap-2">
+                  <h3 class="card-title">Top Talkers</h3>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-vcenter mb-0">
+                      <thead>
+                        <tr>
+                          <th>Device</th>
+                          <th>MAC</th>
+                          <th class="text-end">&#8595;</th>
+                          <th class="text-end">&#8593;</th>
+                        </tr>
+                      </thead>
+                      <tbody id="talkersTable">
+                        <tr>
+                          <td colspan="4" class="empty-state">No devices</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div data-card-id="vpnCard">
+              <div class="card" id="vpnCard">
+                <div class="stale-overlay">&#9679; stale</div>
+                <div class="card-header d-flex align-items-center justify-content-between">
+                  <h3 class="card-title">WireGuard</h3>
+                  <span id="vpnCount" class="badge bg-secondary"
+                    style="font-family:var(--font-mono);font-size:.68rem;color:#000">0</span>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-vcenter mb-0">
+                      <thead>
+                        <tr>
+                          <th style="width:55px">Status</th>
+                          <th>Peer</th>
+                          <th>Handshake</th>
+                        </tr>
+                      </thead>
+                      <tbody id="vpnTable">
+                        <tr>
+                          <td colspan="3" class="empty-state">No active peers</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+
+
+        </div><!-- /dashGrid -->
       </div>
-      <div class="conn-bottom-grid">
+    </div><!-- /dashboard -->
+
+    <!-- CONNECTIONS MAP -->
+    <div class="page-view" id="page-connections">
+      <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
         <div class="card">
           <div class="card-header d-flex align-items-center justify-content-between">
-            <h3 class="card-title">Top Countries</h3>
-            <span id="connFilterLabel" style="font-family:var(--font-mono);font-size:.65rem;color:var(--accent-rx);display:none">● filtered</span>
+            <h3 class="card-title">Destination Countries</h3>
+            <div class="d-flex align-items-center gap-2">
+              <span style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)" id="connMapSub">Top
+                connection destinations</span>
+              <button id="mapFullscreenBtn" title="Fullscreen map"
+                style="display:none;align-items:center;justify-content:center;background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);width:26px;height:26px;cursor:pointer"><svg
+                  viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2">
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg></button>
+            </div>
           </div>
-          <div class="card-body" style="padding:.5rem .75rem">
-            <div id="connMapList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.35rem"></div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-header"><h3 class="card-title">Top Ports</h3></div>
-          <div class="card-body" style="padding:.35rem .6rem">
-            <div id="connPortList"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- WIRELESS -->
-  <div class="page-view" id="page-wireless">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
-      <div class="card" id="wirelessCard">
-        <div class="stale-overlay">&#9679; stale</div>
-        <div class="card-header d-flex align-items-center flex-wrap gap-2">
-          <h3 class="card-title mb-0">Wireless Clients</h3>
-          <span id="wirelessTabBadge" class="badge bg-secondary" style="font-family:var(--font-mono);font-size:.68rem">0</span>
-          <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
-            <span style="font-size:.7rem;color:var(--text-muted)">Sort:</span>
-            <div class="d-flex gap-1" id="wifiSortBtns">
-              <button class="wl-sort-btn active" data-sort="signal">Signal</button>
-              <button class="wl-sort-btn" data-sort="txRate">TX Rate</button>
-              <button class="wl-sort-btn" data-sort="uptime">Uptime</button>
-              <button class="wl-sort-btn" data-sort="name">Name</button>
+          <div class="card-body" style="padding:.5rem">
+            <div id="worldMapWrap"
+              style="width:100%;position:relative;overflow:hidden;border-radius:6px;background:rgba(56,189,248,.03);cursor:grab;user-select:none">
+              <svg id="worldMap" viewBox="0 0 1000 500" style="width:100%;display:block;touch-action:none"></svg>
+              <div class="map-tooltip" id="mapTooltip"></div>
+              <div style="position:absolute;bottom:.5rem;right:.5rem;display:flex;flex-direction:column;gap:3px">
+                <button id="mapZoomIn"
+                  style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">+</button>
+                <button id="mapZoomOut"
+                  style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">−</button>
+                <button id="mapZoomReset"
+                  style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:.55rem;cursor:pointer;line-height:1">RST</button>
+              </div>
             </div>
           </div>
         </div>
-        <div class="card-body p-0" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-          <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:520px">
-            <colgroup><col style="width:160px"><col style="width:60px"><col style="width:80px"><col style="width:110px"><col style="width:60px"><col style="width:70px"></colgroup>
-            <thead><tr><th>Device</th><th class="wl-col-band">Band</th><th class="wl-col-iface">Interface</th><th class="text-end">Signal</th><th>TX / RX</th><th class="wl-col-uptime">Uptime</th></tr></thead>
-            <tbody id="wirelessTable"><tr><td colspan="6" class="empty-state">No wireless clients</td></tr></tbody>
-          </table>
+        <div class="conn-bottom-grid">
+          <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <h3 class="card-title">Top Countries</h3>
+              <span id="connFilterLabel"
+                style="font-family:var(--font-mono);font-size:.65rem;color:var(--accent-rx);display:none">●
+                filtered</span>
+            </div>
+            <div class="card-body" style="padding:.5rem .75rem">
+              <div id="connMapList"
+                style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.35rem"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Top Ports</h3>
+            </div>
+            <div class="card-body" style="padding:.35rem .6rem">
+              <div id="connPortList"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- DHCP -->
-  <div class="page-view" id="page-dhcp">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
-      <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div class="d-flex align-items-center gap-2">
-            <h3 class="card-title mb-0">DHCP Leases</h3>
-            <span id="dhcpTotalBadge" class="badge bg-secondary" style="font-family:var(--font-mono);font-size:.68rem">0</span>
+    <!-- WIRELESS -->
+    <div class="page-view" id="page-wireless">
+      <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+        <div class="card" id="wirelessCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header d-flex align-items-center flex-wrap gap-2">
+            <h3 class="card-title mb-0">Wireless Clients</h3>
+            <span id="wirelessTabBadge" class="badge bg-secondary"
+              style="font-family:var(--font-mono);font-size:.68rem">0</span>
+            <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+              <span style="font-size:.7rem;color:var(--text-muted)">Sort:</span>
+              <div class="d-flex gap-1" id="wifiSortBtns">
+                <button class="wl-sort-btn active" data-sort="signal">Signal</button>
+                <button class="wl-sort-btn" data-sort="txRate">TX Rate</button>
+                <button class="wl-sort-btn" data-sort="uptime">Uptime</button>
+                <button class="wl-sort-btn" data-sort="name">Name</button>
+              </div>
+            </div>
           </div>
-          <input id="dhcpSearch" class="form-control form-control-sm" placeholder="Search hostname, IP, MAC&#8230;" style="max-width:260px"/>
-        </div>
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%">
-              <colgroup><col style="width:30%"><col style="width:20%"><col style="width:25%"><col style="width:25%"></colgroup>
-              <thead><tr><th>Hostname</th><th>IP</th><th>MAC</th><th>Status</th></tr></thead>
+          <div class="card-body p-0" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:520px">
+              <colgroup>
+                <col style="width:160px">
+                <col style="width:60px">
+                <col style="width:80px">
+                <col style="width:110px">
+                <col style="width:60px">
+                <col style="width:70px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Device</th>
+                  <th class="wl-col-band">Band</th>
+                  <th class="wl-col-iface">Interface</th>
+                  <th class="text-end">Signal</th>
+                  <th>TX / RX</th>
+                  <th class="wl-col-uptime">Uptime</th>
+                </tr>
+              </thead>
+              <tbody id="wirelessTable">
+                <tr>
+                  <td colspan="6" class="empty-state">No wireless clients</td>
+                </tr>
+              </tbody>
             </table>
           </div>
-          <div class="data-scroll" id="dhcpScrollWrap" style="max-height:calc(100vh - 200px);overflow-y:auto">
-            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%">
-              <colgroup><col style="width:30%"><col style="width:20%"><col style="width:25%"><col style="width:25%"></colgroup>
-              <tbody id="dhcpTable"><tr><td colspan="4" class="empty-state">Waiting for lease data&#8230;</td></tr></tbody>
-            </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DHCP -->
+    <div class="page-view" id="page-dhcp">
+      <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <h3 class="card-title mb-0">DHCP Leases</h3>
+              <span id="dhcpTotalBadge" class="badge bg-secondary"
+                style="font-family:var(--font-mono);font-size:.68rem">0</span>
+            </div>
+            <input id="dhcpSearch" class="form-control form-control-sm" placeholder="Search hostname, IP, MAC&#8230;"
+              style="max-width:260px" />
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%">
+                <colgroup>
+                  <col style="width:30%">
+                  <col style="width:20%">
+                  <col style="width:25%">
+                  <col style="width:25%">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Hostname</th>
+                    <th>IP</th>
+                    <th>MAC</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+            <div class="data-scroll" id="dhcpScrollWrap" style="max-height:calc(100vh - 200px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%">
+                <colgroup>
+                  <col style="width:30%">
+                  <col style="width:20%">
+                  <col style="width:25%">
+                  <col style="width:25%">
+                </colgroup>
+                <tbody id="dhcpTable">
+                  <tr>
+                    <td colspan="4" class="empty-state">Waiting for lease data&#8230;</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- FIREWALL -->
-  <div class="page-view" id="page-firewall">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
-      <div class="card" id="firewallCard">
-        <div class="stale-overlay">&#9679; stale</div>
-        <div class="card-body p-0">
-          <div class="fw-tabs">
-            <div class="fw-tab active" data-fw="top">Top Hits</div>
-            <div class="fw-tab" data-fw="filter">Filter</div>
-            <div class="fw-tab" data-fw="nat">NAT</div>
-            <div class="fw-tab" data-fw="mangle">Mangle</div>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-vcenter mb-0">
-              <thead><tr><th>Chain</th><th>Action</th><th>Src &#8594; Dst</th><th>Comment</th><th class="text-end">Packets</th></tr></thead>
-              <tbody id="firewallTable"><tr><td colspan="5" class="empty-state">Waiting&#8230;</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- VPN -->
-  <div class="page-view" id="page-vpn">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
-      <!-- All peer tiles -->
-      <div class="card">
-        <div class="card-header"><h3 class="card-title">WireGuard Peers</h3></div>
-        <div class="card-body" style="padding:.65rem .75rem">
-          <div class="vpn-tile-grid" id="vpnPageGrid">
-            <div class="empty-state">No peers configured</div>
+    <!-- FIREWALL -->
+    <div class="page-view" id="page-firewall">
+      <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+        <div class="card" id="firewallCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-body p-0">
+            <div class="fw-tabs">
+              <div class="fw-tab active" data-fw="top">Top Hits</div>
+              <div class="fw-tab" data-fw="filter">Filter</div>
+              <div class="fw-tab" data-fw="nat">NAT</div>
+              <div class="fw-tab" data-fw="mangle">Mangle</div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-vcenter mb-0">
+                <thead>
+                  <tr>
+                    <th>Chain</th>
+                    <th>Action</th>
+                    <th>Src &#8594; Dst</th>
+                    <th>Comment</th>
+                    <th class="text-end">Packets</th>
+                  </tr>
+                </thead>
+                <tbody id="firewallTable">
+                  <tr>
+                    <td colspan="5" class="empty-state">Waiting&#8230;</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- LOGS -->
-  <div class="page-view" id="page-logs">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
-      <div class="card">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <h3 class="card-title">Router Logs</h3>
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <select id="logSeverity" class="form-select form-select-sm" style="max-width:110px;font-size:.73rem">
-              <option value="">All levels</option><option value="error">Error</option><option value="warning">Warning</option><option value="info">Info</option><option value="debug">Debug</option>
-            </select>
-            <input id="logSearch" class="form-control form-control-sm" placeholder="Search&#8230;" style="max-width:200px;font-size:.73rem"/>
-            <button id="toggleScroll" class="btn btn-sm btn-outline-secondary" style="font-size:.7rem">Pause</button>
-            <button id="clearLogs"   class="btn btn-sm btn-outline-secondary" style="font-size:.7rem">Clear</button>
+    <!-- VPN -->
+    <div class="page-view" id="page-vpn">
+      <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+        <!-- All peer tiles -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">WireGuard Peers</h3>
           </div>
-        </div>
-        <div class="card-body" style="padding:.75rem"><div id="logs"></div></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- INTERFACES -->
-  <div class="page-view" id="page-interfaces">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
-      <div class="card" id="ifStatusCard">
-        <div class="stale-overlay">&#9679; stale</div>
-        <div class="card-header d-flex align-items-center gap-2">
-          <h3 class="card-title">Interfaces</h3>
-        </div>
-        <div class="card-body" style="padding:.65rem .75rem">
-          <div class="iface-grid" id="ifaceGrid"><div class="empty-state">Waiting&#8230;</div></div>
+          <div class="card-body" style="padding:.65rem .75rem">
+            <div class="vpn-tile-grid" id="vpnPageGrid">
+              <div class="empty-state">No peers configured</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-  <!-- INFO -->
-  <div class="page-view" id="page-info">
-    <div class="container-fluid px-0" style="max-width:680px;margin:0 auto">
 
-      <div class="card mb-3">
-        <div class="card-body" style="padding:1.5rem;text-align:center">
-          <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;margin-bottom:.5rem">
-            <img src="logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9" onerror="this.style.display='none'"/>
-            <span style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
+    <!-- LOGS -->
+    <div class="page-view" id="page-logs">
+      <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <h3 class="card-title">Router Logs</h3>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <select id="logSeverity" class="form-select form-select-sm" style="max-width:110px;font-size:.73rem">
+                <option value="">All levels</option>
+                <option value="error">Error</option>
+                <option value="warning">Warning</option>
+                <option value="info">Info</option>
+                <option value="debug">Debug</option>
+              </select>
+              <input id="logSearch" class="form-control form-control-sm" placeholder="Search&#8230;"
+                style="max-width:200px;font-size:.73rem" />
+              <button id="toggleScroll" class="btn btn-sm btn-outline-secondary" style="font-size:.7rem">Pause</button>
+              <button id="clearLogs" class="btn btn-sm btn-outline-secondary" style="font-size:.7rem">Clear</button>
+            </div>
           </div>
-          <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Real-time MikroTik Router Dashboard</div>
-          <div style="font-size:.72rem;color:var(--text-muted)">Built with Node.js · Socket.IO · Chart.js · Bootstrap</div>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-header"><h3 class="card-title">License</h3></div>
-        <div class="card-body" style="padding:1rem 1.25rem">
-          <div style="font-family:var(--font-mono);font-size:.75rem;color:var(--text-main);margin-bottom:.5rem">MIT License</div>
-          <div style="font-size:.75rem;color:var(--text-muted);line-height:1.6">
-            Permission is hereby granted, free of charge, to any person obtaining a copy of this software to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the following conditions:<br><br>
-            The above copyright notice and this permission notice shall be included in all copies or substantial portions of the software.<br><br>
-            <span style="color:rgba(148,163,190,.5)">THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-header"><h3 class="card-title">Support &amp; Donations</h3></div>
-        <div class="card-body" style="padding:1rem 1.25rem">
-          <div style="font-size:.78rem;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">
-            MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:.6rem">
-            <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">
-              <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;flex-shrink:0"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
-              GitHub
-            </a>
-            <a href="https://buymeacoffee.com/SecOps7" target="_blank" rel="noopener" class="info-btn info-btn-coffee">
-              ☕ Buy me a coffee
-            </a>
-            <a href="https://paypal.me/SecOps7App" target="_blank" rel="noopener" class="info-btn info-btn-outline">
-              💳 PayPal
-            </a>
+          <div class="card-body" style="padding:.75rem">
+            <div id="logs"></div>
           </div>
         </div>
       </div>
-
-      <div class="card mb-3">
-        <div class="card-header"><h3 class="card-title">Links</h3></div>
-        <div class="card-body" style="padding:.75rem 1.25rem;display:flex;flex-wrap:wrap;gap:.5rem">
-          <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">Documentation</a>
-          <a href="https://github.com/SecOps-7/MikroDash/issues" target="_blank" rel="noopener" class="info-btn info-btn-outline">Report a Bug</a>
-          <a href="https://mikrotik.com/software" target="_blank" rel="noopener" class="info-btn info-btn-outline">MikroTik RouterOS</a>
-        </div>
-      </div>
-
-      <div class="card mb-3" style="border-color:rgba(251,191,36,.15)">
-        <div class="card-body" style="padding:.85rem 1.25rem;display:flex;gap:.75rem;align-items:flex-start">
-          <span style="font-size:1rem;flex-shrink:0">⚠️</span>
-          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.65">
-            <strong style="color:rgba(200,215,240,.75)">Disclaimer</strong><br>
-            MikroDash is an independent, community-built project and is <strong style="color:rgba(200,215,240,.75)">not affiliated with, endorsed by, or associated with MikroTik SIA</strong> in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and trademarks are the property of their respective owners.
-          </div>
-        </div>
-      </div>
-
-      <div style="text-align:center;font-family:var(--font-mono);font-size:.65rem;color:rgba(148,163,190,.35);padding:.5rem 0 1.5rem">
-        MikroDash · MIT License · Made with ♥ for the MikroTik community
-      </div>
-
     </div>
+
+    <!-- INTERFACES -->
+    <div class="page-view" id="page-interfaces">
+      <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+        <div class="card" id="ifStatusCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <h3 class="card-title">Interfaces</h3>
+          </div>
+          <div class="card-body" style="padding:.65rem .75rem">
+            <div class="iface-grid" id="ifaceGrid">
+              <div class="empty-state">Waiting&#8230;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- INFO -->
+    <div class="page-view" id="page-info">
+      <div class="container-fluid px-0" style="max-width:680px;margin:0 auto">
+
+        <div class="card mb-3">
+          <div class="card-body" style="padding:1.5rem;text-align:center">
+            <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;margin-bottom:.5rem">
+              <img src="logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9"
+                onerror="this.style.display='none'" />
+              <span
+                style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">
+              Real-time MikroTik Router Dashboard</div>
+            <div style="font-size:.72rem;color:var(--text-muted)">Built with Node.js · Socket.IO · Chart.js · Bootstrap
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <h3 class="card-title">License</h3>
+          </div>
+          <div class="card-body" style="padding:1rem 1.25rem">
+            <div style="font-family:var(--font-mono);font-size:.75rem;color:var(--text-main);margin-bottom:.5rem">MIT
+              License</div>
+            <div style="font-size:.75rem;color:var(--text-muted);line-height:1.6">
+              Permission is hereby granted, free of charge, to any person obtaining a copy of this software to use,
+              copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the following
+              conditions:<br><br>
+              The above copyright notice and this permission notice shall be included in all copies or substantial
+              portions of the software.<br><br>
+              <span style="color:rgba(148,163,190,.5)">THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+                KIND.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <h3 class="card-title">Support &amp; Donations</h3>
+          </div>
+          <div class="card-body" style="padding:1rem 1.25rem">
+            <div style="font-size:.78rem;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">
+              MikroDash is free and open source. If it saves you time or you find it useful, consider supporting
+              continued development.
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+              <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener"
+                class="info-btn info-btn-outline">
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;flex-shrink:0">
+                  <path
+                    d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+                </svg>
+                GitHub
+              </a>
+              <a href="https://buymeacoffee.com/SecOps7" target="_blank" rel="noopener"
+                class="info-btn info-btn-coffee">
+                ☕ Buy me a coffee
+              </a>
+              <a href="https://paypal.me/SecOps7App" target="_blank" rel="noopener" class="info-btn info-btn-outline">
+                💳 PayPal
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header">
+            <h3 class="card-title">Links</h3>
+          </div>
+          <div class="card-body" style="padding:.75rem 1.25rem;display:flex;flex-wrap:wrap;gap:.5rem">
+            <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener"
+              class="info-btn info-btn-outline">Documentation</a>
+            <a href="https://github.com/SecOps-7/MikroDash/issues" target="_blank" rel="noopener"
+              class="info-btn info-btn-outline">Report a Bug</a>
+            <a href="https://mikrotik.com/software" target="_blank" rel="noopener"
+              class="info-btn info-btn-outline">MikroTik RouterOS</a>
+          </div>
+        </div>
+
+        <div class="card mb-3" style="border-color:rgba(251,191,36,.15)">
+          <div class="card-body" style="padding:.85rem 1.25rem;display:flex;gap:.75rem;align-items:flex-start">
+            <span style="font-size:1rem;flex-shrink:0">⚠️</span>
+            <div style="font-size:.74rem;color:var(--text-muted);line-height:1.65">
+              <strong style="color:rgba(200,215,240,.75)">Disclaimer</strong><br>
+              MikroDash is an independent, community-built project and is <strong
+                style="color:rgba(200,215,240,.75)">not affiliated with, endorsed by, or associated with MikroTik
+                SIA</strong> in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and
+              trademarks are the property of their respective owners.
+            </div>
+          </div>
+        </div>
+
+        <div
+          style="text-align:center;font-family:var(--font-mono);font-size:.65rem;color:rgba(148,163,190,.35);padding:.5rem 0 1.5rem">
+          MikroDash · MIT License · Made with ♥ for the MikroTik community
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /main -->
+  <div id="mapFsOverlay">
+    <button id="mapFsClose" title="Close fullscreen"><svg viewBox="0 0 24 24"
+        style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.5">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg></button>
   </div>
 
-</div><!-- /main -->
-<div id="mapFsOverlay">
-  <button id="mapFsClose" title="Close fullscreen"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-</div>
+  <div id="kbdHint"><kbd>1</kbd>&#8211;<kbd>7</kbd> pages &nbsp;&#183;&nbsp; <kbd>/</kbd> log search</div>
 
-<div id="kbdHint"><kbd>1</kbd>&#8211;<kbd>7</kbd> pages &nbsp;&#183;&nbsp; <kbd>/</kbd> log search</div>
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-<script src="/app.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="/app.js"></script>
 </body>
+
 </html>

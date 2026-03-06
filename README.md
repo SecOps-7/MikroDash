@@ -33,6 +33,8 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 ## Features
 
+- Monitor one or many MikroTik routers from a single MikroDash instance (device selector in top bar)
+
 ### Dashboard
 - **Live traffic chart** — per-interface RX/TX Mbps with configurable history window (1m–30m)
 - **System card** — CPU, RAM, Storage gauges with colour-coded thresholds (amber >75%, red >90%), board info, temperature, uptime chip
@@ -166,6 +168,12 @@ ROUTER_USER=mikrodash        # API username
 ROUTER_PASS=change-me        # API password
 DEFAULT_IF=ether1            # Default interface shown in traffic chart
 HISTORY_MINUTES=30           # Traffic chart history window
+
+# Optional: monitor multiple routers in one dashboard
+# When set, this overrides ROUTER_HOST/ROUTER_USER/ROUTER_PASS for runtime connections.
+# Example:
+# ROUTERS_JSON=[{"id":"home","name":"Home Router","host":"192.168.88.1","port":8728,"tls":false,"username":"mikrodash","password":"secret","defaultIf":"ether1"},{"id":"lab","name":"Lab Router","host":"10.0.0.1","port":8729,"tls":true,"tlsInsecure":true,"username":"mikrodash","password":"secret","defaultIf":"wan"}]
+ROUTERS_JSON=
 
 # Polling intervals (ms)
 CONNS_POLL_MS=3000
