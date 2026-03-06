@@ -246,3 +246,10 @@ Third-party attributions — see [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)
 ## Disclaimer
 
 MikroDash is an independent, community-built project and is **not affiliated with, endorsed by, or associated with MikroTik SIA** in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and trademarks are the property of their respective owners.
+
+
+---
+
+## Built With AI
+
+The code for MikroDash was written with the assistance of [Claude](https://claude.ai) by [Anthropic](https://anthropic.com).
