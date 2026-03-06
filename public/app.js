@@ -387,6 +387,7 @@ socket.on('ifstatus:update',function(data){
       if(!groups[key]){ groups[key]={iface:key,ssid:c.ssid,clients:[]}; order.push(key); }
       groups[key].clients.push(c);
     });
+    var hasRuckus=clients.some(function(c){return c.source==='ruckus';});
     var rows='';
     order.forEach(function(key){
       var g=groups[key];
@@ -408,6 +409,7 @@ socket.on('ifstatus:update',function(data){
           '<td>'+
             '<div style="font-weight:600;font-size:.78rem">'+esc(c.name||c.mac)+
               (idle?'<span class="wl-idle-tag">idle</span>':'')+
+              (hasRuckus?(c.source==='ruckus'?'<span class="wl-src wl-src-ruckus">R</span>':'<span class="wl-src wl-src-mikrotik">M</span>'):'')+
             '</div>'+
             ipStr+macStr+
           '</td>'+

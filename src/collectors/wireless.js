@@ -1,11 +1,12 @@
 class WirelessCollector {
-  constructor({ ros, io, pollMs, state, dhcpLeases, arp }) {
+  constructor({ ros, io, pollMs, state, dhcpLeases, arp, ruckus }) {
     this.ros = ros;
     this.io = io;
     this.pollMs = pollMs || 5000;
     this.state = state;
     this.dhcpLeases = dhcpLeases;
     this.arp = arp;
+    this.ruckus = ruckus || null;
     this.mode = null;
     this.timer = null;
   }
@@ -57,11 +58,23 @@ class WirelessCollector {
         uptime: c.uptime || '',
         ssid:   c.ssid   || '',
         name:   this.resolveName(mac),
+        source: 'mikrotik',
       };
     }).sort((a, b) => b.signal - a.signal);
 
+    // Merge Ruckus clients if the collector is active
+    const ruckusClients = (this.ruckus && this.ruckus.lastClients) || [];
+    // Enrich Ruckus clients with DHCP lease names
+    const enriched = ruckusClients.map(c => {
+      const dhcpName = this.resolveName(c.mac);
+      return dhcpName ? { ...c, name: dhcpName } : c;
+    });
+    const allClients = enriched.length
+      ? parsed.concat(enriched).sort((a, b) => b.signal - a.signal)
+      : parsed;
+
     // Always emit — even with zero clients — so the stale timer is refreshed
-    const payload = { ts: Date.now(), clients: parsed, mode: this.mode || 'none' };
+    const payload = { ts: Date.now(), clients: allClients, mode: this.mode || 'none' };
     this.lastPayload = payload;
     this.io.emit('wireless:update', payload);
     this.state.lastWirelessTs = Date.now();

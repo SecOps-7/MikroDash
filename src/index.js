@@ -19,6 +19,7 @@ const VpnCollector         = require('./collectors/vpn');
 const FirewallCollector    = require('./collectors/firewall');
 const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const PingCollector         = require('./collectors/ping');
+const RuckusCollector       = require('./collectors/ruckus');
 
 const app = express();
 app.use(express.static('public'));
@@ -39,6 +40,7 @@ const state = {
   lastFirewallTs:0, lastFirewallErr:null,
   lastIfStatusTs:0,
   lastPingTs:0,
+  lastRuckusTs:0, lastRuckusErr:null,
 };
 
 const ros = new ROS({
@@ -63,7 +65,8 @@ const conns        = new ConnectionsCollector ({ros,io, pollMs:parseInt(process.
 const talkers      = new TopTalkersCollector  ({ros,io, pollMs:parseInt(process.env.KIDS_POLL_MS     ||'3000',10),  state, topN:parseInt(process.env.TOP_TALKERS_N||'5',10)});
 const logs         = new LogsCollector        ({ros,io, state});
 const system       = new SystemCollector      ({ros,io, pollMs:parseInt(process.env.SYSTEM_POLL_MS   ||'3000',10),  state});
-const wireless     = new WirelessCollector    ({ros,io, pollMs:parseInt(process.env.WIRELESS_POLL_MS ||'5000',10),  state, dhcpLeases, arp});
+const ruckus       = new RuckusCollector      ({io, pollMs:parseInt(process.env.RUCKUS_POLL_MS   ||'10000',10), state});
+const wireless     = new WirelessCollector    ({ros,io, pollMs:parseInt(process.env.WIRELESS_POLL_MS ||'5000',10),  state, dhcpLeases, arp, ruckus});
 const vpn          = new VpnCollector         ({ros,io, pollMs:parseInt(process.env.VPN_POLL_MS      ||'10000',10), state});
 const firewall     = new FirewallCollector    ({ros,io, pollMs:parseInt(process.env.FIREWALL_POLL_MS ||'10000',10), state, topN:parseInt(process.env.FIREWALL_TOP_N||'15',10)});
 const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:parseInt(process.env.IFSTATUS_POLL_MS||'5000',10), state});
@@ -98,6 +101,7 @@ app.get('/healthz', (_req, res) => {
       vpn:      { ts:state.lastVpnTs,      err:state.lastVpnErr      },
       firewall: { ts:state.lastFirewallTs, err:state.lastFirewallErr },
       ping:     { ts:state.lastPingTs,     err:null                  },
+      ruckus:   { ts:state.lastRuckusTs,  err:state.lastRuckusErr   },
     },
   });
 });
@@ -114,6 +118,7 @@ ros.connectLoop();
     // No staggering needed — node-routeros handles concurrent commands.
     // Start wireless immediately in parallel — don't wait for dhcpLeases
     // Names won't resolve on the very first poll but arrive on the second
+    ruckus.start();
     wireless.start();
     await dhcpLeases.start();   // async: loads initial state first
     dhcpNetworks.start();
