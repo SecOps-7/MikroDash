@@ -63,6 +63,25 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 ---
 
+## ⚠️ Security Notice
+
+MikroDash is designed to run **on your local network only**. It has no built-in authentication, no HTTPS, and no access control.
+
+**Do not expose MikroDash directly to the internet.** Doing so would allow anyone to:
+- View live data from your router (traffic, clients, connections, firewall rules, logs)
+- Read your WAN IP, LAN topology, and connected device information
+- Monitor your network activity in real time
+
+If you need remote access, place MikroDash **behind an authenticating reverse proxy** (such as Nginx with Basic Auth, Authelia, or Cloudflare Access) or access it exclusively over a VPN.
+
+**Recommended local hardening:**
+- Run on a non-default port and bind to your LAN interface only
+- Set `chmod 600 .env` to protect your router credentials
+- Ensure `.env` is listed in `.gitignore` and never committed to version control
+- Use a dedicated read-only API user on the router (see RouterOS Setup below)
+
+---
+
 ## Quick Start
 
 ```bash
