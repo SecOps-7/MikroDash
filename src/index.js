@@ -98,6 +98,12 @@ app.get('/api/localcc', (_req, res) => {
   res.json({ cc, wanIp });
 });
 
+function sanitizeErr(e) {
+  if (!e) return null;
+  // Strip stack traces and truncate
+  return String(e).split('\n')[0].slice(0, 200);
+}
+
 app.get('/healthz', (_req, res) => {
   res.json({
     ok: true,
@@ -107,17 +113,17 @@ app.get('/healthz', (_req, res) => {
     now: Date.now(),
     defaultIf: DEFAULT_IF,
     checks: {
-      traffic:  { ts:state.lastTrafficTs,  err:state.lastTrafficErr  },
-      conns:    { ts:state.lastConnsTs,    err:state.lastConnsErr    },
-      leases:   { ts:state.lastLeasesTs,   err:null                  },
-      arp:      { ts:state.lastArpTs,      err:null                  },
-      talkers:  { ts:state.lastTalkersTs,  err:state.lastTalkersErr  },
-      logs:     { ts:state.lastLogsTs,     err:state.lastLogsErr     },
-      system:   { ts:state.lastSystemTs,   err:state.lastSystemErr   },
-      wireless: { ts:state.lastWirelessTs, err:state.lastWirelessErr },
-      vpn:      { ts:state.lastVpnTs,      err:state.lastVpnErr      },
-      firewall: { ts:state.lastFirewallTs, err:state.lastFirewallErr },
-      ping:     { ts:state.lastPingTs,     err:null                  },
+      traffic:  { ts:state.lastTrafficTs,  err:sanitizeErr(state.lastTrafficErr)  },
+      conns:    { ts:state.lastConnsTs,    err:sanitizeErr(state.lastConnsErr)    },
+      leases:   { ts:state.lastLeasesTs,   err:null                               },
+      arp:      { ts:state.lastArpTs,      err:null                               },
+      talkers:  { ts:state.lastTalkersTs,  err:sanitizeErr(state.lastTalkersErr)  },
+      logs:     { ts:state.lastLogsTs,     err:sanitizeErr(state.lastLogsErr)     },
+      system:   { ts:state.lastSystemTs,   err:sanitizeErr(state.lastSystemErr)   },
+      wireless: { ts:state.lastWirelessTs, err:sanitizeErr(state.lastWirelessErr) },
+      vpn:      { ts:state.lastVpnTs,      err:sanitizeErr(state.lastVpnErr)      },
+      firewall: { ts:state.lastFirewallTs, err:sanitizeErr(state.lastFirewallErr) },
+      ping:     { ts:state.lastPingTs,     err:null                               },
     },
   });
 });
