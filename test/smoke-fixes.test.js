@@ -46,6 +46,35 @@ test('basic auth middleware challenges unauthorized requests and accepts valid c
   assert.equal(ended, 'ok');
 });
 
+test('basic auth middleware rate limits repeated failures', () => {
+  const middleware = createBasicAuthMiddleware({
+    username: 'admin',
+    password: 'secret',
+    maxFailures: 2,
+    blockMs: 60_000,
+  });
+  const req = { headers: {}, socket: { remoteAddress: '127.0.0.1' } };
+  const makeRes = () => ({
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    end(body) { this.body = body; },
+  });
+
+  const first = makeRes();
+  middleware(req, first, () => assert.fail('first request should not authorize'));
+  assert.equal(first.statusCode, 401);
+
+  const second = makeRes();
+  middleware(req, second, () => assert.fail('second request should not authorize'));
+  assert.equal(second.statusCode, 401);
+
+  const third = makeRes();
+  middleware(req, third, () => assert.fail('third request should be rate limited'));
+  assert.equal(third.statusCode, 429);
+  assert.equal(third.body, 'Too many authentication attempts');
+  assert.ok(third.headers['Retry-After']);
+});
+
 test('traffic collector ignores invalid interface selections and prunes unused polls', () => {
   const io = { to() { return { emit() {} }; }, emit() {} };
   const ros = { connected: true, on() {} };

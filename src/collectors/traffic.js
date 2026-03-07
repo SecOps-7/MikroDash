@@ -10,6 +10,7 @@
 const RingBuffer = require('../util/ringbuffer');
 
 const POLL_MS = 1000; // 1 second
+// RouterOS interface names are short in practice; cap this to reject malformed input early.
 const MAX_INTERFACE_NAME_LENGTH = 128;
 
 function parseBps(val) {
