@@ -1,14 +1,13 @@
 const crypto = require('crypto');
 
-function toBuffer(value) {
-  return Buffer.from(String(value || ''), 'utf8');
+const HMAC_KEY = crypto.randomBytes(32);
+
+function hmacDigest(value) {
+  return crypto.createHmac('sha256', HMAC_KEY).update(String(value || '')).digest();
 }
 
 function safeEqual(expected, actual) {
-  const expectedBuf = toBuffer(expected);
-  const actualBuf = toBuffer(actual);
-  if (expectedBuf.length !== actualBuf.length) return false;
-  return crypto.timingSafeEqual(expectedBuf, actualBuf);
+  return crypto.timingSafeEqual(hmacDigest(expected), hmacDigest(actual));
 }
 
 function parseBasicAuth(header) {
@@ -33,8 +32,6 @@ function parseBasicAuth(header) {
 }
 
 function getClientIp(req) {
-  const forwarded = req && req.headers && req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim()) return forwarded.split(',')[0].trim();
   return (req && req.socket && req.socket.remoteAddress) || 'unknown';
 }
 
