@@ -28,6 +28,13 @@ const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const PingCollector         = require('./collectors/ping');
 
 const app = express();
+
+// When behind a reverse proxy, set TRUSTED_PROXY to the proxy's IP (e.g. "127.0.0.1")
+// or "loopback" / "uniquelocal" to trust X-Forwarded-For from those ranges.
+// Unset = disabled (direct connections only, X-Forwarded-For ignored).
+const TRUSTED_PROXY = process.env.TRUSTED_PROXY;
+if (TRUSTED_PROXY) app.set('trust proxy', TRUSTED_PROXY);
+
 const server = http.createServer(app);
 const io = new Server(server);
 const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);

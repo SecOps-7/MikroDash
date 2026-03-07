@@ -32,7 +32,8 @@ function parseBasicAuth(header) {
 }
 
 function getClientIp(req) {
-  return (req && req.socket && req.socket.remoteAddress) || 'unknown';
+  // req.ip respects Express 'trust proxy'; falls back to socket address
+  return (req && req.ip) || (req && req.socket && req.socket.remoteAddress) || 'unknown';
 }
 
 // windowMs tracks failed attempts, maxFailures triggers blocking, and blockMs

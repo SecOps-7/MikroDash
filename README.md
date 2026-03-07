@@ -167,6 +167,7 @@ ROUTER_USER=mikrodash        # API username
 ROUTER_PASS=change-me        # API password
 BASIC_AUTH_USER=             # Optional dashboard HTTP Basic Auth username
 BASIC_AUTH_PASS=             # Optional dashboard HTTP Basic Auth password
+TRUSTED_PROXY=               # Proxy IP to trust X-Forwarded-For from (e.g. 127.0.0.1)
 DEFAULT_IF=ether1            # Default interface shown in traffic chart
 HISTORY_MINUTES=30           # Traffic chart history window
 
