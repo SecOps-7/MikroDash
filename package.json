@@ -2,17 +2,18 @@
   "name": "mikrodash",
   "version": "0.4.8",
   "private": true,
-  "description": "MikroTik RouterOS v7 live dashboard \u2014 streaming binary API, Tabler + Socket.IO",
+  "description": "MikroTik RouterOS v7 live dashboard — streaming binary API, Tabler + Socket.IO",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5",
-    "node-routeros": "^1.6.9",
-    "ipaddr.js": "^2.2.0",
     "dotenv": "^16.4.5",
-    "geoip-lite": "^1.4.10"
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.3.0",
+    "geoip-lite": "^1.4.10",
+    "ipaddr.js": "^2.2.0",
+    "node-routeros": "^1.6.9",
+    "socket.io": "^4.7.5"
   }
 }

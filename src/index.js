@@ -1,10 +1,17 @@
 require('dotenv').config();
 
+const path = require('path');
 const express = require('express');
 const http    = require('http');
+const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
+const { version: APP_VERSION } = require('../package.json');
+
+let geoip = null;
+try { geoip = require('geoip-lite'); } catch (_) {}
 
 const ROS                  = require('./routeros/client');
+const { createBasicAuthMiddleware } = require('./auth/basicAuth');
 const { fetchInterfaces }  = require('./collectors/interfaces');
 const TrafficCollector     = require('./collectors/traffic');
 const DhcpLeasesCollector  = require('./collectors/dhcpLeases');
@@ -21,9 +28,31 @@ const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const PingCollector         = require('./collectors/ping');
 
 const app = express();
-app.use(express.static('public'));
+
+// When behind a reverse proxy, set TRUSTED_PROXY to the proxy's IP (e.g. "127.0.0.1")
+// or "loopback" / "uniquelocal" to trust X-Forwarded-For from those ranges.
+// Unset = disabled (direct connections only, X-Forwarded-For ignored).
+const TRUSTED_PROXY = process.env.TRUSTED_PROXY;
+if (TRUSTED_PROXY) app.set('trust proxy', TRUSTED_PROXY);
+
 const server = http.createServer(app);
 const io = new Server(server);
+const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);
+const authLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !authEnabled,
+});
+const basicAuth = createBasicAuthMiddleware({
+  username: process.env.BASIC_AUTH_USER,
+  password: process.env.BASIC_AUTH_PASS,
+});
+
+app.use(authLimiter, basicAuth);
+io.engine.use(basicAuth);
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const state = {
   lastTrafficTs:0,  lastTrafficErr:null,
@@ -57,7 +86,7 @@ const HISTORY_MINUTES = parseInt(process.env.HISTORY_MINUTES || '30', 10);
 // Collectors — order matters: leases must exist before networks/connections
 const dhcpLeases   = new DhcpLeasesCollector ({ros,io, pollMs:parseInt(process.env.LEASES_POLL_MS   ||'15000',10), state});
 const arp          = new ArpCollector         ({ros,    pollMs:parseInt(process.env.ARP_POLL_MS      ||'30000',10), state});
-const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:parseInt(process.env.DHCP_POLL_MS     ||'15000',10), dhcpLeases, state});
+const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:parseInt(process.env.DHCP_POLL_MS     ||'15000',10), dhcpLeases, state, wanIface:DEFAULT_IF});
 const traffic      = new TrafficCollector     ({ros,io, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state});
 const conns        = new ConnectionsCollector ({ros,io, pollMs:parseInt(process.env.CONNS_POLL_MS    ||'3000',10),  topN:parseInt(process.env.TOP_N||'10',10), dhcpNetworks, dhcpLeases, arp, state});
 const talkers      = new TopTalkersCollector  ({ros,io, pollMs:parseInt(process.env.KIDS_POLL_MS     ||'3000',10),  state, topN:parseInt(process.env.TOP_TALKERS_N||'5',10)});
@@ -70,34 +99,38 @@ const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:parseInt(proce
 const ping         = new PingCollector({ros,io, pollMs:parseInt(process.env.PING_POLL_MS||'10000',10), state, target:process.env.PING_TARGET||'1.1.1.1'});
 
 app.get('/api/localcc', (_req, res) => {
-  let geoip = null;
-  try { geoip = require('geoip-lite'); } catch(e) {}
   const wanIp = (state.lastWanIp || '').split('/')[0];
   let cc = '';
   if (geoip && wanIp) { const g = geoip.lookup(wanIp); if (g) cc = g.country || ''; }
   res.json({ cc, wanIp });
 });
 
+function sanitizeErr(e) {
+  if (!e) return null;
+  // Strip stack traces and truncate
+  return String(e).split('\n')[0].slice(0, 200);
+}
+
 app.get('/healthz', (_req, res) => {
   res.json({
     ok: true,
-    version: '0.3.0',
+    version: APP_VERSION,
     routerConnected: ros.connected,
     uptime: process.uptime(),
     now: Date.now(),
     defaultIf: DEFAULT_IF,
     checks: {
-      traffic:  { ts:state.lastTrafficTs,  err:state.lastTrafficErr  },
-      conns:    { ts:state.lastConnsTs,    err:state.lastConnsErr    },
-      leases:   { ts:state.lastLeasesTs,   err:null                  },
-      arp:      { ts:state.lastArpTs,      err:null                  },
-      talkers:  { ts:state.lastTalkersTs,  err:state.lastTalkersErr  },
-      logs:     { ts:state.lastLogsTs,     err:state.lastLogsErr     },
-      system:   { ts:state.lastSystemTs,   err:state.lastSystemErr   },
-      wireless: { ts:state.lastWirelessTs, err:state.lastWirelessErr },
-      vpn:      { ts:state.lastVpnTs,      err:state.lastVpnErr      },
-      firewall: { ts:state.lastFirewallTs, err:state.lastFirewallErr },
-      ping:     { ts:state.lastPingTs,     err:null                  },
+      traffic:  { ts:state.lastTrafficTs,  err:sanitizeErr(state.lastTrafficErr)  },
+      conns:    { ts:state.lastConnsTs,    err:sanitizeErr(state.lastConnsErr)    },
+      leases:   { ts:state.lastLeasesTs,   err:null                               },
+      arp:      { ts:state.lastArpTs,      err:null                               },
+      talkers:  { ts:state.lastTalkersTs,  err:sanitizeErr(state.lastTalkersErr)  },
+      logs:     { ts:state.lastLogsTs,     err:sanitizeErr(state.lastLogsErr)     },
+      system:   { ts:state.lastSystemTs,   err:sanitizeErr(state.lastSystemErr)   },
+      wireless: { ts:state.lastWirelessTs, err:sanitizeErr(state.lastWirelessErr) },
+      vpn:      { ts:state.lastVpnTs,      err:sanitizeErr(state.lastVpnErr)      },
+      firewall: { ts:state.lastFirewallTs, err:sanitizeErr(state.lastFirewallErr) },
+      ping:     { ts:state.lastPingTs,     err:null                               },
     },
   });
 });
@@ -107,7 +140,7 @@ ros.connectLoop();
 (async () => {
   try {
     await ros.waitUntilConnected(60000);
-    console.log('[MikroDash] v0.3.2 — RouterOS connected, starting collectors');
+    console.log(`[MikroDash] v${APP_VERSION} — RouterOS connected, starting collectors`);
 
     // Streams (traffic, logs, leases) start themselves and register
     // reconnect handlers internally. Polling collectors do the same.
@@ -151,6 +184,7 @@ async function sendInitialState(socket) {
   ]);
 
   const ifs = ifaceResult.status === 'fulfilled' ? ifaceResult.value : [];
+  traffic.setAvailableInterfaces(ifs);
   socket.emit('interfaces:list', { defaultIf: DEFAULT_IF, interfaces: ifs });
 
   socket.emit('lan:overview', {
@@ -168,6 +202,10 @@ async function sendInitialState(socket) {
 
   // Push last wireless snapshot immediately so client doesn't wait for next poll
   if (wireless.lastPayload) socket.emit('wireless:update', wireless.lastPayload);
+
+  // Send ping history so client can render the chart immediately
+  const pingData = ping.getHistory();
+  if (pingData.history.length) socket.emit('ping:history', pingData);
 }
 
 io.on('connection', (socket) => {
@@ -183,4 +221,4 @@ setInterval(() => {
 }, 15000);
 
 const PORT = parseInt(process.env.PORT || '3081', 10);
-server.listen(PORT, () => console.log(`[MikroDash] v0.4.8 listening on http://0.0.0.0:${PORT}`));
+server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));

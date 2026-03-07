@@ -65,7 +65,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 ## ⚠️ Security Notice
 
-MikroDash is designed to run **on your local network only**. It has no built-in authentication, no HTTPS, and no access control.
+MikroDash is designed to run **on your local network only**. It has no built-in HTTPS or role-based access control.
 
 **Do not expose MikroDash directly to the internet.** Doing so would allow anyone to:
 - View live data from your router (traffic, clients, connections, firewall rules, logs)
@@ -75,6 +75,7 @@ MikroDash is designed to run **on your local network only**. It has no built-in 
 If you need remote access, place MikroDash **behind an authenticating reverse proxy** (such as Nginx with Basic Auth, Authelia, or Cloudflare Access) or access it exclusively over a VPN.
 
 **Recommended local hardening:**
+- Set `BASIC_AUTH_USER` and `BASIC_AUTH_PASS` to require HTTP Basic Auth for the dashboard and Socket.IO endpoint
 - Run on a non-default port and bind to your LAN interface only
 - Set `chmod 600 .env` to protect your router credentials
 - Ensure `.env` is listed in `.gitignore` and never committed to version control
@@ -164,6 +165,9 @@ ROUTER_TLS=false             # Set true to use API-SSL
 ROUTER_TLS_INSECURE=false    # Skip TLS cert verification (self-signed certs)
 ROUTER_USER=mikrodash        # API username
 ROUTER_PASS=change-me        # API password
+BASIC_AUTH_USER=             # Optional dashboard HTTP Basic Auth username
+BASIC_AUTH_PASS=             # Optional dashboard HTTP Basic Auth password
+TRUSTED_PROXY=               # Proxy IP to trust X-Forwarded-For from (e.g. 127.0.0.1)
 DEFAULT_IF=ether1            # Default interface shown in traffic chart
 HISTORY_MINUTES=30           # Traffic chart history window
 

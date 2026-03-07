@@ -569,9 +569,8 @@ socket.on('logs:new',function(line){
   if(logBuffer.length>MAX_LOG_LINES)logBuffer.shift();
   if(logLevel&&entry.severity!==logLevel)return;
   if(logFilter&&text.indexOf(logFilter)===-1)return;
-  logsEl.insertAdjacentHTML('beforeend',html+'\n');
-  var lines=logsEl.innerHTML.split('\n');
-  if(lines.length>MAX_LOG_LINES+50)logsEl.innerHTML=lines.slice(-MAX_LOG_LINES).join('\n');
+  logsEl.insertAdjacentHTML('beforeend',html);
+  while(logsEl.children.length>MAX_LOG_LINES)logsEl.removeChild(logsEl.firstElementChild);
   if(autoScroll)logsEl.scrollTop=logsEl.scrollHeight;
 });
 logSearch.addEventListener('input',function(){logFilter=(logSearch.value||'').trim().toLowerCase();flushLogs();});
@@ -639,6 +638,7 @@ setInterval(function(){
 
 // ── Ping / Latency ─────────────────────────────────────────────────────────
 var pingChartNet = null;
+var pingHistory = [], MAX_PING_HIST = 60;
 
 function pingColor(rtt){
   if(rtt==null)return'rgba(148,163,190,.4)';
@@ -678,9 +678,7 @@ function updatePingChart(chart,history){
   chart.data.datasets[0].backgroundColor=pts.map(function(p){return pingColor(p.rtt);});
   chart.update('none');
 }
-socket.on('ping:update',function(data){
-  var rtt=data.rtt, loss=data.loss, history=data.history||[];
-  // Networks card
+function renderPingUI(rtt, loss){
   var rttEl=$('ndPingRtt'),lossEl=$('ndPingLoss');
   if(rttEl){
     rttEl.textContent=rtt!=null?rtt:'—';
@@ -690,12 +688,21 @@ socket.on('ping:update',function(data){
     lossEl.textContent=loss+'%';
     lossEl.className='ping-val '+(loss===0?'ping-ok':loss<50?'ping-warn':'ping-bad');
   }
-  // VPN page
-  var vRtt=$('vpnPingRtt'),vLoss=$('vpnPingLoss');
-
-  // Charts — initialise lazily on first data
   if(!pingChartNet)pingChartNet=makePingChart('pingChartNet');
-  updatePingChart(pingChartNet,history);
+  updatePingChart(pingChartNet,pingHistory);
+}
+socket.on('ping:history',function(data){
+  pingHistory=(data.history||[]).slice(-MAX_PING_HIST);
+  if(pingHistory.length){
+    var last=pingHistory[pingHistory.length-1];
+    renderPingUI(last.rtt, last.loss);
+  }
+});
+socket.on('ping:update',function(data){
+  var rtt=data.rtt, loss=data.loss;
+  pingHistory.push({ts:data.ts||Date.now(), rtt:rtt, loss:loss});
+  if(pingHistory.length>MAX_PING_HIST)pingHistory.shift();
+  renderPingUI(rtt, loss);
 });
 
 // ── Browser Notifications ──────────────────────────────────────────────────
@@ -1459,6 +1466,19 @@ sendNotif = function(title, body, tag){
     document.head.appendChild(s);
   }).catch(function(e){console.warn('[worldmap]',e);});
 
+  // Fetch local country once on connect (WAN IP geolocation for arc origin)
+  var _localCCFetched = false;
+  socket.on('connect', function(){
+    _localCCFetched = false;
+  });
+  function fetchLocalCCOnce(){
+    if(_localCCFetched) return;
+    _localCCFetched = true;
+    fetch('/api/localcc').then(function(r){return r.json();}).then(function(d){
+      if(d.cc){ _localCC=d.cc; updateArcs(_countryCounts); }
+    }).catch(function(){ _localCCFetched = false; });
+  }
+
   // conn:update handler
   socket.on('conn:update',function(data){
     var topCountries=data.topCountries||[];
@@ -1488,14 +1508,7 @@ sendNotif = function(title, body, tag){
       });
     }
 
-    // Detect local country from first WAN IP or fall back
-    // Use the most connected country as a proxy for "not local"
-    // Actually detect via the topSources country — use router WAN IP geo
-    // For now if we don't know local CC, try to detect from dest list exclusion
-    // Fetch local country from server (WAN IP geo lookup)
-  fetch('/api/localcc').then(function(r){return r.json();}).then(function(d){
-    if(d.cc){ _localCC=d.cc; updateArcs(_countryCounts); }
-  }).catch(function(){});
+    fetchLocalCCOnce();
 
     updateHighlights(counts);
     updateArcs(counts);

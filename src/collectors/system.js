@@ -71,7 +71,7 @@ class SystemCollector {
       tempC,
     });
     this.state.lastSystemTs = Date.now();
-    delete this.state.lastSystemErr;
+    this.state.lastSystemErr = null;
   }
 
   start() {

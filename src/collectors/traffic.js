@@ -10,6 +10,8 @@
 const RingBuffer = require('../util/ringbuffer');
 
 const POLL_MS = 1000; // 1 second
+// RouterOS interface names are short in practice; cap this to reject malformed input early.
+const MAX_INTERFACE_NAME_LENGTH = 128;
 
 function parseBps(val) {
   // RouterOS API returns raw integer strings via binary API (e.g. "27800")
@@ -37,10 +39,42 @@ class TrafficCollector {
     this.hist          = new Map();   // ifName -> RingBuffer
     this.subscriptions = new Map();   // socketId -> ifName
     this.timers        = new Map();   // ifName -> intervalId
+    this.availableIfs  = new Set();
+    this._loggedErrs   = new Set();   // ifNames that have logged an error
   }
 
   _ensureHistory(ifName) {
     if (!this.hist.has(ifName)) this.hist.set(ifName, new RingBuffer(this.maxPoints));
+  }
+
+  setAvailableInterfaces(interfaces) {
+    const names = (interfaces || []).map(i => typeof i === 'string' ? i : i && i.name).filter(Boolean);
+    this.availableIfs = new Set(names);
+  }
+
+  _normalizeIfName(ifName) {
+    if (typeof ifName !== 'string') return null;
+    const trimmed = ifName.trim();
+    if (!trimmed || trimmed.length > MAX_INTERFACE_NAME_LENGTH) return null;
+    if (/[\r\n\0]/.test(trimmed)) return null;
+    if (this.availableIfs.size && !this.availableIfs.has(trimmed)) return null;
+    return trimmed;
+  }
+
+  _stopPoll(ifName) {
+    const timer = this.timers.get(ifName);
+    if (!timer) return;
+    clearInterval(timer);
+    this.timers.delete(ifName);
+    console.log('[traffic] stopped polling', ifName);
+  }
+
+  _pruneUnusedPolls() {
+    const active = new Set(this.subscriptions.values());
+    active.add(this.defaultIf);
+    for (const ifName of this.timers.keys()) {
+      if (!active.has(ifName)) this._stopPoll(ifName);
+    }
   }
 
   bindSocket(socket) {
@@ -48,18 +82,23 @@ class TrafficCollector {
     this.subscriptions.set(socket.id, this.defaultIf);
 
     // Client changed interface selection
-    socket.on('traffic:select', ({ ifName: newIf }) => {
-      if (!newIf) return;
-      this.subscriptions.set(socket.id, newIf);
-      this._ensureHistory(newIf);
-      this._startPoll(newIf);
+    socket.on('traffic:select', (payload) => {
+      const nextIf = this._normalizeIfName(payload && payload.ifName);
+      if (!nextIf) return;
+      this.subscriptions.set(socket.id, nextIf);
+      this._ensureHistory(nextIf);
+      this._startPoll(nextIf);
+      this._pruneUnusedPolls();
       socket.emit('traffic:history', {
-        ifName: newIf,
-        points: this.hist.get(newIf).toArray(),
+        ifName: nextIf,
+        points: this.hist.get(nextIf).toArray(),
       });
     });
 
-    socket.on('disconnect', () => this.subscriptions.delete(socket.id));
+    socket.on('disconnect', () => {
+      this.subscriptions.delete(socket.id);
+      this._pruneUnusedPolls();
+    });
   }
 
   _startPoll(ifName) {
@@ -109,10 +148,9 @@ class TrafficCollector {
 
       } catch (e) {
         this.state.lastTrafficErr = e && e.message ? e.message : String(e);
-        // Don't log every error — only first occurrence
-        if (!this._hadTrafficErr) {
+        if (!this._loggedErrs.has(ifName)) {
           console.error('[traffic] poll error on', ifName, ':', this.state.lastTrafficErr);
-          this._hadTrafficErr = true;
+          this._loggedErrs.add(ifName);
         }
       }
     }, POLL_MS);
@@ -121,12 +159,9 @@ class TrafficCollector {
   }
 
   _stopAll() {
-    for (const [ifName, timer] of this.timers.entries()) {
-      clearInterval(timer);
-      console.log('[traffic] stopped polling', ifName);
-    }
+    for (const ifName of this.timers.keys()) this._stopPoll(ifName);
     this.timers.clear();
-    this._hadTrafficErr = false;
+    this._loggedErrs.clear();
   }
 
   start() {

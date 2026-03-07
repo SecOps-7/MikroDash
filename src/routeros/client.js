@@ -17,6 +17,7 @@ class ROS extends EventEmitter {
     super();
     // ~11 collectors × 2 events each = 22 listeners minimum
     this.setMaxListeners(30);
+    this.on('error', () => {});
     this.cfg = cfg;
     this.conn = null;
     this.connected = false;

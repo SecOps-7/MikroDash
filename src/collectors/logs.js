@@ -38,7 +38,7 @@ class LogsCollector {
     });
 
     this.state.lastLogsTs = Date.now();
-    delete this.state.lastLogsErr;
+    this.state.lastLogsErr = null;
   }
 
   _startStream() {
