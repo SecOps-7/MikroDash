@@ -5,15 +5,16 @@ try { geoip = require('geoip-lite'); } catch(e) { console.warn('[connections] ge
  * node-routeros allows this to run concurrently with active streams since
  * each write() gets a unique tag for demultiplexing.
  */
-const { isInCidrs } = require('../util/ip');
+const { extractAddress, isInCidrs, isValidIp } = require('../util/ip');
 
 function makeDestKey(c) {
   const dst   = c['dst-address'] || c.dst || '';
   const proto = (c.protocol || c['ip-protocol'] || '').toLowerCase();
   const dport = c['dst-port'] || c['port'] || '';
-  if (dst && proto && dport) return dst + ':' + dport + '/' + proto;
-  if (dst && dport)          return dst + ':' + dport;
-  return dst || 'unknown';
+  const displayDst = isValidIp(dst) && dst.includes(':') ? `[${dst}]` : dst;
+  if (displayDst && proto && dport) return displayDst + ':' + dport + '/' + proto;
+  if (displayDst && dport)          return displayDst + ':' + dport;
+  return displayDst || 'unknown';
 }
 
 class ConnectionsCollector {
@@ -90,11 +91,11 @@ class ConnectionsCollector {
     for (const c of (conns || [])) {
       const dst  = c['dst-address'] || c.dst || '';
       if (!dst || isInCidrs(dst, lanCidrs)) continue;
-      const ip   = dst.split(':')[0];
+      const ip   = extractAddress(dst);
       const port = c['dst-port'] || c['port'] || '';
       const p    = (c.protocol || c['ip-protocol'] || '').toLowerCase();
       if (port) portCounts.set(port, (portCounts.get(port) || 0) + 1);
-      if (geoip) {
+      if (geoip && isValidIp(ip)) {
         const geo = geoip.lookup(ip);
         if (geo && geo.country) {
           const cc = geo.country;
@@ -109,9 +110,9 @@ class ConnectionsCollector {
     const topDestinations = Array.from(dstCounts.entries())
       .sort((a, b) => b[1] - a[1]).slice(0, this.topN)
       .map(([key, count]) => {
-        const ip = key.split(':')[0];
+        const ip = extractAddress(key);
         let country = '', city = '';
-        if (geoip) {
+        if (geoip && isValidIp(ip)) {
           const geo = geoip.lookup(ip);
           if (geo) { country = geo.country || ''; city = geo.city || ''; }
         }

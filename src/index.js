@@ -1,10 +1,12 @@
 require('dotenv').config();
 
+const path = require('path');
 const express = require('express');
 const http    = require('http');
 const { Server } = require('socket.io');
 
 const ROS                  = require('./routeros/client');
+const { createBasicAuthMiddleware } = require('./auth/basicAuth');
 const { fetchInterfaces }  = require('./collectors/interfaces');
 const TrafficCollector     = require('./collectors/traffic');
 const DhcpLeasesCollector  = require('./collectors/dhcpLeases');
@@ -21,9 +23,16 @@ const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const PingCollector         = require('./collectors/ping');
 
 const app = express();
-app.use(express.static('public'));
 const server = http.createServer(app);
 const io = new Server(server);
+const basicAuth = createBasicAuthMiddleware({
+  username: process.env.BASIC_AUTH_USER,
+  password: process.env.BASIC_AUTH_PASS,
+});
+
+app.use(basicAuth);
+io.engine.use(basicAuth);
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const state = {
   lastTrafficTs:0,  lastTrafficErr:null,
@@ -151,6 +160,7 @@ async function sendInitialState(socket) {
   ]);
 
   const ifs = ifaceResult.status === 'fulfilled' ? ifaceResult.value : [];
+  traffic.setAvailableInterfaces(ifs);
   socket.emit('interfaces:list', { defaultIf: DEFAULT_IF, interfaces: ifs });
 
   socket.emit('lan:overview', {
