@@ -569,8 +569,8 @@ socket.on('logs:new',function(line){
   if(logBuffer.length>MAX_LOG_LINES)logBuffer.shift();
   if(logLevel&&entry.severity!==logLevel)return;
   if(logFilter&&text.indexOf(logFilter)===-1)return;
-  logsEl.insertAdjacentHTML('beforeend',html+'\n');
-  while(logsEl.childNodes.length>MAX_LOG_LINES*2)logsEl.removeChild(logsEl.firstChild);
+  logsEl.insertAdjacentHTML('beforeend',html);
+  while(logsEl.children.length>MAX_LOG_LINES)logsEl.removeChild(logsEl.firstElementChild);
   if(autoScroll)logsEl.scrollTop=logsEl.scrollHeight;
 });
 logSearch.addEventListener('input',function(){logFilter=(logSearch.value||'').trim().toLowerCase();flushLogs();});

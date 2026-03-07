@@ -83,7 +83,7 @@ Initial public release of MikroDash.
 - GeoIP connection mapping with world map visualisation
 - Log viewer with severity filtering and search
 - Per-interface traffic charts with configurable history window
-- Optional HTTP Basic Auth with rate limiting
+- Optional HTTP Basic Auth with rate-limiting
 - Docker and docker-compose deployment support
 - `.env`-based configuration for all settings
 - Removed accidentally committed `.env` file (`6a85d96`)
