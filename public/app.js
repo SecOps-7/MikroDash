@@ -1459,6 +1459,19 @@ sendNotif = function(title, body, tag){
     document.head.appendChild(s);
   }).catch(function(e){console.warn('[worldmap]',e);});
 
+  // Fetch local country once on connect (WAN IP geolocation for arc origin)
+  var _localCCFetched = false;
+  socket.on('connect', function(){
+    _localCCFetched = false;
+  });
+  function fetchLocalCCOnce(){
+    if(_localCCFetched) return;
+    _localCCFetched = true;
+    fetch('/api/localcc').then(function(r){return r.json();}).then(function(d){
+      if(d.cc){ _localCC=d.cc; updateArcs(_countryCounts); }
+    }).catch(function(){ _localCCFetched = false; });
+  }
+
   // conn:update handler
   socket.on('conn:update',function(data){
     var topCountries=data.topCountries||[];
@@ -1488,14 +1501,7 @@ sendNotif = function(title, body, tag){
       });
     }
 
-    // Detect local country from first WAN IP or fall back
-    // Use the most connected country as a proxy for "not local"
-    // Actually detect via the topSources country — use router WAN IP geo
-    // For now if we don't know local CC, try to detect from dest list exclusion
-    // Fetch local country from server (WAN IP geo lookup)
-  fetch('/api/localcc').then(function(r){return r.json();}).then(function(d){
-    if(d.cc){ _localCC=d.cc; updateArcs(_countryCounts); }
-  }).catch(function(){});
+    fetchLocalCCOnce();
 
     updateHighlights(counts);
     updateArcs(counts);
