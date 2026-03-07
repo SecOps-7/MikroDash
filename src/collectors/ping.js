@@ -1,3 +1,5 @@
+const PING_COUNT = 3;
+
 class PingCollector {
   constructor({ ros, io, pollMs, state, target }) {
     this.ros    = ros;
@@ -16,7 +18,7 @@ class PingCollector {
     try {
       const results = await this.ros.write('/tool/ping', [
         '=address=' + this.target,
-        '=count=3',
+        '=count=' + PING_COUNT,
         '=interval=0.2',
       ]);
       const rows = Array.isArray(results) ? results : [];
@@ -27,7 +29,7 @@ class PingCollector {
         // avg-rtt is like "3ms" or "1.5ms"
         const m = String(summary['avg-rtt']).match(/([\d.]+)/);
         if (m) rtt = parseFloat(m[1]);
-        const sent = parseInt(summary['sent'] || '3', 10);
+        const sent = parseInt(summary['sent'] || String(PING_COUNT), 10);
         const recv = parseInt(summary['received'] || replied.length, 10);
         loss = sent > 0 ? Math.round(((sent - recv) / sent) * 100) : 0;
       } else if (replied.length > 0) {
@@ -37,7 +39,7 @@ class PingCollector {
           return m ? parseFloat(m[1]) : 0;
         }).filter(v => v > 0);
         if (times.length) rtt = Math.round(times.reduce((a,b)=>a+b,0) / times.length);
-        loss = Math.round(((3 - replied.length) / 3) * 100);
+        loss = Math.round(((PING_COUNT - replied.length) / PING_COUNT) * 100);
       }
     } catch (e) {
       console.error('[ping]', e && e.message ? e.message : e);

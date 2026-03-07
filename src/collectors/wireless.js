@@ -65,7 +65,7 @@ class WirelessCollector {
     this.lastPayload = payload;
     this.io.emit('wireless:update', payload);
     this.state.lastWirelessTs = Date.now();
-    delete this.state.lastWirelessErr;
+    this.state.lastWirelessErr = null;
   }
 
   start() {

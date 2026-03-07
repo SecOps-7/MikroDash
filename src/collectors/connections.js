@@ -131,7 +131,7 @@ class ConnectionsCollector {
       protoCounts, topSources, topDestinations, topCountries, topPorts,
     });
     this.state.lastConnsTs = Date.now();
-    delete this.state.lastConnsErr;
+    this.state.lastConnsErr = null;
   }
 
   start() {

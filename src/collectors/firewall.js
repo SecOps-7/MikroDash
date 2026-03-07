@@ -46,7 +46,7 @@ class FirewallCollector {
 
     this.io.emit('firewall:update', { ts:Date.now(), filter:filterRules, nat:natRules, mangle:mangleRules, topByHits });
     this.state.lastFirewallTs = Date.now();
-    delete this.state.lastFirewallErr;
+    this.state.lastFirewallErr = null;
   }
 
   start() {

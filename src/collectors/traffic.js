@@ -40,6 +40,7 @@ class TrafficCollector {
     this.subscriptions = new Map();   // socketId -> ifName
     this.timers        = new Map();   // ifName -> intervalId
     this.availableIfs  = new Set();
+    this._loggedErrs   = new Set();   // ifNames that have logged an error
   }
 
   _ensureHistory(ifName) {
@@ -147,10 +148,9 @@ class TrafficCollector {
 
       } catch (e) {
         this.state.lastTrafficErr = e && e.message ? e.message : String(e);
-        // Don't log every error — only first occurrence
-        if (!this._hadTrafficErr) {
+        if (!this._loggedErrs.has(ifName)) {
           console.error('[traffic] poll error on', ifName, ':', this.state.lastTrafficErr);
-          this._hadTrafficErr = true;
+          this._loggedErrs.add(ifName);
         }
       }
     }, POLL_MS);
@@ -161,7 +161,7 @@ class TrafficCollector {
   _stopAll() {
     for (const ifName of this.timers.keys()) this._stopPoll(ifName);
     this.timers.clear();
-    this._hadTrafficErr = false;
+    this._loggedErrs.clear();
   }
 
   start() {

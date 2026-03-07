@@ -60,7 +60,7 @@ class VpnCollector {
 
     this.io.emit('vpn:update', { ts: Date.now(), tunnels });
     this.state.lastVpnTs = Date.now();
-    delete this.state.lastVpnErr;
+    this.state.lastVpnErr = null;
   }
 
   start() {

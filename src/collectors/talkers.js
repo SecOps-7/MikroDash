@@ -46,7 +46,7 @@ class TopTalkersCollector {
 
     this.io.emit('talkers:update', { ts: now, devices });
     this.state.lastTalkersTs = now;
-    delete this.state.lastTalkersErr;
+    this.state.lastTalkersErr = null;
   }
 
   start() {
