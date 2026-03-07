@@ -639,6 +639,7 @@ setInterval(function(){
 
 // ── Ping / Latency ─────────────────────────────────────────────────────────
 var pingChartNet = null;
+var pingHistory = [], MAX_PING_HIST = 60;
 
 function pingColor(rtt){
   if(rtt==null)return'rgba(148,163,190,.4)';
@@ -678,9 +679,7 @@ function updatePingChart(chart,history){
   chart.data.datasets[0].backgroundColor=pts.map(function(p){return pingColor(p.rtt);});
   chart.update('none');
 }
-socket.on('ping:update',function(data){
-  var rtt=data.rtt, loss=data.loss, history=data.history||[];
-  // Networks card
+function renderPingUI(rtt, loss){
   var rttEl=$('ndPingRtt'),lossEl=$('ndPingLoss');
   if(rttEl){
     rttEl.textContent=rtt!=null?rtt:'—';
@@ -690,12 +689,21 @@ socket.on('ping:update',function(data){
     lossEl.textContent=loss+'%';
     lossEl.className='ping-val '+(loss===0?'ping-ok':loss<50?'ping-warn':'ping-bad');
   }
-  // VPN page
-  var vRtt=$('vpnPingRtt'),vLoss=$('vpnPingLoss');
-
-  // Charts — initialise lazily on first data
   if(!pingChartNet)pingChartNet=makePingChart('pingChartNet');
-  updatePingChart(pingChartNet,history);
+  updatePingChart(pingChartNet,pingHistory);
+}
+socket.on('ping:history',function(data){
+  pingHistory=(data.history||[]).slice(-MAX_PING_HIST);
+  if(pingHistory.length){
+    var last=pingHistory[pingHistory.length-1];
+    renderPingUI(last.rtt, last.loss);
+  }
+});
+socket.on('ping:update',function(data){
+  var rtt=data.rtt, loss=data.loss;
+  pingHistory.push({ts:data.ts||Date.now(), rtt:rtt, loss:loss});
+  if(pingHistory.length>MAX_PING_HIST)pingHistory.shift();
+  renderPingUI(rtt, loss);
 });
 
 // ── Browser Notifications ──────────────────────────────────────────────────

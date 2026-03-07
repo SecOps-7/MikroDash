@@ -189,6 +189,10 @@ async function sendInitialState(socket) {
 
   // Push last wireless snapshot immediately so client doesn't wait for next poll
   if (wireless.lastPayload) socket.emit('wireless:update', wireless.lastPayload);
+
+  // Send ping history so client can render the chart immediately
+  const pingData = ping.getHistory();
+  if (pingData.history.length) socket.emit('ping:history', pingData);
 }
 
 io.on('connection', (socket) => {

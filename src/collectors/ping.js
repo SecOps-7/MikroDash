@@ -47,8 +47,12 @@ class PingCollector {
     this.history.push(point);
     if (this.history.length > this.MAX_HISTORY) this.history.shift();
 
-    this.io.emit('ping:update', { target: this.target, rtt, loss, history: this.history });
+    this.io.emit('ping:update', { target: this.target, rtt, loss, ts: point.ts });
     this.state.lastPingTs = Date.now();
+  }
+
+  getHistory() {
+    return { target: this.target, history: this.history };
   }
 
   start() {

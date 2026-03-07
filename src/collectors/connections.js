@@ -52,27 +52,45 @@ class ConnectionsCollector {
     const srcCounts = new Map();
     const dstCounts = new Map();
     const curIds    = new Set();
+    const protoCounts = { tcp: 0, udp: 0, icmp: 0, other: 0 };
+    const countryProto = new Map();
+    const countryCity  = new Map();
+    const portCounts   = new Map();
 
     for (const c of (conns || [])) {
       const id  = c['.id'];
       const src = c['src-address'] || c.src || '';
       const dst = c['dst-address'] || c.dst || '';
+      const p   = (c.protocol || c['ip-protocol'] || '').toLowerCase();
       if (id) curIds.add(id);
-      if (src && isInCidrs(src, lanCidrs)) srcCounts.set(src, (srcCounts.get(src) || 0) + 1);
-      if (dst && !isInCidrs(dst, lanCidrs)) {
-        const k = makeDestKey(c);
-        dstCounts.set(k, (dstCounts.get(k) || 0) + 1);
-      }
-    }
 
-
-    const protoCounts = { tcp: 0, udp: 0, icmp: 0, other: 0 };
-    for (const c of (conns || [])) {
-      const p = (c.protocol || c['ip-protocol'] || '').toLowerCase();
+      // Protocol counts
       if (p === 'tcp') protoCounts.tcp++;
       else if (p === 'udp') protoCounts.udp++;
       else if (p.includes('icmp')) protoCounts.icmp++;
       else protoCounts.other++;
+
+      // Source counts (LAN hosts)
+      if (src && isInCidrs(src, lanCidrs)) srcCounts.set(src, (srcCounts.get(src) || 0) + 1);
+
+      // Destination counts, geo, and port tracking (non-LAN)
+      if (dst && !isInCidrs(dst, lanCidrs)) {
+        const k = makeDestKey(c);
+        dstCounts.set(k, (dstCounts.get(k) || 0) + 1);
+        const ip   = extractAddress(dst);
+        const port = c['dst-port'] || c['port'] || '';
+        if (port) portCounts.set(port, (portCounts.get(port) || 0) + 1);
+        if (geoip && isValidIp(ip)) {
+          const geo = geoip.lookup(ip);
+          if (geo && geo.country) {
+            const cc = geo.country;
+            if (!countryCity.has(cc)) countryCity.set(cc, geo.city || '');
+            const cp = countryProto.get(cc) || { tcp:0, udp:0, other:0 };
+            if (p === 'tcp') cp.tcp++; else if (p === 'udp') cp.udp++; else cp.other++;
+            countryProto.set(cc, cp);
+          }
+        }
+      }
     }
 
     let newSinceLast = 0;
@@ -82,30 +100,6 @@ class ConnectionsCollector {
     const topSources = Array.from(srcCounts.entries())
       .sort((a, b) => b[1] - a[1]).slice(0, this.topN)
       .map(([ip, count]) => { const r = this.resolveName(ip); return { ip, name: r.name, mac: r.mac, count }; });
-
-    // Per-country protocol breakdown and port tracking
-    const countryProto = new Map(); // cc -> {tcp,udp,other}
-    const countryCity  = new Map(); // cc -> city
-    const portCounts   = new Map(); // port -> count
-
-    for (const c of (conns || [])) {
-      const dst  = c['dst-address'] || c.dst || '';
-      if (!dst || isInCidrs(dst, lanCidrs)) continue;
-      const ip   = extractAddress(dst);
-      const port = c['dst-port'] || c['port'] || '';
-      const p    = (c.protocol || c['ip-protocol'] || '').toLowerCase();
-      if (port) portCounts.set(port, (portCounts.get(port) || 0) + 1);
-      if (geoip && isValidIp(ip)) {
-        const geo = geoip.lookup(ip);
-        if (geo && geo.country) {
-          const cc = geo.country;
-          if (!countryCity.has(cc)) countryCity.set(cc, geo.city || '');
-          const cp = countryProto.get(cc) || { tcp:0, udp:0, other:0 };
-          if (p === 'tcp') cp.tcp++; else if (p === 'udp') cp.udp++; else cp.other++;
-          countryProto.set(cc, cp);
-        }
-      }
-    }
 
     const topDestinations = Array.from(dstCounts.entries())
       .sort((a, b) => b[1] - a[1]).slice(0, this.topN)

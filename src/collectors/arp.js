@@ -4,20 +4,27 @@ class ArpCollector {
     this.pollMs = pollMs;
     this.state = state;
     this.byIP = new Map();
+    this.byMAC = new Map();
     this.timer = null;
   }
 
   getByIP(ip)   { return this.byIP.get(ip); }
-  getByMAC(mac) { for (const [ip, e] of this.byIP) { if (e.mac === mac) return { ip, ...e }; } return null; }
+  getByMAC(mac) { return this.byMAC.get(mac) || null; }
 
   async tick() {
     if (!this.ros.connected) return;
     const items = await this.ros.write('/ip/arp/print');
-    const m = new Map();
+    const ipMap = new Map();
+    const macMap = new Map();
     for (const a of (items || [])) {
-      if (a.address && a['mac-address']) m.set(a.address, { mac: a['mac-address'], iface: a.interface || '' });
+      if (a.address && a['mac-address']) {
+        const entry = { mac: a['mac-address'], iface: a.interface || '' };
+        ipMap.set(a.address, entry);
+        macMap.set(a['mac-address'], { ip: a.address, ...entry });
+      }
     }
-    this.byIP = m;
+    this.byIP = ipMap;
+    this.byMAC = macMap;
     this.state.lastArpTs = Date.now();
   }
 
