@@ -10,6 +10,7 @@
 const RingBuffer = require('../util/ringbuffer');
 
 const POLL_MS = 1000; // 1 second
+const MAX_INTERFACE_NAME_LENGTH = 128;
 
 function parseBps(val) {
   // RouterOS API returns raw integer strings via binary API (e.g. "27800")
@@ -52,7 +53,7 @@ class TrafficCollector {
   _normalizeIfName(ifName) {
     if (typeof ifName !== 'string') return null;
     const trimmed = ifName.trim();
-    if (!trimmed || trimmed.length > 128) return null;
+    if (!trimmed || trimmed.length > MAX_INTERFACE_NAME_LENGTH) return null;
     if (/[\r\n\0]/.test(trimmed)) return null;
     if (this.availableIfs.size && !this.availableIfs.has(trimmed)) return null;
     return trimmed;

@@ -1,6 +1,6 @@
 class RingBuffer {
   constructor(maxPoints) {
-    this.maxPoints = Math.max(1, maxPoints | 0);
+    this.maxPoints = Math.max(1, Math.floor(Number(maxPoints) || 0));
     this.arr = new Array(this.maxPoints);
     this.start = 0;
     this.length = 0;
