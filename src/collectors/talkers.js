@@ -20,6 +20,7 @@ class TopTalkersCollector {
     const now = Date.now();
     const items = await this.ros.write('/ip/kid-control/device/print');
 
+    const seenMACs = new Set();
     let devices = (items || []).map(d => {
       const mac  = d['mac-address'] || '';
       const up   = parseInt(d['bytes-up']   || '0', 10);
@@ -31,9 +32,14 @@ class TopTalkersCollector {
         tx = mbps(up - prev.up, dt);
         rx = mbps(down - prev.down, dt);
       }
-      if (mac) this.prev.set(mac, { up, down, ts: now });
+      if (mac) { this.prev.set(mac, { up, down, ts: now }); seenMACs.add(mac); }
       return { name: d.name || '', mac, tx_mbps: +tx.toFixed(3), rx_mbps: +rx.toFixed(3) };
     });
+
+    // Prune stale entries for devices no longer reported
+    for (const k of this.prev.keys()) {
+      if (!seenMACs.has(k)) this.prev.delete(k);
+    }
 
     devices.sort((a, b) => (b.rx_mbps + b.tx_mbps) - (a.rx_mbps + a.tx_mbps));
     devices = devices.slice(0, this.topN);

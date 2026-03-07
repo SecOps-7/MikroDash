@@ -21,6 +21,7 @@ class VpnCollector {
       this._debuggedOnce = true;
     }
     const now = Date.now();
+    const seenKeys = new Set();
     const tunnels = wgPeers.map(p => {
       const lh = p['last-handshake'] || '';
       const connected = lh && lh !== 'never';
@@ -32,6 +33,7 @@ class VpnCollector {
       const rxBytes = parseInt(p['rx-bytes'] || '0', 10);
       const txBytes = parseInt(p['tx-bytes'] || '0', 10);
       const key = p['public-key'] || peerName;
+      seenKeys.add(key);
       const prev = this._prev.get(key);
       let rxRate = 0, txRate = 0;
       if (prev && now > prev.ts) {
@@ -50,6 +52,12 @@ class VpnCollector {
         rx: rxBytes, tx: txBytes, rxRate, txRate,
       };
     });
+
+    // Prune stale entries for peers no longer present
+    for (const k of this._prev.keys()) {
+      if (!seenKeys.has(k)) this._prev.delete(k);
+    }
+
     this.io.emit('vpn:update', { ts: Date.now(), tunnels });
     this.state.lastVpnTs = Date.now();
     delete this.state.lastVpnErr;

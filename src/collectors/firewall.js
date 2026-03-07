@@ -37,6 +37,13 @@ class FirewallCollector {
     const natRules    = this.processChain(nat);
     const mangleRules = this.processChain(mangle);
     const topByHits   = [...filterRules,...natRules,...mangleRules].filter(r=>r.packets>0).sort((a,b)=>b.packets-a.packets).slice(0,this.topN);
+
+    // Prune stale entries from prevCounts for rules no longer present
+    const seenIds = new Set([...filterRules,...natRules,...mangleRules].map(r => r.id).filter(Boolean));
+    for (const id of this.prevCounts.keys()) {
+      if (!seenIds.has(id)) this.prevCounts.delete(id);
+    }
+
     this.io.emit('firewall:update', { ts:Date.now(), filter:filterRules, nat:natRules, mangle:mangleRules, topByHits });
     this.state.lastFirewallTs = Date.now();
     delete this.state.lastFirewallErr;
