@@ -5,6 +5,10 @@ const express = require('express');
 const http    = require('http');
 const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
+const { version: APP_VERSION } = require('../package.json');
+
+let geoip = null;
+try { geoip = require('geoip-lite'); } catch (_) {}
 
 const ROS                  = require('./routeros/client');
 const { createBasicAuthMiddleware } = require('./auth/basicAuth');
@@ -88,8 +92,6 @@ const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:parseInt(proce
 const ping         = new PingCollector({ros,io, pollMs:parseInt(process.env.PING_POLL_MS||'10000',10), state, target:process.env.PING_TARGET||'1.1.1.1'});
 
 app.get('/api/localcc', (_req, res) => {
-  let geoip = null;
-  try { geoip = require('geoip-lite'); } catch(e) {}
   const wanIp = (state.lastWanIp || '').split('/')[0];
   let cc = '';
   if (geoip && wanIp) { const g = geoip.lookup(wanIp); if (g) cc = g.country || ''; }
@@ -99,7 +101,7 @@ app.get('/api/localcc', (_req, res) => {
 app.get('/healthz', (_req, res) => {
   res.json({
     ok: true,
-    version: '0.3.0',
+    version: APP_VERSION,
     routerConnected: ros.connected,
     uptime: process.uptime(),
     now: Date.now(),
@@ -125,7 +127,7 @@ ros.connectLoop();
 (async () => {
   try {
     await ros.waitUntilConnected(60000);
-    console.log('[MikroDash] v0.3.2 — RouterOS connected, starting collectors');
+    console.log(`[MikroDash] v${APP_VERSION} — RouterOS connected, starting collectors`);
 
     // Streams (traffic, logs, leases) start themselves and register
     // reconnect handlers internally. Polling collectors do the same.
@@ -202,4 +204,4 @@ setInterval(() => {
 }, 15000);
 
 const PORT = parseInt(process.env.PORT || '3081', 10);
-server.listen(PORT, () => console.log(`[MikroDash] v0.4.8 listening on http://0.0.0.0:${PORT}`));
+server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
