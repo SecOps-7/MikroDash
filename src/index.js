@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const http    = require('http');
+const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 
 const ROS                  = require('./routeros/client');
@@ -25,12 +26,20 @@ const PingCollector         = require('./collectors/ping');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);
+const authLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !authEnabled,
+});
 const basicAuth = createBasicAuthMiddleware({
   username: process.env.BASIC_AUTH_USER,
   password: process.env.BASIC_AUTH_PASS,
 });
 
-app.use(basicAuth);
+app.use(authLimiter, basicAuth);
 io.engine.use(basicAuth);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
