@@ -2,8 +2,7 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-<<<<<<< HEAD
-=======
+
 ## [0.5.1] — RouterOS Offline Resilience & UI Polish
 
 ### Bug Fixes
@@ -45,7 +44,7 @@ All notable changes to MikroDash will be documented in this file.
   errors (TLS certificate, authentication) are translated to clear
   actionable messages before being sent to the client (`src/index.js`)
 
->>>>>>> 45d0cd1 (RouterOS Offline Resilience & UI Polish)
+
 ## [0.5.0] — UI Fixes & Security Hardening
 
 ### Security
