@@ -57,7 +57,15 @@ class TrafficCollector {
     const trimmed = ifName.trim();
     if (!trimmed || trimmed.length > MAX_INTERFACE_NAME_LENGTH) return null;
     if (/[\r\n\0]/.test(trimmed)) return null;
-    if (this.availableIfs.size && !this.availableIfs.has(trimmed)) return null;
+    // Reject if the interface whitelist hasn't been populated yet.
+    // This closes the connect-time race where a client sends traffic:select
+    // before sendInitialState() has called setAvailableInterfaces(), which
+    // would leave availableIfs empty and bypass the whitelist check entirely.
+    if (!this.availableIfs.size) {
+      console.warn('[traffic] traffic:select rejected — interface list not yet ready');
+      return null;
+    }
+    if (!this.availableIfs.has(trimmed)) return null;
     return trimmed;
   }
 

@@ -555,10 +555,10 @@ function renderFirewallTab(){
 var logBuffer=[],MAX_LOG_LINES=2000;
 function topicClass(t){t=String(t).toLowerCase();if(t.includes('firewall')||t.includes('forward'))return'log-firewall';if(t.includes('dhcp'))return'log-dhcp';if(t.includes('wireless')||t.includes('wifi')||t.includes('wlan'))return'log-wireless';if(t.includes('system'))return'log-system';return'log-topic';}
 function sevClass(s){return s==='error'?'log-error':s==='warning'?'log-warning':s==='debug'?'log-debug':'log-info';}
-function buildLogHtml(l){return'<span class="log-time">'+esc(l.time)+'</span> <span class="'+topicClass(l.topics)+'">['+esc(l.topics)+']</span> <span class="'+sevClass(l.severity)+'">'+esc(l.message)+'</span>';}
+function buildLogHtml(l){return'<div class="log-line"><span class="log-time">'+esc(l.time)+'</span> <span class="'+topicClass(l.topics)+'">['+esc(l.topics)+']</span> <span class="'+sevClass(l.severity)+'">'+esc(l.message)+'</span></div>';}
 function flushLogs(){
   var f=logBuffer.filter(function(e){if(logLevel&&e.severity!==logLevel)return false;if(logFilter&&e.text.indexOf(logFilter)===-1)return false;return true;});
-  logsEl.innerHTML=f.map(function(e){return e.html;}).join('\n');
+  logsEl.innerHTML=f.map(function(e){return e.html;}).join('');
   if(autoScroll)logsEl.scrollTop=logsEl.scrollHeight;
 }
 socket.on('logs:new',function(line){
@@ -591,6 +591,18 @@ socket.on('interfaces:list',function(data){
     });
   }
   if(data.defaultIf)ifaceSelect.value=data.defaultIf;
+});
+// If the server failed to fetch the interface list, show a visible placeholder
+// in the dropdown rather than leaving it silently empty.
+socket.on('interfaces:error',function(data){
+  ifaceSelect.innerHTML='';
+  var opt=document.createElement('option');
+  opt.value='';
+  opt.textContent='Interface list unavailable';
+  opt.disabled=true;
+  opt.selected=true;
+  ifaceSelect.appendChild(opt);
+  console.warn('[MikroDash] interfaces:error —',data&&data.reason?data.reason:'unknown error');
 });
 ifaceSelect.addEventListener('change',function(){socket.emit('traffic:select',{ifName:ifaceSelect.value});});
 var windowSelect=$('windowSelect');
@@ -850,6 +862,15 @@ sendNotif = function(title, body, tag){
   _origSendNotif(title, body, tag);
   addNotifHistory(title, body);
 };
+
+// Sync the bell icon to the current notification permission state on load,
+// so it is never stuck showing the hardcoded HTML default from index.html.
+(function(){
+  if('Notification' in window && Notification.permission === 'granted'){
+    _notifEnabled = true;
+  }
+  updateNotifBtn();
+})();
 
 // Bell button: click opens/closes panel (no longer just toggles enable)
 (function(){

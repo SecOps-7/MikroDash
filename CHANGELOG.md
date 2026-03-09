@@ -2,7 +2,56 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+<<<<<<< HEAD
 ## Deep Code Review Hardening Pass
+=======
+## [0.5.0] — UI Fixes & Security Hardening
+
+### Security
+
+- **Closed `traffic:select` whitelist race** — `_normalizeIfName()` in
+  `TrafficCollector` previously allowed `traffic:select` events through when
+  `availableIfs` was empty (i.e. before `sendInitialState()` had completed),
+  bypassing the interface whitelist entirely. The guard is now inverted: an
+  empty whitelist is treated as "not ready" and the event is rejected with a
+  console warning rather than passed to the RouterOS API
+  (`src/collectors/traffic.js`)
+
+### Bug Fixes
+
+- **Log viewer entries now render on separate lines** — `buildLogHtml()`
+  was returning bare `<span>` elements joined with `\n`. Inside a `<div>`
+  container, `\n` is collapsed whitespace and produces no visual line break.
+  Each entry is now wrapped in a `<div class="log-line">` block element so
+  every router log entry occupies its own line. The `flushLogs()` join
+  separator is also cleaned up from `'\n'` to `''`
+  (`public/app.js`)
+- **Notification bell icon now shown on page load** — `updateNotifBtn()` was
+  only ever called after an async `Notification.requestPermission()` callback,
+  leaving the hardcoded crossed-bell SVG from `index.html` in place for the
+  entire session on browsers where permission had already been granted. A
+  startup IIFE now reads `Notification.permission` synchronously and calls
+  `updateNotifBtn()` immediately so the correct icon is rendered before the
+  user sees the topbar (`public/app.js`)
+- **SVG network diagram boxes now respect light mode** — `.nd-node`,
+  `.nd-count`, `.nd-label`, `.nd-wan-ip`, `.nd-line`, and `.nd-router-bg`
+  had hardcoded dark RGBA fill/stroke values with no light-mode override,
+  causing the Wired, Wireless, and WAN boxes to remain dark when switching
+  themes. Seven `html[data-theme="light"]` CSS rules now override all
+  affected SVG classes with light-appropriate colours (`public/index.html`)
+
+### Features
+
+- **`interfaces:error` Socket.IO event** — when `fetchInterfaces()` fails
+  during `sendInitialState()`, the server now emits `interfaces:error` with
+  the reason string instead of silently resolving to an empty list via
+  `Promise.allSettled()`. The client handles this event by showing an
+  explicit "Interface list unavailable" placeholder in the interface dropdown
+  and logging the reason to the browser console, replacing a silent empty
+  dropdown with actionable feedback (`src/index.js`, `public/app.js`)
+
+## [0.4.9] — Deep Code Review Hardening Pass
+>>>>>>> 07407cd (UI Fixes & Security Hardening)
 
 ### Security
 

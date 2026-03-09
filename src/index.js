@@ -178,13 +178,19 @@ async function sendInitialState(socket) {
 
   try { await ros.waitUntilConnected(10000); } catch (_) {}
 
-  // These can fire in parallel — node-routeros is fully concurrent
-  const [ifaceResult] = await Promise.allSettled([
-    fetchInterfaces(ros),
-  ]);
-
-  const ifs = ifaceResult.status === 'fulfilled' ? ifaceResult.value : [];
-  traffic.setAvailableInterfaces(ifs);
+  // Fetch interface list. On failure: log the reason, notify the client so
+  // it can show an explicit error state rather than a silently empty dropdown,
+  // and leave availableIfs unpopulated so traffic:select events are rejected
+  // (rather than bypassing the whitelist) until the next successful fetch.
+  let ifs = [];
+  try {
+    ifs = await fetchInterfaces(ros);
+    traffic.setAvailableInterfaces(ifs);
+  } catch (e) {
+    const reason = e && e.message ? e.message : String(e);
+    console.error('[MikroDash] fetchInterfaces failed for socket', socket.id, ':', reason);
+    socket.emit('interfaces:error', { reason });
+  }
   socket.emit('interfaces:list', { defaultIf: DEFAULT_IF, interfaces: ifs });
 
   socket.emit('lan:overview', {
