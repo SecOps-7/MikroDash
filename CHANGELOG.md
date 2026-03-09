@@ -2,7 +2,7 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [Unreleased] — Deep Code Review Hardening Pass
+## Deep Code Review Hardening Pass
 
 ### Security
 
