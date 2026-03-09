@@ -2,9 +2,6 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-<<<<<<< HEAD
-## Deep Code Review Hardening Pass
-=======
 ## [0.5.0] — UI Fixes & Security Hardening
 
 ### Security
@@ -51,7 +48,6 @@ All notable changes to MikroDash will be documented in this file.
   dropdown with actionable feedback (`src/index.js`, `public/app.js`)
 
 ## [0.4.9] — Deep Code Review Hardening Pass
->>>>>>> 07407cd (UI Fixes & Security Hardening)
 
 ### Security
 
