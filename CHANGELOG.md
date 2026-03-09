@@ -2,7 +2,6 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-
 ## [0.5.1] — RouterOS Offline Resilience & UI Polish
 
 ### Bug Fixes
@@ -43,7 +42,6 @@ All notable changes to MikroDash will be documented in this file.
   (`ECONNREFUSED`, `ETIMEDOUT`, `ENOTFOUND`, `ECONNRESET`) and RouterOS
   errors (TLS certificate, authentication) are translated to clear
   actionable messages before being sent to the client (`src/index.js`)
-
 
 ## [0.5.0] — UI Fixes & Security Hardening
 
@@ -89,7 +87,6 @@ All notable changes to MikroDash will be documented in this file.
   explicit "Interface list unavailable" placeholder in the interface dropdown
   and logging the reason to the browser console, replacing a silent empty
   dropdown with actionable feedback (`src/index.js`, `public/app.js`)
-
 
 ## [0.4.9] — Deep Code Review Hardening Pass
 
