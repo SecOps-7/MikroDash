@@ -95,10 +95,16 @@ class ROS extends EventEmitter {
   /**
    * One-shot command. Returns Promise<Array<object>>.
    * params is an optional array of '=key=value' strings.
+   * timeoutMs caps how long we wait for a reply (default 30 s).
    */
-  async write(cmd, params) {
+  async write(cmd, params, timeoutMs = 30000) {
     if (!this.conn || !this.connected) throw new Error('Not connected');
-    const result = await this.conn.write(cmd, params || []);
+    const result = await Promise.race([
+      this.conn.write(cmd, params || []),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`RouterOS write timeout (${timeoutMs}ms): ${cmd}`)), timeoutMs)
+      ),
+    ]);
     // Normalise null/undefined (e.g. from !empty responses before patch applies)
     return Array.isArray(result) ? result : (result == null ? [] : result);
   }
