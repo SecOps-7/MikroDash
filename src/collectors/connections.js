@@ -29,6 +29,7 @@ class ConnectionsCollector {
     this.state = state;
     this.prevIds = new Set();
     this.timer = null;
+    this._inflight = false;
   }
 
   resolveName(ip) {
@@ -136,13 +137,15 @@ class ConnectionsCollector {
 
   start() {
     const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
       try { await this.tick(); } catch (e) {
         const msg = String(e && e.message ? e.message : e);
         // RouterOS races: connections expire between list and fetch — not a real error
         if (msg.includes('no such item')) return;
         this.state.lastConnsErr = msg;
         console.error('[connections]', this.state.lastConnsErr);
-      }
+      } finally { this._inflight = false; }
     };
     run();
     this.timer = setInterval(run, this.pollMs);

@@ -13,6 +13,7 @@ class TopTalkersCollector {
     this.topN = topN || 5;
     this.prev = new Map();
     this.timer = null;
+    this._inflight = false;
   }
 
   async tick() {
@@ -51,10 +52,12 @@ class TopTalkersCollector {
 
   start() {
     const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
       try { await this.tick(); } catch (e) {
         this.state.lastTalkersErr = String(e && e.message ? e.message : e);
         console.error('[talkers]', this.state.lastTalkersErr);
-      }
+      } finally { this._inflight = false; }
     };
     run();
     this.timer = setInterval(run, this.pollMs);

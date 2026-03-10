@@ -8,6 +8,7 @@ class WirelessCollector {
     this.arp = arp;
     this.mode = null;
     this.timer = null;
+    this._inflight = false;
   }
 
   resolveName(mac) {
@@ -70,10 +71,12 @@ class WirelessCollector {
 
   start() {
     const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
       try { await this.tick(); } catch (e) {
         this.state.lastWirelessErr = String(e && e.message ? e.message : e);
         console.error('[wireless]', this.state.lastWirelessErr);
-      }
+      } finally { this._inflight = false; }
     };
     run();
     this.timer = setInterval(run, this.pollMs);
