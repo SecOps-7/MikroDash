@@ -20,6 +20,18 @@ function mockROS(writeFn) {
   return ros;
 }
 
+function mockConn({ onConnect, onClose } = {}) {
+  const conn = new EventEmitter();
+  conn.connect = async () => {
+    if (onConnect) await onConnect(conn);
+  };
+  conn.close = () => {
+    if (onClose) onClose(conn);
+    conn.emit('close');
+  };
+  return conn;
+}
+
 // --- Inflight guard and polling lifecycle ---
 
 test('inflight guard prevents concurrent ticks on polling collector', async () => {
@@ -177,25 +189,59 @@ test('dhcp leases collector emits device:new only once per MAC across initial lo
 
 // --- RouterOS client resilience ---
 
-test('ROS client exponential backoff caps at maxBackoffMs', () => {
+test('ROS client connectLoop retries failures and resets backoff after a successful reconnect', { timeout: 1000 }, async () => {
   const ros = new ROS({});
-  assert.equal(ros.backoffMs, 2000);
+  const events = [];
+  ros.on('error', () => events.push('error'));
+  ros.on('connected', () => events.push('connected'));
+  ros.on('close', () => events.push('close'));
 
-  const backoffs = [];
-  let b = ros.backoffMs;
-  for (let i = 0; i < 10; i++) {
-    backoffs.push(b);
-    b = Math.min(b * 2, ros.maxBackoffMs);
-  }
+  let attempt = 0;
+  ros._buildConn = () => {
+    attempt++;
+    if (attempt === 1) {
+      return mockConn({
+        onConnect: async () => { throw new Error('boom'); },
+      });
+    }
+    return mockConn({
+      onConnect: async (conn) => {
+        process.nextTick(() => conn.emit('close'));
+      },
+    });
+  };
 
-  assert.deepEqual(backoffs, [2000, 4000, 8000, 16000, 30000, 30000, 30000, 30000, 30000, 30000]);
+  const sleeps = [];
+  ros._sleep = async (ms) => {
+    sleeps.push(ms);
+    if (sleeps.length === 2) ros.stop();
+  };
+
+  await ros.connectLoop();
+
+  assert.deepEqual(sleeps, [2000, 2000]);
+  assert.deepEqual(events.slice(0, 3), ['error', 'connected', 'close']);
+  assert.equal(ros.connected, false);
 });
 
-test('ROS client stop() sets _stopping flag', () => {
+test('ROS client connectLoop does not schedule another retry after stop is requested', { timeout: 1000 }, async () => {
   const ros = new ROS({});
-  assert.equal(ros._stopping, false);
-  ros.stop();
+  ros._buildConn = () => mockConn({
+    onConnect: async (conn) => {
+      process.nextTick(() => conn.emit('close'));
+    },
+  });
+
+  let sleepCalls = 0;
+  ros._sleep = async () => {
+    sleepCalls++;
+  };
+  ros.on('close', () => ros.stop());
+
+  await ros.connectLoop();
+
   assert.equal(ros._stopping, true);
+  assert.equal(sleepCalls, 0);
 });
 
 test('ROS client write rejects when not connected', async () => {
