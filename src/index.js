@@ -125,8 +125,9 @@ function sanitizeErr(e) {
 }
 
 app.get('/healthz', (_req, res) => {
-  res.json({
-    ok: true,
+  const ok = ros.connected && state.lastTrafficTs > 0 && (Date.now() - state.lastTrafficTs < 30000);
+  const body = {
+    ok,
     version: APP_VERSION,
     routerConnected: ros.connected,
     uptime: process.uptime(),
@@ -145,7 +146,8 @@ app.get('/healthz', (_req, res) => {
       firewall: { ts:state.lastFirewallTs, err:sanitizeErr(state.lastFirewallErr) },
       ping:     { ts:state.lastPingTs,     err:null                               },
     },
-  });
+  };
+  res.status(ok ? 200 : 503).json(body);
 });
 
 ros.connectLoop();
