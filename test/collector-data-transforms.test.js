@@ -974,6 +974,30 @@ test('interface status collector normalizes booleans and computes Mbps', async (
   assert.equal(ifaces[1].rxMbps, 0);
 });
 
+test('interface status collector clamps malformed throughput fields to zero', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('interface')) return [
+        { name: 'ether1', running: 'true', disabled: 'false', 'rx-bits-per-second': 'bad-data', 'tx-bits-per-second': '', 'rx-byte': 'oops', 'tx-byte': null },
+      ];
+      if (cmd.includes('address')) return [];
+      return [];
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
+  await collector.tick();
+
+  const iface = emitted[0].data.interfaces[0];
+  assert.equal(iface.rxBytes, 0);
+  assert.equal(iface.txBytes, 0);
+  assert.equal(iface.rxMbps, 0);
+  assert.equal(iface.txMbps, 0);
+});
+
 // --- ARP Collector ---
 const ArpCollector = require('../src/collectors/arp');
 
@@ -1001,6 +1025,25 @@ test('arp collector builds bidirectional lookup maps and skips incomplete entrie
   assert.equal(collector.getByIP('192.168.1.11'), undefined);
   assert.equal(collector.getByMAC('CC:DD:EE:FF:00:11'), null);
   assert.equal(collector.getByIP('192.168.1.12').mac, '11:22:33:44:55:66');
+});
+
+test('arp collector replaces stale snapshot entries on each poll', async () => {
+  let callNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => callNum++ === 0
+      ? [{ address: '192.168.1.10', 'mac-address': 'AA:BB', interface: 'bridge' }]
+      : [{ address: '192.168.1.11', 'mac-address': 'CC:DD', interface: 'bridge' }],
+  };
+  const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
+
+  await collector.tick();
+  await collector.tick();
+
+  assert.equal(collector.getByIP('192.168.1.10'), undefined);
+  assert.equal(collector.getByMAC('AA:BB'), null);
+  assert.equal(collector.getByIP('192.168.1.11').mac, 'CC:DD');
 });
 
 // --- DHCP Networks Collector ---
@@ -1054,4 +1097,24 @@ test('dhcp networks collector handles one query failing gracefully', async () =>
 
   assert.equal(emitted[0].data.networks.length, 0);
   assert.equal(emitted[0].data.wanIp, '1.2.3.4/30');
+});
+
+test('dhcp networks collector clears WAN IP when the configured WAN interface is absent', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('network')) return [{ address: '192.168.1.0/24', gateway: '192.168.1.1' }];
+      if (cmd.includes('address')) return [{ interface: 'bridge', address: '192.168.1.1/24' }];
+      return [];
+    },
+  };
+  const state = { lastWanIp: '203.0.113.5/30' };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [] }, state, wanIface: 'WAN1' });
+  await collector.tick();
+
+  assert.equal(emitted[0].data.wanIp, '');
+  assert.equal(state.lastWanIp, '');
 });
