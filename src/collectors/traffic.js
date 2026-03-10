@@ -193,3 +193,5 @@ class TrafficCollector {
 }
 
 module.exports = TrafficCollector;
+module.exports.parseBps = parseBps;
+module.exports.bpsToMbps = bpsToMbps;
