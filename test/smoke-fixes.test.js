@@ -93,18 +93,31 @@ test('basic auth middleware evicts the oldest tracked IP when the failure map ex
     end(body) { this.body = body; },
   });
 
+  // Three IPs each fail once — with maxFailures=1 each gets blocked immediately.
   middleware(makeReq('10.0.0.1'), makeRes(), () => assert.fail('ip1 should not authorize'));
   middleware(makeReq('10.0.0.2'), makeRes(), () => assert.fail('ip2 should not authorize'));
+
+  // Verify IP1 is actually blocked (429) before eviction happens.
+  const blockedRes = makeRes();
+  middleware(makeReq('10.0.0.1'), blockedRes, () => assert.fail('ip1 should be blocked'));
+  assert.equal(blockedRes.statusCode, 429, 'ip1 should be blocked before eviction');
+
+  // IP3's failure pushes the map past maxTrackedIPs=2, evicting IP1 (oldest).
   middleware(makeReq('10.0.0.3'), makeRes(), () => assert.fail('ip3 should not authorize'));
 
-  let authorized = false;
+  // IP1's failure record was evicted, so it can now authenticate.
+  let ip1Authorized = false;
   middleware(
     makeReq('10.0.0.1', 'Basic ' + Buffer.from('admin:secret').toString('base64')),
     makeRes(),
-    () => { authorized = true; }
+    () => { ip1Authorized = true; }
   );
+  assert.equal(ip1Authorized, true, 'ip1 should be unblocked after eviction');
 
-  assert.equal(authorized, true);
+  // IP2 was NOT evicted (it is newer than IP1), so it should still be blocked.
+  const ip2Res = makeRes();
+  middleware(makeReq('10.0.0.2'), ip2Res, () => assert.fail('ip2 should still be blocked'));
+  assert.equal(ip2Res.statusCode, 429, 'ip2 should remain blocked (not evicted)');
 });
 
 test('traffic collector ignores invalid interface selections and prunes unused polls', () => {
