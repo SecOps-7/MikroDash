@@ -18,7 +18,7 @@ function makeDestKey(c) {
 }
 
 class ConnectionsCollector {
-  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns }) {
+  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup }) {
     this.ros = ros;
     this.io = io;
     this.pollMs = pollMs;
@@ -28,6 +28,7 @@ class ConnectionsCollector {
     this.dhcpLeases = dhcpLeases;
     this.arp = arp;
     this.state = state;
+    this.geoLookup = geoLookup || (geoip ? (ip) => geoip.lookup(ip) : null);
     this.prevIds = new Set();
     this.timer = null;
     this._inflight = false;
@@ -88,8 +89,8 @@ class ConnectionsCollector {
         const ip   = extractAddress(dst);
         const port = c['dst-port'] || c['port'] || '';
         if (port) portCounts.set(port, (portCounts.get(port) || 0) + 1);
-        if (geoip && isValidIp(ip)) {
-          const geo = geoip.lookup(ip);
+        if (this.geoLookup && isValidIp(ip)) {
+          const geo = this.geoLookup(ip);
           if (geo && geo.country) {
             const cc = geo.country;
             destGeo.set(ip, { country: geo.country || '', city: geo.city || '' });

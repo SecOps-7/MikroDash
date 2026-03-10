@@ -116,54 +116,55 @@ class TrafficCollector {
     console.log('[traffic] polling', ifName, 'every', POLL_MS, 'ms');
 
     const timer = setInterval(async () => {
-      if (!this.ros.connected) return;
-      try {
-        const rows = await this.ros.write(
-          '/interface/monitor-traffic',
-          [`=interface=${ifName}`, '=once=']
-        );
-        if (!rows || !rows.length) return;
-        const data = rows[0];
-
-        const rxBps = parseBps(data['rx-bits-per-second']);
-        const txBps = parseBps(data['tx-bits-per-second']);
-        const running  = data.running  !== 'false' && data.running  !== false;
-        const disabled = data.disabled === 'true'  || data.disabled === true;
-
-        const now    = Date.now();
-        const sample = {
-          ifName, ts: now,
-          rx_mbps: bpsToMbps(rxBps),
-          tx_mbps: bpsToMbps(txBps),
-          running, disabled,
-        };
-
-        this._ensureHistory(ifName);
-        this.hist.get(ifName).push({ ts: now, rx_mbps: sample.rx_mbps, tx_mbps: sample.tx_mbps });
-
-        // Push to subscribed sockets
-        for (const [sid, subIf] of this.subscriptions.entries()) {
-          if (subIf === ifName) this.io.to(sid).emit('traffic:update', sample);
-        }
-
-        // WAN status for default interface
-        if (ifName === this.defaultIf) {
-          this.io.emit('wan:status', { ifName, ts: now, running, disabled });
-        }
-
-        this.state.lastTrafficTs  = now;
-        this.state.lastTrafficErr = null;
-
-      } catch (e) {
-        this.state.lastTrafficErr = e && e.message ? e.message : String(e);
-        if (!this._loggedErrs.has(ifName)) {
-          console.error('[traffic] poll error on', ifName, ':', this.state.lastTrafficErr);
-          this._loggedErrs.add(ifName);
-        }
-      }
+      await this._pollInterface(ifName);
     }, POLL_MS);
 
     this.timers.set(ifName, timer);
+  }
+
+  async _pollInterface(ifName) {
+    if (!this.ros.connected) return;
+    try {
+      const rows = await this.ros.write(
+        '/interface/monitor-traffic',
+        [`=interface=${ifName}`, '=once=']
+      );
+      if (!rows || !rows.length) return;
+      const data = rows[0];
+
+      const rxBps = parseBps(data['rx-bits-per-second']);
+      const txBps = parseBps(data['tx-bits-per-second']);
+      const running  = data.running  !== 'false' && data.running  !== false;
+      const disabled = data.disabled === 'true'  || data.disabled === true;
+
+      const now    = Date.now();
+      const sample = {
+        ifName, ts: now,
+        rx_mbps: bpsToMbps(rxBps),
+        tx_mbps: bpsToMbps(txBps),
+        running, disabled,
+      };
+
+      this._ensureHistory(ifName);
+      this.hist.get(ifName).push({ ts: now, rx_mbps: sample.rx_mbps, tx_mbps: sample.tx_mbps });
+
+      for (const [sid, subIf] of this.subscriptions.entries()) {
+        if (subIf === ifName) this.io.to(sid).emit('traffic:update', sample);
+      }
+
+      if (ifName === this.defaultIf) {
+        this.io.emit('wan:status', { ifName, ts: now, running, disabled });
+      }
+
+      this.state.lastTrafficTs  = now;
+      this.state.lastTrafficErr = null;
+    } catch (e) {
+      this.state.lastTrafficErr = e && e.message ? e.message : String(e);
+      if (!this._loggedErrs.has(ifName)) {
+        console.error('[traffic] poll error on', ifName, ':', this.state.lastTrafficErr);
+        this._loggedErrs.add(ifName);
+      }
+    }
   }
 
   _stopAll() {

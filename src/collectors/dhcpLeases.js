@@ -12,6 +12,8 @@ class DhcpLeasesCollector {
     this.byMAC = new Map();
     this.seenMACs = new Set();
     this.stream = null;
+    this._restarting = false;
+    this._restartTimer = null;
   }
 
   getNameByIP(ip)  { return this.byIP.get(ip);  }
@@ -57,7 +59,19 @@ class DhcpLeasesCollector {
     if (!this.ros.connected) return;
     try {
       this.stream = this.ros.stream(['/ip/dhcp-server/lease/listen'], (err, data) => {
-        if (err) { console.error('[leases] stream error:', err && err.message ? err.message : err); this.stream = null; return; }
+        if (err) {
+          console.error('[leases] stream error:', err && err.message ? err.message : err);
+          this._stopStream();
+          if (this.ros.connected && !this._restarting) {
+            this._restarting = true;
+            this._restartTimer = setTimeout(() => {
+              this._restarting = false;
+              this._restartTimer = null;
+              if (this.ros.connected) this._startStream();
+            }, 2000);
+          }
+          return;
+        }
         if (data) { this._applyLease(data); this.state.lastLeasesTs = Date.now(); }
       });
       console.log('[leases] streaming /ip/dhcp-server/lease/listen');
@@ -67,6 +81,8 @@ class DhcpLeasesCollector {
   }
 
   _stopStream() {
+    if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
+    this._restarting = false;
     if (this.stream) { try { this.stream.stop(); } catch (_) {} this.stream = null; }
   }
 

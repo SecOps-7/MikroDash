@@ -68,7 +68,13 @@ const basicAuth = createBasicAuthMiddleware({
 });
 
 app.use(helmet(buildHelmetOptions()));
-app.use(authLimiter, basicAuth);
+app.use((req, res, next) => {
+  if (req.path === '/healthz') return next();
+  authLimiter(req, res, (err) => {
+    if (err) return next(err);
+    basicAuth(req, res, next);
+  });
+});
 io.engine.use(basicAuth);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
