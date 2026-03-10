@@ -156,7 +156,7 @@ test('logs collector starts stream on start and restarts on reconnect', () => {
   assert.equal(streamCalls, 2, 'stream restarted on reconnect');
 });
 
-test('logs collector records stream errors and replaces the active stream', () => {
+test('logs collector records stream errors and schedules a restart', async () => {
   const ros = mockROS();
   let capturedCb;
   let streamCalls = 0;
@@ -172,12 +172,17 @@ test('logs collector records stream errors and replaces the active stream', () =
   assert.ok(collector.stream, 'stream should be active');
 
   capturedCb(new Error('connection lost'), null);
-  assert.equal(streamCalls, 2, 'collector should create a replacement stream');
-  assert.ok(collector.stream, 'replacement stream should stay active');
+  assert.equal(streamCalls, 1, 'restart is delayed, not immediate');
+  assert.equal(collector.stream, null, 'old stream should be stopped');
   assert.match(state.lastLogsErr, /connection lost/);
+
+  // Fast-forward the 2s restart delay
+  await new Promise(r => setTimeout(r, 2100));
+  assert.equal(streamCalls, 2, 'collector should create a replacement stream after delay');
+  assert.ok(collector.stream, 'replacement stream should stay active');
 });
 
-test('logs collector restarts stream after callback error while ROS remains connected', () => {
+test('logs collector restarts stream after callback error while ROS remains connected', async () => {
   const ros = mockROS();
   let streamCalls = 0;
   let stopCalls = 0;
@@ -196,8 +201,12 @@ test('logs collector restarts stream after callback error while ROS remains conn
 
   callbacks[0](new Error('connection lost'), null);
 
-  assert.equal(streamCalls, 2, 'stream should restart after callback error');
   assert.equal(stopCalls, 1, 'stale stream should be stopped before restart');
+  assert.equal(streamCalls, 1, 'restart is delayed, not immediate');
+
+  // Fast-forward the 2s restart delay
+  await new Promise(r => setTimeout(r, 2100));
+  assert.equal(streamCalls, 2, 'stream should restart after delay');
   assert.ok(collector.stream, 'replacement stream should be active');
 });
 
@@ -242,10 +251,14 @@ test('dhcp leases collector restarts stream after callback error and preserves s
   await collector.start();
 
   callbacks[0](new Error('listen lost'), null);
-  callbacks[1](null, { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
-
-  assert.equal(streamCalls, 2, 'stream should restart after callback error');
   assert.equal(stopCalls, 1, 'failed stream should be stopped before restart');
+  assert.equal(streamCalls, 1, 'restart is delayed, not immediate');
+
+  // Fast-forward the 2s restart delay
+  await new Promise(r => setTimeout(r, 2100));
+  assert.equal(streamCalls, 2, 'stream should restart after delay');
+
+  callbacks[1](null, { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
   assert.equal(collector.getNameByIP('192.168.1.10').name, 'laptop');
   assert.equal(emitted.filter(e => e.ev === 'device:new').length, 1, 'device:new should remain deduplicated');
 });
@@ -352,7 +365,7 @@ test('ROS client write normalizes null result to empty array', async () => {
 
 // --- Error handling and system collector resilience ---
 
-test('polling collector stores error in state and continues on next tick', async () => {
+test('polling collector throws on error and succeeds on next tick', async () => {
   let callNum = 0;
   const ros = mockROS(async () => {
     callNum++;
@@ -362,11 +375,8 @@ test('polling collector stores error in state and continues on next tick', async
   const state = {};
   const collector = new ArpCollector({ ros, pollMs: 50000, state });
 
-  // First tick — error
-  let caught = false;
-  try { await collector.tick(); } catch (e) { caught = true; state.lastArpErr = e.message; }
-  assert.equal(caught, true);
-  assert.equal(state.lastArpErr, 'temporary failure');
+  // First tick — error propagates
+  await assert.rejects(() => collector.tick(), { message: 'temporary failure' });
 
   // Second tick — success
   await collector.tick();

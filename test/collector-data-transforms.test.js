@@ -629,13 +629,19 @@ test('talkers collector calculates throughput rate between polls', async () => {
   assert.equal(emitted[0].data.devices[0].tx_mbps, 0);
   assert.equal(emitted[0].data.devices[0].rx_mbps, 0);
 
-  // Simulate time passing
+  // Simulate time passing with fixed timestamp to avoid timing flakiness
   const prev = collector.prev.get('AA:BB:CC:DD:EE:FF');
-  prev.ts = Date.now() - 1000; // 1 second ago
+  const fixedNow = Date.now();
+  prev.ts = fixedNow - 1000; // exactly 1 second ago
   prev.up = 0;
   prev.down = 0;
-
-  await collector.tick();
+  const origDateNow = Date.now;
+  Date.now = () => fixedNow;
+  try {
+    await collector.tick();
+  } finally {
+    Date.now = origDateNow;
+  }
   // tx = (125000 * 8) / 1 / 1_000_000 = 1.0 Mbps
   // rx = (250000 * 8) / 1 / 1_000_000 = 2.0 Mbps
   assert.equal(emitted[1].data.devices[0].tx_mbps, 1);
@@ -755,11 +761,17 @@ test('vpn collector calculates rates between polls and prunes stale peers', asyn
 
   await collector.tick();
   const prev = collector._prev.get('A');
-  prev.ts = Date.now() - 1000;
+  const fixedNow = Date.now();
+  prev.ts = fixedNow - 1000;
   prev.rx = 1000;
   prev.tx = 2000;
-
-  await collector.tick();
+  const origDateNow = Date.now;
+  Date.now = () => fixedNow;
+  try {
+    await collector.tick();
+  } finally {
+    Date.now = origDateNow;
+  }
 
   assert.equal(emitted[1].data.tunnels.length, 1);
   assert.equal(emitted[1].data.tunnels[0].name, 'phone');
@@ -889,7 +901,7 @@ test('logs collector emits severity-classified entries from stream callbacks and
 // --- DHCP Leases Collector ---
 const DhcpLeasesCollector = require('../src/collectors/dhcpLeases');
 
-test('dhcp leases collector resolves name with comment > hostname > empty fallback', () => {
+test('dhcp leases collector resolves name with comment > hostname > empty fallback', async () => {
   let streamHandler;
   const ros = {
     connected: true,
@@ -905,13 +917,12 @@ test('dhcp leases collector resolves name with comment > hostname > empty fallba
   };
   const collector = new DhcpLeasesCollector({ ros, io: { emit() {} }, pollMs: 15000, state: {} });
 
-  return collector.start().then(() => {
-    streamHandler(null, { address: '192.168.1.12', 'mac-address': 'EE:FF', comment: '   ', 'host-name': '  ' });
+  await collector.start();
+  streamHandler(null, { address: '192.168.1.12', 'mac-address': 'EE:FF', comment: '   ', 'host-name': '  ' });
 
   assert.equal(collector.getNameByIP('192.168.1.10').name, 'MyLaptop');
   assert.equal(collector.getNameByIP('192.168.1.11').name, 'phone');
   assert.equal(collector.getNameByIP('192.168.1.12').name, '');
-  });
 });
 
 test('dhcp leases collector filters active leases after initial load and streamed updates', async () => {

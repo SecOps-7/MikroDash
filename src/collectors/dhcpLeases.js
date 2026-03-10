@@ -60,7 +60,13 @@ class DhcpLeasesCollector {
         if (err) {
           console.error('[leases] stream error:', err && err.message ? err.message : err);
           this._stopStream();
-          if (this.ros.connected) this._startStream();
+          if (this.ros.connected && !this._restarting) {
+            this._restarting = true;
+            setTimeout(() => {
+              this._restarting = false;
+              if (this.ros.connected) this._startStream();
+            }, 2000);
+          }
           return;
         }
         if (data) { this._applyLease(data); this.state.lastLeasesTs = Date.now(); }
