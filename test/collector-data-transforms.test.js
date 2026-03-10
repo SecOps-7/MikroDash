@@ -299,3 +299,101 @@ test('connections collector resolves names via DHCP leases then ARP fallback', a
   assert.equal(byIp['192.168.1.11'].name, 'phone');
   assert.equal(byIp['192.168.1.12'].name, '192.168.1.12');
 });
+
+// --- Firewall Collector ---
+const FirewallCollector = require('../src/collectors/firewall');
+
+test('firewall collector calculates delta packets between polls', async () => {
+  const emitted = [];
+  let tickNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('filter')) return tickNum === 0
+        ? [{ '.id': '*1', chain: 'forward', action: 'accept', packets: '100', bytes: '50000', disabled: 'false' }]
+        : [{ '.id': '*1', chain: 'forward', action: 'accept', packets: '150', bytes: '75000', disabled: 'false' }];
+      return []; // nat, mangle empty
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
+
+  await collector.tick();
+  assert.equal(emitted[0].data.filter[0].deltaPackets, 0); // no previous
+  tickNum++;
+
+  await collector.tick();
+  assert.equal(emitted[1].data.filter[0].deltaPackets, 50); // 150 - 100
+});
+
+test('firewall collector clamps negative delta to zero on counter reset', async () => {
+  const emitted = [];
+  let tickNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('filter')) return tickNum === 0
+        ? [{ '.id': '*1', chain: 'forward', action: 'accept', packets: '1000', bytes: '50000', disabled: 'false' }]
+        : [{ '.id': '*1', chain: 'forward', action: 'accept', packets: '10', bytes: '500', disabled: 'false' }];
+      return [];
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
+
+  await collector.tick();
+  tickNum++;
+  await collector.tick();
+
+  assert.equal(emitted[1].data.filter[0].deltaPackets, 0);
+});
+
+test('firewall collector filters out disabled rules', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('filter')) return [
+        { '.id': '*1', chain: 'forward', action: 'accept', packets: '100', disabled: 'true' },
+        { '.id': '*2', chain: 'forward', action: 'drop', packets: '50', disabled: 'false' },
+        { '.id': '*3', chain: 'forward', action: 'log', packets: '25', disabled: true },
+      ];
+      return [];
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
+  await collector.tick();
+
+  assert.equal(emitted[0].data.filter.length, 1);
+  assert.equal(emitted[0].data.filter[0].id, '*2');
+});
+
+test('firewall collector prunes stale entries from prevCounts', async () => {
+  const emitted = [];
+  let tickNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('filter')) return tickNum === 0
+        ? [{ '.id': '*1', packets: '100', disabled: 'false' }, { '.id': '*2', packets: '200', disabled: 'false' }]
+        : [{ '.id': '*2', packets: '250', disabled: 'false' }];
+      return [];
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
+
+  await collector.tick();
+  assert.ok(collector.prevCounts.has('*1'));
+  assert.ok(collector.prevCounts.has('*2'));
+  tickNum++;
+
+  await collector.tick();
+  assert.ok(!collector.prevCounts.has('*1'), 'stale *1 should be pruned');
+  assert.ok(collector.prevCounts.has('*2'));
+});
