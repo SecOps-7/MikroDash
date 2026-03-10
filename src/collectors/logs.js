@@ -9,6 +9,8 @@ class LogsCollector {
     this.io = io;
     this.state = state;
     this.stream = null;
+    this._restarting = false;
+    this._restartTimer = null;
   }
 
   _classify(topicsRaw) {
@@ -26,8 +28,9 @@ class LogsCollector {
       this._stopStream();
       if (this.ros.connected && !this._restarting) {
         this._restarting = true;
-        setTimeout(() => {
+        this._restartTimer = setTimeout(() => {
           this._restarting = false;
+          this._restartTimer = null;
           if (this.ros.connected) this._startStream();
         }, 2000);
       }
@@ -61,6 +64,8 @@ class LogsCollector {
   }
 
   _stopStream() {
+    if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
+    this._restarting = false;
     if (this.stream) {
       try { this.stream.stop(); } catch (_) {}
       this.stream = null;
