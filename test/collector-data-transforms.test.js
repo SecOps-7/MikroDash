@@ -397,3 +397,168 @@ test('firewall collector prunes stale entries from prevCounts', async () => {
   assert.ok(!collector.prevCounts.has('*1'), 'stale *1 should be pruned');
   assert.ok(collector.prevCounts.has('*2'));
 });
+
+// --- Ping Collector ---
+const PingCollector = require('../src/collectors/ping');
+
+test('ping collector extracts RTT from summary avg-rtt field', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { status: 'replied', time: '3ms' },
+      { status: 'replied', time: '5ms' },
+      { status: 'replied', time: '4ms' },
+      { 'avg-rtt': '4ms', sent: '3', received: '3' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
+  await collector.tick();
+
+  assert.equal(emitted[0].data.rtt, 4);
+  assert.equal(emitted[0].data.loss, 0);
+});
+
+test('ping collector calculates loss percentage', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { status: 'replied', time: '3ms' },
+      { 'avg-rtt': '3ms', sent: '3', received: '1' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
+  await collector.tick();
+
+  assert.equal(emitted[0].data.loss, 67);
+});
+
+test('ping collector returns null rtt and 100% loss on no replies', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
+  await collector.tick();
+
+  assert.equal(emitted[0].data.rtt, null);
+  assert.equal(emitted[0].data.loss, 100);
+});
+
+test('ping collector falls back to averaging individual reply times when no summary', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { status: 'replied', time: '10ms' },
+      { status: 'replied', time: '20ms' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
+  await collector.tick();
+
+  assert.equal(emitted[0].data.rtt, 15);
+  assert.equal(emitted[0].data.loss, 33);
+});
+
+test('ping collector maintains bounded history', async () => {
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [{ 'avg-rtt': '5ms', sent: '3', received: '3' }],
+  };
+  const io = { emit() {} };
+  const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
+
+  for (let i = 0; i < 65; i++) await collector.tick();
+
+  assert.equal(collector.history.length, 60);
+  const h = collector.getHistory();
+  assert.equal(h.target, '1.1.1.1');
+  assert.equal(h.history.length, 60);
+});
+
+// --- Top Talkers Collector ---
+const TopTalkersCollector = require('../src/collectors/talkers');
+
+test('talkers collector calculates throughput rate between polls', async () => {
+  const emitted = [];
+  let callNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { 'mac-address': 'AA:BB:CC:DD:EE:FF', name: 'laptop', 'bytes-up': callNum === 0 ? '0' : '125000', 'bytes-down': callNum === 0 ? '0' : '250000' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); callNum++; } };
+  const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
+
+  await collector.tick();
+  assert.equal(emitted[0].data.devices[0].tx_mbps, 0);
+  assert.equal(emitted[0].data.devices[0].rx_mbps, 0);
+
+  // Simulate time passing
+  const prev = collector.prev.get('AA:BB:CC:DD:EE:FF');
+  prev.ts = Date.now() - 1000; // 1 second ago
+  prev.up = 0;
+  prev.down = 0;
+
+  await collector.tick();
+  // tx = (125000 * 8) / 1 / 1_000_000 = 1.0 Mbps
+  // rx = (250000 * 8) / 1 / 1_000_000 = 2.0 Mbps
+  assert.equal(emitted[1].data.devices[0].tx_mbps, 1);
+  assert.equal(emitted[1].data.devices[0].rx_mbps, 2);
+});
+
+test('talkers collector returns zero rate on counter reset', async () => {
+  const emitted = [];
+  let callNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { 'mac-address': 'AA:BB:CC:DD:EE:FF', name: 'laptop', 'bytes-up': callNum === 0 ? '1000000' : '100', 'bytes-down': callNum === 0 ? '2000000' : '50' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); callNum++; } };
+  const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
+
+  await collector.tick();
+  await collector.tick();
+
+  assert.equal(emitted[1].data.devices[0].tx_mbps, 0);
+  assert.equal(emitted[1].data.devices[0].rx_mbps, 0);
+});
+
+test('talkers collector prunes stale devices', async () => {
+  let callNum = 0;
+  const responses = [
+    [{ 'mac-address': 'AA:BB', name: 'a', 'bytes-up': '100', 'bytes-down': '200' },
+     { 'mac-address': 'CC:DD', name: 'b', 'bytes-up': '300', 'bytes-down': '400' }],
+    [{ 'mac-address': 'AA:BB', name: 'a', 'bytes-up': '200', 'bytes-down': '300' }],
+  ];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => responses[callNum++],
+  };
+  const io = { emit() {} };
+  const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
+
+  await collector.tick();
+  assert.ok(collector.prev.has('CC:DD'));
+
+  await collector.tick();
+  assert.ok(!collector.prev.has('CC:DD'), 'stale device CC:DD should be pruned');
+});
