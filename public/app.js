@@ -1,4 +1,4 @@
-/* MikroDash v0.5.1 */
+/* MikroDash v0.5.2 */
 'use strict';
 var socket = io();
 
@@ -47,6 +47,8 @@ var firewallTable    = $('firewallTable');
 var routerTag        = $('routerTag');
 var pageTitle        = $('pageTitle');
 var ifaceGrid        = $('ifaceGrid');
+var ifaceCount       = $('ifaceCount');
+var vpnPageCount     = $('vpnPageCount');
 var dhcpTable        = $('dhcpTable');
 var dhcpTotalBadge   = $('dhcpTotalBadge');
 var dhcpNavBadge     = $('dhcpNavBadge');
@@ -308,21 +310,49 @@ socket.on('talkers:update',function(data){
 });
 
 // ── Interface Status ───────────────────────────────────────────────────────
+var _ifacePeaks = {};
+
+function ifaceRateRow(name, dir, mbps, peak) {
+  var pct = peak > 0 ? Math.min(100, (mbps / peak) * 100) : 0;
+  var isZero = !mbps || mbps === 0;
+  var valCls = isZero ? 'zero' : dir;
+  var label = dir === 'rx' ? '\u2193' : '\u2191';
+  return '<div class="iface-rate-row">' +
+    '<span class="iface-rate-label">' + label + '</span>' +
+    '<div class="iface-rate-bar-wrap"><div class="iface-rate-bar ' + dir + '" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+    '<span class="iface-rate-val ' + valCls + '">' + fmtMbps(mbps) + '</span>' +
+    '</div>';
+}
+
 socket.on('ifstatus:update',function(data){
   var ifaces=data.interfaces||[];
   var nb=$('ifacesNavBadge');if(nb){nb.textContent=ifaces.length||'';}
+  if(ifaceCount){ifaceCount.textContent=ifaces.length;ifaceCount.className='card-badge'+(ifaces.length>0?' active-blue':'');}
   if(!ifaces.length){if(ifaceGrid)ifaceGrid.innerHTML='<div class="empty-state">No interfaces</div>';return;}
   if(!ifaceGrid)return;
+
+  ifaces.forEach(function(i) {
+    if (!_ifacePeaks[i.name]) _ifacePeaks[i.name] = { rx: 0, tx: 0 };
+    var p = _ifacePeaks[i.name];
+    p.rx = Math.max(i.rxMbps || 0, p.rx * 0.995);
+    p.tx = Math.max(i.txMbps || 0, p.tx * 0.995);
+    if (p.rx < 1) p.rx = 1;
+    if (p.tx < 1) p.tx = 1;
+  });
+
   ifaceGrid.innerHTML=ifaces.map(function(i){
     var cls=i.disabled?'disabled':i.running?'up':'down';
     var dotCls=i.disabled?'dis':i.running?'up':'down';
     var ipStr=i.ips&&i.ips.length?i.ips[0]:'';
-    var rateStr=(i.rxMbps||i.txMbps)?'\u2193 '+i.rxMbps+' \u2191 '+i.txMbps+' Mbps':'';
+    var p = _ifacePeaks[i.name] || { rx: 1, tx: 1 };
     return'<div class="iface-tile '+cls+'">'+
       '<div class="iface-name"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
       '<div class="iface-type">'+esc(i.type)+(i.comment?' \u00b7 '+esc(i.comment):'')+'</div>'+
       (ipStr?'<div class="iface-ip">'+esc(ipStr)+'</div>':'')+
-      (rateStr?'<div class="iface-rate">'+rateStr+'</div>':'')+
+      '<div class="iface-rates">'+
+        ifaceRateRow(i.name,'rx',i.rxMbps||0,p.rx)+
+        ifaceRateRow(i.name,'tx',i.txMbps||0,p.tx)+
+      '</div>'+
       '</div>';
   }).join('');
 });
@@ -434,8 +464,7 @@ socket.on('ifstatus:update',function(data){
   socket.on('wireless:update',function(data){
     _wlClients=data.clients||[];
     var ndWC=$('ndWirelessCount'); if(ndWC) ndWC.textContent=_wlClients.length;
-    var badgeCls='badge '+(_wlClients.length>0?'bg-blue':'bg-secondary');
-    wirelessTabBadge.textContent=_wlClients.length; wirelessTabBadge.className=badgeCls;
+    wirelessTabBadge.textContent=_wlClients.length; wirelessTabBadge.className='card-badge'+(_wlClients.length>0?' active-blue':'');
     wirelessNavBadge.textContent=_wlClients.length;
     renderWireless();
   });
@@ -454,7 +483,8 @@ socket.on('ifstatus:update',function(data){
 socket.on('vpn:update',function(data){
   var peers=(data.tunnels||[]).filter(function(t){return t.type==='WireGuard'&&t.state==='connected';});
   vpnCount.textContent=peers.length;
-  vpnCount.className='badge '+(peers.length>0?'bg-green':'bg-secondary');
+  vpnCount.className='card-badge'+(peers.length>0?' active-green':'');
+  if(vpnPageCount){vpnPageCount.textContent=peers.length;vpnPageCount.className='card-badge'+(peers.length>0?' active-blue':'');}
   var nb=$('vpnNavBadge'); if(nb)nb.textContent=peers.length;
   // Dashboard mini card
   if(!peers.length){vpnTable.innerHTML='<tr><td colspan="3" class="empty-state">No active peers</td></tr>';}
@@ -486,7 +516,7 @@ socket.on('vpn:update',function(data){
         var dotCls=connected?'up':'dis';
         var tileCls='vpn-tile '+(connected?'up':'idle');
         return'<div class="'+tileCls+'">'+
-          '<div class="vpn-tile-name"><span class="iface-dot '+dotCls+'"></span>'+esc(t.name||t.interface||'—')+'</div>'+
+          '<div class="vpn-tile-name"><span class="iface-dot '+dotCls+'"></span><span class="vpn-tile-name-text">'+esc(t.name||t.interface||'—')+'</span></div>'+
           (t.interface?'<div class="vpn-tile-iface">'+esc(t.interface)+(t.allowedIp?' · '+esc(t.allowedIp):'')+'</div>':'')+
           (t.endpoint?'<div class="vpn-tile-ip">'+esc(t.endpoint)+'</div>':'')+
           '<div class="vpn-tile-hs">'+(connected&&t.uptime&&t.uptime!=='never'?'HS: '+esc(t.uptime):'Never connected')+'</div>'+
@@ -508,9 +538,7 @@ function renderDhcp(leases){
   var count = leases.length;
   if(dhcpTotalBadge){
     dhcpTotalBadge.textContent = count;
-    dhcpTotalBadge.className = 'badge ' + (count > 0 ? 'bg-blue' : 'bg-secondary');
-    dhcpTotalBadge.style.fontFamily = 'var(--font-mono)';
-    dhcpTotalBadge.style.fontSize = '.68rem';
+    dhcpTotalBadge.className = 'card-badge' + (count > 0 ? ' active-blue' : '');
   }
   if(dhcpNavBadge) dhcpNavBadge.textContent = count;
   if(!filtered.length){dhcpTable.innerHTML='<tr><td colspan="4" class="empty-state">No leases'+(leaseFilter?' matching filter':'')+'\u2026</td></tr>';return;}
@@ -563,6 +591,16 @@ function flushLogs(){
   logsEl.innerHTML=f.map(function(e){return e.html;}).join('');
   if(autoScroll)logsEl.scrollTop=logsEl.scrollHeight;
 }
+// Batch replay of buffered log history on connect/reconnect (survives page refresh)
+socket.on('logs:history',function(lines){
+  lines.forEach(function(line){
+    var html=buildLogHtml(line);
+    var text=(line.time+' ['+line.topics+'] '+line.message).toLowerCase();
+    logBuffer.push({html:html,severity:line.severity,text:text});
+  });
+  if(logBuffer.length>MAX_LOG_LINES)logBuffer.splice(0,logBuffer.length-MAX_LOG_LINES);
+  flushLogs();
+});
 socket.on('logs:new',function(line){
   var html=buildLogHtml(line);
   var text=(line.time+' ['+line.topics+'] '+line.message).toLowerCase();
@@ -621,8 +659,17 @@ socket.on('traffic:update',function(sample){if(!currentIf||sample.ifName!==curre
 socket.on('wan:status',function(s){renderWanStatus(s);});
 
 // ── Reconnect ──────────────────────────────────────────────────────────────
-socket.on('disconnect',function(){reconnectBanner.classList.add('show');});
-socket.on('connect',function(){reconnectBanner.classList.remove('show');currentIf='';allPoints=[];});
+var _rosCurrentlyDisconnected = false;
+
+socket.on('disconnect',function(){
+  reconnectBanner.classList.add('show');
+  rosBanner.classList.remove('show');
+});
+socket.on('connect',function(){
+  reconnectBanner.classList.remove('show');
+  currentIf=''; allPoints=[];
+  if(_rosCurrentlyDisconnected) rosBanner.classList.add('show');
+});
 
 // ── RouterOS connection status ──────────────────────────────────────────────
 // Shown when the server is up (Socket.IO connected) but RouterOS itself is
@@ -630,11 +677,12 @@ socket.on('connect',function(){reconnectBanner.classList.remove('show');currentI
 // the browser loses its Socket.IO connection to the MikroDash server.
 function setRosBanner(connected, reason){
   if(!rosBanner) return;
+  _rosCurrentlyDisconnected = !connected;
   if(connected){
     rosBanner.classList.remove('show');
   } else {
     if(rosBannerText) rosBannerText.textContent = reason || 'RouterOS not connected — retrying…';
-    rosBanner.classList.add('show');
+    if(!reconnectBanner.classList.contains('show')) rosBanner.classList.add('show');
   }
 }
 socket.on('ros:status', function(data){
@@ -765,10 +813,12 @@ function updateNotifBtn(){
   if(!btn) return;
   if(!notifSupported()){btn.style.display='none';return;}
   btn.title = _notifEnabled ? 'Notifications on' : 'Notifications off';
+  var sz = 'width="16" height="16"';
   btn.innerHTML = _notifEnabled
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-  btn.style.color = _notifEnabled ? 'var(--accent-rx)' : 'var(--text-muted)';
+    ? '<svg '+sz+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+    : '<svg '+sz+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+  btn.style.color = _notifEnabled ? 'var(--accent-rx)' : 'var(--text-main)';
+  btn.style.opacity = _notifEnabled ? '1' : '0.4';
 }
 
 // Trigger notifications from data events

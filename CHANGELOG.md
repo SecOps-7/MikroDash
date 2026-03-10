@@ -2,6 +2,54 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.2] — UI Improvements & Bug Fixes
+
+### Features
+
+- **Live interface traffic rates on Interfaces page** — each interface tile now
+  displays real-time RX and TX rates with colour-coded bar indicators (blue for
+  RX, green for TX) that scale relative to the session peak. Rates are derived
+  from cumulative byte counter deltas between polls, since
+  `rx-bits-per-second` is not available from `/interface/print`
+  (`src/collectors/interfaceStatus.js`, `public/index.html`, `public/app.js`)
+- **Log persistence across page refreshes** — the server now maintains a
+  ring buffer of the last 500 log entries (configurable via `LOG_HISTORY_SIZE`)
+  and replays them to each new socket connection, so the Logs page is no longer
+  blank after a refresh (`src/collectors/logs.js`, `src/index.js`,
+  `public/app.js`)
+- **Self-hosted fonts** — JetBrains Mono and Syne are now bundled as woff2
+  files under `public/vendor/fonts/`, eliminating the last remaining external
+  requests to Google Fonts and completing the fully air-gapped deployment story
+  (`public/vendor/fonts/`, `public/index.html`)
+
+### UI
+
+- **Item count badges on Interfaces and VPN pages** — the Interfaces card and
+  the WireGuard Peers card now show a count badge matching the style used on
+  Wireless Clients and DHCP (`public/index.html`, `public/app.js`)
+- **Consistent card badge styling across all pages** — all five card badges
+  (Wireless Clients, DHCP, WireGuard dashboard, WireGuard Peers, Interfaces)
+  now use a shared `.card-badge` CSS class with CSS variable-based colours that
+  are legible in both dark and light mode, replacing the Tabler `bg-*` classes
+  that were invisible in light mode (`public/index.html`, `public/app.js`)
+
+### Bug Fixes
+
+- **Notification bell invisible in light mode** — the bell SVG had an inline
+  `stroke:var(--text-muted)` overriding `currentColor`, a blanket `opacity:.85`
+  on the button, and no explicit `width`/`height` on dynamically injected SVGs,
+  causing it to be nearly invisible or zero-sized. All three issues resolved
+  (`public/index.html`, `public/app.js`)
+- **ROS and reconnect banners stacking** — when the router disconnected,
+  both the amber RouterOS banner and the red Socket.IO reconnect banner could
+  appear simultaneously. The reconnect banner now suppresses the ROS banner
+  while active, and restores it on reconnect only if the router is still
+  offline (`public/app.js`)
+- **VPN peer dot hidden on long peer names** — the status dot in WireGuard
+  peer tiles was clipped when the peer name was long due to `overflow:hidden`
+  applied to the flex container. The dot is now `flex-shrink:0` and truncation
+  applies only to the name text span (`public/index.html`, `public/app.js`)
+
 ## [0.5.1] — Production Resilience Hardening
 
 ### Security
