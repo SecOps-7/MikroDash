@@ -1,62 +1,70 @@
-# Test Coverage: Data Correctness & Resilience
+# Test Coverage: Final Design Summary
 
 ## Goal
 
-Expand test coverage to ensure all collector data transformations produce correct results and the application handles disconnections, errors, and lifecycle events gracefully.
+Expand test coverage so it protects real dashboard behavior under messy RouterOS data, reconnects, stream failures, and high-volume aggregation, rather than mainly protecting implementation details.
 
-## New Test Files
+## Final Design
 
-### `test/collector-data-transforms.test.js`
+### Behavior-first collector tests
 
-Tests every data transformation across all collectors:
+Collector tests now prefer one of two shapes:
 
-**Traffic** — `parseBps()` format variants (kbps, Mbps, raw, 0, undefined), Mbps rounding
+- Drive `tick()` or a deterministic single-poll method and assert emitted payloads, stored state, history, and aggregate outputs.
+- Drive `start()` with fake ROS event/stream objects and assert timer/stream lifecycle behavior owned by the collector itself.
 
-**System** — CPU parsing, memory/HDD % with division-by-zero guard, temperature extraction (including missing temperature on virtualized RouterOS), version comparison with channel suffix stripping, update detection, graceful fallback when health/package queries fail
+This replaces the earlier plan to test several private helpers directly.
 
-**Connections** — protocol counting (case-insensitive icmp), LAN/WAN classification via CIDR, IPv6 bracket wrapping in destination keys, capping with `processingCapped` flag, field fallback chains
+### Narrow production seams for critical runtime paths
 
-**Firewall** — delta calculation with `Math.max(0, ...)`, counter reset produces 0, disabled rule filtering (string and boolean), stale rule cleanup
+Small internal seams were added only where the real behavior could not be tested reliably otherwise:
 
-**Ping** — RTT regex extraction, loss calculation, no-reply edge case (null rtt, 100% loss), fallback to averaging individual replies
+- `ROS.connectLoop()` uses an overridable sleep seam so retry/backoff behavior can be tested without waiting in real time.
+- `ConnectionsCollector` accepts an optional geo lookup function so country/city aggregates can be tested deterministically.
+- `TrafficCollector` exposes a deterministic single-interface poll path used by both runtime polling and tests.
 
-**Talkers** — throughput rate formula, counter reset returns 0, stale device pruning
+These are internal testability seams, not new application-facing APIs.
 
-**VPN** — name fallback chain (name > comment > allowed-address > truncated key > '?'), connected state detection, rate calculation with counter reset
+### Recovery behavior is part of the contract
 
-**Wireless** — band detection regex (5GHz, 6GHz, 2.4GHz fallback)
+Stream callback errors are treated as recoverable while RouterOS is still connected.
 
-**Logs** — severity classification (case-insensitive), empty message filtering
+- `LogsCollector` now restarts its stream after callback errors.
+- `DhcpLeasesCollector` now restarts its stream after callback errors while preserving existing lease/device state semantics.
 
-**DHCP leases** — name resolution (comment > hostname > ''), active lease filter ('' / 'bound' / 'offered')
+The design goal is that transient stream failures do not leave the dashboard silently stale until a full reconnect.
 
-**Interface status** — boolean normalization (string/boolean), Mbps conversion and rounding
+## Coverage Areas
 
-### `test/collector-lifecycle.test.js`
+### Data correctness
 
-Tests resilience and lifecycle patterns:
+- Traffic payload normalization and WAN status emission
+- System resource/update normalization
+- Connections protocol counts, source resolution, IPv6 destination formatting, ports, countries, geo enrichment, and truncation honesty
+- Firewall deltas and stale cleanup
+- Ping summary/fallback/history behavior
+- Talkers and VPN rate calculations plus stale pruning
+- Wireless payload ordering, enrichment, and empty refresh behavior
+- DHCP lease naming and active-lease semantics through real load/stream flows
+- Interface status malformed numeric input handling
+- ARP snapshot replacement behavior
+- DHCP network WAN/IP/CIDR behavior under partial failure
 
-**Inflight guard** — concurrent tick is no-op, guard resets after error
+### Lifecycle and resilience
 
-**Reconnection** — ROS connected: old timer cleared + new polling started; ROS close: polling stops; streaming collectors: stream restarted on reconnect
+- Collector-owned in-flight protection through `start()`
+- Timer teardown and restart on `close` / `connected`
+- Stream restart on reconnect and on callback error
+- `ROS.connectLoop()` retry, backoff reset, and stop behavior
+- Honest handling of disconnected/no-op paths
 
-**RouterOS client** — exponential backoff (2s to 30s cap), backoff reset on connect, `_stopping` breaks loop, write timeout closes connection before rejecting
+## Non-Goals
 
-**Error handling** — poll error stored in state, next poll still fires, stream error nullifies stream and reconnect restarts it
+- Broad architectural refactors to bootstrap or collector composition
+- Adding a mocking framework
+- Preserving old helper-level tests solely to maintain test count
 
-**System collector resilience** — `Promise.allSettled` isolates query failures, missing temperature graceful (null), missing health array entirely (virtualized RouterOS), package query failure defaults to no update
+## Result
 
-**DHCP Networks** — one concurrent query fails, other still works
-
-**Shutdown** — all timers cleared, forced shutdown timer unreferenced
-
-**Traffic validation** — select before interfaces loaded rejected, invalid names rejected (non-string, whitespace, >128 chars, control chars, unknown)
-
-## Conventions
-
-- Node.js built-in `node:test` + `node:assert/strict`
-- Hand-crafted mock objects, no mocking libraries
-- Each test self-contained, no shared state
-- Descriptive sentence test names
-- Where logic is inline in `tick()`, instantiate collector with mock ROS returning canned data and assert emitted/stored results
-- Estimated ~45-55 new tests
+The implemented approach favors fewer assumptions, stronger contracts, and more honest confidence:
+tests now mostly prove observable behavior that matters to operators using the dashboard.
