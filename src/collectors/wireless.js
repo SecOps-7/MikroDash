@@ -26,13 +26,17 @@ class WirelessCollector {
       try {
         const res = await this.ros.write('/interface/wifi/registration-table/print');
         if (res && res.length) { clients = res; detectedMode = 'wifi'; }
-      } catch (_) {}
+      } catch (e) {
+        if (this.ros.cfg && this.ros.cfg.debug) console.warn('[wireless] wifi API probe failed:', e && e.message ? e.message : e);
+      }
     }
     if (!clients.length && (detectedMode === 'wireless' || detectedMode === null)) {
       try {
         const res = await this.ros.write('/interface/wireless/registration-table/print');
         if (res && res.length) { clients = res; detectedMode = 'wireless'; }
-      } catch (_) {}
+      } catch (e) {
+        if (this.ros.cfg && this.ros.cfg.debug) console.warn('[wireless] legacy API probe failed:', e && e.message ? e.message : e);
+      }
     }
 
     // Lock in the detected mode so we stop probing the wrong API
