@@ -5,7 +5,8 @@
   "description": "MikroTik RouterOS v7 live dashboard — streaming binary API, Tabler + Socket.IO",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "node --test"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

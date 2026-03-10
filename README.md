@@ -133,7 +133,7 @@ docker compose up -d
 ```
 
 - Dashboard: `http://localhost:3081`
-- Health check: `http://localhost:3081/healthz`
+- Health check: `http://localhost:3081/healthz` (`200` only after startup completes and RouterOS is connected)
 
 ---
 
@@ -170,6 +170,8 @@ BASIC_AUTH_PASS=             # Optional dashboard HTTP Basic Auth password
 TRUSTED_PROXY=               # Proxy IP to trust X-Forwarded-For from (e.g. 127.0.0.1)
 DEFAULT_IF=ether1            # Default interface shown in traffic chart
 HISTORY_MINUTES=30           # Traffic chart history window
+ROS_WRITE_TIMEOUT_MS=30000   # Force reconnect if a RouterOS command exceeds this time
+MAX_SOCKETS=50               # Maximum concurrent Socket.IO clients
 
 # Polling intervals (ms)
 CONNS_POLL_MS=3000
@@ -191,6 +193,7 @@ PING_TARGET=1.1.1.1
 TOP_N=10
 TOP_TALKERS_N=5
 FIREWALL_TOP_N=15
+MAX_CONNS=20000             # Maximum connection-table rows processed per tick
 ```
 
 ---
