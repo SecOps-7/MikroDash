@@ -29,6 +29,7 @@ test('buildHelmetOptions uses a self-hosted CSP policy', () => {
   assert.deepEqual(directives.defaultSrc, ["'self'"]);
   assert.deepEqual(directives.scriptSrc, ["'self'"]);
   assert.deepEqual(directives.fontSrc, ["'self'"]);
+  assert.equal(directives.upgradeInsecureRequests, null);
   assert.ok(directives.connectSrc.includes("'self'"));
   assert.ok(!JSON.stringify(directives).includes('cdn.jsdelivr.net'));
   assert.ok(!JSON.stringify(directives).includes('fonts.googleapis.com'));

@@ -8,6 +8,7 @@ function buildHelmetOptions() {
         fontSrc: ["'self'"],
         connectSrc: ["'self'", 'ws:', 'wss:'],
         imgSrc: ["'self'", 'data:'],
+        upgradeInsecureRequests: null,
       },
     },
   };
