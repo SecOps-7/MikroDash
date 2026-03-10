@@ -20,65 +20,102 @@ function mockROS(writeFn) {
   return ros;
 }
 
+function mockConn({ onConnect, onClose } = {}) {
+  const conn = new EventEmitter();
+  conn.connect = async () => {
+    if (onConnect) await onConnect(conn);
+  };
+  conn.close = () => {
+    if (onClose) onClose(conn);
+    conn.emit('close');
+  };
+  return conn;
+}
+
+async function withPatchedIntervals(runTest) {
+  const originalSetInterval = global.setInterval;
+  const originalClearInterval = global.clearInterval;
+  const timers = [];
+  global.setInterval = (cb, ms) => {
+    const timer = { cb, ms, cleared: false };
+    timers.push(timer);
+    return timer;
+  };
+  global.clearInterval = (timer) => {
+    if (timer) timer.cleared = true;
+  };
+
+  try {
+    await runTest(timers);
+  } finally {
+    global.setInterval = originalSetInterval;
+    global.clearInterval = originalClearInterval;
+  }
+}
+
 // --- Inflight guard and polling lifecycle ---
 
-test('inflight guard prevents concurrent ticks on polling collector', async () => {
-  let tickCount = 0;
-  const ros = mockROS(async () => [{}]);
-  const io = { emit() {} };
-  const collector = new ArpCollector({ ros, pollMs: 50000, state: {} });
+test('polling collector start skips overlapping interval ticks while one run is inflight', async () => {
+  await withPatchedIntervals(async (timers) => {
+    let tickCount = 0;
+    let releaseTick;
+    const pendingTick = new Promise((resolve) => { releaseTick = resolve; });
+    const ros = mockROS(async () => [{}]);
+    const collector = new ArpCollector({ ros, pollMs: 50000, state: {} });
 
-  // Patch tick to track calls and add delay
-  const origTick = collector.tick.bind(collector);
-  collector.tick = async function () {
-    tickCount++;
-    await new Promise(r => setTimeout(r, 50));
-    return origTick();
-  };
+    collector.tick = async function () {
+      tickCount++;
+      await pendingTick;
+    };
 
-  let inflight = false;
-  const run = async () => {
-    if (inflight) return;
-    inflight = true;
-    try { await collector.tick(); } finally { inflight = false; }
-  };
+    collector.start();
+    assert.equal(tickCount, 1, 'start() should launch the first run immediately');
 
-  const first = run();
-  const second = run(); // should be no-op because inflight is true
-  await Promise.all([first, second]);
+    await timers[0].cb();
+    assert.equal(tickCount, 1, 'interval callback should no-op while the first run is inflight');
 
-  assert.equal(tickCount, 1);
+    releaseTick();
+    await pendingTick;
+    await Promise.resolve();
+    await timers[0].cb();
+    assert.equal(tickCount, 2, 'next interval should run after inflight state resets');
+  });
 });
 
-test('inflight guard resets after tick throws', async () => {
-  const ros = mockROS(async () => { throw new Error('boom'); });
-  const io = { emit() {} };
-  const state = {};
-  const collector = new SystemCollector({ ros, io, pollMs: 50000, state });
+test('polling collector start resets inflight state after a tick throws', async () => {
+  await withPatchedIntervals(async (timers) => {
+    const state = {};
+    const ros = mockROS(async () => []);
+    const io = { emit() {} };
+    const collector = new SystemCollector({ ros, io, pollMs: 50000, state });
+    let tickCount = 0;
 
-  let inflight = false;
-  const run = async () => {
-    if (inflight) return;
-    inflight = true;
-    try { await collector.tick(); } catch (e) {
-      state.lastSystemErr = e.message;
-    } finally { inflight = false; }
-  };
+    collector.tick = async function () {
+      tickCount++;
+      if (tickCount === 1) throw new Error('boom');
+    };
 
-  await run();
-  assert.equal(inflight, false, 'inflight should be reset after error');
+    collector.start();
+    await Promise.resolve();
+    assert.equal(state.lastSystemErr, 'boom');
+
+    await timers[0].cb();
+    assert.equal(tickCount, 2, 'interval callback should run again after the failed start tick');
+  });
 });
 
 test('polling collector stops timer on ROS close event', () => {
-  const ros = mockROS();
-  const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
-  collector.timer = setInterval(() => {}, 30000);
-  assert.ok(collector.timer);
+  return withPatchedIntervals(async () => {
+    const ros = mockROS();
+    const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
+    collector.start();
+    const timer = collector.timer;
 
-  // Manually register the close handler (simulating what start() does)
-  ros.on('close', () => { if (collector.timer) { clearInterval(collector.timer); collector.timer = null; } });
-  ros.emit('close');
-  assert.equal(collector.timer, null);
+    assert.ok(timer);
+    ros.emit('close');
+    assert.equal(timer.cleared, true);
+    assert.equal(collector.timer, null);
+  });
 });
 
 test('polling collector restarts timer on ROS connected event', () => {
@@ -119,10 +156,12 @@ test('logs collector starts stream on start and restarts on reconnect', () => {
   assert.equal(streamCalls, 2, 'stream restarted on reconnect');
 });
 
-test('logs collector handles stream error by nullifying stream', () => {
+test('logs collector records stream errors and replaces the active stream', () => {
   const ros = mockROS();
   let capturedCb;
+  let streamCalls = 0;
   ros.stream = (words, cb) => {
+    streamCalls++;
     capturedCb = cb;
     return { stop() {} };
   };
@@ -133,8 +172,33 @@ test('logs collector handles stream error by nullifying stream', () => {
   assert.ok(collector.stream, 'stream should be active');
 
   capturedCb(new Error('connection lost'), null);
-  assert.equal(collector.stream, null, 'stream should be nullified on error');
+  assert.equal(streamCalls, 2, 'collector should create a replacement stream');
+  assert.ok(collector.stream, 'replacement stream should stay active');
   assert.match(state.lastLogsErr, /connection lost/);
+});
+
+test('logs collector restarts stream after callback error while ROS remains connected', () => {
+  const ros = mockROS();
+  let streamCalls = 0;
+  let stopCalls = 0;
+  const callbacks = [];
+  ros.stream = (words, cb) => {
+    streamCalls++;
+    callbacks.push(cb);
+    return {
+      stop() {
+        stopCalls++;
+      },
+    };
+  };
+  const collector = new LogsCollector({ ros, io: { emit() {} }, state: {} });
+  collector.start();
+
+  callbacks[0](new Error('connection lost'), null);
+
+  assert.equal(streamCalls, 2, 'stream should restart after callback error');
+  assert.equal(stopCalls, 1, 'stale stream should be stopped before restart');
+  assert.ok(collector.stream, 'replacement stream should be active');
 });
 
 test('dhcp leases collector loads initial data and starts stream', async () => {
@@ -156,13 +220,50 @@ test('dhcp leases collector loads initial data and starts stream', async () => {
   assert.equal(collector.getNameByIP('192.168.1.10').name, 'test');
 });
 
-test('dhcp leases collector emits device:new only once per MAC', () => {
+test('dhcp leases collector restarts stream after callback error and preserves seen devices', async () => {
   const emitted = [];
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
-  const collector = new DhcpLeasesCollector({ ros: {}, io, pollMs: 15000, state: {} });
+  let streamCalls = 0;
+  let stopCalls = 0;
+  const callbacks = [];
+  const ros = mockROS(async () => [
+    { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' },
+  ]);
+  ros.stream = (words, cb) => {
+    streamCalls++;
+    callbacks.push(cb);
+    return {
+      stop() {
+        stopCalls++;
+      },
+    };
+  };
+  const collector = new DhcpLeasesCollector({ ros, io, pollMs: 15000, state: {} });
+  await collector.start();
 
-  collector._applyLease({ address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
-  collector._applyLease({ address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
+  callbacks[0](new Error('listen lost'), null);
+  callbacks[1](null, { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
+
+  assert.equal(streamCalls, 2, 'stream should restart after callback error');
+  assert.equal(stopCalls, 1, 'failed stream should be stopped before restart');
+  assert.equal(collector.getNameByIP('192.168.1.10').name, 'laptop');
+  assert.equal(emitted.filter(e => e.ev === 'device:new').length, 1, 'device:new should remain deduplicated');
+});
+
+test('dhcp leases collector emits device:new only once per MAC across initial load and stream updates', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  let streamHandler;
+  const ros = mockROS(async () => [
+    { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' },
+  ]);
+  ros.stream = (words, cb) => {
+    streamHandler = cb;
+    return { stop() {} };
+  };
+  const collector = new DhcpLeasesCollector({ ros, io, pollMs: 15000, state: {} });
+  await collector.start();
+  streamHandler(null, { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
 
   const deviceNew = emitted.filter(e => e.ev === 'device:new');
   assert.equal(deviceNew.length, 1, 'device:new should only fire once per MAC');
@@ -170,25 +271,59 @@ test('dhcp leases collector emits device:new only once per MAC', () => {
 
 // --- RouterOS client resilience ---
 
-test('ROS client exponential backoff caps at maxBackoffMs', () => {
+test('ROS client connectLoop retries failures and resets backoff after a successful reconnect', { timeout: 1000 }, async () => {
   const ros = new ROS({});
-  assert.equal(ros.backoffMs, 2000);
+  const events = [];
+  ros.on('error', () => events.push('error'));
+  ros.on('connected', () => events.push('connected'));
+  ros.on('close', () => events.push('close'));
 
-  const backoffs = [];
-  let b = ros.backoffMs;
-  for (let i = 0; i < 10; i++) {
-    backoffs.push(b);
-    b = Math.min(b * 2, ros.maxBackoffMs);
-  }
+  let attempt = 0;
+  ros._buildConn = () => {
+    attempt++;
+    if (attempt === 1) {
+      return mockConn({
+        onConnect: async () => { throw new Error('boom'); },
+      });
+    }
+    return mockConn({
+      onConnect: async (conn) => {
+        process.nextTick(() => conn.emit('close'));
+      },
+    });
+  };
 
-  assert.deepEqual(backoffs, [2000, 4000, 8000, 16000, 30000, 30000, 30000, 30000, 30000, 30000]);
+  const sleeps = [];
+  ros._sleep = async (ms) => {
+    sleeps.push(ms);
+    if (sleeps.length === 2) ros.stop();
+  };
+
+  await ros.connectLoop();
+
+  assert.deepEqual(sleeps, [2000, 2000]);
+  assert.deepEqual(events.slice(0, 3), ['error', 'connected', 'close']);
+  assert.equal(ros.connected, false);
 });
 
-test('ROS client stop() sets _stopping flag', () => {
+test('ROS client connectLoop does not schedule another retry after stop is requested', { timeout: 1000 }, async () => {
   const ros = new ROS({});
-  assert.equal(ros._stopping, false);
-  ros.stop();
+  ros._buildConn = () => mockConn({
+    onConnect: async (conn) => {
+      process.nextTick(() => conn.emit('close'));
+    },
+  });
+
+  let sleepCalls = 0;
+  ros._sleep = async () => {
+    sleepCalls++;
+  };
+  ros.on('close', () => ros.stop());
+
+  await ros.connectLoop();
+
   assert.equal(ros._stopping, true);
+  assert.equal(sleepCalls, 0);
 });
 
 test('ROS client write rejects when not connected', async () => {

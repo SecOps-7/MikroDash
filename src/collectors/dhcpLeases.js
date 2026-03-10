@@ -57,7 +57,12 @@ class DhcpLeasesCollector {
     if (!this.ros.connected) return;
     try {
       this.stream = this.ros.stream(['/ip/dhcp-server/lease/listen'], (err, data) => {
-        if (err) { console.error('[leases] stream error:', err && err.message ? err.message : err); this.stream = null; return; }
+        if (err) {
+          console.error('[leases] stream error:', err && err.message ? err.message : err);
+          this._stopStream();
+          if (this.ros.connected) this._startStream();
+          return;
+        }
         if (data) { this._applyLease(data); this.state.lastLeasesTs = Date.now(); }
       });
       console.log('[leases] streaming /ip/dhcp-server/lease/listen');

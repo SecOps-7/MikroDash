@@ -1,36 +1,91 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseBps, bpsToMbps } = require('../src/collectors/traffic');
+const TrafficCollector = require('../src/collectors/traffic');
 
-test('parseBps handles raw integer strings from RouterOS binary API', () => {
-  assert.equal(parseBps('27800'), 27800);
-  assert.equal(parseBps('1500000'), 1500000);
-  assert.equal(parseBps('0'), 0);
+test('traffic collector emits normalized socket and WAN payloads from a poll cycle', async () => {
+  const socketEmits = [];
+  const broadcastEmits = [];
+  const state = {};
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [{
+      'rx-bits-per-second': '27.8kbps',
+      'tx-bits-per-second': '1.5Mbps',
+      running: 'true',
+      disabled: 'false',
+    }],
+  };
+  const io = {
+    to(id) {
+      return {
+        emit(ev, data) {
+          socketEmits.push({ id, ev, data });
+        },
+      };
+    },
+    emit(ev, data) {
+      broadcastEmits.push({ ev, data });
+    },
+  };
+  const collector = new TrafficCollector({ ros, io, defaultIf: 'wan', historyMinutes: 1, state });
+  collector.subscriptions.set('socket-1', 'wan');
+
+  await collector._pollInterface('wan');
+
+  assert.equal(socketEmits.length, 1);
+  assert.equal(socketEmits[0].ev, 'traffic:update');
+  assert.equal(socketEmits[0].data.ifName, 'wan');
+  assert.equal(socketEmits[0].data.rx_mbps, 0.028);
+  assert.equal(socketEmits[0].data.tx_mbps, 1.5);
+  assert.equal(socketEmits[0].data.running, true);
+  assert.equal(socketEmits[0].data.disabled, false);
+
+  assert.equal(broadcastEmits.length, 1);
+  assert.equal(broadcastEmits[0].ev, 'wan:status');
+  assert.equal(broadcastEmits[0].data.ifName, 'wan');
+  assert.equal(broadcastEmits[0].data.running, true);
+
+  const history = collector.hist.get('wan').toArray();
+  assert.equal(history.length, 1);
+  assert.equal(history[0].rx_mbps, 0.028);
+  assert.equal(history[0].tx_mbps, 1.5);
+  assert.equal(typeof state.lastTrafficTs, 'number');
+  assert.equal(state.lastTrafficErr, null);
 });
 
-test('parseBps handles kbps/Mbps/Gbps suffixed values', () => {
-  assert.equal(parseBps('27.8kbps'), 27800);
-  assert.equal(parseBps('27.8Kbps'), 27800);
-  assert.equal(parseBps('1.5Mbps'), 1500000);
-  assert.equal(parseBps('1.5mbps'), 1500000);
-  assert.equal(parseBps('2.1Gbps'), 2100000000);
-  assert.equal(parseBps('2.1gbps'), 2100000000);
-});
+test('traffic collector treats missing or zero traffic fields as zero Mbps', async () => {
+  const socketEmits = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [{
+      'rx-bits-per-second': undefined,
+      'tx-bits-per-second': '0',
+      running: false,
+      disabled: true,
+    }],
+  };
+  const io = {
+    to() {
+      return {
+        emit(ev, data) {
+          socketEmits.push({ ev, data });
+        },
+      };
+    },
+    emit() {},
+  };
+  const collector = new TrafficCollector({ ros, io, defaultIf: 'wan', historyMinutes: 1, state: {} });
+  collector.subscriptions.set('socket-1', 'wan');
 
-test('parseBps handles plain bps suffix and edge cases', () => {
-  assert.equal(parseBps('500bps'), 500);
-  assert.equal(parseBps(undefined), 0);
-  assert.equal(parseBps(null), 0);
-  assert.equal(parseBps(''), 0);
-});
+  await collector._pollInterface('wan');
 
-test('bpsToMbps converts and rounds to 3 decimal places', () => {
-  assert.equal(bpsToMbps(27800), 0.028);
-  assert.equal(bpsToMbps(1500000), 1.5);
-  assert.equal(bpsToMbps(0), 0);
-  assert.equal(bpsToMbps(undefined), 0);
-  assert.equal(bpsToMbps(null), 0);
+  assert.equal(socketEmits[0].data.rx_mbps, 0);
+  assert.equal(socketEmits[0].data.tx_mbps, 0);
+  assert.equal(socketEmits[0].data.running, false);
+  assert.equal(socketEmits[0].data.disabled, true);
 });
 
 // --- System Collector ---
@@ -298,6 +353,72 @@ test('connections collector resolves names via DHCP leases then ARP fallback', a
   assert.equal(byIp['192.168.1.10'].name, 'laptop');
   assert.equal(byIp['192.168.1.11'].name, 'phone');
   assert.equal(byIp['192.168.1.12'].name, '192.168.1.12');
+});
+
+test('connections collector emits IPv6 destination keys, top ports, and geo aggregates', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '2001:db8::1', protocol: 'tcp', 'dst-port': '443' },
+      { '.id': '*2', 'src-address': '192.168.1.11', 'dst-address': '2001:db8::1', protocol: 'tcp', 'dst-port': '443' },
+      { '.id': '*3', 'src-address': '192.168.1.12', 'dst-address': '198.51.100.2', protocol: 'udp', 'dst-port': '53' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 10, state: {},
+    geoLookup: (ip) => {
+      if (ip === '2001:db8::1') return { country: 'ZZ', city: 'Lab City' };
+      if (ip === '198.51.100.2') return { country: 'YY', city: 'Edge Town' };
+      return null;
+    },
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: { getNameByIP: () => null, getNameByMAC: () => null },
+    arp: { getByIP: () => null },
+  });
+  await collector.tick();
+
+  const payload = emitted[0].data;
+  assert.equal(payload.topDestinations[0].key, '[2001:db8::1]:443/tcp');
+  assert.equal(payload.topDestinations[0].country, 'ZZ');
+  assert.equal(payload.topDestinations[0].city, 'Lab City');
+  assert.deepEqual(payload.topDestinations[0].proto, { tcp: 2, udp: 0, other: 0 });
+  assert.deepEqual(payload.topPorts, [{ port: '443', count: 2 }, { port: '53', count: 1 }]);
+  assert.deepEqual(payload.topCountries, [
+    { cc: 'ZZ', city: 'Lab City', count: 2, proto: { tcp: 2, udp: 0, other: 0 } },
+    { cc: 'YY', city: 'Edge Town', count: 1, proto: { tcp: 0, udp: 1, other: 0 } },
+  ]);
+});
+
+test('connections collector caps work honestly by excluding truncated destinations from aggregates', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '198.51.100.1', protocol: 'tcp', 'dst-port': '443' },
+      { '.id': '*2', 'src-address': '192.168.1.11', 'dst-address': '198.51.100.2', protocol: 'udp', 'dst-port': '53' },
+      { '.id': '*3', 'src-address': '192.168.1.12', 'dst-address': '198.51.100.3', protocol: 'tcp', 'dst-port': '80' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 10, maxConns: 2, state: {},
+    geoLookup: (ip) => ({ country: ip.endsWith('.3') ? 'TRUNC' : 'KEPT', city: ip }),
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: { getNameByIP: () => null, getNameByMAC: () => null },
+    arp: { getByIP: () => null },
+  });
+  await collector.tick();
+
+  const payload = emitted[0].data;
+  assert.equal(payload.processingCapped, true);
+  assert.equal(payload.processed, 2);
+  assert.ok(!payload.topDestinations.some(d => d.key.includes('198.51.100.3')));
+  assert.ok(!payload.topCountries.some(c => c.cc === 'TRUNC'));
+  assert.deepEqual(payload.topPorts, [{ port: '443', count: 1 }, { port: '53', count: 1 }]);
 });
 
 // --- Firewall Collector ---
@@ -612,6 +733,41 @@ test('vpn collector detects connected vs idle state', async () => {
   assert.equal(t[2].state, 'idle');
 });
 
+test('vpn collector calculates rates between polls and prunes stale peers', async () => {
+  const emitted = [];
+  let callNum = 0;
+  const responses = [
+    [
+      { 'public-key': 'A', name: 'phone', 'last-handshake': '10s', 'rx-bytes': '1000', 'tx-bytes': '2000' },
+      { 'public-key': 'B', name: 'tablet', 'last-handshake': 'never', 'rx-bytes': '500', 'tx-bytes': '500' },
+    ],
+    [
+      { 'public-key': 'A', name: 'phone', 'last-handshake': '5s', 'rx-bytes': '3000', 'tx-bytes': '5000' },
+    ],
+  ];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => responses[callNum++],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
+
+  await collector.tick();
+  const prev = collector._prev.get('A');
+  prev.ts = Date.now() - 1000;
+  prev.rx = 1000;
+  prev.tx = 2000;
+
+  await collector.tick();
+
+  assert.equal(emitted[1].data.tunnels.length, 1);
+  assert.equal(emitted[1].data.tunnels[0].name, 'phone');
+  assert.equal(emitted[1].data.tunnels[0].rxRate, 2000);
+  assert.equal(emitted[1].data.tunnels[0].txRate, 3000);
+  assert.ok(!collector._prev.has('B'), 'stale peer should be pruned from previous counters');
+});
+
 // --- Wireless Collector ---
 const WirelessCollector = require('../src/collectors/wireless');
 
@@ -668,34 +824,65 @@ test('wireless collector sorts clients by signal strength descending', async () 
   assert.deepEqual(macs, ['CC:DD', 'EE:FF', 'AA:BB']);
 });
 
+test('wireless collector enriches payloads with DHCP names, ARP IPs, and emits empty refreshes', async () => {
+  const emitted = [];
+  let callNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    cfg: {},
+    write: async () => callNum++ === 0
+      ? [{ 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1', 'tx-rate': 'HE-MCS 11 80MHz', ssid: 'Office' }]
+      : [],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new WirelessCollector({
+    ros, io, pollMs: 5000, state: {},
+    dhcpLeases: { getNameByMAC: (mac) => mac === 'AA:BB' ? { name: 'Laptop' } : null },
+    arp: { getByMAC: (mac) => mac === 'AA:BB' ? { ip: '192.168.1.20' } : null },
+  });
+
+  await collector.tick();
+  await collector.tick();
+
+  assert.equal(emitted[0].data.clients[0].name, 'Laptop');
+  assert.equal(emitted[0].data.clients[0].ip, '192.168.1.20');
+  assert.equal(emitted[0].data.clients[0].ssid, 'Office');
+  assert.equal(emitted[0].data.mode, 'wifi');
+  assert.deepEqual(emitted[1].data.clients, []);
+  assert.equal(emitted[1].data.mode, 'wifi');
+});
+
 // --- Logs Collector ---
 const LogsCollector = require('../src/collectors/logs');
 
-test('logs collector classifies severity from topics', () => {
-  const collector = new LogsCollector({ ros: {}, io: {}, state: {} });
-  assert.equal(collector._classify('system,error'), 'error');
-  assert.equal(collector._classify('system,critical'), 'error');
-  assert.equal(collector._classify('firewall,warning'), 'warning');
-  assert.equal(collector._classify('system,debug'), 'debug');
-  assert.equal(collector._classify('system,info'), 'info');
-  assert.equal(collector._classify('dhcp'), 'info');
-  assert.equal(collector._classify(''), 'info');
-});
-
-test('logs collector emits entry with severity and drops empty messages', () => {
+test('logs collector emits severity-classified entries from stream callbacks and drops empty messages', () => {
   const emitted = [];
+  let streamHandler;
+  const ros = {
+    connected: true,
+    on() {},
+    stream(words, cb) {
+      streamHandler = cb;
+      return { stop() {} };
+    },
+  };
+  const state = {};
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
-  const collector = new LogsCollector({ ros: {}, io, state: {} });
+  const collector = new LogsCollector({ ros, io, state });
+  collector.start();
 
-  collector._onEntry(null, { message: 'test log', topics: 'system,error', time: '12:00:00' });
+  streamHandler(null, { message: 'test log', topics: 'system,error', time: '12:00:00' });
   assert.equal(emitted.length, 1);
   assert.equal(emitted[0].ev, 'logs:new');
   assert.equal(emitted[0].data.severity, 'error');
   assert.equal(emitted[0].data.message, 'test log');
+  assert.equal(emitted[0].data.time, '12:00:00');
+  assert.equal(state.lastLogsErr, null);
 
-  collector._onEntry(null, { topics: 'system' });
+  streamHandler(null, { topics: 'system' });
   assert.equal(emitted.length, 1);
-  collector._onEntry(null, null);
+  streamHandler(null, null);
   assert.equal(emitted.length, 1);
 });
 
@@ -703,24 +890,48 @@ test('logs collector emits entry with severity and drops empty messages', () => 
 const DhcpLeasesCollector = require('../src/collectors/dhcpLeases');
 
 test('dhcp leases collector resolves name with comment > hostname > empty fallback', () => {
-  const collector = new DhcpLeasesCollector({ ros: {}, io: { emit() {} }, pollMs: 15000, state: {} });
+  let streamHandler;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: '  MyLaptop  ', 'host-name': 'generic-host' },
+      { address: '192.168.1.11', 'mac-address': 'CC:DD', comment: '', 'host-name': 'phone' },
+    ],
+    stream(words, cb) {
+      streamHandler = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new DhcpLeasesCollector({ ros, io: { emit() {} }, pollMs: 15000, state: {} });
 
-  collector._applyLease({ address: '192.168.1.10', 'mac-address': 'AA:BB', comment: '  MyLaptop  ', 'host-name': 'generic-host' });
+  return collector.start().then(() => {
+    streamHandler(null, { address: '192.168.1.12', 'mac-address': 'EE:FF', comment: '   ', 'host-name': '  ' });
+
   assert.equal(collector.getNameByIP('192.168.1.10').name, 'MyLaptop');
-
-  collector._applyLease({ address: '192.168.1.11', 'mac-address': 'CC:DD', comment: '', 'host-name': 'phone' });
   assert.equal(collector.getNameByIP('192.168.1.11').name, 'phone');
-
-  collector._applyLease({ address: '192.168.1.12', 'mac-address': 'EE:FF', comment: '   ', 'host-name': '  ' });
   assert.equal(collector.getNameByIP('192.168.1.12').name, '');
+  });
 });
 
-test('dhcp leases collector filters active leases by status', () => {
-  const collector = new DhcpLeasesCollector({ ros: {}, io: { emit() {} }, pollMs: 15000, state: {} });
-  collector._applyLease({ address: '192.168.1.1', 'mac-address': 'A1', status: 'bound' });
-  collector._applyLease({ address: '192.168.1.2', 'mac-address': 'A2', status: 'offered' });
-  collector._applyLease({ address: '192.168.1.3', 'mac-address': 'A3', status: '' });
-  collector._applyLease({ address: '192.168.1.4', 'mac-address': 'A4', status: 'expired' });
+test('dhcp leases collector filters active leases after initial load and streamed updates', async () => {
+  let streamHandler;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { address: '192.168.1.1', 'mac-address': 'A1', status: 'bound' },
+      { address: '192.168.1.2', 'mac-address': 'A2', status: 'offered' },
+    ],
+    stream(words, cb) {
+      streamHandler = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new DhcpLeasesCollector({ ros, io: { emit() {} }, pollMs: 15000, state: {} });
+  await collector.start();
+  streamHandler(null, { address: '192.168.1.3', 'mac-address': 'A3', status: '' });
+  streamHandler(null, { address: '192.168.1.4', 'mac-address': 'A4', status: 'expired' });
 
   const active = collector.getActiveLeaseIPs();
   assert.ok(active.includes('192.168.1.1'));
@@ -763,6 +974,30 @@ test('interface status collector normalizes booleans and computes Mbps', async (
   assert.equal(ifaces[1].rxMbps, 0);
 });
 
+test('interface status collector clamps malformed throughput fields to zero', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('interface')) return [
+        { name: 'ether1', running: 'true', disabled: 'false', 'rx-bits-per-second': 'bad-data', 'tx-bits-per-second': '', 'rx-byte': 'oops', 'tx-byte': null },
+      ];
+      if (cmd.includes('address')) return [];
+      return [];
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
+  await collector.tick();
+
+  const iface = emitted[0].data.interfaces[0];
+  assert.equal(iface.rxBytes, 0);
+  assert.equal(iface.txBytes, 0);
+  assert.equal(iface.rxMbps, 0);
+  assert.equal(iface.txMbps, 0);
+});
+
 // --- ARP Collector ---
 const ArpCollector = require('../src/collectors/arp');
 
@@ -790,6 +1025,25 @@ test('arp collector builds bidirectional lookup maps and skips incomplete entrie
   assert.equal(collector.getByIP('192.168.1.11'), undefined);
   assert.equal(collector.getByMAC('CC:DD:EE:FF:00:11'), null);
   assert.equal(collector.getByIP('192.168.1.12').mac, '11:22:33:44:55:66');
+});
+
+test('arp collector replaces stale snapshot entries on each poll', async () => {
+  let callNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => callNum++ === 0
+      ? [{ address: '192.168.1.10', 'mac-address': 'AA:BB', interface: 'bridge' }]
+      : [{ address: '192.168.1.11', 'mac-address': 'CC:DD', interface: 'bridge' }],
+  };
+  const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
+
+  await collector.tick();
+  await collector.tick();
+
+  assert.equal(collector.getByIP('192.168.1.10'), undefined);
+  assert.equal(collector.getByMAC('AA:BB'), null);
+  assert.equal(collector.getByIP('192.168.1.11').mac, 'CC:DD');
 });
 
 // --- DHCP Networks Collector ---
@@ -843,4 +1097,24 @@ test('dhcp networks collector handles one query failing gracefully', async () =>
 
   assert.equal(emitted[0].data.networks.length, 0);
   assert.equal(emitted[0].data.wanIp, '1.2.3.4/30');
+});
+
+test('dhcp networks collector clears WAN IP when the configured WAN interface is absent', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('network')) return [{ address: '192.168.1.0/24', gateway: '192.168.1.1' }];
+      if (cmd.includes('address')) return [{ interface: 'bridge', address: '192.168.1.1/24' }];
+      return [];
+    },
+  };
+  const state = { lastWanIp: '203.0.113.5/30' };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [] }, state, wanIface: 'WAN1' });
+  await collector.tick();
+
+  assert.equal(emitted[0].data.wanIp, '');
+  assert.equal(state.lastWanIp, '');
 });

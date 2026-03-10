@@ -24,6 +24,7 @@ class ROS extends EventEmitter {
     this.backoffMs = 2000;
     this.maxBackoffMs = 30000;
     this._stopping = false;
+    this._sleep = sleep;
   }
 
   _buildConn() {
@@ -78,7 +79,7 @@ class ROS extends EventEmitter {
 
       if (this._stopping) break;
       console.log(`[ROS] reconnecting in ${this.backoffMs}ms…`);
-      await sleep(this.backoffMs);
+      await this._sleep(this.backoffMs);
       this.backoffMs = Math.min(this.backoffMs * 2, this.maxBackoffMs);
     }
   }
