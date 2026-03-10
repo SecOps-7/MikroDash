@@ -131,10 +131,12 @@ test('logs collector starts stream on start and restarts on reconnect', () => {
   assert.equal(streamCalls, 2, 'stream restarted on reconnect');
 });
 
-test('logs collector handles stream error by nullifying stream', () => {
+test('logs collector records stream errors and replaces the active stream', () => {
   const ros = mockROS();
   let capturedCb;
+  let streamCalls = 0;
   ros.stream = (words, cb) => {
+    streamCalls++;
     capturedCb = cb;
     return { stop() {} };
   };
@@ -145,8 +147,33 @@ test('logs collector handles stream error by nullifying stream', () => {
   assert.ok(collector.stream, 'stream should be active');
 
   capturedCb(new Error('connection lost'), null);
-  assert.equal(collector.stream, null, 'stream should be nullified on error');
+  assert.equal(streamCalls, 2, 'collector should create a replacement stream');
+  assert.ok(collector.stream, 'replacement stream should stay active');
   assert.match(state.lastLogsErr, /connection lost/);
+});
+
+test('logs collector restarts stream after callback error while ROS remains connected', () => {
+  const ros = mockROS();
+  let streamCalls = 0;
+  let stopCalls = 0;
+  const callbacks = [];
+  ros.stream = (words, cb) => {
+    streamCalls++;
+    callbacks.push(cb);
+    return {
+      stop() {
+        stopCalls++;
+      },
+    };
+  };
+  const collector = new LogsCollector({ ros, io: { emit() {} }, state: {} });
+  collector.start();
+
+  callbacks[0](new Error('connection lost'), null);
+
+  assert.equal(streamCalls, 2, 'stream should restart after callback error');
+  assert.equal(stopCalls, 1, 'stale stream should be stopped before restart');
+  assert.ok(collector.stream, 'replacement stream should be active');
 });
 
 test('dhcp leases collector loads initial data and starts stream', async () => {
@@ -166,6 +193,36 @@ test('dhcp leases collector loads initial data and starts stream', async () => {
   assert.equal(writeCalls, 1, 'initial /print called');
   assert.equal(streamCalls, 1, 'listen stream started');
   assert.equal(collector.getNameByIP('192.168.1.10').name, 'test');
+});
+
+test('dhcp leases collector restarts stream after callback error and preserves seen devices', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  let streamCalls = 0;
+  let stopCalls = 0;
+  const callbacks = [];
+  const ros = mockROS(async () => [
+    { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' },
+  ]);
+  ros.stream = (words, cb) => {
+    streamCalls++;
+    callbacks.push(cb);
+    return {
+      stop() {
+        stopCalls++;
+      },
+    };
+  };
+  const collector = new DhcpLeasesCollector({ ros, io, pollMs: 15000, state: {} });
+  await collector.start();
+
+  callbacks[0](new Error('listen lost'), null);
+  callbacks[1](null, { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
+
+  assert.equal(streamCalls, 2, 'stream should restart after callback error');
+  assert.equal(stopCalls, 1, 'failed stream should be stopped before restart');
+  assert.equal(collector.getNameByIP('192.168.1.10').name, 'laptop');
+  assert.equal(emitted.filter(e => e.ev === 'device:new').length, 1, 'device:new should remain deduplicated');
 });
 
 test('dhcp leases collector emits device:new only once per MAC across initial load and stream updates', async () => {

@@ -23,7 +23,8 @@ class LogsCollector {
     if (err) {
       this.state.lastLogsErr = String(err && err.message ? err.message : err);
       console.error('[logs] stream error:', this.state.lastLogsErr);
-      this.stream = null;
+      this._stopStream();
+      if (this.ros.connected) this._startStream();
       return;
     }
     if (!data || !data.message) return;
