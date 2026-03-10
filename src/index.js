@@ -1,11 +1,24 @@
 require('dotenv').config();
 
+const fs   = require('fs');
 const path = require('path');
 const express = require('express');
 const http    = require('http');
+const helmet  = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 const { version: APP_VERSION } = require('../package.json');
+const { buildHelmetOptions } = require('./security/helmetOptions');
+const { computeHealthStatus } = require('./health');
+const { verifyRouterOSPatchMarkers } = require('./routeros/patchVerification');
+const { scheduleForcedShutdownTimer } = require('./shutdown');
+
+try {
+  verifyRouterOSPatchMarkers({ readFileSync: fs.readFileSync });
+} catch (_error) {
+  console.error('[MikroDash] Run: node patch-routeros.js');
+  process.exit(1);
+}
 
 let geoip = null;
 try { geoip = require('geoip-lite'); } catch (_) {}
@@ -36,20 +49,25 @@ const TRUSTED_PROXY = process.env.TRUSTED_PROXY;
 if (TRUSTED_PROXY) app.set('trust proxy', TRUSTED_PROXY);
 
 const server = http.createServer(app);
-const io = new Server(server);
+const MAX_SOCKETS = parseInt(process.env.MAX_SOCKETS || '50', 10);
+const io = new Server(server, {
+  maxHttpBufferSize: 1e6,
+  connectTimeout: 10000,
+});
 const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);
 const authLimiter = rateLimit({
   windowMs: 60_000,
-  max: 5,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => !authEnabled,
+  skip: (req) => !authEnabled || req.path === '/healthz',
 });
 const basicAuth = createBasicAuthMiddleware({
   username: process.env.BASIC_AUTH_USER,
   password: process.env.BASIC_AUTH_PASS,
 });
 
+app.use(helmet(buildHelmetOptions()));
 app.use(authLimiter, basicAuth);
 io.engine.use(basicAuth);
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -69,6 +87,7 @@ const state = {
   lastIfStatusTs:0,
   lastPingTs:0,
 };
+let startupReady = false;
 
 const ros = new ROS({
   host:        process.env.ROUTER_HOST,
@@ -78,6 +97,7 @@ const ros = new ROS({
   username:    process.env.ROUTER_USER,
   password:    process.env.ROUTER_PASS,
   debug:       (process.env.ROS_DEBUG           || 'false').toLowerCase() === 'true',
+  writeTimeoutMs: parseInt(process.env.ROS_WRITE_TIMEOUT_MS || '30000', 10),
 });
 
 const DEFAULT_IF      = process.env.DEFAULT_IF       || 'WAN1';
@@ -88,7 +108,7 @@ const dhcpLeases   = new DhcpLeasesCollector ({ros,io, pollMs:parseInt(process.e
 const arp          = new ArpCollector         ({ros,    pollMs:parseInt(process.env.ARP_POLL_MS      ||'30000',10), state});
 const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:parseInt(process.env.DHCP_POLL_MS     ||'15000',10), dhcpLeases, state, wanIface:DEFAULT_IF});
 const traffic      = new TrafficCollector     ({ros,io, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state});
-const conns        = new ConnectionsCollector ({ros,io, pollMs:parseInt(process.env.CONNS_POLL_MS    ||'3000',10),  topN:parseInt(process.env.TOP_N||'10',10), dhcpNetworks, dhcpLeases, arp, state});
+const conns        = new ConnectionsCollector ({ros,io, pollMs:parseInt(process.env.CONNS_POLL_MS    ||'3000',10),  topN:parseInt(process.env.TOP_N||'10',10), maxConns:parseInt(process.env.MAX_CONNS||'20000',10), dhcpNetworks, dhcpLeases, arp, state});
 const talkers      = new TopTalkersCollector  ({ros,io, pollMs:parseInt(process.env.KIDS_POLL_MS     ||'3000',10),  state, topN:parseInt(process.env.TOP_TALKERS_N||'5',10)});
 const logs         = new LogsCollector        ({ros,io, state});
 const system       = new SystemCollector      ({ros,io, pollMs:parseInt(process.env.SYSTEM_POLL_MS   ||'3000',10),  state});
@@ -112,10 +132,15 @@ function sanitizeErr(e) {
 }
 
 app.get('/healthz', (_req, res) => {
-  res.json({
-    ok: true,
+  const { ok, statusCode } = computeHealthStatus({
+    startupReady,
+    rosConnected: ros.connected,
+  });
+  const body = {
+    ok,
     version: APP_VERSION,
     routerConnected: ros.connected,
+    startupReady,
     uptime: process.uptime(),
     now: Date.now(),
     defaultIf: DEFAULT_IF,
@@ -132,7 +157,8 @@ app.get('/healthz', (_req, res) => {
       firewall: { ts:state.lastFirewallTs, err:sanitizeErr(state.lastFirewallErr) },
       ping:     { ts:state.lastPingTs,     err:null                               },
     },
-  });
+  };
+  res.status(statusCode).json(body);
 });
 
 ros.connectLoop();
@@ -185,10 +211,13 @@ async function startCollectors() {
     firewall.start();
     ifStatus.start();
     ping.start();
+
+    startupReady = true;
     console.log('[MikroDash] All collectors running');
   } catch (e) {
-    console.error('[MikroDash] Collector startup error:', e && e.message ? e.message : e);
+    startupReady = false;
     _collectorsStarted = false; // allow retry on next reconnect
+    console.error('[MikroDash] Collector startup error:', e && e.message ? e.message : e);
   }
 }
 
@@ -254,7 +283,13 @@ async function sendInitialState(socket) {
   if (pingData.history.length) socket.emit('ping:history', pingData);
 }
 
+// Post-accept check: brief spikes above MAX_SOCKETS are possible but acceptable for a dashboard workload.
 io.on('connection', (socket) => {
+  if (io.engine.clientsCount > MAX_SOCKETS) {
+    console.warn('[MikroDash] connection rejected — max sockets reached:', MAX_SOCKETS);
+    socket.disconnect(true);
+    return;
+  }
   traffic.bindSocket(socket);
   sendInitialState(socket).catch(() => {});
 });
@@ -268,3 +303,29 @@ setInterval(() => {
 
 const PORT = parseInt(process.env.PORT || '3081', 10);
 server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
+
+// ── Graceful shutdown ──────────────────────────────────────────────────────
+const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping];
+
+function shutdown(signal) {
+  console.log(`[MikroDash] ${signal} received, shutting down…`);
+  startupReady = false;
+  for (const c of allCollectors) {
+    if (c.timer) { clearInterval(c.timer); c.timer = null; }
+  }
+  ros.stop();
+  io.close();
+  server.close(() => {
+    console.log('[MikroDash] HTTP server closed');
+    process.exit(0);
+  });
+  scheduleForcedShutdownTimer(() => {
+    console.error('[MikroDash] Forceful shutdown after timeout');
+    process.exit(1);
+  }, 5000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('unhandledRejection', (err) => {
+  console.error('[MikroDash] unhandledRejection:', err);
+});

@@ -38,13 +38,17 @@ function getClientIp(req) {
 
 // windowMs tracks failed attempts, maxFailures triggers blocking, and blockMs
 // defines how long a client stays blocked after exceeding the threshold.
-function createBasicAuthMiddleware({ username, password, realm = 'MikroDash', windowMs = 60_000, maxFailures = 5, blockMs = 300_000 }) {
+function createBasicAuthMiddleware({ username, password, realm = 'MikroDash', windowMs = 60_000, maxFailures = 5, blockMs = 300_000, maxTrackedIPs = 10000 }) {
   if (!username || !password) return (_req, _res, next) => next();
   const failures = new Map();
 
   function pruneFailures(now) {
     for (const [ip, entry] of failures.entries()) {
       if ((entry.blockedUntil && entry.blockedUntil <= now) || now - entry.firstAttemptAt > windowMs) failures.delete(ip);
+    }
+    // Hard cap: evict oldest entries if the map is still too large
+    while (failures.size > maxTrackedIPs) {
+      failures.delete(failures.keys().next().value);
     }
   }
 

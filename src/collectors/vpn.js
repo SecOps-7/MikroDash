@@ -5,6 +5,7 @@ class VpnCollector {
     this.pollMs = pollMs || 10000;
     this.state  = state;
     this.timer  = null;
+    this._inflight = false;
     this._debuggedOnce = false;
     this._prev = new Map(); // key -> {rx, tx, ts}
   }
@@ -65,10 +66,12 @@ class VpnCollector {
 
   start() {
     const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
       try { await this.tick(); } catch (e) {
         this.state.lastVpnErr = String(e && e.message ? e.message : e);
         console.error('[vpn]', this.state.lastVpnErr);
-      }
+      } finally { this._inflight = false; }
     };
     run();
     this.timer = setInterval(run, this.pollMs);

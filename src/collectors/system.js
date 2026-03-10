@@ -5,6 +5,7 @@ class SystemCollector {
     this.pollMs = pollMs || 5000;
     this.state = state;
     this.timer = null;
+    this._inflight = false;
     this._loggedUpdateFields = false; // one-time field dump for diagnosis
   }
 
@@ -76,10 +77,12 @@ class SystemCollector {
 
   start() {
     const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
       try { await this.tick(); } catch (e) {
         this.state.lastSystemErr = String(e && e.message ? e.message : e);
         console.error('[system]', this.state.lastSystemErr);
-      }
+      } finally { this._inflight = false; }
     };
     run();
     this.timer = setInterval(run, this.pollMs);

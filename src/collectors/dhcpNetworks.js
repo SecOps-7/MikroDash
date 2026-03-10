@@ -15,6 +15,7 @@ class DhcpNetworksCollector {
     this.lanCidrs = [];
     this.networks = [];
     this.timer = null;
+    this._inflight = false;
   }
 
   getLanCidrs() { return this.lanCidrs; }
@@ -51,7 +52,12 @@ class DhcpNetworksCollector {
   }
 
   start() {
-    const run = async () => { try { await this.tick(); } catch (e) { console.error('[dhcp-networks]', e && e.message ? e.message : e); } };
+    const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
+      try { await this.tick(); } catch (e) { console.error('[dhcp-networks]', e && e.message ? e.message : e); }
+      finally { this._inflight = false; }
+    };
     run();
     this.timer = setInterval(run, this.pollMs);
     this.ros.on('close', () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });

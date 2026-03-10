@@ -4,13 +4,10 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>MikroDash</title>
-  <link rel="stylesheet" href="https://unpkg.com/@tabler/core@latest/dist/css/tabler.min.css"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/vendor/tabler.min.css"/>
   <link rel="icon" type="image/png" href="/logo.png"/>
   <style>
-    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
+    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'SFMono-Regular','Liberation Mono',ui-monospace,monospace;--font-ui:'Avenir Next','Segoe UI','Helvetica Neue',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
     html[data-theme="light"]{--bg-deep:#f0f2f7;--bg-card:rgba(255,255,255,.92);--border:rgba(100,120,160,.18);--text-muted:rgba(80,100,140,.55);--text-main:#1a2030;--nav-bg:rgba(240,242,247,.95);--topbar-bg:rgba(240,242,247,.85)}
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%;margin:0}
@@ -55,7 +52,7 @@
     /* reconnect */
     #reconnectBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(248,113,113,.12);border-bottom:1px solid rgba(248,113,113,.35);backdrop-filter:blur(8px);text-align:center;padding:.4rem;font-family:var(--font-mono);font-size:.72rem;color:#fca5a5;animation:pulse-banner 2s ease infinite}
     #reconnectBanner.show{display:block}
-    #rosBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(245,159,0,.1);border-bottom:1px solid rgba(245,159,0,.3);backdrop-filter:blur(8px);padding:.4rem 1rem;font-family:var(--font-mono);font-size:.72rem;color:#fcd34d;animation:pulse-banner 2s ease infinite;display:none;align-items:center;justify-content:center;gap:.5rem}
+    #rosBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(245,159,0,.1);border-bottom:1px solid rgba(245,159,0,.3);backdrop-filter:blur(8px);padding:.4rem 1rem;font-family:var(--font-mono);font-size:.72rem;color:#fcd34d;animation:pulse-banner 2s ease infinite;align-items:center;justify-content:center;gap:.5rem}
     #rosBanner.show{display:flex}
     #rosBannerText{flex:1;text-align:center}
     @keyframes pulse-banner{0%,100%{opacity:1}50%{opacity:.5}}
@@ -863,7 +860,7 @@
       <div class="card mb-3">
         <div class="card-body" style="padding:1.5rem;text-align:center">
           <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;margin-bottom:.5rem">
-            <img src="logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9" onerror="this.style.display='none'"/>
+            <img src="/logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9"/>
             <span style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
           </div>
           <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Real-time MikroTik Router Dashboard</div>
@@ -938,7 +935,7 @@
 <div id="kbdHint"><kbd>1</kbd>&#8211;<kbd>7</kbd> pages &nbsp;&#183;&nbsp; <kbd>/</kbd> log search</div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="/vendor/chart.umd.min.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
