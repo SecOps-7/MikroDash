@@ -3,6 +3,7 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const http    = require('http');
+const helmet  = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 const { version: APP_VERSION } = require('../package.json');
@@ -50,6 +51,18 @@ const basicAuth = createBasicAuthMiddleware({
   password: process.env.BASIC_AUTH_PASS,
 });
 
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'", "https://cdn.jsdelivr.net"],
+      styleSrc:   ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com"],
+      fontSrc:    ["'self'", "https://fonts.gstatic.com"],
+      connectSrc: ["'self'", "ws:", "wss:"],
+      imgSrc:     ["'self'", "data:"],
+    },
+  },
+}));
 app.use(authLimiter, basicAuth);
 io.engine.use(basicAuth);
 app.use(express.static(path.join(__dirname, '..', 'public')));
