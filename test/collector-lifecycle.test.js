@@ -32,65 +32,90 @@ function mockConn({ onConnect, onClose } = {}) {
   return conn;
 }
 
+async function withPatchedIntervals(runTest) {
+  const originalSetInterval = global.setInterval;
+  const originalClearInterval = global.clearInterval;
+  const timers = [];
+  global.setInterval = (cb, ms) => {
+    const timer = { cb, ms, cleared: false };
+    timers.push(timer);
+    return timer;
+  };
+  global.clearInterval = (timer) => {
+    if (timer) timer.cleared = true;
+  };
+
+  try {
+    await runTest(timers);
+  } finally {
+    global.setInterval = originalSetInterval;
+    global.clearInterval = originalClearInterval;
+  }
+}
+
 // --- Inflight guard and polling lifecycle ---
 
-test('inflight guard prevents concurrent ticks on polling collector', async () => {
-  let tickCount = 0;
-  const ros = mockROS(async () => [{}]);
-  const io = { emit() {} };
-  const collector = new ArpCollector({ ros, pollMs: 50000, state: {} });
+test('polling collector start skips overlapping interval ticks while one run is inflight', async () => {
+  await withPatchedIntervals(async (timers) => {
+    let tickCount = 0;
+    let releaseTick;
+    const pendingTick = new Promise((resolve) => { releaseTick = resolve; });
+    const ros = mockROS(async () => [{}]);
+    const collector = new ArpCollector({ ros, pollMs: 50000, state: {} });
 
-  // Patch tick to track calls and add delay
-  const origTick = collector.tick.bind(collector);
-  collector.tick = async function () {
-    tickCount++;
-    await new Promise(r => setTimeout(r, 50));
-    return origTick();
-  };
+    collector.tick = async function () {
+      tickCount++;
+      await pendingTick;
+    };
 
-  let inflight = false;
-  const run = async () => {
-    if (inflight) return;
-    inflight = true;
-    try { await collector.tick(); } finally { inflight = false; }
-  };
+    collector.start();
+    assert.equal(tickCount, 1, 'start() should launch the first run immediately');
 
-  const first = run();
-  const second = run(); // should be no-op because inflight is true
-  await Promise.all([first, second]);
+    await timers[0].cb();
+    assert.equal(tickCount, 1, 'interval callback should no-op while the first run is inflight');
 
-  assert.equal(tickCount, 1);
+    releaseTick();
+    await pendingTick;
+    await Promise.resolve();
+    await timers[0].cb();
+    assert.equal(tickCount, 2, 'next interval should run after inflight state resets');
+  });
 });
 
-test('inflight guard resets after tick throws', async () => {
-  const ros = mockROS(async () => { throw new Error('boom'); });
-  const io = { emit() {} };
-  const state = {};
-  const collector = new SystemCollector({ ros, io, pollMs: 50000, state });
+test('polling collector start resets inflight state after a tick throws', async () => {
+  await withPatchedIntervals(async (timers) => {
+    const state = {};
+    const ros = mockROS(async () => []);
+    const io = { emit() {} };
+    const collector = new SystemCollector({ ros, io, pollMs: 50000, state });
+    let tickCount = 0;
 
-  let inflight = false;
-  const run = async () => {
-    if (inflight) return;
-    inflight = true;
-    try { await collector.tick(); } catch (e) {
-      state.lastSystemErr = e.message;
-    } finally { inflight = false; }
-  };
+    collector.tick = async function () {
+      tickCount++;
+      if (tickCount === 1) throw new Error('boom');
+    };
 
-  await run();
-  assert.equal(inflight, false, 'inflight should be reset after error');
+    collector.start();
+    await Promise.resolve();
+    assert.equal(state.lastSystemErr, 'boom');
+
+    await timers[0].cb();
+    assert.equal(tickCount, 2, 'interval callback should run again after the failed start tick');
+  });
 });
 
 test('polling collector stops timer on ROS close event', () => {
-  const ros = mockROS();
-  const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
-  collector.timer = setInterval(() => {}, 30000);
-  assert.ok(collector.timer);
+  return withPatchedIntervals(async () => {
+    const ros = mockROS();
+    const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
+    collector.start();
+    const timer = collector.timer;
 
-  // Manually register the close handler (simulating what start() does)
-  ros.on('close', () => { if (collector.timer) { clearInterval(collector.timer); collector.timer = null; } });
-  ros.emit('close');
-  assert.equal(collector.timer, null);
+    assert.ok(timer);
+    ros.emit('close');
+    assert.equal(timer.cleared, true);
+    assert.equal(collector.timer, null);
+  });
 });
 
 test('polling collector restarts timer on ROS connected event', () => {
