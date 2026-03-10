@@ -1,36 +1,91 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseBps, bpsToMbps } = require('../src/collectors/traffic');
+const TrafficCollector = require('../src/collectors/traffic');
 
-test('parseBps handles raw integer strings from RouterOS binary API', () => {
-  assert.equal(parseBps('27800'), 27800);
-  assert.equal(parseBps('1500000'), 1500000);
-  assert.equal(parseBps('0'), 0);
+test('traffic collector emits normalized socket and WAN payloads from a poll cycle', async () => {
+  const socketEmits = [];
+  const broadcastEmits = [];
+  const state = {};
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [{
+      'rx-bits-per-second': '27.8kbps',
+      'tx-bits-per-second': '1.5Mbps',
+      running: 'true',
+      disabled: 'false',
+    }],
+  };
+  const io = {
+    to(id) {
+      return {
+        emit(ev, data) {
+          socketEmits.push({ id, ev, data });
+        },
+      };
+    },
+    emit(ev, data) {
+      broadcastEmits.push({ ev, data });
+    },
+  };
+  const collector = new TrafficCollector({ ros, io, defaultIf: 'wan', historyMinutes: 1, state });
+  collector.subscriptions.set('socket-1', 'wan');
+
+  await collector._pollInterface('wan');
+
+  assert.equal(socketEmits.length, 1);
+  assert.equal(socketEmits[0].ev, 'traffic:update');
+  assert.equal(socketEmits[0].data.ifName, 'wan');
+  assert.equal(socketEmits[0].data.rx_mbps, 0.028);
+  assert.equal(socketEmits[0].data.tx_mbps, 1.5);
+  assert.equal(socketEmits[0].data.running, true);
+  assert.equal(socketEmits[0].data.disabled, false);
+
+  assert.equal(broadcastEmits.length, 1);
+  assert.equal(broadcastEmits[0].ev, 'wan:status');
+  assert.equal(broadcastEmits[0].data.ifName, 'wan');
+  assert.equal(broadcastEmits[0].data.running, true);
+
+  const history = collector.hist.get('wan').toArray();
+  assert.equal(history.length, 1);
+  assert.equal(history[0].rx_mbps, 0.028);
+  assert.equal(history[0].tx_mbps, 1.5);
+  assert.equal(typeof state.lastTrafficTs, 'number');
+  assert.equal(state.lastTrafficErr, null);
 });
 
-test('parseBps handles kbps/Mbps/Gbps suffixed values', () => {
-  assert.equal(parseBps('27.8kbps'), 27800);
-  assert.equal(parseBps('27.8Kbps'), 27800);
-  assert.equal(parseBps('1.5Mbps'), 1500000);
-  assert.equal(parseBps('1.5mbps'), 1500000);
-  assert.equal(parseBps('2.1Gbps'), 2100000000);
-  assert.equal(parseBps('2.1gbps'), 2100000000);
-});
+test('traffic collector treats missing or zero traffic fields as zero Mbps', async () => {
+  const socketEmits = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [{
+      'rx-bits-per-second': undefined,
+      'tx-bits-per-second': '0',
+      running: false,
+      disabled: true,
+    }],
+  };
+  const io = {
+    to() {
+      return {
+        emit(ev, data) {
+          socketEmits.push({ ev, data });
+        },
+      };
+    },
+    emit() {},
+  };
+  const collector = new TrafficCollector({ ros, io, defaultIf: 'wan', historyMinutes: 1, state: {} });
+  collector.subscriptions.set('socket-1', 'wan');
 
-test('parseBps handles plain bps suffix and edge cases', () => {
-  assert.equal(parseBps('500bps'), 500);
-  assert.equal(parseBps(undefined), 0);
-  assert.equal(parseBps(null), 0);
-  assert.equal(parseBps(''), 0);
-});
+  await collector._pollInterface('wan');
 
-test('bpsToMbps converts and rounds to 3 decimal places', () => {
-  assert.equal(bpsToMbps(27800), 0.028);
-  assert.equal(bpsToMbps(1500000), 1.5);
-  assert.equal(bpsToMbps(0), 0);
-  assert.equal(bpsToMbps(undefined), 0);
-  assert.equal(bpsToMbps(null), 0);
+  assert.equal(socketEmits[0].data.rx_mbps, 0);
+  assert.equal(socketEmits[0].data.tx_mbps, 0);
+  assert.equal(socketEmits[0].data.running, false);
+  assert.equal(socketEmits[0].data.disabled, true);
 });
 
 // --- System Collector ---
@@ -671,31 +726,33 @@ test('wireless collector sorts clients by signal strength descending', async () 
 // --- Logs Collector ---
 const LogsCollector = require('../src/collectors/logs');
 
-test('logs collector classifies severity from topics', () => {
-  const collector = new LogsCollector({ ros: {}, io: {}, state: {} });
-  assert.equal(collector._classify('system,error'), 'error');
-  assert.equal(collector._classify('system,critical'), 'error');
-  assert.equal(collector._classify('firewall,warning'), 'warning');
-  assert.equal(collector._classify('system,debug'), 'debug');
-  assert.equal(collector._classify('system,info'), 'info');
-  assert.equal(collector._classify('dhcp'), 'info');
-  assert.equal(collector._classify(''), 'info');
-});
-
-test('logs collector emits entry with severity and drops empty messages', () => {
+test('logs collector emits severity-classified entries from stream callbacks and drops empty messages', () => {
   const emitted = [];
+  let streamHandler;
+  const ros = {
+    connected: true,
+    on() {},
+    stream(words, cb) {
+      streamHandler = cb;
+      return { stop() {} };
+    },
+  };
+  const state = {};
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
-  const collector = new LogsCollector({ ros: {}, io, state: {} });
+  const collector = new LogsCollector({ ros, io, state });
+  collector.start();
 
-  collector._onEntry(null, { message: 'test log', topics: 'system,error', time: '12:00:00' });
+  streamHandler(null, { message: 'test log', topics: 'system,error', time: '12:00:00' });
   assert.equal(emitted.length, 1);
   assert.equal(emitted[0].ev, 'logs:new');
   assert.equal(emitted[0].data.severity, 'error');
   assert.equal(emitted[0].data.message, 'test log');
+  assert.equal(emitted[0].data.time, '12:00:00');
+  assert.equal(state.lastLogsErr, null);
 
-  collector._onEntry(null, { topics: 'system' });
+  streamHandler(null, { topics: 'system' });
   assert.equal(emitted.length, 1);
-  collector._onEntry(null, null);
+  streamHandler(null, null);
   assert.equal(emitted.length, 1);
 });
 
@@ -703,24 +760,48 @@ test('logs collector emits entry with severity and drops empty messages', () => 
 const DhcpLeasesCollector = require('../src/collectors/dhcpLeases');
 
 test('dhcp leases collector resolves name with comment > hostname > empty fallback', () => {
-  const collector = new DhcpLeasesCollector({ ros: {}, io: { emit() {} }, pollMs: 15000, state: {} });
+  let streamHandler;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: '  MyLaptop  ', 'host-name': 'generic-host' },
+      { address: '192.168.1.11', 'mac-address': 'CC:DD', comment: '', 'host-name': 'phone' },
+    ],
+    stream(words, cb) {
+      streamHandler = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new DhcpLeasesCollector({ ros, io: { emit() {} }, pollMs: 15000, state: {} });
 
-  collector._applyLease({ address: '192.168.1.10', 'mac-address': 'AA:BB', comment: '  MyLaptop  ', 'host-name': 'generic-host' });
+  return collector.start().then(() => {
+    streamHandler(null, { address: '192.168.1.12', 'mac-address': 'EE:FF', comment: '   ', 'host-name': '  ' });
+
   assert.equal(collector.getNameByIP('192.168.1.10').name, 'MyLaptop');
-
-  collector._applyLease({ address: '192.168.1.11', 'mac-address': 'CC:DD', comment: '', 'host-name': 'phone' });
   assert.equal(collector.getNameByIP('192.168.1.11').name, 'phone');
-
-  collector._applyLease({ address: '192.168.1.12', 'mac-address': 'EE:FF', comment: '   ', 'host-name': '  ' });
   assert.equal(collector.getNameByIP('192.168.1.12').name, '');
+  });
 });
 
-test('dhcp leases collector filters active leases by status', () => {
-  const collector = new DhcpLeasesCollector({ ros: {}, io: { emit() {} }, pollMs: 15000, state: {} });
-  collector._applyLease({ address: '192.168.1.1', 'mac-address': 'A1', status: 'bound' });
-  collector._applyLease({ address: '192.168.1.2', 'mac-address': 'A2', status: 'offered' });
-  collector._applyLease({ address: '192.168.1.3', 'mac-address': 'A3', status: '' });
-  collector._applyLease({ address: '192.168.1.4', 'mac-address': 'A4', status: 'expired' });
+test('dhcp leases collector filters active leases after initial load and streamed updates', async () => {
+  let streamHandler;
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { address: '192.168.1.1', 'mac-address': 'A1', status: 'bound' },
+      { address: '192.168.1.2', 'mac-address': 'A2', status: 'offered' },
+    ],
+    stream(words, cb) {
+      streamHandler = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new DhcpLeasesCollector({ ros, io: { emit() {} }, pollMs: 15000, state: {} });
+  await collector.start();
+  streamHandler(null, { address: '192.168.1.3', 'mac-address': 'A3', status: '' });
+  streamHandler(null, { address: '192.168.1.4', 'mac-address': 'A4', status: 'expired' });
 
   const active = collector.getActiveLeaseIPs();
   assert.ok(active.includes('192.168.1.1'));

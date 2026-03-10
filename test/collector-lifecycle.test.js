@@ -156,13 +156,20 @@ test('dhcp leases collector loads initial data and starts stream', async () => {
   assert.equal(collector.getNameByIP('192.168.1.10').name, 'test');
 });
 
-test('dhcp leases collector emits device:new only once per MAC', () => {
+test('dhcp leases collector emits device:new only once per MAC across initial load and stream updates', async () => {
   const emitted = [];
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
-  const collector = new DhcpLeasesCollector({ ros: {}, io, pollMs: 15000, state: {} });
-
-  collector._applyLease({ address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
-  collector._applyLease({ address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
+  let streamHandler;
+  const ros = mockROS(async () => [
+    { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' },
+  ]);
+  ros.stream = (words, cb) => {
+    streamHandler = cb;
+    return { stop() {} };
+  };
+  const collector = new DhcpLeasesCollector({ ros, io, pollMs: 15000, state: {} });
+  await collector.start();
+  streamHandler(null, { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
 
   const deviceNew = emitted.filter(e => e.ev === 'device:new');
   assert.equal(deviceNew.length, 1, 'device:new should only fire once per MAC');
