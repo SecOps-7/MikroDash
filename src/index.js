@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const fs   = require('fs');
 const path = require('path');
 const express = require('express');
 const http    = require('http');
@@ -7,6 +8,23 @@ const helmet  = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 const { version: APP_VERSION } = require('../package.json');
+
+// Verify node-routeros patches were applied at build time
+const PATCH_MARKERS = ['MIKRODASH_PATCHED_EMPTY_REPLY', 'MIKRODASH_PATCHED_UNREGISTEREDTAG'];
+for (const marker of PATCH_MARKERS) {
+  const target = marker.includes('EMPTY') ? 'Channel.js' : path.join('connector', 'Receiver.js');
+  const filePath = path.join(__dirname, '..', 'node_modules', 'node-routeros', 'dist', target);
+  try {
+    const src = fs.readFileSync(filePath, 'utf8');
+    if (!src.includes(marker)) {
+      console.error(`[MikroDash] CRITICAL: node-routeros patch "${marker}" not found in ${target}`);
+      console.error('[MikroDash] Run: node patch-routeros.js');
+      process.exit(1);
+    }
+  } catch (e) {
+    console.warn(`[MikroDash] Could not verify patch ${marker}:`, e.message);
+  }
+}
 
 let geoip = null;
 try { geoip = require('geoip-lite'); } catch (_) {}
