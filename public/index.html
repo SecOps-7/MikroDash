@@ -5,10 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>MikroDash</title>
   <link rel="stylesheet" href="/vendor/tabler.min.css"/>
+  <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
   <link rel="icon" type="image/png" href="/logo.png"/>
   <style>
-    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'SFMono-Regular','Liberation Mono',ui-monospace,monospace;--font-ui:'Avenir Next','Segoe UI','Helvetica Neue',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
-    html[data-theme="light"]{--bg-deep:#f0f2f7;--bg-card:rgba(255,255,255,.92);--border:rgba(100,120,160,.18);--text-muted:rgba(80,100,140,.55);--text-main:#1a2030;--nav-bg:rgba(240,242,247,.95);--topbar-bg:rgba(240,242,247,.85)}
+    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
+    html[data-theme="light"]{--bg-deep:#f0f2f7;--bg-card:rgba(255,255,255,.92);--border:rgba(100,120,160,.18);--text-muted:rgba(80,100,140,.55);--text-main:#1a2030;--nav-bg:rgba(240,242,247,.95);--topbar-bg:rgba(240,242,247,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
+    :root{--card-badge-bg:rgba(99,130,190,.12);--card-badge-color:rgba(148,163,190,.7);--card-badge-bg-active-blue:rgba(56,189,248,.15);--card-badge-color-active-blue:rgba(56,189,248,.9);--card-badge-bg-active-green:rgba(52,211,153,.15);--card-badge-color-active-green:rgba(52,211,153,.9)}
+    .card-badge{font-family:var(--font-mono);font-size:.68rem;font-weight:600;padding:.15em .55em;border-radius:5px;background:var(--card-badge-bg);color:var(--card-badge-color);border:none;line-height:1.5}
+    .card-badge.active-blue{background:var(--card-badge-bg-active-blue);color:var(--card-badge-color-active-blue)}
+    .card-badge.active-green{background:var(--card-badge-bg-active-green);color:var(--card-badge-color-active-green)}
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%;margin:0}
     body{background:var(--bg-deep);background-image:radial-gradient(ellipse 900px 600px at 10% 0%,rgba(56,189,248,.05) 0%,transparent 70%),radial-gradient(ellipse 600px 400px at 90% 80%,rgba(52,211,153,.04) 0%,transparent 70%);font-family:var(--font-ui);display:flex;min-height:100vh;color:var(--text-main)}
@@ -119,15 +124,25 @@
     .proto-fill.other{background:rgba(148,163,190,.3)}
     .proto-val{width:36px;color:var(--text-muted)}
     /* iface grid */
-    .iface-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.45rem}
-    .iface-tile{padding:.5rem .6rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s,background .2s}
+    .iface-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:.55rem}
+    .iface-tile{padding:.6rem .7rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s,background .2s}
     .iface-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
     .iface-tile.down{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.03);opacity:.6}
     .iface-tile.disabled{opacity:.35}
     .iface-name{font-weight:600;font-size:.77rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.1rem}
     .iface-type{font-size:.62rem;color:var(--text-muted)}
     .iface-ip{font-size:.65rem;color:var(--accent-rx);margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .iface-rate{font-size:.63rem;color:var(--text-muted);margin-top:.12rem}
+    .iface-rates{margin-top:.35rem;display:flex;flex-direction:column;gap:.18rem}
+    .iface-rate-row{display:flex;align-items:center;gap:.3rem;font-size:.63rem}
+    .iface-rate-label{width:.7rem;text-align:right;opacity:.55;flex-shrink:0}
+    .iface-rate-bar-wrap{flex:1;height:3px;border-radius:2px;background:rgba(99,130,190,.1);overflow:hidden;min-width:0}
+    .iface-rate-bar{height:100%;border-radius:2px;transition:width .6s ease;min-width:0}
+    .iface-rate-bar.rx{background:var(--accent-rx)}
+    .iface-rate-bar.tx{background:var(--accent-tx)}
+    .iface-rate-val{width:5.8rem;text-align:right;flex-shrink:0;white-space:nowrap;font-size:.61rem}
+    .iface-rate-val.rx{color:var(--accent-rx)}
+    .iface-rate-val.tx{color:var(--accent-tx)}
+    .iface-rate-val.zero{color:var(--text-muted)}
     .iface-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle}
     .iface-dot.up{background:var(--accent-ok)} .iface-dot.down{background:var(--accent-err)} .iface-dot.dis{background:var(--text-muted)}
     /* tables */
@@ -212,7 +227,7 @@
       #topbar{padding-left:52px}
       .topbar-right{gap:.45rem}
       #uptimeChip{display:none !important}
-      .iface-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+      .iface-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
     }
     #systemCard{align-self:flex-start;width:100%}
     /* Dashboard grid */
@@ -353,7 +368,9 @@
     .vpn-tile{padding:.55rem .65rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s}
     .vpn-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
     .vpn-tile.idle{opacity:.65}
-    .vpn-tile-name{font-weight:600;font-size:.77rem;color:var(--text-main);display:flex;align-items:center;gap:.35rem;margin-bottom:.18rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .vpn-tile-name{font-weight:600;font-size:.77rem;color:var(--text-main);display:flex;align-items:center;gap:.35rem;margin-bottom:.18rem;min-width:0}
+    .vpn-tile-name .iface-dot{flex-shrink:0}
+    .vpn-tile-name-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
     .vpn-tile-iface{font-size:.62rem;color:var(--text-muted);margin-bottom:.15rem}
     .vpn-tile-ip{font-size:.65rem;color:var(--accent-rx);margin-bottom:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .vpn-tile-hs{font-size:.62rem;color:var(--text-muted)}
@@ -457,7 +474,7 @@
     <span id="pageTitle">Dashboard</span>
     <div class="topbar-right">
       <div class="notif-wrap">
-        <button id="notifToggleBtn" title="Notifications" style="background:none;border:none;cursor:pointer;padding:2px 4px;display:flex;align-items:center;opacity:.85;transition:opacity .2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;stroke:var(--text-muted)"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
+        <button id="notifToggleBtn" title="Notifications" style="background:none;border:none;cursor:pointer;padding:2px 4px;display:flex;align-items:center;transition:opacity .2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
         <span class="notif-dot" id="notifDot"></span>
         <div class="notif-panel" id="notifPanel">
           <div class="notif-panel-hdr">
@@ -661,7 +678,7 @@
             <div class="stale-overlay">&#9679; stale</div>
             <div class="card-header d-flex align-items-center justify-content-between">
               <h3 class="card-title">WireGuard</h3>
-              <span id="vpnCount" class="badge bg-secondary" style="font-family:var(--font-mono);font-size:.68rem;color:#000">0</span>
+              <span id="vpnCount" class="card-badge">0</span>
             </div>
             <div class="card-body p-0">
               <div class="table-responsive">
@@ -730,7 +747,7 @@
         <div class="stale-overlay">&#9679; stale</div>
         <div class="card-header d-flex align-items-center flex-wrap gap-2">
           <h3 class="card-title mb-0">Wireless Clients</h3>
-          <span id="wirelessTabBadge" class="badge bg-secondary" style="font-family:var(--font-mono);font-size:.68rem">0</span>
+          <span id="wirelessTabBadge" class="card-badge">0</span>
           <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
             <span style="font-size:.7rem;color:var(--text-muted)">Sort:</span>
             <div class="d-flex gap-1" id="wifiSortBtns">
@@ -759,7 +776,7 @@
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <h3 class="card-title mb-0">DHCP Leases</h3>
-            <span id="dhcpTotalBadge" class="badge bg-secondary" style="font-family:var(--font-mono);font-size:.68rem">0</span>
+            <span id="dhcpTotalBadge" class="card-badge">0</span>
           </div>
           <input id="dhcpSearch" class="form-control form-control-sm" placeholder="Search hostname, IP, MAC&#8230;" style="max-width:260px"/>
         </div>
@@ -809,7 +826,7 @@
     <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
       <!-- All peer tiles -->
       <div class="card">
-        <div class="card-header"><h3 class="card-title">WireGuard Peers</h3></div>
+        <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">WireGuard Peers</h3><span id="vpnPageCount" class="card-badge">0</span></div>
         <div class="card-body" style="padding:.65rem .75rem">
           <div class="vpn-tile-grid" id="vpnPageGrid">
             <div class="empty-state">No peers configured</div>
@@ -846,6 +863,7 @@
         <div class="stale-overlay">&#9679; stale</div>
         <div class="card-header d-flex align-items-center gap-2">
           <h3 class="card-title">Interfaces</h3>
+          <span id="ifaceCount" class="card-badge">0</span>
         </div>
         <div class="card-body" style="padding:.65rem .75rem">
           <div class="iface-grid" id="ifaceGrid"><div class="empty-state">Waiting&#8230;</div></div>

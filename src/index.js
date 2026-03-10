@@ -287,6 +287,10 @@ async function sendInitialState(socket) {
   // Send ping history so client can render the chart immediately
   const pingData = ping.getHistory();
   if (pingData.history.length) socket.emit('ping:history', pingData);
+
+  // Replay buffered log history so the logs page survives page refreshes.
+  const logHistory = logs.getHistory();
+  if (logHistory.length) socket.emit('logs:history', logHistory);
 }
 
 // Post-accept check: brief spikes above MAX_SOCKETS are possible but acceptable for a dashboard workload.

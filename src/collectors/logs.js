@@ -3,6 +3,8 @@
  * RouterOS sends each new log entry instantly as it's written.
  * Zero polling, zero seen-set needed — we just receive and forward.
  */
+const LOG_HISTORY_SIZE = parseInt(process.env.LOG_HISTORY_SIZE || '500', 10);
+
 class LogsCollector {
   constructor({ ros, io, pollMs, state }) {
     this.ros = ros;
@@ -11,6 +13,11 @@ class LogsCollector {
     this.stream = null;
     this._restarting = false;
     this._restartTimer = null;
+    this._history = [];
+  }
+
+  getHistory() {
+    return this._history.slice();
   }
 
   _classify(topicsRaw) {
@@ -39,13 +46,16 @@ class LogsCollector {
     if (!data || !data.message) return;
 
     const topicsRaw = data.topics || '';
-    this.io.emit('logs:new', {
+    const entry = {
       ts:       Date.now(),
       time:     data.time    || '',
       topics:   topicsRaw,
       message:  data.message || '',
       severity: this._classify(topicsRaw),
-    });
+    };
+    this._history.push(entry);
+    if (this._history.length > LOG_HISTORY_SIZE) this._history.shift();
+    this.io.emit('logs:new', entry);
 
     this.state.lastLogsTs = Date.now();
     this.state.lastLogsErr = null;
