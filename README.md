@@ -20,7 +20,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 ### Wireless Clients
 ![Wireless](screenshots/wireless.png)
 
-### Network Diagram
+### Router Interfaces
 ![Network Diagram](screenshots/networks.png)
 
 ### DHCP Leases
@@ -78,7 +78,6 @@ If you need remote access, place MikroDash **behind an authenticating reverse pr
 - Set `BASIC_AUTH_USER` and `BASIC_AUTH_PASS` to require HTTP Basic Auth for the dashboard and Socket.IO endpoint
 - Run on a non-default port and bind to your LAN interface only
 - Set `chmod 600 .env` to protect your router credentials
-- Ensure `.env` is listed in `.gitignore` and never committed to version control
 - Use a dedicated read-only API user on the router (see RouterOS Setup below)
 
 ---
