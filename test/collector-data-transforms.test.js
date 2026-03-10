@@ -355,6 +355,72 @@ test('connections collector resolves names via DHCP leases then ARP fallback', a
   assert.equal(byIp['192.168.1.12'].name, '192.168.1.12');
 });
 
+test('connections collector emits IPv6 destination keys, top ports, and geo aggregates', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '2001:db8::1', protocol: 'tcp', 'dst-port': '443' },
+      { '.id': '*2', 'src-address': '192.168.1.11', 'dst-address': '2001:db8::1', protocol: 'tcp', 'dst-port': '443' },
+      { '.id': '*3', 'src-address': '192.168.1.12', 'dst-address': '198.51.100.2', protocol: 'udp', 'dst-port': '53' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 10, state: {},
+    geoLookup: (ip) => {
+      if (ip === '2001:db8::1') return { country: 'ZZ', city: 'Lab City' };
+      if (ip === '198.51.100.2') return { country: 'YY', city: 'Edge Town' };
+      return null;
+    },
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: { getNameByIP: () => null, getNameByMAC: () => null },
+    arp: { getByIP: () => null },
+  });
+  await collector.tick();
+
+  const payload = emitted[0].data;
+  assert.equal(payload.topDestinations[0].key, '[2001:db8::1]:443/tcp');
+  assert.equal(payload.topDestinations[0].country, 'ZZ');
+  assert.equal(payload.topDestinations[0].city, 'Lab City');
+  assert.deepEqual(payload.topDestinations[0].proto, { tcp: 2, udp: 0, other: 0 });
+  assert.deepEqual(payload.topPorts, [{ port: '443', count: 2 }, { port: '53', count: 1 }]);
+  assert.deepEqual(payload.topCountries, [
+    { cc: 'ZZ', city: 'Lab City', count: 2, proto: { tcp: 2, udp: 0, other: 0 } },
+    { cc: 'YY', city: 'Edge Town', count: 1, proto: { tcp: 0, udp: 1, other: 0 } },
+  ]);
+});
+
+test('connections collector caps work honestly by excluding truncated destinations from aggregates', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '198.51.100.1', protocol: 'tcp', 'dst-port': '443' },
+      { '.id': '*2', 'src-address': '192.168.1.11', 'dst-address': '198.51.100.2', protocol: 'udp', 'dst-port': '53' },
+      { '.id': '*3', 'src-address': '192.168.1.12', 'dst-address': '198.51.100.3', protocol: 'tcp', 'dst-port': '80' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 10, maxConns: 2, state: {},
+    geoLookup: (ip) => ({ country: ip.endsWith('.3') ? 'TRUNC' : 'KEPT', city: ip }),
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: { getNameByIP: () => null, getNameByMAC: () => null },
+    arp: { getByIP: () => null },
+  });
+  await collector.tick();
+
+  const payload = emitted[0].data;
+  assert.equal(payload.processingCapped, true);
+  assert.equal(payload.processed, 2);
+  assert.ok(!payload.topDestinations.some(d => d.key.includes('198.51.100.3')));
+  assert.ok(!payload.topCountries.some(c => c.cc === 'TRUNC'));
+  assert.deepEqual(payload.topPorts, [{ port: '443', count: 1 }, { port: '53', count: 1 }]);
+});
+
 // --- Firewall Collector ---
 const FirewallCollector = require('../src/collectors/firewall');
 
@@ -667,6 +733,41 @@ test('vpn collector detects connected vs idle state', async () => {
   assert.equal(t[2].state, 'idle');
 });
 
+test('vpn collector calculates rates between polls and prunes stale peers', async () => {
+  const emitted = [];
+  let callNum = 0;
+  const responses = [
+    [
+      { 'public-key': 'A', name: 'phone', 'last-handshake': '10s', 'rx-bytes': '1000', 'tx-bytes': '2000' },
+      { 'public-key': 'B', name: 'tablet', 'last-handshake': 'never', 'rx-bytes': '500', 'tx-bytes': '500' },
+    ],
+    [
+      { 'public-key': 'A', name: 'phone', 'last-handshake': '5s', 'rx-bytes': '3000', 'tx-bytes': '5000' },
+    ],
+  ];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => responses[callNum++],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
+
+  await collector.tick();
+  const prev = collector._prev.get('A');
+  prev.ts = Date.now() - 1000;
+  prev.rx = 1000;
+  prev.tx = 2000;
+
+  await collector.tick();
+
+  assert.equal(emitted[1].data.tunnels.length, 1);
+  assert.equal(emitted[1].data.tunnels[0].name, 'phone');
+  assert.equal(emitted[1].data.tunnels[0].rxRate, 2000);
+  assert.equal(emitted[1].data.tunnels[0].txRate, 3000);
+  assert.ok(!collector._prev.has('B'), 'stale peer should be pruned from previous counters');
+});
+
 // --- Wireless Collector ---
 const WirelessCollector = require('../src/collectors/wireless');
 
@@ -721,6 +822,35 @@ test('wireless collector sorts clients by signal strength descending', async () 
 
   const macs = emitted[0].data.clients.map(c => c.mac);
   assert.deepEqual(macs, ['CC:DD', 'EE:FF', 'AA:BB']);
+});
+
+test('wireless collector enriches payloads with DHCP names, ARP IPs, and emits empty refreshes', async () => {
+  const emitted = [];
+  let callNum = 0;
+  const ros = {
+    connected: true,
+    on() {},
+    cfg: {},
+    write: async () => callNum++ === 0
+      ? [{ 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1', 'tx-rate': 'HE-MCS 11 80MHz', ssid: 'Office' }]
+      : [],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new WirelessCollector({
+    ros, io, pollMs: 5000, state: {},
+    dhcpLeases: { getNameByMAC: (mac) => mac === 'AA:BB' ? { name: 'Laptop' } : null },
+    arp: { getByMAC: (mac) => mac === 'AA:BB' ? { ip: '192.168.1.20' } : null },
+  });
+
+  await collector.tick();
+  await collector.tick();
+
+  assert.equal(emitted[0].data.clients[0].name, 'Laptop');
+  assert.equal(emitted[0].data.clients[0].ip, '192.168.1.20');
+  assert.equal(emitted[0].data.clients[0].ssid, 'Office');
+  assert.equal(emitted[0].data.mode, 'wifi');
+  assert.deepEqual(emitted[1].data.clients, []);
+  assert.equal(emitted[1].data.mode, 'wifi');
 });
 
 // --- Logs Collector ---
