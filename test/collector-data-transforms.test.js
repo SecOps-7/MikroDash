@@ -159,3 +159,143 @@ test('system collector handles health items without temperature name', async () 
 
   assert.equal(emitted[0].data.tempC, null);
 });
+
+// --- Connections Collector ---
+const ConnectionsCollector = require('../src/collectors/connections');
+
+test('connections collector counts protocols correctly including case-insensitive icmp', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '1.1.1.1', protocol: 'tcp' },
+      { '.id': '*2', 'src-address': '192.168.1.10', 'dst-address': '8.8.8.8', protocol: 'UDP' },
+      { '.id': '*3', 'src-address': '192.168.1.10', 'dst-address': '9.9.9.9', protocol: 'icmpv6' },
+      { '.id': '*4', 'src-address': '192.168.1.10', 'dst-address': '4.4.4.4', protocol: 'gre' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 5, state: {},
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: { getNameByIP: () => null, getNameByMAC: () => null },
+    arp: { getByIP: () => null },
+  });
+  await collector.tick();
+
+  const p = emitted[0].data.protoCounts;
+  assert.equal(p.tcp, 1);
+  assert.equal(p.udp, 1);
+  assert.equal(p.icmp, 1);
+  assert.equal(p.other, 1);
+});
+
+test('connections collector classifies LAN sources and WAN destinations using CIDRs', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '1.1.1.1', protocol: 'tcp', 'dst-port': '443' },
+      { '.id': '*2', 'src-address': '10.0.0.5', 'dst-address': '192.168.1.10', protocol: 'tcp', 'dst-port': '80' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 10, state: {},
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: { getNameByIP: () => null, getNameByMAC: () => null },
+    arp: { getByIP: () => null },
+  });
+  await collector.tick();
+
+  const d = emitted[0].data;
+  assert.equal(d.topSources.length, 1);
+  assert.equal(d.topSources[0].ip, '192.168.1.10');
+  assert.equal(d.topSources[0].count, 1);
+  assert.ok(d.topDestinations.length >= 1);
+});
+
+test('connections collector uses field fallback chain for src/dst/protocol', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { '.id': '*1', src: '192.168.1.10', dst: '1.1.1.1', 'ip-protocol': 'tcp', port: '443' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 5, state: {},
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: { getNameByIP: () => null, getNameByMAC: () => null },
+    arp: { getByIP: () => null },
+  });
+  await collector.tick();
+
+  const d = emitted[0].data;
+  assert.equal(d.protoCounts.tcp, 1);
+  assert.equal(d.topSources.length, 1);
+});
+
+test('connections collector tracks new connections since last poll', async () => {
+  let callNum = 0;
+  const responses = [
+    [{ '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '1.1.1.1', protocol: 'tcp' }],
+    [{ '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '1.1.1.1', protocol: 'tcp' },
+     { '.id': '*2', 'src-address': '192.168.1.10', 'dst-address': '8.8.8.8', protocol: 'udp' }],
+  ];
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => responses[callNum++],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 5, state: {},
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: { getNameByIP: () => null, getNameByMAC: () => null },
+    arp: { getByIP: () => null },
+  });
+
+  await collector.tick();
+  assert.equal(emitted[0].data.newSinceLast, 1);
+
+  await collector.tick();
+  assert.equal(emitted[1].data.newSinceLast, 1);
+});
+
+test('connections collector resolves names via DHCP leases then ARP fallback', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '1.1.1.1', protocol: 'tcp' },
+      { '.id': '*2', 'src-address': '192.168.1.11', 'dst-address': '1.1.1.1', protocol: 'tcp' },
+      { '.id': '*3', 'src-address': '192.168.1.12', 'dst-address': '1.1.1.1', protocol: 'tcp' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 5000, topN: 10, state: {},
+    dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
+    dhcpLeases: {
+      getNameByIP: (ip) => ip === '192.168.1.10' ? { name: 'laptop', mac: 'AA:BB:CC:DD:EE:FF' } : null,
+      getNameByMAC: (mac) => mac === '11:22:33:44:55:66' ? { name: 'phone' } : null,
+    },
+    arp: {
+      getByIP: (ip) => ip === '192.168.1.11' ? { mac: '11:22:33:44:55:66' } : null,
+    },
+  });
+  await collector.tick();
+
+  const sources = emitted[0].data.topSources;
+  const byIp = Object.fromEntries(sources.map(s => [s.ip, s]));
+  assert.equal(byIp['192.168.1.10'].name, 'laptop');
+  assert.equal(byIp['192.168.1.11'].name, 'phone');
+  assert.equal(byIp['192.168.1.12'].name, '192.168.1.12');
+});
