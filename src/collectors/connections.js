@@ -18,11 +18,12 @@ function makeDestKey(c) {
 }
 
 class ConnectionsCollector {
-  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state }) {
+  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns }) {
     this.ros = ros;
     this.io = io;
     this.pollMs = pollMs;
     this.topN = topN;
+    this.maxConns = maxConns || 20000;
     this.dhcpNetworks = dhcpNetworks;
     this.dhcpLeases = dhcpLeases;
     this.arp = arp;
@@ -49,7 +50,9 @@ class ConnectionsCollector {
     const lanCidrs = this.dhcpNetworks.getLanCidrs();
 
     // node-routeros: write() is concurrent-safe, doesn't block streams
-    const conns = await this.ros.write('/ip/firewall/connection/print');
+    const raw = await this.ros.write('/ip/firewall/connection/print');
+    const totalRaw = (raw || []).length;
+    const conns = totalRaw > this.maxConns ? raw.slice(0, this.maxConns) : (raw || []);
     const srcCounts = new Map();
     const dstCounts = new Map();
     const curIds    = new Set();
@@ -128,7 +131,7 @@ class ConnectionsCollector {
       .map(([port,count]) => ({ port, count }));
 
     this.io.emit('conn:update', {
-      ts: Date.now(), total: (conns || []).length, newSinceLast,
+      ts: Date.now(), total: totalRaw, capped: totalRaw > this.maxConns, newSinceLast,
       protoCounts, topSources, topDestinations, topCountries, topPorts,
     });
     this.state.lastConnsTs = Date.now();
