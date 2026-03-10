@@ -88,6 +88,25 @@ test('scheduleForcedShutdownTimer unreferences the fallback timer', () => {
   assert.equal(typeof timer.unref, 'function');
 });
 
+test('verifyRouterOSPatchMarkers throws when a patch file cannot be read', () => {
+  const { verifyRouterOSPatchMarkers } = require('../src/routeros/patchVerification');
+
+  assert.throws(
+    () => verifyRouterOSPatchMarkers({
+      patchMarkers: ['MIKRODASH_PATCHED_EMPTY_REPLY'],
+      resolveDistPath(marker) {
+        return marker.includes('EMPTY') ? 'Channel.js' : path.join('connector', 'Receiver.js');
+      },
+      readFileSync() {
+        const err = new Error('ENOENT: no such file or directory');
+        err.code = 'ENOENT';
+        throw err;
+      },
+    }),
+    /Could not verify patch .*ENOENT/i
+  );
+});
+
 test('ROS write timeout closes the active connection before rejecting', async () => {
   const ros = new ROS({});
   let closeCalls = 0;
