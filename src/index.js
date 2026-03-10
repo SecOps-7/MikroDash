@@ -41,7 +41,7 @@ const io = new Server(server);
 const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);
 const authLimiter = rateLimit({
   windowMs: 60_000,
-  max: 5,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   skip: () => !authEnabled,
