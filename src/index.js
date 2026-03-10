@@ -8,6 +8,9 @@ const helmet  = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { Server } = require('socket.io');
 const { version: APP_VERSION } = require('../package.json');
+const { buildHelmetOptions } = require('./security/helmetOptions');
+const { computeHealthStatus } = require('./health');
+const { scheduleForcedShutdownTimer } = require('./shutdown');
 
 // Verify node-routeros patches were applied at build time
 const PATCH_MARKERS = ['MIKRODASH_PATCHED_EMPTY_REPLY', 'MIKRODASH_PATCHED_UNREGISTEREDTAG'];
@@ -73,18 +76,7 @@ const basicAuth = createBasicAuthMiddleware({
   password: process.env.BASIC_AUTH_PASS,
 });
 
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc:  ["'self'", "https://cdn.jsdelivr.net"],
-      styleSrc:   ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://fonts.googleapis.com"],
-      fontSrc:    ["'self'", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "ws:", "wss:"],
-      imgSrc:     ["'self'", "data:"],
-    },
-  },
-}));
+app.use(helmet(buildHelmetOptions()));
 app.use(authLimiter, basicAuth);
 io.engine.use(basicAuth);
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -104,6 +96,7 @@ const state = {
   lastIfStatusTs:0,
   lastPingTs:0,
 };
+let startupReady = false;
 
 const ros = new ROS({
   host:        process.env.ROUTER_HOST,
@@ -113,6 +106,7 @@ const ros = new ROS({
   username:    process.env.ROUTER_USER,
   password:    process.env.ROUTER_PASS,
   debug:       (process.env.ROS_DEBUG           || 'false').toLowerCase() === 'true',
+  writeTimeoutMs: parseInt(process.env.ROS_WRITE_TIMEOUT_MS || '30000', 10),
 });
 
 const DEFAULT_IF      = process.env.DEFAULT_IF       || 'WAN1';
@@ -147,11 +141,15 @@ function sanitizeErr(e) {
 }
 
 app.get('/healthz', (_req, res) => {
-  const ok = ros.connected && state.lastTrafficTs > 0 && (Date.now() - state.lastTrafficTs < 30000);
+  const { ok, statusCode } = computeHealthStatus({
+    startupReady,
+    rosConnected: ros.connected,
+  });
   const body = {
     ok,
     version: APP_VERSION,
     routerConnected: ros.connected,
+    startupReady,
     uptime: process.uptime(),
     now: Date.now(),
     defaultIf: DEFAULT_IF,
@@ -169,7 +167,7 @@ app.get('/healthz', (_req, res) => {
       ping:     { ts:state.lastPingTs,     err:null                               },
     },
   };
-  res.status(ok ? 200 : 503).json(body);
+  res.status(statusCode).json(body);
 });
 
 ros.connectLoop();
@@ -198,8 +196,10 @@ ros.connectLoop();
     ifStatus.start();
     ping.start();
 
+    startupReady = true;
     console.log('[MikroDash] All collectors running');
   } catch (e) {
+    startupReady = false;
     console.error('[MikroDash] Startup error:', e && e.message ? e.message : e);
   }
 })();
@@ -274,13 +274,14 @@ server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
 function shutdown(signal) {
   console.log(`[MikroDash] ${signal} received, shutting down…`);
+  startupReady = false;
   ros.stop();
   io.close();
   server.close(() => {
     console.log('[MikroDash] HTTP server closed');
     process.exit(0);
   });
-  setTimeout(() => {
+  scheduleForcedShutdownTimer(() => {
     console.error('[MikroDash] Forceful shutdown after timeout');
     process.exit(1);
   }, 5000);
