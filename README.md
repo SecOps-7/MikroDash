@@ -127,6 +127,7 @@ docker compose up -d
 ```bash
 git clone https://github.com/SecOps-7/MikroDash.git
 cd MikroDash
+node patch-routeros.js
 cp .env.example .env
 # Edit .env — set ROUTER_HOST, ROUTER_USER, ROUTER_PASS, DEFAULT_IF
 docker compose up -d
@@ -134,6 +135,8 @@ docker compose up -d
 
 - Dashboard: `http://localhost:3081`
 - Health check: `http://localhost:3081/healthz` (`200` only after startup completes and RouterOS is connected)
+
+Source builds require the bundled `node-routeros` compatibility patch. If startup reports a missing patch marker, run `node patch-routeros.js` again before launching MikroDash.
 
 ---
 
