@@ -60,6 +60,7 @@ class ConnectionsCollector {
     const countryProto = new Map();
     const countryCity  = new Map();
     const portCounts   = new Map();
+    const destGeo      = new Map();
 
     for (const c of (conns || [])) {
       const id  = c['.id'];
@@ -88,6 +89,7 @@ class ConnectionsCollector {
           const geo = geoip.lookup(ip);
           if (geo && geo.country) {
             const cc = geo.country;
+            destGeo.set(ip, { country: geo.country || '', city: geo.city || '' });
             if (!countryCity.has(cc)) countryCity.set(cc, geo.city || '');
             const cp = countryProto.get(cc) || { tcp:0, udp:0, other:0 };
             if (p === 'tcp') cp.tcp++; else if (p === 'udp') cp.udp++; else cp.other++;
@@ -109,11 +111,9 @@ class ConnectionsCollector {
       .sort((a, b) => b[1] - a[1]).slice(0, this.topN)
       .map(([key, count]) => {
         const ip = extractAddress(key);
-        let country = '', city = '';
-        if (geoip && isValidIp(ip)) {
-          const geo = geoip.lookup(ip);
-          if (geo) { country = geo.country || ''; city = geo.city || ''; }
-        }
+        const geo = destGeo.get(ip) || { country: '', city: '' };
+        const country = geo.country;
+        const city = geo.city;
         const proto = country ? (countryProto.get(country) || {}) : {};
         return { key, count, country, city, proto };
       });
@@ -131,7 +131,7 @@ class ConnectionsCollector {
       .map(([port,count]) => ({ port, count }));
 
     this.io.emit('conn:update', {
-      ts: Date.now(), total: totalRaw, capped: totalRaw > this.maxConns, newSinceLast,
+      ts: Date.now(), total: totalRaw, processed: conns.length, processingCapped: totalRaw > this.maxConns, newSinceLast,
       protoCounts, topSources, topDestinations, topCountries, topPorts,
     });
     this.state.lastConnsTs = Date.now();

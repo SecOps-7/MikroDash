@@ -97,16 +97,30 @@ class ROS extends EventEmitter {
    * params is an optional array of '=key=value' strings.
    * timeoutMs caps how long we wait for a reply (default 30 s).
    */
-  async write(cmd, params, timeoutMs = 30000) {
+  async write(cmd, params, timeoutMs = this.cfg.writeTimeoutMs || 30000) {
     if (!this.conn || !this.connected) throw new Error('Not connected');
-    const result = await Promise.race([
-      this.conn.write(cmd, params || []),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`RouterOS write timeout (${timeoutMs}ms): ${cmd}`)), timeoutMs)
-      ),
-    ]);
-    // Normalise null/undefined (e.g. from !empty responses before patch applies)
-    return Array.isArray(result) ? result : (result == null ? [] : result);
+    const activeConn = this.conn;
+    let timer = null;
+
+    try {
+      const result = await Promise.race([
+        activeConn.write(cmd, params || []),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`RouterOS write timeout (${timeoutMs}ms): ${cmd}`)), timeoutMs);
+        }),
+      ]);
+      // Normalise null/undefined (e.g. from !empty responses before patch applies)
+      return Array.isArray(result) ? result : (result == null ? [] : result);
+    } catch (err) {
+      const msg = String(err && err.message ? err.message : err);
+      if (msg.includes('write timeout') && this.conn === activeConn) {
+        this.connected = false;
+        try { activeConn.close(); } catch (_) {}
+      }
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   /**
