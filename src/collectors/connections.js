@@ -52,6 +52,9 @@ class ConnectionsCollector {
     // node-routeros: write() is concurrent-safe, doesn't block streams
     const raw = await this.ros.write('/ip/firewall/connection/print');
     const totalRaw = (raw || []).length;
+    // When capped, connections beyond maxConns are not processed — their
+    // destination IPs will be missing from destGeo, so top destinations
+    // that only appear in the truncated portion will lack country/city data.
     const conns = totalRaw > this.maxConns ? raw.slice(0, this.maxConns) : (raw || []);
     const srcCounts = new Map();
     const dstCounts = new Map();
