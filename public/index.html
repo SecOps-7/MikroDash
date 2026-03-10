@@ -52,6 +52,9 @@
     /* reconnect */
     #reconnectBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(248,113,113,.12);border-bottom:1px solid rgba(248,113,113,.35);backdrop-filter:blur(8px);text-align:center;padding:.4rem;font-family:var(--font-mono);font-size:.72rem;color:#fca5a5;animation:pulse-banner 2s ease infinite}
     #reconnectBanner.show{display:block}
+    #rosBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(245,159,0,.1);border-bottom:1px solid rgba(245,159,0,.3);backdrop-filter:blur(8px);padding:.4rem 1rem;font-family:var(--font-mono);font-size:.72rem;color:#fcd34d;animation:pulse-banner 2s ease infinite;display:none;align-items:center;justify-content:center;gap:.5rem}
+    #rosBanner.show{display:flex}
+    #rosBannerText{flex:1;text-align:center}
     @keyframes pulse-banner{0%,100%{opacity:1}50%{opacity:.5}}
     /* pages */
     .page-view{display:none;flex:1;padding:1.25rem;overflow-y:auto}
@@ -160,7 +163,19 @@
     #logs::-webkit-scrollbar{width:4px} #logs::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
     .log-error{color:#fca5a5} .log-warning{color:#fcd34d} .log-debug{color:rgba(148,163,190,.45)} .log-info{color:#d5d7de}
     .log-dhcp{color:#93c5fd} .log-wireless{color:#a5b4fc} .log-firewall{color:#fb923c} .log-system{color:#6ee7b7}
+    .log-line{display:block;padding:1px 0;line-height:1.6}
+    .log-line:hover{background:rgba(99,130,190,.06);border-radius:3px}
     .log-topic{color:rgba(148,163,190,.6)} .log-time{color:rgba(148,163,190,.4)}
+    html[data-theme="light"] .log-error{color:#b91c1c}
+    html[data-theme="light"] .log-warning{color:#92400e}
+    html[data-theme="light"] .log-debug{color:rgba(80,100,140,.5)}
+    html[data-theme="light"] .log-info{color:#1e293b}
+    html[data-theme="light"] .log-dhcp{color:#1d4ed8}
+    html[data-theme="light"] .log-wireless{color:#6d28d9}
+    html[data-theme="light"] .log-firewall{color:#c2410c}
+    html[data-theme="light"] .log-system{color:#065f46}
+    html[data-theme="light"] .log-topic{color:rgba(80,100,140,.65)}
+    html[data-theme="light"] .log-time{color:rgba(80,100,140,.45)}
     /* update */
     .ros-update-row{display:flex;align-items:center;gap:.5rem;margin-top:.7rem;padding:.45rem .6rem;border-radius:6px;font-family:var(--font-mono);font-size:.72rem}
     .ros-update-row.ok{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.18);color:var(--accent-ok)}
@@ -376,6 +391,10 @@
 </head>
 <body>
 <div id="reconnectBanner">&#9889; Reconnecting&#8230;</div>
+<div id="rosBanner">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="rosBannerText">RouterOS not connected</span>
+</div>
 
 <button id="burgerBtn" aria-label="Open menu">
   <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>

@@ -1,4 +1,4 @@
-/* MikroDash v0.5.0 */
+/* MikroDash v0.5.1 */
 'use strict';
 var socket = io();
 
@@ -15,6 +15,8 @@ function parseUptime(raw){var s=String(raw||''),parts=[];var w=(s.match(/(\d+)w/
 // ── DOM refs ───────────────────────────────────────────────────────────────
 var $ = function(id){return document.getElementById(id);};
 var reconnectBanner  = $('reconnectBanner');
+var rosBanner        = $('rosBanner');
+var rosBannerText    = $('rosBannerText');
 var ifaceSelect      = $('ifaceSelect');
 var wanStatusBadge   = $('wanStatusBadge');
 var liveRx           = $('liveRx');
@@ -621,6 +623,23 @@ socket.on('wan:status',function(s){renderWanStatus(s);});
 // ── Reconnect ──────────────────────────────────────────────────────────────
 socket.on('disconnect',function(){reconnectBanner.classList.add('show');});
 socket.on('connect',function(){reconnectBanner.classList.remove('show');currentIf='';allPoints=[];});
+
+// ── RouterOS connection status ──────────────────────────────────────────────
+// Shown when the server is up (Socket.IO connected) but RouterOS itself is
+// not reachable. Distinct from the red reconnect banner which fires when
+// the browser loses its Socket.IO connection to the MikroDash server.
+function setRosBanner(connected, reason){
+  if(!rosBanner) return;
+  if(connected){
+    rosBanner.classList.remove('show');
+  } else {
+    if(rosBannerText) rosBannerText.textContent = reason || 'RouterOS not connected — retrying…';
+    rosBanner.classList.add('show');
+  }
+}
+socket.on('ros:status', function(data){
+  setRosBanner(data.connected, data.reason);
+});
 
 // ── Stale detection ────────────────────────────────────────────────────────
 var staleConfig=[

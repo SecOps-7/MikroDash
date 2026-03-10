@@ -60,6 +60,42 @@ All notable changes to MikroDash will be documented in this file.
 - **Removed stale vendored CSS sourcemap reference** — the checked-in Tabler CSS
   no longer advertises a missing `.map` file, eliminating pointless 404s in
   browser devtools (`public/vendor/tabler.min.css`)
+- **`package.json` version now matches app version** — `package.json` was
+  still reporting `0.4.8` while `app.js`, the changelog, and `/healthz` all
+  reported `0.5.0`; version bumped to `0.5.1` to resolve the mismatch
+  (`package.json`)
+- **`.log-line` CSS rule added** — `buildLogHtml()` wraps each entry in
+  `<div class="log-line">` but no matching rule existed; added `.log-line`
+  with `display:block`, `padding`, and a subtle hover highlight
+  (`public/index.html`)
+- **Log colours now visible in light mode** — `.log-error`, `.log-warning`,
+  `.log-debug`, `.log-info` and all topic classes (`.log-dhcp`,
+  `.log-wireless`, `.log-firewall`, `.log-system`) had no
+  `html[data-theme="light"]` overrides, making several severity levels
+  nearly invisible on a light background; 12 light-mode rules added
+  (`public/index.html`)
+
+### Features
+
+- **RouterOS offline banner** — a yellow warning banner now appears at the
+  top of the dashboard whenever RouterOS is not reachable, with a plain-
+  English reason (e.g. "Connection refused — is RouterOS reachable at
+  192.168.88.1?"). The banner dismisses automatically when the connection
+  is restored. Distinct from the red Socket.IO reconnect banner which fires
+  only when the browser loses its connection to the MikroDash server itself
+  (`public/index.html`, `public/app.js`, `src/index.js`)
+- **Container no longer blocks on RouterOS availability** — the startup
+  sequence previously called `waitUntilConnected(60000)` in an async IIFE,
+  meaning the HTTP server started but collectors never ran if RouterOS was
+  unreachable at boot. The startup is now event-driven: collectors start the
+  moment the `connected` event fires (whether that is immediately or minutes
+  later), and the container stays healthy the entire time. The `ros:status`
+  event is broadcast to all connected browser clients on every connection
+  state change so the UI always reflects reality (`src/index.js`)
+- **Human-readable RouterOS error messages** — raw Node.js network errors
+  (`ECONNREFUSED`, `ETIMEDOUT`, `ENOTFOUND`, `ECONNRESET`) and RouterOS
+  errors (TLS certificate, authentication) are translated to clear
+  actionable messages before being sent to the client (`src/index.js`)
 
 ### Tests
 

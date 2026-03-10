@@ -163,16 +163,41 @@ app.get('/healthz', (_req, res) => {
 
 ros.connectLoop();
 
-(async () => {
-  try {
-    await ros.waitUntilConnected(60000);
-    console.log(`[MikroDash] v${APP_VERSION} — RouterOS connected, starting collectors`);
+// ── RouterOS connection status broadcasting ─────────────────────────────────
+// Track the last known ROS connection state so newly connected browser clients
+// immediately receive it, rather than waiting for the next status change event.
+let rosConnected = false;
 
-    // Streams (traffic, logs, leases) start themselves and register
-    // reconnect handlers internally. Polling collectors do the same.
-    // No staggering needed — node-routeros handles concurrent commands.
-    // Start wireless immediately in parallel — don't wait for dhcpLeases
-    // Names won't resolve on the very first poll but arrive on the second
+function broadcastRosStatus(connected, reason) {
+  rosConnected = connected;
+  io.emit('ros:status', { connected, reason: reason || null });
+}
+
+ros.on('connected', () => broadcastRosStatus(true));
+ros.on('close',     () => broadcastRosStatus(false, 'RouterOS connection closed'));
+ros.on('error',     (e) => {
+  const msg = e && e.message ? e.message : String(e);
+  // Build a clear, human-readable reason from raw network errors
+  let reason = msg;
+  if (/ECONNREFUSED/.test(msg))  reason = `Connection refused — is RouterOS reachable at ${process.env.ROUTER_HOST}?`;
+  else if (/ETIMEDOUT/.test(msg) || /timed out/i.test(msg)) reason = `Connection timed out — check ROUTER_HOST and firewall rules`;
+  else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))    reason = `Host not found — check ROUTER_HOST setting (${process.env.ROUTER_HOST})`;
+  else if (/ECONNRESET/.test(msg)) reason = 'Connection reset by router';
+  else if (/certificate/i.test(msg)) reason = 'TLS certificate error — try setting ROUTER_TLS_INSECURE=true';
+  else if (/authentication/i.test(msg) || /login/i.test(msg)) reason = 'Authentication failed — check ROUTER_USER and ROUTER_PASS';
+  broadcastRosStatus(false, reason);
+});
+
+// Wait for the first RouterOS connection, then start all collectors.
+// Uses ros 'connected' event so this works regardless of how long the
+// router takes to come online — the container stays up and the HTTP/WS
+// server is already serving the "offline" banner to any waiting clients.
+let _collectorsStarted = false;
+async function startCollectors() {
+  if (_collectorsStarted) return;
+  _collectorsStarted = true;
+  try {
+    console.log(`[MikroDash] v${APP_VERSION} — RouterOS connected, starting collectors`);
     wireless.start();
     await dhcpLeases.start();   // async: loads initial state first
     dhcpNetworks.start();
@@ -191,9 +216,12 @@ ros.connectLoop();
     console.log('[MikroDash] All collectors running');
   } catch (e) {
     startupReady = false;
-    console.error('[MikroDash] Startup error:', e && e.message ? e.message : e);
+    _collectorsStarted = false; // allow retry on next reconnect
+    console.error('[MikroDash] Collector startup error:', e && e.message ? e.message : e);
   }
-})();
+}
+
+ros.on('connected', () => startCollectors());
 
 async function sendInitialState(socket) {
   // Send traffic:history FIRST — before any async awaits — so the client
@@ -204,7 +232,20 @@ async function sendInitialState(socket) {
     points: traffic.hist.get(DEFAULT_IF) ? traffic.hist.get(DEFAULT_IF).toArray() : [],
   });
 
-  try { await ros.waitUntilConnected(10000); } catch (_) {}
+  // Tell the client the current RouterOS connection state immediately.
+  // If ROS is already connected this resolves instantly; if not, we wait
+  // briefly then send a ros:status so the client shows the offline banner
+  // rather than silently showing empty/stale cards.
+  if (!ros.connected) {
+    socket.emit('ros:status', { connected: false, reason: rosConnected === false
+      ? 'RouterOS is not connected — retrying in background'
+      : 'Waiting for RouterOS connection…' });
+    try { await ros.waitUntilConnected(10000); } catch (_) {
+      // Still not connected after 10s — client already has the banner, continue
+      // so the socket gets its (empty) initial state and stays live for when
+      // ROS eventually reconnects.
+    }
+  }
 
   // Fetch interface list. On failure: log the reason, notify the client so
   // it can show an explicit error state rather than a silently empty dropdown,
