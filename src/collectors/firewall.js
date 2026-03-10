@@ -7,6 +7,7 @@ class FirewallCollector {
     this.topN = topN || 15;
     this.prevCounts = new Map();
     this.timer = null;
+    this._inflight = false;
   }
 
   async safeGet(cmd) {
@@ -51,10 +52,12 @@ class FirewallCollector {
 
   start() {
     const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
       try { await this.tick(); } catch (e) {
         this.state.lastFirewallErr = String(e && e.message ? e.message : e);
         console.error('[firewall]', this.state.lastFirewallErr);
-      }
+      } finally { this._inflight = false; }
     };
     run();
     this.timer = setInterval(run, this.pollMs);

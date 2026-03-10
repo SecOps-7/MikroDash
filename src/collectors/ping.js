@@ -8,6 +8,7 @@ class PingCollector {
     this.state  = state;
     this.target = target || '1.1.1.1';
     this.timer  = null;
+    this._inflight = false;
     this.history = []; // {ts, rtt, loss}
     this.MAX_HISTORY = 60;
   }
@@ -59,7 +60,10 @@ class PingCollector {
 
   start() {
     const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
       try { await this.tick(); } catch (e) { console.error('[ping]', e && e.message ? e.message : e); }
+      finally { this._inflight = false; }
     };
     run();
     this.timer = setInterval(run, this.pollMs);

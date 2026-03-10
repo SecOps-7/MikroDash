@@ -930,7 +930,7 @@ sendNotif = function(title, body, tag){
   var tooltipEl = $('mapTooltip');
   if(!mapEl) return;
 
-  var MAP_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var W=1000, H=500;
 
   var _countryCounts  = {};   // cc -> total count
@@ -1304,7 +1304,7 @@ sendNotif = function(title, body, tag){
   // Load map
   fetch(MAP_URL).then(function(r){return r.json();}).then(function(world){
     var s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js';
+    s.src='/vendor/topojson-client.min.js';
     s.onload=function(){
       var countries=topojson.feature(world,world.objects.countries);
 

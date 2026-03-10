@@ -1,7 +1,7 @@
 class InterfaceStatusCollector {
   constructor({ ros, io, pollMs, state }) {
     this.ros = ros; this.io = io; this.pollMs = pollMs || 5000;
-    this.state = state; this.timer = null;
+    this.state = state; this.timer = null; this._inflight = false;
   }
   async tick() {
     if (!this.ros.connected) return;
@@ -34,7 +34,12 @@ class InterfaceStatusCollector {
     this.state.lastIfStatusTs = Date.now();
   }
   start() {
-    const run = async () => { try { await this.tick(); } catch(e) { console.error("[ifstatus]", e && e.message ? e.message : e); } };
+    const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
+      try { await this.tick(); } catch(e) { console.error("[ifstatus]", e && e.message ? e.message : e); }
+      finally { this._inflight = false; }
+    };
     run();
     this.timer = setInterval(run, this.pollMs);
     this.ros.on("close",     () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });

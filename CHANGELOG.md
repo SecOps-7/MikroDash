@@ -2,10 +2,64 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [0.5.1] — RouterOS Offline Resilience & UI Polish
+## [0.5.1] — Production Resilience Hardening
+
+### Security
+
+- **Self-hosted frontend assets and tightened CSP** — the dashboard now serves
+  vendored Chart.js, TopoJSON, world-atlas, and Tabler assets locally instead
+  of loading them from third-party CDNs. Helmet configuration was extracted
+  into a dedicated module and tightened to a self-hosted Content Security
+  Policy (`src/security/helmetOptions.js`, `public/index.html`, `public/app.js`,
+  `public/vendor/`)
+- **Startup patch verification for `node-routeros`** — application startup now
+  hard-fails if the required MikroDash compatibility markers are missing from
+  the patched `node-routeros` files, preventing silent boot with a broken
+  runtime (`src/index.js`)
+- **Socket.IO connection cap** — the server now applies a configurable
+  `MAX_SOCKETS` limit and caps Socket.IO message size, reducing abuse surface
+  on LAN deployments (`src/index.js`)
+
+### Reliability
+
+- **Per-command RouterOS write timeout with forced reconnect** — one-shot
+  RouterOS API calls now use a configurable timeout budget
+  (`ROS_WRITE_TIMEOUT_MS`) and close the active shared connection on timeout so
+  the existing reconnect loop can recover cleanly (`src/routeros/client.js`)
+- **Inflight guards across polling collectors** — all interval-based
+  collectors now skip overlapping runs instead of stacking concurrent RouterOS
+  calls when a slow tick exceeds its poll interval (`src/collectors/*.js`)
+- **Graceful shutdown with unref’d fallback timer** — shutdown now stops
+  RouterOS, Socket.IO, and HTTP resources in order and uses an unref’d 5-second
+  forced-exit timer so the fallback does not keep the process alive on its own
+  (`src/index.js`, `src/shutdown.js`)
+- **RouterOS patch verification and write-timeout helpers extracted for testable
+  runtime behavior** — health/CSP/shutdown support code was split into small
+  modules to make the hardening logic independently testable
+  (`src/health.js`, `src/security/helmetOptions.js`, `src/shutdown.js`)
+
+### Operations
+
+- **`/healthz` now behaves like readiness** — the endpoint returns `503` until
+  startup completes or when RouterOS is disconnected, and now includes a
+  `startupReady` flag in the JSON body (`src/index.js`, `src/health.js`)
+- **Connection-table processing cap metadata** — the connections collector now
+  reports the raw total separately from the number of rows processed, exposing
+  `processed` and `processingCapped` to make truncation explicit (`src/collectors/connections.js`)
+- **Auth failure tracking cap** — the in-memory auth failure map now evicts the
+  oldest tracked IPs once it exceeds `maxTrackedIPs`, bounding memory growth
+  under probe traffic (`src/auth/basicAuth.js`)
+- **Wireless API probe debug logging** — failed wireless capability probes now
+  log at debug level instead of failing silently (`src/collectors/wireless.js`)
 
 ### Bug Fixes
 
+- **Info-page logo path normalized** — the about/info page now uses `/logo.png`
+  like the rest of the app, avoiding broken image resolution on non-root paths
+  (`public/index.html`)
+- **Removed stale vendored CSS sourcemap reference** — the checked-in Tabler CSS
+  no longer advertises a missing `.map` file, eliminating pointless 404s in
+  browser devtools (`public/vendor/tabler.min.css`)
 - **`package.json` version now matches app version** — `package.json` was
   still reporting `0.4.8` while `app.js`, the changelog, and `/healthz` all
   reported `0.5.0`; version bumped to `0.5.1` to resolve the mismatch
@@ -42,6 +96,14 @@ All notable changes to MikroDash will be documented in this file.
   (`ECONNREFUSED`, `ETIMEDOUT`, `ENOTFOUND`, `ECONNRESET`) and RouterOS
   errors (TLS certificate, authentication) are translated to clear
   actionable messages before being sent to the client (`src/index.js`)
+
+### Tests
+
+- **Added production resilience regression coverage** — new tests cover the
+  self-hosted asset/CSP contract, readiness health semantics, forced shutdown
+  timer unref behavior, RouterOS write timeout recovery, connection collector
+  truncation metadata, and auth failure eviction (`test/production-resilience-regressions.test.js`,
+  `test/smoke-fixes.test.js`)
 
 ## [0.5.0] — UI Fixes & Security Hardening
 

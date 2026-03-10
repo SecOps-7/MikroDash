@@ -18,17 +18,19 @@ function makeDestKey(c) {
 }
 
 class ConnectionsCollector {
-  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state }) {
+  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns }) {
     this.ros = ros;
     this.io = io;
     this.pollMs = pollMs;
     this.topN = topN;
+    this.maxConns = maxConns || 20000;
     this.dhcpNetworks = dhcpNetworks;
     this.dhcpLeases = dhcpLeases;
     this.arp = arp;
     this.state = state;
     this.prevIds = new Set();
     this.timer = null;
+    this._inflight = false;
   }
 
   resolveName(ip) {
@@ -48,7 +50,12 @@ class ConnectionsCollector {
     const lanCidrs = this.dhcpNetworks.getLanCidrs();
 
     // node-routeros: write() is concurrent-safe, doesn't block streams
-    const conns = await this.ros.write('/ip/firewall/connection/print');
+    const raw = await this.ros.write('/ip/firewall/connection/print');
+    const totalRaw = (raw || []).length;
+    // When capped, connections beyond maxConns are not processed — their
+    // destination IPs will be missing from destGeo, so top destinations
+    // that only appear in the truncated portion will lack country/city data.
+    const conns = totalRaw > this.maxConns ? raw.slice(0, this.maxConns) : (raw || []);
     const srcCounts = new Map();
     const dstCounts = new Map();
     const curIds    = new Set();
@@ -56,6 +63,7 @@ class ConnectionsCollector {
     const countryProto = new Map();
     const countryCity  = new Map();
     const portCounts   = new Map();
+    const destGeo      = new Map();
 
     for (const c of (conns || [])) {
       const id  = c['.id'];
@@ -84,6 +92,7 @@ class ConnectionsCollector {
           const geo = geoip.lookup(ip);
           if (geo && geo.country) {
             const cc = geo.country;
+            destGeo.set(ip, { country: geo.country || '', city: geo.city || '' });
             if (!countryCity.has(cc)) countryCity.set(cc, geo.city || '');
             const cp = countryProto.get(cc) || { tcp:0, udp:0, other:0 };
             if (p === 'tcp') cp.tcp++; else if (p === 'udp') cp.udp++; else cp.other++;
@@ -105,11 +114,9 @@ class ConnectionsCollector {
       .sort((a, b) => b[1] - a[1]).slice(0, this.topN)
       .map(([key, count]) => {
         const ip = extractAddress(key);
-        let country = '', city = '';
-        if (geoip && isValidIp(ip)) {
-          const geo = geoip.lookup(ip);
-          if (geo) { country = geo.country || ''; city = geo.city || ''; }
-        }
+        const geo = destGeo.get(ip) || { country: '', city: '' };
+        const country = geo.country;
+        const city = geo.city;
         const proto = country ? (countryProto.get(country) || {}) : {};
         return { key, count, country, city, proto };
       });
@@ -127,7 +134,7 @@ class ConnectionsCollector {
       .map(([port,count]) => ({ port, count }));
 
     this.io.emit('conn:update', {
-      ts: Date.now(), total: (conns || []).length, newSinceLast,
+      ts: Date.now(), total: totalRaw, processed: conns.length, processingCapped: totalRaw > this.maxConns, newSinceLast,
       protoCounts, topSources, topDestinations, topCountries, topPorts,
     });
     this.state.lastConnsTs = Date.now();
@@ -136,13 +143,15 @@ class ConnectionsCollector {
 
   start() {
     const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
       try { await this.tick(); } catch (e) {
         const msg = String(e && e.message ? e.message : e);
         // RouterOS races: connections expire between list and fetch — not a real error
         if (msg.includes('no such item')) return;
         this.state.lastConnsErr = msg;
         console.error('[connections]', this.state.lastConnsErr);
-      }
+      } finally { this._inflight = false; }
     };
     run();
     this.timer = setInterval(run, this.pollMs);

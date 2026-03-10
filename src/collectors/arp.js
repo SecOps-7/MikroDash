@@ -6,6 +6,7 @@ class ArpCollector {
     this.byIP = new Map();
     this.byMAC = new Map();
     this.timer = null;
+    this._inflight = false;
   }
 
   getByIP(ip)   { return this.byIP.get(ip); }
@@ -29,7 +30,12 @@ class ArpCollector {
   }
 
   start() {
-    const run = async () => { try { await this.tick(); } catch (e) { console.error('[arp]', e && e.message ? e.message : e); } };
+    const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
+      try { await this.tick(); } catch (e) { console.error('[arp]', e && e.message ? e.message : e); }
+      finally { this._inflight = false; }
+    };
     run();
     this.timer = setInterval(run, this.pollMs);
     this.ros.on('close', () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });

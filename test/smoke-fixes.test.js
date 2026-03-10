@@ -75,6 +75,38 @@ test('basic auth middleware rate limits repeated failures', () => {
   assert.ok(third.headers['Retry-After']);
 });
 
+test('basic auth middleware evicts the oldest tracked IP when the failure map exceeds the cap', () => {
+  const middleware = createBasicAuthMiddleware({
+    username: 'admin',
+    password: 'secret',
+    maxFailures: 1,
+    blockMs: 60_000,
+    maxTrackedIPs: 2,
+  });
+  const makeReq = (ip, auth) => ({
+    headers: auth ? { authorization: auth } : {},
+    socket: { remoteAddress: ip },
+  });
+  const makeRes = () => ({
+    headers: {},
+    setHeader(name, value) { this.headers[name] = value; },
+    end(body) { this.body = body; },
+  });
+
+  middleware(makeReq('10.0.0.1'), makeRes(), () => assert.fail('ip1 should not authorize'));
+  middleware(makeReq('10.0.0.2'), makeRes(), () => assert.fail('ip2 should not authorize'));
+  middleware(makeReq('10.0.0.3'), makeRes(), () => assert.fail('ip3 should not authorize'));
+
+  let authorized = false;
+  middleware(
+    makeReq('10.0.0.1', 'Basic ' + Buffer.from('admin:secret').toString('base64')),
+    makeRes(),
+    () => { authorized = true; }
+  );
+
+  assert.equal(authorized, true);
+});
+
 test('traffic collector ignores invalid interface selections and prunes unused polls', () => {
   const io = { to() { return { emit() {} }; }, emit() {} };
   const ros = { connected: true, on() {} };
