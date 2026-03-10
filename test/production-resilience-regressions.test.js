@@ -9,12 +9,16 @@ const ConnectionsCollector = require('../src/collectors/connections');
 test('frontend assets are self-hosted and avoid inline script handlers', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const tabler = fs.readFileSync(path.join(__dirname, '..', 'public', 'vendor', 'tabler.min.css'), 'utf8');
 
   assert.doesNotMatch(html, /https:\/\/cdn\.jsdelivr\.net/);
   assert.doesNotMatch(html, /https:\/\/unpkg\.com/);
   assert.doesNotMatch(html, /https:\/\/fonts\.googleapis\.com/);
   assert.doesNotMatch(app, /https:\/\/cdn\.jsdelivr\.net/);
   assert.doesNotMatch(html, /\sonerror=/i);
+  assert.doesNotMatch(html, /src="logo\.png"/);
+  assert.match(html, /<img src="\/logo\.png"/);
+  assert.doesNotMatch(tabler, /sourceMappingURL=tabler\.min\.css\.map/);
 });
 
 test('buildHelmetOptions uses a self-hosted CSP policy', () => {
