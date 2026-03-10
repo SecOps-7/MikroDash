@@ -60,7 +60,7 @@ const authLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: () => !authEnabled,
+  skip: (req) => !authEnabled || req.path === '/healthz',
 });
 const basicAuth = createBasicAuthMiddleware({
   username: process.env.BASIC_AUTH_USER,
@@ -305,9 +305,14 @@ const PORT = parseInt(process.env.PORT || '3081', 10);
 server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
+const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping];
+
 function shutdown(signal) {
   console.log(`[MikroDash] ${signal} received, shutting down…`);
   startupReady = false;
+  for (const c of allCollectors) {
+    if (c.timer) { clearInterval(c.timer); c.timer = null; }
+  }
   ros.stop();
   io.close();
   server.close(() => {
