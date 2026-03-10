@@ -228,3 +228,23 @@ setInterval(() => {
 
 const PORT = parseInt(process.env.PORT || '3081', 10);
 server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
+
+// ── Graceful shutdown ──────────────────────────────────────────────────────
+function shutdown(signal) {
+  console.log(`[MikroDash] ${signal} received, shutting down…`);
+  ros.stop();
+  io.close();
+  server.close(() => {
+    console.log('[MikroDash] HTTP server closed');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.error('[MikroDash] Forceful shutdown after timeout');
+    process.exit(1);
+  }, 5000);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
+process.on('unhandledRejection', (err) => {
+  console.error('[MikroDash] unhandledRejection:', err);
+});
