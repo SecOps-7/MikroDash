@@ -37,7 +37,11 @@ const TRUSTED_PROXY = process.env.TRUSTED_PROXY;
 if (TRUSTED_PROXY) app.set('trust proxy', TRUSTED_PROXY);
 
 const server = http.createServer(app);
-const io = new Server(server);
+const MAX_SOCKETS = parseInt(process.env.MAX_SOCKETS || '50', 10);
+const io = new Server(server, {
+  maxHttpBufferSize: 1e6,
+  connectTimeout: 10000,
+});
 const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);
 const authLimiter = rateLimit({
   windowMs: 60_000,
@@ -230,6 +234,11 @@ async function sendInitialState(socket) {
 }
 
 io.on('connection', (socket) => {
+  if (io.engine.clientsCount > MAX_SOCKETS) {
+    console.warn('[MikroDash] connection rejected — max sockets reached:', MAX_SOCKETS);
+    socket.disconnect(true);
+    return;
+  }
   traffic.bindSocket(socket);
   sendInitialState(socket).catch(() => {});
 });
