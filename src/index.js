@@ -242,6 +242,7 @@ async function sendInitialState(socket) {
   if (pingData.history.length) socket.emit('ping:history', pingData);
 }
 
+// Post-accept check: brief spikes above MAX_SOCKETS are possible but acceptable for a dashboard workload.
 io.on('connection', (socket) => {
   if (io.engine.clientsCount > MAX_SOCKETS) {
     console.warn('[MikroDash] connection rejected — max sockets reached:', MAX_SOCKETS);

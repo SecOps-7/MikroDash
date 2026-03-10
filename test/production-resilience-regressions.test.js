@@ -36,10 +36,9 @@ test('buildHelmetOptions uses a self-hosted CSP policy', () => {
 
 test('computeHealthStatus reports readiness from startup and connectivity, not traffic freshness', () => {
   const { computeHealthStatus } = require('../src/health');
-  const now = Date.now();
 
+  // state is passed intentionally — proves traffic freshness doesn't influence health
   const ready = computeHealthStatus({
-    now,
     startupReady: true,
     rosConnected: true,
     state: { lastTrafficTs: 0 },
@@ -48,19 +47,17 @@ test('computeHealthStatus reports readiness from startup and connectivity, not t
   assert.equal(ready.statusCode, 200);
 
   const booting = computeHealthStatus({
-    now,
     startupReady: false,
     rosConnected: true,
-    state: { lastTrafficTs: now },
+    state: { lastTrafficTs: Date.now() },
   });
   assert.equal(booting.ok, false);
   assert.equal(booting.statusCode, 503);
 
   const disconnected = computeHealthStatus({
-    now,
     startupReady: true,
     rosConnected: false,
-    state: { lastTrafficTs: now },
+    state: { lastTrafficTs: Date.now() },
   });
   assert.equal(disconnected.ok, false);
   assert.equal(disconnected.statusCode, 503);
