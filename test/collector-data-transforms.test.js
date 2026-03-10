@@ -562,3 +562,285 @@ test('talkers collector prunes stale devices', async () => {
   await collector.tick();
   assert.ok(!collector.prev.has('CC:DD'), 'stale device CC:DD should be pruned');
 });
+
+// --- VPN Collector ---
+const VpnCollector = require('../src/collectors/vpn');
+
+test('vpn collector resolves peer name with fallback chain', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { 'public-key': 'AAAA', name: 'myphone', comment: 'backup', 'allowed-address': '10.0.0.2/32', 'last-handshake': '1m30s', 'rx-bytes': '0', 'tx-bytes': '0' },
+      { 'public-key': 'BBBB', name: '', comment: 'server', 'allowed-address': '10.0.0.3/32', 'last-handshake': 'never', 'rx-bytes': '0', 'tx-bytes': '0' },
+      { 'public-key': 'CCCC', name: '', comment: '', 'allowed-address': '10.0.0.4/32', 'last-handshake': '', 'rx-bytes': '0', 'tx-bytes': '0' },
+      { 'public-key': 'DDDDEEEEFFFFGGGG1234567890', name: '', comment: '', 'allowed-address': '', 'last-handshake': '5s', 'rx-bytes': '0', 'tx-bytes': '0' },
+      { 'last-handshake': '10s', 'rx-bytes': '0', 'tx-bytes': '0' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector.tick();
+
+  const t = emitted[0].data.tunnels;
+  assert.equal(t[0].name, 'myphone');
+  assert.equal(t[1].name, 'server');
+  assert.equal(t[2].name, '10.0.0.4/32');
+  assert.equal(t[3].name, 'DDDDEEEEFFFFGGGG' + '\u2026');
+  assert.equal(t[4].name, '?');
+});
+
+test('vpn collector detects connected vs idle state', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { 'public-key': 'A', 'last-handshake': '30s', 'rx-bytes': '0', 'tx-bytes': '0' },
+      { 'public-key': 'B', 'last-handshake': 'never', 'rx-bytes': '0', 'tx-bytes': '0' },
+      { 'public-key': 'C', 'last-handshake': '', 'rx-bytes': '0', 'tx-bytes': '0' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector.tick();
+
+  const t = emitted[0].data.tunnels;
+  assert.equal(t[0].state, 'connected');
+  assert.equal(t[1].state, 'idle');
+  assert.equal(t[2].state, 'idle');
+});
+
+// --- Wireless Collector ---
+const WirelessCollector = require('../src/collectors/wireless');
+
+test('wireless collector detects band from interface name and tx-rate', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    cfg: {},
+    write: async () => [
+      { 'mac-address': 'AA:BB', interface: 'wifi1', 'tx-rate': '', signal: '-50' },
+      { 'mac-address': 'CC:DD', interface: 'wifi3', 'tx-rate': '', signal: '-60' },
+      { 'mac-address': 'EE:FF', interface: 'wlan0', 'tx-rate': '54Mbps', signal: '-70' },
+      { 'mac-address': '11:22', interface: 'wlan0', 'tx-rate': 'HE-MCS 11 80MHz', signal: '-55' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new WirelessCollector({
+    ros, io, pollMs: 5000, state: {},
+    dhcpLeases: { getNameByMAC: () => null },
+    arp: { getByMAC: () => null },
+  });
+  await collector.tick();
+
+  const clients = emitted[0].data.clients;
+  const byMac = Object.fromEntries(clients.map(c => [c.mac, c]));
+  assert.equal(byMac['AA:BB'].band, '5GHz');
+  assert.equal(byMac['CC:DD'].band, '6GHz');
+  assert.equal(byMac['EE:FF'].band, '2.4GHz');
+  assert.equal(byMac['11:22'].band, '5GHz');
+});
+
+test('wireless collector sorts clients by signal strength descending', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    cfg: {},
+    write: async () => [
+      { 'mac-address': 'AA:BB', signal: '-70', interface: 'wifi1' },
+      { 'mac-address': 'CC:DD', signal: '-40', interface: 'wifi1' },
+      { 'mac-address': 'EE:FF', signal: '-55', interface: 'wifi1' },
+    ],
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new WirelessCollector({
+    ros, io, pollMs: 5000, state: {},
+    dhcpLeases: { getNameByMAC: () => null },
+    arp: { getByMAC: () => null },
+  });
+  await collector.tick();
+
+  const macs = emitted[0].data.clients.map(c => c.mac);
+  assert.deepEqual(macs, ['CC:DD', 'EE:FF', 'AA:BB']);
+});
+
+// --- Logs Collector ---
+const LogsCollector = require('../src/collectors/logs');
+
+test('logs collector classifies severity from topics', () => {
+  const collector = new LogsCollector({ ros: {}, io: {}, state: {} });
+  assert.equal(collector._classify('system,error'), 'error');
+  assert.equal(collector._classify('system,critical'), 'error');
+  assert.equal(collector._classify('firewall,warning'), 'warning');
+  assert.equal(collector._classify('system,debug'), 'debug');
+  assert.equal(collector._classify('system,info'), 'info');
+  assert.equal(collector._classify('dhcp'), 'info');
+  assert.equal(collector._classify(''), 'info');
+});
+
+test('logs collector emits entry with severity and drops empty messages', () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new LogsCollector({ ros: {}, io, state: {} });
+
+  collector._onEntry(null, { message: 'test log', topics: 'system,error', time: '12:00:00' });
+  assert.equal(emitted.length, 1);
+  assert.equal(emitted[0].ev, 'logs:new');
+  assert.equal(emitted[0].data.severity, 'error');
+  assert.equal(emitted[0].data.message, 'test log');
+
+  collector._onEntry(null, { topics: 'system' });
+  assert.equal(emitted.length, 1);
+  collector._onEntry(null, null);
+  assert.equal(emitted.length, 1);
+});
+
+// --- DHCP Leases Collector ---
+const DhcpLeasesCollector = require('../src/collectors/dhcpLeases');
+
+test('dhcp leases collector resolves name with comment > hostname > empty fallback', () => {
+  const collector = new DhcpLeasesCollector({ ros: {}, io: { emit() {} }, pollMs: 15000, state: {} });
+
+  collector._applyLease({ address: '192.168.1.10', 'mac-address': 'AA:BB', comment: '  MyLaptop  ', 'host-name': 'generic-host' });
+  assert.equal(collector.getNameByIP('192.168.1.10').name, 'MyLaptop');
+
+  collector._applyLease({ address: '192.168.1.11', 'mac-address': 'CC:DD', comment: '', 'host-name': 'phone' });
+  assert.equal(collector.getNameByIP('192.168.1.11').name, 'phone');
+
+  collector._applyLease({ address: '192.168.1.12', 'mac-address': 'EE:FF', comment: '   ', 'host-name': '  ' });
+  assert.equal(collector.getNameByIP('192.168.1.12').name, '');
+});
+
+test('dhcp leases collector filters active leases by status', () => {
+  const collector = new DhcpLeasesCollector({ ros: {}, io: { emit() {} }, pollMs: 15000, state: {} });
+  collector._applyLease({ address: '192.168.1.1', 'mac-address': 'A1', status: 'bound' });
+  collector._applyLease({ address: '192.168.1.2', 'mac-address': 'A2', status: 'offered' });
+  collector._applyLease({ address: '192.168.1.3', 'mac-address': 'A3', status: '' });
+  collector._applyLease({ address: '192.168.1.4', 'mac-address': 'A4', status: 'expired' });
+
+  const active = collector.getActiveLeaseIPs();
+  assert.ok(active.includes('192.168.1.1'));
+  assert.ok(active.includes('192.168.1.2'));
+  assert.ok(active.includes('192.168.1.3'));
+  assert.ok(!active.includes('192.168.1.4'));
+});
+
+// --- Interface Status Collector ---
+const InterfaceStatusCollector = require('../src/collectors/interfaceStatus');
+
+test('interface status collector normalizes booleans and computes Mbps', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('interface')) return [
+        { name: 'ether1', type: 'ether', running: 'true', disabled: 'false', 'rx-byte': '1000000', 'tx-byte': '500000', 'rx-bits-per-second': '15000000', 'tx-bits-per-second': '8500000' },
+        { name: 'ether2', type: 'ether', running: true, disabled: false, 'rx-bits-per-second': '0', 'tx-bits-per-second': '0' },
+      ];
+      if (cmd.includes('address')) return [
+        { interface: 'ether1', address: '192.168.1.1/24' },
+        { interface: 'ether1', address: '10.0.0.1/24' },
+      ];
+      return [];
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
+  await collector.tick();
+
+  const ifaces = emitted[0].data.interfaces;
+  assert.equal(ifaces[0].running, true);
+  assert.equal(ifaces[0].disabled, false);
+  assert.equal(ifaces[0].rxMbps, 15);
+  assert.equal(ifaces[0].txMbps, 8.5);
+  assert.deepEqual(ifaces[0].ips, ['192.168.1.1/24', '10.0.0.1/24']);
+  assert.equal(ifaces[1].running, true);
+  assert.equal(ifaces[1].rxMbps, 0);
+});
+
+// --- ARP Collector ---
+const ArpCollector = require('../src/collectors/arp');
+
+test('arp collector builds bidirectional lookup maps and skips incomplete entries', async () => {
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => [
+      { address: '192.168.1.10', 'mac-address': 'AA:BB:CC:DD:EE:FF', interface: 'bridge' },
+      { address: '192.168.1.11' },
+      { 'mac-address': 'CC:DD:EE:FF:00:11' },
+      { address: '192.168.1.12', 'mac-address': '11:22:33:44:55:66' },
+    ],
+  };
+  const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
+  await collector.tick();
+
+  const byIp = collector.getByIP('192.168.1.10');
+  assert.equal(byIp.mac, 'AA:BB:CC:DD:EE:FF');
+  assert.equal(byIp.iface, 'bridge');
+
+  const byMac = collector.getByMAC('AA:BB:CC:DD:EE:FF');
+  assert.equal(byMac.ip, '192.168.1.10');
+
+  assert.equal(collector.getByIP('192.168.1.11'), undefined);
+  assert.equal(collector.getByMAC('CC:DD:EE:FF:00:11'), null);
+  assert.equal(collector.getByIP('192.168.1.12').mac, '11:22:33:44:55:66');
+});
+
+// --- DHCP Networks Collector ---
+const DhcpNetworksCollector = require('../src/collectors/dhcpNetworks');
+
+test('dhcp networks collector counts leases per CIDR and extracts WAN IP', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('network')) return [
+        { address: '192.168.1.0/24', gateway: '192.168.1.1', 'dns-server': '1.1.1.1' },
+        { address: '10.0.0.0/24', gateway: '10.0.0.1' },
+      ];
+      if (cmd.includes('address')) return [
+        { interface: 'WAN1', address: '203.0.113.5/30' },
+        { interface: 'bridge', address: '192.168.1.1/24' },
+      ];
+      return [];
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const leases = {
+    getActiveLeaseIPs: () => ['192.168.1.10', '192.168.1.11', '10.0.0.5'],
+  };
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: leases, state: {}, wanIface: 'WAN1' });
+  await collector.tick();
+
+  const d = emitted[0].data;
+  assert.deepEqual(d.lanCidrs, ['192.168.1.0/24', '10.0.0.0/24']);
+  assert.equal(d.wanIp, '203.0.113.5/30');
+  assert.equal(d.networks[0].leaseCount, 2);
+  assert.equal(d.networks[1].leaseCount, 1);
+});
+
+test('dhcp networks collector handles one query failing gracefully', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('network')) throw new Error('timeout');
+      if (cmd.includes('address')) return [{ interface: 'WAN1', address: '1.2.3.4/30' }];
+      return [];
+    },
+  };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [] }, state: {}, wanIface: 'WAN1' });
+  await collector.tick();
+
+  assert.equal(emitted[0].data.networks.length, 0);
+  assert.equal(emitted[0].data.wanIp, '1.2.3.4/30');
+});
