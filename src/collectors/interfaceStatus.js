@@ -1,3 +1,18 @@
+function parseCounter(val) {
+  const parsed = parseInt(val || '0', 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseBps(val) {
+  if (!val || val === '0') return 0;
+  const parsed = parseInt(String(val), 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function bpsToMbps(bps) {
+  return +((bps || 0) / 1_000_000).toFixed(4);
+}
+
 class InterfaceStatusCollector {
   constructor({ ros, io, pollMs, state }) {
     this.ros = ros; this.io = io; this.pollMs = pollMs || 5000;
@@ -25,20 +40,24 @@ class InterfaceStatusCollector {
     }
 
     const interfaces = ifaces.map(i => {
-      const rxBytes = parseInt(i["rx-byte"] || "0", 10);
-      const txBytes = parseInt(i["tx-byte"] || "0", 10);
+      const rxBytes = parseCounter(i['rx-byte']);
+      const txBytes = parseCounter(i['tx-byte']);
+      const rxBps = parseBps(i['rx-bits-per-second']);
+      const txBps = parseBps(i['tx-bits-per-second']);
 
-      // Derive live rate from cumulative byte counter delta
-      let rxMbps = 0, txMbps = 0;
+      // Prefer RouterOS live throughput fields when present; fall back to
+      // byte-counter deltas when those fields are unavailable.
+      let rxMbps = bpsToMbps(rxBps);
+      let txMbps = bpsToMbps(txBps);
       const prev = this._prev.get(i.name);
-      if (prev && now > prev.ts) {
+      if (rxMbps === 0 && txMbps === 0 && prev && now > prev.ts) {
         const elapsedSec = (now - prev.ts) / 1000;
         // Guard against counter resets (reboot) — if delta is negative, skip
         const rxDelta = rxBytes - prev.rxBytes;
         const txDelta = txBytes - prev.txBytes;
         if (rxDelta >= 0 && txDelta >= 0) {
-          rxMbps = +((rxDelta * 8) / elapsedSec / 1e6).toFixed(4);
-          txMbps = +((txDelta * 8) / elapsedSec / 1e6).toFixed(4);
+          rxMbps = bpsToMbps((rxDelta * 8) / elapsedSec);
+          txMbps = bpsToMbps((txDelta * 8) / elapsedSec);
         }
       }
       this._prev.set(i.name, { rxBytes, txBytes, ts: now });
