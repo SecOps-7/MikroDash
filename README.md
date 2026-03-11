@@ -160,20 +160,28 @@ To use API-SSL (TLS) instead, enable the ssl service and set `ROUTER_TLS=true` i
 ## Environment Variables
 
 ```env
+# MikroDash Settings
 PORT=3081                    # HTTP port MikroDash listens on
+HISTORY_MINUTES=30           # Traffic chart history window
+ROS_WRITE_TIMEOUT_MS=30000   # Force reconnect if a RouterOS command exceeds this time
+MAX_SOCKETS=50               # Maximum concurrent Socket.IO clients
+
+
+# Optional HTTP Basic Auth
+BASIC_AUTH_USER=             # Optional dashboard HTTP Basic Auth username
+BASIC_AUTH_PASS=             # Optional dashboard HTTP Basic Auth password
+TRUSTED_PROXY=               # Proxy IP to trust X-Forwarded-For from (e.g. 127.0.0.1)
+
+
+# Router Details
 ROUTER_HOST=192.168.88.1     # RouterOS IP or hostname
 ROUTER_PORT=8728             # API port (8728 plain, 8729 TLS)
 ROUTER_TLS=false             # Set true to use API-SSL
 ROUTER_TLS_INSECURE=false    # Skip TLS cert verification (self-signed certs)
 ROUTER_USER=mikrodash        # API username
 ROUTER_PASS=change-me        # API password
-BASIC_AUTH_USER=             # Optional dashboard HTTP Basic Auth username
-BASIC_AUTH_PASS=             # Optional dashboard HTTP Basic Auth password
-TRUSTED_PROXY=               # Proxy IP to trust X-Forwarded-For from (e.g. 127.0.0.1)
 DEFAULT_IF=ether1            # Default interface shown in traffic chart
-HISTORY_MINUTES=30           # Traffic chart history window
-ROS_WRITE_TIMEOUT_MS=30000   # Force reconnect if a RouterOS command exceeds this time
-MAX_SOCKETS=50               # Maximum concurrent Socket.IO clients
+
 
 # Polling intervals (ms)
 CONNS_POLL_MS=3000
@@ -188,11 +196,13 @@ FIREWALL_POLL_MS=10000
 IFSTATUS_POLL_MS=5000
 PING_POLL_MS=10000
 
+
 # Ping target for latency monitor
 PING_TARGET=1.1.1.1
 
+
 # Top-N limits
-TOP_N=10
+TOP_N=5
 TOP_TALKERS_N=5
 FIREWALL_TOP_N=15
 MAX_CONNS=20000             # Maximum connection-table rows processed per tick
