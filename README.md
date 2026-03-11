@@ -137,6 +137,8 @@ docker compose up -d
 
 Source builds require the bundled `node-routeros` compatibility patch. If startup reports a missing patch marker, run `node patch-routeros.js` again before launching MikroDash.
 
+For a production-style deployment on an external Docker host such as an R5S that connects to a MikroTik hEX S over the RouterOS API, see `docs/deploy-r5s.md` and the ready-to-copy files in `deploy/r5s/`.
+
 ---
 
 ## RouterOS Setup
