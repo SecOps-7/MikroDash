@@ -47,12 +47,12 @@ class WirelessCollector {
       const signal = parseInt(c.signal || c['signal-strength'] || c['rx-signal'] || '0', 10);
       const iface  = c.interface || c['ap-interface'] || '';
       const txRate = c['tx-rate'] || c['tx-rate-set'] || '';
-      // Derive band from interface name or tx-rate string
+      // Band: read directly from the registration table 'band' field (same source as Winbox)
+      const rawBand = (c['band'] || '').toLowerCase();
       let band = '';
-      const ifLow = iface.toLowerCase(), txLow = txRate.toLowerCase();
-      if (/wifi[12]|wlan[12]|5g|5ghz|ax5/.test(ifLow) || /[MW]HT-[4-9]\d{2}|[MW]HT-[1-9]\d{3}|HE-MCS/.test(txRate)) band = '5GHz';
-      else if (/wifi[34]|6g|6ghz|ax6/.test(ifLow)) band = '6GHz';
-      else if (txRate) band = '2.4GHz';
+      if      (rawBand.includes('6'))  band = '6GHz';
+      else if (rawBand.includes('5'))  band = '5GHz';
+      else if (rawBand.includes('2'))  band = '2.4GHz';
       // IP from ARP reverse lookup
       const arpEntry = this.arp ? this.arp.getByMAC(mac) : null;
       const ip = arpEntry ? arpEntry.ip : '';

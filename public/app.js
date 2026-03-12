@@ -268,6 +268,10 @@ function renderProtoBars(pc){
       '<div class="proto-val">'+it.v+'</div></div>';
   }).join('');
 }
+function svcBadge(org, cat){
+  if(!org) return '';
+  return '<span class="svc-badge svc-'+(cat||'other')+'">'+esc(org)+'</span>';
+}
 socket.on('conn:update',function(data){
   connTotal.textContent=data.total;
   var connNavBadge=$("connNavBadge"); if(connNavBadge) connNavBadge.textContent=data.total;
@@ -288,7 +292,14 @@ socket.on('conn:update',function(data){
         geoLabel=flag+(d.city?' '+esc(d.city)+' · '+esc(d.country):'');
       }
       return'<div class="top-row">'+
-        '<div class="top-name text-truncate" style="flex:1;min-width:0">'+esc(d.key)+'</div>'+
+        '<div style="flex:1;min-width:0;overflow:hidden">'+
+          '<div style="display:flex;align-items:center;gap:0;overflow:hidden">'+
+            '<span class="top-name text-truncate has-ip-tip" data-ip="'+esc(d.key)+
+              '" data-org="'+(d.org?esc(d.org):'')+
+              '" data-cat="'+(d.cat||'')+'">'+ esc(d.key)+'</span>'+
+            (d.org?svcBadge(d.org,d.cat):'')+
+          '</div>'+
+        '</div>'+
         (geoLabel?'<div class="top-geo">'+geoLabel+'</div>':'')+
         '<div class="top-count">'+d.count+'</div>'+
       '</div>';
@@ -299,7 +310,6 @@ socket.on('conn:update',function(data){
 // ── Top Talkers ────────────────────────────────────────────────────────────
 socket.on('talkers:update',function(data){
   var devices=data.devices||[];
-  var ndWired=$('ndWiredCount');if(ndWired)ndWired.textContent=devices.length;
   if(!devices.length){if(lastTalkers)return;talkersTable.innerHTML='<tr><td colspan="4" class="empty-state">No devices</td></tr>';return;}
   lastTalkers=devices;
   talkersTable.innerHTML=devices.map(function(d){
@@ -328,6 +338,8 @@ socket.on('ifstatus:update',function(data){
   var ifaces=data.interfaces||[];
   var nb=$('ifacesNavBadge');if(nb){nb.textContent=ifaces.length||'';}
   if(ifaceCount){ifaceCount.textContent=ifaces.length;ifaceCount.className='card-badge'+(ifaces.length>0?' active-blue':'');}
+  var wiredUp=ifaces.filter(function(i){return i.running&&!i.disabled&&i.type==='ether';});
+  var ndWired=$('ndWiredCount');if(ndWired)ndWired.textContent=wiredUp.length;
   if(!ifaces.length){if(ifaceGrid)ifaceGrid.innerHTML='<div class="empty-state">No interfaces</div>';return;}
   if(!ifaceGrid)return;
 
@@ -466,6 +478,13 @@ socket.on('ifstatus:update',function(data){
     var ndWC=$('ndWirelessCount'); if(ndWC) ndWC.textContent=_wlClients.length;
     wirelessTabBadge.textContent=_wlClients.length; wirelessTabBadge.className='card-badge'+(_wlClients.length>0?' active-blue':'');
     wirelessNavBadge.textContent=_wlClients.length;
+    // Per-band counts
+    var b24=0,b5=0,b6=0;
+    _wlClients.forEach(function(c){ if(c.band==='2.4GHz')b24++; else if(c.band==='5GHz')b5++; else if(c.band==='6GHz')b6++; });
+    var el24=$('wlBand24'),el5=$('wlBand5'),el6=$('wlBand6');
+    if(el24) el24.textContent='2.4GHz: '+b24;
+    if(el5)  el5.textContent='5GHz: '+b5;
+    if(el6){ el6.textContent='6GHz: '+b6; el6.style.display=b6>0?'':'none'; }
     renderWireless();
   });
 
@@ -583,13 +602,29 @@ function renderFirewallTab(){
 
 // ── Logs ───────────────────────────────────────────────────────────────────
 var logBuffer=[],MAX_LOG_LINES=2000;
+var logCountEls={
+  error:$('logCountError'), warning:$('logCountWarning'),
+  info:$('logCountInfo'),   debug:$('logCountDebug')
+};
+function updateLogCounts(){
+  var counts={error:0,warning:0,info:0,debug:0};
+  logBuffer.forEach(function(e){if(counts[e.severity]!==undefined)counts[e.severity]++;});
+  Object.keys(counts).forEach(function(sev){
+    var el=logCountEls[sev];
+    if(!el) return;
+    var n=counts[sev];
+    el.textContent=n+' '+(sev==='error'&&n!==1?'errors':sev==='warning'&&n!==1?'warnings':sev);
+  });
+}
 function topicClass(t){t=String(t).toLowerCase();if(t.includes('firewall')||t.includes('forward'))return'log-firewall';if(t.includes('dhcp'))return'log-dhcp';if(t.includes('wireless')||t.includes('wifi')||t.includes('wlan'))return'log-wireless';if(t.includes('system'))return'log-system';return'log-topic';}
+updateLogCounts(); // initialise badge labels to "0 …" immediately
 function sevClass(s){return s==='error'?'log-error':s==='warning'?'log-warning':s==='debug'?'log-debug':'log-info';}
 function buildLogHtml(l){return'<div class="log-line"><span class="log-time">'+esc(l.time)+'</span> <span class="'+topicClass(l.topics)+'">['+esc(l.topics)+']</span> <span class="'+sevClass(l.severity)+'">'+esc(l.message)+'</span></div>';}
 function flushLogs(){
   var f=logBuffer.filter(function(e){if(logLevel&&e.severity!==logLevel)return false;if(logFilter&&e.text.indexOf(logFilter)===-1)return false;return true;});
   logsEl.innerHTML=f.map(function(e){return e.html;}).join('');
   if(autoScroll)logsEl.scrollTop=logsEl.scrollHeight;
+  updateLogCounts();
 }
 // Batch replay of buffered log history on connect/reconnect (survives page refresh)
 socket.on('logs:history',function(lines){
@@ -607,6 +642,7 @@ socket.on('logs:new',function(line){
   var entry={html:html,severity:line.severity,text:text};
   logBuffer.push(entry);
   if(logBuffer.length>MAX_LOG_LINES)logBuffer.shift();
+  updateLogCounts();
   if(logLevel&&entry.severity!==logLevel)return;
   if(logFilter&&text.indexOf(logFilter)===-1)return;
   logsEl.insertAdjacentHTML('beforeend',html);
@@ -614,9 +650,19 @@ socket.on('logs:new',function(line){
   if(autoScroll)logsEl.scrollTop=logsEl.scrollHeight;
 });
 logSearch.addEventListener('input',function(){logFilter=(logSearch.value||'').trim().toLowerCase();flushLogs();});
-logSeverity.addEventListener('change',function(){logLevel=logSeverity.value;flushLogs();});
+logSeverity.addEventListener('change',function(){logLevel=logSeverity.value;Object.keys(logCountEls).forEach(function(s){if(logCountEls[s])logCountEls[s].classList.toggle('active',s===logLevel);});flushLogs();});
 toggleScroll.addEventListener('click',function(){autoScroll=!autoScroll;toggleScroll.textContent=autoScroll?'Pause':'Resume';});
-clearLogs.addEventListener('click',function(){logBuffer=[];logsEl.innerHTML='';});
+clearLogs.addEventListener('click',function(){logBuffer=[];logsEl.innerHTML='';updateLogCounts();});
+// Badge click → toggle severity filter
+Object.keys(logCountEls).forEach(function(sev){
+  var el=logCountEls[sev]; if(!el) return;
+  el.addEventListener('click',function(){
+    if(logLevel===sev){ logLevel=''; logSeverity.value=''; }
+    else { logLevel=sev; logSeverity.value=sev; }
+    Object.keys(logCountEls).forEach(function(s){ if(logCountEls[s]) logCountEls[s].classList.toggle('active',s===logLevel); });
+    flushLogs();
+  });
+});;
 
 // ── Interface + window selectors ───────────────────────────────────────────
 socket.on('interfaces:list',function(data){
@@ -772,6 +818,7 @@ function renderPingUI(rtt, loss){
 }
 socket.on('ping:history',function(data){
   pingHistory=(data.history||[]).slice(-MAX_PING_HIST);
+  var lbl=$('pingTargetLabel'); if(lbl&&data.target) lbl.textContent=data.target;
   if(pingHistory.length){
     var last=pingHistory[pingHistory.length-1];
     renderPingUI(last.rtt, last.loss);
@@ -779,6 +826,7 @@ socket.on('ping:history',function(data){
 });
 socket.on('ping:update',function(data){
   var rtt=data.rtt, loss=data.loss;
+  var lbl=$('pingTargetLabel'); if(lbl&&data.target) lbl.textContent=data.target;
   pingHistory.push({ts:data.ts||Date.now(), rtt:rtt, loss:loss});
   if(pingHistory.length>MAX_PING_HIST)pingHistory.shift();
   renderPingUI(rtt, loss);
@@ -816,7 +864,7 @@ function updateNotifBtn(){
   var sz = 'width="16" height="16"';
   btn.innerHTML = _notifEnabled
     ? '<svg '+sz+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
-    : '<svg '+sz+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    : '<svg '+sz+' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
   btn.style.color = _notifEnabled ? 'var(--accent-rx)' : 'var(--text-main)';
   btn.style.opacity = _notifEnabled ? '1' : '0.4';
 }
@@ -1294,13 +1342,18 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       return '<div class="conn-map-row'+(sel?' selected':'')+'" data-cc="'+e.cc+'">'+
         '<span class="conn-map-flag">'+flag+'</span>'+
         '<div style="flex:1;min-width:0">'+
-          '<div class="conn-map-label">'+(CC_NAMES[e.cc]||e.cc)+(e.city?' <span class="conn-map-label-sub">'+esc(e.city)+'</span>':'')+'</div>'+
+          '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">'+
+            '<div class="conn-map-label" style="min-width:0">'+(CC_NAMES[e.cc]||e.cc)+(e.city?' <span class="conn-map-label-sub">'+esc(e.city)+'</span>':'')+'</div>'+
+            (spark?'<div style="flex-shrink:0">'+spark+'</div>':'')+
+          '</div>'+
+          (e.orgs&&e.orgs.length?'<div class="svc-sub-rows">'+e.orgs.map(function(o){
+            return'<span class="svc-sub-row">'+svcBadge(o.org,o.cat)+'<span class="svc-sub-count">'+o.count+'</span></span>';
+          }).join('')+'</div>':'')+
           '<div class="conn-proto-bar">'+
             '<div class="conn-proto-tcp" style="flex:'+tcpPct+'"></div>'+
             '<div class="conn-proto-udp" style="flex:'+udpPct+'"></div>'+
             '<div class="conn-proto-other" style="flex:'+othPct+'"></div>'+
           '</div>'+
-          spark+
         '</div>'+
         '<span class="conn-map-count">'+e.count+'</span>'+
       '</div>';
@@ -1608,6 +1661,212 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   });
 })();
 
+
+// ── Sankey: Connection Flow (Sources → Destinations) ─────────────────────────
+(function(){
+  var svgEl   = $('sankeySvg');
+  var emptyEl = $('sankeyEmpty');
+  if(!svgEl) return;
+
+  var NS = 'http://www.w3.org/2000/svg';
+
+  // Category colour map (matches svc-badge palette, semi-transparent for links)
+  var CAT_COLOUR = {
+    cdn:       '#38bdf8',  // sky blue
+    cloud:     '#fb923c',  // orange
+    social:    '#c084fc',  // purple
+    streaming: '#ec4899',  // pink
+    messaging: '#34d399',  // emerald
+    video:     '#fbbf24',  // amber
+    dns:       '#2dd4bf',  // teal
+    other:     '#6382be',
+  };
+  // A palette for source nodes (LAN hosts)
+  var SRC_COLOURS = ['#38bdf8','#818cf8','#a78bfa','#67e8f9','#93c5fd','#6ee7b7'];
+
+  function nodeColour(node, idx){
+    if(node.side==='dst') return CAT_COLOUR[node.cat||'other']||CAT_COLOUR.other;
+    return SRC_COLOURS[idx % SRC_COLOURS.length];
+  }
+
+  function svgEl_(tag, attrs){
+    var el=document.createElementNS(NS,tag);
+    Object.keys(attrs).forEach(function(k){ el.setAttribute(k,attrs[k]); });
+    return el;
+  }
+
+  // Build a cubic bezier path between two horizontal points
+  function linkPath(x0,y0,x1,y1,w0,w1){
+    var mx=(x0+x1)/2;
+    // Top and bottom curves of the ribbon
+    var ty0=y0, ty1=y1, by0=y0+w0, by1=y1+w1;
+    return 'M'+x0+','+ty0+
+      ' C'+mx+','+ty0+' '+mx+','+ty1+' '+x1+','+ty1+
+      ' L'+x1+','+by1+
+      ' C'+mx+','+by1+' '+mx+','+by0+' '+x0+','+by0+
+      ' Z';
+  }
+
+  function render(sources, destinations){
+    svgEl.innerHTML='';
+    var total=0;
+    sources.forEach(function(s){ total+=s.count; });
+    if(!total||!sources.length||!destinations.length){
+      emptyEl.style.display='block'; svgEl.style.display='none'; return;
+    }
+    emptyEl.style.display='none'; svgEl.style.display='block';
+
+    // Layout constants
+    var W=svgEl.parentElement.clientWidth||600;
+    if(W<200) W=600;
+    var NODE_W=12, GAP=6, PAD_X=110, PAD_Y=10;
+    var innerH=Math.max(260, sources.length*36+80);
+    var H=innerH+PAD_Y*2;
+    svgEl.setAttribute('viewBox','0 0 '+W+' '+H);
+    svgEl.setAttribute('height',H);
+
+    var srcX=PAD_X, dstX=W-PAD_X-NODE_W;
+    var drawH=H-PAD_Y*2;
+
+    // Scale: total connections → drawH (minus gaps)
+    var srcGapTotal=GAP*(sources.length-1);
+    var dstGapTotal=GAP*(destinations.length-1);
+    var srcScale=(drawH-srcGapTotal)/total;
+    var dstScale=(drawH-dstGapTotal)/total;
+
+    // Assign Y positions to source nodes
+    var srcNodes=[], y=PAD_Y;
+    sources.forEach(function(s,i){
+      var h=Math.max(4, s.count*srcScale);
+      srcNodes.push({id:s.ip||s.name, label:s.name||s.ip, count:s.count, x:srcX, y:y, h:h, side:'src', cursor:y});
+      y+=h+GAP;
+    });
+
+    // Aggregate destinations: use org label if present, else country, else IP
+    var dstMap={};
+    destinations.forEach(function(d){
+      var key=d.org||(d.country?('['+d.country+']'):(d.key||d.ip||'?'));
+      if(!dstMap[key]) dstMap[key]={label:key, count:0, cat:d.cat||'other'};
+      dstMap[key].count+=d.count;
+    });
+    var dstArr=Object.values(dstMap).sort(function(a,b){return b.count-a.count;}).slice(0,10);
+    // Re-scale dstArr to match source total
+    var dstTotal=0; dstArr.forEach(function(d){dstTotal+=d.count;});
+    var dstNodes=[], dy=PAD_Y;
+    dstArr.forEach(function(d,i){
+      var h=Math.max(4,(d.count/dstTotal)*total*dstScale);
+      dstNodes.push({label:d.label, count:d.count, cat:d.cat, x:dstX, y:dy, h:h, side:'dst', cursor:dy});
+      dy+=h+GAP;
+    });
+
+    // Build src→dst flows.
+    // We don't have an exact src×dst cross-matrix from the server, so we
+    // distribute each source's bar proportionally across destinations by
+    // destination weight, and vice-versa.
+    //   src-side ribbon width = fraction of src node height  = src.h * (dst.count/dstTotal)
+    //   dst-side ribbon width = fraction of dst node height  = dst.h * (src.count/srcSum)
+    var links=[];
+    var srcSum=0; srcNodes.forEach(function(s){srcSum+=s.count;});
+    srcNodes.forEach(function(src){
+      dstNodes.forEach(function(dst){
+        var sw=src.h*(dst.count/dstTotal);   // slice of src bar
+        var dw=dst.h*(src.count/srcSum);     // slice of dst bar
+        if(sw<0.5&&dw<0.5) return;           // skip invisible ribbons
+        links.push({src:src, dst:dst,
+          sw:Math.max(1,sw), dw:Math.max(1,dw),
+          sy:src.cursor, dy:dst.cursor,
+          cat:dst.cat});
+        src.cursor+=sw;
+        dst.cursor+=dw;
+      });
+    });
+
+    // Draw links first (behind nodes)
+    var linkG=svgEl_(  'g',{});
+    links.forEach(function(lk){
+      var colour=CAT_COLOUR[lk.cat||'other']||CAT_COLOUR.other;
+      var p=svgEl_('path',{
+        'd':linkPath(lk.src.x+NODE_W, lk.sy, lk.dst.x, lk.dy, Math.max(1,lk.sw), Math.max(1,lk.dw)),
+        'fill':colour, 'class':'sk-link'
+      });
+      // Tooltip on hover
+      var title=document.createElementNS(NS,'title');
+      title.textContent=lk.src.label+' → '+lk.dst.label;
+      p.appendChild(title);
+      linkG.appendChild(p);
+    });
+    svgEl.appendChild(linkG);
+
+    // Draw source nodes
+    srcNodes.forEach(function(n,i){
+      var col=nodeColour(n,i);
+      var g=svgEl_('g',{'class':'sk-node','transform':'translate('+n.x+','+n.y+')'});
+      g.appendChild(svgEl_('rect',{'width':NODE_W,'height':Math.max(4,n.h),'fill':col,'rx':'3','ry':'3'}));
+      // Label left of node
+      var lbl=svgEl_('text',{'x':-6,'y':Math.max(4,n.h)/2,'dominant-baseline':'middle','class':'sk-lbl-left'});
+      var short=n.label.length>16?n.label.slice(0,15)+'…':n.label;
+      lbl.textContent=short;
+      g.appendChild(lbl);
+      var title=document.createElementNS(NS,'title');
+      title.textContent=n.label+' · '+n.count+' conns';
+      g.appendChild(title);
+      svgEl.appendChild(g);
+    });
+
+    // Draw destination nodes
+    dstNodes.forEach(function(n,i){
+      var col=nodeColour(n,i);
+      var g=svgEl_('g',{'class':'sk-node','transform':'translate('+n.x+','+n.y+')'});
+      g.appendChild(svgEl_('rect',{'width':NODE_W,'height':Math.max(4,n.h),'fill':col,'rx':'3','ry':'3'}));
+      // Label right of node
+      var lbl=svgEl_('text',{'x':NODE_W+6,'y':Math.max(4,n.h)/2,'dominant-baseline':'middle','class':'sk-lbl-right'});
+      var short=n.label.length>16?n.label.slice(0,15)+'…':n.label;
+      lbl.textContent=short;
+      g.appendChild(lbl);
+      var title=document.createElementNS(NS,'title');
+      title.textContent=n.label+' · '+n.count+' conns';
+      g.appendChild(title);
+      svgEl.appendChild(g);
+    });
+  }
+
+  // Listen for conn:update — render and cache for resize
+  var _lastSrcs=[], _lastDsts=[], _resizeTimer=null;
+  socket.on('conn:update',function(data){
+    _lastSrcs=(data.topSources||[]).slice(0,8);
+    _lastDsts=(data.topDestinations||[]).slice(0,10);
+    render(_lastSrcs,_lastDsts);
+  });
+  window.addEventListener('resize',function(){
+    clearTimeout(_resizeTimer);
+    _resizeTimer=setTimeout(function(){ render(_lastSrcs,_lastDsts); },120);
+  });
+})();
+
+// ── IP tooltip ───────────────────────────────────────────────────────────────
+(function(){
+  var tip = document.createElement('div');
+  tip.className = 'ip-tip';
+  document.body.appendChild(tip);
+  function showTip(el, e){
+    var ip=el.dataset.ip||'', org=el.dataset.org||'', cat=el.dataset.cat||'';
+    if(!ip){tip.style.display='none';return;}
+    tip.innerHTML=esc(ip)+(org?'<span class="ip-tip-org">'+esc(org)+'</span>'+
+      '<span class="ip-tip-cat svc-badge svc-'+(cat||'other')+'">'+esc(cat)+'</span>':'');
+    tip.style.left=(e.clientX+14)+'px';
+    tip.style.top=(e.clientY-32)+'px';
+    tip.style.display='block';
+  }
+  document.addEventListener('mouseover',function(e){
+    var el=e.target.closest&&e.target.closest('.has-ip-tip');
+    if(el) showTip(el,e); else tip.style.display='none';
+  });
+  document.addEventListener('mousemove',function(e){
+    if(tip.style.display==='none') return;
+    tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-32)+'px';
+  });
+  document.addEventListener('mouseleave',function(){ tip.style.display='none'; },true);
+})();
 
 // ── Mobile burger menu ──────────────────────────────────────────────
 (function(){

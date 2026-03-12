@@ -20,10 +20,8 @@
     /* sidenav */
     #sidenav{position:fixed;left:0;top:0;bottom:0;z-index:200;width:var(--nav-w);background:var(--nav-bg);border-right:1px solid var(--border);backdrop-filter:blur(12px);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1)}
     #sidenav:hover{width:var(--nav-w-open)}
-    .nav-logo{height:52px;display:flex;align-items:center;justify-content:center;padding:0;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
-    .nav-logo img{width:36px;height:36px;object-fit:contain;flex-shrink:0;transition:width .22s cubic-bezier(.4,0,.2,1),height .22s cubic-bezier(.4,0,.2,1);border-radius:4px}
-    #sidenav:hover .nav-logo{justify-content:flex-start;padding:0 10px;}
-    #sidenav:hover .nav-logo img{width:32px;height:32px;}
+    .nav-logo{height:52px;display:flex;align-items:center;justify-content:flex-start;padding:0 14px;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
+    .nav-logo img{width:24px;height:24px;object-fit:contain;flex-shrink:0;border-radius:4px}
     .nav-items{flex:1;padding:8px 0;overflow:hidden}
     .nav-item{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;cursor:pointer;color:var(--text-muted);text-decoration:none;transition:color .15s,background .15s;white-space:nowrap;overflow:hidden}
     .nav-item:hover{color:var(--text-main);background:rgba(99,130,190,.07)}
@@ -173,6 +171,17 @@
     .lease-online{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle}
     .lease-online.yes{background:var(--accent-ok)} .lease-online.no{background:rgba(148,163,190,.3)}
     /* logs */
+    .log-count-badge{font-family:var(--font-mono);font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:12px;cursor:pointer;border:1px solid transparent;transition:opacity .15s,transform .1s;user-select:none;white-space:nowrap}
+    .log-count-badge:hover{opacity:.8;transform:scale(1.04)}
+    .log-count-badge.active{box-shadow:0 0 0 2px currentColor}
+    .log-count-error  {background:rgba(248,113,113,.25);color:#fca5a5;border-color:rgba(248,113,113,.4)}
+    .log-count-warning{background:rgba(251,146,60,.22);color:#fdba74;border-color:rgba(251,146,60,.38)}
+    .log-count-info   {background:rgba(56,189,248,.2);color:#7dd3fc;border-color:rgba(56,189,248,.35)}
+    .log-count-debug  {background:rgba(148,163,190,.18);color:rgba(185,200,225,.85);border-color:rgba(148,163,190,.32)}
+    html[data-theme="light"] .log-count-error  {background:rgba(220,38,38,.12);color:#dc2626;border-color:rgba(220,38,38,.3)}
+    html[data-theme="light"] .log-count-warning{background:rgba(234,88,12,.12);color:#ea580c;border-color:rgba(234,88,12,.3)}
+    html[data-theme="light"] .log-count-info   {background:rgba(3,105,161,.12);color:#0369a1;border-color:rgba(3,105,161,.28)}
+    html[data-theme="light"] .log-count-debug  {background:rgba(100,116,139,.12);color:#475569;border-color:rgba(100,116,139,.28)}
     #logs{background:rgba(2,5,14,.85);font-family:var(--font-mono);font-size:11.5px;height:calc(100vh - 160px);overflow-y:auto;white-space:pre-wrap;word-break:break-all;color:#d5d7de;padding:10px 12px;border-radius:6px;line-height:1.6}
     html[data-theme="light"] #logs{background:rgba(230,235,245,.9);color:#1a2030}
     #logs::-webkit-scrollbar{width:4px} #logs::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
@@ -208,6 +217,33 @@
     .top-sub{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted)}
     .top-count{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--accent-rx)}
     .top-geo{font-family:var(--font-mono);font-size:.62rem;color:#c084fc;background:rgba(192,132,252,.08);border:1px solid rgba(192,132,252,.2);border-radius:4px;padding:1px 6px;white-space:nowrap;flex-shrink:0;margin-right:.9rem}
+    .top-org{font-family:var(--font-mono);font-size:.62rem;color:var(--accent-rx);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.05rem}
+    /* ── Service badges ───────────────────────────────────────────────────── */
+    .svc-badge{display:inline-block;font-family:var(--font-mono);font-size:.58rem;font-weight:600;padding:.1em .45em;border-radius:4px;vertical-align:middle;white-space:nowrap;line-height:1.5;margin-left:.35rem;flex-shrink:0}
+    .svc-cdn      {background:rgba(56,189,248,.15);  color:rgba(56,189,248,.95)}   /* sky blue   */
+    .svc-cloud    {background:rgba(251,146,60,.15);  color:rgba(251,146,60,.95)}   /* orange     */
+    .svc-social   {background:rgba(192,132,252,.15); color:rgba(192,132,252,.95)}  /* purple     */
+    .svc-streaming{background:rgba(236,72,153,.15);  color:rgba(249,168,212,.95)}  /* pink       */
+    .svc-messaging{background:rgba(52,211,153,.15);  color:rgba(52,211,153,.95)}   /* emerald    */
+    .svc-video    {background:rgba(251,191,36,.14);  color:rgba(251,191,36,.95)}   /* amber      */
+    .svc-dns      {background:rgba(45,212,191,.14);  color:rgba(45,212,191,.95)}   /* teal       */
+    .svc-other    {background:rgba(99,130,190,.12);  color:rgba(148,163,190,.75)}  /* slate      */
+    html[data-theme="light"] .svc-cdn      {background:rgba(14,116,144,.12);  color:rgba(8,90,120,.9)}
+    html[data-theme="light"] .svc-cloud    {background:rgba(180,83,9,.1);     color:rgba(154,52,18,.9)}
+    html[data-theme="light"] .svc-social   {background:rgba(126,34,206,.12);  color:rgba(107,33,168,.9)}
+    html[data-theme="light"] .svc-streaming{background:rgba(190,24,93,.1);    color:rgba(157,23,77,.9)}
+    html[data-theme="light"] .svc-messaging{background:rgba(6,95,70,.1);      color:rgba(6,78,59,.9)}
+    html[data-theme="light"] .svc-video    {background:rgba(146,64,14,.1);    color:rgba(120,53,15,.9)}
+    html[data-theme="light"] .svc-dns      {background:rgba(15,118,110,.1);   color:rgba(13,94,87,.9)}
+    html[data-theme="light"] .svc-other    {background:rgba(100,116,139,.1);  color:rgba(71,85,105,.9)}
+    /* ── Org sub-rows in country list ──────────────────────────────────────── */
+    .svc-sub-rows{display:flex;flex-wrap:wrap;gap:.25rem .4rem;margin-top:.22rem}
+    .svc-sub-row{display:inline-flex;align-items:center;gap:.28rem;font-family:var(--font-mono);font-size:.59rem;white-space:nowrap}
+    .svc-sub-count{color:var(--text-muted)}
+    /* ── IP tooltip ─────────────────────────────────────────────────────────── */
+    .ip-tip{position:fixed;pointer-events:none;z-index:9999;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.28rem .55rem;font-family:var(--font-mono);font-size:.67rem;color:var(--text-main);white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.35);display:none}
+    .ip-tip-org{color:var(--accent-rx);margin-left:.5rem;opacity:.85}
+    .ip-tip-cat{margin-left:.3rem;font-size:.6rem}
     .section-sep{font-family:var(--font-ui);font-weight:800;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(99,130,190,.4);padding:.45rem 0 .2rem}
     .empty-state{font-family:var(--font-mono);font-size:.74rem;color:var(--text-muted);padding:.9rem 0;text-align:center}
     @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
@@ -227,7 +263,9 @@
       #topbar{padding-left:52px}
       .topbar-right{gap:.45rem}
       #uptimeChip{display:none !important}
+      .topbar-mobile-hide{display:none !important}
       .iface-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+      .page-view{padding:.65rem .6rem}
     }
     #systemCard{align-self:flex-start;width:100%}
     /* Dashboard grid */
@@ -247,11 +285,13 @@
       .mikrodash-col,[data-card-id="connCard"]{grid-row:auto}
     }
     @media(max-width:650px){
-      .mikrodash-grid{grid-template-columns:1fr;grid-template-rows:auto}
+      .mikrodash-grid{grid-template-columns:1fr;grid-template-rows:auto;gap:.5rem}
+      .mikrodash-col{gap:.5rem}
       .mikrodash-col,[data-card-id="connCard"]{grid-row:auto;height:auto}
       .mikrodash-col>[data-card-id]{flex:none}
       .mikrodash-col>[data-card-id]>.card>.card-body{flex:none}
-      [data-card-id="connCard"]>.card>.card-body{flex:none}
+      [data-card-id="connCard"]>.card{height:auto}
+      [data-card-id="connCard"]>.card>.card-body{flex:none;height:auto}
     }
     /* Ping chart */
     .ping-section{border-top:1px solid var(--border);padding:.4rem .5rem .35rem;margin-top:.25rem}
@@ -297,8 +337,19 @@
     .map-comet.hot{fill:#fff;filter:drop-shadow(0 0 5px rgba(56,189,248,1))}
     /* Map count labels */
     .map-label{font-family:var(--font-mono);font-size:9px;fill:rgba(244,114,182,1);text-anchor:middle;pointer-events:none;font-weight:700;text-shadow:0 0 4px rgba(244,114,182,.6)}
-    .conn-bottom-grid{display:grid;grid-template-columns:1fr 260px;gap:.75rem;margin-top:.75rem}
-    @media(max-width:767px){.conn-bottom-grid{grid-template-columns:1fr}}
+    .conn-bottom-grid{display:grid;grid-template-columns:1fr;gap:.75rem;margin-top:.75rem}
+    .conn-sankey-grid{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-top:.75rem}
+    @media(max-width:767px){.conn-bottom-grid{grid-template-columns:1fr}.conn-sankey-grid{grid-template-columns:1fr}}
+    /* Sankey */
+    .sankey-wrap{width:100%;overflow:hidden}
+    #sankeyEmpty{display:none;text-align:center;padding:2rem;font-family:var(--font-mono);font-size:.75rem;color:var(--text-muted)}
+    #sankeySvg{display:block;width:100%;overflow:visible}
+    .sk-node rect{rx:4;ry:4}
+    .sk-node text{font-family:var(--font-mono);font-size:10px;fill:var(--text-main);pointer-events:none}
+    .sk-node text.sk-lbl-right{text-anchor:start}
+    .sk-node text.sk-lbl-left{text-anchor:end}
+    .sk-link{opacity:.38;transition:opacity .2s}
+    .sk-link:hover{opacity:.72}
     /* Wireless horizontal scroll on mobile */
     @media(max-width:700px){
       #page-wireless .card-body.p-0{ overflow-x:auto;-webkit-overflow-scrolling:touch }
@@ -474,7 +525,7 @@
     <span id="pageTitle">Dashboard</span>
     <div class="topbar-right">
       <div class="notif-wrap">
-        <button id="notifToggleBtn" title="Notifications" style="background:none;border:none;cursor:pointer;padding:2px 4px;display:flex;align-items:center;transition:opacity .2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
+        <button id="notifToggleBtn" title="Notifications" style="background:none;border:none;cursor:pointer;padding:2px 4px;display:flex;align-items:center;transition:opacity .2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
         <span class="notif-dot" id="notifDot"></span>
         <div class="notif-panel" id="notifPanel">
           <div class="notif-panel-hdr">
@@ -486,9 +537,9 @@
           </div>
         </div>
       </div>
-      <span id="tobarClock" style="font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);white-space:nowrap"></span>
+      <span id="tobarClock" class="topbar-mobile-hide" style="font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);white-space:nowrap"></span>
       <span id="uptimeChip" title="Router uptime"></span>
-      <span id="routerTag"></span>
+      <span id="routerTag" class="topbar-mobile-hide"></span>
       <button id="themeToggle" title="Toggle light / dark">
         <svg viewBox="0 0 24 24"><path id="themeIconPath" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
@@ -499,8 +550,7 @@
   <div class="page-view active" id="page-dashboard">
     <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
 
-      <div class="row row-deck g-3 mb-3">
-        <div class="col-12">
+      <div class="mb-3">
           <div class="card" id="trafficCard">
             <div class="stale-overlay">&#9679; stale</div>
             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -519,7 +569,6 @@
             </div>
             <div class="card-body" style="padding:.6rem 1rem .75rem"><div class="chart-wrap"><canvas id="trafficChart"></canvas></div></div>
           </div>
-        </div>
       </div>
 
             <div id="dashGrid" class="mikrodash-grid">
@@ -642,7 +691,7 @@
               <!-- Ping / Latency -->
               <div class="ping-section">
                 <div class="ping-header">
-                  <span style="color:var(--text-muted)">Latency &rarr; 1.1.1.1</span>
+                  <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel">1.1.1.1</span></span>
                   <div class="ping-stat">
                     <span><span class="ping-val" id="ndPingRtt">—</span> <span style="color:var(--text-muted)">ms</span></span>
                     <span><span class="ping-val" id="ndPingLoss">—</span> <span style="color:var(--text-muted)">loss</span></span>
@@ -727,7 +776,22 @@
             <span id="connFilterLabel" style="font-family:var(--font-mono);font-size:.65rem;color:var(--accent-rx);display:none">● filtered</span>
           </div>
           <div class="card-body" style="padding:.5rem .75rem">
-            <div id="connMapList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.35rem"></div>
+            <div id="connMapList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:.35rem"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Connection Flow + Top Ports -->
+      <div class="conn-sankey-grid">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h3 class="card-title">Connection Flow</h3>
+            <span style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-muted)">Sources → Destinations</span>
+          </div>
+          <div class="card-body" style="padding:.6rem .75rem">
+            <div class="sankey-wrap">
+              <div id="sankeyEmpty">Waiting for connection data…</div>
+              <svg id="sankeySvg"></svg>
+            </div>
           </div>
         </div>
         <div class="card">
@@ -748,6 +812,10 @@
         <div class="card-header d-flex align-items-center flex-wrap gap-2">
           <h3 class="card-title mb-0">Wireless Clients</h3>
           <span id="wirelessTabBadge" class="card-badge">0</span>
+          <span style="width:1px;height:16px;background:var(--border);flex-shrink:0"></span>
+          <span id="wlBand24" style="font-family:var(--font-mono);font-size:.65rem;background:rgba(52,211,153,.15);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:1px 8px;white-space:nowrap">2.4GHz: 0</span>
+          <span id="wlBand5" style="font-family:var(--font-mono);font-size:.65rem;background:rgba(56,189,248,.15);color:rgba(56,189,248,.9);border:1px solid rgba(56,189,248,.25);border-radius:10px;padding:1px 8px;white-space:nowrap">5GHz: 0</span>
+          <span id="wlBand6" style="font-family:var(--font-mono);font-size:.65rem;background:rgba(192,132,252,.15);color:rgba(192,132,252,.9);border:1px solid rgba(192,132,252,.25);border-radius:10px;padding:1px 8px;display:none;white-space:nowrap">6GHz: 0</span>
           <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
             <span style="font-size:.7rem;color:var(--text-muted)">Sort:</span>
             <div class="d-flex gap-1" id="wifiSortBtns">
@@ -841,7 +909,13 @@
     <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <h3 class="card-title">Router Logs</h3>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <h3 class="card-title">Router Logs</h3>
+            <span class="log-count-badge log-count-error" id="logCountError" title="Filter errors" data-sev="error">0 errors</span>
+            <span class="log-count-badge log-count-warning" id="logCountWarning" title="Filter warnings" data-sev="warning">0 warnings</span>
+            <span class="log-count-badge log-count-info" id="logCountInfo" title="Filter info" data-sev="info">0 info</span>
+            <span class="log-count-badge log-count-debug" id="logCountDebug" title="Filter debug" data-sev="debug">0 debug</span>
+          </div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <select id="logSeverity" class="form-select form-select-sm" style="max-width:110px;font-size:.73rem">
               <option value="">All levels</option><option value="error">Error</option><option value="warning">Warning</option><option value="info">Info</option><option value="debug">Debug</option>

@@ -2,6 +2,79 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.3] — UI & Accuracy Improvements
+
+### Features
+
+- **Per-band wireless client counts** — the Wireless Clients card header now
+  shows live counts per band (`2.4GHz: N`, `5GHz: N`, and `6GHz: N` when
+  present), separated from the total count badge by a thin vertical divider
+  (`public/index.html`, `public/app.js`)
+- **ASN / org lookup on Connections page** — destination IPs are resolved to
+  organisation names via a curated CIDR→org table with a 5000-entry LRU cache,
+  displayed as a label beneath each IP:port entry; no new runtime dependencies
+  (`src/util/asnLookup.js`, `src/collectors/connections.js`,
+  `public/index.html`, `public/app.js`)
+- **Service badge colour coding** — destinations are grouped into seven
+  categories (cdn, cloud, social, streaming, messaging, video, dns) with
+  distinct coloured inline badges in Top Destinations, org sub-rows in Top
+  Countries, and IP tooltips on hover (`public/index.html`, `public/app.js`,
+  `src/util/asnLookup.js`, `src/collectors/connections.js`)
+- **Connection Flow Sankey diagram** — a pure-SVG source→destination flow
+  diagram rendered at the bottom of the Connections page, driven by
+  `conn:update` data, with proportional ribbon widths, category colours, and
+  resize-awareness; no external library (`public/index.html`, `public/app.js`)
+- **Log count indicators** — four clickable severity pill badges (`N errors`,
+  `N warnings`, `N info`, `N debug`) in the Logs card header tally the buffer
+  by severity, toggle the severity filter on click, and remain visible at zero
+  count (`public/index.html`, `public/app.js`)
+
+### Bug Fixes
+
+- **Wireless band detection uses RouterOS registration table directly** —
+  the previous heuristic based on interface name patterns and tx-rate strings
+  (`MHT-xxx`, `HE-MCS`) incorrectly reported 5GHz for some 2.4GHz clients.
+  The collector now reads the `band` field directly from each registration
+  table entry — the same authoritative source Winbox displays in its Band
+  column (`src/collectors/wireless.js`)
+- **Ping target label updates dynamically** — `<span id="pingTargetLabel">`
+  is now updated from `data.target` in both `ping:history` and `ping:update`
+  handlers (`public/app.js`)
+- **Wired client count uses interface type allowlist** — count now derives
+  from `type === 'ether'` entries in `ifstatus:update` rather than the talkers
+  list, avoiding false positives (`public/app.js`)
+
+### UI
+
+- **Connections page layout reorganised** — Top Countries now spans the full
+  page width; Connection Flow and Top Ports share the row below it at a
+  `2fr 1fr` split (`public/index.html`)
+- **Sankey diagram taller** — minimum height raised from 180px to 260px and
+  per-source row height increased from 24px to 36px (`public/app.js`)
+- **Service badge colours fully distinct** — `svc-video` changed from blue
+  (conflicting with `svc-cdn`) to amber; `svc-dns` changed from green
+  (conflicting with `svc-messaging`) to teal; Sankey ribbon colours updated
+  to match (`public/index.html`, `public/app.js`)
+- **Log count badges more visible** — background and text opacities raised
+  across all four severity levels; debug badge no longer uses the near-invisible
+  `--text-muted` colour (`public/index.html`)
+- **Country list sparklines moved to top-right** — the per-country sparkline
+  is repositioned to the top-right of the country name row using a flex
+  space-between wrapper (`public/app.js`)
+- **Nav logo no longer jumps on expand/collapse** — logo previously switched
+  between `justify-content:center` and `flex-start` mid-transition; it now
+  sits permanently left-aligned with `padding:0 14px`, matching the nav icons,
+  with no animated properties (`public/index.html`)
+- **Traffic card width on mobile fixed** — removed a redundant inner wrapper
+  div that caused the Traffic card to render slightly narrower than sibling
+  cards on mobile viewports (`public/index.html`)
+- **Mobile topbar decluttered** — clock and router tag spans hidden at ≤767px
+  via `.topbar-mobile-hide` (`public/index.html`)
+- **Mobile dashboard scaling** — `.page-view` padding reduced on small screens;
+  grid gaps tightened; connections card set to `height:auto` on narrow
+  viewports; `connMapList` grid uses `minmax(min(220px,100%),1fr)` to prevent
+  horizontal overflow (`public/index.html`)
+
 ## [0.5.2] — UI Improvements & Bug Fixes
 
 ### Features

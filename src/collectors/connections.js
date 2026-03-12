@@ -6,6 +6,7 @@ try { geoip = require('geoip-lite'); } catch(e) { console.warn('[connections] ge
  * each write() gets a unique tag for demultiplexing.
  */
 const { extractAddress, isInCidrs, isValidIp } = require('../util/ip');
+const { lookupOrg, lookupCategory } = require('../util/asnLookup');
 
 function makeDestKey(c) {
   const dst   = c['dst-address'] || c.dst || '';
@@ -65,6 +66,8 @@ class ConnectionsCollector {
     const countryCity  = new Map();
     const portCounts   = new Map();
     const destGeo      = new Map();
+    const destOrg      = new Map();
+    const countryOrgs  = new Map(); // cc -> Map<org, count>
 
     for (const c of (conns || [])) {
       const id  = c['.id'];
@@ -100,6 +103,18 @@ class ConnectionsCollector {
             countryProto.set(cc, cp);
           }
         }
+        if (isValidIp(ip) && !destOrg.has(ip)) {
+          const org = lookupOrg(ip);
+          if (org) destOrg.set(ip, org);
+        }
+        // Tally org connections per country for the breakdown sub-rows
+        const resolvedOrg = destOrg.get(ip);
+        if (resolvedOrg) {
+          const cc = (destGeo.get(ip) || {}).country || '__unknown__';
+          if (!countryOrgs.has(cc)) countryOrgs.set(cc, new Map());
+          const orgMap = countryOrgs.get(cc);
+          orgMap.set(resolvedOrg, (orgMap.get(resolvedOrg) || 0) + 1);
+        }
       }
     }
 
@@ -119,15 +134,27 @@ class ConnectionsCollector {
         const country = geo.country;
         const city = geo.city;
         const proto = country ? (countryProto.get(country) || {}) : {};
-        return { key, count, country, city, proto };
+        const org = destOrg.get(ip) || null;
+        const cat = org ? lookupCategory(org) : null;
+        return { key, count, country, city, proto, org, cat };
       });
 
     const topCountries = Array.from(countryProto.entries())
-      .map(([cc, proto]) => ({
-        cc, city: countryCity.get(cc) || '',
-        count: (proto.tcp||0)+(proto.udp||0)+(proto.other||0),
-        proto
-      }))
+      .map(([cc, proto]) => {
+        // Top orgs for this country, sorted by connection count
+        const orgMap = countryOrgs.get(cc);
+        const orgs = orgMap
+          ? Array.from(orgMap.entries())
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 4)
+              .map(([org, count]) => ({ org, count, cat: lookupCategory(org) }))
+          : [];
+        return {
+          cc, city: countryCity.get(cc) || '',
+          count: (proto.tcp||0)+(proto.udp||0)+(proto.other||0),
+          proto, orgs,
+        };
+      })
       .sort((a,b) => b.count - a.count); // all countries, no cap
 
     const topPorts = Array.from(portCounts.entries())
