@@ -439,6 +439,19 @@
     .sk-node text.sk-lbl-left{text-anchor:end}
     .sk-link{opacity:.38;transition:opacity .2s}
     .sk-link:hover{opacity:.72}
+    /* Bandwidth horizontal scroll on mobile */
+    @media(max-width:700px){
+      .bw-table-wrap{ overflow-x:auto;-webkit-overflow-scrolling:touch }
+      .bw-table{ min-width:780px;width:780px }
+      .bw-table colgroup col:nth-child(1){ width:130px }
+      .bw-table colgroup col:nth-child(2){ width:150px }
+      .bw-table colgroup col:nth-child(3){ width:80px }
+      .bw-table colgroup col:nth-child(4){ width:80px }
+      .bw-table colgroup col:nth-child(5){ width:80px }
+      .bw-table colgroup col:nth-child(6){ width:90px }
+      .bw-table colgroup col:nth-child(7){ width:60px }
+      .bw-table colgroup col:nth-child(8){ width:110px }
+    }
     /* Wireless horizontal scroll on mobile */
     @media(max-width:700px){
       #page-wireless .card-body.p-0{ overflow-x:auto;-webkit-overflow-scrolling:touch }
