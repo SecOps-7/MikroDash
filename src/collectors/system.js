@@ -62,15 +62,16 @@ class SystemCollector {
       ? (latestVersion !== installedBase)
       : updateStatus.toLowerCase().includes('new version');
 
-    this.io.emit('system:update', {
+    this.lastPayload = {
       ts: Date.now(), uptimeRaw: r.uptime || '', cpuLoad, memPct, usedMem, totalMem,
       hddPct, totalHdd, freeHdd, version: installed,
       latestVersion, updateAvailable: !!updateAvailable, updateStatus,
       boardName: r['board-name'] || r['platform'] || '',
       cpuCount: parseInt(r['cpu-count'] || '1', 10),
       cpuFreq:  parseInt(r['cpu-frequency'] || '0', 10),
-      tempC,
-    });
+      tempC, pollMs: this.pollMs,
+    };
+    this.io.emit('system:update', this.lastPayload);
     this.state.lastSystemTs = Date.now();
     this.state.lastSystemErr = null;
   }

@@ -77,7 +77,8 @@ class InterfaceStatusCollector {
       };
     });
 
-    this.io.emit("ifstatus:update", { ts: now, interfaces });
+    this.lastPayload = { ts: now, interfaces, pollMs: this.pollMs };
+    this.io.emit("ifstatus:update", this.lastPayload);
     this.state.lastIfStatusTs = now;
   }
 

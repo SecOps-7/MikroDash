@@ -59,7 +59,9 @@ class VpnCollector {
       if (!seenKeys.has(k)) this._prev.delete(k);
     }
 
-    this.io.emit('vpn:update', { ts: Date.now(), tunnels });
+    const _vpnPayload = { ts: Date.now(), tunnels, pollMs: this.pollMs };
+    this.lastPayload = _vpnPayload;
+    this.io.emit('vpn:update', _vpnPayload);
     this.state.lastVpnTs = Date.now();
     this.state.lastVpnErr = null;
   }

@@ -3,10 +3,9 @@
  * with a one-shot /print on startup to populate the initial state.
  */
 class DhcpLeasesCollector {
-  constructor({ ros, io, pollMs, state }) {
+  constructor({ ros, io, state }) {
     this.ros = ros;
     this.io = io;
-    this.pollMs = pollMs;
     this.state = state;
     this.byIP  = new Map();
     this.byMAC = new Map();
@@ -28,7 +27,13 @@ class DhcpLeasesCollector {
     return out;
   }
 
-  _applyLease(l) {
+  _emitLeases() {
+    const leases = [];
+    for (const [ip, v] of this.byIP.entries()) leases.push({ ip, ...v });
+    this.io.emit('leases:list', { ts: Date.now(), leases });
+  }
+
+  _applyLease(l, emit = false) {
     const ip   = l.address || l['active-address'];
     const mac  = l['mac-address'] || l['active-mac-address'] || l.mac;
     const name = (l.comment && l.comment.trim()) ? l.comment.trim()
@@ -42,6 +47,9 @@ class DhcpLeasesCollector {
       this.seenMACs.add(mac);
       this.io.emit('device:new', { ts: Date.now(), ip, mac, name: name || ('Unknown (' + mac + ')'), source: 'dhcp-lease' });
     }
+
+    // Emit updated lease table to all clients when called from the live stream
+    if (emit) this._emitLeases();
   }
 
   async _loadInitial() {
@@ -49,6 +57,7 @@ class DhcpLeasesCollector {
       const leases = await this.ros.write('/ip/dhcp-server/lease/print');
       for (const l of (leases || [])) this._applyLease(l);
       this.state.lastLeasesTs = Date.now();
+      this._emitLeases();
     } catch (e) {
       console.error('[leases] initial load failed:', e && e.message ? e.message : e);
     }
@@ -72,7 +81,7 @@ class DhcpLeasesCollector {
           }
           return;
         }
-        if (data) { this._applyLease(data); this.state.lastLeasesTs = Date.now(); }
+        if (data) { this._applyLease(data, true); this.state.lastLeasesTs = Date.now(); }
       });
       console.log('[leases] streaming /ip/dhcp-server/lease/listen');
     } catch (e) {

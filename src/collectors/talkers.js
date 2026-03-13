@@ -45,7 +45,8 @@ class TopTalkersCollector {
     devices.sort((a, b) => (b.rx_mbps + b.tx_mbps) - (a.rx_mbps + a.tx_mbps));
     devices = devices.slice(0, this.topN);
 
-    this.io.emit('talkers:update', { ts: now, devices });
+    this.lastPayload = { ts: now, devices, pollMs: this.pollMs };
+    this.io.emit('talkers:update', this.lastPayload);
     this.state.lastTalkersTs = now;
     this.state.lastTalkersErr = null;
   }
