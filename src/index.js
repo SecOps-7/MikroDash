@@ -41,6 +41,7 @@ const VpnCollector         = require('./collectors/vpn');
 const FirewallCollector    = require('./collectors/firewall');
 const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const PingCollector         = require('./collectors/ping');
+const BandwidthCollector    = require('./collectors/bandwidth');
 
 const app = express();
 
@@ -55,6 +56,10 @@ const MAX_SOCKETS = parseInt(process.env.MAX_SOCKETS || '50', 10);
 const io = new Server(server, {
   maxHttpBufferSize: 1e6,
   connectTimeout: 10000,
+  perMessageDeflate: {
+    threshold: 512,
+    zlibDeflateOptions: { level: 1 },
+  },
 });
 const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);
 const authLimiter = rateLimit({
@@ -114,10 +119,24 @@ const HISTORY_MINUTES = _cfg.historyMinutes;
 
 // Collectors — order matters: leases must exist before networks/connections
 const dhcpLeases   = new DhcpLeasesCollector ({ros,io, state});
+// ── Shared /ip/firewall/connection/print cache ───────────────────────────
+const MAX_CONN_CACHE_AGE = 1500;
+const connTableCache = {
+  rows: null, ts: 0,
+  async get(ros) {
+    const now = Date.now();
+    if (this.rows !== null && (now - this.ts) < MAX_CONN_CACHE_AGE) return this.rows;
+    this.rows = (await ros.write('/ip/firewall/connection/print')) || [];
+    this.ts   = Date.now();
+    return this.rows;
+  },
+  invalidate() { this.rows = null; this.ts = 0; },
+};
+
 const arp          = new ArpCollector         ({ros,    pollMs:_cfg.pollArp,      state});
 const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:_cfg.pollDhcp,     dhcpLeases, state, wanIface:DEFAULT_IF});
 const traffic      = new TrafficCollector     ({ros,io, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state});
-const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state});
+const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache});
 const talkers      = new TopTalkersCollector  ({ros,io, pollMs:_cfg.pollConns,    state, topN:_cfg.topTalkersN});
 const logs         = new LogsCollector        ({ros,io, state});
 const system       = new SystemCollector      ({ros,io, pollMs:_cfg.pollSystem,   state});
@@ -126,6 +145,7 @@ const vpn          = new VpnCollector         ({ros,io, pollMs:_cfg.pollVpn,    
 const firewall     = new FirewallCollector    ({ros,io, pollMs:_cfg.pollFirewall,  state, topN:_cfg.firewallTopN});
 const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, state});
 const ping         = new PingCollector({ros,io, pollMs:_cfg.pollPing, state, target:_cfg.pingTarget});
+const bandwidth    = new BandwidthCollector({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache});
 
 // ── Settings API ─────────────────────────────────────────────────────────────
 app.get('/api/settings', (_req, res) => {
@@ -152,13 +172,13 @@ app.post('/api/settings', (req, res) => {
       routerPort:[1,65535], pollConns:[500,60000], pollSystem:[500,60000],
       pollWireless:[500,60000], pollVpn:[1000,120000], pollFirewall:[1000,120000],
       pollIfstatus:[500,60000], pollPing:[1000,120000], pollArp:[5000,300000],
-      pollDhcp:[5000,300000], topN:[1,50], topTalkersN:[1,20],
+      pollBandwidth:[500,60000], pollDhcp:[5000,300000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
     };
     const strFields  = ['routerHost','routerUser','defaultIf','dashUser','pingTarget'];
     const boolFields = ['routerTls','routerTlsInsecure',
       'pageWireless','pageInterfaces','pageDhcp','pageVpn',
-      'pageConnections','pageFirewall','pageLogs'];
+      'pageConnections','pageFirewall','pageLogs','pageBandwidth'];
     const credFields = ['routerPass','dashPass'];
 
     for (const [f, range] of Object.entries(intFields)) {
@@ -171,9 +191,9 @@ app.post('/api/settings', (req, res) => {
     const saved = Settings.save(updates);
 
     // Apply poll changes live without restart
-    const collectorMap = { conns, system, wireless, vpn, firewall, ifStatus, ping, arp, dhcpNetworks };
+    const collectorMap = { conns, system, wireless, vpn, firewall, ifStatus, ping, arp, dhcpNetworks, bandwidth };
     const pollMap = { pollConns:'conns', pollSystem:'system', pollWireless:'wireless',
-      pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus',
+      pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks' };
     for (const [key, name] of Object.entries(pollMap)) {
       if (key in updates) {
@@ -196,7 +216,7 @@ app.post('/api/settings', (req, res) => {
       pageWireless:saved.pageWireless, pageInterfaces:saved.pageInterfaces,
       pageDhcp:saved.pageDhcp, pageVpn:saved.pageVpn,
       pageConnections:saved.pageConnections, pageFirewall:saved.pageFirewall,
-      pageLogs:saved.pageLogs,
+      pageLogs:saved.pageLogs, pageBandwidth:saved.pageBandwidth,
     };
     io.emit('settings:pages', pageSettings);
 
@@ -265,7 +285,7 @@ function broadcastRosStatus(connected, reason) {
 }
 
 ros.on('connected', () => broadcastRosStatus(true));
-ros.on('close',     () => broadcastRosStatus(false, 'RouterOS connection closed'));
+ros.on('close',     () => { connTableCache.invalidate(); broadcastRosStatus(false, 'RouterOS connection closed'); });
 ros.on('error',     (e) => {
   const msg = e && e.message ? e.message : String(e);
   // Build a clear, human-readable reason from raw network errors
@@ -302,6 +322,7 @@ async function startCollectors() {
     firewall.start();
     ifStatus.start();
     ping.start();
+    bandwidth.start();
 
     startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -378,6 +399,7 @@ async function sendInitialState(socket) {
   if (conns.lastPayload)     socket.emit('conn:update',      conns.lastPayload);
   if (talkers.lastPayload)   socket.emit('talkers:update',   talkers.lastPayload);
   if (ping.lastPayload)      socket.emit('ping:update',      ping.lastPayload);
+  if (bandwidth.lastPayload) socket.emit('bandwidth:update', bandwidth.lastPayload);
 
   // Send page visibility settings to newly connected client
   const _ps = Settings.load();
@@ -412,7 +434,7 @@ const PORT = parseInt(process.env.PORT || '3081', 10);
 server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
-const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping];
+const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth];
 
 function shutdown(signal) {
   console.log(`[MikroDash] ${signal} received, shutting down…`);

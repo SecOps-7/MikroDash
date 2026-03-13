@@ -2,6 +2,38 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.5] — Bandwidth Page, Performance & Reliability
+
+### Added
+- **Bandwidth page** — new dedicated page showing live per-connection bandwidth, accessible from the sidebar. Displays all active firewall connections with real-time RX, TX, and Total Mbps, sortable by any column (default: Total descending)
+- **Compact WAN traffic chart** — a 120 px inline Chart.js graph sits above the bandwidth table, mirroring the dashboard traffic feed with no extra API calls
+- **RX / TX stat card** — a combined card beside the chart shows live WAN receive and transmit rates, split into value and unit spans for stable right-aligned layout
+- **ASN / Org column on Bandwidth page** — uses the same `svcBadge()` colour coding as the Connections page (CDN blue, cloud orange, social purple, etc.)
+- **Destination column with geo flag** — shows country flag, ISO code, and city; city is suppressed when it duplicates the country code or is a single character
+- **Interface column** — resolved server-side via subnet CIDR matching against the live interface list; no RouterOS field read needed
+- **Interface dropdown filter** — seeded from all running interfaces via `ifstatus:update`; DOM only rebuilds when the sorted list actually changes, eliminating per-tick flicker
+- **Search + dropdown toolbar** — search box expands to fill all available space; interface and protocol dropdowns are pinned to the right
+- **`pollBandwidth` and `pageBandwidth` settings** — both fields were previously silently dropped by the settings validator; both are now accepted and applied correctly
+
+### Performance
+- **Shared `/ip/firewall/connection/print` cache** — `ConnectionsCollector` and `BandwidthCollector` previously each fetched the full connection table independently every 3 s (~40 API calls/min combined). Both now read from a shared 1.5 s TTL cache in `index.js`, halving RouterOS API load. Cache is invalidated on disconnect
+- **Traffic collector idle-gating** — the 1 s `/interface/monitor-traffic` poll is skipped entirely when no browser clients are connected (`io.engine.clientsCount === 0`), eliminating 60 API calls/min when the dashboard is unattended. The interval continues running so data resumes immediately on reconnect
+- **`perMessageDeflate` on Socket.IO** — WebSocket per-message deflate enabled (compression level 1) reducing repetitive JSON payload sizes by 60–80% with negligible CPU overhead
+- **Fingerprint-gate on `firewall`, `vpn`, and `wireless` emits** — each collector computes a lightweight fingerprint over its structural data before emitting; the socket write is suppressed when nothing has changed. Firewall rules and VPN peers are stable for hours at a time
+- **`_resolveIface` result cache** — bandwidth collector caches subnet-to-interface resolution per source IP in a `Map`, cleared on reconnect. Eliminates repeated CIDR iteration for the same stable LAN hosts every tick
+- **Server-side country list cap** — `conn:update` now slices `topCountries` to 30 entries before emitting; the client never renders more than this
+- **`ts` excluded from client-side fingerprints** — connection source and destination fingerprints previously hashed the full object including `ts`, which changes every tick regardless of data. Fingerprints now hash only the meaningful fields
+- **`_updateBwStats` page-visibility gate** — bandwidth RX/TX stat card and chart sync only run when the bandwidth page is active
+
+### Bug Fixes
+- **Interfaces page stale** — `InterfaceStatusCollector` was fingerprint-suppressing emits when interface up/down state and IPs were unchanged. Because rates change every tick, the stale timer never reset and the page marked itself stale after ~25 s. The collector now always emits unconditionally
+- **Bandwidth table columns shifting on refresh** — added `table-layout:fixed` and a `<colgroup>` with explicit percentage widths for all 8 columns. Cells receive `overflow:hidden; text-overflow:ellipsis` so long content truncates within the fixed width rather than pushing columns
+- **`fmtMbps` HTML injection in bandwidth stat card** — a local `fmtMbps` inside the bandwidth IIFE returned a `<span>` string for zero values; the card used `textContent` so the raw HTML rendered as literal text. Local override removed; global plain-text version handles all cases
+- **`networksCard` false-stale** — stale grace period widened from 20 s to 45 s (300 s poll × 15%) to accommodate slow RouterOS DHCP responses. The stale timer now also resets on `ping:update` (every 10 s), since the card displays live ping data and should never appear stale while the router is reachable
+
+### UI
+- **Page-wide disconnect fade** — when either the Socket.IO connection or the RouterOS connection drops and the reconnecting banner appears, the entire page (`#sidenav` and `#main`) fades to 35% opacity with `pointer-events:none` and a 0.35 s transition, matching the visual language of individual stale cards. Cleared immediately on reconnect
+
 ## [0.5.4] — Performance, Settings & DHCP Improvements
 
 ### Added

@@ -51,6 +51,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | VPN | All WireGuard peers (active + idle) as tiles sorted active-first, with allowed IPs, endpoint, handshake, and traffic counters |
 | Connections | World map with animated arcs to destination countries, per-country protocol breakdown, sparklines, top ports panel, and click-to-filter |
 | Firewall | Top hits, Filter, NAT, and Mangle rule tables with packet counts |
+| Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
 | Logs | Live router log stream with severity filter and text search |
 | Settings | Persistent UI configuration — see below |
 
@@ -231,6 +232,7 @@ All other settings (poll intervals, top-N limits, page visibility, ping target, 
 |---|---|---|
 | System | 3 s | CPU, RAM, storage, temp, ROS version |
 | Connections | 3 s | Firewall connection table, geo-IP |
+| Bandwidth | 3 s | Per-connection live RX/TX/Total Mbps (shares connection table fetch with Connections) |
 | Top Talkers | 3 s | Kid Control traffic stats |
 | Wireless | 5 s | Wireless client list |
 | Interface Status | 5 s | Interface state, IPs, rx/tx bytes |
@@ -241,6 +243,8 @@ All other settings (poll intervals, top-N limits, page visibility, ping target, 
 | DHCP Networks | 5 min | LAN subnets, WAN IP |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
+
+The WAN traffic monitor (`/interface/monitor-traffic`) pauses its RouterOS API calls automatically when no browser clients are connected, resuming immediately on the next connection.
 
 ---
 
@@ -256,6 +260,7 @@ All collectors run **concurrently** on a single TCP connection — no serial que
 | `6` | Connections |
 | `7` | Firewall |
 | `8` | Logs |
+| `9` | Bandwidth |
 | `/` | Focus log search |
 
 ---

@@ -19,7 +19,7 @@ function makeDestKey(c) {
 }
 
 class ConnectionsCollector {
-  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup }) {
+  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache }) {
     this.ros = ros;
     this.io = io;
     this.pollMs = pollMs;
@@ -30,6 +30,7 @@ class ConnectionsCollector {
     this.arp = arp;
     this.state = state;
     this.geoLookup = geoLookup || (geoip ? (ip) => geoip.lookup(ip) : null);
+    this.connTableCache = connTableCache || null;
     this.prevIds = new Set();
     this.timer = null;
     this._inflight = false;
@@ -51,8 +52,11 @@ class ConnectionsCollector {
     if (!this.ros.connected) return;
     const lanCidrs = this.dhcpNetworks.getLanCidrs();
 
-    // node-routeros: write() is concurrent-safe, doesn't block streams
-    const raw = await this.ros.write('/ip/firewall/connection/print');
+    // Use shared cache when available — halves API calls when both
+    // connections and bandwidth collectors run on similar poll intervals.
+    const raw = this.connTableCache
+      ? await this.connTableCache.get(this.ros)
+      : ((await this.ros.write('/ip/firewall/connection/print')) || []);
     const totalRaw = (raw || []).length;
     // When capped, connections beyond maxConns are not processed — their
     // destination IPs will be missing from destGeo, so top destinations
@@ -162,7 +166,8 @@ class ConnectionsCollector {
           proto, orgs,
         };
       })
-      .sort((a,b) => b.count - a.count); // all countries, no cap
+      .sort((a,b) => b.count - a.count)
+      .slice(0, 30); // cap — client never renders more than this
 
     const topPorts = Array.from(portCounts.entries())
       .sort((a,b) => b[1]-a[1]).slice(0,10)

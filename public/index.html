@@ -55,12 +55,63 @@
     /* reconnect */
     #reconnectBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(248,113,113,.12);border-bottom:1px solid rgba(248,113,113,.35);backdrop-filter:blur(8px);text-align:center;padding:.4rem;font-family:var(--font-mono);font-size:.72rem;color:#fca5a5;animation:pulse-banner 2s ease infinite}
     #reconnectBanner.show{display:block}
+    #sidenav,#main{transition:opacity .35s ease}
+    body.is-disconnected #sidenav,body.is-disconnected #main{opacity:.35;pointer-events:none}
     #rosBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(245,159,0,.1);border-bottom:1px solid rgba(245,159,0,.3);backdrop-filter:blur(8px);padding:.4rem 1rem;font-family:var(--font-mono);font-size:.72rem;color:#fcd34d;animation:pulse-banner 2s ease infinite;align-items:center;justify-content:center;gap:.5rem}
     #rosBanner.show{display:flex}
     #rosBannerText{flex:1;text-align:center}
     @keyframes pulse-banner{0%,100%{opacity:1}50%{opacity:.5}}
     /* pages */
     .page-view{display:none;flex:1;padding:1.25rem;overflow-y:auto}
+    .bw-header-row{display:grid;grid-template-columns:4fr 1fr;gap:.75rem;margin-bottom:.85rem;align-items:stretch}
+    .bw-chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem .45rem;min-width:0;position:relative}
+    .bw-chart-card-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.3rem;font-family:var(--font-ui)}
+    .bw-chart-wrap{position:relative;height:120px;width:100%;overflow:hidden}
+    .bw-stat-col{display:flex;flex-direction:column;min-width:0}
+    .bw-stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.4rem;display:flex;flex-direction:column;justify-content:center;gap:1rem;flex:1;min-width:0}
+    .bw-stat-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-ui)}
+    .bw-stat-label-rx{color:var(--accent-rx)}
+    .bw-stat-label-tx{color:var(--accent-tx)}
+    .bw-stat-val-row{display:flex;align-items:baseline;justify-content:space-between;gap:.4rem;width:100%}
+    .bw-stat-num{font-family:var(--font-mono);font-size:1.9rem;font-weight:700;line-height:1;color:var(--text-main);white-space:nowrap}
+    .bw-stat-unit{font-family:var(--font-mono);font-size:1.9rem;font-weight:700;color:var(--text-muted);white-space:nowrap;line-height:1}
+    .bw-stat-sub{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted);margin-top:.15rem}
+    @media(max-width:600px){.bw-header-row{grid-template-columns:1fr;}.bw-stat-col{flex-direction:row;gap:.5rem;}.bw-stat-card{padding:.7rem 1rem;}}
+    .bw-toolbar{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem;align-items:center}
+    .bw-search{flex:1 1 0;min-width:0}
+    .bw-toolbar input,.bw-toolbar select{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.35rem .65rem;font-size:.76rem;color:var(--text-main);outline:none;transition:border-color .15s,background .15s,color .15s}
+    .bw-toolbar select{appearance:none;-webkit-appearance:none;padding-right:1.8rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,190,.6)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .5rem center;cursor:pointer}
+    .bw-toolbar input:focus,.bw-toolbar select:focus{border-color:var(--accent-rx)}
+    html[data-theme="light"] .bw-toolbar input,html[data-theme="light"] .bw-toolbar select{background:rgba(255,255,255,.95);color:var(--text-main)}
+    .bw-table-wrap{background:var(--bg-card)}
+
+    .bw-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);background:var(--bg-card)}
+    .bw-table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
+    .bw-table th{padding:.45rem .75rem;text-align:left;font-size:.66rem;font-weight:400;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-color:var(--border);background:rgba(99,130,190,.04);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;font-family:var(--font-ui)}
+    .bw-table th:hover{color:var(--text-main)}
+    .bw-table th.sort-asc::after{content:' ↑'}
+    .bw-table th.sort-desc::after{content:' ↓'}
+    .bw-table td{padding:.4rem .7rem;border-bottom:1px solid rgba(99,130,190,.08);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
+    .bw-table tr:last-child td{border-bottom:none}
+    .bw-table tr:hover td{background:rgba(99,130,190,.05)}
+    .bw-rate{font-family:var(--font-mono);font-size:.72rem}
+    .bw-rate-rx{color:var(--accent-rx)}
+    .bw-rate-tx{color:var(--accent-tx)}
+    .bw-rate-total{color:var(--text-main);font-weight:600}
+    .bw-bar{display:inline-block;height:3px;border-radius:2px;min-width:2px;vertical-align:middle;margin-left:4px}
+    .bw-bar-rx{background:var(--accent-rx)}
+    .bw-bar-tx{background:var(--accent-tx)}
+    .bw-name{color:var(--text-main);font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+    .bw-ip{color:var(--text-muted);font-family:var(--font-mono);font-size:.7rem}
+    .bw-mac{color:rgba(148,163,190,.5);font-family:var(--font-mono);font-size:.65rem}
+    .bw-proto{display:inline-block;padding:.1rem .4rem;border-radius:3px;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:var(--font-mono)}
+    .bw-proto-tcp{background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.2)}
+    .bw-proto-udp{background:rgba(52,211,153,.12);color:var(--accent-tx);border:1px solid rgba(52,211,153,.2)}
+    .bw-proto-icmp{background:rgba(245,159,0,.1);color:var(--accent-warn);border:1px solid rgba(245,159,0,.2)}
+    .bw-proto-other{background:rgba(148,163,190,.1);color:var(--text-muted);border:1px solid var(--border)}
+    .bw-flag{font-size:.85rem;margin-right:.2rem}
+    .bw-empty{text-align:center;padding:2.5rem;color:var(--text-muted);font-size:.8rem}
+    .bw-stats{display:none}
     .nav-items{display:flex;flex-direction:column}
     .sform-label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem;display:block}
     .sform-input{width:100%;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:.45rem .7rem;font-size:.8rem;color:var(--text-main);outline:none;transition:border-color .15s}
@@ -538,6 +589,10 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
       <span class="nav-label">Connections</span>
       <span class="nav-badge" id="connNavBadge">0</span>
+    </a>
+    <a class="nav-item" data-page="bandwidth" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+      <span class="nav-label">Bandwidth</span>
     </a>
     <a class="nav-item" data-page="firewall" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
@@ -1062,6 +1117,88 @@
     </div>
   </div>
 
+  <!-- ── Bandwidth ───────────────────────────────────────────────────────── -->
+  <div class="page-view" id="page-bandwidth">
+    <div id="bandwidthCard">
+    <div class="bw-header-row">
+      <div class="bw-chart-card">
+        <div class="bw-chart-card-title">WAN Traffic</div>
+        <div class="bw-chart-wrap"><canvas id="bwTrafficChart"></canvas></div>
+      </div>
+      <div class="bw-stat-col">
+        <div class="bw-stat-card">
+          <div>
+            <div class="bw-stat-label bw-stat-label-rx">&#8595; RX &nbsp;<span class="bw-stat-sub">download</span></div>
+            <div class="bw-stat-val-row">
+              <span class="bw-stat-num" id="bwLiveRxNum">—</span>
+              <span class="bw-stat-unit" id="bwLiveRxUnit"></span>
+            </div>
+          </div>
+          <div style="width:100%;height:1px;background:var(--border)"></div>
+          <div>
+            <div class="bw-stat-label bw-stat-label-tx">&#8593; TX &nbsp;<span class="bw-stat-sub">upload</span></div>
+            <div class="bw-stat-val-row">
+              <span class="bw-stat-num" id="bwLiveTxNum">—</span>
+              <span class="bw-stat-unit" id="bwLiveTxUnit"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bw-toolbar">
+      <input class="bw-search" id="bwSearch" type="text" placeholder="Search IP / hostname / MAC…">
+      <select id="bwIface" style="margin-left:auto">
+        <option value="">All interfaces</option>
+      </select>
+      <select id="bwScope">
+        <option value="">LAN + WAN</option>
+        <option value="lan">LAN only</option>
+        <option value="wan">WAN only</option>
+      </select>
+      <select id="bwIpver">
+        <option value="">IPv4 + IPv6</option>
+        <option value="4">IPv4 only</option>
+        <option value="6">IPv6 only</option>
+      </select>
+      <select id="bwTopN">
+        <option value="10" selected>Top 10</option>
+        <option value="20">Top 20</option>
+        <option value="50">Top 50</option>
+        <option value="0">All</option>
+      </select>
+    </div>
+    <div class="bw-table-wrap">
+      <table class="bw-table">
+        <colgroup>
+          <col style="width:16%">
+          <col style="width:20%">
+          <col style="width:9%">
+          <col style="width:9%">
+          <col style="width:9%">
+          <col style="width:10%">
+          <col style="width:7%">
+          <col style="width:20%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th id="bwThDevice">Device</th>
+            <th id="bwThDst">Destination</th>
+            <th id="bwThRx">RX</th>
+            <th id="bwThTx">TX</th>
+            <th id="bwThTotal" class="sort-desc">Total</th>
+            <th id="bwThIface">Interface</th>
+            <th id="bwThProto">Proto</th>
+            <th id="bwThOrg">ASN / Org</th>
+          </tr>
+        </thead>
+        <tbody id="bwTbody">
+          <tr><td colspan="8" class="bw-empty">Waiting for data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div><!-- /bandwidthCard -->
+  </div>
+
   <!-- ── Settings ─────────────────────────────────────────────────────────── -->
   <div class="page-view" id="page-settings">
     <div style="max-width:720px;margin:0 auto">
@@ -1204,6 +1341,7 @@
             <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBandwidth"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
           </div>
         </div>
       </div>

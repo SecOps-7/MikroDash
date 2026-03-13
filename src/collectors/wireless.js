@@ -7,6 +7,7 @@ class WirelessCollector {
     this.dhcpLeases = dhcpLeases;
     this.arp = arp;
     this.mode = null;
+    this._lastFp = '';
     this.timer = null;
     this._inflight = false;
     this._nameCache = new Map();
@@ -70,11 +71,12 @@ class WirelessCollector {
       };
     }).sort((a, b) => b.signal - a.signal);
 
-    // Always emit — even with zero clients — so the stale timer is refreshed
+    const fp = JSON.stringify(parsed.map(c=>({mac:c.mac,signal:c.signal,iface:c.iface,band:c.band})));
     const payload = { ts: Date.now(), clients: parsed, mode: this.mode || 'none', pollMs: this.pollMs };
     this.lastPayload = payload;
-    this.io.emit('wireless:update', payload);
+    // Always update lastPayload and stale state; only suppress the socket emit when data is identical
     this.state.lastWirelessTs = Date.now();
+    if (fp !== this._lastFp) { this._lastFp = fp; this.io.emit('wireless:update', payload); }
     this.state.lastWirelessErr = null;
   }
 
@@ -90,7 +92,7 @@ class WirelessCollector {
     run();
     this.timer = setInterval(run, this.pollMs);
     this.ros.on('close', () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
-    this.ros.on('connected', () => { this.mode = null; this._nameCache.clear(); this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    this.ros.on('connected', () => { this.mode = null; this._lastFp = ''; this._nameCache.clear(); this.timer = this.timer || setInterval(run, this.pollMs); run(); });
   }
 }
 

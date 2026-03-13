@@ -6,6 +6,7 @@ class FirewallCollector {
     this.state = state;
     this.topN = topN || 15;
     this.prevCounts = new Map();
+    this._lastFp = '';
     this.timer = null;
     this._inflight = false;
   }
@@ -45,8 +46,11 @@ class FirewallCollector {
       if (!seenIds.has(id)) this.prevCounts.delete(id);
     }
 
+    // Fingerprint excludes ts so identical rule sets suppress the emit
+    const fp = JSON.stringify({ filter: filterRules.map(r=>({id:r.id,packets:r.packets,bytes:r.bytes,deltaPackets:r.deltaPackets})),
+      nat: natRules.map(r=>({id:r.id,packets:r.packets})), topByHits: topByHits.map(r=>r.id) });
     this.lastPayload = { ts:Date.now(), filter:filterRules, nat:natRules, mangle:mangleRules, topByHits, pollMs: this.pollMs };
-    this.io.emit('firewall:update', this.lastPayload);
+    if (fp !== this._lastFp) { this._lastFp = fp; this.io.emit('firewall:update', this.lastPayload); }
     this.state.lastFirewallTs = Date.now();
     this.state.lastFirewallErr = null;
   }

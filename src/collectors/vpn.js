@@ -7,6 +7,7 @@ class VpnCollector {
     this.timer  = null;
     this._inflight = false;
     this._debuggedOnce = false;
+    this._lastFp = '';
     this._prev = new Map(); // key -> {rx, tx, ts}
   }
 
@@ -59,9 +60,10 @@ class VpnCollector {
       if (!seenKeys.has(k)) this._prev.delete(k);
     }
 
+    const fp = JSON.stringify(tunnels.map(t=>({name:t.name,state:t.state,uptime:t.uptime,rx:t.rx,tx:t.tx})));
     const _vpnPayload = { ts: Date.now(), tunnels, pollMs: this.pollMs };
     this.lastPayload = _vpnPayload;
-    this.io.emit('vpn:update', _vpnPayload);
+    if (fp !== this._lastFp) { this._lastFp = fp; this.io.emit('vpn:update', _vpnPayload); }
     this.state.lastVpnTs = Date.now();
     this.state.lastVpnErr = null;
   }

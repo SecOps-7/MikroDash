@@ -85,14 +85,18 @@ if(themeToggle) themeToggle.addEventListener('click', function(){
 });
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',settings:'Settings',info:'About'};
+var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',info:'About'};
 var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','firewall','logs','info'];
+var _currentPage = 'dashboard';
+function pageVisible(name){ return _currentPage === name && !document.hidden; }
 function showPage(name){
+  _currentPage = name;
   document.querySelectorAll('.page-view').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var page = $('page-'+name); if(page) page.classList.add('active');
   var nav  = document.querySelector('.nav-item[data-page="'+name+'"]'); if(nav) nav.classList.add('active');
   if(pageTitle) pageTitle.textContent = PAGE_TITLES[name]||name;
+  document.dispatchEvent(new CustomEvent('mikrodash:pagechange', { detail: name }));
 }
 document.querySelectorAll('.nav-item').forEach(function(item){
   item.addEventListener('click', function(e){e.preventDefault();showPage(item.dataset.page);});
@@ -281,7 +285,8 @@ socket.on('conn:update',function(data){
   drawSparkline(connHistory);
   var protoFp=JSON.stringify(data.protoCounts);
   if(protoFp!==_connProtoFp){ _connProtoFp=protoFp; renderProtoBars(data.protoCounts); }
-  var srcFp=JSON.stringify(data.topSources);
+  // Exclude ts — data object shape is stable between ticks when nothing changes
+  var srcFp=JSON.stringify(data.topSources.map(function(x){return{ip:x.ip,count:x.count};}));
   if(srcFp!==_connSrcFp){
     _connSrcFp=srcFp;
     if(data.topSources&&data.topSources.length){
@@ -290,7 +295,7 @@ socket.on('conn:update',function(data){
       }).join('');
     }else{topSources.innerHTML='<div class="empty-state">\u2014</div>';}
   }
-  var dstFp=JSON.stringify(data.topDestinations);
+  var dstFp=JSON.stringify(data.topDestinations.map(function(x){return{key:x.key,count:x.count,country:x.country};}));
   if(dstFp!==_connDstFp){
     _connDstFp=dstFp;
     if(data.topDestinations&&data.topDestinations.length){
@@ -721,6 +726,7 @@ var _rosCurrentlyDisconnected = false;
 var PAGE_NAV_MAP = {
   pageWireless:'wireless', pageInterfaces:'interfaces', pageDhcp:'dhcp',
   pageVpn:'vpn', pageConnections:'connections', pageFirewall:'firewall', pageLogs:'logs',
+  pageBandwidth:'bandwidth',
 };
 function applyPageVisibility(pages) {
   for (var key in PAGE_NAV_MAP) {
@@ -737,9 +743,11 @@ socket.on('settings:pages', function(pages) { applyPageVisibility(pages); });
 socket.on('disconnect',function(){
   reconnectBanner.classList.add('show');
   rosBanner.classList.remove('show');
+  document.body.classList.add('is-disconnected');
 });
 socket.on('connect',function(){
   reconnectBanner.classList.remove('show');
+  document.body.classList.remove('is-disconnected');
   currentIf=''; allPoints=[];
   if(_rosCurrentlyDisconnected) rosBanner.classList.add('show');
 });
@@ -753,9 +761,11 @@ function setRosBanner(connected, reason){
   _rosCurrentlyDisconnected = !connected;
   if(connected){
     rosBanner.classList.remove('show');
+    document.body.classList.remove('is-disconnected');
   } else {
     if(rosBannerText) rosBannerText.textContent = reason || 'RouterOS not connected — retrying…';
     if(!reconnectBanner.classList.contains('show')) rosBanner.classList.add('show');
+    document.body.classList.add('is-disconnected');
   }
 }
 socket.on('ros:status', function(data){
@@ -775,7 +785,8 @@ var staleConfig=[
   {cardId:'vpnCard',      event:'vpn:update',       threshold:30000},
   {cardId:'firewallCard', event:'firewall:update', threshold:30000},
   {cardId:'ifStatusCard', event:'ifstatus:update', threshold:25000},
-  {cardId:'networksCard', event:'lan:overview',    threshold:320000},
+  {cardId:'networksCard', event:'lan:overview',    threshold:345000}, // 300s poll + 45s grace
+  {cardId:'bandwidthCard', event:'bandwidth:update', threshold:20000},
 ];
 var staleTimers={};
 staleConfig.forEach(function(cfg){
@@ -789,6 +800,13 @@ staleConfig.forEach(function(cfg){
     }
   });
 });
+// networksCard shows live ping stats (10s) — also reset its stale timer on ping:update
+// so it never goes stale while ping is actively flowing.
+socket.on('ping:update', function() {
+  staleTimers['networksCard'] = Date.now();
+  var card = $('networksCard'); if (card) card.classList.remove('is-stale');
+});
+
 setInterval(function(){
   var now=Date.now();
   staleConfig.forEach(function(cfg){
@@ -1957,6 +1975,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var POLL_SLIDERS = [
     { key:'pollSystem',    label:'System / Gauges',   min:500,  max:30000,  step:500,  unit:'ms' },
     { key:'pollConns',     label:'Connections',        min:500,  max:30000,  step:500,  unit:'ms' },
+    { key:'pollBandwidth', label:'Bandwidth',            min:500,  max:30000,  step:500,  unit:'ms' },
     { key:'pollWireless',  label:'Wireless',           min:500,  max:30000,  step:500,  unit:'ms' },
     { key:'pollIfstatus',  label:'Interfaces',         min:500,  max:30000,  step:500,  unit:'ms' },
     { key:'pollVpn',       label:'VPN',                min:1000, max:60000,  step:1000, unit:'ms' },
@@ -2026,7 +2045,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
     // Page visibility
-    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     buildSliders(data);
@@ -2055,7 +2074,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
-    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     // Poll sliders
@@ -2106,20 +2125,276 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   });
 
   // Load settings when page becomes active
-  var _settingsLoaded = false;
-  var _origShowPage = showPage;
-  // Patch showPage to load settings on first visit
-  window.addEventListener('DOMContentLoaded', function(){});
-  (function patchShowPage(){
-    var orig = showPage;
-    showPage = function(name) {
-      orig(name);
-      if (name === 'settings' && !_settingsLoaded) {
-        _settingsLoaded = true;
-        loadSettings();
-      } else if (name === 'settings') {
-        loadSettings(); // always refresh on revisit
+  // Load settings on every visit to the settings page
+  document.addEventListener('mikrodash:pagechange', function(e) {
+    if (e.detail === 'settings') loadSettings();
+  });
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Bandwidth Page
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  var _bwData    = [];
+  var _sortKey   = 'totalMbps';
+  var _sortDir   = -1; // -1 desc, 1 asc
+  var _ifaceSet  = new Set();
+  var _maxBar    = 1;  // for normalising mini-bars
+
+  var tbody   = $('bwTbody');
+  var stats   = $('bwStats');
+  var search  = $('bwSearch');
+  var selIface= $('bwIface');
+  var selScope= $('bwScope');
+  var selIpver= $('bwIpver');
+  var selTopN = $('bwTopN');
+  var bwLiveRxNum = $('bwLiveRxNum');
+  var bwLiveRxUnit = $('bwLiveRxUnit');
+  var bwLiveTxNum = $('bwLiveTxNum');
+  var bwLiveTxUnit = $('bwLiveTxUnit');
+
+  // ── Compact traffic chart ─────────────────────────────────────────────
+  var _bwChart = null;
+  var _bwChartCtx = $('bwTrafficChart');
+
+  function _makeBwChart() {
+    if (_bwChart) { _bwChart.destroy(); _bwChart = null; }
+    if (!_bwChartCtx) return;
+    _bwChart = new Chart(_bwChartCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [
+        { label:'RX', data:[], borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,.08)', borderWidth:1.5, tension:0.3, pointRadius:0, fill:true },
+        { label:'TX', data:[], borderColor:'#34d399', backgroundColor:'rgba(52,211,153,.06)', borderWidth:1.5, tension:0.3, pointRadius:0, fill:true }
+      ]},
+      options: {
+        responsive:true, maintainAspectRatio:false, animation:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{ legend:{display:false}, tooltip:{
+          backgroundColor:'rgba(7,9,15,.9)', borderColor:'rgba(99,130,190,.2)', borderWidth:1,
+          titleFont:{family:"'JetBrains Mono',monospace",size:10}, bodyFont:{family:"'JetBrains Mono',monospace",size:10},
+          callbacks:{label:function(ctx){return' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y);}}
+        }},
+        scales:{
+          x:{display:false},
+          y:{beginAtZero:true, grid:{color:'rgba(99,130,190,.06)'},
+             ticks:{color:'rgba(148,163,190,.4)',font:{family:"'JetBrains Mono',monospace",size:9},callback:function(v){return fmtMbps(v);},maxTicksLimit:4}}
+        }
       }
-    };
-  })();
+    });
+  }
+
+  // Mirror points from the global traffic chart into the compact one
+  function _syncBwChart() {
+    if (!_bwChart) return;
+    // Reuse the same allPoints + windowSecs already maintained by the main chart
+    var cutoff = Date.now() - (windowSecs * 1000);
+    var pts = [];
+    for (var i = allPoints.length - 1; i >= 0; i--) {
+      if (allPoints[i].ts < cutoff) break;
+      pts.unshift(allPoints[i]);
+    }
+    _bwChart.data.labels = pts.map(function(p){ return new Date(p.ts).toLocaleTimeString(); });
+    _bwChart.data.datasets[0].data = pts.map(function(p){ return p.rx_mbps; });
+    _bwChart.data.datasets[1].data = pts.map(function(p){ return p.tx_mbps; });
+    _bwChart.update('none');
+  }
+
+  // Update RX/TX stat cards
+  function _splitRate(mbps) {
+    var n = +mbps || 0;
+    if (n >= 1000) return { num: (n/1000).toFixed(2), unit: 'Gbps' };
+    if (n >= 1)    return { num: n.toFixed(2),         unit: 'Mbps' };
+    if (n >= 0.001) return { num: (n*1000).toFixed(1), unit: 'Kbps' };
+    return { num: '—', unit: '' };
+  }
+  function _updateBwStats(rxMbps, txMbps) {
+    var rx = _splitRate(rxMbps), tx = _splitRate(txMbps);
+    if (bwLiveRxNum)  bwLiveRxNum.textContent  = rx.num;
+    if (bwLiveRxUnit) bwLiveRxUnit.textContent = rx.unit;
+    if (bwLiveTxNum)  bwLiveTxNum.textContent  = tx.num;
+    if (bwLiveTxUnit) bwLiveTxUnit.textContent = tx.unit;
+  }
+
+  // Hook into traffic:update to keep the compact chart live
+  socket.on('traffic:update', function(sample) {
+    if (!currentIf || sample.ifName !== currentIf) return;
+    if (pageVisible('bandwidth')) {
+      _updateBwStats(sample.rx_mbps, sample.tx_mbps);
+      _syncBwChart();
+    }
+  });
+
+
+
+  function bar(val, max, cls) {
+    var pct = max > 0 ? Math.min(val/max, 1) : 0;
+    var w   = Math.max(Math.round(pct * 60), pct > 0 ? 2 : 0);
+    return '<span class="bw-bar '+cls+'" style="width:'+w+'px"></span>';
+  }
+
+  function filter(data) {
+    var q     = (search  ? search.value.toLowerCase().trim()  : '');
+    var iface = selIface ? selIface.value : '';
+    var scope = selScope ? selScope.value : '';
+    var ipver = selIpver ? selIpver.value : '';
+    var topN  = selTopN  ? parseInt(selTopN.value, 10) : 10;
+
+    var out = data.filter(function(r) {
+      if (q && !(
+        r.srcIp.toLowerCase().includes(q) ||
+        r.dstIp.toLowerCase().includes(q) ||
+        (r.name  || '').toLowerCase().includes(q) ||
+        (r.mac   || '').toLowerCase().includes(q) ||
+        (r.org   || '').toLowerCase().includes(q)
+      )) return false;
+      if (iface && r.iface !== iface) return false;
+      if (scope === 'lan'  && !r.isLan)  return false;
+      if (scope === 'wan'  &&  r.isLan)  return false;
+      if (ipver === '4'    &&  r.isIpv6) return false;
+      if (ipver === '6'    && !r.isIpv6) return false;
+      return true;
+    });
+
+    // Sort: _sortDir -1 = descending (highest first), 1 = ascending
+    out.sort(function(a, b) {
+      var av = a[_sortKey] != null ? a[_sortKey] : (typeof a[_sortKey] === 'string' ? '' : 0);
+      var bv = b[_sortKey] != null ? b[_sortKey] : (typeof b[_sortKey] === 'string' ? '' : 0);
+      if (typeof av === 'string' || typeof bv === 'string') {
+        return _sortDir === 1 ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+      }
+      return _sortDir === -1 ? bv - av : av - bv;
+    });
+
+    if (topN > 0) out = out.slice(0, topN);
+    return out;
+  }
+
+  function iso2FlagBw(cc) {
+    if (!cc || cc.length !== 2) return '';
+    var base = 0x1F1E6;
+    return String.fromCodePoint(base + cc.charCodeAt(0) - 65) +
+           String.fromCodePoint(base + cc.charCodeAt(1) - 65);
+  }
+
+  function render() {
+    if (!tbody) return;
+    var rows = filter(_bwData);
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="bw-empty">No active bandwidth</td></tr>';
+      if (stats) stats.textContent = '';
+      return;
+    }
+
+    // Normalise bars to max in current view
+    _maxBar = rows.reduce(function(m, r) { return Math.max(m, r.totalMbps); }, 0.001);
+
+    tbody.innerHTML = rows.map(function(r) {
+      var flag = r.country ? ('<span class="bw-flag">'+iso2FlagBw(r.country)+'</span>') : '';
+      var dstLabel = r.dstIp ?
+        '<span class="bw-ip">'+esc(r.dstIp)+'</span>' +
+        (r.country ? '<br><span style="font-size:.65rem;color:var(--text-muted)">'+flag+esc(r.country)+(r.city&&r.city.length>1&&r.city!==r.country?', '+esc(r.city):'')+'</span>' : '') : '—';
+      var devLabel =
+        (r.name ? '<div class="bw-name">'+esc(r.name)+'</div>' : '') +
+        '<div class="bw-ip">'+esc(r.srcIp)+'</div>' +
+        (r.mac ? '<div class="bw-mac">'+esc(r.mac)+'</div>' : '');
+      var orgLabel = r.org ? svcBadge(r.org, r.cat) : '—';
+      return '<tr>' +
+        '<td>'+devLabel+'</td>' +
+        '<td>'+dstLabel+'</td>' +
+        '<td class="bw-rate bw-rate-rx">'+fmtMbps(r.rxMbps)+bar(r.rxMbps,_maxBar,'bw-bar-rx')+'</td>' +
+        '<td class="bw-rate bw-rate-tx">'+fmtMbps(r.txMbps)+bar(r.txMbps,_maxBar,'bw-bar-tx')+'</td>' +
+        '<td class="bw-rate bw-rate-total">'+fmtMbps(r.totalMbps)+'</td>' +
+        '<td><span class="bw-ip">'+esc(r.iface||'—')+'</span></td>' +
+        '<td>'+(r.proto?(function(p){
+          var cls=p==='tcp'?'bw-proto-tcp':p==='udp'?'bw-proto-udp':p.indexOf('icmp')!==-1?'bw-proto-icmp':'bw-proto-other';
+          return '<span class="bw-proto '+cls+'">'+esc(p)+'</span>';
+        })(r.proto):'—')+'</td>' +
+        '<td>'+orgLabel+'</td>' +
+        '</tr>';
+    }).join('');
+
+    if (stats) stats.textContent = rows.length+' device'+(rows.length!==1?'s':'');
+  }
+
+  function updateIfaceSelector(data) {
+    // Only tracks the set for filter logic — DOM is managed solely by ifstatus:update
+    var seen = new Set();
+    data.forEach(function(r){ if(r.iface) seen.add(r.iface); });
+    _ifaceSet = seen;
+  }
+
+  // Sort column headers
+  var sortCols = [
+    {id:'bwThDevice',  key:'name'},
+    {id:'bwThDst',     key:'dstIp'},
+    {id:'bwThRx',      key:'rxMbps'},
+    {id:'bwThTx',      key:'txMbps'},
+    {id:'bwThTotal',   key:'totalMbps'},
+    {id:'bwThIface',   key:'iface'},
+    {id:'bwThProto',   key:'proto'},
+    {id:'bwThOrg',     key:'org'},
+  ];
+  function refreshSortHeaders() {
+    sortCols.forEach(function(c){
+      var el=$(c.id); if(!el) return;
+      el.className = c.key===_sortKey ? (_sortDir===-1?'sort-desc':'sort-asc') : '';
+    });
+  }
+  sortCols.forEach(function(col) {
+    var th = $(col.id); if (!th) return;
+    th.addEventListener('click', function() {
+      if (_sortKey === col.key) { _sortDir *= -1; }
+      else { _sortKey = col.key; _sortDir = col.key==='name'||col.key==='proto'||col.key==='org' ? 1 : -1; }
+      refreshSortHeaders();
+      render();
+    });
+  });
+  refreshSortHeaders(); // apply initial sort indicator on load
+
+  // Filter controls
+  [search, selIface, selScope, selIpver, selTopN].forEach(function(el) {
+    if (el) el.addEventListener('input', render);
+  });
+
+  // Seed interface dropdown from ifStatus so all interfaces are always listed
+  socket.on('ifstatus:update', function(data) {
+    if (!selIface) return;
+    var ifaces = (data.interfaces || [])
+      .filter(function(i){ return i.running && !i.disabled && i.ips && i.ips.length; })
+      .map(function(i){ return i.name; })
+      .sort();
+    // Check for any change (addition or removal)
+    var existing = Array.from(selIface.options).map(function(o){ return o.value; }).filter(Boolean).sort();
+    if (ifaces.length === existing.length && ifaces.every(function(n,i){ return n === existing[i]; })) return;
+    // Rebuild only when the interface list actually changed
+    var cur = selIface.value;
+    selIface.innerHTML = '<option value="">All interfaces</option>';
+    ifaces.forEach(function(name){
+      var o = document.createElement('option');
+      o.value = name; o.textContent = name;
+      if (name === cur) o.selected = true;
+      selIface.appendChild(o);
+    });
+  });
+
+  // Socket handler
+  socket.on('bandwidth:update', function(data) {
+    _bwData = data.devices || [];
+    updateIfaceSelector(_bwData);
+    if (pageVisible('bandwidth')) render();
+  });
+
+  // Re-render when navigating to page (picks up any data that arrived while hidden)
+  document.addEventListener('mikrodash:pagechange', function(e) {
+    if (e.detail === 'bandwidth') {
+      if (!_bwChart) _makeBwChart();
+      _syncBwChart();
+      if (allPoints.length) {
+        var last = allPoints[allPoints.length - 1];
+        _updateBwStats(last.rx_mbps, last.tx_mbps);
+      }
+      render();
+    }
+  });
 })();

@@ -33,6 +33,7 @@ class TrafficCollector {
   constructor({ ros, io, defaultIf, historyMinutes, state }) {
     this.ros       = ros;
     this.io        = io;
+    this._idleTimer = null; // resumes polling when next client connects
     this.defaultIf = defaultIf;
     this.state     = state;
     this.maxPoints = Math.max(60, historyMinutes * 60);
@@ -124,6 +125,9 @@ class TrafficCollector {
 
   async _pollInterface(ifName) {
     if (!this.ros.connected) return;
+    // Skip the RouterOS API call entirely when no browser client is watching.
+    // The interval keeps running so data resumes immediately on reconnect.
+    if (this.io.engine.clientsCount === 0) return;
     try {
       const rows = await this.ros.write(
         '/interface/monitor-traffic',
