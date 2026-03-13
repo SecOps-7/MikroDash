@@ -2,6 +2,41 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.4] — Performance, Settings & DHCP Improvements
+
+### Added
+- **Settings page** — new page accessible via a gear icon pinned to the bottom of the sidebar; About moved below Settings
+- **Persistent settings store** (`src/settings.js`) — saves to `/data/settings.json` on the Docker volume; merges over `.env` values on boot so existing deployments are unaffected
+- **AES-256-GCM credential encryption** — router password and dashboard password are encrypted at rest using a key derived from the `DATA_SECRET` env var
+- **`GET /api/settings`** — returns current settings with credentials masked as `••••••••`
+- **`POST /api/settings`** — validates and saves settings; applies poll interval changes live without restart; broadcasts page visibility changes to all connected clients; returns `requiresRestart: true` if router connection fields changed
+- **Live poll interval sliders** — all collector poll intervals adjustable via range sliders; changes take effect immediately without restart
+- **Page visibility toggles** — any page except Dashboard and Settings can be hidden; hidden pages are removed from the sidebar instantly; active page redirects to Dashboard if hidden
+- **Router connection settings** — host, port, username, password, TLS toggle, self-signed cert toggle, default WAN interface, ping target
+- **Dashboard auth settings** — HTTP Basic Auth username and password configurable from the UI
+- **Limits settings** — Top N connections/talkers/firewall rules, max connections, traffic history minutes
+- **Reset to defaults** button — restores all settings to compiled-in defaults
+- **Docker volume** — `docker-compose.yml` now mounts a named `mikrodash-data` volume at `/data`
+
+### Changed
+- **Boot from settings** — `index.js` reads router credentials and all poll intervals from the settings store on startup; `.env` vars still seed the defaults if no `settings.json` exists yet
+- **DHCP Networks poll default raised to 5 min (300,000 ms)** — network definitions and WAN IP are static config that rarely change; lease counts are derived from the in-memory store so are unaffected. Slider range updated to 30 s – 10 min; `.env.example` updated to match
+- **Merged duplicate socket listeners** — `ifstatus:update`, `vpn:update`, `system:update`, and `ping:update` each previously registered two handlers (render + notification); consolidated into single handlers
+- **`system:update` dirty-checking** — gauges, sys-meta, and update row fingerprinted; DOM only rebuilt when values change
+- **`ifstatus:update` dirty-checking** — interface grid skips full `innerHTML` rewrite when name/state/rates are unchanged
+- **Wireless dirty-checking** — wireless table skips rebuild when MAC/signal/tx-rate/uptime are unchanged
+- **`renderCountryList` dirty-checking** — skips rewrite when data and selection are unchanged
+- **`renderPortList` dirty-checking** — skips rebuild when data is unchanged
+- **Page-visibility gating** — country/port lists, interface grid, wireless table, and firewall table skip all DOM work when the tab is hidden or the relevant page is not active
+- **Log count badge debounce** — `updateLogCounts()` debounced to 250 ms during rapid log bursts
+- **Map tooltip `getBoundingClientRect()` cached** — rect cached per hover session, invalidated on resize; eliminates a forced layout reflow on every `mousemove`
+- **Map pulse animation via `rAF` double-frame** — replaces forced synchronous reflow used to restart CSS animations
+- **Per-tick GeoIP dedup** (`connections.js`) — `geoLookup()` called at most once per unique destination IP per tick
+- **Wireless MAC name cache** (`wireless.js`) — `getNameByMAC()` result cached between ticks in a `Map`; cleared on reconnect
+
+### Server
+- **Event-driven DHCP lease updates** (`dhcpLeases.js`) — removed 15-second periodic `leases:list` broadcast; `_applyLease` now emits an updated lease table immediately on any change from the live stream; `_loadInitial` emits once after startup `/print`
+- **Removed `pollMs` from `DhcpLeasesCollector`** — no longer accepts a poll interval; `LEASES_POLL_MS` env var has no effect and can be removed from `.env`
 ## [0.5.3] — UI & Accuracy Improvements
 
 ### Features

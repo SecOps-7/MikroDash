@@ -93,11 +93,18 @@ class ConnectionsCollector {
         const port = c['dst-port'] || c['port'] || '';
         if (port) portCounts.set(port, (portCounts.get(port) || 0) + 1);
         if (this.geoLookup && isValidIp(ip)) {
-          const geo = this.geoLookup(ip);
-          if (geo && geo.country) {
-            const cc = geo.country;
-            destGeo.set(ip, { country: geo.country || '', city: geo.city || '' });
-            if (!countryCity.has(cc)) countryCity.set(cc, geo.city || '');
+          // destGeo acts as a per-tick cache — avoids calling geoLookup for
+          // the same destination IP more than once per tick
+          if (!destGeo.has(ip)) {
+            const geo = this.geoLookup(ip);
+            destGeo.set(ip, geo && geo.country
+              ? { country: geo.country, city: geo.city || '' }
+              : { country: '', city: '' });
+          }
+          const cached = destGeo.get(ip);
+          if (cached.country) {
+            const cc = cached.country;
+            if (!countryCity.has(cc)) countryCity.set(cc, cached.city);
             const cp = countryProto.get(cc) || { tcp:0, udp:0, other:0 };
             if (p === 'tcp') cp.tcp++; else if (p === 'udp') cp.udp++; else cp.other++;
             countryProto.set(cc, cp);
@@ -105,7 +112,7 @@ class ConnectionsCollector {
         }
         if (isValidIp(ip) && !destOrg.has(ip)) {
           const org = lookupOrg(ip);
-          if (org) destOrg.set(ip, org);
+          destOrg.set(ip, org || null);
         }
         // Tally org connections per country for the breakdown sub-rows
         const resolvedOrg = destOrg.get(ip);
@@ -161,10 +168,11 @@ class ConnectionsCollector {
       .sort((a,b) => b[1]-a[1]).slice(0,10)
       .map(([port,count]) => ({ port, count }));
 
-    this.io.emit('conn:update', {
+    this.lastPayload = {
       ts: Date.now(), total: totalRaw, processed: conns.length, processingCapped: totalRaw > this.maxConns, newSinceLast,
-      protoCounts, topSources, topDestinations, topCountries, topPorts,
-    });
+      protoCounts, topSources, topDestinations, topCountries, topPorts, pollMs: this.pollMs,
+    };
+    this.io.emit('conn:update', this.lastPayload);
     this.state.lastConnsTs = Date.now();
     this.state.lastConnsErr = null;
   }

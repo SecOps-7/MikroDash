@@ -85,7 +85,7 @@ if(themeToggle) themeToggle.addEventListener('click', function(){
 });
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs'};
+var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',settings:'Settings',info:'About'};
 var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','firewall','logs','info'];
 function showPage(name){
   document.querySelectorAll('.page-view').forEach(function(p){p.classList.remove('active');});
@@ -272,39 +272,49 @@ function svcBadge(org, cat){
   if(!org) return '';
   return '<span class="svc-badge svc-'+(cat||'other')+'">'+esc(org)+'</span>';
 }
+var _connSrcFp='', _connDstFp='', _connProtoFp='';
 socket.on('conn:update',function(data){
   connTotal.textContent=data.total;
   var connNavBadge=$("connNavBadge"); if(connNavBadge) connNavBadge.textContent=data.total;
   connHistory.push({ts:data.ts,total:data.total});
   if(connHistory.length>MAX_CONN_HIST)connHistory.shift();
   drawSparkline(connHistory);
-  renderProtoBars(data.protoCounts);
-  if(data.topSources&&data.topSources.length){
-    topSources.innerHTML=data.topSources.map(function(s){
-      return'<div class="top-row"><div><div class="top-name">'+esc(s.name)+'</div><div class="top-sub">'+esc(s.ip)+(s.mac?' '+DOT+' '+esc(s.mac):'')+' </div></div><div class="top-count">'+s.count+'</div></div>';
-    }).join('');
-  }else{topSources.innerHTML='<div class="empty-state">\u2014</div>';}
-  if(data.topDestinations&&data.topDestinations.length){
-    topDests.innerHTML=data.topDestinations.map(function(d){
-      var flag='',geoLabel='';
-      if(d.country){
-        flag=d.country.split('').map(function(c){return String.fromCodePoint(0x1F1E6-65+c.toUpperCase().charCodeAt(0));}).join('');
-        geoLabel=flag+(d.city?' '+esc(d.city)+' · '+esc(d.country):'');
-      }
-      return'<div class="top-row">'+
-        '<div style="flex:1;min-width:0;overflow:hidden">'+
-          '<div style="display:flex;align-items:center;gap:0;overflow:hidden">'+
-            '<span class="top-name text-truncate has-ip-tip" data-ip="'+esc(d.key)+
-              '" data-org="'+(d.org?esc(d.org):'')+
-              '" data-cat="'+(d.cat||'')+'">'+ esc(d.key)+'</span>'+
-            (d.org?svcBadge(d.org,d.cat):'')+
+  var protoFp=JSON.stringify(data.protoCounts);
+  if(protoFp!==_connProtoFp){ _connProtoFp=protoFp; renderProtoBars(data.protoCounts); }
+  var srcFp=JSON.stringify(data.topSources);
+  if(srcFp!==_connSrcFp){
+    _connSrcFp=srcFp;
+    if(data.topSources&&data.topSources.length){
+      topSources.innerHTML=data.topSources.map(function(s){
+        return'<div class="top-row"><div><div class="top-name">'+esc(s.name)+'</div><div class="top-sub">'+esc(s.ip)+(s.mac?' '+DOT+' '+esc(s.mac):'')+' </div></div><div class="top-count">'+s.count+'</div></div>';
+      }).join('');
+    }else{topSources.innerHTML='<div class="empty-state">\u2014</div>';}
+  }
+  var dstFp=JSON.stringify(data.topDestinations);
+  if(dstFp!==_connDstFp){
+    _connDstFp=dstFp;
+    if(data.topDestinations&&data.topDestinations.length){
+      topDests.innerHTML=data.topDestinations.map(function(d){
+        var flag='',geoLabel='';
+        if(d.country){
+          flag=d.country.split('').map(function(c){return String.fromCodePoint(0x1F1E6-65+c.toUpperCase().charCodeAt(0));}).join('');
+          geoLabel=flag+(d.city?' '+esc(d.city)+' · '+esc(d.country):'');
+        }
+        return'<div class="top-row">'+
+          '<div style="flex:1;min-width:0;overflow:hidden">'+
+            '<div style="display:flex;align-items:center;gap:0;overflow:hidden">'+
+              '<span class="top-name text-truncate has-ip-tip" data-ip="'+esc(d.key)+
+                '" data-org="'+(d.org?esc(d.org):'')+
+                '" data-cat="'+(d.cat||'')+'">'+ esc(d.key)+'</span>'+
+              (d.org?svcBadge(d.org,d.cat):'')+
+            '</div>'+
           '</div>'+
-        '</div>'+
-        (geoLabel?'<div class="top-geo">'+geoLabel+'</div>':'')+
-        '<div class="top-count">'+d.count+'</div>'+
-      '</div>';
-    }).join('');
-  }else{topDests.innerHTML='<div class="empty-state">\u2014</div>';}
+          (geoLabel?'<div class="top-geo">'+geoLabel+'</div>':'')+
+          '<div class="top-count">'+d.count+'</div>'+
+        '</div>';
+      }).join('');
+    }else{topDests.innerHTML='<div class="empty-state">\u2014</div>';}
+  }
 });
 
 // ── Top Talkers ────────────────────────────────────────────────────────────
@@ -707,6 +717,23 @@ socket.on('wan:status',function(s){renderWanStatus(s);});
 // ── Reconnect ──────────────────────────────────────────────────────────────
 var _rosCurrentlyDisconnected = false;
 
+// ── Settings: page visibility ────────────────────────────────────────────────
+var PAGE_NAV_MAP = {
+  pageWireless:'wireless', pageInterfaces:'interfaces', pageDhcp:'dhcp',
+  pageVpn:'vpn', pageConnections:'connections', pageFirewall:'firewall', pageLogs:'logs',
+};
+function applyPageVisibility(pages) {
+  for (var key in PAGE_NAV_MAP) {
+    var pageName = PAGE_NAV_MAP[key];
+    var navEl = document.querySelector('.nav-item[data-page="'+pageName+'"]');
+    var visible = pages[key] !== false;
+    if (navEl) navEl.style.display = visible ? '' : 'none';
+    // If currently on a now-hidden page, redirect to dashboard
+    if (!visible && _currentPage === pageName) showPage('dashboard');
+  }
+}
+socket.on('settings:pages', function(pages) { applyPageVisibility(pages); });
+
 socket.on('disconnect',function(){
   reconnectBanner.classList.add('show');
   rosBanner.classList.remove('show');
@@ -736,21 +763,31 @@ socket.on('ros:status', function(data){
 });
 
 // ── Stale detection ────────────────────────────────────────────────────────
+// Grace period added on top of pollMs before a card is considered stale.
+// traffic:update is fixed at 1 s so its threshold is also fixed.
+var STALE_GRACE = 20000; // 20 s grace on top of poll interval
 var staleConfig=[
-  {cardId:'trafficCard',  event:'traffic:update',  threshold:10000},
+  {cardId:'trafficCard',  event:'traffic:update',  threshold:10000}, // fixed 1s poll
   {cardId:'systemCard',   event:'system:update',   threshold:15000},
   {cardId:'connCard',     event:'conn:update',      threshold:20000},
   {cardId:'talkersCard',  event:'talkers:update',  threshold:20000},
-  {cardId:'wirelessCard', event:'wireless:update', threshold:60000},
+  {cardId:'wirelessCard', event:'wireless:update', threshold:25000},
   {cardId:'vpnCard',      event:'vpn:update',       threshold:30000},
   {cardId:'firewallCard', event:'firewall:update', threshold:30000},
-  {cardId:'ifStatusCard', event:'ifstatus:update', threshold:20000},
-  {cardId:'networksCard',  event:'lan:overview',    threshold:60000},
+  {cardId:'ifStatusCard', event:'ifstatus:update', threshold:25000},
+  {cardId:'networksCard', event:'lan:overview',    threshold:320000},
 ];
 var staleTimers={};
 staleConfig.forEach(function(cfg){
   staleTimers[cfg.cardId]=0;
-  socket.on(cfg.event,function(){staleTimers[cfg.cardId]=Date.now();var card=$(cfg.cardId);if(card)card.classList.remove('is-stale');});
+  socket.on(cfg.event,function(data){
+    staleTimers[cfg.cardId]=Date.now();
+    var card=$(cfg.cardId);if(card)card.classList.remove('is-stale');
+    // Dynamically update threshold from server-reported poll interval
+    if(data&&data.pollMs){
+      cfg.threshold=data.pollMs+STALE_GRACE;
+    }
+  });
 });
 setInterval(function(){
   var now=Date.now();
@@ -931,12 +968,14 @@ initNotifications();
 (function(){
   var el = $('tobarClock');
   if(!el) return;
+  var _clockLast='';
   function tick(){
     var now = new Date();
     var h = now.getHours().toString().padStart(2,'0');
     var m = now.getMinutes().toString().padStart(2,'0');
     var s = now.getSeconds().toString().padStart(2,'0');
-    el.textContent = h+':'+m+':'+s;
+    var str=h+':'+m+':'+s;
+    if(str!==_clockLast){ _clockLast=str; el.textContent=str; }
   }
   tick();
   setInterval(tick, 1000);
@@ -1382,25 +1421,35 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   // Tooltip on country hover
   function bindTooltip(){
+    var _tipCc=null, _mapWrapRect=null;
+    // Cache the wrapper rect; invalidate on resize so we don't call
+    // getBoundingClientRect() (a forced layout) on every mousemove tick
+    window.addEventListener('resize',function(){ _mapWrapRect=null; });
     mapEl.addEventListener('mousemove',function(e){
-      var tgt=e.target; if(!tgt.dataset||!tgt.dataset.cc) return;
+      var tgt=e.target; if(!tgt.dataset||!tgt.dataset.cc){
+        if(_tipCc){tooltipEl.style.display='none';_tipCc=null;} return;
+      }
       var cc=tgt.dataset.cc;
       var n=_countryCounts[cc]||0;
       if(!n&&!_pathEls[cc]) return;
-      var flag=iso2Flag(cc);
-      var city=_countryCity[cc]||'';
-      var proto=_countryProto[cc]||{};
-      tooltipEl.innerHTML=flag+' <strong>'+(CC_NAMES[cc]||cc)+'</strong>'+(city?' · '+esc(city):'')+
-        (n?' &nbsp;<span style="color:var(--accent-rx)">'+n+' conns</span>':'')+
-        (proto.tcp||proto.udp?'<br><span style="color:var(--text-muted);font-size:.6rem">TCP:'+
-          (proto.tcp||0)+' UDP:'+(proto.udp||0)+'</span>':'');
-      var wrap=mapEl.parentElement.getBoundingClientRect();
-      var tx=e.clientX-wrap.left+10, ty=e.clientY-wrap.top-30;
-      tooltipEl.style.left=tx+'px'; tooltipEl.style.top=ty+'px';
-      tooltipEl.style.display='block';
+      if(cc!==_tipCc){
+        _tipCc=cc;
+        _mapWrapRect=null; // invalidate when tooltip content changes
+        var flag=iso2Flag(cc);
+        var city=_countryCity[cc]||'';
+        var proto=_countryProto[cc]||{};
+        tooltipEl.innerHTML=flag+' <strong>'+(CC_NAMES[cc]||cc)+'</strong>'+(city?' · '+esc(city):'')+
+          (n?' &nbsp;<span style="color:var(--accent-rx)">'+n+' conns</span>':'')+
+          (proto.tcp||proto.udp?'<br><span style="color:var(--text-muted);font-size:.6rem">TCP:'+
+            (proto.tcp||0)+' UDP:'+(proto.udp||0)+'</span>':'');
+        tooltipEl.style.display='block';
+      }
+      if(!_mapWrapRect) _mapWrapRect=mapEl.parentElement.getBoundingClientRect();
+      tooltipEl.style.left=(e.clientX-_mapWrapRect.left+10)+'px';
+      tooltipEl.style.top=(e.clientY-_mapWrapRect.top-30)+'px';
     });
     mapEl.addEventListener('mouseleave',function(){
-      tooltipEl.style.display='none';
+      tooltipEl.style.display='none'; _tipCc=null; _mapWrapRect=null;
     });
   }
 
@@ -1643,10 +1692,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         if((counts[cc]||0)>(prevCounts[cc]||0)){
           var el=_pathEls[cc]; if(!el) return;
           el.classList.remove('pulse');
-          // Force reflow to restart animation
-          void el.getBoundingClientRect();
-          el.classList.add('pulse');
-          setTimeout(function(){ el.classList.remove('pulse'); }, 750);
+          // rAF double-frame: lets browser commit style removal before re-adding,
+          // avoiding a forced synchronous layout reflow
+          requestAnimationFrame(function(){ requestAnimationFrame(function(){
+            el.classList.add('pulse');
+            setTimeout(function(){ el.classList.remove('pulse'); }, 750);
+          }); });
         }
       });
     }
@@ -1830,12 +1881,26 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
   }
 
-  // Listen for conn:update — render and cache for resize
+  // Listen for conn:update — throttle renders + skip if data unchanged
   var _lastSrcs=[], _lastDsts=[], _resizeTimer=null;
+  var _sankeyFp='', _sankeyPending=false, _sankeyLast=0;
+  var SANKEY_THROTTLE=5000; // ms between full re-renders
   socket.on('conn:update',function(data){
-    _lastSrcs=(data.topSources||[]).slice(0,8);
-    _lastDsts=(data.topDestinations||[]).slice(0,10);
-    render(_lastSrcs,_lastDsts);
+    var srcs=(data.topSources||[]).slice(0,8);
+    var dsts=(data.topDestinations||[]).slice(0,10);
+    var fp=JSON.stringify(srcs)+JSON.stringify(dsts);
+    if(fp===_sankeyFp) return; // data unchanged — skip
+    _sankeyFp=fp;
+    _lastSrcs=srcs; _lastDsts=dsts;
+    var now=Date.now();
+    if(now-_sankeyLast>=SANKEY_THROTTLE){
+      _sankeyLast=now; render(_lastSrcs,_lastDsts);
+    } else if(!_sankeyPending){
+      _sankeyPending=true;
+      setTimeout(function(){
+        _sankeyPending=false; _sankeyLast=Date.now(); render(_lastSrcs,_lastDsts);
+      }, SANKEY_THROTTLE-(now-_sankeyLast));
+    }
   });
   window.addEventListener('resize',function(){
     clearTimeout(_resizeTimer);
@@ -1853,8 +1918,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if(!ip){tip.style.display='none';return;}
     tip.innerHTML=esc(ip)+(org?'<span class="ip-tip-org">'+esc(org)+'</span>'+
       '<span class="ip-tip-cat svc-badge svc-'+(cat||'other')+'">'+esc(cat)+'</span>':'');
-    tip.style.left=(e.clientX+14)+'px';
-    tip.style.top=(e.clientY-32)+'px';
+    tip.style.transform='translate('+(e.clientX+14)+'px,'+(e.clientY-32)+'px)';
     tip.style.display='block';
   }
   document.addEventListener('mouseover',function(e){
@@ -1863,7 +1927,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   });
   document.addEventListener('mousemove',function(e){
     if(tip.style.display==='none') return;
-    tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-32)+'px';
+    tip.style.transform='translate('+(e.clientX+14)+'px,'+(e.clientY-32)+'px)';
   });
   document.addEventListener('mouseleave',function(){ tip.style.display='none'; },true);
 })();
@@ -1883,4 +1947,179 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if(window.innerWidth<=767) closeNav();
     });
   });
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Settings Page
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  var POLL_SLIDERS = [
+    { key:'pollSystem',    label:'System / Gauges',   min:500,  max:30000,  step:500,  unit:'ms' },
+    { key:'pollConns',     label:'Connections',        min:500,  max:30000,  step:500,  unit:'ms' },
+    { key:'pollWireless',  label:'Wireless',           min:500,  max:30000,  step:500,  unit:'ms' },
+    { key:'pollIfstatus',  label:'Interfaces',         min:500,  max:30000,  step:500,  unit:'ms' },
+    { key:'pollVpn',       label:'VPN',                min:1000, max:60000,  step:1000, unit:'ms' },
+    { key:'pollFirewall',  label:'Firewall',           min:1000, max:60000,  step:1000, unit:'ms' },
+    { key:'pollPing',      label:'Ping',               min:1000, max:60000,  step:1000, unit:'ms' },
+    { key:'pollArp',       label:'ARP',                min:5000, max:120000, step:5000, unit:'ms' },
+    { key:'pollDhcp',      label:'DHCP Networks',      min:30000, max:600000, step:30000, unit:'ms' },
+  ];
+
+  var _loaded = {};
+  var banner = $('settingsBanner');
+  var saveBtn = $('settingsSaveBtn');
+  var resetBtn = $('settingsResetBtn');
+  var routerNotice = $('routerRestartNotice');
+
+  function fmtMs(ms) {
+    if (ms >= 60000) return (ms/60000).toFixed(0)+'m';
+    if (ms >= 1000)  return (ms/1000).toFixed(ms%1000===0?0:1)+'s';
+    return ms+'ms';
+  }
+
+  function showBanner(type, msg) {
+    if (!banner) return;
+    banner.className = 'sbanner show sbanner-'+type;
+    banner.textContent = msg;
+    if (type !== 'err') setTimeout(function(){ banner.className='sbanner'; }, 4000);
+  }
+
+  function buildSliders(data) {
+    var wrap = $('pollSlidersWrap'); if (!wrap) return;
+    wrap.innerHTML = '';
+    POLL_SLIDERS.forEach(function(cfg) {
+      var val = data[cfg.key] || cfg.min;
+      var row = document.createElement('div');
+      row.style.cssText = 'margin-bottom:.7rem';
+      row.innerHTML =
+        '<div style="display:flex;justify-content:space-between;margin-bottom:.25rem">' +
+          '<span style="font-size:.75rem;color:var(--text-muted)">'+cfg.label+'</span>' +
+          '<span class="srange-val" id="sv_'+cfg.key+'">'+fmtMs(val)+'</span>' +
+        '</div>' +
+        '<input type="range" class="sform-input" id="s_'+cfg.key+'" ' +
+          'min="'+cfg.min+'" max="'+cfg.max+'" step="'+cfg.step+'" value="'+val+'" ' +
+          'style="padding:0;border:none;background:transparent;cursor:pointer">';
+      wrap.appendChild(row);
+      var slider = $('s_'+cfg.key);
+      var valEl  = $('sv_'+cfg.key);
+      if (slider && valEl) {
+        slider.addEventListener('input', function() {
+          valEl.textContent = fmtMs(parseInt(slider.value, 10));
+        });
+      }
+    });
+  }
+
+  function populate(data) {
+    _loaded = data;
+    var fields = ['routerHost','routerPort','routerUser','defaultIf','pingTarget',
+                  'dashUser','topN','topTalkersN','firewallTopN','maxConns','historyMinutes'];
+    fields.forEach(function(f) {
+      var el = $('s_'+f); if (el) el.value = data[f] !== undefined ? data[f] : '';
+    });
+    // Passwords — show placeholder only, never pre-fill with mask
+    var rp = $('s_routerPass'); if (rp) { rp.value = ''; rp.placeholder = data.routerPass ? 'leave blank to keep current' : 'not set'; }
+    var dp = $('s_dashPass');   if (dp) { dp.value = ''; dp.placeholder = data.dashPass   ? 'leave blank to keep current' : 'not set'; }
+    // Booleans
+    ['routerTls','routerTlsInsecure'].forEach(function(f) {
+      var el = $('s_'+f); if (el) el.checked = !!data[f];
+    });
+    // Page visibility
+    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs'].forEach(function(f) {
+      var el = $('s_'+f); if (el) el.checked = data[f] !== false;
+    });
+    buildSliders(data);
+  }
+
+  function loadSettings() {
+    fetch('/api/settings')
+      .then(function(r){ return r.json(); })
+      .then(function(data){ populate(data); })
+      .catch(function(e){ showBanner('err', 'Failed to load settings: '+e); });
+  }
+
+  function collectForm() {
+    var out = {};
+    ['routerHost','routerUser','defaultIf','pingTarget','dashUser'].forEach(function(f) {
+      var el = $('s_'+f); if (el) out[f] = el.value.trim();
+    });
+    var portEl = $('s_routerPort'); if (portEl) out.routerPort = parseInt(portEl.value, 10);
+    ['topN','topTalkersN','firewallTopN','maxConns','historyMinutes'].forEach(function(f) {
+      var el = $('s_'+f); if (el) out[f] = parseInt(el.value, 10);
+    });
+    // Passwords — only send if user typed something
+    var rpEl = $('s_routerPass'); if (rpEl && rpEl.value) out.routerPass = rpEl.value;
+    var dpEl = $('s_dashPass');   if (dpEl && dpEl.value) out.dashPass   = dpEl.value;
+    // Booleans
+    ['routerTls','routerTlsInsecure'].forEach(function(f) {
+      var el = $('s_'+f); if (el) out[f] = el.checked;
+    });
+    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs'].forEach(function(f) {
+      var el = $('s_'+f); if (el) out[f] = el.checked;
+    });
+    // Poll sliders
+    POLL_SLIDERS.forEach(function(cfg) {
+      var el = $('s_'+cfg.key); if (el) out[cfg.key] = parseInt(el.value, 10);
+    });
+    return out;
+  }
+
+  if (saveBtn) saveBtn.addEventListener('click', function() {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    var payload = collectForm();
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Settings';
+      if (data.ok) {
+        showBanner('ok', '✓ Settings saved');
+        if (routerNotice) routerNotice.style.display = data.requiresRestart ? '' : 'none';
+        loadSettings(); // refresh to get clean state
+      } else {
+        showBanner('err', 'Save failed: '+(data.error||'unknown error'));
+      }
+    })
+    .catch(function(e) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Settings';
+      showBanner('err', 'Request failed: '+e);
+    });
+  });
+
+  if (resetBtn) resetBtn.addEventListener('click', function() {
+    if (!confirm('Reset all settings to defaults? This cannot be undone.')) return;
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ _reset: true }),
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(){ showBanner('ok', '✓ Reset to defaults'); loadSettings(); })
+    .catch(function(e){ showBanner('err', 'Reset failed: '+e); });
+  });
+
+  // Load settings when page becomes active
+  var _settingsLoaded = false;
+  var _origShowPage = showPage;
+  // Patch showPage to load settings on first visit
+  window.addEventListener('DOMContentLoaded', function(){});
+  (function patchShowPage(){
+    var orig = showPage;
+    showPage = function(name) {
+      orig(name);
+      if (name === 'settings' && !_settingsLoaded) {
+        _settingsLoaded = true;
+        loadSettings();
+      } else if (name === 'settings') {
+        loadSettings(); // always refresh on revisit
+      }
+    };
+  })();
 })();

@@ -47,7 +47,7 @@ class DhcpNetworksCollector {
     this.lanCidrs = Array.from(new Set(lanCidrs));
     this.networks = networks;
     if (this.state) this.state.lastWanIp = wanIp;
-    this.io.emit('lan:overview', { ts: Date.now(), lanCidrs: this.lanCidrs, networks: this.networks, wanIp });
+    this.io.emit('lan:overview', { ts: Date.now(), lanCidrs: this.lanCidrs, networks: this.networks, wanIp, pollMs: this.pollMs });
     this.state.lastNetworksTs = Date.now();
   }
 

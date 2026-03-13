@@ -5,4 +5,9 @@ services:
     env_file: .env
     ports:
       - "3081:3081"
+    volumes:
+      - mikrodash-data:/data
     restart: unless-stopped
+
+volumes:
+  mikrodash-data:

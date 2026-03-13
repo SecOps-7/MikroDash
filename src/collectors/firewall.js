@@ -45,7 +45,8 @@ class FirewallCollector {
       if (!seenIds.has(id)) this.prevCounts.delete(id);
     }
 
-    this.io.emit('firewall:update', { ts:Date.now(), filter:filterRules, nat:natRules, mangle:mangleRules, topByHits });
+    this.lastPayload = { ts:Date.now(), filter:filterRules, nat:natRules, mangle:mangleRules, topByHits, pollMs: this.pollMs };
+    this.io.emit('firewall:update', this.lastPayload);
     this.state.lastFirewallTs = Date.now();
     this.state.lastFirewallErr = null;
   }

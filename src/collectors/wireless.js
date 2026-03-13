@@ -9,12 +9,17 @@ class WirelessCollector {
     this.mode = null;
     this.timer = null;
     this._inflight = false;
+    this._nameCache = new Map();
   }
 
   resolveName(mac) {
     if (!mac) return '';
+    // _nameCache persists between ticks — MAC→name is stable until lease changes
+    if (this._nameCache.has(mac)) return this._nameCache.get(mac);
     const byMac = this.dhcpLeases ? this.dhcpLeases.getNameByMAC(mac) : null;
-    return (byMac && byMac.name) ? byMac.name : '';
+    const name = (byMac && byMac.name) ? byMac.name : '';
+    this._nameCache.set(mac, name);
+    return name;
   }
 
   async tick() {
@@ -66,7 +71,7 @@ class WirelessCollector {
     }).sort((a, b) => b.signal - a.signal);
 
     // Always emit — even with zero clients — so the stale timer is refreshed
-    const payload = { ts: Date.now(), clients: parsed, mode: this.mode || 'none' };
+    const payload = { ts: Date.now(), clients: parsed, mode: this.mode || 'none', pollMs: this.pollMs };
     this.lastPayload = payload;
     this.io.emit('wireless:update', payload);
     this.state.lastWirelessTs = Date.now();
@@ -85,7 +90,7 @@ class WirelessCollector {
     run();
     this.timer = setInterval(run, this.pollMs);
     this.ros.on('close', () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
-    this.ros.on('connected', () => { this.mode = null; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    this.ros.on('connected', () => { this.mode = null; this._nameCache.clear(); this.timer = this.timer || setInterval(run, this.pollMs); run(); });
   }
 }
 

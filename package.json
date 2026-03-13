@@ -1,8 +1,8 @@
 {
   "name": "mikrodash",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "private": true,
-  "description": "MikroTik RouterOS v7 live dashboard — streaming binary API, Tabler + Socket.IO",
+  "description": "MikroTik RouterOS v7 live dashboard \u2014 streaming binary API, Tabler + Socket.IO",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
