@@ -19,7 +19,7 @@ class TopTalkersCollector {
   async tick() {
     if (!this.ros.connected) return;
     const now = Date.now();
-    const items = await this.ros.write('/ip/kid-control/device/print');
+    const items = await this.ros.write('/ip/kid-control/device/print', ['=.proplist=name,mac-address,bytes-up,bytes-down']);
 
     const seenMACs = new Set();
     let devices = (items || []).map(d => {
