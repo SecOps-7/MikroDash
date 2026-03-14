@@ -126,7 +126,12 @@ const connTableCache = {
   async get(ros) {
     const now = Date.now();
     if (this.rows !== null && (now - this.ts) < MAX_CONN_CACHE_AGE) return this.rows;
-    this.rows = (await ros.write('/ip/firewall/connection/print')) || [];
+    // =.proplist= tells RouterOS to send only these fields per entry instead of
+    // the full ~15-field row. With large connection tables this can halve the
+    // amount of data sent over the RouterOS API TCP connection.
+    this.rows = (await ros.write('/ip/firewall/connection/print', [
+      '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
+    ])) || [];
     this.ts   = Date.now();
     return this.rows;
   },

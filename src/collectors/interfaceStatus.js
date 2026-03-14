@@ -24,8 +24,8 @@ class InterfaceStatusCollector {
   async tick() {
     if (!this.ros.connected) return;
     const [ifRes, addrRes] = await Promise.allSettled([
-      this.ros.write("/interface/print", ["=stats="]),
-      this.ros.write("/ip/address/print"),
+      this.ros.write("/interface/print", ["=stats=", "=.proplist=name,type,running,disabled,comment,mac-address,rx-byte,tx-byte,rx-bits-per-second,tx-bits-per-second"]),
+      this.ros.write("/ip/address/print", ["=.proplist=interface,address"]),
     ]);
     const ifaces = ifRes.status === "fulfilled" ? (ifRes.value || []) : [];
     const addrs  = addrRes.status === "fulfilled" ? (addrRes.value || []) : [];
