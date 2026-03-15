@@ -71,6 +71,7 @@ const DEFAULTS = {
 
   // Poll intervals (ms)
   pollConns:         parseInt(process.env.CONNS_POLL_MS     || '3000',  10),
+  pollTalkers:       parseInt(process.env.TALKERS_POLL_MS   || '3000',  10),
   pollBandwidth:     parseInt(process.env.BANDWIDTH_POLL_MS  || '3000',  10),
   pollSystem:        parseInt(process.env.SYSTEM_POLL_MS    || '3000',  10),
   pollWireless:      parseInt(process.env.WIRELESS_POLL_MS  || '5000',  10),

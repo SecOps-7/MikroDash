@@ -120,12 +120,18 @@ const HISTORY_MINUTES = _cfg.historyMinutes;
 // Collectors — order matters: leases must exist before networks/connections
 const dhcpLeases   = new DhcpLeasesCollector ({ros,io, state});
 // ── Shared /ip/firewall/connection/print cache ───────────────────────────
-const MAX_CONN_CACHE_AGE = 1500;
+// TTL is set to 40% of the faster collector's poll interval so two
+// consecutive ticks from the same collector never both hit the cached value,
+// even at 1s bandwidth polling. updateMaxAge() is called when settings change.
 const connTableCache = {
   rows: null, ts: 0,
+  maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 0.4,
+  updateMaxAge(pollConns, pollBandwidth) {
+    this.maxAge = Math.min(pollConns, pollBandwidth) * 0.4;
+  },
   async get(ros) {
     const now = Date.now();
-    if (this.rows !== null && (now - this.ts) < MAX_CONN_CACHE_AGE) return this.rows;
+    if (this.rows !== null && (now - this.ts) < this.maxAge) return this.rows;
     // =.proplist= tells RouterOS to send only these fields per entry instead of
     // the full ~15-field row. With large connection tables this can halve the
     // amount of data sent over the RouterOS API TCP connection.
@@ -142,7 +148,7 @@ const arp          = new ArpCollector         ({ros,    pollMs:_cfg.pollArp,    
 const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:_cfg.pollDhcp,     dhcpLeases, state, wanIface:DEFAULT_IF});
 const traffic      = new TrafficCollector     ({ros,io, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state});
 const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache});
-const talkers      = new TopTalkersCollector  ({ros,io, pollMs:_cfg.pollConns,    state, topN:_cfg.topTalkersN});
+const talkers      = new TopTalkersCollector  ({ros,io, pollMs:_cfg.pollTalkers,  state, topN:_cfg.topTalkersN});
 const logs         = new LogsCollector        ({ros,io, state});
 const system       = new SystemCollector      ({ros,io, pollMs:_cfg.pollSystem,   state});
 const wireless     = new WirelessCollector    ({ros,io, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
@@ -174,7 +180,7 @@ app.post('/api/settings', (req, res) => {
     }
     const updates = {};
     const intFields = {
-      routerPort:[1,65535], pollConns:[500,60000], pollSystem:[500,60000],
+      routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollSystem:[500,60000],
       pollWireless:[500,60000], pollVpn:[1000,120000], pollFirewall:[1000,120000],
       pollIfstatus:[500,60000], pollPing:[1000,120000], pollArp:[5000,300000],
       pollBandwidth:[500,60000], pollDhcp:[5000,300000], topN:[1,50], topTalkersN:[1,20],
@@ -197,7 +203,7 @@ app.post('/api/settings', (req, res) => {
 
     // Apply poll changes live without restart
     const collectorMap = { conns, system, wireless, vpn, firewall, ifStatus, ping, arp, dhcpNetworks, bandwidth };
-    const pollMap = { pollConns:'conns', pollSystem:'system', pollWireless:'wireless',
+    const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks' };
     for (const [key, name] of Object.entries(pollMap)) {
@@ -215,6 +221,10 @@ app.post('/api/settings', (req, res) => {
       }
     }
     if ('pingTarget' in updates) ping.target = saved.pingTarget;
+    // Recalculate cache TTL whenever either consumer's poll interval changes
+    if ('pollConns' in updates || 'pollBandwidth' in updates) {
+      connTableCache.updateMaxAge(saved.pollConns, saved.pollBandwidth);
+    }
 
     // Broadcast page visibility to all connected clients
     const pageSettings = {
@@ -317,15 +327,15 @@ async function startCollectors() {
     wireless.start();
     await dhcpLeases.start();   // async: loads initial state first
     dhcpNetworks.start();
-    arp.start();
+    await arp.start();
     traffic.start();
     conns.start();
     talkers.start();
     logs.start();
     system.start();
-    vpn.start();
-    firewall.start();
-    ifStatus.start();
+    await vpn.start();
+    await firewall.start();
+    await ifStatus.start();
     ping.start();
     bandwidth.start();
 
@@ -383,6 +393,7 @@ async function sendInitialState(socket) {
     ts: Date.now(),
     lanCidrs: dhcpNetworks.getLanCidrs(),
     networks: dhcpNetworks.networks || [],
+    wanIp: (state.lastWanIp || ''),
     pollMs: dhcpNetworks.pollMs,
   });
 

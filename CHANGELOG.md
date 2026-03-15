@@ -2,6 +2,116 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.6] — Streaming Architecture, Router CPU Optimisations & Bug Fixes
+
+### Streaming — event-driven collectors (replaces polling)
+
+Four collectors converted from fixed-interval polling to RouterOS `/listen` streams.
+Each opens a persistent stream on connect, receives only delta rows when something
+changes, and falls back to a full `/print` reload on stream error. A 60-second
+heartbeat emit keeps stale-detection timers alive when data is stable.
+
+- **Firewall** (`/ip/firewall/filter/listen`, `/nat/listen`, `/mangle/listen`) —
+  three concurrent streams replace the 10-second poll. Rule changes and counter
+  updates appear instantly. Eliminates 18 API calls/min at default interval.
+- **VPN / WireGuard** (`/interface/wireguard/peers/listen`) — stream fires on
+  handshake and byte-counter updates. Eliminates 6 API calls/min.
+- **Interface Status** (`/interface/listen`) — stream fires on up/down state
+  changes for instant tile colour updates. A lightweight 5-second stats poll
+  (scoped to counter fields only) runs in parallel to drive the live rate bars,
+  since byte counters are not pushed through the listen stream.
+- **ARP** (`/ip/arp/listen`) — stream fires when devices appear, disappear, or
+  change MAC binding. Eliminates 2 API calls/min; new devices now appear
+  instantly rather than within the previous 30-second poll window.
+
+### Performance — `.proplist` field scoping
+
+RouterOS sends all available fields per row unless told otherwise. Added
+`=.proplist=` to every remaining unscoped collector to request only the fields
+MikroDash actually reads, reducing per-call payload size:
+
+- **Connection table cache** — 7 fields requested instead of ~15 per entry.
+  With large connection tables (hundreds to thousands of entries polled at 3s)
+  this is the single largest wire-traffic reduction.
+- **Interface Status** — scoped to 10 fields for `/interface/print` and 2 for
+  `/ip/address/print`.
+- **Top Talkers** — scoped to 4 fields for `/ip/kid-control/device/print`.
+- **System** — scoped to 11 fields for `/system/resource/print`.
+- **Wireless** — scoped to 12 fields for both registration table APIs
+  (`/interface/wifi/registration-table/print` and
+  `/interface/wireless/registration-table/print`).
+
+### Performance — additional optimisations
+
+- **Socket.IO `perMessageDeflate`** — WebSocket per-message deflate enabled at
+  compression level 1. Repetitive JSON payloads (connection tables, interface
+  lists) typically compress 60–80%.
+- **Shared connection table cache** — `ConnectionsCollector` and
+  `BandwidthCollector` share a single `/ip/firewall/connection/print` fetch
+  per cycle. Cache TTL is now **40% of the faster collector's poll interval**
+  (previously a fixed 1500ms) so it works correctly at any poll rate including
+  1-second bandwidth polling.
+- **Traffic collector idle-gating** — `/interface/monitor-traffic` API calls
+  are skipped entirely when no browser clients are connected
+  (`io.engine.clientsCount === 0`). Eliminates 60 API calls/min when the
+  dashboard is unattended.
+- **Firewall / VPN / wireless emit fingerprinting** — socket emits suppressed
+  when payload content is unchanged between ticks.
+- **System collector** — `/system/package/update/print` decoupled from the
+  resource/health tick into a separate background call with a 5-minute
+  sub-interval. RouterOS must reach its update server to resolve this call;
+  previously this blocked CPU/RAM gauges from appearing on first load.
+  Update status now emits independently when it resolves.
+- **`system:update` static metadata written once** — board name, ROS version,
+  CPU count/frequency, and total RAM never change after boot. `sysMeta`
+  is now written to the DOM on the first payload only; subsequent ticks update
+  only the dynamic fields (gauges, uptime, temperature).
+- **`ts` excluded from client-side connection fingerprints** — previously the
+  `ts` timestamp caused fingerprint mismatches on every tick regardless of
+  whether data changed.
+- **`_updateBwStats` page-visibility gated** — bandwidth stat card and chart
+  sync only run when the bandwidth page is active.
+- **Country list server-side cap** — `conn:update` slices `topCountries` to
+  30 entries before emitting.
+
+### Settings page — poll intervals
+
+- **Streamed collectors** (Interfaces, VPN, Firewall, ARP) no longer show
+  editable sliders — replaced with a green **"Event-driven"** badge since their
+  data delivery is not controlled by a poll interval.
+- **Poll interval sliders reordered** — all configurable (polled) collectors
+  listed first, event-driven badges grouped below.
+- **`pollTalkers`** added as an independent setting for the Top Talkers card.
+  Previously it was silently tied to the Connections interval with no way to
+  control it separately.
+
+### Bug Fixes
+
+- **Interfaces page traffic counters not updating** — `/interface/listen` fires
+  only on structural changes (up/down), not on byte-counter increments. The
+  stats poll now fetches counter fields on the configured interval and merges
+  them into the stored interface rows, restoring live rate bars.
+- **WireGuard card stale on dashboard** — streamed collectors have no regular
+  emit cadence when data is unchanged (e.g. idle peers). All three streamed
+  collectors (firewall, VPN, ifStatus) now emit a 60-second heartbeat so the
+  stale-detection timer never fires while the stream is healthy. Stale
+  thresholds for these cards raised to 90s.
+- **Bandwidth table blank on every other tick at 1s poll** — fixed cache TTL
+  mismatch: the shared connection table cache had a fixed 1500ms TTL, so at
+  1s bandwidth polling every second tick returned the same cached rows, making
+  all byte deltas zero. TTL is now 40% of the minimum poll interval.
+- **"Checking for updates" stuck on dashboard** — `/system/package/update/print`
+  was bundled into the first resource/health tick. RouterOS must reach its
+  update server to resolve this, blocking CPU/RAM gauges from appearing.
+  Update check now runs in the background and never delays the gauge emit.
+- **WAN IP slow to appear on page load** — `sendInitialState` emitted
+  `lan:overview` without the `wanIp` field. The IP is now included from the
+  cached `state.lastWanIp` value so it appears immediately on connect.
+- **Top Talkers poll interval uncontrollable** — talkers was constructed with
+  `pollMs: _cfg.pollConns` and had no entry in the live poll-update map.
+  Changing the Connections slider silently moved both; there was no way to set
+  them independently. Now has its own `pollTalkers` setting.
+
 ## [0.5.5] — Bandwidth Page, Performance & Reliability
 
 ### Added

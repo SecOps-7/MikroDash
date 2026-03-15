@@ -151,7 +151,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 |---|---|
 | Router Connection | Host, API port, username, password, TLS, self-signed cert, default WAN interface, ping target |
 | Dashboard Auth | HTTP Basic Auth username and password |
-| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart |
+| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Streamed collectors (Interfaces, VPN, Firewall, ARP) show an Event-driven badge instead of a slider |
 | Limits | Top N values for connections, talkers, firewall rules; max connection rows; traffic history window |
 | Visible Pages | Toggle individual pages on/off — hidden pages are removed from the sidebar instantly |
 
@@ -226,6 +226,10 @@ All other settings (poll intervals, top-N limits, page visibility, ping target, 
 | WAN Traffic RX/TX | `/interface/monitor-traffic` |
 | Router Logs | `/log/listen` |
 | DHCP Lease changes | `/ip/dhcp-server/lease/listen` |
+| Interface up/down state | `/interface/listen` |
+| Firewall rule changes & hit counts | `/ip/firewall/filter\|nat\|mangle/listen` |
+| WireGuard peer handshakes & stats | `/interface/wireguard/peers/listen` |
+| ARP table (device join/leave) | `/ip/arp/listen` |
 
 ### Polled (concurrent via tagged API multiplexing)
 | Collector | Default interval | Data |
@@ -235,16 +239,15 @@ All other settings (poll intervals, top-N limits, page visibility, ping target, 
 | Bandwidth | 3 s | Per-connection live RX/TX/Total Mbps (shares connection table fetch with Connections) |
 | Top Talkers | 3 s | Kid Control traffic stats |
 | Wireless | 5 s | Wireless client list |
-| Interface Status | 5 s | Interface state, IPs, rx/tx bytes |
-| VPN | 10 s | WireGuard peers, rx/tx rates |
-| Firewall | 10 s | Rule hit counts |
+| Interface Status | 5 s | Byte counter refresh for live rate bars |
 | Ping | 10 s | RTT + packet loss to ping target |
-| ARP | 30 s | MAC to IP mappings |
 | DHCP Networks | 5 min | LAN subnets, WAN IP |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
 
 The WAN traffic monitor (`/interface/monitor-traffic`) pauses its RouterOS API calls automatically when no browser clients are connected, resuming immediately on the next connection.
+
+All collectors that support RouterOS `/listen` streams use event-driven delivery — RouterOS pushes only delta rows when data changes, producing zero API traffic when the network is idle. A 60-second heartbeat emit keeps the browser's stale-detection timers alive.
 
 ---
 

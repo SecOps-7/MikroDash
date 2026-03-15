@@ -187,6 +187,7 @@ function gauge(label,pct,cls){
     '<div class="gauge-track"><div class="gauge-fill '+fillCls+'" style="width:'+pct+'%"></div></div>'+
     '<div class="gauge-val'+valCls+'">'+pct+'%</div></div>';
 }
+var _sysMetaWritten = false;
 socket.on('system:update',function(d){
   var ut = parseUptime(d.uptimeRaw);
   uptimeDisplay.textContent = 'Uptime: '+ut;
@@ -194,14 +195,29 @@ socket.on('system:update',function(d){
   var html=gauge('CPU',d.cpuLoad,'cpu')+gauge('RAM',d.memPct,'mem');
   if(d.totalHdd>0)html+=gauge('Storage',d.hddPct,'hdd');
   gaugeRow.innerHTML=html;
-  var meta='';
-  if(d.boardName)meta+='<div class="sys-meta-item"><strong>'+esc(d.boardName)+'</strong></div>';
-  if(d.version)  meta+='<div class="sys-meta-item">ROS <strong>'+esc(d.version)+'</strong></div>';
-  if(d.cpuCount) meta+='<div class="sys-meta-item"><strong>'+d.cpuCount+'</strong>\u00d7CPU</div>';
-  if(d.cpuFreq)  meta+='<div class="sys-meta-item"><strong>'+d.cpuFreq+'</strong> MHz</div>';
-  if(d.tempC!=null)meta+='<div class="sys-meta-item"><strong>'+d.tempC+'\u00b0C</strong></div>';
-  if(d.totalMem) meta+='<div class="sys-meta-item"><strong>'+fmtBytes(d.totalMem)+'</strong> RAM</div>';
-  sysMeta.innerHTML=meta;
+  // Static fields (board, version, CPU, RAM) never change after boot — write once
+  if(!_sysMetaWritten&&(d.boardName||d.version||d.cpuCount||d.totalMem)){
+    var meta='';
+    if(d.boardName)meta+='<div class="sys-meta-item"><strong>'+esc(d.boardName)+'</strong></div>';
+    if(d.version)  meta+='<div class="sys-meta-item">ROS <strong>'+esc(d.version)+'</strong></div>';
+    if(d.cpuCount) meta+='<div class="sys-meta-item"><strong>'+d.cpuCount+'</strong>×CPU</div>';
+    if(d.cpuFreq)  meta+='<div class="sys-meta-item"><strong>'+d.cpuFreq+'</strong> MHz</div>';
+    if(d.totalMem) meta+='<div class="sys-meta-item"><strong>'+fmtBytes(d.totalMem)+'</strong> RAM</div>';
+    sysMeta.innerHTML=meta;
+    _sysMetaWritten=true;
+  }
+  // Temperature can change — update its slot separately without rebuilding the whole block
+  var tempSlot=$('sysMetaTemp');
+  if(d.tempC!=null){
+    if(!tempSlot){
+      var el=document.createElement('div');
+      el.className='sys-meta-item';el.id='sysMetaTemp';
+      el.innerHTML='<strong>'+d.tempC+'°C</strong>';
+      if(sysMeta)sysMeta.appendChild(el);
+    } else {
+      tempSlot.innerHTML='<strong>'+d.tempC+'°C</strong>';
+    }
+  }
   if(rosUpdateRow){
     var ur='';
     if(d.updateAvailable&&d.latestVersion){
@@ -212,12 +228,12 @@ socket.on('system:update',function(d){
     }else if(d.updateStatus){
       ur='<div class="ros-update-row pending"><span class="ros-update-dot"></span>'+esc(d.updateStatus)+'</div>';
     }else{
-      ur='<div class="ros-update-row pending"><span class="ros-update-dot"></span>Checking for updates\u2026</div>';
+      ur='<div class="ros-update-row pending"><span class="ros-update-dot"></span>Checking for updates…</div>';
     }
     rosUpdateRow.innerHTML=ur;
   }
   if(d.boardName&&!routerTag.textContent){
-    var tag=d.boardName+(d.version?' \u00b7 ROS '+d.version:'');
+    var tag=d.boardName+(d.version?' · ROS '+d.version:'');
     routerTag.textContent=tag;
   }
 });
@@ -748,6 +764,7 @@ socket.on('disconnect',function(){
 socket.on('connect',function(){
   reconnectBanner.classList.remove('show');
   document.body.classList.remove('is-disconnected');
+  _sysMetaWritten=false;
   currentIf=''; allPoints=[];
   if(_rosCurrentlyDisconnected) rosBanner.classList.add('show');
 });
@@ -782,9 +799,9 @@ var staleConfig=[
   {cardId:'connCard',     event:'conn:update',      threshold:20000},
   {cardId:'talkersCard',  event:'talkers:update',  threshold:20000},
   {cardId:'wirelessCard', event:'wireless:update', threshold:25000},
-  {cardId:'vpnCard',      event:'vpn:update',       threshold:30000},
-  {cardId:'firewallCard', event:'firewall:update', threshold:30000},
-  {cardId:'ifStatusCard', event:'ifstatus:update', threshold:25000},
+  {cardId:'vpnCard',      event:'vpn:update',       threshold:90000},  // streamed — heartbeat every 60s
+  {cardId:'firewallCard', event:'firewall:update', threshold:90000},  // streamed — heartbeat every 60s
+  {cardId:'ifStatusCard', event:'ifstatus:update', threshold:90000},  // streamed — heartbeat every 60s
   {cardId:'networksCard', event:'lan:overview',    threshold:345000}, // 300s poll + 45s grace
   {cardId:'bandwidthCard', event:'bandwidth:update', threshold:20000},
 ];
@@ -794,7 +811,9 @@ staleConfig.forEach(function(cfg){
   socket.on(cfg.event,function(data){
     staleTimers[cfg.cardId]=Date.now();
     var card=$(cfg.cardId);if(card)card.classList.remove('is-stale');
-    // Dynamically update threshold from server-reported poll interval
+    // Dynamically update threshold from server-reported poll interval.
+    // pollMs===0 means the collector is streamed (not polled) — keep the
+    // fixed threshold so the heartbeat cadence controls stale detection.
     if(data&&data.pollMs){
       cfg.threshold=data.pollMs+STALE_GRACE;
     }
@@ -1973,16 +1992,19 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 // ═══════════════════════════════════════════════════════════════════════════
 (function(){
   var POLL_SLIDERS = [
-    { key:'pollSystem',    label:'System / Gauges',   min:500,  max:30000,  step:500,  unit:'ms' },
-    { key:'pollConns',     label:'Connections',        min:500,  max:30000,  step:500,  unit:'ms' },
-    { key:'pollBandwidth', label:'Bandwidth',            min:500,  max:30000,  step:500,  unit:'ms' },
-    { key:'pollWireless',  label:'Wireless',           min:500,  max:30000,  step:500,  unit:'ms' },
-    { key:'pollIfstatus',  label:'Interfaces',         min:500,  max:30000,  step:500,  unit:'ms' },
-    { key:'pollVpn',       label:'VPN',                min:1000, max:60000,  step:1000, unit:'ms' },
-    { key:'pollFirewall',  label:'Firewall',           min:1000, max:60000,  step:1000, unit:'ms' },
-    { key:'pollPing',      label:'Ping',               min:1000, max:60000,  step:1000, unit:'ms' },
-    { key:'pollArp',       label:'ARP',                min:5000, max:120000, step:5000, unit:'ms' },
-    { key:'pollDhcp',      label:'DHCP Networks',      min:30000, max:600000, step:30000, unit:'ms' },
+    // Polled — user-configurable interval
+    { key:'pollSystem',    label:'System / Gauges', min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollConns',     label:'Connections',     min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollTalkers',   label:'Top Talkers',     min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollBandwidth', label:'Bandwidth',       min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollWireless',  label:'Wireless',        min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollPing',      label:'Ping',            min:1000,  max:60000,  step:1000,  unit:'ms' },
+    { key:'pollDhcp',      label:'DHCP Networks',   min:30000, max:600000, step:30000, unit:'ms' },
+    // Streamed — RouterOS pushes changes, no poll interval needed
+    { key:'pollIfstatus',  label:'Interfaces',  streamed:true },
+    { key:'pollVpn',       label:'VPN',         streamed:true },
+    { key:'pollFirewall',  label:'Firewall',     streamed:true },
+    { key:'pollArp',       label:'ARP',         streamed:true },
   ];
 
   var _loaded = {};
@@ -2008,9 +2030,18 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var wrap = $('pollSlidersWrap'); if (!wrap) return;
     wrap.innerHTML = '';
     POLL_SLIDERS.forEach(function(cfg) {
-      var val = data[cfg.key] || cfg.min;
       var row = document.createElement('div');
       row.style.cssText = 'margin-bottom:.7rem';
+      if (cfg.streamed) {
+        row.innerHTML =
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">' +
+            '<span style="font-size:.75rem;color:var(--text-muted)">'+cfg.label+'</span>' +
+            '<span style="font-size:.68rem;font-family:var(--font-ui);padding:.15rem .5rem;border-radius:4px;background:rgba(99,190,130,.12);color:#6dba8a;border:1px solid rgba(99,190,130,.25)">Event-driven</span>' +
+          '</div>';
+        wrap.appendChild(row);
+        return;
+      }
+      var val = data[cfg.key] || cfg.min;
       row.innerHTML =
         '<div style="display:flex;justify-content:space-between;margin-bottom:.25rem">' +
           '<span style="font-size:.75rem;color:var(--text-muted)">'+cfg.label+'</span>' +
@@ -2079,6 +2110,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     // Poll sliders
     POLL_SLIDERS.forEach(function(cfg) {
+      if (cfg.streamed) return;
       var el = $('s_'+cfg.key); if (el) out[cfg.key] = parseInt(el.value, 10);
     });
     return out;

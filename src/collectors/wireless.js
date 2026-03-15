@@ -30,7 +30,9 @@ class WirelessCollector {
     // Probe both APIs concurrently — node-routeros handles it fine
     if (detectedMode === 'wifi' || detectedMode === null) {
       try {
-        const res = await this.ros.write('/interface/wifi/registration-table/print');
+        const res = await this.ros.write('/interface/wifi/registration-table/print', [
+          '=.proplist=mac-address,signal,signal-strength,rx-signal,interface,ap-interface,tx-rate,tx-rate-set,band,rx-rate,uptime,ssid',
+        ]);
         if (res && res.length) { clients = res; detectedMode = 'wifi'; }
       } catch (e) {
         if (this.ros.cfg && this.ros.cfg.debug) console.warn('[wireless] wifi API probe failed:', e && e.message ? e.message : e);
@@ -38,7 +40,9 @@ class WirelessCollector {
     }
     if (!clients.length && (detectedMode === 'wireless' || detectedMode === null)) {
       try {
-        const res = await this.ros.write('/interface/wireless/registration-table/print');
+        const res = await this.ros.write('/interface/wireless/registration-table/print', [
+          '=.proplist=mac-address,signal,signal-strength,rx-signal,interface,ap-interface,tx-rate,tx-rate-set,band,rx-rate,uptime,ssid',
+        ]);
         if (res && res.length) { clients = res; detectedMode = 'wireless'; }
       } catch (e) {
         if (this.ros.cfg && this.ros.cfg.debug) console.warn('[wireless] legacy API probe failed:', e && e.message ? e.message : e);
