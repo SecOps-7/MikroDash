@@ -175,7 +175,7 @@ Create a read-only API user (recommended):
 
 ```
 /ip service set api port=8728 disabled=no
-/user group add name=mikrodash policy=read,api,!local,!telnet,!ssh,!ftp,!reboot,!write,!policy,!test,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
+/user group add name=mikrodash policy=read,api,test,!local,!telnet,!ssh,!ftp,!reboot,!write,!policy,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
 /user add name=mikrodash group=mikrodash password=your-secure-password
 ```
 
