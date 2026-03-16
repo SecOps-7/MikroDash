@@ -47,11 +47,12 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 |---|---|
 | Wireless | Clients grouped by interface with signal quality, band badge (2.4/5/6 GHz), IP, TX/RX rates, and sortable columns |
 | Interfaces | All interfaces as compact tiles with status, IP, live rates, and cumulative RX/TX totals |
-| DHCP | Active DHCP leases with hostname, IP, MAC, and expiry |
+| DHCP | Active DHCP leases with hostname, IP, MAC, and status; sortable columns (default: IP ascending) |
 | VPN | All WireGuard peers (active + idle) as tiles sorted active-first, with allowed IPs, endpoint, handshake, and traffic counters |
 | Connections | World map with animated arcs to destination countries, per-country protocol breakdown, sparklines, top ports panel, and click-to-filter |
 | Firewall | Top hits, Filter, NAT, and Mangle rule tables with packet counts |
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
+| Routing | Route count summary by protocol with doughnut chart; static and dynamic route table; BGP peer table with state badges, prefix trend sparklines, and session flap detection |
 | Logs | Live router log stream with severity filter and text search |
 | Settings | Persistent UI configuration — see below |
 
@@ -95,6 +96,8 @@ Pull and run the pre-built image directly — no need to clone the repo:
 docker pull ghcr.io/secops-7/mikrodash:latest
 ```
 
+The image is published as a multi-arch manifest covering `linux/amd64` and `linux/arm64`. Docker will automatically pull the correct layer for your platform — this includes Raspberry Pi 4/5, MikroTik's own R5S/RB5009 companion boards, and Apple M-series machines running Linux containers.
+
 Create your `.env` file:
 
 ```bash
@@ -132,6 +135,12 @@ node patch-routeros.js
 cp .env.example .env
 # Edit .env — set ROUTER_HOST, ROUTER_USER, ROUTER_PASS at minimum
 docker compose up -d
+```
+
+To build a multi-arch image locally (requires Docker Buildx):
+
+```bash
+docker buildx build --platform linux/amd64,linux/arm64 -t mikrodash:local --load .
 ```
 
 - Dashboard: `http://localhost:3081`
@@ -262,8 +271,9 @@ All collectors that support RouterOS `/listen` streams use event-driven delivery
 | `5` | VPN |
 | `6` | Connections |
 | `7` | Firewall |
-| `8` | Logs |
-| `9` | Bandwidth |
+| `7` | Routing |
+| `8` | Bandwidth |
+| `9` | Firewall |
 | `/` | Focus log search |
 
 ---

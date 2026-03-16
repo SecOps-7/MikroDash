@@ -42,6 +42,7 @@ const FirewallCollector    = require('./collectors/firewall');
 const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const PingCollector         = require('./collectors/ping');
 const BandwidthCollector    = require('./collectors/bandwidth');
+const RoutingCollector       = require('./collectors/routing');
 
 const app = express();
 
@@ -157,6 +158,7 @@ const firewall     = new FirewallCollector    ({ros,io, pollMs:_cfg.pollFirewall
 const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, state});
 const ping         = new PingCollector({ros,io, pollMs:_cfg.pollPing, state, target:_cfg.pingTarget});
 const bandwidth    = new BandwidthCollector({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache});
+const routing      = new RoutingCollector    ({ros,io, pollMs:_cfg.pollRouting,   state});
 
 // ── Settings API ─────────────────────────────────────────────────────────────
 app.get('/api/settings', (_req, res) => {
@@ -180,16 +182,16 @@ app.post('/api/settings', (req, res) => {
     }
     const updates = {};
     const intFields = {
-      routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollSystem:[500,60000],
+      routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollRouting:[1000,600000], pollSystem:[500,60000],
       pollWireless:[500,60000], pollVpn:[1000,120000], pollFirewall:[1000,120000],
       pollIfstatus:[500,60000], pollPing:[1000,120000], pollArp:[5000,300000],
-      pollBandwidth:[500,60000], pollDhcp:[5000,300000], topN:[1,50], topTalkersN:[1,20],
+      pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
     };
     const strFields  = ['routerHost','routerUser','defaultIf','dashUser','pingTarget'];
     const boolFields = ['routerTls','routerTlsInsecure',
       'pageWireless','pageInterfaces','pageDhcp','pageVpn',
-      'pageConnections','pageFirewall','pageLogs','pageBandwidth'];
+      'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'];
     const credFields = ['routerPass','dashPass'];
 
     for (const [f, range] of Object.entries(intFields)) {
@@ -202,8 +204,8 @@ app.post('/api/settings', (req, res) => {
     const saved = Settings.save(updates);
 
     // Apply poll changes live without restart
-    const collectorMap = { conns, system, wireless, vpn, firewall, ifStatus, ping, arp, dhcpNetworks, bandwidth };
-    const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
+    const collectorMap = { conns, system, wireless, vpn, firewall, ifStatus, ping, arp, dhcpNetworks, bandwidth, routing };
+    const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollRouting:'routing', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks' };
     for (const [key, name] of Object.entries(pollMap)) {
@@ -232,6 +234,7 @@ app.post('/api/settings', (req, res) => {
       pageDhcp:saved.pageDhcp, pageVpn:saved.pageVpn,
       pageConnections:saved.pageConnections, pageFirewall:saved.pageFirewall,
       pageLogs:saved.pageLogs, pageBandwidth:saved.pageBandwidth,
+      pageRouting:saved.pageRouting,
     };
     io.emit('settings:pages', pageSettings);
 
@@ -338,6 +341,7 @@ async function startCollectors() {
     await ifStatus.start();
     ping.start();
     bandwidth.start();
+    routing.start();
 
     startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -389,11 +393,21 @@ async function sendInitialState(socket) {
   }
   socket.emit('interfaces:list', { defaultIf: DEFAULT_IF, interfaces: ifs });
 
+  // Derive WAN IP: prefer the value cached by dhcpNetworks; fall back to
+  // extracting it from the ifStatus payload (available much sooner after boot)
+  // so the dashboard WAN IP field isn't blank on the first browser connect.
+  let _wanIp = state.lastWanIp || '';
+  if (!_wanIp && ifStatus.lastPayload) {
+    const _wanIface = (state.defaultIf || DEFAULT_IF || '').toLowerCase();
+    const _match = (ifStatus.lastPayload.interfaces || [])
+      .find(i => i.name && i.name.toLowerCase() === _wanIface && i.ips && i.ips.length);
+    if (_match) _wanIp = _match.ips[0];
+  }
   socket.emit('lan:overview', {
     ts: Date.now(),
     lanCidrs: dhcpNetworks.getLanCidrs(),
     networks: dhcpNetworks.networks || [],
-    wanIp: (state.lastWanIp || ''),
+    wanIp: _wanIp,
     pollMs: dhcpNetworks.pollMs,
   });
 
@@ -416,6 +430,7 @@ async function sendInitialState(socket) {
   if (talkers.lastPayload)   socket.emit('talkers:update',   talkers.lastPayload);
   if (ping.lastPayload)      socket.emit('ping:update',      ping.lastPayload);
   if (bandwidth.lastPayload) socket.emit('bandwidth:update', bandwidth.lastPayload);
+  if (routing.lastPayload)   socket.emit('routing:update',   routing.lastPayload);
 
   // Send page visibility settings to newly connected client
   const _ps = Settings.load();
@@ -423,7 +438,7 @@ async function sendInitialState(socket) {
     pageWireless:_ps.pageWireless, pageInterfaces:_ps.pageInterfaces,
     pageDhcp:_ps.pageDhcp, pageVpn:_ps.pageVpn,
     pageConnections:_ps.pageConnections, pageFirewall:_ps.pageFirewall,
-    pageLogs:_ps.pageLogs,
+    pageLogs:_ps.pageLogs, pageRouting:_ps.pageRouting,
   });
 
   // Send ping history so client can render the chart immediately
@@ -450,7 +465,7 @@ const PORT = parseInt(process.env.PORT || '3081', 10);
 server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
-const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth];
+const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing];
 
 function shutdown(signal) {
   console.log(`[MikroDash] ${signal} received, shutting down…`);

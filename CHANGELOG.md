@@ -2,6 +2,41 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.7] — Routing Page, BGP Monitoring, arm64 Support & Fixes
+
+### Added
+
+- **Routing page** — new sidebar page covering the full router routing state:
+  - **Routes by Protocol card** — doughnut chart (Static / Dynamic / BGP / OSPF) embedded in the card alongside a count grid. Connected routes shown in the grid but excluded from the chart.
+  - **Static & Dynamic Routes table** — sortable, filterable table with destination, gateway, distance, active state, type badge, and comment.
+  - **BGP Peers table** — per-peer session state, ASN, uptime, prefix count, updates in/out, last error, and a per-peer prefix trend sparkline. Sortable by all columns. Filterable by state, peer type (Upstream / IX / Private), and IPv4/IPv6. Full-text search.
+  - **BGP Peers summary card** — total, established, and down peer counts.
+  - **Peer type classification** — peers auto-classified as Upstream, IX/Route-Server, or Private using RFC6996 ASN ranges and description keywords.
+  - **Session flap detection** — 3+ state transitions within 5 minutes marks a peer as flapping with a pulsing badge.
+  - **BGP alert notifications** — peer down/up, prefix count change ≥20%, session flapping, and hold-timer warnings integrated into the existing notification system.
+  - **`pollRouting` setting** — dedicated poll interval slider (1s–10min) in Settings. Defaults to 10s.
+- **DHCP page sortable columns** — Hostname, IP, MAC, and Status columns now sortable with sort arrows. Default sort is IP ascending.
+- **`pollTalkers` setting** — Top Talkers has its own independent poll interval, no longer tied to Connections.
+- **Routing nav badge** — live total route count shown next to Routing in the sidebar.
+
+### Performance & Reliability
+
+- **Routing API efficiency** — all route data (type classification, counts, table rows) derived from a single `/ip/route/print` call using RouterOS `.flags` string parsing. Eliminates up to 8 concurrent API writes per tick that were causing intermittent ROS disconnects.
+- **Route flag parsing** — uses RouterOS's compact `.flags` string (`A`=active, `S`=static, `D`=dynamic, `b`=bgp, `o`=ospf) with fallback to individual boolean fields. Reliable across all RouterOS v7 builds — previous `?static=yes` / `?dynamic=yes` filter approach returned inconsistent results on some firmware versions.
+- **WAN IP on first load** — falls back to extracting the WAN IP from interface status data when the DHCP Networks collector hasn't completed its first tick yet.
+
+### Docker
+
+- **`linux/arm64` support** — multi-arch image (`linux/amd64` + `linux/arm64`) published via GitHub Actions on every `v*.*.*` tag. Covers Raspberry Pi 4/5, R5S, and Apple M-series. QEMU used for cross-compilation; native layers at runtime.
+- **`.dockerignore` added** — reduces image build context size.
+
+### Bug Fixes
+
+- **DHCP Networks poll interval** — server-side validator now accepts values up to 10 minutes, matching the Settings UI slider.
+- **Routing page dropdowns** — search and select inputs now correctly follow the dark/light theme using CSS variables with `html[data-theme="light"]` overrides.
+- **Routing stale cards** — stale thresholds now sync from `pollRouting` via the settings payload before the first data event arrives, preventing premature stale state on slow-polling configurations.
+
+
 ## [0.5.6] — Streaming Architecture, Router CPU Optimisations & Bug Fixes
 
 ### Streaming — event-driven collectors (replaces polling)

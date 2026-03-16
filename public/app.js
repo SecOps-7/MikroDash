@@ -85,8 +85,8 @@ if(themeToggle) themeToggle.addEventListener('click', function(){
 });
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',info:'About'};
-var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','firewall','logs','info'];
+var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',info:'About',routing:'Routing'};
+var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','routing','bandwidth','firewall','logs'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
 function showPage(name){
@@ -578,10 +578,46 @@ socket.on('vpn:update',function(data){
 });
 
 // ── DHCP Leases ────────────────────────────────────────────────────────────
+var _dhcpSortKey = 'ip';
+var _dhcpSortDir = 1;
+
+var _dhcpSortCols = [
+  {id:'dhcpThName',   key:'name'},
+  {id:'dhcpThIp',     key:'ip'},
+  {id:'dhcpThMac',    key:'mac'},
+  {id:'dhcpThStatus', key:'status'},
+];
+
+function _refreshDhcpSortHeaders() {
+  _dhcpSortCols.forEach(function(c) {
+    var el = $(c.id); if (!el) return;
+    el.className = c.key === _dhcpSortKey ? (_dhcpSortDir === 1 ? 'sort-asc' : 'sort-desc') : '';
+  });
+}
+
+function _sortLeases(leases) {
+  return leases.slice().sort(function(a, b) {
+    var av, bv;
+    if      (_dhcpSortKey === 'name')   { av = (a.name||a.hostName||'').toLowerCase(); bv = (b.name||b.hostName||'').toLowerCase(); }
+    else if (_dhcpSortKey === 'ip')     {
+      // Sort IPs numerically
+      var aOcts = (a.ip||'').split('.').map(Number);
+      var bOcts = (b.ip||'').split('.').map(Number);
+      for (var i = 0; i < 4; i++) { if (aOcts[i] !== bOcts[i]) return _dhcpSortDir * (aOcts[i] - bOcts[i]); }
+      return 0;
+    }
+    else if (_dhcpSortKey === 'mac')    { av = (a.mac||'').toLowerCase(); bv = (b.mac||'').toLowerCase(); }
+    else if (_dhcpSortKey === 'status') { av = (a.status||'').toLowerCase(); bv = (b.status||'').toLowerCase(); }
+    else { av = ''; bv = ''; }
+    if (typeof av === 'string') return _dhcpSortDir * av.localeCompare(bv);
+    return _dhcpSortDir * (av - bv);
+  });
+}
+
 function renderDhcp(leases){
   var filtered = leaseFilter
     ? leases.filter(function(l){
-        var hay=(l.name+' '+l.ip+' '+l.mac+' '+l.comment).toLowerCase();
+        var hay=(l.name+' '+l.ip+' '+l.mac+' '+(l.comment||'')).toLowerCase();
         return hay.indexOf(leaseFilter)!==-1;
       })
     : leases;
@@ -591,18 +627,32 @@ function renderDhcp(leases){
     dhcpTotalBadge.className = 'card-badge' + (count > 0 ? ' active-blue' : '');
   }
   if(dhcpNavBadge) dhcpNavBadge.textContent = count;
-  if(!filtered.length){dhcpTable.innerHTML='<tr><td colspan="4" class="empty-state">No leases'+(leaseFilter?' matching filter':'')+'\u2026</td></tr>';return;}
+  if(!filtered.length){dhcpTable.innerHTML='<tr><td colspan="4" class="empty-state">No leases'+(leaseFilter?' matching filter':'')+'…</td></tr>';return;}
+  filtered = _sortLeases(filtered);
   dhcpTable.innerHTML=filtered.map(function(l){
     var st=(l.status||'').toLowerCase();
     var pillCls=st==='bound'?'bound':st==='waiting'||st==='offered'?'waiting':'expired';
     return'<tr>'+
-      '<td style="font-weight:600">'+esc(l.name||l.hostName||'\u2014')+'</td>'+
+      '<td style="font-weight:600">'+esc(l.name||l.hostName||'—')+'</td>'+
       '<td style="color:var(--accent-rx)">'+esc(l.ip)+'</td>'+
-      '<td style="font-size:.7rem;color:var(--text-muted)">'+esc(l.mac||'\u2014')+'</td>'+
+      '<td style="font-size:.7rem;color:var(--text-muted)">'+esc(l.mac||'—')+'</td>'+
       '<td><span class="lease-pill '+pillCls+'">'+esc(l.status||'?')+'</span></td>'+
       '</tr>';
   }).join('');
 }
+
+// Wire sort headers
+_dhcpSortCols.forEach(function(col) {
+  var th = $(col.id); if (!th) return;
+  th.addEventListener('click', function() {
+    if (_dhcpSortKey === col.key) _dhcpSortDir *= -1;
+    else { _dhcpSortKey = col.key; _dhcpSortDir = 1; }
+    _refreshDhcpSortHeaders();
+    renderDhcp(allLeases);
+  });
+});
+_refreshDhcpSortHeaders();
+
 socket.on('leases:list',function(data){
   allLeases=data.leases||[];
   renderDhcp(allLeases);
@@ -742,7 +792,7 @@ var _rosCurrentlyDisconnected = false;
 var PAGE_NAV_MAP = {
   pageWireless:'wireless', pageInterfaces:'interfaces', pageDhcp:'dhcp',
   pageVpn:'vpn', pageConnections:'connections', pageFirewall:'firewall', pageLogs:'logs',
-  pageBandwidth:'bandwidth',
+  pageBandwidth:'bandwidth', pageRouting:'routing',
 };
 function applyPageVisibility(pages) {
   for (var key in PAGE_NAV_MAP) {
@@ -803,7 +853,11 @@ var staleConfig=[
   {cardId:'firewallCard', event:'firewall:update', threshold:90000},  // streamed — heartbeat every 60s
   {cardId:'ifStatusCard', event:'ifstatus:update', threshold:90000},  // streamed — heartbeat every 60s
   {cardId:'networksCard', event:'lan:overview',    threshold:345000}, // 300s poll + 45s grace
-  {cardId:'bandwidthCard', event:'bandwidth:update', threshold:20000},
+  {cardId:'bandwidthCard',    event:'bandwidth:update', threshold:20000},
+  {cardId:'routingProtoCard', event:'routing:update',   threshold:90000},
+  {cardId:'routingBgpCard',   event:'routing:update',   threshold:90000},
+  {cardId:'routingPeersCard',  event:'routing:update',   threshold:90000},
+  {cardId:'routingRoutesCard', event:'routing:update',   threshold:90000},
 ];
 var staleTimers={};
 staleConfig.forEach(function(cfg){
@@ -1999,6 +2053,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollBandwidth', label:'Bandwidth',       min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollWireless',  label:'Wireless',        min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollPing',      label:'Ping',            min:1000,  max:60000,  step:1000,  unit:'ms' },
+    { key:'pollRouting',   label:'Routing',         min:1000,  max:600000, step:1000,  unit:'ms' },
     { key:'pollDhcp',      label:'DHCP Networks',   min:30000, max:600000, step:30000, unit:'ms' },
     // Streamed — RouterOS pushes changes, no poll interval needed
     { key:'pollIfstatus',  label:'Interfaces',  streamed:true },
@@ -2076,10 +2131,18 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
     // Page visibility
-    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     buildSliders(data);
+    // Sync routing stale thresholds from the saved pollRouting interval
+    // so cards don't go stale before the first routing:update arrives.
+    if (data.pollRouting) {
+      var rtThreshold = data.pollRouting + STALE_GRACE;
+      staleConfig.forEach(function(cfg) {
+        if (cfg.event === 'routing:update') cfg.threshold = rtThreshold;
+      });
+    }
   }
 
   function loadSettings() {
@@ -2105,7 +2168,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
-    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     // Poll sliders
@@ -2428,5 +2491,399 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       }
       render();
     }
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Routing Page ────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  var tbody   = $('rtTbody');
+  var search  = $('rtSearch');
+  var selState = $('rtSelState');
+  var selType  = $('rtSelType');
+  var selIpver = $('rtSelIpver');
+  var nb       = $('routingNavBadge');
+
+  var _rtData  = null; // last routing:update payload
+  var _sortKey = 'state';
+  var _sortDir = 1;
+
+  // ── Utilities ─────────────────────────────────────────────────────────────
+
+  function fmtUptime(sec) {
+    if (!sec) return '—';
+    var d = Math.floor(sec / 86400);
+    var h = Math.floor((sec % 86400) / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    if (d > 0) return d + 'd ' + h + 'h';
+    if (h > 0) return h + 'h ' + m + 'm';
+    return m + 'm';
+  }
+
+  function stateBadge(state, flapping) {
+    if (flapping) return '<span class="bgp-state flap">Flapping</span>';
+    return '<span class="bgp-state ' + esc(state) + '">' + esc(state) + '</span>';
+  }
+
+  // Inline SVG sparkline from prefix history array
+  function sparkSvg(history) {
+    if (!history || history.length < 2) return '<svg width="80" height="20"></svg>';
+    var min = Math.min.apply(null, history);
+    var max = Math.max.apply(null, history);
+    var range = max - min || 1;
+    var w = 80, h = 20, pad = 2;
+    var pts = history.map(function(v, i) {
+      var x = pad + (i / (history.length - 1)) * (w - pad * 2);
+      var y = h - pad - ((v - min) / range) * (h - pad * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    return '<svg class="rt-spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="rgba(167,139,250,.7)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>' +
+      '</svg>';
+  }
+
+  // ── Filter + sort ──────────────────────────────────────────────────────────
+
+  function filterPeers(peers) {
+    var q     = search  ? search.value.toLowerCase().trim()  : '';
+    var state = selState ? selState.value : '';
+    var type  = selType  ? selType.value  : '';
+    var ipver = selIpver ? selIpver.value : '';
+    return peers.filter(function(p) {
+      if (state && p.state !== state) return false;
+      if (type  && p.peerType !== type) return false;
+      if (ipver === '6' && !p.remoteAddr.includes(':')) return false;
+      if (ipver === '4' &&  p.remoteAddr.includes(':')) return false;
+      if (q) {
+        var hay = (p.name + ' ' + p.remoteAddr + ' ' + p.remoteAs + ' ' + p.description).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function sortPeers(peers) {
+    return peers.slice().sort(function(a, b) {
+      var av, bv;
+      if (_sortKey === 'name')     { av = a.name;      bv = b.name; }
+      else if (_sortKey === 'addr'){ av = a.remoteAddr; bv = b.remoteAddr; }
+      else if (_sortKey === 'as')  { av = a.remoteAs;   bv = b.remoteAs; }
+      else if (_sortKey === 'state'){
+        // established first, then alphabetical
+        var order = {established:0,active:1,connect:2,opensent:3,openconfirm:4,idle:5};
+        av = order[a.state] !== undefined ? order[a.state] : 9;
+        bv = order[b.state] !== undefined ? order[b.state] : 9;
+      }
+      else if (_sortKey === 'uptime')  { av = a.uptimeSec;  bv = b.uptimeSec; }
+      else if (_sortKey === 'prefixes'){ av = a.prefixes;    bv = b.prefixes; }
+      else if (_sortKey === 'sent')    { av = a.updatesSent; bv = b.updatesSent; }
+      else if (_sortKey === 'recv')    { av = a.updatesRecv; bv = b.updatesRecv; }
+      else { av = 0; bv = 0; }
+      if (typeof av === 'string') return _sortDir * av.localeCompare(bv);
+      return _sortDir * (av - bv);
+    });
+  }
+
+  // ── Doughnut chart ────────────────────────────────────────────────────────
+
+  var _rtDonut = null;
+  var DONUT_COLORS = {
+    static:  'rgba(56,189,248,.85)',
+    dynamic: 'rgba(251,191,36,.85)',
+    bgp:     'rgba(167,139,250,.85)',
+    ospf:    'rgba(251,113,133,.85)',
+    other:   'rgba(99,130,190,.4)',
+  };
+  var DONUT_LABELS = {static:'Static', dynamic:'Dynamic', bgp:'BGP', ospf:'OSPF', other:'Other'};
+
+  function updateDonut(rc) {
+    var canvas = $('rtDonutCanvas');
+    if (!canvas) return;
+    // Connected is excluded from the donut — shown in the count grid only
+    var keys    = ['static','dynamic','bgp','ospf'];
+    var known   = keys.reduce(function(a,k){ return a + (rc[k]||0); }, 0)
+                + (rc.connect||0); // include connect in known so Other = unclassified only
+    var other   = Math.max(0, (rc.total||0) - known);
+    var dataKeys = keys.concat(other > 0 ? ['other'] : []);
+    var vals     = keys.map(function(k){ return rc[k]||0; }).concat(other > 0 ? [other] : []);
+    var colors   = dataKeys.map(function(k){ return DONUT_COLORS[k]; });
+
+    if (!_rtDonut) {
+      _rtDonut = new Chart(canvas, {
+        type: 'doughnut',
+        data: { labels: dataKeys.map(function(k){ return DONUT_LABELS[k]||k; }), datasets: [{ data: vals, backgroundColor: colors, borderWidth: 1, borderColor: 'rgba(0,0,0,.15)', hoverOffset: 4 }] },
+        options: {
+          cutout: '68%',
+          animation: { duration: 400 },
+          plugins: { legend: { display: false }, tooltip: {
+            callbacks: { label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.parsed; } }
+          }},
+          responsive: false,
+        }
+      });
+    } else {
+      _rtDonut.data.labels = dataKeys.map(function(k){ return DONUT_LABELS[k]||k; });
+      _rtDonut.data.datasets[0].data = vals;
+      _rtDonut.data.datasets[0].backgroundColor = colors;
+      _rtDonut.update('none');
+    }
+
+    // Legend removed — data is shown in the count grid to the right of the donut
+  }
+
+  // ── Summary cards ──────────────────────────────────────────────────────────
+
+  function updateSummary(data) {
+    var rc = data.routeCounts || {};
+    var sm = data.summary     || {};
+    var set = function(id, v) { var el = $(id); if (el) el.textContent = v !== undefined ? v : '—'; };
+    set('rtTotal',   rc.total);
+    set('rtConnect', rc.connect);
+    set('rtStatic',  rc.static);
+    set('rtDynamic', rc.dynamic);
+    set('rtBgp',     rc.bgp);
+    set('rtOspf',    rc.ospf);
+    set('rtBgpTotal', sm.total);
+    set('rtBgpEstab', sm.established);
+    set('rtBgpDown',  sm.down);
+    if (nb) { var tot = (data.routeCounts||{}).total; nb.textContent = tot > 0 ? tot : ''; }
+    updateDonut(rc);
+  }
+
+  // ── Table render ───────────────────────────────────────────────────────────
+
+  function render() {
+    if (!_rtData || !tbody) return;
+    var peers = filterPeers(_rtData.peers || []);
+    peers = sortPeers(peers);
+
+    if (!peers.length) {
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">No BGP peers' +
+        ((_rtData.peers||[]).length ? ' match current filter' : ' — BGP may not be configured') + '</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = peers.map(function(p) {
+      var typeColors = {upstream:'rgba(56,189,248,.1)', ix:'rgba(167,139,250,.1)', private:'rgba(251,191,36,.1)'};
+      var typeText   = {upstream:'rgba(56,189,248,.8)', ix:'rgba(167,139,250,.8)', private:'rgba(251,191,36,.8)'};
+      var typeLabel  = {upstream:'Upstream', ix:'IX', private:'Private'};
+      var ptype = p.peerType || 'upstream';
+      var typeBadge = '<span style="font-size:.6rem;font-family:var(--font-ui);padding:.1rem .35rem;border-radius:3px;' +
+        'background:' + (typeColors[ptype]||'rgba(99,130,190,.1)') + ';color:' + (typeText[ptype]||'var(--text-muted)') + '">' +
+        (typeLabel[ptype]||ptype) + '</span>';
+      var nameCell = '<div class="rt-peer-name">' + esc(p.name) + ' ' + typeBadge + '</div>' +
+        (p.description ? '<div class="rt-peer-desc">' + esc(p.description) + '</div>' : '');
+      var errCell = p.lastError
+        ? '<span title="' + esc(p.lastError) + '" style="font-size:.65rem;color:rgba(251,113,133,.85);cursor:help;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚠ ' + esc(p.lastError) + '</span>'
+        : '<span style="color:var(--text-muted);font-size:.65rem">—</span>';
+      return '<tr>' +
+        '<td>' + nameCell + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.7rem">' + esc(p.remoteAddr) + '</td>' +
+        '<td style="font-family:var(--font-mono)">' + (p.remoteAs || '—') + '</td>' +
+        '<td>' + stateBadge(p.state, p.flapping) + '</td>' +
+        '<td style="font-family:var(--font-mono)">' + fmtUptime(p.uptimeSec) + '</td>' +
+        '<td style="font-family:var(--font-mono);text-align:right">' + (p.prefixes || 0).toLocaleString() + '</td>' +
+        '<td style="font-family:var(--font-mono);text-align:right">' + (p.updatesSent || 0).toLocaleString() + '</td>' +
+        '<td style="font-family:var(--font-mono);text-align:right">' + (p.updatesRecv || 0).toLocaleString() + '</td>' +
+        '<td>' + errCell + '</td>' +
+        '<td>' + sparkSvg(p.prefixHistory) + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ── Sort header wiring ─────────────────────────────────────────────────────
+
+  var sortCols = [
+    {id:'rtThName',    key:'name'},
+    {id:'rtThAddr',    key:'addr'},
+    {id:'rtThAs',      key:'as'},
+    {id:'rtThState',   key:'state'},
+    {id:'rtThUptime',  key:'uptime'},
+    {id:'rtThPfx',     key:'prefixes'},
+    {id:'rtThSent',    key:'sent'},
+    {id:'rtThRecv',    key:'recv'},
+  ];
+  function refreshSortHeaders() {
+    sortCols.forEach(function(c) {
+      var el = $(c.id); if (!el) return;
+      el.className = c.key === _sortKey ? (_sortDir === 1 ? 'sort-asc' : 'sort-desc') : '';
+    });
+  }
+  sortCols.forEach(function(col) {
+    var th = $(col.id); if (!th) return;
+    th.addEventListener('click', function() {
+      if (_sortKey === col.key) _sortDir *= -1;
+      else { _sortKey = col.key; _sortDir = col.key === 'state' || col.key === 'name' ? 1 : -1; }
+      refreshSortHeaders();
+      render();
+    });
+  });
+  refreshSortHeaders();
+
+  // ── Filter controls ────────────────────────────────────────────────────────
+
+  [search, selState, selType, selIpver].forEach(function(el) {
+    if (el) el.addEventListener('input', render);
+  });
+
+  // ── Routes table ──────────────────────────────────────────────────────────
+
+  var routesTbody   = $('rtRoutesTbody');
+  var routeSearch   = $('rtRouteSearch');
+  var routeSelType  = $('rtRouteSelType');
+  var routeSelActive = $('rtRouteSelActive');
+
+  var _rtRouteSort  = 'dst';
+  var _rtRouteSortDir = 1;
+
+  function filterRoutes(routes) {
+    var q      = routeSearch   ? routeSearch.value.toLowerCase().trim()  : '';
+    var type   = routeSelType  ? routeSelType.value   : '';
+    var active = routeSelActive ? routeSelActive.value : '';
+    return routes.filter(function(r) {
+      if (type   && r.type !== type)          return false;
+      if (active && !r.active)                return false;
+      if (q && !(r.dst + ' ' + r.gateway + ' ' + r.comment).toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
+
+  function sortRoutes(routes) {
+    return routes.slice().sort(function(a, b) {
+      var av, bv;
+      if      (_rtRouteSort === 'dst')      { av = a.dst;      bv = b.dst; }
+      else if (_rtRouteSort === 'gateway')  { av = a.gateway;  bv = b.gateway; }
+      else if (_rtRouteSort === 'distance') { av = a.distance; bv = b.distance; }
+      else if (_rtRouteSort === 'active')   { av = a.active?0:1; bv = b.active?0:1; }
+      else if (_rtRouteSort === 'type')     { av = a.type;     bv = b.type; }
+      else { av = 0; bv = 0; }
+      if (typeof av === 'string') return _rtRouteSortDir * av.localeCompare(bv);
+      return _rtRouteSortDir * (av - bv);
+    });
+  }
+
+  function renderRoutes() {
+    if (!_rtData || !routesTbody) return;
+    var routes = filterRoutes(_rtData.routes || []);
+    routes = sortRoutes(routes);
+    if (!routes.length) {
+      routesTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">No routes' +
+        ((_rtData.routes||[]).length ? ' match current filter' : '') + '</td></tr>';
+      return;
+    }
+    routesTbody.innerHTML = routes.map(function(r) {
+      var activeCell = r.active
+        ? '<span style="color:rgba(52,211,153,.9);font-size:.7rem">&#10003; Active</span>'
+        : '<span style="color:var(--text-muted);font-size:.7rem">—</span>';
+      var typeCell = r.type === 'static'
+        ? '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(56,189,248,.1);color:rgba(56,189,248,.8)">Static</span>'
+        : '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8)">' +
+          (r.protocol !== r.type ? esc(r.protocol.toUpperCase()) : 'Dynamic') + '</span>';
+      return '<tr>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(r.dst || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(r.gateway || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);text-align:right">' + r.distance + '</td>' +
+        '<td>' + activeCell + '</td>' +
+        '<td>' + typeCell + '</td>' +
+        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(r.comment || '—') + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // Sort headers for routes table
+  var routeSortCols = [
+    {id:'rtRThDst',     key:'dst'},
+    {id:'rtRThGw',      key:'gateway'},
+    {id:'rtRThDist',    key:'distance'},
+    {id:'rtRThActive',  key:'active'},
+    {id:'rtRThType',    key:'type'},
+  ];
+  function refreshRouteSortHeaders() {
+    routeSortCols.forEach(function(c) {
+      var el = $(c.id); if (!el) return;
+      el.className = c.key === _rtRouteSort ? (_rtRouteSortDir === 1 ? 'sort-asc' : 'sort-desc') : '';
+    });
+  }
+  routeSortCols.forEach(function(col) {
+    var th = $(col.id); if (!th) return;
+    th.addEventListener('click', function() {
+      if (_rtRouteSort === col.key) _rtRouteSortDir *= -1;
+      else { _rtRouteSort = col.key; _rtRouteSortDir = col.key === 'active' || col.key === 'distance' ? 1 : 1; }
+      refreshRouteSortHeaders();
+      renderRoutes();
+    });
+  });
+  refreshRouteSortHeaders();
+
+  [routeSearch, routeSelType, routeSelActive].forEach(function(el) {
+    if (el) el.addEventListener('input', renderRoutes);
+  });
+
+  // ── Socket handler ─────────────────────────────────────────────────────────
+
+  socket.on('routing:update', function(data) {
+    _rtData = data;
+    updateSummary(data);
+    if (pageVisible('routing')) { render(); renderRoutes(); }
+  });
+
+  document.addEventListener('mikrodash:pagechange', function(e) {
+    if (e.detail === 'routing') { render(); renderRoutes(); }
+  });
+
+})();
+
+// ── BGP Notifications ───────────────────────────────────────────────────────
+(function(){
+  var _bgpPrevState   = {};  // key -> state string
+  var _bgpPrevPfx     = {};  // key -> prefix count
+  var _bgpFlapAlerted = {};  // key -> ts
+  var BGP_PFX_THRESH  = 0.2; // 20% prefix change triggers alert
+  var BGP_COOLDOWN    = 120000; // 2 min between repeat alerts
+
+  socket.on('routing:update', function(data) {
+    var now = Date.now();
+    (data.peers || []).forEach(function(p) {
+      var key   = p.key;
+      var state = p.state;
+      var prev  = _bgpPrevState[key];
+
+      // Peer down / up
+      if (prev === 'established' && state !== 'established') {
+        sendNotif('BGP Peer Down', p.name + ' (' + p.remoteAddr + ') → ' + state, 'bgp-down-' + key);
+      } else if (prev !== undefined && prev !== 'established' && state === 'established') {
+        sendNotif('BGP Peer Up', p.name + ' (' + p.remoteAddr + ') is established', 'bgp-up-' + key);
+      }
+      _bgpPrevState[key] = state;
+
+      // Prefix count change beyond threshold (only when established)
+      if (state === 'established' && _bgpPrevPfx[key] !== undefined) {
+        var old = _bgpPrevPfx[key];
+        if (old > 0) {
+          var change = Math.abs(p.prefixes - old) / old;
+          if (change >= BGP_PFX_THRESH && (now - (_bgpFlapAlerted['pfx-' + key] || 0)) > BGP_COOLDOWN) {
+            var dir = p.prefixes > old ? '+' : '-';
+            sendNotif('BGP Prefix Change', p.name + ': ' + dir + Math.abs(p.prefixes - old) + ' prefixes (' + old + ' → ' + p.prefixes + ')', 'bgp-pfx-' + key);
+            _bgpFlapAlerted['pfx-' + key] = now;
+          }
+        }
+      }
+      if (state === 'established') _bgpPrevPfx[key] = p.prefixes;
+
+      // Session flapping
+      if (p.flapping && (now - (_bgpFlapAlerted['flap-' + key] || 0)) > BGP_COOLDOWN) {
+        sendNotif('BGP Session Flapping', p.name + ' (' + p.remoteAddr + ') is flapping', 'bgp-flap-' + key);
+        _bgpFlapAlerted['flap-' + key] = now;
+      }
+
+      // Hold timer / keepalive issues — flag when hold-time is very short or keepalive is 0
+      if (state === 'established' && p.holdTime > 0 && p.holdTime < 9 && p.keepalive === 0) {
+        if ((now - (_bgpFlapAlerted['hold-' + key] || 0)) > BGP_COOLDOWN) {
+          sendNotif('BGP Hold Timer Warning', p.name + ': hold-time=' + p.holdTime + 's, keepalive=0', 'bgp-hold-' + key);
+          _bgpFlapAlerted['hold-' + key] = now;
+        }
+      }
+    });
   });
 })();

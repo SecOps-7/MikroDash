@@ -73,6 +73,8 @@ const DEFAULTS = {
   pollConns:         parseInt(process.env.CONNS_POLL_MS     || '3000',  10),
   pollTalkers:       parseInt(process.env.TALKERS_POLL_MS   || '3000',  10),
   pollBandwidth:     parseInt(process.env.BANDWIDTH_POLL_MS  || '3000',  10),
+  pollRouting:       parseInt(process.env.ROUTING_POLL_MS    || '10000', 10),
+  pageRouting:       true,
   pollSystem:        parseInt(process.env.SYSTEM_POLL_MS    || '3000',  10),
   pollWireless:      parseInt(process.env.WIRELESS_POLL_MS  || '5000',  10),
   pollVpn:           parseInt(process.env.VPN_POLL_MS       || '10000', 10),

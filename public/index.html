@@ -91,6 +91,9 @@
     .bw-table th:hover{color:var(--text-main)}
     .bw-table th.sort-asc::after{content:' ↑'}
     .bw-table th.sort-desc::after{content:' ↓'}
+    #page-dhcp th.sort-asc::after{content:' ↑'}
+    #page-dhcp th.sort-desc::after{content:' ↓'}
+    #page-dhcp th{cursor:pointer;user-select:none}
     .bw-table td{padding:.4rem .7rem;border-bottom:1px solid rgba(99,130,190,.08);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
     .bw-table tr:last-child td{border-bottom:none}
     .bw-table tr:hover td{background:rgba(99,130,190,.05)}
@@ -558,6 +561,90 @@
         html[data-theme="light"] select.form-select{background-color:rgba(255,255,255,.9)}
     #dhcpSearch{background:rgba(13,18,30,.9);border-color:var(--border);color:var(--text-main)}
     html[data-theme="light"] #dhcpSearch{background:rgba(255,255,255,.9)}
+    /* ── Routing page ──────────────────────────────────────────────────────── */
+    .rt-summary-row{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem}
+    @media(max-width:600px){.rt-summary-row{grid-template-columns:1fr}}
+    .rt-proto-card,.rt-bgp-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem}
+    /* proto card: donut left, grid right */
+    .rt-proto-inner{display:flex;gap:.9rem;align-items:center}
+    .rt-donut-wrap{flex-shrink:0;width:130px;height:130px;position:relative}
+    .rt-proto-grid-wrap{flex:1;min-width:0}
+    .rt-donut-legend{display:flex;flex-direction:column;gap:.2rem;margin-top:.4rem}
+    .rt-donut-legend-item{display:flex;align-items:center;gap:.35rem;font-size:.65rem;font-family:var(--font-ui)}
+    .rt-donut-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .rt-donut-legend-label{color:var(--text-muted);flex:1}
+    .rt-donut-legend-val{font-family:var(--font-mono);color:var(--text-main);font-size:.68rem}
+    .rt-card-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.6rem;font-family:var(--font-ui)}
+    .rt-proto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.4rem}
+    .rt-proto-item{background:rgba(99,130,190,.06);border:1px solid var(--border);border-radius:6px;padding:.45rem .6rem;display:flex;flex-direction:column;gap:.1rem}
+    .rt-proto-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
+    .rt-proto-count{font-size:1.35rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
+    .rt-proto-count.rt-connect{color:rgba(52,211,153,.9)}
+    .rt-proto-count.rt-static{color:rgba(56,189,248,.9)}
+    .rt-proto-count.rt-dynamic{color:rgba(251,191,36,.9)}
+    .rt-proto-count.rt-bgp{color:rgba(167,139,250,.9)}
+    .rt-proto-count.rt-ospf{color:rgba(251,113,133,.9)}
+    .rt-bgp-card{display:flex;flex-direction:column}
+    .rt-bgp-stats-wrap{flex:1;display:flex;align-items:center;justify-content:center}
+    .rt-proto-card,.rt-bgp-card,.rt-table-wrap{transition:opacity .3s}
+    .rt-proto-card.is-stale,.rt-bgp-card.is-stale,.rt-table-wrap.is-stale{opacity:.45;border-color:rgba(99,130,190,.2)}
+    .rt-bgp-stats{display:flex;gap:1.2rem;align-items:center;justify-content:center}
+    .rt-bgp-stat{display:flex;flex-direction:column;align-items:center;gap:.1rem}
+    .rt-bgp-num{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);line-height:1}
+    .rt-bgp-num.established{color:rgba(52,211,153,.9)}
+    .rt-bgp-num.down{color:rgba(251,113,133,.9)}
+    .rt-bgp-num.total{color:var(--text-main)}
+    .rt-bgp-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
+    .rt-bgp-divider{width:1px;height:2.5rem;background:var(--border)}
+    /* peers table */
+    .rt-table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .rt-table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
+    .rt-table th{padding:.45rem .7rem;text-align:left;font-size:.66rem;font-weight:400;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:1px solid var(--border);background:rgba(99,130,190,.04);white-space:nowrap;cursor:pointer;user-select:none;font-family:var(--font-ui)}
+    .rt-table th:hover{color:var(--text-main)}
+    .rt-table th.sort-asc::after{content:' ↑'}
+    .rt-table th.sort-desc::after{content:' ↓'}
+    .rt-table td{padding:.4rem .7rem;border-bottom:1px solid rgba(99,130,190,.08);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0}
+    .rt-table tr:last-child td{border-bottom:none}
+    .rt-table tr:hover td{background:rgba(99,130,190,.05)}
+    /* state badges */
+    .bgp-state{display:inline-block;padding:.1rem .4rem;border-radius:4px;font-size:.65rem;font-weight:600;font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.04em}
+    .bgp-state.established{background:rgba(52,211,153,.15);color:rgba(52,211,153,.95);border:1px solid rgba(52,211,153,.25)}
+    .bgp-state.active{background:rgba(251,191,36,.12);color:rgba(251,191,36,.95);border:1px solid rgba(251,191,36,.25)}
+    .bgp-state.connect,.bgp-state.opensent,.bgp-state.openconfirm{background:rgba(56,189,248,.12);color:rgba(56,189,248,.95);border:1px solid rgba(56,189,248,.2)}
+    .bgp-state.idle{background:rgba(251,113,133,.12);color:rgba(251,113,133,.9);border:1px solid rgba(251,113,133,.2)}
+    .bgp-state.flap{background:rgba(251,113,133,.2);color:#fca5a5;border:1px solid rgba(251,113,133,.4);animation:pulse-banner 1.5s ease infinite}
+    /* peer name + description */
+    .rt-peer-name{font-weight:500;color:var(--text-main)}
+    .rt-peer-desc{font-size:.65rem;color:var(--text-muted)}
+    /* toolbar */
+    .rt-toolbar{display:flex;gap:.5rem;align-items:center;padding:.6rem .8rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .rt-sel{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.28rem .5rem;font-size:.72rem;color:var(--text-main);outline:none;cursor:pointer;font-family:var(--font-ui);appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,190,.6)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .4rem center;transition:border-color .15s}
+    .rt-sel:focus{border-color:rgba(99,130,190,.5)}
+    html[data-theme="light"] .rt-sel{background:rgba(255,255,255,.95);color:var(--text-main)}
+    .rt-search{flex:1 1 0;min-width:0;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.3rem .6rem;font-size:.75rem;color:var(--text-main);outline:none;font-family:var(--font-ui);transition:border-color .15s}
+    .rt-search:focus{border-color:rgba(99,130,190,.5)}
+    html[data-theme="light"] .rt-search{background:rgba(255,255,255,.95);color:var(--text-main)}
+    /* sparkline cell */
+    .rt-spark{display:block}
+    /* mobile */
+    @media(max-width:700px){
+      .rt-table{min-width:860px;width:860px}
+      .rt-table{min-width:960px;width:960px}
+      .rt-table colgroup col:nth-child(1){width:140px}
+      .rt-table colgroup col:nth-child(2){width:110px}
+      .rt-table colgroup col:nth-child(3){width:65px}
+      .rt-table colgroup col:nth-child(4){width:90px}
+      .rt-table colgroup col:nth-child(5){width:65px}
+      .rt-table colgroup col:nth-child(6){width:60px}
+      .rt-table colgroup col:nth-child(7){width:60px}
+      .rt-table colgroup col:nth-child(8){width:60px}
+      .rt-table colgroup col:nth-child(9){width:130px}
+      .rt-table colgroup col:nth-child(10){width:180px}
+    }
+    @media(max-width:700px){
+      #rtRoutesTbody td,.rt-table#rtRoutesTable th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
+      .rt-table#rtRoutesTable{min-width:600px;width:600px}
+    }
   </style>
 </head>
 <body>
@@ -603,6 +690,11 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
       <span class="nav-label">Connections</span>
       <span class="nav-badge" id="connNavBadge">0</span>
+    </a>
+    <a class="nav-item" data-page="routing" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></span>
+      <span class="nav-label">Routing</span>
+      <span class="nav-badge" id="routingNavBadge"></span>
     </a>
     <a class="nav-item" data-page="bandwidth" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
@@ -964,7 +1056,12 @@
           <div class="table-responsive">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%">
               <colgroup><col style="width:30%"><col style="width:20%"><col style="width:25%"><col style="width:25%"></colgroup>
-              <thead><tr><th>Hostname</th><th>IP</th><th>MAC</th><th>Status</th></tr></thead>
+              <thead><tr>
+                <th id="dhcpThName" style="cursor:pointer;user-select:none">Hostname</th>
+                <th id="dhcpThIp"   class="sort-asc" style="cursor:pointer;user-select:none">IP</th>
+                <th id="dhcpThMac"  style="cursor:pointer;user-select:none">MAC</th>
+                <th id="dhcpThStatus" style="cursor:pointer;user-select:none">Status</th>
+              </tr></thead>
             </table>
           </div>
           <div class="data-scroll" id="dhcpScrollWrap" style="max-height:calc(100vh - 200px);overflow-y:auto">
@@ -1356,6 +1453,7 @@
             <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             <label class="stoggle"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBandwidth"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Routing</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouting"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
           </div>
         </div>
       </div>
@@ -1372,12 +1470,171 @@
     </div>
   </div>
 
+
+  <div class="page-view" id="page-routing">
+    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+
+      <!-- Top row: doughnut chart + proto count grid + BGP summary -->
+      <div class="rt-summary-row">
+
+        <!-- Routes by Protocol: doughnut left, count grid right -->
+        <div id="routingProtoCard" class="rt-proto-card">
+          <div class="rt-card-title">Routes by Protocol</div>
+          <div class="rt-proto-inner">
+            <div>
+              <div class="rt-donut-wrap">
+                <canvas id="rtDonutCanvas" width="130" height="130"></canvas>
+              </div>
+            </div>
+            <div class="rt-proto-grid-wrap">
+              <div class="rt-proto-grid" id="rtProtoGrid">
+                <div class="rt-proto-item"><span class="rt-proto-label">Total</span><span class="rt-proto-count" id="rtTotal">—</span></div>
+                <div class="rt-proto-item"><span class="rt-proto-label">Connected</span><span class="rt-proto-count rt-connect" id="rtConnect">—</span></div>
+                <div class="rt-proto-item"><span class="rt-proto-label">Static</span><span class="rt-proto-count rt-static" id="rtStatic">—</span></div>
+                <div class="rt-proto-item"><span class="rt-proto-label">Dynamic</span><span class="rt-proto-count rt-dynamic" id="rtDynamic">—</span></div>
+                <div class="rt-proto-item"><span class="rt-proto-label">BGP</span><span class="rt-proto-count rt-bgp" id="rtBgp">—</span></div>
+                <div class="rt-proto-item"><span class="rt-proto-label">OSPF</span><span class="rt-proto-count rt-ospf" id="rtOspf">—</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BGP peer summary -->
+        <div id="routingBgpCard" class="rt-bgp-card">
+          <div class="rt-card-title">BGP Peers</div>
+          <div class="rt-bgp-stats-wrap"><div class="rt-bgp-stats">
+            <div class="rt-bgp-stat">
+              <span class="rt-bgp-num total" id="rtBgpTotal">—</span>
+              <span class="rt-bgp-lbl">Total</span>
+            </div>
+            <div class="rt-bgp-divider"></div>
+            <div class="rt-bgp-stat">
+              <span class="rt-bgp-num established" id="rtBgpEstab">—</span>
+              <span class="rt-bgp-lbl">Established</span>
+            </div>
+            <div class="rt-bgp-divider"></div>
+            <div class="rt-bgp-stat">
+              <span class="rt-bgp-num down" id="rtBgpDown">—</span>
+              <span class="rt-bgp-lbl">Down</span>
+            </div>
+          </div></div>
+        </div>
+
+      </div><!-- /rt-summary-row -->
+
+      <!-- Static + Dynamic Routes table -->
+      <div id="routingRoutesCard" style="margin-bottom:.85rem">
+        <div class="rt-toolbar">
+          <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-family:var(--font-ui);flex-shrink:0">Static &amp; Dynamic Routes</span>
+          <input type="text" class="rt-search" id="rtRouteSearch" placeholder="Search destination or gateway…">
+          <select class="rt-sel" id="rtRouteSelType">
+            <option value="">Static + Dynamic</option>
+            <option value="static">Static only</option>
+            <option value="dynamic">Dynamic only</option>
+          </select>
+          <select class="rt-sel" id="rtRouteSelActive">
+            <option value="">All routes</option>
+            <option value="active">Active only</option>
+          </select>
+        </div>
+        <div class="rt-table-wrap">
+          <table class="rt-table" id="rtRoutesTable" style="table-layout:fixed">
+            <colgroup>
+              <col style="width:28%">
+              <col style="width:25%">
+              <col style="width:10%">
+              <col style="width:9%">
+              <col style="width:12%">
+              <col style="width:16%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th id="rtRThDst">Destination</th>
+                <th id="rtRThGw">Gateway</th>
+                <th id="rtRThDist">Distance</th>
+                <th id="rtRThActive">Active</th>
+                <th id="rtRThType">Type</th>
+                <th id="rtRThComment">Comment</th>
+              </tr>
+            </thead>
+            <tbody id="rtRoutesTbody">
+              <tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">Waiting for data…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div><!-- /routingRoutesCard -->
+
+      <!-- BGP Peers table -->
+      <div id="routingPeersCard">
+        <div class="rt-toolbar">
+          <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-family:var(--font-ui);flex-shrink:0">BGP Peers</span>
+          <input type="text" class="rt-search" id="rtSearch" placeholder="Search peer name, IP or ASN…">
+          <select class="rt-sel" id="rtSelState">
+            <option value="">All states</option>
+            <option value="established">Established</option>
+            <option value="idle">Idle</option>
+            <option value="active">Active</option>
+            <option value="connect">Connect</option>
+            <option value="opensent">OpenSent</option>
+            <option value="openconfirm">OpenConfirm</option>
+          </select>
+          <select class="rt-sel" id="rtSelType">
+            <option value="">All types</option>
+            <option value="upstream">Upstream</option>
+            <option value="ix">IX / Route Server</option>
+            <option value="private">Private / Internal</option>
+          </select>
+          <select class="rt-sel" id="rtSelIpver">
+            <option value="">IPv4 + IPv6</option>
+            <option value="4">IPv4 only</option>
+            <option value="6">IPv6 only</option>
+          </select>
+        </div>
+        <div class="rt-table-wrap">
+          <table class="rt-table">
+            <colgroup>
+              <col style="width:14%">
+              <col style="width:11%">
+              <col style="width:7%">
+              <col style="width:9%">
+              <col style="width:7%">
+              <col style="width:6%">
+              <col style="width:6%">
+              <col style="width:6%">
+              <col style="width:14%">
+              <col style="width:20%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th id="rtThName">Peer</th>
+                <th id="rtThAddr">Address</th>
+                <th id="rtThAs">ASN</th>
+                <th id="rtThState">State</th>
+                <th id="rtThUptime">Uptime</th>
+                <th id="rtThPfx">Prefixes</th>
+                <th id="rtThSent">Upd Out</th>
+                <th id="rtThRecv">Upd In</th>
+                <th id="rtThErr">Last Error</th>
+                <th id="rtThSpark">Prefix Trend</th>
+              </tr>
+            </thead>
+            <tbody id="rtTbody">
+              <tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">Waiting for data…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div><!-- /routingPeersCard -->
+
+    </div><!-- /container -->
+  </div><!-- /page-routing -->
+
 </div><!-- /main -->
+
 <div id="mapFsOverlay">
   <button id="mapFsClose" title="Close fullscreen"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 </div>
 
-<div id="kbdHint"><kbd>1</kbd>&#8211;<kbd>7</kbd> pages &nbsp;&#183;&nbsp; <kbd>/</kbd> log search</div>
+<div id="kbdHint"><kbd>1</kbd>&#8211;<kbd>9</kbd> pages &nbsp;&#183;&nbsp; <kbd>/</kbd> log search</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/vendor/chart.umd.min.js"></script>

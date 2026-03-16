@@ -14,12 +14,50 @@ class TopTalkersCollector {
     this.prev = new Map();
     this.timer = null;
     this._inflight = false;
+    this._unavailable  = false; // set true when Kid Control is not licensed/configured
+    this._backoffUntil = 0;     // epoch ms — don't poll before this time
+    this._backoffMs    = 60000; // start at 1 min, doubles each miss up to 10 min
   }
 
   async tick() {
     if (!this.ros.connected) return;
     const now = Date.now();
-    const items = await this.ros.write('/ip/kid-control/device/print', ['=.proplist=name,mac-address,bytes-up,bytes-down']);
+
+    // Use a short per-command timeout — Kid Control may not be configured on
+    // all RouterOS builds. A 30s hang would trip the global write timeout and
+    // force an unnecessary reconnect. If unavailable, emit an empty list quietly.
+    // Skip poll during backoff window (Kid Control unavailable/unlicensed)
+    if (now < this._backoffUntil) {
+      this.lastPayload = { ts: now, devices: [], pollMs: this.pollMs };
+      this.io.emit('talkers:update', this.lastPayload);
+      this.state.lastTalkersTs = now;
+      return;
+    }
+
+    let items;
+    try {
+      items = await this.ros.write('/ip/kid-control/device/print',
+        ['=.proplist=name,mac-address,bytes-up,bytes-down'],
+        5000); // 5s timeout — fail fast if Kid Control is not available
+      // Successful response — reset backoff
+      this._backoffMs    = 60000;
+      this._unavailable  = false;
+    } catch (e) {
+      const msg = String(e && e.message ? e.message : e);
+      // Suppress timeout/unavailable errors — back off to avoid hammering the router
+      if (msg.includes('timeout') || msg.includes('unknown command') || msg.includes('no such')) {
+        this._unavailable  = true;
+        this._backoffUntil = now + this._backoffMs;
+        this._backoffMs    = Math.min(this._backoffMs * 2, 600000); // cap at 10 min
+        console.warn(`[talkers] Kid Control unavailable — backing off ${Math.round(this._backoffMs/1000)}s`);
+        this.lastPayload = { ts: now, devices: [], pollMs: this.pollMs };
+        this.io.emit('talkers:update', this.lastPayload);
+        this.state.lastTalkersTs  = now;
+        this.state.lastTalkersErr = null;
+        return;
+      }
+      throw e;
+    }
 
     const seenMACs = new Set();
     let devices = (items || []).map(d => {
@@ -63,7 +101,7 @@ class TopTalkersCollector {
     run();
     this.timer = setInterval(run, this.pollMs);
     this.ros.on('close', () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
-    this.ros.on('connected', () => { this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    this.ros.on('connected', () => { this._backoffUntil = 0; this._backoffMs = 60000; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
   }
 }
 
