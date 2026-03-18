@@ -351,7 +351,26 @@ socket.on('talkers:update',function(data){
 });
 
 // ── Interface Status ───────────────────────────────────────────────────────
-var _ifacePeaks = {};
+var _ifacePeaks   = {};
+// Per-interface ring buffer of combined rx+tx Mbps samples for sparkline.
+// 30 samples at ~5 s poll interval = ~2.5 min of trend history.
+var _ifaceHistory = {};
+var IFACE_SPARK_LEN = 30;
+
+function ifaceSparkSvg(history) {
+  if (!history || history.length < 2) return '';
+  var w = 56, h = 18, pad = 1.5;
+  var min = 0; // always baseline at zero so rising traffic is visually obvious
+  var max = Math.max.apply(null, history) || 1;
+  var pts = history.map(function(v, i) {
+    var x = pad + (i / (history.length - 1)) * (w - pad * 2);
+    var y = h - pad - (v / max) * (h - pad * 2);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  });
+  return '<svg class="iface-spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+    '<polyline points="' + pts.join(' ') + '" fill="none" stroke="rgba(56,189,248,.6)" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '</svg>';
+}
 
 function ifaceRateRow(name, dir, mbps, peak) {
   var pct = peak > 0 ? Math.min(100, (mbps / peak) * 100) : 0;
@@ -381,6 +400,10 @@ socket.on('ifstatus:update',function(data){
     p.tx = Math.max(i.txMbps || 0, p.tx * 0.995);
     if (p.rx < 1) p.rx = 1;
     if (p.tx < 1) p.tx = 1;
+    // Append combined rx+tx to sparkline history buffer
+    if (!_ifaceHistory[i.name]) _ifaceHistory[i.name] = [];
+    _ifaceHistory[i.name].push((i.rxMbps || 0) + (i.txMbps || 0));
+    if (_ifaceHistory[i.name].length > IFACE_SPARK_LEN) _ifaceHistory[i.name].shift();
   });
 
   ifaceGrid.innerHTML=ifaces.map(function(i){
@@ -389,6 +412,7 @@ socket.on('ifstatus:update',function(data){
     var ipStr=i.ips&&i.ips.length?i.ips[0]:'';
     var p = _ifacePeaks[i.name] || { rx: 1, tx: 1 };
     return'<div class="iface-tile '+cls+'">'+
+      ifaceSparkSvg(_ifaceHistory[i.name]||[])+
       '<div class="iface-name"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
       '<div class="iface-type">'+esc(i.type)+(i.comment?' \u00b7 '+esc(i.comment):'')+'</div>'+
       (ipStr?'<div class="iface-ip">'+esc(ipStr)+'</div>':'')+
@@ -2053,13 +2077,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollBandwidth', label:'Bandwidth',       min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollWireless',  label:'Wireless',        min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollPing',      label:'Ping',            min:1000,  max:60000,  step:1000,  unit:'ms' },
-    { key:'pollRouting',   label:'Routing',         min:1000,  max:600000, step:1000,  unit:'ms' },
     { key:'pollDhcp',      label:'DHCP Networks',   min:30000, max:600000, step:30000, unit:'ms' },
     // Streamed — RouterOS pushes changes, no poll interval needed
     { key:'pollIfstatus',  label:'Interfaces',  streamed:true },
     { key:'pollVpn',       label:'VPN',         streamed:true },
     { key:'pollFirewall',  label:'Firewall',     streamed:true },
     { key:'pollArp',       label:'ARP',         streamed:true },
+    { key:'pollRouting',   label:'Routing',     streamed:true },
   ];
 
   var _loaded = {};
@@ -2135,14 +2159,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     buildSliders(data);
-    // Sync routing stale thresholds from the saved pollRouting interval
-    // so cards don't go stale before the first routing:update arrives.
-    if (data.pollRouting) {
-      var rtThreshold = data.pollRouting + STALE_GRACE;
-      staleConfig.forEach(function(cfg) {
-        if (cfg.event === 'routing:update') cfg.threshold = rtThreshold;
-      });
-    }
   }
 
   function loadSettings() {

@@ -22,6 +22,10 @@ MikroDash is a **real-time MikroTik RouterOS v7 dashboard**. It connects directl
 | No CDN dependencies | All frontend assets are vendored under `public/vendor/`. Never add a `<script src="https://...">` tag. |
 | No new runtime deps without approval | The dependency list in `package.json` is intentional and minimal. |
 | Collector pattern must be followed | Every new data collector must implement the contract described below. |
+<<<<<<< HEAD
+=======
+| Streaming-first architecture | **Prefer `/listen` streams over polling wherever RouterOS supports them.** Polling is only acceptable when no stream endpoint exists (e.g. `/tool/ping`) or the stream is demonstrably too noisy without benefit (rejected case: `/routing/bgp/session/listen` was initially rejected as "noisy" but was successfully streamed with keepalive-fingerprint suppression). When converting a collector to streaming, set `pollMs: 0` in the payload and show "Event-driven" in the Settings UI instead of a slider. |
+>>>>>>> cf64f22 (Routing & Wireless: Full Streaming, Interface Sparklines)
 | Credentials never in plaintext | Router and dashboard passwords are AES-256-GCM encrypted in `settings.json` and masked in all API responses. |
 | Vendored assets are read-only | Never modify `public/vendor/` unless explicitly instructed. |
 
@@ -68,12 +72,21 @@ src/
 │   ├── dhcpLeases.js          # DHCP lease stream + initial load; name resolution (comment > hostname)
 │   ├── dhcpNetworks.js        # LAN CIDRs, WAN IP from interface addresses, lease counts per network
 │   ├── arp.js                 # ARP table snapshot; bidirectional IP↔MAC lookup
+<<<<<<< HEAD
 │   ├── wireless.js            # Wireless clients: band detection, signal, SSID, DHCP/ARP enrichment
+=======
+│   ├── wireless.js            # Wireless clients: band detection, signal, SSID, DHCP/ARP enrichment.
+│   │                          #   ⚠ No =.proplist= on registration-table calls — see RouterOS quirks below
+>>>>>>> cf64f22 (Routing & Wireless: Full Streaming, Interface Sparklines)
 │   ├── vpn.js                 # WireGuard peers: connected/idle state, TX/RX rates, stale pruning
 │   ├── firewall.js            # Filter/NAT/mangle rules with delta packet counts between polls
 │   ├── interfaceStatus.js     # All interfaces: running, disabled, IPs, RX/TX Mbps, cumulative bytes
 │   ├── ping.js                # ICMP ping RTT + loss%, ring-buffer history, fallback averaging
+<<<<<<< HEAD
 │   ├── routing.js             # Static/dynamic routes, BGP peers with state + prefix trend
+=======
+│   ├── routing.js             # Route table (/ip/route/listen stream) + BGP sessions (/routing/bgp/session/listen stream)
+>>>>>>> cf64f22 (Routing & Wireless: Full Streaming, Interface Sparklines)
 │   └── logs.js                # RouterOS log stream, severity classification, bounded history buffer
 ├── routeros/
 │   ├── client.js              # ROS class (extends EventEmitter): connectLoop() with exponential backoff,
@@ -116,6 +129,7 @@ CHANGELOG.md
 
 ---
 
+<<<<<<< HEAD
 ## Collector pattern
 
 Every data collector must follow this contract exactly. Deviations will cause bugs in `sendInitialState()`, `/healthz`, and graceful shutdown.
@@ -173,6 +187,210 @@ module.exports = XyzCollector;
 - Stream-based collectors (`logs.js`, `dhcpLeases.js`) must restart their stream after callback errors — transient failures must not leave the dashboard silently stale.
 - All collector timers are cleared in `shutdown()` in `index.js`. New collectors must be added to `allCollectors` there.
 
+=======
+## Versioning & changelog rules
+
+**Semantic version:** `major.minor.patch` in `package.json`. Bump patch for bug fixes; minor for new features or behaviour changes; major for breaking changes.
+
+**How to write a CHANGELOG.md entry:**
+
+1. Add the new version block at the **very top** of `CHANGELOG.md`, immediately after the file header line (`All notable changes…`).
+2. Use this exact format:
+   ```
+   ## [x.y.z] — Short title describing the release
+
+   ### Added
+   - High-level user-facing feature descriptions only.
+
+   ### Changed
+   - Behaviour changes, architecture shifts, removed UI elements.
+
+   ### Fixed
+   - User-observable bugs, not internal refactors.
+   ```
+3. **Do not edit any previous version block.** The entry for the version being released is the only thing that changes.
+4. **One entry per meaningful change** — no sub-bullets for implementation details, test names, or trial-and-error intermediate steps. If a bug was fixed through multiple iterations, write one bullet describing the final fix and its user-visible impact.
+5. **Omit:** test additions, internal refactors with no user-visible effect, intermediate debugging steps, lint fixes, comment updates.
+6. **Do not duplicate** a fix across multiple bullets. If a bug had multiple contributing causes, describe the root cause and fix once.
+
+**How to update `package.json`:** change only the `"version"` field. Nothing else.
+
+
+---
+
+## Collector delivery model
+
+| Collector | Delivery | RouterOS endpoint(s) | Notes |
+|---|---|---|---|
+| `traffic.js` | Poll 1 s | `/interface/monitor-traffic` | No stream endpoint; idle-gated when no browser clients |
+| `system.js` | Poll | `/system/resource/print` | Update-check sub-interval (5 min) |
+| `connections.js` | Poll | `/ip/firewall/connection/print` | Shared `connTableCache` with bandwidth |
+| `bandwidth.js` | Poll | `/ip/firewall/connection/print` | Shared `connTableCache` with connections |
+| `talkers.js` | Poll | `/ip/kid-control/device/print` | Backs off when Kid Control unavailable |
+| `dhcpLeases.js` | **Stream** | `/ip/dhcp-server/lease/listen` | Initial `/print` on connect |
+| `dhcpNetworks.js` | Poll | `/ip/dhcp-server/network/print` | Slow poll (default 5 min) |
+| `arp.js` | **Stream** | `/ip/arp/listen` | Initial `/print` on connect |
+| `wireless.js` | Poll | `/interface/wifi/registration-table/print` | Probes both wifi and legacy wireless APIs |
+| `vpn.js` | **Stream** | `/interface/wireguard/peers/listen` | Heartbeat every 60 s |
+| `firewall.js` | **Stream** | `/ip/firewall/{filter,nat,mangle}/listen` | Three concurrent streams |
+| `interfaceStatus.js` | **Stream** + Poll | `/interface/listen` + `/interface/print` | Stream for state; poll for byte counters |
+| `ping.js` | Poll | `/tool/ping` | No stream endpoint exists |
+| `routing.js` | **Stream** | `/ip/route/listen` + `/routing/bgp/session/listen` | BGP keepalives fingerprint-suppressed |
+| `logs.js` | **Stream** | `/log/listen` | Bounded history buffer (500 entries) |
+
+**Rule:** always prefer streaming. Add a new collector as streaming unless the RouterOS endpoint genuinely does not support `/listen` (e.g. `/tool/ping`).
+
+---
+
+## Known RouterOS API quirks
+
+### `/ip/route/print` — `.flags` omitted for default-state routes
+
+RouterOS v7 on some firmware builds omits the `.flags` field for routes in their default (active) state, treating active+static as unremarkable. Disabled routes always receive `.flags` because disabled is non-default. When writing route-related code, always include a fallback type-inference path: if no type flag is set and the gateway is a real IP address (matches an IPv4/IPv6 pattern, not an interface name like `'bridge'`), infer `static=true`. `/ip/route/listen` stream events always carry the full row so this only affects the initial `/print` load.
+
+### `=.proplist=` on registration-table calls — can filter rows
+
+On RouterOS v7 new wifi package, including unknown or absent field names in `=.proplist=` for `/interface/wifi/registration-table/print` can cause RouterOS to **filter rows** rather than simply omitting those fields per row. For example, requesting `'signal'` (which is `'signal-strength'` in the new API) may return only clients where that field is non-empty — resulting in only 1 of N clients being returned. **Do not use `=.proplist=` on wireless registration-table calls.** The table is small enough that the optimisation is not worth the risk.
+
+### `!empty` reply — RouterOS 7.18+
+
+RouterOS 7.18+ sends `!empty` when a command returns zero results. The `node-routeros` library throws `UNKNOWNREPLY` on this. `patch-routeros.js` patches `Channel.js` to treat `!empty` as an empty done (resolves to `[]`). This patch must be applied once after every `npm install` — the `Dockerfile` runs it automatically.
+
+### UNREGISTEREDTAG crash — node-routeros
+
+When RouterOS sends a packet for a tag that `node-routeros` has already cleaned up (trailing packet after `!done`, or delayed response after a stream is stopped), the library throws `UNREGISTEREDTAG` synchronously inside a socket data event — uncatchable by user code. `patch-routeros.js` patches `Receiver.js` to log and discard these packets instead.
+
+---
+
+## Collector pattern
+
+**Streaming-first:** always prefer a `/listen` stream over a poll interval when the RouterOS endpoint supports it. See the constraint table above. Use the polling pattern only when no stream is available.
+
+### Streaming collector pattern (preferred)
+
+```js
+class XyzCollector {
+  constructor({ ros, io, pollMs, state }) {
+    this.ros         = ros;
+    this.io          = io;
+    this.pollMs      = pollMs;   // retained for Settings UI / stale-threshold display only
+    this.state       = state;
+    this.timer       = null;     // null for fully-streamed collectors
+    this.lastPayload = null;
+
+    this._stream       = null;
+    this._restarting   = false;
+    this._restartTimer = null;
+    this._heartbeat    = null;   // 60s re-emit so client stale timer never fires on stable networks
+  }
+
+  async start() {
+    await this._loadInitial();   // one-shot /print to populate in-memory state
+    this._startStream();
+    this._startHeartbeat();
+
+    // Register reconnect handlers EXACTLY ONCE — never call start() inside 'connected'.
+    // Calling start() recursively doubles the listener count on every reconnect.
+    this.ros.on('close', () => { this._stopStream(); this._stopHeartbeat(); });
+    this.ros.on('connected', async () => {
+      this._stopStream(); this._stopHeartbeat();
+      await this._loadInitial();
+      this._startStream(); this._startHeartbeat();
+    });
+  }
+
+  _startStream() {
+    if (this._stream || !this.ros.connected) return;
+    this._stream = this.ros.stream(['/xyz/listen'], (err, data) => {
+      if (err) {
+        this.state.lastXyzErr = String(err && err.message ? err.message : err);
+        this._stopStream();
+        if (this.ros.connected && !this._restarting) {
+          this._restarting = true;
+          this._restartTimer = setTimeout(async () => {
+            this._restarting = false; this._restartTimer = null;
+            if (!this.ros.connected) return;
+            await this._loadInitial(); this._startStream();
+          }, 3000);
+        }
+        return;
+      }
+      if (data) { this._applyDelta(data); this._emit(); }
+    });
+  }
+
+  _stopStream() {
+    if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
+    this._restarting = false;
+    if (this._stream) { try { this._stream.stop(); } catch (_) {} this._stream = null; }
+  }
+
+  _startHeartbeat() {
+    if (this._heartbeat) return;
+    this._heartbeat = setInterval(() => {
+      if (this.lastPayload) this.io.emit('xyz:update', { ...this.lastPayload, ts: Date.now() });
+    }, 60000);
+  }
+  _stopHeartbeat() {
+    if (this._heartbeat) { clearInterval(this._heartbeat); this._heartbeat = null; }
+  }
+
+  stop() {
+    // Kept for settings live-update loop compatibility. Streaming collectors have
+    // no poll timer — this is a safe no-op but must not throw.
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+  }
+}
+```
+
+**Streaming payload convention:** set `pollMs: 0` so the client knows data is event-driven. The Settings UI shows "Event-driven" instead of a slider.
+
+### Polling collector pattern (only when no stream endpoint exists)
+
+```js
+class XyzCollector {
+  constructor({ ros, io, pollMs, state }) {
+    this.ros = ros; this.io = io; this.pollMs = pollMs;
+    this.state = state; this.timer = null; this._inflight = false;
+    this.lastPayload = null;
+  }
+
+  async start() {
+    const run = async () => {
+      if (this._inflight) return;
+      this._inflight = true;
+      try { await this.tick(); } catch (e) {
+        this.state.lastXyzErr = String(e && e.message ? e.message : e);
+      } finally { this._inflight = false; }
+    };
+    run();
+    this.timer = setInterval(run, this.pollMs);
+    // Register handlers ONCE — never call start() inside 'connected'
+    this.ros.on('close',     () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
+    this.ros.on('connected', () => { this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+  }
+
+  async tick() {
+    if (!this.ros.connected) return;
+    const rows = await this.ros.write('/some/command');
+    const payload = /* transform */;
+    this.io.emit('xyz:update', payload);
+    this.lastPayload = payload;
+    this.state.lastXyzTs = Date.now(); this.state.lastXyzErr = null;
+  }
+
+  stop() { if (this.timer) { clearInterval(this.timer); this.timer = null; } }
+}
+module.exports = XyzCollector;
+```
+
+**Invariants (both patterns):**
+- `lastPayload` is never null after first successful emit. `sendInitialState()` replays it to new browser clients.
+- `state.last<n>Ts` and `state.last<n>Err` updated on every emit — feed `/healthz`.
+- Stream-based collectors must restart after callback errors — transient failures must not leave the dashboard silently stale.
+- All collector timers are cleared in `shutdown()` in `index.js`. New collectors must be added to `allCollectors` there.
+- **Never call `start()` inside a `ros.on('connected')` handler.** Register `connected` and `close` listeners exactly once in `start()`. Calling `start()` recursively doubles the listener count on every reconnect, causing exponential listener growth and multiple concurrent collector chains.
+>>>>>>> cf64f22 (Routing & Wireless: Full Streaming, Interface Sparklines)
 ---
 
 ## Socket.IO events

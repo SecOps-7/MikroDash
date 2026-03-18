@@ -1129,3 +1129,891 @@ test('dhcp networks collector clears WAN IP when the configured WAN interface is
   assert.equal(emitted[0].data.wanIp, '');
   assert.equal(state.lastWanIp, '');
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// --- Routing Collector ---
+// ═══════════════════════════════════════════════════════════════════════════
+function makeRoutingRos({ printRows = [], sessionRows = [], peerCfgRows = [] } = {}) {
+  return {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('/routing/bgp/session')) return sessionRows;
+      if (cmd.includes('/routing/bgp/peer'))    return peerCfgRows;
+      if (cmd.includes('/ip/route'))            return printRows;
+      return [];
+    },
+    stream: (words, cb) => ({ stop() {} }),
+  };
+}
+
+// ── start() happy path ───────────────────────────────────────────────────────
+
+test('routing collector start() emits correct payload with routes and BGP sessions', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const state = {};
+  const ros = makeRoutingRos({
+    printRows: [
+      { '.id': '*1', 'dst-address': '0.0.0.0/0',     gateway: '10.0.0.1', distance: '1',  '.flags': 'AS' },
+      { '.id': '*2', 'dst-address': '192.168.1.0/24', gateway: 'bridge',   distance: '0',  '.flags': 'AC' },
+    ],
+    sessionRows: [{
+      name: 'peer1', 'remote.address': '10.0.0.1', 'remote.as': '65001',
+      state: 'established', uptime: '1h', 'prefix-count': '100',
+      'updates-sent': '10', 'updates-received': '20',
+    }],
+    peerCfgRows: [{ 'remote.address': '10.0.0.1', comment: 'Transit A' }],
+  });
+
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state });
+  await collector.start();
+
+  const d = emitted[emitted.length - 1].data;
+  assert.equal(d.peers.length, 1);
+  assert.equal(d.peers[0].state, 'established');
+  assert.equal(d.peers[0].prefixes, 100);
+  assert.equal(d.peers[0].description, 'Transit A');
+  assert.equal(d.routes.length, 1);
+  assert.equal(d.routes[0].dst, '0.0.0.0/0');
+  assert.equal(d.routes[0].type, 'static');
+  assert.equal(d.routeCounts.total, 2);
+  assert.equal(d.routeCounts.static, 1);
+  assert.equal(d.routeCounts.connect, 1);
+  assert.equal(d.summary.established, 1);
+  assert.equal(d.pollMs, 0, 'pollMs must be 0 for streamed collector');
+  assert.ok(state.lastRoutingTs > 0);
+  assert.equal(state.lastRoutingErr, null);
+});
+
+// ── _applySessionDelta / _buildPeers ─────────────────────────────────────────
+
+test('routing collector BGP session state change triggers emit and is reflected in peers', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0] && words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push({ ev, data: d }); } }, pollMs: 10000, state: {} });
+  await collector.start();
+  const countBefore = emitted.length;
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', 'remote.as': '65001', state: 'established', 'prefix-count': '50' });
+  await new Promise(r => setTimeout(r, 10));
+
+  assert.ok(emitted.length > countBefore, 'state change triggers emit');
+  const d = emitted[emitted.length - 1].data;
+  assert.equal(d.peers[0].state, 'established');
+  assert.equal(d.peers[0].prefixes, 50);
+});
+
+test('routing collector BGP keepalive-only update is suppressed by fingerprint', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0] && words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  // First event — sets the fingerprint baseline
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '50', uptime: '1h' });
+  await new Promise(r => setTimeout(r, 10));
+  const countAfterFirst = emitted.length;
+
+  // Second event — only uptime changed (keepalive), state/prefixes identical
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '50', uptime: '1h10m' });
+  await new Promise(r => setTimeout(r, 10));
+
+  assert.equal(emitted.length, countAfterFirst, 'keepalive-only update must be suppressed');
+});
+
+test('routing collector BGP prefix count change is not suppressed', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0] && words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '50', uptime: '1h' });
+  await new Promise(r => setTimeout(r, 10));
+  const countAfterFirst = emitted.length;
+
+  // Prefix count changes — must emit
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '75', uptime: '1h10m' });
+  await new Promise(r => setTimeout(r, 10));
+
+  assert.ok(emitted.length > countAfterFirst, 'prefix count change must trigger emit');
+  assert.equal(emitted[emitted.length - 1].peers[0].prefixes, 75);
+});
+
+test('routing collector BGP peer removed via .dead=true clears session', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0] && words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '50' });
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(collector._sessions.size, 1);
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', '.dead': 'true' });
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(collector._sessions.size, 0, 'session removed on .dead=true');
+});
+
+// ── Route stream delta ────────────────────────────────────────────────────────
+
+test('routing collector route stream delta adds new route', async () => {
+  const emitted = [];
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+  collector._applyRouteDelta({ '.id': '*5', 'dst-address': '10.0.0.0/8', gateway: '1.2.3.1', distance: '1', '.flags': 'AS' });
+  collector._emit(null);
+  assert.equal(emitted[0].routes.length, 1);
+  assert.equal(emitted[0].routes[0].dst, '10.0.0.0/8');
+});
+
+test('routing collector route stream delta deletes route via .dead=true', async () => {
+  const emitted = [];
+  const ros = makeRoutingRos({
+    printRows: [
+      { '.id': '*1', 'dst-address': '0.0.0.0/0',  gateway: '1.2.3.1', distance: '1', '.flags': 'AS' },
+      { '.id': '*2', 'dst-address': '10.0.0.0/8', gateway: '1.2.3.1', distance: '1', '.flags': 'AS' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+  collector._applyRouteDelta({ '.id': '*1', '.dead': 'true' });
+  collector._emit(null);
+  assert.equal(collector._routes.size, 1);
+  assert.equal(emitted[0].routes[0].dst, '10.0.0.0/8');
+});
+
+test('routing collector route stream partial row merges with stored raw', async () => {
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io: { emit() {} }, pollMs: 10000, state: {} });
+  collector._routes.set('*1', collector._mapRoute({ '.id': '*1', 'dst-address': '0.0.0.0/0', gateway: '1.2.3.1', distance: '1', '.flags': 'AS', comment: 'orig' }));
+  collector._applyRouteDelta({ '.id': '*1', distance: '5' });
+  const r = collector._routes.get('*1');
+  assert.equal(r.distance, 5);
+  assert.equal(r.gateway, '1.2.3.1');
+  assert.equal(r.comment, 'orig');
+});
+
+// ── _emit(null) reuses last peers ─────────────────────────────────────────────
+
+test('routing collector _emit(null) reuses last known peers from lastPayload', async () => {
+  const emitted = [];
+  const ros = makeRoutingRos({
+    sessionRows: [{ name: 'p1', 'remote.address': '10.0.0.1', 'remote.as': '65001', state: 'established', 'prefix-count': '50' }],
+  });
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  // Route stream event fires — reuses BGP peers from lastPayload
+  collector._applyRouteDelta({ '.id': '*1', 'dst-address': '1.0.0.0/8', gateway: '10.0.0.1', distance: '1', '.flags': 'AS' });
+  collector._emit(null);
+
+  assert.equal(emitted[emitted.length - 1].peers.length, 1, 'last known peers reused');
+});
+
+test('routing collector _emit(null) before any peers returns empty array', async () => {
+  const emitted = [];
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  collector._emit(null);
+  assert.deepEqual(emitted[0].peers, []);
+});
+
+// ── Flag inference / type classification ──────────────────────────────────────
+
+test('routing collector keeps active routes with no .flags via IP-gateway inference', async () => {
+  const emitted = [];
+  const ros = makeRoutingRos({
+    printRows: [
+      { '.id': '*1', 'dst-address': '0.0.0.0/0',      gateway: '192.168.88.1', distance: '1' },
+      { '.id': '*2', 'dst-address': '172.16.0.0/12',   gateway: '10.0.0.1',    distance: '1', '.flags': 'Xs' },
+      { '.id': '*3', 'dst-address': '192.168.88.0/24', gateway: 'bridge',       distance: '0' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+  collector._emit(null);
+
+  const dsts = emitted[0].routes.map(r => r.dst);
+  assert.ok(dsts.includes('0.0.0.0/0'),     'IP-gateway route kept');
+  assert.ok(dsts.includes('172.16.0.0/12'), 'disabled route kept');
+  assert.ok(!dsts.includes('192.168.88.0/24'), 'interface-name gateway excluded');
+});
+
+test('routing collector excludes interface-name-gateway routes consistently across ticks', async () => {
+  const emitted = [];
+  let tick = 0;
+  const ros = {
+    connected: true, on() {},
+    write: async (cmd) => {
+      if (!cmd.includes('/ip/route')) return [];
+      return tick++ === 0
+        ? [{ '.id': '*1', 'dst-address': '192.168.1.0/24', gateway: 'bridge', distance: '0' }]
+        : [{ '.id': '*1', 'dst-address': '192.168.1.0/24', gateway: 'bridge', distance: '0', '.flags': 'AC' }];
+    },
+    stream: (w, cb) => ({ stop() {} }),
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector._loadRoutes(); collector._emit(null);
+  await collector._loadRoutes(); collector._emit(null);
+  assert.equal(emitted[0].routes.length, 0, 'tick 1 (no .flags): interface route excluded');
+  assert.equal(emitted[1].routes.length, 0, 'tick 2 (.flags=AC): interface route excluded');
+});
+
+// ── Route counts ──────────────────────────────────────────────────────────────
+
+test('routing collector counts all route protocol types correctly', async () => {
+  const emitted = [];
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  [
+    { '.id': '*1', 'dst-address': '0.0.0.0/0',     gateway: '1.2.3.1', distance: '1',   '.flags': 'AS'  },
+    { '.id': '*2', 'dst-address': '10.0.0.0/8',    gateway: '1.2.3.1', distance: '20',  '.flags': 'Ab'  },
+    { '.id': '*3', 'dst-address': '172.16.0.0/12',  gateway: '1.2.3.1', distance: '20',  '.flags': 'Ab'  },
+    { '.id': '*4', 'dst-address': '192.168.0.0/24', gateway: 'bridge',  distance: '0',   '.flags': 'AC'  },
+    { '.id': '*5', 'dst-address': '192.168.2.0/24', gateway: '10.1.0.1', distance: '110', '.flags': 'Ao' },
+  ].forEach(r => collector._routes.set(r['.id'], collector._mapRoute(r)));
+  collector._emit(null);
+
+  const c = emitted[0].routeCounts;
+  assert.equal(c.total,   5);
+  assert.equal(c.static,  1);
+  assert.equal(c.bgp,     2);
+  assert.equal(c.connect, 1);
+  assert.equal(c.ospf,    1);
+});
+
+// ── Empty / malformed data ────────────────────────────────────────────────────
+
+test('routing collector emits empty payload without crash when router has no data', async () => {
+  const emitted = [];
+  const state = {};
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state });
+  await collector.start();
+  const d = emitted[emitted.length - 1];
+  assert.deepEqual(d.peers, []);
+  assert.deepEqual(d.routes, []);
+  assert.equal(d.routeCounts.total, 0);
+  assert.ok(state.lastRoutingTs > 0);
+  assert.equal(state.lastRoutingErr, null);
+});
+
+test('routing collector malformed numeric fields clamped to 0', async () => {
+  const emitted = [];
+  const ros = makeRoutingRos({
+    printRows:   [{ '.id': '*1', 'dst-address': '1.2.3.0/24', gateway: '1.2.3.1', distance: 'bad', '.flags': 'AS' }],
+    sessionRows: [{ name: 'bad', 'remote.address': '10.0.0.1', 'remote.as': 'notanumber', state: 'established', 'prefix-count': 'bad', 'updates-sent': null }],
+  });
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+  const d = emitted[emitted.length - 1];
+  assert.equal(d.routes[0].distance, 0);
+  assert.equal(d.peers[0].remoteAs, 0);
+  assert.equal(d.peers[0].prefixes, 0);
+  assert.equal(d.peers[0].updatesSent, 0);
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+test('routing collector parses RouterOS uptime formats correctly', () => {
+  const c = new RoutingCollector({ ros: { on() {} }, io: { emit() {} }, pollMs: 10000, state: {} });
+  assert.equal(c._parseUptime('1d2h3m4s'), 86400 + 7200 + 180 + 4);
+  assert.equal(c._parseUptime('12:34:56'), 12 * 3600 + 34 * 60 + 56);
+  assert.equal(c._parseUptime('30m'), 1800);
+  assert.equal(c._parseUptime(''), 0);
+  assert.equal(c._parseUptime(null), 0);
+});
+
+test('routing collector classifies peers by ASN and description', () => {
+  const c = new RoutingCollector({ ros: { on() {} }, io: { emit() {} }, pollMs: 10000, state: {} });
+  assert.equal(c._classifyPeer(65001, '', ''), 'private');
+  assert.equal(c._classifyPeer(4200000001, '', ''), 'private');
+  assert.equal(c._classifyPeer(13335, 'ix peering', ''), 'ix');
+  assert.equal(c._classifyPeer(1299, 'transit', ''), 'upstream');
+});
+
+test('routing collector normalises BGP state strings', async () => {
+  const emitted = [];
+  const ros = makeRoutingRos({
+    sessionRows: [
+      { name: 'a', 'remote.address': '10.0.0.1', state: 'Established' },
+      { name: 'b', 'remote.address': '10.0.0.2', state: 'Active' },
+      { name: 'c', 'remote.address': '10.0.0.3', state: '', established: 'true' },
+      { name: 'd', 'remote.address': '10.0.0.4', state: 'idle' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+  const states = emitted[emitted.length - 1].peers.map(p => p.state);
+  assert.equal(states[0], 'established');
+  assert.equal(states[1], 'active');
+  assert.equal(states[2], 'established');
+  assert.equal(states[3], 'idle');
+});
+
+test('routing collector ghost sessions with no address and no name are excluded', async () => {
+  const emitted = [];
+  const ros = makeRoutingRos({
+    sessionRows: [
+      { name: 'real', 'remote.address': '10.0.0.1', 'remote.as': '65001', state: 'established' },
+      { name: '',     'remote.address': '', state: 'idle' },
+      { name: '?',    'remote.address': '', state: 'idle' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+  assert.equal(emitted[emitted.length - 1].peers.length, 1);
+  assert.equal(emitted[emitted.length - 1].peers[0].name, 'real');
+});
+
+test('routing collector legacy bgp/peer/print used when session endpoint returns empty', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true, on() {},
+    write: async (cmd) => {
+      if (cmd.includes('/routing/bgp/session')) return [];
+      if (cmd.includes('/routing/bgp/peer'))    return [{ name: 'legacy', 'remote-address': '10.1.0.1', 'remote-as': '65002', state: 'established', 'prefix-count': '50' }];
+      return [];
+    },
+    stream: (w, cb) => ({ stop() {} }),
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+  const d = emitted[emitted.length - 1];
+  assert.equal(d.peers.length, 1);
+  assert.equal(d.peers[0].remoteAs, 65002);
+});
+
+test('routing collector sets pollMs=0 to signal stream-based delivery', async () => {
+  const emitted = [];
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io: { emit(ev, d) { emitted.push(d); } }, pollMs: 15000, state: {} });
+  await collector.start();
+  assert.equal(emitted[0].pollMs, 0);
+});
+
+// ── Wireless: proplist removal fixes single-client bug ───────────────────────
+
+test('wireless collector returns all clients without =.proplist= restriction', async () => {
+  const WirelessCollector = require('../src/collectors/wireless');
+  const emitted = [];
+  const ros = {
+    connected: true, cfg: {}, on() {},
+    write: async (cmd) => {
+      if (cmd.includes('/interface/wifi/')) return [
+        { 'mac-address': 'AA:01', 'signal-strength': '-55', interface: 'wifi1', band: '5ghz', uptime: '1h' },
+        { 'mac-address': 'AA:02', 'signal-strength': '-65', interface: 'wifi1', band: '5ghz', uptime: '30m' },
+        { 'mac-address': 'AA:03', 'signal-strength': '-70', interface: 'wifi2', band: '2.4ghz', uptime: '15m' },
+      ];
+      return [];
+    },
+  };
+  const collector = new WirelessCollector({
+    ros, io: { emit(ev, d) { emitted.push({ ev, data: d }); } }, pollMs: 5000, state: {},
+    dhcpLeases: { getNameByMAC: () => null },
+    arp: { getByMAC: () => null },
+  });
+  await collector.tick();
+  assert.equal(emitted[0].data.clients.length, 3, 'all 3 clients present');
+  assert.equal(collector.mode, 'wifi');
+});
+
+test('wireless collector write call contains no =.proplist= parameter', async () => {
+  const WirelessCollector = require('../src/collectors/wireless');
+  const writeCalls = [];
+  const ros = {
+    connected: true, cfg: {}, on() {},
+    write: async (cmd, params) => { writeCalls.push({ cmd, params: params || [] }); return []; },
+  };
+  const collector = new WirelessCollector({
+    ros, io: { emit() {} }, pollMs: 5000, state: {},
+    dhcpLeases: { getNameByMAC: () => null },
+    arp: { getByMAC: () => null },
+  });
+  await collector.tick();
+  for (const call of writeCalls) {
+    const hasProplst = call.params.some(p => String(p).includes('.proplist'));
+    assert.ok(!hasProplst, `no .proplist in write params for ${call.cmd}`);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// --- Routing Collector ---
+// ═══════════════════════════════════════════════════════════════════════════
+function makeRoutingRos({ printRows = [], sessionRows = [], peerCfgRows = [] } = {}) {
+  return {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd.includes('/routing/bgp/session')) return sessionRows;
+      if (cmd.includes('/routing/bgp/peer'))    return peerCfgRows;
+      if (cmd.includes('/ip/route'))            return printRows;
+      return [];
+    },
+    stream: (words, cb) => ({ stop() {} }),
+  };
+}
+
+// ── Initial load happy path ───────────────────────────────────────────────────
+
+test('routing collector start() emits correct payload with routes and BGP sessions', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const state = {};
+  const ros = makeRoutingRos({
+    printRows: [
+      { '.id': '*1', 'dst-address': '0.0.0.0/0',     gateway: '10.0.0.1', distance: '1',  '.flags': 'AS' },
+      { '.id': '*2', 'dst-address': '192.168.1.0/24', gateway: 'bridge',   distance: '0',  '.flags': 'AC' },
+    ],
+    sessionRows: [{
+      name: 'peer1', 'remote.address': '10.0.0.1', 'remote.as': '65001',
+      state: 'established', uptime: '1h', 'prefix-count': '100',
+      'updates-sent': '10', 'updates-received': '20',
+    }],
+    peerCfgRows: [{ 'remote.address': '10.0.0.1', comment: 'Transit A' }],
+  });
+
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state });
+  await collector.start();
+
+  const d = emitted[emitted.length - 1].data;
+  assert.equal(d.peers.length, 1);
+  assert.equal(d.peers[0].state, 'established');
+  assert.equal(d.peers[0].prefixes, 100);
+  assert.equal(d.peers[0].description, 'Transit A');
+  assert.equal(d.routes.length, 1);
+  assert.equal(d.routes[0].dst, '0.0.0.0/0');
+  assert.equal(d.routes[0].type, 'static');
+  assert.equal(d.routeCounts.total, 2);
+  assert.equal(d.routeCounts.static, 1);
+  assert.equal(d.routeCounts.connect, 1);
+  assert.equal(d.summary.established, 1);
+  assert.equal(d.pollMs, 0, 'pollMs must be 0 for streamed collector');
+  assert.ok(state.lastRoutingTs > 0);
+  assert.equal(state.lastRoutingErr, null);
+});
+
+// ── Route stream delta: add, update, delete ───────────────────────────────────
+
+test('routing collector route stream delta adds new route', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+
+  collector._applyRouteDelta({ '.id': '*5', 'dst-address': '10.0.0.0/8', gateway: '1.2.3.1', distance: '1', '.flags': 'AS' });
+  collector._emit(null);
+
+  assert.equal(emitted[emitted.length - 1].data.routes.length, 1);
+  assert.equal(emitted[emitted.length - 1].data.routes[0].dst, '10.0.0.0/8');
+});
+
+test('routing collector route stream delta updates existing route in place', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = makeRoutingRos({
+    printRows: [{ '.id': '*1', 'dst-address': '0.0.0.0/0', gateway: '1.2.3.1', distance: '1', '.flags': 'AS' }],
+  });
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+
+  collector._applyRouteDelta({ '.id': '*1', gateway: '9.9.9.9', distance: '1', '.flags': 'AS' });
+  collector._emit(null);
+
+  assert.equal(emitted[emitted.length - 1].data.routes[0].gateway, '9.9.9.9');
+});
+
+test('routing collector route stream delta removes route on .dead=true', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = makeRoutingRos({
+    printRows: [
+      { '.id': '*1', 'dst-address': '0.0.0.0/0',  gateway: '1.2.3.1', distance: '1', '.flags': 'AS' },
+      { '.id': '*2', 'dst-address': '10.0.0.0/8', gateway: '1.2.3.1', distance: '1', '.flags': 'AS' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+
+  collector._applyRouteDelta({ '.id': '*1', '.dead': 'true' });
+  collector._emit(null);
+
+  assert.equal(collector._routes.size, 1);
+  assert.equal(emitted[emitted.length - 1].data.routes[0].dst, '10.0.0.0/8');
+});
+
+test('routing collector route stream delta merges partial row with stored raw', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = makeRoutingRos({
+    printRows: [{ '.id': '*1', 'dst-address': '0.0.0.0/0', gateway: '1.2.3.1', distance: '1', '.flags': 'AS', comment: 'original' }],
+  });
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+
+  collector._applyRouteDelta({ '.id': '*1', distance: '5' });
+  collector._emit(null);
+
+  const r = emitted[emitted.length - 1].data.routes[0];
+  assert.equal(r.distance, 5,          'distance updated');
+  assert.equal(r.gateway, '1.2.3.1',   'gateway preserved');
+  assert.equal(r.comment, 'original',  'comment preserved');
+});
+
+// ── BGP session stream ────────────────────────────────────────────────────────
+
+test('routing collector BGP session stream state change triggers emit', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+  const countBefore = emitted.length;
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', 'remote.as': '65001', state: 'established', 'prefix-count': '50' });
+  await new Promise(r => setTimeout(r, 20));
+
+  assert.ok(emitted.length > countBefore, 'state change triggers emit');
+  assert.equal(emitted[emitted.length - 1].peers.length, 1);
+  assert.equal(emitted[emitted.length - 1].peers[0].state, 'established');
+});
+
+test('routing collector BGP session stream keepalive-only update suppressed', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  // First event — establishes fingerprint
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '50', uptime: '1h' });
+  await new Promise(r => setTimeout(r, 20));
+  const countAfterFirst = emitted.length;
+
+  // Keepalive — only uptime changed, state/prefixes/error identical
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '50', uptime: '1h30m' });
+  await new Promise(r => setTimeout(r, 20));
+
+  assert.equal(emitted.length, countAfterFirst, 'keepalive-only update must be suppressed');
+});
+
+test('routing collector BGP session stream prefix change triggers emit', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '50' });
+  await new Promise(r => setTimeout(r, 20));
+  const countAfterFirst = emitted.length;
+
+  // Prefix count changed — must trigger emit
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '75' });
+  await new Promise(r => setTimeout(r, 20));
+
+  assert.ok(emitted.length > countAfterFirst, 'prefix count change triggers emit');
+  assert.equal(emitted[emitted.length - 1].peers[0].prefixes, 75);
+});
+
+test('routing collector BGP session stream delete removes peer', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '50' });
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(collector._sessions.size, 1);
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', '.dead': 'true' });
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(collector._sessions.size, 0);
+});
+
+// ── _emit(null) reuses last peers ─────────────────────────────────────────────
+
+test('routing collector _emit(null) reuses last known peers from lastPayload', async () => {
+  const emitted = [];
+  const ros = makeRoutingRos({
+    sessionRows: [{ name: 'p1', 'remote.address': '10.0.0.1', 'remote.as': '65001', state: 'established', 'prefix-count': '50' }],
+  });
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  collector._applyRouteDelta({ '.id': '*1', 'dst-address': '1.0.0.0/8', gateway: '10.0.0.1', distance: '1', '.flags': 'AS' });
+  collector._emit(null);
+
+  const d = emitted[emitted.length - 1];
+  assert.equal(d.peers.length, 1, 'last known peers reused on route stream event');
+});
+
+// ── BGP stream unavailable — graceful fallback ────────────────────────────────
+
+test('routing collector falls back gracefully when BGP session stream unavailable', async () => {
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0].includes('bgp')) throw new Error('no such command');
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+  await collector.start(); // must not throw
+  assert.equal(collector._bgpStream, null, 'bgpStream null when endpoint unavailable');
+  assert.ok(collector._routeStream !== null, 'route stream still active');
+});
+
+// ── Legacy ROS v6 fallback on initial load ────────────────────────────────────
+
+test('routing collector falls back to bgp/peer/print when session/print returns empty', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = {
+    connected: true, on() {},
+    write: async (cmd) => {
+      if (cmd.includes('/routing/bgp/session')) return [];
+      if (cmd.includes('/routing/bgp/peer'))    return [{ name: 'legacy', 'remote-address': '10.1.0.1', 'remote-as': '65002', state: 'established', 'prefix-count': '50' }];
+      return [];
+    },
+    stream: (words, cb) => ({ stop() {} }),
+  };
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector.start();
+
+  const d = emitted[emitted.length - 1].data;
+  assert.equal(d.peers.length, 1);
+  assert.equal(d.peers[0].remoteAs, 65002);
+});
+
+// ── Flag inference: active routes with no .flags ──────────────────────────────
+
+test('routing collector keeps active routes when RouterOS omits .flags', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = makeRoutingRos({
+    printRows: [
+      { '.id': '*1', 'dst-address': '0.0.0.0/0',      gateway: '192.168.88.1', distance: '1' },
+      { '.id': '*2', 'dst-address': '172.16.0.0/12',   gateway: '10.0.0.1',    distance: '1', '.flags': 'Xs' },
+      { '.id': '*3', 'dst-address': '192.168.88.0/24', gateway: 'bridge',       distance: '0' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+  collector._emit(null);
+
+  const dsts = emitted[emitted.length - 1].data.routes.map(r => r.dst);
+  assert.ok(dsts.includes('0.0.0.0/0'),     'active static route kept via IP-gateway inference');
+  assert.ok(dsts.includes('172.16.0.0/12'), 'disabled static route kept');
+  assert.ok(!dsts.includes('192.168.88.0/24'), 'interface-name gateway excluded');
+});
+
+test('routing collector excludes interface-name-gateway routes from inference', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = makeRoutingRos({
+    printRows: [
+      { '.id': '*1', 'dst-address': '192.168.1.0/24', gateway: 'bridge', distance: '0' },
+      { '.id': '*2', 'dst-address': '10.0.0.0/24',    gateway: 'ether1', distance: '0' },
+      { '.id': '*3', 'dst-address': '0.0.0.0/0',      gateway: '192.168.1.1', distance: '1' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+  collector._emit(null);
+
+  assert.equal(emitted[emitted.length - 1].data.routes.length, 1);
+  assert.equal(emitted[emitted.length - 1].data.routes[0].dst, '0.0.0.0/0');
+});
+
+// ── Empty / malformed data ────────────────────────────────────────────────────
+
+test('routing collector emits empty payload without crash when router has no data', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const state = {};
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io, pollMs: 10000, state });
+  await collector.start();
+
+  const d = emitted[emitted.length - 1].data;
+  assert.deepEqual(d.peers, []);
+  assert.deepEqual(d.routes, []);
+  assert.equal(d.routeCounts.total, 0);
+  assert.ok(state.lastRoutingTs > 0);
+  assert.equal(state.lastRoutingErr, null);
+});
+
+test('routing collector clamps malformed numeric fields to 0', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = makeRoutingRos({
+    printRows:   [{ '.id': '*1', 'dst-address': '1.2.3.0/24', gateway: '1.2.3.1', distance: 'bad', '.flags': 'AS' }],
+    sessionRows: [{ name: 'bad', 'remote.address': '10.0.0.1', 'remote.as': 'notanumber', state: 'established', 'prefix-count': 'bad', 'updates-sent': null }],
+  });
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector.start();
+
+  const d = emitted[emitted.length - 1].data;
+  assert.equal(d.routes[0].distance,    0);
+  assert.equal(d.peers[0].remoteAs,     0);
+  assert.equal(d.peers[0].prefixes,     0);
+  assert.equal(d.peers[0].updatesSent,  0);
+});
+
+// ── Route counts ──────────────────────────────────────────────────────────────
+
+test('routing collector counts route types correctly from mixed routes', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = makeRoutingRos({
+    printRows: [
+      { '.id': '*1', 'dst-address': '0.0.0.0/0',     gateway: '1.2.3.1', distance: '1',   '.flags': 'AS'  },
+      { '.id': '*2', 'dst-address': '10.0.0.0/8',    gateway: '1.2.3.1', distance: '20',  '.flags': 'Ab'  },
+      { '.id': '*3', 'dst-address': '172.16.0.0/12', gateway: '10.0.0.1', distance: '20', '.flags': 'Ab'  },
+      { '.id': '*4', 'dst-address': '192.168.0.0/24', gateway: 'bridge', distance: '0',   '.flags': 'AC'  },
+      { '.id': '*5', 'dst-address': '192.168.2.0/24', gateway: '10.1.0.1', distance: '110','.flags': 'Ao' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+  collector._emit(null);
+
+  const c = emitted[emitted.length - 1].data.routeCounts;
+  assert.equal(c.total, 5);
+  assert.equal(c.static, 1);
+  assert.equal(c.bgp, 2);
+  assert.equal(c.connect, 1);
+  assert.equal(c.ospf, 1);
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+test('routing collector parses RouterOS uptime formats correctly', () => {
+  const c = new RoutingCollector({ ros: { on() {} }, io: { emit() {} }, pollMs: 10000, state: {} });
+  assert.equal(c._parseUptime('1d2h3m4s'), 86400 + 7200 + 180 + 4);
+  assert.equal(c._parseUptime('12:34:56'), 12 * 3600 + 34 * 60 + 56);
+  assert.equal(c._parseUptime('30m'),  1800);
+  assert.equal(c._parseUptime(''),     0);
+  assert.equal(c._parseUptime(null),   0);
+});
+
+test('routing collector classifies peers by ASN and description', () => {
+  const c = new RoutingCollector({ ros: { on() {} }, io: { emit() {} }, pollMs: 10000, state: {} });
+  assert.equal(c._classifyPeer(65001, '', ''),          'private');
+  assert.equal(c._classifyPeer(4200000001, '', ''),     'private');
+  assert.equal(c._classifyPeer(13335, 'ix peering', ''), 'ix');
+  assert.equal(c._classifyPeer(1299, 'transit', ''),    'upstream');
+});
+
+test('routing collector normalises BGP state strings consistently', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = makeRoutingRos({
+    sessionRows: [
+      { name: 'a', 'remote.address': '10.0.0.1', state: 'Established' },
+      { name: 'b', 'remote.address': '10.0.0.2', state: 'Active' },
+      { name: 'c', 'remote.address': '10.0.0.3', state: '', established: 'true' },
+      { name: 'd', 'remote.address': '10.0.0.4', state: 'idle' },
+    ],
+  });
+  const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+  await collector.start();
+
+  const states = emitted[emitted.length - 1].data.peers.map(p => p.state);
+  assert.equal(states[0], 'established');
+  assert.equal(states[1], 'active');
+  assert.equal(states[2], 'established');
+  assert.equal(states[3], 'idle');
+});
+
+test('routing collector accumulates prefix history across BGP stream events', async () => {
+  const emitted = [];
+  let bgpCb;
+  const ros = {
+    connected: true, on() {},
+    write: async () => [],
+    stream: (words, cb) => {
+      if (words[0].includes('bgp')) bgpCb = cb;
+      return { stop() {} };
+    },
+  };
+  const collector = new RoutingCollector({ ros, io: { emit(ev, d) { emitted.push(d); } }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '100' });
+  await new Promise(r => setTimeout(r, 20));
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '110' });
+  await new Promise(r => setTimeout(r, 20));
+  bgpCb(null, { name: 'p1', 'remote.address': '10.0.0.1', state: 'established', 'prefix-count': '120' });
+  await new Promise(r => setTimeout(r, 20));
+
+  const history = emitted[emitted.length - 1].peers[0].prefixHistory;
+  assert.deepEqual(history, [100, 110, 120]);
+});
+
+test('routing collector sets pollMs=0 in payload to signal stream-based delivery', async () => {
+  const emitted = [];
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new RoutingCollector({ ros: makeRoutingRos(), io, pollMs: 15000, state: {} });
+  await collector._loadRoutes();
+  collector._emit(null);
+  assert.equal(emitted[emitted.length - 1].data.pollMs, 0);
+});

@@ -510,3 +510,218 @@ test('dhcp networks collector deduplicates LAN CIDRs', async () => {
 
   assert.deepEqual(collector.getLanCidrs(), ['192.168.1.0/24']);
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// --- Routing Collector lifecycle ---
+// ═══════════════════════════════════════════════════════════════════════════
+const RoutingCollector = require('../src/collectors/routing');
+
+test('routing collector start() opens both route and BGP session streams', async () => {
+  return withPatchedIntervals(async () => {
+    let routeStreamOpened = false;
+    let bgpStreamOpened   = false;
+    let printCalled       = false;
+
+    const ros = mockROS(async (cmd) => {
+      if (cmd.includes('/ip/route')) printCalled = true;
+      return [];
+    });
+    ros.stream = (words, cb) => {
+      if (words[0].includes('/ip/route'))    routeStreamOpened = true;
+      if (words[0].includes('bgp/session'))  bgpStreamOpened   = true;
+      return { stop() {} };
+    };
+
+    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+    await collector.start();
+
+    assert.ok(printCalled,       '/ip/route/print called on start');
+    assert.ok(routeStreamOpened, '/ip/route/listen stream opened');
+    assert.ok(bgpStreamOpened,   '/routing/bgp/session/listen stream opened');
+    assert.equal(collector.timer, null, 'no poll timer — fully streamed');
+  });
+});
+
+test('routing collector stop() is a safe no-op (no poll timer)', async () => {
+  return withPatchedIntervals(async () => {
+    const ros = mockROS(async () => []);
+    ros.stream = (w, cb) => ({ stop() {} });
+    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+    await collector.start();
+
+    assert.equal(collector.timer, null, 'timer is null — no poll loop');
+    assert.doesNotThrow(() => collector.stop(), 'stop() must not throw');
+    assert.equal(collector.timer, null);
+
+    // streams still running after stop()
+    assert.ok(collector._routeStream !== null, 'route stream survives stop()');
+    assert.ok(collector._bgpStream   !== null, 'BGP stream survives stop()');
+  });
+});
+
+test('routing collector stops all streams on ROS close event', async () => {
+  return withPatchedIntervals(async () => {
+    let routeStopCalled = false;
+    let bgpStopCalled   = false;
+    const ros = mockROS(async () => []);
+    ros.stream = (words, cb) => ({
+      stop() {
+        if (words[0].includes('/ip/route')) routeStopCalled = true;
+        if (words[0].includes('bgp'))       bgpStopCalled   = true;
+      },
+    });
+
+    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+    await collector.start();
+
+    ros.emit('close');
+
+    assert.ok(routeStopCalled, 'route stream stopped on close');
+    assert.ok(bgpStopCalled,   'BGP stream stopped on close');
+    assert.equal(collector._routeStream, null);
+    assert.equal(collector._bgpStream,   null);
+  });
+});
+
+test('routing collector restarts both streams on ROS reconnect', async () => {
+  return withPatchedIntervals(async () => {
+    let routeStreamCount = 0;
+    let bgpStreamCount   = 0;
+    let printCount       = 0;
+
+    const ros = mockROS(async (cmd) => {
+      if (cmd.includes('/ip/route')) printCount++;
+      return [];
+    });
+    ros.stream = (words, cb) => {
+      if (words[0].includes('/ip/route')) routeStreamCount++;
+      if (words[0].includes('bgp'))       bgpStreamCount++;
+      return { stop() {} };
+    };
+
+    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+    await collector.start();
+
+    assert.equal(routeStreamCount, 1, 'route stream opened once on start');
+    assert.equal(bgpStreamCount,   1, 'BGP stream opened once on start');
+    assert.equal(printCount,       1, '/ip/route/print called once on start');
+
+    ros.emit('close');
+    await new Promise(r => setTimeout(r, 10));
+    ros.emit('connected');
+    await new Promise(r => setTimeout(r, 20));
+
+    assert.equal(routeStreamCount, 2, 'route stream reopened on reconnect');
+    assert.equal(bgpStreamCount,   2, 'BGP stream reopened on reconnect');
+    assert.equal(printCount,       2, '/ip/route/print reloaded on reconnect');
+  });
+});
+
+test('routing collector does not accumulate listeners across multiple reconnects', async () => {
+  // Regression: listener count must stay at 1 on every reconnect cycle.
+  return withPatchedIntervals(async () => {
+    const ros = mockROS(async () => []);
+    ros.stream = (w, cb) => ({ stop() {} });
+    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+    await collector.start();
+
+    const counts = [];
+    for (let i = 0; i < 4; i++) {
+      ros.emit('close');
+      await new Promise(r => setTimeout(r, 10));
+      ros.emit('connected');
+      await new Promise(r => setTimeout(r, 20));
+      counts.push(ros.listenerCount('connected'));
+    }
+
+    assert.deepEqual(counts, [1, 1, 1, 1], 'connected listener count must stay at 1');
+  });
+});
+
+test('routing collector route stream error triggers reload and restart after 3s delay', async () => {
+  let streamCount = 0;
+  let printCount  = 0;
+  const callbacks = [];
+  const ros = mockROS(async (cmd) => { if (cmd.includes('/ip/route')) printCount++; return []; });
+  ros.stream = (words, cb) => {
+    if (words[0].includes('/ip/route')) { streamCount++; callbacks.push(cb); }
+    return { stop() {} };
+  };
+
+  const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+  await collector.start();
+
+  assert.equal(streamCount, 1);
+  assert.equal(printCount,  1);
+
+  callbacks[0](new Error('stream dropped'), null);
+  assert.equal(collector._routeStream, null, 'stream nulled on error');
+  assert.equal(streamCount, 1, 'restart is delayed');
+
+  await new Promise(r => setTimeout(r, 3100));
+  assert.equal(printCount,  2, 'route table reloaded after stream error');
+  assert.equal(streamCount, 2, 'new route stream started after reload');
+
+  collector.stop();
+});
+
+test('routing collector BGP session stream error triggers reload and restart after 3s delay', async () => {
+  let bgpStreamCount = 0;
+  const bgpCallbacks = [];
+  const ros = mockROS(async () => []);
+  ros.stream = (words, cb) => {
+    if (words[0].includes('bgp')) { bgpStreamCount++; bgpCallbacks.push(cb); }
+    return { stop() {} };
+  };
+
+  const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+  await collector.start();
+  assert.equal(bgpStreamCount, 1);
+
+  bgpCallbacks[0](new Error('bgp stream dropped'), null);
+  assert.equal(collector._bgpStream, null);
+  assert.equal(bgpStreamCount, 1, 'restart is delayed');
+
+  await new Promise(r => setTimeout(r, 3100));
+  assert.equal(bgpStreamCount, 2, 'BGP stream restarted after error');
+
+  collector.stop();
+});
+
+test('routing collector BGP stream unavailable on v6/no-BGP — route stream still runs', async () => {
+  return withPatchedIntervals(async () => {
+    let routeStreamOpened = false;
+    const ros = mockROS(async () => []);
+    ros.stream = (words, cb) => {
+      if (words[0].includes('/ip/route')) { routeStreamOpened = true; return { stop() {} }; }
+      if (words[0].includes('bgp'))       throw new Error('no such command');
+      return { stop() {} };
+    };
+
+    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
+    await collector.start(); // must not throw
+
+    assert.ok(routeStreamOpened,              'route stream opens despite BGP unavailable');
+    assert.equal(collector._bgpStream, null,  'bgpStream null when endpoint unavailable');
+  });
+});
+
+test('routing collector heartbeat re-emits last payload every 60s', async () => {
+  return withPatchedIntervals(async (timers) => {
+    const emitted = [];
+    const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+    const ros = mockROS(async () => []);
+    ros.stream = (w, cb) => ({ stop() {} });
+
+    const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
+    await collector.start();
+    const countBefore = emitted.length;
+
+    // Find the heartbeat timer (60s interval)
+    const heartbeatTimer = timers.find(t => !t.cleared);
+    assert.ok(heartbeatTimer, 'heartbeat timer exists');
+    heartbeatTimer.cb();
+    assert.equal(emitted.length, countBefore + 1, 'heartbeat emits routing:update');
+    assert.equal(emitted[emitted.length - 1].ev, 'routing:update');
+  });
+});

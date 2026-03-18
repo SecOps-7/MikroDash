@@ -176,13 +176,14 @@ app.post('/api/settings', (req, res) => {
         pageWireless:DEFAULTS.pageWireless, pageInterfaces:DEFAULTS.pageInterfaces,
         pageDhcp:DEFAULTS.pageDhcp, pageVpn:DEFAULTS.pageVpn,
         pageConnections:DEFAULTS.pageConnections, pageFirewall:DEFAULTS.pageFirewall,
-        pageLogs:DEFAULTS.pageLogs,
+        pageLogs:DEFAULTS.pageLogs, pageBandwidth:DEFAULTS.pageBandwidth,
+        pageRouting:DEFAULTS.pageRouting,
       });
       return res.json({ ok:true, requiresRestart:false });
     }
     const updates = {};
     const intFields = {
-      routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollRouting:[1000,600000], pollSystem:[500,60000],
+      routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollSystem:[500,60000],
       pollWireless:[500,60000], pollVpn:[1000,120000], pollFirewall:[1000,120000],
       pollIfstatus:[500,60000], pollPing:[1000,120000], pollArp:[5000,300000],
       pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
@@ -204,8 +205,8 @@ app.post('/api/settings', (req, res) => {
     const saved = Settings.save(updates);
 
     // Apply poll changes live without restart
-    const collectorMap = { conns, system, wireless, vpn, firewall, ifStatus, ping, arp, dhcpNetworks, bandwidth, routing };
-    const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollRouting:'routing', pollSystem:'system', pollWireless:'wireless',
+    const collectorMap = { conns, talkers, system, wireless, vpn, firewall, ifStatus, ping, arp, dhcpNetworks, bandwidth, routing };
+    const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks' };
     for (const [key, name] of Object.entries(pollMap)) {
@@ -341,7 +342,7 @@ async function startCollectors() {
     await ifStatus.start();
     ping.start();
     bandwidth.start();
-    routing.start();
+    await routing.start();
 
     startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -438,7 +439,7 @@ async function sendInitialState(socket) {
     pageWireless:_ps.pageWireless, pageInterfaces:_ps.pageInterfaces,
     pageDhcp:_ps.pageDhcp, pageVpn:_ps.pageVpn,
     pageConnections:_ps.pageConnections, pageFirewall:_ps.pageFirewall,
-    pageLogs:_ps.pageLogs, pageRouting:_ps.pageRouting,
+    pageLogs:_ps.pageLogs, pageBandwidth:_ps.pageBandwidth, pageRouting:_ps.pageRouting,
   });
 
   // Send ping history so client can render the chart immediately
