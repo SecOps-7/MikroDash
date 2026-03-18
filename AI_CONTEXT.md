@@ -53,6 +53,10 @@ MikroDash is a **real-time MikroTik RouterOS v7 dashboard**. It connects directl
 src/
 ├── index.js                   # Entry point: Express + Socket.IO wiring, collector orchestration,
 │                              #   settings REST API, sendInitialState(), graceful shutdown
+├── routers.js                 # Router store — /data/routers.json. Add/edit/delete routers,
+│                              #   AES-256-GCM password encryption, name uniqueness, backwards-compat seed.
+├── routers.js                 # Load/save/add/edit/delete routers.json — per-router connection config,
+│                              #   AES-256-GCM encrypted passwords, name uniqueness, backwards-compat seed.
 ├── settings.js                # Load/save settings.json with AES-256-GCM credential encryption.
 │                              #   Exports: load(), save(), getPublic(), isMasked(), DEFAULTS
 ├── health.js                  # computeHealthStatus() — logic for /healthz endpoint
@@ -331,6 +335,9 @@ module.exports = XyzCollector;
 | Server → client (status / error) | `<domain>:status` or `<domain>:error` | `ros:status`, `interfaces:error`, `wan:status` |
 | Client → server | `<domain>:<verb>` | `traffic:select` |
 | Settings change broadcast | `settings:pages` | emitted to all clients on every settings save |
+| Router list update | `routers:update` | emitted when routers.json changes (add/edit/delete/label update) |
+| Active router changed | `router:active` | `{ activeId }` — emitted on hot-swap completion and to new sockets |
+| Hot-swap in progress | `router:switching` | `{ routerId, label }` — emitted at start of hot-swap so UI can show overlay |
 
 ---
 
@@ -340,14 +347,28 @@ module.exports = XyzCollector;
 |---|---|---|---|
 | `GET` | `/healthz` | none | Readiness probe. Returns `{ ok, version, routerConnected, startupReady, uptime, checks }` |
 | `GET` | `/api/settings` | Basic Auth | Returns current settings with credentials masked as `••••••••` |
-| `POST` | `/api/settings` | Basic Auth | Updates settings. Applies poll changes live. Broadcasts `settings:pages`. Returns `{ ok, requiresRestart }` |
+| `POST` | `/api/settings` | Basic Auth | Updates settings (poll intervals, page visibility, dashboard auth). Applies poll changes live. Broadcasts `settings:pages`. Router connection fields are managed via `/api/routers` instead. |
+| `GET` | `/api/routers` | Basic Auth | List all routers, passwords masked. Returns `{ routers, activeId }` |
+| `POST` | `/api/routers` | Basic Auth | Add a router. Returns saved entry (password masked) |
+| `PUT` | `/api/routers/:id` | Basic Auth | Edit a router. Returns updated entry |
+| `DELETE` | `/api/routers/:id` | Basic Auth | Delete a router. 409 if it is the active router |
+| `POST` | `/api/routers/:id/activate` | Basic Auth | Hot-swap to router — tears down current session, builds new one in-process |
+| `POST` | `/api/routers/test` | Basic Auth | Test a connection without saving. Returns `{ ok, boardName }` |
 | `GET` | `/api/localcc` | Basic Auth | Returns `{ cc, wanIp }` — country code for WAN IP via geoip-lite |
+| `GET` | `/api/routers` | Basic Auth | List all routers with passwords masked. Returns `{ routers, activeId }` |
+| `POST` | `/api/routers` | Basic Auth | Add a router. Body: `{ host, port, tls, tlsInsecure, username, password, defaultIf, pingTarget, label }` |
+| `PUT` | `/api/routers/:id` | Basic Auth | Edit a router. Same body as POST; password ignored if `'••••••••'` |
+| `DELETE` | `/api/routers/:id` | Basic Auth | Delete a router. Returns `409` if target is the active router |
+| `POST` | `/api/routers/:id/activate` | Basic Auth | Hot-swap to a different router. Responds immediately; swap runs async |
+| `POST` | `/api/routers/test` | Basic Auth | Test a connection without saving. Returns `{ ok, boardName?, error? }` |
 
 ---
 
 ## Settings system
 
-- Stored at `${DATA_DIR}/settings.json` (default: `/data/settings.json`)
+- Router list stored at `${DATA_DIR}/routers.json` (default: `/data/routers.json`) — managed by `src/routers.js`
+- `settings.json` stored at `${DATA_DIR}/settings.json` (default: `/data/settings.json`)
+- `routers.json` stored at `${DATA_DIR}/routers.json` — router list. `activeRouterId` in `settings.json` points to the active entry
 - Credentials (`routerPass`, `dashPass`) are AES-256-GCM encrypted using a key derived from `DATA_SECRET`
 - `settings.load()` merges stored values over `DEFAULTS`, decrypting credentials
 - `settings.getPublic()` returns settings safe for the browser — credentials replaced with `••••••••`
@@ -358,6 +379,12 @@ module.exports = XyzCollector;
 ---
 
 ## Shared infrastructure in index.js
+
+**`buildSession(routerCfg)`** — creates a fresh ROS instance + all 15 collectors + connTableCache wired to the given router config. Called on startup and on every hot-swap.
+
+**`teardownSession(session)`** — stops all collectors (timers + streams), stops the ROS connection, waits 150 ms for in-flight callbacks to settle.
+
+**`switchRouter(newRouterId)`** — hot-swap: broadcasts offline status, saves `activeRouterId`, calls teardownSession + buildSession, re-wires ROS events. Called by `POST /api/routers/:id/activate`.
 
 **`connTableCache`** — shared cache for `/ip/firewall/connection/print` used by both `ConnectionsCollector` and `BandwidthCollector`. TTL = 40% of the faster collector's poll interval. Invalidated on ROS `close` event.
 
@@ -371,13 +398,64 @@ module.exports = XyzCollector;
 
 ## Security model
 
+### What is built (invariants — never weaken these)
+
 - **LAN-only assumption.** No HTTPS termination. No role separation. Designed for trusted networks only.
 - **Basic Auth** (optional): enabled when `BASIC_AUTH_USER` + `BASIC_AUTH_PASS` are set. Applied to all HTTP routes and the Socket.IO engine. Rate-limited to 100 req/min (skipped for `/healthz`).
 - **CSP:** `helmetOptions.js` enforces a strict Content Security Policy allowing only self-hosted assets. No inline scripts beyond what already exists.
 - **Error sanitization:** `sanitizeErr(e)` in `index.js` strips stack traces and truncates to 200 chars. Never send raw error objects to the browser.
-- **Credential masking:** `settings.getPublic()` and `isMasked()` ensure passwords are never returned in API responses or accidentally saved back unchanged.
+- **Credential masking:** `settings.getPublic()` and `routers.getPublic()` ensure passwords are never returned in API responses. `isMasked()` prevents the mask sentinel `••••••••` from being written back as a real password value.
+- **AES-256-GCM encryption at rest:** All router passwords and the dashboard password are encrypted in `settings.json` and `routers.json` using a key derived from `DATA_SECRET`. The plaintext value never touches disk.
 - **Socket cap:** `MAX_SOCKETS` (default 50) — excess connections are disconnected immediately.
-- **`DATA_SECRET`:** Must be set to a strong random value in production. The insecure default is only for local development.
+- **`DATA_SECRET`:** Must be set to a strong random value in production. The insecure default is for local development only. Never allow this value to be changed via the Settings UI — it is the encryption key for all stored credentials.
+
+### Security requirements for new development
+
+Every change — new endpoint, new setting, new UI feature — must be evaluated against the following checklist before implementation. These are not optional.
+
+#### New REST endpoints
+- All new endpoints must require Basic Auth. The only exempt endpoint is `/healthz` (health probe). Never add a new exempt endpoint without explicit justification.
+- Validate and sanitize all input before using it. For string fields: trim, enforce a maximum length (256 chars for general strings, 512 for passwords). For integer fields: parse with `parseInt`, validate against a `[min, max]` range, reject `NaN`. For boolean fields: compare strictly (`=== true || === 'true'`).
+- Never return raw Node.js error objects, stack traces, or `e.message` directly in API responses. Use `String(e.message || e).slice(0, 200)`.
+- For operations that modify state (POST/PUT/DELETE), emit the relevant Socket.IO event so all connected clients see the update — don't rely on clients polling.
+- The `DELETE /api/routers/:id` endpoint demonstrates the correct pattern for a dangerous operation: check a precondition (not the active router), return a meaningful HTTP status code (409 Conflict) on violation, and broadcast the change.
+
+#### Credentials and secrets
+- Passwords from the client must always be checked with `Settings.isMasked()` / the `••••••••` sentinel before storing. If the value is the mask, leave the stored value unchanged.
+- Never log credentials, even in debug mode. The ROS `debug: true` option logs raw API frames — this is controlled by `ROS_DEBUG=true` in `.env` which is opt-in and documented as verbose.
+- Never add credential fields to `DEFAULTS` in `settings.js` with a non-empty default value. Empty string is the only safe default for a credential.
+- Router credentials (`host`, `port`, `username`, `password`, `tls`, `defaultIf`, `pingTarget`) are managed exclusively through `routers.js` and `/api/routers`. They must never be added back to the Settings API or stored directly in `settings.json` beyond `activeRouterId`.
+
+#### What belongs in `.env` vs Settings UI
+This distinction is a security boundary, not just a UX choice:
+
+| `.env` only | Settings UI (runtime-configurable) |
+|---|---|
+| `DATA_SECRET` — the encryption key | Poll intervals |
+| `TRUSTED_PROXY` — Express proxy trust | Page visibility |
+| `PORT` — TCP bind port | Top-N limits |
+| `MAX_SOCKETS` — DoS protection | Dashboard auth credentials (username/password) |
+| `ROS_DEBUG` — raw API logging | Traffic history window |
+| `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` | Ping target |
+| `DATA_DIR` — volume mount path | Router connection details (via Routers card) |
+
+`TRUSTED_PROXY` must remain `.env`-only. Allowing it to be set via the UI would let a misconfigured or malicious value cause Express to trust spoofed `X-Forwarded-For` headers, bypassing the rate limiter and potentially spoofing client IPs in auth decisions. Similarly, `DATA_SECRET` must never be exposed in the UI — changing it at runtime would invalidate all encrypted credentials on disk.
+
+#### Frontend / client-side
+- All user-supplied strings rendered into HTML must be passed through `esc()` (the XSS-escaping helper defined at the top of `app.js`). No exceptions, even for data that looks numeric.
+- Never construct HTML by concatenating unescaped user data. The correct pattern: `'<div>' + esc(userValue) + '</div>'`.
+- Never write credentials, encryption keys, or `DATA_SECRET` into the DOM, `localStorage`, `sessionStorage`, or any JavaScript global.
+- Passwords sent to the server should be in the request body (POST/PUT), never in query parameters or URL paths.
+- The mask sentinel `••••••••` must be rendered as a placeholder in password fields, not as an actual value the user would need to clear before typing.
+
+#### Dependency additions
+- No new runtime dependencies without explicit approval (existing hard constraint). This applies doubly to any dependency that processes untrusted input (parsers, templating engines, serialization libraries) — these are high-risk attack surface.
+- Never add client-side JavaScript from a CDN. All frontend assets must be vendored under `public/vendor/`. A compromised CDN delivering a malicious script would have full access to the dashboard and all Socket.IO data.
+
+#### Router API connections
+- All RouterOS connections must go through the `ROS` class in `src/routeros/client.js`. Never open a raw TCP connection to a router from elsewhere in the codebase.
+- The `test` connection endpoint (`POST /api/routers/test`) creates a temporary ROS instance. It must always call `testRos.stop()` in all code paths — including errors and timeouts — to prevent connection leaks.
+- `tlsInsecure: true` disables certificate verification. This is a user-acknowledged risk for self-signed certs on private networks. It must never be set to `true` programmatically without the user's explicit opt-in.
 
 ---
 

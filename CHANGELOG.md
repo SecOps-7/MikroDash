@@ -2,6 +2,38 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.9] — Multi-Router Support
+
+### Added
+
+- **Multi-router management** — MikroDash can now connect to and monitor multiple MikroTik routers from a single instance. A new **Routers card** in Settings replaces the old Router Connection card. All configured routers are listed in a table with Edit and Delete actions. An **Add Router** button opens a modal with a full connection form (host, port, username, password, TLS, WAN interface, ping target, display name) and a **Test Connection** button that validates credentials against the live router before saving — on success the board name is automatically filled into the display name field.
+- **Live router switcher** — a styled dropdown in the top-right of the page header (green pill with status dot) shows the currently active router and allows switching. On mobile, the same selector appears inside the slide-out navigation menu. Selecting a different router triggers an in-process hot-swap with no container restart or browser disconnect.
+- **`/data/routers.json`** — new persistence file on the Docker data volume. Router passwords are encrypted at rest with AES-256-GCM using the same `DATA_SECRET`-derived key as `settings.json`. Existing deployments are migrated automatically: if `routers.json` does not exist on first start, a single entry is seeded from the existing `settings.json` credentials — no manual steps required.
+- **Auto-labelling from board name** — newly added routers default to "My Router". After the first successful connection, MikroDash automatically updates the display name to the RouterOS board name (e.g. "hAP ax³"). The label is cleaned of ROS version suffixes before storage.
+- **Name uniqueness** — if a display name already exists, a numeric suffix is appended: "hAP ax³ - [2]", "hAP ax³ - [3]", etc.
+- **RouterOS update check resilience** — devices that cannot reach the MikroTik upgrade server (e.g. CAPsMAN-managed APs, restricted network positions) now show "Update check unavailable" in the System card instead of remaining stuck on "Checking for updates…" indefinitely.
+- **Mobile navigation router selector** — the router switcher dropdown is included inside the mobile slide-out nav menu, visible only on small screens where the topbar selector is hidden.
+- **Mobile burger menu toggle** — tapping the burger icon a second time now closes the navigation menu (previously it only opened it).
+
+### Changed
+
+- **In-process hot-swap on router switch** — switching routers tears down the active RouterOS connection and all 15 collectors, builds a fresh session for the new router, and begins connecting — all in-process in ~150ms. The Socket.IO server and HTTP server stay live throughout. All connected browser tabs receive fresh data from the new router automatically without a page refresh, including traffic history, DHCP leases, LAN overview, and all collector snapshots.
+- **Router connection settings removed from Settings API** — host, port, credentials, and WAN interface are now managed exclusively through the Routers card and `/api/routers` endpoints. The global Settings validator no longer accepts these fields.
+- **`settings.json` schema** — `activeRouterId` field added. Stores the UUID of the currently active router. Existing files remain valid.
+- **Wireless poll interval maximum raised to 60 seconds** — previously capped at 30 seconds.
+- **Poll interval sliders reordered** — Ping now appears above Wireless in the Settings poll interval section.
+- **TLS toggle auto-fills port** — toggling Use TLS on/off in the Add/Edit Router modal now automatically fills the API port field (8729 for TLS, 8728 for plain), unless a custom port has already been entered.
+- **Security guidance in `AI_CONTEXT.md`** — expanded Security model section with prescriptive requirements for new development: endpoint auth, input validation, credential handling, `.env` vs Settings boundary, frontend XSS rules, and dependency policy.
+
+### Fixed
+
+- **Traffic card goes stale after router switch** — after a hot-swap the server now broadcasts `sendInitialState` to all connected sockets once the new router's collectors are running. Previously, existing Socket.IO connections never received a new `traffic:history` event (only new connections did), leaving the chart blank until a manual page refresh.
+- **DHCP page not updated after router switch** — same root cause as the traffic card; resolved by the same `sendInitialState` broadcast.
+- **LAN overview (Network card) not updated after router switch** — `dhcpNetworks.tick()` is now awaited before `sendInitialState` broadcasts so `networks` and `wanIp` are populated immediately. Client-side `lastLanData` guard cleared on switch so incoming data is never silently discarded.
+- **Destination Countries count not reset after router switch** — the connections map IIFE now clears its internal country caches and the card subtitle on `router:switching`, preventing old router's country count from persisting.
+- **Router dropdown showing ROS version info** — the `system:update` handler was overwriting the select option text with `boardName + ' · ROS ' + version` on every system poll. Removed. The dropdown now only ever uses the stored label from `routers.json`. A strip regex also guards against stale labels already on disk.
+
+
 ## [0.5.8] — Routing & Wireless: Full Streaming, Interface Sparklines
 
 ### Added

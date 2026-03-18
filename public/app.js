@@ -44,7 +44,6 @@ var wirelessNavBadge = $('wirelessNavBadge');
 var vpnTable         = $('vpnTable');
 var vpnCount         = $('vpnCount');
 var firewallTable    = $('firewallTable');
-var routerTag        = $('routerTag');
 var pageTitle        = $('pageTitle');
 var ifaceGrid        = $('ifaceGrid');
 var ifaceCount       = $('ifaceCount');
@@ -89,12 +88,24 @@ var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wir
 var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','routing','bandwidth','firewall','logs'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
+// Fetch and display the running version on the About page — called once on first visit.
+var _aboutVersionFetched = false;
+function fetchAboutVersion() {
+  if (_aboutVersionFetched) return;
+  _aboutVersionFetched = true;
+  fetch('/healthz').then(function(r){ return r.json(); }).then(function(d){
+    var el = $('aboutVersion');
+    if (el && d.version) el.textContent = 'v' + d.version;
+  }).catch(function(){});
+}
+
 function showPage(name){
   _currentPage = name;
   document.querySelectorAll('.page-view').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var page = $('page-'+name); if(page) page.classList.add('active');
   var nav  = document.querySelector('.nav-item[data-page="'+name+'"]'); if(nav) nav.classList.add('active');
+  if (name === 'info') fetchAboutVersion();
   if(pageTitle) pageTitle.textContent = PAGE_TITLES[name]||name;
   document.dispatchEvent(new CustomEvent('mikrodash:pagechange', { detail: name }));
 }
@@ -226,15 +237,14 @@ socket.on('system:update',function(d){
     }else if(d.latestVersion){
       ur='<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; RouterOS <strong>'+esc(d.latestVersion)+'</strong> &mdash; Up to date</div>';
     }else if(d.updateStatus){
-      ur='<div class="ros-update-row pending"><span class="ros-update-dot"></span>'+esc(d.updateStatus)+'</div>';
+      // Distinguish unavailable/error from a genuine in-progress check
+      var isUnavail=/unavailable|cannot|error|failed/i.test(d.updateStatus);
+      var rowCls=isUnavail?'ros-update-row muted':'ros-update-row pending';
+      ur='<div class="'+rowCls+'"><span class="ros-update-dot"></span>'+esc(d.updateStatus)+'</div>';
     }else{
       ur='<div class="ros-update-row pending"><span class="ros-update-dot"></span>Checking for updates…</div>';
     }
     rosUpdateRow.innerHTML=ur;
-  }
-  if(d.boardName&&!routerTag.textContent){
-    var tag=d.boardName+(d.version?' · ROS '+d.version:'');
-    routerTag.textContent=tag;
   }
 });
 
@@ -805,6 +815,10 @@ socket.on('traffic:history',function(data){
   currentIf=data.ifName; ifaceSelect.value=data.ifName;
   var pts=data.points||[]; initChart(pts);
   if(pts.length){var last=pts[pts.length-1];liveRx.textContent=fmtMbps(last.rx_mbps);liveTx.textContent=fmtMbps(last.tx_mbps);}
+  // Reset stale timer when new router history arrives — prevents the 10s stale
+  // threshold from firing if the new router takes a few seconds to connect.
+  staleTimers['trafficCard']=Date.now();
+  var tc=$('trafficCard');if(tc)tc.classList.remove('is-stale');
 });
 socket.on('traffic:update',function(sample){if(!currentIf||sample.ifName!==currentIf)return;pushChartPoint(sample);});
 socket.on('wan:status',function(s){renderWanStatus(s);});
@@ -868,7 +882,8 @@ socket.on('ros:status', function(data){
 // traffic:update is fixed at 1 s so its threshold is also fixed.
 var STALE_GRACE = 20000; // 20 s grace on top of poll interval
 var staleConfig=[
-  {cardId:'trafficCard',  event:'traffic:update',  threshold:10000}, // fixed 1s poll
+  // trafficCard is handled manually below — its stale timer must only reset
+  // when the update is for the currently selected interface (currentIf).
   {cardId:'systemCard',   event:'system:update',   threshold:15000},
   {cardId:'connCard',     event:'conn:update',      threshold:20000},
   {cardId:'talkersCard',  event:'talkers:update',  threshold:20000},
@@ -902,6 +917,18 @@ staleConfig.forEach(function(cfg){
 socket.on('ping:update', function() {
   staleTimers['networksCard'] = Date.now();
   var card = $('networksCard'); if (card) card.classList.remove('is-stale');
+});
+
+// trafficCard stale timer: only reset when the update is for the currently
+// displayed interface. This prevents stale data from a previous router
+// (arriving briefly after a hot-swap) from holding the timer alive while
+// the chart is already blank and waiting for the new router's data.
+staleTimers['trafficCard'] = 0;
+socket.on('traffic:update', function(sample) {
+  if (currentIf && sample.ifName === currentIf) {
+    staleTimers['trafficCard'] = Date.now();
+    var tc = $('trafficCard'); if (tc) tc.classList.remove('is-stale');
+  }
 });
 
 setInterval(function(){
@@ -1825,6 +1852,22 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     renderCountryList(topCountries, _selectedCC);
     renderPortList(data.topPorts||[]);
   });
+
+  // Reset map state on router switch so stale country counts don't linger
+  socket.on('router:switching', function() {
+    _countryCounts = {};
+    _countryProto  = {};
+    _countryCity   = {};
+    _sparkData     = {};
+    _selectedCC    = null;
+    updateHighlights({});
+    updateArcs({});
+    updateLabels({});
+    var sub = $('connMapSub');
+    if (sub) sub.textContent = 'Top connection destinations';
+    var list = $('connMapList');
+    if (list) list.innerHTML = '';
+  });
 })();
 
 
@@ -2055,7 +2098,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   if(!burger||!sidenav) return;
   function openNav(){sidenav.classList.add('mobile-open');overlay.classList.add('show');}
   function closeNav(){sidenav.classList.remove('mobile-open');overlay.classList.remove('show');}
-  burger.addEventListener('click', openNav);
+  burger.addEventListener('click', function(){ sidenav.classList.contains('mobile-open') ? closeNav() : openNav(); });
   overlay.addEventListener('click', closeNav);
   document.querySelectorAll('.nav-item').forEach(function(item){
     item.addEventListener('click', function(){
@@ -2075,8 +2118,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollConns',     label:'Connections',     min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollTalkers',   label:'Top Talkers',     min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollBandwidth', label:'Bandwidth',       min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollWireless',  label:'Wireless',        min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollPing',      label:'Ping',            min:1000,  max:60000,  step:1000,  unit:'ms' },
+    { key:'pollWireless',  label:'Wireless',        min:500,   max:60000,  step:500,   unit:'ms' },
     { key:'pollDhcp',      label:'DHCP Networks',   min:30000, max:600000, step:30000, unit:'ms' },
     // Streamed — RouterOS pushes changes, no poll interval needed
     { key:'pollIfstatus',  label:'Interfaces',  streamed:true },
@@ -2902,4 +2945,341 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       }
     });
   });
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Router Management ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+(function(){
+  var _routers  = [];   // array of router objects (passwords masked)
+  var _activeRouterId = '';
+
+  var sel       = $('routerSelect');
+  var tbody     = $('rtrTbody');
+  var addBtn    = $('rtrAddBtn');
+  var modalBg   = $('rtrModalBg');
+  var modalTitle= $('rtrModalTitle');
+  var modalId   = $('rtrModalId');
+  var modalLabel= $('rtrModalLabel');
+  var modalHost = $('rtrModalHost');
+  var modalPort = $('rtrModalPort');
+  var modalUser = $('rtrModalUser');
+  var modalPass = $('rtrModalPass');
+  var modalIf   = $('rtrModalIf');
+  var modalPing = $('rtrModalPing');
+  var modalTls  = $('rtrModalTls');
+  var modalTlsI = $('rtrModalTlsInsecure');
+  var testBtn   = $('rtrModalTestBtn');
+  var testResult= $('rtrTestResult');
+  var cancelBtn = $('rtrModalCancelBtn');
+  var closeBtn  = $('rtrModalCloseBtn');
+  var saveBtn   = $('rtrModalSaveBtn');
+  var switchOvl = $('rtrSwitchingOverlay');
+  var switchLbl = $('rtrSwitchingLabel');
+
+  // Keep _activeRouterId in sync for the system:update board name patch
+  window._activeRouterId = _activeRouterId;
+
+  // ── Topbar select ──────────────────────────────────────────────────────────
+  function rebuildSelect() {
+    if (!sel) return;
+    var prev = sel.value;
+    sel.innerHTML = '';
+    // Also rebuild the mobile nav select
+    var navSel = $('navRouterSelect');
+    if (navSel) navSel.innerHTML = '';
+    _routers.forEach(function(r) {
+      var label = (r.label || r.host || '?').replace(/\s*[·•·•].*$/, '').trim();
+      var opt = document.createElement('option');
+      opt.value = r.id;
+      opt.text  = label;
+      sel.appendChild(opt);
+      // Mirror into mobile nav select
+      if (navSel) {
+        var navOpt = document.createElement('option');
+        navOpt.value = r.id;
+        navOpt.text  = label;
+        navSel.appendChild(navOpt);
+      }
+    });
+    // Only show the topbar select when there are multiple routers
+    var wrap = $('routerSelectWrap');
+    if (wrap) wrap.style.display = _routers.length > 1 ? 'flex' : 'none';
+    if (_routers.length <= 1 && wrap) wrap.style.display = 'flex'; // always show so label is visible
+    sel.value = _activeRouterId || prev || (sel.options[0] && sel.options[0].value);
+    if (navSel) navSel.value = sel.value;
+  }
+
+  if (sel) {
+    sel.addEventListener('change', function() {
+      var newId = sel.value;
+      if (!newId || newId === _activeRouterId) return;
+      activateRouter(newId);
+    });
+  }
+
+  // Mobile nav select — mirrors the topbar select
+  var navSel = $('navRouterSelect');
+  if (navSel) {
+    navSel.addEventListener('change', function() {
+      var newId = navSel.value;
+      if (!newId || newId === _activeRouterId) return;
+      activateRouter(newId);
+    });
+  }
+
+  // ── Table render ──────────────────────────────────────────────────────────
+  function renderTable() {
+    if (!tbody) return;
+    if (!_routers.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = _routers.map(function(r) {
+      var isActive = r.id === _activeRouterId;
+      var activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
+
+      var delBtn = !isActive
+        ? '<button class="sbtn sbtn-danger" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-label="'+esc(r.label)+'" data-rtr-action="delete" title="Delete">&#128465;</button>'
+        : '';
+      var tlsBadge = r.tls
+        ? '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(52,211,153,.1);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.2)">TLS</span>'
+        : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">Unencrypted</span>';
+      var certNote = r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
+      return '<tr>' +
+        '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + '</td>' +
+        '<td><span class="rtr-host">'+esc(r.host)+':'+r.port+'</span></td>' +
+        '<td>'+tlsBadge+certNote+'</td>' +
+        '<td style="text-align:right;white-space:nowrap;display:flex;gap:.3rem;justify-content:flex-end">' +
+          '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-action="edit">Edit</button>' +
+          delBtn +
+        '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ── Socket events ─────────────────────────────────────────────────────────
+  socket.on('routers:update', function(list) {
+    _routers = list || [];
+    window._activeRouterId = _activeRouterId;
+    rebuildSelect();
+    renderTable();
+  });
+
+  socket.on('router:active', function(data) {
+    _activeRouterId = data.activeId || '';
+    window._activeRouterId = _activeRouterId;
+    if (sel) sel.value = _activeRouterId;
+    var navSel2 = $('navRouterSelect');
+    if (navSel2) navSel2.value = _activeRouterId;
+    renderTable();
+  });
+
+  socket.on('router:switching', function(data) {
+    if (switchOvl) switchOvl.classList.add('open');
+    if (switchLbl) switchLbl.textContent = 'Switching to ' + esc(data.label || 'router') + '…';
+    // Reset traffic chart state immediately so stale data from the old router
+    // doesn't linger. The new traffic:history event will re-initialise the chart
+    // once the new router connects and sendInitialState() runs.
+    currentIf = '';
+    allPoints  = [];
+    if (chart) { chart.data.labels = []; chart.data.datasets[0].data = []; chart.data.datasets[1].data = []; chart.update('none'); }
+    // Reset stale timer and clear the chart while switching.
+    staleTimers['trafficCard'] = Date.now();
+    var tc = $('trafficCard'); if (tc) tc.classList.remove('is-stale');
+    if (liveRx) liveRx.textContent = '—';
+    if (liveTx) liveTx.textContent = '—';
+    // Clear cached-data guards so the lan:overview and talkers handlers
+    // don't skip incoming payloads from the new router.
+    lastLanData = null;
+    lastTalkers = null;
+  });
+
+  // Update the status dot and hide switching overlay on ros:status
+  socket.on('ros:status', function(data) {
+    // Update both the topbar dot and the mobile nav dot
+    ['rtrStatusDot', 'navRtrStatusDot'].forEach(function(id) {
+      var dot = $(id);
+      if (dot) {
+        if (data.connected) dot.classList.remove('offline');
+        else                dot.classList.add('offline');
+      }
+    });
+    if (data.connected && switchOvl) {
+      switchOvl.classList.remove('open');
+    }
+  });
+
+  // ── Modal helpers ──────────────────────────────────────────────────────────
+  function openModal(router) {
+    if (!modalBg) return;
+    var isEdit = !!router;
+    modalTitle.textContent = isEdit ? 'Edit Router' : 'Add Router';
+    modalId.value    = router ? router.id        : '';
+    modalLabel.value = router ? router.label     : '';
+    modalHost.value  = router ? router.host      : '';
+    modalPort.value  = router ? router.port      : '8729';
+    modalUser.value  = router ? router.username  : 'admin';
+    modalPass.value  = '';
+    if (isEdit) modalPass.placeholder = 'leave blank to keep current';
+    else        modalPass.placeholder = '';
+    modalIf.value    = router ? router.defaultIf  : 'ether1';
+    modalPing.value  = router ? router.pingTarget : '1.1.1.1';
+    if (modalTls)  modalTls.checked  = router ? !!router.tls         : true;
+    if (modalTlsI) modalTlsI.checked = router ? !!router.tlsInsecure : false;
+    hideTestResult();
+    modalBg.classList.add('open');
+    if (modalHost) modalHost.focus();
+  }
+
+  function closeModal() {
+    if (modalBg) modalBg.classList.remove('open');
+    hideTestResult();
+  }
+
+  function showTestResult(ok, msg) {
+    if (!testResult) return;
+    testResult.style.display = '';
+    testResult.className = 'rtr-test-result ' + (ok ? 'ok' : 'err');
+    testResult.textContent = msg;
+  }
+
+  function hideTestResult() {
+    if (testResult) testResult.style.display = 'none';
+  }
+
+  function collectModal() {
+    return {
+      id:          modalId  ? modalId.value.trim()   : '',
+      label:       modalLabel? modalLabel.value.trim(): '',
+      host:        modalHost ? modalHost.value.trim() : '',
+      port:        modalPort ? parseInt(modalPort.value, 10) : 8729,
+      username:    modalUser ? modalUser.value.trim() : 'admin',
+      password:    modalPass ? modalPass.value        : '',
+      defaultIf:   modalIf  ? modalIf.value.trim()   : 'ether1',
+      pingTarget:  modalPing? modalPing.value.trim()  : '1.1.1.1',
+      tls:         modalTls ? modalTls.checked        : true,
+      tlsInsecure: modalTlsI? modalTlsI.checked       : false,
+    };
+  }
+
+  // ── Test connection ────────────────────────────────────────────────────────
+  if (testBtn) {
+    testBtn.addEventListener('click', function() {
+      var data = collectModal();
+      if (!data.host) { showTestResult(false, 'Host is required'); return; }
+      testBtn.disabled = true;
+      testBtn.textContent = 'Testing…';
+      hideTestResult();
+      fetch('/api/routers/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+        .then(function(r){ return r.json(); })
+        .then(function(r) {
+          if (r.ok) {
+            var msg = '✓ Connected' + (r.boardName ? ' — ' + r.boardName : '');
+            showTestResult(true, msg);
+            // Auto-fill label if empty and we got a board name
+            if (r.boardName && modalLabel && !modalLabel.value.trim()) {
+              modalLabel.value = r.boardName;
+            }
+          } else {
+            showTestResult(false, '✗ ' + (r.error || 'Connection failed'));
+          }
+        })
+        .catch(function(e) { showTestResult(false, '✗ Request failed: ' + e); })
+        .finally(function() {
+          testBtn.disabled = false;
+          testBtn.textContent = 'Test Connection';
+        });
+    });
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function() {
+      var data = collectModal();
+      if (!data.host) { showTestResult(false, 'Host is required'); return; }
+
+      saveBtn.disabled = true;
+      var url    = data.id ? '/api/routers/' + encodeURIComponent(data.id) : '/api/routers';
+      var method = data.id ? 'PUT' : 'POST';
+
+      fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+        .then(function(r){ return r.json(); })
+        .then(function(r) {
+          if (r.ok) { closeModal(); }
+          else      { showTestResult(false, r.error || 'Save failed'); }
+        })
+        .catch(function(e) { showTestResult(false, 'Request failed: ' + e); })
+        .finally(function() { saveBtn.disabled = false; });
+    });
+  }
+
+  function activateRouter(id) {
+    var router = _routers.find(function(r){ return r.id === id; });
+    if (!router) return;
+    if (switchOvl) switchOvl.classList.add('open');
+    if (switchLbl) switchLbl.textContent = 'Switching to ' + router.label + '…';
+    fetch('/api/routers/' + encodeURIComponent(id) + '/activate', { method: 'POST' })
+      .then(function(r){ return r.json(); })
+      .catch(function(e){
+        if (switchOvl) switchOvl.classList.remove('open');
+        alert('Switch failed: ' + e);
+      });
+  }
+
+  // ── Table event delegation (replaces inline onclick) ─────────────────────
+  if (tbody) {
+    tbody.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-rtr-action]');
+      if (!btn) return;
+      var action = btn.dataset.rtrAction;
+      var id     = btn.dataset.rtrId;
+      if (action === 'edit')   { var r = _routers.find(function(x){ return x.id===id; }); if(r) openModal(r); }
+      if (action === 'delete') {
+        var label = btn.dataset.rtrLabel || id;
+        if (!confirm('Delete router "' + label + '"? This cannot be undone.')) return;
+        fetch('/api/routers/' + encodeURIComponent(id), { method: 'DELETE' })
+          .then(function(r){ return r.json(); })
+          .then(function(r){ if (!r.ok) alert('Delete failed: ' + (r.error||'Unknown error')); })
+          .catch(function(e){ alert('Request failed: '+e); });
+      }
+    });
+  }
+
+  // ── Auto-fill port when TLS toggle changes ──────────────────────────────
+  if (modalTls) {
+    modalTls.addEventListener('change', function() {
+      if (!modalPort) return;
+      var currentPort = parseInt(modalPort.value, 10);
+      // Only auto-fill if the port is still one of the two standard ports —
+      // don't overwrite a custom port the user has manually entered.
+      if (currentPort === 8729 || currentPort === 8728 || !currentPort) {
+        modalPort.value = modalTls.checked ? '8729' : '8728';
+      }
+    });
+  }
+
+  // ── Event wiring ──────────────────────────────────────────────────────────
+  if (addBtn)    addBtn.addEventListener('click',   function(){ openModal(null); });
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  if (closeBtn)  closeBtn.addEventListener('click',  closeModal);
+  if (modalBg)   modalBg.addEventListener('click',   function(e){ if (e.target === modalBg) closeModal(); });
+
+  // Dismiss switching overlay on Escape
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      closeModal();
+      if (switchOvl) switchOvl.classList.remove('open');
+    }
+  });
+
 })();

@@ -91,6 +91,9 @@ const DEFAULTS = {
   maxConns:          parseInt(process.env.MAX_CONNS         || '20000', 10),
   historyMinutes:    parseInt(process.env.HISTORY_MINUTES   || '30',    10),
 
+  // Active router (managed by routers.js / router switcher)
+  activeRouterId:  '',
+
   // Page visibility (true = visible)
   pageWireless:    true,
   pageInterfaces:  true,

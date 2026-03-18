@@ -41,6 +41,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 - **Connections card** — total connection count sparkline, protocol breakdown bars (TCP/UDP/ICMP), top sources with hostname resolution, top destinations with geo-IP country flags
 - **Top Talkers** — top 5 devices by active traffic with RX/TX rates
 - **WireGuard card** — active peer list with status and last handshake
+- **Multi-router switcher** — monitor multiple MikroTik routers from one dashboard instance; switch between them via the dropdown in the page header with no restart or page refresh required
 
 ### Pages
 | Page | Description |
@@ -82,7 +83,7 @@ If you need remote access, place MikroDash **behind an authenticating reverse pr
 - Run on a non-default port and bind to your LAN interface only
 - Set `chmod 600 .env` to protect your router credentials
 - Use a dedicated read-only API user on the router (see RouterOS Setup below)
-- Set `DATA_SECRET` in your `.env` to a long random string to protect encrypted credentials in `settings.json`
+- Set `DATA_SECRET` in your `.env` to a long random string to protect encrypted credentials in `settings.json` and `routers.json`
 
 ---
 
@@ -158,8 +159,8 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 
 | Section | What you can configure |
 |---|---|
-| Router Connection | Host, API port, username, password, TLS, self-signed cert, default WAN interface, ping target |
-| Dashboard Auth | HTTP Basic Auth username and password |
+| Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. A Test Connection button validates credentials before saving. The active router is selected from the dropdown in the page header |
+| Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
 | Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Streamed collectors (Interfaces, VPN, Firewall, ARP, Routing) show an Event-driven badge instead of a slider |
 | Limits | Top N values for connections, talkers, firewall rules; max connection rows; traffic history window |
 | Visible Pages | Toggle individual pages on/off — hidden pages are removed from the sidebar instantly |
@@ -168,7 +169,7 @@ Settings values from `.env` are used as the initial defaults if no `settings.jso
 
 ### Credential encryption
 
-Router and dashboard passwords are encrypted at rest in `settings.json` using AES-256-GCM. Set `DATA_SECRET` in your `.env` to a long random string to tie the encryption key to your deployment:
+Router and dashboard passwords are encrypted at rest using AES-256-GCM. Router credentials are stored in `/data/routers.json` and the dashboard password in `/data/settings.json` — both use the same `DATA_SECRET`-derived key. Set `DATA_SECRET` in your `.env` to a long random string to tie the encryption key to your deployment:
 
 ```env
 DATA_SECRET=your-long-random-secret-here
@@ -209,7 +210,8 @@ TRUSTED_PROXY=               # Proxy IP to trust X-Forwarded-For from (e.g. 127.
 # Data volume & credential encryption
 DATA_SECRET=                 # Secret used to encrypt credentials in settings.json — set this!
 
-# RouterOS — used as initial defaults only (can be changed in Settings UI afterwards)
+# RouterOS — used to seed the first router entry in routers.json on first start only.
+# After that, all router connection details are managed in the Settings → Routers card.
 ROUTER_HOST=192.168.88.1
 ROUTER_PORT=8729
 ROUTER_TLS=true

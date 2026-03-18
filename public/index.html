@@ -20,8 +20,12 @@
     /* sidenav */
     #sidenav{position:fixed;left:0;top:0;bottom:0;z-index:200;width:var(--nav-w);background:var(--nav-bg);border-right:1px solid var(--border);backdrop-filter:blur(12px);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1)}
     #sidenav:hover{width:var(--nav-w-open)}
-    .nav-logo{height:52px;display:flex;align-items:center;justify-content:flex-start;padding:0 14px;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
+    .nav-logo{height:52px;display:flex;align-items:center;justify-content:flex-start;padding:0 14px;gap:.55rem;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
     .nav-logo img{width:24px;height:24px;object-fit:contain;flex-shrink:0;border-radius:4px}
+    #navRouterWrap{display:none;align-items:center;gap:.35rem;flex:1;min-width:0;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:6px;padding:.2rem .5rem .2rem .4rem;overflow:hidden}
+    #navRouterWrap .rtr-status-dot{flex-shrink:0}
+    #navRouterSelect{background:transparent;border:none;color:var(--text-main);font-family:var(--font-mono);font-size:.72rem;font-weight:600;cursor:pointer;outline:none;width:100%;min-width:0;padding:0}
+    #navRouterSelect option{background:var(--bg-deep);color:var(--text-main)}
     .nav-items{flex:1;padding:8px 0;overflow:hidden;display:flex;flex-direction:column}
     .nav-item{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;cursor:pointer;color:var(--text-muted);text-decoration:none;transition:color .15s,background .15s;white-space:nowrap;overflow:hidden}
     .nav-item:hover{color:var(--text-main);background:rgba(99,130,190,.07)}
@@ -169,7 +173,7 @@
     .legend-rate{font-weight:600;font-size:.88rem}
     #liveRx{color:var(--accent-rx)} #liveTx{color:var(--accent-tx)}
     /* wan */
-    .wan-badge{font-family:var(--font-mono);font-size:.72rem;padding:.2em .6em;border-radius:4px;display:inline-flex;align-items:center;gap:.35rem}
+    .wan-badge{font-family:var(--font-mono);font-size:.72rem;padding:.2em .6em;border-radius:4px;display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap;flex-shrink:0}
     .wan-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
     .wan-up{background:rgba(74,222,128,.1);color:var(--accent-ok);border:1px solid rgba(74,222,128,.2)}
     .wan-down{background:rgba(248,113,113,.1);color:var(--accent-err);border:1px solid rgba(248,113,113,.2)}
@@ -237,6 +241,39 @@
     .iface-dot.up{background:var(--accent-ok)} .iface-dot.down{background:var(--accent-err)} .iface-dot.dis{background:var(--text-muted)}
     .iface-tile{position:relative}
     .iface-spark{position:absolute;top:.35rem;right:.4rem;pointer-events:none;opacity:.75}
+    /* ── Router modal & management ─────────────────────────────── */
+    .rtr-modal-bg{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
+    .rtr-modal-bg.open{display:flex}
+    .rtr-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:min(520px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+    .rtr-modal-hdr{padding:.9rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .rtr-modal-title{font-size:.82rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em}
+    .rtr-modal-close{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;padding:.2rem .4rem;border-radius:4px;line-height:1}
+    .rtr-modal-close:hover{color:var(--text-main)}
+    .rtr-modal-body{padding:1rem 1.1rem}
+    .rtr-modal-footer{padding:.75rem 1.1rem;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:.5rem}
+    .rtr-test-result{font-size:.72rem;padding:.3rem .6rem;border-radius:5px;margin-right:auto}
+    .rtr-test-result.ok{color:rgba(52,211,153,.9);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2)}
+    .rtr-test-result.err{color:rgba(248,113,113,.9);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2)}
+    /* Router list table */
+    .rtr-list{width:100%;border-collapse:collapse;font-size:.76rem}
+    .rtr-list th{font-size:.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;padding:.4rem .6rem;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+    .rtr-list td{padding:.5rem .6rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle}
+    .rtr-list tr:last-child td{border-bottom:none}
+    .rtr-active-badge{font-size:.6rem;font-family:var(--font-ui);padding:.1rem .45rem;border-radius:4px;background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);white-space:nowrap}
+    .rtr-host{font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)}
+    .rtr-switching-overlay{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:1rem}
+    .rtr-switching-overlay.open{display:flex}
+    .rtr-switching-spinner{width:28px;height:28px;border:2.5px solid rgba(56,189,248,.2);border-top-color:var(--accent-rx);border-radius:50%;animation:spin .7s linear infinite}
+    .rtr-switching-label{font-family:var(--font-ui);font-size:.85rem;color:var(--text-main)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    /* Topbar router selector */
+    /* Topbar router indicator */
+    #routerSelectWrap{display:flex;align-items:center;gap:.4rem;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:6px;padding:.25rem .6rem .25rem .45rem;cursor:pointer}
+    #routerSelectWrap:hover{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35)}
+    .rtr-status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent-tx);flex-shrink:0;box-shadow:0 0 5px rgba(52,211,153,.6)}
+    .rtr-status-dot.offline{background:rgba(248,113,113,.9);box-shadow:0 0 5px rgba(248,113,113,.5)}
+    #routerSelect{background:transparent;border:none;color:var(--text-main);font-family:var(--font-mono);font-size:.72rem;font-weight:600;cursor:pointer;outline:none;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0}
+    #routerSelect option{background:var(--bg-deep);color:var(--text-main)}
     /* tables */
     .table{font-family:var(--font-mono);font-size:.76rem}
     .table th{color:var(--text-muted);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;border-color:var(--border) !important;font-weight:400;padding:.45rem .75rem}
@@ -300,6 +337,7 @@
     .ros-update-row.warn{background:rgba(245,159,0,.10);border:1px solid rgba(245,159,0,.3);color:var(--accent-warn)}
     .ros-update-row.pending{background:rgba(99,130,190,.06);border:1px solid var(--border);color:var(--text-muted)}
     .ros-update-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+    .ros-update-row.muted{background:rgba(99,130,190,.04);border:1px solid var(--border);color:var(--text-muted);opacity:.65}
     /* wg pill */
     .wg-up{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--accent-ok);background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:4px;padding:1px 6px}
     .wg-idle{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--text-muted);background:rgba(99,130,190,.07);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
@@ -358,6 +396,7 @@
       .topbar-right{gap:.45rem}
       #uptimeChip{display:none !important}
       .topbar-mobile-hide{display:none !important}
+      #navRouterWrap{display:flex}
       .iface-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
       .page-view{padding:.65rem .6rem}
     }
@@ -662,7 +701,13 @@
 <div id="navOverlay"></div>
 
 <nav id="sidenav">
-  <div class="nav-logo"><img src="/logo.png" alt="MikroDash" /></div>
+  <div class="nav-logo">
+    <img src="/logo.png" alt="MikroDash" />
+    <div id="navRouterWrap">
+      <span class="rtr-status-dot" id="navRtrStatusDot"></span>
+      <select id="navRouterSelect" title="Switch router"></select>
+    </div>
+  </div>
   <div class="nav-items">
     <a class="nav-item active" data-page="dashboard" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
@@ -745,7 +790,10 @@
       </div>
       <span id="tobarClock" class="topbar-mobile-hide" style="font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);white-space:nowrap"></span>
       <span id="uptimeChip" title="Router uptime"></span>
-      <span id="routerTag" class="topbar-mobile-hide"></span>
+      <div id="routerSelectWrap" class="topbar-mobile-hide">
+        <span class="rtr-status-dot" id="rtrStatusDot"></span>
+        <select id="routerSelect" title="Switch router"></select>
+      </div>
       <button id="themeToggle" title="Toggle light / dark">
         <svg viewBox="0 0 24 24"><path id="themeIconPath" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
@@ -760,13 +808,13 @@
           <div class="card" id="trafficCard">
             <div class="stale-overlay">&#9679; stale</div>
             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-              <div class="d-flex align-items-center gap-2 flex-wrap">
-                <h3 class="card-title mb-0">Traffic</h3>
+              <div class="d-flex align-items-center gap-2" style="min-width:0;flex-wrap:nowrap">
+                <h3 class="card-title mb-0" style="white-space:nowrap">Traffic</h3>
                 <select id="ifaceSelect" class="form-select form-select-sm" style="min-width:90px;max-width:130px;font-size:.76rem"></select>
                 <select id="windowSelect" class="form-select form-select-sm" style="width:90px;font-size:.76rem" title="Time window">
                   <option value="1m" selected>1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option>
                 </select>
-                <span id="wanStatusBadge" class="wan-badge wan-disabled">&#8212;</span>
+                <span id="wanStatusBadge" class="wan-badge wan-disabled" style="white-space:nowrap;flex-shrink:0">&#8212;</span>
               </div>
               <div class="chart-legend">
                 <div class="legend-item"><div class="legend-dot" style="background:var(--accent-rx)"></div><span style="color:var(--text-muted)">RX</span><span class="legend-rate" id="liveRx">&#8212;</span></div>
@@ -1167,6 +1215,9 @@
             <span style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
           </div>
           <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Real-time MikroTik Router Dashboard</div>
+          <div style="margin:.35rem 0 .5rem">
+            <span id="aboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v—</span>
+          </div>
           <div style="font-size:.72rem;color:var(--text-muted)">Built with Node.js · Socket.IO · Chart.js · Bootstrap</div>
         </div>
       </div>
@@ -1318,56 +1369,23 @@
 
       <div id="settingsBanner" class="sbanner"></div>
 
-      <!-- Router Connection -->
+      <!-- Routers -->
       <div class="scard">
         <div class="scard-header">
           <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="var(--accent-rx)" stroke="none"/></svg>
-          <span class="scard-title">Router Connection</span>
+          <span class="scard-title">Routers</span>
+          <button class="sbtn sbtn-primary" id="rtrAddBtn" style="padding:.3rem .8rem;font-size:.72rem">
+            <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Router
+          </button>
         </div>
-        <div class="scard-body">
-          <div class="sform-row sform-group">
-            <div>
-              <label class="sform-label">Host / IP</label>
-              <input class="sform-input" id="s_routerHost" type="text" placeholder="192.168.88.1">
-            </div>
-            <div>
-              <label class="sform-label">API Port</label>
-              <input class="sform-input" id="s_routerPort" type="number" min="1" max="65535" placeholder="8729">
-            </div>
-          </div>
-          <div class="sform-row sform-group">
-            <div>
-              <label class="sform-label">Username</label>
-              <input class="sform-input" id="s_routerUser" type="text" placeholder="admin">
-            </div>
-            <div>
-              <label class="sform-label">Password</label>
-              <input class="sform-input" id="s_routerPass" type="password" placeholder="unchanged">
-            </div>
-          </div>
-          <div class="sform-row sform-group">
-            <div>
-              <label class="sform-label">Default WAN Interface</label>
-              <input class="sform-input" id="s_defaultIf" type="text" placeholder="ether1">
-            </div>
-            <div>
-              <label class="sform-label">Ping Target</label>
-              <input class="sform-input" id="s_pingTarget" type="text" placeholder="1.1.1.1">
-            </div>
-          </div>
-          <div class="sform-row sform-group" style="margin-bottom:0">
-            <label class="stoggle" id="stog_routerTls">
-              <span class="stoggle-label">Use TLS (port 8729)</span>
-              <span class="stoggle-switch"><input type="checkbox" id="s_routerTls"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
-            </label>
-            <label class="stoggle" id="stog_routerTlsInsecure">
-              <span class="stoggle-label">Allow self-signed cert</span>
-              <span class="stoggle-switch"><input type="checkbox" id="s_routerTlsInsecure"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
-            </label>
-          </div>
-          <div style="margin-top:.65rem;padding:.5rem .7rem;border-radius:6px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.18);font-size:.72rem;color:rgba(251,191,36,.8)" id="routerRestartNotice" style="display:none">
-            &#9888; Router connection changes require a container restart to take effect.
-          </div>
+        <div class="scard-body" style="padding:.5rem">
+          <table class="rtr-list" id="rtrTable">
+            <thead><tr>
+              <th>Name</th><th>Host</th><th>Status</th><th style="text-align:right">Actions</th>
+            </tr></thead>
+            <tbody id="rtrTbody"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.73rem">Loading…</td></tr></tbody>
+          </table>
         </div>
       </div>
 
@@ -1638,8 +1656,79 @@
 
 <div id="kbdHint"><kbd>1</kbd>&#8211;<kbd>9</kbd> pages &nbsp;&#183;&nbsp; <kbd>/</kbd> log search</div>
 
+  <!-- ── Router Add/Edit Modal ────────────────────────────────────── -->
+  <div class="rtr-modal-bg" id="rtrModalBg">
+    <div class="rtr-modal">
+      <div class="rtr-modal-hdr">
+        <span class="rtr-modal-title" id="rtrModalTitle">Add Router</span>
+        <button class="rtr-modal-close" id="rtrModalCloseBtn">&#10005;</button>
+      </div>
+      <div class="rtr-modal-body">
+        <input type="hidden" id="rtrModalId">
+        <div class="sform-group">
+          <label class="sform-label">Display Name</label>
+          <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
+        </div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label">Host / IP</label>
+            <input class="sform-input" id="rtrModalHost" type="text" placeholder="192.168.88.1">
+          </div>
+          <div>
+            <label class="sform-label">API Port</label>
+            <input class="sform-input" id="rtrModalPort" type="number" min="1" max="65535" value="8729" placeholder="8729">
+          </div>
+        </div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label">Username</label>
+            <input class="sform-input" id="rtrModalUser" type="text" placeholder="admin">
+          </div>
+          <div>
+            <label class="sform-label">Password</label>
+            <input class="sform-input" id="rtrModalPass" type="password" placeholder="leave blank to keep current">
+          </div>
+        </div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label">Default WAN Interface</label>
+            <input class="sform-input" id="rtrModalIf" type="text" placeholder="ether1">
+          </div>
+          <div>
+            <label class="sform-label">Ping Target</label>
+            <input class="sform-input" id="rtrModalPing" type="text" placeholder="1.1.1.1">
+          </div>
+        </div>
+        <div class="sform-row sform-group" style="margin-bottom:.4rem">
+          <label class="stoggle" id="rtrStogTls">
+            <span class="stoggle-label">Use TLS</span>
+            <span class="stoggle-switch"><input type="checkbox" id="rtrModalTls" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+          <label class="stoggle">
+            <span class="stoggle-label">Allow self-signed cert</span>
+            <span class="stoggle-switch"><input type="checkbox" id="rtrModalTlsInsecure"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+        </div>
+        <p style="font-size:.68rem;color:var(--text-muted);margin:0">TLS uses port 8729 (API-SSL, recommended) &nbsp;·&nbsp; Plain uses port 8728 (API, unencrypted)</p>
+      </div>
+      <div class="rtr-modal-footer">
+        <span id="rtrTestResult" class="rtr-test-result" style="display:none"></span>
+        <button class="sbtn sbtn-ghost" id="rtrModalTestBtn">Test Connection</button>
+        <button class="sbtn sbtn-ghost" id="rtrModalCancelBtn">Cancel</button>
+        <button class="sbtn sbtn-primary" id="rtrModalSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Router Switching Overlay ──────────────────────────────────── -->
+  <div class="rtr-switching-overlay" id="rtrSwitchingOverlay">
+    <div class="rtr-switching-spinner"></div>
+    <div class="rtr-switching-label" id="rtrSwitchingLabel">Switching router…</div>
+  </div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script src="/vendor/chart.umd.min.js"></script>
 <script src="/app.js"></script>
+
 </body>
 </html>
