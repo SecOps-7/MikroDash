@@ -31,7 +31,11 @@ class WirelessCollector {
     if (detectedMode === 'wifi' || detectedMode === null) {
       try {
         const res = await this.ros.write('/interface/wifi/registration-table/print', [
-          '=.proplist=mac-address,signal,signal-strength,rx-signal,interface,ap-interface,tx-rate,tx-rate-set,band,rx-rate,uptime,ssid',
+        // No =.proplist= here: on some RouterOS v7 builds, including unknown or
+          // absent fields in the proplist for registration-table causes rows to be
+          // filtered rather than just having those fields omitted — resulting in
+          // only 1 of N clients being returned. The table is small so omitting
+          // the proplist optimisation has no meaningful performance impact.
         ]);
         if (res && res.length) { clients = res; detectedMode = 'wifi'; }
       } catch (e) {
@@ -41,7 +45,8 @@ class WirelessCollector {
     if (!clients.length && (detectedMode === 'wireless' || detectedMode === null)) {
       try {
         const res = await this.ros.write('/interface/wireless/registration-table/print', [
-          '=.proplist=mac-address,signal,signal-strength,rx-signal,interface,ap-interface,tx-rate,tx-rate-set,band,rx-rate,uptime,ssid',
+          // No =.proplist= — same reason as above; legacy wireless API also varies
+          // in field availability across RouterOS versions.
         ]);
         if (res && res.length) { clients = res; detectedMode = 'wireless'; }
       } catch (e) {

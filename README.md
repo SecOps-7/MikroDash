@@ -46,13 +46,13 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Page | Description |
 |---|---|
 | Wireless | Clients grouped by interface with signal quality, band badge (2.4/5/6 GHz), IP, TX/RX rates, and sortable columns |
-| Interfaces | All interfaces as compact tiles with status, IP, live rates, and cumulative RX/TX totals |
+| Interfaces | All interfaces as compact tiles with status, IP, live rates, cumulative RX/TX totals, and per-card traffic trend sparkline |
 | DHCP | Active DHCP leases with hostname, IP, MAC, and status; sortable columns (default: IP ascending) |
 | VPN | All WireGuard peers (active + idle) as tiles sorted active-first, with allowed IPs, endpoint, handshake, and traffic counters |
 | Connections | World map with animated arcs to destination countries, per-country protocol breakdown, sparklines, top ports panel, and click-to-filter |
 | Firewall | Top hits, Filter, NAT, and Mangle rule tables with packet counts |
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
-| Routing | Route count summary by protocol with doughnut chart; static and dynamic route table; BGP peer table with state badges, prefix trend sparklines, and session flap detection |
+| Routing | Route count summary by protocol with doughnut chart; static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with severity filter and text search |
 | Settings | Persistent UI configuration — see below |
 
@@ -160,7 +160,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 |---|---|
 | Router Connection | Host, API port, username, password, TLS, self-signed cert, default WAN interface, ping target |
 | Dashboard Auth | HTTP Basic Auth username and password |
-| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Streamed collectors (Interfaces, VPN, Firewall, ARP) show an Event-driven badge instead of a slider |
+| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Streamed collectors (Interfaces, VPN, Firewall, ARP, Routing) show an Event-driven badge instead of a slider |
 | Limits | Top N values for connections, talkers, firewall rules; max connection rows; traffic history window |
 | Visible Pages | Toggle individual pages on/off — hidden pages are removed from the sidebar instantly |
 
@@ -239,6 +239,8 @@ All other settings (poll intervals, top-N limits, page visibility, ping target, 
 | Firewall rule changes & hit counts | `/ip/firewall/filter\|nat\|mangle/listen` |
 | WireGuard peer handshakes & stats | `/interface/wireguard/peers/listen` |
 | ARP table (device join/leave) | `/ip/arp/listen` |
+| Route table (add/remove/change) | `/ip/route/listen` |
+| BGP session state changes | `/routing/bgp/session/listen` |
 
 ### Polled (concurrent via tagged API multiplexing)
 | Collector | Default interval | Data |
@@ -270,10 +272,10 @@ All collectors that support RouterOS `/listen` streams use event-driven delivery
 | `4` | DHCP |
 | `5` | VPN |
 | `6` | Connections |
-| `7` | Firewall |
 | `7` | Routing |
 | `8` | Bandwidth |
 | `9` | Firewall |
+| `0` | Logs |
 | `/` | Focus log search |
 
 ---

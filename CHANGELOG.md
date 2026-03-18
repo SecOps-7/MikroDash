@@ -2,6 +2,35 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.8] — Routing & Wireless: Full Streaming, Interface Sparklines
+
+### Added
+
+- **Interface page sparklines** — each interface card now shows a traffic trend sparkline in the top-right corner. Plots combined RX+TX Mbps over the last 30 samples (~2.5 minutes at default 5 s poll). Baseline-anchored at zero. Inline SVG, no additional data source required.
+- **Streaming-first architecture** — all collectors that support a RouterOS `/listen` endpoint now use event-driven streaming instead of polling. New constraint documented in `AI_CONTEXT.md`.
+
+### Changed
+
+- **`RoutingCollector` fully converted to streaming** — both the route table and BGP sessions are now event-driven with no poll timer:
+  - `/ip/route/listen` — route table maintained as an in-memory `Map`, updated incrementally by delta rows (add/update/delete). Partial delta rows are merged with the stored raw row so unmodified fields are preserved.
+  - `/routing/bgp/session/listen` — BGP session state delivered instantly. Keepalive-only events (uptime/counter tick with unchanged state and prefix count) are fingerprint-suppressed to avoid unnecessary browser re-renders.
+  - `/routing/bgp/peer/print` — peer config (names, descriptions) loaded once on connect; refreshed only when a meaningful session state change is detected.
+  - 60-second heartbeat re-emit keeps client stale timers alive on stable networks.
+  - Graceful fallback when BGP stream endpoint is unavailable (RouterOS v6, non-BGP builds).
+- **Routing poll interval slider removed from Settings** — replaced with an "Event-driven" badge, consistent with Interfaces, VPN, Firewall, and ARP.
+- **`AI_CONTEXT.md` expanded** — collector delivery model table added; RouterOS API quirks section added; streaming collector pattern documented as the default with polling as the explicit fallback.
+
+### Fixed
+
+- **Wireless page shows only one client** — `=.proplist=` on the wifi/wireless registration-table calls was causing some RouterOS v7 firmware builds to *filter rows* (returning only rows where all requested fields are non-empty) rather than silently omitting absent fields. Only the one client that happened to satisfy the full proplist was returned. Fix: `=.proplist=` removed from both registration-table calls.
+- **Routing page data disappears after first poll or reconnect** — `start()` was registering a new `ros.on('connected')` listener on every call, doubling the count on each reconnect cycle (1→2→4→8→…). After a few reconnects multiple concurrent chains raced to call `stop()`, each clearing the timer the previous chain had just created. Fixed by registering listeners exactly once — same pattern as all other collectors.
+- **Active routes disappear, one disabled route remains** — RouterOS v7 omits `.flags` for routes in their default active state on some firmware builds; disabled routes always carry `.flags`. Streaming via `/ip/route/listen` eliminates the inconsistency as stream events always carry the full row.
+- **Connected routes flicker in the routes table every poll cycle** — the IP-gateway fallback inference passed for RouterOS interface-name gateways (`bridge`, `ether1`, `vlan10`). Fixed by requiring the gateway to match an actual IP address pattern.
+- **`pollTalkers` live interval change had no effect** — `talkers` was missing from `collectorMap` in the settings POST handler.
+- **`settings:pages` missing fields** — `sendInitialState()` omitted `pageBandwidth`; the settings reset branch omitted both `pageBandwidth` and `pageRouting`.
+- **Malformed RouterOS field values produced `NaN`** — all numeric field conversions now use a `safeInt()` helper that returns `0` for non-numeric strings.
+
+
 ## [0.5.7] — Routing Page, BGP Monitoring, arm64 Support & Fixes
 
 ### Added
