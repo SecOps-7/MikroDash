@@ -10,14 +10,39 @@
 
 const { RouterOSAPI } = require('node-routeros');
 const EventEmitter = require('events');
+const util = require('util');
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function formatError(err) {
+  if (!err) return 'Unknown error';
+  const parts = [];
+  const name = err.name || (err.constructor && err.constructor.name) || 'Error';
+  const message = err.message || String(err);
+  parts.push(`${name}: ${message}`);
+
+  for (const key of ['code', 'errno', 'syscall', 'address', 'port']) {
+    if (err[key] !== undefined) parts.push(`${key}=${err[key]}`);
+  }
+  if (err.cause) {
+    const cause = err.cause;
+    parts.push(`cause=${cause.name || 'Error'}:${cause.message || String(cause)}`);
+    for (const key of ['code', 'errno', 'syscall', 'address', 'port']) {
+      if (cause[key] !== undefined) parts.push(`cause.${key}=${cause[key]}`);
+    }
+  }
+
+  if (parts.length === 1) {
+    const inspected = util.inspect(err, { depth: 2, breakLength: Infinity });
+    if (inspected && inspected !== '[object Object]') parts.push(inspected);
+  }
+  return parts.join(' ');
+}
 
 class ROS extends EventEmitter {
   constructor(cfg) {
     super();
     // ~11 collectors × 2 events each = 22 listeners minimum
     this.setMaxListeners(30);
-    this.on('error', () => {});
     this.cfg = cfg;
     this.conn = null;
     this.connected = false;
@@ -43,15 +68,22 @@ class ROS extends EventEmitter {
     return new RouterOSAPI(opts);
   }
 
+  _emitConnectionError(err) {
+    this.emit('connectionError', err);
+    // Only forward to 'error' if someone is explicitly listening —
+    // emitting 'error' with no listeners would crash the process.
+    if (this.listenerCount('error') > 0) this.emit('error', err);
+  }
+
   async connectLoop() {
     while (!this._stopping) {
       try {
         this.conn = this._buildConn();
 
         this.conn.on('error', (err) => {
-          console.error('[ROS] error:', err && err.message ? err.message : err);
+          console.error('[ROS] error:', formatError(err));
           this.connected = false;
-          this.emit('error', err);
+          this._emitConnectionError(err);
         });
 
         this.conn.on('close', () => {
@@ -73,8 +105,8 @@ class ROS extends EventEmitter {
 
       } catch (e) {
         this.connected = false;
-        console.error('[ROS] connect failed:', e && e.message ? e.message : e);
-        this.emit('error', e);
+        console.error('[ROS] connect failed:', formatError(e));
+        this._emitConnectionError(e);
       }
 
       if (this._stopping) break;

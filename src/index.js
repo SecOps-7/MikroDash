@@ -1,6 +1,6 @@
 require('dotenv').config();
 const Settings = require('./settings');
-const _cfg = Settings.load();
+const Routers  = require('./routers');
 
 const fs   = require('fs');
 const path = require('path');
@@ -42,13 +42,10 @@ const FirewallCollector    = require('./collectors/firewall');
 const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const PingCollector         = require('./collectors/ping');
 const BandwidthCollector    = require('./collectors/bandwidth');
-const RoutingCollector       = require('./collectors/routing');
+const RoutingCollector      = require('./collectors/routing');
 
 const app = express();
 
-// When behind a reverse proxy, set TRUSTED_PROXY to the proxy's IP (e.g. "127.0.0.1")
-// or "loopback" / "uniquelocal" to trust X-Forwarded-For from those ranges.
-// Unset = disabled (direct connections only, X-Forwarded-For ignored).
 const TRUSTED_PROXY = process.env.TRUSTED_PROXY;
 if (TRUSTED_PROXY) app.set('trust proxy', TRUSTED_PROXY);
 
@@ -57,17 +54,13 @@ const MAX_SOCKETS = parseInt(process.env.MAX_SOCKETS || '50', 10);
 const io = new Server(server, {
   maxHttpBufferSize: 1e6,
   connectTimeout: 10000,
-  perMessageDeflate: {
-    threshold: 512,
-    zlibDeflateOptions: { level: 1 },
-  },
+  perMessageDeflate: { threshold: 512, zlibDeflateOptions: { level: 1 } },
 });
+
 const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);
 const authLimiter = rateLimit({
-  windowMs: 60_000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
+  windowMs: 60_000, max: 100,
+  standardHeaders: true, legacyHeaders: false,
   skip: (req) => !authEnabled || req.path === '/healthz',
 });
 const basicAuth = createBasicAuthMiddleware({
@@ -78,89 +71,276 @@ const basicAuth = createBasicAuthMiddleware({
 app.use(helmet(buildHelmetOptions()));
 app.use((req, res, next) => {
   if (req.path === '/healthz') return next();
-  authLimiter(req, res, (err) => {
-    if (err) return next(err);
-    basicAuth(req, res, next);
-  });
+  authLimiter(req, res, (err) => { if (err) return next(err); basicAuth(req, res, next); });
 });
 io.engine.use(basicAuth);
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json());
 
-const state = {
-  lastTrafficTs:0,  lastTrafficErr:null,
-  lastConnsTs:0,    lastConnsErr:null,
-  lastNetworksTs:0,
-  lastLeasesTs:0,
-  lastArpTs:0,
-  lastTalkersTs:0,  lastTalkersErr:null,
-  lastLogsTs:0,     lastLogsErr:null,
-  lastSystemTs:0,   lastSystemErr:null,
-  lastWirelessTs:0, lastWirelessErr:null,
-  lastVpnTs:0,      lastVpnErr:null,
-  lastFirewallTs:0, lastFirewallErr:null,
-  lastIfStatusTs:0,
-  lastPingTs:0,
-};
-let startupReady = false;
+// ── Active router session ─────────────────────────────────────────────────────
+// All mutable collector/ROS state lives here so buildSession() can replace
+// it atomically on a hot-swap without touching anything else in the module.
+let _session = null; // set by buildSession() below
 
-const ros = new ROS({
-  host:        _cfg.routerHost,
-  port:        _cfg.routerPort,
-  tls:         _cfg.routerTls,
-  tlsInsecure: _cfg.routerTlsInsecure,
-  username:    _cfg.routerUser,
-  password:    _cfg.routerPass,
-  debug:       (process.env.ROS_DEBUG || 'false').toLowerCase() === 'true',
-  writeTimeoutMs: parseInt(process.env.ROS_WRITE_TIMEOUT_MS || '30000', 10),
-});
+function _freshState() {
+  return {
+    lastTrafficTs:0,  lastTrafficErr:null,
+    lastConnsTs:0,    lastConnsErr:null,
+    lastNetworksTs:0,
+    lastLeasesTs:0,
+    lastArpTs:0,
+    lastTalkersTs:0,  lastTalkersErr:null,
+    lastLogsTs:0,     lastLogsErr:null,
+    lastSystemTs:0,   lastSystemErr:null,
+    lastWirelessTs:0, lastWirelessErr:null,
+    lastVpnTs:0,      lastVpnErr:null,
+    lastFirewallTs:0, lastFirewallErr:null,
+    lastIfStatusTs:0,
+    lastPingTs:0,
+    lastRoutingTs:0,  lastRoutingErr:null,
+  };
+}
 
-const DEFAULT_IF      = _cfg.defaultIf;
-const HISTORY_MINUTES = _cfg.historyMinutes;
+function buildSession(routerCfg) {
+  const _cfg   = Settings.load();
+  const state  = _freshState();
 
-// Collectors — order matters: leases must exist before networks/connections
-const dhcpLeases   = new DhcpLeasesCollector ({ros,io, state});
-// ── Shared /ip/firewall/connection/print cache ───────────────────────────
-// TTL is set to 40% of the faster collector's poll interval so two
-// consecutive ticks from the same collector never both hit the cached value,
-// even at 1s bandwidth polling. updateMaxAge() is called when settings change.
-const connTableCache = {
-  rows: null, ts: 0,
-  maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 0.4,
-  updateMaxAge(pollConns, pollBandwidth) {
-    this.maxAge = Math.min(pollConns, pollBandwidth) * 0.4;
-  },
-  async get(ros) {
-    const now = Date.now();
-    if (this.rows !== null && (now - this.ts) < this.maxAge) return this.rows;
-    // =.proplist= tells RouterOS to send only these fields per entry instead of
-    // the full ~15-field row. With large connection tables this can halve the
-    // amount of data sent over the RouterOS API TCP connection.
-    this.rows = (await ros.write('/ip/firewall/connection/print', [
-      '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
-    ])) || [];
-    this.ts   = Date.now();
-    return this.rows;
-  },
-  invalidate() { this.rows = null; this.ts = 0; },
-};
+  const ros = new ROS({
+    host:           routerCfg.host,
+    port:           routerCfg.port,
+    tls:            routerCfg.tls,
+    tlsInsecure:    routerCfg.tlsInsecure,
+    username:       routerCfg.username,
+    password:       routerCfg.password,
+    debug:          (process.env.ROS_DEBUG || 'false').toLowerCase() === 'true',
+    writeTimeoutMs: parseInt(process.env.ROS_WRITE_TIMEOUT_MS || '30000', 10),
+  });
 
-const arp          = new ArpCollector         ({ros,    pollMs:_cfg.pollArp,      state});
-const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:_cfg.pollDhcp,     dhcpLeases, state, wanIface:DEFAULT_IF});
-const traffic      = new TrafficCollector     ({ros,io, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state});
-const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache});
-const talkers      = new TopTalkersCollector  ({ros,io, pollMs:_cfg.pollTalkers,  state, topN:_cfg.topTalkersN});
-const logs         = new LogsCollector        ({ros,io, state});
-const system       = new SystemCollector      ({ros,io, pollMs:_cfg.pollSystem,   state});
-const wireless     = new WirelessCollector    ({ros,io, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
-const vpn          = new VpnCollector         ({ros,io, pollMs:_cfg.pollVpn,      state});
-const firewall     = new FirewallCollector    ({ros,io, pollMs:_cfg.pollFirewall,  state, topN:_cfg.firewallTopN});
-const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, state});
-const ping         = new PingCollector({ros,io, pollMs:_cfg.pollPing, state, target:_cfg.pingTarget});
-const bandwidth    = new BandwidthCollector({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache});
-const routing      = new RoutingCollector    ({ros,io, pollMs:_cfg.pollRouting,   state});
+  const DEFAULT_IF      = routerCfg.defaultIf  || _cfg.defaultIf  || 'ether1';
+  const PING_TARGET     = routerCfg.pingTarget  || _cfg.pingTarget || '1.1.1.1';
+  const HISTORY_MINUTES = _cfg.historyMinutes;
 
-// ── Settings API ─────────────────────────────────────────────────────────────
+  const connTableCache = {
+    rows: null, ts: 0,
+    maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 0.4,
+    updateMaxAge(pollConns, pollBandwidth) {
+      this.maxAge = Math.min(pollConns, pollBandwidth) * 0.4;
+    },
+    async get(rosInst) {
+      const now = Date.now();
+      if (this.rows !== null && (now - this.ts) < this.maxAge) return this.rows;
+      this.rows = (await rosInst.write('/ip/firewall/connection/print', [
+        '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
+      ])) || [];
+      this.ts = Date.now();
+      return this.rows;
+    },
+    invalidate() { this.rows = null; this.ts = 0; },
+  };
+
+  const dhcpLeases   = new DhcpLeasesCollector ({ros,io, state});
+  const arp          = new ArpCollector         ({ros,    pollMs:_cfg.pollArp,       state});
+  const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:_cfg.pollDhcp,      dhcpLeases, state, wanIface:DEFAULT_IF});
+  const traffic      = new TrafficCollector     ({ros,io, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state});
+  const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache});
+  const talkers      = new TopTalkersCollector  ({ros,io, pollMs:_cfg.pollTalkers,  state, topN:_cfg.topTalkersN});
+  const logs         = new LogsCollector        ({ros,io, state});
+  const system       = new SystemCollector      ({ros,io, pollMs:_cfg.pollSystem,   state});
+  const wireless     = new WirelessCollector    ({ros,io, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
+  const vpn          = new VpnCollector         ({ros,io, pollMs:_cfg.pollVpn,      state});
+  const firewall     = new FirewallCollector    ({ros,io, pollMs:_cfg.pollFirewall,  state, topN:_cfg.firewallTopN});
+  const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, state});
+  const ping         = new PingCollector        ({ros,io, pollMs:_cfg.pollPing,     state, target:PING_TARGET});
+  const bandwidth    = new BandwidthCollector   ({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache});
+  const routing      = new RoutingCollector     ({ros,io, pollMs:_cfg.pollRouting,  state});
+
+  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing];
+
+  return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES,
+           dhcpLeases, dhcpNetworks, arp, traffic, conns, talkers, logs, system,
+           wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, allCollectors,
+           routerId: routerCfg.id };
+}
+
+// ── Session teardown ──────────────────────────────────────────────────────────
+// Stop all collectors and the ROS connection for the current session.
+// Returns a Promise that resolves when the old connection is fully closed.
+async function teardownSession(session) {
+  if (!session) return;
+  startupReady = false;
+  _collectorsStarted = false;
+  for (const c of session.allCollectors) {
+    if (c.timer) { clearInterval(c.timer); c.timer = null; }
+    // Stop streaming collectors
+    if (typeof c._stopAllStreams  === 'function') c._stopAllStreams();
+    if (typeof c._stopStream      === 'function') c._stopStream();
+    if (typeof c._stopHeartbeat   === 'function') c._stopHeartbeat();
+  }
+  session.ros.stop();
+  // Brief yield so in-flight async callbacks can settle before we replace the session
+  await new Promise(r => setTimeout(r, 150));
+}
+
+// ── Startup state (module-level, reset on hot-swap) ───────────────────────────
+let startupReady     = false;
+let rosConnected     = false;
+let _collectorsStarted = false;
+
+function broadcastRosStatus(connected, reason) {
+  rosConnected = connected;
+  io.emit('ros:status', { connected, reason: reason || null });
+}
+
+function wireRosEvents(session) {
+  const { ros } = session;
+
+  ros.on('connected', () => broadcastRosStatus(true));
+  ros.on('close',     () => {
+    session.connTableCache.invalidate();
+    broadcastRosStatus(false, 'RouterOS connection closed');
+  });
+  ros.on('connectionError', (e) => {
+    const msg = e && e.message ? e.message : String(e);
+    let reason = msg;
+    if (/ECONNREFUSED/.test(msg))                                reason = `Connection refused — is RouterOS reachable at ${session.ros.cfg.host}?`;
+    else if (/ETIMEDOUT/.test(msg) || /timed out/i.test(msg))   reason = 'Connection timed out — check host and firewall rules';
+    else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))       reason = `Host not found — check router host setting (${session.ros.cfg.host})`;
+    else if (/ECONNRESET/.test(msg))                            reason = 'Connection reset by router';
+    else if (/certificate/i.test(msg))                          reason = 'TLS certificate error — try enabling "Allow self-signed cert"';
+    else if (/authentication/i.test(msg) || /login/i.test(msg)) reason = 'Authentication failed — check username and password';
+    else if (session.ros.cfg.tls && /RosException/.test(msg))   reason = 'TLS handshake failed — check that RouterOS api-ssl is enabled and the certificate is valid. "Allow self-signed cert" only skips certificate validation, not TLS itself.';
+    broadcastRosStatus(false, reason);
+  });
+  ros.on('connected', () => startCollectors(session));
+}
+
+async function startCollectors(session) {
+  if (_collectorsStarted) return;
+  _collectorsStarted = true;
+  try {
+    console.log(`[MikroDash] v${APP_VERSION} — RouterOS connected, starting collectors`);
+    session.wireless.start();
+    await session.dhcpLeases.start();
+    // Run the first dhcpNetworks tick synchronously so networks/wanIp are
+    // populated before sendInitialState broadcasts to connected sockets.
+    await session.dhcpNetworks.tick().catch(() => {});
+    session.dhcpNetworks.start();
+    await session.arp.start();
+    session.traffic.start();
+    session.conns.start();
+    session.talkers.start();
+    session.logs.start();
+    session.system.start();
+    await session.vpn.start();
+    await session.firewall.start();
+    await session.ifStatus.start();
+    session.ping.start();
+    session.bandwidth.start();
+    await session.routing.start();
+
+    // Auto-update router label from board name on first connect
+    // (only if label is still the default 'My Router' or matches host)
+    session.system._onFirstBoardName = (boardName) => {
+      const router = Routers.getById(session.routerId);
+      if (router && (router.label === 'My Router' || router.label === router.host)) {
+        Routers.updateLabel(session.routerId, boardName);
+        // Broadcast updated router list to all clients
+        io.emit('routers:update', Routers.getPublic());
+      }
+    };
+
+    startupReady = true;
+    console.log('[MikroDash] All collectors running');
+
+    // Broadcast initial state to all currently connected sockets.
+    // On first startup there are none yet, so this is a no-op.
+    // On a hot-swap the Socket.IO connections stay alive — existing browser
+    // clients never receive a 'connection' event, so without this they would
+    // not get the new router's traffic:history, leases:list, or lastPayload
+    // snapshots until they manually refreshed the page.
+    for (const [, socket] of io.sockets.sockets) {
+      // Rebind traffic streaming to new collector instance
+      session.traffic.bindSocket(socket);
+      // Re-send all initial state for the new router
+      sendInitialState(socket).catch((e) => {
+        console.error('[MikroDash] sendInitialState failed for socket', socket.id, ':', e && e.message ? e.message : e);
+      });
+    }
+  } catch (e) {
+    startupReady = false;
+    _collectorsStarted = false;
+    console.error('[MikroDash] Collector startup error:', e && e.message ? e.message : e);
+  }
+}
+
+// ── Hot-swap ──────────────────────────────────────────────────────────────────
+let _switching = false;
+
+async function switchRouter(newRouterId) {
+  if (_switching) return { ok: false, error: 'Switch already in progress' };
+  const router = Routers.getById(newRouterId);
+  if (!router) return { ok: false, error: 'Router not found' };
+
+  _switching = true;
+  try {
+    console.log(`[MikroDash] Switching to router: ${router.label} (${router.host})`);
+    broadcastRosStatus(false, `Switching to ${router.label}…`);
+    io.emit('router:switching', { routerId: newRouterId, label: router.label });
+
+    // Save the new active router id
+    Settings.save({ activeRouterId: newRouterId });
+
+    // Tear down old session
+    await teardownSession(_session);
+
+    // Build and start new session
+    _collectorsStarted = false;
+    const newSession = buildSession(router);
+    _session = newSession;
+    wireRosEvents(newSession);
+    newSession.ros.connectLoop();
+
+    return { ok: true };
+  } finally {
+    _switching = false;
+  }
+}
+
+// ── Initial session bootstrap ─────────────────────────────────────────────────
+(function bootstrap() {
+  // Ensure router list is seeded (backwards-compat: seed from settings.json)
+  const routers = Routers.loadAll();
+
+  // Determine active router
+  const _cfg = Settings.load();
+  let activeId = _cfg.activeRouterId;
+
+  // If activeRouterId not set or points to non-existent router, use first entry
+  if (!activeId || !Routers.getById(activeId)) {
+    activeId = routers.length > 0 ? routers[0].id : null;
+    if (activeId) Settings.save({ activeRouterId: activeId });
+  }
+
+  if (!activeId) {
+    console.error('[MikroDash] No routers configured. Add a router in Settings.');
+    // Start with a dummy session so the server stays up
+    const fallback = {
+      host: '127.0.0.1', port: 8729, tls: false, tlsInsecure: false,
+      username: 'admin', password: '', defaultIf: 'ether1', pingTarget: '1.1.1.1', id: null,
+    };
+    _session = buildSession(fallback);
+    wireRosEvents(_session);
+    _session.ros.connectLoop();
+    return;
+  }
+
+  const activeRouter = Routers.getById(activeId);
+  _session = buildSession(activeRouter);
+  wireRosEvents(_session);
+  _session.ros.connectLoop();
+})();
+
+// ── Settings API ──────────────────────────────────────────────────────────────
 app.get('/api/settings', (_req, res) => {
   res.json(Settings.getPublic());
 });
@@ -168,7 +348,6 @@ app.get('/api/settings', (_req, res) => {
 app.post('/api/settings', (req, res) => {
   try {
     const body = req.body || {};
-    // Full reset to defaults
     if (body._reset) {
       const { DEFAULTS } = require('./settings');
       Settings.save(DEFAULTS);
@@ -189,11 +368,10 @@ app.post('/api/settings', (req, res) => {
       pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
     };
-    const strFields  = ['routerHost','routerUser','defaultIf','dashUser','pingTarget'];
-    const boolFields = ['routerTls','routerTlsInsecure',
-      'pageWireless','pageInterfaces','pageDhcp','pageVpn',
-      'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'];
-    const credFields = ['routerPass','dashPass'];
+    const strFields  = ['dashUser', 'pingTarget'];
+    const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
+                        'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'];
+    const credFields = ['dashPass'];
 
     for (const [f, range] of Object.entries(intFields)) {
       if (f in body) { const v = parseInt(body[f],10); if (!isNaN(v) && v>=range[0] && v<=range[1]) updates[f]=v; }
@@ -204,8 +382,9 @@ app.post('/api/settings', (req, res) => {
 
     const saved = Settings.save(updates);
 
-    // Apply poll changes live without restart
-    const collectorMap = { conns, talkers, system, wireless, vpn, firewall, ifStatus, ping, arp, dhcpNetworks, bandwidth, routing };
+    // Apply poll interval changes live
+    const s = _session;
+    const collectorMap = { conns:s.conns, talkers:s.talkers, system:s.system, wireless:s.wireless, vpn:s.vpn, firewall:s.firewall, ifStatus:s.ifStatus, ping:s.ping, arp:s.arp, dhcpNetworks:s.dhcpNetworks, bandwidth:s.bandwidth, routing:s.routing };
     const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks' };
@@ -223,13 +402,10 @@ app.post('/api/settings', (req, res) => {
         }
       }
     }
-    if ('pingTarget' in updates) ping.target = saved.pingTarget;
-    // Recalculate cache TTL whenever either consumer's poll interval changes
     if ('pollConns' in updates || 'pollBandwidth' in updates) {
-      connTableCache.updateMaxAge(saved.pollConns, saved.pollBandwidth);
+      s.connTableCache.updateMaxAge(saved.pollConns, saved.pollBandwidth);
     }
 
-    // Broadcast page visibility to all connected clients
     const pageSettings = {
       pageWireless:saved.pageWireless, pageInterfaces:saved.pageInterfaces,
       pageDhcp:saved.pageDhcp, pageVpn:saved.pageVpn,
@@ -238,18 +414,140 @@ app.post('/api/settings', (req, res) => {
       pageRouting:saved.pageRouting,
     };
     io.emit('settings:pages', pageSettings);
-
-    const routerChanged = ['routerHost','routerPort','routerTls','routerTlsInsecure','routerUser','routerPass']
-      .some(f => f in updates);
-    res.json({ ok:true, requiresRestart: routerChanged });
+    res.json({ ok:true, requiresRestart:false });
   } catch(e) {
     console.error('[settings] save error:', e);
     res.status(500).json({ ok:false, error: String(e.message||e) });
   }
 });
 
+// ── Routers API ───────────────────────────────────────────────────────────────
+
+// GET /api/routers — list all routers (passwords masked)
+app.get('/api/routers', (_req, res) => {
+  const _cfg   = Settings.load();
+  const active = _cfg.activeRouterId || '';
+  res.json({ routers: Routers.getPublic(), activeId: active });
+});
+
+// POST /api/routers — add a new router
+app.post('/api/routers', (req, res) => {
+  try {
+    const body = req.body || {};
+    if (!body.host || !String(body.host).trim()) {
+      return res.status(400).json({ ok:false, error:'host is required' });
+    }
+    const router = Routers.add(body);
+    io.emit('routers:update', Routers.getPublic());
+    res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
+  } catch(e) {
+    res.status(500).json({ ok:false, error: String(e.message||e) });
+  }
+});
+
+// PUT /api/routers/:id — edit a router
+app.put('/api/routers/:id', (req, res) => {
+  try {
+    const router = Routers.update(req.params.id, req.body || {});
+    if (!router) return res.status(404).json({ ok:false, error:'Router not found' });
+    io.emit('routers:update', Routers.getPublic());
+    res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
+  } catch(e) {
+    res.status(500).json({ ok:false, error: String(e.message||e) });
+  }
+});
+
+// DELETE /api/routers/:id — delete a router (cannot delete the active router)
+app.delete('/api/routers/:id', (req, res) => {
+  try {
+    const _cfg = Settings.load();
+    if (req.params.id === _cfg.activeRouterId) {
+      return res.status(409).json({ ok:false, error:'Cannot delete the active router. Switch to a different router first.' });
+    }
+    const deleted = Routers.remove(req.params.id);
+    if (!deleted) return res.status(404).json({ ok:false, error:'Router not found' });
+    io.emit('routers:update', Routers.getPublic());
+    res.json({ ok:true });
+  } catch(e) {
+    res.status(500).json({ ok:false, error: String(e.message||e) });
+  }
+});
+
+// POST /api/routers/:id/activate — switch to a different router (hot-swap)
+app.post('/api/routers/:id/activate', async (req, res) => {
+  const _cfg = Settings.load();
+  if (req.params.id === _cfg.activeRouterId) {
+    return res.json({ ok:true, alreadyActive:true });
+  }
+  res.json({ ok:true, switching:true }); // respond before the async switch
+  const result = await switchRouter(req.params.id);
+  if (!result.ok) {
+    console.error('[MikroDash] Router switch failed:', result.error);
+    io.emit('router:switch-error', { error: result.error });
+  }
+  // Broadcast updated active state to all clients
+  io.emit('routers:update', Routers.getPublic());
+  io.emit('router:active', { activeId: req.params.id });
+});
+
+// POST /api/routers/test — test a connection without saving
+app.post('/api/routers/test', async (req, res) => {
+  const body = req.body || {};
+  if (!body.host) return res.status(400).json({ ok:false, error:'host is required' });
+
+  const testRos = new ROS({
+    host:           String(body.host).trim(),
+    port:           parseInt(body.port || '8729', 10),
+    tls:            body.tls !== false && body.tls !== 'false',
+    tlsInsecure:    !!(body.tlsInsecure || body.tlsInsecure === 'true'),
+    username:       String(body.username || 'admin').trim(),
+    password:       body.password && body.password !== '••••••••' ? String(body.password) : '',
+    writeTimeoutMs: 8000,
+  });
+
+  let resolved = false;
+  const done = (ok, error, boardName) => {
+    if (resolved) return;
+    resolved = true;
+    testRos.stop();
+    if (ok) res.json({ ok:true, boardName: boardName || '' });
+    else    res.json({ ok:false, error: error || 'Connection failed' });
+  };
+
+  const timeout = setTimeout(() => done(false, 'Connection timed out after 8 seconds'), 9000);
+
+  testRos.on('connectionError', (e) => {
+    clearTimeout(timeout);
+    const msg = e && e.message ? e.message : String(e);
+    let reason = msg;
+    if (/ECONNREFUSED/.test(msg))                                reason = 'Connection refused — check host and port';
+    else if (/ETIMEDOUT/.test(msg) || /timed out/i.test(msg))   reason = 'Connection timed out — check host and firewall rules';
+    else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))       reason = 'Host not found — check router host/IP';
+    else if (/ECONNRESET/.test(msg))                            reason = 'Connection reset by router';
+    else if (/certificate/i.test(msg))                          reason = 'TLS certificate error — try enabling "Allow self-signed cert"';
+    else if (/authentication/i.test(msg) || /login/i.test(msg)) reason = 'Authentication failed — check username and password';
+    else if (body.tls && /RosException/.test(msg))              reason = 'TLS handshake failed — check that RouterOS api-ssl is enabled and the certificate is valid.';
+    done(false, reason);
+  });
+  testRos.on('connected', async () => {
+    clearTimeout(timeout);
+    try {
+      const result = await testRos.write('/system/resource/print', [
+        '=.proplist=board-name,version',
+      ]);
+      const r = (result && result[0]) || {};
+      done(true, null, r['board-name'] || r.platform || '');
+    } catch (_) {
+      done(true, null, ''); // connected but /system/resource failed — still OK
+    }
+  });
+
+  testRos.connectLoop().catch(() => {});
+});
+
+// ── Existing read-only endpoints ──────────────────────────────────────────────
 app.get('/api/localcc', (_req, res) => {
-  const wanIp = (state.lastWanIp || '').split('/')[0];
+  const wanIp = (_session.state.lastWanIp || '').split('/')[0];
   let cc = '';
   if (geoip && wanIp) { const g = geoip.lookup(wanIp); if (g) cc = g.country || ''; }
   res.json({ cc, wanIp });
@@ -257,183 +555,105 @@ app.get('/api/localcc', (_req, res) => {
 
 function sanitizeErr(e) {
   if (!e) return null;
-  // Strip stack traces and truncate
   return String(e).split('\n')[0].slice(0, 200);
 }
 
 app.get('/healthz', (_req, res) => {
+  const s = _session;
   const { ok, statusCode } = computeHealthStatus({
     startupReady,
-    rosConnected: ros.connected,
+    rosConnected: s ? s.ros.connected : false,
   });
+  const st = s ? s.state : {};
   const body = {
     ok,
     version: APP_VERSION,
-    routerConnected: ros.connected,
+    routerConnected: s ? s.ros.connected : false,
+    activeRouterId:  s ? s.routerId : null,
     startupReady,
     uptime: process.uptime(),
     now: Date.now(),
-    defaultIf: DEFAULT_IF,
+    defaultIf: s ? s.DEFAULT_IF : '',
     checks: {
-      traffic:  { ts:state.lastTrafficTs,  err:sanitizeErr(state.lastTrafficErr)  },
-      conns:    { ts:state.lastConnsTs,    err:sanitizeErr(state.lastConnsErr)    },
-      leases:   { ts:state.lastLeasesTs,   err:null                               },
-      arp:      { ts:state.lastArpTs,      err:null                               },
-      talkers:  { ts:state.lastTalkersTs,  err:sanitizeErr(state.lastTalkersErr)  },
-      logs:     { ts:state.lastLogsTs,     err:sanitizeErr(state.lastLogsErr)     },
-      system:   { ts:state.lastSystemTs,   err:sanitizeErr(state.lastSystemErr)   },
-      wireless: { ts:state.lastWirelessTs, err:sanitizeErr(state.lastWirelessErr) },
-      vpn:      { ts:state.lastVpnTs,      err:sanitizeErr(state.lastVpnErr)      },
-      firewall: { ts:state.lastFirewallTs, err:sanitizeErr(state.lastFirewallErr) },
-      ping:     { ts:state.lastPingTs,     err:null                               },
+      traffic:  { ts:st.lastTrafficTs,  err:sanitizeErr(st.lastTrafficErr)  },
+      conns:    { ts:st.lastConnsTs,    err:sanitizeErr(st.lastConnsErr)    },
+      leases:   { ts:st.lastLeasesTs,   err:null                            },
+      arp:      { ts:st.lastArpTs,      err:null                            },
+      talkers:  { ts:st.lastTalkersTs,  err:sanitizeErr(st.lastTalkersErr)  },
+      logs:     { ts:st.lastLogsTs,     err:sanitizeErr(st.lastLogsErr)     },
+      system:   { ts:st.lastSystemTs,   err:sanitizeErr(st.lastSystemErr)   },
+      wireless: { ts:st.lastWirelessTs, err:sanitizeErr(st.lastWirelessErr) },
+      vpn:      { ts:st.lastVpnTs,      err:sanitizeErr(st.lastVpnErr)      },
+      firewall: { ts:st.lastFirewallTs, err:sanitizeErr(st.lastFirewallErr) },
+      ping:     { ts:st.lastPingTs,     err:null                            },
     },
   };
   res.status(statusCode).json(body);
 });
 
-ros.connectLoop();
-
-// ── RouterOS connection status broadcasting ─────────────────────────────────
-// Track the last known ROS connection state so newly connected browser clients
-// immediately receive it, rather than waiting for the next status change event.
-let rosConnected = false;
-
-function broadcastRosStatus(connected, reason) {
-  rosConnected = connected;
-  io.emit('ros:status', { connected, reason: reason || null });
-}
-
-ros.on('connected', () => broadcastRosStatus(true));
-ros.on('close',     () => { connTableCache.invalidate(); broadcastRosStatus(false, 'RouterOS connection closed'); });
-ros.on('error',     (e) => {
-  const msg = e && e.message ? e.message : String(e);
-  // Build a clear, human-readable reason from raw network errors
-  let reason = msg;
-  if (/ECONNREFUSED/.test(msg))  reason = `Connection refused — is RouterOS reachable at ${process.env.ROUTER_HOST}?`;
-  else if (/ETIMEDOUT/.test(msg) || /timed out/i.test(msg)) reason = `Connection timed out — check ROUTER_HOST and firewall rules`;
-  else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))    reason = `Host not found — check ROUTER_HOST setting (${process.env.ROUTER_HOST})`;
-  else if (/ECONNRESET/.test(msg)) reason = 'Connection reset by router';
-  else if (/certificate/i.test(msg)) reason = 'TLS certificate error — try setting ROUTER_TLS_INSECURE=true';
-  else if (/authentication/i.test(msg) || /login/i.test(msg)) reason = 'Authentication failed — check ROUTER_USER and ROUTER_PASS';
-  broadcastRosStatus(false, reason);
-});
-
-// Wait for the first RouterOS connection, then start all collectors.
-// Uses ros 'connected' event so this works regardless of how long the
-// router takes to come online — the container stays up and the HTTP/WS
-// server is already serving the "offline" banner to any waiting clients.
-let _collectorsStarted = false;
-async function startCollectors() {
-  if (_collectorsStarted) return;
-  _collectorsStarted = true;
-  try {
-    console.log(`[MikroDash] v${APP_VERSION} — RouterOS connected, starting collectors`);
-    wireless.start();
-    await dhcpLeases.start();   // async: loads initial state first
-    dhcpNetworks.start();
-    await arp.start();
-    traffic.start();
-    conns.start();
-    talkers.start();
-    logs.start();
-    system.start();
-    await vpn.start();
-    await firewall.start();
-    await ifStatus.start();
-    ping.start();
-    bandwidth.start();
-    await routing.start();
-
-    startupReady = true;
-    console.log('[MikroDash] All collectors running');
-  } catch (e) {
-    startupReady = false;
-    _collectorsStarted = false; // allow retry on next reconnect
-    console.error('[MikroDash] Collector startup error:', e && e.message ? e.message : e);
-  }
-}
-
-ros.on('connected', () => startCollectors());
-
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
 async function sendInitialState(socket) {
-  // Send traffic:history FIRST — before any async awaits — so the client
-  // has currentIf set before traffic:update events start arriving.
+  const s = _session;
+
   socket.emit('traffic:history', {
-    ifName: DEFAULT_IF,
-    windowMinutes: HISTORY_MINUTES,
-    points: traffic.hist.get(DEFAULT_IF) ? traffic.hist.get(DEFAULT_IF).toArray() : [],
+    ifName: s.DEFAULT_IF,
+    windowMinutes: s.HISTORY_MINUTES,
+    points: s.traffic.hist.get(s.DEFAULT_IF) ? s.traffic.hist.get(s.DEFAULT_IF).toArray() : [],
   });
 
-  // Tell the client the current RouterOS connection state immediately.
-  // If ROS is already connected this resolves instantly; if not, we wait
-  // briefly then send a ros:status so the client shows the offline banner
-  // rather than silently showing empty/stale cards.
-  if (!ros.connected) {
+  // Send current router list and active id
+  const _cfg = Settings.load();
+  socket.emit('routers:update', Routers.getPublic());
+  socket.emit('router:active', { activeId: _cfg.activeRouterId || '' });
+
+  if (!s.ros.connected) {
     socket.emit('ros:status', { connected: false, reason: rosConnected === false
       ? 'RouterOS is not connected — retrying in background'
       : 'Waiting for RouterOS connection…' });
-    try { await ros.waitUntilConnected(10000); } catch (_) {
-      // Still not connected after 10s — client already has the banner, continue
-      // so the socket gets its (empty) initial state and stays live for when
-      // ROS eventually reconnects.
-    }
+    try { await s.ros.waitUntilConnected(10000); } catch (_) {}
   }
 
-  // Fetch interface list. On failure: log the reason, notify the client so
-  // it can show an explicit error state rather than a silently empty dropdown,
-  // and leave availableIfs unpopulated so traffic:select events are rejected
-  // (rather than bypassing the whitelist) until the next successful fetch.
   let ifs = [];
   try {
-    ifs = await fetchInterfaces(ros);
-    traffic.setAvailableInterfaces(ifs);
+    ifs = await fetchInterfaces(s.ros);
+    s.traffic.setAvailableInterfaces(ifs);
   } catch (e) {
     const reason = e && e.message ? e.message : String(e);
     console.error('[MikroDash] fetchInterfaces failed for socket', socket.id, ':', reason);
     socket.emit('interfaces:error', { reason });
   }
-  socket.emit('interfaces:list', { defaultIf: DEFAULT_IF, interfaces: ifs });
+  socket.emit('interfaces:list', { defaultIf: s.DEFAULT_IF, interfaces: ifs });
 
-  // Derive WAN IP: prefer the value cached by dhcpNetworks; fall back to
-  // extracting it from the ifStatus payload (available much sooner after boot)
-  // so the dashboard WAN IP field isn't blank on the first browser connect.
-  let _wanIp = state.lastWanIp || '';
-  if (!_wanIp && ifStatus.lastPayload) {
-    const _wanIface = (state.defaultIf || DEFAULT_IF || '').toLowerCase();
-    const _match = (ifStatus.lastPayload.interfaces || [])
+  let _wanIp = s.state.lastWanIp || '';
+  if (!_wanIp && s.ifStatus.lastPayload) {
+    const _wanIface = (s.DEFAULT_IF || '').toLowerCase();
+    const _match = (s.ifStatus.lastPayload.interfaces || [])
       .find(i => i.name && i.name.toLowerCase() === _wanIface && i.ips && i.ips.length);
     if (_match) _wanIp = _match.ips[0];
   }
   socket.emit('lan:overview', {
     ts: Date.now(),
-    lanCidrs: dhcpNetworks.getLanCidrs(),
-    networks: dhcpNetworks.networks || [],
+    lanCidrs: s.dhcpNetworks.getLanCidrs(),
+    networks: s.dhcpNetworks.networks || [],
     wanIp: _wanIp,
-    pollMs: dhcpNetworks.pollMs,
+    pollMs: s.dhcpNetworks.pollMs,
   });
 
-  // Send current lease table to newly connected client
   const allLeases = [];
-  for (const [ip, v] of dhcpLeases.byIP.entries()) {
-    allLeases.push({ ip, ...v });
-  }
+  for (const [ip, v] of s.dhcpLeases.byIP.entries()) allLeases.push({ ip, ...v });
   socket.emit('leases:list', { ts: Date.now(), leases: allLeases });
 
-  // Push last wireless snapshot immediately so client doesn't wait for next poll
-  // Replay last known payload for each collector so new clients don't wait
-  // for the next poll cycle before seeing data
-  if (wireless.lastPayload)  socket.emit('wireless:update',  wireless.lastPayload);
-  if (vpn.lastPayload)       socket.emit('vpn:update',       vpn.lastPayload);
-  if (system.lastPayload)    socket.emit('system:update',    system.lastPayload);
-  if (ifStatus.lastPayload)  socket.emit('ifstatus:update',  ifStatus.lastPayload);
-  if (firewall.lastPayload)  socket.emit('firewall:update',  firewall.lastPayload);
-  if (conns.lastPayload)     socket.emit('conn:update',      conns.lastPayload);
-  if (talkers.lastPayload)   socket.emit('talkers:update',   talkers.lastPayload);
-  if (ping.lastPayload)      socket.emit('ping:update',      ping.lastPayload);
-  if (bandwidth.lastPayload) socket.emit('bandwidth:update', bandwidth.lastPayload);
-  if (routing.lastPayload)   socket.emit('routing:update',   routing.lastPayload);
+  if (s.wireless.lastPayload)  socket.emit('wireless:update',  s.wireless.lastPayload);
+  if (s.vpn.lastPayload)       socket.emit('vpn:update',       s.vpn.lastPayload);
+  if (s.system.lastPayload)    socket.emit('system:update',    s.system.lastPayload);
+  if (s.ifStatus.lastPayload)  socket.emit('ifstatus:update',  s.ifStatus.lastPayload);
+  if (s.firewall.lastPayload)  socket.emit('firewall:update',  s.firewall.lastPayload);
+  if (s.conns.lastPayload)     socket.emit('conn:update',      s.conns.lastPayload);
+  if (s.talkers.lastPayload)   socket.emit('talkers:update',   s.talkers.lastPayload);
+  if (s.ping.lastPayload)      socket.emit('ping:update',      s.ping.lastPayload);
+  if (s.bandwidth.lastPayload) socket.emit('bandwidth:update', s.bandwidth.lastPayload);
+  if (s.routing.lastPayload)   socket.emit('routing:update',   s.routing.lastPayload);
 
-  // Send page visibility settings to newly connected client
   const _ps = Settings.load();
   socket.emit('settings:pages', {
     pageWireless:_ps.pageWireless, pageInterfaces:_ps.pageInterfaces,
@@ -442,39 +662,36 @@ async function sendInitialState(socket) {
     pageLogs:_ps.pageLogs, pageBandwidth:_ps.pageBandwidth, pageRouting:_ps.pageRouting,
   });
 
-  // Send ping history so client can render the chart immediately
-  const pingData = ping.getHistory();
+  const pingData = s.ping.getHistory();
   if (pingData.history.length) socket.emit('ping:history', pingData);
 
-  // Replay buffered log history so the logs page survives page refreshes.
-  const logHistory = logs.getHistory();
+  const logHistory = s.logs.getHistory();
   if (logHistory.length) socket.emit('logs:history', logHistory);
 }
 
-// Post-accept check: brief spikes above MAX_SOCKETS are possible but acceptable for a dashboard workload.
 io.on('connection', (socket) => {
   if (io.engine.clientsCount > MAX_SOCKETS) {
     console.warn('[MikroDash] connection rejected — max sockets reached:', MAX_SOCKETS);
     socket.disconnect(true);
     return;
   }
-  traffic.bindSocket(socket);
+  _session.traffic.bindSocket(socket);
   sendInitialState(socket).catch(() => {});
 });
 
 const PORT = parseInt(process.env.PORT || '3081', 10);
 server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
 
-// ── Graceful shutdown ──────────────────────────────────────────────────────
-const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing];
-
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
 function shutdown(signal) {
   console.log(`[MikroDash] ${signal} received, shutting down…`);
   startupReady = false;
-  for (const c of allCollectors) {
-    if (c.timer) { clearInterval(c.timer); c.timer = null; }
+  if (_session) {
+    for (const c of _session.allCollectors) {
+      if (c.timer) { clearInterval(c.timer); c.timer = null; }
+    }
+    _session.ros.stop();
   }
-  ros.stop();
   io.close();
   server.close(() => {
     console.log('[MikroDash] HTTP server closed');

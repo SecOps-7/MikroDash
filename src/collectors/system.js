@@ -24,9 +24,15 @@ class SystemCollector {
       const result = await this.ros.write('/system/package/update/print');
       const u = result && result[0] ? result[0] : {};
       this._lastUpdateRow = u;
-      if (!this._loggedUpdateFields && Object.keys(u).length) {
+      if (!this._loggedUpdateFields) {
         console.log('[system] package/update fields:', JSON.stringify(u));
         this._loggedUpdateFields = true;
+      }
+      // If the row came back but has neither a status nor a latest-version,
+      // the device likely cannot reach the upgrade server or doesn't support
+      // remote update checking (common on CAPsMAN APs, restricted devices).
+      if (!u['status'] && !u['latest-version'] && Object.keys(u).length > 0) {
+        u['status'] = 'Update info unavailable';
       }
       // Re-emit with updated version info if we have a current payload
       if (this.lastPayload) {
@@ -42,7 +48,22 @@ class SystemCollector {
         this.io.emit('system:update', updated);
       }
     } catch (e) {
-      console.error('[system] update check failed:', e && e.message ? e.message : e);
+      const msg = e && e.message ? e.message : String(e);
+      console.error('[system] update check failed:', msg);
+      // Surface the failure so the UI shows a real reason instead of
+      // "Checking for updates…" indefinitely.
+      // Common causes: device has no outbound internet access, upgrade server
+      // blocked by firewall, or device is CAPsMAN-managed (cAP, etc.) and
+      // doesn't support remote update checking.
+      this._lastUpdateRow = { status: 'Update check unavailable' };
+      if (this.lastPayload) {
+        const updated = { ...this.lastPayload, ts: Date.now(),
+          latestVersion: '', updateAvailable: false,
+          updateStatus: 'Update check unavailable' };
+        this.lastPayload = updated;
+        this._lastFp = '';
+        this.io.emit('system:update', updated);
+      }
     }
   }
 
@@ -108,6 +129,14 @@ class SystemCollector {
       tempC, pollMs: this.pollMs,
     };
     this.lastPayload = payload;
+
+    // On the first successful tick where we have a board name, fire the optional
+    // callback so index.js can auto-update the router label in routers.json.
+    if (!this._boardNameReported && payload.boardName && typeof this._onFirstBoardName === 'function') {
+      this._boardNameReported = true;
+      this._onFirstBoardName(payload.boardName);
+    }
+
     // Fingerprint dynamic fields only — suppress emit when gauges are unchanged
     const fp = `${cpuLoad},${memPct},${hddPct},${tempC},${r.uptime||''},${updateAvailable},${latestVersion}`;
     if (fp !== this._lastFp) {
