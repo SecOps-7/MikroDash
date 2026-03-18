@@ -22,10 +22,7 @@ MikroDash is a **real-time MikroTik RouterOS v7 dashboard**. It connects directl
 | No CDN dependencies | All frontend assets are vendored under `public/vendor/`. Never add a `<script src="https://...">` tag. |
 | No new runtime deps without approval | The dependency list in `package.json` is intentional and minimal. |
 | Collector pattern must be followed | Every new data collector must implement the contract described below. |
-<<<<<<< HEAD
-=======
 | Streaming-first architecture | **Prefer `/listen` streams over polling wherever RouterOS supports them.** Polling is only acceptable when no stream endpoint exists (e.g. `/tool/ping`) or the stream is demonstrably too noisy without benefit (rejected case: `/routing/bgp/session/listen` was initially rejected as "noisy" but was successfully streamed with keepalive-fingerprint suppression). When converting a collector to streaming, set `pollMs: 0` in the payload and show "Event-driven" in the Settings UI instead of a slider. |
->>>>>>> cf64f22 (Routing & Wireless: Full Streaming, Interface Sparklines)
 | Credentials never in plaintext | Router and dashboard passwords are AES-256-GCM encrypted in `settings.json` and masked in all API responses. |
 | Vendored assets are read-only | Never modify `public/vendor/` unless explicitly instructed. |
 
@@ -72,21 +69,13 @@ src/
 │   ├── dhcpLeases.js          # DHCP lease stream + initial load; name resolution (comment > hostname)
 │   ├── dhcpNetworks.js        # LAN CIDRs, WAN IP from interface addresses, lease counts per network
 │   ├── arp.js                 # ARP table snapshot; bidirectional IP↔MAC lookup
-<<<<<<< HEAD
-│   ├── wireless.js            # Wireless clients: band detection, signal, SSID, DHCP/ARP enrichment
-=======
 │   ├── wireless.js            # Wireless clients: band detection, signal, SSID, DHCP/ARP enrichment.
 │   │                          #   ⚠ No =.proplist= on registration-table calls — see RouterOS quirks below
->>>>>>> cf64f22 (Routing & Wireless: Full Streaming, Interface Sparklines)
 │   ├── vpn.js                 # WireGuard peers: connected/idle state, TX/RX rates, stale pruning
 │   ├── firewall.js            # Filter/NAT/mangle rules with delta packet counts between polls
 │   ├── interfaceStatus.js     # All interfaces: running, disabled, IPs, RX/TX Mbps, cumulative bytes
 │   ├── ping.js                # ICMP ping RTT + loss%, ring-buffer history, fallback averaging
-<<<<<<< HEAD
-│   ├── routing.js             # Static/dynamic routes, BGP peers with state + prefix trend
-=======
 │   ├── routing.js             # Route table (/ip/route/listen stream) + BGP sessions (/routing/bgp/session/listen stream)
->>>>>>> cf64f22 (Routing & Wireless: Full Streaming, Interface Sparklines)
 │   └── logs.js                # RouterOS log stream, severity classification, bounded history buffer
 ├── routeros/
 │   ├── client.js              # ROS class (extends EventEmitter): connectLoop() with exponential backoff,
@@ -129,65 +118,6 @@ CHANGELOG.md
 
 ---
 
-<<<<<<< HEAD
-## Collector pattern
-
-Every data collector must follow this contract exactly. Deviations will cause bugs in `sendInitialState()`, `/healthz`, and graceful shutdown.
-
-```js
-class XyzCollector {
-  constructor({ ros, io, pollMs, state, /* ...domain deps */ }) {
-    this.ros         = ros;         // ROS client instance
-    this.io          = io;          // Socket.IO server instance
-    this.pollMs      = pollMs;      // poll interval in ms
-    this.state       = state;       // shared state object from index.js
-    this.timer       = null;        // setInterval handle — checked by shutdown()
-    this._inflight   = false;       // prevents overlapping tick() calls
-    this.lastPayload = null;        // replayed to new sockets in sendInitialState()
-  }
-
-  async start() {
-    await this.tick();              // run immediately on start
-    this.timer = setInterval(async () => {
-      if (this._inflight) return;
-      this._inflight = true;
-      try { await this.tick(); } catch (_) {} finally { this._inflight = false; }
-    }, this.pollMs);
-
-    // Stream-based collectors call this._startStream() here instead of / alongside setInterval
-
-    this.ros.on('connected', () => { this.stop(); this.start(); }); // restart on reconnect
-    this.ros.on('close',     () => this.stop());
-  }
-
-  async tick() {
-    try {
-      const rows = await this.ros.write('/some/command', ['=param=value']);
-      const payload = /* transform rows */;
-      this.io.emit('xyz:update', payload);
-      this.lastPayload = payload;
-      this.state.lastXyzTs  = Date.now();
-      this.state.lastXyzErr = null;
-    } catch (e) {
-      this.state.lastXyzErr = e;
-    }
-  }
-
-  stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
-  }
-}
-module.exports = XyzCollector;
-```
-
-**Invariants:**
-- `lastPayload` is never null after a successful tick. `sendInitialState()` in `index.js` uses it to replay state to newly connected browser clients.
-- `state.last<n>Ts` (timestamp) and `state.last<n>Err` (error or null) must be updated on every tick — these feed `/healthz`.
-- `tick()` never throws. Errors are caught internally and stored in state.
-- Stream-based collectors (`logs.js`, `dhcpLeases.js`) must restart their stream after callback errors — transient failures must not leave the dashboard silently stale.
-- All collector timers are cleared in `shutdown()` in `index.js`. New collectors must be added to `allCollectors` there.
-
-=======
 ## Versioning & changelog rules
 
 **Semantic version:** `major.minor.patch` in `package.json`. Bump patch for bug fixes; minor for new features or behaviour changes; major for breaking changes.
@@ -390,7 +320,6 @@ module.exports = XyzCollector;
 - Stream-based collectors must restart after callback errors — transient failures must not leave the dashboard silently stale.
 - All collector timers are cleared in `shutdown()` in `index.js`. New collectors must be added to `allCollectors` there.
 - **Never call `start()` inside a `ros.on('connected')` handler.** Register `connected` and `close` listeners exactly once in `start()`. Calling `start()` recursively doubles the listener count on every reconnect, causing exponential listener growth and multiple concurrent collector chains.
->>>>>>> cf64f22 (Routing & Wireless: Full Streaming, Interface Sparklines)
 ---
 
 ## Socket.IO events
