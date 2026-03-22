@@ -1,4 +1,7 @@
-const PING_COUNT = 3;
+const RingBuffer = require('../util/ringbuffer');
+
+const PING_COUNT = 2;
+const MAX_HISTORY = 60;
 
 class PingCollector {
   constructor({ ros, io, pollMs, state, target }) {
@@ -9,8 +12,9 @@ class PingCollector {
     this.target = target || '1.1.1.1';
     this.timer  = null;
     this._inflight = false;
-    this.history = []; // {ts, rtt, loss}
-    this.MAX_HISTORY = 60;
+    this.history = new RingBuffer(MAX_HISTORY); // {ts, rtt, loss}
+    this._lastFp = '';
+    this.lastPayload = null;
   }
 
   async tick() {
@@ -48,15 +52,23 @@ class PingCollector {
 
     const point = { ts: Date.now(), rtt, loss };
     this.history.push(point);
-    if (this.history.length > this.MAX_HISTORY) this.history.shift();
 
+    // Dirty-check: only emit when rtt, loss, or target changes
+    const fp = `${this.target}|${rtt}|${loss}`;
     this.lastPayload = { target: this.target, rtt, loss, ts: point.ts, pollMs: this.pollMs };
-    this.io.emit('ping:update', this.lastPayload);
+    if (fp !== this._lastFp) {
+      this._lastFp = fp;
+      this.io.emit('ping:update', this.lastPayload);
+    }
     this.state.lastPingTs = Date.now();
   }
 
   getHistory() {
-    return { target: this.target, history: this.history };
+    return { target: this.target, history: this.history.toArray() };
+  }
+
+  stop() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 
   start() {
@@ -68,8 +80,8 @@ class PingCollector {
     };
     run();
     this.timer = setInterval(run, this.pollMs);
-    this.ros.on('close',     () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
-    this.ros.on('connected', () => { this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    this.ros.on('close',     () => this.stop());
+    this.ros.on('connected', () => { this._lastFp = ''; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
   }
 }
 

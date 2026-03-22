@@ -123,6 +123,8 @@ class ArpCollector {
       this._startStream();
     });
   }
+
+  stop() { this._stopStream(); }
 }
 
 module.exports = ArpCollector;

@@ -18,6 +18,7 @@ test('traffic collector emits normalized socket and WAN payloads from a poll cyc
     }],
   };
   const io = {
+    engine: { clientsCount: 1 },
     to(id) {
       return {
         emit(ev, data) {
@@ -68,6 +69,7 @@ test('traffic collector treats missing or zero traffic fields as zero Mbps', asy
     }],
   };
   const io = {
+    engine: { clientsCount: 1 },
     to() {
       return {
         emit(ev, data) {
@@ -230,7 +232,7 @@ test('connections collector counts protocols correctly including case-insensitiv
       { '.id': '*4', 'src-address': '192.168.1.10', 'dst-address': '4.4.4.4', protocol: 'gre' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 5000, topN: 5, state: {},
     dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
@@ -256,7 +258,7 @@ test('connections collector classifies LAN sources and WAN destinations using CI
       { '.id': '*2', 'src-address': '10.0.0.5', 'dst-address': '192.168.1.10', protocol: 'tcp', 'dst-port': '80' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 5000, topN: 10, state: {},
     dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
@@ -281,7 +283,7 @@ test('connections collector uses field fallback chain for src/dst/protocol', asy
       { '.id': '*1', src: '192.168.1.10', dst: '1.1.1.1', 'ip-protocol': 'tcp', port: '443' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 5000, topN: 5, state: {},
     dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
@@ -308,7 +310,7 @@ test('connections collector tracks new connections since last poll', async () =>
     on() {},
     write: async () => responses[callNum++],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 5000, topN: 5, state: {},
     dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
@@ -334,7 +336,7 @@ test('connections collector resolves names via DHCP leases then ARP fallback', a
       { '.id': '*3', 'src-address': '192.168.1.12', 'dst-address': '1.1.1.1', protocol: 'tcp' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 5000, topN: 10, state: {},
     dhcpNetworks: { getLanCidrs: () => ['192.168.1.0/24'] },
@@ -366,7 +368,7 @@ test('connections collector emits IPv6 destination keys, top ports, and geo aggr
       { '.id': '*3', 'src-address': '192.168.1.12', 'dst-address': '198.51.100.2', protocol: 'udp', 'dst-port': '53' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 5000, topN: 10, state: {},
     geoLookup: (ip) => {
@@ -387,8 +389,8 @@ test('connections collector emits IPv6 destination keys, top ports, and geo aggr
   assert.deepEqual(payload.topDestinations[0].proto, { tcp: 2, udp: 0, other: 0 });
   assert.deepEqual(payload.topPorts, [{ port: '443', count: 2 }, { port: '53', count: 1 }]);
   assert.deepEqual(payload.topCountries, [
-    { cc: 'ZZ', city: 'Lab City', count: 2, proto: { tcp: 2, udp: 0, other: 0 } },
-    { cc: 'YY', city: 'Edge Town', count: 1, proto: { tcp: 0, udp: 1, other: 0 } },
+    { cc: 'ZZ', city: 'Lab City', count: 2, proto: { tcp: 2, udp: 0, other: 0 }, orgs: [] },
+    { cc: 'YY', city: 'Edge Town', count: 1, proto: { tcp: 0, udp: 1, other: 0 }, orgs: [] },
   ]);
 });
 
@@ -403,7 +405,7 @@ test('connections collector caps work honestly by excluding truncated destinatio
       { '.id': '*3', 'src-address': '192.168.1.12', 'dst-address': '198.51.100.3', protocol: 'tcp', 'dst-port': '80' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 5000, topN: 10, maxConns: 2, state: {},
     geoLookup: (ip) => ({ country: ip.endsWith('.3') ? 'TRUNC' : 'KEPT', city: ip }),
@@ -426,47 +428,49 @@ const FirewallCollector = require('../src/collectors/firewall');
 
 test('firewall collector calculates delta packets between polls', async () => {
   const emitted = [];
-  let tickNum = 0;
+  let loadNum = 0;
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async (cmd) => {
-      if (cmd.includes('filter')) return tickNum === 0
+      if (cmd.includes('filter')) return loadNum === 0
         ? [{ '.id': '*1', chain: 'forward', action: 'accept', packets: '100', bytes: '50000', disabled: 'false' }]
         : [{ '.id': '*1', chain: 'forward', action: 'accept', packets: '150', bytes: '75000', disabled: 'false' }];
       return []; // nat, mangle empty
     },
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
 
-  await collector.tick();
+  await collector._loadInitial();
   assert.equal(emitted[0].data.filter[0].deltaPackets, 0); // no previous
-  tickNum++;
+  loadNum++;
 
-  await collector.tick();
+  await collector._loadInitial();
   assert.equal(emitted[1].data.filter[0].deltaPackets, 50); // 150 - 100
 });
 
 test('firewall collector clamps negative delta to zero on counter reset', async () => {
   const emitted = [];
-  let tickNum = 0;
+  let loadNum = 0;
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async (cmd) => {
-      if (cmd.includes('filter')) return tickNum === 0
+      if (cmd.includes('filter')) return loadNum === 0
         ? [{ '.id': '*1', chain: 'forward', action: 'accept', packets: '1000', bytes: '50000', disabled: 'false' }]
         : [{ '.id': '*1', chain: 'forward', action: 'accept', packets: '10', bytes: '500', disabled: 'false' }];
       return [];
     },
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
 
-  await collector.tick();
-  tickNum++;
-  await collector.tick();
+  await collector._loadInitial();
+  loadNum++;
+  await collector._loadInitial();
 
   assert.equal(emitted[1].data.filter[0].deltaPackets, 0);
 });
@@ -476,6 +480,7 @@ test('firewall collector filters out disabled rules', async () => {
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async (cmd) => {
       if (cmd.includes('filter')) return [
         { '.id': '*1', chain: 'forward', action: 'accept', packets: '100', disabled: 'true' },
@@ -485,9 +490,9 @@ test('firewall collector filters out disabled rules', async () => {
       return [];
     },
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
-  await collector.tick();
+  await collector._loadInitial();
 
   assert.equal(emitted[0].data.filter.length, 1);
   assert.equal(emitted[0].data.filter[0].id, '*2');
@@ -495,26 +500,27 @@ test('firewall collector filters out disabled rules', async () => {
 
 test('firewall collector prunes stale entries from prevCounts', async () => {
   const emitted = [];
-  let tickNum = 0;
+  let loadNum = 0;
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async (cmd) => {
-      if (cmd.includes('filter')) return tickNum === 0
+      if (cmd.includes('filter')) return loadNum === 0
         ? [{ '.id': '*1', packets: '100', disabled: 'false' }, { '.id': '*2', packets: '200', disabled: 'false' }]
         : [{ '.id': '*2', packets: '250', disabled: 'false' }];
       return [];
     },
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
 
-  await collector.tick();
+  await collector._loadInitial();
   assert.ok(collector.prevCounts.has('*1'));
   assert.ok(collector.prevCounts.has('*2'));
-  tickNum++;
+  loadNum++;
 
-  await collector.tick();
+  await collector._loadInitial();
   assert.ok(!collector.prevCounts.has('*1'), 'stale *1 should be pruned');
   assert.ok(collector.prevCounts.has('*2'));
 });
@@ -589,7 +595,8 @@ test('ping collector falls back to averaging individual reply times when no summ
   await collector.tick();
 
   assert.equal(emitted[0].data.rtt, 15);
-  assert.equal(emitted[0].data.loss, 33);
+  // PING_COUNT=2, both replied → 0% loss
+  assert.equal(emitted[0].data.loss, 0);
 });
 
 test('ping collector maintains bounded history', async () => {
@@ -603,7 +610,7 @@ test('ping collector maintains bounded history', async () => {
 
   for (let i = 0; i < 65; i++) await collector.tick();
 
-  assert.equal(collector.history.length, 60);
+  assert.equal(collector.history.toArray().length, 60);
   const h = collector.getHistory();
   assert.equal(h.target, '1.1.1.1');
   assert.equal(h.history.length, 60);
@@ -622,7 +629,7 @@ test('talkers collector calculates throughput rate between polls', async () => {
       { 'mac-address': 'AA:BB:CC:DD:EE:FF', name: 'laptop', 'bytes-up': callNum === 0 ? '0' : '125000', 'bytes-down': callNum === 0 ? '0' : '250000' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); callNum++; } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); callNum++; } };
   const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
 
   await collector.tick();
@@ -658,14 +665,16 @@ test('talkers collector returns zero rate on counter reset', async () => {
       { 'mac-address': 'AA:BB:CC:DD:EE:FF', name: 'laptop', 'bytes-up': callNum === 0 ? '1000000' : '100', 'bytes-down': callNum === 0 ? '2000000' : '50' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); callNum++; } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); callNum++; } };
   const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
 
   await collector.tick();
   await collector.tick();
 
-  assert.equal(emitted[1].data.devices[0].tx_mbps, 0);
-  assert.equal(emitted[1].data.devices[0].rx_mbps, 0);
+  // On counter reset both rates are 0 — same as tick 1, so fp suppresses the
+  // second emit. Assert via lastPayload which is always updated regardless.
+  assert.equal(collector.lastPayload.devices[0].tx_mbps, 0);
+  assert.equal(collector.lastPayload.devices[0].rx_mbps, 0);
 });
 
 test('talkers collector prunes stale devices', async () => {
@@ -680,7 +689,7 @@ test('talkers collector prunes stale devices', async () => {
     on() {},
     write: async () => responses[callNum++],
   };
-  const io = { emit() {} };
+  const io = { engine: { clientsCount: 1 }, emit() {} };
   const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
 
   await collector.tick();
@@ -698,6 +707,7 @@ test('vpn collector resolves peer name with fallback chain', async () => {
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async () => [
       { 'public-key': 'AAAA', name: 'myphone', comment: 'backup', 'allowed-address': '10.0.0.2/32', 'last-handshake': '1m30s', 'rx-bytes': '0', 'tx-bytes': '0' },
       { 'public-key': 'BBBB', name: '', comment: 'server', 'allowed-address': '10.0.0.3/32', 'last-handshake': 'never', 'rx-bytes': '0', 'tx-bytes': '0' },
@@ -706,9 +716,9 @@ test('vpn collector resolves peer name with fallback chain', async () => {
       { 'last-handshake': '10s', 'rx-bytes': '0', 'tx-bytes': '0' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
-  await collector.tick();
+  await collector._loadInitial();
 
   const t = emitted[0].data.tunnels;
   assert.equal(t[0].name, 'myphone');
@@ -723,15 +733,16 @@ test('vpn collector detects connected vs idle state', async () => {
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async () => [
       { 'public-key': 'A', 'last-handshake': '30s', 'rx-bytes': '0', 'tx-bytes': '0' },
       { 'public-key': 'B', 'last-handshake': 'never', 'rx-bytes': '0', 'tx-bytes': '0' },
       { 'public-key': 'C', 'last-handshake': '', 'rx-bytes': '0', 'tx-bytes': '0' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
-  await collector.tick();
+  await collector._loadInitial();
 
   const t = emitted[0].data.tunnels;
   assert.equal(t[0].state, 'connected');
@@ -741,7 +752,7 @@ test('vpn collector detects connected vs idle state', async () => {
 
 test('vpn collector calculates rates between polls and prunes stale peers', async () => {
   const emitted = [];
-  let callNum = 0;
+  let loadNum = 0;
   const responses = [
     [
       { 'public-key': 'A', name: 'phone', 'last-handshake': '10s', 'rx-bytes': '1000', 'tx-bytes': '2000' },
@@ -754,12 +765,13 @@ test('vpn collector calculates rates between polls and prunes stale peers', asyn
   const ros = {
     connected: true,
     on() {},
-    write: async () => responses[callNum++],
+    stream: (words, cb) => ({ stop() {} }),
+    write: async () => responses[loadNum++],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
 
-  await collector.tick();
+  await collector._loadInitial();
   const prev = collector._prev.get('A');
   const fixedNow = Date.now();
   prev.ts = fixedNow - 1000;
@@ -768,7 +780,7 @@ test('vpn collector calculates rates between polls and prunes stale peers', asyn
   const origDateNow = Date.now;
   Date.now = () => fixedNow;
   try {
-    await collector.tick();
+    await collector._loadInitial();
   } finally {
     Date.now = origDateNow;
   }
@@ -783,20 +795,20 @@ test('vpn collector calculates rates between polls and prunes stale peers', asyn
 // --- Wireless Collector ---
 const WirelessCollector = require('../src/collectors/wireless');
 
-test('wireless collector detects band from interface name and tx-rate', async () => {
+test('wireless collector detects band from RouterOS band field', async () => {
   const emitted = [];
   const ros = {
     connected: true,
     on() {},
     cfg: {},
     write: async () => [
-      { 'mac-address': 'AA:BB', interface: 'wifi1', 'tx-rate': '', signal: '-50' },
-      { 'mac-address': 'CC:DD', interface: 'wifi3', 'tx-rate': '', signal: '-60' },
-      { 'mac-address': 'EE:FF', interface: 'wlan0', 'tx-rate': '54Mbps', signal: '-70' },
-      { 'mac-address': '11:22', interface: 'wlan0', 'tx-rate': 'HE-MCS 11 80MHz', signal: '-55' },
+      { 'mac-address': 'AA:BB', interface: 'wifi1', band: '5ghz-n/ac/ax', signal: '-50' },
+      { 'mac-address': 'CC:DD', interface: 'wifi3', band: '6ghz-ax',       signal: '-60' },
+      { 'mac-address': 'EE:FF', interface: 'wlan0', band: '2ghz-b/g/n',    signal: '-70' },
+      { 'mac-address': '11:22', interface: 'wlan0', band: '5ghz-ax',       signal: '-55' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
@@ -824,7 +836,7 @@ test('wireless collector sorts clients by signal strength descending', async () 
       { 'mac-address': 'EE:FF', signal: '-55', interface: 'wifi1' },
     ],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
@@ -836,7 +848,7 @@ test('wireless collector sorts clients by signal strength descending', async () 
   assert.deepEqual(macs, ['CC:DD', 'EE:FF', 'AA:BB']);
 });
 
-test('wireless collector enriches payloads with DHCP names, ARP IPs, and emits empty refreshes', async () => {
+test('wireless collector enriches payloads with DHCP names, ARP IPs, and suppresses transient empty results', async () => {
   const emitted = [];
   let callNum = 0;
   const ros = {
@@ -847,20 +859,26 @@ test('wireless collector enriches payloads with DHCP names, ARP IPs, and emits e
       ? [{ 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1', 'tx-rate': 'HE-MCS 11 80MHz', ssid: 'Office' }]
       : [],
   };
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: (mac) => mac === 'AA:BB' ? { name: 'Laptop' } : null },
     arp: { getByMAC: (mac) => mac === 'AA:BB' ? { ip: '192.168.1.20' } : null },
   });
 
-  await collector.tick();
-  await collector.tick();
-
+  await collector.tick();                     // tick 1: returns client — emits
+  assert.equal(emitted.length, 1);
   assert.equal(emitted[0].data.clients[0].name, 'Laptop');
   assert.equal(emitted[0].data.clients[0].ip, '192.168.1.20');
   assert.equal(emitted[0].data.clients[0].ssid, 'Office');
   assert.equal(emitted[0].data.mode, 'wifi');
+
+  await collector.tick();                     // tick 2: empty — suppressed (emptyTicks=1)
+  assert.equal(emitted.length, 1);
+  await collector.tick();                     // tick 3: empty — suppressed (emptyTicks=2)
+  assert.equal(emitted.length, 1);
+  await collector.tick();                     // tick 4: empty — authoritative (emptyTicks=3), emits []
+  assert.equal(emitted.length, 2);
   assert.deepEqual(emitted[1].data.clients, []);
   assert.equal(emitted[1].data.mode, 'wifi');
 });
@@ -959,6 +977,7 @@ test('interface status collector normalizes booleans and computes Mbps', async (
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async (cmd) => {
       if (cmd.includes('interface')) return [
         { name: 'ether1', type: 'ether', running: 'true', disabled: 'false', 'rx-byte': '1000000', 'tx-byte': '500000', 'rx-bits-per-second': '15000000', 'tx-bits-per-second': '8500000' },
@@ -973,7 +992,7 @@ test('interface status collector normalizes booleans and computes Mbps', async (
   };
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
-  await collector.tick();
+  await collector._loadInitial();
 
   const ifaces = emitted[0].data.interfaces;
   assert.equal(ifaces[0].running, true);
@@ -990,6 +1009,7 @@ test('interface status collector clamps malformed throughput fields to zero', as
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async (cmd) => {
       if (cmd.includes('interface')) return [
         { name: 'ether1', running: 'true', disabled: 'false', 'rx-bits-per-second': 'bad-data', 'tx-bits-per-second': '', 'rx-byte': 'oops', 'tx-byte': null },
@@ -1000,7 +1020,7 @@ test('interface status collector clamps malformed throughput fields to zero', as
   };
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
-  await collector.tick();
+  await collector._loadInitial();
 
   const iface = emitted[0].data.interfaces[0];
   assert.equal(iface.rxBytes, 0);
@@ -1016,6 +1036,7 @@ test('arp collector builds bidirectional lookup maps and skips incomplete entrie
   const ros = {
     connected: true,
     on() {},
+    stream: (words, cb) => ({ stop() {} }),
     write: async () => [
       { address: '192.168.1.10', 'mac-address': 'AA:BB:CC:DD:EE:FF', interface: 'bridge' },
       { address: '192.168.1.11' },
@@ -1024,7 +1045,7 @@ test('arp collector builds bidirectional lookup maps and skips incomplete entrie
     ],
   };
   const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
-  await collector.tick();
+  await collector._loadInitial();
 
   const byIp = collector.getByIP('192.168.1.10');
   assert.equal(byIp.mac, 'AA:BB:CC:DD:EE:FF');
@@ -1033,26 +1054,27 @@ test('arp collector builds bidirectional lookup maps and skips incomplete entrie
   const byMac = collector.getByMAC('AA:BB:CC:DD:EE:FF');
   assert.equal(byMac.ip, '192.168.1.10');
 
-  assert.equal(collector.getByIP('192.168.1.11'), undefined);
+  assert.equal(collector.getByIP('192.168.1.11'), null);
   assert.equal(collector.getByMAC('CC:DD:EE:FF:00:11'), null);
   assert.equal(collector.getByIP('192.168.1.12').mac, '11:22:33:44:55:66');
 });
 
 test('arp collector replaces stale snapshot entries on each poll', async () => {
-  let callNum = 0;
+  let loadNum = 0;
   const ros = {
     connected: true,
     on() {},
-    write: async () => callNum++ === 0
+    stream: (words, cb) => ({ stop() {} }),
+    write: async () => loadNum++ === 0
       ? [{ address: '192.168.1.10', 'mac-address': 'AA:BB', interface: 'bridge' }]
       : [{ address: '192.168.1.11', 'mac-address': 'CC:DD', interface: 'bridge' }],
   };
   const collector = new ArpCollector({ ros, pollMs: 30000, state: {} });
 
-  await collector.tick();
-  await collector.tick();
+  await collector._loadInitial();
+  await collector._loadInitial();
 
-  assert.equal(collector.getByIP('192.168.1.10'), undefined);
+  assert.equal(collector.getByIP('192.168.1.10'), null);
   assert.equal(collector.getByMAC('AA:BB'), null);
   assert.equal(collector.getByIP('192.168.1.11').mac, 'CC:DD');
 });
@@ -1079,7 +1101,7 @@ test('dhcp networks collector counts leases per CIDR and extracts WAN IP', async
   };
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const leases = {
-    getActiveLeaseIPs: () => ['192.168.1.10', '192.168.1.11', '10.0.0.5'],
+    getActiveLeaseIPs: () => ['192.168.1.10', '192.168.1.11', '10.0.0.5'], getAllLeaseIPs: () => ['192.168.1.10', '192.168.1.11', '10.0.0.5'],
   };
   const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: leases, state: {}, wanIface: 'WAN1' });
   await collector.tick();
@@ -1103,7 +1125,7 @@ test('dhcp networks collector handles one query failing gracefully', async () =>
     },
   };
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
-  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [] }, state: {}, wanIface: 'WAN1' });
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] }, state: {}, wanIface: 'WAN1' });
   await collector.tick();
 
   assert.equal(emitted[0].data.networks.length, 0);
@@ -1123,7 +1145,7 @@ test('dhcp networks collector clears WAN IP when the configured WAN interface is
   };
   const state = { lastWanIp: '203.0.113.5/30' };
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
-  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [] }, state, wanIface: 'WAN1' });
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] }, state, wanIface: 'WAN1' });
   await collector.tick();
 
   assert.equal(emitted[0].data.wanIp, '');
@@ -1133,6 +1155,7 @@ test('dhcp networks collector clears WAN IP when the configured WAN interface is
 // ═══════════════════════════════════════════════════════════════════════════
 // --- Routing Collector ---
 // ═══════════════════════════════════════════════════════════════════════════
+const RoutingCollector = require('../src/collectors/routing');
 function makeRoutingRos({ printRows = [], sessionRows = [], peerCfgRows = [] } = {}) {
   return {
     connected: true,
@@ -1537,7 +1560,7 @@ test('wireless collector returns all clients without =.proplist= restriction', a
     },
   };
   const collector = new WirelessCollector({
-    ros, io: { emit(ev, d) { emitted.push({ ev, data: d }); } }, pollMs: 5000, state: {},
+    ros, io: { engine: { clientsCount: 1 }, emit(ev, d) { emitted.push({ ev, data: d }); } }, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
     arp: { getByMAC: () => null },
   });
@@ -1554,7 +1577,7 @@ test('wireless collector write call contains no =.proplist= parameter', async ()
     write: async (cmd, params) => { writeCalls.push({ cmd, params: params || [] }); return []; },
   };
   const collector = new WirelessCollector({
-    ros, io: { emit() {} }, pollMs: 5000, state: {},
+    ros, io: { engine: { clientsCount: 1 }, emit() {} }, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
     arp: { getByMAC: () => null },
   });
@@ -1563,6 +1586,59 @@ test('wireless collector write call contains no =.proplist= parameter', async ()
     const hasProplst = call.params.some(p => String(p).includes('.proplist'));
     assert.ok(!hasProplst, `no .proplist in write params for ${call.cmd}`);
   }
+});
+
+test('wireless collector resolves name on second tick when DHCP loads after first tick', async () => {
+  // Regression: names are empty on the first tick because DHCP hasn't loaded yet.
+  // The collector schedules a 500ms retry that re-resolves names from the already-
+  // fetched client list WITHOUT making a second RouterOS API call (some firmware
+  // builds return only partial results when queried soon after startup).
+  const emitted = [];
+  let writeCalls = 0;
+  let leasesReady = false;
+  const ros = {
+    connected: true, cfg: {}, on() {},
+    write: async () => {
+      writeCalls++;
+      return [
+        { 'mac-address': 'AA:BB', signal: '-50', interface: 'wifi1' },
+        { 'mac-address': 'CC:DD', signal: '-60', interface: 'wifi1' },
+      ];
+    },
+  };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const dhcpLeases = {
+    getNameByMAC: (mac) => {
+      if (!leasesReady) return null;
+      if (mac === 'AA:BB') return { name: 'Laptop' };
+      if (mac === 'CC:DD') return { name: 'Phone' };
+      return null;
+    },
+  };
+  const collector = new WirelessCollector({
+    ros, io, pollMs: 30000, state: {},
+    dhcpLeases,
+    arp: { getByMAC: () => null },
+  });
+
+  // First tick — DHCP not ready, both clients have empty names
+  await collector.tick();
+  const writeCallsAfterTick1 = writeCalls;
+  assert.equal(emitted.length, 1, 'first tick emits');
+  assert.equal(emitted[0].data.clients.length, 2, 'all clients present on first emit');
+  assert.equal(emitted[0].data.clients[0].name, '', 'names empty before DHCP loads');
+  assert.ok(collector._retryTimer, 'retry timer scheduled');
+
+  // DHCP now available — retry fires within 500ms without a new API call
+  leasesReady = true;
+  await new Promise(r => setTimeout(r, 600));
+
+  assert.equal(writeCalls, writeCallsAfterTick1, 'retry must not make a second RouterOS API call');
+  assert.equal(emitted.length, 2, 'retry emits updated names');
+  assert.equal(emitted[1].data.clients.length, 2, 'all clients still present after retry');
+  assert.equal(emitted[1].data.clients[0].name, 'Laptop', 'first client name resolved');
+  assert.equal(emitted[1].data.clients[1].name, 'Phone', 'second client name resolved');
+  assert.equal(collector._retryTimer, null, 'retry stops once all names resolved');
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

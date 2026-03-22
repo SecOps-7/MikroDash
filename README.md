@@ -38,7 +38,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 - **System card** — CPU, RAM, Storage gauges with colour-coded thresholds (amber >75%, red >90%), board info, temperature, uptime chip
 - **RouterOS update indicator** — shows installed vs available version side by side
 - **Network card** — animated SVG topology diagram with live wired/wireless client counts, WAN IP, LAN subnets, and latency chart
-- **Connections card** — total connection count sparkline, protocol breakdown bars (TCP/UDP/ICMP), top sources with hostname resolution, top destinations with geo-IP country flags
+- **Connections card** — total connection count sparkline, protocol breakdown bars (TCP/UDP/ICMP), top sources with hostname resolution, top destinations with geo-IP country flags and click-to-filter
 - **Top Talkers** — top 5 devices by active traffic with RX/TX rates
 - **WireGuard card** — active peer list with status and last handshake
 - **Multi-router switcher** — monitor multiple MikroTik routers from one dashboard instance; switch between them via the dropdown in the page header with no restart or page refresh required
@@ -46,12 +46,12 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 ### Pages
 | Page | Description |
 |---|---|
-| Wireless | Clients grouped by interface with signal quality, band badge (2.4/5/6 GHz), IP, TX/RX rates, and sortable columns |
+| Wireless | Signal Health and Band Split summary cards; clients grouped by interface with signal quality, IP, TX/RX rates, and sortable columns |
 | Interfaces | All interfaces as compact tiles with status, IP, live rates, cumulative RX/TX totals, and per-card traffic trend sparkline |
-| DHCP | Active DHCP leases with hostname, IP, MAC, and status; sortable columns (default: IP ascending) |
+| DHCP | Subnet utilisation card with per-network lease counts, pool sizes, and colour-coded progress bars; IP Utilisation gauge driven live from the lease stream; active lease table with hostname, IP, MAC, and status; sortable columns |
 | VPN | All WireGuard peers (active + idle) as tiles sorted active-first, with allowed IPs, endpoint, handshake, and traffic counters |
-| Connections | World map with animated arcs to destination countries, per-country protocol breakdown, sparklines, top ports panel, and click-to-filter |
-| Firewall | Top hits, Filter, NAT, and Mangle rule tables with packet counts |
+| Connections | World map with animated arcs to destination countries, per-country protocol breakdown, sparklines, top ports panel, and click-to-filter by country |
+| Firewall | Rule Counts, Action Breakdown, and Total Hits summary cards; search bar; Top Hits, Filter, NAT, and Mangle rule tables with packet counts, byte totals, and live delta-pulse indicators |
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
 | Routing | Route count summary by protocol with doughnut chart; static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with severity filter and text search |
@@ -161,8 +161,9 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 |---|---|
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. A Test Connection button validates credentials before saving. The active router is selected from the dropdown in the page header |
 | Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
-| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Streamed collectors (Interfaces, VPN, Firewall, ARP, Routing) show an Event-driven badge instead of a slider |
+| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Includes a Firewall slider (1 s – 60 s) controlling how often packet/byte counters are re-fetched. Streamed collectors (Interfaces, VPN, ARP, Routing) show an Event-driven badge instead of a slider |
 | Limits | Top N values for connections, talkers, firewall rules; max connection rows; traffic history window |
+| Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
 | Visible Pages | Toggle individual pages on/off — hidden pages are removed from the sidebar instantly |
 
 Settings values from `.env` are used as the initial defaults if no `settings.json` exists yet, so existing deployments upgrade seamlessly.
@@ -238,7 +239,7 @@ All other settings (poll intervals, top-N limits, page visibility, ping target, 
 | Router Logs | `/log/listen` |
 | DHCP Lease changes | `/ip/dhcp-server/lease/listen` |
 | Interface up/down state | `/interface/listen` |
-| Firewall rule changes & hit counts | `/ip/firewall/filter\|nat\|mangle/listen` |
+| Firewall structural changes (rule add/remove/edit) | `/ip/firewall/filter\|nat\|mangle/listen` |
 | WireGuard peer handshakes & stats | `/interface/wireguard/peers/listen` |
 | ARP table (device join/leave) | `/ip/arp/listen` |
 | Route table (add/remove/change) | `/ip/route/listen` |
@@ -253,8 +254,9 @@ All other settings (poll intervals, top-N limits, page visibility, ping target, 
 | Top Talkers | 3 s | Kid Control traffic stats |
 | Wireless | 5 s | Wireless client list |
 | Interface Status | 5 s | Byte counter refresh for live rate bars |
+| Firewall counters | 10 s | Packet/byte counter refresh for all firewall rules (RouterOS 7.x does not push counter updates via the listen stream) |
 | Ping | 10 s | RTT + packet loss to ping target |
-| DHCP Networks | 5 min | LAN subnets, WAN IP |
+| DHCP Networks | 5 min | LAN subnets, pool sizes, WAN IP |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
 

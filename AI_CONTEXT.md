@@ -124,9 +124,23 @@ CHANGELOG.md
 
 ## Versioning & changelog rules
 
-**Semantic version:** `major.minor.patch` in `package.json`. Bump patch for bug fixes; minor for new features or behaviour changes; major for breaking changes.
+### When to bump the version
 
-**How to write a CHANGELOG.md entry:**
+**Do not bump the version or update CHANGELOG.md or README.md during a working session.**
+
+Version bumps, changelog entries, and README updates happen **only at the explicit end of a session**, when the user says something like "package it up", "we're done", "final zip", or otherwise signals they are satisfied with all changes made during the session. Until that instruction is given:
+
+- Keep `package.json` version unchanged.
+- Do not add entries to `CHANGELOG.md`.
+- Do not modify `README.md`.
+
+When the user does request final packaging, **one version bump covers the entire session** — all changes made since the previous release go into a single changelog entry. Never create one entry per fix or per sub-session.
+
+### Semantic versioning
+
+`major.minor.patch` in `package.json`. Bump patch for bug fixes; minor for new features or behaviour changes; major for breaking changes.
+
+### How to write a CHANGELOG.md entry
 
 1. Add the new version block at the **very top** of `CHANGELOG.md`, immediately after the file header line (`All notable changes…`).
 2. Use this exact format:
@@ -147,7 +161,9 @@ CHANGELOG.md
 5. **Omit:** test additions, internal refactors with no user-visible effect, intermediate debugging steps, lint fixes, comment updates.
 6. **Do not duplicate** a fix across multiple bullets. If a bug had multiple contributing causes, describe the root cause and fix once.
 
-**How to update `package.json`:** change only the `"version"` field. Nothing else.
+### How to update `package.json`
+
+Change only the `"version"` field. Nothing else.
 
 
 ---

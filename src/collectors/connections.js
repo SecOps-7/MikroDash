@@ -34,6 +34,26 @@ class ConnectionsCollector {
     this.prevIds = new Set();
     this.timer = null;
     this._inflight = false;
+    this.lastPayload = null;
+    this._lastFp = '';
+    // Set to true by start(), never reset. Allows the connected handler to
+    // distinguish the initial connect (where startCollectors() calls start()
+    // explicitly) from a reconnect after a close event.
+    this._started = false;
+
+    // Register ROS lifecycle listeners once in the constructor so they never
+    // accumulate across multiple start() calls (matches the canonical pattern).
+    this.ros.on('close',     () => this.stop());
+    this.ros.on('connected', () => {
+      // Only restart here on reconnect after a close. On the very first
+      // connect, startCollectors() in index.js calls start() explicitly —
+      // calling stop()+start() here too would create two concurrent intervals.
+      if (this._started) {
+        this._lastFp = '';
+        this.stop();
+        this.start();
+      }
+    });
   }
 
   resolveName(ip) {
@@ -48,8 +68,11 @@ class ConnectionsCollector {
     return { name: ip, mac: '' };
   }
 
-  async tick() {
+  async tick(force = false) {
     if (!this.ros.connected) return;
+    // Skip when no browser clients are watching — the connection table can be
+    // large and geo/ASN lookups are non-trivial; no point doing the work idle.
+    if (!force && this.io.engine.clientsCount === 0) return;
     const lanCidrs = this.dhcpNetworks.getLanCidrs();
 
     // Use shared cache when available — halves API calls when both
@@ -150,6 +173,27 @@ class ConnectionsCollector {
         return { key, count, country, city, proto, org, cat };
       });
 
+    // Per-country destination index — used by the client-side country filter to
+    // populate the Connection Flow and Top Ports cards even for countries whose
+    // individual IPs don't appear in the global topDestinations list.
+    // Includes all destinations for every country in topCountries, sorted by
+    // connection count, capped at 20 per country to keep payload size bounded.
+    const countryDests = {};
+    for (const [key, count] of dstCounts.entries()) {
+      const ip = extractAddress(key);
+      const geo = destGeo.get(ip);
+      if (!geo || !geo.country) continue;
+      const cc = geo.country;
+      if (!countryDests[cc]) countryDests[cc] = [];
+      const org = destOrg.get(ip) || null;
+      const cat = org ? lookupCategory(org) : null;
+      countryDests[cc].push({ key, count, country: cc, city: geo.city || '', org, cat });
+    }
+    for (const cc of Object.keys(countryDests)) {
+      countryDests[cc].sort((a, b) => b.count - a.count);
+      if (countryDests[cc].length > 20) countryDests[cc].length = 20;
+    }
+
     const topCountries = Array.from(countryProto.entries())
       .map(([cc, proto]) => {
         // Top orgs for this country, sorted by connection count
@@ -175,14 +219,30 @@ class ConnectionsCollector {
 
     this.lastPayload = {
       ts: Date.now(), total: totalRaw, processed: conns.length, processingCapped: totalRaw > this.maxConns, newSinceLast,
-      protoCounts, topSources, topDestinations, topCountries, topPorts, pollMs: this.pollMs,
+      protoCounts, topSources, topDestinations, topCountries, topPorts, countryDests, pollMs: this.pollMs,
     };
-    this.io.emit('conn:update', this.lastPayload);
+    // Dirty-check: suppress emit when aggregate counts and top-N lists are unchanged.
+    // ts and newSinceLast are deliberately excluded — they change every tick.
+    const fp = JSON.stringify({
+      total: totalRaw, protoCounts,
+      src: topSources.map(s => ({ ip: s.ip, n: s.count })),
+      dst: topDestinations.map(d => ({ k: d.key, n: d.count })),
+      ports: topPorts,
+    });
+    if (fp !== this._lastFp) {
+      this._lastFp = fp;
+      this.io.emit('conn:update', this.lastPayload);
+    }
     this.state.lastConnsTs = Date.now();
     this.state.lastConnsErr = null;
   }
 
+  stop() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+  }
+
   start() {
+    this._started = true;
     const run = async () => {
       if (this._inflight) return;
       this._inflight = true;
@@ -194,10 +254,10 @@ class ConnectionsCollector {
         console.error('[connections]', this.state.lastConnsErr);
       } finally { this._inflight = false; }
     };
-    run();
+    // Set the timer before the first run so the close handler can always
+    // find and clear it, even if run() resolves synchronously.
     this.timer = setInterval(run, this.pollMs);
-    this.ros.on('close', () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
-    this.ros.on('connected', () => { this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    run();
   }
 }
 

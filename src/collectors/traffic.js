@@ -195,6 +195,8 @@ class TrafficCollector {
 
     this.ros.on('close', () => this._stopAll());
   }
+
+  stop() { this._stopAll(); }
 }
 
 module.exports = TrafficCollector;

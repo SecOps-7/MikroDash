@@ -75,14 +75,14 @@ const DEFAULTS = {
   pollBandwidth:     parseInt(process.env.BANDWIDTH_POLL_MS  || '3000',  10),
   pollRouting:       parseInt(process.env.ROUTING_POLL_MS    || '10000', 10),
   pageRouting:       true,
-  pollSystem:        parseInt(process.env.SYSTEM_POLL_MS    || '3000',  10),
-  pollWireless:      parseInt(process.env.WIRELESS_POLL_MS  || '5000',  10),
+  pollSystem:        parseInt(process.env.SYSTEM_POLL_MS    || '1000',  10),
+  pollWireless:      parseInt(process.env.WIRELESS_POLL_MS  || '30000', 10),
   pollVpn:           parseInt(process.env.VPN_POLL_MS       || '10000', 10),
-  pollFirewall:      parseInt(process.env.FIREWALL_POLL_MS  || '10000', 10),
+  pollFirewall:      parseInt(process.env.FIREWALL_POLL_MS  || '1000',  10),
   pollIfstatus:      parseInt(process.env.IFSTATUS_POLL_MS  || '5000',  10),
-  pollPing:          parseInt(process.env.PING_POLL_MS      || '10000', 10),
+  pollPing:          parseInt(process.env.PING_POLL_MS      || '5000',  10),
   pollArp:           parseInt(process.env.ARP_POLL_MS       || '30000', 10),
-  pollDhcp:          parseInt(process.env.DHCP_POLL_MS      || '300000', 10),
+  pollDhcp:          parseInt(process.env.DHCP_POLL_MS      || '600000', 10),
 
   // Limits
   topN:              parseInt(process.env.TOP_N             || '10',    10),
@@ -90,6 +90,10 @@ const DEFAULTS = {
   firewallTopN:      parseInt(process.env.FIREWALL_TOP_N    || '15',    10),
   maxConns:          parseInt(process.env.MAX_CONNS         || '20000', 10),
   historyMinutes:    parseInt(process.env.HISTORY_MINUTES   || '30',    10),
+
+  // Alert thresholds
+  alertCpuThreshold: parseInt(process.env.ALERT_CPU_THRESHOLD || '90',  10), // % — trigger CPU spike notification
+  alertPingLoss:     parseInt(process.env.ALERT_PING_LOSS     || '100', 10), // % — trigger ping loss notification
 
   // Active router (managed by routers.js / router switcher)
   activeRouterId:  '',

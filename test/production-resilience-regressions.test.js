@@ -137,6 +137,7 @@ test('connections collector emits processed count and processingCapped when trun
     on() {},
   };
   const io = {
+    engine: { clientsCount: 1 },
     emit(event, payload) {
       emitted.push({ event, payload });
     },

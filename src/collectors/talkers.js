@@ -17,10 +17,14 @@ class TopTalkersCollector {
     this._unavailable  = false; // set true when Kid Control is not licensed/configured
     this._backoffUntil = 0;     // epoch ms — don't poll before this time
     this._backoffMs    = 60000; // start at 1 min, doubles each miss up to 10 min
+    this._lastFp       = '';
   }
 
-  async tick() {
+  async tick(force = false) {
     if (!this.ros.connected) return;
+    // Skip when no browser clients are connected — avoids polling RouterOS
+    // (and potentially Kid Control) while the dashboard is unattended.
+    if (!force && this.io.engine.clientsCount === 0) return;
     const now = Date.now();
 
     // Use a short per-command timeout — Kid Control may not be configured on
@@ -83,10 +87,18 @@ class TopTalkersCollector {
     devices.sort((a, b) => (b.rx_mbps + b.tx_mbps) - (a.rx_mbps + a.tx_mbps));
     devices = devices.slice(0, this.topN);
 
+    const fp = JSON.stringify(devices.map(d => ({ mac: d.mac, tx: d.tx_mbps, rx: d.rx_mbps })));
     this.lastPayload = { ts: now, devices, pollMs: this.pollMs };
-    this.io.emit('talkers:update', this.lastPayload);
+    if (fp !== this._lastFp) {
+      this._lastFp = fp;
+      this.io.emit('talkers:update', this.lastPayload);
+    }
     this.state.lastTalkersTs = now;
     this.state.lastTalkersErr = null;
+  }
+
+  stop() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 
   start() {
@@ -100,8 +112,8 @@ class TopTalkersCollector {
     };
     run();
     this.timer = setInterval(run, this.pollMs);
-    this.ros.on('close', () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
-    this.ros.on('connected', () => { this._backoffUntil = 0; this._backoffMs = 60000; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    this.ros.on('close', () => this.stop());
+    this.ros.on('connected', () => { this._backoffUntil = 0; this._backoffMs = 60000; this._lastFp = ''; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
   }
 }
 
