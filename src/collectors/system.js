@@ -158,8 +158,12 @@ class SystemCollector {
     };
     run();
     this.timer = setInterval(run, this.pollMs);
-    this.ros.on('close',     () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
+    this.ros.on('close',     () => this.stop());
     this.ros.on('connected', () => { this._lastFp = ''; this._lastUpdateFetch = 0; this._lastUpdateRow = {}; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+  }
+
+  stop() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 }
 

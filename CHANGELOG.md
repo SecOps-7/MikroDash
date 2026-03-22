@@ -2,6 +2,177 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.15] — DHCP summary cards, Wireless summary cards, Connections improvements & bug fixes
+
+### Added
+
+- **DHCP page — Subnets card** — new card above the leases table showing each DHCP network with its gateway, DNS server, lease utilisation count, pool size, percentage used, and a colour-coded progress bar (green → amber at 70% → red at 90%). Pool size is fetched directly from `/ip/pool/print` by matching each pool's IP range to the network CIDR.
+- **DHCP page — IP Utilisation gauge** — semi-circle SVG gauge showing overall pool utilisation across all subnets. Pool size comes from the collector; lease count is driven live from the `leases:list` stream so the gauge updates in real time without waiting for the 5-minute DHCP poll cycle. Colour shifts amber at 70% and red at 90%.
+- **Wireless page — Signal Health card** — horizontal bar chart showing client count per signal tier: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75). Bars scale proportionally to total client count with colour-coded tiers.
+- **Wireless page — Band Split card** — client count per radio band (2.4 GHz / 5 GHz / 6 GHz) shown as large numbers beside colour-coded band pills. 6 GHz row hides when no 6 GHz clients are present. Replaces the band badges that were previously in the table header.
+- **Connections page — Map fullscreen on desktop** — the fullscreen button is now always visible (previously hidden on screens wider than 767 px). Button moved inside the map area to the bottom-right control panel, stacked below the zoom buttons (order: RST → + → − → fullscreen).
+- **Connections page — Sankey renders at correct width on navigation** — added a `mikrodash:pagechange` listener to the Sankey IIFE so it re-renders when the connections page becomes visible, fixing the narrow-then-expand flash on first load.
+
+### Changed
+
+- **Wireless page — Band column removed from client table** — band information moved to the new Band Split summary card. Table is now 5 columns (was 6).
+- **Wireless page — Clients load immediately on startup** — `WirelessCollector.start()` now runs its first tick with `force=true`, bypassing the idle-gate so `lastPayload` is populated before the first browser client connects. Scheduled interval ticks still respect the idle-gate.
+- **DHCP page — Lease count includes all statuses** — `DhcpLeasesCollector` now exposes `getAllLeaseIPs()` returning every known lease regardless of status (bound, waiting, expired). The networks collector uses this for subnet lease counts; the gauge uses `allLeases.length` from the live stream.
+- **DHCP page — Pool size matched directly from IP ranges** — the DHCP server→interface→pool chain is replaced by directly matching each pool's first IP to the network CIDR, which is reliable across all bridge/VLAN configurations.
+- **DHCP summary card heights** — both cards match the routing page summary card height (`min-height: 165px`).
+- **Connections page — Country filter persists across poll ticks** — when a country is selected, `conn:update` ticks now re-apply the country filter to the port list and Sankey rather than overwriting them with unfiltered data.
+- **Connections page — Sankey filter flag fixed** — deselecting a country no longer permanently freezes the Sankey. `_connSankeyClearFilter` now renders the unfiltered view directly without routing through `_connSankeyRender` (which was flipping `_filteredByCC` back to `true`).
+- **Connections page — Map buttons work on desktop and mobile** — `mousedown` and `touchstart` handlers on the map wrap now check `e.target.closest('button')` before calling `preventDefault`, so zoom/reset/fullscreen button clicks are no longer swallowed by the pan handler.
+- **`sendInitialState` sends full `lan:overview` payload** — previously constructed by hand without `totalPoolSize`, causing the gauge to receive `0` on connect. Now sends `dhcpNetworks.lastPayload` directly.
+
+### Fixed
+
+- **`[bandwidth] no such item (4)` log noise** — this transient RouterOS error occurs when a connection table entry disappears between query and response. It is now suppressed (matching existing behaviour in `connections.js`) and no longer appears in Docker logs.
+- **DHCP subnets card — Leases column overflow on mobile** — `white-space:nowrap` removed from the leases span; `table-layout:fixed` and `overflow:hidden` added to cells so content is clipped to the card boundary.
+- **IP Utilisation gauge sub-label removed** — the "— / — addresses" footer text beneath the gauge has been removed.
+
+
+## [0.5.15] — Firewall improvements, Wireless summary cards, DHCP summary cards & map fixes
+
+### Added
+
+- **Firewall page — summary row** — three new cards above the rules table: Rule Counts (Filter / NAT / Mangle totals with disabled count), Action Breakdown (proportional bars per action type with colour coding), and Total Hits (cumulative packet count, total bytes, and a live sparkline of activity).
+- **Firewall page — search bar** — client-side filter across chain, action, src/dst address, comment, protocol, and port. Persists across tab switches.
+- **Firewall page — Bytes column** — formatted byte totals added to the right of the Packets column in all tabs.
+- **Firewall page — in-place counter updates with flash animation** — packet and byte cells update in-place on each poll cycle with a colour flash, making active rules clearly visible without re-rendering the entire table.
+- **Firewall page — delta pulse indicator** — a small animated dot appears beside the packet count on rules that matched traffic in the most recent poll cycle.
+- **Firewall page — live counter polling** — RouterOS 7.x does not push firewall packet/byte counter updates through the `/listen` stream (stream-only handles structural changes). A dedicated counter poll now re-fetches counts on `pollFirewall` interval, filling the gap. The stream still handles rule additions, deletions, and edits in real time.
+- **Firewall Counters setting** — `pollFirewall` is now an adjustable slider (5 s – 60 s, default 10 s) in the Poll Intervals settings card. Previously hidden as a "streamed" setting. Changes apply immediately without a restart.
+- **Wireless page — Signal Health card** — horizontal bars showing client count per tier: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75).
+- **Wireless page — Band Split card** — 2.4 / 5 / 6 GHz client counts as large numbers with colour-coded band pills. 6 GHz row auto-hides.
+- **DHCP page — Subnets card** — per-network table with gateway, DNS, lease count, pool size, utilisation %, and colour-coded progress bar.
+- **DHCP page — IP Utilisation gauge** — semi-circle SVG gauge driven live from the `leases:list` stream.
+- **Connections page — map fullscreen on desktop** — fullscreen button always visible, moved inside the map control panel (order: RST → + → − → fullscreen).
+- **Connections page — country filter** — clicking a country in Top Countries filters the Port Breakdown and Connection Flow to that country. Click again to clear.
+
+### Changed
+
+- **Wireless page — Band column removed** from client table; band information moved to the Band Split summary card.
+- **Wireless clients load immediately on startup** — `WirelessCollector.start()` runs its first tick with `force=true`, bypassing the idle-gate so data is ready before the first browser client connects.
+- **DHCP page — card heights** match the routing page summary row (`min-height: 165px`).
+- **DHCP summary row** — gauge card narrowed to `3fr` (from `1fr`), subnets card expanded to `10fr`.
+- **`sendInitialState` sends full `lan:overview` payload** including `totalPoolSize` — previously the hand-built payload omitted it, causing the gauge to show `—` on connect.
+- **Connections page — Sankey renders at correct width** on navigation via `mikrodash:pagechange` listener.
+- **Connections page — map buttons work on desktop and mobile** — `mousedown` and `touchstart` handlers now skip `preventDefault` when the target is a `<button>`, so zoom/reset/fullscreen clicks are no longer swallowed by the pan handler.
+
+### Fixed
+
+- **Firewall rule metadata wiped on counter update** — `_applyUpdate` was calling `_processRule` on partial stream delta rows (which only contain `.id`, `packets`, `bytes`), replacing the stored rule's `chain`/`action`/`comment` with empty strings. Now merges deltas into the existing rule object.
+- **Mangle rules excluded from dirty-check fp** — mangle packet/byte changes never triggered a `firewall:update` emit. All three tables now included in the fp.
+- **`[bandwidth] no such item (4)` log noise** — transient RouterOS error suppressed (matching existing `connections.js` behaviour).
+- **DHCP subnets card — Leases column overflow on mobile** — `white-space:nowrap` removed; `table-layout:fixed` and `overflow:hidden` added.
+- **IP Utilisation gauge sub-label removed** from the card.
+
+
+## [0.5.15] — Firewall enhancements, Wireless & DHCP summary cards, map fixes
+
+### Added
+
+- **Firewall page — Rule Counts card** — Filter / NAT / Mangle totals with disabled-rule count shown in muted text.
+- **Firewall page — Action Breakdown card** — proportional bars per action type (accept, drop, reject, masquerade, dst-nat, log, etc.) with colour-coded labels.
+- **Firewall page — Total Hits card** — cumulative packet count, total bytes, and a live sparkline tracking activity per update cycle.
+- **Firewall page — Search bar** — client-side filter across chain, action, src/dst address, comment, protocol, and port. Persists across tab switches.
+- **Firewall page — Bytes column** — formatted byte totals added alongside Packets in all tabs.
+- **Firewall page — In-place counter updates with flash animation** — packet and byte cells update in-place on each poll cycle with a brief colour flash, making active rules clearly visible without re-rendering the entire table.
+- **Firewall page — Delta pulse indicator** — animated dot beside the packet count on rules that matched traffic in the most recent poll cycle.
+- **Firewall page — live counter polling** — RouterOS 7.x does not push firewall counter updates through `/listen`. A dedicated counter poll re-fetches counts on the Firewall interval setting and merges them in. The `/listen` stream still handles structural changes (rule adds/removes/edits) in real time.
+- **Firewall poll interval setting** — "Firewall" slider added to Settings → Poll Intervals (1 s – 60 s, default 10 s), positioned above Ping. Changes apply immediately without a restart.
+- **Wireless page — Signal Health card** — horizontal bars: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75).
+- **Wireless page — Band Split card** — 2.4 / 5 / 6 GHz client counts with colour-coded band pills. 6 GHz row auto-hides.
+- **DHCP page — Subnets card** — per-network table with gateway, DNS, lease count, pool size, utilisation %, and colour-coded progress bar.
+- **DHCP page — IP Utilisation gauge** — semi-circle SVG gauge driven live from the `leases:list` stream.
+- **Connections page — Map fullscreen on desktop** — fullscreen button always visible, moved inside the map control panel (RST → + → − → fullscreen).
+- **Connections page — Sankey correct-width on navigation** — re-renders on `mikrodash:pagechange` so the narrow-then-expand flash no longer occurs.
+
+### Changed
+
+- **Wireless page — Band column removed** from client table; moved to Band Split card.
+- **Wireless clients load immediately on startup** — first tick runs with `force=true`, bypassing the idle-gate.
+- **DHCP summary card heights** — `min-height: 165px` matching the Routing page.
+- **DHCP summary row proportions** — gauge card `3fr`, subnets card `10fr`.
+- **Connections page — map buttons work on desktop and mobile** — `mousedown` / `touchstart` handlers skip `preventDefault` for button targets, fixing zoom/reset/fullscreen clicks being swallowed by the pan handler.
+
+### Fixed
+
+- **Firewall rule metadata wiped on counter update** — `_applyUpdate` now merges stream deltas into existing rules rather than replacing them, preserving chain/action/comment on every counter tick.
+- **Mangle rules excluded from dirty-check fp** — mangle counter changes now trigger `firewall:update` emit.
+- **`[bandwidth] no such item (4)` log noise** — transient RouterOS error suppressed.
+- **DHCP Leases column overflow on mobile** — `white-space:nowrap` removed; `table-layout:fixed` added.
+- **IP Utilisation gauge sub-label removed**.
+
+
+## [0.5.14] — Optimisations, alert thresholds & bug fixes
+
+### Added
+
+- **Persistent alert thresholds** — CPU spike and ping loss notification thresholds are now configurable in Settings rather than hardcoded. Two sliders in a new "Alert Thresholds" card let you set the CPU % (default 90) and ping loss % (default 100) that trigger browser notifications. Values are stored in `settings.json` and broadcast to all connected clients via `settings:pages` so thresholds take effect immediately without a page refresh.
+- **Timestamped Docker log output** — all console output is now prefixed with a local-time timestamp in the format `[2026-03-20 09:39:34]`, making `docker logs mikrodash` immediately readable without needing `docker logs --timestamps`.
+
+### Changed
+
+- **Idle-gating extended to four more collectors** — `ConnectionsCollector`, `BandwidthCollector`, `TopTalkersCollector`, and `WirelessCollector` now skip their `tick()` entirely when no browser clients are connected, matching the existing behaviour of `TrafficCollector`. On a quiet network with no dashboard open, RouterOS API traffic drops to near zero.
+- **`connTableCache` TTL raised from 40% to 90% of the faster poll interval** — the shared firewall connection table cache used by both `ConnectionsCollector` and `BandwidthCollector` now stays valid for almost a full poll cycle of the faster collector, halving redundant RouterOS API calls when both collectors run at similar intervals.
+- **Ping count reduced from 3 to 2** — each `/tool/ping` tick now sends 2 ICMP packets instead of 3, saving ~200ms of RouterOS API hold time per 10-second poll cycle with no meaningful loss of RTT accuracy.
+- **Dirty-check fingerprinting added to five collectors** — `ConnectionsCollector`, `BandwidthCollector`, `TopTalkersCollector`, `DhcpNetworksCollector`, and `PingCollector` now suppress socket emits when their computed payload is identical to the previous tick. On stable networks this eliminates most redundant browser re-renders.
+- **`stop()` method added to all collectors** — all 15 collectors now have a public `stop()` method. `teardownSession()` and `shutdown()` in `index.js` now call `c.stop()` uniformly rather than reaching into each collector's internal timer or stream fields.
+- **`PingCollector` history uses `RingBuffer`** — the ping history ring buffer is now the same `RingBuffer` class used by `TrafficCollector`, replacing the plain array with manual `shift()`.
+- **Unused `ArpCollector` import removed** from `test/collector-lifecycle.test.js`.
+
+### Fixed
+
+- **Ping target label not updating after router settings change** — editing the Ping Target in the Router card and saving now immediately broadcasts a `ping:update` to all connected clients so the dashboard label updates at once. Previously the label only changed after the next scheduled poll cycle (up to 10 seconds later). The fix is in the `PUT /api/routers/:id` handler, which is the correct save path for router-level settings including `pingTarget`.
+
+
+## [0.5.13] — Wireless single-device display fix
+
+### Fixed
+
+- **Wireless page showing only one device on startup** — the 500ms name-resolution retry introduced in v0.5.12 was calling `tick()` again, which made a second RouterOS API call to the registration table. Some RouterOS firmware builds return partial results (1 of N clients) when the wifi registration table is queried within the first few seconds after boot — the same firmware sensitivity that caused the original `=.proplist=` single-client bug. The retry now re-resolves names from the already-fetched raw client rows stored in the closure rather than making any RouterOS API call, then re-emits only if names changed. If DHCP still hasn't loaded after 500ms the retry reschedules itself until all names are resolved.
+
+
+## [0.5.12] — Wireless device names fix
+
+### Fixed
+
+- **Wireless page showing MAC addresses instead of device names** — `WirelessCollector.resolveName()` was caching empty strings when DHCP leases had not yet loaded on startup. Since `wireless.start()` fires before `dhcpLeases.start()` completes, the first tick resolved every MAC to `''` and stored it in `_nameCache`. All subsequent ticks hit the cache and never retried the DHCP lookup, so names were permanently blank. Fixed by only caching non-empty results: `if (name) this._nameCache.set(mac, name)`. Additionally, `name` is now included in the dirty-check fingerprint so the first tick that gains a resolved name triggers a socket emit to the browser even when MAC, signal, iface and band are unchanged.
+
+
+## [0.5.11] — Bandwidth page flash fix
+
+### Fixed
+
+- **Bandwidth page alternating zeros/real-data flash** — `BandwidthCollector` and `ConnectionsCollector` had a double-start bug introduced in v0.5.10. Moving `ros.on('connected')` listeners to the constructor meant the handler fired on the initial connect and called `stop()` + `start()` — while `startCollectors()` in `index.js` *also* called `start()` explicitly on that same event. Two concurrent `setInterval` loops were created, interleaving ticks at roughly half the configured poll interval. The first tick of each pair always had a sparse `_prev` baseline (near-zero byte deltas → near-zero rates); the second had a full interval's worth of data. This produced the visible flash. Fixed by adding a `_started` flag to both collectors: the `connected` handler now only restarts the poll loop after a genuine reconnect (when `_started` is already true), leaving the initial start entirely to `startCollectors()`.
+
+
+## [0.5.10] — Housekeeping & Test Suite Repair
+
+### Fixed
+
+- **`ConnectionsCollector` missing `stop()` method** — added canonical `stop()` that clears the poll timer. `ros.on('close')` and `ros.on('connected')` listeners are now registered once in the constructor rather than on every `start()` call, eliminating the risk of listener accumulation across reconnect cycles.
+- **`BandwidthCollector` missing `stop()` method** — same fix as above. Cache maps (`_prev`, `_geoCache`, `_orgCache`, `_ifaceCache`) are still cleared on reconnect from the constructor listener.
+- **`setInterval`-before-`run()` ordering in `ConnectionsCollector` and `BandwidthCollector`** — the poll timer is now set before the first `run()` call so the `close` event handler can always find and clear it, even if `run()` resolves synchronously in tests.
+- **`BandwidthCollector` not writing to shared state** — `state.lastBandwidthTs` and `state.lastBandwidthErr` are now updated on every tick, consistent with all other collectors. `_freshState()` in `index.js` initialises both fields.
+- **58 pre-existing test failures in `collector-data-transforms.test.js`** — all resolved:
+  - Traffic tests: added missing `io.engine.clientsCount` to stubs.
+  - Connections test: added `orgs: []` to `topCountries` deep-equal expected values (field was added in v0.5.8 but test was never updated).
+  - Firewall, VPN, InterfaceStatus, ARP tests: these collectors were converted to streaming in prior sessions; tests were still calling the removed `tick()` method. Rewritten to call `_loadInitial()` (the correct entry point) with a minimal `stream` stub.
+  - ARP tests: `getByIP`/`getByMAC` return `null` for missing entries; assertions corrected from `undefined` to `null`.
+  - Wireless band test: band detection was refactored to read the RouterOS `band` field directly; test updated to supply that field in the ROS row stub.
+  - Routing tests: `RoutingCollector` was used in 45 tests but never imported at the top of the routing section.
+- **4 pre-existing test failures in `collector-lifecycle.test.js`** — all resolved:
+  - Tests using `ArpCollector` as a "generic polling collector" subject: `ArpCollector` was converted to streaming in a prior session and no longer has `tick()` or a poll timer. Replaced with `DhcpNetworksCollector` (still polling) with a minimal `dhcpLeases` stub.
+  - Inflight-reset test: rewrote to assert the correct contract (all collectors catch errors in `tick()` internally; `_inflight` must still reset after a failed tick).
+- **1 pre-existing test failure in `smoke-fixes.test.js`** — `ROS emitter tolerates error events without a custom listener` was calling `ros.emit('error', ...)` directly, which is the standard Node.js `EventEmitter` throw path. Fixed to call `ros._emitConnectionError()` — the guarded method that only forwards to `error` when a listener exists.
+
+### Added
+
+- **14 new lifecycle tests** for `ConnectionsCollector` and `BandwidthCollector` (added in the same session as the production fixes): `stop()` existence and idempotency, close-event teardown, connected-event restart, listener non-accumulation across reconnects, inflight guard, and state timestamp/error tracking.
+
 ## [0.5.9] — Multi-Router Support
 
 ### Added

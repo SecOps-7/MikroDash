@@ -290,6 +290,37 @@
     .fw-tab{font-family:var(--font-mono);font-size:.7rem;padding:.3rem .65rem;border-radius:5px 5px 0 0;cursor:pointer;color:var(--text-muted);border:1px solid transparent;border-bottom:none;transition:all .15s}
     .fw-tab.active{background:rgba(56,189,248,.09);border-color:rgba(56,189,248,.18);color:var(--accent-rx)}
     .fw-tab:hover:not(.active){background:rgba(99,130,190,.07)}
+    /* Firewall summary row */
+    .fw-summary-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:.85rem}
+    @media(max-width:700px){.fw-summary-row{grid-template-columns:1fr}}
+    .fw-scard{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
+    .fw-scard-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.6rem;font-family:var(--font-ui)}
+    /* Rule counts — BGP-style large centred numbers */
+    .fw-rc-num{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
+    .fw-rc-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
+    .fw-rc-dis{font-size:.62rem;font-family:var(--font-mono);color:rgba(248,113,113,.8);min-height:.85rem;line-height:1}
+    .fw-rc-divider{width:1px;height:2.5rem;background:var(--border)}
+    /* Action breakdown */
+    .fw-action-list{display:flex;flex-direction:column;gap:.28rem}
+    .fw-action-row{display:flex;align-items:center;gap:.45rem}
+    .fw-action-name{font-size:.68rem;font-family:var(--font-mono);min-width:5.5rem;flex-shrink:0}
+    .fw-action-bar-wrap{flex:1;height:6px;background:rgba(99,130,190,.1);border-radius:3px;overflow:hidden}
+    .fw-action-bar{height:100%;border-radius:3px;background:var(--accent-rx);transition:width .4s ease}
+    .fw-action-count{font-size:.65rem;font-family:var(--font-mono);color:var(--text-muted);min-width:1.8rem;text-align:right}
+    /* Activity sparkline */
+    .fw-activity-wrap{display:flex;flex-direction:column;gap:.4rem}
+    .fw-activity-total{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
+    .fw-activity-sub{font-size:.65rem;color:var(--text-muted);font-family:var(--font-ui);margin-top:.1rem}
+    .fw-spark-wrap{margin-top:.3rem}
+    /* Delta pulse on active rows */
+    .fw-delta-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent-rx);margin-right:.35rem;vertical-align:middle;animation:fw-pulse 1s ease-out forwards}
+    @keyframes fw-pulse{0%{opacity:1;transform:scale(1.4)}100%{opacity:.3;transform:scale(1)}}
+    .fw-cell-flash{animation:fw-flash .6s ease-out}
+    @keyframes fw-flash{0%{color:var(--accent-rx)}100%{color:inherit}}
+    /* Search */
+    .fw-search-wrap{padding:.45rem .75rem;border-bottom:1px solid var(--border)}
+    #fwSearch{width:100%;max-width:280px;background:rgba(13,18,30,.9);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:.72rem;padding:.28rem .6rem;font-family:var(--font-mono)}
+    html[data-theme="light"] #fwSearch{background:rgba(255,255,255,.9)}
     /* scroll */
     .data-scroll{scrollbar-width:thin;scrollbar-color:rgba(99,130,190,.2) transparent}
     .data-scroll::-webkit-scrollbar{width:4px}
@@ -502,13 +533,12 @@
       #page-wireless .card-body.p-0{ overflow-x:auto;-webkit-overflow-scrolling:touch }
       #page-wireless .table-responsive,
       #page-wireless .data-scroll{ overflow:visible }
-      #page-wireless table{ min-width:520px;table-layout:fixed;width:520px }
-      #page-wireless colgroup col:nth-child(1){ width:160px }
-      #page-wireless colgroup col:nth-child(2){ width:60px }
-      #page-wireless colgroup col:nth-child(3){ width:80px }
-      #page-wireless colgroup col:nth-child(4){ width:110px }
-      #page-wireless colgroup col:nth-child(5){ width:60px }
-      #page-wireless colgroup col:nth-child(6){ width:70px }
+      #page-wireless table{ min-width:460px;table-layout:fixed;width:460px }
+      #page-wireless colgroup col:nth-child(1){ width:170px }
+      #page-wireless colgroup col:nth-child(2){ width:80px }
+      #page-wireless colgroup col:nth-child(3){ width:110px }
+      #page-wireless colgroup col:nth-child(4){ width:70px }
+      #page-wireless colgroup col:nth-child(5){ width:70px }
     }
     /* Connections map fullscreen overlay */
     #mapFsOverlay{display:none;position:fixed;inset:0;z-index:9999;background:var(--bg-deep);flex-direction:column}
@@ -540,6 +570,23 @@
     .wl-sort-btn{background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:.63rem;padding:2px 7px;cursor:pointer;transition:background .15s,color .15s}
     .wl-sort-btn:hover{background:rgba(56,189,248,.12);color:var(--accent-rx)}
     .wl-sort-btn.active{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.35);color:var(--accent-rx)}
+    /* Wireless summary row */
+    .wl-summary-row{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem}
+    @media(max-width:600px){.wl-summary-row{grid-template-columns:1fr}}
+    .wl-summary-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
+    .wl-summary-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.65rem;font-family:var(--font-ui)}
+    /* Signal health bars */
+    .wl-sig-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem}
+    .wl-sig-row:last-child{margin-bottom:0}
+    .wl-sig-tier{font-size:.7rem;width:4.5rem;flex-shrink:0;font-family:var(--font-ui)}
+    .wl-sig-bar-wrap{flex:1;height:8px;background:rgba(99,130,190,.1);border-radius:4px;overflow:hidden}
+    .wl-sig-bar{height:100%;border-radius:4px;transition:width .5s ease}
+    .wl-sig-count{font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);min-width:1.5rem;text-align:right}
+    /* Band split */
+    .wl-band-grid{display:flex;flex-direction:column;gap:.5rem;justify-content:center;height:100%}
+    .wl-band-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+    .wl-band-pill{font-family:var(--font-mono);font-size:.65rem;border-radius:10px;padding:2px 9px;white-space:nowrap}
+    .wl-band-num{font-size:1.35rem;font-weight:700;font-family:var(--font-mono);line-height:1}
     .wl-group-row td{background:rgba(56,189,248,.04);border-top:1px solid rgba(56,189,248,.15)!important;padding:.3rem .75rem!important}
     .wl-group-label{font-family:var(--font-mono);font-size:.68rem;font-weight:700;color:var(--accent-rx);letter-spacing:.03em}
     .wl-group-sub{font-size:.62rem;color:var(--text-muted);margin-left:.5rem}
@@ -605,6 +652,24 @@
     /* ── Routing page ──────────────────────────────────────────────────────── */
     .rt-summary-row{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem}
     @media(max-width:600px){.rt-summary-row{grid-template-columns:1fr}}
+    /* DHCP summary row */
+    .dhcp-summary-row{display:grid;grid-template-columns:10fr 3fr;gap:.75rem;margin-bottom:.85rem;min-height:165px}
+    @media(max-width:500px){.dhcp-summary-row{grid-template-columns:1fr;min-height:auto}}
+    .dhcp-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0;overflow:hidden}
+    .dhcp-card-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.65rem;font-family:var(--font-ui)}
+    /* Subnet table */
+    .dhcp-subnet-table{width:100%;border-collapse:collapse;table-layout:fixed}
+    .dhcp-subnet-table th{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding:.2rem .5rem .35rem;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden}
+    .dhcp-subnet-table td{font-size:.75rem;padding:.3rem .5rem;border-bottom:1px solid rgba(99,130,190,.07);font-family:var(--font-mono);color:var(--text-main);vertical-align:middle;overflow:hidden;min-width:0}
+    .dhcp-subnet-table tr:last-child td{border-bottom:none}
+    .dhcp-subnet-table .td-label{font-family:var(--font-ui);font-size:.72rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .dhcp-util-bar{height:4px;border-radius:2px;background:rgba(99,130,190,.15);overflow:hidden;margin-top:3px}
+    .dhcp-util-fill{height:100%;border-radius:2px;transition:width .6s ease}
+    /* Gauge */
+    .dhcp-gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:.4rem 0 .6rem}
+    .dhcp-gauge-svg{overflow:visible;width:100%;max-width:200px}
+    .dhcp-gauge-pct{font-size:1.9rem;font-weight:700;font-family:var(--font-mono);fill:var(--text-main);text-anchor:middle;dominant-baseline:middle}
+    .dhcp-gauge-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;fill:var(--text-muted);text-anchor:middle}
     .rt-proto-card,.rt-bgp-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem}
     /* proto card: donut left, grid right */
     .rt-proto-inner{display:flex;gap:.9rem;align-items:center}
@@ -1006,19 +1071,17 @@
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <h3 class="card-title">Destination Countries</h3>
-          <div class="d-flex align-items-center gap-2">
-            <span style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)" id="connMapSub">Top connection destinations</span>
-            <button id="mapFullscreenBtn" title="Fullscreen map" style="display:none;align-items:center;justify-content:center;background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);width:26px;height:26px;cursor:pointer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
-          </div>
+          <span style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)" id="connMapSub">Top connection destinations</span>
         </div>
         <div class="card-body" style="padding:.5rem">
           <div id="worldMapWrap" style="width:100%;position:relative;overflow:hidden;border-radius:6px;background:rgba(56,189,248,.03);cursor:grab;user-select:none">
             <svg id="worldMap" viewBox="0 0 1000 500" style="width:100%;display:block;touch-action:none"></svg>
             <div class="map-tooltip" id="mapTooltip"></div>
-            <div style="position:absolute;bottom:.5rem;right:.5rem;display:flex;flex-direction:column;gap:3px">
-              <button id="mapZoomIn"  style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">+</button>
-              <button id="mapZoomOut" style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">−</button>
-              <button id="mapZoomReset" style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:.55rem;cursor:pointer;line-height:1">RST</button>
+            <div style="position:absolute;bottom:.5rem;right:.5rem;display:flex;flex-direction:column;gap:3px;z-index:2">
+              <button id="mapZoomReset" title="Reset zoom" style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:.55rem;cursor:pointer;line-height:1">RST</button>
+              <button id="mapZoomIn"    style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">+</button>
+              <button id="mapZoomOut"   style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">−</button>
+              <button id="mapFullscreenBtn" title="Fullscreen map" style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
             </div>
           </div>
         </div>
@@ -1061,15 +1124,42 @@
   <!-- WIRELESS -->
   <div class="page-view" id="page-wireless">
     <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+
+      <!-- Summary row: Signal Health (2/3) + Band Split (1/3) -->
+      <div class="wl-summary-row">
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Signal Health</div>
+          <div id="wlSigHealth">
+            <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(52,211,153,.9)">Excellent</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="wlSigBarE" style="width:0%;background:rgba(52,211,153,.7)"></div></div><span class="wl-sig-count" id="wlSigCntE">0</span></div>
+            <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(56,189,248,.9)">Good</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="wlSigBarG" style="width:0%;background:rgba(56,189,248,.7)"></div></div><span class="wl-sig-count" id="wlSigCntG">0</span></div>
+            <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(251,191,36,.9)">Fair</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="wlSigBarF" style="width:0%;background:rgba(251,191,36,.7)"></div></div><span class="wl-sig-count" id="wlSigCntF">0</span></div>
+            <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(248,113,113,.9)">Poor</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="wlSigBarP" style="width:0%;background:rgba(248,113,113,.7)"></div></div><span class="wl-sig-count" id="wlSigCntP">0</span></div>
+          </div>
+        </div>
+        <div class="wl-summary-card" style="display:flex;flex-direction:column;justify-content:center">
+          <div class="wl-summary-title">Band Split</div>
+          <div class="wl-band-grid" id="wlBandGrid">
+            <div class="wl-band-item">
+              <span class="wl-band-pill wl-band-24">2.4 GHz</span>
+              <span class="wl-band-num" id="wlBandNum24" style="color:rgba(167,139,250,.9)">0</span>
+            </div>
+            <div class="wl-band-item">
+              <span class="wl-band-pill wl-band-5">5 GHz</span>
+              <span class="wl-band-num" id="wlBandNum5" style="color:var(--accent-rx)">0</span>
+            </div>
+            <div class="wl-band-item" id="wlBandRow6" style="display:none">
+              <span class="wl-band-pill wl-band-6">6 GHz</span>
+              <span class="wl-band-num" id="wlBandNum6" style="color:rgba(52,211,153,.9)">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="card" id="wirelessCard">
         <div class="stale-overlay">&#9679; stale</div>
         <div class="card-header d-flex align-items-center flex-wrap gap-2">
           <h3 class="card-title mb-0">Wireless Clients</h3>
           <span id="wirelessTabBadge" class="card-badge">0</span>
-          <span style="width:1px;height:16px;background:var(--border);flex-shrink:0"></span>
-          <span id="wlBand24" style="font-family:var(--font-mono);font-size:.65rem;background:rgba(52,211,153,.15);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:1px 8px;white-space:nowrap">2.4GHz: 0</span>
-          <span id="wlBand5" style="font-family:var(--font-mono);font-size:.65rem;background:rgba(56,189,248,.15);color:rgba(56,189,248,.9);border:1px solid rgba(56,189,248,.25);border-radius:10px;padding:1px 8px;white-space:nowrap">5GHz: 0</span>
-          <span id="wlBand6" style="font-family:var(--font-mono);font-size:.65rem;background:rgba(192,132,252,.15);color:rgba(192,132,252,.9);border:1px solid rgba(192,132,252,.25);border-radius:10px;padding:1px 8px;display:none;white-space:nowrap">6GHz: 0</span>
           <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
             <span style="font-size:.7rem;color:var(--text-muted)">Sort:</span>
             <div class="d-flex gap-1" id="wifiSortBtns">
@@ -1081,10 +1171,10 @@
           </div>
         </div>
         <div class="card-body p-0" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-          <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:520px">
-            <colgroup><col style="width:160px"><col style="width:60px"><col style="width:80px"><col style="width:110px"><col style="width:60px"><col style="width:70px"></colgroup>
-            <thead><tr><th>Device</th><th class="wl-col-band">Band</th><th class="wl-col-iface">Interface</th><th class="text-end">Signal</th><th>TX / RX</th><th class="wl-col-uptime">Uptime</th></tr></thead>
-            <tbody id="wirelessTable"><tr><td colspan="6" class="empty-state">No wireless clients</td></tr></tbody>
+          <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:460px">
+            <colgroup><col style="width:170px"><col style="width:80px"><col style="width:110px"><col style="width:70px"><col style="width:70px"></colgroup>
+            <thead><tr><th>Device</th><th class="wl-col-iface">Interface</th><th class="text-end">Signal</th><th>TX / RX</th><th class="wl-col-uptime">Uptime</th></tr></thead>
+            <tbody id="wirelessTable"><tr><td colspan="5" class="empty-state">No wireless clients</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1094,6 +1184,35 @@
   <!-- DHCP -->
   <div class="page-view" id="page-dhcp">
     <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+
+      <!-- Top summary row: Subnets (2/3) + IP Utilisation gauge (1/3) -->
+      <div class="dhcp-summary-row">
+
+        <!-- Subnets card -->
+        <div class="dhcp-card">
+          <div class="dhcp-card-title">Subnets</div>
+          <div id="dhcpSubnetTable"><div class="empty-state" style="font-size:.75rem;padding:.5rem 0">Waiting for network data…</div></div>
+        </div>
+
+        <!-- IP Utilisation gauge card -->
+        <div class="dhcp-card" style="display:flex;flex-direction:column">
+          <div class="dhcp-card-title">IP Utilisation</div>
+          <div class="dhcp-gauge-wrap">
+            <svg class="dhcp-gauge-svg" id="dhcpGaugeSvg" viewBox="0 0 200 130">
+              <!-- Track arc -->
+              <path id="dhcpGaugeTrack" d="" fill="none" stroke="rgba(99,130,190,.12)" stroke-width="16" stroke-linecap="round"/>
+              <!-- Fill arc -->
+              <path id="dhcpGaugeFill"  d="" fill="none" stroke="#38bdf8"             stroke-width="16" stroke-linecap="round"/>
+              <!-- Percentage -->
+              <text id="dhcpGaugePct"   class="dhcp-gauge-pct"   x="100" y="96">—</text>
+              <!-- "used" label -->
+              <text id="dhcpGaugeLbl"   class="dhcp-gauge-label" x="100" y="116">used</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leases table -->
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
@@ -1128,6 +1247,59 @@
   <!-- FIREWALL -->
   <div class="page-view" id="page-firewall">
     <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+
+      <!-- Summary row -->
+      <div class="fw-summary-row">
+
+        <!-- Rule Counts -->
+        <div class="fw-scard" style="display:flex;flex-direction:column">
+          <div class="fw-scard-title">Rule Counts</div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center">
+            <div style="display:flex;gap:1.2rem;align-items:center;justify-content:center">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+                <span class="fw-rc-num" id="fwCntFilter">—</span>
+                <span class="fw-rc-dis" id="fwCntFilterDis"></span>
+                <span class="fw-rc-lbl">Filter</span>
+              </div>
+              <div class="fw-rc-divider"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+                <span class="fw-rc-num" id="fwCntNat">—</span>
+                <span class="fw-rc-dis" id="fwCntNatDis"></span>
+                <span class="fw-rc-lbl">NAT</span>
+              </div>
+              <div class="fw-rc-divider"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+                <span class="fw-rc-num" id="fwCntMangle">—</span>
+                <span class="fw-rc-dis" id="fwCntMangleDis"></span>
+                <span class="fw-rc-lbl">Mangle</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Breakdown -->
+        <div class="fw-scard">
+          <div class="fw-scard-title">Action Breakdown</div>
+          <div class="fw-action-list" id="fwActionList">
+            <div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">—</span></div>
+          </div>
+        </div>
+
+        <!-- Activity -->
+        <div class="fw-scard">
+          <div class="fw-scard-title">Total Hits</div>
+          <div class="fw-activity-wrap">
+            <div class="fw-activity-total" id="fwTotalPackets">—</div>
+            <div class="fw-activity-sub" id="fwTotalBytes"></div>
+            <div class="fw-spark-wrap">
+              <canvas id="fwSparkCanvas" width="180" height="32" style="width:100%;height:32px;display:block"></canvas>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Rules card -->
       <div class="card" id="firewallCard">
         <div class="stale-overlay">&#9679; stale</div>
         <div class="card-body p-0">
@@ -1137,10 +1309,13 @@
             <div class="fw-tab" data-fw="nat">NAT</div>
             <div class="fw-tab" data-fw="mangle">Mangle</div>
           </div>
+          <div class="fw-search-wrap">
+            <input id="fwSearch" type="text" placeholder="Search chain, action, address, comment…" autocomplete="off" spellcheck="false">
+          </div>
           <div class="table-responsive">
             <table class="table table-vcenter mb-0">
-              <thead><tr><th>Chain</th><th>Action</th><th>Src &#8594; Dst</th><th>Comment</th><th class="text-end">Packets</th></tr></thead>
-              <tbody id="firewallTable"><tr><td colspan="5" class="empty-state">Waiting&#8230;</td></tr></tbody>
+              <thead><tr><th>Chain</th><th>Action</th><th>Src &#8594; Dst</th><th>Comment</th><th class="text-end">Packets</th><th class="text-end">Bytes</th></tr></thead>
+              <tbody id="firewallTable"><tr><td colspan="6" class="empty-state">Waiting&#8230;</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1451,6 +1626,33 @@
             <div class="sform-group" style="margin-bottom:0">
               <label class="sform-label">Traffic History (min)</label>
               <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alert Thresholds -->
+      <div class="scard">
+        <div class="scard-header">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="scard-title">Alert Thresholds</span>
+        </div>
+        <div class="scard-body">
+          <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Trigger browser notifications when these thresholds are reached.</p>
+          <div class="sform-row">
+            <div class="sform-group" style="margin-bottom:0">
+              <label class="sform-label">CPU Alert Threshold (%)</label>
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <input type="range" id="s_alertCpuThreshold" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)">
+                <span id="s_alertCpuThresholdVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">90%</span>
+              </div>
+            </div>
+            <div class="sform-group" style="margin-bottom:0">
+              <label class="sform-label">Ping Loss Alert (%)</label>
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <input type="range" id="s_alertPingLoss" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)">
+                <span id="s_alertPingLossVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">100%</span>
+              </div>
             </div>
           </div>
         </div>

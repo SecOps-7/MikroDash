@@ -253,6 +253,12 @@ class InterfaceStatusCollector {
       this._startHeartbeat();
     });
   }
+
+  stop() {
+    this._stopStream();
+    this._stopAddrPoll();
+    this._stopHeartbeat();
+  }
 }
 
 module.exports = InterfaceStatusCollector;

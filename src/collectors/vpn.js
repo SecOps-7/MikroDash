@@ -177,6 +177,11 @@ class VpnCollector {
       this._startHeartbeat();
     });
   }
+
+  stop() {
+    this._stopStream();
+    this._stopHeartbeat();
+  }
 }
 
 module.exports = VpnCollector;

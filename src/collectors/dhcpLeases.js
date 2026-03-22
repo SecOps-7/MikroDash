@@ -18,6 +18,12 @@ class DhcpLeasesCollector {
   getNameByIP(ip)  { return this.byIP.get(ip);  }
   getNameByMAC(mac){ return this.byMAC.get(mac); }
 
+  // Returns IPs of all known leases regardless of status (bound, waiting, expired, etc.)
+  // Used by DhcpNetworksCollector to count total leases per subnet.
+  getAllLeaseIPs() {
+    return Array.from(this.byIP.keys());
+  }
+
   getActiveLeaseIPs() {
     const out = [];
     for (const [ip, v] of this.byIP.entries()) {
@@ -105,6 +111,8 @@ class DhcpLeasesCollector {
     });
     this.ros.on('close', () => this._stopStream());
   }
+
+  stop() { this._stopStream(); }
 }
 
 module.exports = DhcpLeasesCollector;

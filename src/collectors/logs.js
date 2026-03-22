@@ -90,6 +90,8 @@ class LogsCollector {
     });
     this.ros.on('close', () => this._stopStream());
   }
+
+  stop() { this._stopStream(); }
 }
 
 module.exports = LogsCollector;

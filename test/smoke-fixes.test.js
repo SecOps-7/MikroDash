@@ -154,5 +154,8 @@ test('traffic collector ignores invalid interface selections and prunes unused p
 
 test('ROS emitter tolerates error events without a custom listener', () => {
   const ros = new ROS({});
-  assert.doesNotThrow(() => ros.emit('error', new Error('boom')));
+  // _emitConnectionError guards against the Node.js default behaviour of
+  // throwing unhandled 'error' events — it only forwards to 'error' when a
+  // listener is registered. Calling it with no listener must not throw.
+  assert.doesNotThrow(() => ros._emitConnectionError(new Error('boom')));
 });

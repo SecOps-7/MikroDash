@@ -36,6 +36,29 @@ class BandwidthCollector {
     this.timer        = null;
     this._inflight    = false;
     this.lastPayload  = null;
+    this._lastFp      = '';
+    // Set to true by start(), never reset. Allows the connected handler to
+    // distinguish the initial connect (where startCollectors() calls start()
+    // explicitly) from a reconnect after a close event.
+    this._started     = false;
+
+    // Register ROS lifecycle listeners once in the constructor so they never
+    // accumulate across multiple start() calls (matches the canonical pattern).
+    this.ros.on('close', () => this.stop());
+    this.ros.on('connected', () => {
+      this._prev.clear();
+      this._geoCache.clear();
+      this._orgCache.clear();
+      this._ifaceCache.clear();
+      this._lastFp = '';
+      // Only restart here on reconnect after a close. On the very first
+      // connect, startCollectors() in index.js calls start() explicitly —
+      // calling stop()+start() here too would create two concurrent intervals.
+      if (this._started) {
+        this.stop();
+        this.start();
+      }
+    });
   }
 
   _resolveName(ip) {
@@ -86,8 +109,11 @@ class BandwidthCollector {
     return '';
   }
 
-  async tick() {
+  async tick(force = false) {
     if (!this.ros.connected) return;
+    // Skip when no browser clients are connected — byte-delta calculation
+    // against a stale _prev would produce misleading rates on resume anyway.
+    if (!force && this.io.engine.clientsCount === 0) return;
 
     const now      = Date.now();
     const lanCidrs = this.dhcpNetworks ? this.dhcpNetworks.getLanCidrs() : [];
@@ -203,28 +229,37 @@ class BandwidthCollector {
     devices.sort((a, b) => b.totalMbps - a.totalMbps);
 
     this.lastPayload = { ts: now, devices, pollMs: this.pollMs };
-    this.io.emit('bandwidth:update', this.lastPayload);
+    const fp = JSON.stringify(devices.map(d => ({ src: d.srcIp, rx: d.rxMbps, tx: d.txMbps })));
+    if (fp !== this._lastFp) {
+      this._lastFp = fp;
+      this.io.emit('bandwidth:update', this.lastPayload);
+    }
+    this.state.lastBandwidthTs  = now;
+    this.state.lastBandwidthErr = null;
+  }
+
+  stop() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 
   start() {
+    this._started = true;
     const run = async () => {
       if (this._inflight) return;
       this._inflight = true;
       try { await this.tick(); } catch (e) {
-        console.error('[bandwidth]', e && e.message ? e.message : e);
+        const msg = String(e && e.message ? e.message : e);
+        // 'no such item' is a transient RouterOS error when a connection table
+        // entry disappears between query and response — harmless, suppress it.
+        if (msg.includes('no such item')) return;
+        this.state.lastBandwidthErr = msg;
+        console.error('[bandwidth]', msg);
       } finally { this._inflight = false; }
     };
-    run();
+    // Set the timer before the first run so the close handler can always
+    // find and clear it, even if run() resolves synchronously.
     this.timer = setInterval(run, this.pollMs);
-    this.ros.on('close', () => { if (this.timer) { clearInterval(this.timer); this.timer = null; } });
-    this.ros.on('connected', () => {
-      this._prev.clear();
-      this._geoCache.clear();
-      this._orgCache.clear();
-      this._ifaceCache.clear();
-      this.timer = this.timer || setInterval(run, this.pollMs);
-      run();
-    });
+    run();
   }
 }
 

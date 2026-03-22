@@ -1,4 +1,21 @@
 require('dotenv').config();
+
+// ── Timestamped console output ────────────────────────────────────────────────
+// Prepend a timestamp to every log line so Docker logs are readable without
+// needing `docker logs --timestamps`.
+(function _patchConsole() {
+  const ts = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) +
+           ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  };
+  for (const level of ['log', 'info', 'warn', 'error']) {
+    const orig = console[level].bind(console);
+    console[level] = (...args) => orig(`[${ts()}]`, ...args);
+  }
+})();
+
 const Settings = require('./settings');
 const Routers  = require('./routers');
 
@@ -98,6 +115,7 @@ function _freshState() {
     lastIfStatusTs:0,
     lastPingTs:0,
     lastRoutingTs:0,  lastRoutingErr:null,
+    lastBandwidthTs:0, lastBandwidthErr:null,
   };
 }
 
@@ -122,9 +140,9 @@ function buildSession(routerCfg) {
 
   const connTableCache = {
     rows: null, ts: 0,
-    maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 0.4,
+    maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 0.9,
     updateMaxAge(pollConns, pollBandwidth) {
-      this.maxAge = Math.min(pollConns, pollBandwidth) * 0.4;
+      this.maxAge = Math.min(pollConns, pollBandwidth) * 0.9;
     },
     async get(rosInst) {
       const now = Date.now();
@@ -170,11 +188,7 @@ async function teardownSession(session) {
   startupReady = false;
   _collectorsStarted = false;
   for (const c of session.allCollectors) {
-    if (c.timer) { clearInterval(c.timer); c.timer = null; }
-    // Stop streaming collectors
-    if (typeof c._stopAllStreams  === 'function') c._stopAllStreams();
-    if (typeof c._stopStream      === 'function') c._stopStream();
-    if (typeof c._stopHeartbeat   === 'function') c._stopHeartbeat();
+    if (typeof c.stop === 'function') c.stop();
   }
   session.ros.stop();
   // Brief yield so in-flight async callbacks can settle before we replace the session
@@ -357,16 +371,18 @@ app.post('/api/settings', (req, res) => {
         pageConnections:DEFAULTS.pageConnections, pageFirewall:DEFAULTS.pageFirewall,
         pageLogs:DEFAULTS.pageLogs, pageBandwidth:DEFAULTS.pageBandwidth,
         pageRouting:DEFAULTS.pageRouting,
+        alertCpuThreshold:DEFAULTS.alertCpuThreshold, alertPingLoss:DEFAULTS.alertPingLoss,
       });
       return res.json({ ok:true, requiresRestart:false });
     }
     const updates = {};
     const intFields = {
       routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollSystem:[500,60000],
-      pollWireless:[500,60000], pollVpn:[1000,120000], pollFirewall:[1000,120000],
+      pollWireless:[500,60000], pollVpn:[1000,120000], pollFirewall:[1000,30000],
       pollIfstatus:[500,60000], pollPing:[1000,120000], pollArp:[5000,300000],
       pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
+      alertCpuThreshold:[1,100], alertPingLoss:[1,100],
     };
     const strFields  = ['dashUser', 'pingTarget'];
     const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
@@ -406,12 +422,33 @@ app.post('/api/settings', (req, res) => {
       s.connTableCache.updateMaxAge(saved.pollConns, saved.pollBandwidth);
     }
 
+    // pollFirewall controls the counter poll interval — restart it live
+    if ('pollFirewall' in updates && s.firewall) {
+      s.firewall.pollMs = saved.pollFirewall;
+      s.firewall._stopCounterPoll();
+      s.firewall._startCounterPoll();
+    }
+
+    // Apply pingTarget change live — the collector stores it as this.target
+    if ('pingTarget' in updates && s.ping) {
+      s.ping.target = saved.pingTarget;
+      s.ping._lastFp = ''; // force next tick to emit with the new target label
+      // Broadcast immediately so the dashboard label updates without waiting
+      // up to pollPing ms for the next scheduled tick.
+      if (s.ping.lastPayload) {
+        const updated = { ...s.ping.lastPayload, target: saved.pingTarget, ts: Date.now() };
+        s.ping.lastPayload = updated;
+        io.emit('ping:update', updated);
+      }
+    }
+
     const pageSettings = {
       pageWireless:saved.pageWireless, pageInterfaces:saved.pageInterfaces,
       pageDhcp:saved.pageDhcp, pageVpn:saved.pageVpn,
       pageConnections:saved.pageConnections, pageFirewall:saved.pageFirewall,
       pageLogs:saved.pageLogs, pageBandwidth:saved.pageBandwidth,
       pageRouting:saved.pageRouting,
+      alertCpuThreshold:saved.alertCpuThreshold, alertPingLoss:saved.alertPingLoss,
     };
     io.emit('settings:pages', pageSettings);
     res.json({ ok:true, requiresRestart:false });
@@ -451,6 +488,23 @@ app.put('/api/routers/:id', (req, res) => {
     const router = Routers.update(req.params.id, req.body || {});
     if (!router) return res.status(404).json({ ok:false, error:'Router not found' });
     io.emit('routers:update', Routers.getPublic());
+
+    // If this is the active router and pingTarget changed, update the live
+    // collector immediately — don't make the user wait for the next poll cycle.
+    const activeId = Settings.load().activeRouterId;
+    if (_session && req.params.id === activeId && req.body && req.body.pingTarget) {
+      const newTarget = router.pingTarget;
+      if (_session.ping && _session.ping.target !== newTarget) {
+        _session.ping.target  = newTarget;
+        _session.ping._lastFp = ''; // force next tick to emit with new target
+        if (_session.ping.lastPayload) {
+          const updated = { ..._session.ping.lastPayload, target: newTarget, ts: Date.now() };
+          _session.ping.lastPayload = updated;
+          io.emit('ping:update', updated);
+        }
+      }
+    }
+
     res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
   } catch(e) {
     res.status(500).json({ ok:false, error: String(e.message||e) });
@@ -631,13 +685,19 @@ async function sendInitialState(socket) {
       .find(i => i.name && i.name.toLowerCase() === _wanIface && i.ips && i.ips.length);
     if (_match) _wanIp = _match.ips[0];
   }
-  socket.emit('lan:overview', {
-    ts: Date.now(),
-    lanCidrs: s.dhcpNetworks.getLanCidrs(),
-    networks: s.dhcpNetworks.networks || [],
-    wanIp: _wanIp,
-    pollMs: s.dhcpNetworks.pollMs,
-  });
+  if (s.dhcpNetworks.lastPayload) {
+    socket.emit('lan:overview', s.dhcpNetworks.lastPayload);
+  } else {
+    socket.emit('lan:overview', {
+      ts: Date.now(),
+      lanCidrs: s.dhcpNetworks.getLanCidrs(),
+      networks: s.dhcpNetworks.networks || [],
+      wanIp: _wanIp,
+      totalPoolSize: 0,
+      totalLeases: 0,
+      pollMs: s.dhcpNetworks.pollMs,
+    });
+  }
 
   const allLeases = [];
   for (const [ip, v] of s.dhcpLeases.byIP.entries()) allLeases.push({ ip, ...v });
@@ -660,6 +720,7 @@ async function sendInitialState(socket) {
     pageDhcp:_ps.pageDhcp, pageVpn:_ps.pageVpn,
     pageConnections:_ps.pageConnections, pageFirewall:_ps.pageFirewall,
     pageLogs:_ps.pageLogs, pageBandwidth:_ps.pageBandwidth, pageRouting:_ps.pageRouting,
+    alertCpuThreshold:_ps.alertCpuThreshold, alertPingLoss:_ps.alertPingLoss,
   });
 
   const pingData = s.ping.getHistory();
@@ -676,7 +737,23 @@ io.on('connection', (socket) => {
     return;
   }
   _session.traffic.bindSocket(socket);
-  sendInitialState(socket).catch(() => {});
+  // If this is the first browser client and idle-gated collectors haven't run
+  // yet (lastPayload is null), kick them and wait for them to complete before
+  // sending initial state — otherwise sendInitialState fires before the tick
+  // finishes and finds lastPayload === null.
+  const kickAndSend = async () => {
+    if (_session) {
+      // Kick idle-gated collectors that haven't run yet (connections, bandwidth,
+      // talkers). Wireless handles its own startup via force-tick in start().
+      const idleGated = [_session.conns, _session.bandwidth, _session.talkers];
+      const kicks = idleGated
+        .filter(c => c && !c.lastPayload && typeof c.tick === 'function')
+        .map(c => c.tick(true).catch(() => {}));
+      if (kicks.length) await Promise.allSettled(kicks);
+    }
+    await sendInitialState(socket);
+  };
+  kickAndSend().catch(() => {});
 });
 
 const PORT = parseInt(process.env.PORT || '3081', 10);
@@ -688,7 +765,7 @@ function shutdown(signal) {
   startupReady = false;
   if (_session) {
     for (const c of _session.allCollectors) {
-      if (c.timer) { clearInterval(c.timer); c.timer = null; }
+      if (typeof c.stop === 'function') c.stop();
     }
     _session.ros.stop();
   }

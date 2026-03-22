@@ -8,7 +8,15 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function fmtMbps(v){var n=+v||0;if(n>=1000)return(n/1000).toFixed(2)+' Gbps';if(n>=1)return n.toFixed(2)+' Mbps';return(n*1000).toFixed(1)+' Kbps';}
 function fmtBytes(b){if(b>=1073741824)return(b/1073741824).toFixed(1)+' GB';if(b>=1048576)return(b/1048576).toFixed(1)+' MB';if(b>=1024)return(b/1024).toFixed(1)+' KB';return b+' B';}
 function signalBars(dbm){var bars=dbm>=-55?4:dbm>=-65?3:dbm>=-75?2:dbm>-85?1:0;var h='<span class="signal-bars">';for(var i=1;i<=4;i++)h+='<span'+(i<=bars?' class="lit"':'')+'>&#8203;</span>';return h+'</span>';}
-function actionBadge(a){var c='secondary';if(a==='accept'||a==='passthrough')c='success';else if(a==='drop'||a==='reject'||a==='tarpit')c='danger';else if(a==='log'||a==='add-src-to-address-list')c='warning';else if(a==='masquerade'||a==='dst-nat'||a==='src-nat')c='info';return'<span class="badge bg-'+c+'" style="font-family:var(--font-mono);font-size:.63rem;color:#000">'+esc(a)+'</span>';}
+function actionBadge(a){
+  var col=a==='accept'||a==='passthrough'?'rgba(52,211,153,.9)':
+           a==='drop'||a==='reject'||a==='tarpit'?'rgba(248,113,113,.9)':
+           a==='log'||a==='add-src-to-address-list'?'rgba(167,139,250,.9)':
+           a==='masquerade'?'rgba(56,189,248,.9)':
+           a==='dst-nat'||a==='src-nat'?'rgba(251,191,36,.9)':
+           'rgba(99,130,190,.8)';
+  return'<span style="font-family:var(--font-mono);font-size:.63rem;color:'+col+';background:'+col.replace(/[\d.]+\)$/,'0.1)')+';border:1px solid '+col.replace(/[\d.]+\)$/,'0.25)')+';border-radius:4px;padding:1px 6px;white-space:nowrap">'+esc(a)+'</span>';
+}
 function parseTxRate(raw){if(!raw)return'—';var s=String(raw).trim();var m=s.match(/^([\d.]+)\s*(G|Gbps|M|Mbps|K|Kbps|k)\b/i);if(m){var val=parseFloat(m[1]),unit=m[2].toLowerCase(),mbps;if(unit==='g'||unit==='gbps')mbps=val*1000;else if(unit==='k'||unit==='kbps')mbps=val/1000;else mbps=val;return(Number.isInteger(mbps)?mbps:+mbps.toFixed(1))+' Mbps';}if(/^\d+$/.test(s)){var bps=parseInt(s,10);var mbps2=bps/1e6;return(Number.isInteger(mbps2)?mbps2:+mbps2.toFixed(1))+' Mbps';}return s;}
 function parseUptime(raw){var s=String(raw||''),parts=[];var w=(s.match(/(\d+)w/)||[0,0])[1],d=(s.match(/(\d+)d/)||[0,0])[1];var h=(s.match(/(\d+)h/)||[0,0])[1],m=(s.match(/(\d+)m/)||[0,0])[1];if(+w)parts.push(w+'w');if(+d)parts.push(d+'d');if(+h)parts.push(h+'h');if(+m)parts.push(m+'m');return parts.length?parts.join(' '):(raw||'—');}
 
@@ -60,6 +68,8 @@ var fwTab = 'top', fwData = {};
 var connHistory = [], MAX_CONN_HIST = 60;
 var lastTalkers = null, lastLanData = null;
 var allLeases = [], leaseFilter = '';
+var _dhcpTotalPoolSize = 0;  // updated from lan:overview; used to render gauge from leases:list
+var _dhcpNetworksData  = null; // last lan:overview payload
 
 // ── Theme toggle ───────────────────────────────────────────────────────────
 var THEME_KEY = 'mikrodash_theme';
@@ -252,23 +262,86 @@ socket.on('system:update',function(d){
 socket.on('lan:overview',function(data){
   // Detect local country from WAN IP for arc origin
   if(window._wanGeoDetect) window._wanGeoDetect(data.wanIp);
-  // WAN IP — update both original field and diagram
-  var wip=(data.wanIp||'').split('/')[0]||'—';
+  // WAN IP
+  var wip=(data.wanIp||'').split('/')[0]||'\u2014';
   var ndWanIp=$('ndWanIp'); if(ndWanIp)ndWanIp.textContent=wip;
   if(wanIpDisplay)wanIpDisplay.textContent=wip;
-  // LAN info strip
+  // LAN info strip (dashboard card)
   var nets=data.networks||[];
-  var ndLanCidr=$('ndLanCidr'); if(ndLanCidr)ndLanCidr.textContent=nets.length?nets.map(function(n){return n.cidr;}).join(', '):'—';
-  var ndGateway=$('ndGateway'); if(ndGateway)ndGateway.textContent=nets.length&&nets[0].gateway?nets[0].gateway:'—';
+  var ndLanCidr=$('ndLanCidr'); if(ndLanCidr)ndLanCidr.textContent=nets.length?nets.map(function(n){return n.cidr;}).join(', '):'\u2014';
+  var ndGateway=$('ndGateway'); if(ndGateway)ndGateway.textContent=nets.length&&nets[0].gateway?nets[0].gateway:'\u2014';
 
   var nets=(data&&data.networks)?data.networks:[];
   if(!nets.length){if(lastLanData)return;lanOverview.innerHTML='<div class="empty-state">No DHCP networks</div>';return;}
   lastLanData=data;
   lanOverview.innerHTML=nets.map(function(n){
     return'<div class="lan-net"><div class="lan-cidr"><span style="color:var(--text-muted);font-size:.65rem;margin-right:.3rem">LAN:</span>'+esc(n.cidr)+'</div>'+
-      '<div class="lan-meta">GW: '+esc(n.gateway||'—')+' '+DOT+' DNS: '+esc(n.dns||'—')+' '+DOT+' <strong style="color:rgba(200,215,240,.75)">'+n.leaseCount+'</strong> leases</div></div>';
+      '<div class="lan-meta">GW: '+esc(n.gateway||'\u2014')+' '+DOT+' DNS: '+esc(n.dns||'\u2014')+' '+DOT+' <strong style="color:rgba(200,215,240,.75)">'+n.leaseCount+'</strong> leases</div></div>';
   }).join('');
+
+  // ── DHCP page: subnet table ───────────────────────────────────────────────
+  var subnetEl=$('dhcpSubnetTable');
+  if(subnetEl){
+    if(!nets.length){
+      subnetEl.innerHTML='<div class="empty-state" style="font-size:.75rem;padding:.5rem 0">No DHCP networks</div>';
+    } else {
+      var rows=nets.map(function(n){
+        var used=n.leaseCount||0;
+        var pool=n.poolSize||0;
+        var pct=pool>0?Math.round((used/pool)*100):0;
+        var fillColour=pct>=90?'#f87171':pct>=70?'#fbbf24':'#34d399';
+        var poolLabel=pool>0?(used+' / '+pool):''+used+' leases';
+        var pctLabel=pool>0?(' ('+pct+'%)'):'';
+        return'<tr>'+
+          '<td style="font-size:.76rem;font-family:var(--font-mono);color:var(--accent-rx)">'+esc(n.cidr)+'</td>'+
+          '<td class="td-label">'+esc(n.gateway||'\u2014')+'</td>'+
+          '<td class="td-label">'+esc(n.dns||'\u2014')+'</td>'+
+          '<td>'+
+            '<span style="font-size:.72rem;color:var(--text-main)">'+poolLabel+
+            '<span style="color:var(--text-muted)">'+pctLabel+'</span></span>'+
+            (pool>0?'<div class="dhcp-util-bar"><div class="dhcp-util-fill" style="width:'+Math.min(100,pct)+'%;background:'+fillColour+'"></div></div>':'')+'</td>'+
+        '</tr>';
+      }).join('');
+      subnetEl.innerHTML='<table class="dhcp-subnet-table">'+
+        '<thead><tr><th>Subnet</th><th>Gateway</th><th>DNS</th><th>Leases</th></tr></thead>'+
+        '<tbody>'+rows+'</tbody></table>';
+    }
+  }
+
+  // Store pool size so gauge can be re-rendered from leases:list updates
+  _dhcpTotalPoolSize = data.totalPoolSize || 0;
+  _dhcpNetworksData  = data;
+  renderDhcpGauge();
 });
+
+function renderDhcpGauge() {
+  var totalPool = _dhcpTotalPoolSize;
+  var totalUsed = allLeases.length; // live lease count — always current
+  var usedPct   = totalPool > 0 ? Math.round((totalUsed / totalPool) * 100) : 0;
+  var gaugeFill  = $('dhcpGaugeFill');
+  var gaugeTrack = $('dhcpGaugeTrack');
+  var gaugePct   = $('dhcpGaugePct');
+  if (!gaugeFill || !gaugeTrack) return;
+  // Semi-circle: centre (100,105), r=72, sweeping 120° from 210° to 330°
+  var cx=100, cy=105, r=72, startDeg=210, totalDeg=120;
+  function gaugeXY(deg) {
+    var rad = deg * Math.PI / 180;
+    return { x: +(cx + r * Math.cos(rad)).toFixed(2), y: +(cy + r * Math.sin(rad)).toFixed(2) };
+  }
+  var sa = gaugeXY(startDeg), ea = gaugeXY(startDeg + totalDeg);
+  gaugeTrack.setAttribute('d', 'M'+sa.x+','+sa.y+' A'+r+','+r+' 0 0,1 '+ea.x+','+ea.y);
+  var fillDeg = totalDeg * (Math.min(100, usedPct) / 100);
+  if (fillDeg > 0.5) {
+    var fa = gaugeXY(startDeg + fillDeg);
+    gaugeFill.setAttribute('d', 'M'+sa.x+','+sa.y+' A'+r+','+r+' 0 '+(fillDeg > 180 ? 1 : 0)+',1 '+fa.x+','+fa.y);
+  } else {
+    gaugeFill.setAttribute('d', '');
+  }
+  var gaugeColour = usedPct >= 90 ? '#f87171' : usedPct >= 70 ? '#fbbf24' : '#38bdf8';
+  gaugeFill.setAttribute('stroke', gaugeColour);
+  if (gaugePct) { gaugePct.textContent = totalPool > 0 ? (usedPct + '%') : '—'; gaugePct.setAttribute('fill', gaugeColour); }
+}
+
 
 // ── Connections ────────────────────────────────────────────────────────────
 var sparkCanvas=$('connSparkCanvas');
@@ -486,7 +559,7 @@ socket.on('ifstatus:update',function(data){
     if(!wirelessTable) return;
     var clients=sortClients(_wlClients, _wlSort);
     if(!clients.length){
-      wirelessTable.innerHTML='<tr><td colspan="6" class="empty-state">No wireless clients</td></tr>';
+      wirelessTable.innerHTML='<tr><td colspan="5" class="empty-state">No wireless clients</td></tr>';
       return;
     }
     // Group by interface
@@ -501,7 +574,7 @@ socket.on('ifstatus:update',function(data){
       var g=groups[key];
       var multiGroup=order.length>1;
       if(multiGroup){
-        rows+='<tr class="wl-group-row"><td colspan="6">'+
+        rows+='<tr class="wl-group-row"><td colspan="5">'+
           '<span class="wl-group-label">'+esc(g.iface)+'</span>'+
           (g.ssid?'<span class="wl-group-sub">'+esc(g.ssid)+'</span>':'')+
           '<span class="wl-group-sub">'+g.clients.length+' client'+(g.clients.length!==1?'s':'')+'</span>'+
@@ -520,7 +593,6 @@ socket.on('ifstatus:update',function(data){
             '</div>'+
             ipStr+macStr+
           '</td>'+
-          '<td class="wl-col-band">'+bandBadge(c.band)+'</td>'+
           '<td class="wl-col-iface" style="color:var(--text-muted);font-size:.73rem">'+esc(c.iface||'\u2014')+'</td>'+
           '<td class="text-end">'+
             signalBars(sig)+
@@ -543,13 +615,38 @@ socket.on('ifstatus:update',function(data){
     var ndWC=$('ndWirelessCount'); if(ndWC) ndWC.textContent=_wlClients.length;
     wirelessTabBadge.textContent=_wlClients.length; wirelessTabBadge.className='card-badge'+(_wlClients.length>0?' active-blue':'');
     wirelessNavBadge.textContent=_wlClients.length;
-    // Per-band counts
+
+    // Band split card
     var b24=0,b5=0,b6=0;
     _wlClients.forEach(function(c){ if(c.band==='2.4GHz')b24++; else if(c.band==='5GHz')b5++; else if(c.band==='6GHz')b6++; });
+    var n24=$('wlBandNum24'),n5=$('wlBandNum5'),n6=$('wlBandNum6'),r6=$('wlBandRow6');
+    if(n24) n24.textContent=b24;
+    if(n5)  n5.textContent=b5;
+    if(n6)  n6.textContent=b6;
+    if(r6)  r6.style.display=b6>0?'':'none';
+    // Keep legacy header badges updated (used by dashboard card)
     var el24=$('wlBand24'),el5=$('wlBand5'),el6=$('wlBand6');
     if(el24) el24.textContent='2.4GHz: '+b24;
     if(el5)  el5.textContent='5GHz: '+b5;
     if(el6){ el6.textContent='6GHz: '+b6; el6.style.display=b6>0?'':'none'; }
+
+    // Signal health card
+    var cntE=0,cntG=0,cntF=0,cntP=0;
+    _wlClients.forEach(function(c){
+      var s=parseInt(c.signal,10)||0;
+      if(s>=-55) cntE++; else if(s>=-65) cntG++; else if(s>=-75) cntF++; else cntP++;
+    });
+    var total=_wlClients.length||1;
+    function setSig(barId,cntId,count){
+      var b=$(''+barId),cn=$(''+cntId);
+      if(b)  b.style.width=Math.round((count/total)*100)+'%';
+      if(cn) cn.textContent=count;
+    }
+    setSig('wlSigBarE','wlSigCntE',cntE);
+    setSig('wlSigBarG','wlSigCntG',cntG);
+    setSig('wlSigBarF','wlSigCntF',cntF);
+    setSig('wlSigBarP','wlSigCntP',cntP);
+
     renderWireless();
   });
 
@@ -690,6 +787,7 @@ _refreshDhcpSortHeaders();
 socket.on('leases:list',function(data){
   allLeases=data.leases||[];
   renderDhcp(allLeases);
+  renderDhcpGauge(); // update gauge with fresh lease count
 });
 if(dhcpSearch) dhcpSearch.addEventListener('input',function(){
   leaseFilter=(dhcpSearch.value||'').trim().toLowerCase();
@@ -697,21 +795,180 @@ if(dhcpSearch) dhcpSearch.addEventListener('input',function(){
 });
 
 // ── Firewall ───────────────────────────────────────────────────────────────
-socket.on('firewall:update',function(data){fwData=data;renderFirewallTab();});
+var _fwSearch = '';
+var _fwDeltaHistory = []; // rolling sparkline of total deltaPackets per update
+var _fwSparkCtx = (function(){ var c=$('fwSparkCanvas'); return c?c.getContext('2d'):null; })();
+
+// Resize canvas when the firewall page becomes visible (clientWidth is 0 while hidden)
+document.addEventListener('mikrodash:pagechange', function(e) {
+  if (e.detail !== 'firewall') return;
+  var c = $('fwSparkCanvas'); if (!c) return;
+  var w = c.parentElement ? c.parentElement.clientWidth : 0;
+  if (w > 0) { c.width = w; fwDrawSparkline(); }
+});
+
+function fwDrawSparkline(){
+  var c=$('fwSparkCanvas'); if(!c||!_fwSparkCtx) return;
+  var w=c.width, h=c.height, data=_fwDeltaHistory;
+  _fwSparkCtx.clearRect(0,0,w,h);
+  if(data.length<2) return;
+  var max=Math.max.apply(null,data)||1;
+  _fwSparkCtx.beginPath();
+  _fwSparkCtx.strokeStyle='rgba(56,189,248,.7)';
+  _fwSparkCtx.lineWidth=1.5;
+  _fwSparkCtx.lineJoin='round';
+  for(var i=0;i<data.length;i++){
+    var x=(i/(data.length-1))*w;
+    var y=h-(data[i]/max)*(h-3)-1;
+    i===0?_fwSparkCtx.moveTo(x,y):_fwSparkCtx.lineTo(x,y);
+  }
+  _fwSparkCtx.stroke();
+}
+
+function fwUpdateSummary(data){
+  var filter=data.filter||[], nat=data.nat||[], mangle=data.mangle||[];
+  var all=[...filter,...nat,...mangle];
+
+  // Rule counts
+  function setCount(totalId,disId,rules){
+    var tot=$(totalId), dis=$(disId);
+    if(tot) tot.textContent=rules.length;
+    var nDis=rules.filter(function(r){return r.disabled;}).length;
+    if(dis) dis.textContent=nDis>0?(nDis+' off'):'';
+  }
+  setCount('fwCntFilter','fwCntFilterDis',filter);
+  setCount('fwCntNat','fwCntNatDis',nat);
+  setCount('fwCntMangle','fwCntMangleDis',mangle);
+
+  // Action breakdown
+  var actionCounts={};
+  all.forEach(function(r){
+    var a=r.action||'?';
+    actionCounts[a]=(actionCounts[a]||0)+1;
+  });
+  var actionEntries=Object.entries(actionCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,7);
+  var maxA=actionEntries.length?actionEntries[0][1]:1;
+  var ACTION_COLOUR={
+    accept:'rgba(52,211,153,.8)', drop:'rgba(248,113,113,.8)',
+    reject:'rgba(251,113,133,.8)', masquerade:'rgba(56,189,248,.8)',
+    'dst-nat':'rgba(251,191,36,.8)', 'src-nat':'rgba(251,191,36,.8)',
+    log:'rgba(167,139,250,.8)', passthrough:'rgba(52,211,153,.6)',
+  };
+  var listEl=$('fwActionList');
+  if(listEl){
+    listEl.innerHTML=actionEntries.map(function(e){
+      var col=ACTION_COLOUR[e[0]]||'rgba(99,130,190,.7)';
+      return'<div class="fw-action-row">'+
+        '<span class="fw-action-name" style="color:'+col+'">'+esc(e[0])+'</span>'+
+        '<div class="fw-action-bar-wrap"><div class="fw-action-bar" style="width:'+Math.round((e[1]/maxA)*100)+'%;background:'+col+'"></div></div>'+
+        '<span class="fw-action-count">'+e[1]+'</span>'+
+      '</div>';
+    }).join('') || '<div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">No rules</span></div>';
+  }
+
+  // Activity / sparkline
+  var totalPkts=all.reduce(function(a,r){return a+r.packets;},0);
+  var totalBytes=all.reduce(function(a,r){return a+(r.bytes||0);},0);
+  var deltaPkts=all.reduce(function(a,r){return a+(r.deltaPackets||0);},0);
+  var tp=$('fwTotalPackets'), tb=$('fwTotalBytes');
+  if(tp) tp.textContent=totalPkts.toLocaleString();
+  if(tb) tb.textContent=totalBytes>0?('/ '+fmtBytes(totalBytes)+' total'):'';
+  _fwDeltaHistory.push(deltaPkts);
+  if(_fwDeltaHistory.length>40) _fwDeltaHistory.shift();
+  fwDrawSparkline();
+}
+
+socket.on('firewall:update',function(data){
+  var wasEmpty = !fwData.filter;
+  fwData=data;
+  fwUpdateSummary(data);
+  // If the table is already rendered with the same tab's rules, update counters
+  // in-place rather than re-rendering the entire table — this lets the flash
+  // animation be clearly visible and avoids scroll position resets.
+  if(!wasEmpty && fwUpdateCountersInPlace(data)){
+    return; // in-place update succeeded
+  }
+  renderFirewallTab();
+});
+
+function fwUpdateCountersInPlace(data){
+  if(!firewallTable) return false;
+  var rules=fwTab==='top'?(data.topByHits||[]):fwTab==='filter'?(data.filter||[]):fwTab==='nat'?(data.nat||[]):(data.mangle||[]);
+  // Check all rows are already present with matching IDs
+  var rows=firewallTable.querySelectorAll('tr[data-rule-id]');
+  if(!rows.length) return false;
+  if(rows.length !== rules.length) return false; // rule count changed — full re-render
+  var idMatch=true;
+  rows.forEach(function(row,i){ if(row.dataset.ruleId !== (rules[i]&&rules[i].id)) idMatch=false; });
+  if(!idMatch) return false;
+  // Update only the packet/byte cells in-place
+  rows.forEach(function(row,i){
+    var r=rules[i];
+    var pktCell=row.querySelector('.fw-pkt');
+    var byteCell=row.querySelector('.fw-byte');
+    if(pktCell){
+      var newPkt=(r.deltaPackets>0?'<span class="fw-delta-dot"></span>':'')+r.packets.toLocaleString();
+      if(pktCell.innerHTML!==newPkt){
+        pktCell.innerHTML=newPkt;
+        pktCell.classList.remove('fw-cell-flash');
+        // Force reflow to restart animation
+        void pktCell.offsetWidth;
+        pktCell.classList.add('fw-cell-flash');
+      }
+    }
+    if(byteCell){
+      var newByte=r.bytes>0?fmtBytes(r.bytes):'\u2014';
+      if(byteCell.textContent!==newByte){
+        byteCell.textContent=newByte;
+        byteCell.classList.remove('fw-cell-flash');
+        void byteCell.offsetWidth;
+        byteCell.classList.add('fw-cell-flash');
+      }
+    }
+  });
+  return true;
+}
+
+// Search
+var fwSearchEl=$('fwSearch');
+if(fwSearchEl) fwSearchEl.addEventListener('input',function(){
+  _fwSearch=(fwSearchEl.value||'').trim().toLowerCase();
+  renderFirewallTab();
+});
+
 function renderFirewallTab(){
   var rules=fwTab==='top'?(fwData.topByHits||[]):fwTab==='filter'?(fwData.filter||[]):fwTab==='nat'?(fwData.nat||[]):(fwData.mangle||[]);
-  if(!rules.length){firewallTable.innerHTML='<tr><td colspan="5" class="empty-state">No rules with hits</td></tr>';return;}
+  // Apply search filter
+  if(_fwSearch){
+    var q=_fwSearch;
+    rules=rules.filter(function(r){
+      return(r.chain&&r.chain.toLowerCase().includes(q))||
+             (r.action&&r.action.toLowerCase().includes(q))||
+             (r.srcAddress&&r.srcAddress.toLowerCase().includes(q))||
+             (r.dstAddress&&r.dstAddress.toLowerCase().includes(q))||
+             (r.comment&&r.comment.toLowerCase().includes(q))||
+             (r.protocol&&r.protocol.toLowerCase().includes(q))||
+             (r.dstPort&&r.dstPort.includes(q));
+    });
+  }
+  if(!rules.length){
+    firewallTable.innerHTML='<tr><td colspan="6" class="empty-state">'+(
+      _fwSearch?'No rules match search':'No rules with hits')+'</td></tr>';
+    return;
+  }
   firewallTable.innerHTML=rules.map(function(r){
     var sd=[r.srcAddress,r.dstAddress].filter(Boolean).join(' \u2192 ')||(r.inInterface||'');
     if(!sd&&r.dstPort)sd=':'+r.dstPort;
     if(r.protocol)sd+=(sd?' ':'')+'/ '+r.protocol;
-    return'<tr'+(r.disabled?' style="opacity:.4"':'')+'>'+
+    var deltaIndicator=r.deltaPackets>0?'<span class="fw-delta-dot"></span>':'';
+    return'<tr data-rule-id="'+esc(r.id)+'"'+(r.disabled?' style="opacity:.4"':'')+'>'+
       '<td style="font-size:.7rem;color:var(--text-muted)">'+esc(r.chain)+'</td>'+
       '<td>'+actionBadge(r.action)+'</td>'+
       '<td style="font-size:.7rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(sd||'\u2014')+'</td>'+
       '<td style="font-size:.7rem;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.comment||'\u2014')+'</td>'+
-      '<td class="text-end" style="font-family:var(--font-mono)">'+r.packets.toLocaleString()+'</td>'+
-      '</tr>';
+      '<td class="fw-pkt text-end" style="font-family:var(--font-mono);white-space:nowrap">'+deltaIndicator+r.packets.toLocaleString()+'</td>'+
+      '<td class="fw-byte text-end" style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted);white-space:nowrap">'+(r.bytes>0?fmtBytes(r.bytes):'\u2014')+'</td>'+
+    '</tr>';
   }).join('');
 }
 
@@ -826,12 +1083,17 @@ socket.on('wan:status',function(s){renderWanStatus(s);});
 // ── Reconnect ──────────────────────────────────────────────────────────────
 var _rosCurrentlyDisconnected = false;
 
-// ── Settings: page visibility ────────────────────────────────────────────────
+// ── Settings: page visibility + alert thresholds ─────────────────────────────
 var PAGE_NAV_MAP = {
   pageWireless:'wireless', pageInterfaces:'interfaces', pageDhcp:'dhcp',
   pageVpn:'vpn', pageConnections:'connections', pageFirewall:'firewall', pageLogs:'logs',
   pageBandwidth:'bandwidth', pageRouting:'routing',
 };
+
+// Alert thresholds — updated live from settings:pages broadcasts
+var _alertCpuThreshold = 90;
+var _alertPingLoss     = 100;
+
 function applyPageVisibility(pages) {
   for (var key in PAGE_NAV_MAP) {
     var pageName = PAGE_NAV_MAP[key];
@@ -841,6 +1103,8 @@ function applyPageVisibility(pages) {
     // If currently on a now-hidden page, redirect to dashboard
     if (!visible && _currentPage === pageName) showPage('dashboard');
   }
+  if (pages.alertCpuThreshold != null) _alertCpuThreshold = pages.alertCpuThreshold;
+  if (pages.alertPingLoss     != null) _alertPingLoss     = pages.alertPingLoss;
 }
 socket.on('settings:pages', function(pages) { applyPageVisibility(pages); });
 
@@ -1079,19 +1343,19 @@ function checkVpnNotifs(tunnels){
 
 function checkCpuNotif(cpuLoad){
   var now = Date.now();
-  if(cpuLoad > 90 && now - _cpuAlertedAt > NOTIF_COOLDOWN){
-    sendNotif('High CPU', 'Router CPU at ' + cpuLoad + '%', 'cpu-high');
+  if(cpuLoad >= _alertCpuThreshold && now - _cpuAlertedAt > NOTIF_COOLDOWN){
+    sendNotif('High CPU', 'Router CPU at ' + cpuLoad + '% (threshold: ' + _alertCpuThreshold + '%)', 'cpu-high');
     _cpuAlertedAt = now;
   }
 }
 
 function checkPingNotif(loss){
   var now = Date.now();
-  if(loss === 100 && now - _pingAlertedAt > NOTIF_COOLDOWN){
-    sendNotif('Ping Loss', 'No response from 1.1.1.1 — possible WAN outage', 'ping-loss');
+  if(loss >= _alertPingLoss && now - _pingAlertedAt > NOTIF_COOLDOWN){
+    sendNotif('Ping Loss', 'Ping loss at ' + loss + '% — possible WAN outage', 'ping-loss');
     _pingAlertedAt = now;
   }
-  if(loss < 100) _pingAlertedAt = 0; // reset so next outage fires again
+  if(loss < _alertPingLoss) _pingAlertedAt = 0; // reset so next outage fires again
 }
 
 // Wire into existing handlers
@@ -1224,6 +1488,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var _arcLayer       = null;
   var _labelLayer     = null;
   var _localCC        = 'ZZ'; // will be detected from first geo data or env
+  var _lastConnPayload = null; // full conn:update payload — used for country filter re-render
 
   // Known port names
   var PORT_NAMES = {'80':'HTTP','443':'HTTPS','53':'DNS','22':'SSH','21':'FTP',
@@ -1489,6 +1754,54 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       '</svg>';
   }
 
+  // ── Country filter ────────────────────────────────────────────────────────
+  // When a country is selected, filter the port list and Sankey to only
+  // show traffic destined for that country. Clears when selection is removed.
+  function applyCountryFilter(cc) {
+    if (!_lastConnPayload) return;
+    var srcs = (_lastConnPayload.topSources || []).slice(0, 8);
+
+    if (!cc) {
+      // No filter — clear the flag and re-render with full unfiltered data
+      renderPortList(_lastConnPayload.topPorts || []);
+      var unfiltDsts = (_lastConnPayload.topDestinations || []).slice(0, 10);
+      if (window._connSankeyClearFilter) window._connSankeyClearFilter(srcs, unfiltDsts);
+      var sub = $('connMapSub');
+      if (sub) sub.textContent = ((_lastConnPayload.topCountries || []).length) + ' countries active';
+      return;
+    }
+
+    // Use the server-built per-country destination index — covers all destinations
+    // for this country, not just those that made the global topN list.
+    var filteredDsts = (_lastConnPayload.countryDests && _lastConnPayload.countryDests[cc])
+      ? _lastConnPayload.countryDests[cc]
+      : (_lastConnPayload.topDestinations || []).filter(function(d) { return d.country === cc; });
+
+    // Derive port counts from filtered destination keys (format: ip:port/proto or ip:port)
+    var portCounts = {};
+    filteredDsts.forEach(function(d) {
+      var key = d.key || '';
+      var m = key.match(/:(\d+)(?:\/|$)/);
+      if (m) {
+        var p = m[1];
+        portCounts[p] = (portCounts[p] || 0) + d.count;
+      }
+    });
+    var filteredPorts = Object.keys(portCounts)
+      .map(function(p) { return { port: p, count: portCounts[p] }; })
+      .sort(function(a, b) { return b.count - a.count; })
+      .slice(0, 10);
+
+    renderPortList(filteredPorts);
+    if (window._connSankeyRender) window._connSankeyRender(srcs, filteredDsts.slice(0, 10));
+
+    // Update subtitle to show filter is active
+    var cc_name = CC_NAMES[cc] || cc;
+    var flag = iso2Flag(cc);
+    var sub = $('connMapSub');
+    if (sub) sub.textContent = flag + ' ' + cc_name + ' — ' + filteredDsts.length + ' destination' + (filteredDsts.length !== 1 ? 's' : '');
+  }
+
   function renderPortList(topPorts){
     var el=$('connPortList'); if(!el) return;
     if(!topPorts||!topPorts.length){el.innerHTML='<div class="empty-state">—</div>';return;}
@@ -1548,15 +1861,22 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         var lbl=$('connFilterLabel');
         if(lbl) lbl.style.display=_selectedCC?'':'none';
         renderCountryList(topCountries, _selectedCC);
-        // Highlight only selected on map
+        // Map: highlight only selected country, dim others
         if(_selectedCC){
           Object.keys(_pathEls).forEach(function(c){
             _pathEls[c].classList.remove('active','hot');
             if(c===_selectedCC) _pathEls[c].classList.add('hot');
           });
+          // Show arcs only to selected country
+          var filteredCounts={};
+          filteredCounts[_selectedCC]=_countryCounts[_selectedCC]||0;
+          updateArcs(filteredCounts);
         } else {
           updateHighlights(_countryCounts);
+          updateArcs(_countryCounts);
         }
+        // Filter ports and Sankey
+        applyCountryFilter(_selectedCC);
       });
     });
   }
@@ -1677,6 +1997,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
     // Drag pan
     wrap.addEventListener('mousedown',function(e){
+      // Ignore clicks on the button controls — don't swallow their events
+      if(e.target.tagName==='BUTTON'||e.target.closest('button')) return;
       if(scale<=1) return;
       dragging=true; dragStartX=e.clientX; dragStartY=e.clientY;
       dragTx=tx; dragTy=ty;
@@ -1699,6 +2021,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var _touchTarget=wrap;  // updated to fsOverlay when fullscreen is active
 
     function onTouchStart(e){
+      // Don't swallow taps on the map control buttons
+      if(e.target.tagName==='BUTTON'||e.target.closest('button')) return;
       Array.from(e.changedTouches).forEach(function(t){ touches[t.identifier]=t; });
       if(Object.keys(touches).length===1){
         var t=Object.values(touches)[0];
@@ -1753,9 +2077,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var svgPlaceholder=document.createComment('map-svg-placeholder');
 
     function isMobile(){ return window.innerWidth<=767; }
-    function setFsBtnVisible(){ if(fsBtn) fsBtn.style.display=isMobile()?'flex':'none'; }
-    setFsBtnVisible();
-    window.addEventListener('resize',setFsBtnVisible);
 
     function openMapFs(){
       if(!fsOverlay||!svg) return;
@@ -1846,11 +2167,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
     fetchLocalCCOnce();
 
-    updateHighlights(counts);
-    updateArcs(counts);
+    _lastConnPayload = data;
+    updateHighlights(_selectedCC ? (function(){ var f={}; f[_selectedCC]=counts[_selectedCC]||0; return f; })() : counts);
+    updateArcs(_selectedCC ? (function(){ var f={}; f[_selectedCC]=counts[_selectedCC]||0; return f; })() : counts);
     updateLabels(counts);
     renderCountryList(topCountries, _selectedCC);
-    renderPortList(data.topPorts||[]);
+    // Re-apply country filter so port list and Sankey stay filtered across ticks
+    if (_selectedCC) {
+      applyCountryFilter(_selectedCC);
+    } else {
+      renderPortList(data.topPorts||[]);
+    }
   });
 
   // Reset map state on router switch so stale country counts don't linger
@@ -1860,6 +2187,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     _countryCity   = {};
     _sparkData     = {};
     _selectedCC    = null;
+    _lastConnPayload = null;
     updateHighlights({});
     updateArcs({});
     updateLabels({});
@@ -2043,10 +2371,37 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var _lastSrcs=[], _lastDsts=[], _resizeTimer=null;
   var _sankeyFp='', _sankeyPending=false, _sankeyLast=0;
   var SANKEY_THROTTLE=5000; // ms between full re-renders
+  // When a country filter is active, the map IIFE owns Sankey rendering.
+  // The conn:update handler updates stored full data but skips its own render
+  // to prevent overwriting the filtered view on every poll cycle.
+  var _filteredByCC = false;
+
+  // Called by applyCountryFilter with filtered srcs/dsts — marks filter active.
+  window._connSankeyRender = function(srcs, dsts) {
+    _filteredByCC = true;
+    _lastSrcs = srcs; _lastDsts = dsts;
+    render(_lastSrcs, _lastDsts);
+  };
+
+  // Called by applyCountryFilter(null) to clear filter and immediately re-render
+  // with unfiltered data. Does NOT set _filteredByCC so conn:update resumes normally.
+  window._connSankeyClearFilter = function(srcs, dsts) {
+    _filteredByCC = false;
+    _sankeyFp = ''; // force re-render with full data on next tick
+    if (srcs && dsts) {
+      _lastSrcs = srcs; _lastDsts = dsts;
+      render(_lastSrcs, _lastDsts);
+    }
+  };
+
   socket.on('conn:update',function(data){
     var srcs=(data.topSources||[]).slice(0,8);
     var dsts=(data.topDestinations||[]).slice(0,10);
     var fp=JSON.stringify(srcs)+JSON.stringify(dsts);
+    // While a country filter is active: store the full data (so applyCountryFilter
+    // can re-derive filtered ports/dsts from the latest payload) but do not
+    // render here — applyCountryFilter handles it after this handler returns.
+    if(_filteredByCC) { _sankeyFp=fp; return; }
     if(fp===_sankeyFp) return; // data unchanged — skip
     _sankeyFp=fp;
     _lastSrcs=srcs; _lastDsts=dsts;
@@ -2063,6 +2418,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   window.addEventListener('resize',function(){
     clearTimeout(_resizeTimer);
     _resizeTimer=setTimeout(function(){ render(_lastSrcs,_lastDsts); },120);
+  });
+  // Re-render when navigating to the connections page — the SVG clientWidth is
+  // 0 while the page is hidden, so the first render uses a fallback width.
+  // Firing again on pageshow gives it the real width immediately.
+  document.addEventListener('mikrodash:pagechange',function(e){
+    if(e.detail==='connections') render(_lastSrcs,_lastDsts);
   });
 })();
 
@@ -2118,13 +2479,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollConns',     label:'Connections',     min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollTalkers',   label:'Top Talkers',     min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollBandwidth', label:'Bandwidth',       min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollFirewall',  label:'Firewall',        min:1000,  max:30000,  step:1000,  unit:'ms' },
     { key:'pollPing',      label:'Ping',            min:1000,  max:60000,  step:1000,  unit:'ms' },
     { key:'pollWireless',  label:'Wireless',        min:500,   max:60000,  step:500,   unit:'ms' },
     { key:'pollDhcp',      label:'DHCP Networks',   min:30000, max:600000, step:30000, unit:'ms' },
     // Streamed — RouterOS pushes changes, no poll interval needed
     { key:'pollIfstatus',  label:'Interfaces',  streamed:true },
     { key:'pollVpn',       label:'VPN',         streamed:true },
-    { key:'pollFirewall',  label:'Firewall',     streamed:true },
     { key:'pollArp',       label:'ARP',         streamed:true },
     { key:'pollRouting',   label:'Routing',     streamed:true },
   ];
@@ -2201,6 +2562,23 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
+    // Alert thresholds
+    var cpuSlider = $('s_alertCpuThreshold'), cpuVal = $('s_alertCpuThresholdVal');
+    if (cpuSlider && data.alertCpuThreshold != null) {
+      cpuSlider.value = data.alertCpuThreshold;
+      if (cpuVal) cpuVal.textContent = data.alertCpuThreshold + '%';
+      cpuSlider.addEventListener('input', function() {
+        if (cpuVal) cpuVal.textContent = cpuSlider.value + '%';
+      });
+    }
+    var pingSlider = $('s_alertPingLoss'), pingVal = $('s_alertPingLossVal');
+    if (pingSlider && data.alertPingLoss != null) {
+      pingSlider.value = data.alertPingLoss;
+      if (pingVal) pingVal.textContent = data.alertPingLoss + '%';
+      pingSlider.addEventListener('input', function() {
+        if (pingVal) pingVal.textContent = pingSlider.value + '%';
+      });
+    }
     buildSliders(data);
   }
 
@@ -2230,6 +2608,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
+    // Alert thresholds
+    var cpuEl = $('s_alertCpuThreshold');  if (cpuEl)  out.alertCpuThreshold  = parseInt(cpuEl.value,  10);
+    var pingEl = $('s_alertPingLoss');     if (pingEl) out.alertPingLoss      = parseInt(pingEl.value, 10);
     // Poll sliders
     POLL_SLIDERS.forEach(function(cfg) {
       if (cfg.streamed) return;
