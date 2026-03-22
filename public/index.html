@@ -178,20 +178,14 @@
     .wan-up{background:rgba(74,222,128,.1);color:var(--accent-ok);border:1px solid rgba(74,222,128,.2)}
     .wan-down{background:rgba(248,113,113,.1);color:var(--accent-err);border:1px solid rgba(248,113,113,.2)}
     .wan-disabled{background:rgba(148,163,190,.08);color:var(--text-muted);border:1px solid var(--border)}
-    /* gauges */
-    .gauge-row{display:flex;flex-direction:column;gap:.45rem}
-    .gauge-item{display:grid;grid-template-columns:60px 1fr 40px;align-items:center;gap:.5rem}
-    .gauge-label{font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)}
-    .gauge-track{height:5px;background:rgba(99,130,190,.15);border-radius:3px;overflow:hidden}
-    .gauge-fill{height:100%;border-radius:3px;transition:width .5s ease}
-    .gauge-fill.cpu{background:linear-gradient(90deg,var(--accent-rx),#818cf8)}
-    .gauge-fill.mem{background:linear-gradient(90deg,var(--accent-tx),#34d399)}
-    .gauge-fill.hdd{background:linear-gradient(90deg,#fb923c,#f59f00)}
-    .gauge-fill.warn{background:linear-gradient(90deg,var(--accent-warn),#fb923c)}
-    .gauge-fill.crit{background:linear-gradient(90deg,var(--accent-err),#ef4444)}
-    .gauge-val-warn{color:#fb923c !important;font-weight:700}
-    .gauge-val-crit{color:#f87171 !important;font-weight:700}
-    .gauge-val{font-family:var(--font-mono);font-size:.7rem;text-align:right;color:var(--text-muted)}
+    /* segmented arc gauges */
+    .gauge-row{display:flex;gap:.5rem;align-items:flex-end;justify-content:space-between}
+    .gauge-arc-wrap{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+    .gauge-arc-svg{width:100%;display:block;overflow:visible}
+    .gauge-arc-pct{font-size:.78rem;font-weight:700;font-family:var(--font-mono);fill:var(--text-main);text-anchor:middle}
+    .gauge-arc-lbl{font-size:.44rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;fill:var(--text-muted);text-anchor:middle}
+    .gauge-val-warn{color:#fb923c!important;font-weight:700}
+    .gauge-val-crit{color:#f87171!important;font-weight:700}
     .sys-meta{display:flex;flex-wrap:wrap;gap:.35rem .7rem;margin-top:.65rem}
     .sys-meta-item{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted)}
     .sys-meta-item strong{color:var(--text-main)}

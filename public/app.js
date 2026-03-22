@@ -201,12 +201,65 @@ function renderWanStatus(s){
 }
 
 // ── System ─────────────────────────────────────────────────────────────────
-function gauge(label,pct,cls){
-  var fillCls=pct>90?'crit':pct>75?'warn':cls;
-  var valCls=pct>90?' gauge-val-crit':pct>75?' gauge-val-warn':'';
-  return'<div class="gauge-item"><div class="gauge-label">'+esc(label)+'</div>'+
-    '<div class="gauge-track"><div class="gauge-fill '+fillCls+'" style="width:'+pct+'%"></div></div>'+
-    '<div class="gauge-val'+valCls+'">'+pct+'%</div></div>';
+function _rotPt(dx, dy, cos, sin, ox, oy) {
+  return [(dx*cos - dy*sin) + ox, (dx*sin + dy*cos) + oy];
+}
+function _lp(a, b, t) { return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]; }
+function _v(p) { return p[0].toFixed(2)+','+p[1].toFixed(2); }
+
+function gauge(label, pct, cls) {
+  var COLOURS = {
+    cpu: ['#38bdf8','#818cf8'],   // sky → indigo
+    mem: ['#34d399','#34d399'],   // solid green
+    hdd: ['#fb923c','#f59f00'],   // orange → amber
+    warn:['#f59f00','#fb923c'],   // amber → orange
+    crit:['#f87171','#ef4444'],   // red
+  };
+  var activeCls = pct > 90 ? 'crit' : pct > 75 ? 'warn' : cls;
+  var cols = COLOURS[activeCls] || COLOURS.cpu;
+  var pctCls = pct > 90 ? ' gauge-val-crit' : pct > 75 ? ' gauge-val-warn' : '';
+
+  var SEGS = 14, START_DEG = 180, SWEEP_DEG = 180;
+  var cx = 50, cy = 45, r = 38, segW = 7, segH = 12, RN = 0.15;
+  var litSegs = Math.round((pct / 100) * SEGS);
+  var r1 = parseInt(cols[0].slice(1,3),16), g1 = parseInt(cols[0].slice(3,5),16), b1 = parseInt(cols[0].slice(5,7),16);
+  var r2 = parseInt(cols[1].slice(1,3),16), g2 = parseInt(cols[1].slice(3,5),16), b2 = parseInt(cols[1].slice(5,7),16);
+  var hw = segW/2, hh = segH/2;
+  var paths = [];
+
+  for (var i = 0; i < SEGS; i++) {
+    var angleDeg = START_DEG + (i + 0.5) * (SWEEP_DEG / SEGS);
+    var angleRad = angleDeg * Math.PI / 180;
+    var sx = cx + r * Math.cos(angleRad), sy = cy + r * Math.sin(angleRad);
+    var t = SEGS > 1 ? i / (SEGS - 1) : 0;
+    var colour, opacity;
+    if (i < litSegs) {
+      var ri = Math.round(r1+(r2-r1)*t), gi = Math.round(g1+(g2-g1)*t), bi = Math.round(b1+(b2-b1)*t);
+      colour = 'rgb('+ri+','+gi+','+bi+')';
+      opacity = 1;
+    } else {
+      colour = 'rgba(99,130,190,0.12)';
+      opacity = 0.7;
+    }
+    var rotRad = (angleDeg + 90) * Math.PI / 180;
+    var cos = Math.cos(rotRad), sin = Math.sin(rotRad);
+    var tl = _rotPt(-hw,-hh,cos,sin,sx,sy), tr = _rotPt(hw,-hh,cos,sin,sx,sy);
+    var br = _rotPt(hw,hh,cos,sin,sx,sy),  bl = _rotPt(-hw,hh,cos,sin,sx,sy);
+    var d = ['M',_v(_lp(tl,tr,RN)),'L',_v(_lp(tr,tl,RN)),
+             'Q',_v(tr),_v(_lp(tr,br,RN)),'L',_v(_lp(br,tr,RN)),
+             'Q',_v(br),_v(_lp(br,bl,RN)),'L',_v(_lp(bl,br,RN)),
+             'Q',_v(bl),_v(_lp(bl,tl,RN)),'L',_v(_lp(tl,bl,RN)),
+             'Q',_v(tl),_v(_lp(tl,tr,RN)),'Z'].join(' ');
+    paths.push('<path d="'+d+'" fill="'+colour+'" opacity="'+opacity+'"/>');
+  }
+
+  return '<div class="gauge-arc-wrap">'+
+    '<svg class="gauge-arc-svg" viewBox="0 0 100 62">'+
+      paths.join('')+
+      '<text class="gauge-arc-pct'+pctCls+'" x="50" y="52" font-size="10">'+pct+'%</text>'+
+      '<text class="gauge-arc-lbl" x="50" y="61" font-size="6">'+esc(label)+'</text>'+
+    '</svg>'+
+  '</div>';
 }
 var _sysMetaWritten = false;
 socket.on('system:update',function(d){
