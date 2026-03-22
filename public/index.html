@@ -179,9 +179,9 @@
     .wan-down{background:rgba(248,113,113,.1);color:var(--accent-err);border:1px solid rgba(248,113,113,.2)}
     .wan-disabled{background:rgba(148,163,190,.08);color:var(--text-muted);border:1px solid var(--border)}
     /* segmented arc gauges */
-    .gauge-row{display:flex;gap:.5rem;align-items:flex-end;justify-content:space-between}
-    .gauge-arc-wrap{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
-    .gauge-arc-svg{width:100%;display:block;overflow:visible}
+    .gauge-row{display:flex;gap:.5rem;align-items:flex-end;justify-content:space-between;max-height:70px;overflow:hidden;margin-bottom:.5rem}
+    .gauge-arc-wrap{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0;max-height:70px;overflow:hidden}
+    .gauge-arc-svg{width:100%;height:100%;display:block}
     .gauge-arc-pct{font-size:.78rem;font-weight:700;font-family:var(--font-mono);fill:var(--text-main);text-anchor:middle}
     .gauge-arc-lbl{font-size:.44rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;fill:var(--text-muted);text-anchor:middle}
     .gauge-val-warn{color:#fb923c!important;font-weight:700}

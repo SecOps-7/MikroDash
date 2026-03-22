@@ -219,8 +219,8 @@ function gauge(label, pct, cls) {
   var cols = COLOURS[activeCls] || COLOURS.cpu;
   var pctCls = pct > 90 ? ' gauge-val-crit' : pct > 75 ? ' gauge-val-warn' : '';
 
-  var SEGS = 14, START_DEG = 180, SWEEP_DEG = 180;
-  var cx = 50, cy = 45, r = 38, segW = 7, segH = 12, RN = 0.15;
+  var SEGS = 28, START_DEG = 180, SWEEP_DEG = 180;
+  var cx = 50, cy = 45, r = 38, segW = 3.2, segH = 10, RN = 0.15;
   var litSegs = Math.round((pct / 100) * SEGS);
   var r1 = parseInt(cols[0].slice(1,3),16), g1 = parseInt(cols[0].slice(3,5),16), b1 = parseInt(cols[0].slice(5,7),16);
   var r2 = parseInt(cols[1].slice(1,3),16), g2 = parseInt(cols[1].slice(3,5),16), b2 = parseInt(cols[1].slice(5,7),16);
