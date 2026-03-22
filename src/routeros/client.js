@@ -77,17 +77,21 @@ class ROS extends EventEmitter {
 
   async connectLoop() {
     while (!this._stopping) {
+      const host = this.cfg.host;
+      const port = this.cfg.port || 8729;
+      const user = this.cfg.username;
+      const tls  = this.cfg.tls !== false;
       try {
+        console.log(`[ROS] connecting to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})…`);
         this.conn = this._buildConn();
 
         this.conn.on('error', (err) => {
-          console.error('[ROS] error:', formatError(err));
+          // Suppress — wireRosEvents connectionError handler logs the classified reason
           this.connected = false;
           this._emitConnectionError(err);
         });
 
         this.conn.on('close', () => {
-          if (this.connected) console.log('[ROS] connection closed');
           this.connected = false;
           this.emit('close');
         });
@@ -95,7 +99,7 @@ class ROS extends EventEmitter {
         await this.conn.connect();
         this.connected = true;
         this.backoffMs = 2000;
-        console.log('[ROS] connected to', this.cfg.host);
+        // Success is logged by wireRosEvents connected handler
         this.emit('connected');
 
         await new Promise((resolve) => {
@@ -105,12 +109,12 @@ class ROS extends EventEmitter {
 
       } catch (e) {
         this.connected = false;
-        console.error('[ROS] connect failed:', formatError(e));
+        // Don't log here — wireRosEvents connectionError handler logs the classified reason
         this._emitConnectionError(e);
       }
 
       if (this._stopping) break;
-      console.log(`[ROS] reconnecting in ${this.backoffMs}ms…`);
+      console.log(`[ROS] reconnecting to ${host}:${port} in ${this.backoffMs}ms…`);
       await this._sleep(this.backoffMs);
       this.backoffMs = Math.min(this.backoffMs * 2, this.maxBackoffMs);
     }

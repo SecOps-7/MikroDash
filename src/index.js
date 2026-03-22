@@ -207,22 +207,49 @@ function broadcastRosStatus(connected, reason) {
 
 function wireRosEvents(session) {
   const { ros } = session;
+  const host = ros.cfg.host;
+  const port = ros.cfg.port || 8729;
+  const user = ros.cfg.username;
+  const tls  = ros.cfg.tls !== false;
 
-  ros.on('connected', () => broadcastRosStatus(true));
-  ros.on('close',     () => {
+  ros.on('connected', () => {
+    console.log(`[ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
+    broadcastRosStatus(true);
+  });
+  ros.on('close', () => {
     session.connTableCache.invalidate();
+    console.log(`[ROS] connection to ${host}:${port} closed`);
     broadcastRosStatus(false, 'RouterOS connection closed');
   });
   ros.on('connectionError', (e) => {
     const msg = e && e.message ? e.message : String(e);
     let reason = msg;
-    if (/ECONNREFUSED/.test(msg))                                reason = `Connection refused — is RouterOS reachable at ${session.ros.cfg.host}?`;
-    else if (/ETIMEDOUT/.test(msg) || /timed out/i.test(msg))   reason = 'Connection timed out — check host and firewall rules';
-    else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))       reason = `Host not found — check router host setting (${session.ros.cfg.host})`;
-    else if (/ECONNRESET/.test(msg))                            reason = 'Connection reset by router';
-    else if (/certificate/i.test(msg))                          reason = 'TLS certificate error — try enabling "Allow self-signed cert"';
-    else if (/authentication/i.test(msg) || /login/i.test(msg)) reason = 'Authentication failed — check username and password';
-    else if (session.ros.cfg.tls && /RosException/.test(msg))   reason = 'TLS handshake failed — check that RouterOS api-ssl is enabled and the certificate is valid. "Allow self-signed cert" only skips certificate validation, not TLS itself.';
+    let hint   = '';
+    if (/ECONNREFUSED/.test(msg)) {
+      reason = `Connection refused — is RouterOS reachable at ${host}?`;
+      hint   = `Check that the RouterOS API service is enabled: /ip service set api${tls?'-ssl':''} disabled=no`;
+    } else if (/ETIMEDOUT/.test(msg) || /timed out/i.test(msg)) {
+      reason = 'Connection timed out — check host and firewall rules';
+      hint   = `Verify ${host}:${port} is reachable and not blocked by a firewall rule`;
+    } else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg)) {
+      reason = `Host not found — check router host setting (${host})`;
+      hint   = 'Ensure the hostname or IP address is correct and DNS is resolving';
+    } else if (/ECONNRESET/.test(msg)) {
+      reason = 'Connection reset by router';
+      hint   = 'The router closed the connection unexpectedly — check RouterOS logs';
+    } else if (/certificate/i.test(msg)) {
+      reason = 'TLS certificate error — try enabling "Allow self-signed cert"';
+      hint   = 'Set tlsInsecure=true in settings or use a valid certificate on the router';
+    } else if (/authentication/i.test(msg) || /login/i.test(msg) || /invalid user/i.test(msg) || /wrong password/i.test(msg)) {
+      reason = 'Authentication failed — check username and password';
+      hint   = `Confirm user "${user}" exists on the router and has API access: /user print`;
+    } else if (tls && /RosException/.test(msg)) {
+      reason = 'TLS handshake failed — check that RouterOS api-ssl is enabled';
+      hint   = 'Run: /ip service set api-ssl disabled=no  — and verify the certificate is valid';
+    }
+    console.error(`[ROS] ✗ ${reason}`);
+    if (hint) console.error(`[ROS]   → ${hint}`);
+    console.error(`[ROS]   raw: ${msg}`);
     broadcastRosStatus(false, reason);
   });
   ros.on('connected', () => startCollectors(session));
