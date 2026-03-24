@@ -46,12 +46,12 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 ### Pages
 | Page | Description |
 |---|---|
-| Wireless | Signal Health and Band Split summary cards; clients grouped by interface with signal quality, IP, TX/RX rates, and sortable columns |
-| Interfaces | All interfaces as compact tiles with status, IP, live rates, cumulative RX/TX totals, and per-card traffic trend sparkline |
+| Wireless | Signal Health and Band Split summary cards; clients grouped by interface with signal quality, band pill (2.4 / 5 / 6 GHz), IP, TX/RX rates, and sortable columns |
+| Interfaces | Physical Ports card (RJ-45 port visualiser, colour-coded by state) and Interface Types card (count by type); all interfaces as compact tiles with status, IP, live rates, cumulative RX/TX totals, and per-card traffic trend sparkline |
 | DHCP | Subnet utilisation card with per-network lease counts, pool sizes, and colour-coded progress bars; IP Utilisation gauge driven live from the lease stream; active lease table with hostname, IP, MAC, and status; sortable columns |
-| VPN | All WireGuard peers (active + idle) as tiles sorted active-first, with allowed IPs, endpoint, handshake, and traffic counters |
+| VPN | Summary stats bar (Total / Connected / Idle / Throughput); all WireGuard peers as tiles sorted active-first, with colour-coded handshake age badge, live RX/TX rates, allowed IPs, and endpoint |
 | Connections | World map with animated arcs to destination countries, per-country protocol breakdown, sparklines, top ports panel, and click-to-filter by country |
-| Firewall | Rule Counts, Action Breakdown, and Total Hits summary cards; search bar; Top Hits, Filter, NAT, and Mangle rule tables with packet counts, byte totals, and live delta-pulse indicators |
+| Firewall | Rule Counts, Action Breakdown, and Total Hits summary cards; search bar; Top Hits, Filter, NAT, Mangle, and Raw rule tables with packet counts, byte totals, and live delta-pulse indicators |
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
 | Routing | Route count summary by protocol with doughnut chart; static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with severity filter and text search |
@@ -161,7 +161,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 |---|---|
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. A Test Connection button validates credentials before saving. The active router is selected from the dropdown in the page header |
 | Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
-| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Includes a Firewall slider (1 s – 60 s) controlling how often packet/byte counters are re-fetched. Streamed collectors (Interfaces, VPN, ARP, Routing) show an Event-driven badge instead of a slider |
+| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Includes sliders for Firewall (counter poll) and VPN (counter poll). Streamed collectors (Interfaces, ARP, Routing) show an Event-driven badge instead of a slider |
 | Limits | Top N values for connections, talkers, firewall rules; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
 | Visible Pages | Toggle individual pages on/off — hidden pages are removed from the sidebar instantly |
@@ -248,19 +248,20 @@ All other settings (poll intervals, top-N limits, page visibility, ping target, 
 ### Polled (concurrent via tagged API multiplexing)
 | Collector | Default interval | Data |
 |---|---|---|
-| System | 3 s | CPU, RAM, storage, temp, ROS version |
+| System | 1 s | CPU, RAM, storage, temp, ROS version |
 | Connections | 3 s | Firewall connection table, geo-IP |
 | Bandwidth | 3 s | Per-connection live RX/TX/Total Mbps (shares connection table fetch with Connections) |
 | Top Talkers | 3 s | Kid Control traffic stats |
-| Wireless | 5 s | Wireless client list |
-| Interface Status | 5 s | Byte counter refresh for live rate bars |
-| Firewall counters | 10 s | Packet/byte counter refresh for all firewall rules (RouterOS 7.x does not push counter updates via the listen stream) |
+| VPN counters | 10 s | WireGuard per-peer byte counter refresh for live rates |
+| Firewall counters | 5 s | Packet/byte counter refresh for all firewall rules (RouterOS 7.x does not push counter updates via the listen stream) |
 | Ping | 10 s | RTT + packet loss to ping target |
+| Interface Status | 15 s | Byte counter refresh for live rate bars |
+| Wireless | 60 s | Wireless client list |
 | DHCP Networks | 5 min | LAN subnets, pool sizes, WAN IP |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
 
-The WAN traffic monitor (`/interface/monitor-traffic`) pauses its RouterOS API calls automatically when no browser clients are connected, resuming immediately on the next connection.
+**Idle gating** — all polled collectors skip their RouterOS API calls entirely when no browser clients are connected. On an unattended dashboard, RouterOS API traffic drops to near zero across all data paths.
 
 All collectors that support RouterOS `/listen` streams use event-driven delivery — RouterOS pushes only delta rows when data changes, producing zero API traffic when the network is idle. A 60-second heartbeat emit keeps the browser's stale-detection timers alive.
 

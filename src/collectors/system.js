@@ -21,7 +21,12 @@ class SystemCollector {
     if ((now - this._lastUpdateFetch) < this.UPDATE_INTERVAL) return;
     this._lastUpdateFetch = now; // mark immediately to prevent concurrent fetches
     try {
-      const result = await this.ros.write('/system/package/update/print');
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('update check timed out')), 5000));
+      const result = await Promise.race([
+        this.ros.write('/system/package/update/print'),
+        timeout,
+      ]);
       const u = result && result[0] ? result[0] : {};
       this._lastUpdateRow = u;
       if (!this._loggedUpdateFields) {
@@ -69,6 +74,7 @@ class SystemCollector {
 
   async tick() {
     if (!this.ros.connected) return;
+    if (this.io.engine.clientsCount === 0) return;
 
     // Kick off update check in background — intentionally not awaited so it
     // never blocks the resource/health response reaching the browser.

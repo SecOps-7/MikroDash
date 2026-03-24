@@ -53,8 +53,6 @@ MikroDash is a **real-time MikroTik RouterOS v7 dashboard**. It connects directl
 src/
 ├── index.js                   # Entry point: Express + Socket.IO wiring, collector orchestration,
 │                              #   settings REST API, sendInitialState(), graceful shutdown
-├── routers.js                 # Router store — /data/routers.json. Add/edit/delete routers,
-│                              #   AES-256-GCM password encryption, name uniqueness, backwards-compat seed.
 ├── routers.js                 # Load/save/add/edit/delete routers.json — per-router connection config,
 │                              #   AES-256-GCM encrypted passwords, name uniqueness, backwards-compat seed.
 ├── settings.js                # Load/save settings.json with AES-256-GCM credential encryption.
@@ -545,9 +543,9 @@ try { await collector.tick(); } finally { Date.now = orig; }
 | `FIREWALL_POLL_MS` | `10000` | Firewall collector interval |
 | `IFSTATUS_POLL_MS` | `5000` | Interface status collector interval |
 | `PING_POLL_MS` | `10000` | Ping collector interval |
-| `ARP_POLL_MS` | `30000` | ARP collector interval |
+| `ARP_POLL_MS` | `30000` | Retained for Settings UI display only — ARP collector is stream-based (`/ip/arp/listen`), not polled |
 | `DHCP_POLL_MS` | `300000` | DHCP networks collector interval |
-| `ROUTING_POLL_MS` | `10000` | Routing collector interval |
+| `ROUTING_POLL_MS` | `10000` | Retained for Settings UI display only — routing collector is event-driven (two concurrent `/listen` streams), not polled |
 
 ---
 

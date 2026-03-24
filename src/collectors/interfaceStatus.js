@@ -41,11 +41,12 @@ class InterfaceStatusCollector {
     this._restartTimer = null;
     this._addrTimer    = null;
     this._heartbeat    = null;
+    this._lastStateFp  = '';  // fingerprint of structural fields only (not counters)
   }
 
   // ── build + emit ──────────────────────────────────────────────────────────
 
-  _buildAndEmit() {
+  _buildAndEmit(force = false) {
     const now = Date.now();
     const interfaces = [];
 
@@ -82,6 +83,14 @@ class InterfaceStatusCollector {
     }
 
     this.lastPayload = { ts: now, interfaces, pollMs: 0 }; // 0 = streamed, not polled
+
+    // Suppress emits that are counter-only changes (stream fires on every byte increment).
+    // Only emit immediately when structural state changes; addr poll (force=true) always emits
+    // so the Interfaces page live-rate bars still update every pollMs.
+    const stateFp = interfaces.map(i => `${i.name}|${i.running}|${i.disabled}|${i.ips.join(',')}`).join(';');
+    if (!force && stateFp === this._lastStateFp) return;
+    this._lastStateFp = stateFp;
+
     this.io.emit('ifstatus:update', this.lastPayload);
     this.state.lastIfStatusTs = now;
   }
@@ -111,7 +120,7 @@ class InterfaceStatusCollector {
         this._addrs.get(n).push(a.address || '');
       }
 
-      this._buildAndEmit();
+      this._buildAndEmit(true);
     } catch (e) {
       console.error('[ifstatus] initial load failed:', e && e.message ? e.message : e);
     }
@@ -159,7 +168,7 @@ class InterfaceStatusCollector {
           this._addrs.get(n).push(a.address || '');
         }
 
-        this._buildAndEmit();
+        this._buildAndEmit(true);
       } catch (_) {}
     }, this.pollMs);
   }

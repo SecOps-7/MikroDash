@@ -69,7 +69,7 @@
     .page-view{display:none;flex:1;padding:1.25rem;overflow-y:auto}
     .bw-header-row{display:grid;grid-template-columns:4fr 1fr;gap:.75rem;margin-bottom:.85rem;align-items:stretch}
     .bw-chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem .45rem;min-width:0;position:relative}
-    .bw-chart-card-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.3rem;font-family:var(--font-ui)}
+    .bw-chart-card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
     .bw-chart-wrap{position:relative;height:120px;width:100%;overflow:hidden}
     .bw-stat-col{display:flex;flex-direction:column;min-width:0}
     .bw-stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.4rem;display:flex;flex-direction:column;justify-content:center;gap:1rem;flex:1;min-width:0}
@@ -212,6 +212,33 @@
     .proto-fill.other{background:rgba(148,163,190,.3)}
     .proto-val{width:36px;color:var(--text-muted)}
     /* iface grid */
+
+    /* ── Interfaces summary row ──────────────────────────────────────────────── */
+    .if-summary-row{display:grid;grid-template-columns:1fr 2fr;gap:.75rem;margin-bottom:.85rem;align-items:stretch}
+    @media(max-width:700px){.if-summary-row{grid-template-columns:1fr}}
+    .if-scard{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0;display:flex;flex-direction:column}
+    .if-scard-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
+
+    /* Interface Types grid (left card) */
+    .if-type-grid{display:flex;flex-wrap:wrap;gap:.4rem;flex:1;align-content:flex-start}
+    .if-type-item{background:rgba(99,130,190,.06);border:1px solid var(--border);border-radius:6px;padding:.45rem .6rem;display:flex;flex-direction:column;gap:.1rem;min-width:80px}
+    .if-type-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .if-type-count{font-size:1.35rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
+
+    /* Ports panel (right card) */
+    .if-ports-scroll{display:flex;flex-wrap:wrap;gap:.55rem .7rem;align-items:center;justify-content:center;flex:1}
+    .if-port-item{display:flex;flex-direction:column;align-items:center;gap:.28rem;cursor:default}
+    .if-port-label{font-size:.6rem;font-family:var(--font-mono);color:var(--text-muted);text-align:center;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
+    /* Port SVG colours driven by data attribute */
+    .if-port-item[data-state="up"]   .if-port-svg .port-body{fill:rgba(74,222,128,.15);stroke:rgba(74,222,128,.7)}
+    .if-port-item[data-state="up"]   .if-port-svg .port-led {fill:rgba(74,222,128,.95)}
+    .if-port-item[data-state="up"]   .if-port-label{color:rgba(74,222,128,.85)}
+    .if-port-item[data-state="down"] .if-port-svg .port-body{fill:rgba(248,113,113,.1);stroke:rgba(248,113,113,.55)}
+    .if-port-item[data-state="down"] .if-port-svg .port-led {fill:rgba(248,113,113,.8)}
+    .if-port-item[data-state="down"] .if-port-label{color:rgba(248,113,113,.7)}
+    .if-port-item[data-state="dis"]  .if-port-svg .port-body{fill:rgba(99,130,190,.07);stroke:rgba(99,130,190,.2)}
+    .if-port-item[data-state="dis"]  .if-port-svg .port-led {fill:rgba(99,130,190,.3)}
+    .if-port-item[data-state="dis"]  .if-port-label{color:var(--text-muted)}
     .iface-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:.55rem}
     .iface-tile{padding:.6rem .7rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s,background .2s}
     .iface-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
@@ -288,7 +315,7 @@
     .fw-summary-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:.85rem}
     @media(max-width:700px){.fw-summary-row{grid-template-columns:1fr}}
     .fw-scard{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
-    .fw-scard-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.6rem;font-family:var(--font-ui)}
+    .fw-scard-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
     /* Rule counts — BGP-style large centred numbers */
     .fw-rc-num{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
     .fw-rc-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
@@ -425,7 +452,6 @@
       .iface-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
       .page-view{padding:.65rem .6rem}
     }
-    #systemCard{align-self:flex-start;width:100%}
     /* Dashboard grid */
     .mikrodash-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr auto;gap:.75rem;margin-bottom:1rem}
     /* Stacked columns span row 1, stack cards with gap */
@@ -433,6 +459,11 @@
     .mikrodash-col>[data-card-id]{display:flex;flex-direction:column;flex:1}
     .mikrodash-col>[data-card-id]>.card{flex:1;display:flex;flex-direction:column}
     .mikrodash-col>[data-card-id]>.card>.card-body{flex:1}
+    /* Center column: natural height; min-width:0 prevents SVG intrinsic-size from blocking shrink */
+    .mikrodash-col--center{align-self:start;min-width:0}
+    .mikrodash-col--center>[data-card-id]{flex:none;min-width:0}
+    .mikrodash-col--center>[data-card-id]>.card{flex:none;min-width:0}
+    .mikrodash-col--center>[data-card-id]>.card>.card-body{flex:none;min-width:0}
     /* Connections in row 1, stretches full height */
     [data-card-id="connCard"]{grid-row:1;display:flex;flex-direction:column}
     [data-card-id="connCard"]>.card{flex:1;display:flex;flex-direction:column}
@@ -568,7 +599,7 @@
     .wl-summary-row{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem}
     @media(max-width:600px){.wl-summary-row{grid-template-columns:1fr}}
     .wl-summary-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
-    .wl-summary-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.65rem;font-family:var(--font-ui)}
+    .wl-summary-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
     /* Signal health bars */
     .wl-sig-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem}
     .wl-sig-row:last-child{margin-bottom:0}
@@ -603,6 +634,21 @@
     .info-btn-coffee:hover{background:rgba(251,191,36,.2)}
     /* Topbar clock */
         /* VPN page tiles */
+
+    /* ── VPN summary row ─────────────────────────────────────────────────── */
+    .vpn-summary-row{display:flex;gap:.6rem;margin-bottom:.85rem;flex-wrap:wrap}
+    .vpn-stat-tile{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.65rem .9rem;display:flex;flex-direction:column;gap:.1rem;min-width:110px;flex:1}
+    .vpn-stat-label{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.2rem;white-space:nowrap}
+    .vpn-stat-value{font-size:1.5rem;font-weight:700;font-family:var(--font-mono);line-height:1;color:var(--text-main)}
+    .vpn-stat-value.connected{color:rgba(74,222,128,.9)}
+    .vpn-stat-value.idle{color:var(--text-muted)}
+    .vpn-stat-value.throughput{color:var(--accent-rx)}
+    /* Handshake age badge */
+    .vpn-hs-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:.62rem;font-family:var(--font-mono);padding:.15rem .45rem;border-radius:4px;white-space:nowrap}
+    .vpn-hs-badge.hs-ok    {background:rgba(74,222,128,.1); color:rgba(74,222,128,.95);border:1px solid rgba(74,222,128,.25)}
+    .vpn-hs-badge.hs-warn  {background:rgba(245,159,0,.1);  color:rgba(245,159,0,.95); border:1px solid rgba(245,159,0,.25)}
+    .vpn-hs-badge.hs-stale {background:rgba(248,113,113,.1);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
+    .vpn-hs-badge.hs-never {background:rgba(99,130,190,.07);color:var(--text-muted);   border:1px solid var(--border)}
     .vpn-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.45rem}
     .vpn-tile{padding:.55rem .65rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s}
     .vpn-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
@@ -650,7 +696,7 @@
     .dhcp-summary-row{display:grid;grid-template-columns:10fr 3fr;gap:.75rem;margin-bottom:.85rem;min-height:165px}
     @media(max-width:500px){.dhcp-summary-row{grid-template-columns:1fr;min-height:auto}}
     .dhcp-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0;overflow:hidden}
-    .dhcp-card-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.65rem;font-family:var(--font-ui)}
+    .dhcp-card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
     /* Subnet table */
     .dhcp-subnet-table{width:100%;border-collapse:collapse;table-layout:fixed}
     .dhcp-subnet-table th{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding:.2rem .5rem .35rem;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden}
@@ -674,7 +720,7 @@
     .rt-donut-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
     .rt-donut-legend-label{color:var(--text-muted);flex:1}
     .rt-donut-legend-val{font-family:var(--font-mono);color:var(--text-main);font-size:.68rem}
-    .rt-card-title{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:.6rem;font-family:var(--font-ui)}
+    .rt-card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
     .rt-proto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.4rem}
     .rt-proto-item{background:rgba(99,130,190,.06);border:1px solid var(--border);border-radius:6px;padding:.45rem .6rem;display:flex;flex-direction:column;gap:.1rem}
     .rt-proto-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
@@ -861,7 +907,7 @@
 
   <!-- DASHBOARD -->
   <div class="page-view active" id="page-dashboard">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
 
       <div class="mb-3">
           <div class="card" id="trafficCard">
@@ -908,7 +954,7 @@
         </div>
 
         <!-- Col 2: System + Networks stacked -->
-        <div class="mikrodash-col">
+        <div class="mikrodash-col mikrodash-col--center">
           <div data-card-id="systemCard">
           <div class="card" id="systemCard">
             <div class="stale-overlay">&#9679; stale</div>
@@ -936,7 +982,7 @@
                 <div class="net-field-val" id="wanIpDisplay">&#8212;</div>
               </div>
               <div id="lanOverview" style="margin-bottom:.3rem"><div class="empty-state">&#8212;</div></div>
-              <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">
+              <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:0;display:block">
                 <!-- Animated connection lines -->
                 <line id="ndLineWired"    x1="78"  y1="52"  x2="148" y2="75"  class="nd-line"/>
                 <line id="ndLineWireless" x1="78"  y1="124" x2="148" y2="85"  class="nd-line"/>
@@ -1061,7 +1107,7 @@
 
   <!-- CONNECTIONS MAP -->
   <div class="page-view" id="page-connections">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
           <h3 class="card-title">Destination Countries</h3>
@@ -1117,7 +1163,7 @@
 
   <!-- WIRELESS -->
   <div class="page-view" id="page-wireless">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
 
       <!-- Summary row: Signal Health (2/3) + Band Split (1/3) -->
       <div class="wl-summary-row">
@@ -1165,10 +1211,10 @@
           </div>
         </div>
         <div class="card-body p-0" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-          <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:460px">
-            <colgroup><col style="width:170px"><col style="width:80px"><col style="width:110px"><col style="width:70px"><col style="width:70px"></colgroup>
-            <thead><tr><th>Device</th><th class="wl-col-iface">Interface</th><th class="text-end">Signal</th><th>TX / RX</th><th class="wl-col-uptime">Uptime</th></tr></thead>
-            <tbody id="wirelessTable"><tr><td colspan="5" class="empty-state">No wireless clients</td></tr></tbody>
+          <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:520px">
+            <colgroup><col style="width:170px"><col style="width:80px"><col style="width:72px"><col style="width:110px"><col style="width:70px"><col style="width:70px"></colgroup>
+            <thead><tr><th>Device</th><th class="wl-col-iface">Interface</th><th>Band</th><th class="text-end">Signal</th><th>TX / RX</th><th class="wl-col-uptime">Uptime</th></tr></thead>
+            <tbody id="wirelessTable"><tr><td colspan="6" class="empty-state">No wireless clients</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1177,7 +1223,7 @@
 
   <!-- DHCP -->
   <div class="page-view" id="page-dhcp">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
 
       <!-- Top summary row: Subnets (2/3) + IP Utilisation gauge (1/3) -->
       <div class="dhcp-summary-row">
@@ -1240,7 +1286,7 @@
 
   <!-- FIREWALL -->
   <div class="page-view" id="page-firewall">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
 
       <!-- Summary row -->
       <div class="fw-summary-row">
@@ -1266,6 +1312,12 @@
                 <span class="fw-rc-num" id="fwCntMangle">—</span>
                 <span class="fw-rc-dis" id="fwCntMangleDis"></span>
                 <span class="fw-rc-lbl">Mangle</span>
+              </div>
+              <div class="fw-rc-divider"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+                <span class="fw-rc-num" id="fwCntRaw">—</span>
+                <span class="fw-rc-dis" id="fwCntRawDis"></span>
+                <span class="fw-rc-lbl">Raw</span>
               </div>
             </div>
           </div>
@@ -1302,6 +1354,7 @@
             <div class="fw-tab" data-fw="filter">Filter</div>
             <div class="fw-tab" data-fw="nat">NAT</div>
             <div class="fw-tab" data-fw="mangle">Mangle</div>
+            <div class="fw-tab" data-fw="raw">Raw</div>
           </div>
           <div class="fw-search-wrap">
             <input id="fwSearch" type="text" placeholder="Search chain, action, address, comment…" autocomplete="off" spellcheck="false">
@@ -1319,7 +1372,27 @@
 
   <!-- VPN -->
   <div class="page-view" id="page-vpn">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
+      <!-- VPN summary row -->
+      <div class="vpn-summary-row">
+        <div class="vpn-stat-tile">
+          <span class="vpn-stat-label">Total Peers</span>
+          <span class="vpn-stat-value" id="vpnStatTotal">—</span>
+        </div>
+        <div class="vpn-stat-tile">
+          <span class="vpn-stat-label">Connected</span>
+          <span class="vpn-stat-value connected" id="vpnStatConn">—</span>
+        </div>
+        <div class="vpn-stat-tile">
+          <span class="vpn-stat-label">Idle</span>
+          <span class="vpn-stat-value idle" id="vpnStatIdle">—</span>
+        </div>
+        <div class="vpn-stat-tile">
+          <span class="vpn-stat-label">Total Throughput</span>
+          <span class="vpn-stat-value throughput" id="vpnStatThroughput">—</span>
+        </div>
+      </div>
+
       <!-- All peer tiles -->
       <div class="card">
         <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">WireGuard Peers</h3><span id="vpnPageCount" class="card-badge">0</span></div>
@@ -1334,7 +1407,7 @@
 
   <!-- LOGS -->
   <div class="page-view" id="page-logs">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -1360,7 +1433,28 @@
 
   <!-- INTERFACES -->
   <div class="page-view" id="page-interfaces">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
+      <!-- Summary row: Interface Types (left) + Ports panel (right) -->
+      <div class="if-summary-row">
+
+        <!-- Interface Types card -->
+        <div class="if-scard">
+          <div class="if-scard-title">Interface Types</div>
+          <div class="if-type-grid" id="ifTypeGrid">
+            <div class="if-type-item"><span class="if-type-label">—</span><span class="if-type-count">—</span></div>
+          </div>
+        </div>
+
+        <!-- Ports card -->
+        <div class="if-scard">
+          <div class="if-scard-title">Physical Ports</div>
+          <div class="if-ports-scroll" id="ifPortsPanel">
+            <div class="empty-state" style="font-size:.72rem">Waiting&hellip;</div>
+          </div>
+        </div>
+
+      </div>
+
       <div class="card" id="ifStatusCard">
         <div class="stale-overlay">&#9679; stale</div>
         <div class="card-header d-flex align-items-center gap-2">
@@ -1452,7 +1546,7 @@
 
   <!-- ── Bandwidth ───────────────────────────────────────────────────────── -->
   <div class="page-view" id="page-bandwidth">
-    <div id="bandwidthCard">
+    <div id="bandwidthCard" style="width:100%">
     <div class="bw-header-row">
       <div class="bw-chart-card">
         <div class="bw-chart-card-title">WAN Traffic</div>
@@ -1688,7 +1782,7 @@
 
 
   <div class="page-view" id="page-routing">
-    <div class="container-fluid px-0" style="max-width:1400px;margin:0 auto">
+    <div class="container-fluid px-0" style="width:100%">
 
       <!-- Top row: doughnut chart + proto count grid + BGP summary -->
       <div class="rt-summary-row">
@@ -1741,7 +1835,7 @@
       <!-- Static + Dynamic Routes table -->
       <div id="routingRoutesCard" style="margin-bottom:.85rem">
         <div class="rt-toolbar">
-          <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-family:var(--font-ui);flex-shrink:0">Static &amp; Dynamic Routes</span>
+          <span class="rt-card-title" style="margin-bottom:0;flex-shrink:0">Static &amp; Dynamic Routes</span>
           <input type="text" class="rt-search" id="rtRouteSearch" placeholder="Search destination or gateway…">
           <select class="rt-sel" id="rtRouteSelType">
             <option value="">Static + Dynamic</option>

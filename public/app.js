@@ -152,7 +152,7 @@ document.querySelectorAll('.fw-tab').forEach(function(tab){
 var trafficCtx = $('trafficChart');
 var chart = null;
 var allPoints = [];
-var MAX_CLIENT_POINTS = 3600;
+var MAX_CLIENT_POINTS = 1800; // 30 min at 1 Hz — matches server HISTORY_MINUTES default
 
 function windowedPoints(){
   var cutoff = Date.now()-(windowSecs*1000), out=[];
@@ -178,17 +178,7 @@ function redrawChart(){
   chart.data.datasets[1].data=pts.map(function(p){return p.tx_mbps;});
   chart.update('none');
 }
-function pushChartPoint(p){
-  allPoints.push({ts:p.ts,rx_mbps:p.rx_mbps,tx_mbps:p.tx_mbps});
-  if(allPoints.length>MAX_CLIENT_POINTS)allPoints.shift();
-  liveRx.textContent=fmtMbps(p.rx_mbps); liveTx.textContent=fmtMbps(p.tx_mbps);
-  var cutoff=Date.now()-(windowSecs*1000); if(p.ts<cutoff)return;
-  if(!chart)makeChartObj();
-  var lbl=chart.data.labels,rx=chart.data.datasets[0].data,tx=chart.data.datasets[1].data;
-  while(lbl.length>0&&allPoints[allPoints.length-lbl.length].ts<cutoff){lbl.shift();rx.shift();tx.shift();}
-  lbl.push(new Date(p.ts).toLocaleTimeString()); rx.push(p.rx_mbps); tx.push(p.tx_mbps);
-  chart.update('none');
-}
+
 function applyWindow(secs){windowSecs=secs;redrawChart();}
 function initChart(points){allPoints=(points||[]).slice(-MAX_CLIENT_POINTS);if(!chart)makeChartObj();redrawChart();}
 
@@ -262,14 +252,18 @@ function gauge(label, pct, cls) {
   '</div>';
 }
 var _sysMetaWritten = false;
-socket.on('system:update',function(d){
+var _pendingSysData = null, _sysRafId = null;
+function _flushSysUpdate() {
+  _sysRafId = null;
+  if (document.hidden) return; // tab backgrounded — skip render, data stays pending
+  var d = _pendingSysData; if (!d) return;
+  _pendingSysData = null;
   var ut = parseUptime(d.uptimeRaw);
   uptimeDisplay.textContent = 'Uptime: '+ut;
   if(uptimeChip){uptimeChip.textContent=ut;uptimeChip.style.display='';}
   var html=gauge('CPU',d.cpuLoad,'cpu')+gauge('RAM',d.memPct,'mem');
   if(d.totalHdd>0)html+=gauge('Storage',d.hddPct,'hdd');
   gaugeRow.innerHTML=html;
-  // Static fields (board, version, CPU, RAM) never change after boot — write once
   if(!_sysMetaWritten&&(d.boardName||d.version||d.cpuCount||d.totalMem)){
     var meta='';
     if(d.boardName)meta+='<div class="sys-meta-item"><strong>'+esc(d.boardName)+'</strong></div>';
@@ -280,7 +274,6 @@ socket.on('system:update',function(d){
     sysMeta.innerHTML=meta;
     _sysMetaWritten=true;
   }
-  // Temperature can change — update its slot separately without rebuilding the whole block
   var tempSlot=$('sysMetaTemp');
   if(d.tempC!=null){
     if(!tempSlot){
@@ -300,7 +293,6 @@ socket.on('system:update',function(d){
     }else if(d.latestVersion){
       ur='<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; RouterOS <strong>'+esc(d.latestVersion)+'</strong> &mdash; Up to date</div>';
     }else if(d.updateStatus){
-      // Distinguish unavailable/error from a genuine in-progress check
       var isUnavail=/unavailable|cannot|error|failed/i.test(d.updateStatus);
       var rowCls=isUnavail?'ros-update-row muted':'ros-update-row pending';
       ur='<div class="'+rowCls+'"><span class="ros-update-dot"></span>'+esc(d.updateStatus)+'</div>';
@@ -309,6 +301,12 @@ socket.on('system:update',function(d){
     }
     rosUpdateRow.innerHTML=ur;
   }
+}
+socket.on('system:update',function(d){
+  // Defer all DOM writes to the next animation frame so rapid 1-s ticks
+  // don't trigger redundant layout/paint when the browser is busy.
+  _pendingSysData = d;
+  if (!_sysRafId) _sysRafId = requestAnimationFrame(_flushSysUpdate);
 });
 
 // ── LAN ────────────────────────────────────────────────────────────────────
@@ -429,15 +427,11 @@ function svcBadge(org, cat){
   return '<span class="svc-badge svc-'+(cat||'other')+'">'+esc(org)+'</span>';
 }
 var _connSrcFp='', _connDstFp='', _connProtoFp='';
-socket.on('conn:update',function(data){
-  connTotal.textContent=data.total;
-  var connNavBadge=$("connNavBadge"); if(connNavBadge) connNavBadge.textContent=data.total;
-  connHistory.push({ts:data.ts,total:data.total});
-  if(connHistory.length>MAX_CONN_HIST)connHistory.shift();
-  drawSparkline(connHistory);
-  var protoFp=JSON.stringify(data.protoCounts);
-  if(protoFp!==_connProtoFp){ _connProtoFp=protoFp; renderProtoBars(data.protoCounts); }
-  // Exclude ts — data object shape is stable between ticks when nothing changes
+var _pendingConnData=null, _connRafId=null;
+function _flushConnUpdate(){
+  _connRafId=null;
+  var data=_pendingConnData; if(!data) return;
+  _pendingConnData=null;
   var srcFp=JSON.stringify(data.topSources.map(function(x){return{ip:x.ip,count:x.count};}));
   if(srcFp!==_connSrcFp){
     _connSrcFp=srcFp;
@@ -472,6 +466,18 @@ socket.on('conn:update',function(data){
       }).join('');
     }else{topDests.innerHTML='<div class="empty-state">\u2014</div>';}
   }
+}
+socket.on('conn:update',function(data){
+  connTotal.textContent=data.total;
+  var connNavBadge=$("connNavBadge"); if(connNavBadge) connNavBadge.textContent=data.total;
+  connHistory.push({ts:data.ts,total:data.total});
+  if(connHistory.length>MAX_CONN_HIST)connHistory.shift();
+  drawSparkline(connHistory);
+  var protoFp=JSON.stringify(data.protoCounts);
+  if(protoFp!==_connProtoFp){ _connProtoFp=protoFp; renderProtoBars(data.protoCounts); }
+  // Exclude ts — data object shape is stable between ticks when nothing changes
+  _pendingConnData=data;
+  if(!_connRafId) _connRafId=requestAnimationFrame(_flushConnUpdate);
 });
 
 // ── Top Talkers ────────────────────────────────────────────────────────────
@@ -558,7 +564,104 @@ socket.on('ifstatus:update',function(data){
       '</div>'+
       '</div>';
   }).join('');
+  renderIfTypes(ifaces);
+  renderIfPorts(ifaces);
 });
+
+// ── Interface Types card ───────────────────────────────────────────────────
+// Colour palette for type badges — cycles for types beyond the named set
+var IF_TYPE_COLOURS = {
+  ether:      'rgba(56,189,248,.9)',
+  wlan:       'rgba(167,139,250,.9)',
+  bridge:     'rgba(52,211,153,.9)',
+  vlan:       'rgba(251,191,36,.9)',
+  wireguard:  'rgba(99,190,130,.9)',
+  'pppoe-client':'rgba(251,113,133,.9)',
+  lte:        'rgba(245,159,0,.9)',
+  loopback:   'rgba(99,130,190,.6)',
+};
+var IF_TYPE_FALLBACKS = ['rgba(56,189,248,.7)','rgba(167,139,250,.7)','rgba(52,211,153,.7)',
+  'rgba(251,191,36,.7)','rgba(251,113,133,.7)','rgba(245,159,0,.7)'];
+
+function renderIfTypes(ifaces) {
+  var panel = $('ifTypeGrid'); if (!panel) return;
+  // Count by type, preserve insertion order
+  var counts = {}, order = [];
+  ifaces.forEach(function(i) {
+    var t = i.type || 'ether';
+    if (!counts[t]) { counts[t] = 0; order.push(t); }
+    counts[t]++;
+  });
+  if (!order.length) {
+    panel.innerHTML = '<div class="if-type-item"><span class="if-type-label">—</span><span class="if-type-count">—</span></div>';
+    return;
+  }
+  var fallbackIdx = 0;
+  panel.innerHTML = order.map(function(t) {
+    var col = IF_TYPE_COLOURS[t] || IF_TYPE_FALLBACKS[fallbackIdx++ % IF_TYPE_FALLBACKS.length];
+    return '<div class="if-type-item">'+
+      '<span class="if-type-label" title="'+esc(t)+'">'+esc(t)+'</span>'+
+      '<span class="if-type-count" style="color:'+col+'">'+counts[t]+'</span>'+
+    '</div>';
+  }).join('');
+}
+
+// ── Ports panel ────────────────────────────────────────────────────────────
+// Renders an ethernet port SVG for every ether-type interface.
+// Port size scales down when there are many ports so they all fit in one row.
+function renderIfPorts(ifaces) {
+  var panel = $('ifPortsPanel'); if (!panel) return;
+  var ethers = ifaces.filter(function(i){ return i.type === 'ether'; });
+  if (!ethers.length) {
+    panel.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted)">No ethernet ports</div>';
+    return;
+  }
+  // Scale port size: fits up to ~20 ports at full size, shrinks beyond that
+  var n = ethers.length;
+  var sz = n <= 8 ? 44 : n <= 16 ? 36 : n <= 24 ? 30 : 26;
+  panel.innerHTML = ethers.map(function(i) {
+    var state = i.disabled ? 'dis' : i.running ? 'up' : 'down';
+    return '<div class="if-port-item" data-state="'+state+'" title="'+esc(i.name)+(i.ips&&i.ips.length?' — '+esc(i.ips[0]):'')+(i.running?' (up)':i.disabled?' (disabled)':' (down)')+'">' +
+      portSvg(sz) +
+      '<span class="if-port-label">'+esc(i.name)+'</span>'+
+    '</div>';
+  }).join('');
+}
+
+function portSvg(sz) {
+  // Ethernet port — RJ-45 front view
+  // Outer housing, inner socket recess, two clip tabs top and bottom,
+  // 8 contact pins across the bottom of the socket, one LED dot top-right.
+  var w = sz, h = Math.round(sz * 1.1);
+  var rx = Math.max(2, Math.round(sz * 0.09));        // corner radius
+  var sox = Math.round(w * 0.15);                     // socket inset x
+  var sow = w - sox * 2;                              // socket width
+  var soy = Math.round(h * 0.22);                     // socket inset y top
+  var soh = Math.round(h * 0.58);                     // socket height
+  var pinW = Math.max(1, Math.round(sow / 10));       // each pin width
+  var pinH = Math.max(3, Math.round(h * 0.16));       // pin height
+  var pinY = soy + soh - pinH;                        // pins sit at socket bottom
+  var pinGap = (sow - 8 * pinW) / 9;                 // space between pins
+  var ledR = Math.max(2, Math.round(sz * 0.07));      // LED radius
+  var ledX = w - Math.round(sz * 0.14);
+  var ledY = Math.round(sz * 0.11);
+  // Build 8 pin rects
+  var pins = '';
+  for (var p = 0; p < 8; p++) {
+    var px = sox + pinGap + p * (pinW + pinGap);
+    pins += '<rect x="'+px.toFixed(1)+'" y="'+pinY+'" width="'+pinW+'" height="'+pinH+'" rx="0.5" fill="rgba(200,215,240,.35)"/>';
+  }
+  return '<svg class="if-port-svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" xmlns="http://www.w3.org/2000/svg">'+
+    // Outer housing
+    '<rect class="port-body" x="0.5" y="0.5" width="'+(w-1)+'" height="'+(h-1)+'" rx="'+rx+'" stroke-width="1.5" fill-opacity="1"/>'+
+    // Socket recess (darker cutout)
+    '<rect x="'+sox+'" y="'+soy+'" width="'+sow+'" height="'+soh+'" rx="2" fill="rgba(5,8,16,.5)" stroke="rgba(99,130,190,.2)" stroke-width="0.8"/>'+
+    // 8 contact pins
+    pins+
+    // LED indicator dot
+    '<circle class="port-led" cx="'+ledX+'" cy="'+ledY+'" r="'+ledR+'"/>'+
+  '</svg>';
+}
 
 // ── Wireless ───────────────────────────────────────────────────────────────
 // ── Wireless ───────────────────────────────────────────────────────────────
@@ -612,7 +715,7 @@ socket.on('ifstatus:update',function(data){
     if(!wirelessTable) return;
     var clients=sortClients(_wlClients, _wlSort);
     if(!clients.length){
-      wirelessTable.innerHTML='<tr><td colspan="5" class="empty-state">No wireless clients</td></tr>';
+      wirelessTable.innerHTML='<tr><td colspan="6" class="empty-state">No wireless clients</td></tr>';
       return;
     }
     // Group by interface
@@ -627,7 +730,7 @@ socket.on('ifstatus:update',function(data){
       var g=groups[key];
       var multiGroup=order.length>1;
       if(multiGroup){
-        rows+='<tr class="wl-group-row"><td colspan="5">'+
+        rows+='<tr class="wl-group-row"><td colspan="6">'+
           '<span class="wl-group-label">'+esc(g.iface)+'</span>'+
           (g.ssid?'<span class="wl-group-sub">'+esc(g.ssid)+'</span>':'')+
           '<span class="wl-group-sub">'+g.clients.length+' client'+(g.clients.length!==1?'s':'')+'</span>'+
@@ -647,6 +750,7 @@ socket.on('ifstatus:update',function(data){
             ipStr+macStr+
           '</td>'+
           '<td class="wl-col-iface" style="color:var(--text-muted);font-size:.73rem">'+esc(c.iface||'\u2014')+'</td>'+
+          '<td>'+bandBadge(c.band)+'</td>'+
           '<td class="text-end">'+
             signalBars(sig)+
             '<span style="font-size:.68rem;color:var(--text-muted);margin-left:.3rem">'+sig+' dBm</span>'+
@@ -714,47 +818,92 @@ socket.on('ifstatus:update',function(data){
 })();
 
 // ── WireGuard ──────────────────────────────────────────────────────────────
+// ── VPN handshake helpers ─────────────────────────────────────────────────
+
+// Parse a RouterOS last-handshake duration string ("2m30s", "1h5m20s", etc.)
+// into total seconds. Returns Infinity for "never" / empty, 0 for parse failure.
+function vpnHsToSecs(s) {
+  if (!s || s === 'never') return Infinity;
+  var total = 0, m;
+  if ((m = s.match(/(\d+)w/))) total += parseInt(m[1]) * 604800;
+  if ((m = s.match(/(\d+)d/))) total += parseInt(m[1]) * 86400;
+  if ((m = s.match(/(\d+)h/))) total += parseInt(m[1]) * 3600;
+  if ((m = s.match(/(\d+)m/))) total += parseInt(m[1]) * 60;
+  if ((m = s.match(/(\d+)s/))) total += parseInt(m[1]);
+  return total;
+}
+
+// Build a colour-coded handshake age badge.
+// WireGuard re-keys every ~3 min when active; > 10 min means stalled.
+function vpnHsBadge(uptime, connected) {
+  if (!connected || !uptime || uptime === 'never') {
+    return '<span class="vpn-hs-badge hs-never">Never connected</span>';
+  }
+  var secs = vpnHsToSecs(uptime);
+  var cls = secs < 180 ? 'hs-ok' : secs < 600 ? 'hs-warn' : 'hs-stale';
+  // Dot indicators: green ● / amber ● / red ●
+  var dot = cls === 'hs-ok' ? '●' : cls === 'hs-warn' ? '●' : '●';
+  return '<span class="vpn-hs-badge ' + cls + '">' + dot + ' ' + esc(uptime) + '</span>';
+}
+
 socket.on('vpn:update',function(data){
-  var peers=(data.tunnels||[]).filter(function(t){return t.type==='WireGuard'&&t.state==='connected';});
-  vpnCount.textContent=peers.length;
-  vpnCount.className='card-badge'+(peers.length>0?' active-green':'');
-  if(vpnPageCount){vpnPageCount.textContent=peers.length;vpnPageCount.className='card-badge'+(peers.length>0?' active-blue':'');}
-  var nb=$('vpnNavBadge'); if(nb)nb.textContent=peers.length;
-  // Dashboard mini card
-  if(!peers.length){vpnTable.innerHTML='<tr><td colspan="3" class="empty-state">No active peers</td></tr>';}
-  else{
-    vpnTable.innerHTML=peers.map(function(t){
-      var endStr=t.endpoint?'<div style="font-size:.65rem;color:var(--text-muted);margin-top:.1rem">'+esc(t.endpoint)+'</div>':'';
-      return'<tr>'+
-        '<td><span class="wg-up">Up</span></td>'+
-        '<td><div style="font-size:.78rem;font-weight:600">'+esc(t.name||t.interface||'\u2014')+'</div>'+endStr+'</td>'+
-        '<td style="font-size:.7rem;color:var(--text-muted)">'+esc(t.uptime||'\u2014')+'</td>'+
+  var allTunnels = data.tunnels || [];
+  var wgPeers   = allTunnels.filter(function(t){ return t.type === 'WireGuard'; });
+  var connected = wgPeers.filter(function(t){ return t.state === 'connected'; });
+  var idle      = wgPeers.filter(function(t){ return t.state !== 'connected'; });
+
+  // ── Dashboard nav badges ──────────────────────────────────────────────────
+  vpnCount.textContent = connected.length;
+  vpnCount.className   = 'card-badge' + (connected.length > 0 ? ' active-green' : '');
+  if (vpnPageCount) { vpnPageCount.textContent = wgPeers.length; vpnPageCount.className = 'card-badge' + (wgPeers.length > 0 ? ' active-blue' : ''); }
+  var nb = $('vpnNavBadge'); if (nb) nb.textContent = connected.length;
+
+  // ── Dashboard mini card ───────────────────────────────────────────────────
+  if (!connected.length) {
+    vpnTable.innerHTML = '<tr><td colspan="3" class="empty-state">No active peers</td></tr>';
+  } else {
+    vpnTable.innerHTML = connected.map(function(t) {
+      var endStr = t.endpoint ? '<div style="font-size:.65rem;color:var(--text-muted);margin-top:.1rem">' + esc(t.endpoint) + '</div>' : '';
+      return '<tr>' +
+        '<td><span class="wg-up">Up</span></td>' +
+        '<td><div style="font-size:.78rem;font-weight:600">' + esc(t.name || t.interface || '\u2014') + '</div>' + endStr + '</td>' +
+        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(t.uptime || '\u2014') + '</td>' +
         '</tr>';
     }).join('');
   }
-  // VPN page — show ALL peers regardless of state
-  var allPeers=(data.tunnels||[]).filter(function(t){return t.type==="WireGuard";});
 
-  // Tile grid — all peers, active first
-  allPeers.sort(function(a,b){return (b.state==='connected'?1:0)-(a.state==='connected'?1:0);});
-  var grid=$('vpnPageGrid');
-  if(grid){
-    if(!allPeers.length){grid.innerHTML='<div class="empty-state">No peers configured</div>';}
-    else{
-      grid.innerHTML=allPeers.map(function(t){
-        var connected=t.state==="connected";
-        var rxR=t.rxRate||0,txR=t.txRate||0;
-        var rxRateStr=rxR>0?'<span style="color:var(--accent-rx)">↓ '+fmtBytes(Math.round(rxR))+'/s</span>':'';
-        var txRateStr=txR>0?'<span style="color:var(--accent-tx)">↑ '+fmtBytes(Math.round(txR))+'/s</span>':'';
-        var totStr='<span style="color:var(--text-muted)">↓ '+fmtBytes(parseInt(t.rx,10)||0)+' ↑ '+fmtBytes(parseInt(t.tx,10)||0)+'</span>';
-        var dotCls=connected?'up':'dis';
-        var tileCls='vpn-tile '+(connected?'up':'idle');
-        return'<div class="'+tileCls+'">'+
-          '<div class="vpn-tile-name"><span class="iface-dot '+dotCls+'"></span><span class="vpn-tile-name-text">'+esc(t.name||t.interface||'—')+'</span></div>'+
-          (t.interface?'<div class="vpn-tile-iface">'+esc(t.interface)+(t.allowedIp?' · '+esc(t.allowedIp):'')+'</div>':'')+
-          (t.endpoint?'<div class="vpn-tile-ip">'+esc(t.endpoint)+'</div>':'')+
-          '<div class="vpn-tile-hs">'+(connected&&t.uptime&&t.uptime!=='never'?'HS: '+esc(t.uptime):'Never connected')+'</div>'+
-          
+  // ── VPN page summary stats ────────────────────────────────────────────────
+  var totalThroughputMbps = wgPeers.reduce(function(sum, t) {
+    return sum + ((t.rxRate || 0) + (t.txRate || 0)) / 1e6 * 8;
+  }, 0);
+  var stTotal = $('vpnStatTotal'), stConn = $('vpnStatConn');
+  var stIdle  = $('vpnStatIdle'),  stTput = $('vpnStatThroughput');
+  if (stTotal) stTotal.textContent = wgPeers.length;
+  if (stConn)  stConn.textContent  = connected.length;
+  if (stIdle)  stIdle.textContent  = idle.length;
+  if (stTput)  stTput.textContent  = totalThroughputMbps > 0 ? fmtMbps(totalThroughputMbps) : '0';
+
+  // ── Tile grid — all peers, connected first ────────────────────────────────
+  wgPeers.sort(function(a, b) { return (b.state === 'connected' ? 1 : 0) - (a.state === 'connected' ? 1 : 0); });
+  var grid = $('vpnPageGrid');
+  if (grid) {
+    if (!wgPeers.length) {
+      grid.innerHTML = '<div class="empty-state">No peers configured</div>';
+    } else {
+      grid.innerHTML = wgPeers.map(function(t) {
+        var isConn  = t.state === 'connected';
+        var rxR = t.rxRate || 0, txR = t.txRate || 0;
+        var rxRateStr = rxR > 0 ? '<span style="color:var(--accent-rx)">↓ ' + fmtBytes(Math.round(rxR)) + '/s</span>' : '';
+        var txRateStr = txR > 0 ? '<span style="color:var(--accent-tx)">↑ ' + fmtBytes(Math.round(txR)) + '/s</span>' : '';
+        var totStr = '<span style="color:var(--text-muted)">↓ ' + fmtBytes(parseInt(t.rx, 10) || 0) + ' ↑ ' + fmtBytes(parseInt(t.tx, 10) || 0) + '</span>';
+        var dotCls  = isConn ? 'up' : 'dis';
+        var tileCls = 'vpn-tile ' + (isConn ? 'up' : 'idle');
+        return '<div class="' + tileCls + '">' +
+          '<div class="vpn-tile-name"><span class="iface-dot ' + dotCls + '"></span><span class="vpn-tile-name-text">' + esc(t.name || t.interface || '—') + '</span></div>' +
+          (t.interface ? '<div class="vpn-tile-iface">' + esc(t.interface) + (t.allowedIp ? ' · ' + esc(t.allowedIp) : '') + '</div>' : '') +
+          (t.endpoint ? '<div class="vpn-tile-ip">' + esc(t.endpoint) + '</div>' : '') +
+          '<div class="vpn-tile-hs">' + vpnHsBadge(t.uptime, isConn) + '</div>' +
+          ((rxRateStr || txRateStr) ? '<div class="vpn-tile-traffic">' + rxRateStr + txRateStr + '</div>' : (isConn ? '<div class="vpn-tile-traffic">' + totStr + '</div>' : '')) +
         '</div>';
       }).join('');
     }
@@ -854,10 +1003,31 @@ var _fwSparkCtx = (function(){ var c=$('fwSparkCanvas'); return c?c.getContext('
 
 // Resize canvas when the firewall page becomes visible (clientWidth is 0 while hidden)
 document.addEventListener('mikrodash:pagechange', function(e) {
-  if (e.detail !== 'firewall') return;
-  var c = $('fwSparkCanvas'); if (!c) return;
-  var w = c.parentElement ? c.parentElement.clientWidth : 0;
-  if (w > 0) { c.width = w; fwDrawSparkline(); }
+  if (e.detail === 'firewall') {
+    var c = $('fwSparkCanvas'); if (!c) return;
+    var w = c.parentElement ? c.parentElement.clientWidth : 0;
+    if (w > 0) { c.width = w; fwDrawSparkline(); }
+  }
+  // When returning to dashboard, redraw chart from the full buffered allPoints history
+  if (e.detail === 'dashboard' && allPoints.length) {
+    requestAnimationFrame(redrawChart);
+  }
+});
+
+// ── Page Visibility: pause SVG animations and skip rAF flushes when hidden ─
+document.addEventListener('visibilitychange', function() {
+  var svg = $('netDiagram');
+  if (svg) {
+    if (document.hidden) svg.pauseAnimations();
+    else {
+      svg.unpauseAnimations();
+      // Flush any pending data that accumulated while hidden
+      if (_pendingSysData && !_sysRafId) _sysRafId = requestAnimationFrame(_flushSysUpdate);
+      if (_pendingConnData && !_connRafId) _connRafId = requestAnimationFrame(_flushConnUpdate);
+      // Redraw traffic chart from buffered allPoints so the gap while hidden is filled
+      if (allPoints.length) requestAnimationFrame(redrawChart);
+    }
+  }
 });
 
 function fwDrawSparkline(){
@@ -879,8 +1049,8 @@ function fwDrawSparkline(){
 }
 
 function fwUpdateSummary(data){
-  var filter=data.filter||[], nat=data.nat||[], mangle=data.mangle||[];
-  var all=[...filter,...nat,...mangle];
+  var filter=data.filter||[], nat=data.nat||[], mangle=data.mangle||[], raw=data.raw||[];
+  var all=[...filter,...nat,...mangle,...raw];
 
   // Rule counts
   function setCount(totalId,disId,rules){
@@ -892,6 +1062,7 @@ function fwUpdateSummary(data){
   setCount('fwCntFilter','fwCntFilterDis',filter);
   setCount('fwCntNat','fwCntNatDis',nat);
   setCount('fwCntMangle','fwCntMangleDis',mangle);
+  setCount('fwCntRaw','fwCntRawDis',raw);
 
   // Action breakdown
   var actionCounts={};
@@ -931,6 +1102,7 @@ function fwUpdateSummary(data){
   fwDrawSparkline();
 }
 
+var _fwRafId=null;
 socket.on('firewall:update',function(data){
   var wasEmpty = !fwData.filter;
   fwData=data;
@@ -941,12 +1113,13 @@ socket.on('firewall:update',function(data){
   if(!wasEmpty && fwUpdateCountersInPlace(data)){
     return; // in-place update succeeded
   }
-  renderFirewallTab();
+  // Structural change — defer full re-render to next animation frame
+  if(!_fwRafId) _fwRafId=requestAnimationFrame(function(){ _fwRafId=null; renderFirewallTab(); });
 });
 
 function fwUpdateCountersInPlace(data){
   if(!firewallTable) return false;
-  var rules=fwTab==='top'?(data.topByHits||[]):fwTab==='filter'?(data.filter||[]):fwTab==='nat'?(data.nat||[]):(data.mangle||[]);
+  var rules=fwTab==='top'?(data.topByHits||[]):fwTab==='filter'?(data.filter||[]):fwTab==='nat'?(data.nat||[]):fwTab==='raw'?(data.raw||[]):(data.mangle||[]);
   // Check all rows are already present with matching IDs
   var rows=firewallTable.querySelectorAll('tr[data-rule-id]');
   if(!rows.length) return false;
@@ -990,7 +1163,7 @@ if(fwSearchEl) fwSearchEl.addEventListener('input',function(){
 });
 
 function renderFirewallTab(){
-  var rules=fwTab==='top'?(fwData.topByHits||[]):fwTab==='filter'?(fwData.filter||[]):fwTab==='nat'?(fwData.nat||[]):(fwData.mangle||[]);
+  var rules=fwTab==='top'?(fwData.topByHits||[]):fwTab==='filter'?(fwData.filter||[]):fwTab==='nat'?(fwData.nat||[]):fwTab==='raw'?(fwData.raw||[]):(fwData.mangle||[]);
   // Apply search filter
   if(_fwSearch){
     var q=_fwSearch;
@@ -1006,7 +1179,7 @@ function renderFirewallTab(){
   }
   if(!rules.length){
     firewallTable.innerHTML='<tr><td colspan="6" class="empty-state">'+(
-      _fwSearch?'No rules match search':'No rules with hits')+'</td></tr>';
+      _fwSearch?'No rules match search':(fwTab==='top'?'No rules with hits':'No rules'))+'</td></tr>';
     return;
   }
   firewallTable.innerHTML=rules.map(function(r){
@@ -1130,7 +1303,27 @@ socket.on('traffic:history',function(data){
   staleTimers['trafficCard']=Date.now();
   var tc=$('trafficCard');if(tc)tc.classList.remove('is-stale');
 });
-socket.on('traffic:update',function(sample){if(!currentIf||sample.ifName!==currentIf)return;pushChartPoint(sample);});
+var _pendingTraffic = null, _trafficRafId = null;
+socket.on('traffic:update',function(sample){
+  if(!currentIf||sample.ifName!==currentIf)return;
+  // Always buffer into allPoints so history is preserved while the tab is hidden
+  // or the user is on another page. Only the chart DOM update is deferred/skipped.
+  allPoints.push({ts:sample.ts,rx_mbps:sample.rx_mbps,tx_mbps:sample.tx_mbps});
+  if(allPoints.length>MAX_CLIENT_POINTS)allPoints.shift();
+  _pendingTraffic = sample;
+  if(!_trafficRafId) _trafficRafId = requestAnimationFrame(function(){
+    _trafficRafId = null;
+    if(document.hidden || !_pendingTraffic) return;
+    var p = _pendingTraffic; _pendingTraffic = null;
+    liveRx.textContent=fmtMbps(p.rx_mbps); liveTx.textContent=fmtMbps(p.tx_mbps);
+    var cutoff=Date.now()-(windowSecs*1000); if(p.ts<cutoff)return;
+    if(!chart)makeChartObj();
+    var lbl=chart.data.labels,rx=chart.data.datasets[0].data,tx=chart.data.datasets[1].data;
+    while(lbl.length>0&&allPoints[allPoints.length-lbl.length].ts<cutoff){lbl.shift();rx.shift();tx.shift();}
+    lbl.push(new Date(p.ts).toLocaleTimeString()); rx.push(p.rx_mbps); tx.push(p.tx_mbps);
+    chart.update('none');
+  });
+});
 socket.on('wan:status',function(s){renderWanStatus(s);});
 
 // ── Reconnect ──────────────────────────────────────────────────────────────
@@ -2532,13 +2725,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollConns',     label:'Connections',     min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollTalkers',   label:'Top Talkers',     min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollBandwidth', label:'Bandwidth',       min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollFirewall',  label:'Firewall',        min:1000,  max:30000,  step:1000,  unit:'ms' },
-    { key:'pollPing',      label:'Ping',            min:1000,  max:60000,  step:1000,  unit:'ms' },
+    { key:'pollVpn',       label:'VPN / WireGuard', min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollFirewall',  label:'Firewall',        min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollPing',      label:'Ping',            min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollWireless',  label:'Wireless',        min:500,   max:60000,  step:500,   unit:'ms' },
     { key:'pollDhcp',      label:'DHCP Networks',   min:30000, max:600000, step:30000, unit:'ms' },
     // Streamed — RouterOS pushes changes, no poll interval needed
     { key:'pollIfstatus',  label:'Interfaces',  streamed:true },
-    { key:'pollVpn',       label:'VPN',         streamed:true },
     { key:'pollArp',       label:'ARP',         streamed:true },
     { key:'pollRouting',   label:'Routing',     streamed:true },
   ];
@@ -2577,7 +2770,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         wrap.appendChild(row);
         return;
       }
-      var val = data[cfg.key] || cfg.min;
+      var val = (data[cfg.key] != null) ? Math.max(cfg.min, Math.min(cfg.max, data[cfg.key])) : cfg.min;
       row.innerHTML =
         '<div style="display:flex;justify-content:space-between;margin-bottom:.25rem">' +
           '<span style="font-size:.75rem;color:var(--text-muted)">'+cfg.label+'</span>' +
@@ -2738,6 +2931,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var selIpver= $('bwIpver');
   var selTopN = $('bwTopN');
   var bwLiveRxNum = $('bwLiveRxNum');
+  var _bwRafId = null;
+  function scheduleRender() {
+    if (!_bwRafId) _bwRafId = requestAnimationFrame(function() { _bwRafId = null; render(); });
+  }
   var bwLiveRxUnit = $('bwLiveRxUnit');
   var bwLiveTxNum = $('bwLiveTxNum');
   var bwLiveTxUnit = $('bwLiveTxUnit');
@@ -2935,14 +3132,14 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (_sortKey === col.key) { _sortDir *= -1; }
       else { _sortKey = col.key; _sortDir = col.key==='name'||col.key==='proto'||col.key==='org' ? 1 : -1; }
       refreshSortHeaders();
-      render();
+      scheduleRender();
     });
   });
   refreshSortHeaders(); // apply initial sort indicator on load
 
   // Filter controls
   [search, selIface, selScope, selIpver, selTopN].forEach(function(el) {
-    if (el) el.addEventListener('input', render);
+    if (el) el.addEventListener('input', scheduleRender);
   });
 
   // Seed interface dropdown from ifStatus so all interfaces are always listed
@@ -2970,7 +3167,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   socket.on('bandwidth:update', function(data) {
     _bwData = data.devices || [];
     updateIfaceSelector(_bwData);
-    if (pageVisible('bandwidth')) render();
+    if (pageVisible('bandwidth')) scheduleRender();
   });
 
   // Re-render when navigating to page (picks up any data that arrived while hidden)

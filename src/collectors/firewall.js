@@ -19,13 +19,14 @@ class FirewallCollector {
     this._filter = [];
     this._nat    = [];
     this._mangle = [];
+    this._raw    = [];
 
     this.prevCounts  = new Map();
     this._lastFp     = '';
 
-    this._streams    = { filter: null, nat: null, mangle: null };
-    this._restarting = { filter: false, nat: false, mangle: false };
-    this._restartTimers = { filter: null, nat: null, mangle: null };
+    this._streams    = { filter: null, nat: null, mangle: null, raw: null };
+    this._restarting = { filter: false, nat: false, mangle: false, raw: false };
+    this._restartTimers = { filter: null, nat: null, mangle: null, raw: null };
     this._heartbeat  = null;
     this._pollTimer  = null;
     this._pollInflight = false;
@@ -89,7 +90,7 @@ class FirewallCollector {
   }
 
   _emit() {
-    const all       = [...this._filter, ...this._nat, ...this._mangle];
+    const all       = [...this._filter, ...this._nat, ...this._mangle, ...this._raw];
     const topByHits = all.filter(r => r.packets > 0)
                          .sort((a, b) => b.packets - a.packets)
                          .slice(0, this.topN);
@@ -103,6 +104,7 @@ class FirewallCollector {
       filter:   this._filter.map(r => ({ id: r.id, packets: r.packets, bytes: r.bytes })),
       nat:      this._nat.map(r    => ({ id: r.id, packets: r.packets, bytes: r.bytes })),
       mangle:   this._mangle.map(r => ({ id: r.id, packets: r.packets, bytes: r.bytes })),
+      raw:      this._raw.map(r    => ({ id: r.id, packets: r.packets, bytes: r.bytes })),
     });
 
     const payload = {
@@ -110,6 +112,7 @@ class FirewallCollector {
       filter:   this._filter,
       nat:      this._nat,
       mangle:   this._mangle,
+      raw:      this._raw,
       topByHits,
       pollMs:   this.pollMs,
     };
@@ -130,23 +133,27 @@ class FirewallCollector {
 
   async _pollCounters() {
     if (!this.ros.connected || this._pollInflight) return;
+    if (this.io.engine.clientsCount === 0) return;
     this._pollInflight = true;
     try {
       const safeGet = async (cmd) => {
         try {
-          // Fetch only id/packets/bytes — no proplist restriction since some
-          // RouterOS builds error or return empty when proplist is used on
-          // firewall tables. Full rows are cheap enough at this frequency.
+          // Request only the fields needed for counter merging. Some RouterOS
+          // builds error or return empty rows when proplist is used on firewall
+          // tables, so fall back to a full fetch if the proplist result is empty.
+          const rows = await this.ros.write(cmd, ['=.proplist=.id,packets,bytes']);
+          if (rows && rows.length > 0) return rows;
           return await this.ros.write(cmd);
         } catch { return []; }
       };
-      const [filter, nat, mangle] = await Promise.all([
+      const [filter, nat, mangle, raw] = await Promise.all([
         safeGet('/ip/firewall/filter/print'),
         safeGet('/ip/firewall/nat/print'),
         safeGet('/ip/firewall/mangle/print'),
+        safeGet('/ip/firewall/raw/print'),
       ]);
       let changed = false;
-      for (const [rows, table] of [[filter, '_filter'], [nat, '_nat'], [mangle, '_mangle']]) {
+      for (const [rows, table] of [[filter, '_filter'], [nat, '_nat'], [mangle, '_mangle'], [raw, '_raw']]) {
         for (const row of (rows || [])) {
           const id      = row['.id'];
           const packets = parseInt(row.packets || '0', 10);
@@ -191,14 +198,16 @@ class FirewallCollector {
       try { const r = await this.ros.write(cmd); return Array.isArray(r) ? r : []; }
       catch { return []; }
     };
-    const [filter, nat, mangle] = await Promise.all([
+    const [filter, nat, mangle, raw] = await Promise.all([
       safeGet('/ip/firewall/filter/print'),
       safeGet('/ip/firewall/nat/print'),
       safeGet('/ip/firewall/mangle/print'),
+      safeGet('/ip/firewall/raw/print'),
     ]);
     this._filter = filter.map(r => this._processRule(r)).filter(Boolean);
     this._nat    = nat.map(r    => this._processRule(r)).filter(Boolean);
     this._mangle = mangle.map(r => this._processRule(r)).filter(Boolean);
+    this._raw    = raw.map(r    => this._processRule(r)).filter(Boolean);
     this._emit();
   }
 
@@ -243,7 +252,7 @@ class FirewallCollector {
   }
 
   _stopAllStreams() {
-    for (const t of ['filter', 'nat', 'mangle']) this._stopStream(t);
+    for (const t of ['filter', 'nat', 'mangle', 'raw']) this._stopStream(t);
   }
 
   // ── heartbeat ────────────────────────────────────────────────────────────
@@ -266,6 +275,7 @@ class FirewallCollector {
     this._startStream('filter', '/ip/firewall/filter/listen');
     this._startStream('nat',    '/ip/firewall/nat/listen');
     this._startStream('mangle', '/ip/firewall/mangle/listen');
+    this._startStream('raw',    '/ip/firewall/raw/listen');
     this._startHeartbeat();
     this._startCounterPoll();
 
@@ -280,6 +290,7 @@ class FirewallCollector {
       this._startStream('filter', '/ip/firewall/filter/listen');
       this._startStream('nat',    '/ip/firewall/nat/listen');
       this._startStream('mangle', '/ip/firewall/mangle/listen');
+      this._startStream('raw',    '/ip/firewall/raw/listen');
       this._startHeartbeat();
       this._startCounterPoll();
     });
