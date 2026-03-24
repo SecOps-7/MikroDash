@@ -162,3 +162,102 @@ test('connections collector emits processed count and processingCapped when trun
   assert.equal(emitted[0].payload.processed, 2);
   assert.equal(emitted[0].payload.processingCapped, true);
 });
+
+// ── basicAuth middleware ──────────────────────────────────────────────────────
+const { createBasicAuthMiddleware } = require('../src/auth/basicAuth');
+
+function makeReq(user, pass, ip = '1.2.3.4') {
+  const creds = user !== undefined ? Buffer.from(`${user}:${pass}`).toString('base64') : undefined;
+  return {
+    ip,
+    socket: { remoteAddress: ip },
+    headers: creds ? { authorization: `Basic ${creds}` } : {},
+  };
+}
+
+function makeRes() {
+  const res = { statusCode: 200, headers: {} };
+  res.setHeader = (k, v) => { res.headers[k] = v; };
+  res.end = (body) => { res.body = body; };
+  return res;
+}
+
+test('basicAuth middleware is a no-op when username/password not configured', () => {
+  const mw = createBasicAuthMiddleware({ username: '', password: '' });
+  let called = false;
+  mw(makeReq('any', 'any'), makeRes(), () => { called = true; });
+  assert.ok(called, 'next() called when auth not configured');
+});
+
+test('basicAuth middleware calls next() on correct credentials', () => {
+  const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret' });
+  let called = false;
+  mw(makeReq('admin', 'secret'), makeRes(), () => { called = true; });
+  assert.ok(called, 'next() called on valid credentials');
+});
+
+test('basicAuth middleware returns 401 on wrong password', () => {
+  const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret' });
+  const res = makeRes();
+  mw(makeReq('admin', 'wrong'), res, () => { throw new Error('next() must not be called'); });
+  assert.equal(res.statusCode, 401);
+  assert.ok(res.headers['WWW-Authenticate']);
+});
+
+test('basicAuth middleware returns 401 on wrong username', () => {
+  const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret' });
+  const res = makeRes();
+  mw(makeReq('root', 'secret'), res, () => { throw new Error('next() must not be called'); });
+  assert.equal(res.statusCode, 401);
+});
+
+test('basicAuth middleware records failure on bad credentials', () => {
+  const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret' });
+  const res = makeRes();
+  mw(makeReq('admin', 'wrong', '5.5.5.5'), res, () => {});
+  assert.equal(res.statusCode, 401);
+});
+
+test('basicAuth middleware returns 429 after maxFailures attempts from same IP', () => {
+  const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret', maxFailures: 5, blockMs: 60000 });
+  const ip = '7.7.7.7';
+  for (let i = 0; i < 5; i++) {
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+  }
+  const res = makeRes();
+  mw(makeReq('admin', 'bad', ip), res, () => { throw new Error('next() must not be called while blocked'); });
+  assert.equal(res.statusCode, 429);
+  assert.ok(res.headers['Retry-After'], 'Retry-After header set');
+});
+
+test('basicAuth middleware resets failure count on successful auth', () => {
+  const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret', maxFailures: 5 });
+  const ip = '8.8.8.8';
+  for (let i = 0; i < 3; i++) {
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+  }
+  // Successful auth should clear the failure record
+  let nextCalled = false;
+  mw(makeReq('admin', 'secret', ip), makeRes(), () => { nextCalled = true; });
+  assert.ok(nextCalled, 'next() called after correct credentials');
+  // Subsequent bad attempts should NOT immediately result in a 429
+  const res = makeRes();
+  mw(makeReq('admin', 'bad', ip), res, () => {});
+  assert.equal(res.statusCode, 401, 'back to 401, not 429, after reset');
+});
+
+test('basicAuth middleware evicts oldest entry when maxTrackedIPs exceeded', () => {
+  const maxTrackedIPs = 3;
+  const mw = createBasicAuthMiddleware({ username: 'u', password: 'p', maxTrackedIPs, maxFailures: 2, windowMs: 999999 });
+  // Fill up the map: IPs 1..maxTrackedIPs each get a failure (won't be pruned by window)
+  for (let i = 1; i <= maxTrackedIPs; i++) {
+    mw(makeReq('u', 'bad', `10.0.0.${i}`), makeRes(), () => {});
+  }
+  // One more IP triggers eviction of the oldest
+  const extraIp = '10.0.0.99';
+  mw(makeReq('u', 'bad', extraIp), makeRes(), () => {});
+  // The middleware must not throw and must return 401 for the new IP
+  const res = makeRes();
+  mw(makeReq('u', 'bad', extraIp), res, () => {});
+  assert.equal(res.statusCode, 401);
+});

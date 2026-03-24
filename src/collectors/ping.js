@@ -19,6 +19,7 @@ class PingCollector {
 
   async tick() {
     if (!this.ros.connected) return;
+    if (this.io.engine.clientsCount === 0) return;
     let rtt = null, loss = 100;
     try {
       const results = await this.ros.write('/tool/ping', [

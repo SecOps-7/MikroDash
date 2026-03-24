@@ -2,108 +2,85 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [0.5.15] — DHCP summary cards, Wireless summary cards, Connections improvements & bug fixes
+## [0.5.20] — 2026-03-24
 
 ### Added
 
-- **DHCP page — Subnets card** — new card above the leases table showing each DHCP network with its gateway, DNS server, lease utilisation count, pool size, percentage used, and a colour-coded progress bar (green → amber at 70% → red at 90%). Pool size is fetched directly from `/ip/pool/print` by matching each pool's IP range to the network CIDR.
-- **DHCP page — IP Utilisation gauge** — semi-circle SVG gauge showing overall pool utilisation across all subnets. Pool size comes from the collector; lease count is driven live from the `leases:list` stream so the gauge updates in real time without waiting for the 5-minute DHCP poll cycle. Colour shifts amber at 70% and red at 90%.
-- **Wireless page — Signal Health card** — horizontal bar chart showing client count per signal tier: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75). Bars scale proportionally to total client count with colour-coded tiers.
-- **Wireless page — Band Split card** — client count per radio band (2.4 GHz / 5 GHz / 6 GHz) shown as large numbers beside colour-coded band pills. 6 GHz row hides when no 6 GHz clients are present. Replaces the band badges that were previously in the table header.
-- **Connections page — Map fullscreen on desktop** — the fullscreen button is now always visible (previously hidden on screens wider than 767 px). Button moved inside the map area to the bottom-right control panel, stacked below the zoom buttons (order: RST → + → − → fullscreen).
-- **Connections page — Sankey renders at correct width on navigation** — added a `mikrodash:pagechange` listener to the Sankey IIFE so it re-renders when the connections page becomes visible, fixing the narrow-then-expand flash on first load.
+- **Interfaces page — Physical Ports card** — visual panel above the interface grid showing one RJ-45 port graphic per ethernet interface. Port size auto-scales (44 px for ≤ 8 ports down to 26 px for > 24 ports). Colour matches interface state: green for connected, red for disconnected, grey for disabled. Hover tooltip shows name, IP, and state. Wireless, bridge, VPN, and other non-physical interfaces are excluded.
+- **Interfaces page — Interface Types card** — sits beside the Ports card; shows a colour-coded count tile per interface type (ether, wlan, bridge, vlan, wireguard, pppoe-client, lte, loopback, etc.), styled to match the Routes by Protocol card. The two cards share a responsive row that stacks on narrow viewports.
+- **Wireless page — Band column** — colour-coded band pill (purple 2.4 GHz / blue 5 GHz / green 6 GHz) added between the Interface and Signal columns. Renders `—` when band data is unavailable from the RouterOS API.
+- **VPN page — Summary stats bar** — four stat tiles above the peer grid: Total Peers, Connected, Idle, and Total Throughput (live sum of all active peer RX + TX rates). No additional API calls.
+- **VPN page — Handshake age badge** — each peer tile shows a colour-coded badge: green (< 3 min, actively re-keying), amber (3–10 min, connected but quiet), red (> 10 min, likely stalled), grey (never completed a handshake). Thresholds align with WireGuard's ~3-minute re-key interval.
+- **VPN page — Live RX/TX rates** — WireGuard peer tiles now show real-time per-peer receive and transmit rates. A dedicated counter poll (same pattern as the Firewall collector) re-fetches byte counters on every VPN poll interval and computes rates from byte deltas. The `/listen` stream continues to handle instant structural changes (peer add/remove).
+- **Firewall page — Raw tab** — `/ip/firewall/raw` rules shown in a new Raw tab with the same columns (Chain, Action, Src → Dst, Comment, Packets, Bytes), in-place counter flash animation, search filter, and delta-pulse indicator as the Filter/NAT/Mangle tabs. Raw rule count added to the Rule Counts summary card.
 
 ### Changed
 
-- **Wireless page — Band column removed from client table** — band information moved to the new Band Split summary card. Table is now 5 columns (was 6).
-- **Wireless page — Clients load immediately on startup** — `WirelessCollector.start()` now runs its first tick with `force=true`, bypassing the idle-gate so `lastPayload` is populated before the first browser client connects. Scheduled interval ticks still respect the idle-gate.
-- **DHCP page — Lease count includes all statuses** — `DhcpLeasesCollector` now exposes `getAllLeaseIPs()` returning every known lease regardless of status (bound, waiting, expired). The networks collector uses this for subnet lease counts; the gauge uses `allLeases.length` from the live stream.
-- **DHCP page — Pool size matched directly from IP ranges** — the DHCP server→interface→pool chain is replaced by directly matching each pool's first IP to the network CIDR, which is reliable across all bridge/VLAN configurations.
-- **DHCP summary card heights** — both cards match the routing page summary card height (`min-height: 165px`).
-- **Connections page — Country filter persists across poll ticks** — when a country is selected, `conn:update` ticks now re-apply the country filter to the port list and Sankey rather than overwriting them with unfiltered data.
-- **Connections page — Sankey filter flag fixed** — deselecting a country no longer permanently freezes the Sankey. `_connSankeyClearFilter` now renders the unfiltered view directly without routing through `_connSankeyRender` (which was flipping `_filteredByCC` back to `true`).
-- **Connections page — Map buttons work on desktop and mobile** — `mousedown` and `touchstart` handlers on the map wrap now check `e.target.closest('button')` before calling `preventDefault`, so zoom/reset/fullscreen button clicks are no longer swallowed by the pan handler.
-- **`sendInitialState` sends full `lan:overview` payload** — previously constructed by hand without `totalPoolSize`, causing the gauge to receive `0` on connect. Now sends `dhcpNetworks.lastPayload` directly.
+- **VPN poll interval** — Settings VPN slider changed from "Event-driven" badge to an active interval slider (500 ms – 30 s, default 10 s) since the collector now runs a counter poll. Changes apply immediately.
+- **All sub-card title typography unified** — `wl-summary-title`, `fw-scard-title`, `if-scard-title`, `dhcp-card-title`, `rt-card-title`, `bw-chart-card-title`, and `vpn-stat-label` now all match the main `card-title` spec: `font-size: .82rem`, `font-weight: 600`, `letter-spacing: .04em`, `font-family: var(--font-ui)`. Previously each class had slightly different sizes, weights, and spacing.
+- **Wireless poll default raised to 60 s** — wireless clients rarely change faster than once per minute; halving the default interval significantly reduces RouterOS API load on busy networks.
+- **Interface status address poll raised to 15 s** — the address-refresh sub-poll inside `InterfaceStatusCollector` was running every 5 s; IPs rarely change so the interval has been raised to 15 s.
+- **`connTableCache` TTL normalised to 1.0× the faster poll interval** — the shared firewall connection table cache (used by both Connections and Bandwidth collectors) now stays valid for a full poll cycle of the faster collector, eliminating the edge case where the cache expired just before a tick and triggered a redundant fetch.
+- **Firewall counter poll uses `.proplist`** — the counter-refresh poll now requests only `.id`, `packets`, and `bytes` per rule rather than full rows, with an automatic fallback to a full fetch on RouterOS builds where proplist returns empty results.
 
 ### Fixed
 
-- **`[bandwidth] no such item (4)` log noise** — this transient RouterOS error occurs when a connection table entry disappears between query and response. It is now suppressed (matching existing behaviour in `connections.js`) and no longer appears in Docker logs.
-- **DHCP subnets card — Leases column overflow on mobile** — `white-space:nowrap` removed from the leases span; `table-layout:fixed` and `overflow:hidden` added to cells so content is clipped to the card boundary.
-- **IP Utilisation gauge sub-label removed** — the "— / — addresses" footer text beneath the gauge has been removed.
+- **Dashboard — center column cards not scaling on large displays** — the two center column cards (System and Network) did not resize correctly when dragging the browser window to a larger monitor. Root cause: CSS Grid's default `min-width: auto` combined with the SVG network diagram's intrinsic 340 px width prevented the column from shrinking. Fixed by adding `align-self: start` and `min-width: 0` to the center column and all its direct card descendants, including the SVG element itself.
+- **Dashboard — center column cards staying large when dragging to small display** — complementary fix to the above; once the cards had grown larger on a big display, they would not shrink back. Same `min-width: 0` chain resolves both directions.
+- **Wireless — clients flashing on each poll tick** — on `wifi-qcom` hardware with virtual APs, RouterOS occasionally returns a subset of connected clients (e.g. 1 of N) during radio re-association. The previous guard only caught a full-empty result; partial collapses bypassed it. Replaced with a per-MAC absence counter (`_absentTicks` map): a client is only removed after it has been absent for 3 consecutive ticks. New clients appear immediately.
+- **Wireless — card goes stale intermittently** — `lastWirelessTs` was only updated when the collector emitted a new payload. During the transient-hold window while waiting to confirm a client count reduction, no heartbeat was written and the UI card greyed out after ~25 s. Fixed by updating the timestamp on every tick that executes, including hold-window ticks.
+- **VPN — peer rates always zero** — RouterOS returns WireGuard byte counters as `"rx"` and `"tx"` (not `"rx-bytes"` / `"tx-bytes"`). The collector was reading the wrong field names, so `_prev` was never updated and rates were always 0. Field references corrected with firmware-compatibility fallback. Additionally, non-byte-counter stream events (e.g. handshake-only updates) were resetting the rate measurement window, causing the subsequent rate to report near-zero. Fixed by only advancing the timestamp baseline when byte values actually change.
+- **Bandwidth — zero rates at fast poll intervals** — when both Connections and Bandwidth ran at similar intervals, the shared `connTableCache` could return an unchanged snapshot to the bandwidth collector. All byte deltas were zero, producing zero rates. Fixed by timestamping the cached snapshot and skipping the bandwidth tick entirely when the snapshot has not changed since the last tick.
+- **Settings — poll sliders misaligned** — Firewall and Ping sliders had different `min`/`max` ranges (1 000–60 000 ms) from all other sliders (500–30 000 ms), making the same wall-clock value appear at different thumb positions. All six polled sliders normalised to `500–30 000 ms / 500 ms step`.
 
+### Performance
 
-## [0.5.15] — Firewall improvements, Wireless summary cards, DHCP summary cards & map fixes
+- **HTTP response compression** — `compression` middleware added (gzip). Initial page load reduced from ~860 KB to ~150 KB (~5–7× reduction).
+- **Vendor asset caching** — all files under `/vendor/` (Chart.js, Tabler, TopoJSON, fonts) are now served with a 7-day `Cache-Control` header. Returning visitors load these assets from the browser cache.
+- **Idle gates on all collectors** — system resource polls and ping polls now skip their RouterOS API calls entirely when no browser clients are connected, matching the existing behaviour of Connections, Bandwidth, Talkers, Wireless, and Traffic collectors. On an unattended dashboard, RouterOS API traffic is now near zero across all data paths.
+- **`requestAnimationFrame` debouncing** — all high-frequency DOM updates now batch to animation frames: system gauges, traffic chart, connections top sources/destinations, firewall structural re-renders, and bandwidth table. Rapid socket events no longer trigger redundant layout/paint work.
+- **Page Visibility API** — when the browser tab is hidden, SVG network diagram animations are paused (`pauseAnimations()`) and all rAF DOM flushes are skipped. On tab return, animations resume and any data that accumulated while hidden is flushed immediately.
+- **Traffic chart history preserved across navigation** — data points are now buffered into `allPoints` regardless of tab visibility or active page. Navigating away from the dashboard and returning, or switching browser tabs, no longer causes the traffic chart to lose its history. `redrawChart()` is called on dashboard page return and on tab visibility restore to render the full accumulated history.
+- **System update check timeout** — `/system/package/update/print` now has a 5-second timeout guard. On devices that cannot reach the MikroTik upgrade server (CAPsMAN APs, firewalled deployments), the system gauges are no longer delayed.
+
+## [0.5.15] — Firewall summary, Wireless & DHCP summary cards, Connections improvements
 
 ### Added
 
-- **Firewall page — summary row** — three new cards above the rules table: Rule Counts (Filter / NAT / Mangle totals with disabled count), Action Breakdown (proportional bars per action type with colour coding), and Total Hits (cumulative packet count, total bytes, and a live sparkline of activity).
+- **Firewall page — summary row** — three cards above the rules table: Rule Counts (Filter / NAT / Mangle totals with disabled count), Action Breakdown (proportional bars per action type with colour coding), and Total Hits (cumulative packet count, total bytes, and a live sparkline of activity).
 - **Firewall page — search bar** — client-side filter across chain, action, src/dst address, comment, protocol, and port. Persists across tab switches.
-- **Firewall page — Bytes column** — formatted byte totals added to the right of the Packets column in all tabs.
-- **Firewall page — in-place counter updates with flash animation** — packet and byte cells update in-place on each poll cycle with a colour flash, making active rules clearly visible without re-rendering the entire table.
-- **Firewall page — delta pulse indicator** — a small animated dot appears beside the packet count on rules that matched traffic in the most recent poll cycle.
-- **Firewall page — live counter polling** — RouterOS 7.x does not push firewall packet/byte counter updates through the `/listen` stream (stream-only handles structural changes). A dedicated counter poll now re-fetches counts on `pollFirewall` interval, filling the gap. The stream still handles rule additions, deletions, and edits in real time.
-- **Firewall Counters setting** — `pollFirewall` is now an adjustable slider (5 s – 60 s, default 10 s) in the Poll Intervals settings card. Previously hidden as a "streamed" setting. Changes apply immediately without a restart.
-- **Wireless page — Signal Health card** — horizontal bars showing client count per tier: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75).
-- **Wireless page — Band Split card** — 2.4 / 5 / 6 GHz client counts as large numbers with colour-coded band pills. 6 GHz row auto-hides.
+- **Firewall page — Bytes column** — formatted byte totals added alongside Packets in all tabs.
+- **Firewall page — in-place counter updates with flash animation** — packet and byte cells update in-place on each poll cycle with a colour flash.
+- **Firewall page — delta pulse indicator** — animated dot beside the packet count on rules that matched traffic in the most recent poll cycle.
+- **Firewall page — live counter polling** — RouterOS 7.x does not push firewall counter updates through `/listen`. A dedicated counter poll re-fetches counts on the Firewall interval setting. The stream still handles structural changes in real time.
+- **Firewall poll interval setting** — Firewall slider added to Settings → Poll Intervals. Changes apply immediately without a restart.
+- **Wireless page — Signal Health card** — horizontal bars showing client count per signal tier: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75).
+- **Wireless page — Band Split card** — 2.4 / 5 / 6 GHz client counts with colour-coded band pills. 6 GHz row auto-hides.
 - **DHCP page — Subnets card** — per-network table with gateway, DNS, lease count, pool size, utilisation %, and colour-coded progress bar.
 - **DHCP page — IP Utilisation gauge** — semi-circle SVG gauge driven live from the `leases:list` stream.
-- **Connections page — map fullscreen on desktop** — fullscreen button always visible, moved inside the map control panel (order: RST → + → − → fullscreen).
-- **Connections page — country filter** — clicking a country in Top Countries filters the Port Breakdown and Connection Flow to that country. Click again to clear.
+- **Connections page — Map fullscreen on desktop** — fullscreen button always visible, moved inside the map control panel.
+- **Connections page — Sankey renders at correct width on navigation** — re-renders on `mikrodash:pagechange`.
+- **Connections page — country filter** — clicking a country in Top Countries filters the Port Breakdown and Connection Flow to that country.
 
 ### Changed
 
 - **Wireless page — Band column removed** from client table; band information moved to the Band Split summary card.
-- **Wireless clients load immediately on startup** — `WirelessCollector.start()` runs its first tick with `force=true`, bypassing the idle-gate so data is ready before the first browser client connects.
-- **DHCP page — card heights** match the routing page summary row (`min-height: 165px`).
-- **DHCP summary row** — gauge card narrowed to `3fr` (from `1fr`), subnets card expanded to `10fr`.
-- **`sendInitialState` sends full `lan:overview` payload** including `totalPoolSize` — previously the hand-built payload omitted it, causing the gauge to show `—` on connect.
-- **Connections page — Sankey renders at correct width** on navigation via `mikrodash:pagechange` listener.
-- **Connections page — map buttons work on desktop and mobile** — `mousedown` and `touchstart` handlers now skip `preventDefault` when the target is a `<button>`, so zoom/reset/fullscreen clicks are no longer swallowed by the pan handler.
-
-### Fixed
-
-- **Firewall rule metadata wiped on counter update** — `_applyUpdate` was calling `_processRule` on partial stream delta rows (which only contain `.id`, `packets`, `bytes`), replacing the stored rule's `chain`/`action`/`comment` with empty strings. Now merges deltas into the existing rule object.
-- **Mangle rules excluded from dirty-check fp** — mangle packet/byte changes never triggered a `firewall:update` emit. All three tables now included in the fp.
-- **`[bandwidth] no such item (4)` log noise** — transient RouterOS error suppressed (matching existing `connections.js` behaviour).
-- **DHCP subnets card — Leases column overflow on mobile** — `white-space:nowrap` removed; `table-layout:fixed` and `overflow:hidden` added.
-- **IP Utilisation gauge sub-label removed** from the card.
-
-
-## [0.5.15] — Firewall enhancements, Wireless & DHCP summary cards, map fixes
-
-### Added
-
-- **Firewall page — Rule Counts card** — Filter / NAT / Mangle totals with disabled-rule count shown in muted text.
-- **Firewall page — Action Breakdown card** — proportional bars per action type (accept, drop, reject, masquerade, dst-nat, log, etc.) with colour-coded labels.
-- **Firewall page — Total Hits card** — cumulative packet count, total bytes, and a live sparkline tracking activity per update cycle.
-- **Firewall page — Search bar** — client-side filter across chain, action, src/dst address, comment, protocol, and port. Persists across tab switches.
-- **Firewall page — Bytes column** — formatted byte totals added alongside Packets in all tabs.
-- **Firewall page — In-place counter updates with flash animation** — packet and byte cells update in-place on each poll cycle with a brief colour flash, making active rules clearly visible without re-rendering the entire table.
-- **Firewall page — Delta pulse indicator** — animated dot beside the packet count on rules that matched traffic in the most recent poll cycle.
-- **Firewall page — live counter polling** — RouterOS 7.x does not push firewall counter updates through `/listen`. A dedicated counter poll re-fetches counts on the Firewall interval setting and merges them in. The `/listen` stream still handles structural changes (rule adds/removes/edits) in real time.
-- **Firewall poll interval setting** — "Firewall" slider added to Settings → Poll Intervals (1 s – 60 s, default 10 s), positioned above Ping. Changes apply immediately without a restart.
-- **Wireless page — Signal Health card** — horizontal bars: Excellent (≥ −55 dBm), Good (≥ −65), Fair (≥ −75), Poor (< −75).
-- **Wireless page — Band Split card** — 2.4 / 5 / 6 GHz client counts with colour-coded band pills. 6 GHz row auto-hides.
-- **DHCP page — Subnets card** — per-network table with gateway, DNS, lease count, pool size, utilisation %, and colour-coded progress bar.
-- **DHCP page — IP Utilisation gauge** — semi-circle SVG gauge driven live from the `leases:list` stream.
-- **Connections page — Map fullscreen on desktop** — fullscreen button always visible, moved inside the map control panel (RST → + → − → fullscreen).
-- **Connections page — Sankey correct-width on navigation** — re-renders on `mikrodash:pagechange` so the narrow-then-expand flash no longer occurs.
-
-### Changed
-
-- **Wireless page — Band column removed** from client table; moved to Band Split card.
 - **Wireless clients load immediately on startup** — first tick runs with `force=true`, bypassing the idle-gate.
+- **DHCP page — Lease count includes all statuses** — exposes `getAllLeaseIPs()` for bound, waiting, and expired leases.
+- **DHCP page — Pool size matched directly from IP ranges** — more reliable across bridge/VLAN configurations.
 - **DHCP summary card heights** — `min-height: 165px` matching the Routing page.
-- **DHCP summary row proportions** — gauge card `3fr`, subnets card `10fr`.
-- **Connections page — map buttons work on desktop and mobile** — `mousedown` / `touchstart` handlers skip `preventDefault` for button targets, fixing zoom/reset/fullscreen clicks being swallowed by the pan handler.
+- **`sendInitialState` sends full `lan:overview` payload** including `totalPoolSize`.
+- **Connections page — Country filter persists across poll ticks** — `conn:update` re-applies the active country filter.
+- **Connections page — map buttons work on desktop and mobile** — `mousedown` / `touchstart` handlers skip `preventDefault` for button targets.
 
 ### Fixed
 
-- **Firewall rule metadata wiped on counter update** — `_applyUpdate` now merges stream deltas into existing rules rather than replacing them, preserving chain/action/comment on every counter tick.
+- **Firewall rule metadata wiped on counter update** — `_applyUpdate` now merges stream deltas into existing rules rather than replacing them, preserving chain/action/comment.
 - **Mangle rules excluded from dirty-check fp** — mangle counter changes now trigger `firewall:update` emit.
 - **`[bandwidth] no such item (4)` log noise** — transient RouterOS error suppressed.
-- **DHCP Leases column overflow on mobile** — `white-space:nowrap` removed; `table-layout:fixed` added.
+- **DHCP subnets card — Leases column overflow on mobile** — `white-space:nowrap` removed; `table-layout:fixed` added.
 - **IP Utilisation gauge sub-label removed**.
+- **Connections page — Sankey filter flag fixed** — deselecting a country no longer permanently freezes the Sankey.
 
 
 ## [0.5.14] — Optimisations, alert thresholds & bug fixes

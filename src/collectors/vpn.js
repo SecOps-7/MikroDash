@@ -1,16 +1,22 @@
 /**
- * VPN / WireGuard collector — initial /print on connect, then /listen.
+ * VPN / WireGuard collector — hybrid stream + counter poll.
  *
- * WireGuard peer stats (rx-bytes, tx-bytes, last-handshake) update on every
- * handshake and packet exchange, so the listen stream fires frequently when
- * peers are active — but only then. When all peers are idle RouterOS sends
- * nothing, which is exactly the right behaviour vs a blind 10s poll.
+ * /interface/wireguard/peers/listen handles structural changes (peers
+ * added/removed). On RouterOS 7, the listen stream does NOT reliably push
+ * live rx-bytes, tx-bytes, or last-handshake updates — these are computed
+ * fields that RouterOS only emits on structural record changes, not on every
+ * counter increment or handshake event. This matches the same behaviour seen
+ * in the firewall collector where a dedicated counter poll was required.
+ *
+ * A separate _pollCounters() runs on pollMs to re-fetch all peer counters
+ * directly via /print. This drives live rate calculation and last-handshake
+ * display. The stream still handles peer add/remove instantly.
  */
 class VpnCollector {
   constructor({ ros, io, pollMs, state }) {
     this.ros    = ros;
     this.io     = io;
-    this.pollMs = pollMs || 10000; // kept for Settings UI compatibility
+    this.pollMs = pollMs || 10000;
     this.state  = state;
 
     this._peers      = new Map(); // public-key -> raw peer row
@@ -21,7 +27,9 @@ class VpnCollector {
     this._stream       = null;
     this._restarting   = false;
     this._restartTimer = null;
-    this._heartbeat    = null; // slow emit so stale timer resets even when peers are idle
+    this._heartbeat    = null;
+    this._pollTimer    = null;
+    this._pollInflight = false;
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -40,8 +48,8 @@ class VpnCollector {
       const lh        = p['last-handshake'] || '';
       const connected = lh && lh !== 'never';
       const name      = this._peerName(p);
-      const rxBytes   = parseInt(p['rx-bytes'] || '0', 10);
-      const txBytes   = parseInt(p['tx-bytes'] || '0', 10);
+      const rxBytes   = parseInt(p['rx'] || p['rx-bytes'] || '0', 10);
+      const txBytes   = parseInt(p['tx'] || p['tx-bytes'] || '0', 10);
       const key       = p['public-key'] || name;
       const prev      = this._prev.get(key);
       let rxRate = 0, txRate = 0;
@@ -49,8 +57,17 @@ class VpnCollector {
         const dtSec = (now - prev.ts) / 1000;
         rxRate = Math.max(0, (rxBytes - prev.rx) / dtSec);
         txRate = Math.max(0, (txBytes - prev.tx) / dtSec);
+        // Peer went idle — bytes unchanged for more than 10 s
+        if (rxBytes === prev.rx && txBytes === prev.tx && dtSec > 10) {
+          rxRate = 0; txRate = 0;
+        }
       }
-      this._prev.set(key, { rx: rxBytes, tx: txBytes, ts: now });
+      // Only advance timestamp when bytes actually changed, so dtSec always
+      // spans a real measurement window even when the poll fires between
+      // byte-counter updates.
+      if (!prev || rxBytes !== prev.rx || txBytes !== prev.tx) {
+        this._prev.set(key, { rx: rxBytes, tx: txBytes, ts: now });
+      }
       tunnels.push({
         type: 'WireGuard', name,
         state: connected ? 'connected' : 'idle',
@@ -67,24 +84,76 @@ class VpnCollector {
     return tunnels;
   }
 
-  _emit() {
+  _emit(force = false) {
     const tunnels = this._buildTunnels();
-    const fp      = JSON.stringify(tunnels.map(t => ({ name: t.name, state: t.state, uptime: t.uptime, rx: t.rx, tx: t.tx })));
-    const payload = { ts: Date.now(), tunnels, pollMs: 0 }; // 0 = streamed, not polled
+    // Fingerprint covers structural state, cumulative bytes, and rounded rates.
+    // Including rxRate/txRate (rounded to 2dp) ensures the browser is updated
+    // when throughput transitions to/from zero without forcing every identical
+    // idle tick to emit. uptime (last-handshake) is excluded: it changes every
+    // ~3 min even with zero traffic, causing spurious emits.
+    const fp = JSON.stringify(tunnels.map(t => ({
+      name: t.name, state: t.state, rx: t.rx, tx: t.tx,
+      rxRate: +t.rxRate.toFixed(2), txRate: +t.txRate.toFixed(2),
+    })));
+    const payload = { ts: Date.now(), tunnels, pollMs: this.pollMs };
     this.lastPayload = payload;
     this.state.lastVpnTs  = Date.now();
     this.state.lastVpnErr = null;
-    if (fp !== this._lastFp) {
+    if (force || fp !== this._lastFp) {
       this._lastFp = fp;
       this.io.emit('vpn:update', payload);
     }
+  }
+
+  // ── counter poll ──────────────────────────────────────────────────────────
+  // Re-fetches peer counters (rx-bytes, tx-bytes, last-handshake) on a
+  // regular interval. The /listen stream handles structural changes; this
+  // poll drives live rate and handshake-age updates.
+
+  async _pollCounters() {
+    if (!this.ros.connected || this._pollInflight) return;
+    if (this.io.engine.clientsCount === 0) return;
+    this._pollInflight = true;
+    try {
+      const rows = await this.ros.write('/interface/wireguard/peers/print', ['=detail=']);
+      for (const row of (rows || [])) {
+        const key = row['public-key'] || this._peerName(row);
+        const existing = this._peers.get(key);
+        if (existing) {
+            // Merge only counter fields — preserve structural fields from the stream
+          this._peers.set(key, {
+            ...existing,
+            'rx':             row['rx']             ?? existing['rx'],
+            'tx':             row['tx']             ?? existing['tx'],
+            'last-handshake': row['last-handshake'] || existing['last-handshake'],
+            'endpoint-address':         row['endpoint-address']         || existing['endpoint-address'],
+            'current-endpoint-address': row['current-endpoint-address'] || existing['current-endpoint-address'],
+          });
+        }
+      }
+      this._emit(); // dirty-check suppresses emit when bytes and rates are unchanged
+    } catch (e) {
+      console.error('[vpn] counter poll error:', e && e.message ? e.message : e);
+    } finally {
+      this._pollInflight = false;
+    }
+  }
+
+  _startCounterPoll() {
+    if (this._pollTimer) return;
+    this._pollTimer = setInterval(() => this._pollCounters(), this.pollMs);
+  }
+
+  _stopCounterPoll() {
+    if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null; }
+    this._pollInflight = false;
   }
 
   // ── initial load ──────────────────────────────────────────────────────────
 
   async _loadInitial() {
     try {
-      const rows = await this.ros.write('/interface/wireguard/peers/print');
+      const rows = await this.ros.write('/interface/wireguard/peers/print', ['=detail=']);
       this._peers.clear();
       for (const p of (rows || [])) {
         const key = p['public-key'] || this._peerName(p);
@@ -93,6 +162,7 @@ class VpnCollector {
       if (!this._debuggedOnce && this._peers.size > 0) {
         const ifaces = [...new Set([...this._peers.values()].map(p => p.interface).filter(Boolean))].join(', ') || '?';
         console.log(`[vpn] ${this._peers.size} WireGuard peer(s) found on interfaces: ${ifaces}`);
+
         this._debuggedOnce = true;
       }
       this._emit();
@@ -126,8 +196,8 @@ class VpnCollector {
         const key = data['public-key'] || this._peerName(data);
         if (data['.dead'] === 'true' || data['.dead'] === true) {
           this._peers.delete(key);
+          this._prev.delete(key);
         } else {
-          // Merge update into existing peer row so we always have full data
           const existing = this._peers.get(key) || {};
           this._peers.set(key, { ...existing, ...data });
         }
@@ -146,8 +216,8 @@ class VpnCollector {
   }
 
   // ── heartbeat ────────────────────────────────────────────────────────────
-  // Emit once per minute so the dashboard stale-timer never fires when the
-  // stream is healthy but peers happen to be idle (no handshakes/traffic).
+  // Re-emits lastPayload once per minute so the dashboard stale-timer never
+  // fires when peers are stable and the poll is suppressed by dirty-check.
 
   _startHeartbeat() {
     if (this._heartbeat) return;
@@ -166,21 +236,30 @@ class VpnCollector {
     await this._loadInitial();
     this._startStream();
     this._startHeartbeat();
-    this.ros.on('close', () => { this._stopStream(); this._stopHeartbeat(); });
+    this._startCounterPoll();
+
+    this.ros.on('close', () => {
+      this._stopStream();
+      this._stopHeartbeat();
+      this._stopCounterPoll();
+    });
     this.ros.on('connected', async () => {
       this._stopStream();
       this._stopHeartbeat();
+      this._stopCounterPoll();
       this._prev.clear();
       this._lastFp = '';
       await this._loadInitial();
       this._startStream();
       this._startHeartbeat();
+      this._startCounterPoll();
     });
   }
 
   stop() {
     this._stopStream();
     this._stopHeartbeat();
+    this._stopCounterPoll();
   }
 }
 

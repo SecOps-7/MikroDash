@@ -61,6 +61,7 @@ const PingCollector         = require('./collectors/ping');
 const BandwidthCollector    = require('./collectors/bandwidth');
 const RoutingCollector      = require('./collectors/routing');
 
+const compression = require('compression');
 const app = express();
 
 const TRUSTED_PROXY = process.env.TRUSTED_PROXY;
@@ -86,11 +87,13 @@ const basicAuth = createBasicAuthMiddleware({
 });
 
 app.use(helmet(buildHelmetOptions()));
+app.use(compression());
 app.use((req, res, next) => {
   if (req.path === '/healthz') return next();
   authLimiter(req, res, (err) => { if (err) return next(err); basicAuth(req, res, next); });
 });
 io.engine.use(basicAuth);
+app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json());
 
@@ -140,9 +143,9 @@ function buildSession(routerCfg) {
 
   const connTableCache = {
     rows: null, ts: 0,
-    maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 0.9,
+    maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 1.0,
     updateMaxAge(pollConns, pollBandwidth) {
-      this.maxAge = Math.min(pollConns, pollBandwidth) * 0.9;
+      this.maxAge = Math.min(pollConns, pollBandwidth) * 1.0;
     },
     async get(rosInst) {
       const now = Date.now();
@@ -152,6 +155,14 @@ function buildSession(routerCfg) {
       ])) || [];
       this.ts = Date.now();
       return this.rows;
+    },
+    // Returns { rows, ts } — lets bandwidth use the snapshot timestamp as the
+    // reference for delta calculations rather than its own pre-await Date.now().
+    // This prevents zero-rate output when the cache is shared and both collectors
+    // poll faster than the cache maxAge (e.g. pollBandwidth = 1s).
+    async getWithTs(rosInst) {
+      const rows = await this.get(rosInst);
+      return { rows, ts: this.ts };
     },
     invalidate() { this.rows = null; this.ts = 0; },
   };
@@ -405,8 +416,8 @@ app.post('/api/settings', (req, res) => {
     const updates = {};
     const intFields = {
       routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollSystem:[500,60000],
-      pollWireless:[500,60000], pollVpn:[1000,120000], pollFirewall:[1000,30000],
-      pollIfstatus:[500,60000], pollPing:[1000,120000], pollArp:[5000,300000],
+      pollWireless:[500,60000], pollVpn:[500,30000],  pollFirewall:[500,30000],
+      pollIfstatus:[500,60000], pollPing:[500,30000],   pollArp:[5000,300000],
       pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
       alertCpuThreshold:[1,100], alertPingLoss:[1,100],
@@ -454,6 +465,13 @@ app.post('/api/settings', (req, res) => {
       s.firewall.pollMs = saved.pollFirewall;
       s.firewall._stopCounterPoll();
       s.firewall._startCounterPoll();
+    }
+
+    // pollVpn controls the VPN counter poll interval — restart it live
+    if ('pollVpn' in updates && s.vpn) {
+      s.vpn.pollMs = saved.pollVpn;
+      s.vpn._stopCounterPoll();
+      s.vpn._startCounterPoll();
     }
 
     // Apply pingTarget change live — the collector stores it as this.target

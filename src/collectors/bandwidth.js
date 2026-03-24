@@ -37,6 +37,7 @@ class BandwidthCollector {
     this._inflight    = false;
     this.lastPayload  = null;
     this._lastFp      = '';
+    this._lastSnapshotTs = 0; // tracks the connTableCache snapshot timestamp to detect cache hits
     // Set to true by start(), never reset. Allows the connected handler to
     // distinguish the initial connect (where startCollectors() calls start()
     // explicitly) from a reconnect after a close event.
@@ -51,6 +52,7 @@ class BandwidthCollector {
       this._orgCache.clear();
       this._ifaceCache.clear();
       this._lastFp = '';
+      this._lastSnapshotTs = 0;
       // Only restart here on reconnect after a close. On the very first
       // connect, startCollectors() in index.js calls start() explicitly —
       // calling stop()+start() here too would create two concurrent intervals.
@@ -115,12 +117,31 @@ class BandwidthCollector {
     // against a stale _prev would produce misleading rates on resume anyway.
     if (!force && this.io.engine.clientsCount === 0) return;
 
-    const now      = Date.now();
     const lanCidrs = this.dhcpNetworks ? this.dhcpNetworks.getLanCidrs() : [];
 
-    const rows = this.connTableCache
-      ? await this.connTableCache.get(this.ros)
-      : ((await this.ros.write('/ip/firewall/connection/print')) || []);
+    // Use getWithTs() so `snapshotTs` reflects when RouterOS actually returned
+    // the byte counters. Using the cache's fetch timestamp (rather than our own
+    // pre-await Date.now()) prevents zero-rate output at fast poll intervals:
+    // if the cache is shared with the connections collector and both fire within
+    // the maxAge window, `rows` may be identical between ticks — but `snapshotTs`
+    // changes only when a fresh fetch happens, so we can detect the stale case
+    // and skip rather than emit zeroes.
+    let rows, snapshotTs;
+    if (this.connTableCache) {
+      const result = await this.connTableCache.getWithTs(this.ros);
+      rows        = result.rows;
+      snapshotTs  = result.ts;
+    } else {
+      rows       = (await this.ros.write('/ip/firewall/connection/print')) || [];
+      snapshotTs = Date.now();
+    }
+
+    // If the snapshot hasn't changed since the last tick (same cache hit),
+    // byte deltas would all be zero — skip rather than overwrite good data.
+    if (snapshotTs === this._lastSnapshotTs) return;
+    this._lastSnapshotTs = snapshotTs;
+
+    const now = snapshotTs;
 
     // Per-source-IP aggregation map
     // srcIp -> { rxMbps, txMbps, dsts: Map<dstKey, {rxMbps,txMbps,proto,iface,dstIp}> }
