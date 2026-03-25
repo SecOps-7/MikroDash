@@ -50,7 +50,6 @@ var wirelessTable    = $('wirelessTable');
 var wirelessTabBadge = $('wirelessTabBadge');
 var wirelessNavBadge = $('wirelessNavBadge');
 var vpnTable         = $('vpnTable');
-var vpnCount         = $('vpnCount');
 var firewallTable    = $('firewallTable');
 var pageTitle        = $('pageTitle');
 var ifaceGrid        = $('ifaceGrid');
@@ -853,8 +852,6 @@ socket.on('vpn:update',function(data){
   var idle      = wgPeers.filter(function(t){ return t.state !== 'connected'; });
 
   // ── Dashboard nav badges ──────────────────────────────────────────────────
-  vpnCount.textContent = connected.length;
-  vpnCount.className   = 'card-badge' + (connected.length > 0 ? ' active-green' : '');
   if (vpnPageCount) { vpnPageCount.textContent = wgPeers.length; vpnPageCount.className = 'card-badge' + (wgPeers.length > 0 ? ' active-blue' : ''); }
   var nb = $('vpnNavBadge'); if (nb) nb.textContent = connected.length;
 
@@ -3287,6 +3284,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // ── Doughnut chart ────────────────────────────────────────────────────────
 
   var _rtDonut = null;
+  var _rtDonutTotal = 0;
   var DONUT_COLORS = {
     static:  'rgba(56,189,248,.85)',
     dynamic: 'rgba(251,191,36,.85)',
@@ -3308,6 +3306,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var vals     = keys.map(function(k){ return rc[k]||0; }).concat(other > 0 ? [other] : []);
     var colors   = dataKeys.map(function(k){ return DONUT_COLORS[k]; });
 
+    _rtDonutTotal = rc.total || 0;
+
     if (!_rtDonut) {
       _rtDonut = new Chart(canvas, {
         type: 'doughnut',
@@ -3319,7 +3319,22 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
             callbacks: { label: function(ctx) { return ' ' + ctx.label + ': ' + ctx.parsed; } }
           }},
           responsive: false,
-        }
+        },
+        plugins: [{
+          afterDraw: function(chart) {
+            var ctx = chart.ctx;
+            var cx = (chart.chartArea.left + chart.chartArea.right) / 2;
+            var cy = (chart.chartArea.top + chart.chartArea.bottom) / 2;
+            var color = getComputedStyle(document.documentElement).getPropertyValue('--text-main').trim() || '#e2e8f0';
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = 'bold 1.5rem var(--font-mono, monospace)';
+            ctx.fillStyle = color;
+            ctx.fillText(_rtDonutTotal || '—', cx, cy);
+            ctx.restore();
+          }
+        }]
       });
     } else {
       _rtDonut.data.labels = dataKeys.map(function(k){ return DONUT_LABELS[k]||k; });
