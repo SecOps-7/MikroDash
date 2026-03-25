@@ -120,7 +120,7 @@ class VpnCollector {
         const key = row['public-key'] || this._peerName(row);
         const existing = this._peers.get(key);
         if (existing) {
-            // Merge only counter fields — preserve structural fields from the stream
+          // Merge only counter fields — preserve structural fields from the stream
           this._peers.set(key, {
             ...existing,
             'rx':             row['rx']             ?? existing['rx'],
@@ -129,6 +129,12 @@ class VpnCollector {
             'endpoint-address':         row['endpoint-address']         || existing['endpoint-address'],
             'current-endpoint-address': row['current-endpoint-address'] || existing['current-endpoint-address'],
           });
+        } else {
+          // Peer not yet in map — RouterOS returned incomplete results during
+          // early boot when _loadInitial() ran. Add it now so it appears immediately
+          // without waiting for a stream event.
+          this._peers.set(key, row);
+          console.log(`[vpn] late-discovered peer: ${key.slice(0, 16)}…`);
         }
       }
       this._emit(); // dirty-check suppresses emit when bytes and rates are unchanged
