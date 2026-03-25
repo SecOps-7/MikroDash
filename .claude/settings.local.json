@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l /DATA/Backup/MikroDash/src/collectors/*.js)",
+      "Bash(grep \"^test\\(\" /DATA/Backup/MikroDash/test/*.test.js)",
+      "Skill(update-config)",
+      "Bash(sudo -n true)",
+      "Bash(docker ps:*)",
+      "Bash(chmod +x /DATA/Backup/rebuild_mikrodash.sh)",
+      "Bash(/DATA/Backup/rebuild_mikrodash.sh)",
+      "Bash(jq:*)",
+      "Bash(node --test test/collector-data-transforms.test.js)",
+      "Bash(docker exec:*)",
+      "Bash(docker cp:*)",
+      "Bash(xargs md5sum:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker rm:*)",
+      "Bash(bash rebuild_mikrodash.sh)",
+      "Bash(bash -c ':*)",
+      "Bash(rsync:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/DATA/Backup/rebuild_mikrodash.sh",
+            "timeout": 300,
+            "statusMessage": "Rebuilding MikroDash container...",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/DATA/Backup/rebuild_mikrodash.sh",
+            "timeout": 300,
+            "statusMessage": "Rebuilding MikroDash container..."
+          }
+        ]
+      }
+    ]
+  }
+}

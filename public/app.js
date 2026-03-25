@@ -1358,6 +1358,7 @@ socket.on('disconnect',function(){
   reconnectBanner.classList.add('show');
   rosBanner.classList.remove('show');
   document.body.classList.add('is-disconnected');
+  var svg=$('netDiagram'); if(svg) svg.pauseAnimations();
 });
 socket.on('connect',function(){
   reconnectBanner.classList.remove('show');
@@ -1365,6 +1366,8 @@ socket.on('connect',function(){
   _sysMetaWritten=false;
   currentIf=''; allPoints=[];
   if(_rosCurrentlyDisconnected) rosBanner.classList.add('show');
+  // Only resume SVG if ROS is also back up and tab is visible
+  var svg=$('netDiagram'); if(svg && !_rosCurrentlyDisconnected && !document.hidden) svg.unpauseAnimations();
 });
 
 // ── RouterOS connection status ──────────────────────────────────────────────
@@ -1377,10 +1380,16 @@ function setRosBanner(connected, reason){
   if(connected){
     rosBanner.classList.remove('show');
     document.body.classList.remove('is-disconnected');
+    // Resume SVG animations only if the tab is also visible
+    var svg = $('netDiagram');
+    if(svg && !document.hidden) svg.unpauseAnimations();
   } else {
     if(rosBannerText) rosBannerText.textContent = reason || 'RouterOS not connected — retrying…';
     if(!reconnectBanner.classList.contains('show')) rosBanner.classList.add('show');
     document.body.classList.add('is-disconnected');
+    // Pause SVG flow-dot animations while the router is unreachable
+    var svg = $('netDiagram');
+    if(svg) svg.pauseAnimations();
   }
 }
 socket.on('ros:status', function(data){
