@@ -7,6 +7,8 @@ var DOT = '\u00b7';
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function fmtMbps(v){var n=+v||0;if(n>=1000)return(n/1000).toFixed(2)+' Gbps';if(n>=1)return n.toFixed(2)+' Mbps';return(n*1000).toFixed(1)+' Kbps';}
 function fmtBytes(b){if(b>=1073741824)return(b/1073741824).toFixed(1)+' GB';if(b>=1048576)return(b/1048576).toFixed(1)+' MB';if(b>=1024)return(b/1024).toFixed(1)+' KB';return b+' B';}
+// Parse RouterOS duration string (e.g. "2h10m5s", "30s", "1d2h") to seconds. Returns Infinity for empty/never.
+function parseDurationSec(s){if(!s||s==='never')return Infinity;var m=0;var r=/(\d+)([wdhms])/g,x;while((x=r.exec(s))!==null){var n=parseInt(x[1],10);if(x[2]==='w')m+=n*604800;else if(x[2]==='d')m+=n*86400;else if(x[2]==='h')m+=n*3600;else if(x[2]==='m')m+=n*60;else m+=n;}return m||Infinity;}
 function signalBars(dbm){var bars=dbm>=-55?4:dbm>=-65?3:dbm>=-75?2:dbm>-85?1:0;var h='<span class="signal-bars">';for(var i=1;i<=4;i++)h+='<span'+(i<=bars?' class="lit"':'')+'>&#8203;</span>';return h+'</span>';}
 function actionBadge(a){
   var col=a==='accept'||a==='passthrough'?'rgba(52,211,153,.9)':
@@ -856,10 +858,11 @@ socket.on('vpn:update',function(data){
   var nb = $('vpnNavBadge'); if (nb) nb.textContent = connected.length;
 
   // ── Dashboard mini card ───────────────────────────────────────────────────
+  connected.sort(function(a,b){ return parseDurationSec(a.uptime) - parseDurationSec(b.uptime); });
   if (!connected.length) {
     vpnTable.innerHTML = '<tr><td colspan="3" class="empty-state">No active peers</td></tr>';
   } else {
-    vpnTable.innerHTML = connected.map(function(t) {
+    vpnTable.innerHTML = connected.slice(0, _vpnDashTopN).map(function(t) {
       var endStr = t.endpoint ? '<div style="font-size:.65rem;color:var(--text-muted);margin-top:.1rem">' + esc(t.endpoint) + '</div>' : '';
       return '<tr>' +
         '<td><span class="wg-up">Up</span></td>' +
@@ -1336,6 +1339,7 @@ var PAGE_NAV_MAP = {
 // Alert thresholds — updated live from settings:pages broadcasts
 var _alertCpuThreshold = 90;
 var _alertPingLoss     = 100;
+var _vpnDashTopN       = 5;
 
 function applyPageVisibility(pages) {
   for (var key in PAGE_NAV_MAP) {
@@ -1348,6 +1352,7 @@ function applyPageVisibility(pages) {
   }
   if (pages.alertCpuThreshold != null) _alertCpuThreshold = pages.alertCpuThreshold;
   if (pages.alertPingLoss     != null) _alertPingLoss     = pages.alertPingLoss;
+  if (pages.vpnDashTopN       != null) _vpnDashTopN       = pages.vpnDashTopN;
 }
 socket.on('settings:pages', function(pages) { applyPageVisibility(pages); });
 
@@ -2799,7 +2804,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function populate(data) {
     _loaded = data;
     var fields = ['routerHost','routerPort','routerUser','defaultIf','pingTarget',
-                  'dashUser','topN','topTalkersN','firewallTopN','maxConns','historyMinutes'];
+                  'dashUser','topN','topTalkersN','firewallTopN','vpnDashTopN','maxConns','historyMinutes'];
     fields.forEach(function(f) {
       var el = $('s_'+f); if (el) el.value = data[f] !== undefined ? data[f] : '';
     });
@@ -2847,7 +2852,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) out[f] = el.value.trim();
     });
     var portEl = $('s_routerPort'); if (portEl) out.routerPort = parseInt(portEl.value, 10);
-    ['topN','topTalkersN','firewallTopN','maxConns','historyMinutes'].forEach(function(f) {
+    ['topN','topTalkersN','firewallTopN','vpnDashTopN','maxConns','historyMinutes'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = parseInt(el.value, 10);
     });
     // Passwords — only send if user typed something

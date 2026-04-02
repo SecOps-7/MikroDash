@@ -410,6 +410,7 @@ app.post('/api/settings', (req, res) => {
         pageLogs:DEFAULTS.pageLogs, pageBandwidth:DEFAULTS.pageBandwidth,
         pageRouting:DEFAULTS.pageRouting,
         alertCpuThreshold:DEFAULTS.alertCpuThreshold, alertPingLoss:DEFAULTS.alertPingLoss,
+        vpnDashTopN:DEFAULTS.vpnDashTopN,
       });
       return res.json({ ok:true, requiresRestart:false });
     }
@@ -419,7 +420,7 @@ app.post('/api/settings', (req, res) => {
       pollWireless:[500,60000], pollVpn:[500,30000],  pollFirewall:[500,30000],
       pollIfstatus:[500,60000], pollPing:[500,30000],   pollArp:[5000,300000],
       pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
-      firewallTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
+      firewallTopN:[1,50], vpnDashTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
       alertCpuThreshold:[1,100], alertPingLoss:[1,100],
     };
     const strFields  = ['dashUser', 'pingTarget'];
@@ -494,6 +495,7 @@ app.post('/api/settings', (req, res) => {
       pageLogs:saved.pageLogs, pageBandwidth:saved.pageBandwidth,
       pageRouting:saved.pageRouting,
       alertCpuThreshold:saved.alertCpuThreshold, alertPingLoss:saved.alertPingLoss,
+      vpnDashTopN:saved.vpnDashTopN,
     };
     io.emit('settings:pages', pageSettings);
     res.json({ ok:true, requiresRestart:false });
@@ -766,6 +768,7 @@ async function sendInitialState(socket) {
     pageConnections:_ps.pageConnections, pageFirewall:_ps.pageFirewall,
     pageLogs:_ps.pageLogs, pageBandwidth:_ps.pageBandwidth, pageRouting:_ps.pageRouting,
     alertCpuThreshold:_ps.alertCpuThreshold, alertPingLoss:_ps.alertPingLoss,
+    vpnDashTopN:_ps.vpnDashTopN,
   });
 
   const pingData = s.ping.getHistory();

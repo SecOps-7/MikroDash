@@ -88,6 +88,7 @@ const DEFAULTS = {
   topN:              parseInt(process.env.TOP_N             || '10',    10),
   topTalkersN:       parseInt(process.env.TOP_TALKERS_N     || '5',     10),
   firewallTopN:      parseInt(process.env.FIREWALL_TOP_N    || '15',    10),
+  vpnDashTopN:       parseInt(process.env.VPN_DASH_TOP_N    || '5',     10),
   maxConns:          parseInt(process.env.MAX_CONNS         || '20000', 10),
   historyMinutes:    parseInt(process.env.HISTORY_MINUTES   || '30',    10),
 

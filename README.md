@@ -14,20 +14,35 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 ### Dashboard
 ![Dashboard](screenshots/dashboard.png)
 
+### Connections
+![Connections](screenshots/connections.png)
+
 ### Connections Map
-![Connections Map](screenshots/connections.png)
+![Connections Map](screenshots/connections_map.png)
 
 ### Wireless Clients
 ![Wireless](screenshots/wireless.png)
 
 ### Router Interfaces
-![Network Diagram](screenshots/networks.png)
+![Interfaces](screenshots/Interfaces.png)
 
 ### DHCP Leases
 ![DHCP](screenshots/dhcp.png)
 
 ### VPN / WireGuard
 ![VPN](screenshots/vpn.png)
+
+### Firewall
+![Firewall](screenshots/firewall.png)
+
+### Routing
+![Routing](screenshots/routing.png)
+
+### Bandwidth
+![Bandwidth](screenshots/bandwidth.png)
+
+### Logs
+![Logs](screenshots/logs.png)
 
 ---
 
@@ -40,7 +55,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 - **Network card** — animated SVG topology diagram with live wired/wireless client counts, WAN IP, LAN subnets, and latency chart
 - **Connections card** — total connection count sparkline, protocol breakdown bars (TCP/UDP/ICMP), top sources with hostname resolution, top destinations with geo-IP country flags and click-to-filter
 - **Top Talkers** — top 5 devices by active traffic with RX/TX rates
-- **WireGuard card** — active peer list with status and last handshake
+- **WireGuard card** — active peers sorted by most recent handshake, limited to a configurable Top N (default 5)
 - **Multi-router switcher** — monitor multiple MikroTik routers from one dashboard instance; switch between them via the dropdown in the page header with no restart or page refresh required
 
 ### Pages
@@ -53,7 +68,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Connections | World map with animated arcs to destination countries, per-country protocol breakdown, sparklines, top ports panel, and click-to-filter by country |
 | Firewall | Rule Counts, Action Breakdown, and Total Hits summary cards; search bar; Top Hits, Filter, NAT, Mangle, and Raw rule tables with packet counts, byte totals, and live delta-pulse indicators |
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
-| Routing | Route count summary by protocol with doughnut chart; static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
+| Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre); static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with severity filter and text search |
 | Settings | Persistent UI configuration — see below |
 
@@ -162,7 +177,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. A Test Connection button validates credentials before saving. The active router is selected from the dropdown in the page header |
 | Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
 | Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Includes sliders for Firewall (counter poll) and VPN (counter poll). Streamed collectors (Interfaces, ARP, Routing) show an Event-driven badge instead of a slider |
-| Limits | Top N values for connections, talkers, firewall rules; max connection rows; traffic history window |
+| Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
 | Visible Pages | Toggle individual pages on/off — hidden pages are removed from the sidebar instantly |
 

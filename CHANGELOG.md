@@ -2,6 +2,29 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.21] — 2026-04-02
+
+### Added
+
+- **Routing — total route count in doughnut centre** — the total route count is now rendered in the centre hole of the Routes by Protocol doughnut chart, making the number visible at a glance without scanning the grid. The redundant Total tile in the grid is hidden (slot preserved to avoid reflowing the remaining tiles).
+- **VPN Dashboard Top N setting** — new "VPN Dashboard Top N" field in Settings → Limits controls how many WireGuard peers are displayed on the main dashboard card (default 5, range 1–50). Configurable at runtime; takes effect on the next `vpn:update` event without a restart.
+
+### Changed
+
+- **Dashboard — WireGuard card sorted by handshake time** — connected peers are now ordered by most recent handshake first, so the most actively communicating peers always appear at the top of the card.
+- **Dashboard — WireGuard peer count badge removed** — the peer count badge in the top-right of the WireGuard card was redundant with the sidebar nav badge and has been removed.
+
+### Fixed
+
+- **Dashboard — SVG flow animation runs during disconnect** — the animated flow dots on the network diagram continued moving when the router was disconnected or unreachable. The animation now pauses on both Socket.IO disconnect and RouterOS unreachable states, and resumes only when both connections are restored and the tab is visible.
+- **VPN — peers missing after router reboot** — RouterOS returns a partial peer list when the WireGuard subsystem is still initialising after a reboot. The counter poll now acts as a recovery path: any peer found in `/print` that is not yet in the peer map is added immediately, without waiting for a stream event.
+
+### Security
+
+- **path-to-regexp** updated 0.1.12 → 0.1.13 (CVE-2026-4867 — ReDoS in Express route matching)
+- **socket.io-parser** updated 4.2.5 → 4.2.6 (CVE-2026-33151 — unbounded binary attachment count)
+- **brace-expansion** updated 1.1.12 → 1.1.13 (GHSA-f886-m6hf-6m8v — ReDoS in glob expansion)
+
 ## [0.5.20] — 2026-03-24
 
 ### Added
