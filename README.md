@@ -112,7 +112,13 @@ Pull and run the pre-built image directly — no need to clone the repo:
 docker pull ghcr.io/secops-7/mikrodash:latest
 ```
 
-The image is published as a multi-arch manifest covering `linux/amd64` and `linux/arm64`. Docker will automatically pull the correct layer for your platform — this includes Raspberry Pi 4/5, MikroTik's own R5S/RB5009 companion boards, and Apple M-series machines running Linux containers.
+The image is built automatically by GitHub Actions on every push to `main` and on version tags. It is published as a multi-arch manifest covering `linux/amd64` and `linux/arm64`. Docker will automatically pull the correct layer for your platform — this includes Raspberry Pi 4/5, MikroTik's own R5S/RB5009 companion boards, and Apple M-series machines running Linux containers.
+
+To pin to a specific release:
+
+```bash
+docker pull ghcr.io/secops-7/mikrodash:0.5.21
+```
 
 Create your `.env` file:
 
