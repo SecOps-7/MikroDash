@@ -6,6 +6,14 @@ All notable changes to MikroDash will be documented in this file.
 
 ### Fixed
 
+- **Interfaces card rate bars flashing to zero** — the previous hybrid approach (poll + `/interface/listen` stream) caused spurious zero-rate emits in two ways: RouterOS resets its `rx/tx-bits-per-second` field mid-cycle (~1 s), so stream events carried `bps=0` unpredictably; and at ≤1 s poll rates our poll sometimes fired before RouterOS updated its internal byte counters, producing a zero delta. Removed the stream entirely — the collector is now poll-only, using a byte-counter delta over the poll window for rate calculation. A sticky-rate guard holds the last non-zero rate for up to 3 consecutive zero-delta reads before accepting idle, absorbing the RouterOS tick-boundary race at 1 s poll rate without stalling the display on genuinely idle interfaces.
+
+---
+
+## [0.5.22] — 2026-04-03
+
+### Fixed
+
 - **TLS / API-SSL connection failing with self-signed certificate** — connections to the RouterOS `api-ssl` service (port 8729) with "Allow self-signed cert" enabled were being rejected with a TLS handshake error despite the setting being saved. Root cause: `_buildConn()` in the ROS client always converted the `tls` option to a boolean `true` before passing it to `node-routeros`, which then converted `true` → `{}` (empty options object), leaving `rejectUnauthorized` at its Node.js default of `true`. The `tlsOptions` field set as a workaround was never read by the library. Fixed by passing the TLS options object (`{ rejectUnauthorized: false }`) directly through to `node-routeros`, which forwards it unchanged to `tls.connect()`.
 
 ### Added
