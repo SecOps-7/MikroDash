@@ -53,17 +53,19 @@ class ROS extends EventEmitter {
   }
 
   _buildConn() {
+    // Pass this.cfg.tls directly — it may be false, true, or an options object
+    // such as { rejectUnauthorized: false } built by buildSession()/test endpoint.
+    // node-routeros Connector passes it straight to tls.connect(), so an object
+    // is required to override rejectUnauthorized.  A boolean true is converted
+    // by node-routeros to {} which leaves rejectUnauthorized at its default (true).
     const opts = {
       host:     this.cfg.host,
       user:     this.cfg.username,
       password: this.cfg.password,
       port:     this.cfg.port    || 8729,
-      tls:      this.cfg.tls     !== false,
+      tls:      this.cfg.tls     || false,
       timeout:  this.cfg.timeout || 15,
     };
-    if (this.cfg.tls && this.cfg.tlsInsecure) {
-      opts.tlsOptions = { rejectUnauthorized: false };
-    }
     if (this.cfg.debug) opts.debug = true;
     return new RouterOSAPI(opts);
   }

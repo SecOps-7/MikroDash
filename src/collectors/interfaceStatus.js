@@ -61,11 +61,15 @@ class InterfaceStatusCollector {
       const prev = this._prev.get(i.name);
       if (rxMbps === 0 && txMbps === 0 && prev && now > prev.ts) {
         const elapsedSec = (now - prev.ts) / 1000;
-        const rxDelta = rxBytes - prev.rxBytes;
-        const txDelta = txBytes - prev.txBytes;
-        if (rxDelta >= 0 && txDelta >= 0) {
-          rxMbps = bpsToMbps((rxDelta * 8) / elapsedSec);
-          txMbps = bpsToMbps((txDelta * 8) / elapsedSec);
+        // Require at least 1 s between samples — stream events can fire
+        // milliseconds apart producing a near-zero divisor and absurd rates.
+        if (elapsedSec >= 1.0) {
+          const rxDelta = rxBytes - prev.rxBytes;
+          const txDelta = txBytes - prev.txBytes;
+          if (rxDelta >= 0 && txDelta >= 0) {
+            rxMbps = bpsToMbps((rxDelta * 8) / elapsedSec);
+            txMbps = bpsToMbps((txDelta * 8) / elapsedSec);
+          }
         }
       }
       this._prev.set(i.name, { rxBytes, txBytes, ts: now });

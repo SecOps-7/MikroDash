@@ -126,11 +126,16 @@ function buildSession(routerCfg) {
   const _cfg   = Settings.load();
   const state  = _freshState();
 
+  // When TLS is enabled, pass an options object rather than a boolean so we can
+  // set rejectUnauthorized. node-routeros passes this directly to tls.connect().
+  const tlsOpts = routerCfg.tls
+    ? { rejectUnauthorized: !routerCfg.tlsInsecure }
+    : false;
+
   const ros = new ROS({
     host:           routerCfg.host,
     port:           routerCfg.port,
-    tls:            routerCfg.tls,
-    tlsInsecure:    routerCfg.tlsInsecure,
+    tls:            tlsOpts,
     username:       routerCfg.username,
     password:       routerCfg.password,
     debug:          (process.env.ROS_DEBUG || 'false').toLowerCase() === 'true',
@@ -150,10 +155,15 @@ function buildSession(routerCfg) {
     async get(rosInst) {
       const now = Date.now();
       if (this.rows !== null && (now - this.ts) < this.maxAge) return this.rows;
-      this.rows = (await rosInst.write('/ip/firewall/connection/print', [
+      const fresh = (await rosInst.write('/ip/firewall/connection/print', [
         '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
       ])) || [];
-      this.ts = Date.now();
+      // Ignore a transient empty result when we already have rows — RouterOS
+      // occasionally returns no rows under load on lower-spec hardware (RPi etc).
+      if (fresh.length > 0 || this.rows === null) {
+        this.rows = fresh;
+        this.ts   = Date.now();
+      }
       return this.rows;
     },
     // Returns { rows, ts } — lets bandwidth use the snapshot timestamp as the
@@ -596,11 +606,12 @@ app.post('/api/routers/test', async (req, res) => {
   const body = req.body || {};
   if (!body.host) return res.status(400).json({ ok:false, error:'host is required' });
 
+  const testTls = (body.tls !== false && body.tls !== 'false');
+  const testTlsInsecure = !!(body.tlsInsecure || body.tlsInsecure === 'true');
   const testRos = new ROS({
     host:           String(body.host).trim(),
     port:           parseInt(body.port || '8729', 10),
-    tls:            body.tls !== false && body.tls !== 'false',
-    tlsInsecure:    !!(body.tlsInsecure || body.tlsInsecure === 'true'),
+    tls:            testTls ? { rejectUnauthorized: !testTlsInsecure } : false,
     username:       String(body.username || 'admin').trim(),
     password:       body.password && body.password !== '••••••••' ? String(body.password) : '',
     writeTimeoutMs: 8000,

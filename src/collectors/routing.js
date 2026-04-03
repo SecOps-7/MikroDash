@@ -47,14 +47,17 @@ class RoutingCollector {
     this.lastPayload = null;
 
     // Stream handles
-    this._routeStream   = null;
-    this._bgpStream     = null;
+    this._routeStream    = null;
+    this._ipv6Stream     = null;
+    this._bgpStream      = null;
 
     // Restart state (one set per stream)
-    this._routeRestarting  = false;
-    this._routeRestartTimer = null;
-    this._bgpRestarting    = false;
-    this._bgpRestartTimer  = null;
+    this._routeRestarting   = false;
+    this._routeRestartTimer  = null;
+    this._ipv6Restarting    = false;
+    this._ipv6RestartTimer   = null;
+    this._bgpRestarting     = false;
+    this._bgpRestartTimer   = null;
 
     this._heartbeat = null;
   }
@@ -108,7 +111,7 @@ class RoutingCollector {
     };
   }
 
-  _mapRoute(r) {
+  _mapRoute(r, family) {
     const flags   = this._parseFlags(r);
     const gateway = r.gateway || '';
 
@@ -135,19 +138,21 @@ class RoutingCollector {
       type,
       protocol,
       flags,
+      family:   family || 'ipv4',
     };
   }
 
-  _applyRouteDelta(data) {
-    const id = data['.id'];
-    if (!id) return;
+  _applyRouteDelta(data, family) {
+    const rawId = data['.id'];
+    if (!rawId) return;
+    const id = family === 'ipv6' ? 'v6:' + rawId : rawId;
     if (data['.dead'] === 'true' || data['.dead'] === true) {
       this._routes.delete(id);
       return;
     }
     const existing = this._routes.get(id);
     const merged   = existing ? Object.assign({}, existing._raw, data) : data;
-    this._routes.set(id, this._mapRoute(merged));
+    this._routes.set(id, this._mapRoute(merged, family || 'ipv4'));
   }
 
   // ── BGP session parsing ───────────────────────────────────────────────────
@@ -259,7 +264,7 @@ class RoutingCollector {
 
     const routes = allRoutes
       .filter(r => r.type === 'static' || r.type === 'dynamic')
-      .slice(0, 400)
+      .slice(0, 800)
       .map(({ _id, _raw, flags, ...r }) => r);
 
     const routeCounts = {
@@ -292,12 +297,17 @@ class RoutingCollector {
   // ── initial data load ─────────────────────────────────────────────────────
 
   async _loadRoutes() {
-    const rows = await this._safeWrite('/ip/route/print', [
-      '=.proplist=.id,dst-address,gateway,distance,comment,.flags,active,static,dynamic,connect,bgp,ospf,disabled',
+    const proplist = '=.proplist=.id,dst-address,gateway,distance,comment,.flags,active,static,dynamic,connect,bgp,ospf,disabled';
+    const [v4rows, v6rows] = await Promise.all([
+      this._safeWrite('/ip/route/print',   [proplist]),
+      this._safeWrite('/ipv6/route/print', [proplist]),
     ]);
     this._routes.clear();
-    for (const r of rows) {
-      if (r['.id']) this._routes.set(r['.id'], this._mapRoute(r));
+    for (const r of v4rows) {
+      if (r['.id']) this._routes.set(r['.id'], this._mapRoute(r, 'ipv4'));
+    }
+    for (const r of v6rows) {
+      if (r['.id']) this._routes.set('v6:' + r['.id'], this._mapRoute(r, 'ipv6'));
     }
   }
 
@@ -374,6 +384,51 @@ class RoutingCollector {
     if (this._routeStream) { try { this._routeStream.stop(); } catch (_) {} this._routeStream = null; }
   }
 
+  _startIPv6Stream() {
+    if (this._ipv6Stream || !this.ros.connected) return;
+    try {
+      this._ipv6Stream = this.ros.stream(['/ipv6/route/listen'], (err, data) => {
+        if (err) {
+          const msg = err && err.message ? err.message : String(err);
+          console.error('[routing] IPv6 route stream error:', msg);
+          this._stopIPv6Stream();
+          if (this.ros.connected && !this._ipv6Restarting) {
+            this._ipv6Restarting = true;
+            this._ipv6RestartTimer = setTimeout(async () => {
+              this._ipv6Restarting   = false;
+              this._ipv6RestartTimer = null;
+              if (!this.ros.connected) return;
+              const rows = await this._safeWrite('/ipv6/route/print', [
+                '=.proplist=.id,dst-address,gateway,distance,comment,.flags,active,static,dynamic,connect,bgp,ospf,disabled',
+              ]);
+              // Remove stale v6 entries then repopulate
+              for (const k of this._routes.keys()) { if (k.startsWith('v6:')) this._routes.delete(k); }
+              for (const r of rows) {
+                if (r['.id']) this._routes.set('v6:' + r['.id'], this._mapRoute(r, 'ipv6'));
+              }
+              this._emit(null);
+              this._startIPv6Stream();
+            }, 3000);
+          }
+          return;
+        }
+        if (data) {
+          this._applyRouteDelta(data, 'ipv6');
+          this._emit(null);
+        }
+      });
+      console.log('[routing] streaming /ipv6/route/listen');
+    } catch (e) {
+      console.error('[routing] IPv6 route stream start failed:', e && e.message ? e.message : e);
+    }
+  }
+
+  _stopIPv6Stream() {
+    if (this._ipv6RestartTimer) { clearTimeout(this._ipv6RestartTimer); this._ipv6RestartTimer = null; }
+    this._ipv6Restarting = false;
+    if (this._ipv6Stream) { try { this._ipv6Stream.stop(); } catch (_) {} this._ipv6Stream = null; }
+  }
+
   _startBgpStream() {
     if (this._bgpStream || !this.ros.connected) return;
     try {
@@ -425,6 +480,7 @@ class RoutingCollector {
 
   _stopAllStreams() {
     this._stopRouteStream();
+    this._stopIPv6Stream();
     this._stopBgpStream();
   }
 
@@ -456,6 +512,7 @@ class RoutingCollector {
     this._emit(this._buildPeers());
 
     this._startRouteStream();
+    this._startIPv6Stream();
     this._startBgpStream();
     this._startHeartbeat();
 
@@ -475,6 +532,7 @@ class RoutingCollector {
       await this._loadPeerCfg();
       this._emit(this._buildPeers());
       this._startRouteStream();
+      this._startIPv6Stream();
       this._startBgpStream();
       this._startHeartbeat();
     });

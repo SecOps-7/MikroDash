@@ -1525,6 +1525,12 @@ socket.on('ping:history',function(data){
   }
 });
 socket.on('ping:update',function(data){
+  if (data.permissionDenied) {
+    var rttEl=$('ndPingRtt'), lossEl=$('ndPingLoss');
+    if(rttEl){ rttEl.textContent='—'; rttEl.className='ping-val'; }
+    if(lossEl){ lossEl.textContent='N/A'; lossEl.className='ping-val ping-warn'; lossEl.title='Add "test" policy to your RouterOS API user to enable ping'; }
+    return;
+  }
   var rtt=data.rtt, loss=data.loss;
   var lbl=$('pingTargetLabel'); if(lbl&&data.target) lbl.textContent=data.target;
   pingHistory.push({ts:data.ts||Date.now(), rtt:rtt, loss:loss});
@@ -3448,21 +3454,24 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   // ── Routes table ──────────────────────────────────────────────────────────
 
-  var routesTbody   = $('rtRoutesTbody');
-  var routeSearch   = $('rtRouteSearch');
-  var routeSelType  = $('rtRouteSelType');
+  var routesTbody    = $('rtRoutesTbody');
+  var routeSearch    = $('rtRouteSearch');
+  var routeSelType   = $('rtRouteSelType');
+  var routeSelFamily = $('rtRouteSelFamily');
   var routeSelActive = $('rtRouteSelActive');
 
   var _rtRouteSort  = 'dst';
   var _rtRouteSortDir = 1;
 
   function filterRoutes(routes) {
-    var q      = routeSearch   ? routeSearch.value.toLowerCase().trim()  : '';
-    var type   = routeSelType  ? routeSelType.value   : '';
+    var q      = routeSearch    ? routeSearch.value.toLowerCase().trim() : '';
+    var type   = routeSelType   ? routeSelType.value   : '';
+    var family = routeSelFamily ? routeSelFamily.value : '';
     var active = routeSelActive ? routeSelActive.value : '';
     return routes.filter(function(r) {
-      if (type   && r.type !== type)          return false;
-      if (active && !r.active)                return false;
+      if (type   && r.type   !== type)   return false;
+      if (family && r.family !== family) return false;
+      if (active && !r.active)           return false;
       if (q && !(r.dst + ' ' + r.gateway + ' ' + r.comment).toLowerCase().includes(q)) return false;
       return true;
     });
@@ -3499,8 +3508,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         ? '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(56,189,248,.1);color:rgba(56,189,248,.8)">Static</span>'
         : '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8)">' +
           (r.protocol !== r.type ? esc(r.protocol.toUpperCase()) : 'Dynamic') + '</span>';
+      var familyBadge = r.family === 'ipv6'
+        ? '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:3px;background:rgba(167,139,250,.12);color:rgba(167,139,250,.8);margin-right:.3rem">IPv6</span>'
+        : '';
       return '<tr>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(r.dst || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + familyBadge + esc(r.dst || '—') + '</td>' +
         '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(r.gateway || '—') + '</td>' +
         '<td style="font-family:var(--font-mono);text-align:right">' + r.distance + '</td>' +
         '<td>' + activeCell + '</td>' +
@@ -3535,7 +3547,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   });
   refreshRouteSortHeaders();
 
-  [routeSearch, routeSelType, routeSelActive].forEach(function(el) {
+  [routeSearch, routeSelType, routeSelFamily, routeSelActive].forEach(function(el) {
     if (el) el.addEventListener('input', renderRoutes);
   });
 

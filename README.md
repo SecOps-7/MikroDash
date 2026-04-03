@@ -117,7 +117,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.21
+docker pull ghcr.io/secops-7/mikrodash:0.5.22
 ```
 
 Create your `.env` file:
@@ -211,11 +211,37 @@ Create a read-only API user (recommended):
 /user add name=mikrodash group=mikrodash password=your-secure-password
 ```
 
-To use API-SSL (TLS), enable the ssl service and set `ROUTER_TLS=true` in your `.env` or in Settings:
+### Enabling TLS (API-SSL)
+
+MikroDash supports encrypted connections to the RouterOS API over `api-ssl` (default port 8729). You can use a self-signed certificate — no external CA or purchased certificate is required.
+
+**Step 1 — Enable the API-SSL service**
 
 ```
-/ip service set api-ssl disabled=no port=8729
+/ip/service set api-ssl disabled=no port=8729
 ```
+
+**Step 2 — Create and self-sign a local CA**
+
+```
+/certificate add name=local-ca common-name=local-ca days-valid=3650 key-size=2048 key-usage=key-cert-sign,crl-sign
+/certificate sign local-ca
+```
+
+**Step 3 — Create and sign the API-SSL certificate using that CA**
+
+```
+/certificate add name=api-ssl-cert common-name=mikrodash days-valid=3650 key-size=2048 key-usage=digital-signature,key-encipherment,tls-server
+/certificate sign api-ssl-cert ca=local-ca
+```
+
+**Step 4 — Apply the certificate to the service**
+
+```
+/ip/service set api-ssl certificate=api-ssl-cert disabled=no port=8729
+```
+
+Once the certificate is applied, go to **Settings → Routers**, edit your router entry, enable **TLS**, enable **Allow self-signed cert**, set the port to `8729`, and save. MikroDash will reconnect over an encrypted channel immediately.
 
 ---
 

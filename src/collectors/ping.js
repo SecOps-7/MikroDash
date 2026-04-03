@@ -12,6 +12,7 @@ class PingCollector {
     this.target = target || '1.1.1.1';
     this.timer  = null;
     this._inflight = false;
+    this._permissionDenied = false;
     this.history = new RingBuffer(MAX_HISTORY); // {ts, rtt, loss}
     this._lastFp = '';
     this.lastPayload = null;
@@ -20,6 +21,7 @@ class PingCollector {
   async tick() {
     if (!this.ros.connected) return;
     if (this.io.engine.clientsCount === 0) return;
+    if (this._permissionDenied) return; // no test policy — stop retrying
     let rtt = null, loss = 100;
     try {
       const results = await this.ros.write('/tool/ping', [
@@ -48,7 +50,20 @@ class PingCollector {
         loss = Math.round(((PING_COUNT - replied.length) / PING_COUNT) * 100);
       }
     } catch (e) {
-      console.error('[ping]', e && e.message ? e.message : e);
+      const msg = e && e.message ? e.message : String(e);
+      // RouterOS returns a permission error when the API user lacks 'test' policy.
+      // Flag it so we stop retrying and emit a clear disabled state to the UI.
+      if (/not enough privileges|permission denied|cannot run/i.test(msg)) {
+        this._permissionDenied = true;
+        console.warn('[ping] test policy not granted — ping disabled. Add "test" to your RouterOS API user group to enable it.');
+        const point = { ts: Date.now(), rtt: null, loss: null, permissionDenied: true };
+        this.history.push(point);
+        this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
+        this.io.emit('ping:update', this.lastPayload);
+        this.state.lastPingTs = Date.now();
+        return;
+      }
+      console.error('[ping]', msg);
     }
 
     const point = { ts: Date.now(), rtt, loss };
@@ -82,7 +97,7 @@ class PingCollector {
     run();
     this.timer = setInterval(run, this.pollMs);
     this.ros.on('close',     () => this.stop());
-    this.ros.on('connected', () => { this._lastFp = ''; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    this.ros.on('connected', () => { this._lastFp = ''; this._permissionDenied = false; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
   }
 }
 

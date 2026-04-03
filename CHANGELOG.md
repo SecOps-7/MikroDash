@@ -2,6 +2,18 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.22] — 2026-04-03
+
+### Fixed
+
+- **TLS / API-SSL connection failing with self-signed certificate** — connections to the RouterOS `api-ssl` service (port 8729) with "Allow self-signed cert" enabled were being rejected with a TLS handshake error despite the setting being saved. Root cause: `_buildConn()` in the ROS client always converted the `tls` option to a boolean `true` before passing it to `node-routeros`, which then converted `true` → `{}` (empty options object), leaving `rejectUnauthorized` at its Node.js default of `true`. The `tlsOptions` field set as a workaround was never read by the library. Fixed by passing the TLS options object (`{ rejectUnauthorized: false }`) directly through to `node-routeros`, which forwards it unchanged to `tls.connect()`.
+
+### Documentation
+
+- **RouterOS TLS setup guide** — new step-by-step section in the README covering how to create a local CA, sign an api-ssl certificate, and bind it to the `api-ssl` service on RouterOS — no external CA or purchased certificate required.
+
+---
+
 ## [0.5.21] — 2026-04-02
 
 ### Added
