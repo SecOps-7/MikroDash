@@ -420,7 +420,7 @@ app.post('/api/settings', (req, res) => {
         pageLogs:DEFAULTS.pageLogs, pageBandwidth:DEFAULTS.pageBandwidth,
         pageRouting:DEFAULTS.pageRouting,
         alertCpuThreshold:DEFAULTS.alertCpuThreshold, alertPingLoss:DEFAULTS.alertPingLoss,
-        vpnDashTopN:DEFAULTS.vpnDashTopN,
+        vpnDashTopN:DEFAULTS.vpnDashTopN, pingEnabled:DEFAULTS.pingEnabled,
       });
       return res.json({ ok:true, requiresRestart:false });
     }
@@ -435,7 +435,8 @@ app.post('/api/settings', (req, res) => {
     };
     const strFields  = ['dashUser', 'pingTarget'];
     const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
-                        'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'];
+                        'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting',
+                        'pingEnabled'];
     const credFields = ['dashPass'];
 
     for (const [f, range] of Object.entries(intFields)) {
@@ -485,6 +486,18 @@ app.post('/api/settings', (req, res) => {
       s.vpn._startCounterPoll();
     }
 
+    // Apply pingEnabled toggle live — stop/start the collector immediately
+    if ('pingEnabled' in updates && s.ping) {
+      if (saved.pingEnabled) {
+        s.ping._permissionDenied = false;
+        s.ping._lastFp = '';
+        if (!s.ping.timer) s.ping.start();
+      } else {
+        s.ping.stop();
+        io.emit('ping:update', { enabled: false });
+      }
+    }
+
     // Apply pingTarget change live — the collector stores it as this.target
     if ('pingTarget' in updates && s.ping) {
       s.ping.target = saved.pingTarget;
@@ -505,7 +518,7 @@ app.post('/api/settings', (req, res) => {
       pageLogs:saved.pageLogs, pageBandwidth:saved.pageBandwidth,
       pageRouting:saved.pageRouting,
       alertCpuThreshold:saved.alertCpuThreshold, alertPingLoss:saved.alertPingLoss,
-      vpnDashTopN:saved.vpnDashTopN,
+      vpnDashTopN:saved.vpnDashTopN, pingEnabled:saved.pingEnabled,
     };
     io.emit('settings:pages', pageSettings);
     res.json({ ok:true, requiresRestart:false });
@@ -779,11 +792,13 @@ async function sendInitialState(socket) {
     pageConnections:_ps.pageConnections, pageFirewall:_ps.pageFirewall,
     pageLogs:_ps.pageLogs, pageBandwidth:_ps.pageBandwidth, pageRouting:_ps.pageRouting,
     alertCpuThreshold:_ps.alertCpuThreshold, alertPingLoss:_ps.alertPingLoss,
-    vpnDashTopN:_ps.vpnDashTopN,
+    vpnDashTopN:_ps.vpnDashTopN, pingEnabled:_ps.pingEnabled,
   });
 
-  const pingData = s.ping.getHistory();
-  if (pingData.history.length) socket.emit('ping:history', pingData);
+  if (_ps.pingEnabled !== false) {
+    const pingData = s.ping.getHistory();
+    if (pingData.history.length) socket.emit('ping:history', pingData);
+  }
 
   const logHistory = s.logs.getHistory();
   if (logHistory.length) socket.emit('logs:history', logHistory);

@@ -67,6 +67,7 @@ const DEFAULTS = {
   dashPass:          '', // stored encrypted
 
   // Ping
+  pingEnabled:       true,
   pingTarget:        process.env.PING_TARGET         || '1.1.1.1',
 
   // Poll intervals (ms)

@@ -8,6 +8,10 @@ All notable changes to MikroDash will be documented in this file.
 
 - **TLS / API-SSL connection failing with self-signed certificate** — connections to the RouterOS `api-ssl` service (port 8729) with "Allow self-signed cert" enabled were being rejected with a TLS handshake error despite the setting being saved. Root cause: `_buildConn()` in the ROS client always converted the `tls` option to a boolean `true` before passing it to `node-routeros`, which then converted `true` → `{}` (empty options object), leaving `rejectUnauthorized` at its Node.js default of `true`. The `tlsOptions` field set as a workaround was never read by the library. Fixed by passing the TLS options object (`{ rejectUnauthorized: false }`) directly through to `node-routeros`, which forwards it unchanged to `tls.connect()`.
 
+### Added
+
+- **Settings — Disable Ping toggle** — new "Ping / Latency" toggle under Settings → Visible Pages → Dashboard widgets. When disabled, the ping section on the Network card is hidden immediately and the ping collector stops making RouterOS `/tool/ping` calls entirely. Re-enabling restarts the collector and restores the section live without a restart.
+
 ### Documentation
 
 - **RouterOS TLS setup guide** — new step-by-step section in the README covering how to create a local CA, sign an api-ssl certificate, and bind it to the `api-ssl` service on RouterOS — no external CA or purchased certificate required.

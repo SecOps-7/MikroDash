@@ -1353,6 +1353,10 @@ function applyPageVisibility(pages) {
   if (pages.alertCpuThreshold != null) _alertCpuThreshold = pages.alertCpuThreshold;
   if (pages.alertPingLoss     != null) _alertPingLoss     = pages.alertPingLoss;
   if (pages.vpnDashTopN       != null) _vpnDashTopN       = pages.vpnDashTopN;
+  if (pages.pingEnabled       != null) {
+    var pingSection = document.getElementById('ndPingSection');
+    if (pingSection) pingSection.style.display = pages.pingEnabled ? '' : 'none';
+  }
 }
 socket.on('settings:pages', function(pages) { applyPageVisibility(pages); });
 
@@ -1435,7 +1439,8 @@ staleConfig.forEach(function(cfg){
 });
 // networksCard shows live ping stats (10s) — also reset its stale timer on ping:update
 // so it never goes stale while ping is actively flowing.
-socket.on('ping:update', function() {
+socket.on('ping:update', function(data) {
+  if (data && data.enabled === false) return;
   staleTimers['networksCard'] = Date.now();
   var card = $('networksCard'); if (card) card.classList.remove('is-stale');
 });
@@ -1525,6 +1530,7 @@ socket.on('ping:history',function(data){
   }
 });
 socket.on('ping:update',function(data){
+  if (data.enabled === false) return; // ping disabled in settings
   if (data.permissionDenied) {
     var rttEl=$('ndPingRtt'), lossEl=$('ndPingLoss');
     if(rttEl){ rttEl.textContent='—'; rttEl.className='ping-val'; }
@@ -2821,10 +2827,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
-    // Page visibility
+    // Page visibility + dashboard widget toggles
     ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
+    var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) pingEnabledEl.checked = data.pingEnabled !== false;
     // Alert thresholds
     var cpuSlider = $('s_alertCpuThreshold'), cpuVal = $('s_alertCpuThresholdVal');
     if (cpuSlider && data.alertCpuThreshold != null) {
@@ -2871,6 +2878,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
+    var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
     // Alert thresholds
     var cpuEl = $('s_alertCpuThreshold');  if (cpuEl)  out.alertCpuThreshold  = parseInt(cpuEl.value,  10);
     var pingEl = $('s_alertPingLoss');     if (pingEl) out.alertPingLoss      = parseInt(pingEl.value, 10);

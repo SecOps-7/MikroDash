@@ -1048,7 +1048,7 @@
                 <circle r="2.5" class="nd-dot nd-dot-wan"><animateMotion dur="1.8s" repeatCount="indefinite" path="M192,80 L262,80"/></circle>
               </svg>
               <!-- Ping / Latency -->
-              <div class="ping-section">
+              <div class="ping-section" id="ndPingSection">
                 <div class="ping-header">
                   <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel">1.1.1.1</span></span>
                   <div class="ping-stat">
@@ -1767,6 +1767,10 @@
             <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             <label class="stoggle"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBandwidth"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             <label class="stoggle"><span class="stoggle-label">Routing</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouting"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+          </div>
+          <p style="font-size:.74rem;color:var(--text-muted);margin:.75rem 0 .5rem">Dashboard widgets</p>
+          <div class="stoggle-grid">
+            <label class="stoggle"><span class="stoggle-label">Ping / Latency</span><span class="stoggle-switch"><input type="checkbox" id="s_pingEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
           </div>
         </div>
       </div>
