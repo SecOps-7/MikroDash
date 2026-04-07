@@ -81,7 +81,8 @@ function createBasicAuthMiddleware({ username, password, realm = 'MikroDash', wi
     if (nextFailure.count >= maxFailures) nextFailure.blockedUntil = now + blockMs;
     failures.set(ip, nextFailure);
 
-    res.setHeader('WWW-Authenticate', `Basic realm="${realm}", charset="UTF-8"`);
+    const safeRealm = String(realm).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    res.setHeader('WWW-Authenticate', `Basic realm="${safeRealm}", charset="UTF-8"`);
     res.statusCode = 401;
     res.end('Authentication required');
   };

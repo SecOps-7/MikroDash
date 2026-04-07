@@ -44,6 +44,7 @@ try { geoip = require('geoip-lite'); } catch (_) {}
 
 const ROS                  = require('./routeros/client');
 const { createBasicAuthMiddleware } = require('./auth/basicAuth');
+const { isValidIp }        = require('./util/ip');
 const { fetchInterfaces }  = require('./collectors/interfaces');
 const TrafficCollector     = require('./collectors/traffic');
 const DhcpLeasesCollector  = require('./collectors/dhcpLeases');
@@ -92,6 +93,7 @@ app.use((req, res, next) => {
   if (req.path === '/healthz') return next();
   authLimiter(req, res, (err) => { if (err) return next(err); basicAuth(req, res, next); });
 });
+io.engine.use(authLimiter);
 io.engine.use(basicAuth);
 app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -142,8 +144,16 @@ function buildSession(routerCfg) {
     writeTimeoutMs: parseInt(process.env.ROS_WRITE_TIMEOUT_MS || '30000', 10),
   });
 
-  const DEFAULT_IF      = routerCfg.defaultIf  || _cfg.defaultIf  || 'ether1';
-  const PING_TARGET     = routerCfg.pingTarget  || _cfg.pingTarget || '1.1.1.1';
+  const DEFAULT_IF  = routerCfg.defaultIf  || _cfg.defaultIf  || 'ether1';
+  const PING_TARGET = routerCfg.pingTarget  || _cfg.pingTarget || '1.1.1.1';
+
+  // Validate before values reach the RouterOS API
+  if (!/^[A-Za-z0-9_./-]{1,128}$/.test(DEFAULT_IF)) {
+    throw new Error(`[MikroDash] Invalid defaultIf value: "${DEFAULT_IF}"`);
+  }
+  if (!isValidIp(PING_TARGET)) {
+    throw new Error(`[MikroDash] Invalid pingTarget value: "${PING_TARGET}" — must be a valid IP address`);
+  }
   const HISTORY_MINUTES = _cfg.historyMinutes;
 
   const connTableCache = {
@@ -470,6 +480,13 @@ app.post('/api/settings', (req, res) => {
     }
     if ('pollConns' in updates || 'pollBandwidth' in updates) {
       s.connTableCache.updateMaxAge(saved.pollConns, saved.pollBandwidth);
+    }
+
+    // pollIfstatus controls the addr sub-poll (_addrTimer) in InterfaceStatusCollector
+    if ('pollIfstatus' in updates && s.ifStatus) {
+      s.ifStatus.pollMs = saved.pollIfstatus;
+      s.ifStatus._stopAddrPoll();
+      s.ifStatus._startAddrPoll();
     }
 
     // pollFirewall controls the counter poll interval — restart it live

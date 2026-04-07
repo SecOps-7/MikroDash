@@ -80,7 +80,7 @@ const DEFAULTS = {
   pollWireless:      parseInt(process.env.WIRELESS_POLL_MS  || '60000', 10),
   pollVpn:           parseInt(process.env.VPN_POLL_MS       || '10000', 10),
   pollFirewall:      parseInt(process.env.FIREWALL_POLL_MS  || '5000',  10),
-  pollIfstatus:      parseInt(process.env.IFSTATUS_POLL_MS  || '15000', 10),
+  pollIfstatus:      parseInt(process.env.IFSTATUS_POLL_MS  || '3000',  10),
   pollPing:          parseInt(process.env.PING_POLL_MS      || '5000',  10),
   pollArp:           parseInt(process.env.ARP_POLL_MS       || '30000', 10),
   pollDhcp:          parseInt(process.env.DHCP_POLL_MS      || '600000', 10),

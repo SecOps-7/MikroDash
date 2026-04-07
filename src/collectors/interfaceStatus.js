@@ -121,6 +121,7 @@ class InterfaceStatusCollector {
       const ifaces = ifRes.status === 'fulfilled' ? (ifRes.value || []) : [];
       const addrs  = addrRes.status === 'fulfilled' ? (addrRes.value || []) : [];
 
+
       // Guard against transient empty results under RouterOS load (seen on ARM)
       if (ifaces.length > 0 || this._ifaces.size === 0) {
         this._ifaces.clear();

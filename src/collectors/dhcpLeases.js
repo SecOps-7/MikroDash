@@ -40,13 +40,25 @@ class DhcpLeasesCollector {
   }
 
   _applyLease(l, emit = false) {
-    const ip   = l.address || l['active-address'];
-    const mac  = l['mac-address'] || l['active-mac-address'] || l.mac;
-    const name = (l.comment && l.comment.trim()) ? l.comment.trim()
-               : (l['host-name'] && l['host-name'].trim()) ? l['host-name'].trim() : '';
+    const ip     = l.address || l['active-address'];
+    const mac    = l['mac-address'] || l['active-mac-address'] || l.mac;
     const status = l.status || '';
 
-    if (ip) this.byIP.set(ip, { name, mac, hostName: l['host-name'] || '', comment: l.comment || '', status });
+    // Prune expired/removed leases so maps don't grow unboundedly on
+    // long-running instances. The stream sends these with status='expired'
+    // or '.dead=true' — handle both.
+    const dead = l['.dead'] === 'true' || l['.dead'] === true;
+    if (dead || status === 'expired' || status === 'removed') {
+      if (ip)  this.byIP.delete(ip);
+      if (mac) this.byMAC.delete(mac);
+      if (emit) this._emitLeases();
+      return;
+    }
+
+    const name = (l.comment && l.comment.trim()) ? l.comment.trim()
+               : (l['host-name'] && l['host-name'].trim()) ? l['host-name'].trim() : '';
+
+    if (ip)  this.byIP.set(ip,   { name, mac, hostName: l['host-name'] || '', comment: l.comment || '', status });
     if (mac) this.byMAC.set(mac, { name, ip });
 
     if (mac && ip && !this.seenMACs.has(mac)) {

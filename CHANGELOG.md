@@ -2,6 +2,14 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.23]
+
+### Fixed
+
+- **Interfaces card — rate bars still flashing to zero at 1 s poll interval** — the hybrid stream + poll approach introduced in 0.5.22 still produced zero-rate flashes because RouterOS's internal byte-counter tick (~1 s) coincides with our poll interval, causing consecutive polls to read the same byte count (delta = 0). The `/interface/listen` stream was removed entirely. The collector is now poll-only, computing rates from the byte-counter delta over the poll window. A sticky-rate guard holds the last non-zero rate for up to 3 consecutive zero-delta reads before accepting idle, absorbing the RouterOS tick-boundary race at 1 s poll rate without stalling the display on genuinely idle interfaces.
+
+---
+
 ## [0.5.22]
 
 ### Fixed

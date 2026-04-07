@@ -543,28 +543,86 @@ socket.on('ifstatus:update',function(data){
     p.tx = Math.max(i.txMbps || 0, p.tx * 0.995);
     if (p.rx < 1) p.rx = 1;
     if (p.tx < 1) p.tx = 1;
-    // Append combined rx+tx to sparkline history buffer
     if (!_ifaceHistory[i.name]) _ifaceHistory[i.name] = [];
     _ifaceHistory[i.name].push((i.rxMbps || 0) + (i.txMbps || 0));
     if (_ifaceHistory[i.name].length > IFACE_SPARK_LEN) _ifaceHistory[i.name].shift();
   });
 
-  ifaceGrid.innerHTML=ifaces.map(function(i){
-    var cls=i.disabled?'disabled':i.running?'up':'down';
-    var dotCls=i.disabled?'dis':i.running?'up':'down';
-    var ipStr=i.ips&&i.ips.length?i.ips[0]:'';
-    var p = _ifacePeaks[i.name] || { rx: 1, tx: 1 };
-    return'<div class="iface-tile '+cls+'">'+
-      ifaceSparkSvg(_ifaceHistory[i.name]||[])+
-      '<div class="iface-name"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
-      '<div class="iface-type">'+esc(i.type)+(i.comment?' \u00b7 '+esc(i.comment):'')+'</div>'+
-      (ipStr?'<div class="iface-ip">'+esc(ipStr)+'</div>':'')+
-      '<div class="iface-rates">'+
+  // Targeted DOM update — update existing tiles in-place, create new, remove deleted.
+  // Avoids full innerHTML replacement so rate-bar updates don't cause a visible flash.
+  var existing = {};
+  ifaceGrid.querySelectorAll('.iface-tile[data-iface]').forEach(function(el) {
+    existing[el.dataset.iface] = el;
+  });
+
+  // First render: grid only contains the initial "Waiting…" placeholder
+  var coldStart = !Object.keys(existing).length && ifaceGrid.querySelector('.empty-state');
+
+  var seen = {};
+  ifaces.forEach(function(i) {
+    seen[i.name] = true;
+    var cls    = i.disabled ? 'disabled' : i.running ? 'up' : 'down';
+    var dotCls = i.disabled ? 'dis'      : i.running ? 'up' : 'down';
+    var ipStr  = i.ips && i.ips.length ? i.ips[0] : '';
+    var p      = _ifacePeaks[i.name] || { rx: 1, tx: 1 };
+    var tile   = existing[i.name];
+
+    if (!tile) {
+      // New interface — build full tile
+      if (coldStart) { ifaceGrid.innerHTML = ''; coldStart = false; }
+      var div = document.createElement('div');
+      div.className    = 'iface-tile ' + cls;
+      div.dataset.iface = i.name;
+      div.innerHTML =
+        ifaceSparkSvg(_ifaceHistory[i.name]||[]) +
+        '<div class="iface-name"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
+        '<div class="iface-type">'+esc(i.type)+(i.comment?' \u00b7 '+esc(i.comment):'')+'</div>'+
+        (ipStr?'<div class="iface-ip">'+esc(ipStr)+'</div>':'')+
+        '<div class="iface-rates">'+
+          ifaceRateRow(i.name,'rx',i.rxMbps||0,p.rx)+
+          ifaceRateRow(i.name,'tx',i.txMbps||0,p.tx)+
+        '</div>';
+      ifaceGrid.appendChild(div);
+    } else {
+      // Existing tile — only touch what changed
+      tile.className = 'iface-tile ' + cls;
+
+      // Sparkline (changes on every poll)
+      var sparkEl = tile.querySelector('.iface-spark');
+      var newSpark = ifaceSparkSvg(_ifaceHistory[i.name]||[]);
+      if (newSpark) {
+        var tmp = document.createElement('div'); tmp.innerHTML = newSpark;
+        if (sparkEl) tile.replaceChild(tmp.firstChild, sparkEl);
+        else tile.insertAdjacentHTML('afterbegin', newSpark);
+      } else if (sparkEl) { sparkEl.remove(); }
+
+      // Status dot
+      var dot = tile.querySelector('.iface-dot');
+      if (dot) dot.className = 'iface-dot ' + dotCls;
+
+      // IP address (changes rarely)
+      var ipEl = tile.querySelector('.iface-ip');
+      if (ipStr) {
+        if (ipEl) { if (ipEl.textContent !== ipStr) ipEl.textContent = ipStr; }
+        else {
+          var typeEl = tile.querySelector('.iface-type');
+          if (typeEl) typeEl.insertAdjacentHTML('afterend','<div class="iface-ip">'+esc(ipStr)+'</div>');
+        }
+      } else if (ipEl) { ipEl.remove(); }
+
+      // Rate bars + values (changes on every poll)
+      var ratesEl = tile.querySelector('.iface-rates');
+      if (ratesEl) ratesEl.innerHTML =
         ifaceRateRow(i.name,'rx',i.rxMbps||0,p.rx)+
-        ifaceRateRow(i.name,'tx',i.txMbps||0,p.tx)+
-      '</div>'+
-      '</div>';
-  }).join('');
+        ifaceRateRow(i.name,'tx',i.txMbps||0,p.tx);
+    }
+  });
+
+  // Remove tiles for interfaces no longer in the list
+  Object.keys(existing).forEach(function(name) {
+    if (!seen[name]) existing[name].remove();
+  });
+
   renderIfTypes(ifaces);
   renderIfPorts(ifaces);
 });
@@ -1546,7 +1604,9 @@ socket.on('ping:update',function(data){
 
 // ── Browser Notifications ──────────────────────────────────────────────────
 var _notifEnabled = false;
-var _notifPrevIface = {};   // name -> wasRunning
+var _notifPrevIface    = {};  // name -> confirmed running state
+var _ifacePending      = {};  // name -> { newState, since } — debounce timer
+var IFACE_DEBOUNCE_MS  = 10000; // ms state must be stable before alert fires
 var _notifPrevVpn   = {};   // name -> wasConnected
 var _cpuAlertedAt   = 0;
 var _pingAlertedAt  = 0;
@@ -1583,16 +1643,39 @@ function updateNotifBtn(){
 
 // Trigger notifications from data events
 function checkIfaceNotifs(ifaces){
+  var now = Date.now();
   ifaces.forEach(function(i){
     if(i.disabled) return;
-    var wasRunning = _notifPrevIface[i.name];
-    var isRunning  = !!i.running;
-    if(wasRunning === true && !isRunning){
-      sendNotif('Interface Down', i.name + ' is no longer running', 'iface-' + i.name);
-    } else if(wasRunning === false && isRunning){
-      sendNotif('Interface Up', i.name + ' is back online', 'iface-' + i.name);
+    var isRunning = !!i.running;
+    var confirmed = _notifPrevIface[i.name];
+
+    // First observation — seed confirmed state, no alert
+    if(confirmed === undefined){
+      _notifPrevIface[i.name] = isRunning;
+      return;
     }
-    _notifPrevIface[i.name] = isRunning;
+
+    if(isRunning !== confirmed){
+      // State differs from confirmed. Start (or continue) timing how long it
+      // has held this new state. Only fire once it has been stable for
+      // IFACE_DEBOUNCE_MS — brief wifi association flaps resolve well within
+      // that window and never trigger an alert.
+      var pending = _ifacePending[i.name];
+      if(!pending || pending.newState !== isRunning){
+        _ifacePending[i.name] = { newState: isRunning, since: now };
+      } else if(now - pending.since >= IFACE_DEBOUNCE_MS){
+        if(!isRunning){
+          sendNotif('Interface Down', i.name + ' is no longer running', 'iface-' + i.name);
+        } else {
+          sendNotif('Interface Up', i.name + ' is back online', 'iface-' + i.name);
+        }
+        _notifPrevIface[i.name] = isRunning;
+        delete _ifacePending[i.name];
+      }
+    } else {
+      // Returned to confirmed state — cancel any pending alert
+      delete _ifacePending[i.name];
+    }
   });
 }
 
@@ -2744,17 +2827,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 (function(){
   var POLL_SLIDERS = [
     // Polled — user-configurable interval
-    { key:'pollSystem',    label:'System / Gauges', min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollConns',     label:'Connections',     min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollTalkers',   label:'Top Talkers',     min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollBandwidth', label:'Bandwidth',       min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollSystem',    label:'System / Gauges',  min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollConns',     label:'Connections',      min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollTalkers',   label:'Top Talkers',      min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollIfstatus',  label:'Interface Rates',  min:500,   max:30000,  step:500,   unit:'ms' },
+    { key:'pollBandwidth', label:'Bandwidth',        min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollVpn',       label:'VPN / WireGuard', min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollFirewall',  label:'Firewall',        min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollPing',      label:'Ping',            min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollWireless',  label:'Wireless',        min:500,   max:60000,  step:500,   unit:'ms' },
     { key:'pollDhcp',      label:'DHCP Networks',   min:30000, max:600000, step:30000, unit:'ms' },
     // Streamed — RouterOS pushes changes, no poll interval needed
-    { key:'pollIfstatus',  label:'Interfaces',  streamed:true },
     { key:'pollArp',       label:'ARP',         streamed:true },
     { key:'pollRouting',   label:'Routing',     streamed:true },
   ];
