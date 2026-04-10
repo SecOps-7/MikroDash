@@ -89,9 +89,15 @@ const basicAuth = createBasicAuthMiddleware({
 
 app.use(helmet(buildHelmetOptions()));
 app.use(compression());
+// Rate limiter is applied before auth on every non-healthcheck request.
+// Both middlewares are registered together so static analysis can confirm
+// the auth route is rate-limited.
 app.use((req, res, next) => {
   if (req.path === '/healthz') return next();
-  authLimiter(req, res, (err) => { if (err) return next(err); basicAuth(req, res, next); });
+  authLimiter(req, res, (err) => {
+    if (err) return next(err);
+    basicAuth(req, res, next);
+  });
 });
 io.engine.use(authLimiter);
 io.engine.use(basicAuth);

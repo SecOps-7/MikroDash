@@ -1,5 +1,14 @@
 const crypto = require('crypto');
 
+// Timing-safe string comparison.
+// Pads both sides to a fixed length before calling timingSafeEqual so that
+// length differences don't leak timing information. HMAC-SHA256 is used purely
+// to produce fixed-length buffers for the comparison — passwords are never
+// stored or derived; they are read directly from environment variables and
+// compared at request time.
+// Note: CodeQL js/insufficient-password-hash does not apply here — this is not
+// a password storage mechanism. Passwords are held only in env vars and never
+// written to disk or a database.
 const HMAC_KEY = crypto.randomBytes(32);
 
 function hmacDigest(value) {
@@ -12,12 +21,17 @@ function safeEqual(expected, actual) {
 
 function parseBasicAuth(header) {
   if (!header || typeof header !== 'string') return null;
-  const match = header.match(/^Basic\s+(.+)$/i);
-  if (!match) return null;
+  // Use indexOf instead of a regex to avoid ReDoS on crafted Authorization
+  // headers with many repeated spaces. Basic auth is always "Basic <base64>"
+  // with a single space — no need for a greedy match.
+  const lower = header.toLowerCase();
+  if (!lower.startsWith('basic ')) return null;
+  const encoded = header.slice(6).trim();
+  if (!encoded) return null;
 
   let decoded = '';
   try {
-    decoded = Buffer.from(match[1], 'base64').toString('utf8');
+    decoded = Buffer.from(encoded, 'base64').toString('utf8');
   } catch (_) {
     return null;
   }
