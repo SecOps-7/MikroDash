@@ -17,7 +17,7 @@ const bpsToMbps = (bytes, dtMs) =>
   dtMs > 0 ? +((bytes * 8) / (dtMs / 1000) / 1_000_000).toFixed(4) : 0;
 
 class BandwidthCollector {
-  constructor({ ros, io, pollMs, dhcpNetworks, dhcpLeases, arp, ifStatus, state, geoLookup, connTableCache }) {
+  constructor({ ros, io, pollMs, dhcpNetworks, dhcpLeases, arp, ifStatus, state, geoLookup, connTableCache, geoOrgCache }) {
     this.ros          = ros;
     this.io           = io;
     this.pollMs       = pollMs || 3000;
@@ -31,8 +31,8 @@ class BandwidthCollector {
     this._prev        = new Map();
     this._ifaceCache  = new Map(); // srcIp -> iface name
     this.connTableCache = connTableCache || null;
-    this._geoCache    = new Map(); // ip -> { country, city }
-    this._orgCache    = new Map(); // ip -> org string | null
+    this._geoCache    = geoOrgCache ? geoOrgCache.geo : new Map(); // ip -> { country, city }
+    this._orgCache    = geoOrgCache ? geoOrgCache.org : new Map(); // ip -> org string | null
     this.timer        = null;
     this._inflight    = false;
     this.lastPayload  = null;
@@ -253,7 +253,7 @@ class BandwidthCollector {
     const fp = JSON.stringify(devices.map(d => ({ src: d.srcIp, rx: d.rxMbps, tx: d.txMbps })));
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.emit('bandwidth:update', this.lastPayload);
+      this.io.to('page-bandwidth').emit('bandwidth:update', this.lastPayload);
     }
     this.state.lastBandwidthTs  = now;
     this.state.lastBandwidthErr = null;

@@ -19,7 +19,7 @@ function makeDestKey(c) {
 }
 
 class ConnectionsCollector {
-  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache }) {
+  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache, geoOrgCache }) {
     this.ros = ros;
     this.io = io;
     this.pollMs = pollMs;
@@ -31,6 +31,10 @@ class ConnectionsCollector {
     this.state = state;
     this.geoLookup = geoLookup || (geoip ? (ip) => geoip.lookup(ip) : null);
     this.connTableCache = connTableCache || null;
+    // Shared with BandwidthCollector so geo/org lookups for the same IPs are
+    // computed once and reused across both collectors and across ticks.
+    this._geoCache = geoOrgCache ? geoOrgCache.geo : new Map(); // ip -> { country, city }
+    this._orgCache = geoOrgCache ? geoOrgCache.org : new Map(); // ip -> org string | null
     this.prevIds = new Set();
     this.timer = null;
     this._inflight = false;
@@ -45,6 +49,9 @@ class ConnectionsCollector {
     // accumulate across multiple start() calls (matches the canonical pattern).
     this.ros.on('close',     () => this.stop());
     this.ros.on('connected', () => {
+      // Clear geo/org caches on reconnect — IPs may be reassigned.
+      this._geoCache.clear();
+      this._orgCache.clear();
       // Only restart here on reconnect after a close. On the very first
       // connect, startCollectors() in index.js calls start() explicitly —
       // calling stop()+start() here too would create two concurrent intervals.
@@ -82,7 +89,7 @@ class ConnectionsCollector {
       : ((await this.ros.write('/ip/firewall/connection/print')) || []);
     const totalRaw = (raw || []).length;
     // When capped, connections beyond maxConns are not processed — their
-    // destination IPs will be missing from destGeo, so top destinations
+    // destination IPs will be missing from the geo cache, so top destinations
     // that only appear in the truncated portion will lack country/city data.
     const conns = totalRaw > this.maxConns ? raw.slice(0, this.maxConns) : (raw || []);
     const srcCounts = new Map();
@@ -92,9 +99,9 @@ class ConnectionsCollector {
     const countryProto = new Map();
     const countryCity  = new Map();
     const portCounts   = new Map();
-    const destGeo      = new Map();
-    const destOrg      = new Map();
     const countryOrgs  = new Map(); // cc -> Map<org, count>
+    // this._geoCache and this._orgCache are persistent across ticks (shared with
+    // BandwidthCollector) — external IP→country/org is stable between 3s polls.
 
     for (const c of (conns || [])) {
       const id  = c['.id'];
@@ -120,15 +127,13 @@ class ConnectionsCollector {
         const port = c['dst-port'] || c['port'] || '';
         if (port) portCounts.set(port, (portCounts.get(port) || 0) + 1);
         if (this.geoLookup && isValidIp(ip)) {
-          // destGeo acts as a per-tick cache — avoids calling geoLookup for
-          // the same destination IP more than once per tick
-          if (!destGeo.has(ip)) {
+          if (!this._geoCache.has(ip)) {
             const geo = this.geoLookup(ip);
-            destGeo.set(ip, geo && geo.country
+            this._geoCache.set(ip, geo && geo.country
               ? { country: geo.country, city: geo.city || '' }
               : { country: '', city: '' });
           }
-          const cached = destGeo.get(ip);
+          const cached = this._geoCache.get(ip);
           if (cached.country) {
             const cc = cached.country;
             if (!countryCity.has(cc)) countryCity.set(cc, cached.city);
@@ -137,14 +142,14 @@ class ConnectionsCollector {
             countryProto.set(cc, cp);
           }
         }
-        if (isValidIp(ip) && !destOrg.has(ip)) {
+        if (isValidIp(ip) && !this._orgCache.has(ip)) {
           const org = lookupOrg(ip);
-          destOrg.set(ip, org || null);
+          this._orgCache.set(ip, org || null);
         }
         // Tally org connections per country for the breakdown sub-rows
-        const resolvedOrg = destOrg.get(ip);
+        const resolvedOrg = this._orgCache.get(ip);
         if (resolvedOrg) {
-          const cc = (destGeo.get(ip) || {}).country || '__unknown__';
+          const cc = (this._geoCache.get(ip) || {}).country || '__unknown__';
           if (!countryOrgs.has(cc)) countryOrgs.set(cc, new Map());
           const orgMap = countryOrgs.get(cc);
           orgMap.set(resolvedOrg, (orgMap.get(resolvedOrg) || 0) + 1);
@@ -164,11 +169,11 @@ class ConnectionsCollector {
       .sort((a, b) => b[1] - a[1]).slice(0, this.topN)
       .map(([key, count]) => {
         const ip = extractAddress(key);
-        const geo = destGeo.get(ip) || { country: '', city: '' };
+        const geo = this._geoCache.get(ip) || { country: '', city: '' };
         const country = geo.country;
         const city = geo.city;
         const proto = country ? (countryProto.get(country) || {}) : {};
-        const org = destOrg.get(ip) || null;
+        const org = this._orgCache.get(ip) || null;
         const cat = org ? lookupCategory(org) : null;
         return { key, count, country, city, proto, org, cat };
       });
@@ -181,11 +186,11 @@ class ConnectionsCollector {
     const countryDests = {};
     for (const [key, count] of dstCounts.entries()) {
       const ip = extractAddress(key);
-      const geo = destGeo.get(ip);
+      const geo = this._geoCache.get(ip);
       if (!geo || !geo.country) continue;
       const cc = geo.country;
       if (!countryDests[cc]) countryDests[cc] = [];
-      const org = destOrg.get(ip) || null;
+      const org = this._orgCache.get(ip) || null;
       const cat = org ? lookupCategory(org) : null;
       countryDests[cc].push({ key, count, country: cc, city: geo.city || '', org, cat });
     }
@@ -231,7 +236,16 @@ class ConnectionsCollector {
     });
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.emit('conn:update', this.lastPayload);
+      // Global emit omits countryDests — only the Connections page needs it.
+      // lastPayload retains it for sendInitialState (targeted per-socket emit).
+      const emitPayload = Object.assign({}, this.lastPayload);
+      delete emitPayload.countryDests;
+      this.io.emit('conn:update', emitPayload);
+      // Connections page gets the full per-country destination index.
+      this.io.to('page-connections').emit('conn:country-data', {
+        ts: this.lastPayload.ts,
+        countryDests: this.lastPayload.countryDests,
+      });
     }
     this.state.lastConnsTs = Date.now();
     this.state.lastConnsErr = null;

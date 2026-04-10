@@ -156,6 +156,11 @@ function buildSession(routerCfg) {
   }
   const HISTORY_MINUTES = _cfg.historyMinutes;
 
+  // Shared geo/org lookup cache — passed to both ConnectionsCollector and
+  // BandwidthCollector so geoip.lookup() and lookupOrg() are called at most
+  // once per unique IP per session rather than once per collector per tick.
+  const geoOrgCache = { geo: new Map(), org: new Map() };
+
   const connTableCache = {
     rows: null, ts: 0,
     maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 1.0,
@@ -191,7 +196,7 @@ function buildSession(routerCfg) {
   const arp          = new ArpCollector         ({ros,    pollMs:_cfg.pollArp,       state});
   const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:_cfg.pollDhcp,      dhcpLeases, state, wanIface:DEFAULT_IF});
   const traffic      = new TrafficCollector     ({ros,io, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state});
-  const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache});
+  const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache, geoOrgCache});
   const talkers      = new TopTalkersCollector  ({ros,io, pollMs:_cfg.pollTalkers,  state, topN:_cfg.topTalkersN});
   const logs         = new LogsCollector        ({ros,io, state});
   const system       = new SystemCollector      ({ros,io, pollMs:_cfg.pollSystem,   state});
@@ -200,7 +205,7 @@ function buildSession(routerCfg) {
   const firewall     = new FirewallCollector    ({ros,io, pollMs:_cfg.pollFirewall,  state, topN:_cfg.firewallTopN});
   const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, state});
   const ping         = new PingCollector        ({ros,io, pollMs:_cfg.pollPing,     state, target:PING_TARGET});
-  const bandwidth    = new BandwidthCollector   ({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache});
+  const bandwidth    = new BandwidthCollector   ({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache});
   const routing      = new RoutingCollector     ({ros,io, pollMs:_cfg.pollRouting,  state});
 
   const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing];
@@ -208,7 +213,7 @@ function buildSession(routerCfg) {
   return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES,
            dhcpLeases, dhcpNetworks, arp, traffic, conns, talkers, logs, system,
            wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, allCollectors,
-           routerId: routerCfg.id };
+           routerId: routerCfg.id, cachedInterfaces: null };
 }
 
 // ── Session teardown ──────────────────────────────────────────────────────────
@@ -245,6 +250,7 @@ function wireRosEvents(session) {
 
   ros.on('connected', () => {
     console.log(`[ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
+    session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
     broadcastRosStatus(true);
   });
   ros.on('close', () => {
@@ -736,6 +742,7 @@ app.get('/healthz', (_req, res) => {
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
 async function sendInitialState(socket) {
   const s = _session;
+  const _ps = Settings.load(); // single load — used for routers, settings:pages, pingEnabled
 
   socket.emit('traffic:history', {
     ifName: s.DEFAULT_IF,
@@ -744,9 +751,8 @@ async function sendInitialState(socket) {
   });
 
   // Send current router list and active id
-  const _cfg = Settings.load();
   socket.emit('routers:update', Routers.getPublic());
-  socket.emit('router:active', { activeId: _cfg.activeRouterId || '' });
+  socket.emit('router:active', { activeId: _ps.activeRouterId || '' });
 
   if (!s.ros.connected) {
     socket.emit('ros:status', { connected: false, reason: rosConnected === false
@@ -757,7 +763,8 @@ async function sendInitialState(socket) {
 
   let ifs = [];
   try {
-    ifs = await fetchInterfaces(s.ros);
+    if (!s.cachedInterfaces) s.cachedInterfaces = await fetchInterfaces(s.ros);
+    ifs = s.cachedInterfaces;
     s.traffic.setAvailableInterfaces(ifs);
   } catch (e) {
     const reason = e && e.message ? e.message : String(e);
@@ -802,7 +809,6 @@ async function sendInitialState(socket) {
   if (s.bandwidth.lastPayload) socket.emit('bandwidth:update', s.bandwidth.lastPayload);
   if (s.routing.lastPayload)   socket.emit('routing:update',   s.routing.lastPayload);
 
-  const _ps = Settings.load();
   socket.emit('settings:pages', {
     pageWireless:_ps.pageWireless, pageInterfaces:_ps.pageInterfaces,
     pageDhcp:_ps.pageDhcp, pageVpn:_ps.pageVpn,
@@ -827,6 +833,31 @@ io.on('connection', (socket) => {
     socket.disconnect(true);
     return;
   }
+
+  // Page-aware rooms — clients join/leave rooms as they navigate pages.
+  // Collectors for page-specific events (bandwidth, firewall, logs) emit only
+  // to the relevant room, avoiding unnecessary serialization for idle pages.
+  socket.on('page:focus', (name) => {
+    if (typeof name === 'string' && /^[a-z]{2,20}$/.test(name)) {
+      socket.join('page-' + name);
+      // Immediately replay the last known payload for room-scoped collectors
+      // so the page isn't stale while waiting for the next poll cycle.
+      const s = _session;
+      if (!s) return;
+      if (name === 'firewall'  && s.firewall  && s.firewall.lastPayload)
+        socket.emit('firewall:update',  { ...s.firewall.lastPayload,  ts: Date.now() });
+      if (name === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
+        socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
+      if (name === 'logs'      && s.logs)
+        socket.emit('logs:history', { entries: s.logs.getHistory() });
+    }
+  });
+  socket.on('page:blur', (name) => {
+    if (typeof name === 'string' && /^[a-z]{2,20}$/.test(name)) {
+      socket.leave('page-' + name);
+    }
+  });
+
   _session.traffic.bindSocket(socket);
   // If this is the first browser client and idle-gated collectors haven't run
   // yet (lastPayload is null), kick them and wait for them to complete before

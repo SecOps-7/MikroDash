@@ -111,6 +111,7 @@ function fetchAboutVersion() {
 }
 
 function showPage(name){
+  var prev = _currentPage;
   _currentPage = name;
   document.querySelectorAll('.page-view').forEach(function(p){p.classList.remove('active');});
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
@@ -119,6 +120,9 @@ function showPage(name){
   if (name === 'info') fetchAboutVersion();
   if(pageTitle) pageTitle.textContent = PAGE_TITLES[name]||name;
   document.dispatchEvent(new CustomEvent('mikrodash:pagechange', { detail: name }));
+  // Notify server so it only delivers page-specific events to clients that need them
+  if (prev && prev !== name) socket.emit('page:blur', prev);
+  socket.emit('page:focus', name);
 }
 document.querySelectorAll('.nav-item').forEach(function(item){
   item.addEventListener('click', function(e){e.preventDefault();showPage(item.dataset.page);});
@@ -1432,6 +1436,8 @@ socket.on('connect',function(){
   if(_rosCurrentlyDisconnected) rosBanner.classList.add('show');
   // Only resume SVG if ROS is also back up and tab is visible
   var svg=$('netDiagram'); if(svg && !_rosCurrentlyDisconnected && !document.hidden) svg.unpauseAnimations();
+  // Re-join the current page room after reconnect so room-scoped events resume
+  socket.emit('page:focus', _currentPage);
 });
 
 // ── RouterOS connection status ──────────────────────────────────────────────
@@ -1718,6 +1724,14 @@ var _origIfstatus = null;
   socket.on('vpn:update',      function(data){ checkVpnNotifs(data.tunnels||[]); });
   socket.on('system:update',   function(d){    checkCpuNotif(d.cpuLoad); });
   socket.on('ping:update',     function(data){ checkPingNotif(data.loss); });
+  // Clear interface and VPN state on router switch — ether1 on router A is not
+  // the same interface as ether1 on router B, so stale confirmed states must be
+  // discarded before the new router's first ifstatus:update is compared.
+  socket.on('router:switching', function() {
+    _notifPrevIface = {};
+    _ifacePending   = {};
+    _notifPrevVpn   = {};
+  });
 })();
 
 initNotifications();
@@ -2547,6 +2561,15 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if (sub) sub.textContent = 'Top connection destinations';
     var list = $('connMapList');
     if (list) list.innerHTML = '';
+  });
+
+  // Connections-page-only: per-country destination index delivered to the
+  // page-connections room. Keeps countryDests fresh without including it in
+  // every global conn:update broadcast.
+  socket.on('conn:country-data', function(data) {
+    if (_lastConnPayload && data.countryDests) {
+      _lastConnPayload.countryDests = data.countryDests;
+    }
   });
 })();
 

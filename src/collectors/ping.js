@@ -34,17 +34,21 @@ class PingCollector {
       // RouterOS returns a summary row with avg-rtt
       const summary = rows.find(r => r['avg-rtt'] || r['min-rtt']);
       if (summary && summary['avg-rtt']) {
-        // avg-rtt is like "3ms" or "1.5ms"
-        const m = String(summary['avg-rtt']).match(/([\d.]+)/);
-        if (m) rtt = parseFloat(m[1]);
+        // avg-rtt is "3ms" (milliseconds) or "350us" (microseconds) on low-latency LANs
+        const m = String(summary['avg-rtt']).match(/([\d.]+)(us|ms)?/);
+        if (m) {
+          rtt = parseFloat(m[1]);
+          if (m[2] === 'us') rtt = rtt / 1000; // convert µs → ms
+        }
         const sent = parseInt(summary['sent'] || String(PING_COUNT), 10);
         const recv = parseInt(summary['received'] || replied.length, 10);
         loss = sent > 0 ? Math.round(((sent - recv) / sent) * 100) : 0;
       } else if (replied.length > 0) {
         // Fallback: average individual reply times
         const times = replied.map(r => {
-          const m = String(r.time || r['response-time'] || '0').match(/([\d.]+)/);
-          return m ? parseFloat(m[1]) : 0;
+          const m = String(r.time || r['response-time'] || '0').match(/([\d.]+)(us|ms)?/);
+          if (!m) return 0;
+          return m[2] === 'us' ? parseFloat(m[1]) / 1000 : parseFloat(m[1]);
         }).filter(v => v > 0);
         if (times.length) rtt = Math.round(times.reduce((a,b)=>a+b,0) / times.length);
         loss = Math.round(((PING_COUNT - replied.length) / PING_COUNT) * 100);

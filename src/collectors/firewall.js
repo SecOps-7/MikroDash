@@ -122,7 +122,7 @@ class FirewallCollector {
 
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.emit('firewall:update', payload);
+      this.io.to('page-firewall').emit('firewall:update', payload);
     }
   }
 
@@ -260,7 +260,7 @@ class FirewallCollector {
   _startHeartbeat() {
     if (this._heartbeat) return;
     this._heartbeat = setInterval(() => {
-      if (this.lastPayload) this.io.emit('firewall:update', { ...this.lastPayload, ts: Date.now() });
+      if (this.lastPayload) this.io.to('page-firewall').emit('firewall:update', { ...this.lastPayload, ts: Date.now() });
     }, 60000);
   }
 

@@ -4,9 +4,28 @@ All notable changes to MikroDash will be documented in this file.
 
 ## [0.5.23]
 
+### Added
+
+- **Settings — "Interface Rates" poll slider** — new slider in Settings → Poll Intervals, placed above Bandwidth, range 500 ms–30 s, 500 ms step. Controls the `InterfaceStatusCollector` poll interval. Changes apply immediately without a restart.
+
+### Changed
+
+- **`pollIfstatus` default lowered to 3,000 ms** — the default interface-rates poll interval has been reduced from 15,000 ms (raised in 0.5.20) to 3,000 ms, giving a responsive rate update cadence out of the box while staying comfortably above the RouterOS 1 s internal byte-counter tick boundary.
+- **Interfaces card — targeted DOM updates** — the `ifstatus:update` handler was rewritten from full `ifaceGrid.innerHTML` replacement to per-tile in-place updates keyed on a `data-iface` attribute. Only changed elements are touched on each poll cycle, eliminating the redraw flash that the previous full-replacement approach produced.
+- **Interfaces card — per-tile peak-relative rate bars** — RX and TX rate bars now scale relative to the highest rate seen per interface since page load, with a 0.5 % per-sample decay so the scale gradually tightens after a traffic burst subsides.
+- **`cachedInterfaces` on session** — `sendInitialState` no longer issues a live `/interface/print` call for every new browser tab connection. The result is cached on the session object and invalidated only on RouterOS reconnect, saving one RouterOS API call per socket open.
+- **Single `Settings.load()` in `sendInitialState`** — `Settings.load()` (which decrypts from disk) was called twice inside the same function. Hoisted to one call at the top, shared by both uses.
+- **`RingBuffer` for logs history** — `LogsCollector` replaced a plain `Array` + O(n) `shift()` with the existing `RingBuffer` class from `src/util/ringbuffer.js`. Meaningful improvement on verbose routers with firewall logging enabled.
+- **Shared `geoOrgCache` between Connections and Bandwidth** — both collectors call `geoip.lookup()` and `lookupOrg()` on the same external IPs drawn from the shared `connTableCache`. A single session-scoped `{ geo, org }` cache object is now passed into both constructors, eliminating duplicate lookups for every carry-over connection.
+- **`countryDests` stripped from global `conn:update`** — the per-country destination index (up to 20 entries × N countries) was included in every `conn:update` broadcast every 3 s regardless of which page clients were viewing. It is now sent only to clients in the `page-connections` Socket.IO room via a separate `conn:country-data` event, shrinking the global payload significantly on nets with many external destinations.
+- **Page-aware Socket.IO rooms** — `firewall:update` is now scoped to the `page-firewall` room, `bandwidth:update` to `page-bandwidth`, and `logs:new` to `page-logs`. Clients not currently viewing those pages no longer receive these high-frequency events. `page:focus` / `page:blur` socket events emitted by `showPage()` in `app.js` manage room membership; the `connect` handler re-joins the active room on reconnect.
+
 ### Fixed
 
-- **Interfaces card — rate bars still flashing to zero at 1 s poll interval** — the hybrid stream + poll approach introduced in 0.5.22 still produced zero-rate flashes because RouterOS's internal byte-counter tick (~1 s) coincides with our poll interval, causing consecutive polls to read the same byte count (delta = 0). The `/interface/listen` stream was removed entirely. The collector is now poll-only, computing rates from the byte-counter delta over the poll window. A sticky-rate guard holds the last non-zero rate for up to 3 consecutive zero-delta reads before accepting idle, absorbing the RouterOS tick-boundary race at 1 s poll rate without stalling the display on genuinely idle interfaces.
+- **Interfaces card — rate bars flashing to zero at 1 s poll interval** — the hybrid stream + poll approach introduced a race: RouterOS resets its `rx/tx-bits-per-second` field mid-cycle (~1 s), causing stream events to carry `bps=0` unpredictably; at ≤1 s poll rates the poll also sometimes fired before RouterOS updated its internal byte counters, producing a zero delta. The `/interface/listen` stream was removed entirely. The collector is now poll-only, computing rates from the byte-counter delta over the poll window. A sticky-rate guard holds the last non-zero rate for up to 3 consecutive zero-delta reads before accepting idle, absorbing the RouterOS tick-boundary race without stalling the display on genuinely idle interfaces.
+- **Ping — sub-millisecond RTT displayed as milliseconds** — RouterOS returns RTTs under 1 ms as `"350us"` (microseconds). The parser was stripping the unit and displaying `350 ms` instead of `0.35 ms`. Fixed by capturing the unit suffix in the regex and dividing by 1000 when `us` is detected. Applied to both the summary-row and individual-reply parsing paths.
+- **Spurious interface / VPN notifications on router switch** — `_notifPrevIface`, `_ifacePending`, and `_notifPrevVpn` retained state from the previous router, causing false up/down alerts (e.g. "ether1 up") immediately after switching because the same interface name on a different router had a different last-known state. All three maps are now cleared on the `router:switching` socket event.
+- **Ping history not suppressed for new connections when ping is disabled** — when `pingEnabled=false`, `sendInitialState` now skips sending the ping history to newly connected sockets, preventing the frontend from briefly rendering stale ping data before the `ping:update { enabled: false }` suppression event arrives.
 
 ---
 
@@ -15,7 +34,6 @@ All notable changes to MikroDash will be documented in this file.
 ### Fixed
 
 - **TLS / API-SSL connection failing with self-signed certificate** — connections to the RouterOS `api-ssl` service (port 8729) with "Allow self-signed cert" enabled were being rejected with a TLS handshake error despite the setting being saved. Root cause: `_buildConn()` in the ROS client always converted the `tls` option to a boolean `true` before passing it to `node-routeros`, which then converted `true` → `{}` (empty options object), leaving `rejectUnauthorized` at its Node.js default of `true`. The `tlsOptions` field set as a workaround was never read by the library. Fixed by passing the TLS options object (`{ rejectUnauthorized: false }`) directly through to `node-routeros`, which forwards it unchanged to `tls.connect()`.
-- **Interfaces card rate bars flashing to zero** — the previous hybrid approach (poll + `/interface/listen` stream) caused spurious zero-rate emits in two ways: RouterOS resets its `rx/tx-bits-per-second` field mid-cycle (~1 s), so stream events carried `bps=0` unpredictably; and at ≤1 s poll rates our poll sometimes fired before RouterOS updated its internal byte counters, producing a zero delta. Removed the stream entirely — the collector is now poll-only, using a byte-counter delta over the poll window for rate calculation. A sticky-rate guard holds the last non-zero rate for up to 3 consecutive zero-delta reads before accepting idle, absorbing the RouterOS tick-boundary race at 1 s poll rate without stalling the display on genuinely idle interfaces.
 
 ### Added
 

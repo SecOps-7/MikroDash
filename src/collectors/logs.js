@@ -3,6 +3,7 @@
  * RouterOS sends each new log entry instantly as it's written.
  * Zero polling, zero seen-set needed — we just receive and forward.
  */
+const RingBuffer = require('../util/ringbuffer');
 const LOG_HISTORY_SIZE = parseInt(process.env.LOG_HISTORY_SIZE || '500', 10);
 
 class LogsCollector {
@@ -13,11 +14,11 @@ class LogsCollector {
     this.stream = null;
     this._restarting = false;
     this._restartTimer = null;
-    this._history = [];
+    this._history = new RingBuffer(LOG_HISTORY_SIZE);
   }
 
   getHistory() {
-    return this._history.slice();
+    return this._history.toArray();
   }
 
   _classify(topicsRaw) {
@@ -54,8 +55,7 @@ class LogsCollector {
       severity: this._classify(topicsRaw),
     };
     this._history.push(entry);
-    if (this._history.length > LOG_HISTORY_SIZE) this._history.shift();
-    this.io.emit('logs:new', entry);
+    this.io.to('page-logs').emit('logs:new', entry);
 
     this.state.lastLogsTs = Date.now();
     this.state.lastLogsErr = null;
