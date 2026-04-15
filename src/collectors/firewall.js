@@ -122,7 +122,7 @@ class FirewallCollector {
 
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.to('page-firewall').emit('firewall:update', payload);
+      this.io.to('page-firewall').to('dash-card-firewall').emit('firewall:update', payload);
     }
   }
 

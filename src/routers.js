@@ -21,6 +21,8 @@
  *   password:    string,   // AES-256-GCM encrypted at rest
  *   defaultIf:   string,
  *   pingTarget:  string,
+ *   bwDownMbps:  number,   // WAN download capacity in Mbps (default 1000 = 1 Gbps)
+ *   bwUpMbps:    number,   // WAN upload capacity in Mbps   (default 1000 = 1 Gbps)
  *   addedAt:     number,   // epoch ms
  * }
  */
@@ -184,6 +186,8 @@ function add(data) {
     password:    String(data.password    || ''),
     defaultIf:   String(data.defaultIf   || 'ether1').trim(),
     pingTarget:  String(data.pingTarget  || '1.1.1.1').trim(),
+    bwDownMbps:  parseInt(data.bwDownMbps || '1000', 10) || 1000,
+    bwUpMbps:    parseInt(data.bwUpMbps   || '1000', 10) || 1000,
     addedAt:     Date.now(),
   };
   routers.push(entry);
@@ -218,6 +222,8 @@ function update(id, data) {
     username:    data.username    !== undefined ? String(data.username).trim()     : existing.username,
     defaultIf:   data.defaultIf   !== undefined ? String(data.defaultIf).trim()   : existing.defaultIf,
     pingTarget:  data.pingTarget  !== undefined ? String(data.pingTarget).trim()   : existing.pingTarget,
+    bwDownMbps:  data.bwDownMbps  !== undefined ? (parseInt(data.bwDownMbps, 10) || 1000) : (existing.bwDownMbps || 1000),
+    bwUpMbps:    data.bwUpMbps    !== undefined ? (parseInt(data.bwUpMbps,   10) || 1000) : (existing.bwUpMbps   || 1000),
   };
 
   // Only update password if provided and not the mask sentinel

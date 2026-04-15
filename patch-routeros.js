@@ -8,6 +8,8 @@
  *  1. Channel.js   — handle !empty reply (ROS 7.18+: empty result set)
  *  2. Receiver.js  — handle UNREGISTEREDTAG gracefully (trailing packets after
  *                    stream/command completes) instead of crashing the process
+ *  3. Receiver.js  — decode API strings as UTF-8 instead of win1252 so that
+ *                    non-Latin characters (Cyrillic, Greek, etc.) display correctly
  */
 
 'use strict';
@@ -94,6 +96,27 @@ patch(
             console.warn('[routeros] discarded packet for unregistered tag:', tag);
         }
         return;`,
+    },
+  ]
+);
+
+// ── Patch 3: Receiver.js — UTF-8 string decoding ────────────────────────────
+// node-routeros hardcodes win1252 when it converts raw TCP bytes to JS strings.
+// RouterOS sends UTF-8 strings (confirmed in 6.x and 7.x), so win1252 mangles
+// any non-Latin characters (Cyrillic, Greek, etc.) into garbage sequences.
+// Switching to utf8 fixes device names, DHCP comments, interface labels, etc.
+patch(
+  path.join(BASE, 'connector', 'Receiver.js'),
+  'UTF8_ENCODING',
+  [
+    {
+      find: `this.currentLine += iconv.decode(data, 'win1252');`,
+      replace: `this.currentLine += iconv.decode(data, 'utf8');`,
+    },
+    {
+      // alternate double-quote form in some builds
+      find: `this.currentLine += iconv.decode(data, "win1252");`,
+      replace: `this.currentLine += iconv.decode(data, "utf8");`,
     },
   ]
 );

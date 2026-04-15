@@ -49,6 +49,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 ## Features
 
 ### Dashboard
+- **Configurable drag-and-drop grid** — 12×11 layout; drag cards to reposition, resize with 8 handles, or swap positions by hovering one card over another for 1.5 s; add/remove cards via the Add Card panel; layout synced server-side so all browsers and devices share the same arrangement
 - **Live traffic chart** — per-interface RX/TX Mbps with configurable history window
 - **System card** — CPU, RAM, Storage gauges with colour-coded thresholds (amber >75%, red >90%), board info, temperature, uptime chip
 - **RouterOS update indicator** — shows installed vs available version side by side
@@ -58,6 +59,24 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 - **WireGuard card** — active peers sorted by most recent handshake, limited to a configurable Top N (default 5)
 - **Multi-router switcher** — monitor multiple MikroTik routers from one dashboard instance; switch between them via the dropdown in the page header with no restart or page refresh required
 
+#### Optional dashboard cards (14, hidden by default)
+| Card | Description |
+|---|---|
+| Signal Health | Per-client RSSI bars for all wireless interfaces |
+| Band Split | 2.4 / 5 / 6 GHz client count breakdown |
+| Physical Ports | RJ-45 port visualiser colour-coded by link state |
+| IP Utilisation | DHCP pool gauge with live lease percentage |
+| Connections Map | World map with animated arcs — identical to the Connections page map |
+| Top Countries | Country list with connection counts and protocol breakdown |
+| Connection Flow | Source → destination Sankey diagram |
+| Top Ports | Top 10 destination ports with connection counts |
+| Routes | Routes-by-protocol doughnut with total in centre |
+| BGP Peers | BGP session state and prefix counts |
+| Bandwidth | Download / Upload utilisation bars (% of configured capacity, 30 s average) |
+| Firewall Actions | Action breakdown bars (accept / drop / reject / other) |
+| Total Hits | Total firewall match count with per-table sub-totals |
+| Logs | Live scrolling router log feed |
+
 ### Pages
 | Page | Description |
 |---|---|
@@ -65,7 +84,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Interfaces | Physical Ports card (RJ-45 port visualiser, colour-coded by state) and Interface Types card (count by type); all interfaces as compact tiles with status, IP, live rates, cumulative RX/TX totals, and per-card traffic trend sparkline |
 | DHCP | Subnet utilisation card with per-network lease counts, pool sizes, and colour-coded progress bars; IP Utilisation gauge driven live from the lease stream; active lease table with hostname, IP, MAC, and status; sortable columns |
 | VPN | Summary stats bar (Total / Connected / Idle / Throughput); all WireGuard peers as tiles sorted active-first, with colour-coded handshake age badge, live RX/TX rates, allowed IPs, and endpoint |
-| Connections | World map with animated arcs to destination countries, per-country protocol breakdown, sparklines, top ports panel, and click-to-filter by country |
+| Connections | World map with animated arcs to destination countries; per-country protocol breakdown and org breakdown; sparklines; top ports panel; click-to-filter by country or by individual LAN client |
 | Firewall | Rule Counts, Action Breakdown, and Total Hits summary cards; search bar; Top Hits, Filter, NAT, Mangle, and Raw rule tables with packet counts, byte totals, and live delta-pulse indicators |
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
 | Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre); static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
@@ -117,7 +136,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.22
+docker pull ghcr.io/secops-7/mikrodash:0.5.24
 ```
 
 Create your `.env` file:

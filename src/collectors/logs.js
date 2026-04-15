@@ -55,7 +55,7 @@ class LogsCollector {
       severity: this._classify(topicsRaw),
     };
     this._history.push(entry);
-    this.io.to('page-logs').emit('logs:new', entry);
+    this.io.to('page-logs').to('dash-card-logs').emit('logs:new', entry);
 
     this.state.lastLogsTs = Date.now();
     this.state.lastLogsErr = null;

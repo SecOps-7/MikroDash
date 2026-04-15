@@ -92,14 +92,17 @@ class ConnectionsCollector {
     // destination IPs will be missing from the geo cache, so top destinations
     // that only appear in the truncated portion will lack country/city data.
     const conns = totalRaw > this.maxConns ? raw.slice(0, this.maxConns) : (raw || []);
-    const srcCounts = new Map();
-    const dstCounts = new Map();
-    const curIds    = new Set();
-    const protoCounts = { tcp: 0, udp: 0, icmp: 0, other: 0 };
-    const countryProto = new Map();
-    const countryCity  = new Map();
-    const portCounts   = new Map();
-    const countryOrgs  = new Map(); // cc -> Map<org, count>
+    const srcCounts         = new Map();
+    const dstCounts         = new Map();
+    const srcDestsMap       = new Map(); // srcIp -> Map<destKey, count> — for per-source filter
+    const curIds            = new Set();
+    const protoCounts       = { tcp: 0, udp: 0, icmp: 0, other: 0 };
+    const countryProto      = new Map();
+    const countryCity       = new Map();
+    const portCounts        = new Map();
+    const countryPortCounts = new Map(); // cc -> Map<port, count> — per-country port index
+    const sourcePortCounts  = new Map(); // srcIp -> Map<port, count> — per-source port index
+    const countryOrgs       = new Map(); // cc -> Map<org, count>
     // this._geoCache and this._orgCache are persistent across ticks (shared with
     // BandwidthCollector) — external IP→country/org is stable between 3s polls.
 
@@ -140,6 +143,12 @@ class ConnectionsCollector {
             const cp = countryProto.get(cc) || { tcp:0, udp:0, other:0 };
             if (p === 'tcp') cp.tcp++; else if (p === 'udp') cp.udp++; else cp.other++;
             countryProto.set(cc, cp);
+            // Per-country port index — counts every connection, no destination cap
+            if (port) {
+              if (!countryPortCounts.has(cc)) countryPortCounts.set(cc, new Map());
+              const cpc = countryPortCounts.get(cc);
+              cpc.set(port, (cpc.get(port) || 0) + 1);
+            }
           }
         }
         if (isValidIp(ip) && !this._orgCache.has(ip)) {
@@ -154,7 +163,20 @@ class ConnectionsCollector {
           const orgMap = countryOrgs.get(cc);
           orgMap.set(resolvedOrg, (orgMap.get(resolvedOrg) || 0) + 1);
         }
+
+        // Per-source destination + port indexes — power the client-side source filter
+        if (src && isInCidrs(src, lanCidrs)) {
+          if (!srcDestsMap.has(src)) srcDestsMap.set(src, new Map());
+          const sdm = srcDestsMap.get(src);
+          sdm.set(k, (sdm.get(k) || 0) + 1);
+          if (port) {
+            if (!sourcePortCounts.has(src)) sourcePortCounts.set(src, new Map());
+            const spc = sourcePortCounts.get(src);
+            spc.set(port, (spc.get(port) || 0) + 1);
+          }
+        }
       }
+
     }
 
     let newSinceLast = 0;
@@ -199,6 +221,42 @@ class ConnectionsCollector {
       if (countryDests[cc].length > 20) countryDests[cc].length = 20;
     }
 
+    // Per-country port index — top 10 ports for each country, counts every
+    // matching connection (not capped by destination list size like countryDests).
+    const countryPorts = {};
+    for (const [cc, portMap] of countryPortCounts.entries()) {
+      countryPorts[cc] = Array.from(portMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([port, count]) => ({ port, count }));
+    }
+
+    // Per-source destination index — mirrors countryDests but keyed by source IP.
+    // Clients use this to filter all connections-page cards to a single device.
+    const sourceDests = {};
+    for (const [srcIp, dstMap] of srcDestsMap.entries()) {
+      const entries = [];
+      for (const [key, cnt] of dstMap.entries()) {
+        const ip  = extractAddress(key);
+        const geo = this._geoCache.get(ip) || { country: '', city: '' };
+        const org = this._orgCache.get(ip) || null;
+        const cat = org ? lookupCategory(org) : null;
+        entries.push({ key, count: cnt, country: geo.country, city: geo.city, org, cat });
+      }
+      entries.sort((a, b) => b.count - a.count);
+      sourceDests[srcIp] = entries.slice(0, 30);
+    }
+
+    // Per-source port index — top 10 ports per source IP, counts every matching
+    // connection (not capped like sourceDests) so Top Ports totals are accurate.
+    const sourcePorts = {};
+    for (const [srcIp, portMap] of sourcePortCounts.entries()) {
+      sourcePorts[srcIp] = Array.from(portMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([port, count]) => ({ port, count }));
+    }
+
     const topCountries = Array.from(countryProto.entries())
       .map(([cc, proto]) => {
         // Top orgs for this country, sorted by connection count
@@ -224,7 +282,7 @@ class ConnectionsCollector {
 
     this.lastPayload = {
       ts: Date.now(), total: totalRaw, processed: conns.length, processingCapped: totalRaw > this.maxConns, newSinceLast,
-      protoCounts, topSources, topDestinations, topCountries, topPorts, countryDests, pollMs: this.pollMs,
+      protoCounts, topSources, topDestinations, topCountries, topPorts, countryDests, countryPorts, sourceDests, sourcePorts, pollMs: this.pollMs,
     };
     // Dirty-check: suppress emit when aggregate counts and top-N lists are unchanged.
     // ts and newSinceLast are deliberately excluded — they change every tick.
@@ -236,15 +294,24 @@ class ConnectionsCollector {
     });
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      // Global emit omits countryDests — only the Connections page needs it.
-      // lastPayload retains it for sendInitialState (targeted per-socket emit).
+      // Global emit omits countryDests, countryPorts, sourceDests, sourcePorts —
+      // only the Connections page needs them; lastPayload retains all for sendInitialState.
       const emitPayload = Object.assign({}, this.lastPayload);
       delete emitPayload.countryDests;
+      delete emitPayload.countryPorts;
+      delete emitPayload.sourceDests;
+      delete emitPayload.sourcePorts;
       this.io.emit('conn:update', emitPayload);
-      // Connections page gets the full per-country destination index.
+      // Connections page gets per-country destination + port indexes.
       this.io.to('page-connections').emit('conn:country-data', {
         ts: this.lastPayload.ts,
         countryDests: this.lastPayload.countryDests,
+        countryPorts: this.lastPayload.countryPorts,
+      });
+      this.io.to('page-connections').emit('conn:source-data', {
+        ts: this.lastPayload.ts,
+        sourceDests: this.lastPayload.sourceDests,
+        sourcePorts: this.lastPayload.sourcePorts,
       });
     }
     this.state.lastConnsTs = Date.now();

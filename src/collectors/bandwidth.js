@@ -253,7 +253,7 @@ class BandwidthCollector {
     const fp = JSON.stringify(devices.map(d => ({ src: d.srcIp, rx: d.rxMbps, tx: d.txMbps })));
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.to('page-bandwidth').emit('bandwidth:update', this.lastPayload);
+      this.io.to('page-bandwidth').to('dash-card-bandwidth').emit('bandwidth:update', this.lastPayload);
     }
     this.state.lastBandwidthTs  = now;
     this.state.lastBandwidthErr = null;

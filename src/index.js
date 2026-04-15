@@ -424,6 +424,28 @@ async function switchRouter(newRouterId) {
   _session.ros.connectLoop();
 })();
 
+// ── Dashboard layout API ──────────────────────────────────────────────────────
+const LAYOUT_FILE = path.join(process.env.DATA_DIR || '/data', 'dashboard-layout.json');
+
+app.get('/api/dashboard-layout', (_req, res) => {
+  try {
+    if (fs.existsSync(LAYOUT_FILE)) {
+      res.json(JSON.parse(fs.readFileSync(LAYOUT_FILE, 'utf8')));
+    } else {
+      res.json(null);
+    }
+  } catch (_) { res.json(null); }
+});
+
+app.post('/api/dashboard-layout', (req, res) => {
+  try {
+    const body = req.body || {};
+    if (!Array.isArray(body.cards)) return res.status(400).json({ ok: false });
+    fs.writeFileSync(LAYOUT_FILE, JSON.stringify({ cards: body.cards }), 'utf8');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false }); }
+});
+
 // ── Settings API ──────────────────────────────────────────────────────────────
 app.get('/api/settings', (_req, res) => {
   res.json(Settings.getPublic());
@@ -809,7 +831,11 @@ async function sendInitialState(socket) {
   if (s.system.lastPayload)    socket.emit('system:update',    s.system.lastPayload);
   if (s.ifStatus.lastPayload)  socket.emit('ifstatus:update',  s.ifStatus.lastPayload);
   if (s.firewall.lastPayload)  socket.emit('firewall:update',  s.firewall.lastPayload);
-  if (s.conns.lastPayload)     socket.emit('conn:update',      s.conns.lastPayload);
+  if (s.conns.lastPayload) {
+    socket.emit('conn:update', s.conns.lastPayload);
+    if (s.conns.lastPayload.sourceDests)
+      socket.emit('conn:source-data', { ts: s.conns.lastPayload.ts, sourceDests: s.conns.lastPayload.sourceDests, sourcePorts: s.conns.lastPayload.sourcePorts });
+  }
   if (s.talkers.lastPayload)   socket.emit('talkers:update',   s.talkers.lastPayload);
   if (s.ping.lastPayload)      socket.emit('ping:update',      s.ping.lastPayload);
   if (s.bandwidth.lastPayload) socket.emit('bandwidth:update', s.bandwidth.lastPayload);
@@ -856,12 +882,37 @@ io.on('connection', (socket) => {
         socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
       if (name === 'logs'      && s.logs)
         socket.emit('logs:history', { entries: s.logs.getHistory() });
+      if (name === 'connections' && s.conns && s.conns.lastPayload) {
+        if (s.conns.lastPayload.countryDests)
+          socket.emit('conn:country-data', { ts: s.conns.lastPayload.ts, countryDests: s.conns.lastPayload.countryDests, countryPorts: s.conns.lastPayload.countryPorts });
+        if (s.conns.lastPayload.sourceDests)
+          socket.emit('conn:source-data',  { ts: s.conns.lastPayload.ts, sourceDests:  s.conns.lastPayload.sourceDests, sourcePorts: s.conns.lastPayload.sourcePorts  });
+      }
     }
   });
   socket.on('page:blur', (name) => {
     if (typeof name === 'string' && /^[a-z]{2,20}$/.test(name)) {
       socket.leave('page-' + name);
     }
+  });
+
+  // Dashboard card rooms — emitted by dashboard-grid.js via custom DOM events
+  // relayed through app.js when a room-gated card is visible on the dashboard.
+  socket.on('dashcard:focus', (key) => {
+    if (typeof key !== 'string' || !/^[a-z]{2,20}$/.test(key)) return;
+    socket.join('dash-card-' + key);
+    const s = _session;
+    if (!s) return;
+    if (key === 'firewall'  && s.firewall  && s.firewall.lastPayload)
+      socket.emit('firewall:update',  { ...s.firewall.lastPayload,  ts: Date.now() });
+    if (key === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
+      socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
+    if (key === 'logs' && s.logs)
+      socket.emit('logs:history', { entries: s.logs.getHistory() });
+  });
+  socket.on('dashcard:blur', (key) => {
+    if (typeof key !== 'string' || !/^[a-z]{2,20}$/.test(key)) return;
+    socket.leave('dash-card-' + key);
   });
 
   _session.traffic.bindSocket(socket);

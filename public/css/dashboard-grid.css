@@ -1,0 +1,585 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   dashboard-grid.css  —  MikroDash configurable 12×11 grid layout system
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Dashboard page: strip padding, fill viewport exactly ────────────────── */
+#page-dashboard {
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+/* ── Grid root ───────────────────────────────────────────────────────────── */
+#dash-grid-root {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: repeat(11, minmax(80px, 1fr));
+  gap: .75rem;      /* matches original .mikrodash-grid gap */
+  padding: 1.25rem; /* matches original .page-view padding */
+  width: 100%;
+  min-height: 100%;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* ── Edit mode: tint + grid-line overlay ─────────────────────────────────── */
+#dash-grid-root.dashboard--editing {
+  background: rgba(74, 144, 217, 0.02);
+}
+
+#dash-grid-root.dashboard--editing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--grid-cell-w, 100px) - 1px),
+      rgba(255, 255, 255, 0.12) calc(var(--grid-cell-w, 100px) - 1px),
+      rgba(255, 255, 255, 0.12) var(--grid-cell-w, 100px)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--grid-cell-h, 100px) - 1px),
+      rgba(255, 255, 255, 0.12) calc(var(--grid-cell-h, 100px) - 1px),
+      rgba(255, 255, 255, 0.12) var(--grid-cell-h, 100px)
+    );
+  background-position: var(--grid-pad-x, 1.25rem) var(--grid-pad-y, 1.25rem);
+}
+
+/* ── Dash card (grid-cell wrapper) ──────────────────────────────────────── */
+.dash-card {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  container-type: size;
+}
+
+/* Inner .card fills the cell */
+.dash-card > .card {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0;
+  border-radius: 10px;
+}
+
+.dash-card > .card > .card-body {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Traffic card: chart fills the card body */
+#card-traffic .card-body {
+  display: flex;
+  flex-direction: column;
+}
+#card-traffic .chart-wrap {
+  flex: 1;
+  height: auto !important;
+  min-height: 40px;
+  position: relative;
+}
+
+
+/* ── Edit mode card border ───────────────────────────────────────────────── */
+.dashboard--editing .dash-card {
+  border: 1px dashed #4a90d9 !important;
+  box-shadow: 0 0 0 1px rgba(74, 144, 217, 0.3) !important;
+}
+
+/* ── Drag handle ────────────────────────────────────────────────────────── */
+.dash-drag-handle {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px 9px 0 0;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.dashboard--editing .dash-drag-handle {
+  display: flex;
+}
+.dash-drag-handle:active {
+  cursor: grabbing;
+}
+.dash-drag-handle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+/* ── Resize handles (8 per card) ────────────────────────────────────────── */
+.dash-resize {
+  position: absolute;
+  z-index: 21;
+  display: none;
+  touch-action: none;
+}
+.dashboard--editing .dash-resize {
+  display: block;
+}
+.dash-resize::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.dashboard--editing .dash-card:hover .dash-resize::after {
+  background: rgba(74, 144, 217, 0.45);
+}
+.dash-resize:hover::after,
+.dash-resize:active::after {
+  background: rgba(74, 144, 217, 0.8) !important;
+}
+
+.dash-resize.n  { top: 0;      left: 10px;  right: 10px; height: 8px; cursor: ns-resize;   }
+.dash-resize.s  { bottom: 0;   left: 10px;  right: 10px; height: 8px; cursor: ns-resize;   }
+.dash-resize.e  { right: 0;    top: 10px;   bottom: 10px; width: 8px; cursor: ew-resize;   }
+.dash-resize.w  { left: 0;     top: 10px;   bottom: 10px; width: 8px; cursor: ew-resize;   }
+.dash-resize.ne { top: 0;      right: 0;    width: 14px; height: 14px; cursor: nesw-resize; }
+.dash-resize.nw { top: 0;      left: 0;     width: 14px; height: 14px; cursor: nwse-resize; }
+.dash-resize.se { bottom: 0;   right: 0;    width: 14px; height: 14px; cursor: nwse-resize; }
+.dash-resize.sw { bottom: 0;   left: 0;     width: 14px; height: 14px; cursor: nesw-resize; }
+
+/* ── Remove (✕) button ───────────────────────────────────────────────────── */
+.dash-remove-btn {
+  display: none;
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  z-index: 23;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  background: rgba(248, 113, 113, 0.12);
+  color: rgba(248, 113, 113, 0.85);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+  font-family: monospace;
+}
+.dashboard--editing .dash-remove-btn {
+  display: flex;
+}
+.dash-remove-btn:hover {
+  background: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
+/* ── Swap-pending: 1.5 s hover countdown highlight ──────────────────────── */
+@keyframes dash-swap-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.7); }
+  50%      { box-shadow: 0 0 0 5px rgba(74, 144, 217, 0.2), 0 0 18px 4px rgba(74, 144, 217, 0.12); }
+}
+.dashboard--editing .dash-card.dash-swap-pending {
+  animation: dash-swap-pulse 0.65s ease-in-out infinite;
+  border-color: #4a90d9 !important;
+  border-style: solid !important;
+}
+
+/* ── Drag placeholder ────────────────────────────────────────────────────── */
+#dash-placeholder {
+  position: absolute;
+  background: rgba(74, 144, 217, 0.1);
+  border: 1.5px dashed rgba(74, 144, 217, 0.5);
+  border-radius: 8px;
+  pointer-events: none;
+  z-index: 5;
+  display: none;
+  box-sizing: border-box;
+}
+
+/* ── Drag ghost ──────────────────────────────────────────────────────────── */
+#dash-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9990;
+  opacity: 0.6;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-card, rgba(13, 18, 30, 0.85));
+  border: 1px dashed #4a90d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(148, 163, 190, 0.55);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* ── Edit Dashboard button (topbar) ──────────────────────────────────────── */
+#dashEditBtn {
+  display: none;
+  align-items: center;
+  gap: 0.35rem;
+  height: 28px;
+  padding: 0 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(99, 130, 190, 0.08);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.73rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+#dashEditBtn:hover {
+  color: var(--accent-rx);
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+#dashEditBtn svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+/* ── Edit mode controls (Save / Discard / Add Card) ──────────────────────── */
+#dashEditControls {
+  align-items: center;
+  gap: 0.4rem;
+  display: none;
+}
+
+.dash-ctrl-btn {
+  height: 28px;
+  padding: 0 0.7rem;
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  font-size: 0.73rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+  border: 1px solid;
+  letter-spacing: 0.02em;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.dash-ctrl-save {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-rx);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+.dash-ctrl-save:hover {
+  background: rgba(56, 189, 248, 0.25);
+}
+.dash-ctrl-discard {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.dash-ctrl-discard:hover {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+.dash-ctrl-add {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+.dash-ctrl-add:hover {
+  color: var(--text-main);
+  border-color: var(--text-muted);
+}
+.dash-ctrl-add svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+/* ── Add Card panel ──────────────────────────────────────────────────────── */
+.dash-add-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+#dashAddPanel {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 600;
+  background: rgba(13, 18, 30, 0.97);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem 0.55rem;
+  min-width: 190px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
+  display: none;
+}
+html[data-theme="light"] #dashAddPanel {
+  background: rgba(240, 242, 247, 0.97);
+}
+#dashAddPanel.open {
+  display: block;
+}
+
+.dash-add-header {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(99, 130, 190, 0.55);
+  margin-bottom: 0.5rem;
+}
+.dash-add-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.dash-add-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.22rem 0.5rem;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: rgba(99, 130, 190, 0.07);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+.dash-add-chip:hover {
+  color: var(--accent-rx);
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+.dash-add-empty {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 0.3rem 0 0.2rem;
+}
+.dash-reset-link {
+  display: block;
+  margin-top: 0.55rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: rgba(99, 130, 190, 0.5);
+  text-align: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.12s;
+}
+.dash-reset-link:hover {
+  color: var(--text-muted);
+}
+
+/* ── Extra dashboard cards (dc-*) ───────────────────────────────────────── */
+
+/* Logs panel — same styling as #logs on Logs page but height auto */
+#dc-logs {
+  background: rgba(2,5,14,.85);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  height: 100%;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #d5d7de;
+  padding: 10px 12px;
+  border-radius: 6px;
+  line-height: 1.6;
+}
+html[data-theme="light"] #dc-logs {
+  background: rgba(230,235,245,.9);
+  color: #1a2030;
+}
+#dc-logs::-webkit-scrollbar { width: 4px; }
+#dc-logs::-webkit-scrollbar-thumb { background: rgba(99,130,190,.2); border-radius: 2px; }
+
+/* ── Bandwidth dashboard card — vertical utilisation bars ───────────────── */
+.dc-bw-body {
+  display: flex;
+  flex-direction: column;
+  padding: .75rem !important;
+}
+.dc-bw-bars {
+  display: flex;
+  gap: .75rem;
+  flex: 1;
+  min-height: 0;
+}
+.dc-bw-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: .2rem;
+  min-height: 0;
+}
+.dc-bw-label {
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.dc-bw-label-rx { color: var(--accent-rx, #38bdf8); }
+.dc-bw-label-tx { color: var(--accent-tx, #34d399); }
+.dc-bw-pct {
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.dc-bw-track {
+  flex: 1;
+  width: 100%;
+  min-height: 40px;
+  background: rgba(99,130,190,.12);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+.dc-bw-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0%;
+  border-radius: 6px;
+  transition: height .8s ease;
+}
+.dc-bw-fill-rx {
+  background: linear-gradient(to top, rgba(56,189,248,.9), rgba(56,189,248,.3));
+}
+.dc-bw-fill-tx {
+  background: linear-gradient(to top, rgba(52,211,153,.9), rgba(52,211,153,.3));
+}
+.dc-bw-rate {
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  color: var(--text-main);
+  text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dc-bw-rate-unit {
+  font-size: .65rem;
+  color: var(--text-muted);
+}
+
+/* Routes donut — constrain canvas inside rt-proto-inner */
+#dc-rtDonutCanvas {
+  display: block;
+}
+
+/* BGP stat wrap — ensure it fills card-body height */
+.dash-card .rt-bgp-stats-wrap {
+  min-height: 80px;
+}
+
+/* ── Container queries: narrow cards hide secondary text ─────────────────── */
+@container (max-width: 260px) {
+  .conn-stat-lbl,
+  .chart-legend .legend-item > span:first-of-type {
+    display: none;
+  }
+}
+
+/* ── Mobile: single-column stacked layout ────────────────────────────────── */
+@media (max-width: 767px) {
+  #page-dashboard {
+    height: auto !important;
+    overflow-y: auto !important;
+  }
+
+  #dash-grid-root {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto !important;
+    height: auto !important;
+  }
+
+  .dash-card {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+    height: auto !important;
+    container-type: normal !important; /* disable size containment so height can be intrinsic */
+  }
+
+  /* Switch card from flex column to block — eliminates flex:1 collapse chain */
+  .dash-card > .card {
+    height: auto !important;
+    display: block !important;
+  }
+
+  .dash-card > .card > .card-body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Traffic chart needs an explicit height — Chart.js requires a sized container */
+  #card-traffic .chart-wrap {
+    height: 200px !important;
+  }
+
+  /* Hide edit controls — drag/resize unusable on small screens */
+  #dashEditBtn,
+  #dashEditControls {
+    display: none !important;
+  }
+
+  /* Logs: uncap height on mobile so all entries are visible */
+  #dc-logs {
+    height: auto !important;
+    overflow-y: visible !important;
+  }
+}

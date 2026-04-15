@@ -6,6 +6,7 @@
   <title>MikroDash</title>
   <link rel="stylesheet" href="/vendor/tabler.min.css"/>
   <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
+  <link rel="stylesheet" href="/css/dashboard-grid.css"/>
   <link rel="icon" type="image/png" href="/logo.png"/>
   <style>
     :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
@@ -88,6 +89,10 @@
     .bw-toolbar input:focus,.bw-toolbar select:focus{border-color:var(--accent-rx)}
     html[data-theme="light"] .bw-toolbar input,html[data-theme="light"] .bw-toolbar select{background:rgba(255,255,255,.95);color:var(--text-main)}
     .bw-table-wrap{background:var(--bg-card)}
+    .conn-src-filter{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.25rem .5rem;padding-right:1.7rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,190,.5)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .4rem center;cursor:pointer;min-width:160px;transition:border-color .15s,color .15s}
+    .conn-src-filter:focus{border-color:var(--accent-rx);color:var(--text-main);outline:none}
+    .conn-src-filter.active{border-color:var(--accent-rx);color:var(--accent-rx)}
+    html[data-theme="light"] .conn-src-filter{background:rgba(255,255,255,.95);color:var(--text-main)}
 
     .bw-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);background:var(--bg-card)}
     .bw-table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
@@ -123,6 +128,11 @@
     .sform-label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem;display:block}
     .sform-input{width:100%;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:.45rem .7rem;font-size:.8rem;color:var(--text-main);outline:none;transition:border-color .15s}
     .sform-input:focus{border-color:var(--accent-rx)}
+    .bw-unit-toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;flex-shrink:0}
+    .bw-unit-btn{background:transparent;border:none;border-right:1px solid var(--border);padding:.42rem .6rem;font-size:.8rem;font-family:inherit;color:var(--text-muted);cursor:pointer;line-height:1;transition:background .15s,color .15s;white-space:nowrap}
+    .bw-unit-btn:last-child{border-right:none}
+    .bw-unit-btn.active{background:var(--accent-rx,#4a90d9);color:#fff}
+    .bw-unit-btn:not(.active):hover{background:var(--border);color:var(--text-main)}
     .sform-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
     .sform-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem}
     @media(max-width:640px){.sform-row,.sform-row3{grid-template-columns:1fr}}
@@ -899,6 +909,23 @@
         <span class="rtr-status-dot" id="rtrStatusDot"></span>
         <select id="routerSelect" title="Switch router"></select>
       </div>
+      <!-- Dashboard grid edit controls (visible in edit mode) -->
+      <div id="dashEditControls">
+        <button class="dash-ctrl-btn dash-ctrl-save" id="dashSaveBtn" type="button">Save</button>
+        <button class="dash-ctrl-btn dash-ctrl-discard" id="dashDiscardBtn" type="button">Discard</button>
+        <div class="dash-add-wrap">
+          <button class="dash-ctrl-btn dash-ctrl-add" id="dashAddCardBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Card
+          </button>
+          <div id="dashAddPanel"></div>
+        </div>
+      </div>
+      <!-- Edit Dashboard button (visible when on Dashboard page) -->
+      <button id="dashEditBtn" type="button" title="Customise dashboard layout">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit
+      </button>
       <button id="themeToggle" title="Toggle light / dark">
         <svg viewBox="0 0 24 24"><path id="themeIconPath" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
@@ -907,201 +934,544 @@
 
   <!-- DASHBOARD -->
   <div class="page-view active" id="page-dashboard">
-    <div class="container-fluid px-0" style="width:100%">
+    <div id="dash-grid-root">
+      <!-- Drag placeholder (position updated by JS during drag) -->
+      <div id="dash-placeholder" aria-hidden="true"></div>
 
-      <div class="mb-3">
-          <div class="card" id="trafficCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-              <div class="d-flex align-items-center gap-2" style="min-width:0;flex-wrap:nowrap">
-                <h3 class="card-title mb-0" style="white-space:nowrap">Traffic</h3>
-                <select id="ifaceSelect" class="form-select form-select-sm" style="min-width:90px;max-width:130px;font-size:.76rem"></select>
-                <select id="windowSelect" class="form-select form-select-sm" style="width:90px;font-size:.76rem" title="Time window">
-                  <option value="1m" selected>1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option>
-                </select>
-                <span id="wanStatusBadge" class="wan-badge wan-disabled" style="white-space:nowrap;flex-shrink:0">&#8212;</span>
-              </div>
-              <div class="chart-legend">
-                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-rx)"></div><span style="color:var(--text-muted)">RX</span><span class="legend-rate" id="liveRx">&#8212;</span></div>
-                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-tx)"></div><span style="color:var(--text-muted)">TX</span><span class="legend-rate" id="liveTx">&#8212;</span></div>
-              </div>
+      <!-- ── card-traffic: Traffic chart (full width) ─────────────────── -->
+      <div id="card-traffic" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="card-traffic" type="button" title="Remove card">&#x2715;</button>
+        <div class="card" id="trafficCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2" style="min-width:0;flex-wrap:nowrap">
+              <h3 class="card-title mb-0" style="white-space:nowrap">Traffic</h3>
+              <select id="ifaceSelect" class="form-select form-select-sm" style="min-width:90px;max-width:130px;font-size:.76rem"></select>
+              <select id="windowSelect" class="form-select form-select-sm" style="width:90px;font-size:.76rem" title="Time window">
+                <option value="1m" selected>1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option>
+              </select>
+              <span id="wanStatusBadge" class="wan-badge wan-disabled" style="white-space:nowrap;flex-shrink:0">&#8212;</span>
             </div>
-            <div class="card-body" style="padding:.6rem 1rem .75rem"><div class="chart-wrap"><canvas id="trafficChart"></canvas></div></div>
+            <div class="chart-legend">
+              <div class="legend-item"><div class="legend-dot" style="background:var(--accent-rx)"></div><span style="color:var(--text-muted)">RX</span><span class="legend-rate" id="liveRx">&#8212;</span></div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--accent-tx)"></div><span style="color:var(--text-muted)">TX</span><span class="legend-rate" id="liveTx">&#8212;</span></div>
+            </div>
           </div>
+          <div class="card-body" style="padding:.6rem 1rem .75rem"><div class="chart-wrap"><canvas id="trafficChart"></canvas></div></div>
+        </div>
       </div>
 
-            <div id="dashGrid" class="mikrodash-grid">
-
-        <!-- Col 1: Connections -->
-        <div data-card-id="connCard">
-          <div class="card" id="connCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center gap-2">
-              <h3 class="card-title">Connections</h3>
+      <!-- ── card-connections: Connections ───────────────────────────── -->
+      <div id="card-connections" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="card-connections" type="button" title="Remove card">&#x2715;</button>
+        <div class="card" id="connCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <h3 class="card-title">Connections</h3>
+          </div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="conn-stats mb-2">
+              <div><div class="conn-stat-val" id="connTotal">&#8212;</div><div class="conn-stat-lbl">total</div></div>
+              <canvas id="connSparkCanvas" width="120" height="40"></canvas>
             </div>
-            <div class="card-body" style="padding:.75rem">
-              <div class="conn-stats mb-2">
-                <div><div class="conn-stat-val" id="connTotal">&#8212;</div><div class="conn-stat-lbl">total</div></div>
-                <canvas id="connSparkCanvas" width="120" height="40"></canvas>
-              </div>
-              <div id="protoBars" class="mb-3"></div>
-              <div class="section-sep">Top Sources</div>
-              <div id="topSources"><div class="empty-state">&#8212;</div></div>
-              <div class="section-sep mt-2">Top Destinations</div>
-              <div id="topDests"><div class="empty-state">&#8212;</div></div>
-            </div>
+            <div id="protoBars" class="mb-3"></div>
+            <div class="section-sep">Top Sources</div>
+            <div id="topSources"><div class="empty-state">&#8212;</div></div>
+            <div class="section-sep mt-2">Top Destinations</div>
+            <div id="topDests"><div class="empty-state">&#8212;</div></div>
           </div>
         </div>
+      </div>
 
-        <!-- Col 2: System + Networks stacked -->
-        <div class="mikrodash-col mikrodash-col--center">
-          <div data-card-id="systemCard">
-          <div class="card" id="systemCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center gap-2">
-              <h3 class="card-title">System</h3>
-            </div>
-            <div class="card-body" style="padding:.75rem">
-              <div id="uptimeDisplay" class="mb-3">&#8212;</div>
-              <div class="gauge-row" id="gaugeRow"><div class="empty-state">Waiting&#8230;</div></div>
-              <div class="sys-meta" id="sysMeta"></div>
-              <div id="rosUpdateRow"></div>
-            </div>
+      <!-- ── card-system: System info ────────────────────────────────── -->
+      <div id="card-system" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="card-system" type="button" title="Remove card">&#x2715;</button>
+        <div class="card" id="systemCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <h3 class="card-title">System</h3>
           </div>
+          <div class="card-body" style="padding:.75rem">
+            <div id="uptimeDisplay" class="mb-3">&#8212;</div>
+            <div class="gauge-row" id="gaugeRow"><div class="empty-state">Waiting&#8230;</div></div>
+            <div class="sys-meta" id="sysMeta"></div>
+            <div id="rosUpdateRow"></div>
           </div>
-          <div data-card-id="networksCard">
-          <div class="card" id="networksCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center gap-2">
-              <h3 class="card-title">Network</h3>
+        </div>
+      </div>
+
+      <!-- ── card-network: Network topology + ping ────────────────────── -->
+      <div id="card-network" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="card-network" type="button" title="Remove card">&#x2715;</button>
+        <div class="card" id="networksCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <h3 class="card-title">Network</h3>
+          </div>
+          <div class="card-body net-diagram-body">
+            <div class="net-wan-row" id="netWanRow" style="margin-bottom:.3rem">
+              <div class="net-field-label">WAN IP</div>
+              <div class="net-field-val" id="wanIpDisplay">&#8212;</div>
             </div>
-            <div class="card-body net-diagram-body">
-              <!-- Original fields -->
-              <div class="net-wan-row" id="netWanRow" style="margin-bottom:.3rem">
-                <div class="net-field-label">WAN IP</div>
-                <div class="net-field-val" id="wanIpDisplay">&#8212;</div>
-              </div>
-              <div id="lanOverview" style="margin-bottom:.3rem"><div class="empty-state">&#8212;</div></div>
-              <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:0;display:block">
-                <!-- Animated connection lines -->
-                <line id="ndLineWired"    x1="78"  y1="52"  x2="148" y2="75"  class="nd-line"/>
-                <line id="ndLineWireless" x1="78"  y1="124" x2="148" y2="85"  class="nd-line"/>
-                <line id="ndLineWan"      x1="262" y1="80"  x2="192" y2="80"  class="nd-line nd-line-wan"/>
-
-                <!-- Left: Wired clients -->
-                <g id="ndWiredGroup">
-                  <rect x="4" y="26" width="74" height="52" rx="7" class="nd-node"/>
-                  <!-- Ethernet icon: simple plug with pins -->
-                  <rect x="30" y="31" width="22" height="14" rx="2" fill="none" stroke="rgba(56,189,248,.6)" stroke-width="1.4"/>
-                  <line x1="35" y1="31" x2="35" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                  <line x1="41" y1="31" x2="41" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                  <line x1="47" y1="31" x2="47" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
-                  <line x1="41" y1="45" x2="41" y2="49" stroke="rgba(56,189,248,.4)" stroke-width="1.4" stroke-linecap="round"/>
-                  <text x="41" y="59" class="nd-label">Wired</text>
-                  <text id="ndWiredCount" x="41" y="71" class="nd-count">—</text>
-                </g>
-
-                <!-- Left: Wireless clients -->
-                <g id="ndWirelessGroup">
-                  <rect x="4" y="98" width="74" height="52" rx="7" class="nd-node"/>
-                  <!-- Wifi arc icon — shifted up to give count room -->
-                  <path d="M29,111 Q41,101 53,111" fill="none" stroke="rgba(167,139,250,.7)" stroke-width="1.4" stroke-linecap="round"/>
-                  <path d="M33,115 Q41,108 49,115" fill="none" stroke="rgba(167,139,250,.65)" stroke-width="1.4" stroke-linecap="round"/>
-                  <path d="M36,119 Q41,115 46,119" fill="none" stroke="rgba(167,139,250,.6)" stroke-width="1.4" stroke-linecap="round"/>
-                  <circle cx="41" cy="122" r="1.8" fill="rgba(167,139,250,.8)"/>
-                  <text x="41" y="131" class="nd-label">Wireless</text>
-                  <text id="ndWirelessCount" x="41" y="143" class="nd-count">—</text>
-                </g>
-
-                <!-- Center: Router -->
-                <g id="ndRouter">
-                  <rect x="148" y="52" width="44" height="56" rx="9" class="nd-router-bg"/>
-                  <!-- Router body -->
-                  <rect x="155" y="70" width="30" height="22" rx="3" fill="none" stroke="rgba(56,189,248,.7)" stroke-width="1.5"/>
-                  <!-- Antenna left -->
-                  <line x1="161" y1="70" x2="158" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5" stroke-linecap="round"/>
-                  <!-- Antenna right -->
-                  <line x1="179" y1="70" x2="182" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5" stroke-linecap="round"/>
-                  <!-- Port dots -->
-                  <circle cx="161" cy="85" r="2" fill="rgba(52,211,153,.7)"/>
-                  <circle cx="167" cy="85" r="2" fill="rgba(52,211,153,.7)"/>
-                  <circle cx="173" cy="85" r="2" fill="rgba(52,211,153,.5)"/>
-                  <circle cx="179" cy="85" r="2" fill="rgba(52,211,153,.3)"/>
-                  <!-- Status LED -->
-                  <circle cx="170" cy="97" r="3" class="nd-led"/>
-                </g>
-
-                <!-- Right: WAN -->
-                <g id="ndWanGroup">
-                  <rect x="262" y="52" width="74" height="56" rx="7" class="nd-node"/>
-                  <!-- Globe rings -->
-                  <ellipse cx="299" cy="68" rx="12" ry="12" fill="none" stroke="rgba(56,189,248,.5)" stroke-width="1.2"/>
-                  <ellipse cx="299" cy="68" rx="5"  ry="12" fill="none" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
-                  <line x1="287" y1="68" x2="311" y2="68" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
-                  <text x="299" y="93" class="nd-label">WAN</text>
-                  <text id="ndWanIp" x="299" y="104" class="nd-wan-ip">—</text>
-                </g>
-
-                <!-- Flow dots animated along lines -->
-                <circle r="2.5" class="nd-dot nd-dot-l1"><animateMotion dur="2.2s" repeatCount="indefinite" path="M78,52 L148,75"/></circle>
-                <circle r="2.5" class="nd-dot nd-dot-l2"><animateMotion dur="2.8s" repeatCount="indefinite" path="M78,124 L148,85"/></circle>
-                <circle r="2.5" class="nd-dot nd-dot-wan"><animateMotion dur="1.8s" repeatCount="indefinite" path="M192,80 L262,80"/></circle>
-              </svg>
-              <!-- Ping / Latency -->
-              <div class="ping-section" id="ndPingSection">
-                <div class="ping-header">
-                  <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel">1.1.1.1</span></span>
-                  <div class="ping-stat">
-                    <span><span class="ping-val" id="ndPingRtt">—</span> <span style="color:var(--text-muted)">ms</span></span>
-                    <span><span class="ping-val" id="ndPingLoss">—</span> <span style="color:var(--text-muted)">loss</span></span>
-                  </div>
+            <div id="lanOverview" style="margin-bottom:.3rem"><div class="empty-state">&#8212;</div></div>
+            <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:0;display:block">
+              <line id="ndLineWired"    x1="78"  y1="52"  x2="148" y2="75"  class="nd-line"/>
+              <line id="ndLineWireless" x1="78"  y1="124" x2="148" y2="85"  class="nd-line"/>
+              <line id="ndLineWan"      x1="262" y1="80"  x2="192" y2="80"  class="nd-line nd-line-wan"/>
+              <g id="ndWiredGroup">
+                <rect x="4" y="26" width="74" height="52" rx="7" class="nd-node"/>
+                <rect x="30" y="31" width="22" height="14" rx="2" fill="none" stroke="rgba(56,189,248,.6)" stroke-width="1.4"/>
+                <line x1="35" y1="31" x2="35" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="41" y1="31" x2="41" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="47" y1="31" x2="47" y2="27" stroke="rgba(56,189,248,.5)" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="41" y1="45" x2="41" y2="49" stroke="rgba(56,189,248,.4)" stroke-width="1.4" stroke-linecap="round"/>
+                <text x="41" y="59" class="nd-label">Wired</text>
+                <text id="ndWiredCount" x="41" y="71" class="nd-count">—</text>
+              </g>
+              <g id="ndWirelessGroup">
+                <rect x="4" y="98" width="74" height="52" rx="7" class="nd-node"/>
+                <path d="M29,111 Q41,101 53,111" fill="none" stroke="rgba(167,139,250,.7)" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M33,115 Q41,108 49,115" fill="none" stroke="rgba(167,139,250,.65)" stroke-width="1.4" stroke-linecap="round"/>
+                <path d="M36,119 Q41,115 46,119" fill="none" stroke="rgba(167,139,250,.6)" stroke-width="1.4" stroke-linecap="round"/>
+                <circle cx="41" cy="122" r="1.8" fill="rgba(167,139,250,.8)"/>
+                <text x="41" y="131" class="nd-label">Wireless</text>
+                <text id="ndWirelessCount" x="41" y="143" class="nd-count">—</text>
+              </g>
+              <g id="ndRouter">
+                <rect x="148" y="52" width="44" height="56" rx="9" class="nd-router-bg"/>
+                <rect x="155" y="70" width="30" height="22" rx="3" fill="none" stroke="rgba(56,189,248,.7)" stroke-width="1.5"/>
+                <line x1="161" y1="70" x2="158" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="179" y1="70" x2="182" y2="58" stroke="rgba(56,189,248,.6)" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="161" cy="85" r="2" fill="rgba(52,211,153,.7)"/>
+                <circle cx="167" cy="85" r="2" fill="rgba(52,211,153,.7)"/>
+                <circle cx="173" cy="85" r="2" fill="rgba(52,211,153,.5)"/>
+                <circle cx="179" cy="85" r="2" fill="rgba(52,211,153,.3)"/>
+                <circle cx="170" cy="97" r="3" class="nd-led"/>
+              </g>
+              <g id="ndWanGroup">
+                <rect x="262" y="52" width="74" height="56" rx="7" class="nd-node"/>
+                <ellipse cx="299" cy="68" rx="12" ry="12" fill="none" stroke="rgba(56,189,248,.5)" stroke-width="1.2"/>
+                <ellipse cx="299" cy="68" rx="5"  ry="12" fill="none" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
+                <line x1="287" y1="68" x2="311" y2="68" stroke="rgba(56,189,248,.4)" stroke-width="1"/>
+                <text x="299" y="93" class="nd-label">WAN</text>
+                <text id="ndWanIp" x="299" y="104" class="nd-wan-ip">—</text>
+              </g>
+              <circle r="2.5" class="nd-dot nd-dot-l1"><animateMotion dur="2.2s" repeatCount="indefinite" path="M78,52 L148,75"/></circle>
+              <circle r="2.5" class="nd-dot nd-dot-l2"><animateMotion dur="2.8s" repeatCount="indefinite" path="M78,124 L148,85"/></circle>
+              <circle r="2.5" class="nd-dot nd-dot-wan"><animateMotion dur="1.8s" repeatCount="indefinite" path="M192,80 L262,80"/></circle>
+            </svg>
+            <div class="ping-section" id="ndPingSection">
+              <div class="ping-header">
+                <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel">1.1.1.1</span></span>
+                <div class="ping-stat">
+                  <span><span class="ping-val" id="ndPingRtt">—</span> <span style="color:var(--text-muted)">ms</span></span>
+                  <span><span class="ping-val" id="ndPingLoss">—</span> <span style="color:var(--text-muted)">loss</span></span>
                 </div>
-                <div class="ping-canvas-wrap"><canvas id="pingChartNet"></canvas></div>
               </div>
+              <div class="ping-canvas-wrap"><canvas id="pingChartNet"></canvas></div>
             </div>
-          </div>
           </div>
         </div>
+      </div>
 
-        <!-- Col 3: Top Talkers + WireGuard stacked -->
-        <div class="mikrodash-col">
-          <div data-card-id="talkersCard">
-          <div class="card" id="talkersCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header d-flex align-items-center gap-2">
-              <h3 class="card-title">Top Talkers</h3>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-vcenter mb-0">
-                  <thead><tr><th>Device</th><th>MAC</th><th class="text-end">&#8595;</th><th class="text-end">&#8593;</th></tr></thead>
-                  <tbody id="talkersTable"><tr><td colspan="4" class="empty-state">No devices</td></tr></tbody>
-                </table>
-              </div>
-            </div>
+      <!-- ── card-toptalkers: Top Talkers ────────────────────────────── -->
+      <div id="card-toptalkers" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="card-toptalkers" type="button" title="Remove card">&#x2715;</button>
+        <div class="card" id="talkersCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <h3 class="card-title">Top Talkers</h3>
           </div>
-          </div>
-          <div data-card-id="vpnCard">
-          <div class="card" id="vpnCard">
-            <div class="stale-overlay">&#9679; stale</div>
-            <div class="card-header">
-              <h3 class="card-title">WireGuard</h3>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th>Device</th><th>MAC</th><th class="text-end">&#8595;</th><th class="text-end">&#8593;</th></tr></thead>
+                <tbody id="talkersTable"><tr><td colspan="4" class="empty-state">No devices</td></tr></tbody>
+              </table>
             </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-vcenter mb-0">
-                  <thead><tr><th style="width:55px">Status</th><th>Peer</th><th>Handshake</th></tr></thead>
-                  <tbody id="vpnTable"><tr><td colspan="3" class="empty-state">No active peers</td></tr></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
           </div>
         </div>
+      </div>
 
+      <!-- ── card-wireguard: WireGuard peers ─────────────────────────── -->
+      <div id="card-wireguard" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="card-wireguard" type="button" title="Remove card">&#x2715;</button>
+        <div class="card" id="vpnCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header">
+            <h3 class="card-title">WireGuard</h3>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th style="width:55px">Status</th><th>Peer</th><th>Handshake</th></tr></thead>
+                <tbody id="vpnTable"><tr><td colspan="3" class="empty-state">No active peers</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      </div><!-- /dashGrid -->
-    </div>
+      <!-- ══ Extra dashboard cards — hidden by default, add via Add Card panel ══ -->
+
+      <!-- dc-card-signal: Signal Health -->
+      <div id="dc-card-signal" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-signal" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Signal Health</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div id="dc-sigNoData" class="empty-state" style="display:none">No wireless clients</div>
+            <div id="dc-wlSigHealth">
+              <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(52,211,153,.9)">Excellent</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="dc-wlSigBarE" style="width:0%;background:rgba(52,211,153,.7)"></div></div><span class="wl-sig-count" id="dc-wlSigCntE">0</span></div>
+              <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(56,189,248,.9)">Good</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="dc-wlSigBarG" style="width:0%;background:rgba(56,189,248,.7)"></div></div><span class="wl-sig-count" id="dc-wlSigCntG">0</span></div>
+              <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(251,191,36,.9)">Fair</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="dc-wlSigBarF" style="width:0%;background:rgba(251,191,36,.7)"></div></div><span class="wl-sig-count" id="dc-wlSigCntF">0</span></div>
+              <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(248,113,113,.9)">Poor</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="dc-wlSigBarP" style="width:0%;background:rgba(248,113,113,.7)"></div></div><span class="wl-sig-count" id="dc-wlSigCntP">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-band: Band Split -->
+      <div id="dc-card-band" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-band" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Band Split</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="wl-band-grid">
+              <div class="wl-band-item">
+                <span class="wl-band-pill wl-band-24">2.4 GHz</span>
+                <span class="wl-band-num" id="dc-wlBandNum24" style="color:rgba(167,139,250,.9)">0</span>
+              </div>
+              <div class="wl-band-item">
+                <span class="wl-band-pill wl-band-5">5 GHz</span>
+                <span class="wl-band-num" id="dc-wlBandNum5" style="color:var(--accent-rx)">0</span>
+              </div>
+              <div class="wl-band-item" id="dc-wlBandRow6" style="display:none">
+                <span class="wl-band-pill wl-band-6">6 GHz</span>
+                <span class="wl-band-num" id="dc-wlBandNum6" style="color:rgba(52,211,153,.9)">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-physports: Physical Ports -->
+      <div id="dc-card-physports" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-physports" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Physical Ports</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="if-ports-scroll" id="dc-ifPortsPanel">
+              <div class="empty-state" style="font-size:.72rem">Waiting&hellip;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-iputil: IP Utilisation -->
+      <div id="dc-card-iputil" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-iputil" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">IP Utilisation</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="dhcp-gauge-wrap">
+              <svg class="dhcp-gauge-svg" id="dc-dhcpGaugeSvg" viewBox="0 0 200 130">
+                <path id="dc-dhcpGaugeTrack" d="" fill="none" stroke="rgba(99,130,190,.12)" stroke-width="16" stroke-linecap="round"/>
+                <path id="dc-dhcpGaugeFill"  d="" fill="none" stroke="#38bdf8"             stroke-width="16" stroke-linecap="round"/>
+                <text id="dc-dhcpGaugePct"   class="dhcp-gauge-pct"   x="100" y="96">—</text>
+                <text id="dc-dhcpGaugeLbl"   class="dhcp-gauge-label" x="100" y="116">used</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-destcc: Connections Map -->
+      <div id="dc-card-destcc" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-destcc" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Connections Map</h3></div>
+          <div class="card-body" style="padding:0;overflow:hidden">
+            <div id="dc-worldMapWrap" style="width:100%;height:100%;position:relative;overflow:hidden;border-radius:0 0 10px 10px;background:rgba(56,189,248,.03)">
+              <svg id="dc-worldMap" viewBox="0 0 1000 500" style="width:100%;height:100%;display:block"></svg>
+              <div class="map-tooltip" id="dc-mapTooltip"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-topcc: Top Countries -->
+      <div id="dc-card-topcc" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-topcc" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Top Countries</h3></div>
+          <div class="card-body" style="padding:.5rem .75rem">
+            <div id="dc-connTopMapList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:.35rem"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-flow: Connection Flow -->
+      <div id="dc-card-flow" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-flow" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h3 class="card-title">Connection Flow</h3>
+            <span style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-muted)">Sources → Destinations</span>
+          </div>
+          <div class="card-body p-0" style="overflow:hidden">
+            <div class="sankey-wrap" style="height:100%;overflow-y:auto">
+              <div id="dc-sankeyEmpty" style="display:none;text-align:center;padding:2rem;font-family:var(--font-mono);font-size:.75rem;color:var(--text-muted)">Waiting for connection data…</div>
+              <svg id="dc-sankeySvg" style="display:block;width:100%;overflow:visible"></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-topports: Top Ports -->
+      <div id="dc-card-topports" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-topports" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Top Ports</h3></div>
+          <div class="card-body" style="padding:.35rem .6rem">
+            <div id="dc-connPortList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-routes: Routes by Protocol -->
+      <div id="dc-card-routes" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-routes" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Routes by Protocol</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="rt-proto-inner">
+              <div>
+                <div class="rt-donut-wrap">
+                  <canvas id="dc-rtDonutCanvas" width="130" height="130"></canvas>
+                </div>
+              </div>
+              <div class="rt-proto-grid-wrap">
+                <div class="rt-proto-grid" id="dc-rtProtoGrid">
+                  <div class="rt-proto-item"><span class="rt-proto-label">Connected</span><span class="rt-proto-count rt-connect" id="dc-rtConnect">—</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">Static</span><span class="rt-proto-count rt-static" id="dc-rtStatic">—</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">Dynamic</span><span class="rt-proto-count rt-dynamic" id="dc-rtDynamic">—</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">BGP</span><span class="rt-proto-count rt-bgp" id="dc-rtBgp">—</span></div>
+                  <div class="rt-proto-item"><span class="rt-proto-label">OSPF</span><span class="rt-proto-count rt-ospf" id="dc-rtOspf">—</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-bgp: BGP Peers -->
+      <div id="dc-card-bgp" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-bgp" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">BGP Peers</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="rt-bgp-stats-wrap"><div class="rt-bgp-stats">
+              <div class="rt-bgp-stat">
+                <span class="rt-bgp-num total" id="dc-rtBgpTotal">—</span>
+                <span class="rt-bgp-lbl">Total</span>
+              </div>
+              <div class="rt-bgp-divider"></div>
+              <div class="rt-bgp-stat">
+                <span class="rt-bgp-num established" id="dc-rtBgpEstab">—</span>
+                <span class="rt-bgp-lbl">Established</span>
+              </div>
+              <div class="rt-bgp-divider"></div>
+              <div class="rt-bgp-stat">
+                <span class="rt-bgp-num down" id="dc-rtBgpDown">—</span>
+                <span class="rt-bgp-lbl">Down</span>
+              </div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-bw: Bandwidth DL/UL -->
+      <div id="dc-card-bw" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-bw" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Bandwidth</h3></div>
+          <div class="card-body dc-bw-body">
+            <div class="dc-bw-bars">
+              <!-- Download bar -->
+              <div class="dc-bw-bar-col">
+                <div class="dc-bw-label dc-bw-label-rx">&#8595; Download</div>
+                <div class="dc-bw-pct" id="dc-bwPctRx">—</div>
+                <div class="dc-bw-track">
+                  <div class="dc-bw-fill dc-bw-fill-rx" id="dc-bwBarRx" style="height:0%"></div>
+                </div>
+                <div class="dc-bw-rate">
+                  <span id="dc-bwLiveRxNum">—</span>&thinsp;<span id="dc-bwLiveRxUnit" class="dc-bw-rate-unit"></span>
+                </div>
+              </div>
+              <!-- Upload bar -->
+              <div class="dc-bw-bar-col">
+                <div class="dc-bw-label dc-bw-label-tx">&#8593; Upload</div>
+                <div class="dc-bw-pct" id="dc-bwPctTx">—</div>
+                <div class="dc-bw-track">
+                  <div class="dc-bw-fill dc-bw-fill-tx" id="dc-bwBarTx" style="height:0%"></div>
+                </div>
+                <div class="dc-bw-rate">
+                  <span id="dc-bwLiveTxNum">—</span>&thinsp;<span id="dc-bwLiveTxUnit" class="dc-bw-rate-unit"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-fwaction: Firewall Action Breakdown -->
+      <div id="dc-card-fwaction" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-fwaction" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Firewall Actions</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="fw-action-list" id="dc-fwActionList">
+              <div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-fwhits: Total Hits -->
+      <div id="dc-card-fwhits" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-fwhits" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Total Hits</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="fw-activity-wrap">
+              <div class="fw-activity-total" id="dc-fwTotalPackets">—</div>
+              <div class="fw-activity-sub" id="dc-fwTotalBytes"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-logs: Recent Logs -->
+      <div id="dc-card-logs" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-logs" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Logs</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div id="dc-logs"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /dash-grid-root -->
   </div><!-- /dashboard -->
 
   <!-- CONNECTIONS MAP -->
@@ -1109,8 +1479,13 @@
     <div class="container-fluid px-0" style="width:100%">
       <div class="card">
         <div class="card-header d-flex align-items-center justify-content-between">
-          <h3 class="card-title">Destination Countries</h3>
-          <span style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)" id="connMapSub">Top connection destinations</span>
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title">Connections Map</h3>
+            <span id="connMapBadge" class="card-badge">0</span>
+          </div>
+          <select id="connSrcFilter" class="conn-src-filter" title="Filter by Client">
+            <option value="">All Clients</option>
+          </select>
         </div>
         <div class="card-body" style="padding:.5rem">
           <div id="worldMapWrap" style="width:100%;position:relative;overflow:hidden;border-radius:6px;background:rgba(56,189,248,.03);cursor:grab;user-select:none">
@@ -2001,6 +2376,30 @@
             <input class="sform-input" id="rtrModalPing" type="text" placeholder="1.1.1.1">
           </div>
         </div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label">Bandwidth Down (capacity)</label>
+            <div style="display:flex;gap:.3rem">
+              <input class="sform-input" id="rtrModalBwDown" type="number" min="1" step="1" value="1" style="flex:1">
+              <input type="hidden" id="rtrModalBwDownUnit" value="gbps">
+              <div class="bw-unit-toggle" data-unit-for="rtrModalBwDownUnit">
+                <button type="button" class="bw-unit-btn active" data-val="gbps">Gbps</button>
+                <button type="button" class="bw-unit-btn" data-val="mbps">Mbps</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="sform-label">Bandwidth Up (capacity)</label>
+            <div style="display:flex;gap:.3rem">
+              <input class="sform-input" id="rtrModalBwUp" type="number" min="1" step="1" value="1" style="flex:1">
+              <input type="hidden" id="rtrModalBwUpUnit" value="gbps">
+              <div class="bw-unit-toggle" data-unit-for="rtrModalBwUpUnit">
+                <button type="button" class="bw-unit-btn active" data-val="gbps">Gbps</button>
+                <button type="button" class="bw-unit-btn" data-val="mbps">Mbps</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="sform-row sform-group" style="margin-bottom:.4rem">
           <label class="stoggle" id="rtrStogTls">
             <span class="stoggle-label">Use TLS</span>
@@ -2031,6 +2430,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="/vendor/chart.umd.min.js"></script>
 <script src="/app.js"></script>
+<script src="/js/dashboard-grid.js"></script>
 
 </body>
 </html>

@@ -2,6 +2,38 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.24]
+
+### Added
+
+- **Configurable drag-and-drop dashboard grid** — 12×11 CSS grid with per-card drag, resize (8 handles), and swap-on-hover (1.5 s countdown with pulsing border animation); add/remove cards via the Add Card panel; Save/Discard/Reset controls; layout persists across sessions and devices.
+- **Dashboard layout cross-device sync** — layout saved server-side to `/data/dashboard-layout.json` (same Docker volume as `routers.json`); any browser or device fetches the shared layout on load — no per-device reconfiguration.
+- **14 optional dashboard cards** — hidden by default, user-addable via the Add Card panel: Signal Health, Band Split, Physical Ports, IP Utilisation, Connections Map (world map with animated arcs), Top Countries, Connection Flow (Sankey diagram), Top Ports, Routes by Protocol, BGP Peers, Bandwidth (utilisation bars), Firewall Actions, Total Hits, Logs.
+- **Bandwidth card — utilisation bars** — two vertical fill bars (Download / Upload) showing real-time percentage of configured capacity using a 30-second rolling average; live numeric rate below each bar; animated fill transition.
+- **Bandwidth capacity settings** — per-router Download and Upload capacity fields (Gbps/Mbps) in the router settings modal; drives the Bandwidth dashboard card utilisation bars.
+- **Connections page — Filter by Client** — dropdown in the Connections Map card header filters the map, countries list, connection flow, and top ports to a single LAN device; populated from active connection sources merged with DHCP leases.
+- **Connections page — `countryPorts` server-side index** — per-country top-10 port list built from every matching connection (no destination cap); replaces the previous approach that derived ports from the capped 20-entry `countryDests` list, fixing Top Ports undercounting when a country filter is active.
+- **Connections page — `sourcePorts` server-side index** — per-source-IP top-10 port list built from every matching connection (no cap); used by the client filter, making Top Ports totals consistent with the badge count.
+- **Connections Map card — connection count badge** — live connection count badge next to the card title, always blue when active (matches Wireless Clients, DHCP Leases, and WireGuard Peers badges); honours both country and client filters.
+- **RouterOS UTF-8 encoding patch** — `patch-routeros.js` now patches `node-routeros` Receiver.js to decode API strings as UTF-8 instead of win1252; fixes Cyrillic, Greek, and all other non-Latin characters in device names, DHCP hostnames, interface labels, and comments.
+
+### Changed
+
+- **Router settings modal — Gbps/Mbps unit toggle** — replaced native `<select>` elements with fully-themed button toggles; the OS-rendered options popup was immune to dark-mode CSS regardless of `appearance` or `color-scheme` overrides.
+- **Connections Map card header** — subtitle text removed; client filter dropdown is the sole right-side element and expands to fill available space.
+- **Dashboard Bandwidth card** — "DL" / "UL" labels renamed to "Download" / "Upload".
+- **Dashboard extra cards** — default sizes refined per card type (Signal Health 4×2, Band Split 2×2, Physical Ports 4×2, IP Utilisation 2×2, Connections Map 4×3, Top Countries 4×3, Connection Flow 4×4, Top Ports 2×3, Routes 3×3, BGP Peers 3×2, Bandwidth 2×3, Firewall Actions 4×3, Total Hits 2×2, Logs 5×3).
+
+### Fixed
+
+- **Country filter — Top Ports undercount** — ports were derived by parsing destination keys from the 20-entry-capped `countryDests` list; replaced with the new `countryPorts` server-side index which counts every matching connection.
+- **Client filter — mismatched counts** — badge, map, and Top Ports each used a different source (authoritative server total, capped `srcDests` geo subset, key-regex extraction from capped list respectively); badge now uses `topSources` authoritative count, ports use the new uncapped `sourcePorts` index, map reflects geolocated subset as expected.
+- **Dashboard extra cards — IP Utilisation** — field-name mismatch (`n.leases`/`n.poolSize` vs server-emitted `data.totalLeases`/`data.totalPoolSize`) caused the gauge to never render; corrected.
+- **Dashboard extra cards — Routes donut** — rewrote centre-count logic and `connect` exclusion to match the Routing page exactly; donut now renders identically to its page counterpart.
+- **Dashboard extra cards — Connection Flow** — Sankey diagram now renders inside the dashboard card using the same render path as the Connections page (shared `render()` with optional target elements).
+
+---
+
 ## [0.5.23]
 
 ### Added
