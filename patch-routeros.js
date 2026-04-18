@@ -114,9 +114,18 @@ patch(
       replace: `this.currentLine += iconv.decode(data, 'utf8');`,
     },
     {
-      // alternate double-quote form in some builds
       find: `this.currentLine += iconv.decode(data, "win1252");`,
       replace: `this.currentLine += iconv.decode(data, "utf8");`,
+    },
+    {
+      // second decode call — handles the case where the buffer contains more
+      // data than the current token length requires (sliced into tmpBuffer)
+      find: `const tmpStr = iconv.decode(tmpBuffer, 'win1252');`,
+      replace: `const tmpStr = iconv.decode(tmpBuffer, 'utf8');`,
+    },
+    {
+      find: `const tmpStr = iconv.decode(tmpBuffer, "win1252");`,
+      replace: `const tmpStr = iconv.decode(tmpBuffer, "utf8");`,
     },
   ]
 );

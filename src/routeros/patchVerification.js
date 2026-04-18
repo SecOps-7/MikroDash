@@ -1,6 +1,6 @@
 const path = require('path');
 
-const PATCH_MARKERS = ['MIKRODASH_PATCHED_EMPTY_REPLY', 'MIKRODASH_PATCHED_UNREGISTEREDTAG'];
+const PATCH_MARKERS = ['MIKRODASH_PATCHED_EMPTY_REPLY', 'MIKRODASH_PATCHED_UNREGISTEREDTAG', 'MIKRODASH_PATCHED_UTF8_ENCODING'];
 
 function resolveDistPath(marker) {
   return marker.includes('EMPTY') ? 'Channel.js' : path.join('connector', 'Receiver.js');

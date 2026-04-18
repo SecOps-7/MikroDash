@@ -2828,7 +2828,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       ' Z';
   }
 
-  function render(sources, destinations, targetSvg, targetEmpty){
+  function render(sources, destinations, targetSvg, targetEmpty, availH){
     targetSvg   = targetSvg   || svgEl;
     targetEmpty = targetEmpty || emptyEl;
     targetSvg.innerHTML='';
@@ -2843,8 +2843,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var W=targetSvg.parentElement.clientWidth||600;
     if(W<200) W=600;
     var NODE_W=12, GAP=6, PAD_X=110, PAD_Y=10;
-    var innerH=Math.max(260, sources.length*36+80);
-    var H=innerH+PAD_Y*2;
+    var H, innerH;
+    if(availH && availH>80){
+      H=availH; innerH=H-PAD_Y*2;
+    } else {
+      innerH=Math.max(260, sources.length*36+80); H=innerH+PAD_Y*2;
+    }
     targetSvg.setAttribute('viewBox','0 0 '+W+' '+H);
     targetSvg.setAttribute('height',H);
 
@@ -2983,7 +2987,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function renderDc(srcs, dsts){
     var dcSvg   = document.getElementById('dc-sankeySvg');
     var dcEmpty = document.getElementById('dc-sankeyEmpty');
-    if(dcSvg) render(srcs, dsts, dcSvg, dcEmpty);
+    if(!dcSvg) return;
+    var avail = dcSvg.parentElement ? dcSvg.parentElement.clientHeight : 0;
+    render(srcs, dsts, dcSvg, dcEmpty, avail||0);
   }
 
   socket.on('conn:update',function(data){
@@ -3013,6 +3019,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     clearTimeout(_resizeTimer);
     _resizeTimer=setTimeout(function(){ render(_lastSrcs,_lastDsts); renderDc(_lastSrcs,_lastDsts); },120);
   });
+  // ResizeObserver on the dc card wrapper — fires when the card is resized via
+  // drag handles so the Sankey fills the new dimensions immediately.
+  var _dcResizeTimer=null;
+  if(typeof ResizeObserver!=='undefined'){
+    var _dcWrap=document.querySelector('#dc-card-flow .sankey-wrap');
+    if(_dcWrap) new ResizeObserver(function(){
+      clearTimeout(_dcResizeTimer);
+      _dcResizeTimer=setTimeout(function(){ renderDc(_lastSrcs,_lastDsts); },100);
+    }).observe(_dcWrap);
+  }
   // Re-render when navigating to the connections page — the SVG clientWidth is
   // 0 while the page is hidden, so the first render uses a fallback width.
   // Firing again on pageshow gives it the real width immediately.
@@ -4793,17 +4809,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   socket.on('routers:update', function(list){ _dcBwRouters = list||[]; _dcBwSyncCapacity(); });
   socket.on('router:active',  function(d)  { _dcBwActiveId = d.activeId||''; _dcBwSyncCapacity(); });
 
-  /* ── 30-second rolling sample buffer ────────────────────────────────────── */
-  var _dcBwSamples = []; // [{ts:ms, rx:Mbps, tx:Mbps}]
-  var _DC_BW_WIN   = 30000;
-  function _dcBwAvg(){
-    var now = Date.now();
-    _dcBwSamples = _dcBwSamples.filter(function(s){ return now - s.ts < _DC_BW_WIN; });
-    if(!_dcBwSamples.length) return {rx:0, tx:0};
-    var sRx=0, sTx=0;
-    _dcBwSamples.forEach(function(s){ sRx+=s.rx; sTx+=s.tx; });
-    return {rx: sRx/_dcBwSamples.length, tx: sTx/_dcBwSamples.length};
-  }
 
   /* ── 11: Bandwidth card — default WAN interface rates (traffic:update) ──── */
   /* traffic:update fires every 1s for defaultIf via per-socket emit in       */
@@ -4821,11 +4826,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if(txNum)  txNum.textContent  = tx.num;
     if(txUnit) txUnit.textContent = tx.unit;
 
-    /* Add to rolling buffer then derive 30s average for bar positions */
-    _dcBwSamples.push({ts: Date.now(), rx: rxMbps, tx: txMbps});
-    var avg   = _dcBwAvg();
-    var rxPct = Math.min(100, _dcBwDown > 0 ? (avg.rx / _dcBwDown) * 100 : 0);
-    var txPct = Math.min(100, _dcBwUp   > 0 ? (avg.tx / _dcBwUp  ) * 100 : 0);
+    /* Bar position and percentage — instantaneous rate; CSS transition smooths movement */
+    var rxPct = Math.min(100, _dcBwDown > 0 ? (rxMbps / _dcBwDown) * 100 : 0);
+    var txPct = Math.min(100, _dcBwUp   > 0 ? (txMbps / _dcBwUp  ) * 100 : 0);
 
     var barRx = dcEl('dc-bwBarRx'), barTx = dcEl('dc-bwBarTx');
     if(barRx) barRx.style.height = rxPct.toFixed(1) + '%';
@@ -4833,8 +4836,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
     function fmtPct(pct, mbps){ return mbps > 0 ? (pct < 1 ? '<1%' : Math.round(pct) + '%') : '—'; }
     var pctRxEl = dcEl('dc-bwPctRx'), pctTxEl = dcEl('dc-bwPctTx');
-    if(pctRxEl) pctRxEl.textContent = fmtPct(rxPct, avg.rx);
-    if(pctTxEl) pctTxEl.textContent = fmtPct(txPct, avg.tx);
+    if(pctRxEl) pctRxEl.textContent = fmtPct(rxPct, rxMbps);
+    if(pctTxEl) pctTxEl.textContent = fmtPct(txPct, txMbps);
   });
 
   /* ── 12 & 13: Firewall Actions + Total Hits (firewall:update, dash-card-firewall room) */
