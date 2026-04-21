@@ -179,9 +179,22 @@ function buildSession(routerCfg) {
       const fresh = (await rosInst.write('/ip/firewall/connection/print', [
         '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
       ])) || [];
-      // Ignore a transient empty result when we already have rows — RouterOS
-      // occasionally returns no rows under load on lower-spec hardware (RPi etc).
-      if (fresh.length > 0 || this.rows === null) {
+      // Ignore empty or suspiciously partial results when we already have rows.
+      // RouterOS occasionally returns no rows (or a small fraction of the normal
+      // count) under load on lower-spec hardware (RPi, hAP, etc).  Accepting a
+      // partial result verbatim causes the Connections and Bandwidth cards to
+      // briefly collapse to a subset and then recover — the "flip-flop" symptom.
+      // Threshold: if the new result is < 50% of the cached count and the cache
+      // has more than 10 rows, keep the stale data for this tick.
+      const PARTIAL_DROP_RATIO = 0.5;
+      const PARTIAL_DROP_MIN   = 10;
+      const looksPartial = this.rows !== null
+        && this.rows.length > PARTIAL_DROP_MIN
+        && fresh.length > 0
+        && fresh.length < this.rows.length * PARTIAL_DROP_RATIO;
+      if (looksPartial) {
+        console.warn(`[connCache] partial result (${fresh.length} rows, cached ${this.rows.length}) — keeping stale data`);
+      } else if (fresh.length > 0 || this.rows === null) {
         this.rows = fresh;
         this.ts   = Date.now();
       }
@@ -283,15 +296,22 @@ function wireRosEvents(session) {
     } else if (/certificate/i.test(msg)) {
       reason = 'TLS certificate error — try enabling "Allow self-signed cert"';
       hint   = 'Set tlsInsecure=true in settings or use a valid certificate on the router';
-    } else if (/authentication/i.test(msg) || /login/i.test(msg) || /invalid user/i.test(msg) || /wrong password/i.test(msg)) {
+    } else if (/authentication/i.test(msg) || /login/i.test(msg) || /invalid user/i.test(msg) || /wrong password/i.test(msg) || /username.*invalid|password.*invalid/i.test(msg) || (e && e.errno === 'CANTLOGIN')) {
       reason = 'Authentication failed — check username and password';
       hint   = `Confirm user "${user}" exists on the router and has API access: /user print`;
-    } else if (tls && /RosException/.test(msg)) {
-      reason = 'TLS handshake failed — check that RouterOS api-ssl is enabled';
-      hint   = 'Run: /ip service set api-ssl disabled=no  — and verify the certificate is valid';
+    } else if (/RosException/.test(msg) || (e && e.name === 'RosException')) {
+      const errno = e && e.errno ? e.errno : '';
+      if (tls) {
+        reason = `TLS handshake failed — check that RouterOS api-ssl is enabled${errno ? ` [${errno}]` : ''}`;
+        hint   = 'Run: /ip service set api-ssl disabled=no  — and verify the certificate is valid';
+      } else {
+        reason = `RouterOS API error${errno ? ` [${errno}]` : ''} — check that the API service is enabled and the user has API access`;
+        hint   = `Run: /ip service set api disabled=no  — then confirm user "${user}" has API group permissions`;
+      }
     }
     console.error(`[ROS] ✗ ${reason}`);
     if (hint) console.error(`[ROS]   → ${hint}`);
+    if (e && e.errno) console.error(`[ROS]   errno: ${e.errno}`);
     console.error(`[ROS]   raw: ${msg}`);
     broadcastRosStatus(false, reason);
   });
@@ -701,8 +721,13 @@ app.post('/api/routers/test', async (req, res) => {
     else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))       reason = 'Host not found — check router host/IP';
     else if (/ECONNRESET/.test(msg))                            reason = 'Connection reset by router';
     else if (/certificate/i.test(msg))                          reason = 'TLS certificate error — try enabling "Allow self-signed cert"';
-    else if (/authentication/i.test(msg) || /login/i.test(msg)) reason = 'Authentication failed — check username and password';
-    else if (body.tls && /RosException/.test(msg))              reason = 'TLS handshake failed — check that RouterOS api-ssl is enabled and the certificate is valid.';
+    else if (/authentication/i.test(msg) || /login/i.test(msg) || /username.*invalid|password.*invalid/i.test(msg) || (e && e.errno === 'CANTLOGIN')) reason = 'Authentication failed — check username and password';
+    else if (/RosException/.test(msg) || (e && e.name === 'RosException')) {
+      const errno = e && e.errno ? ` [${e.errno}]` : '';
+      reason = body.tls
+        ? `TLS handshake failed — check that RouterOS api-ssl is enabled${errno}`
+        : `RouterOS API error${errno} — check that api service is enabled and user has API access`;
+    }
     done(false, reason);
   });
   testRos.on('connected', async () => {

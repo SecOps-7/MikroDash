@@ -116,6 +116,42 @@ const ENCRYPTED_FIELDS = ['routerPass', 'dashPass'];
 // Fields never sent to the client (only their masked presence)
 const CREDENTIAL_FIELDS = ['routerPass', 'dashPass'];
 
+// ── Env-var override map ─────────────────────────────────────────────────────
+// For each settings field that has an env var backing, map field → [envVar, parser].
+// After merging settings.json, any env var that is explicitly set in process.env
+// takes priority — env is the authoritative layer for infrastructure-level config
+// and must not be silently overridden by a persisted settings.json value.
+const ENV_MAP = {
+  routerHost:        ['ROUTER_HOST',         v => v],
+  routerPort:        ['ROUTER_PORT',          v => parseInt(v, 10)],
+  routerTls:         ['ROUTER_TLS',           v => v.toLowerCase() === 'true'],
+  routerTlsInsecure: ['ROUTER_TLS_INSECURE',  v => v.toLowerCase() === 'true'],
+  routerUser:        ['ROUTER_USER',          v => v],
+  defaultIf:         ['DEFAULT_IF',           v => v],
+  dashUser:          ['BASIC_AUTH_USER',      v => v],
+  pingTarget:        ['PING_TARGET',          v => v],
+  pollConns:         ['CONNS_POLL_MS',        v => parseInt(v, 10)],
+  pollTalkers:       ['TALKERS_POLL_MS',      v => parseInt(v, 10)],
+  pollBandwidth:     ['BANDWIDTH_POLL_MS',    v => parseInt(v, 10)],
+  pollRouting:       ['ROUTING_POLL_MS',      v => parseInt(v, 10)],
+  pollSystem:        ['SYSTEM_POLL_MS',       v => parseInt(v, 10)],
+  pollWireless:      ['WIRELESS_POLL_MS',     v => parseInt(v, 10)],
+  pollVpn:           ['VPN_POLL_MS',          v => parseInt(v, 10)],
+  pollFirewall:      ['FIREWALL_POLL_MS',     v => parseInt(v, 10)],
+  pollIfstatus:      ['IFSTATUS_POLL_MS',     v => parseInt(v, 10)],
+  pollPing:          ['PING_POLL_MS',         v => parseInt(v, 10)],
+  pollArp:           ['ARP_POLL_MS',          v => parseInt(v, 10)],
+  pollDhcp:          ['DHCP_POLL_MS',         v => parseInt(v, 10)],
+  topN:              ['TOP_N',                v => parseInt(v, 10)],
+  topTalkersN:       ['TOP_TALKERS_N',        v => parseInt(v, 10)],
+  firewallTopN:      ['FIREWALL_TOP_N',       v => parseInt(v, 10)],
+  vpnDashTopN:       ['VPN_DASH_TOP_N',       v => parseInt(v, 10)],
+  maxConns:          ['MAX_CONNS',            v => parseInt(v, 10)],
+  historyMinutes:    ['HISTORY_MINUTES',      v => parseInt(v, 10)],
+  alertCpuThreshold: ['ALERT_CPU_THRESHOLD',  v => parseInt(v, 10)],
+  alertPingLoss:     ['ALERT_PING_LOSS',      v => parseInt(v, 10)],
+};
+
 // ── Load / Save ──────────────────────────────────────────────────────────────
 let _cache = null;
 
@@ -139,9 +175,17 @@ function load() {
       merged[k] = ENCRYPTED_FIELDS.includes(k) ? decrypt(v) : v;
     }
   }
-  // Seed from env if settings file has no credentials yet
-  if (!merged.routerPass) merged.routerPass = process.env.ROUTER_PASS || '';
-  if (!merged.dashPass)   merged.dashPass   = process.env.BASIC_AUTH_PASS || '';
+  // Re-apply any env var that is explicitly set — env always wins over settings.json.
+  // This ensures that changes to the .env file take effect on restart even when
+  // a settings.json already exists on the volume.
+  for (const [field, [envVar, parse]] of Object.entries(ENV_MAP)) {
+    if (process.env[envVar] !== undefined) merged[field] = parse(process.env[envVar]);
+  }
+  // Passwords: env always wins if present; fall back to stored or empty.
+  if (process.env.ROUTER_PASS !== undefined)       merged.routerPass = process.env.ROUTER_PASS;
+  else if (!merged.routerPass)                     merged.routerPass = '';
+  if (process.env.BASIC_AUTH_PASS !== undefined)   merged.dashPass   = process.env.BASIC_AUTH_PASS;
+  else if (!merged.dashPass)                       merged.dashPass   = '';
 
   _cache = merged;
   return _cache;

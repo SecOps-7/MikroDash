@@ -58,6 +58,7 @@ class WirelessCollector {
     if (!this.ros.connected) return;
     if (!force && this.io.engine.clientsCount === 0) return;
 
+    const dbg = process.env.ROS_DEBUG === 'true';
     let rawClients = [], detectedMode = this.mode;
 
     if (detectedMode === 'wifi' || detectedMode === null) {
@@ -67,9 +68,27 @@ class WirelessCollector {
           // in the proplist causes rows to be silently dropped rather than returned
           // with those fields empty. Omitting it guarantees all clients are returned.
         ]);
-        if (res && res.length) { rawClients = res; detectedMode = 'wifi'; }
+        if (res && res.length) {
+          rawClients = res;
+          detectedMode = 'wifi';
+          if (dbg) {
+            const ifaceCounts = {};
+            for (const c of res) { const k = c.interface || c['ap-interface'] || '(none)'; ifaceCounts[k] = (ifaceCounts[k] || 0) + 1; }
+            console.log(`[wireless] wifi API: ${res.length} client(s) — by interface: ${JSON.stringify(ifaceCounts)}`);
+            for (const c of res) {
+              const mac  = c['mac-address'] || c.mac || '?';
+              const iface = c.interface || c['ap-interface'] || '(none)';
+              const band  = c['band'] || '(no band)';
+              const ssid  = c.ssid  || '(no ssid)';
+              const sig   = c.signal || c['signal-strength'] || c['rx-signal'] || '?';
+              console.log(`[wireless]   mac=${mac} iface=${iface} band=${band} ssid=${ssid} signal=${sig}`);
+            }
+          }
+        } else if (dbg) {
+          console.log('[wireless] wifi API: 0 clients returned');
+        }
       } catch (e) {
-        if (this.ros.cfg && this.ros.cfg.debug)
+        if (dbg || (this.ros.cfg && this.ros.cfg.debug))
           console.warn('[wireless] wifi API probe failed:', e && e.message ? e.message : e);
       }
     }
@@ -78,9 +97,19 @@ class WirelessCollector {
         const res = await this.ros.write('/interface/wireless/registration-table/print', [
           // No =.proplist= — same reason as above.
         ]);
-        if (res && res.length) { rawClients = res; detectedMode = 'wireless'; }
+        if (res && res.length) {
+          rawClients = res;
+          detectedMode = 'wireless';
+          if (dbg) {
+            const ifaceCounts = {};
+            for (const c of res) { const k = c.interface || c['ap-interface'] || '(none)'; ifaceCounts[k] = (ifaceCounts[k] || 0) + 1; }
+            console.log(`[wireless] legacy API: ${res.length} client(s) — by interface: ${JSON.stringify(ifaceCounts)}`);
+          }
+        } else if (dbg) {
+          console.log('[wireless] legacy API: 0 clients returned');
+        }
       } catch (e) {
-        if (this.ros.cfg && this.ros.cfg.debug)
+        if (dbg || (this.ros.cfg && this.ros.cfg.debug))
           console.warn('[wireless] legacy API probe failed:', e && e.message ? e.message : e);
       }
     }
@@ -123,12 +152,18 @@ class WirelessCollector {
       if (thisTickByMac.has(mac)) continue;
       const absent = (this._absentTicks.get(mac) || 0) + 1;
       if (absent >= this.ABSENCE_THRESHOLD) {
+        if (dbg) console.log(`[wireless] removing ${mac} — absent ${absent} ticks (>= threshold ${this.ABSENCE_THRESHOLD})`);
         this._knownClients.delete(mac);
         this._absentTicks.delete(mac);
         this._nameCache.delete(mac);
       } else {
+        if (dbg) console.log(`[wireless] holding ${mac} — absent ${absent}/${this.ABSENCE_THRESHOLD} ticks`);
         this._absentTicks.set(mac, absent);
       }
+    }
+
+    if (dbg) {
+      console.log(`[wireless] tick summary: ${thisTickByMac.size} from API, ${this._knownClients.size} known, ${this._absentTicks.size} held by absence guard`);
     }
 
     // 3. Build the sorted client array from the stable known-clients map.
