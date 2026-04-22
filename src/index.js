@@ -569,6 +569,25 @@ app.post('/api/settings', (req, res) => {
       }
     }
 
+    // Apply topN changes live — update running collectors and force re-emit
+    if (s) {
+      if ('topN' in updates && s.conns) {
+        s.conns.topN = saved.topN;
+        s.conns._lastFp = '';
+      }
+      if ('topTalkersN' in updates && s.talkers) {
+        s.talkers.topN = saved.topTalkersN;
+        s.talkers._lastFp = '';
+      }
+      if ('firewallTopN' in updates && s.firewall) {
+        s.firewall.topN = saved.firewallTopN;
+        s.firewall._lastFp = '';
+      }
+      if ('maxConns' in updates && s.conns) {
+        s.conns.maxConns = saved.maxConns;
+      }
+    }
+
     const pageSettings = {
       pageWireless:saved.pageWireless, pageInterfaces:saved.pageInterfaces,
       pageDhcp:saved.pageDhcp, pageVpn:saved.pageVpn,

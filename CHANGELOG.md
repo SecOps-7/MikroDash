@@ -8,9 +8,12 @@ All notable changes to MikroDash will be documented in this file.
 
 - **Setup wizard — Test Connection always failed** — was calling `/api/test-connection` (non-existent endpoint); corrected to `/api/routers/test`.
 - **Setup wizard — Connect button now locked until test passes** — Save is disabled on load and after any connection field change; only enabled after a successful Test Connection.
+- **Top N settings not honoured** — `topN`, `topTalkersN`, `firewallTopN`, and `maxConns` changes in the Settings page now apply immediately to running collectors; fingerprints cleared so the next poll tick emits updated results. Previously the values were persisted to disk but never applied to the running session.
 
 ### Changed
 
+- **Default Top Connections N** changed from 10 to 5.
+- **Default Wireless poll interval** changed from 60 s to 30 s.
 - **README** — updated Quick Start (no `.env` required, first-run wizard), Settings table (Diagnostics row), Environment Variables section, Security Notice, and version pin.
 - **`.env.example`** — all variables now commented out and optional; router/auth vars removed; note added for auto-generated `DATA_SECRET` and the Diagnostics UI toggle.
 

@@ -310,7 +310,7 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 | Firewall counters | 5 s | Packet/byte counter refresh for all firewall rules (RouterOS 7.x does not push counter updates via the listen stream) |
 | Ping | 10 s | RTT + packet loss to ping target |
 | Interface Status | 15 s | Byte counter refresh for live rate bars |
-| Wireless | 60 s | Wireless client list |
+| Wireless | 30 s | Wireless client list |
 | DHCP Networks | 5 min | LAN subnets, pool sizes, WAN IP |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
