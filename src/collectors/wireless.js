@@ -2,22 +2,26 @@
  * Wireless collector — polls /interface/wifi/registration-table/print (wifi
  * package, ROS 7) or /interface/wireless/registration-table/print (legacy).
  *
- * RouterOS — particularly the wifi-qcom driver used on HAPax2 and similar
- * boards — can return partial registration-table results for several ticks
- * during client re-association. A single call that normally returns N clients
- * may return only a subset (e.g. only the virtual-AP clients) while the
- * physical radios are briefly reassociating. Accepting each tick's result
- * verbatim would cause the table to flash between the full set and the partial
- * set on every poll cycle.
+ * Per-interface query strategy (wifi mode only):
+ *   RouterOS sends /interface/wifi/registration-table/print results as
+ *   separate response blocks per interface, each terminated with its own
+ *   !done. node-routeros resolves the write() Promise on the first !done,
+ *   discarding all subsequent blocks as "unregistered tag" packets. On a
+ *   device with a virtual AP (CT200) and physical radios, this means only
+ *   the virtual AP's clients are ever returned by a combined query.
+ *
+ *   Fix: fetch the wifi interface list once (cached per session), then query
+ *   /interface/wifi/registration-table/print?interface=X for each interface
+ *   individually via Promise.all, and merge the results. Each per-interface
+ *   query returns exactly one !done block, so all clients are captured.
  *
  * Guard strategy — per-MAC absence counter:
  *   Instead of replacing the entire client list each tick, we maintain the
  *   union of known clients. A client is removed only after it has been absent
  *   from ABSENCE_THRESHOLD consecutive ticks. New clients are added immediately.
- *   This eliminates both the "collapse to subset" and "flash full then collapse"
- *   symptoms without delaying legitimate disconnects — at 30 s poll intervals,
- *   3 missed ticks = 90 s before a genuinely disconnected client disappears,
- *   which is acceptable for a dashboard. At faster poll rates the window shrinks.
+ *   This eliminates the "collapse to subset" symptom without delaying legitimate
+ *   disconnects — at 30 s poll intervals, 3 missed ticks = 90 s before a
+ *   genuinely disconnected client disappears, which is acceptable for a dashboard.
  */
 class WirelessCollector {
   constructor({ ros, io, pollMs, state, dhcpLeases, arp }) {
@@ -43,6 +47,7 @@ class WirelessCollector {
     this._inflight    = false;
     this._nameCache   = new Map();
     this._retryTimer  = null;
+    this._wifiIfaces  = null; // cached wifi interface names; null = not yet fetched
   }
 
   resolveName(mac) {
@@ -63,11 +68,36 @@ class WirelessCollector {
 
     if (detectedMode === 'wifi' || detectedMode === null) {
       try {
-        const res = await this.ros.write('/interface/wifi/registration-table/print', [
-          // No =.proplist= — on some ROS v7 builds, listing unknown/absent fields
-          // in the proplist causes rows to be silently dropped rather than returned
-          // with those fields empty. Omitting it guarantees all clients are returned.
-        ]);
+        // Build the per-interface list on first tick (or after error reset).
+        // Querying each interface individually avoids the node-routeros behaviour
+        // where a combined query resolves on the first !done block, discarding
+        // the remaining per-interface blocks as unregistered-tag packets.
+        if (this._wifiIfaces === null) {
+          const ifaceRes = await this.ros.write('/interface/wifi/print', ['=.proplist=name']);
+          this._wifiIfaces = (ifaceRes || []).map(r => r.name).filter(Boolean);
+          if (dbg) console.log(`[wireless] wifi interfaces: ${this._wifiIfaces.length ? this._wifiIfaces.join(', ') : '(none detected)'}`);
+        }
+
+        let res;
+        if (this._wifiIfaces.length > 0) {
+          const parts = await Promise.all(
+            this._wifiIfaces.map(name =>
+              this.ros.write('/interface/wifi/registration-table/print', [`?interface=${name}`])
+                .catch(() => [])
+            )
+          );
+          res = parts.flat();
+          if (dbg) {
+            const perIface = this._wifiIfaces.map((n, i) => `${n}:${(parts[i] || []).length}`).join(', ');
+            console.log(`[wireless] per-iface wifi: ${perIface} → ${res.length} total`);
+          }
+        } else {
+          // No interfaces in list — fall back to combined query.
+          res = await this.ros.write('/interface/wifi/registration-table/print', []);
+          // Got clients despite empty interface list — invalidate to refresh next tick.
+          if (res && res.length) this._wifiIfaces = null;
+        }
+
         if (res && res.length) {
           rawClients = res;
           detectedMode = 'wifi';
@@ -76,7 +106,7 @@ class WirelessCollector {
             for (const c of res) { const k = c.interface || c['ap-interface'] || '(none)'; ifaceCounts[k] = (ifaceCounts[k] || 0) + 1; }
             console.log(`[wireless] wifi API: ${res.length} client(s) — by interface: ${JSON.stringify(ifaceCounts)}`);
             for (const c of res) {
-              const mac  = c['mac-address'] || c.mac || '?';
+              const mac   = c['mac-address'] || c.mac || '?';
               const iface = c.interface || c['ap-interface'] || '(none)';
               const band  = c['band'] || '(no band)';
               const ssid  = c.ssid  || '(no ssid)';
@@ -88,6 +118,7 @@ class WirelessCollector {
           console.log('[wireless] wifi API: 0 clients returned');
         }
       } catch (e) {
+        this._wifiIfaces = null; // reset so interface list is re-fetched next tick
         if (dbg || (this.ros.cfg && this.ros.cfg.debug))
           console.warn('[wireless] wifi API probe failed:', e && e.message ? e.message : e);
       }
@@ -234,8 +265,9 @@ class WirelessCollector {
   }
 
   _resetState() {
-    this.mode     = null;
-    this._lastFp  = '';
+    this.mode        = null;
+    this._lastFp     = '';
+    this._wifiIfaces = null;
     this._nameCache.clear();
     this._knownClients.clear();
     this._absentTicks.clear();
