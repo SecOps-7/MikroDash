@@ -487,7 +487,7 @@ app.post('/api/settings', (req, res) => {
     const strFields  = ['dashUser', 'pingTarget'];
     const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
                         'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting',
-                        'pingEnabled'];
+                        'pingEnabled','rosDebug'];
     const credFields = ['dashPass'];
 
     for (const [f, range] of Object.entries(intFields)) {

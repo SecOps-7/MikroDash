@@ -124,6 +124,25 @@ class WirelessCollector {
       if (mac) thisTickByMac.set(mac, c);
     }
 
+    // Partial-result detection — same heuristic as connTableCache (#29).
+    // On wifi-qcom devices (hAP ax2, hAP AX³ etc.) with virtual APs, the
+    // registration-table API can consistently return only the virtual AP's
+    // clients while physical radio clients are temporarily unavailable. When
+    // that happens on most ticks the ABSENCE_THRESHOLD guard is eventually
+    // exhausted and physical-radio clients are removed. Fix: if this tick
+    // returned > 0 clients but < 50% of what we know, treat it as a partial
+    // result and skip the absence-aging step entirely for this tick.
+    const PARTIAL_RATIO = 0.5;
+    const PARTIAL_MIN   = 3;   // only guard when we have enough known clients
+    const mightBePartial = (
+      this._knownClients.size >= PARTIAL_MIN &&
+      thisTickByMac.size > 0 &&
+      thisTickByMac.size < this._knownClients.size * PARTIAL_RATIO
+    );
+    if (dbg && mightBePartial) {
+      console.warn(`[wireless] partial result suspected — ${thisTickByMac.size} from API vs ${this._knownClients.size} known — skipping absence aging this tick`);
+    }
+
     // 1. Add or refresh clients that ARE present this tick.
     for (const [mac, c] of thisTickByMac) {
       this._absentTicks.delete(mac);   // reset absence counter
@@ -146,24 +165,26 @@ class WirelessCollector {
       });
     }
 
-    // 2. Increment absence counter for clients NOT present this tick.
+    // 2. Age out clients NOT present this tick — skipped when result looks partial.
     //    Remove them only once they've been absent for ABSENCE_THRESHOLD ticks.
-    for (const mac of this._knownClients.keys()) {
-      if (thisTickByMac.has(mac)) continue;
-      const absent = (this._absentTicks.get(mac) || 0) + 1;
-      if (absent >= this.ABSENCE_THRESHOLD) {
-        if (dbg) console.log(`[wireless] removing ${mac} — absent ${absent} ticks (>= threshold ${this.ABSENCE_THRESHOLD})`);
-        this._knownClients.delete(mac);
-        this._absentTicks.delete(mac);
-        this._nameCache.delete(mac);
-      } else {
-        if (dbg) console.log(`[wireless] holding ${mac} — absent ${absent}/${this.ABSENCE_THRESHOLD} ticks`);
-        this._absentTicks.set(mac, absent);
+    if (!mightBePartial) {
+      for (const mac of [...this._knownClients.keys()]) {
+        if (thisTickByMac.has(mac)) continue;
+        const absent = (this._absentTicks.get(mac) || 0) + 1;
+        if (absent >= this.ABSENCE_THRESHOLD) {
+          if (dbg) console.log(`[wireless] removing ${mac} — absent ${absent} ticks (>= threshold ${this.ABSENCE_THRESHOLD})`);
+          this._knownClients.delete(mac);
+          this._absentTicks.delete(mac);
+          this._nameCache.delete(mac);
+        } else {
+          if (dbg) console.log(`[wireless] holding ${mac} — absent ${absent}/${this.ABSENCE_THRESHOLD} ticks`);
+          this._absentTicks.set(mac, absent);
+        }
       }
     }
 
     if (dbg) {
-      console.log(`[wireless] tick summary: ${thisTickByMac.size} from API, ${this._knownClients.size} known, ${this._absentTicks.size} held by absence guard`);
+      console.log(`[wireless] tick summary: ${thisTickByMac.size} from API, ${this._knownClients.size} known, ${this._absentTicks.size} held by absence guard${mightBePartial ? ' [partial — aging skipped]' : ''}`);
     }
 
     // 3. Build the sorted client array from the stable known-clients map.

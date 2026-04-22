@@ -2,6 +2,16 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.27]
+
+### Fixed
+
+- **Wireless — persistent partial-result drop (hAP ax2 / hAP AX³ / wifi-qcom)** — on devices with virtual APs, the wifi2 registration-table API consistently returns only the virtual AP's clients while physical-radio clients are intermittently absent; the previous absence guard (threshold=3) would eventually evict the physical-radio clients after 3 partial ticks. New guard: if the API returns > 0 but < 50% of known clients, the tick is treated as a suspected partial result and absence aging is frozen entirely until a full result returns.
+- **Debug Logging toggle not saving** — `rosDebug` was missing from the `boolFields` whitelist in `POST /api/settings`, causing it to be silently ignored on every save; the toggle now persists correctly.
+- **Wireless — map mutation during iteration** — `_knownClients.delete()` was called while iterating the live map keys; changed to snapshot the keys before iteration.
+
+---
+
 ## [0.5.26]
 
 ### Added
