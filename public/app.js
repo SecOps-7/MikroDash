@@ -4932,9 +4932,19 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   if (!overlay) return; // guard: element must exist
 
+  var _testPassed = false; // save is only allowed after a successful test
+
+  function setSaveReady(ready) {
+    _testPassed = ready;
+    saveBtn.disabled = !ready;
+    saveBtn.style.opacity = ready ? '' : '0.45';
+    saveBtn.title = ready ? '' : 'Run "Test Connection" successfully before saving';
+  }
+
   function showOverlay() {
     overlay.style.display = 'block';
     document.body.classList.add('is-disconnected');
+    setSaveReady(false); // always start locked
   }
   function hideOverlay() {
     overlay.style.display = 'none';
@@ -4942,6 +4952,20 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   socket.on('setup:required', showOverlay);
+
+  // Reset test-passed state whenever any connection field changes
+  var watchFields = ['setupHost','setupPort','setupUser','setupPass','setupTls','setupTlsInsecure'];
+  watchFields.forEach(function(id) {
+    var el = $(id);
+    if (!el) return;
+    var evt = (el.type === 'checkbox') ? 'change' : 'input';
+    el.addEventListener(evt, function() {
+      if (_testPassed) {
+        setSaveReady(false);
+        testResult.textContent = '';
+      }
+    });
+  });
 
   // Auto-flip port when TLS toggle changes (mirrors rtrModal behaviour)
   if (tlsChk && portInput) {
@@ -4966,9 +4990,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     };
   }
 
-  function setLoading(busy) {
+  function setBusy(busy) {
     testBtn.disabled = busy;
-    saveBtn.disabled = busy;
+    saveBtn.disabled = busy || !_testPassed;
     saveBtn.textContent = busy ? 'Connecting…' : 'Connect';
   }
 
@@ -4980,32 +5004,40 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   if (testBtn) testBtn.addEventListener('click', function() {
     clearErr();
+    setSaveReady(false);
     testResult.textContent = 'Testing…';
     testResult.style.color = '';
+    testBtn.disabled = true;
     var body = collectBody();
-    if (!body.host) { showErr('Host is required'); return; }
-    fetch('/api/test-connection', {
+    if (!body.host) { showErr('Host is required'); testBtn.disabled = false; return; }
+    fetch('/api/routers/test', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }).then(function(r){ return r.json(); }).then(function(d) {
+      testBtn.disabled = false;
       if (d.ok) {
         testResult.textContent = '✓ Connected' + (d.boardName ? ' — ' + d.boardName : '');
         testResult.style.color = 'var(--color-success, #34d399)';
+        setSaveReady(true);
       } else {
         testResult.textContent = '✗ ' + (d.error || 'Failed');
         testResult.style.color = '#f87171';
+        setSaveReady(false);
       }
     }).catch(function() {
-      testResult.textContent = '✗ Request failed';
+      testBtn.disabled = false;
+      testResult.textContent = '✗ Request failed — check browser console';
       testResult.style.color = '#f87171';
+      setSaveReady(false);
     });
   });
 
   if (saveBtn) saveBtn.addEventListener('click', function() {
+    if (!_testPassed) return; // belt-and-suspenders guard
     clearErr();
     var body = collectBody();
     if (!body.host) { showErr('Host is required'); return; }
-    setLoading(true);
+    setBusy(true);
     // Step 1: add the router
     fetch('/api/routers', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -5021,10 +5053,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (!d.ok && !d.switching) throw new Error(d.error || 'Failed to activate router');
       // server will emit router:switching → ros:status connected — hide overlay
       hideOverlay();
-      setLoading(false);
+      setBusy(false);
     }).catch(function(e) {
       showErr(e.message || 'Unexpected error');
-      setLoading(false);
+      setBusy(false);
     });
   });
+
+  // Initialise save button as locked
+  setSaveReady(false);
 })();

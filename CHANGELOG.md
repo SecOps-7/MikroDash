@@ -2,6 +2,20 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.28]
+
+### Fixed
+
+- **Setup wizard — Test Connection always failed** — was calling `/api/test-connection` (non-existent endpoint); corrected to `/api/routers/test`.
+- **Setup wizard — Connect button now locked until test passes** — Save is disabled on load and after any connection field change; only enabled after a successful Test Connection.
+
+### Changed
+
+- **README** — updated Quick Start (no `.env` required, first-run wizard), Settings table (Diagnostics row), Environment Variables section, Security Notice, and version pin.
+- **`.env.example`** — all variables now commented out and optional; router/auth vars removed; note added for auto-generated `DATA_SECRET` and the Diagnostics UI toggle.
+
+---
+
 ## [0.5.27]
 
 ### Fixed

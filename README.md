@@ -58,6 +58,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 - **Top Talkers** — top 5 devices by active traffic with RX/TX rates
 - **WireGuard card** — active peers sorted by most recent handshake, limited to a configurable Top N (default 5)
 - **Multi-router switcher** — monitor multiple MikroTik routers from one dashboard instance; switch between them via the dropdown in the page header with no restart or page refresh required
+- **First-run setup wizard** — on a fresh install with no router configured, a guided setup overlay appears automatically; enter router details, test the connection, and connect — no `.env` file or container restart needed
 
 #### Optional dashboard cards (14, hidden by default)
 | Card | Description |
@@ -113,19 +114,18 @@ MikroDash is designed to run **on your local network only**. It has no built-in 
 If you need remote access, place MikroDash **behind an authenticating reverse proxy** (such as Nginx with Basic Auth, Authelia, or Cloudflare Access) or access it exclusively over a VPN.
 
 **Recommended local hardening:**
-- Set a dashboard username and password in the Settings page (HTTP Basic Auth)
+- Set a dashboard username and password in **Settings → Dashboard Auth** (HTTP Basic Auth)
 - Run on a non-default port and bind to your LAN interface only
-- Set `chmod 600 .env` to protect your router credentials
 - Use a dedicated read-only API user on the router (see RouterOS Setup below)
-- Set `DATA_SECRET` in your `.env` to a long random string to protect encrypted credentials in `settings.json` and `routers.json`
+- The encryption key for stored credentials is auto-generated and saved to `/data/.secret` (mode 0600) — keep your Docker volume secure
 
 ---
 
 ## Quick Start
 
-### Option 1 — Docker Hub / GHCR (recommended)
+### Option 1 — GHCR (recommended)
 
-Pull and run the pre-built image directly — no need to clone the repo:
+Pull and run the pre-built image directly — no need to clone the repo or create a `.env` file:
 
 ```bash
 docker pull ghcr.io/secops-7/mikrodash:latest
@@ -136,14 +136,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.24
-```
-
-Create your `.env` file:
-
-```bash
-curl -o .env https://raw.githubusercontent.com/SecOps-7/MikroDash/main/.env.example
-# Edit .env — set ROUTER_HOST, ROUTER_USER, ROUTER_PASS at minimum
+docker pull ghcr.io/secops-7/mikrodash:0.5.27
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -153,7 +146,6 @@ services:
   mikrodash:
     image: ghcr.io/secops-7/mikrodash:latest
     restart: unless-stopped
-    env_file: .env
     ports:
       - "3081:3081"
     volumes:
@@ -167,14 +159,13 @@ volumes:
 docker compose up -d
 ```
 
+Open `http://localhost:3081` — the first-run setup wizard will guide you through adding your router. No `.env` file is required.
+
 ### Option 2 — Build from source
 
 ```bash
 git clone https://github.com/SecOps-7/MikroDash.git
 cd MikroDash
-node patch-routeros.js
-cp .env.example .env
-# Edit .env — set ROUTER_HOST, ROUTER_USER, ROUTER_PASS at minimum
 docker compose up -d
 ```
 
@@ -199,24 +190,25 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 
 | Section | What you can configure |
 |---|---|
-| Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. A Test Connection button validates credentials before saving. The active router is selected from the dropdown in the page header |
+| Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. Test Connection validates credentials before saving. The active router is selected from the dropdown in the page header |
 | Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
 | Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Includes sliders for Firewall (counter poll) and VPN (counter poll). Streamed collectors (Interfaces, ARP, Routing) show an Event-driven badge instead of a slider |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
+| Diagnostics | Enable/disable verbose RouterOS API debug logging at runtime — no container restart required |
 | Visible Pages | Toggle individual pages on/off — hidden pages are removed from the sidebar instantly |
-
-Settings values from `.env` are used as the initial defaults if no `settings.json` exists yet, so existing deployments upgrade seamlessly.
 
 ### Credential encryption
 
-Router and dashboard passwords are encrypted at rest using AES-256-GCM. Router credentials are stored in `/data/routers.json` and the dashboard password in `/data/settings.json` — both use the same `DATA_SECRET`-derived key. Set `DATA_SECRET` in your `.env` to a long random string to tie the encryption key to your deployment:
+Router and dashboard passwords are encrypted at rest using AES-256-GCM. On first start, MikroDash automatically generates a random 64-character key and saves it to `/data/.secret` on the Docker volume (mode 0600). This key is tied to your volume — as long as you keep the volume, your encrypted credentials are safe.
+
+If you need to move credentials across volumes or manage the key yourself, set `DATA_SECRET` in a `.env` file and mount it:
 
 ```env
 DATA_SECRET=your-long-random-secret-here
 ```
 
-If `DATA_SECRET` is not set, a built-in default is used — not recommended for production.
+The `DATA_SECRET` env var always takes priority over the auto-generated `/data/.secret` file when set.
 
 ---
 
@@ -266,33 +258,29 @@ Once the certificate is applied, go to **Settings → Routers**, edit your route
 
 ## Environment Variables
 
-The `.env` file seeds the initial defaults for the Settings page. Once `settings.json` exists on the data volume, the UI values take precedence. Only the variables below are relevant at the container level — everything else is managed in the Settings page.
+A `.env` file is **not required**. All router configuration, dashboard auth, and encryption keys are managed through the web UI and the Docker volume. The only reason to create a `.env` is to override infrastructure-level defaults:
 
 ```env
-# Server
-PORT=3081                    # HTTP port MikroDash listens on
-MAX_SOCKETS=50               # Maximum concurrent Socket.IO clients
-TRUSTED_PROXY=               # Proxy IP to trust X-Forwarded-For from (e.g. 127.0.0.1)
+# Port MikroDash listens on inside the container (default: 3081)
+# PORT=3081
 
-# Data volume & credential encryption
-DATA_SECRET=                 # Secret used to encrypt credentials in settings.json — set this!
+# Maximum simultaneous browser connections (default: 50)
+# MAX_SOCKETS=50
 
-# RouterOS — used to seed the first router entry in routers.json on first start only.
-# After that, all router connection details are managed in the Settings → Routers card.
-ROUTER_HOST=192.168.88.1
-ROUTER_PORT=8729
-ROUTER_TLS=true
-ROUTER_TLS_INSECURE=false
-ROUTER_USER=mikrodash
-ROUTER_PASS=change-me
-DEFAULT_IF=ether1
+# Trusted proxy IP for X-Forwarded-For (only needed behind a reverse proxy)
+# TRUSTED_PROXY=127.0.0.1
 
-# Advanced / rarely changed
-ROS_WRITE_TIMEOUT_MS=30000   # Force reconnect if a RouterOS command exceeds this time
-ROS_DEBUG=false              # Log raw RouterOS API frames (very verbose)
+# RouterOS API write timeout in milliseconds (default: 30000)
+# ROS_WRITE_TIMEOUT_MS=30000
+
+# Encryption key for credentials at rest — auto-generated if not set
+# DATA_SECRET=your-long-random-string-here
+
+# Verbose RouterOS debug logging — can also be toggled in Settings → Diagnostics
+# ROS_DEBUG=false
 ```
 
-All other settings (poll intervals, top-N limits, page visibility, ping target, dashboard auth) are configured in the Settings page and do not need to be set in `.env`.
+Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env` to your `docker-compose.yml`.
 
 ---
 
