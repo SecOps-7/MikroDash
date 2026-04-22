@@ -2123,6 +2123,20 @@
         </div>
       </div>
 
+      <!-- Diagnostics -->
+      <div class="scard">
+        <div class="scard-header">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span class="scard-title">Diagnostics</span>
+        </div>
+        <div class="scard-body">
+          <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.75rem">Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.</p>
+          <div class="stoggle-grid">
+            <label class="stoggle"><span class="stoggle-label">Debug Logging (ROS_DEBUG)</span><span class="stoggle-switch"><input type="checkbox" id="s_rosDebug"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+          </div>
+        </div>
+      </div>
+
       <!-- Page Visibility -->
       <div class="scard">
         <div class="scard-header">
@@ -2416,6 +2430,71 @@
         <button class="sbtn sbtn-ghost" id="rtrModalTestBtn">Test Connection</button>
         <button class="sbtn sbtn-ghost" id="rtrModalCancelBtn">Cancel</button>
         <button class="sbtn sbtn-primary" id="rtrModalSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── First-Run Setup Overlay ──────────────────────────────────── -->
+  <div id="setupOverlay" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--bg-page);overflow-y:auto;">
+    <div style="min-height:100%;display:flex;align-items:center;justify-content:center;padding:2rem;">
+      <div style="width:100%;max-width:520px;">
+        <div style="text-align:center;margin-bottom:2rem;">
+          <div style="font-size:2rem;font-weight:700;color:var(--text-main);letter-spacing:-.02em;margin-bottom:.4rem;">MikroDash</div>
+          <div style="font-size:.95rem;color:var(--text-muted);">Add your MikroTik router to get started</div>
+        </div>
+        <div class="card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1.5rem;">
+          <div id="setupError" style="display:none;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);border-radius:6px;padding:.6rem .9rem;margin-bottom:1rem;font-size:.8rem;color:#f87171;"></div>
+          <div class="sform-group">
+            <label class="sform-label">Display Name <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+            <input class="sform-input" id="setupLabel" type="text" placeholder="e.g. Home Router">
+          </div>
+          <div class="sform-row sform-group">
+            <div>
+              <label class="sform-label">Host / IP <span style="color:#f87171">*</span></label>
+              <input class="sform-input" id="setupHost" type="text" placeholder="192.168.88.1" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">API Port</label>
+              <input class="sform-input" id="setupPort" type="number" min="1" max="65535" value="8729">
+            </div>
+          </div>
+          <div class="sform-row sform-group">
+            <div>
+              <label class="sform-label">Username</label>
+              <input class="sform-input" id="setupUser" type="text" value="admin" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">Password</label>
+              <input class="sform-input" id="setupPass" type="password" placeholder="" autocomplete="new-password">
+            </div>
+          </div>
+          <div class="sform-row sform-group">
+            <div>
+              <label class="sform-label">Default WAN Interface</label>
+              <input class="sform-input" id="setupIf" type="text" value="ether1" placeholder="ether1">
+            </div>
+            <div>
+              <label class="sform-label">Ping Target</label>
+              <input class="sform-input" id="setupPing" type="text" value="1.1.1.1" placeholder="1.1.1.1">
+            </div>
+          </div>
+          <div class="sform-row sform-group" style="margin-bottom:.4rem;">
+            <label class="stoggle" id="setupStogTls">
+              <span class="stoggle-label">Use TLS</span>
+              <span class="stoggle-switch"><input type="checkbox" id="setupTls" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+            </label>
+            <label class="stoggle">
+              <span class="stoggle-label">Allow self-signed cert</span>
+              <span class="stoggle-switch"><input type="checkbox" id="setupTlsInsecure"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+            </label>
+          </div>
+          <p style="font-size:.68rem;color:var(--text-muted);margin:0 0 1.25rem;">TLS uses port 8729 (API-SSL, recommended) &nbsp;·&nbsp; Plain uses port 8728 (API, unencrypted)</p>
+          <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            <span id="setupTestResult" style="flex:1;font-size:.78rem;min-width:0;"></span>
+            <button class="sbtn sbtn-ghost" id="setupTestBtn" type="button">Test Connection</button>
+            <button class="sbtn sbtn-primary" id="setupSaveBtn" type="button">Connect</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

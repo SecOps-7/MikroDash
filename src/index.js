@@ -76,31 +76,23 @@ const io = new Server(server, {
   perMessageDeflate: { threshold: 512, zlibDeflateOptions: { level: 1 } },
 });
 
-const authEnabled = !!(process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS);
-const authLimiter = rateLimit({
-  windowMs: 60_000, max: 100,
-  standardHeaders: true, legacyHeaders: false,
-  skip: (req) => !authEnabled || req.path === '/healthz',
-});
-const basicAuth = createBasicAuthMiddleware({
-  username: process.env.BASIC_AUTH_USER,
-  password: process.env.BASIC_AUTH_PASS,
-});
+// Auth middleware reads settings dynamically so changes via the Settings UI
+// take effect on the next request without a server restart.
+const authLimiter = rateLimit({ windowMs: 60_000, max: 100, standardHeaders: true, legacyHeaders: false });
+
+function _authMiddleware(req, res, next) {
+  const s = Settings.load();
+  if (!(s.dashUser && s.dashPass)) return next(); // auth not configured
+  createBasicAuthMiddleware({ username: s.dashUser, password: s.dashPass })(req, res, next);
+}
 
 app.use(helmet(buildHelmetOptions()));
 app.use(compression());
-// Rate limiter is applied before auth on every non-healthcheck request.
-// Both middlewares are registered together so static analysis can confirm
-// the auth route is rate-limited.
 app.use((req, res, next) => {
   if (req.path === '/healthz') return next();
-  authLimiter(req, res, (err) => {
-    if (err) return next(err);
-    basicAuth(req, res, next);
-  });
+  authLimiter(req, res, (err) => { if (err) return next(err); _authMiddleware(req, res, next); });
 });
-io.engine.use(authLimiter);
-io.engine.use(basicAuth);
+io.engine.use((req, res, next) => _authMiddleware(req, res, next));
 app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json());
@@ -108,7 +100,8 @@ app.use(express.json());
 // ── Active router session ─────────────────────────────────────────────────────
 // All mutable collector/ROS state lives here so buildSession() can replace
 // it atomically on a hot-swap without touching anything else in the module.
-let _session = null; // set by buildSession() below
+let _session      = null; // set by buildSession() below
+let _noRouterMode = false; // true when no router is configured yet
 
 function _freshState() {
   return {
@@ -146,7 +139,7 @@ function buildSession(routerCfg) {
     tls:            tlsOpts,
     username:       routerCfg.username,
     password:       routerCfg.password,
-    debug:          (process.env.ROS_DEBUG || 'false').toLowerCase() === 'true',
+    debug:          Settings.load().rosDebug,
     writeTimeoutMs: parseInt(process.env.ROS_WRITE_TIMEOUT_MS || '30000', 10),
   });
 
@@ -394,8 +387,9 @@ async function switchRouter(newRouterId) {
     // Save the new active router id
     Settings.save({ activeRouterId: newRouterId });
 
-    // Tear down old session
-    await teardownSession(_session);
+    // Tear down old session (may be null on first-ever activation from setup wizard)
+    if (_session) await teardownSession(_session);
+    _noRouterMode = false;
 
     // Build and start new session
     _collectorsStarted = false;
@@ -426,15 +420,8 @@ async function switchRouter(newRouterId) {
   }
 
   if (!activeId) {
-    console.error('[MikroDash] No routers configured. Add a router in Settings.');
-    // Start with a dummy session so the server stays up
-    const fallback = {
-      host: '127.0.0.1', port: 8729, tls: false, tlsInsecure: false,
-      username: 'admin', password: '', defaultIf: 'ether1', pingTarget: '1.1.1.1', id: null,
-    };
-    _session = buildSession(fallback);
-    wireRosEvents(_session);
-    _session.ros.connectLoop();
+    console.log('[MikroDash] No routers configured — open the web UI to add one.');
+    _noRouterMode = true;
     return;
   }
 
@@ -794,6 +781,13 @@ app.get('/healthz', (_req, res) => {
 
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
 async function sendInitialState(socket) {
+  // No router configured yet — prompt the browser to show the setup wizard.
+  if (_noRouterMode) {
+    socket.emit('setup:required', {});
+    socket.emit('routers:update', []);
+    return;
+  }
+
   const s = _session;
   const _ps = Settings.load(); // single load — used for routers, settings:pages, pingEnabled
 
@@ -940,7 +934,7 @@ io.on('connection', (socket) => {
     socket.leave('dash-card-' + key);
   });
 
-  _session.traffic.bindSocket(socket);
+  if (_session) _session.traffic.bindSocket(socket);
   // If this is the first browser client and idle-gated collectors haven't run
   // yet (lastPayload is null), kick them and wait for them to complete before
   // sending initial state — otherwise sendInitialState fires before the tick

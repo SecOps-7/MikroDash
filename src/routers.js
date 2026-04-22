@@ -38,9 +38,22 @@ const ROUTERS_FILE = path.join(DATA_DIR, 'routers.json');
 // ── Encryption (same algorithm + key derivation as settings.js) ──────────────
 const SALT = 'mikrodash-settings-v1';
 
+function _loadOrCreateSecret() {
+  if (process.env.DATA_SECRET) return process.env.DATA_SECRET;
+  const secretFile = path.join(DATA_DIR, '.secret');
+  try {
+    if (fs.existsSync(secretFile)) return fs.readFileSync(secretFile, 'utf8').trim();
+  } catch (_) {}
+  const generated = crypto.randomBytes(32).toString('base64');
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(secretFile, generated, { encoding: 'utf8', mode: 0o600 });
+  } catch (_) {}
+  return generated;
+}
+
 function _deriveKey() {
-  const secret = process.env.DATA_SECRET || 'mikrodash-insecure-default-secret';
-  return crypto.scryptSync(secret, SALT, 32);
+  return crypto.scryptSync(_loadOrCreateSecret(), SALT, 32);
 }
 
 function _encrypt(plaintext) {
@@ -130,11 +143,14 @@ function loadAll() {
   if (_cache) return _cache;
 
   if (!fs.existsSync(ROUTERS_FILE)) {
-    // Backwards-compatibility seed: migrate existing single-router settings
+    // Backwards-compatibility seed: migrate existing single-router settings.
+    // Only runs when settings.json already exists (i.e. a real prior deployment).
+    // On a fresh install there is no settings.json, so routers.json starts empty.
+    const Settings = require('./settings');
+    const settingsFile = path.join(DATA_DIR, 'settings.json');
     try {
-      const Settings = require('./settings');
       const s = Settings.load();
-      if (s.routerHost) {
+      if (fs.existsSync(settingsFile) && s.routerHost) {
         const seed = [{
           id:          _uuid(),
           label:       'My Router',   // will be replaced by board name on first connect

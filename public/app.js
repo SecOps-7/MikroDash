@@ -3173,6 +3173,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) pingEnabledEl.checked = data.pingEnabled !== false;
+    var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) rosDebugEl.checked = !!data.rosDebug;
     // Alert thresholds
     var cpuSlider = $('s_alertCpuThreshold'), cpuVal = $('s_alertCpuThresholdVal');
     if (cpuSlider && data.alertCpuThreshold != null) {
@@ -3220,6 +3221,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
+    var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) out.rosDebug = rosDebugEl.checked;
     // Alert thresholds
     var cpuEl = $('s_alertCpuThreshold');  if (cpuEl)  out.alertCpuThreshold  = parseInt(cpuEl.value,  10);
     var pingEl = $('s_alertPingLoss');     if (pingEl) out.alertPingLoss      = parseInt(pingEl.value, 10);
@@ -4916,4 +4918,113 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     _renderDcLogs();
   });
 
+})();
+
+// ── First-Run Setup Wizard ───────────────────────────────────────────────────
+(function(){
+  var overlay   = $('setupOverlay');
+  var errBox    = $('setupError');
+  var testBtn   = $('setupTestBtn');
+  var saveBtn   = $('setupSaveBtn');
+  var testResult= $('setupTestResult');
+  var tlsChk    = $('setupTls');
+  var portInput = $('setupPort');
+
+  if (!overlay) return; // guard: element must exist
+
+  function showOverlay() {
+    overlay.style.display = 'block';
+    document.body.classList.add('is-disconnected');
+  }
+  function hideOverlay() {
+    overlay.style.display = 'none';
+    document.body.classList.remove('is-disconnected');
+  }
+
+  socket.on('setup:required', showOverlay);
+
+  // Auto-flip port when TLS toggle changes (mirrors rtrModal behaviour)
+  if (tlsChk && portInput) {
+    tlsChk.addEventListener('change', function() {
+      var p = parseInt(portInput.value, 10);
+      if (tlsChk.checked && p === 8728) portInput.value = '8729';
+      if (!tlsChk.checked && p === 8729) portInput.value = '8728';
+    });
+  }
+
+  function collectBody() {
+    return {
+      label:       ($('setupLabel') || {}).value || '',
+      host:        ($('setupHost')  || {}).value || '',
+      port:        parseInt(($('setupPort') || {}).value || '8729', 10),
+      username:    ($('setupUser')  || {}).value || 'admin',
+      password:    ($('setupPass')  || {}).value || '',
+      defaultIf:   ($('setupIf')   || {}).value || 'ether1',
+      pingTarget:  ($('setupPing') || {}).value || '1.1.1.1',
+      tls:         !!($('setupTls') || {}).checked,
+      tlsInsecure: !!($('setupTlsInsecure') || {}).checked,
+    };
+  }
+
+  function setLoading(busy) {
+    testBtn.disabled = busy;
+    saveBtn.disabled = busy;
+    saveBtn.textContent = busy ? 'Connecting…' : 'Connect';
+  }
+
+  function showErr(msg) {
+    errBox.textContent = msg;
+    errBox.style.display = 'block';
+  }
+  function clearErr() { errBox.style.display = 'none'; }
+
+  if (testBtn) testBtn.addEventListener('click', function() {
+    clearErr();
+    testResult.textContent = 'Testing…';
+    testResult.style.color = '';
+    var body = collectBody();
+    if (!body.host) { showErr('Host is required'); return; }
+    fetch('/api/test-connection', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function(r){ return r.json(); }).then(function(d) {
+      if (d.ok) {
+        testResult.textContent = '✓ Connected' + (d.boardName ? ' — ' + d.boardName : '');
+        testResult.style.color = 'var(--color-success, #34d399)';
+      } else {
+        testResult.textContent = '✗ ' + (d.error || 'Failed');
+        testResult.style.color = '#f87171';
+      }
+    }).catch(function() {
+      testResult.textContent = '✗ Request failed';
+      testResult.style.color = '#f87171';
+    });
+  });
+
+  if (saveBtn) saveBtn.addEventListener('click', function() {
+    clearErr();
+    var body = collectBody();
+    if (!body.host) { showErr('Host is required'); return; }
+    setLoading(true);
+    // Step 1: add the router
+    fetch('/api/routers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function(r){ return r.json(); }).then(function(d) {
+      if (!d.ok) throw new Error(d.error || 'Failed to add router');
+      var routerId = d.router && d.router.id;
+      if (!routerId) throw new Error('No router ID returned');
+      // Step 2: activate it — this triggers switchRouter() server-side
+      return fetch('/api/routers/' + routerId + '/activate', { method: 'POST' })
+        .then(function(r){ return r.json(); });
+    }).then(function(d) {
+      if (!d.ok && !d.switching) throw new Error(d.error || 'Failed to activate router');
+      // server will emit router:switching → ros:status connected — hide overlay
+      hideOverlay();
+      setLoading(false);
+    }).catch(function(e) {
+      showErr(e.message || 'Unexpected error');
+      setLoading(false);
+    });
+  });
 })();

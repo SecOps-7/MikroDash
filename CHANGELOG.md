@@ -2,6 +2,31 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.26]
+
+### Added
+
+- **First-run setup wizard** — when no router is configured, the web UI shows a full-screen guided overlay instead of a disconnected dashboard; covers all router fields (host, port, user/pass, TLS, default interface, ping target) with an inline Test Connection button; auto-activates the router on first save so the dashboard loads immediately after setup.
+- **Debug Logging toggle** (Settings → Diagnostics) — enable or disable `ROS_DEBUG` verbose RouterOS API logging directly from the UI; takes effect immediately without restarting the container; `ROS_DEBUG` env var still overrides at startup if set.
+
+### Changed
+
+- **`.env` file no longer required** — all user-facing settings (router config, Basic Auth, encryption key) have moved to the UI and auto-generated secrets; only infrastructure-level overrides (PORT, MAX_SOCKETS, TRUSTED_PROXY, ROS_WRITE_TIMEOUT_MS) remain env-configurable. `docker-compose.yml` updated accordingly.
+- **Basic Auth no longer env-driven** — removed `BASIC_AUTH_USER`/`BASIC_AUTH_PASS` from startup defaults; existing values are migrated on first run so deployments upgrade without re-configuring; configure ongoing auth via Settings → Dashboard Auth.
+- **Basic Auth middleware is now dynamic** — changes made in the Settings UI take effect on the next request without restarting the container.
+- **`DATA_SECRET` auto-generated on first run** — a random 64-character key is generated and saved to `/data/.secret` (mode 0o600) if neither the env var nor the file exists; `DATA_SECRET` env var still takes priority when set.
+
+### Fixed
+
+- **Fresh installs no longer attempt a phantom RouterOS connection** — previously a dummy session to `127.0.0.1` was started when no router was configured, flooding logs with reconnect noise; server now waits silently for the first router to be added via the setup wizard.
+- **Backwards-compat migration (settings.json → routers.json) no longer runs on new installs** — the seed was incorrectly triggered on fresh deployments where `settings.json` had never existed, inserting a dummy router and blocking no-router mode.
+
+### Upgrade Note
+
+> **Router passwords must be re-entered after upgrading from 0.5.25 or earlier.** The encryption key has changed from a hardcoded insecure default to a randomly generated per-instance key stored in `/data/.secret`. Stored router passwords encrypted with the old key can no longer be decrypted — open Settings → Routers after upgrading and re-enter passwords for each router.
+
+---
+
 ## [0.5.24]
 
 ### Added

@@ -2,12 +2,17 @@ services:
   mikrodash:
     build: .
     container_name: mikrodash
-    env_file: .env
+    environment:
+      - PORT=3081
     ports:
       - "3081:3081"
     volumes:
       - mikrodash-data:/data
     restart: unless-stopped
+    # To override infra settings, add an env_file or extra environment vars:
+    #   env_file: .env
+    # Available overrides: PORT, MAX_SOCKETS, TRUSTED_PROXY, ROS_WRITE_TIMEOUT_MS
+    # All router and dashboard settings are configured via the web UI.
 
 volumes:
   mikrodash-data:

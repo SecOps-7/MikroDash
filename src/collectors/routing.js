@@ -465,7 +465,7 @@ class RoutingCollector {
     } catch (e) {
       // BGP session stream may not be available on RouterOS v6 or non-BGP builds.
       // Log at debug level and fall back gracefully — route data is still streamed.
-      if (process.env.ROS_DEBUG === 'true') {
+      if (require('../settings').load().rosDebug) {
         console.warn('[routing] BGP session stream unavailable:', e && e.message ? e.message : e);
       }
       this._bgpStream = null;

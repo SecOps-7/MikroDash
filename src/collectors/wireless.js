@@ -58,7 +58,7 @@ class WirelessCollector {
     if (!this.ros.connected) return;
     if (!force && this.io.engine.clientsCount === 0) return;
 
-    const dbg = process.env.ROS_DEBUG === 'true';
+    const dbg = require('../settings').load().rosDebug;
     let rawClients = [], detectedMode = this.mode;
 
     if (detectedMode === 'wifi' || detectedMode === null) {

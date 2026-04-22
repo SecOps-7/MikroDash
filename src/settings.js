@@ -1,12 +1,9 @@
 /**
  * Settings store — persists to /data/settings.json (Docker volume mount).
- * Credentials (router password, dashboard password) are AES-256-GCM encrypted
- * at rest using a key derived from a machine-stable secret.
- *
- * Key derivation: scryptSync(SECRET, salt, 32) where SECRET comes from
- * DATA_SECRET env var (required for encryption) or falls back to a
- * deterministic value so the container starts without it (not recommended
- * for production credential storage).
+ * Credentials are AES-256-GCM encrypted at rest using a key derived from a
+ * stable secret. Secret priority:
+ *   1. DATA_SECRET env var (explicit override — useful for key rotation)
+ *   2. /data/.secret file (auto-generated on first run, survives restarts)
  */
 
 'use strict';
@@ -18,10 +15,24 @@ const DATA_DIR      = process.env.DATA_DIR || '/data';
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 // ── Encryption helpers ───────────────────────────────────────────────────────
-const SALT = 'mikrodash-settings-v1'; // fixed salt — uniqueness via DATA_SECRET
+const SALT = 'mikrodash-settings-v1'; // fixed salt — uniqueness via secret
+
+function _loadOrCreateSecret() {
+  if (process.env.DATA_SECRET) return process.env.DATA_SECRET;
+  const secretFile = path.join(DATA_DIR, '.secret');
+  try {
+    if (fs.existsSync(secretFile)) return fs.readFileSync(secretFile, 'utf8').trim();
+  } catch (_) {}
+  const generated = crypto.randomBytes(32).toString('base64');
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(secretFile, generated, { encoding: 'utf8', mode: 0o600 });
+  } catch (_) {}
+  return generated;
+}
+
 function _deriveKey() {
-  const secret = process.env.DATA_SECRET || 'mikrodash-insecure-default-secret';
-  return crypto.scryptSync(secret, SALT, 32);
+  return crypto.scryptSync(_loadOrCreateSecret(), SALT, 32);
 }
 
 function encrypt(plaintext) {
@@ -62,8 +73,8 @@ const DEFAULTS = {
   routerPass:        '', // stored encrypted
   defaultIf:         process.env.DEFAULT_IF          || 'ether1',
 
-  // Dashboard auth
-  dashUser:          process.env.BASIC_AUTH_USER     || '',
+  // Dashboard auth (managed via Settings UI — not env-driven)
+  dashUser:          '',
   dashPass:          '', // stored encrypted
 
   // Ping
@@ -97,6 +108,9 @@ const DEFAULTS = {
   alertCpuThreshold: parseInt(process.env.ALERT_CPU_THRESHOLD || '90',  10), // % — trigger CPU spike notification
   alertPingLoss:     parseInt(process.env.ALERT_PING_LOSS     || '100', 10), // % — trigger ping loss notification
 
+  // Diagnostics
+  rosDebug:          (process.env.ROS_DEBUG || 'false').toLowerCase() === 'true',
+
   // Active router (managed by routers.js / router switcher)
   activeRouterId:  '',
 
@@ -128,7 +142,6 @@ const ENV_MAP = {
   routerTlsInsecure: ['ROUTER_TLS_INSECURE',  v => v.toLowerCase() === 'true'],
   routerUser:        ['ROUTER_USER',          v => v],
   defaultIf:         ['DEFAULT_IF',           v => v],
-  dashUser:          ['BASIC_AUTH_USER',      v => v],
   pingTarget:        ['PING_TARGET',          v => v],
   pollConns:         ['CONNS_POLL_MS',        v => parseInt(v, 10)],
   pollTalkers:       ['TALKERS_POLL_MS',      v => parseInt(v, 10)],
@@ -150,6 +163,7 @@ const ENV_MAP = {
   historyMinutes:    ['HISTORY_MINUTES',      v => parseInt(v, 10)],
   alertCpuThreshold: ['ALERT_CPU_THRESHOLD',  v => parseInt(v, 10)],
   alertPingLoss:     ['ALERT_PING_LOSS',      v => parseInt(v, 10)],
+  rosDebug:          ['ROS_DEBUG',            v => v.toLowerCase() === 'true'],
 };
 
 // ── Load / Save ──────────────────────────────────────────────────────────────
@@ -181,11 +195,15 @@ function load() {
   for (const [field, [envVar, parse]] of Object.entries(ENV_MAP)) {
     if (process.env[envVar] !== undefined) merged[field] = parse(process.env[envVar]);
   }
-  // Passwords: env always wins if present; fall back to stored or empty.
-  if (process.env.ROUTER_PASS !== undefined)       merged.routerPass = process.env.ROUTER_PASS;
-  else if (!merged.routerPass)                     merged.routerPass = '';
-  if (process.env.BASIC_AUTH_PASS !== undefined)   merged.dashPass   = process.env.BASIC_AUTH_PASS;
-  else if (!merged.dashPass)                       merged.dashPass   = '';
+  // Router password: env always wins if present.
+  if (process.env.ROUTER_PASS !== undefined) merged.routerPass = process.env.ROUTER_PASS;
+  else if (!merged.routerPass)              merged.routerPass = '';
+
+  // Basic Auth migration: if settings.json has no dashUser/dashPass yet but
+  // BASIC_AUTH_USER/PASS env vars are set, seed them once so existing deployments
+  // that previously used env-based auth continue to work after upgrade.
+  if (!merged.dashUser && process.env.BASIC_AUTH_USER) merged.dashUser = process.env.BASIC_AUTH_USER;
+  if (!merged.dashPass && process.env.BASIC_AUTH_PASS) merged.dashPass = process.env.BASIC_AUTH_PASS;
 
   _cache = merged;
   return _cache;
@@ -203,6 +221,8 @@ function save(updates) {
     toWrite[f] = encrypt(next[f] || '');
   }
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(toWrite, null, 2), 'utf8');
+  // Keep process.env in sync so library patches (node-routeros) pick up the change
+  if ('rosDebug' in updates) process.env.ROS_DEBUG = next.rosDebug ? 'true' : 'false';
   return next;
 }
 
