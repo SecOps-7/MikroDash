@@ -2,6 +2,15 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.29]
+
+### Fixed
+
+- **Wireless — all clients now shown on wifi-qcom devices (hAP ax2, hAP AX³) — root-cause fix for issue #17** — RouterOS sends `/interface/wifi/registration-table/print` as separate response blocks per interface, each terminated with its own `!done`. The node-routeros library resolved the `write()` Promise on the first `!done`, so only the first interface's clients (typically a single virtual AP) were returned; all other clients were discarded as unregistered-tag packets. Fix: new `MULTI_BLOCK` patch in `patch-routeros.js` modifies `Channel.js` to debounce `!done` resolution by 20 ms — RouterOS sends all interface blocks as a rapid burst so the window reliably captures every block before the Promise resolves. The full client list is now returned on every poll tick.
+- **Network card SVG animation no longer plays when no router is configured** — the first-run setup wizard now pauses the SVG animation and sets the disconnected flag on open; returning to the browser tab while disconnected no longer inadvertently resumes the animation.
+
+---
+
 ## [0.5.28]
 
 ### Fixed

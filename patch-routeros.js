@@ -10,6 +10,9 @@
  *                    stream/command completes) instead of crashing the process
  *  3. Receiver.js  — decode API strings as UTF-8 instead of win1252 so that
  *                    non-Latin characters (Cyrillic, Greek, etc.) display correctly
+ *  4. Channel.js   — accumulate multi-block !done responses (wifi-qcom devices
+ *                    send one !done per interface; without this patch only the
+ *                    first interface's clients are returned)
  */
 
 'use strict';
@@ -126,6 +129,33 @@ patch(
     {
       find: `const tmpStr = iconv.decode(tmpBuffer, "win1252");`,
       replace: `const tmpStr = iconv.decode(tmpBuffer, "utf8");`,
+    },
+  ]
+);
+
+// ── Patch 4: Channel.js — multi-block !done accumulation ────────────────────
+// RouterOS wifi-qcom devices (hAP ax2, hAP AX³) send /interface/wifi/
+// registration-table/print as SEPARATE response blocks per interface, each
+// terminated by its own !done. The library resolves the write() Promise on
+// the FIRST !done, so only one interface's clients are returned and all
+// subsequent blocks are discarded as UNREGISTEREDTAG packets.
+//
+// Fix: instead of resolving immediately on !done, start a 20 ms debounce
+// timer. If more !re/!done blocks arrive within the window (RouterOS sends
+// them in a burst), reset the timer. When the window expires with no new
+// data, resolve with the full accumulated results. For single-block commands
+// (the vast majority) the only cost is 20 ms of additional latency;
+// all commands still run concurrently on separate tagged channels.
+patch(
+  path.join(BASE, 'Channel.js'),
+  'MULTI_BLOCK',
+  [
+    {
+      find: `if (!this.trapped)\n                    this.emit('done', this.data);\n                this.close();\n                break;`,
+      replace: `if (this.trapped) { this.close(); break; }
+                if (this._doneTimer) clearTimeout(this._doneTimer);
+                this._doneTimer = setTimeout(() => { this._doneTimer = null; this.emit('done', this.data); this.close(); }, 20);
+                break;`,
     },
   ]
 );

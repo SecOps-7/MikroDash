@@ -2,18 +2,11 @@
  * Wireless collector — polls /interface/wifi/registration-table/print (wifi
  * package, ROS 7) or /interface/wireless/registration-table/print (legacy).
  *
- * Per-interface query strategy (wifi mode only):
- *   RouterOS sends /interface/wifi/registration-table/print results as
- *   separate response blocks per interface, each terminated with its own
- *   !done. node-routeros resolves the write() Promise on the first !done,
- *   discarding all subsequent blocks as "unregistered tag" packets. On a
- *   device with a virtual AP (CT200) and physical radios, this means only
- *   the virtual AP's clients are ever returned by a combined query.
- *
- *   Fix: fetch the wifi interface list once (cached per session), then query
- *   /interface/wifi/registration-table/print?interface=X for each interface
- *   individually via Promise.all, and merge the results. Each per-interface
- *   query returns exactly one !done block, so all clients are captured.
+ * RouterOS wifi-qcom devices (hAP ax2, hAP AX³) send the registration table
+ * as separate response blocks per interface, each with its own !done. The
+ * node-routeros library is patched (patch-routeros.js MULTI_BLOCK) to
+ * accumulate all blocks with a 20 ms debounce before resolving, so a single
+ * combined query correctly returns all clients across all interfaces.
  *
  * Guard strategy — per-MAC absence counter:
  *   Instead of replacing the entire client list each tick, we maintain the
@@ -47,7 +40,6 @@ class WirelessCollector {
     this._inflight    = false;
     this._nameCache   = new Map();
     this._retryTimer  = null;
-    this._wifiIfaces  = null; // cached wifi interface names; null = not yet fetched
   }
 
   resolveName(mac) {
@@ -68,36 +60,15 @@ class WirelessCollector {
 
     if (detectedMode === 'wifi' || detectedMode === null) {
       try {
-        // Build the per-interface list on first tick (or after error reset).
-        // Querying each interface individually avoids the node-routeros behaviour
-        // where a combined query resolves on the first !done block, discarding
-        // the remaining per-interface blocks as unregistered-tag packets.
-        if (this._wifiIfaces === null) {
-          const ifaceRes = await this.ros.write('/interface/wifi/print', ['=.proplist=name']);
-          this._wifiIfaces = (ifaceRes || []).map(r => r.name).filter(Boolean);
-          if (dbg) console.log(`[wireless] wifi interfaces: ${this._wifiIfaces.length ? this._wifiIfaces.join(', ') : '(none detected)'}`);
-        }
-
-        let res;
-        if (this._wifiIfaces.length > 0) {
-          const parts = await Promise.all(
-            this._wifiIfaces.map(name =>
-              this.ros.write('/interface/wifi/registration-table/print', [`?interface=${name}`])
-                .catch(() => [])
-            )
-          );
-          res = parts.flat();
-          if (dbg) {
-            const perIface = this._wifiIfaces.map((n, i) => `${n}:${(parts[i] || []).length}`).join(', ');
-            console.log(`[wireless] per-iface wifi: ${perIface} → ${res.length} total`);
-          }
-        } else {
-          // No interfaces in list — fall back to combined query.
-          res = await this.ros.write('/interface/wifi/registration-table/print', []);
-          // Got clients despite empty interface list — invalidate to refresh next tick.
-          if (res && res.length) this._wifiIfaces = null;
-        }
-
+        const res = await this.ros.write('/interface/wifi/registration-table/print', [
+          // No =.proplist= — on some ROS v7 builds, listing unknown/absent fields
+          // in the proplist causes rows to be silently dropped rather than returned
+          // with those fields empty. Omitting it guarantees all clients are returned.
+          //
+          // Multi-block response (wifi-qcom): RouterOS sends one !done per interface.
+          // patch-routeros.js MULTI_BLOCK patches Channel.js to accumulate all blocks
+          // with a 20 ms debounce before resolving, so all clients are captured here.
+        ]);
         if (res && res.length) {
           rawClients = res;
           detectedMode = 'wifi';
@@ -118,7 +89,6 @@ class WirelessCollector {
           console.log('[wireless] wifi API: 0 clients returned');
         }
       } catch (e) {
-        this._wifiIfaces = null; // reset so interface list is re-fetched next tick
         if (dbg || (this.ros.cfg && this.ros.cfg.debug))
           console.warn('[wireless] wifi API probe failed:', e && e.message ? e.message : e);
       }
@@ -265,9 +235,8 @@ class WirelessCollector {
   }
 
   _resetState() {
-    this.mode        = null;
-    this._lastFp     = '';
-    this._wifiIfaces = null;
+    this.mode     = null;
+    this._lastFp  = '';
     this._nameCache.clear();
     this._knownClients.clear();
     this._absentTicks.clear();
