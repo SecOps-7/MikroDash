@@ -1082,7 +1082,7 @@ document.addEventListener('visibilitychange', function() {
   var svg = $('netDiagram');
   if (svg) {
     if (document.hidden) svg.pauseAnimations();
-    else {
+    else if (!_rosCurrentlyDisconnected) {
       svg.unpauseAnimations();
       // Flush any pending data that accumulated while hidden
       if (_pendingSysData && !_sysRafId) _sysRafId = requestAnimationFrame(_flushSysUpdate);
@@ -4944,6 +4944,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function showOverlay() {
     overlay.style.display = 'block';
     document.body.classList.add('is-disconnected');
+    _rosCurrentlyDisconnected = true;
+    var svg = $('netDiagram'); if (svg) svg.pauseAnimations();
     setSaveReady(false); // always start locked
   }
   function hideOverlay() {
