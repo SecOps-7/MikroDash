@@ -2,6 +2,21 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.30]
+
+### Added
+
+- **Network Flow card** — "Network flow visualization" SVG extracted from the Network card into its own standalone card (`dc-card-netflow`), no title, default size 8×4. Sits between the System and Network cards in the default layout.
+- **Ping card** — Ping section extracted from the Network card into its own standalone card (`dc-card-ping`), no title, default size 8×2. Sits below the Network card in the default layout.
+- **Network card — Internet-facing interfaces** — WAN section now shows each interface that RouterOS reports as internet-connected via `/interface/detect-internet/state/print` (state=`internet`), displayed in a two-column grid with interface name and IP (subnet suffix stripped). Data is provided by the `dhcpNetworks` collector alongside the existing LAN overview.
+
+### Changed
+
+- **Dashboard grid doubled** — grid expanded from 12×11 to 24×22 columns/rows, giving twice the resize and position granularity. Row height halved so the visual appearance of the default layout is unchanged. All existing card positions and sizes scaled proportionally; browser-stored layouts are reset to the new default.
+- **Uptime moved to System card header** — uptime string is now displayed right-aligned in the System card header, matching the existing header font, colour, and size; removed from the card body.
+- **Network card — LAN network rows styled** — each LAN subnet row now has a subtle gray-tinted background (`rgba(148,163,184,0.07)`) with a matching border, making subnets visually distinct. A thin separator line divides the WAN interfaces section from the LAN networks section.
+- **Default dashboard layout updated** — hard-coded default layout in `dashboard-grid.js` updated to reflect the current arrangement including the two new cards.
+
 ## [0.5.29]
 
 ### Fixed

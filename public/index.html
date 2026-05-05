@@ -199,12 +199,11 @@
     .sys-meta{display:flex;flex-wrap:wrap;gap:.35rem .7rem;margin-top:.65rem}
     .sys-meta-item{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted)}
     .sys-meta-item strong{color:var(--text-main)}
-    #uptimeDisplay{font-family:var(--font-mono);font-size:1rem;font-weight:600;color:var(--text-main);letter-spacing:.04em}
     /* lan */
     .lan-divider{border-top:1px solid var(--border);margin:.8rem -.75rem 0;padding:.7rem .75rem 0}
     .lan-section-label{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(99,130,190,.5);margin-bottom:.45rem}
-    .lan-net{padding:.18rem 0;border-bottom:1px solid var(--border)}
-    .lan-net:last-child{border-bottom:none}
+    .lan-net{padding:.25rem .45rem;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.18);border-radius:6px;margin-bottom:.25rem}
+    .lan-net:last-child{margin-bottom:0}
     .lan-cidr{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--text-main)}
     .lan-meta{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);margin-top:.1rem}
     /* connections */
@@ -1023,9 +1022,9 @@
           <div class="stale-overlay">&#9679; stale</div>
           <div class="card-header d-flex align-items-center gap-2">
             <h3 class="card-title">System</h3>
+            <span id="uptimeDisplay" class="card-title" style="margin-left:auto">&#8212;</span>
           </div>
           <div class="card-body" style="padding:.75rem">
-            <div id="uptimeDisplay" class="mb-3">&#8212;</div>
             <div class="gauge-row" id="gaugeRow"><div class="empty-state">Waiting&#8230;</div></div>
             <div class="sys-meta" id="sysMeta"></div>
             <div id="rosUpdateRow"></div>
@@ -1033,8 +1032,8 @@
         </div>
       </div>
 
-      <!-- ── card-network: Network topology + ping ────────────────────── -->
-      <div id="card-network" class="dash-card">
+      <!-- ── dc-card-netflow: Network flow visualization ──────────────── -->
+      <div id="dc-card-netflow" class="dash-card">
         <div class="dash-drag-handle">
           <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
         </div>
@@ -1046,19 +1045,10 @@
         <div class="dash-resize nw" data-dir="nw"></div>
         <div class="dash-resize se" data-dir="se"></div>
         <div class="dash-resize sw" data-dir="sw"></div>
-        <button class="dash-remove-btn" data-card="card-network" type="button" title="Remove card">&#x2715;</button>
-        <div class="card" id="networksCard">
-          <div class="stale-overlay">&#9679; stale</div>
-          <div class="card-header d-flex align-items-center gap-2">
-            <h3 class="card-title">Network</h3>
-          </div>
-          <div class="card-body net-diagram-body">
-            <div class="net-wan-row" id="netWanRow" style="margin-bottom:.3rem">
-              <div class="net-field-label">WAN IP</div>
-              <div class="net-field-val" id="wanIpDisplay">&#8212;</div>
-            </div>
-            <div id="lanOverview" style="margin-bottom:.3rem"><div class="empty-state">&#8212;</div></div>
-            <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:0;display:block">
+        <button class="dash-remove-btn" data-card="dc-card-netflow" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-body" style="padding:.25rem .4rem;display:flex;flex-direction:column">
+            <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
               <line id="ndLineWired"    x1="78"  y1="52"  x2="148" y2="75"  class="nd-line"/>
               <line id="ndLineWireless" x1="78"  y1="124" x2="148" y2="85"  class="nd-line"/>
               <line id="ndLineWan"      x1="262" y1="80"  x2="192" y2="80"  class="nd-line nd-line-wan"/>
@@ -1104,7 +1094,54 @@
               <circle r="2.5" class="nd-dot nd-dot-l2"><animateMotion dur="2.8s" repeatCount="indefinite" path="M78,124 L148,85"/></circle>
               <circle r="2.5" class="nd-dot nd-dot-wan"><animateMotion dur="1.8s" repeatCount="indefinite" path="M192,80 L262,80"/></circle>
             </svg>
-            <div class="ping-section" id="ndPingSection">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── card-network: Network topology + ping ────────────────────── -->
+      <div id="card-network" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="card-network" type="button" title="Remove card">&#x2715;</button>
+        <div class="card" id="networksCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header d-flex align-items-center gap-2">
+            <h3 class="card-title">Network</h3>
+          </div>
+          <div class="card-body net-diagram-body">
+            <div id="netInternetIfaces" style="margin-bottom:.3rem"><div class="empty-state">&#8212;</div></div>
+            <div style="border-top:1px solid var(--border);margin-bottom:.3rem"></div>
+            <div id="lanOverview"><div class="empty-state">&#8212;</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── dc-card-ping: Ping / Latency ─────────────────────────────── -->
+      <div id="dc-card-ping" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-ping" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-body" style="padding:.4rem .75rem .5rem;display:flex;flex-direction:column;justify-content:center">
+            <div id="ndPingSection">
               <div class="ping-header">
                 <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel">1.1.1.1</span></span>
                 <div class="ping-stat">

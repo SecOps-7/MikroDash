@@ -1,14 +1,14 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   dashboard-grid.js  —  MikroDash configurable 12×11 drag-and-drop grid
+   dashboard-grid.js  —  MikroDash configurable 24×22 drag-and-drop grid
    Pure vanilla JS · Pointer Events API · No external dependencies
    ══════════════════════════════════════════════════════════════════════════ */
 'use strict';
 
 (function () {
   /* ── Constants ──────────────────────────────────────────────────────────── */
-  var COLS = 12, ROWS = 11, GAP = 12, PAD = 20; /* .75rem gap / 1.25rem padding @ 16px base */
+  var COLS = 24, ROWS = 22, GAP = 12, PAD = 20; /* .75rem gap / 1.25rem padding @ 16px base */
   var MIN_W = 1, MIN_H = 1;
-  var LS_KEY = 'mikrodash_dashboard_layout_v7';  /* v7 = bandwidth card 2×3 */
+  var LS_KEY = 'mikrodash_dashboard_layout_v11'; /* v11 = user layout saved as default */
 
   var CARD_LABELS = {
     'card-traffic':       'Traffic',
@@ -17,6 +17,8 @@
     'card-network':       'Network',
     'card-toptalkers':    'Top Talkers',
     'card-wireguard':     'WireGuard',
+    'dc-card-netflow':    'Network Flow',
+    'dc-card-ping':       'Ping',
     /* extra cards (hidden by default) */
     'dc-card-signal':     'Signal Health',
     'dc-card-band':       'Band Split',
@@ -45,36 +47,29 @@
   /* dc-card-bw uses traffic:update which is already delivered to every socket
      via per-socket emit in traffic.js — no room subscription needed. */
 
-  /* DEFAULT_LAYOUT mirrors the original 3-column dashboard on the 12×11 grid:
-     - Traffic:     full-width header    (cols 1-12,  rows 1-3)
-     - Connections: left quarter         (cols 1-4,   rows 4-11)
-     - System:      centre-left, top     (cols 5-8,   rows 4-6)
-     - Network:     centre-left, bottom  (cols 5-8,   rows 7-11)
-     - Top Talkers: right quarter, top   (cols 9-12,  rows 4-7)
-     - WireGuard:   right quarter, btm   (cols 9-12,  rows 8-11)  */
   var DEFAULT_LAYOUT = [
-    /* original 6 cards — visible by default */
-    { id: 'card-traffic',      x: 1, y: 1,  w: 12, h: 3, visible: true  },
-    { id: 'card-connections',  x: 1, y: 4,  w: 4,  h: 8, visible: true  },
-    { id: 'card-system',       x: 5, y: 4,  w: 4,  h: 3, visible: true  },
-    { id: 'card-network',      x: 5, y: 7,  w: 4,  h: 5, visible: true  },
-    { id: 'card-toptalkers',   x: 9, y: 4,  w: 4,  h: 4, visible: true  },
-    { id: 'card-wireguard',    x: 9, y: 8,  w: 4,  h: 4, visible: true  },
-    /* 14 extra cards — hidden by default, user-addable via Add Card panel */
-    { id: 'dc-card-signal',    x: 1, y: 1,  w: 4,  h: 2, visible: false },
-    { id: 'dc-card-band',      x: 1, y: 1,  w: 2,  h: 2, visible: false },
-    { id: 'dc-card-physports', x: 1, y: 1,  w: 4,  h: 2, visible: false },
-    { id: 'dc-card-iputil',    x: 1, y: 1,  w: 2,  h: 2, visible: false },
-    { id: 'dc-card-destcc',    x: 1, y: 1,  w: 4,  h: 3, visible: false },
-    { id: 'dc-card-topcc',     x: 1, y: 1,  w: 4,  h: 3, visible: false },
-    { id: 'dc-card-flow',      x: 1, y: 1,  w: 4,  h: 4, visible: false },
-    { id: 'dc-card-topports',  x: 1, y: 1,  w: 2,  h: 3, visible: false },
-    { id: 'dc-card-routes',    x: 1, y: 1,  w: 3,  h: 3, visible: false },
-    { id: 'dc-card-bgp',       x: 1, y: 1,  w: 3,  h: 2, visible: false },
-    { id: 'dc-card-bw',        x: 1, y: 1,  w: 2,  h: 3, visible: false },
-    { id: 'dc-card-fwaction',  x: 1, y: 1,  w: 4,  h: 3, visible: false },
-    { id: 'dc-card-fwhits',    x: 1, y: 1,  w: 2,  h: 2, visible: false },
-    { id: 'dc-card-logs',      x: 1, y: 1,  w: 5,  h: 3, visible: false }
+    { id: 'card-traffic',      x: 1,  y: 1,  w: 20, h: 5,  visible: true  },
+    { id: 'card-connections',  x: 1,  y: 6,  w: 8,  h: 16, visible: true  },
+    { id: 'card-system',       x: 9,  y: 6,  w: 8,  h: 4,  visible: true  },
+    { id: 'dc-card-netflow',   x: 9,  y: 10, w: 8,  h: 4,  visible: true  },
+    { id: 'card-network',      x: 9,  y: 14, w: 8,  h: 6,  visible: true  },
+    { id: 'dc-card-ping',      x: 9,  y: 20, w: 8,  h: 2,  visible: true  },
+    { id: 'card-toptalkers',   x: 17, y: 6,  w: 8,  h: 8,  visible: true  },
+    { id: 'card-wireguard',    x: 17, y: 14, w: 8,  h: 8,  visible: true  },
+    { id: 'dc-card-bw',        x: 21, y: 1,  w: 4,  h: 5,  visible: true  },
+    { id: 'dc-card-signal',    x: 1,  y: 1,  w: 8,  h: 4,  visible: false },
+    { id: 'dc-card-band',      x: 1,  y: 1,  w: 4,  h: 4,  visible: false },
+    { id: 'dc-card-physports', x: 1,  y: 1,  w: 8,  h: 4,  visible: false },
+    { id: 'dc-card-iputil',    x: 1,  y: 1,  w: 4,  h: 4,  visible: false },
+    { id: 'dc-card-destcc',    x: 1,  y: 1,  w: 8,  h: 6,  visible: false },
+    { id: 'dc-card-topcc',     x: 1,  y: 1,  w: 8,  h: 6,  visible: false },
+    { id: 'dc-card-flow',      x: 1,  y: 1,  w: 8,  h: 8,  visible: false },
+    { id: 'dc-card-topports',  x: 1,  y: 1,  w: 4,  h: 6,  visible: false },
+    { id: 'dc-card-routes',    x: 1,  y: 1,  w: 6,  h: 6,  visible: false },
+    { id: 'dc-card-bgp',       x: 1,  y: 1,  w: 6,  h: 4,  visible: false },
+    { id: 'dc-card-fwaction',  x: 1,  y: 1,  w: 8,  h: 6,  visible: false },
+    { id: 'dc-card-fwhits',    x: 1,  y: 1,  w: 4,  h: 4,  visible: false },
+    { id: 'dc-card-logs',      x: 1,  y: 1,  w: 10, h: 6,  visible: false }
   ];
 
   /* ── Room management helpers ────────────────────────────────────────────── */

@@ -318,11 +318,28 @@ socket.on('system:update',function(d){
 socket.on('lan:overview',function(data){
   // Detect local country from WAN IP for arc origin
   if(window._wanGeoDetect) window._wanGeoDetect(data.wanIp);
-  // WAN IP
+  // WAN IP (SVG diagram)
   var wip=(data.wanIp||'').split('/')[0]||'\u2014';
   var ndWanIp=$('ndWanIp'); if(ndWanIp)ndWanIp.textContent=wip;
   if(wanIpDisplay)wanIpDisplay.textContent=wip;
-  // LAN info strip (dashboard card)
+  // Network card: internet-facing interfaces from detect-internet
+  var ifaceEl=$('netInternetIfaces');
+  if(ifaceEl){
+    var ifaces=data.internetIfaces||[];
+    if(!ifaces.length){
+      ifaceEl.innerHTML='<div class="empty-state">No internet interfaces detected</div>';
+    } else {
+      ifaceEl.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem">'+
+        ifaces.map(function(f){
+          return'<div class="net-wan-row">'+
+            '<div class="net-field-label">'+esc(f.name)+'</div>'+
+            '<div class="net-field-val">'+esc((f.ip||'').split('/')[0]||'\u2014')+'</div>'+
+            '</div>';
+        }).join('')+
+        '</div>';
+    }
+  }
+  // LAN info (other consumers: ndLanCidr, ndGateway on other pages)
   var nets=data.networks||[];
   var ndLanCidr=$('ndLanCidr'); if(ndLanCidr)ndLanCidr.textContent=nets.length?nets.map(function(n){return n.cidr;}).join(', '):'\u2014';
   var ndGateway=$('ndGateway'); if(ndGateway)ndGateway.textContent=nets.length&&nets[0].gateway?nets[0].gateway:'\u2014';

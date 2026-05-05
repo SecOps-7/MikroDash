@@ -51,14 +51,25 @@ class DhcpNetworksCollector {
 
   async tick() {
     if (!this.ros.connected) return;
-    const [nets, addrs, pools] = await Promise.allSettled([
+    const [nets, addrs, pools, detect] = await Promise.allSettled([
       this.ros.write('/ip/dhcp-server/network/print'),
       this.ros.write('/ip/address/print'),
       this.ros.write('/ip/pool/print', ['=.proplist=name,ranges']),
+      this.ros.write('/interface/detect-internet/state/print'),
     ]);
-    const netRows  = nets.status  === 'fulfilled' ? (nets.value  || []) : [];
-    const addrRows = addrs.status === 'fulfilled' ? (addrs.value || []) : [];
-    const poolRows = pools.status === 'fulfilled' ? (pools.value || []) : [];
+    const netRows    = nets.status    === 'fulfilled' ? (nets.value    || []) : [];
+    const addrRows   = addrs.status   === 'fulfilled' ? (addrs.value   || []) : [];
+    const poolRows   = pools.status   === 'fulfilled' ? (pools.value   || []) : [];
+    const detectRows = detect.status  === 'fulfilled' ? (detect.value  || []) : [];
+
+    // Interfaces that have confirmed internet connectivity, with their assigned IP
+    const internetIfaces = detectRows
+      .filter(r => r.state === 'internet')
+      .map(r => {
+        const ifName = r.name || r.interface || '';
+        const addr = addrRows.find(a => a.interface === ifName && a.disabled !== 'true');
+        return { name: ifName, ip: addr ? addr.address : '' };
+      });
 
     const wanIface = this.wanIface;
     let wanIp = '';
@@ -110,12 +121,12 @@ class DhcpNetworksCollector {
     const totalLeases   = networks.reduce((a, n) => a + (n.leaseCount || 0), 0);
 
     const fp = JSON.stringify({
-      cidrs: this.lanCidrs, wanIp,
+      cidrs: this.lanCidrs, wanIp, internetIfaces,
       networks: networks.map(n => ({ cidr: n.cidr, leaseCount: n.leaseCount, poolSize: n.poolSize })),
     });
     this.lastPayload = {
       ts: Date.now(), lanCidrs: this.lanCidrs, networks: this.networks,
-      wanIp, totalPoolSize, totalLeases, pollMs: this.pollMs,
+      wanIp, totalPoolSize, totalLeases, pollMs: this.pollMs, internetIfaces,
     };
     if (fp !== this._lastFp) {
       this._lastFp = fp;

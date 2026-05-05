@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   dashboard-grid.css  —  MikroDash configurable 12×11 grid layout system
+   dashboard-grid.css  —  MikroDash configurable 24×22 grid layout system
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Dashboard page: strip padding, fill viewport exactly ────────────────── */
@@ -14,8 +14,8 @@
 /* ── Grid root ───────────────────────────────────────────────────────────── */
 #dash-grid-root {
   display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  grid-template-rows: repeat(11, minmax(80px, 1fr));
+  grid-template-columns: repeat(24, 1fr);
+  grid-template-rows: repeat(22, minmax(40px, 1fr));
   gap: .75rem;      /* matches original .mikrodash-grid gap */
   padding: 1.25rem; /* matches original .page-view padding */
   width: 100%;

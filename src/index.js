@@ -162,6 +162,7 @@ function buildSession(routerCfg) {
 
   const connTableCache = {
     rows: null, ts: 0,
+    _partialStreak: 0,
     maxAge: Math.min(_cfg.pollConns, _cfg.pollBandwidth) * 1.0,
     updateMaxAge(pollConns, pollBandwidth) {
       this.maxAge = Math.min(pollConns, pollBandwidth) * 1.0;
@@ -178,18 +179,33 @@ function buildSession(routerCfg) {
       // partial result verbatim causes the Connections and Bandwidth cards to
       // briefly collapse to a subset and then recover — the "flip-flop" symptom.
       // Threshold: if the new result is < 50% of the cached count and the cache
-      // has more than 10 rows, keep the stale data for this tick.
+      // has more than 10 rows, treat it as partial and keep stale data.
+      // After 5 consecutive partial ticks the count is likely a genuine drop
+      // rather than noise — accept the fresh data to avoid the cache getting stuck.
       const PARTIAL_DROP_RATIO = 0.5;
       const PARTIAL_DROP_MIN   = 10;
+      const PARTIAL_MAX_STREAK = 5;
       const looksPartial = this.rows !== null
         && this.rows.length > PARTIAL_DROP_MIN
         && fresh.length > 0
         && fresh.length < this.rows.length * PARTIAL_DROP_RATIO;
       if (looksPartial) {
-        console.warn(`[connCache] partial result (${fresh.length} rows, cached ${this.rows.length}) — keeping stale data`);
-      } else if (fresh.length > 0 || this.rows === null) {
-        this.rows = fresh;
-        this.ts   = Date.now();
+        this._partialStreak++;
+        const dbg = require('./settings').load().rosDebug;
+        if (this._partialStreak >= PARTIAL_MAX_STREAK) {
+          if (dbg) console.warn(`[connCache] partial result (${fresh.length} rows, cached ${this.rows.length}) — accepted after ${this._partialStreak} consecutive ticks`);
+          this._partialStreak = 0;
+          this.rows = fresh;
+          this.ts   = Date.now();
+        } else {
+          if (dbg) console.warn(`[connCache] partial result (${fresh.length} rows, cached ${this.rows.length}) — keeping stale data (${this._partialStreak}/${PARTIAL_MAX_STREAK})`);
+        }
+      } else {
+        this._partialStreak = 0;
+        if (fresh.length > 0 || this.rows === null) {
+          this.rows = fresh;
+          this.ts   = Date.now();
+        }
       }
       return this.rows;
     },
@@ -201,7 +217,7 @@ function buildSession(routerCfg) {
       const rows = await this.get(rosInst);
       return { rows, ts: this.ts };
     },
-    invalidate() { this.rows = null; this.ts = 0; },
+    invalidate() { this.rows = null; this.ts = 0; this._partialStreak = 0; },
   };
 
   const dhcpLeases   = new DhcpLeasesCollector ({ros,io, state});
