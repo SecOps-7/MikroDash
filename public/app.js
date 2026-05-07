@@ -82,6 +82,8 @@ function applyTheme(t){
     ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'
     : 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z');
   try{localStorage.setItem(THEME_KEY, t);}catch(e){}
+  _reapplyTextVars();
+  _reapplyBgVars();
 }
 (function(){
   var saved='dark';
@@ -93,6 +95,192 @@ if(themeToggle) themeToggle.addEventListener('click', function(){
   var cur = document.documentElement.getAttribute('data-theme')||'dark';
   applyTheme(cur==='light'?'dark':'light');
 });
+
+// ── Palette, contrast & brightness ────────────────────────────────────────
+var PALETTE_KEY      = 'mikrodash_palette';
+var CONTRAST_KEY     = 'mikrodash_contrast';
+var TEXT_BRIGHT_KEY  = 'mikrodash_text_bright';
+var BG_BRIGHT_KEY    = 'mikrodash_bg_bright';
+var APPEAR_DEFAULT   = 8; // neutral midpoint for all appearance sliders
+var CONTRAST_FACTORS    = [0.15, 0.25, 0.35, 0.50, 0.65, 0.80, 0.92, 1.0, 1.20, 1.50, 2.00, 2.75, 3.50, 4.50, 6.00];
+var TEXT_BRIGHT_FACTORS = [0.20, 0.30, 0.42, 0.55, 0.65, 0.78, 0.90, 1.0, 1.05, 1.10, 1.17, 1.25, 1.33, 1.42, 1.50];
+var BG_BRIGHT_FACTORS   = [0.20, 0.30, 0.42, 0.55, 0.65, 0.78, 0.90, 1.0, 1.05, 1.10, 1.17, 1.25, 1.33, 1.42, 1.50];
+
+var PALETTE_COLORS = {
+  'default:dark':    { main:[200,215,240,.9], muted:[148,163,190,.55], bgDeep:[7,9,15,1],     bgCard:[13,18,30,.85]    },
+  'default:light':   { main:[26,32,48,1.0],   muted:[80,100,140,.55],  bgDeep:[240,242,247,1], bgCard:[255,255,255,.92] },
+  'nord:dark':       { main:[236,239,244,.9], muted:[216,222,233,.50], bgDeep:[30,36,48,1],    bgCard:[46,52,64,.9]     },
+  'nord:light':      { main:[46,52,64,.9],    muted:[59,66,82,.55],    bgDeep:[229,233,240,1], bgCard:[236,239,244,.95] },
+  'catppuccin:dark': { main:[205,214,244,.9], muted:[166,173,200,.55], bgDeep:[17,17,27,1],    bgCard:[30,30,46,.9]     },
+  'catppuccin:light':{ main:[76,79,105,.9],   muted:[108,111,137,.55], bgDeep:[220,224,232,1], bgCard:[239,241,245,.95] },
+  'dracula:dark':    { main:[248,248,242,.9], muted:[98,114,164,.70],  bgDeep:[28,30,38,1],    bgCard:[40,42,54,.9]     },
+  'tokyo:dark':      { main:[192,202,245,.9], muted:[86,95,137,.70],   bgDeep:[19,20,30,1],    bgCard:[26,27,38,.9]     },
+  'gruvbox:dark':        { main:[235,219,178,.9], muted:[168,153,132,.55], bgDeep:[29,32,33,1],    bgCard:[40,40,40,.9]     },
+  'gruvbox:light':       { main:[60,56,54,.9],    muted:[60,56,54,.55],    bgDeep:[242,229,188,1], bgCard:[251,241,199,.95] },
+  'rosepine:dark':       { main:[224,222,244,.9], muted:[110,106,134,.6],  bgDeep:[20,18,30,1],    bgCard:[31,29,46,.9]     },
+  'rosepine:light':      { main:[87,82,121,.9],   muted:[152,147,165,.55], bgDeep:[240,235,227,1], bgCard:[250,244,237,.95] },
+  'rosepine-moon:dark':  { main:[224,222,244,.9], muted:[110,106,134,.6],  bgDeep:[29,27,48,1],    bgCard:[42,40,55,.9]     },
+  'onedark:dark':        { main:[171,178,191,.9], muted:[171,178,191,.5],  bgDeep:[33,37,43,1],    bgCard:[40,44,52,.9]     },
+  'onedark:light':       { main:[56,58,66,.9],    muted:[160,161,167,.6],  bgDeep:[239,240,241,1], bgCard:[250,250,250,.95] },
+  'solarized:dark':      { main:[131,148,150,.9], muted:[131,148,150,.55], bgDeep:[0,43,54,1],     bgCard:[7,54,66,.9]      },
+  'solarized:light':     { main:[101,123,131,.9], muted:[101,123,131,.55], bgDeep:[238,232,213,1], bgCard:[253,246,227,.95] },
+  'everforest:dark':     { main:[211,198,170,.9], muted:[211,198,170,.5],  bgDeep:[30,37,40,1],    bgCard:[45,53,59,.9]     },
+  'kanagawa:dark':       { main:[220,215,186,.9], muted:[114,113,105,.6],  bgDeep:[22,22,29,1],    bgCard:[31,31,40,.9]     },
+  'monokai:dark':        { main:[248,248,242,.9], muted:[117,113,94,.65],  bgDeep:[29,30,25,1],    bgCard:[39,40,34,.9]     },
+  'monokai-pro:dark':    { main:[252,252,250,.9], muted:[128,122,136,.65], bgDeep:[30,28,32,1],    bgCard:[45,42,46,.9]     },
+  'material:dark':       { main:[238,255,255,.9], muted:[176,190,197,.55], bgDeep:[27,37,40,1],    bgCard:[38,50,56,.9]     },
+  'material:light':      { main:[33,33,33,.9],    muted:[117,117,117,.55], bgDeep:[240,240,240,1], bgCard:[250,250,250,.95] },
+  'palenight:dark':      { main:[191,199,213,.9], muted:[191,199,213,.5],  bgDeep:[32,35,54,1],    bgCard:[41,45,62,.9]     },
+  'github:dark':         { main:[201,209,217,.9], muted:[139,148,158,.6],  bgDeep:[1,4,9,1],       bgCard:[22,27,34,.9]     },
+  'github:light':        { main:[36,41,47,.9],    muted:[87,96,106,.55],   bgDeep:[231,236,240,1], bgCard:[246,248,250,.95] },
+};
+
+function _scaleBright(c, factor) {
+  var r, g, b;
+  if (factor > 1) {
+    var t = Math.min(1, factor - 1);
+    r = Math.round(c[0] + (255 - c[0]) * t);
+    g = Math.round(c[1] + (255 - c[1]) * t);
+    b = Math.round(c[2] + (255 - c[2]) * t);
+  } else {
+    r = Math.round(c[0] * factor);
+    g = Math.round(c[1] * factor);
+    b = Math.round(c[2] * factor);
+  }
+  return [Math.min(255,r), Math.min(255,g), Math.min(255,b), c[3]];
+}
+
+function _reapplyTextVars() {
+  var palette     = document.documentElement.getAttribute('data-palette') || 'default';
+  var scheme      = document.documentElement.getAttribute('data-theme')   || 'dark';
+  var contrastLvl = parseInt(document.documentElement.getAttribute('data-contrast')    || String(APPEAR_DEFAULT), 10) || APPEAR_DEFAULT;
+  var brightLvl   = parseInt(document.documentElement.getAttribute('data-text-bright') || String(APPEAR_DEFAULT), 10) || APPEAR_DEFAULT;
+  var root = document.documentElement;
+  if (contrastLvl === APPEAR_DEFAULT && brightLvl === APPEAR_DEFAULT) {
+    root.style.removeProperty('--text-main');
+    root.style.removeProperty('--text-muted');
+    return;
+  }
+  var key  = palette + ':' + scheme;
+  var base = PALETTE_COLORS[key] || PALETTE_COLORS['default:dark'];
+  var cf   = CONTRAST_FACTORS[Math.max(0, Math.min(CONTRAST_FACTORS.length - 1, contrastLvl - 1))];
+  var bf   = TEXT_BRIGHT_FACTORS[Math.max(0, Math.min(TEXT_BRIGHT_FACTORS.length - 1, brightLvl - 1))];
+  function compute(c) {
+    var bc = _scaleBright(c, bf);
+    var a  = Math.min(1, +(bc[3] * cf).toFixed(3));
+    return 'rgba('+bc[0]+','+bc[1]+','+bc[2]+','+a+')';
+  }
+  root.style.setProperty('--text-main',  compute(base.main));
+  root.style.setProperty('--text-muted', compute(base.muted));
+}
+
+function _reapplyBgVars() {
+  var palette = document.documentElement.getAttribute('data-palette') || 'default';
+  var scheme  = document.documentElement.getAttribute('data-theme')   || 'dark';
+  var level   = parseInt(document.documentElement.getAttribute('data-bg-bright') || String(APPEAR_DEFAULT), 10) || APPEAR_DEFAULT;
+  var root = document.documentElement;
+  if (level === APPEAR_DEFAULT) {
+    root.style.removeProperty('--bg-deep');
+    root.style.removeProperty('--bg-card');
+    return;
+  }
+  var key  = palette + ':' + scheme;
+  var base = PALETTE_COLORS[key] || PALETTE_COLORS['default:dark'];
+  var bf   = BG_BRIGHT_FACTORS[Math.max(0, Math.min(BG_BRIGHT_FACTORS.length - 1, level - 1))];
+  function scaleBg(c) {
+    var bc = _scaleBright(c, bf);
+    return 'rgba('+bc[0]+','+bc[1]+','+bc[2]+','+bc[3]+')';
+  }
+  root.style.setProperty('--bg-deep', scaleBg(base.bgDeep));
+  root.style.setProperty('--bg-card', scaleBg(base.bgCard));
+}
+
+function applyPalette(palette, scheme) {
+  var s = scheme || document.documentElement.getAttribute('data-theme') || 'dark';
+  if (!palette || palette === 'default') {
+    document.documentElement.removeAttribute('data-palette');
+  } else {
+    document.documentElement.setAttribute('data-palette', palette);
+  }
+  document.documentElement.setAttribute('data-theme', s);
+  document.documentElement.setAttribute('data-bs-theme', s === 'light' ? 'light' : 'dark');
+  try { localStorage.setItem(PALETTE_KEY, palette || 'default'); } catch(e) {}
+  try { localStorage.setItem(THEME_KEY, s); } catch(e) {}
+  var p = $('themeIconPath');
+  if (p) p.setAttribute('d', s === 'light'
+    ? 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'
+    : 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z');
+  _reapplyTextVars();
+  _reapplyBgVars();
+  _syncSwatches();
+}
+
+function _syncSwatches() {
+  var palette = document.documentElement.getAttribute('data-palette') || 'default';
+  var scheme  = document.documentElement.getAttribute('data-theme')   || 'dark';
+  document.querySelectorAll('.theme-swatch').forEach(function(sw) {
+    sw.classList.toggle('active',
+      sw.dataset.palette === palette && sw.dataset.mode === scheme);
+  });
+}
+
+(function(){
+  var savedPalette   = 'default';
+  var savedContrast  = APPEAR_DEFAULT;
+  var savedTextBright = APPEAR_DEFAULT;
+  var savedBgBright   = APPEAR_DEFAULT;
+  try { savedPalette    = localStorage.getItem(PALETTE_KEY)     || 'default'; } catch(e) {}
+  try { savedContrast   = parseInt(localStorage.getItem(CONTRAST_KEY)    || String(APPEAR_DEFAULT), 10) || APPEAR_DEFAULT; } catch(e) {}
+  try { savedTextBright = parseInt(localStorage.getItem(TEXT_BRIGHT_KEY) || String(APPEAR_DEFAULT), 10) || APPEAR_DEFAULT; } catch(e) {}
+  try { savedBgBright   = parseInt(localStorage.getItem(BG_BRIGHT_KEY)   || String(APPEAR_DEFAULT), 10) || APPEAR_DEFAULT; } catch(e) {}
+  if (savedPalette && savedPalette !== 'default') {
+    document.documentElement.setAttribute('data-palette', savedPalette);
+  }
+  document.documentElement.setAttribute('data-contrast',    String(savedContrast));
+  document.documentElement.setAttribute('data-text-bright', String(savedTextBright));
+  document.documentElement.setAttribute('data-bg-bright',   String(savedBgBright));
+  _reapplyTextVars();
+  _reapplyBgVars();
+})();
+
+(function(){
+  document.querySelectorAll('.theme-swatch').forEach(function(sw) {
+    sw.addEventListener('click', function() {
+      applyPalette(sw.dataset.palette || 'default', sw.dataset.mode || 'dark');
+    });
+  });
+  var contrastSlider  = $('appearanceContrast');
+  var textBrightSlider = $('appearanceTextBright');
+  var bgBrightSlider   = $('appearanceBgBright');
+  if (contrastSlider) {
+    contrastSlider.addEventListener('input', function() {
+      document.documentElement.setAttribute('data-contrast', this.value);
+      try { localStorage.setItem(CONTRAST_KEY, this.value); } catch(e) {}
+      _reapplyTextVars();
+    });
+  }
+  if (textBrightSlider) {
+    textBrightSlider.addEventListener('input', function() {
+      document.documentElement.setAttribute('data-text-bright', this.value);
+      try { localStorage.setItem(TEXT_BRIGHT_KEY, this.value); } catch(e) {}
+      _reapplyTextVars();
+    });
+  }
+  if (bgBrightSlider) {
+    bgBrightSlider.addEventListener('input', function() {
+      document.documentElement.setAttribute('data-bg-bright', this.value);
+      try { localStorage.setItem(BG_BRIGHT_KEY, this.value); } catch(e) {}
+      _reapplyBgVars();
+    });
+  }
+  document.addEventListener('mikrodash:pagechange', function(e) {
+    if (e.detail !== 'settings') return;
+    _syncSwatches();
+    if (contrastSlider)   contrastSlider.value   = document.documentElement.getAttribute('data-contrast')    || String(APPEAR_DEFAULT);
+    if (textBrightSlider) textBrightSlider.value = document.documentElement.getAttribute('data-text-bright') || String(APPEAR_DEFAULT);
+    if (bgBrightSlider)   bgBrightSlider.value   = document.documentElement.getAttribute('data-bg-bright')   || String(APPEAR_DEFAULT);
+  });
+})();
 
 // ── Page router ────────────────────────────────────────────────────────────
 var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',info:'About',routing:'Routing'};
@@ -3109,9 +3297,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollBandwidth', label:'Bandwidth',        min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollVpn',       label:'VPN / WireGuard', min:500,   max:30000,  step:500,   unit:'ms' },
     { key:'pollFirewall',  label:'Firewall',        min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollPing',      label:'Ping',            min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollWireless',  label:'Wireless',        min:500,   max:60000,  step:500,   unit:'ms' },
-    { key:'pollDhcp',      label:'DHCP Networks',   min:30000, max:600000, step:30000, unit:'ms' },
+    { key:'pollPing',      label:'Ping',            min:1000,  max:5000,   step:500,   unit:'ms' },
+    { key:'pollWireless',  label:'Wireless',           min:500,   max:60000,  step:500,   unit:'ms' },
+    { key:'pollIfaces',    label:'Interface Status',   min:10000, max:600000, step:10000, unit:'ms' },
+    { key:'pollDhcp',      label:'DHCP Networks',      min:30000, max:600000, step:30000, unit:'ms' },
     // Streamed — RouterOS pushes changes, no poll interval needed
     { key:'pollArp',       label:'ARP',         streamed:true },
     { key:'pollRouting',   label:'Routing',     streamed:true },
@@ -3153,13 +3342,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       }
       var val = (data[cfg.key] != null) ? Math.max(cfg.min, Math.min(cfg.max, data[cfg.key])) : cfg.min;
       row.innerHTML =
-        '<div style="display:flex;justify-content:space-between;margin-bottom:.25rem">' +
-          '<span style="font-size:.75rem;color:var(--text-muted)">'+cfg.label+'</span>' +
+        '<label class="sform-label">'+cfg.label+'</label>' +
+        '<div style="display:flex;align-items:center;gap:.6rem">' +
+          '<input type="range" id="s_'+cfg.key+'" ' +
+            'min="'+cfg.min+'" max="'+cfg.max+'" step="'+cfg.step+'" value="'+val+'" ' +
+            'style="flex:1;accent-color:var(--accent-rx)">' +
           '<span class="srange-val" id="sv_'+cfg.key+'">'+fmtMs(val)+'</span>' +
-        '</div>' +
-        '<input type="range" class="sform-input" id="s_'+cfg.key+'" ' +
-          'min="'+cfg.min+'" max="'+cfg.max+'" step="'+cfg.step+'" value="'+val+'" ' +
-          'style="padding:0;border:none;background:transparent;cursor:pointer">';
+        '</div>';
       wrap.appendChild(row);
       var slider = $('s_'+cfg.key);
       var valEl  = $('sv_'+cfg.key);
@@ -4120,7 +4309,14 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     renderTable();
   });
 
+  // Counts ros:status { connected:false } events received while the switching
+  // overlay is open. The server always emits one immediately after a switch
+  // (old session teardown). A second false means the new router failed to
+  // connect — at that point we dismiss the overlay so the user can act.
+  var _switchFalseCount = 0;
+
   socket.on('router:switching', function(data) {
+    _switchFalseCount = 0;
     if (switchOvl) switchOvl.classList.add('open');
     if (switchLbl) switchLbl.textContent = 'Switching to ' + esc(data.label || 'router') + '…';
     // Reset traffic chart state immediately so stale data from the old router
@@ -4150,8 +4346,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         else                dot.classList.add('offline');
       }
     });
-    if (data.connected && switchOvl) {
-      switchOvl.classList.remove('open');
+    if (data.connected) {
+      if (switchOvl) switchOvl.classList.remove('open');
+    } else if (switchOvl && switchOvl.classList.contains('open')) {
+      // First false = old session teardown (normal). Second false = new router
+      // failed to connect — dismiss the overlay so the user can switch again.
+      _switchFalseCount++;
+      if (_switchFalseCount > 1) switchOvl.classList.remove('open');
     }
   });
 

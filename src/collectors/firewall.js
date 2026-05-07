@@ -296,6 +296,10 @@ class FirewallCollector {
     });
   }
 
+  suspend() { this._stopCounterPoll(); }
+
+  resume()  { this._startCounterPoll(); }
+
   stop() {
     this._stopAllStreams();
     this._stopHeartbeat();

@@ -160,4 +160,37 @@ patch(
   ]
 );
 
+// ── Patch 5: Channel.js — skip channel close for streaming interval commands ──
+// The MULTI_BLOCK patch (Patch 4) debounces !done and resolves/closes after
+// 20 ms. For ros.stream() channels (this.streaming === true) RouterOS sends
+// periodic !done packets between each interval result set. Without this fix
+// the 20 ms debounce fires after the first !done, closing the channel and
+// preventing all subsequent interval pushes from reaching the listener.
+// Fix: when this.streaming is true, treat !done as a continuation marker —
+// break without starting the debounce or closing the channel so RouterOS can
+// keep delivering data every interval tick.
+// NOTE: this patch runs AFTER Patch 4 and targets the content it left behind.
+(function patchMultiBlockV2() {
+  const channelPath = path.join(BASE, 'Channel.js');
+  if (!fs.existsSync(channelPath)) {
+    console.warn('[patch] MULTI_BLOCK_V2 — Channel.js not found');
+    return;
+  }
+  let src = fs.readFileSync(channelPath, 'utf8');
+  if (src.includes('MIKRODASH_PATCHED_MULTI_BLOCK_V2')) {
+    console.log('[patch] MULTI_BLOCK_V2 — already applied, skipping');
+    return;
+  }
+  // Targets the exact two-line sequence left by the MULTI_BLOCK patch.
+  // 8-space indent on first line, 16-space indent on second — confirmed via cat -A.
+  const find   = `        if (this.trapped) { this.close(); break; }\n                if (this._doneTimer) clearTimeout(this._doneTimer);`;
+  const replace = `        if (this.trapped) { this.close(); break; } // MIKRODASH_PATCHED_MULTI_BLOCK_V2\n                if (this.streaming) break;\n                if (this._doneTimer) clearTimeout(this._doneTimer);`;
+  if (!src.includes(find)) {
+    console.warn('[patch] MULTI_BLOCK_V2 — target not found (MULTI_BLOCK not applied or format changed)');
+    return;
+  }
+  fs.writeFileSync(channelPath, src.replace(find, replace), 'utf8');
+  console.log('[patch] MULTI_BLOCK_V2 — applied');
+})();
+
 console.log('[patch] Done.');

@@ -11,6 +11,30 @@
   <style>
     :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
     html[data-theme="light"]{--bg-deep:#f0f2f7;--bg-card:rgba(255,255,255,.92);--border:rgba(100,120,160,.18);--text-muted:rgba(80,100,140,.55);--text-main:#1a2030;--nav-bg:rgba(240,242,247,.95);--topbar-bg:rgba(240,242,247,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
+    html[data-palette="nord"]{--bg-deep:#1e2430;--bg-card:rgba(46,52,64,.9);--border:rgba(76,86,106,.4);--accent-rx:#88c0d0;--accent-tx:#a3be8c;--text-muted:rgba(216,222,233,.5);--text-main:rgba(236,239,244,.9);--nav-bg:rgba(25,30,40,.95);--topbar-bg:rgba(25,30,40,.8)}
+    html[data-palette="nord"][data-theme="light"]{--bg-deep:#e5e9f0;--bg-card:rgba(236,239,244,.95);--border:rgba(76,86,106,.18);--accent-rx:#5e81ac;--accent-tx:#4b7a55;--text-muted:rgba(59,66,82,.55);--text-main:rgba(46,52,64,.9);--nav-bg:rgba(216,222,233,.97);--topbar-bg:rgba(216,222,233,.9)}
+    html[data-palette="catppuccin"]{--bg-deep:#11111b;--bg-card:rgba(30,30,46,.9);--border:rgba(69,71,90,.4);--accent-rx:#89b4fa;--accent-tx:#a6e3a1;--text-muted:rgba(166,173,200,.55);--text-main:rgba(205,214,244,.9);--nav-bg:rgba(17,17,27,.95);--topbar-bg:rgba(17,17,27,.8)}
+    html[data-palette="catppuccin"][data-theme="light"]{--bg-deep:#dce0e8;--bg-card:rgba(239,241,245,.95);--border:rgba(172,176,190,.3);--accent-rx:#1e66f5;--accent-tx:#40a02b;--text-muted:rgba(108,111,137,.55);--text-main:rgba(76,79,105,.9);--nav-bg:rgba(230,233,239,.97);--topbar-bg:rgba(230,233,239,.9)}
+    html[data-palette="dracula"]{--bg-deep:#1c1e26;--bg-card:rgba(40,42,54,.9);--border:rgba(68,71,90,.5);--accent-rx:#8be9fd;--accent-tx:#50fa7b;--text-muted:rgba(98,114,164,.7);--text-main:rgba(248,248,242,.9);--nav-bg:rgba(25,26,38,.97);--topbar-bg:rgba(25,26,38,.8)}
+    html[data-palette="tokyo"]{--bg-deep:#13141e;--bg-card:rgba(26,27,38,.9);--border:rgba(41,46,66,.5);--accent-rx:#7aa2f7;--accent-tx:#9ece6a;--text-muted:rgba(86,95,137,.7);--text-main:rgba(192,202,245,.9);--nav-bg:rgba(16,16,24,.97);--topbar-bg:rgba(16,16,24,.8)}
+    html[data-palette="gruvbox"]{--bg-deep:#1d2021;--bg-card:rgba(40,40,40,.9);--border:rgba(60,56,54,.55);--accent-rx:#83a598;--accent-tx:#8ec07c;--text-muted:rgba(168,153,132,.55);--text-main:rgba(235,219,178,.9);--nav-bg:rgba(24,24,24,.97);--topbar-bg:rgba(24,24,24,.8)}
+    html[data-palette="gruvbox"][data-theme="light"]{--bg-deep:#f2e5bc;--bg-card:rgba(251,241,199,.95);--border:rgba(168,153,132,.28);--accent-rx:#076678;--accent-tx:#427b58;--text-muted:rgba(60,56,54,.55);--text-main:rgba(60,56,54,.9);--nav-bg:rgba(235,219,178,.97);--topbar-bg:rgba(235,219,178,.9)}
+    html[data-palette="rosepine"]{--bg-deep:#14121e;--bg-card:rgba(31,29,46,.9);--border:rgba(110,106,134,.35);--accent-rx:#c4a7e7;--accent-tx:#9ccfd8;--text-muted:rgba(110,106,134,.6);--text-main:rgba(224,222,244,.9);--nav-bg:rgba(18,16,28,.97);--topbar-bg:rgba(18,16,28,.8)}
+    html[data-palette="rosepine"][data-theme="light"]{--bg-deep:#f0ebe3;--bg-card:rgba(250,244,237,.95);--border:rgba(206,198,187,.4);--accent-rx:#907aa9;--accent-tx:#286983;--text-muted:rgba(152,147,165,.55);--text-main:rgba(87,82,121,.9);--nav-bg:rgba(232,226,217,.97);--topbar-bg:rgba(232,226,217,.9)}
+    html[data-palette="rosepine-moon"]{--bg-deep:#1d1b30;--bg-card:rgba(42,40,55,.9);--border:rgba(86,82,117,.4);--accent-rx:#c4a7e7;--accent-tx:#9ccfd8;--text-muted:rgba(110,106,134,.6);--text-main:rgba(224,222,244,.9);--nav-bg:rgba(24,22,42,.97);--topbar-bg:rgba(24,22,42,.8)}
+    html[data-palette="onedark"]{--bg-deep:#21252b;--bg-card:rgba(40,44,52,.9);--border:rgba(56,60,67,.6);--accent-rx:#61afef;--accent-tx:#98c379;--text-muted:rgba(171,178,191,.5);--text-main:rgba(171,178,191,.9);--nav-bg:rgba(28,31,36,.97);--topbar-bg:rgba(28,31,36,.8)}
+    html[data-palette="onedark"][data-theme="light"]{--bg-deep:#eff0f1;--bg-card:rgba(250,250,250,.95);--border:rgba(200,201,204,.45);--accent-rx:#4078f2;--accent-tx:#50a14f;--text-muted:rgba(160,161,167,.6);--text-main:rgba(56,58,66,.9);--nav-bg:rgba(235,236,238,.97);--topbar-bg:rgba(235,236,238,.9)}
+    html[data-palette="solarized"]{--bg-deep:#002b36;--bg-card:rgba(7,54,66,.9);--border:rgba(88,110,117,.4);--accent-rx:#268bd2;--accent-tx:#2aa198;--text-muted:rgba(131,148,150,.55);--text-main:rgba(131,148,150,.9);--nav-bg:rgba(0,36,48,.97);--topbar-bg:rgba(0,36,48,.8)}
+    html[data-palette="solarized"][data-theme="light"]{--bg-deep:#eee8d5;--bg-card:rgba(253,246,227,.95);--border:rgba(147,161,161,.3);--accent-rx:#268bd2;--accent-tx:#2aa198;--text-muted:rgba(101,123,131,.55);--text-main:rgba(101,123,131,.9);--nav-bg:rgba(233,228,210,.97);--topbar-bg:rgba(233,228,210,.9)}
+    html[data-palette="everforest"]{--bg-deep:#1e2528;--bg-card:rgba(45,53,59,.9);--border:rgba(65,75,79,.5);--accent-rx:#a7c080;--accent-tx:#7fbbb3;--text-muted:rgba(211,198,170,.5);--text-main:rgba(211,198,170,.9);--nav-bg:rgba(26,31,34,.97);--topbar-bg:rgba(26,31,34,.8)}
+    html[data-palette="kanagawa"]{--bg-deep:#16161d;--bg-card:rgba(31,31,40,.9);--border:rgba(54,54,70,.6);--accent-rx:#7e9cd8;--accent-tx:#98bb6c;--text-muted:rgba(114,113,105,.6);--text-main:rgba(220,215,186,.9);--nav-bg:rgba(19,19,26,.97);--topbar-bg:rgba(19,19,26,.8)}
+    html[data-palette="monokai"]{--bg-deep:#1d1e19;--bg-card:rgba(39,40,34,.9);--border:rgba(60,61,53,.6);--accent-rx:#66d9e8;--accent-tx:#a6e22e;--text-muted:rgba(117,113,94,.65);--text-main:rgba(248,248,242,.9);--nav-bg:rgba(22,23,18,.97);--topbar-bg:rgba(22,23,18,.8)}
+    html[data-palette="monokai-pro"]{--bg-deep:#1e1c20;--bg-card:rgba(45,42,46,.9);--border:rgba(58,55,64,.5);--accent-rx:#78dce8;--accent-tx:#a9dc76;--text-muted:rgba(128,122,136,.65);--text-main:rgba(252,252,250,.9);--nav-bg:rgba(24,22,26,.97);--topbar-bg:rgba(24,22,26,.8)}
+    html[data-palette="material"]{--bg-deep:#1b2528;--bg-card:rgba(38,50,56,.9);--border:rgba(53,74,82,.55);--accent-rx:#80cbc4;--accent-tx:#c3e88d;--text-muted:rgba(176,190,197,.55);--text-main:rgba(238,255,255,.9);--nav-bg:rgba(21,30,34,.97);--topbar-bg:rgba(21,30,34,.8)}
+    html[data-palette="material"][data-theme="light"]{--bg-deep:#f0f0f0;--bg-card:rgba(250,250,250,.95);--border:rgba(200,200,200,.4);--accent-rx:#00acc1;--accent-tx:#43a047;--text-muted:rgba(117,117,117,.55);--text-main:rgba(33,33,33,.9);--nav-bg:rgba(240,240,240,.97);--topbar-bg:rgba(240,240,240,.9)}
+    html[data-palette="palenight"]{--bg-deep:#202336;--bg-card:rgba(41,45,62,.9);--border:rgba(63,68,98,.45);--accent-rx:#82aaff;--accent-tx:#c3e88d;--text-muted:rgba(191,199,213,.5);--text-main:rgba(191,199,213,.9);--nav-bg:rgba(26,29,46,.97);--topbar-bg:rgba(26,29,46,.8)}
+    html[data-palette="github"]{--bg-deep:#010409;--bg-card:rgba(22,27,34,.9);--border:rgba(48,54,61,.5);--accent-rx:#58a6ff;--accent-tx:#3fb950;--text-muted:rgba(139,148,158,.6);--text-main:rgba(201,209,217,.9);--nav-bg:rgba(8,10,16,.97);--topbar-bg:rgba(8,10,16,.8)}
+    html[data-palette="github"][data-theme="light"]{--bg-deep:#e7ecf0;--bg-card:rgba(246,248,250,.95);--border:rgba(208,215,222,.5);--accent-rx:#0969da;--accent-tx:#1a7f37;--text-muted:rgba(87,96,106,.55);--text-main:rgba(36,41,47,.9);--nav-bg:rgba(228,234,239,.97);--topbar-bg:rgba(228,234,239,.9)}
     :root{--card-badge-bg:rgba(99,130,190,.12);--card-badge-color:rgba(148,163,190,.7);--card-badge-bg-active-blue:rgba(56,189,248,.15);--card-badge-color-active-blue:rgba(56,189,248,.9);--card-badge-bg-active-green:rgba(52,211,153,.15);--card-badge-color-active-green:rgba(52,211,153,.9)}
     .card-badge{font-family:var(--font-mono);font-size:.68rem;font-weight:600;padding:.15em .55em;border-radius:5px;background:var(--card-badge-bg);color:var(--card-badge-color);border:none;line-height:1.5}
     .card-badge.active-blue{background:var(--card-badge-bg-active-blue);color:var(--card-badge-color-active-blue)}
@@ -126,7 +150,7 @@
     .bw-stats{display:none}
     .nav-items{display:flex;flex-direction:column}
     .sform-label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem;display:block}
-    .sform-input{width:100%;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;padding:.45rem .7rem;font-size:.8rem;color:var(--text-main);outline:none;transition:border-color .15s}
+    .sform-input{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.45rem .7rem;font-size:.8rem;color:var(--text-main);outline:none;transition:border-color .15s}
     .sform-input:focus{border-color:var(--accent-rx)}
     .bw-unit-toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;flex-shrink:0}
     .bw-unit-btn{background:transparent;border:none;border-right:1px solid var(--border);padding:.42rem .6rem;font-size:.8rem;font-family:inherit;color:var(--text-muted);cursor:pointer;line-height:1;transition:background .15s,color .15s;white-space:nowrap}
@@ -139,7 +163,7 @@
     .sform-group{margin-bottom:.9rem}
     .stoggle-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
     @media(max-width:500px){.stoggle-grid{grid-template-columns:1fr}}
-    .stoggle{display:flex;align-items:center;justify-content:space-between;padding:.55rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);cursor:pointer;user-select:none;gap:.5rem}
+    .stoggle{display:flex;align-items:center;justify-content:space-between;padding:.55rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);cursor:pointer;user-select:none;gap:.5rem}
     .stoggle-label{font-size:.8rem;color:var(--text-main);font-weight:500}
     .stoggle-switch{position:relative;width:34px;height:18px;flex-shrink:0}
     .stoggle-switch input{opacity:0;width:0;height:0;position:absolute}
@@ -155,7 +179,7 @@
     .sbtn-danger:hover{background:rgba(248,113,113,.22)}
     .sbtn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
     .sbtn-ghost:hover{color:var(--text-main);border-color:var(--text-muted)}
-    .scard{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden}
+    .scard{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden;backdrop-filter:blur(6px);box-shadow:0 4px 24px rgba(0,0,0,.18)}
     .scard-header{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
     .scard-title{font-size:.78rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em;flex:1}
     .scard-body{padding:.9rem 1rem}
@@ -167,6 +191,13 @@
     .srange-wrap{display:flex;align-items:center;gap:.6rem}
     .srange-wrap input[type=range]{flex:1;accent-color:var(--accent-rx)}
     .srange-val{font-size:.75rem;font-family:var(--font-mono);color:var(--accent-rx);min-width:52px;text-align:right}
+    .theme-swatch-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem}
+    .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:.35rem;cursor:pointer;border-radius:8px;padding:.4rem;border:2px solid transparent;transition:border-color .15s}
+    .theme-swatch:hover{border-color:rgba(99,130,190,.3)}
+    .theme-swatch.active{border-color:var(--accent-rx)}
+    .swatch-preview{width:44px;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(128,128,128,.2)}
+    .swatch-dot{width:10px;height:10px;border-radius:50%}
+    .swatch-name{font-family:var(--font-mono);font-size:.6rem;color:var(--text-muted);text-align:center;line-height:1.3}
     .page-view.active{display:block}
     /* cards */
     .card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.25);backdrop-filter:blur(6px);position:relative}
@@ -672,23 +703,16 @@
     @media(max-width:650px){.vpn-tile-grid{grid-template-columns:1fr}}
     /* Network diagram */
     .net-diagram-body{padding:.35rem .5rem .4rem!important;display:flex;flex-direction:column}
-    .nd-line{stroke:rgba(56,189,248,.25);stroke-width:1.5;stroke-dasharray:4 3}
-    .nd-line-wan{stroke:rgba(52,211,153,.25)}
-    .nd-node{fill:rgba(13,18,30,.9);stroke:rgba(99,130,190,.2);stroke-width:1}
-    .nd-router-bg{fill:rgba(56,189,248,.06);stroke:rgba(56,189,248,.3);stroke-width:1.2}
+    .nd-line{stroke:var(--accent-rx);stroke-opacity:.25;stroke-width:1.5;stroke-dasharray:4 3}
+    .nd-line-wan{stroke:var(--accent-tx);stroke-opacity:.25}
+    .nd-node{fill:var(--bg-card);stroke:var(--border);stroke-width:1}
+    .nd-router-bg{fill:var(--accent-rx);fill-opacity:.06;stroke:var(--accent-rx);stroke-opacity:.3;stroke-width:1.2}
     .nd-led{fill:#4ade80;filter:drop-shadow(0 0 3px #4ade80)}
-    .nd-label{font-family:var(--font-ui);font-size:7.5px;fill:rgba(148,163,190,.6);text-anchor:middle;dominant-baseline:middle}
-    .nd-count{font-family:var(--font-mono);font-size:11px;font-weight:700;fill:rgba(200,215,240,.9);text-anchor:middle;dominant-baseline:middle}
-    .nd-wan-ip{font-family:var(--font-mono);font-size:6.5px;fill:rgba(56,189,248,.8);text-anchor:middle;dominant-baseline:middle}
-    html[data-theme="light"] .nd-node{fill:rgba(255,255,255,.92);stroke:rgba(100,120,180,.25)}
-    html[data-theme="light"] .nd-router-bg{fill:rgba(56,189,248,.08);stroke:rgba(56,189,248,.4)}
-    html[data-theme="light"] .nd-label{fill:rgba(80,100,140,.6)}
-    html[data-theme="light"] .nd-count{fill:rgba(20,30,60,.9)}
-    html[data-theme="light"] .nd-wan-ip{fill:rgba(14,120,180,.85)}
-    html[data-theme="light"] .nd-line{stroke:rgba(56,189,248,.35)}
-    html[data-theme="light"] .nd-line-wan{stroke:rgba(20,160,100,.35)}
-    .nd-dot{fill:rgba(56,189,248,.7)}
-    .nd-dot-wan{fill:rgba(52,211,153,.7)}
+    .nd-label{font-family:var(--font-ui);font-size:7.5px;fill:var(--text-muted);text-anchor:middle;dominant-baseline:middle}
+    .nd-count{font-family:var(--font-mono);font-size:11px;font-weight:700;fill:var(--text-main);text-anchor:middle;dominant-baseline:middle}
+    .nd-wan-ip{font-family:var(--font-mono);font-size:6.5px;fill:var(--accent-rx);text-anchor:middle;dominant-baseline:middle}
+    .nd-dot{fill:var(--accent-rx);fill-opacity:.7}
+    .nd-dot-wan{fill:var(--accent-tx);fill-opacity:.7}
     .nd-dot-l2{fill:rgba(167,139,250,.7)}
     /* Networks card */
 
@@ -2174,14 +2198,141 @@
         </div>
       </div>
 
-      <!-- Page Visibility -->
+      <!-- Appearance -->
       <div class="scard">
         <div class="scard-header">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          <span class="scard-title">Visible Pages</span>
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="3"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          <span class="scard-title">Appearance</span>
         </div>
         <div class="scard-body">
-          <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.75rem">Hide pages you don't use. Dashboard and Settings are always visible.</p>
+          <label class="sform-label" style="margin-bottom:.5rem">Theme</label>
+          <div class="theme-swatch-grid" id="themeSwatches">
+            <div class="theme-swatch" data-palette="default" data-mode="dark" title="Default Dark">
+              <div class="swatch-preview" style="background:#07090f"><div class="swatch-dot" style="background:#38bdf8"></div></div>
+              <span class="swatch-name">Default<br>Dark</span>
+            </div>
+            <div class="theme-swatch" data-palette="default" data-mode="light" title="Default Light">
+              <div class="swatch-preview" style="background:#f0f2f7;border-color:rgba(0,0,0,.12)"><div class="swatch-dot" style="background:#38bdf8"></div></div>
+              <span class="swatch-name">Default<br>Light</span>
+            </div>
+            <div class="theme-swatch" data-palette="nord" data-mode="dark" title="Nord Dark">
+              <div class="swatch-preview" style="background:#2e3440"><div class="swatch-dot" style="background:#88c0d0"></div></div>
+              <span class="swatch-name">Nord<br>Dark</span>
+            </div>
+            <div class="theme-swatch" data-palette="nord" data-mode="light" title="Nord Light">
+              <div class="swatch-preview" style="background:#e5e9f0;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#5e81ac"></div></div>
+              <span class="swatch-name">Nord<br>Light</span>
+            </div>
+            <div class="theme-swatch" data-palette="catppuccin" data-mode="dark" title="Catppuccin Mocha">
+              <div class="swatch-preview" style="background:#1e1e2e"><div class="swatch-dot" style="background:#89b4fa"></div></div>
+              <span class="swatch-name">Catppuccin<br>Mocha</span>
+            </div>
+            <div class="theme-swatch" data-palette="catppuccin" data-mode="light" title="Catppuccin Latte">
+              <div class="swatch-preview" style="background:#eff1f5;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#1e66f5"></div></div>
+              <span class="swatch-name">Catppuccin<br>Latte</span>
+            </div>
+            <div class="theme-swatch" data-palette="dracula" data-mode="dark" title="Dracula">
+              <div class="swatch-preview" style="background:#282a36"><div class="swatch-dot" style="background:#8be9fd"></div></div>
+              <span class="swatch-name">Dracula</span>
+            </div>
+            <div class="theme-swatch" data-palette="tokyo" data-mode="dark" title="Tokyo Night">
+              <div class="swatch-preview" style="background:#1a1b26"><div class="swatch-dot" style="background:#7aa2f7"></div></div>
+              <span class="swatch-name">Tokyo<br>Night</span>
+            </div>
+            <div class="theme-swatch" data-palette="gruvbox" data-mode="dark" title="Gruvbox Dark">
+              <div class="swatch-preview" style="background:#282828"><div class="swatch-dot" style="background:#83a598"></div></div>
+              <span class="swatch-name">Gruvbox<br>Dark</span>
+            </div>
+            <div class="theme-swatch" data-palette="gruvbox" data-mode="light" title="Gruvbox Light">
+              <div class="swatch-preview" style="background:#fbf1c7;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#076678"></div></div>
+              <span class="swatch-name">Gruvbox<br>Light</span>
+            </div>
+            <div class="theme-swatch" data-palette="rosepine" data-mode="dark" title="Rose Pine">
+              <div class="swatch-preview" style="background:#191724"><div class="swatch-dot" style="background:#c4a7e7"></div></div>
+              <span class="swatch-name">Rose Pine<br>Dark</span>
+            </div>
+            <div class="theme-swatch" data-palette="rosepine" data-mode="light" title="Rose Pine Dawn">
+              <div class="swatch-preview" style="background:#faf4ed;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#907aa9"></div></div>
+              <span class="swatch-name">Rose Pine<br>Dawn</span>
+            </div>
+            <div class="theme-swatch" data-palette="rosepine-moon" data-mode="dark" title="Rose Pine Moon">
+              <div class="swatch-preview" style="background:#232136"><div class="swatch-dot" style="background:#c4a7e7"></div></div>
+              <span class="swatch-name">Rose Pine<br>Moon</span>
+            </div>
+            <div class="theme-swatch" data-palette="onedark" data-mode="dark" title="One Dark">
+              <div class="swatch-preview" style="background:#282c34"><div class="swatch-dot" style="background:#61afef"></div></div>
+              <span class="swatch-name">One<br>Dark</span>
+            </div>
+            <div class="theme-swatch" data-palette="onedark" data-mode="light" title="Atom One Light">
+              <div class="swatch-preview" style="background:#fafafa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#4078f2"></div></div>
+              <span class="swatch-name">One<br>Light</span>
+            </div>
+            <div class="theme-swatch" data-palette="solarized" data-mode="dark" title="Solarized Dark">
+              <div class="swatch-preview" style="background:#002b36"><div class="swatch-dot" style="background:#268bd2"></div></div>
+              <span class="swatch-name">Solarized<br>Dark</span>
+            </div>
+            <div class="theme-swatch" data-palette="solarized" data-mode="light" title="Solarized Light">
+              <div class="swatch-preview" style="background:#fdf6e3;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#268bd2"></div></div>
+              <span class="swatch-name">Solarized<br>Light</span>
+            </div>
+            <div class="theme-swatch" data-palette="everforest" data-mode="dark" title="Everforest">
+              <div class="swatch-preview" style="background:#2d353b"><div class="swatch-dot" style="background:#a7c080"></div></div>
+              <span class="swatch-name">Everforest</span>
+            </div>
+            <div class="theme-swatch" data-palette="kanagawa" data-mode="dark" title="Kanagawa">
+              <div class="swatch-preview" style="background:#1f1f28"><div class="swatch-dot" style="background:#7e9cd8"></div></div>
+              <span class="swatch-name">Kanagawa</span>
+            </div>
+            <div class="theme-swatch" data-palette="monokai" data-mode="dark" title="Monokai">
+              <div class="swatch-preview" style="background:#272822"><div class="swatch-dot" style="background:#f92672"></div></div>
+              <span class="swatch-name">Monokai</span>
+            </div>
+            <div class="theme-swatch" data-palette="monokai-pro" data-mode="dark" title="Monokai Pro">
+              <div class="swatch-preview" style="background:#2d2a2e"><div class="swatch-dot" style="background:#ff6188"></div></div>
+              <span class="swatch-name">Monokai<br>Pro</span>
+            </div>
+            <div class="theme-swatch" data-palette="material" data-mode="dark" title="Material Dark">
+              <div class="swatch-preview" style="background:#263238"><div class="swatch-dot" style="background:#80cbc4"></div></div>
+              <span class="swatch-name">Material<br>Dark</span>
+            </div>
+            <div class="theme-swatch" data-palette="material" data-mode="light" title="Material Light">
+              <div class="swatch-preview" style="background:#fafafa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#00acc1"></div></div>
+              <span class="swatch-name">Material<br>Light</span>
+            </div>
+            <div class="theme-swatch" data-palette="palenight" data-mode="dark" title="Palenight">
+              <div class="swatch-preview" style="background:#292d3e"><div class="swatch-dot" style="background:#c792ea"></div></div>
+              <span class="swatch-name">Palenight</span>
+            </div>
+            <div class="theme-swatch" data-palette="github" data-mode="dark" title="GitHub Dark">
+              <div class="swatch-preview" style="background:#0d1117"><div class="swatch-dot" style="background:#58a6ff"></div></div>
+              <span class="swatch-name">GitHub<br>Dark</span>
+            </div>
+            <div class="theme-swatch" data-palette="github" data-mode="light" title="GitHub Light">
+              <div class="swatch-preview" style="background:#f6f8fa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#0969da"></div></div>
+              <span class="swatch-name">GitHub<br>Light</span>
+            </div>
+          </div>
+          <label class="sform-label">Contrast</label>
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Low</span>
+            <input type="range" id="appearanceContrast" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+            <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">High</span>
+          </div>
+          <label class="sform-label" style="margin-top:.75rem">Text Brightness</label>
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dim</span>
+            <input type="range" id="appearanceTextBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+            <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Bright</span>
+          </div>
+          <label class="sform-label" style="margin-top:.75rem">Background Brightness</label>
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dark</span>
+            <input type="range" id="appearanceBgBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+            <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Light</span>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+          <label class="sform-label">Visible Pages</label>
+          <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings are always visible.</p>
           <div class="stoggle-grid">
             <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

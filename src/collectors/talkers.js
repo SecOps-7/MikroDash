@@ -1,88 +1,129 @@
 /**
- * Top Talkers (Kid Control) — polls /ip/kid-control/device/print.
- * Runs concurrently with all streams via node-routeros tagged multiplexing.
+ * Top Talkers (Kid Control) — streams /ip/kid-control/device/print.
+ *
+ * Uses ros.stream() with null callback + 'data' event to bypass RStream's
+ * section-handling debounce. RouterOS delivers rate-up / rate-down
+ * (bytes/second) directly — no byte-delta calculation needed.
+ *
+ * A 300 ms debounce accumulates per-device packets from each interval tick
+ * before processing (RouterOS sends one !re per device per tick in a burst).
+ *
+ * Backoff: if the stream errors with "unknown command" or similar, Kid Control
+ * is not licensed/configured on this router. The stream is stopped, an empty
+ * payload is emitted, and a retry is scheduled (1 min → 2 min → … → 10 min).
  */
-const mbps = (d, dtMs) => dtMs <= 0 ? 0 : ((d * 8) / (dtMs / 1000)) / 1_000_000;
 
 class TopTalkersCollector {
   constructor({ ros, io, pollMs, state, topN }) {
-    this.ros = ros;
-    this.io = io;
+    this.ros    = ros;
+    this.io     = io;
     this.pollMs = pollMs;
-    this.state = state;
-    this.topN = topN || 5;
-    this.prev = new Map();
-    this.timer = null;
-    this._inflight = false;
-    this._unavailable  = false; // set true when Kid Control is not licensed/configured
-    this._backoffUntil = 0;     // epoch ms — don't poll before this time
-    this._backoffMs    = 60000; // start at 1 min, doubles each miss up to 10 min
+    this.state  = state;
+    this.topN   = topN || 5;
+
+    this._stream      = null;
+    this._devicesNext = new Map(); // mac -> { name, mac, rateUp, rateDown }
+    this._commitTimer = null;
+    this._backoffTimer = null;
+    this._backoffUntil = 0;
+    this._backoffMs    = 60000;
+    this._unavailable  = false;
     this._lastFp       = '';
   }
 
-  async tick(force = false) {
+  _startStream() {
+    if (this._stream) return;
     if (!this.ros.connected) return;
-    // Skip when no browser clients are connected — avoids polling RouterOS
-    // (and potentially Kid Control) while the dashboard is unattended.
-    if (!force && this.io.engine.clientsCount === 0) return;
+    if (Date.now() < this._backoffUntil) return;
+
+    const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+    console.log('[talkers] streaming /ip/kid-control/device/print, interval=' + intervalSec + 's');
+
+    const stream = this.ros.stream(
+      '/ip/kid-control/device/print',
+      [
+        `=interval=${intervalSec}`,
+        '=.proplist=name,mac-address,rate-up,rate-down',
+      ],
+      null
+    );
+
+    stream.on('data', (packet) => {
+      if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
+      const mac = packet['mac-address'];
+      if (!mac) return;
+      this._devicesNext.set(mac, {
+        name:     packet.name || '',
+        mac,
+        rateUp:   parseInt(packet['rate-up']   || '0', 10),
+        rateDown: parseInt(packet['rate-down'] || '0', 10),
+      });
+      this._scheduleCommit();
+    });
+
+    stream.on('error', (err) => {
+      const msg = String(err && err.message ? err.message : err);
+      this._stream = null;
+      if (msg.includes('timeout') || msg.includes('unknown command') || msg.includes('no such')) {
+        this._unavailable  = true;
+        const now = Date.now();
+        this._backoffUntil = now + this._backoffMs;
+        this._backoffMs    = Math.min(this._backoffMs * 2, 600000);
+        console.warn('[talkers] Kid Control unavailable — backing off ' + Math.round(this._backoffMs / 1000) + 's');
+        const payload = { ts: now, devices: [], pollMs: this.pollMs };
+        this.lastPayload = payload;
+        this.io.emit('talkers:update', payload);
+        this.state.lastTalkersTs  = now;
+        this.state.lastTalkersErr = null;
+        clearTimeout(this._backoffTimer);
+        this._backoffTimer = setTimeout(() => { this._backoffTimer = null; this._startStream(); }, this._backoffMs);
+      } else {
+        console.error('[talkers] stream error:', msg);
+        this.state.lastTalkersErr = msg;
+      }
+    });
+
+    this._stream = stream;
+  }
+
+  _stopStream() {
+    clearTimeout(this._commitTimer);  this._commitTimer  = null;
+    clearTimeout(this._backoffTimer); this._backoffTimer = null;
+    if (!this._stream) return;
+    try { this._stream.stop().catch(() => {}); } catch (e) {}
+    this._stream = null;
+    this._devicesNext.clear();
+  }
+
+  _restartStream() {
+    this._stopStream();
+    this._startStream();
+  }
+
+  _scheduleCommit() {
+    clearTimeout(this._commitTimer);
+    this._commitTimer = setTimeout(() => this._commitTick(), 300);
+  }
+
+  _commitTick() {
+    this._commitTimer  = null;
+    this._backoffMs    = 60000;
+    this._unavailable  = false;
     const now = Date.now();
 
-    // Use a short per-command timeout — Kid Control may not be configured on
-    // all RouterOS builds. A 30s hang would trip the global write timeout and
-    // force an unnecessary reconnect. If unavailable, emit an empty list quietly.
-    // Skip poll during backoff window (Kid Control unavailable/unlicensed)
-    if (now < this._backoffUntil) {
-      this.lastPayload = { ts: now, devices: [], pollMs: this.pollMs };
-      this.io.emit('talkers:update', this.lastPayload);
-      this.state.lastTalkersTs = now;
+    if (this.io.engine.clientsCount === 0) {
+      this._devicesNext.clear();
+      this._stopStream();
       return;
     }
 
-    let items;
-    try {
-      items = await this.ros.write('/ip/kid-control/device/print',
-        ['=.proplist=name,mac-address,bytes-up,bytes-down'],
-        5000); // 5s timeout — fail fast if Kid Control is not available
-      // Successful response — reset backoff
-      this._backoffMs    = 60000;
-      this._unavailable  = false;
-    } catch (e) {
-      const msg = String(e && e.message ? e.message : e);
-      // Suppress timeout/unavailable errors — back off to avoid hammering the router
-      if (msg.includes('timeout') || msg.includes('unknown command') || msg.includes('no such')) {
-        this._unavailable  = true;
-        this._backoffUntil = now + this._backoffMs;
-        this._backoffMs    = Math.min(this._backoffMs * 2, 600000); // cap at 10 min
-        console.warn(`[talkers] Kid Control unavailable — backing off ${Math.round(this._backoffMs/1000)}s`);
-        this.lastPayload = { ts: now, devices: [], pollMs: this.pollMs };
-        this.io.emit('talkers:update', this.lastPayload);
-        this.state.lastTalkersTs  = now;
-        this.state.lastTalkersErr = null;
-        return;
-      }
-      throw e;
-    }
-
-    const seenMACs = new Set();
-    let devices = (items || []).map(d => {
-      const mac  = d['mac-address'] || '';
-      const up   = parseInt(d['bytes-up']   || '0', 10);
-      const down = parseInt(d['bytes-down'] || '0', 10);
-      const prev = this.prev.get(mac);
-      let rx = 0, tx = 0;
-      if (prev && up >= prev.up && down >= prev.down) {
-        const dt = now - prev.ts;
-        tx = mbps(up - prev.up, dt);
-        rx = mbps(down - prev.down, dt);
-      }
-      if (mac) { this.prev.set(mac, { up, down, ts: now }); seenMACs.add(mac); }
-      return { name: d.name || '', mac, tx_mbps: +tx.toFixed(3), rx_mbps: +rx.toFixed(3) };
-    });
-
-    // Prune stale entries for devices no longer reported
-    for (const k of this.prev.keys()) {
-      if (!seenMACs.has(k)) this.prev.delete(k);
-    }
+    let devices = [...this._devicesNext.values()].map(d => ({
+      name:    d.name,
+      mac:     d.mac,
+      tx_mbps: +((d.rateUp   * 8) / 1_000_000).toFixed(3),
+      rx_mbps: +((d.rateDown * 8) / 1_000_000).toFixed(3),
+    }));
+    this._devicesNext.clear();
 
     devices.sort((a, b) => (b.rx_mbps + b.tx_mbps) - (a.rx_mbps + a.tx_mbps));
     devices = devices.slice(0, this.topN);
@@ -93,28 +134,27 @@ class TopTalkersCollector {
       this._lastFp = fp;
       this.io.emit('talkers:update', this.lastPayload);
     }
-    this.state.lastTalkersTs = now;
+    this.state.lastTalkersTs  = now;
     this.state.lastTalkersErr = null;
   }
 
-  stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+  start() {
+    this._startStream();
+    this.io.on('connection', () => { if (!this._stream) this._startStream(); });
+    this.ros.on('close', () => this._stopStream());
+    this.ros.on('connected', () => {
+      this._backoffUntil = 0;
+      this._backoffMs    = 60000;
+      this._unavailable  = false;
+      this._lastFp       = '';
+      clearTimeout(this._backoffTimer);
+      this._backoffTimer = null;
+      this._stream = null; // underlying channel closed with connection
+      this._startStream();
+    });
   }
 
-  start() {
-    const run = async () => {
-      if (this._inflight) return;
-      this._inflight = true;
-      try { await this.tick(); } catch (e) {
-        this.state.lastTalkersErr = String(e && e.message ? e.message : e);
-        console.error('[talkers]', this.state.lastTalkersErr);
-      } finally { this._inflight = false; }
-    };
-    run();
-    this.timer = setInterval(run, this.pollMs);
-    this.ros.on('close', () => this.stop());
-    this.ros.on('connected', () => { this._backoffUntil = 0; this._backoffMs = 60000; this._lastFp = ''; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
-  }
+  stop() { this._stopStream(); }
 }
 
 module.exports = TopTalkersCollector;

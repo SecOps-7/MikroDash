@@ -136,7 +136,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.27
+docker pull ghcr.io/secops-7/mikrodash:0.5.31
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -192,11 +192,11 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 |---|---|
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. Test Connection validates credentials before saving. The active router is selected from the dropdown in the page header |
 | Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
-| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Includes sliders for Firewall (counter poll) and VPN (counter poll). Streamed collectors (Interfaces, ARP, Routing) show an Event-driven badge instead of a slider |
+| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Streamed collectors (ARP, Routing, DHCP Leases, Firewall rules, Interface metadata) show an Event-driven badge instead of a slider |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
 | Diagnostics | Enable/disable verbose RouterOS API debug logging at runtime — no container restart required |
-| Visible Pages | Toggle individual pages on/off — hidden pages are removed from the sidebar instantly |
+| Appearance | 26 named palette swatches (dark and light variants) — applies instantly and persists via `localStorage`. Contrast, Text Brightness, and Background Brightness sliders (15 steps each) for fine-grained adjustment independent of palette. Includes a Visible Pages subsection to toggle individual pages on/off |
 
 ### Credential encryption
 
@@ -286,13 +286,16 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 
 ## Architecture
 
-### Streamed (router pushes on change — zero poll overhead)
+### Streamed (router pushes continuously — no poll overhead)
 | Data | RouterOS endpoint |
 |---|---|
-| WAN Traffic RX/TX | `/interface/monitor-traffic` |
+| System metrics (CPU, RAM, temp, uptime) | `/system/resource/print =interval=N` |
+| WAN Traffic RX/TX per interface | `/interface/monitor-traffic =interface=X =interval=1` |
+| Ping RTT + loss | `/tool/ping =address=X =interval=N` |
+| Top Talkers (Kid Control) | `/ip/kid-control/device/print =interval=N` |
+| Interface metadata (name, IP, state) | `/interface/print =interval=N` + `/ip/address/print =interval=N` |
 | Router Logs | `/log/listen` |
 | DHCP Lease changes | `/ip/dhcp-server/lease/listen` |
-| Interface up/down state | `/interface/listen` |
 | Firewall structural changes (rule add/remove/edit) | `/ip/firewall/filter\|nat\|mangle/listen` |
 | WireGuard peer handshakes & stats | `/interface/wireguard/peers/listen` |
 | ARP table (device join/leave) | `/ip/arp/listen` |
@@ -302,16 +305,12 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 ### Polled (concurrent via tagged API multiplexing)
 | Collector | Default interval | Data |
 |---|---|---|
-| System | 1 s | CPU, RAM, storage, temp, ROS version |
-| Connections | 3 s | Firewall connection table, geo-IP |
-| Bandwidth | 3 s | Per-connection live RX/TX/Total Mbps (shares connection table fetch with Connections) |
-| Top Talkers | 3 s | Kid Control traffic stats |
+| Connections | 5 s | Firewall connection table, geo-IP |
+| Bandwidth | 5 s | Per-connection live RX/TX/Total Mbps (shares connection table fetch with Connections) |
 | VPN counters | 10 s | WireGuard per-peer byte counter refresh for live rates |
 | Firewall counters | 5 s | Packet/byte counter refresh for all firewall rules (RouterOS 7.x does not push counter updates via the listen stream) |
-| Ping | 10 s | RTT + packet loss to ping target |
-| Interface Status | 15 s | Byte counter refresh for live rate bars |
 | Wireless | 30 s | Wireless client list |
-| DHCP Networks | 5 min | LAN subnets, pool sizes, WAN IP |
+| DHCP Networks | 5 min | LAN subnets, pool sizes, WAN IP, internet-facing interfaces |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
 

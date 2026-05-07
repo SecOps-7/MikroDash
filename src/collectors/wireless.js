@@ -243,7 +243,8 @@ class WirelessCollector {
     if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
   }
 
-  start() {
+  _startTimer() {
+    if (this.timer) return;
     const run = async () => {
       if (this._inflight) return;
       this._inflight = true;
@@ -252,6 +253,10 @@ class WirelessCollector {
         console.error('[wireless]', this.state.lastWirelessErr);
       } finally { this._inflight = false; }
     };
+    this.timer = setInterval(run, this.pollMs);
+  }
+
+  start() {
     const runFirst = async () => {
       if (this._inflight) return;
       this._inflight = true;
@@ -261,14 +266,22 @@ class WirelessCollector {
       } finally { this._inflight = false; }
     };
     runFirst();
-    this.timer = setInterval(run, this.pollMs);
+    this._startTimer();
     this.ros.on('close', () => this.stop());
     this.ros.on('connected', () => {
       this.stop();
       this._resetState();
       runFirst();
-      this.timer = setInterval(run, this.pollMs);
+      this._startTimer();
     });
+  }
+
+  suspend() {
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+  }
+
+  resume() {
+    if (this.ros.connected) this._startTimer();
   }
 
   stop() {

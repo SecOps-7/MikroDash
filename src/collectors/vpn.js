@@ -262,6 +262,10 @@ class VpnCollector {
     });
   }
 
+  suspend() { this._stopCounterPoll(); }
+
+  resume()  { this._startCounterPoll(); }
+
   stop() {
     this._stopStream();
     this._stopHeartbeat();

@@ -200,61 +200,65 @@ class ConnectionsCollector {
         return { key, count, country, city, proto, org, cat };
       });
 
-    // Per-country destination index — used by the client-side country filter to
-    // populate the Connection Flow and Top Ports cards even for countries whose
-    // individual IPs don't appear in the global topDestinations list.
-    // Includes all destinations for every country in topCountries, sorted by
-    // connection count, capped at 20 per country to keep payload size bounded.
+    // Only build per-country and per-source indexes when the connections page is
+    // actually open — these structures are the most CPU-intensive part of the tick
+    // (iterating all destinations, running geo lookups, building nested maps) and
+    // are only emitted to the page-connections room anyway.
+    const buildDetailed = (this.io.sockets.adapter.rooms.get('page-connections')?.size || 0) > 0;
+
     const countryDests = {};
-    for (const [key, count] of dstCounts.entries()) {
-      const ip = extractAddress(key);
-      const geo = this._geoCache.get(ip);
-      if (!geo || !geo.country) continue;
-      const cc = geo.country;
-      if (!countryDests[cc]) countryDests[cc] = [];
-      const org = this._orgCache.get(ip) || null;
-      const cat = org ? lookupCategory(org) : null;
-      countryDests[cc].push({ key, count, country: cc, city: geo.city || '', org, cat });
-    }
-    for (const cc of Object.keys(countryDests)) {
-      countryDests[cc].sort((a, b) => b.count - a.count);
-      if (countryDests[cc].length > 20) countryDests[cc].length = 20;
-    }
-
-    // Per-country port index — top 10 ports for each country, counts every
-    // matching connection (not capped by destination list size like countryDests).
     const countryPorts = {};
-    for (const [cc, portMap] of countryPortCounts.entries()) {
-      countryPorts[cc] = Array.from(portMap.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([port, count]) => ({ port, count }));
-    }
+    const sourceDests  = {};
+    const sourcePorts  = {};
 
-    // Per-source destination index — mirrors countryDests but keyed by source IP.
-    // Clients use this to filter all connections-page cards to a single device.
-    const sourceDests = {};
-    for (const [srcIp, dstMap] of srcDestsMap.entries()) {
-      const entries = [];
-      for (const [key, cnt] of dstMap.entries()) {
-        const ip  = extractAddress(key);
-        const geo = this._geoCache.get(ip) || { country: '', city: '' };
+    if (buildDetailed) {
+      // Per-country destination index — used by the client-side country filter to
+      // populate the Connection Flow and Top Ports cards even for countries whose
+      // individual IPs don't appear in the global topDestinations list.
+      for (const [key, count] of dstCounts.entries()) {
+        const ip = extractAddress(key);
+        const geo = this._geoCache.get(ip);
+        if (!geo || !geo.country) continue;
+        const cc = geo.country;
+        if (!countryDests[cc]) countryDests[cc] = [];
         const org = this._orgCache.get(ip) || null;
         const cat = org ? lookupCategory(org) : null;
-        entries.push({ key, count: cnt, country: geo.country, city: geo.city, org, cat });
+        countryDests[cc].push({ key, count, country: cc, city: geo.city || '', org, cat });
       }
-      entries.sort((a, b) => b.count - a.count);
-      sourceDests[srcIp] = entries.slice(0, 30);
-    }
+      for (const cc of Object.keys(countryDests)) {
+        countryDests[cc].sort((a, b) => b.count - a.count);
+        if (countryDests[cc].length > 20) countryDests[cc].length = 20;
+      }
 
-    // Per-source port index — top 10 ports per source IP, counts every matching
-    // connection (not capped like sourceDests) so Top Ports totals are accurate.
-    const sourcePorts = {};
-    for (const [srcIp, portMap] of sourcePortCounts.entries()) {
-      sourcePorts[srcIp] = Array.from(portMap.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([port, count]) => ({ port, count }));
+      // Per-country port index — top 10 ports for each country.
+      for (const [cc, portMap] of countryPortCounts.entries()) {
+        countryPorts[cc] = Array.from(portMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([port, count]) => ({ port, count }));
+      }
+
+      // Per-source destination index — keyed by source IP.
+      for (const [srcIp, dstMap] of srcDestsMap.entries()) {
+        const entries = [];
+        for (const [key, cnt] of dstMap.entries()) {
+          const ip  = extractAddress(key);
+          const geo = this._geoCache.get(ip) || { country: '', city: '' };
+          const org = this._orgCache.get(ip) || null;
+          const cat = org ? lookupCategory(org) : null;
+          entries.push({ key, count: cnt, country: geo.country, city: geo.city, org, cat });
+        }
+        entries.sort((a, b) => b.count - a.count);
+        sourceDests[srcIp] = entries.slice(0, 30);
+      }
+
+      // Per-source port index — top 10 ports per source IP.
+      for (const [srcIp, portMap] of sourcePortCounts.entries()) {
+        sourcePorts[srcIp] = Array.from(portMap.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([port, count]) => ({ port, count }));
+      }
     }
 
     const topCountries = Array.from(countryProto.entries())

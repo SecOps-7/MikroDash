@@ -231,7 +231,7 @@ function buildSession(routerCfg) {
   const wireless     = new WirelessCollector    ({ros,io, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
   const vpn          = new VpnCollector         ({ros,io, pollMs:_cfg.pollVpn,      state});
   const firewall     = new FirewallCollector    ({ros,io, pollMs:_cfg.pollFirewall,  state, topN:_cfg.firewallTopN});
-  const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, state});
+  const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, metaPollMs:_cfg.pollIfaces, state});
   const ping         = new PingCollector        ({ros,io, pollMs:_cfg.pollPing,     state, target:PING_TARGET});
   const bandwidth    = new BandwidthCollector   ({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache});
   const routing      = new RoutingCollector     ({ros,io, pollMs:_cfg.pollRouting,  state});
@@ -365,6 +365,10 @@ async function startCollectors(session) {
     startupReady = true;
     console.log('[MikroDash] All collectors running');
 
+    // If no browser clients are connected at startup, suspend high-frequency
+    // streams immediately — they will resume when the first client connects.
+    if (io.engine.clientsCount === 0) _idleSuspend(session);
+
     // Broadcast initial state to all currently connected sockets.
     // On first startup there are none yet, so this is a no-op.
     // On a hot-swap the Socket.IO connections stay alive — existing browser
@@ -495,7 +499,7 @@ app.post('/api/settings', (req, res) => {
     const intFields = {
       routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollSystem:[500,60000],
       pollWireless:[500,60000], pollVpn:[500,30000],  pollFirewall:[500,30000],
-      pollIfstatus:[500,60000], pollPing:[500,30000],   pollArp:[5000,300000],
+      pollIfstatus:[500,60000], pollIfaces:[10000,600000], pollPing:[1000,5000], pollArp:[5000,300000],
       pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], vpnDashTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
       alertCpuThreshold:[1,100], alertPingLoss:[1,100],
@@ -539,11 +543,35 @@ app.post('/api/settings', (req, res) => {
       s.connTableCache.updateMaxAge(saved.pollConns, saved.pollBandwidth);
     }
 
-    // pollIfstatus controls the addr sub-poll (_addrTimer) in InterfaceStatusCollector
+    // pollPing controls the /tool/ping stream interval
+    if ('pollPing' in updates && s.ping) {
+      s.ping.pollMs = saved.pollPing;
+      s.ping._restartStream();
+    }
+
+    // pollTalkers controls the kid-control stream interval
+    if ('pollTalkers' in updates && s.talkers) {
+      s.talkers.pollMs = saved.pollTalkers;
+      s.talkers._restartStream();
+    }
+
+    // pollSystem controls the ros.stream() interval — restart with new =interval=N
+    if ('pollSystem' in updates && s.system) {
+      s.system.pollMs = saved.pollSystem;
+      s.system._restartStream();
+    }
+
+    // pollIfstatus controls the emit timer + monitor-traffic stream interval
     if ('pollIfstatus' in updates && s.ifStatus) {
       s.ifStatus.pollMs = saved.pollIfstatus;
-      s.ifStatus._stopAddrPoll();
-      s.ifStatus._startAddrPoll();
+      s.ifStatus._restartEmitTimer();
+      s.ifStatus._restartMonitorStream();
+    }
+
+    // pollIfaces controls the /interface/print + /ip/address/print stream interval
+    if ('pollIfaces' in updates && s.ifStatus) {
+      s.ifStatus.metaPollMs = saved.pollIfaces;
+      s.ifStatus._restartMetaStreams();
     }
 
     // pollFirewall controls the counter poll interval — restart it live
@@ -565,19 +593,19 @@ app.post('/api/settings', (req, res) => {
       if (saved.pingEnabled) {
         s.ping._permissionDenied = false;
         s.ping._lastFp = '';
-        if (!s.ping.timer) s.ping.start();
+        if (!s.ping._stream) s.ping.start();
       } else {
         s.ping.stop();
         io.emit('ping:update', { enabled: false });
       }
     }
 
-    // Apply pingTarget change live — the collector stores it as this.target
+    // Apply pingTarget change live — restart stream with new =address=
     if ('pingTarget' in updates && s.ping) {
       s.ping.target = saved.pingTarget;
-      s.ping._lastFp = ''; // force next tick to emit with the new target label
-      // Broadcast immediately so the dashboard label updates without waiting
-      // up to pollPing ms for the next scheduled tick.
+      s.ping._lastFp = '';
+      s.ping._lossWindow = [];
+      s.ping._restartStream();
       if (s.ping.lastPayload) {
         const updated = { ...s.ping.lastPayload, target: saved.pingTarget, ts: Date.now() };
         s.ping.lastPayload = updated;
@@ -658,8 +686,10 @@ app.put('/api/routers/:id', (req, res) => {
     if (_session && req.params.id === activeId && req.body && req.body.pingTarget) {
       const newTarget = router.pingTarget;
       if (_session.ping && _session.ping.target !== newTarget) {
-        _session.ping.target  = newTarget;
-        _session.ping._lastFp = ''; // force next tick to emit with new target
+        _session.ping.target      = newTarget;
+        _session.ping._lastFp     = '';
+        _session.ping._lossWindow = [];
+        _session.ping._restartStream();
         if (_session.ping.lastPayload) {
           const updated = { ..._session.ping.lastPayload, target: newTarget, ts: Date.now() };
           _session.ping.lastPayload = updated;
@@ -913,12 +943,37 @@ async function sendInitialState(socket) {
   if (logHistory.length) socket.emit('logs:history', logHistory);
 }
 
+function _idleSuspend(session) {
+  if (!session || !startupReady) return;
+  session.ifStatus.suspend();
+  session.system.suspend();
+  session.wireless.suspend();
+  session.vpn.suspend();
+  session.firewall.suspend();
+}
+
+function _idleResume(session) {
+  if (!session || !startupReady) return;
+  session.ifStatus.resume();
+  session.system.resume();
+  session.wireless.resume();
+  session.vpn.resume();
+  session.firewall.resume();
+}
+
 io.on('connection', (socket) => {
   if (io.engine.clientsCount > MAX_SOCKETS) {
     console.warn('[MikroDash] connection rejected — max sockets reached:', MAX_SOCKETS);
     socket.disconnect(true);
     return;
   }
+
+  // Idle manager: resume streams/timers when the first browser client connects.
+  if (io.engine.clientsCount === 1) _idleResume(_session);
+
+  socket.on('disconnect', () => {
+    if (io.engine.clientsCount === 0) _idleSuspend(_session);
+  });
 
   // Page-aware rooms — clients join/leave rooms as they navigate pages.
   // Collectors for page-specific events (bandwidth, firewall, logs) emit only

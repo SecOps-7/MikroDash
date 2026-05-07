@@ -1,21 +1,17 @@
 /**
- * Traffic collector — polls /interface/monitor-traffic =once= every 1 second.
+ * Traffic collector — streams /interface/monitor-traffic with interval=1.
  *
- * WHY polling instead of streaming:
- *   /interface/monitor-traffic is an interactive RouterOS command. When called
- *   via the binary API without =once=, it may stream, but the behavior varies
- *   by ROS version and is unreliable. Every known working implementation uses
- *   write() + =once= on a 1-second interval. This is the correct approach.
+ * Uses ros.stream() with a null callback and subscribes to the RStream 'data'
+ * event directly, bypassing the section-handling debounce in RStream.onStream()
+ * (RouterOS interval responses include a .section field that would otherwise
+ * delay or lose packets). One persistent channel per interface replaces the
+ * previous write()+once= approach.
  */
 const RingBuffer = require('../util/ringbuffer');
 
-const POLL_MS = 1000; // 1 second
-// RouterOS interface names are short in practice; cap this to reject malformed input early.
 const MAX_INTERFACE_NAME_LENGTH = 128;
 
 function parseBps(val) {
-  // RouterOS API returns raw integer strings via binary API (e.g. "27800")
-  // but format strings in terminal output ("27.8kbps") — just in case, handle both.
   if (!val || val === '0') return 0;
   var s = String(val);
   if (s.endsWith('kbps') || s.endsWith('Kbps')) return parseFloat(s) * 1000;
@@ -31,17 +27,16 @@ function bpsToMbps(bps) {
 
 class TrafficCollector {
   constructor({ ros, io, defaultIf, historyMinutes, state }) {
-    this.ros       = ros;
-    this.io        = io;
-    this._idleTimer = null; // resumes polling when next client connects
-    this.defaultIf = defaultIf;
-    this.state     = state;
-    this.maxPoints = Math.max(60, historyMinutes * 60);
-    this.hist          = new Map();   // ifName -> RingBuffer
-    this.subscriptions = new Map();   // socketId -> ifName
-    this.timers        = new Map();   // ifName -> intervalId
+    this.ros        = ros;
+    this.io         = io;
+    this.defaultIf  = defaultIf;
+    this.state      = state;
+    this.maxPoints  = Math.max(60, historyMinutes * 60);
+    this.hist          = new Map();  // ifName -> RingBuffer
+    this.subscriptions = new Map();  // socketId -> ifName
+    this.streams       = new Map();  // ifName -> RStreamHandle
     this.availableIfs  = new Set();
-    this._loggedErrs   = new Set();   // ifNames that have logged an error
+    this._loggedErrs   = new Set();
   }
 
   _ensureHistory(ifName) {
@@ -58,10 +53,6 @@ class TrafficCollector {
     const trimmed = ifName.trim();
     if (!trimmed || trimmed.length > MAX_INTERFACE_NAME_LENGTH) return null;
     if (/[\r\n\0]/.test(trimmed)) return null;
-    // Reject if the interface whitelist hasn't been populated yet.
-    // This closes the connect-time race where a client sends traffic:select
-    // before sendInitialState() has called setAvailableInterfaces(), which
-    // would leave availableIfs empty and bypass the whitelist check entirely.
     if (!this.availableIfs.size) {
       console.warn('[traffic] traffic:select rejected — interface list not yet ready');
       return null;
@@ -70,34 +61,32 @@ class TrafficCollector {
     return trimmed;
   }
 
-  _stopPoll(ifName) {
-    const timer = this.timers.get(ifName);
-    if (!timer) return;
-    clearInterval(timer);
-    this.timers.delete(ifName);
-    console.log('[traffic] stopped polling', ifName);
+  _stopStream(ifName) {
+    const stream = this.streams.get(ifName);
+    if (!stream) return;
+    try { stream.stop().catch(() => {}); } catch (e) {}
+    this.streams.delete(ifName);
+    console.log('[traffic] stopped stream', ifName);
   }
 
-  _pruneUnusedPolls() {
+  _pruneUnusedStreams() {
     const active = new Set(this.subscriptions.values());
     active.add(this.defaultIf);
-    for (const ifName of this.timers.keys()) {
-      if (!active.has(ifName)) this._stopPoll(ifName);
+    for (const ifName of this.streams.keys()) {
+      if (!active.has(ifName)) this._stopStream(ifName);
     }
   }
 
   bindSocket(socket) {
-    // Subscribe this socket to the default interface immediately
     this.subscriptions.set(socket.id, this.defaultIf);
 
-    // Client changed interface selection
     socket.on('traffic:select', (payload) => {
       const nextIf = this._normalizeIfName(payload && payload.ifName);
       if (!nextIf) return;
       this.subscriptions.set(socket.id, nextIf);
       this._ensureHistory(nextIf);
-      this._startPoll(nextIf);
-      this._pruneUnusedPolls();
+      this._startStream(nextIf);
+      this._pruneUnusedStreams();
       socket.emit('traffic:history', {
         ifName: nextIf,
         points: this.hist.get(nextIf).toArray(),
@@ -106,90 +95,89 @@ class TrafficCollector {
 
     socket.on('disconnect', () => {
       this.subscriptions.delete(socket.id);
-      this._pruneUnusedPolls();
+      this._pruneUnusedStreams();
     });
   }
 
-  _startPoll(ifName) {
-    if (this.timers.has(ifName)) return; // already polling
+  _startStream(ifName) {
+    if (this.streams.has(ifName)) return;
     if (!this.ros.connected) return;
 
-    console.log('[traffic] polling', ifName, 'every', POLL_MS, 'ms');
+    console.log('[traffic] streaming', ifName, 'interval=1s');
 
-    const timer = setInterval(async () => {
-      await this._pollInterface(ifName);
-    }, POLL_MS);
+    const stream = this.ros.stream(
+      '/interface/monitor-traffic',
+      [
+        `=interface=${ifName}`,
+        '=interval=1',
+        '=.proplist=rx-bits-per-second,tx-bits-per-second,running,disabled',
+      ],
+      null  // null callback — use 'data' event to bypass section-handling debounce
+    );
 
-    this.timers.set(ifName, timer);
-  }
+    stream.on('data', (packet) => {
+      if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
+      if (!packet['rx-bits-per-second'] && !packet['tx-bits-per-second']) return;
+      this._processPacket(ifName, packet);
+    });
 
-  async _pollInterface(ifName) {
-    if (!this.ros.connected) return;
-    // Skip the RouterOS API call entirely when no browser client is watching.
-    // The interval keeps running so data resumes immediately on reconnect.
-    if (this.io.engine.clientsCount === 0) return;
-    try {
-      const rows = await this.ros.write(
-        '/interface/monitor-traffic',
-        [`=interface=${ifName}`, '=once=']
-      );
-      if (!rows || !rows.length) return;
-      const data = rows[0];
-
-      const rxBps = parseBps(data['rx-bits-per-second']);
-      const txBps = parseBps(data['tx-bits-per-second']);
-      const running  = data.running  !== 'false' && data.running  !== false;
-      const disabled = data.disabled === 'true'  || data.disabled === true;
-
-      const now    = Date.now();
-      const sample = {
-        ifName, ts: now,
-        rx_mbps: bpsToMbps(rxBps),
-        tx_mbps: bpsToMbps(txBps),
-        running, disabled,
-      };
-
-      this._ensureHistory(ifName);
-      this.hist.get(ifName).push({ ts: now, rx_mbps: sample.rx_mbps, tx_mbps: sample.tx_mbps });
-
-      for (const [sid, subIf] of this.subscriptions.entries()) {
-        if (subIf === ifName) this.io.to(sid).emit('traffic:update', sample);
-      }
-
-      if (ifName === this.defaultIf) {
-        this.io.emit('wan:status', { ifName, ts: now, running, disabled });
-      }
-
-      this.state.lastTrafficTs  = now;
-      this.state.lastTrafficErr = null;
-    } catch (e) {
-      this.state.lastTrafficErr = e && e.message ? e.message : String(e);
+    stream.on('error', (err) => {
+      const msg = err && err.message ? err.message : String(err);
       if (!this._loggedErrs.has(ifName)) {
-        console.error('[traffic] poll error on', ifName, ':', this.state.lastTrafficErr);
+        console.error('[traffic] stream error on', ifName, ':', msg);
         this._loggedErrs.add(ifName);
       }
+      this.state.lastTrafficErr = msg;
+      this.streams.delete(ifName);
+    });
+
+    this.streams.set(ifName, stream);
+  }
+
+  _processPacket(ifName, data) {
+    if (this.io.engine.clientsCount === 0) return;
+
+    const rxBps    = parseBps(data['rx-bits-per-second']);
+    const txBps    = parseBps(data['tx-bits-per-second']);
+    const running  = data.running  !== 'false' && data.running  !== false;
+    const disabled = data.disabled === 'true'  || data.disabled === true;
+
+    const now    = Date.now();
+    const sample = { ifName, ts: now, rx_mbps: bpsToMbps(rxBps), tx_mbps: bpsToMbps(txBps), running, disabled };
+
+    this._ensureHistory(ifName);
+    this.hist.get(ifName).push({ ts: now, rx_mbps: sample.rx_mbps, tx_mbps: sample.tx_mbps });
+
+    for (const [sid, subIf] of this.subscriptions.entries()) {
+      if (subIf === ifName) this.io.to(sid).emit('traffic:update', sample);
     }
+
+    if (ifName === this.defaultIf) {
+      this.io.emit('wan:status', { ifName, ts: now, running, disabled });
+    }
+
+    this.state.lastTrafficTs  = now;
+    this.state.lastTrafficErr = null;
+    this._loggedErrs.delete(ifName);
   }
 
   _stopAll() {
-    for (const ifName of this.timers.keys()) this._stopPoll(ifName);
-    this.timers.clear();
+    for (const ifName of [...this.streams.keys()]) this._stopStream(ifName);
     this._loggedErrs.clear();
   }
 
   start() {
     this._ensureHistory(this.defaultIf);
-    this._startPoll(this.defaultIf);
+    this._startStream(this.defaultIf);
 
     this.ros.on('connected', () => {
-      console.log('[traffic] reconnected — restarting polls');
+      console.log('[traffic] reconnected — restarting streams');
       this._stopAll();
       this._ensureHistory(this.defaultIf);
-      this._startPoll(this.defaultIf);
-      // Re-poll any currently subscribed interfaces
+      this._startStream(this.defaultIf);
       const subscribed = new Set(this.subscriptions.values());
       for (const ifName of subscribed) {
-        if (ifName !== this.defaultIf) this._startPoll(ifName);
+        if (ifName !== this.defaultIf) this._startStream(ifName);
       }
     });
 

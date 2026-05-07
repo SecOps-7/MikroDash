@@ -1,62 +1,71 @@
+/**
+ * Ping collector — streams /tool/ping with interval=N.
+ *
+ * Uses ros.stream() with null callback + 'data' event. RouterOS sends one
+ * !re packet per ping result (replied or timeout). No count limit is set so
+ * RouterOS pings indefinitely until the channel is cancelled.
+ *
+ * Loss is computed over a rolling window (last LOSS_WINDOW results) so a
+ * single timeout doesn't jump the display to 100% and one recovery doesn't
+ * immediately return to 0%.
+ *
+ * Backoff: stream errors matching "not enough privileges" / "permission denied"
+ * set _permissionDenied and stop retrying — the API user needs the 'test' policy.
+ */
 const RingBuffer = require('../util/ringbuffer');
 
-const PING_COUNT = 2;
-const MAX_HISTORY = 60;
+const MAX_HISTORY  = 60;
+const LOSS_WINDOW  = 10; // rolling window for loss %
 
 class PingCollector {
   constructor({ ros, io, pollMs, state, target }) {
     this.ros    = ros;
     this.io     = io;
-    this.pollMs = pollMs || 10000;
+    this.pollMs = pollMs || 5000;
     this.state  = state;
     this.target = target || '1.1.1.1';
-    this.timer  = null;
-    this._inflight = false;
+
+    this.history = new RingBuffer(MAX_HISTORY);
+    this._stream  = null;
+    this._lastFp  = '';
+    this.lastPayload       = null;
     this._permissionDenied = false;
-    this.history = new RingBuffer(MAX_HISTORY); // {ts, rtt, loss}
-    this._lastFp = '';
-    this.lastPayload = null;
+    this._lossWindow       = []; // bool[] — true = replied
   }
 
-  async tick() {
-    if (!this.ros.connected) return;
-    if (this.io.engine.clientsCount === 0) return;
-    if (this._permissionDenied) return; // no test policy — stop retrying
-    let rtt = null, loss = 100;
-    try {
-      const results = await this.ros.write('/tool/ping', [
+  _parseRtt(val) {
+    if (!val) return null;
+    const m = String(val).match(/([\d.]+)(us|ms)?/);
+    if (!m) return null;
+    const v = parseFloat(m[1]);
+    return m[2] === 'us' ? +(v / 1000).toFixed(3) : v;
+  }
+
+  _startStream() {
+    if (this._stream || !this.ros.connected || this._permissionDenied) return;
+    // RouterOS caps /tool/ping interval at 5 s (00:00:05); clamp to [1,5].
+    const intervalSec = Math.min(5, Math.max(1, Math.round(this.pollMs / 1000)));
+    console.log('[ping] streaming /tool/ping →', this.target, 'interval=' + intervalSec + 's');
+
+    const stream = this.ros.stream(
+      '/tool/ping',
+      [
         '=address=' + this.target,
-        '=count=' + PING_COUNT,
-        '=interval=0.2',
-      ]);
-      const rows = Array.isArray(results) ? results : [];
-      const replied = rows.filter(r => r.status === 'replied' || (r['avg-rtt'] && !r.status));
-      // RouterOS returns a summary row with avg-rtt
-      const summary = rows.find(r => r['avg-rtt'] || r['min-rtt']);
-      if (summary && summary['avg-rtt']) {
-        // avg-rtt is "3ms" (milliseconds) or "350us" (microseconds) on low-latency LANs
-        const m = String(summary['avg-rtt']).match(/([\d.]+)(us|ms)?/);
-        if (m) {
-          rtt = parseFloat(m[1]);
-          if (m[2] === 'us') rtt = rtt / 1000; // convert µs → ms
-        }
-        const sent = parseInt(summary['sent'] || String(PING_COUNT), 10);
-        const recv = parseInt(summary['received'] || replied.length, 10);
-        loss = sent > 0 ? Math.round(((sent - recv) / sent) * 100) : 0;
-      } else if (replied.length > 0) {
-        // Fallback: average individual reply times
-        const times = replied.map(r => {
-          const m = String(r.time || r['response-time'] || '0').match(/([\d.]+)(us|ms)?/);
-          if (!m) return 0;
-          return m[2] === 'us' ? parseFloat(m[1]) / 1000 : parseFloat(m[1]);
-        }).filter(v => v > 0);
-        if (times.length) rtt = Math.round(times.reduce((a,b)=>a+b,0) / times.length);
-        loss = Math.round(((PING_COUNT - replied.length) / PING_COUNT) * 100);
-      }
-    } catch (e) {
-      const msg = e && e.message ? e.message : String(e);
-      // RouterOS returns a permission error when the API user lacks 'test' policy.
-      // Flag it so we stop retrying and emit a clear disabled state to the UI.
+        '=interval=' + intervalSec,
+      ],
+      null
+    );
+
+    stream.on('data', (packet) => {
+      if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
+      // Skip summary-like packets that have no time and no status
+      if (!packet.time && !packet['response-time'] && !packet.status) return;
+      this._processPacket(packet);
+    });
+
+    stream.on('error', (err) => {
+      const msg = err && err.message ? err.message : String(err);
+      this._stream = null;
       if (/not enough privileges|permission denied|cannot run/i.test(msg)) {
         this._permissionDenied = true;
         console.warn('[ping] test policy not granted — ping disabled. Add "test" to your RouterOS API user group to enable it.');
@@ -65,44 +74,68 @@ class PingCollector {
         this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
         this.io.emit('ping:update', this.lastPayload);
         this.state.lastPingTs = Date.now();
-        return;
+      } else {
+        console.error('[ping] stream error:', msg);
+        this.state.lastPingErr = msg;
       }
-      console.error('[ping]', msg);
-    }
+    });
+
+    this._stream = stream;
+  }
+
+  _stopStream() {
+    if (!this._stream) return;
+    try { this._stream.stop().catch(() => {}); } catch (e) {}
+    this._stream = null;
+  }
+
+  _restartStream() {
+    this._stopStream();
+    this._startStream();
+  }
+
+  _processPacket(packet) {
+    if (this.io.engine.clientsCount === 0) { this._stopStream(); return; }
+
+    const replied = !packet.status || packet.status === 'replied';
+    const rtt     = replied ? this._parseRtt(packet.time || packet['response-time']) : null;
+
+    this._lossWindow.push(replied);
+    if (this._lossWindow.length > LOSS_WINDOW) this._lossWindow.shift();
+    const loss = this._lossWindow.length > 0
+      ? Math.round((this._lossWindow.filter(v => !v).length / this._lossWindow.length) * 100)
+      : 100;
 
     const point = { ts: Date.now(), rtt, loss };
     this.history.push(point);
 
-    // Dirty-check: only emit when rtt, loss, or target changes
     const fp = `${this.target}|${rtt}|${loss}`;
     this.lastPayload = { target: this.target, rtt, loss, ts: point.ts, pollMs: this.pollMs };
     if (fp !== this._lastFp) {
       this._lastFp = fp;
       this.io.emit('ping:update', this.lastPayload);
     }
-    this.state.lastPingTs = Date.now();
+    this.state.lastPingTs  = Date.now();
+    this.state.lastPingErr = null;
   }
 
   getHistory() {
     return { target: this.target, history: this.history.toArray() };
   }
 
-  stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+  start() {
+    this._startStream();
+    this.io.on('connection', () => { if (!this._stream) this._startStream(); });
+    this.ros.on('close',     () => this._stopStream());
+    this.ros.on('connected', () => {
+      this._lastFp = '';
+      this._permissionDenied = false;
+      this._stream = null;
+      this._startStream();
+    });
   }
 
-  start() {
-    const run = async () => {
-      if (this._inflight) return;
-      this._inflight = true;
-      try { await this.tick(); } catch (e) { console.error('[ping]', e && e.message ? e.message : e); }
-      finally { this._inflight = false; }
-    };
-    run();
-    this.timer = setInterval(run, this.pollMs);
-    this.ros.on('close',     () => this.stop());
-    this.ros.on('connected', () => { this._lastFp = ''; this._permissionDenied = false; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
-  }
+  stop() { this._stopStream(); }
 }
 
 module.exports = PingCollector;

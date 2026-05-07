@@ -2,6 +2,33 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.31] — Full stream conversion, idle manager, theme system
+
+### Added
+
+- **Theme system** — new "Appearance" section in Settings with 26 named palette swatches across 15 themes: Default (dark/light), Nord (dark/light), Catppuccin Mocha/Latte, Dracula, Tokyo Night, Gruvbox (dark/light), Rose Pine/Dawn/Moon, One Dark/Light, Solarized (dark/light), Everforest, Kanagawa, Monokai, Monokai Pro, Material (dark/light), Palenight, GitHub (dark/light). Selecting a swatch applies instantly and persists via `localStorage`. Implements [#36](https://github.com/SecOps-7/MikroDash/issues/36).
+- **Appearance sliders** — three 15-point range sliders (Contrast, Text Brightness, Background Brightness) provide fine-grained adjustment of text alpha, text RGB brightness, and background brightness independently of the selected palette. Neutral midpoint is step 8 (1.0×).
+- **Interface Status interval setting** — new "Interface Status" slider in Settings (10 s–10 min, default 60 s) controls how often interface metadata (name, type, IP, enabled state) is refreshed. Previously hardcoded.
+
+### Changed
+
+- **Remaining collectors converted to persistent `ros.stream()` channels** — System (`/system/resource/print =interval=N`), Traffic (`/interface/monitor-traffic =interface=X =interval=1` per interface), Ping (`/tool/ping =address=X =interval=N`), Top Talkers (`/ip/kid-control/device/print =interval=N`), and Interface Status (`/interface/print =interval=N` + `/ip/address/print =interval=N`) are no longer polled with `setInterval` + `ros.write()`. RouterOS pushes updates continuously; the server processes each `!re` packet directly. Eliminates the gap between polls and reduces RouterOS CPU overhead from repeated open/close API commands.
+- **`patch-routeros.js` — MULTI_BLOCK_V2 patch** — adds `if (this.streaming) break;` before the 20 ms `!done` debounce in `Channel.js`. For `ros.stream()` channels, `!done` packets from interval commands are now a no-op so the channel stays open and RouterOS continues delivering interval pushes indefinitely. `ros.write()` channels are unaffected.
+- **Centralized idle manager** — when the last browser disconnects, all active collectors suspend: Interface Status stops monitor-traffic streams and the emit timer; System, Wireless, VPN, and Firewall stop their counter-poll timers. All `/listen` event streams and metadata streams remain open so cached state is available instantly on reconnect. RouterOS API traffic drops to near zero on unattended dashboards.
+- **System poll interval setting** now correctly restarts the live stream at the new interval — previously only the initial connection used the updated value.
+- **Router update check** interval raised from 5 minutes to 12 hours. Check now runs at startup and on reconnect rather than waiting for the first browser connection.
+- **Default poll intervals raised** — System 1 s → 2 s, Interface Status 3 s → 5 s, Connections 3 s → 5 s, Bandwidth 3 s → 5 s. Reduces total RouterOS API calls per minute by ~40% and browser-side bandwidth by ~40% on the Connections and Bandwidth pages.
+- **Connections page** — per-country and per-source destination/port index computation is skipped entirely when no clients are on the Connections page. Geo/org lookups for up to 20 K connections per tick are no longer performed unconditionally.
+- **Top Talkers** — `rate-up`/`rate-down` fields from RouterOS are used directly; byte-delta calculation and the `prev` map removed. Stream stops when the last browser disconnects and restarts on reconnect, preventing Kid Control queries when the dashboard is unattended.
+- **Network Flow card** — SVG elements now use CSS custom properties instead of hardcoded `rgba` values; the card adapts correctly to all palettes and dark/light modes.
+- **Settings page** — cards now use the theme's `--bg-card` background (matching dashboard card appearance) with `backdrop-filter: blur(6px)` and a subtle box shadow. Form inputs and toggle rows use `--bg-deep` for a recessed look inside the card.
+- **Poll interval sliders** — restyled to match all other range inputs in Settings (consistent label, flex row with accent colour, mono value span).
+- **Visible Pages** — moved from its own card into the Appearance card as a themed subsection.
+
+### Fixed
+
+- **Router-switch overlay stuck permanently** when switching to a misconfigured router (bad SSL cert, wrong credentials) — the overlay previously only dismissed on a successful connection; it now also dismisses on a second consecutive `connected:false` event, allowing the user to switch again or edit the config. Fixes [#35](https://github.com/SecOps-7/MikroDash/issues/35).
+
 ## [0.5.30]
 
 ### Added

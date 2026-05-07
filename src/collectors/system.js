@@ -2,15 +2,18 @@ class SystemCollector {
   constructor({ ros, io, pollMs, state }) {
     this.ros = ros;
     this.io = io;
-    this.pollMs = pollMs || 5000;
+    this.pollMs = pollMs || 2000;
     this.state = state;
-    this.timer = null;
-    this._inflight = false;
+    this._stream = null;
+    this._healthTimer = null;
+    this._lastHealth = [];
     this._loggedUpdateFields = false;
-    this.UPDATE_INTERVAL   = 5 * 60 * 1000; // fetch update status every 5 min
-    this._lastUpdateFetch  = 0;             // force fetch on first tick
+    this.UPDATE_INTERVAL   = 12 * 60 * 60 * 1000;
+    this._lastUpdateFetch  = 0;
     this._lastUpdateRow    = {};
     this._lastFp           = '';
+    this.lastPayload       = null;
+    this._boardNameReported = false;
   }
 
   // Fetch update status independently so a slow RouterOS update-server
@@ -19,7 +22,7 @@ class SystemCollector {
     if (!this.ros.connected) return;
     const now = Date.now();
     if ((now - this._lastUpdateFetch) < this.UPDATE_INTERVAL) return;
-    this._lastUpdateFetch = now; // mark immediately to prevent concurrent fetches
+    this._lastUpdateFetch = now;
     try {
       const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('update check timed out')), 5000));
@@ -33,13 +36,9 @@ class SystemCollector {
         console.log('[system] package/update fields:', JSON.stringify(u));
         this._loggedUpdateFields = true;
       }
-      // If the row came back but has neither a status nor a latest-version,
-      // the device likely cannot reach the upgrade server or doesn't support
-      // remote update checking (common on CAPsMAN APs, restricted devices).
       if (!u['status'] && !u['latest-version'] && Object.keys(u).length > 0) {
         u['status'] = 'Update info unavailable';
       }
-      // Re-emit with updated version info if we have a current payload
       if (this.lastPayload) {
         const latestVersion   = u['latest-version'] || '';
         const updateStatus    = u['status'] || '';
@@ -49,17 +48,12 @@ class SystemCollector {
           : updateStatus.toLowerCase().includes('new version');
         const updated = { ...this.lastPayload, ts: Date.now(), latestVersion, updateAvailable: !!updateAvailable, updateStatus };
         this.lastPayload = updated;
-        this._lastFp = ''; // force emit so update row refreshes
+        this._lastFp = '';
         this.io.emit('system:update', updated);
       }
     } catch (e) {
       const msg = e && e.message ? e.message : String(e);
       console.error('[system] update check failed:', msg);
-      // Surface the failure so the UI shows a real reason instead of
-      // "Checking for updates…" indefinitely.
-      // Common causes: device has no outbound internet access, upgrade server
-      // blocked by firewall, or device is CAPsMAN-managed (cAP, etc.) and
-      // doesn't support remote update checking.
       this._lastUpdateRow = { status: 'Update check unavailable' };
       if (this.lastPayload) {
         const updated = { ...this.lastPayload, ts: Date.now(),
@@ -72,30 +66,17 @@ class SystemCollector {
     }
   }
 
-  async tick() {
-    if (!this.ros.connected) return;
-    if (this.io.engine.clientsCount === 0) return;
+  // Called for every interval push from the resource stream.
+  // packet is the raw parsed row object (may include a .section field from
+  // RouterOS interval responses — we ignore it and read only the data fields).
+  _processRow(packet) {
+    if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
+    // Require at least one real data field so empty .section-only objects are skipped.
+    if (!packet['cpu-load'] && !packet['total-memory']) return;
 
-    // Kick off update check in background — intentionally not awaited so it
-    // never blocks the resource/health response reaching the browser.
-    this._fetchUpdateStatus().catch(() => {});
-
-    let r = {}, h = [];
-    try {
-      const [resResult, healthResult] = await Promise.allSettled([
-        this.ros.write('/system/resource/print', [
-          '=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime',
-        ]),
-        this.ros.write('/system/health/print'),
-      ]);
-      r = resResult.status    === 'fulfilled' && resResult.value    && resResult.value[0] ? resResult.value[0] : {};
-      h = healthResult.status === 'fulfilled' && Array.isArray(healthResult.value)        ? healthResult.value : [];
-    } catch (e) {
-      this.state.lastSystemErr = String(e && e.message ? e.message : e);
-      console.error('[system]', this.state.lastSystemErr);
-      return;
-    }
+    const r = packet;
     const u = this._lastUpdateRow;
+    const h = this._lastHealth;
 
     const cpuLoad  = parseInt(r['cpu-load']       || '0', 10);
     const totalMem = parseInt(r['total-memory']    || '0', 10);
@@ -114,13 +95,10 @@ class SystemCollector {
       }
     }
 
-    // /system/resource/print returns version as "7.21.3 (stable)" — strip the channel suffix
-    // /system/package/update/print returns clean "7.21.3" — compare the base version only
     const installed       = r.version || '';
     const installedBase   = installed.replace(/\s*\(.*\)/, '').trim();
     const latestVersion   = u['latest-version'] || '';
     const updateStatus    = u['status'] || '';
-    // Prefer the router's own status string: "System is already up to date" vs "New version is available"
     const updateAvailable = latestVersion
       ? (latestVersion !== installedBase)
       : updateStatus.toLowerCase().includes('new version');
@@ -134,16 +112,22 @@ class SystemCollector {
       cpuFreq:  parseInt(r['cpu-frequency'] || '0', 10),
       tempC, pollMs: this.pollMs,
     };
+
+    // Always set lastPayload so sendInitialState can replay it regardless of idle state.
     this.lastPayload = payload;
 
-    // On the first successful tick where we have a board name, fire the optional
-    // callback so index.js can auto-update the router label in routers.json.
     if (!this._boardNameReported && payload.boardName && typeof this._onFirstBoardName === 'function') {
       this._boardNameReported = true;
       this._onFirstBoardName(payload.boardName);
     }
 
-    // Fingerprint dynamic fields only — suppress emit when gauges are unchanged
+    // Run update check independently of browser connections — rate-limited by
+    // UPDATE_INTERVAL (12 h) so this is effectively a no-op on most ticks.
+    this._fetchUpdateStatus().catch(() => {});
+
+    // Gate emit only — lastPayload already set above.
+    if (this.io.engine.clientsCount === 0) return;
+
     const fp = `${cpuLoad},${memPct},${hddPct},${tempC},${r.uptime||''},${updateAvailable},${latestVersion}`;
     if (fp !== this._lastFp) {
       this._lastFp = fp;
@@ -153,23 +137,83 @@ class SystemCollector {
     this.state.lastSystemErr = null;
   }
 
+  // Polls /system/health/print on a slower interval — health data changes
+  // rarely and the command does not support interval streaming.
+  _pollHealth() {
+    if (this.io.engine.clientsCount === 0) return;
+    if (!this.ros.connected) return;
+    this.ros.write('/system/health/print').then(h => {
+      if (Array.isArray(h)) this._lastHealth = h;
+    }).catch(() => {});
+  }
+
+  _restartStream() {
+    if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
+    this._startResourceStream();
+  }
+
+  _startResourceStream() {
+    if (this._stream) return;
+    if (!this.ros.connected) return;
+    const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+
+    // Pass null as the callback so RStream skips the section-handling debounce
+    // in onStream() — RouterOS interval responses include a .section field that
+    // routes packets through a 300 ms accumulator, which swallows data.
+    // Instead we subscribe to the RStream 'data' event, which fires
+    // unconditionally for every !re packet before the callback path runs.
+    this._stream = this.ros.stream(
+      '/system/resource/print',
+      [
+        `=interval=${intervalSec}`,
+        '=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime',
+      ],
+      null
+    );
+
+    this._stream.on('data', (packet) => {
+      try { this._processRow(packet); } catch (e) {
+        console.error('[system] processRow:', e && e.message ? e.message : e);
+      }
+    });
+
+    this._stream.on('error', (err) => {
+      this.state.lastSystemErr = String(err && err.message ? err.message : err);
+      console.error('[system] stream error:', this.state.lastSystemErr);
+      this._stream = null;
+    });
+  }
+
   start() {
-    const run = async () => {
-      if (this._inflight) return;
-      this._inflight = true;
-      try { await this.tick(); } catch (e) {
-        this.state.lastSystemErr = String(e && e.message ? e.message : e);
-        console.error('[system]', this.state.lastSystemErr);
-      } finally { this._inflight = false; }
-    };
-    run();
-    this.timer = setInterval(run, this.pollMs);
-    this.ros.on('close',     () => this.stop());
-    this.ros.on('connected', () => { this._lastFp = ''; this._lastUpdateFetch = 0; this._lastUpdateRow = {}; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    this._pollHealth();
+    // Poll health every 2× the resource interval, minimum 4 s.
+    this._healthTimer = setInterval(() => this._pollHealth(), 30000);
+    this._startResourceStream();
+    this._fetchUpdateStatus().catch(() => {}); // run once at startup
+    this.ros.on('close', () => this.stop());
+    this.ros.on('connected', () => {
+      this._lastFp = '';
+      this._lastUpdateFetch = 0;
+      this._lastUpdateRow = {};
+      this._stream = null; // underlying channel was closed when connection dropped
+      this._startResourceStream();
+      this._pollHealth();
+      this._fetchUpdateStatus().catch(() => {}); // re-check on reconnect
+    });
+  }
+
+  suspend() {
+    if (this._healthTimer) { clearInterval(this._healthTimer); this._healthTimer = null; }
+  }
+
+  resume() {
+    if (!this._healthTimer) this._healthTimer = setInterval(() => this._pollHealth(), 30000);
+    this._pollHealth();
   }
 
   stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
+    if (this._healthTimer) { clearInterval(this._healthTimer); this._healthTimer = null; }
   }
 }
 

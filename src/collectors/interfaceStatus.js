@@ -1,25 +1,30 @@
 /**
- * Interface Status collector — poll-only.
+ * Interface Status collector — all three data sources use persistent streams.
  *
- * Polls /interface/print (with =stats=) and /ip/address/print every pollMs.
+ * Metadata streams (interval = metaPollMs, default 60 s):
+ *   /interface/print =.proplist=name,type,running,disabled,comment,mac-address =interval=N
+ *   /ip/address/print =.proplist=interface,address =interval=N
  *
- * The previous hybrid approach (poll + /interface/listen stream) was removed.
- * RouterOS resets its rx/tx-bits-per-second field mid-cycle (~1 s), causing
- * stream events to carry bps=0 unpredictably. Interleaving stream emits with
- * poll emits produced rate-bar flashes that were not fixable without adding
- * more state than the stream was worth. A poll at 1–5 s is fast enough for
- * up/down state detection and gives a clean, predictable delta window for
- * byte-counter rate calculation.
+ * Rate stream (interval derived from pollMs, default 5 s):
+ *   /interface/monitor-traffic =interface=<all> =.proplist=name,rx-bits-per-second,tx-bits-per-second =interval=N
  *
- * Sticky-rate guard: if the computed byte-delta is zero (RouterOS internal
- * counter not yet updated at sub-2 s poll rates), the previous non-zero rate
- * is preserved for up to 3 consecutive zero reads before accepting idle.
- * This stops single-poll timing races from flashing the display to zero.
+ * All three use ros.stream() with null callback + 'data' event to bypass
+ * RStream's section-handling debounce.
+ *
+ * _emitTimer fires every pollMs — calls _buildAndEmit() so rate bars update
+ * smoothly. _commitMeta() fires immediately after each metadata tick (via a
+ * 300 ms debounce) so interface up/down changes are reflected without waiting
+ * for the next emit tick.
  */
 
-function parseCounter(val) {
-  const parsed = parseInt(val || '0', 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+function parseBps(val) {
+  if (!val || val === '0') return 0;
+  const s = String(val);
+  if (s.endsWith('kbps') || s.endsWith('Kbps')) return parseFloat(s) * 1000;
+  if (s.endsWith('Mbps') || s.endsWith('mbps')) return parseFloat(s) * 1_000_000;
+  if (s.endsWith('Gbps') || s.endsWith('gbps')) return parseFloat(s) * 1_000_000_000;
+  if (s.endsWith('bps')) return parseFloat(s);
+  return parseInt(s, 10) || 0;
 }
 
 function bpsToMbps(bps) {
@@ -27,67 +32,201 @@ function bpsToMbps(bps) {
 }
 
 class InterfaceStatusCollector {
-  constructor({ ros, io, pollMs, state }) {
-    this.ros    = ros;
-    this.io     = io;
-    this.pollMs = pollMs || 5000;
-    this.state  = state;
+  constructor({ ros, io, pollMs, metaPollMs, state }) {
+    this.ros        = ros;
+    this.io         = io;
+    this.pollMs     = pollMs    || 5000;   // rate stream + emit timer interval
+    this.metaPollMs = metaPollMs || 60000; // metadata streams interval
+    this.state      = state;
 
-    this._ifaces     = new Map(); // name -> raw row from RouterOS
+    this._ifaces     = new Map(); // name -> committed interface row
     this._addrs      = new Map(); // interface name -> [cidr, ...]
-    this._prev       = new Map(); // name -> { rxBytes, txBytes, ts }
-    this._lastRates  = new Map(); // name -> { rxMbps, txMbps }
-    this._zeroStreak = new Map(); // name -> consecutive zero-delta count
+    this._ifacesNext = new Map(); // accumulator for current metadata tick
+    this._addrsNext  = new Map(); // accumulator for current metadata tick
 
-    this._timer    = null;
-    this._heartbeat = null;
+    this._ifStream     = null;
+    this._addrStream   = null;
+    this._metaDebounce = null;
+
+    this._monitorStream   = null;
+    this._streamRates     = new Map(); // name -> { rxMbps, txMbps }
+    this._monitorIfaceKey = '';
+
+    this._emitTimer = null;
   }
+
+  // ── metadata streams ──────────────────────────────────────────────────────
+
+  _startMetaStreams() {
+    this._startIfStream();
+    this._startAddrStream();
+  }
+
+  _stopMetaStreams() {
+    if (this._ifStream)   { try { this._ifStream.stop().catch(() => {}); }   catch (e) {} this._ifStream   = null; }
+    if (this._addrStream) { try { this._addrStream.stop().catch(() => {}); } catch (e) {} this._addrStream = null; }
+    clearTimeout(this._metaDebounce);
+    this._metaDebounce = null;
+    this._ifacesNext   = new Map();
+    this._addrsNext    = new Map();
+  }
+
+  _restartMetaStreams() {
+    this._stopMetaStreams();
+    this._startMetaStreams();
+  }
+
+  _startIfStream() {
+    if (this._ifStream || !this.ros.connected) return;
+    const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
+    console.log('[ifstatus] streaming /interface/print, interval=' + intervalSec + 's');
+    const stream = this.ros.stream(
+      '/interface/print',
+      [
+        `=interval=${intervalSec}`,
+        '=.proplist=name,type,running,disabled,comment,mac-address',
+      ],
+      null
+    );
+    stream.on('data', (packet) => {
+      if (!packet || !packet.name || typeof packet.name !== 'string') return;
+      this._ifacesNext.set(packet.name, packet);
+      this._scheduleMetaCommit();
+    });
+    stream.on('error', (err) => {
+      console.error('[ifstatus] /interface/print stream error:', err && err.message ? err.message : String(err));
+      this._ifStream = null;
+    });
+    this._ifStream = stream;
+  }
+
+  _startAddrStream() {
+    if (this._addrStream || !this.ros.connected) return;
+    const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
+    console.log('[ifstatus] streaming /ip/address/print, interval=' + intervalSec + 's');
+    const stream = this.ros.stream(
+      '/ip/address/print',
+      [
+        `=interval=${intervalSec}`,
+        '=.proplist=interface,address',
+      ],
+      null
+    );
+    stream.on('data', (packet) => {
+      if (!packet || !packet.interface || typeof packet.interface !== 'string') return;
+      if (!this._addrsNext.has(packet.interface)) this._addrsNext.set(packet.interface, []);
+      this._addrsNext.get(packet.interface).push(packet.address || '');
+      this._scheduleMetaCommit();
+    });
+    stream.on('error', (err) => {
+      console.error('[ifstatus] /ip/address/print stream error:', err && err.message ? err.message : String(err));
+      this._addrStream = null;
+    });
+    this._addrStream = stream;
+  }
+
+  _scheduleMetaCommit() {
+    clearTimeout(this._metaDebounce);
+    this._metaDebounce = setTimeout(() => this._commitMeta(), 300);
+  }
+
+  _commitMeta() {
+    this._metaDebounce = null;
+    if (this._ifacesNext.size > 0) {
+      this._ifaces     = this._ifacesNext;
+      this._ifacesNext = new Map();
+    }
+    // Always swap addresses (empty set is valid — no IPs assigned)
+    this._addrs     = this._addrsNext;
+    this._addrsNext = new Map();
+
+    this._startMonitorStream(); // no-op if already running with same iface set
+    this._buildAndEmit();
+  }
+
+  // ── monitor-traffic stream ────────────────────────────────────────────────
+
+  _startMonitorStream() {
+    const names = [...this._ifaces.keys()];
+    if (!names.length) return;
+    const key = names.slice().sort().join(',');
+    if (this._monitorStream && this._monitorIfaceKey === key) return;
+    this._stopMonitorStream();
+    if (!this.ros.connected) return;
+
+    const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+    console.log('[ifstatus] starting monitor-traffic stream,', names.length, 'interfaces, interval=' + intervalSec + 's');
+    const stream = this.ros.stream(
+      '/interface/monitor-traffic',
+      [
+        `=interface=${names.join(',')}`,
+        '=.proplist=name,rx-bits-per-second,tx-bits-per-second',
+        `=interval=${intervalSec}`,
+      ],
+      null
+    );
+    stream.on('data', (packet) => {
+      if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
+      const name = packet.name;
+      if (!name || typeof name !== 'string') return;
+      this._streamRates.set(name, {
+        rxMbps: bpsToMbps(parseBps(packet['rx-bits-per-second'])),
+        txMbps: bpsToMbps(parseBps(packet['tx-bits-per-second'])),
+      });
+    });
+    stream.on('error', (err) => {
+      console.error('[ifstatus] monitor-traffic stream error:', err && err.message ? err.message : String(err));
+      this._monitorStream   = null;
+      this._monitorIfaceKey = '';
+    });
+    this._monitorStream   = stream;
+    this._monitorIfaceKey = key;
+  }
+
+  _stopMonitorStream() {
+    if (!this._monitorStream) return;
+    try { this._monitorStream.stop().catch(() => {}); } catch (e) {}
+    this._monitorStream   = null;
+    this._monitorIfaceKey = '';
+    this._streamRates.clear();
+  }
+
+  _restartMonitorStream() {
+    this._stopMonitorStream();
+    this._startMonitorStream();
+  }
+
+  // ── emit timer ────────────────────────────────────────────────────────────
+
+  _startEmitTimer() {
+    if (this._emitTimer) return;
+    this._emitTimer = setInterval(() => this._buildAndEmit(), this.pollMs);
+  }
+
+  _stopEmitTimer() {
+    if (this._emitTimer) { clearInterval(this._emitTimer); this._emitTimer = null; }
+  }
+
+  _restartEmitTimer() {
+    this._stopEmitTimer();
+    this._startEmitTimer();
+  }
+
+  // Aliases kept for index.js pollIfstatus live-update handler compatibility
+  _startAddrPoll() { this._startEmitTimer(); }
+  _stopAddrPoll()  { this._stopEmitTimer(); }
 
   // ── build + emit ──────────────────────────────────────────────────────────
 
   _buildAndEmit() {
+    if (!this._ifaces.size) return;
+    if (this.io.engine.clientsCount === 0) return;
+
     const now = Date.now();
     const interfaces = [];
 
     for (const i of this._ifaces.values()) {
-      const rxBytes = parseCounter(i['rx-byte']);
-      const txBytes = parseCounter(i['tx-byte']);
-
-      const prev = this._prev.get(i.name);
-      let rxMbps = 0, txMbps = 0;
-
-      if (prev && now > prev.ts) {
-        const elapsedSec = (now - prev.ts) / 1000;
-        if (elapsedSec >= 0.5) {
-          const rxDelta = rxBytes - prev.rxBytes;
-          const txDelta = txBytes - prev.txBytes;
-          if (rxDelta >= 0 && txDelta >= 0) {
-            rxMbps = bpsToMbps((rxDelta * 8) / elapsedSec);
-            txMbps = bpsToMbps((txDelta * 8) / elapsedSec);
-          }
-        }
-      }
-      this._prev.set(i.name, { rxBytes, txBytes, ts: now });
-
-      // Sticky-rate guard: a zero delta can mean RouterOS hasn't updated its
-      // internal byte counter yet (common at ≤1 s poll rates; RouterOS ticks
-      // internally at ~1 s). Hold the last known non-zero rate for up to 3
-      // consecutive zero reads before accepting that the interface is idle.
-      const cached = this._lastRates.get(i.name) || { rxMbps: 0, txMbps: 0 };
-      const streak  = this._zeroStreak.get(i.name) || 0;
-      if (rxMbps > 0 || txMbps > 0) {
-        this._lastRates.set(i.name, { rxMbps, txMbps });
-        this._zeroStreak.set(i.name, 0);
-      } else if (streak < 3) {
-        rxMbps = cached.rxMbps;
-        txMbps = cached.txMbps;
-        this._zeroStreak.set(i.name, streak + 1);
-      } else {
-        // 3+ consecutive zero polls — traffic genuinely stopped
-        this._lastRates.set(i.name, { rxMbps: 0, txMbps: 0 });
-        this._zeroStreak.set(i.name, 0);
-      }
-
+      const sr = this._streamRates.get(i.name) || { rxMbps: 0, txMbps: 0 };
       interfaces.push({
         name:     i.name     || '',
         type:     i.type     || 'ether',
@@ -95,7 +234,8 @@ class InterfaceStatusCollector {
         disabled: i.disabled === 'true' || i.disabled === true,
         comment:  i.comment  || '',
         macAddr:  i['mac-address'] || '',
-        rxBytes, txBytes, rxMbps, txMbps,
+        rxMbps:   sr.rxMbps,
+        txMbps:   sr.txMbps,
         ips: this._addrs.get(i.name) || [],
       });
     }
@@ -105,94 +245,43 @@ class InterfaceStatusCollector {
     this.state.lastIfStatusTs = now;
   }
 
-  // ── poll ──────────────────────────────────────────────────────────────────
-
-  async _poll() {
-    if (!this.ros.connected) return;
-    try {
-      const [ifRes, addrRes] = await Promise.allSettled([
-        this.ros.write('/interface/print', [
-          '=stats=',
-          '=.proplist=name,type,running,disabled,comment,mac-address,rx-byte,tx-byte',
-        ]),
-        this.ros.write('/ip/address/print', ['=.proplist=interface,address']),
-      ]);
-
-      const ifaces = ifRes.status === 'fulfilled' ? (ifRes.value || []) : [];
-      const addrs  = addrRes.status === 'fulfilled' ? (addrRes.value || []) : [];
-
-
-      // Guard against transient empty results under RouterOS load (seen on ARM)
-      if (ifaces.length > 0 || this._ifaces.size === 0) {
-        this._ifaces.clear();
-        for (const i of ifaces) { if (i.name) this._ifaces.set(i.name, i); }
-      }
-
-      if (addrs.length > 0 || this._addrs.size === 0) {
-        this._addrs.clear();
-        for (const a of addrs) {
-          const n = a.interface || '';
-          if (!this._addrs.has(n)) this._addrs.set(n, []);
-          this._addrs.get(n).push(a.address || '');
-        }
-      }
-
-      this._buildAndEmit();
-    } catch (_) {}
-  }
-
-  _startPoll() {
-    if (this._timer) return;
-    this._timer = setInterval(() => this._poll(), this.pollMs);
-  }
-
-  _stopPoll() {
-    if (this._timer) { clearInterval(this._timer); this._timer = null; }
-  }
-
-  // Aliases kept for src/index.js live-interval restart compatibility
-  _startAddrPoll() { this._startPoll(); }
-  _stopAddrPoll()  { this._stopPoll(); }
-
-  // ── heartbeat ─────────────────────────────────────────────────────────────
-
-  _startHeartbeat() {
-    if (this._heartbeat) return;
-    this._heartbeat = setInterval(() => {
-      if (this.lastPayload) this.io.emit('ifstatus:update', { ...this.lastPayload, ts: Date.now() });
-    }, 60000);
-  }
-
-  _stopHeartbeat() {
-    if (this._heartbeat) { clearInterval(this._heartbeat); this._heartbeat = null; }
-  }
-
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
-  async start() {
-    await this._poll(); // initial load + emit
-    this._startPoll();
-    this._startHeartbeat();
+  start() {
+    this._startMetaStreams();
+    this._startEmitTimer();
 
     this.ros.on('close', () => {
-      this._stopPoll();
-      this._stopHeartbeat();
+      this._stopMetaStreams();
+      this._stopMonitorStream();
+      this._stopEmitTimer();
     });
-    this.ros.on('connected', async () => {
-      this._stopPoll();
-      this._stopHeartbeat();
-      this._prev.clear();
-      this._lastRates.clear();
-      this._zeroStreak.clear();
-      await this._poll();
-      this._startPoll();
-      this._startHeartbeat();
+    this.ros.on('connected', () => {
+      this._stopMetaStreams();
+      this._stopMonitorStream();
+      this._stopEmitTimer();
+      this._ifaces.clear();
+      this._addrs.clear();
+      this._streamRates.clear();
+      this._startMetaStreams();
+      this._startEmitTimer();
     });
+  }
+
+  suspend() {
+    this._stopMonitorStream();
+    this._stopEmitTimer();
+  }
+
+  resume() {
+    this._startMonitorStream();
+    this._startEmitTimer();
   }
 
   stop() {
-    this._stopPoll();
-    this._stopHeartbeat();
+    this._stopMetaStreams();
+    this._stopMonitorStream();
+    this._stopEmitTimer();
   }
 }
 
