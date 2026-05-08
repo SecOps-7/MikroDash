@@ -119,22 +119,15 @@ class BandwidthCollector {
 
     const lanCidrs = this.dhcpNetworks ? this.dhcpNetworks.getLanCidrs() : [];
 
-    // Use getWithTs() so `snapshotTs` reflects when RouterOS actually returned
-    // the byte counters. Using the cache's fetch timestamp (rather than our own
-    // pre-await Date.now()) prevents zero-rate output at fast poll intervals:
-    // if the cache is shared with the connections collector and both fire within
-    // the maxAge window, `rows` may be identical between ticks — but `snapshotTs`
-    // changes only when a fresh fetch happens, so we can detect the stale case
-    // and skip rather than emit zeroes.
-    let rows, snapshotTs;
-    if (this.connTableCache) {
-      const result = await this.connTableCache.getWithTs(this.ros);
-      rows        = result.rows;
-      snapshotTs  = result.ts;
-    } else {
-      rows       = (await this.ros.write('/ip/firewall/connection/print')) || [];
-      snapshotTs = Date.now();
-    }
+    // Read the latest snapshot from the stream-fed cache deposited by
+    // ConnectionsCollector. snapshotTs changes only when a new batch arrives,
+    // so the stale-detection guard below prevents zero-rate output when
+    // bandwidth's timer fires faster than the connections stream interval.
+    const result     = this.connTableCache
+      ? this.connTableCache.latestWithTs()
+      : { rows: [], ts: 0 };
+    const rows       = result.rows;
+    const snapshotTs = result.ts;
 
     // If the snapshot hasn't changed since the last tick (same cache hit),
     // byte deltas would all be zero — skip rather than overwrite good data.

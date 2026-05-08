@@ -1,9 +1,11 @@
 let geoip = null;
 try { geoip = require('geoip-lite'); } catch(e) { console.warn('[connections] geoip-lite not available, geo lookups disabled'); }
 /**
- * Connections collector — polls /ip/firewall/connection/print on interval.
- * node-routeros allows this to run concurrently with active streams since
- * each write() gets a unique tag for demultiplexing.
+ * Connections collector — streams /ip/firewall/connection/print interval=N.
+ * One persistent stream per session; rows are accumulated per batch (each
+ * interval fires a full table dump ending with a trigger packet).  On batch
+ * complete, rows are deposited into connTableCache for BandwidthCollector to
+ * read, then the expensive geo/ASN processing runs (skipped when idle).
  */
 const { extractAddress, isInCidrs, isValidIp } = require('../util/ip');
 const { lookupOrg, lookupCategory } = require('../util/asnLookup');
@@ -17,6 +19,10 @@ function makeDestKey(c) {
   if (displayDst && dport)          return displayDst + ':' + dport;
   return displayDst || 'unknown';
 }
+
+const PARTIAL_DROP_RATIO = 0.5;
+const PARTIAL_DROP_MIN   = 10;
+const PARTIAL_MAX_STREAK = 5;
 
 class ConnectionsCollector {
   constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache, geoOrgCache }) {
@@ -36,25 +42,24 @@ class ConnectionsCollector {
     this._geoCache = geoOrgCache ? geoOrgCache.geo : new Map(); // ip -> { country, city }
     this._orgCache = geoOrgCache ? geoOrgCache.org : new Map(); // ip -> org string | null
     this.prevIds = new Set();
-    this.timer = null;
-    this._inflight = false;
     this.lastPayload = null;
     this._lastFp = '';
+    this._stream = null;
+    this._rowsNext = [];      // accumulates rows for the current in-progress batch
+    this._rowsPrev = null;    // last committed batch, used for partial-result detection
+    this._partialStreak = 0;
+    this._commitTimer  = null; // debounce: fires 300ms after last row arrives
+    this._watchdogTimer = null;
+    this._streamStartTs = 0;  // when _startStream() last ran, for watchdog grace period
     // Set to true by start(), never reset. Allows the connected handler to
-    // distinguish the initial connect (where startCollectors() calls start()
-    // explicitly) from a reconnect after a close event.
+    // distinguish the initial connect from a reconnect after a close event.
     this._started = false;
 
-    // Register ROS lifecycle listeners once in the constructor so they never
-    // accumulate across multiple start() calls (matches the canonical pattern).
     this.ros.on('close',     () => this.stop());
     this.ros.on('connected', () => {
       // Clear geo/org caches on reconnect — IPs may be reassigned.
       this._geoCache.clear();
       this._orgCache.clear();
-      // Only restart here on reconnect after a close. On the very first
-      // connect, startCollectors() in index.js calls start() explicitly —
-      // calling stop()+start() here too would create two concurrent intervals.
       if (this._started) {
         this._lastFp = '';
         this.stop();
@@ -75,18 +80,58 @@ class ConnectionsCollector {
     return { name: ip, mac: '' };
   }
 
-  async tick(force = false) {
-    if (!this.ros.connected) return;
-    // Skip when no browser clients are watching — the connection table can be
-    // large and geo/ASN lookups are non-trivial; no point doing the work idle.
-    if (!force && this.io.engine.clientsCount === 0) return;
-    const lanCidrs = this.dhcpNetworks.getLanCidrs();
+  // Debounce: schedule a commit 300ms after the last row of a batch arrives.
+  // RouterOS sends rows in bursts (one !re per connection) with silence between
+  // intervals — there is no explicit trigger packet marking batch end, so we
+  // treat 300ms of silence as "this interval's batch is complete".
+  _scheduleCommit() {
+    clearTimeout(this._commitTimer);
+    this._commitTimer = setTimeout(() => {
+      this._commitTimer = null;
+      this._onBatchComplete();
+    }, 300);
+  }
 
-    // Use shared cache when available — halves API calls when both
-    // connections and bandwidth collectors run on similar poll intervals.
-    const raw = this.connTableCache
-      ? await this.connTableCache.get(this.ros)
-      : ((await this.ros.write('/ip/firewall/connection/print')) || []);
+  // Runs partial-result detection, deposits into cache, then processes rows.
+  _onBatchComplete() {
+    const fresh = this._rowsNext;
+    this._rowsNext = [];
+
+    const looksPartial = this._rowsPrev !== null
+      && this._rowsPrev.length > PARTIAL_DROP_MIN
+      && fresh.length > 0
+      && fresh.length < this._rowsPrev.length * PARTIAL_DROP_RATIO;
+
+    let rows;
+    if (looksPartial) {
+      this._partialStreak++;
+      const dbg = require('../settings').load().rosDebug;
+      if (this._partialStreak >= PARTIAL_MAX_STREAK) {
+        if (dbg) console.warn(`[connections] partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — accepted after ${this._partialStreak} consecutive`);
+        this._partialStreak = 0;
+        rows = fresh;
+        this._rowsPrev = fresh;
+      } else {
+        if (dbg) console.warn(`[connections] partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — keeping stale (${this._partialStreak}/${PARTIAL_MAX_STREAK})`);
+        rows = this._rowsPrev;
+      }
+    } else {
+      this._partialStreak = 0;
+      rows = (fresh.length > 0 || this._rowsPrev === null) ? fresh : this._rowsPrev;
+      this._rowsPrev = rows;
+    }
+
+    // Always deposit into shared cache (cheap) so bandwidth can read fresh data
+    if (this.connTableCache) this.connTableCache.deposit(rows, Date.now());
+
+    // Skip expensive geo/ASN processing when no browser clients are watching
+    if (this.io.engine.clientsCount === 0) return;
+
+    this._processRows(rows).catch(e => console.error('[connections]', e));
+  }
+
+  async _processRows(raw) {
+    const lanCidrs = this.dhcpNetworks.getLanCidrs();
     const totalRaw = (raw || []).length;
     // When capped, connections beyond maxConns are not processed — their
     // destination IPs will be missing from the geo cache, so top destinations
@@ -104,7 +149,7 @@ class ConnectionsCollector {
     const sourcePortCounts  = new Map(); // srcIp -> Map<port, count> — per-source port index
     const countryOrgs       = new Map(); // cc -> Map<org, count>
     // this._geoCache and this._orgCache are persistent across ticks (shared with
-    // BandwidthCollector) — external IP→country/org is stable between 3s polls.
+    // BandwidthCollector) — external IP→country/org is stable between polls.
 
     for (const c of (conns || [])) {
       const id  = c['.id'];
@@ -318,31 +363,128 @@ class ConnectionsCollector {
         sourcePorts: this.lastPayload.sourcePorts,
       });
     }
-    this.state.lastConnsTs = Date.now();
+    this.state.lastConnsTs  = Date.now();
     this.state.lastConnsErr = null;
   }
 
+  // tick(force) — kept for kickAndSend compatibility. Does a one-shot fetch when
+  // lastPayload is null (stream hasn't fired its first batch yet). No-ops once
+  // the stream has delivered initial data.
+  async tick(force = false) {
+    if (!this.ros.connected) return;
+    if (!force && this.io.engine.clientsCount === 0) return;
+    if (this.lastPayload) return; // stream is running; wait for next batch
+    try {
+      const rows = (await this.ros.write('/ip/firewall/connection/print', [
+        '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
+      ])) || [];
+      if (this.connTableCache) this.connTableCache.deposit(rows, Date.now());
+      this._rowsPrev = rows;
+      await this._processRows(rows);
+    } catch (e) {
+      const msg = String(e && e.message ? e.message : e);
+      if (!msg.includes('no such item')) {
+        this.state.lastConnsErr = msg;
+        console.error('[connections]', msg);
+      }
+    }
+  }
+
+  _startStream() {
+    if (this._stream) return;
+    if (!this.ros.connected) return;
+    const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+    console.log('[connections] streaming interval=' + intervalSec + 's');
+    this._stream = this.ros.stream(
+      '/ip/firewall/connection/print',
+      [
+        '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
+        `=interval=${intervalSec}`,
+      ],
+      null  // null callback — use 'data' event to bypass section-handling debounce
+    );
+    this._rowsNext = [];
+    this._streamStartTs = Date.now();
+    this._stream.on('data', (pkt) => {
+      if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
+      if (!pkt['.id']) return; // skip non-row packets
+      this._rowsNext.push(pkt);
+      // Reset the 300ms debounce — batch is complete when rows stop arriving
+      this._scheduleCommit();
+    });
+    this._stream.on('error', (err) => {
+      const msg = err && err.message ? err.message : String(err);
+      // 'no such item' is a transient RouterOS error when a connection entry
+      // expires mid-dump — log at debug level and restart rather than error.
+      if (msg.includes('no such item')) {
+        console.warn('[connections] stream: transient "no such item" — restarting');
+      } else {
+        console.error('[connections] stream error:', msg);
+        this.state.lastConnsErr = msg;
+      }
+      this._stream = null;
+      if (this._started && this.ros.connected) {
+        setTimeout(() => this._startStream(), 3000);
+      }
+    });
+  }
+
+  _stopStream() {
+    clearTimeout(this._commitTimer);
+    this._commitTimer  = null;
+    this._streamStartTs = 0;
+    if (this._stream) {
+      try { this._stream.stop().catch(() => {}); } catch (_) {}
+      this._stream = null;
+    }
+    this._rowsNext = [];
+  }
+
+  _restartStream() {
+    this._stopStream();
+    this._lastFp = '';
+    if (this._started && this.ros.connected) this._startStream();
+  }
+
+  // Watchdog: fires every 2× the poll interval. If the stream is supposed to be
+  // running but lastConnsTs hasn't moved in 4× the interval, something went
+  // wrong (silent stream death, unhandled event, etc.) — restart.
+  _startWatchdog() {
+    this._stopWatchdog();
+    const checkMs   = Math.max(this.pollMs * 2, 10000);
+    const staleMs   = Math.max(this.pollMs * 4, 20000);
+    this._watchdogTimer = setInterval(() => {
+      if (!this._started || !this.ros.connected || !this._stream) return;
+      // Grace period: don't trigger within one staleMs window of stream start
+      if (Date.now() - this._streamStartTs < staleMs) return;
+      const age = Date.now() - this.state.lastConnsTs;
+      if (age > staleMs) {
+        console.warn(`[connections] watchdog: no data for ${Math.round(age / 1000)}s — restarting stream`);
+        this._restartStream();
+      }
+    }, checkMs);
+  }
+
+  _stopWatchdog() {
+    clearInterval(this._watchdogTimer);
+    this._watchdogTimer = null;
+  }
+
+  suspend() { this._stopStream(); }
+
+  resume() {
+    if (this._started && this.ros.connected) this._startStream();
+  }
+
   stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    this._stopWatchdog();
+    this._stopStream();
   }
 
   start() {
     this._started = true;
-    const run = async () => {
-      if (this._inflight) return;
-      this._inflight = true;
-      try { await this.tick(); } catch (e) {
-        const msg = String(e && e.message ? e.message : e);
-        // RouterOS races: connections expire between list and fetch — not a real error
-        if (msg.includes('no such item')) return;
-        this.state.lastConnsErr = msg;
-        console.error('[connections]', this.state.lastConnsErr);
-      } finally { this._inflight = false; }
-    };
-    // Set the timer before the first run so the close handler can always
-    // find and clear it, even if run() resolves synchronously.
-    this.timer = setInterval(run, this.pollMs);
-    run();
+    this._startStream();
+    this._startWatchdog();
   }
 }
 

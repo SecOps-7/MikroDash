@@ -2,6 +2,18 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.33] — Connections streaming, router modal test-gate, flow-dot fix
+
+### Changed
+
+- **Connections collector converted to `ros.stream()`** — `/ip/firewall/connection/print interval=N` replaces the poll-timer model. Rows accumulate per batch via a 300 ms debounce (same pattern as Top Talkers); partial-result detection (20 % drop guard) moved from `connTableCache` into the stream handler. `suspend()` / `resume()` added for idle gating — stream stops when no clients are connected and restarts on first connection. `_restartStream()` called on poll-interval slider changes (replaces `connTableCache.updateMaxAge()`). `tick(force)` retained for kick-and-send compat: does a one-shot fetch only when `lastPayload` is null so the first client gets data immediately.
+- **`connTableCache` converted to push-fed store** — the pull-through async cache (`get()`, `getWithTs()`, `updateMaxAge()`) is replaced by a simple snapshot object (`deposit()`, `latestWithTs()`, `invalidate()`). Bandwidth collector now reads the latest snapshot synchronously instead of issuing its own ROS call; rate calculation and emit logic are unchanged.
+
+### Fixed
+
+- **Router modal — Save now requires a successful connection test** — Save button auto-tests before saving. If the connection was already verified (`_testPassed`), Save skips the re-test. If not (new router or a connection-critical field changed), Save runs the test inline: "Testing…" → on success "Saving…" → modal closes; on failure shows the error and re-enables the button. Existing routers open pre-approved so editing label, interface, or ping target doesn't force a retest. Watchers on host, port, username, password, TLS, and TLS-insecure reset the approval state when any of those fields change.
+- **Network Flow card — flow dots stop on router disconnect** — `SVGSVGElement.pauseAnimations()` is unreliable in Chromium for SMIL `animateMotion` elements. Added CSS rule `.is-ros-disconnected .nd-dot, .is-disconnected .nd-dot { visibility: hidden }` which hides the dots using the body classes already set on disconnect.
+
 ## [0.5.32] — Settings tabs, interface filter, issue #35 fix
 
 ### Added

@@ -4259,6 +4259,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 (function(){
   var _routers  = [];   // array of router objects (passwords masked)
   var _activeRouterId = '';
+  var _testPassed = false; // save is only allowed after a successful connection test
+
+  function setSaveReady(ready) {
+    _testPassed = ready;
+  }
 
   var sel       = $('routerSelect');
   var tbody     = $('rtrTbody');
@@ -4462,6 +4467,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       _syncUnitToggle(modalBwUpU);
     }
     hideTestResult();
+    setSaveReady(!!router);
     modalBg.classList.add('open');
     if (modalHost) modalHost.focus();
   }
@@ -4550,15 +4556,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
           if (r.ok) {
             var msg = '✓ Connected' + (r.boardName ? ' — ' + r.boardName : '');
             showTestResult(true, msg);
+            setSaveReady(true);
             // Auto-fill label if empty and we got a board name
             if (r.boardName && modalLabel && !modalLabel.value.trim()) {
               modalLabel.value = r.boardName;
             }
           } else {
             showTestResult(false, '✗ ' + (r.error || 'Connection failed'));
+            setSaveReady(false);
           }
         })
-        .catch(function(e) { showTestResult(false, '✗ Request failed: ' + e); })
+        .catch(function(e) { showTestResult(false, '✗ Request failed: ' + e); setSaveReady(false); })
         .finally(function() {
           testBtn.disabled = false;
           testBtn.textContent = 'Test Connection';
@@ -4567,27 +4575,63 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
+  function _doSave(data) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    var url    = data.id ? '/api/routers/' + encodeURIComponent(data.id) : '/api/routers';
+    var method = data.id ? 'PUT' : 'POST';
+    fetch(url, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+      .then(function(r){ return r.json(); })
+      .then(function(r) {
+        if (r.ok) { closeModal(); }
+        else      { showTestResult(false, r.error || 'Save failed'); }
+      })
+      .catch(function(e) { showTestResult(false, 'Request failed: ' + e); })
+      .finally(function() { saveBtn.disabled = false; saveBtn.textContent = 'Save'; });
+  }
+
   if (saveBtn) {
     saveBtn.addEventListener('click', function() {
       var data = collectModal();
       if (!data.host) { showTestResult(false, 'Host is required'); return; }
 
-      saveBtn.disabled = true;
-      var url    = data.id ? '/api/routers/' + encodeURIComponent(data.id) : '/api/routers';
-      var method = data.id ? 'PUT' : 'POST';
+      // If connection already verified and fields unchanged, save immediately.
+      if (_testPassed) { _doSave(data); return; }
 
-      fetch(url, {
-        method: method,
+      // Otherwise test first — save only on success.
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Testing…';
+      hideTestResult();
+      fetch('/api/routers/test', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
         .then(function(r){ return r.json(); })
         .then(function(r) {
-          if (r.ok) { closeModal(); }
-          else      { showTestResult(false, r.error || 'Save failed'); }
+          if (r.ok) {
+            var msg = '✓ Connected' + (r.boardName ? ' — ' + r.boardName : '');
+            showTestResult(true, msg);
+            setSaveReady(true);
+            if (r.boardName && modalLabel && !modalLabel.value.trim()) {
+              modalLabel.value = r.boardName;
+            }
+            _doSave(data);
+          } else {
+            showTestResult(false, '✗ ' + (r.error || 'Connection failed'));
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save';
+          }
         })
-        .catch(function(e) { showTestResult(false, 'Request failed: ' + e); })
-        .finally(function() { saveBtn.disabled = false; });
+        .catch(function(e) {
+          showTestResult(false, '✗ Request failed: ' + e);
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save';
+        });
     });
   }
 
@@ -4635,6 +4679,14 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       }
     });
   }
+
+  // Clear test state when connection-critical fields change so Save re-tests
+  [modalHost, modalPort, modalUser, modalPass].forEach(function(el) {
+    if (!el) return;
+    el.addEventListener('input', function() { if (_testPassed) { setSaveReady(false); hideTestResult(); } });
+  });
+  if (modalTls)  modalTls.addEventListener('change',  function() { if (_testPassed) { setSaveReady(false); hideTestResult(); } });
+  if (modalTlsI) modalTlsI.addEventListener('change', function() { if (_testPassed) { setSaveReady(false); hideTestResult(); } });
 
   // ── Event wiring ──────────────────────────────────────────────────────────
   if (addBtn)    addBtn.addEventListener('click',   function(){ openModal(null); });
