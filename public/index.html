@@ -86,6 +86,7 @@
     #reconnectBanner.show{display:block}
     #sidenav,#main{transition:opacity .35s ease}
     body.is-disconnected #sidenav,body.is-disconnected #main{opacity:.35;pointer-events:none}
+    body.is-ros-disconnected #sidenav,body.is-ros-disconnected #main{opacity:.7}
     #rosBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(245,159,0,.1);border-bottom:1px solid rgba(245,159,0,.3);backdrop-filter:blur(8px);padding:.4rem 1rem;font-family:var(--font-mono);font-size:.72rem;color:#fcd34d;animation:pulse-banner 2s ease infinite;align-items:center;justify-content:center;gap:.5rem}
     #rosBanner.show{display:flex}
     #rosBannerText{flex:1;text-align:center}
@@ -191,6 +192,13 @@
     .srange-wrap{display:flex;align-items:center;gap:.6rem}
     .srange-wrap input[type=range]{flex:1;accent-color:var(--accent-rx)}
     .srange-val{font-size:.75rem;font-family:var(--font-mono);color:var(--accent-rx);min-width:52px;text-align:right}
+    .stab-bar{display:flex;gap:.15rem;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:0;overflow-x:auto;scrollbar-width:none}
+    .stab-bar::-webkit-scrollbar{display:none}
+    .stab{background:transparent;border:none;border-bottom:2px solid transparent;padding:.5rem .95rem;font-size:.78rem;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:6px 6px 0 0;transition:color .15s,border-color .15s;margin-bottom:-1px;white-space:nowrap;flex-shrink:0}
+    .stab:hover{color:var(--text-main)}
+    .stab.active{color:var(--accent-rx);border-bottom-color:var(--accent-rx)}
+    .stab-panel{display:none}
+    .stab-panel.active{display:block}
     .theme-swatch-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem}
     .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:.35rem;cursor:pointer;border-radius:8px;padding:.4rem;border:2px solid transparent;transition:border-color .15s}
     .theme-swatch:hover{border-color:rgba(99,130,190,.3)}
@@ -898,10 +906,6 @@
     <a class="nav-item" data-page="settings" href="#" id="settingsNavItem">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
       <span class="nav-label">Settings</span>
-    </a>
-    <a class="nav-item" data-page="info" href="#" style="margin-bottom:6px">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
-      <span class="nav-label">About</span>
     </a>
   </div>
 
@@ -1894,6 +1898,9 @@
         <div class="card-header d-flex align-items-center gap-2">
           <h3 class="card-title">Interfaces</h3>
           <span id="ifaceCount" class="card-badge">0</span>
+          <select id="ifaceTypeFilter" class="conn-src-filter ms-auto" title="Filter by type" style="min-width:120px">
+            <option value="">All Types</option>
+          </select>
         </div>
         <div class="card-body" style="padding:.65rem .75rem">
           <div class="iface-grid" id="ifaceGrid"><div class="empty-state">Waiting&#8230;</div></div>
@@ -1901,83 +1908,6 @@
       </div>
     </div>
   </div>
-  <!-- INFO -->
-  <div class="page-view" id="page-info">
-    <div class="container-fluid px-0" style="max-width:680px;margin:0 auto">
-
-      <div class="card mb-3">
-        <div class="card-body" style="padding:1.5rem;text-align:center">
-          <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;margin-bottom:.5rem">
-            <img src="/logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9"/>
-            <span style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
-          </div>
-          <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Real-time MikroTik Router Dashboard</div>
-          <div style="margin:.35rem 0 .5rem">
-            <span id="aboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v—</span>
-          </div>
-          <div style="font-size:.72rem;color:var(--text-muted)">Built with Node.js · Socket.IO · Chart.js · Bootstrap</div>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-header"><h3 class="card-title">License</h3></div>
-        <div class="card-body" style="padding:1rem 1.25rem">
-          <div style="font-family:var(--font-mono);font-size:.75rem;color:var(--text-main);margin-bottom:.5rem">MIT License</div>
-          <div style="font-size:.75rem;color:var(--text-muted);line-height:1.6">
-            Permission is hereby granted, free of charge, to any person obtaining a copy of this software to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the following conditions:<br><br>
-            The above copyright notice and this permission notice shall be included in all copies or substantial portions of the software.<br><br>
-            <span style="color:rgba(148,163,190,.5)">THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-header"><h3 class="card-title">Support &amp; Donations</h3></div>
-        <div class="card-body" style="padding:1rem 1.25rem">
-          <div style="font-size:.78rem;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">
-            MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.
-          </div>
-          <div style="display:flex;flex-wrap:wrap;gap:.6rem">
-            <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">
-              <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;flex-shrink:0"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
-              GitHub
-            </a>
-            <a href="https://buymeacoffee.com/SecOps7" target="_blank" rel="noopener" class="info-btn info-btn-coffee">
-              ☕ Buy me a coffee
-            </a>
-            <a href="https://paypal.me/SecOps7App" target="_blank" rel="noopener" class="info-btn info-btn-outline">
-              💳 PayPal
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-header"><h3 class="card-title">Links</h3></div>
-        <div class="card-body" style="padding:.75rem 1.25rem;display:flex;flex-wrap:wrap;gap:.5rem">
-          <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">Documentation</a>
-          <a href="https://github.com/SecOps-7/MikroDash/issues" target="_blank" rel="noopener" class="info-btn info-btn-outline">Report a Bug</a>
-          <a href="https://mikrotik.com/software" target="_blank" rel="noopener" class="info-btn info-btn-outline">MikroTik RouterOS</a>
-        </div>
-      </div>
-
-      <div class="card mb-3" style="border-color:rgba(251,191,36,.15)">
-        <div class="card-body" style="padding:.85rem 1.25rem;display:flex;gap:.75rem;align-items:flex-start">
-          <span style="font-size:1rem;flex-shrink:0">⚠️</span>
-          <div style="font-size:.74rem;color:var(--text-muted);line-height:1.65">
-            <strong style="color:rgba(200,215,240,.75)">Disclaimer</strong><br>
-            MikroDash is an independent, community-built project and is <strong style="color:rgba(200,215,240,.75)">not affiliated with, endorsed by, or associated with MikroTik SIA</strong> in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and trademarks are the property of their respective owners.
-          </div>
-        </div>
-      </div>
-
-      <div style="text-align:center;font-family:var(--font-mono);font-size:.65rem;color:rgba(148,163,190,.35);padding:.5rem 0 1.5rem">
-        MikroDash · MIT License · Made with ♥ for the MikroTik community
-      </div>
-
-    </div>
-  </div>
-
   <!-- ── Bandwidth ───────────────────────────────────────────────────────── -->
   <div class="page-view" id="page-bandwidth">
     <div id="bandwidthCard" style="width:100%">
@@ -2066,293 +1996,383 @@
 
       <div id="settingsBanner" class="sbanner"></div>
 
-      <!-- Routers -->
-      <div class="scard">
-        <div class="scard-header">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="var(--accent-rx)" stroke="none"/></svg>
-          <span class="scard-title">Routers</span>
-          <button class="sbtn sbtn-primary" id="rtrAddBtn" style="padding:.3rem .8rem;font-size:.72rem">
-            <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Add Router
-          </button>
-        </div>
-        <div class="scard-body" style="padding:.5rem">
-          <table class="rtr-list" id="rtrTable">
-            <thead><tr>
-              <th>Name</th><th>Host</th><th>Status</th><th style="text-align:right">Actions</th>
-            </tr></thead>
-            <tbody id="rtrTbody"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.73rem">Loading…</td></tr></tbody>
-          </table>
-        </div>
+      <!-- Tab bar -->
+      <div class="stab-bar">
+        <button class="stab active" data-tab="routers">Routers</button>
+        <button class="stab" data-tab="general">General</button>
+        <button class="stab" data-tab="notifications">Notifications</button>
+        <button class="stab" data-tab="appearance">Appearance</button>
+        <button class="stab" data-tab="auth">Authentication</button>
+        <button class="stab" data-tab="about">About</button>
       </div>
 
-      <!-- Dashboard Auth -->
-      <div class="scard">
-        <div class="scard-header">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-          <span class="scard-title">Dashboard Auth</span>
-        </div>
-        <div class="scard-body">
-          <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.7rem">Leave blank to disable HTTP Basic Auth on the dashboard.</p>
-          <div class="sform-row" style="margin-bottom:0">
-            <div>
-              <label class="sform-label">Username</label>
-              <input class="sform-input" id="s_dashUser" type="text" placeholder="Leave blank to disable">
-            </div>
-            <div>
-              <label class="sform-label">Password</label>
-              <input class="sform-input" id="s_dashPass" type="password" placeholder="unchanged">
-            </div>
+      <!-- ── Routers tab ─────────────────────────────────────────────────── -->
+      <div class="stab-panel active" id="stab-routers">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="var(--accent-rx)" stroke="none"/></svg>
+            <span class="scard-title">Routers</span>
+            <button class="sbtn sbtn-primary" id="rtrAddBtn" style="padding:.3rem .8rem;font-size:.72rem">
+              <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Router
+            </button>
+          </div>
+          <div class="scard-body" style="padding:.5rem">
+            <table class="rtr-list" id="rtrTable">
+              <thead><tr>
+                <th>Name</th><th>Host</th><th>Status</th><th style="text-align:right">Actions</th>
+              </tr></thead>
+              <tbody id="rtrTbody"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.73rem">Loading…</td></tr></tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      <!-- Poll Intervals -->
-      <div class="scard">
-        <div class="scard-header">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span class="scard-title">Poll Intervals</span>
-        </div>
-        <div class="scard-body">
-          <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Changes apply immediately without restart.</p>
-          <div id="pollSlidersWrap"></div>
-        </div>
-      </div>
-
-      <!-- Limits -->
-      <div class="scard">
-        <div class="scard-header">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
-          <span class="scard-title">Limits</span>
-        </div>
-        <div class="scard-body">
-          <div class="sform-row3">
-            <div class="sform-group">
-              <label class="sform-label">Top Connections N</label>
-              <input class="sform-input" id="s_topN" type="number" min="1" max="50">
-            </div>
-            <div class="sform-group">
-              <label class="sform-label">Top Talkers N</label>
-              <input class="sform-input" id="s_topTalkersN" type="number" min="1" max="20">
-            </div>
-            <div class="sform-group">
-              <label class="sform-label">Firewall Top N</label>
-              <input class="sform-input" id="s_firewallTopN" type="number" min="1" max="50">
-            </div>
-            <div class="sform-group">
-              <label class="sform-label">VPN Dashboard Top N</label>
-              <input class="sform-input" id="s_vpnDashTopN" type="number" min="1" max="50">
-            </div>
+      <!-- ── General tab: Poll Intervals + Limits + Diagnostics ─────────── -->
+      <div class="stab-panel" id="stab-general">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="scard-title">Poll Intervals</span>
           </div>
-          <div class="sform-row" style="margin-bottom:0">
-            <div class="sform-group" style="margin-bottom:0">
-              <label class="sform-label">Max Connections</label>
-              <input class="sform-input" id="s_maxConns" type="number" min="1000" max="100000">
-            </div>
-            <div class="sform-group" style="margin-bottom:0">
-              <label class="sform-label">Traffic History (min)</label>
-              <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120">
-            </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Changes apply immediately without restart.</p>
+            <div id="pollSlidersWrap"></div>
           </div>
         </div>
-      </div>
-
-      <!-- Alert Thresholds -->
-      <div class="scard">
-        <div class="scard-header">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <span class="scard-title">Alert Thresholds</span>
-        </div>
-        <div class="scard-body">
-          <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Trigger browser notifications when these thresholds are reached.</p>
-          <div class="sform-row">
-            <div class="sform-group" style="margin-bottom:0">
-              <label class="sform-label">CPU Alert Threshold (%)</label>
-              <div style="display:flex;align-items:center;gap:.6rem">
-                <input type="range" id="s_alertCpuThreshold" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)">
-                <span id="s_alertCpuThresholdVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">90%</span>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
+            <span class="scard-title">Limits</span>
+          </div>
+          <div class="scard-body">
+            <div class="sform-row3">
+              <div class="sform-group">
+                <label class="sform-label">Top Connections N</label>
+                <input class="sform-input" id="s_topN" type="number" min="1" max="50">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">Top Talkers N</label>
+                <input class="sform-input" id="s_topTalkersN" type="number" min="1" max="20">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">Firewall Top N</label>
+                <input class="sform-input" id="s_firewallTopN" type="number" min="1" max="50">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">VPN Dashboard Top N</label>
+                <input class="sform-input" id="s_vpnDashTopN" type="number" min="1" max="50">
               </div>
             </div>
-            <div class="sform-group" style="margin-bottom:0">
-              <label class="sform-label">Ping Loss Alert (%)</label>
-              <div style="display:flex;align-items:center;gap:.6rem">
-                <input type="range" id="s_alertPingLoss" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)">
-                <span id="s_alertPingLossVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">100%</span>
+            <div class="sform-row" style="margin-bottom:0">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Max Connections</label>
+                <input class="sform-input" id="s_maxConns" type="number" min="1000" max="100000">
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Traffic History (min)</label>
+                <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120">
               </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Diagnostics -->
-      <div class="scard">
-        <div class="scard-header">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <span class="scard-title">Diagnostics</span>
-        </div>
-        <div class="scard-body">
-          <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.75rem">Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.</p>
-          <div class="stoggle-grid">
-            <label class="stoggle"><span class="stoggle-label">Debug Logging (ROS_DEBUG)</span><span class="stoggle-switch"><input type="checkbox" id="s_rosDebug"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span class="scard-title">Diagnostics</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.75rem">Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Debug Logging (ROS_DEBUG)</span><span class="stoggle-switch"><input type="checkbox" id="s_rosDebug"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Appearance -->
-      <div class="scard">
-        <div class="scard-header">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="3"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-          <span class="scard-title">Appearance</span>
-        </div>
-        <div class="scard-body">
-          <label class="sform-label" style="margin-bottom:.5rem">Theme</label>
-          <div class="theme-swatch-grid" id="themeSwatches">
-            <div class="theme-swatch" data-palette="default" data-mode="dark" title="Default Dark">
-              <div class="swatch-preview" style="background:#07090f"><div class="swatch-dot" style="background:#38bdf8"></div></div>
-              <span class="swatch-name">Default<br>Dark</span>
-            </div>
-            <div class="theme-swatch" data-palette="default" data-mode="light" title="Default Light">
-              <div class="swatch-preview" style="background:#f0f2f7;border-color:rgba(0,0,0,.12)"><div class="swatch-dot" style="background:#38bdf8"></div></div>
-              <span class="swatch-name">Default<br>Light</span>
-            </div>
-            <div class="theme-swatch" data-palette="nord" data-mode="dark" title="Nord Dark">
-              <div class="swatch-preview" style="background:#2e3440"><div class="swatch-dot" style="background:#88c0d0"></div></div>
-              <span class="swatch-name">Nord<br>Dark</span>
-            </div>
-            <div class="theme-swatch" data-palette="nord" data-mode="light" title="Nord Light">
-              <div class="swatch-preview" style="background:#e5e9f0;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#5e81ac"></div></div>
-              <span class="swatch-name">Nord<br>Light</span>
-            </div>
-            <div class="theme-swatch" data-palette="catppuccin" data-mode="dark" title="Catppuccin Mocha">
-              <div class="swatch-preview" style="background:#1e1e2e"><div class="swatch-dot" style="background:#89b4fa"></div></div>
-              <span class="swatch-name">Catppuccin<br>Mocha</span>
-            </div>
-            <div class="theme-swatch" data-palette="catppuccin" data-mode="light" title="Catppuccin Latte">
-              <div class="swatch-preview" style="background:#eff1f5;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#1e66f5"></div></div>
-              <span class="swatch-name">Catppuccin<br>Latte</span>
-            </div>
-            <div class="theme-swatch" data-palette="dracula" data-mode="dark" title="Dracula">
-              <div class="swatch-preview" style="background:#282a36"><div class="swatch-dot" style="background:#8be9fd"></div></div>
-              <span class="swatch-name">Dracula</span>
-            </div>
-            <div class="theme-swatch" data-palette="tokyo" data-mode="dark" title="Tokyo Night">
-              <div class="swatch-preview" style="background:#1a1b26"><div class="swatch-dot" style="background:#7aa2f7"></div></div>
-              <span class="swatch-name">Tokyo<br>Night</span>
-            </div>
-            <div class="theme-swatch" data-palette="gruvbox" data-mode="dark" title="Gruvbox Dark">
-              <div class="swatch-preview" style="background:#282828"><div class="swatch-dot" style="background:#83a598"></div></div>
-              <span class="swatch-name">Gruvbox<br>Dark</span>
-            </div>
-            <div class="theme-swatch" data-palette="gruvbox" data-mode="light" title="Gruvbox Light">
-              <div class="swatch-preview" style="background:#fbf1c7;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#076678"></div></div>
-              <span class="swatch-name">Gruvbox<br>Light</span>
-            </div>
-            <div class="theme-swatch" data-palette="rosepine" data-mode="dark" title="Rose Pine">
-              <div class="swatch-preview" style="background:#191724"><div class="swatch-dot" style="background:#c4a7e7"></div></div>
-              <span class="swatch-name">Rose Pine<br>Dark</span>
-            </div>
-            <div class="theme-swatch" data-palette="rosepine" data-mode="light" title="Rose Pine Dawn">
-              <div class="swatch-preview" style="background:#faf4ed;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#907aa9"></div></div>
-              <span class="swatch-name">Rose Pine<br>Dawn</span>
-            </div>
-            <div class="theme-swatch" data-palette="rosepine-moon" data-mode="dark" title="Rose Pine Moon">
-              <div class="swatch-preview" style="background:#232136"><div class="swatch-dot" style="background:#c4a7e7"></div></div>
-              <span class="swatch-name">Rose Pine<br>Moon</span>
-            </div>
-            <div class="theme-swatch" data-palette="onedark" data-mode="dark" title="One Dark">
-              <div class="swatch-preview" style="background:#282c34"><div class="swatch-dot" style="background:#61afef"></div></div>
-              <span class="swatch-name">One<br>Dark</span>
-            </div>
-            <div class="theme-swatch" data-palette="onedark" data-mode="light" title="Atom One Light">
-              <div class="swatch-preview" style="background:#fafafa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#4078f2"></div></div>
-              <span class="swatch-name">One<br>Light</span>
-            </div>
-            <div class="theme-swatch" data-palette="solarized" data-mode="dark" title="Solarized Dark">
-              <div class="swatch-preview" style="background:#002b36"><div class="swatch-dot" style="background:#268bd2"></div></div>
-              <span class="swatch-name">Solarized<br>Dark</span>
-            </div>
-            <div class="theme-swatch" data-palette="solarized" data-mode="light" title="Solarized Light">
-              <div class="swatch-preview" style="background:#fdf6e3;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#268bd2"></div></div>
-              <span class="swatch-name">Solarized<br>Light</span>
-            </div>
-            <div class="theme-swatch" data-palette="everforest" data-mode="dark" title="Everforest">
-              <div class="swatch-preview" style="background:#2d353b"><div class="swatch-dot" style="background:#a7c080"></div></div>
-              <span class="swatch-name">Everforest</span>
-            </div>
-            <div class="theme-swatch" data-palette="kanagawa" data-mode="dark" title="Kanagawa">
-              <div class="swatch-preview" style="background:#1f1f28"><div class="swatch-dot" style="background:#7e9cd8"></div></div>
-              <span class="swatch-name">Kanagawa</span>
-            </div>
-            <div class="theme-swatch" data-palette="monokai" data-mode="dark" title="Monokai">
-              <div class="swatch-preview" style="background:#272822"><div class="swatch-dot" style="background:#f92672"></div></div>
-              <span class="swatch-name">Monokai</span>
-            </div>
-            <div class="theme-swatch" data-palette="monokai-pro" data-mode="dark" title="Monokai Pro">
-              <div class="swatch-preview" style="background:#2d2a2e"><div class="swatch-dot" style="background:#ff6188"></div></div>
-              <span class="swatch-name">Monokai<br>Pro</span>
-            </div>
-            <div class="theme-swatch" data-palette="material" data-mode="dark" title="Material Dark">
-              <div class="swatch-preview" style="background:#263238"><div class="swatch-dot" style="background:#80cbc4"></div></div>
-              <span class="swatch-name">Material<br>Dark</span>
-            </div>
-            <div class="theme-swatch" data-palette="material" data-mode="light" title="Material Light">
-              <div class="swatch-preview" style="background:#fafafa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#00acc1"></div></div>
-              <span class="swatch-name">Material<br>Light</span>
-            </div>
-            <div class="theme-swatch" data-palette="palenight" data-mode="dark" title="Palenight">
-              <div class="swatch-preview" style="background:#292d3e"><div class="swatch-dot" style="background:#c792ea"></div></div>
-              <span class="swatch-name">Palenight</span>
-            </div>
-            <div class="theme-swatch" data-palette="github" data-mode="dark" title="GitHub Dark">
-              <div class="swatch-preview" style="background:#0d1117"><div class="swatch-dot" style="background:#58a6ff"></div></div>
-              <span class="swatch-name">GitHub<br>Dark</span>
-            </div>
-            <div class="theme-swatch" data-palette="github" data-mode="light" title="GitHub Light">
-              <div class="swatch-preview" style="background:#f6f8fa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#0969da"></div></div>
-              <span class="swatch-name">GitHub<br>Light</span>
-            </div>
+      <!-- ── Notifications tab: Alert Thresholds ────────────────────────── -->
+      <div class="stab-panel" id="stab-notifications">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span class="scard-title">Alert Thresholds</span>
           </div>
-          <label class="sform-label">Contrast</label>
-          <div style="display:flex;align-items:center;gap:.6rem">
-            <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Low</span>
-            <input type="range" id="appearanceContrast" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
-            <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">High</span>
-          </div>
-          <label class="sform-label" style="margin-top:.75rem">Text Brightness</label>
-          <div style="display:flex;align-items:center;gap:.6rem">
-            <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dim</span>
-            <input type="range" id="appearanceTextBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
-            <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Bright</span>
-          </div>
-          <label class="sform-label" style="margin-top:.75rem">Background Brightness</label>
-          <div style="display:flex;align-items:center;gap:.6rem">
-            <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dark</span>
-            <input type="range" id="appearanceBgBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
-            <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Light</span>
-          </div>
-          <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
-          <label class="sform-label">Visible Pages</label>
-          <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings are always visible.</p>
-          <div class="stoggle-grid">
-            <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">DHCP</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDhcp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">VPN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBandwidth"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Routing</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouting"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-          </div>
-          <p style="font-size:.74rem;color:var(--text-muted);margin:.75rem 0 .5rem">Dashboard widgets</p>
-          <div class="stoggle-grid">
-            <label class="stoggle"><span class="stoggle-label">Ping / Latency</span><span class="stoggle-switch"><input type="checkbox" id="s_pingEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Trigger browser notifications when these thresholds are reached.</p>
+            <div class="sform-row">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">CPU Alert Threshold (%)</label>
+                <div style="display:flex;align-items:center;gap:.6rem">
+                  <input type="range" id="s_alertCpuThreshold" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)">
+                  <span id="s_alertCpuThresholdVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">90%</span>
+                </div>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Ping Loss Alert (%)</label>
+                <div style="display:flex;align-items:center;gap:.6rem">
+                  <input type="range" id="s_alertPingLoss" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)">
+                  <span id="s_alertPingLossVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">100%</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Actions -->
-      <div style="display:flex;gap:.6rem;justify-content:flex-end;padding-bottom:2rem">
+      <!-- ── Appearance tab ─────────────────────────────────────────────── -->
+      <div class="stab-panel" id="stab-appearance">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="3"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+            <span class="scard-title">Appearance</span>
+          </div>
+          <div class="scard-body">
+            <label class="sform-label" style="margin-bottom:.5rem">Theme</label>
+            <div class="theme-swatch-grid" id="themeSwatches">
+              <div class="theme-swatch" data-palette="default" data-mode="dark" title="Default Dark">
+                <div class="swatch-preview" style="background:#07090f"><div class="swatch-dot" style="background:#38bdf8"></div></div>
+                <span class="swatch-name">Default<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="default" data-mode="light" title="Default Light">
+                <div class="swatch-preview" style="background:#f0f2f7;border-color:rgba(0,0,0,.12)"><div class="swatch-dot" style="background:#38bdf8"></div></div>
+                <span class="swatch-name">Default<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="nord" data-mode="dark" title="Nord Dark">
+                <div class="swatch-preview" style="background:#2e3440"><div class="swatch-dot" style="background:#88c0d0"></div></div>
+                <span class="swatch-name">Nord<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="nord" data-mode="light" title="Nord Light">
+                <div class="swatch-preview" style="background:#e5e9f0;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#5e81ac"></div></div>
+                <span class="swatch-name">Nord<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="catppuccin" data-mode="dark" title="Catppuccin Mocha">
+                <div class="swatch-preview" style="background:#1e1e2e"><div class="swatch-dot" style="background:#89b4fa"></div></div>
+                <span class="swatch-name">Catppuccin<br>Mocha</span>
+              </div>
+              <div class="theme-swatch" data-palette="catppuccin" data-mode="light" title="Catppuccin Latte">
+                <div class="swatch-preview" style="background:#eff1f5;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#1e66f5"></div></div>
+                <span class="swatch-name">Catppuccin<br>Latte</span>
+              </div>
+              <div class="theme-swatch" data-palette="dracula" data-mode="dark" title="Dracula">
+                <div class="swatch-preview" style="background:#282a36"><div class="swatch-dot" style="background:#8be9fd"></div></div>
+                <span class="swatch-name">Dracula</span>
+              </div>
+              <div class="theme-swatch" data-palette="tokyo" data-mode="dark" title="Tokyo Night">
+                <div class="swatch-preview" style="background:#1a1b26"><div class="swatch-dot" style="background:#7aa2f7"></div></div>
+                <span class="swatch-name">Tokyo<br>Night</span>
+              </div>
+              <div class="theme-swatch" data-palette="gruvbox" data-mode="dark" title="Gruvbox Dark">
+                <div class="swatch-preview" style="background:#282828"><div class="swatch-dot" style="background:#83a598"></div></div>
+                <span class="swatch-name">Gruvbox<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="gruvbox" data-mode="light" title="Gruvbox Light">
+                <div class="swatch-preview" style="background:#fbf1c7;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#076678"></div></div>
+                <span class="swatch-name">Gruvbox<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="rosepine" data-mode="dark" title="Rose Pine">
+                <div class="swatch-preview" style="background:#191724"><div class="swatch-dot" style="background:#c4a7e7"></div></div>
+                <span class="swatch-name">Rose Pine<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="rosepine" data-mode="light" title="Rose Pine Dawn">
+                <div class="swatch-preview" style="background:#faf4ed;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#907aa9"></div></div>
+                <span class="swatch-name">Rose Pine<br>Dawn</span>
+              </div>
+              <div class="theme-swatch" data-palette="rosepine-moon" data-mode="dark" title="Rose Pine Moon">
+                <div class="swatch-preview" style="background:#232136"><div class="swatch-dot" style="background:#c4a7e7"></div></div>
+                <span class="swatch-name">Rose Pine<br>Moon</span>
+              </div>
+              <div class="theme-swatch" data-palette="onedark" data-mode="dark" title="One Dark">
+                <div class="swatch-preview" style="background:#282c34"><div class="swatch-dot" style="background:#61afef"></div></div>
+                <span class="swatch-name">One<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="onedark" data-mode="light" title="Atom One Light">
+                <div class="swatch-preview" style="background:#fafafa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#4078f2"></div></div>
+                <span class="swatch-name">One<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="solarized" data-mode="dark" title="Solarized Dark">
+                <div class="swatch-preview" style="background:#002b36"><div class="swatch-dot" style="background:#268bd2"></div></div>
+                <span class="swatch-name">Solarized<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="solarized" data-mode="light" title="Solarized Light">
+                <div class="swatch-preview" style="background:#fdf6e3;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#268bd2"></div></div>
+                <span class="swatch-name">Solarized<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="everforest" data-mode="dark" title="Everforest">
+                <div class="swatch-preview" style="background:#2d353b"><div class="swatch-dot" style="background:#a7c080"></div></div>
+                <span class="swatch-name">Everforest</span>
+              </div>
+              <div class="theme-swatch" data-palette="kanagawa" data-mode="dark" title="Kanagawa">
+                <div class="swatch-preview" style="background:#1f1f28"><div class="swatch-dot" style="background:#7e9cd8"></div></div>
+                <span class="swatch-name">Kanagawa</span>
+              </div>
+              <div class="theme-swatch" data-palette="monokai" data-mode="dark" title="Monokai">
+                <div class="swatch-preview" style="background:#272822"><div class="swatch-dot" style="background:#f92672"></div></div>
+                <span class="swatch-name">Monokai</span>
+              </div>
+              <div class="theme-swatch" data-palette="monokai-pro" data-mode="dark" title="Monokai Pro">
+                <div class="swatch-preview" style="background:#2d2a2e"><div class="swatch-dot" style="background:#ff6188"></div></div>
+                <span class="swatch-name">Monokai<br>Pro</span>
+              </div>
+              <div class="theme-swatch" data-palette="material" data-mode="dark" title="Material Dark">
+                <div class="swatch-preview" style="background:#263238"><div class="swatch-dot" style="background:#80cbc4"></div></div>
+                <span class="swatch-name">Material<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="material" data-mode="light" title="Material Light">
+                <div class="swatch-preview" style="background:#fafafa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#00acc1"></div></div>
+                <span class="swatch-name">Material<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="palenight" data-mode="dark" title="Palenight">
+                <div class="swatch-preview" style="background:#292d3e"><div class="swatch-dot" style="background:#c792ea"></div></div>
+                <span class="swatch-name">Palenight</span>
+              </div>
+              <div class="theme-swatch" data-palette="github" data-mode="dark" title="GitHub Dark">
+                <div class="swatch-preview" style="background:#0d1117"><div class="swatch-dot" style="background:#58a6ff"></div></div>
+                <span class="swatch-name">GitHub<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="github" data-mode="light" title="GitHub Light">
+                <div class="swatch-preview" style="background:#f6f8fa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#0969da"></div></div>
+                <span class="swatch-name">GitHub<br>Light</span>
+              </div>
+            </div>
+            <label class="sform-label">Contrast</label>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Low</span>
+              <input type="range" id="appearanceContrast" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">High</span>
+            </div>
+            <label class="sform-label" style="margin-top:.75rem">Text Brightness</label>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dim</span>
+              <input type="range" id="appearanceTextBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Bright</span>
+            </div>
+            <label class="sform-label" style="margin-top:.75rem">Background Brightness</label>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dark</span>
+              <input type="range" id="appearanceBgBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Light</span>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+            <label class="sform-label">Visible Pages</label>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings are always visible.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">DHCP</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDhcp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">VPN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBandwidth"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Routing</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouting"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:.75rem 0 .5rem">Dashboard widgets</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Ping / Latency</span><span class="stoggle-switch"><input type="checkbox" id="s_pingEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Authentication tab ─────────────────────────────────────────── -->
+      <div class="stab-panel" id="stab-auth">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="scard-title">Dashboard Auth</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.7rem">Leave blank to disable HTTP Basic Auth on the dashboard.</p>
+            <div class="sform-row" style="margin-bottom:0">
+              <div>
+                <label class="sform-label">Username</label>
+                <input class="sform-input" id="s_dashUser" type="text" placeholder="Leave blank to disable">
+              </div>
+              <div>
+                <label class="sform-label">Password</label>
+                <input class="sform-input" id="s_dashPass" type="password" placeholder="unchanged">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── About tab ──────────────────────────────────────────────────── -->
+      <div class="stab-panel" id="stab-about">
+        <div class="scard">
+          <div class="scard-body" style="text-align:center;padding:1.75rem 1.5rem">
+            <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;margin-bottom:.5rem">
+              <img src="/logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9"/>
+              <span style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Real-time MikroTik Router Dashboard</div>
+            <div style="margin:.35rem 0 .5rem">
+              <span id="stabAboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v—</span>
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted)">Built with Node.js · Socket.IO · Chart.js · Bootstrap</div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <span class="scard-title">Support &amp; Donations</span>
+          </div>
+          <div class="scard-body">
+            <div style="font-size:.78rem;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">
+              MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+              <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;flex-shrink:0"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+                GitHub
+              </a>
+              <a href="https://buymeacoffee.com/SecOps7" target="_blank" rel="noopener" class="info-btn info-btn-coffee">
+                ☕ Buy me a coffee
+              </a>
+              <a href="https://paypal.me/SecOps7App" target="_blank" rel="noopener" class="info-btn info-btn-outline">
+                💳 PayPal
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <span class="scard-title">Links</span>
+          </div>
+          <div class="scard-body" style="display:flex;flex-wrap:wrap;gap:.5rem">
+            <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">Documentation</a>
+            <a href="https://github.com/SecOps-7/MikroDash/issues" target="_blank" rel="noopener" class="info-btn info-btn-outline">Report a Bug</a>
+            <a href="https://mikrotik.com/software" target="_blank" rel="noopener" class="info-btn info-btn-outline">MikroTik RouterOS</a>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <span class="scard-title">License</span>
+          </div>
+          <div class="scard-body">
+            <div style="font-family:var(--font-mono);font-size:.75rem;color:var(--text-main);margin-bottom:.5rem">MIT License</div>
+            <div style="font-size:.75rem;color:var(--text-muted);line-height:1.6">
+              Permission is hereby granted, free of charge, to any person obtaining a copy of this software to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the following conditions:<br><br>
+              The above copyright notice and this permission notice shall be included in all copies or substantial portions of the software.<br><br>
+              <span style="color:rgba(148,163,190,.5)">THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.</span>
+            </div>
+          </div>
+        </div>
+        <div class="scard" style="border-color:rgba(251,191,36,.15)">
+          <div class="scard-body" style="display:flex;gap:.75rem;align-items:flex-start">
+            <span style="font-size:1rem;flex-shrink:0">⚠️</span>
+            <div style="font-size:.74rem;color:var(--text-muted);line-height:1.65">
+              <strong style="color:rgba(200,215,240,.75)">Disclaimer</strong><br>
+              MikroDash is an independent, community-built project and is <strong style="color:rgba(200,215,240,.75)">not affiliated with, endorsed by, or associated with MikroTik SIA</strong> in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and trademarks are the property of their respective owners.
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;font-family:var(--font-mono);font-size:.65rem;color:rgba(148,163,190,.35);padding:.5rem 0 1.5rem">
+          MikroDash · MIT License · Made with ♥ for the MikroTik community
+        </div>
+      </div>
+
+      <!-- Actions (hidden on Routers and About tabs) -->
+      <div id="settingsActions" style="display:none;gap:.6rem;justify-content:flex-end;padding-bottom:2rem">
         <button class="sbtn sbtn-ghost" id="settingsResetBtn">Reset to defaults</button>
         <button class="sbtn sbtn-primary" id="settingsSaveBtn">
           <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>

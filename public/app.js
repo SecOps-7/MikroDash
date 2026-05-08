@@ -56,6 +56,7 @@ var firewallTable    = $('firewallTable');
 var pageTitle        = $('pageTitle');
 var ifaceGrid        = $('ifaceGrid');
 var ifaceCount       = $('ifaceCount');
+var ifaceTypeFilter  = $('ifaceTypeFilter');
 var vpnPageCount     = $('vpnPageCount');
 var dhcpTable        = $('dhcpTable');
 var dhcpTotalBadge   = $('dhcpTotalBadge');
@@ -283,21 +284,10 @@ function _syncSwatches() {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',info:'About',routing:'Routing'};
+var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing'};
 var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','routing','bandwidth','firewall','logs'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
-// Fetch and display the running version on the About page — called once on first visit.
-var _aboutVersionFetched = false;
-function fetchAboutVersion() {
-  if (_aboutVersionFetched) return;
-  _aboutVersionFetched = true;
-  fetch('/healthz').then(function(r){ return r.json(); }).then(function(d){
-    var el = $('aboutVersion');
-    if (el && d.version) el.textContent = 'v' + d.version;
-  }).catch(function(){});
-}
-
 function showPage(name){
   var prev = _currentPage;
   _currentPage = name;
@@ -305,7 +295,6 @@ function showPage(name){
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var page = $('page-'+name); if(page) page.classList.add('active');
   var nav  = document.querySelector('.nav-item[data-page="'+name+'"]'); if(nav) nav.classList.add('active');
-  if (name === 'info') fetchAboutVersion();
   if(pageTitle) pageTitle.textContent = PAGE_TITLES[name]||name;
   document.dispatchEvent(new CustomEvent('mikrodash:pagechange', { detail: name }));
   // Notify server so it only delivers page-specific events to clients that need them
@@ -703,6 +692,7 @@ socket.on('talkers:update',function(data){
 });
 
 // ── Interface Status ───────────────────────────────────────────────────────
+var _ifaceTypeFilter = '';
 var _ifacePeaks   = {};
 // Per-interface ring buffer of combined rx+tx Mbps samples for sparkline.
 // 30 samples at ~5 s poll interval = ~2.5 min of trend history.
@@ -782,6 +772,7 @@ socket.on('ifstatus:update',function(data){
       var div = document.createElement('div');
       div.className    = 'iface-tile ' + cls;
       div.dataset.iface = i.name;
+      div.dataset.ifaceType = i.type || '';
       div.innerHTML =
         ifaceSparkSvg(_ifaceHistory[i.name]||[]) +
         '<div class="iface-name"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
@@ -795,6 +786,7 @@ socket.on('ifstatus:update',function(data){
     } else {
       // Existing tile — only touch what changed
       tile.className = 'iface-tile ' + cls;
+      tile.dataset.ifaceType = i.type || '';
 
       // Sparkline (changes on every poll)
       var sparkEl = tile.querySelector('.iface-spark');
@@ -832,9 +824,50 @@ socket.on('ifstatus:update',function(data){
     if (!seen[name]) existing[name].remove();
   });
 
+  // Update type filter dropdown with types present in current data
+  if (ifaceTypeFilter) {
+    var types = [];
+    ifaces.forEach(function(i) { if (i.type && types.indexOf(i.type) === -1) types.push(i.type); });
+    types.sort();
+    ifaceTypeFilter.innerHTML = '<option value="">All Types</option>' +
+      types.map(function(t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('');
+    if (_ifaceTypeFilter && types.indexOf(_ifaceTypeFilter) !== -1) ifaceTypeFilter.value = _ifaceTypeFilter;
+    ifaceTypeFilter.classList.toggle('active', !!_ifaceTypeFilter);
+  }
+
+  // Apply type filter visibility and update count badge
+  var total = ifaces.length, visible = 0;
+  ifaceGrid.querySelectorAll('.iface-tile[data-iface-type]').forEach(function(el) {
+    var show = !_ifaceTypeFilter || el.dataset.ifaceType === _ifaceTypeFilter;
+    el.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  if (ifaceCount) {
+    ifaceCount.textContent = _ifaceTypeFilter ? (visible + '/' + total) : total;
+    ifaceCount.className = 'card-badge' + (total > 0 ? ' active-blue' : '');
+  }
+
   renderIfTypes(ifaces);
   renderIfPorts(ifaces);
 });
+
+// ── Interface type filter ──────────────────────────────────────────────────
+if (ifaceTypeFilter) {
+  ifaceTypeFilter.addEventListener('change', function() {
+    _ifaceTypeFilter = this.value;
+    this.classList.toggle('active', !!_ifaceTypeFilter);
+    var total = 0, visible = 0;
+    ifaceGrid.querySelectorAll('.iface-tile[data-iface-type]').forEach(function(el) {
+      total++;
+      var show = !_ifaceTypeFilter || el.dataset.ifaceType === _ifaceTypeFilter;
+      el.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    if (ifaceCount) {
+      ifaceCount.textContent = _ifaceTypeFilter ? (visible + '/' + total) : total;
+    }
+  });
+}
 
 // ── Interface Types card ───────────────────────────────────────────────────
 // Colour palette for type badges — cycles for types beyond the named set
@@ -1639,7 +1672,12 @@ socket.on('connect',function(){
   document.body.classList.remove('is-disconnected');
   _sysMetaWritten=false;
   currentIf=''; allPoints=[];
-  if(_rosCurrentlyDisconnected) rosBanner.classList.add('show');
+  if(_rosCurrentlyDisconnected) {
+    rosBanner.classList.add('show');
+    document.body.classList.add('is-ros-disconnected');
+  } else {
+    document.body.classList.remove('is-ros-disconnected');
+  }
   // Only resume SVG if ROS is also back up and tab is visible
   var svg=$('netDiagram'); if(svg && !_rosCurrentlyDisconnected && !document.hidden) svg.unpauseAnimations();
   // Re-join the current page room after reconnect so room-scoped events resume
@@ -1655,14 +1693,14 @@ function setRosBanner(connected, reason){
   _rosCurrentlyDisconnected = !connected;
   if(connected){
     rosBanner.classList.remove('show');
-    document.body.classList.remove('is-disconnected');
+    document.body.classList.remove('is-ros-disconnected');
     // Resume SVG animations only if the tab is also visible
     var svg = $('netDiagram');
     if(svg && !document.hidden) svg.unpauseAnimations();
   } else {
     if(rosBannerText) rosBannerText.textContent = reason || 'RouterOS not connected — retrying…';
     if(!reconnectBanner.classList.contains('show')) rosBanner.classList.add('show');
-    document.body.classList.add('is-disconnected');
+    document.body.classList.add('is-ros-disconnected');
     // Pause SVG flow-dot animations while the router is unreachable
     var svg = $('netDiagram');
     if(svg) svg.pauseAnimations();
@@ -3483,6 +3521,44 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // Load settings on every visit to the settings page
   document.addEventListener('mikrodash:pagechange', function(e) {
     if (e.detail === 'settings') loadSettings();
+  });
+})();
+
+// ── Settings tab switcher ─────────────────────────────────────────────────
+(function(){
+  var SETTINGS_TAB_KEY = 'mikrodash_settings_tab';
+  var NO_SAVE_TABS = ['routers', 'about'];
+  var _aboutFetched = false;
+
+  function activateTab(tabName) {
+    document.querySelectorAll('#page-settings .stab').forEach(function(t){
+      t.classList.toggle('active', t.dataset.tab === tabName);
+    });
+    document.querySelectorAll('#page-settings .stab-panel').forEach(function(p){
+      p.classList.toggle('active', p.id === 'stab-' + tabName);
+    });
+    var actions = $('settingsActions');
+    if (actions) actions.style.display = NO_SAVE_TABS.indexOf(tabName) !== -1 ? 'none' : 'flex';
+    if (tabName === 'about' && !_aboutFetched) {
+      _aboutFetched = true;
+      fetch('/healthz').then(function(r){ return r.json(); }).then(function(d){
+        var el = $('stabAboutVersion'); if (el && d.version) el.textContent = 'v' + d.version;
+      }).catch(function(){});
+    }
+    try { localStorage.setItem(SETTINGS_TAB_KEY, tabName); } catch(e) {}
+  }
+
+  document.querySelectorAll('#page-settings .stab').forEach(function(t){
+    t.addEventListener('click', function(){ activateTab(t.dataset.tab); });
+  });
+
+  document.addEventListener('mikrodash:pagechange', function(e) {
+    if (e.detail !== 'settings') return;
+    var saved = '';
+    try { saved = localStorage.getItem(SETTINGS_TAB_KEY) || ''; } catch(e) {}
+    var tabs = document.querySelectorAll('#page-settings .stab');
+    var valid = Array.from(tabs).some(function(t){ return t.dataset.tab === saved; });
+    activateTab(valid ? saved : 'routers');
   });
 })();
 

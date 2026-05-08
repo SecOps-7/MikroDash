@@ -136,7 +136,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.31
+docker pull ghcr.io/secops-7/mikrodash:0.5.32
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:

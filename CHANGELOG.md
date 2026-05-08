@@ -2,6 +2,21 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.32] — Settings tabs, interface filter, issue #35 fix
+
+### Added
+
+- **Settings page — tabbed layout** — Settings is now organised into six tabs: **Routers**, **General** (Poll Intervals + Limits + Diagnostics), **Notifications** (Alert Thresholds), **Appearance** (theme swatches + sliders + Visible Pages), **Authentication** (Dashboard Auth), and **About** (version, links, license, donations). Save/Reset buttons are hidden on the Routers and About tabs. Active tab persists across navigation via `localStorage`.
+- **Interfaces page — Interface Type filter** — dropdown in the Interfaces card header filters tiles by type (ether, wlan, bridge, vlan, wireguard, etc.). Options are populated dynamically from types present on the connected router and sorted alphabetically. The count badge switches to `N/M` format when a filter is active; the dropdown turns accent-coloured. Selection is preserved across data refreshes.
+
+### Changed
+
+- **About page removed** — the standalone About page and its sidebar nav item have been removed. All content (logo, version badge, Support & Donations, Links, License, Disclaimer) is now in Settings → About, styled with `.scard` blocks to match the rest of the Settings page.
+
+### Fixed
+
+- **Issue #35 — root cause fixed** — switching to a misconfigured router (wrong IP, bad SSL cert) left the entire dashboard non-interactive. The previous release dismissed the switching overlay correctly but `setRosBanner(false)` was still adding the `is-disconnected` body class, which applies `pointer-events: none` to the sidebar and main content. The fix introduces a separate `is-ros-disconnected` class that dims the UI to 70% opacity without blocking pointer events, so the user can navigate to Settings and switch to a working router. `is-disconnected` (full lockout) is now reserved exclusively for Socket.IO disconnects where the server itself is unreachable. Fixes [#35](https://github.com/SecOps-7/MikroDash/issues/35).
+
 ## [0.5.31] — Full stream conversion, idle manager, theme system
 
 ### Added
