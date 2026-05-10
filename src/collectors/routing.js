@@ -28,7 +28,7 @@ class RoutingCollector {
   constructor({ ros, io, pollMs, state }) {
     this.ros    = ros;
     this.io     = io;
-    this.pollMs = pollMs || 10000; // retained for Settings UI; no longer drives polling
+    this.pollMs = pollMs || 10000;
     this.state  = state;
     this.timer  = null; // unused — kept so shutdown loop / settings code are safe
 
@@ -490,7 +490,7 @@ class RoutingCollector {
     if (this._heartbeat) return;
     this._heartbeat = setInterval(() => {
       if (this.lastPayload) this.io.emit('routing:update', { ...this.lastPayload, ts: Date.now() });
-    }, 60000);
+    }, this.pollMs);
   }
 
   _stopHeartbeat() {

@@ -1,15 +1,16 @@
+name: mikrodash
+
 services:
   mikrodash:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-    image: hordesnake1/mikrodash:staging
+    image: ghcr.io/secops-7/mikrodash:latest
     container_name: mikrodash
     restart: unless-stopped
     env_file:
       - .env
     ports:
       - "3081:3081"
+    volumes:
+      - data:/data
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3081/healthz"]
       interval: 30s
@@ -21,3 +22,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  data:

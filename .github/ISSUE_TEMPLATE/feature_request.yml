@@ -1,0 +1,39 @@
+name: Feature Request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for MikroDash? Describe it below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or pain point
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you've thought about
+    validations:
+      required: false
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Relevant RouterOS hardware or feature
+      description: e.g. hAP ax3, WireGuard, BGP — leave blank if not hardware-specific
+    validations:
+      required: false

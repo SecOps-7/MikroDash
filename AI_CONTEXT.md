@@ -22,7 +22,7 @@ MikroDash is a **real-time MikroTik RouterOS v7 dashboard**. It connects directl
 | No CDN dependencies | All frontend assets are vendored under `public/vendor/`. Never add a `<script src="https://...">` tag. |
 | No new runtime deps without approval | The dependency list in `package.json` is intentional and minimal. |
 | Collector pattern must be followed | Every new data collector must implement the contract described below. |
-| Streaming-first architecture | **Prefer `/listen` streams over polling wherever RouterOS supports them.** Polling is only acceptable when no stream endpoint exists (e.g. `/tool/ping`) or the stream is demonstrably too noisy without benefit (rejected case: `/routing/bgp/session/listen` was initially rejected as "noisy" but was successfully streamed with keepalive-fingerprint suppression). When converting a collector to streaming, set `pollMs: 0` in the payload and show "Event-driven" in the Settings UI instead of a slider. |
+| Streaming-first architecture | **Prefer streaming over polling wherever RouterOS supports it.** Two streaming mechanisms exist: (1) `/listen` streams — event-driven, fires only when data changes (e.g. `/ip/arp/listen`); (2) `=interval=N` on print commands — RouterOS pushes a full snapshot every N seconds over a persistent channel (e.g. `/system/resource/print =interval=2`). Use `=interval=N` for any command that lacks a `/listen` variant but produces regular data (system resources, traffic counters, ping RTT, connection table). Polling via `setInterval` is a last resort only when neither mechanism is viable. When converting a collector to streaming, set `pollMs: 0` in the payload and show "Event-driven" in the Settings UI instead of a slider. |
 | Credentials never in plaintext | Router and dashboard passwords are AES-256-GCM encrypted in `settings.json` and masked in all API responses. |
 | Vendored assets are read-only | Never modify `public/vendor/` unless explicitly instructed. |
 
@@ -170,23 +170,23 @@ Change only the `"version"` field. Nothing else.
 
 | Collector | Delivery | RouterOS endpoint(s) | Notes |
 |---|---|---|---|
-| `traffic.js` | Poll 1 s | `/interface/monitor-traffic` | No stream endpoint; idle-gated when no browser clients |
-| `system.js` | Poll | `/system/resource/print` | Update-check sub-interval (5 min) |
-| `connections.js` | Poll | `/ip/firewall/connection/print` | Shared `connTableCache` with bandwidth |
-| `bandwidth.js` | Poll | `/ip/firewall/connection/print` | Shared `connTableCache` with connections |
-| `talkers.js` | Poll | `/ip/kid-control/device/print` | Backs off when Kid Control unavailable |
+| `traffic.js` | **Stream** (interval=1 s) | `/interface/monitor-traffic` | One persistent channel per subscribed interface; idle-gated |
+| `system.js` | **Stream** (interval=N s) | `/system/resource/print` | Resource stream pushes every pollMs; `/system/health/print` polled separately at 2× interval (no interval= support); update-check every 12 h |
+| `connections.js` | **Stream** (interval=N s) | `/ip/firewall/connection/print` | Initial `/print` on connect; interval stream replaces polling; watchdog restarts stale streams; idle-gated; skips geo computation when `page-connections` room is empty |
+| `bandwidth.js` | Poll | `/ip/firewall/connection/print` | Shares `connTableCache` with connections; idle-gated |
+| `talkers.js` | **Stream** (interval=N s) | `/ip/kid-control/device/print` | Backs off when Kid Control unavailable; idle-gated |
 | `dhcpLeases.js` | **Stream** | `/ip/dhcp-server/lease/listen` | Initial `/print` on connect |
-| `dhcpNetworks.js` | Poll | `/ip/dhcp-server/network/print` | Slow poll (default 5 min) |
+| `dhcpNetworks.js` | Poll | `/ip/dhcp-server/network/print` | Slow poll (default 10 min) |
 | `arp.js` | **Stream** | `/ip/arp/listen` | Initial `/print` on connect |
 | `wireless.js` | Poll | `/interface/wifi/registration-table/print` | Probes both wifi and legacy wireless APIs |
-| `vpn.js` | **Stream** | `/interface/wireguard/peers/listen` | Heartbeat every 60 s |
-| `firewall.js` | **Stream** | `/ip/firewall/{filter,nat,mangle}/listen` | Three concurrent streams |
-| `interfaceStatus.js` | **Stream** + Poll | `/interface/listen` + `/interface/print` | Stream for state; poll for byte counters |
-| `ping.js` | Poll | `/tool/ping` | No stream endpoint exists |
+| `vpn.js` | **Stream** + Poll | `/interface/wireguard/peers/listen` | Stream for peer state; poll for counter snapshots; heartbeat every 60 s |
+| `firewall.js` | **Stream** + Poll | `/ip/firewall/{filter,nat,mangle}/listen` | Three concurrent streams for rule state; poll for delta packet/byte counts; heartbeat every 60 s |
+| `interfaceStatus.js` | **Stream** (interval=N s, ×3) | `/interface/print`, `/ip/address/print`, `/interface/monitor-traffic` | Three concurrent interval streams: interface state, IP addresses, byte counters; idle-gated |
+| `ping.js` | **Stream** (interval=N s) | `/tool/ping` | Persistent interval stream replaces per-tick write(); ring-buffer history |
 | `routing.js` | **Stream** | `/ip/route/listen` + `/routing/bgp/session/listen` | BGP keepalives fingerprint-suppressed |
 | `logs.js` | **Stream** | `/log/listen` | Bounded history buffer (500 entries) |
 
-**Rule:** always prefer streaming. Add a new collector as streaming unless the RouterOS endpoint genuinely does not support `/listen` (e.g. `/tool/ping`).
+**Rule:** always prefer streaming. Use `/listen` for event-driven data; use `=interval=N` on print commands that lack a `/listen` variant. Fall back to `setInterval` polling only when the RouterOS command genuinely cannot push (rare — check both mechanisms first).
 
 ---
 
@@ -293,7 +293,46 @@ class XyzCollector {
 
 **Streaming payload convention:** set `pollMs: 0` so the client knows data is event-driven. The Settings UI shows "Event-driven" instead of a slider.
 
-### Polling collector pattern (only when no stream endpoint exists)
+### `=interval=N` streaming pattern (for commands without a `/listen` variant)
+
+Many RouterOS print commands accept `=interval=N` to turn a one-shot response into a continuous push stream. RouterOS sends a fresh snapshot every N seconds over the same open channel. Use `ros.stream()` with a `null` callback and subscribe to the `'data'` event on the returned `RStream` — this bypasses the built-in `onStream()` handler which debounces section frames:
+
+```js
+_startStream() {
+  const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+  const stream = this.ros.stream(
+    ['/some/print', `=interval=${intervalSec}`, '=.proplist=field1,field2'],
+    null  // null callback — use 'data' event instead
+  );
+  stream.on('data', (packet) => {
+    // RouterOS interval responses include a .section field on the first packet
+    // of each push cycle. Filter it: require at least one real data field.
+    if (!packet || !packet['field1']) return;
+    this._processRow(packet);
+    this._emit();
+  });
+  stream.on('error', (err) => {
+    this._stopStream();
+    // restart after 3 s if still connected
+    if (this.ros.connected && !this._restarting) {
+      this._restarting = true;
+      this._restartTimer = setTimeout(() => {
+        this._restarting = false; this._restartTimer = null;
+        if (this.ros.connected) this._startStream();
+      }, 3000);
+    }
+  });
+  this._stream = stream;
+}
+```
+
+Key differences from `/listen` streams:
+- RouterOS pushes data at a fixed interval regardless of whether values changed — fingerprint-check before emitting to avoid redundant Socket.IO frames.
+- The interval is derived from `pollMs` (e.g. `pollMs: 5000` → `=interval=5`). Minimum 1 s.
+- `pollMs` is still passed through to the client payload for the Settings UI slider — it controls the stream interval, not a JS timer.
+- For commands that report byte/bit counters (traffic, interfaceStatus bandwidth), values are cumulative or rate-computed by RouterOS — no manual delta calculation needed.
+
+### Polling collector pattern (only when no stream mechanism works)
 
 ```js
 class XyzCollector {
@@ -534,18 +573,27 @@ try { await collector.tick(); } finally { Date.now = orig; }
 | `PING_TARGET` | `1.1.1.1` | ICMP ping destination |
 | `ROS_WRITE_TIMEOUT_MS` | `30000` | RouterOS API write timeout (ms) |
 | `ROS_DEBUG` | `false` | RouterOS API debug logging |
-| `CONNS_POLL_MS` | `3000` | Connections collector interval |
-| `TALKERS_POLL_MS` | `3000` | Top talkers collector interval |
-| `BANDWIDTH_POLL_MS` | `3000` | Bandwidth collector interval |
-| `SYSTEM_POLL_MS` | `3000` | System collector interval |
-| `WIRELESS_POLL_MS` | `5000` | Wireless collector interval |
-| `VPN_POLL_MS` | `10000` | VPN collector interval |
-| `FIREWALL_POLL_MS` | `10000` | Firewall collector interval |
-| `IFSTATUS_POLL_MS` | `5000` | Interface status collector interval |
-| `PING_POLL_MS` | `10000` | Ping collector interval |
+| `CONNS_POLL_MS` | `5000` | Connections stream interval (ms) — controls `=interval=N` on the connection-table stream |
+| `TALKERS_POLL_MS` | `3000` | Top-talkers stream interval (ms) |
+| `BANDWIDTH_POLL_MS` | `5000` | Bandwidth poll interval (ms) — still polled, shares connTableCache |
+| `SYSTEM_POLL_MS` | `2000` | System resource stream interval (ms) |
+| `WIRELESS_POLL_MS` | `30000` | Wireless poll interval (ms) — still polled |
+| `VPN_POLL_MS` | `10000` | VPN counter poll interval (ms) — stream handles state changes; poll fetches byte counters |
+| `FIREWALL_POLL_MS` | `5000` | Firewall counter poll interval (ms) — streams handle rule changes; poll fetches packet deltas |
+| `IFSTATUS_POLL_MS` | `5000` | Interface status stream interval (ms) — controls all three `=interval=N` streams |
+| `IFACES_POLL_MS` | `60000` | Interface list refresh interval (ms) — utility list used by traffic subscriber |
+| `PING_POLL_MS` | `5000` | Ping stream interval (ms) — controls `=interval=N` on the ping stream |
 | `ARP_POLL_MS` | `30000` | Retained for Settings UI display only — ARP collector is stream-based (`/ip/arp/listen`), not polled |
-| `DHCP_POLL_MS` | `300000` | DHCP networks collector interval |
+| `DHCP_POLL_MS` | `600000` | DHCP networks collector interval (ms) — slow poll, default 10 min |
 | `ROUTING_POLL_MS` | `10000` | Retained for Settings UI display only — routing collector is event-driven (two concurrent `/listen` streams), not polled |
+| `TOP_N` | `5` | Top-N limit for connections page (sources, destinations, ports, countries) |
+| `TOP_TALKERS_N` | `5` | Top-N limit for talkers card |
+| `FIREWALL_TOP_N` | `15` | Max firewall rules shown in the firewall card |
+| `VPN_DASH_TOP_N` | `5` | Max WireGuard peers shown on dashboard card |
+| `MAX_CONNS` | `20000` | Maximum connection-table rows processed per tick |
+| `HISTORY_MINUTES` | `30` | Traffic and ping ring-buffer history window (minutes) |
+| `ALERT_CPU_THRESHOLD` | `90` | CPU % above which a spike notification fires |
+| `ALERT_PING_LOSS` | `100` | Ping loss % at which a loss notification fires (100 = only fire on 100% loss) |
 
 ---
 

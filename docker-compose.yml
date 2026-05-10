@@ -1,18 +1,32 @@
+name: mikrodash
+
 services:
   mikrodash:
     build: .
+    image: mikrodash
     container_name: mikrodash
     environment:
       - PORT=3081
     ports:
       - "3081:3081"
     volumes:
-      - mikrodash-data:/data
+      - data:/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3081/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     # To override infra settings, add an env_file or extra environment vars:
     #   env_file: .env
     # Available overrides: PORT, MAX_SOCKETS, TRUSTED_PROXY, ROS_WRITE_TIMEOUT_MS
     # All router and dashboard settings are configured via the web UI.
 
 volumes:
-  mikrodash-data:
+  data:

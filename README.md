@@ -49,7 +49,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 ## Features
 
 ### Dashboard
-- **Configurable drag-and-drop grid** — 12×11 layout; drag cards to reposition, resize with 8 handles, or swap positions by hovering one card over another for 1.5 s; add/remove cards via the Add Card panel; layout synced server-side so all browsers and devices share the same arrangement
+- **Configurable drag-and-drop grid** — 24×22 layout; drag cards to reposition, resize with 8 handles, or swap positions by hovering one card over another for 1.5 s; add/remove cards via the Add Card panel; layout synced server-side so all browsers and devices share the same arrangement
 - **Live traffic chart** — per-interface RX/TX Mbps with configurable history window
 - **System card** — CPU, RAM, Storage gauges with colour-coded thresholds (amber >75%, red >90%), board info, temperature, uptime chip
 - **RouterOS update indicator** — shows installed vs available version side by side
@@ -192,7 +192,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 |---|---|
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. Test Connection validates credentials before saving. The active router is selected from the dropdown in the page header |
 | Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
-| Poll Intervals | Per-collector polling intervals — changes apply immediately without restart. Streamed collectors (ARP, Routing, DHCP Leases, Firewall rules, Interface metadata) show an Event-driven badge instead of a slider |
+| Poll Intervals | Per-collector update intervals — controls the push rate for interval-streamed collectors and the poll frequency for polled collectors. Changes apply immediately without restart. Pure event-driven collectors (ARP, Routing, DHCP Leases, Firewall rule changes) show an Event-driven badge instead of a slider |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
 | Diagnostics | Enable/disable verbose RouterOS API debug logging at runtime — no container restart required |
@@ -294,6 +294,8 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 | Ping RTT + loss | `/tool/ping =address=X =interval=N` |
 | Top Talkers (Kid Control) | `/ip/kid-control/device/print =interval=N` |
 | Interface metadata (name, IP, state) | `/interface/print =interval=N` + `/ip/address/print =interval=N` |
+| Interface byte counters (all interfaces) | `/interface/monitor-traffic =interface=all =interval=N` |
+| Firewall connection table, geo-IP | `/ip/firewall/connection/print =interval=N` |
 | Router Logs | `/log/listen` |
 | DHCP Lease changes | `/ip/dhcp-server/lease/listen` |
 | Firewall structural changes (rule add/remove/edit) | `/ip/firewall/filter\|nat\|mangle/listen` |
@@ -305,8 +307,7 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 ### Polled (concurrent via tagged API multiplexing)
 | Collector | Default interval | Data |
 |---|---|---|
-| Connections | 5 s | Firewall connection table, geo-IP |
-| Bandwidth | 5 s | Per-connection live RX/TX/Total Mbps (shares connection table fetch with Connections) |
+| Bandwidth | 5 s | Per-connection live RX/TX/Total Mbps (reads from the shared connection-table cache populated by the Connections stream) |
 | VPN counters | 10 s | WireGuard per-peer byte counter refresh for live rates |
 | Firewall counters | 5 s | Packet/byte counter refresh for all firewall rules (RouterOS 7.x does not push counter updates via the listen stream) |
 | Wireless | 30 s | Wireless client list |
@@ -314,7 +315,7 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
 
-**Idle gating** — all polled collectors skip their RouterOS API calls entirely when no browser clients are connected. On an unattended dashboard, RouterOS API traffic drops to near zero across all data paths.
+**Idle gating** — all collectors (both polled and interval-streamed) skip data processing and API calls when no browser clients are connected. On an unattended dashboard, RouterOS API traffic drops to near zero across all data paths.
 
 All collectors that support RouterOS `/listen` streams use event-driven delivery — RouterOS pushes only delta rows when data changes, producing zero API traffic when the network is idle. A 60-second heartbeat emit keeps the browser's stale-detection timers alive.
 

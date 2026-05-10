@@ -1,0 +1,70 @@
+name: Bug Report
+description: Something isn't working correctly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as you can.
+
+  - type: input
+    id: version
+    attributes:
+      label: MikroDash version
+      description: Found in Settings → About or the page footer
+      placeholder: "e.g. 0.5.32"
+    validations:
+      required: true
+
+  - type: input
+    id: routeros
+    attributes:
+      label: RouterOS version
+      description: Shown in the dashboard System card or via `/system/resource/print`
+      placeholder: "e.g. 7.18.2"
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Router hardware
+      description: Board name shown in the System card
+      placeholder: "e.g. hEX S, hAP ax2, RB5009"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click on ...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Docker logs (`docker logs mikrodash`) or browser console errors
+      render: shell
+    validations:
+      required: false

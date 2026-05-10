@@ -95,7 +95,7 @@ app.use((req, res, next) => {
 io.engine.use((req, res, next) => _authMiddleware(req, res, next));
 app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use(express.json());
+app.use(express.json({ limit: '50kb' }));
 
 // ── Active router session ─────────────────────────────────────────────────────
 // All mutable collector/ROS state lives here so buildSession() can replace
@@ -293,16 +293,7 @@ async function startCollectors(session) {
     session.conns.start();
     session.talkers.start();
     session.logs.start();
-    session.system.start();
-    await session.vpn.start();
-    await session.firewall.start();
-    await session.ifStatus.start();
-    session.ping.start();
-    session.bandwidth.start();
-    await session.routing.start();
-
-    // Auto-update router label from board name on first connect
-    // (only if label is still the default 'My Router' or matches host)
+    // Set callback before start() so the first board-name tick never races past it
     session.system._onFirstBoardName = (boardName) => {
       const router = Routers.getById(session.routerId);
       if (router && (router.label === 'My Router' || router.label === router.host)) {
@@ -311,6 +302,13 @@ async function startCollectors(session) {
         io.emit('routers:update', Routers.getPublic());
       }
     };
+    session.system.start();
+    await session.vpn.start();
+    await session.firewall.start();
+    await session.ifStatus.start();
+    session.ping.start();
+    session.bandwidth.start();
+    await session.routing.start();
 
     startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -597,7 +595,7 @@ app.post('/api/settings', (req, res) => {
     res.json({ ok:true, requiresRestart:false });
   } catch(e) {
     console.error('[settings] save error:', e);
-    res.status(500).json({ ok:false, error: String(e.message||e) });
+    res.status(500).json({ ok:false, error: sanitizeErr(e) });
   }
 });
 
@@ -621,7 +619,7 @@ app.post('/api/routers', (req, res) => {
     io.emit('routers:update', Routers.getPublic());
     res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
   } catch(e) {
-    res.status(500).json({ ok:false, error: String(e.message||e) });
+    res.status(500).json({ ok:false, error: sanitizeErr(e) });
   }
 });
 
@@ -652,7 +650,7 @@ app.put('/api/routers/:id', (req, res) => {
 
     res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
   } catch(e) {
-    res.status(500).json({ ok:false, error: String(e.message||e) });
+    res.status(500).json({ ok:false, error: sanitizeErr(e) });
   }
 });
 
@@ -668,7 +666,7 @@ app.delete('/api/routers/:id', (req, res) => {
     io.emit('routers:update', Routers.getPublic());
     res.json({ ok:true });
   } catch(e) {
-    res.status(500).json({ ok:false, error: String(e.message||e) });
+    res.status(500).json({ ok:false, error: sanitizeErr(e) });
   }
 });
 
@@ -752,6 +750,7 @@ app.post('/api/routers/test', async (req, res) => {
 
 // ── Existing read-only endpoints ──────────────────────────────────────────────
 app.get('/api/localcc', (_req, res) => {
+  if (!_session) return res.json({ cc: '', wanIp: '' });
   const wanIp = (_session.state.lastWanIp || '').split('/')[0];
   let cc = '';
   if (geoip && wanIp) { const g = geoip.lookup(wanIp); if (g) cc = g.country || ''; }
@@ -831,7 +830,7 @@ async function sendInitialState(socket) {
     ifs = s.cachedInterfaces;
     s.traffic.setAvailableInterfaces(ifs);
   } catch (e) {
-    const reason = e && e.message ? e.message : String(e);
+    const reason = sanitizeErr(e);
     console.error('[MikroDash] fetchInterfaces failed for socket', socket.id, ':', reason);
     socket.emit('interfaces:error', { reason });
   }
