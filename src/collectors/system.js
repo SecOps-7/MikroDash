@@ -25,20 +25,26 @@ class SystemCollector {
     if ((now - this._lastUpdateFetch) < this.UPDATE_INTERVAL) return;
     this._lastUpdateFetch = now;
     try {
-      const timeout = new Promise((_, reject) =>
+      // Explicitly trigger a check with the update server (blocks until done or times out).
+      // Without this, print returns cached/transient "finding out latest version..." state.
+      const checkTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('check-for-updates timed out')), 15000));
+      await Promise.race([
+        this.ros.write('/system/package/update/check-for-updates'),
+        checkTimeout,
+      ]).catch(() => {}); // ignore errors — fall through to print regardless
+
+      const printTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('update check timed out')), 5000));
       const result = await Promise.race([
         this.ros.write('/system/package/update/print'),
-        timeout,
+        printTimeout,
       ]);
       const u = result && result[0] ? result[0] : {};
       this._lastUpdateRow = u;
       if (!this._loggedUpdateFields) {
         console.log('[system] package/update fields:', JSON.stringify(u));
         this._loggedUpdateFields = true;
-      }
-      if (!u['status'] && !u['latest-version'] && Object.keys(u).length > 0) {
-        u['status'] = 'Update info unavailable';
       }
       if (this.lastPayload) {
         const latestVersion   = u['latest-version'] || '';
@@ -51,6 +57,13 @@ class SystemCollector {
         this.lastPayload = updated;
         this._lastFp = '';
         this.io.emit('system:update', updated);
+
+        // If still unresolved, retry in 60 s (update server may be slow)
+        const isTransient = !latestVersion && (
+          updateStatus === '' ||
+          /finding out|checking|in progress/i.test(updateStatus)
+        );
+        if (isTransient) this._lastUpdateFetch = now - this.UPDATE_INTERVAL + 60000;
       }
     } catch (e) {
       const msg = e && e.message ? e.message : String(e);

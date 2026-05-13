@@ -2,6 +2,14 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.36] — Bug fixes: system update indicator, alert toggle sync
+
+### Fixed
+
+- **System update indicator stuck at "finding out latest version..."** — `_fetchUpdateStatus` was calling `/system/package/update/print` directly, which only returns RouterOS's cached/transient state. The 12-hour rate limit then locked out any re-poll, so the indicator never resolved. Fix: call `/system/package/update/check-for-updates` first (15 s timeout, errors swallowed) to make RouterOS contact the update server and block until the result is ready, then follow with `print` to read the resolved status. If the result is still transient (update server slow or unreachable), retry in 60 s by rewinding `_lastUpdateFetch`; once a result is confirmed the full 12-hour rate limit applies as before. Removed the misleading "Update info unavailable" label that appeared when `status` was absent but other fields (e.g. `installed-version`) were present.
+
+- **Alert type toggles not synced to browser on connect** — `_alertTypes` in the browser initialised from hardcoded defaults (all `true`), while server defaults differ (e.g. `notifNetwatch: false`). This caused browser notifications to fire while Telegram stayed silent — the mismatch was invisible until the Settings page was opened. Fix: all `notif*` toggle fields (`notifNetwatch`, `notifVpn`, `notifCpu`, `notifPing`, `notifIfaceUpDown`, `notifRouterStatus`, and the five interface-type flags) are now included in every `settings:pages` emit — on new-socket connect, on settings save, and on settings reset. `applyPageVisibility()` (the `settings:pages` socket handler in `app.js`) now applies these fields to `_alertTypes` and `_alertIfaceTypes` immediately, so the browser state always matches the server from the first connected tick.
+
 ## [0.5.35] — Router-load reduction, performance optimizations, bug fixes
 
 ### Changed

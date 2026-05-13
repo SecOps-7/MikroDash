@@ -1659,6 +1659,13 @@ function applyPageVisibility(pages) {
     var pingSection = document.getElementById('ndPingSection');
     if (pingSection) pingSection.style.display = pages.pingEnabled ? '' : 'none';
   }
+  // Sync alert type toggles so browser notifications match server settings
+  var AT = { notifIfaceUpDown:'ifaceUpDown', notifVpn:'vpn', notifCpu:'cpu',
+             notifPing:'ping', notifNetwatch:'netwatch', notifRouterStatus:'routerStatus' };
+  for (var f in AT) { if (pages[f] !== undefined) _alertTypes[AT[f]] = !!pages[f]; }
+  var AI = { notifIfaceEther:'ether', notifIfaceWlan:'wlan', notifIfaceBridge:'bridge',
+             notifIfaceVlan:'vlan', notifIfaceOther:'other' };
+  for (var g in AI) { if (pages[g] !== undefined) _alertIfaceTypes[AI[g]] = !!pages[g]; }
 }
 socket.on('settings:pages', function(pages) { applyPageVisibility(pages); });
 

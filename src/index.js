@@ -480,6 +480,12 @@ app.post('/api/settings', (req, res) => {
         pageRouting:DEFAULTS.pageRouting,
         alertCpuThreshold:DEFAULTS.alertCpuThreshold, alertPingLoss:DEFAULTS.alertPingLoss,
         vpnDashTopN:DEFAULTS.vpnDashTopN, pingEnabled:DEFAULTS.pingEnabled,
+        notifIfaceUpDown:DEFAULTS.notifIfaceUpDown, notifVpn:DEFAULTS.notifVpn,
+        notifCpu:DEFAULTS.notifCpu, notifPing:DEFAULTS.notifPing, notifNetwatch:DEFAULTS.notifNetwatch,
+        notifRouterStatus:DEFAULTS.notifRouterStatus,
+        notifIfaceEther:DEFAULTS.notifIfaceEther, notifIfaceWlan:DEFAULTS.notifIfaceWlan,
+        notifIfaceBridge:DEFAULTS.notifIfaceBridge, notifIfaceVlan:DEFAULTS.notifIfaceVlan,
+        notifIfaceOther:DEFAULTS.notifIfaceOther,
       });
       return res.json({ ok:true, requiresRestart:false });
     }
@@ -641,6 +647,12 @@ app.post('/api/settings', (req, res) => {
       pageRouting:saved.pageRouting,
       alertCpuThreshold:saved.alertCpuThreshold, alertPingLoss:saved.alertPingLoss,
       vpnDashTopN:saved.vpnDashTopN, pingEnabled:saved.pingEnabled,
+      notifIfaceUpDown:saved.notifIfaceUpDown, notifVpn:saved.notifVpn,
+      notifCpu:saved.notifCpu, notifPing:saved.notifPing, notifNetwatch:saved.notifNetwatch,
+      notifRouterStatus:saved.notifRouterStatus,
+      notifIfaceEther:saved.notifIfaceEther, notifIfaceWlan:saved.notifIfaceWlan,
+      notifIfaceBridge:saved.notifIfaceBridge, notifIfaceVlan:saved.notifIfaceVlan,
+      notifIfaceOther:saved.notifIfaceOther,
     };
     io.emit('settings:pages', pageSettings);
     res.json({ ok:true, requiresRestart:false });
@@ -976,6 +988,12 @@ async function sendInitialState(socket) {
     pageLogs:_ps.pageLogs, pageBandwidth:_ps.pageBandwidth, pageRouting:_ps.pageRouting,
     alertCpuThreshold:_ps.alertCpuThreshold, alertPingLoss:_ps.alertPingLoss,
     vpnDashTopN:_ps.vpnDashTopN, pingEnabled:_ps.pingEnabled,
+    notifIfaceUpDown:_ps.notifIfaceUpDown, notifVpn:_ps.notifVpn,
+    notifCpu:_ps.notifCpu, notifPing:_ps.notifPing, notifNetwatch:_ps.notifNetwatch,
+    notifRouterStatus:_ps.notifRouterStatus,
+    notifIfaceEther:_ps.notifIfaceEther, notifIfaceWlan:_ps.notifIfaceWlan,
+    notifIfaceBridge:_ps.notifIfaceBridge, notifIfaceVlan:_ps.notifIfaceVlan,
+    notifIfaceOther:_ps.notifIfaceOther,
   });
 
   if (_ps.pingEnabled !== false) {
