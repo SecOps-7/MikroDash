@@ -44,6 +44,7 @@ class ConnectionsCollector {
     this.prevIds = new Set();
     this.lastPayload = null;
     this._lastFp = '';
+    this._lastEmitTs = 0;
     this._stream = null;
     this._rowsNext = [];      // accumulates rows for the current in-progress batch
     this._rowsPrev = null;    // last committed batch, used for partial-result detection
@@ -341,8 +342,12 @@ class ConnectionsCollector {
       dst: topDestinations.map(d => ({ k: d.key, n: d.count })),
       ports: topPorts,
     });
-    if (fp !== this._lastFp) {
+    const now = Date.now();
+    // Force-emit every 15 s even when data is unchanged — keeps the frontend
+    // stale timer (pollMs + 20 s grace = 25 s) from expiring on stable networks.
+    if (fp !== this._lastFp || now - this._lastEmitTs > 15000) {
       this._lastFp = fp;
+      this._lastEmitTs = now;
       // Global emit omits countryDests, countryPorts, sourceDests, sourcePorts —
       // only the Connections page needs them; lastPayload retains all for sendInitialState.
       const emitPayload = Object.assign({}, this.lastPayload);
@@ -443,6 +448,7 @@ class ConnectionsCollector {
   _restartStream() {
     this._stopStream();
     this._lastFp = '';
+    this._lastEmitTs = 0;
     if (this._started && this.ros.connected) this._startStream();
   }
 
