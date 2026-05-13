@@ -135,21 +135,39 @@ class DhcpNetworksCollector {
     this.state.lastNetworksTs = Date.now();
   }
 
+  _scheduleNext() {
+    if (this.timer) return;
+    this.timer = setTimeout(async () => {
+      this.timer = null;
+      if (!this._inflight) {
+        this._inflight = true;
+        try { await this.tick(); } catch (e) { console.error('[dhcp-networks]', e && e.message ? e.message : e); }
+        finally { this._inflight = false; }
+      }
+      this._scheduleNext();
+    }, this.pollMs);
+  }
+
+  _restartTimer() {
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    if (this.ros.connected) this._scheduleNext();
+  }
+
   stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
   }
 
   start() {
-    const run = async () => {
+    const runFirst = async () => {
       if (this._inflight) return;
       this._inflight = true;
       try { await this.tick(); } catch (e) { console.error('[dhcp-networks]', e && e.message ? e.message : e); }
       finally { this._inflight = false; }
     };
-    run();
-    this.timer = setInterval(run, this.pollMs);
+    runFirst();
+    this._scheduleNext();
     this.ros.on('close', () => this.stop());
-    this.ros.on('connected', () => { this._lastFp = ''; this.timer = this.timer || setInterval(run, this.pollMs); run(); });
+    this.ros.on('connected', () => { this._lastFp = ''; this.stop(); runFirst(); this._scheduleNext(); });
   }
 }
 

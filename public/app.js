@@ -1,4 +1,4 @@
-/* MikroDash v0.5.2 */
+/* MikroDash v0.5.35 */
 'use strict';
 var socket = io();
 
@@ -21,6 +21,7 @@ function actionBadge(a){
 }
 function parseTxRate(raw){if(!raw)return'—';var s=String(raw).trim();var m=s.match(/^([\d.]+)\s*(G|Gbps|M|Mbps|K|Kbps|k)\b/i);if(m){var val=parseFloat(m[1]),unit=m[2].toLowerCase(),mbps;if(unit==='g'||unit==='gbps')mbps=val*1000;else if(unit==='k'||unit==='kbps')mbps=val/1000;else mbps=val;return(Number.isInteger(mbps)?mbps:+mbps.toFixed(1))+' Mbps';}if(/^\d+$/.test(s)){var bps=parseInt(s,10);var mbps2=bps/1e6;return(Number.isInteger(mbps2)?mbps2:+mbps2.toFixed(1))+' Mbps';}return s;}
 function parseUptime(raw){var s=String(raw||''),parts=[];var w=(s.match(/(\d+)w/)||[0,0])[1],d=(s.match(/(\d+)d/)||[0,0])[1];var h=(s.match(/(\d+)h/)||[0,0])[1],m=(s.match(/(\d+)m/)||[0,0])[1];if(+w)parts.push(w+'w');if(+d)parts.push(d+'d');if(+h)parts.push(h+'h');if(+m)parts.push(m+'m');return parts.length?parts.join(' '):(raw||'—');}
+function _debounce(fn,ms){var t;return function(){clearTimeout(t);t=setTimeout(fn,ms);};}
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
 var $ = function(id){return document.getElementById(id);};
@@ -1458,10 +1459,10 @@ function fwUpdateCountersInPlace(data){
 
 // Search
 var fwSearchEl=$('fwSearch');
-if(fwSearchEl) fwSearchEl.addEventListener('input',function(){
+if(fwSearchEl) fwSearchEl.addEventListener('input',_debounce(function(){
   _fwSearch=(fwSearchEl.value||'').trim().toLowerCase();
   renderFirewallTab();
-});
+},200));
 
 function renderFirewallTab(){
   var rules=fwTab==='top'?(fwData.topByHits||[]):fwTab==='filter'?(fwData.filter||[]):fwTab==='nat'?(fwData.nat||[]):fwTab==='raw'?(fwData.raw||[]):(fwData.mangle||[]);
@@ -1548,7 +1549,7 @@ socket.on('logs:new',function(line){
   while(logsEl.children.length>MAX_LOG_LINES)logsEl.removeChild(logsEl.firstElementChild);
   if(autoScroll)logsEl.scrollTop=logsEl.scrollHeight;
 });
-logSearch.addEventListener('input',function(){logFilter=(logSearch.value||'').trim().toLowerCase();flushLogs();});
+logSearch.addEventListener('input',_debounce(function(){logFilter=(logSearch.value||'').trim().toLowerCase();flushLogs();},200));
 logSeverity.addEventListener('change',function(){logLevel=logSeverity.value;Object.keys(logCountEls).forEach(function(s){if(logCountEls[s])logCountEls[s].classList.toggle('active',s===logLevel);});flushLogs();});
 toggleScroll.addEventListener('click',function(){autoScroll=!autoScroll;toggleScroll.textContent=autoScroll?'Pause':'Resume';});
 clearLogs.addEventListener('click',function(){logBuffer=[];logsEl.innerHTML='';updateLogCounts();});

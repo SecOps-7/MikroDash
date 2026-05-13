@@ -6,6 +6,7 @@ class SystemCollector {
     this.state = state;
     this._stream = null;
     this._healthTimer = null;
+    this._healthInflight = false;
     this._lastHealth = [];
     this._loggedUpdateFields = false;
     this.UPDATE_INTERVAL   = 12 * 60 * 60 * 1000;
@@ -147,6 +148,21 @@ class SystemCollector {
     }).catch(() => {});
   }
 
+  _scheduleHealthNext() {
+    if (this._healthTimer) return;
+    this._healthTimer = setTimeout(async () => {
+      this._healthTimer = null;
+      if (!this._healthInflight && this.ros.connected && this.io.engine.clientsCount > 0) {
+        this._healthInflight = true;
+        try {
+          const h = await this.ros.write('/system/health/print');
+          if (Array.isArray(h)) this._lastHealth = h;
+        } catch (e) {} finally { this._healthInflight = false; }
+      }
+      this._scheduleHealthNext();
+    }, 30000);
+  }
+
   _restartStream() {
     if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
     this._startResourceStream();
@@ -186,8 +202,7 @@ class SystemCollector {
 
   start() {
     this._pollHealth();
-    // Poll health every 2× the resource interval, minimum 4 s.
-    this._healthTimer = setInterval(() => this._pollHealth(), 30000);
+    this._scheduleHealthNext();
     this._startResourceStream();
     this._fetchUpdateStatus().catch(() => {}); // run once at startup
     this.ros.on('close', () => this.stop());
@@ -203,17 +218,17 @@ class SystemCollector {
   }
 
   suspend() {
-    if (this._healthTimer) { clearInterval(this._healthTimer); this._healthTimer = null; }
+    if (this._healthTimer) { clearTimeout(this._healthTimer); this._healthTimer = null; }
   }
 
   resume() {
-    if (!this._healthTimer) this._healthTimer = setInterval(() => this._pollHealth(), 30000);
+    this._scheduleHealthNext();
     this._pollHealth();
   }
 
   stop() {
     if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
-    if (this._healthTimer) { clearInterval(this._healthTimer); this._healthTimer = null; }
+    if (this._healthTimer) { clearTimeout(this._healthTimer); this._healthTimer = null; }
   }
 }
 

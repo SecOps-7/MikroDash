@@ -243,17 +243,24 @@ class WirelessCollector {
     if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
   }
 
-  _startTimer() {
+  _scheduleNext() {
     if (this.timer) return;
-    const run = async () => {
-      if (this._inflight) return;
-      this._inflight = true;
-      try { await this.tick(); } catch (e) {
-        this.state.lastWirelessErr = String(e && e.message ? e.message : e);
-        console.error('[wireless]', this.state.lastWirelessErr);
-      } finally { this._inflight = false; }
-    };
-    this.timer = setInterval(run, this.pollMs);
+    this.timer = setTimeout(async () => {
+      this.timer = null;
+      if (!this._inflight) {
+        this._inflight = true;
+        try { await this.tick(); } catch (e) {
+          this.state.lastWirelessErr = String(e && e.message ? e.message : e);
+          console.error('[wireless]', this.state.lastWirelessErr);
+        } finally { this._inflight = false; }
+      }
+      this._scheduleNext();
+    }, this.pollMs);
+  }
+
+  _restartTimer() {
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    if (this.ros.connected) this._scheduleNext();
   }
 
   start() {
@@ -266,26 +273,26 @@ class WirelessCollector {
       } finally { this._inflight = false; }
     };
     runFirst();
-    this._startTimer();
+    this._scheduleNext();
     this.ros.on('close', () => this.stop());
     this.ros.on('connected', () => {
       this.stop();
       this._resetState();
       runFirst();
-      this._startTimer();
+      this._scheduleNext();
     });
   }
 
   suspend() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
   }
 
   resume() {
-    if (this.ros.connected) this._startTimer();
+    if (this.ros.connected) this._scheduleNext();
   }
 
   stop() {
-    if (this.timer)       { clearInterval(this.timer);       this.timer      = null; }
+    if (this.timer)       { clearTimeout(this.timer);        this.timer      = null; }
     if (this._retryTimer) { clearTimeout(this._retryTimer);  this._retryTimer = null; }
   }
 }

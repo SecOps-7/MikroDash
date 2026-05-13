@@ -24,6 +24,14 @@ const PARTIAL_DROP_RATIO = 0.5;
 const PARTIAL_DROP_MIN   = 10;
 const PARTIAL_MAX_STREAK = 5;
 
+const _categoryCache = new Map();
+function _cachedCategory(org) {
+  if (_categoryCache.has(org)) return _categoryCache.get(org);
+  const cat = lookupCategory(org);
+  _categoryCache.set(org, cat);
+  return cat;
+}
+
 class ConnectionsCollector {
   constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache, geoOrgCache }) {
     this.ros = ros;
@@ -45,6 +53,8 @@ class ConnectionsCollector {
     this.lastPayload = null;
     this._lastFp = '';
     this._lastEmitTs = 0;
+    this._lastDetailFp = '';
+    this._fallbackInflight = false;
     this._stream = null;
     this._pollTimer = null;   // fallback poll timer used when stream is not running
     this._rowsNext = [];      // accumulates rows for the current in-progress batch
@@ -64,6 +74,7 @@ class ConnectionsCollector {
       this._orgCache.clear();
       if (this._started) {
         this._lastFp = '';
+        this._lastDetailFp = '';
         this.stop();
         this.start();
       }
@@ -243,7 +254,7 @@ class ConnectionsCollector {
         const city = geo.city;
         const proto = country ? (countryProto.get(country) || {}) : {};
         const org = this._orgCache.get(ip) || null;
-        const cat = org ? lookupCategory(org) : null;
+        const cat = org ? _cachedCategory(org) : null;
         return { key, count, country, city, proto, org, cat };
       });
 
@@ -269,7 +280,7 @@ class ConnectionsCollector {
         const cc = geo.country;
         if (!countryDests[cc]) countryDests[cc] = [];
         const org = this._orgCache.get(ip) || null;
-        const cat = org ? lookupCategory(org) : null;
+        const cat = org ? _cachedCategory(org) : null;
         countryDests[cc].push({ key, count, country: cc, city: geo.city || '', org, cat });
       }
       for (const cc of Object.keys(countryDests)) {
@@ -292,7 +303,7 @@ class ConnectionsCollector {
           const ip  = extractAddress(key);
           const geo = this._geoCache.get(ip) || { country: '', city: '' };
           const org = this._orgCache.get(ip) || null;
-          const cat = org ? lookupCategory(org) : null;
+          const cat = org ? _cachedCategory(org) : null;
           entries.push({ key, count: cnt, country: geo.country, city: geo.city, org, cat });
         }
         entries.sort((a, b) => b.count - a.count);
@@ -316,7 +327,7 @@ class ConnectionsCollector {
           ? Array.from(orgMap.entries())
               .sort((a, b) => b[1] - a[1])
               .slice(0, 4)
-              .map(([org, count]) => ({ org, count, cat: lookupCategory(org) }))
+              .map(([org, count]) => ({ org, count, cat: _cachedCategory(org) }))
           : [];
         return {
           cc, city: countryCity.get(cc) || '',
@@ -344,6 +355,13 @@ class ConnectionsCollector {
       ports: topPorts,
     });
     const now = Date.now();
+    // Fingerprint for the heavy per-country/per-source data (only built when
+    // page-connections room is populated).
+    const detailFp = buildDetailed ? JSON.stringify({
+      cc:  Object.fromEntries([...countryProto.entries()].map(([k, v]) => [k, (v.tcp||0)+(v.udp||0)+(v.other||0)])),
+      src: Object.fromEntries([...srcCounts.entries()]),
+    }) : '';
+
     // Force-emit every 15 s even when data is unchanged — keeps the frontend
     // stale timer (pollMs + 20 s grace = 25 s) from expiring on stable networks.
     if (fp !== this._lastFp || now - this._lastEmitTs > 15000) {
@@ -357,7 +375,10 @@ class ConnectionsCollector {
       delete emitPayload.sourceDests;
       delete emitPayload.sourcePorts;
       this.io.emit('conn:update', emitPayload);
-      // Connections page gets per-country destination + port indexes.
+    }
+    // Connections page gets per-country and per-source indexes only when they change.
+    if (buildDetailed && detailFp !== this._lastDetailFp) {
+      this._lastDetailFp = detailFp;
       this.io.to('page-connections').emit('conn:country-data', {
         ts: this.lastPayload.ts,
         countryDests: this.lastPayload.countryDests,
@@ -449,26 +470,39 @@ class ConnectionsCollector {
   _restartStream() {
     this._stopStream();
     this._lastFp = '';
+    this._lastDetailFp = '';
     this._lastEmitTs = 0;
     if (this._started && this.ros.connected) this._startStream();
   }
 
   // Fallback poll: runs when the connections stream is not active (nobody on the
-  // Connections page). Fetches the connection table at a reduced rate so the
-  // dashboard connCard stays alive and connTableCache stays warm for bandwidth.
+  // Connections page). Fetches the connection table at pollMs so the dashboard
+  // connCard stays alive and connTableCache stays warm for bandwidth.
+  // Uses recursive setTimeout (seamless interval) so a slow router response never
+  // causes concurrent requests — matching the pattern of all other polling collectors.
+  _scheduleFallbackNext() {
+    if (this._pollTimer) return;
+    this._pollTimer = setTimeout(async () => {
+      this._pollTimer = null;
+      await this._runFallbackTick();
+      this._scheduleFallbackNext();
+    }, this.pollMs);
+  }
+
   _startPollFallback() {
     if (this._pollTimer) return;
-    this._pollTimer = setInterval(() => this._runFallbackTick(), this.pollMs);
+    this._scheduleFallbackNext();
   }
 
   _stopPollFallback() {
-    if (!this._pollTimer) return;
-    clearInterval(this._pollTimer);
-    this._pollTimer = null;
+    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+    this._fallbackInflight = false;
   }
 
   async _runFallbackTick() {
     if (!this.ros.connected || this.io.engine.clientsCount === 0) return;
+    if (this._fallbackInflight) return;
+    this._fallbackInflight = true;
     try {
       const rows = (await this.ros.write('/ip/firewall/connection/print', [
         '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
@@ -482,6 +516,8 @@ class ConnectionsCollector {
         this.state.lastConnsErr = msg;
         console.error('[connections] fallback poll error:', msg);
       }
+    } finally {
+      this._fallbackInflight = false;
     }
   }
 

@@ -77,7 +77,7 @@ const MAX_SOCKETS = parseInt(process.env.MAX_SOCKETS || '50', 10);
 const io = new Server(server, {
   maxHttpBufferSize: 1e6,
   connectTimeout: 10000,
-  perMessageDeflate: { threshold: 512, zlibDeflateOptions: { level: 1 } },
+  perMessageDeflate: { threshold: 128, zlibDeflateOptions: { level: 1 } },
 });
 
 // Auth middleware reads settings dynamically so changes via the Settings UI
@@ -305,8 +305,10 @@ function wireRosEvents(session) {
 async function startCollectors(session) {
   if (_collectorsStarted) return;
   _collectorsStarted = true;
+  const _delay = ms => new Promise(r => setTimeout(r, ms));
   try {
     console.log(`[MikroDash] v${APP_VERSION} — RouterOS connected, starting collectors`);
+    // Group A — foundation collectors; awaits provide natural sequencing.
     session.wireless.start();
     await session.dhcpLeases.start();
     // Run the first dhcpNetworks tick synchronously so networks/wanIp are
@@ -314,10 +316,15 @@ async function startCollectors(session) {
     await session.dhcpNetworks.tick().catch(() => {});
     session.dhcpNetworks.start();
     await session.arp.start();
+    // Group B — streaming collectors staggered 75 ms apart to avoid a burst
+    // of simultaneous stream-open commands hitting the router at once.
     session.traffic.start();
+    await _delay(75);
     session.conns.start();
     session.talkers.start();
+    await _delay(75);
     session.logs.start();
+    await _delay(75);
     // Set callback before start() so the first board-name tick never races past it
     session.system._onFirstBoardName = (boardName) => {
       const router = Routers.getById(session.routerId);
@@ -516,14 +523,18 @@ app.post('/api/settings', (req, res) => {
     for (const [key, name] of Object.entries(pollMap)) {
       if (key in updates) {
         const col = collectorMap[name];
-        if (col && col.timer) {
+        if (col) {
           col.pollMs = saved[key];
-          clearInterval(col.timer); col.timer = null;
-          const run = async () => {
-            if (col._inflight) return; col._inflight = true;
-            try { await col.tick(); } catch(_){} finally { col._inflight = false; }
-          };
-          col.timer = setInterval(run, col.pollMs);
+          if (typeof col._restartTimer === 'function') {
+            col._restartTimer();
+          } else if (col.timer) {
+            clearInterval(col.timer); col.timer = null;
+            const run = async () => {
+              if (col._inflight) return; col._inflight = true;
+              try { await col.tick(); } catch(_){} finally { col._inflight = false; }
+            };
+            col.timer = setInterval(run, col.pollMs);
+          }
         }
       }
     }

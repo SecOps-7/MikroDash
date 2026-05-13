@@ -145,13 +145,22 @@ class VpnCollector {
     }
   }
 
+  _schedulePollNext() {
+    if (this._pollTimer) return;
+    this._pollTimer = setTimeout(async () => {
+      this._pollTimer = null;
+      if (!this._pollInflight) await this._pollCounters();
+      this._schedulePollNext();
+    }, this.pollMs);
+  }
+
   _startCounterPoll() {
     if (this._pollTimer) return;
-    this._pollTimer = setInterval(() => this._pollCounters(), this.pollMs);
+    this._schedulePollNext();
   }
 
   _stopCounterPoll() {
-    if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null; }
+    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
     this._pollInflight = false;
   }
 

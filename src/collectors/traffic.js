@@ -1,11 +1,18 @@
 /**
- * Traffic collector — streams /interface/monitor-traffic with interval=1.
+ * Traffic collector — streams /interface/monitor-traffic =interface=<comma-list> =interval=1.
  *
- * Uses ros.stream() with a null callback and subscribes to the RStream 'data'
- * event directly, bypassing the section-handling debounce in RStream.onStream()
- * (RouterOS interval responses include a .section field that would otherwise
- * delay or lose packets). One persistent channel per interface replaces the
- * previous write()+once= approach.
+ * A single persistent stream covers all known interfaces simultaneously.
+ * The interface list is sourced from setAvailableInterfaces(), which is called
+ * after fetchInterfaces() completes in sendInitialState().  Until that list
+ * arrives, the stream runs for the default interface only.
+ *
+ * Each data packet carries a 'name' field (RouterOS includes it when more than
+ * one interface is listed); the handler fans it out to the matching socket(s).
+ * History is still maintained per-interface in memory.
+ *
+ * This replaces the previous pattern of opening one stream per subscribed
+ * interface, which could create N simultaneous RouterOS streams when multiple
+ * browser clients were watching different interfaces.
  */
 const RingBuffer = require('../util/ringbuffer');
 
@@ -34,9 +41,11 @@ class TrafficCollector {
     this.maxPoints  = Math.max(60, historyMinutes * 60);
     this.hist          = new Map();  // ifName -> RingBuffer
     this.subscriptions = new Map();  // socketId -> ifName
-    this.streams       = new Map();  // ifName -> RStreamHandle
+    this._allStream    = null;       // single shared stream for all interfaces
+    this._ifNames      = [];         // ordered list of interface names for the stream
+    this._ifNamesKey   = '';         // sorted key — detect list changes without restart
     this.availableIfs  = new Set();
-    this._loggedErrs   = new Set();
+    this._loggedErr    = false;
   }
 
   _ensureHistory(ifName) {
@@ -46,6 +55,14 @@ class TrafficCollector {
   setAvailableInterfaces(interfaces) {
     const names = (interfaces || []).map(i => typeof i === 'string' ? i : i && i.name).filter(Boolean);
     this.availableIfs = new Set(names);
+
+    const key = names.slice().sort().join(',');
+    if (key === this._ifNamesKey) return; // same list — no restart needed
+    this._ifNames    = names;
+    this._ifNamesKey = key;
+    // Restart stream with the expanded interface list
+    this._stopAllStream();
+    this._startAllStream();
   }
 
   _normalizeIfName(ifName) {
@@ -61,20 +78,51 @@ class TrafficCollector {
     return trimmed;
   }
 
-  _stopStream(ifName) {
-    const stream = this.streams.get(ifName);
-    if (!stream) return;
-    try { stream.stop().catch(() => {}); } catch (e) {}
-    this.streams.delete(ifName);
-    console.log('[traffic] stopped stream', ifName);
+  _stopAllStream() {
+    if (!this._allStream) return;
+    try { this._allStream.stop().catch(() => {}); } catch (e) {}
+    this._allStream = null;
+    console.log('[traffic] stopped stream');
   }
 
-  _pruneUnusedStreams() {
-    const active = new Set(this.subscriptions.values());
-    active.add(this.defaultIf);
-    for (const ifName of this.streams.keys()) {
-      if (!active.has(ifName)) this._stopStream(ifName);
-    }
+  _startAllStream() {
+    if (this._allStream) return;
+    if (!this.ros.connected) return;
+
+    // Use the full interface list if available, otherwise fall back to defaultIf only.
+    const names = this._ifNames.length ? this._ifNames : [this.defaultIf];
+    console.log('[traffic] streaming', names.length, 'interface(s) interval=1s');
+
+    const stream = this.ros.stream(
+      '/interface/monitor-traffic',
+      [
+        `=interface=${names.join(',')}`,
+        '=interval=1',
+        '=.proplist=name,rx-bits-per-second,tx-bits-per-second,running,disabled',
+      ],
+      null  // null callback — use 'data' event to bypass section-handling debounce
+    );
+
+    stream.on('data', (packet) => {
+      if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
+      // When a single interface is monitored, RouterOS may omit the 'name' field.
+      const ifName = packet.name || (names.length === 1 ? names[0] : null);
+      if (!ifName) return;
+      if (!packet['rx-bits-per-second'] && !packet['tx-bits-per-second']) return;
+      this._processPacket(ifName, packet);
+    });
+
+    stream.on('error', (err) => {
+      const msg = err && err.message ? err.message : String(err);
+      if (!this._loggedErr) {
+        console.error('[traffic] stream error:', msg);
+        this._loggedErr = true;
+      }
+      this.state.lastTrafficErr = msg;
+      this._allStream = null;
+    });
+
+    this._allStream = stream;
   }
 
   bindSocket(socket) {
@@ -85,8 +133,7 @@ class TrafficCollector {
       if (!nextIf) return;
       this.subscriptions.set(socket.id, nextIf);
       this._ensureHistory(nextIf);
-      this._startStream(nextIf);
-      this._pruneUnusedStreams();
+      // No new stream needed — the single stream already covers all interfaces.
       socket.emit('traffic:history', {
         ifName: nextIf,
         points: this.hist.get(nextIf).toArray(),
@@ -95,43 +142,7 @@ class TrafficCollector {
 
     socket.on('disconnect', () => {
       this.subscriptions.delete(socket.id);
-      this._pruneUnusedStreams();
     });
-  }
-
-  _startStream(ifName) {
-    if (this.streams.has(ifName)) return;
-    if (!this.ros.connected) return;
-
-    console.log('[traffic] streaming', ifName, 'interval=1s');
-
-    const stream = this.ros.stream(
-      '/interface/monitor-traffic',
-      [
-        `=interface=${ifName}`,
-        '=interval=1',
-        '=.proplist=rx-bits-per-second,tx-bits-per-second,running,disabled',
-      ],
-      null  // null callback — use 'data' event to bypass section-handling debounce
-    );
-
-    stream.on('data', (packet) => {
-      if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
-      if (!packet['rx-bits-per-second'] && !packet['tx-bits-per-second']) return;
-      this._processPacket(ifName, packet);
-    });
-
-    stream.on('error', (err) => {
-      const msg = err && err.message ? err.message : String(err);
-      if (!this._loggedErrs.has(ifName)) {
-        console.error('[traffic] stream error on', ifName, ':', msg);
-        this._loggedErrs.add(ifName);
-      }
-      this.state.lastTrafficErr = msg;
-      this.streams.delete(ifName);
-    });
-
-    this.streams.set(ifName, stream);
   }
 
   _processPacket(ifName, data) {
@@ -158,33 +169,25 @@ class TrafficCollector {
 
     this.state.lastTrafficTs  = now;
     this.state.lastTrafficErr = null;
-    this._loggedErrs.delete(ifName);
-  }
-
-  _stopAll() {
-    for (const ifName of [...this.streams.keys()]) this._stopStream(ifName);
-    this._loggedErrs.clear();
+    this._loggedErr = false;
   }
 
   start() {
     this._ensureHistory(this.defaultIf);
-    this._startStream(this.defaultIf);
+    this._startAllStream();
 
     this.ros.on('connected', () => {
-      console.log('[traffic] reconnected — restarting streams');
-      this._stopAll();
+      console.log('[traffic] reconnected — restarting stream');
+      this._stopAllStream();
+      this._ifNamesKey = ''; // force restart with current _ifNames on reconnect
       this._ensureHistory(this.defaultIf);
-      this._startStream(this.defaultIf);
-      const subscribed = new Set(this.subscriptions.values());
-      for (const ifName of subscribed) {
-        if (ifName !== this.defaultIf) this._startStream(ifName);
-      }
+      this._startAllStream();
     });
 
-    this.ros.on('close', () => this._stopAll());
+    this.ros.on('close', () => this._stopAllStream());
   }
 
-  stop() { this._stopAll(); }
+  stop() { this._stopAllStream(); }
 }
 
 module.exports = TrafficCollector;

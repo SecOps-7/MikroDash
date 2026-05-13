@@ -500,8 +500,8 @@ class RoutingCollector {
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
   stop() {
-    // Retained for the settings live-update loop compatibility (col.timer check).
-    // Routing has no poll timer — this is a no-op but must not throw.
+    this._stopAllStreams();
+    this._stopHeartbeat();
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 

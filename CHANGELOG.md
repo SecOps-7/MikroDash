@@ -2,6 +2,42 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.35] — Router-load reduction, performance optimizations, bug fixes
+
+### Changed
+
+- **Traffic stream consolidated** — the per-interface `/interface/monitor-traffic =interface=<name> =interval=1` streams (one per subscribed interface) are replaced by a single `/interface/monitor-traffic =interface=<comma-list> =interval=1` stream covering all known interfaces. Each data packet carries a `name` field; the handler fans it out to matching subscriber(s). Eliminates N concurrent streams in favour of one.
+
+- **Seamless interval for all polling collectors** — `firewall._startCounterPoll()`, `vpn._startCounterPoll()`, `system._scheduleHealthNext()`, `wireless._scheduleNext()`, and `dhcpNetworks._scheduleNext()` all replaced `setInterval` with recursive `setTimeout`. The next poll fires only after the previous response completes, guaranteeing a minimum rest period equal to `pollMs` and preventing independent timers from converging into simultaneous bursts. Added `_healthInflight` guard to the system health poller to prevent overlapping `/system/health/print` calls on slow CHR boards. All `clearInterval` calls in `stop()`/`suspend()` paths updated to `clearTimeout`.
+
+- **Staggered collector startup** — `startCollectors()` inserts 75 ms delays between burst groups (traffic → conns+talkers → logs → system) that previously all opened in the same event-loop turn on connect/reconnect. Spreads initial stream-open load over ~225 ms.
+
+- **Settings live-update handler** — now calls `col._restartTimer()` for collectors that expose it (wireless, dhcpNetworks, system, ping, interfaceStatus) instead of reconstructing a `setInterval` inline.
+
+- **Socket.IO compression threshold** lowered from 512 → 128 bytes (`perMessageDeflate.threshold`). High-frequency small events (`system:update`, `ping:update`, `wan:status`) were previously below the threshold and sent uncompressed; they are now deflated at `level: 1` (fastest zlib, negligible CPU cost).
+
+- **Connections fallback poll** converted from `setInterval` to seamless recursive `setTimeout` (`_scheduleFallbackNext()`) with a `_fallbackInflight` guard — matching the pattern of all other polling collectors. Prevents concurrent `/ip/firewall/connection/print` requests when the router is slow.
+
+### Added
+
+- **`lookupCategory()` result cache** — module-level `_categoryCache` Map added to `connections.js`. The four `lookupCategory(org)` call sites in `_processRows()` now go through `_cachedCategory(org)`, eliminating repeated string-pattern searches for the same ASN org strings on every tick when the Connections page is open.
+
+- **Dirty-check for `conn:country-data` / `conn:source-data`** — `_lastDetailFp` fingerprints the per-country and per-source detail payloads (combined ~20–80 KB) from `countryProto` totals and `srcCounts`. Emits to the `page-connections` room only when the traffic pattern actually changes, decoupled from the 15 s force-emit that keeps `conn:update` alive.
+
+- **Debounced firewall and log search inputs** — `_debounce` helper added to `app.js`; both the firewall rule search and log stream search now wait 200 ms after the last keystroke before re-rendering the table. Eliminates per-keystroke jank when searching large rule sets or log buffers.
+
+### Fixed
+
+- **Issue #38 — API connection drops after 15–20 s on VM/CHR** — up to 19 concurrent API channels open simultaneously (stream-heavy collectors all starting on the same event loop turn) overwhelmed the RouterOS API on resource-constrained CHR/VM installs. Fixed by: (a) traffic stream consolidation, (b) staggered startup, (c) making the connections stream **page-aware** — the heavy `/ip/firewall/connection/print =interval=N` stream only runs when the Connections page is actively open; a lightweight one-shot fallback poll at `pollMs` keeps the dashboard card and `connTableCache` alive when nobody is on that page.
+
+- **Connections fallback poll interval** — the initial fix set the fallback to `Math.max(pollMs × 4, 20 000 ms)`; on the default 5 s poll the dashboard connections card appeared stuck (updating every 20 s). Fixed: fallback runs at `pollMs`.
+
+- **Connections card going stale on stable networks** — the dirty-check fingerprint suppressed `conn:update` on quiet networks, allowing the 25 s frontend stale timer to expire even when the collector was healthy. Fixed: `_lastEmitTs` tracking forces an emit every 15 s regardless of fingerprint match; reset on stream restart.
+
+- **Ping and talkers idle suspension** — both streams now stop when no browser clients are connected and resume on first connection, reducing always-on stream count and providing explicit idle lifecycle control.
+
+- **`routing.js stop()` leaked streams and heartbeat** — the method previously only cleared a stub `this.timer` field; the three `/listen` streams and 60-second heartbeat were left running until the `'close'` event fired. `stop()` now calls `_stopAllStreams()` and `_stopHeartbeat()` directly, making it self-sufficient on session teardown.
+
 ## [0.5.34] — Multi-router alerts, SMTP email channel, notification improvements
 
 ### Added
