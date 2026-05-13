@@ -2,6 +2,38 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.34] — Multi-router alerts, SMTP email channel, notification improvements
+
+### Added
+
+- **Multi-router alert monitoring** — new `src/alertSessions.js` module manages lightweight background ROS sessions for non-active routers with `alertsEnabled: true`. Each session runs only 5 collectors (System, Ping, InterfaceStatus, VPN, Netwatch) through a stub `io` object that feeds an isolated evaluator without broadcasting to WebSocket clients. `syncSessions()` diff-manages sessions on router add/edit/delete/switch. Per-router "Alert Monitoring" toggle added to the router add/edit modal.
+
+- **Router status indicators** — Routers tab gains a STATUS column showing "Online" / "Offline" pill badges styled to match WireGuard peer state badges. Badges update in real time via a new `router:status` socket event emitted for all routers (active + alert-session). `sendInitialState()` seeds correct badge states for fresh browser connections.
+
+- **Router online/offline alerts** — new `notifRouterStatus` setting; when enabled, a push notification fires whenever a monitored router loses or regains connectivity. Uses `fireConnectivityAlert()` with independent per-router cooldown keys.
+
+- **Separate Up/Recovery notification template** — new `notifBodyUp` setting with an independent message template for recovery events (interface came up, ping restored, CPU normal, VPN reconnected, host reachable). Down/alert events continue to use `notifBody`. Defaults: `⚠️ {{alertType}} on {{routerName}}: {{detail}}` (down) and `✅ {{alertType}} on {{routerName}}: {{detail}}` (up). Message Templates card shows both textareas side by side.
+
+- **SMTP email alert channel** — third notification channel alongside Telegram and Pushbullet, powered by `nodemailer`. Configurable host, port, implicit-TLS toggle, username, password, From, and To address. `smtpUser` and `smtpPass` are AES-256-GCM encrypted at rest alongside other credentials. Includes a Send Test button; all message templates and cooldown settings apply to email exactly as they do to other channels.
+
+### Changed
+
+- **Router table column order** — Routers tab now shows NAME | STATUS | HOST | CONNECTION | ACTIONS. Status connection badge moved from the Name cell into its own column.
+
+- **`alerter.js` refactored** — per-router alert state (cooldown map, `prevIfState`, `prevVpnState`, `prevNetwatchState`, `prevCpuAlert`, `prevPingAlert`) moves into a `createEvaluator(getNameFn)` factory that returns an isolated `{ evaluate(event, data) }` object. Multiple routers can each have their own evaluator with fully independent state. Module-level `_connCooldowns` map powers `fireConnectivityAlert()`.
+
+- **Alert type toggles auto-save** — the interface up/down and interface type filter checkboxes in Settings → Notifications now POST immediately to `/api/settings` on change without requiring a Save. Previously they were localStorage-only, so Telegram/Pushbullet/SMTP ignored the toggle entirely.
+
+- **`_ifaceType()` uses RouterOS `type` field as primary classifier** — RouterOS 7's new wifi package reports `type: 'wifi'` (not a name beginning with `wlan`). The function now reads the `iface.type` field directly and normalises `'wifi'` to `'wlan'`, falling back to name-based detection only when `type` is absent or `'unknown'`.
+
+### Fixed
+
+- **CPU and Ping recovery alerts flooding** — "CPU Normal" and "Ping Restored" notifications previously fired on every cooldown expiry as long as values were below threshold. They now fire only on the transition from alerting → normal (`prevCpuAlert` / `prevPingAlert` booleans track the previous state).
+
+- **Send Test with unsaved credentials** — the Telegram, Pushbullet, and SMTP test buttons now include any credentials currently typed in the form fields, merged over stored settings server-side. Testing no longer requires saving first.
+
+- **Wireless interface alerts bypassing the filter** — fixed by the two-part auto-save + `_ifaceType()` change above: alert filter toggles are now reliably server-persisted, and RouterOS 7 wifi interfaces are classified as `wlan` (matching the browser-side filter) instead of falling through to `other`.
+
 ## [0.5.33] — Connections streaming, router modal test-gate, flow-dot fix
 
 ### Changed

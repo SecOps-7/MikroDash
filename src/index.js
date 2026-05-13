@@ -61,6 +61,10 @@ const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const PingCollector         = require('./collectors/ping');
 const BandwidthCollector    = require('./collectors/bandwidth');
 const RoutingCollector      = require('./collectors/routing');
+const NetwatchCollector     = require('./collectors/netwatch');
+const alerter               = require('./alerter');
+const notifier              = require('./notifier');
+const alertSessions         = require('./alertSessions');
 
 const compression = require('compression');
 const app = express();
@@ -120,6 +124,7 @@ function _freshState() {
     lastPingTs:0,
     lastRoutingTs:0,  lastRoutingErr:null,
     lastBandwidthTs:0, lastBandwidthErr:null,
+    lastNetwatchTs:0, lastNetwatchErr:null,
   };
 }
 
@@ -185,12 +190,13 @@ function buildSession(routerCfg) {
   const ping         = new PingCollector        ({ros,io, pollMs:_cfg.pollPing,     state, target:PING_TARGET});
   const bandwidth    = new BandwidthCollector   ({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache});
   const routing      = new RoutingCollector     ({ros,io, pollMs:_cfg.pollRouting,  state});
+  const netwatch     = new NetwatchCollector    ({ros,io,                           state});
 
-  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing];
+  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch];
 
   return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES,
            dhcpLeases, dhcpNetworks, arp, traffic, conns, talkers, logs, system,
-           wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, allCollectors,
+           wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, allCollectors,
            routerId: routerCfg.id, cachedInterfaces: null };
 }
 
@@ -225,16 +231,30 @@ function wireRosEvents(session) {
   const port = ros.cfg.port || 8729;
   const user = ros.cfg.username;
   const tls  = ros.cfg.tls !== false;
+  let _prevConnected = null;
+
+  function _emitRouterStatus(connected) {
+    if (session.routerId) {
+      io.emit('router:status', { routerId: session.routerId, connected });
+      const r = Routers.getById(session.routerId);
+      const label = (r && r.label) || host;
+      if (_prevConnected !== null && _prevConnected !== connected)
+        alerter.fireConnectivityAlert(session.routerId, label, connected);
+      _prevConnected = connected;
+    }
+  }
 
   ros.on('connected', () => {
     console.log(`[ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
     session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
     broadcastRosStatus(true);
+    _emitRouterStatus(true);
   });
   ros.on('close', () => {
     session.connTableCache.invalidate();
     console.log(`[ROS] connection to ${host}:${port} closed`);
     broadcastRosStatus(false, 'RouterOS connection closed');
+    _emitRouterStatus(false);
   });
   ros.on('connectionError', (e) => {
     const msg = e && e.message ? e.message : String(e);
@@ -273,6 +293,7 @@ function wireRosEvents(session) {
     if (e && e.errno) console.error(`[ROS]   errno: ${e.errno}`);
     console.error(`[ROS]   raw: ${msg}`);
     broadcastRosStatus(false, reason);
+    _emitRouterStatus(false);
   });
   ros.on('connected', () => startCollectors(session));
 }
@@ -309,6 +330,7 @@ async function startCollectors(session) {
     session.ping.start();
     session.bandwidth.start();
     await session.routing.start();
+    await session.netwatch.start();
 
     startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -399,6 +421,13 @@ async function switchRouter(newRouterId) {
   _session.ros.connectLoop();
 })();
 
+alerter.init(io, Settings.load());
+alertSessions.init(io);
+(function _syncAlertSessions() {
+  const cfg = Settings.load();
+  alertSessions.syncSessions(Routers.loadAll(), cfg.activeRouterId || '');
+})();
+
 // ── Dashboard layout API ──────────────────────────────────────────────────────
 const LAYOUT_FILE = path.join(process.env.DATA_DIR || '/data', 'dashboard-layout.json');
 
@@ -450,13 +479,17 @@ app.post('/api/settings', (req, res) => {
       pollIfstatus:[500,60000], pollIfaces:[10000,600000], pollPing:[1000,5000], pollArp:[5000,300000],
       pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], vpnDashTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
-      alertCpuThreshold:[1,100], alertPingLoss:[1,100],
+      alertCpuThreshold:[1,100], alertPingLoss:[1,100], notifCooldownSec:[10,3600],
+      smtpPort:[1,65535],
     };
-    const strFields  = ['dashUser', 'pingTarget'];
+    const strFields  = ['dashUser', 'pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo'];
     const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
                         'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting',
-                        'pingEnabled','rosDebug'];
-    const credFields = ['dashPass'];
+                        'pingEnabled','rosDebug',
+                        'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure',
+                        'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
+                        'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'];
+    const credFields = ['dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass'];
 
     for (const [f, range] of Object.entries(intFields)) {
       if (f in body) { const v = parseInt(body[f],10); if (!isNaN(v) && v>=range[0] && v<=range[1]) updates[f]=v; }
@@ -464,8 +497,11 @@ app.post('/api/settings', (req, res) => {
     for (const f of strFields)  { if (f in body) updates[f] = String(body[f]).trim().slice(0,256); }
     for (const f of boolFields) { if (f in body) updates[f] = body[f]===true||body[f]==='true'; }
     for (const f of credFields) { if (f in body && !Settings.isMasked(body[f])) updates[f] = String(body[f]).slice(0,512); }
+    if ('notifBody'   in body) updates.notifBody   = String(body.notifBody).trim().slice(0, 512);
+    if ('notifBodyUp' in body) updates.notifBodyUp = String(body.notifBodyUp).trim().slice(0, 512);
 
     const saved = Settings.save(updates);
+    alerter.updateSettings(saved);
 
     // Apply poll interval changes live
     const s = _session;
@@ -599,6 +635,37 @@ app.post('/api/settings', (req, res) => {
   }
 });
 
+// ── Notification test endpoint ────────────────────────────────────────────────
+const _testNotifLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
+
+app.post('/api/settings/test-notification', _testNotifLimiter, async (req, res) => {
+  try {
+    const { channel, apiKey, botToken, chatId,
+            smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFrom, smtpTo } = req.body || {};
+    if (!channel) return res.status(400).json({ ok: false, error: 'channel is required' });
+    // Merge any credentials supplied directly (typed but not yet saved) over stored settings.
+    const base = Settings.load();
+    const settings = {
+      ...base,
+      ...(botToken  && { telegramBotToken: String(botToken).slice(0, 512) }),
+      ...(chatId    && { telegramChatId:   String(chatId).slice(0, 256)  }),
+      ...(apiKey    && { pushbulletApiKey: String(apiKey).slice(0, 512)  }),
+      ...(smtpHost  && { smtpHost:  String(smtpHost).slice(0, 256)  }),
+      ...(smtpFrom  && { smtpFrom:  String(smtpFrom).slice(0, 256)  }),
+      ...(smtpTo    && { smtpTo:    String(smtpTo).slice(0, 256)    }),
+      ...(smtpUser  && { smtpUser:  String(smtpUser).slice(0, 256)  }),
+      ...(smtpPass  && { smtpPass:  String(smtpPass).slice(0, 512)  }),
+      ...(smtpPort  !== undefined && { smtpPort:   parseInt(smtpPort,  10) || 587 }),
+      ...(smtpSecure !== undefined && { smtpSecure: smtpSecure === true || smtpSecure === 'true' }),
+    };
+    await notifier.testChannel(settings, channel);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[test-notification]', e.message);
+    res.status(500).json({ ok: false, error: sanitizeErr(e) });
+  }
+});
+
 // ── Routers API ───────────────────────────────────────────────────────────────
 
 // GET /api/routers — list all routers (passwords masked)
@@ -617,6 +684,7 @@ app.post('/api/routers', (req, res) => {
     }
     const router = Routers.add(body);
     io.emit('routers:update', Routers.getPublic());
+    alertSessions.syncSessions(Routers.loadAll(), Settings.load().activeRouterId || '');
     res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
   } catch(e) {
     res.status(500).json({ ok:false, error: sanitizeErr(e) });
@@ -648,6 +716,7 @@ app.put('/api/routers/:id', (req, res) => {
       }
     }
 
+    alertSessions.syncSessions(Routers.loadAll(), activeId || '');
     res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
   } catch(e) {
     res.status(500).json({ ok:false, error: sanitizeErr(e) });
@@ -664,6 +733,7 @@ app.delete('/api/routers/:id', (req, res) => {
     const deleted = Routers.remove(req.params.id);
     if (!deleted) return res.status(404).json({ ok:false, error:'Router not found' });
     io.emit('routers:update', Routers.getPublic());
+    alertSessions.syncSessions(Routers.loadAll(), _cfg.activeRouterId || '');
     res.json({ ok:true });
   } catch(e) {
     res.status(500).json({ ok:false, error: sanitizeErr(e) });
@@ -685,6 +755,7 @@ app.post('/api/routers/:id/activate', async (req, res) => {
   // Broadcast updated active state to all clients
   io.emit('routers:update', Routers.getPublic());
   io.emit('router:active', { activeId: req.params.id });
+  alertSessions.syncSessions(Routers.loadAll(), req.params.id);
 });
 
 // POST /api/routers/test — test a connection without saving
@@ -790,6 +861,7 @@ app.get('/healthz', (_req, res) => {
       vpn:      { ts:st.lastVpnTs,      err:sanitizeErr(st.lastVpnErr)      },
       firewall: { ts:st.lastFirewallTs, err:sanitizeErr(st.lastFirewallErr) },
       ping:     { ts:st.lastPingTs,     err:null                            },
+      netwatch: { ts:st.lastNetwatchTs, err:sanitizeErr(st.lastNetwatchErr) },
     },
   };
   res.status(statusCode).json(body);
@@ -816,6 +888,11 @@ async function sendInitialState(socket) {
   // Send current router list and active id
   socket.emit('routers:update', Routers.getPublic());
   socket.emit('router:active', { activeId: _ps.activeRouterId || '' });
+  // Send live reachability status for active router and all alert-session routers
+  if (_ps.activeRouterId) socket.emit('router:status', { routerId: _ps.activeRouterId, connected: rosConnected });
+  for (const [routerId, connected] of alertSessions.getStatusMap()) {
+    socket.emit('router:status', { routerId, connected });
+  }
 
   if (!s.ros.connected) {
     socket.emit('ros:status', { connected: false, reason: rosConnected === false
@@ -875,6 +952,7 @@ async function sendInitialState(socket) {
   if (s.ping.lastPayload)      socket.emit('ping:update',      s.ping.lastPayload);
   if (s.bandwidth.lastPayload) socket.emit('bandwidth:update', s.bandwidth.lastPayload);
   if (s.routing.lastPayload)   socket.emit('routing:update',   s.routing.lastPayload);
+  if (s.netwatch.lastPayload)  socket.emit('netwatch:update',  s.netwatch.lastPayload);
 
   socket.emit('settings:pages', {
     pageWireless:_ps.pageWireless, pageInterfaces:_ps.pageInterfaces,

@@ -1857,10 +1857,33 @@ var _notifEnabled = false;
 var _notifPrevIface    = {};  // name -> confirmed running state
 var _ifacePending      = {};  // name -> { newState, since } — debounce timer
 var IFACE_DEBOUNCE_MS  = 10000; // ms state must be stable before alert fires
-var _notifPrevVpn   = {};   // name -> wasConnected
+var _notifPrevVpn      = {};   // name -> wasConnected
+var _notifPrevNetwatch = {};   // id   -> last known status
 var _cpuAlertedAt   = 0;
 var _pingAlertedAt  = 0;
 var NOTIF_COOLDOWN  = 60000; // 1 min between repeat alerts
+
+// Alert-type and interface-type filters — browser-local, stored in localStorage
+var NOTIF_TYPES_KEY       = 'mkd_notif_types';
+var NOTIF_IFACE_TYPES_KEY = 'mkd_notif_iface_types';
+var _alertTypes      = { ifaceUpDown: true, vpn: true, cpu: true, ping: true, netwatch: true };
+var _alertIfaceTypes = { ether: true, wlan: true, bridge: true, vlan: true, other: true };
+
+function loadAlertFilters() {
+  try {
+    var t = localStorage.getItem(NOTIF_TYPES_KEY);
+    if (t) { var p = JSON.parse(t); Object.keys(_alertTypes).forEach(function(k){ if (k in p) _alertTypes[k] = !!p[k]; }); }
+  } catch(e) {}
+  try {
+    var it = localStorage.getItem(NOTIF_IFACE_TYPES_KEY);
+    if (it) { var pi = JSON.parse(it); Object.keys(_alertIfaceTypes).forEach(function(k){ if (k in pi) _alertIfaceTypes[k] = !!pi[k]; }); }
+  } catch(e) {}
+}
+
+function saveAlertFilters() {
+  try { localStorage.setItem(NOTIF_TYPES_KEY,       JSON.stringify(_alertTypes));      } catch(e) {}
+  try { localStorage.setItem(NOTIF_IFACE_TYPES_KEY, JSON.stringify(_alertIfaceTypes)); } catch(e) {}
+}
 
 function notifSupported(){ return 'Notification' in window; }
 
@@ -1893,6 +1916,7 @@ function updateNotifBtn(){
 
 // Trigger notifications from data events
 function checkIfaceNotifs(ifaces){
+  if(!_alertTypes.ifaceUpDown) return;
   var now = Date.now();
   ifaces.forEach(function(i){
     if(i.disabled) return;
@@ -1914,10 +1938,18 @@ function checkIfaceNotifs(ifaces){
       if(!pending || pending.newState !== isRunning){
         _ifacePending[i.name] = { newState: isRunning, since: now };
       } else if(now - pending.since >= IFACE_DEBOUNCE_MS){
-        if(!isRunning){
-          sendNotif('Interface Down', i.name + ' is no longer running', 'iface-' + i.name);
-        } else {
-          sendNotif('Interface Up', i.name + ' is back online', 'iface-' + i.name);
+        // Check interface type filter before firing.
+        // RouterOS 7 new wifi package reports type 'wifi'; normalize to 'wlan'
+        // so the Wireless toggle covers both old and new wireless interfaces.
+        var ifType = i.type || 'other';
+        if (ifType === 'wifi') ifType = 'wlan';
+        var typeKey = Object.prototype.hasOwnProperty.call(_alertIfaceTypes, ifType) ? ifType : 'other';
+        if(_alertIfaceTypes[typeKey]){
+          if(!isRunning){
+            sendNotif('Interface Down', i.name + ' is no longer running', 'iface-' + i.name);
+          } else {
+            sendNotif('Interface Up', i.name + ' is back online', 'iface-' + i.name);
+          }
         }
         _notifPrevIface[i.name] = isRunning;
         delete _ifacePending[i.name];
@@ -1930,6 +1962,7 @@ function checkIfaceNotifs(ifaces){
 }
 
 function checkVpnNotifs(tunnels){
+  if(!_alertTypes.vpn) return;
   tunnels.forEach(function(t){
     var name = t.name || t.interface || '?';
     var isConn = t.state === 'connected';
@@ -1944,6 +1977,7 @@ function checkVpnNotifs(tunnels){
 }
 
 function checkCpuNotif(cpuLoad){
+  if(!_alertTypes.cpu) return;
   var now = Date.now();
   if(cpuLoad >= _alertCpuThreshold && now - _cpuAlertedAt > NOTIF_COOLDOWN){
     sendNotif('High CPU', 'Router CPU at ' + cpuLoad + '% (threshold: ' + _alertCpuThreshold + '%)', 'cpu-high');
@@ -1952,12 +1986,26 @@ function checkCpuNotif(cpuLoad){
 }
 
 function checkPingNotif(loss){
+  if(!_alertTypes.ping) return;
   var now = Date.now();
   if(loss >= _alertPingLoss && now - _pingAlertedAt > NOTIF_COOLDOWN){
     sendNotif('Ping Loss', 'Ping loss at ' + loss + '% — possible WAN outage', 'ping-loss');
     _pingAlertedAt = now;
   }
   if(loss < _alertPingLoss) _pingAlertedAt = 0; // reset so next outage fires again
+}
+
+function checkNetwatchNotifs(hosts){
+  if(!_alertTypes.netwatch) return;
+  hosts.forEach(function(h){
+    var prev = _notifPrevNetwatch[h.id];
+    if(prev !== undefined && prev !== h.status){
+      var label = h.comment || h.host || h.id;
+      if(h.status === 'down') sendNotif('NetWatch: Host Down', label + ' is unreachable',      'nw-' + h.id);
+      else                    sendNotif('NetWatch: Host Up',   label + ' is reachable again',  'nw-' + h.id);
+    }
+    _notifPrevNetwatch[h.id] = h.status;
+  });
 }
 
 // Wire into existing handlers
@@ -1968,17 +2016,69 @@ var _origIfstatus = null;
   socket.on('vpn:update',      function(data){ checkVpnNotifs(data.tunnels||[]); });
   socket.on('system:update',   function(d){    checkCpuNotif(d.cpuLoad); });
   socket.on('ping:update',     function(data){ checkPingNotif(data.loss); });
+  socket.on('netwatch:update', function(data){ checkNetwatchNotifs(data.hosts||[]); });
   // Clear interface and VPN state on router switch — ether1 on router A is not
   // the same interface as ether1 on router B, so stale confirmed states must be
   // discarded before the new router's first ifstatus:update is compared.
   socket.on('router:switching', function() {
-    _notifPrevIface = {};
-    _ifacePending   = {};
-    _notifPrevVpn   = {};
+    _notifPrevIface    = {};
+    _ifacePending      = {};
+    _notifPrevVpn      = {};
+    _notifPrevNetwatch = {};
   });
 })();
 
 initNotifications();
+loadAlertFilters();
+
+// ── Alert filter UI ────────────────────────────────────────────────────────
+(function(){
+  var TYPE_MAP = [
+    { id: 's_notifIfaceUpDown', obj: _alertTypes,      field: 'ifaceUpDown', key: 'notifIfaceUpDown' },
+    { id: 's_notifVpn',         obj: _alertTypes,      field: 'vpn',         key: 'notifVpn'         },
+    { id: 's_notifCpu',         obj: _alertTypes,      field: 'cpu',         key: 'notifCpu'         },
+    { id: 's_notifPing',        obj: _alertTypes,      field: 'ping',        key: 'notifPing'        },
+    { id: 's_notifNetwatch',    obj: _alertTypes,      field: 'netwatch',    key: 'notifNetwatch'    },
+    { id: 's_notifIfaceEther',  obj: _alertIfaceTypes, field: 'ether',       key: 'notifIfaceEther'  },
+    { id: 's_notifIfaceWlan',   obj: _alertIfaceTypes, field: 'wlan',        key: 'notifIfaceWlan'   },
+    { id: 's_notifIfaceBridge', obj: _alertIfaceTypes, field: 'bridge',      key: 'notifIfaceBridge' },
+    { id: 's_notifIfaceVlan',   obj: _alertIfaceTypes, field: 'vlan',        key: 'notifIfaceVlan'   },
+    { id: 's_notifIfaceOther',  obj: _alertIfaceTypes, field: 'other',       key: 'notifIfaceOther'  },
+  ];
+
+  function updateFilterCard() {
+    var card = $('notifIfaceFilterCard');
+    if (!card) return;
+    var on = _alertTypes.ifaceUpDown;
+    card.style.opacity       = on ? '1'    : '0.4';
+    card.style.pointerEvents = on ? ''     : 'none';
+    card.style.transition    = 'opacity .2s';
+  }
+
+  function syncUI() {
+    TYPE_MAP.forEach(function(m) {
+      var el = $(m.id); if (!el) return;
+      el.checked = !!m.obj[m.field];
+    });
+    updateFilterCard();
+  }
+
+  TYPE_MAP.forEach(function(m) {
+    var el = $(m.id); if (!el) return;
+    el.addEventListener('change', function() {
+      m.obj[m.field] = el.checked;
+      saveAlertFilters();
+      if (m.field === 'ifaceUpDown') updateFilterCard();
+      // Persist to server immediately so push alerts respect the toggle without a Save click.
+      var update = {}; update[m.key] = el.checked;
+      fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(update) }).catch(function(){});
+    });
+  });
+
+  document.addEventListener('mikrodash:pagechange', function(e) {
+    if (e.detail === 'settings') syncUI();
+  });
+})();
 
 // ── Topbar clock ───────────────────────────────────────────────────────────
 (function(){
@@ -3435,6 +3535,54 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         if (pingVal) pingVal.textContent = pingSlider.value + '%';
       });
     }
+    // Alert type + iface type toggles — sync in-memory objects and checkboxes from server
+    var ALERT_TYPE_MAP = [
+      { field: 'notifIfaceUpDown', obj: _alertTypes,     key: 'ifaceUpDown' },
+      { field: 'notifVpn',         obj: _alertTypes,     key: 'vpn'         },
+      { field: 'notifCpu',         obj: _alertTypes,     key: 'cpu'         },
+      { field: 'notifPing',        obj: _alertTypes,     key: 'ping'        },
+      { field: 'notifNetwatch',      obj: _alertTypes,     key: 'netwatch'      },
+      { field: 'notifRouterStatus',  obj: _alertTypes,     key: 'routerStatus'  },
+      { field: 'notifIfaceEther',    obj: _alertIfaceTypes, key: 'ether'        },
+      { field: 'notifIfaceWlan',   obj: _alertIfaceTypes, key: 'wlan'       },
+      { field: 'notifIfaceBridge', obj: _alertIfaceTypes, key: 'bridge'     },
+      { field: 'notifIfaceVlan',   obj: _alertIfaceTypes, key: 'vlan'       },
+      { field: 'notifIfaceOther',  obj: _alertIfaceTypes, key: 'other'      },
+    ];
+    ALERT_TYPE_MAP.forEach(function(m) {
+      if (data[m.field] !== undefined) {
+        m.obj[m.key] = !!data[m.field];
+        var el = $(('s_' + m.field)); if (el) el.checked = !!data[m.field];
+      }
+    });
+    // Notification channel fields
+    ['telegramEnabled','pushbulletEnabled'].forEach(function(f) {
+      var el = $('s_'+f); if (el) el.checked = !!data[f];
+    });
+    var tgToken = $('s_telegramBotToken');
+    if (tgToken) { tgToken.value = ''; tgToken.placeholder = data.telegramBotToken ? 'leave blank to keep current' : 'paste token here'; }
+    var tgChat = $('s_telegramChatId'); if (tgChat) tgChat.value = data.telegramChatId || '';
+    var pbKey = $('s_pushbulletApiKey');
+    if (pbKey) { pbKey.value = ''; pbKey.placeholder = data.pushbulletApiKey ? 'leave blank to keep current' : 'paste API key here'; }
+    var smtpEn   = $('s_smtpEnabled');  if (smtpEn)   smtpEn.checked   = !!data.smtpEnabled;
+    var smtpHost = $('s_smtpHost');     if (smtpHost)  smtpHost.value   = data.smtpHost  || '';
+    var smtpPort = $('s_smtpPort');     if (smtpPort)  smtpPort.value   = data.smtpPort  || 587;
+    var smtpSec  = $('s_smtpSecure');   if (smtpSec)   smtpSec.checked  = !!data.smtpSecure;
+    var smtpUser = $('s_smtpUser');     if (smtpUser)  smtpUser.value   = data.smtpUser  || '';
+    var smtpPass = $('s_smtpPass');     if (smtpPass)  { smtpPass.value = ''; smtpPass.placeholder = data.smtpPass ? 'leave blank to keep current' : 'optional'; }
+    var smtpFrom = $('s_smtpFrom');     if (smtpFrom)  smtpFrom.value   = data.smtpFrom  || '';
+    var smtpTo   = $('s_smtpTo');       if (smtpTo)    smtpTo.value     = data.smtpTo    || '';
+    var notifTitle  = $('s_notifTitle');  if (notifTitle)  notifTitle.value  = data.notifTitle  !== undefined ? data.notifTitle  : '';
+    var notifBody   = $('s_notifBody');   if (notifBody)   notifBody.value   = data.notifBody   !== undefined ? data.notifBody   : '';
+    var notifBodyUp = $('s_notifBodyUp'); if (notifBodyUp) notifBodyUp.value = data.notifBodyUp !== undefined ? data.notifBodyUp : '';
+    var coolSlider = $('s_notifCooldownSec'), coolVal = $('s_notifCooldownSecVal');
+    if (coolSlider && data.notifCooldownSec != null) {
+      coolSlider.value = data.notifCooldownSec;
+      if (coolVal) coolVal.textContent = data.notifCooldownSec + ' s';
+      coolSlider.addEventListener('input', function() {
+        if (coolVal) coolVal.textContent = coolSlider.value + ' s';
+      });
+    }
     buildSliders(data);
   }
 
@@ -3469,6 +3617,33 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // Alert thresholds
     var cpuEl = $('s_alertCpuThreshold');  if (cpuEl)  out.alertCpuThreshold  = parseInt(cpuEl.value,  10);
     var pingEl = $('s_alertPingLoss');     if (pingEl) out.alertPingLoss      = parseInt(pingEl.value, 10);
+    // Alert type + iface type toggles
+    ['notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
+     'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'].forEach(function(f) {
+      var el = $('s_'+f); if (el) out[f] = el.checked;
+    });
+    // Notification channel toggles
+    ['telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure'].forEach(function(f) {
+      var el = $('s_'+f); if (el) out[f] = el.checked;
+    });
+    // Notification channel credentials — only send if user typed something new
+    var tgTokenEl = $('s_telegramBotToken'); if (tgTokenEl && tgTokenEl.value) out.telegramBotToken = tgTokenEl.value;
+    var pbKeyEl   = $('s_pushbulletApiKey'); if (pbKeyEl   && pbKeyEl.value)   out.pushbulletApiKey = pbKeyEl.value;
+    // Chat ID (plain text)
+    var tgChatEl = $('s_telegramChatId'); if (tgChatEl) out.telegramChatId = tgChatEl.value.trim();
+    // SMTP fields
+    var smtpHostEl = $('s_smtpHost'); if (smtpHostEl) out.smtpHost = smtpHostEl.value.trim();
+    var smtpPortEl = $('s_smtpPort'); if (smtpPortEl) out.smtpPort = parseInt(smtpPortEl.value, 10) || 587;
+    var smtpFromEl = $('s_smtpFrom'); if (smtpFromEl) out.smtpFrom = smtpFromEl.value.trim();
+    var smtpToEl   = $('s_smtpTo');   if (smtpToEl)   out.smtpTo   = smtpToEl.value.trim();
+    var smtpUserEl = $('s_smtpUser'); if (smtpUserEl) out.smtpUser = smtpUserEl.value;
+    var smtpPassEl = $('s_smtpPass'); if (smtpPassEl && smtpPassEl.value) out.smtpPass = smtpPassEl.value;
+    // Templates
+    var notifTitleEl  = $('s_notifTitle');  if (notifTitleEl)  out.notifTitle  = notifTitleEl.value.trim();
+    var notifBodyEl   = $('s_notifBody');   if (notifBodyEl)   out.notifBody   = notifBodyEl.value.trim();
+    var notifBodyUpEl = $('s_notifBodyUp'); if (notifBodyUpEl) out.notifBodyUp = notifBodyUpEl.value.trim();
+    // Cooldown
+    var coolEl = $('s_notifCooldownSec'); if (coolEl) out.notifCooldownSec = parseInt(coolEl.value, 10);
     // Poll sliders
     POLL_SLIDERS.forEach(function(cfg) {
       if (cfg.streamed) return;
@@ -3516,6 +3691,54 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     .then(function(){ showBanner('ok', '✓ Reset to defaults'); loadSettings(); })
     .catch(function(e){ showBanner('err', 'Reset failed: '+e); });
   });
+
+  // Test notification buttons
+  function _testNotifBtn(btnId, resultId, channel) {
+    var btn = $(btnId), result = $(resultId);
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      btn.disabled = true;
+      if (result) { result.textContent = 'Sending…'; result.style.color = 'var(--text-muted)'; }
+      // Include any credentials the user has currently typed so Test works
+      // without requiring a Save first.
+      var payload = { channel: channel };
+      if (channel === 'telegram') {
+        var tgToken = $('s_telegramBotToken'); if (tgToken && tgToken.value) payload.botToken = tgToken.value;
+        var tgChat  = $('s_telegramChatId');  if (tgChat  && tgChat.value)  payload.chatId   = tgChat.value;
+      } else if (channel === 'pushbullet') {
+        var pbKey = $('s_pushbulletApiKey'); if (pbKey && pbKey.value) payload.apiKey = pbKey.value;
+      } else if (channel === 'smtp') {
+        var smtpH = $('s_smtpHost');    if (smtpH && smtpH.value)   payload.smtpHost   = smtpH.value.trim();
+        var smtpP = $('s_smtpPort');    if (smtpP && smtpP.value)   payload.smtpPort   = parseInt(smtpP.value, 10);
+        var smtpSc = $('s_smtpSecure'); if (smtpSc)                 payload.smtpSecure = smtpSc.checked;
+        var smtpU = $('s_smtpUser');    if (smtpU && smtpU.value)   payload.smtpUser   = smtpU.value;
+        var smtpW = $('s_smtpPass');    if (smtpW && smtpW.value)   payload.smtpPass   = smtpW.value;
+        var smtpF = $('s_smtpFrom');    if (smtpF && smtpF.value)   payload.smtpFrom   = smtpF.value.trim();
+        var smtpT = $('s_smtpTo');      if (smtpT && smtpT.value)   payload.smtpTo     = smtpT.value.trim();
+      }
+      fetch('/api/settings/test-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        btn.disabled = false;
+        if (result) {
+          result.textContent = data.ok ? '✓ Sent!' : '✗ ' + (data.error || 'failed');
+          result.style.color = data.ok ? 'var(--accent-green, #4ade80)' : 'var(--accent-red, #f87171)';
+          setTimeout(function(){ result.textContent = ''; }, 5000);
+        }
+      })
+      .catch(function(e) {
+        btn.disabled = false;
+        if (result) { result.textContent = '✗ ' + e; result.style.color = 'var(--accent-red, #f87171)'; }
+      });
+    });
+  }
+  _testNotifBtn('btn-test-telegram',  'test-telegram-result',  'telegram');
+  _testNotifBtn('btn-test-pushbullet', 'test-pushbullet-result', 'pushbullet');
+  _testNotifBtn('btn-test-smtp',       'test-smtp-result',       'smtp');
 
   // Load settings when page becomes active
   // Load settings on every visit to the settings page
@@ -4259,6 +4482,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 (function(){
   var _routers  = [];   // array of router objects (passwords masked)
   var _activeRouterId = '';
+  var _routerStatus = {};  // routerId → connected boolean
   var _testPassed = false; // save is only allowed after a successful connection test
 
   function setSaveReady(ready) {
@@ -4284,6 +4508,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var modalBwDownU  = $('rtrModalBwDownUnit');
   var modalBwUp     = $('rtrModalBwUp');
   var modalBwUpU    = $('rtrModalBwUpUnit');
+  var modalAlerts = $('rtrModalAlertsEnabled');
   var testBtn   = $('rtrModalTestBtn');
   var testResult= $('rtrTestResult');
   var cancelBtn = $('rtrModalCancelBtn');
@@ -4347,7 +4572,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function renderTable() {
     if (!tbody) return;
     if (!_routers.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
       return;
     }
     tbody.innerHTML = _routers.map(function(r) {
@@ -4361,8 +4586,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         ? '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(52,211,153,.1);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.2)">TLS</span>'
         : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">Unencrypted</span>';
       var certNote = r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
+      var connState = _routerStatus[r.id];
+      var badgeCls  = connState === true ? 'rtr-status-badge--on' : connState === false ? 'rtr-status-badge--off' : 'rtr-status-badge--unknown';
+      var badgeTxt  = connState === true ? 'Online' : connState === false ? 'Offline' : '—';
       return '<tr>' +
         '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + '</td>' +
+        '<td><span class="rtr-status-badge '+badgeCls+'" data-rtr-conn="'+esc(r.id)+'">'+badgeTxt+'</span></td>' +
         '<td><span class="rtr-host">'+esc(r.host)+':'+r.port+'</span></td>' +
         '<td>'+tlsBadge+certNote+'</td>' +
         '<td style="text-align:right;white-space:nowrap;display:flex;gap:.3rem;justify-content:flex-end">' +
@@ -4437,6 +4666,23 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     }
   });
 
+  // Update per-router status dots in the Routers table
+  socket.on('router:status', function(data) {
+    _routerStatus[data.routerId] = !!data.connected;
+    var badge = document.querySelector('[data-rtr-conn="' + data.routerId + '"]');
+    if (badge) {
+      badge.className = 'rtr-status-badge ' + (data.connected ? 'rtr-status-badge--on' : 'rtr-status-badge--off');
+      badge.textContent = data.connected ? 'Online' : 'Offline';
+    }
+    // Also update topbar/nav dot if this is the active router
+    if (data.routerId === _activeRouterId) {
+      ['rtrStatusDot', 'navRtrStatusDot'].forEach(function(id) {
+        var el = $(id);
+        if (el) { if (data.connected) el.classList.remove('offline'); else el.classList.add('offline'); }
+      });
+    }
+  });
+
   // ── Modal helpers ──────────────────────────────────────────────────────────
   function openModal(router) {
     if (!modalBg) return;
@@ -4452,8 +4698,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     else        modalPass.placeholder = '';
     modalIf.value    = router ? router.defaultIf  : 'ether1';
     modalPing.value  = router ? router.pingTarget : '1.1.1.1';
-    if (modalTls)  modalTls.checked  = router ? !!router.tls         : true;
-    if (modalTlsI) modalTlsI.checked = router ? !!router.tlsInsecure : false;
+    if (modalTls)    modalTls.checked    = router ? !!router.tls           : true;
+    if (modalTlsI)   modalTlsI.checked   = router ? !!router.tlsInsecure   : false;
+    if (modalAlerts) modalAlerts.checked = router ? !!router.alertsEnabled  : false;
     var bwDown = router ? (router.bwDownMbps || 1000) : 1000;
     var bwUp   = router ? (router.bwUpMbps   || 1000) : 1000;
     if (modalBwDown) {
@@ -4535,6 +4782,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         var v = parseInt(modalBwUp ? modalBwUp.value : '1', 10) || 1;
         return (modalBwUpU && modalBwUpU.value === 'gbps') ? v * 1000 : v;
       }()),
+      alertsEnabled: !!(modalAlerts && modalAlerts.checked),
     };
   }
 

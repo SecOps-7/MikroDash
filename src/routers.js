@@ -192,19 +192,20 @@ function add(data) {
   const rawLabel = _cleanLabel((data.label || data.host || 'New Router').slice(0, 64));
   const label    = _uniqueLabel(rawLabel, routers);
   const entry    = {
-    id:          _uuid(),
+    id:            _uuid(),
     label,
-    host:        String(data.host        || '').trim(),
-    port:        parseInt(data.port      || '8729', 10),
-    tls:         data.tls !== false && data.tls !== 'false',
-    tlsInsecure: !!(data.tlsInsecure || data.tlsInsecure === 'true'),
-    username:    String(data.username    || 'admin').trim(),
-    password:    String(data.password    || ''),
-    defaultIf:   String(data.defaultIf   || 'ether1').trim(),
-    pingTarget:  String(data.pingTarget  || '1.1.1.1').trim(),
-    bwDownMbps:  Math.max(1, parseInt(data.bwDownMbps || '1000', 10) || 1000),
-    bwUpMbps:    Math.max(1, parseInt(data.bwUpMbps   || '1000', 10) || 1000),
-    addedAt:     Date.now(),
+    host:          String(data.host          || '').trim(),
+    port:          parseInt(data.port        || '8729', 10),
+    tls:           data.tls !== false && data.tls !== 'false',
+    tlsInsecure:   !!(data.tlsInsecure || data.tlsInsecure === 'true'),
+    username:      String(data.username      || 'admin').trim(),
+    password:      String(data.password      || ''),
+    defaultIf:     String(data.defaultIf     || 'ether1').trim(),
+    pingTarget:    String(data.pingTarget    || '1.1.1.1').trim(),
+    bwDownMbps:    Math.max(1, parseInt(data.bwDownMbps || '1000', 10) || 1000),
+    bwUpMbps:      Math.max(1, parseInt(data.bwUpMbps   || '1000', 10) || 1000),
+    alertsEnabled: !!(data.alertsEnabled),
+    addedAt:       Date.now(),
   };
   routers.push(entry);
   _cache = routers;
@@ -231,15 +232,16 @@ function update(id, data) {
   const updated = {
     ...existing,
     label,
-    host:        data.host        !== undefined ? String(data.host).trim()        : existing.host,
-    port:        data.port        !== undefined ? parseInt(data.port, 10)          : existing.port,
-    tls:         data.tls         !== undefined ? (data.tls !== false && data.tls !== 'false') : existing.tls,
-    tlsInsecure: data.tlsInsecure !== undefined ? !!(data.tlsInsecure || data.tlsInsecure === 'true') : existing.tlsInsecure,
-    username:    data.username    !== undefined ? String(data.username).trim()     : existing.username,
-    defaultIf:   data.defaultIf   !== undefined ? String(data.defaultIf).trim()   : existing.defaultIf,
-    pingTarget:  data.pingTarget  !== undefined ? String(data.pingTarget).trim()   : existing.pingTarget,
-    bwDownMbps:  data.bwDownMbps  !== undefined ? Math.max(1, parseInt(data.bwDownMbps, 10) || 1000) : (existing.bwDownMbps || 1000),
-    bwUpMbps:    data.bwUpMbps    !== undefined ? Math.max(1, parseInt(data.bwUpMbps,   10) || 1000) : (existing.bwUpMbps   || 1000),
+    host:          data.host          !== undefined ? String(data.host).trim()        : existing.host,
+    port:          data.port          !== undefined ? parseInt(data.port, 10)          : existing.port,
+    tls:           data.tls           !== undefined ? (data.tls !== false && data.tls !== 'false') : existing.tls,
+    tlsInsecure:   data.tlsInsecure   !== undefined ? !!(data.tlsInsecure || data.tlsInsecure === 'true') : existing.tlsInsecure,
+    username:      data.username      !== undefined ? String(data.username).trim()     : existing.username,
+    defaultIf:     data.defaultIf     !== undefined ? String(data.defaultIf).trim()   : existing.defaultIf,
+    pingTarget:    data.pingTarget     !== undefined ? String(data.pingTarget).trim()  : existing.pingTarget,
+    bwDownMbps:    data.bwDownMbps    !== undefined ? Math.max(1, parseInt(data.bwDownMbps, 10) || 1000) : (existing.bwDownMbps || 1000),
+    bwUpMbps:      data.bwUpMbps      !== undefined ? Math.max(1, parseInt(data.bwUpMbps,   10) || 1000) : (existing.bwUpMbps   || 1000),
+    alertsEnabled: data.alertsEnabled !== undefined ? !!(data.alertsEnabled)           : !!(existing.alertsEnabled),
   };
 
   // Only update password if provided and not the mask sentinel

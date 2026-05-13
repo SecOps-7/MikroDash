@@ -326,6 +326,14 @@
     /* Router list table */
     .rtr-list{width:100%;border-collapse:collapse;font-size:.76rem}
     .rtr-list th{font-size:.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;padding:.4rem .6rem;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+    .rtr-status-badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.65rem;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap;transition:color .3s,background .3s,border-color .3s}
+    .rtr-status-badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;transition:background .3s}
+    .rtr-status-badge--on{color:var(--accent-ok);background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2)}
+    .rtr-status-badge--on::before{background:var(--accent-ok)}
+    .rtr-status-badge--off{color:#f87171;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2)}
+    .rtr-status-badge--off::before{background:#f87171}
+    .rtr-status-badge--unknown{color:var(--text-muted);background:rgba(99,130,190,.07);border:1px solid var(--border)}
+    .rtr-status-badge--unknown::before{background:var(--text-muted);opacity:.4}
     .rtr-list td{padding:.5rem .6rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle}
     .rtr-list tr:last-child td{border-bottom:none}
     .rtr-active-badge{font-size:.6rem;font-family:var(--font-ui);padding:.1rem .45rem;border-radius:4px;background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);white-space:nowrap}
@@ -2021,9 +2029,9 @@
           <div class="scard-body" style="padding:.5rem">
             <table class="rtr-list" id="rtrTable">
               <thead><tr>
-                <th>Name</th><th>Host</th><th>Status</th><th style="text-align:right">Actions</th>
+                <th>Name</th><th>Status</th><th>Host</th><th>Connection</th><th style="text-align:right">Actions</th>
               </tr></thead>
-              <tbody id="rtrTbody"><tr><td colspan="4" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.73rem">Loading…</td></tr></tbody>
+              <tbody id="rtrTbody"><tr><td colspan="5" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.73rem">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -2091,15 +2099,36 @@
         </div>
       </div>
 
-      <!-- ── Notifications tab: Alert Thresholds ────────────────────────── -->
+      <!-- ── Notifications tab ─────────────────────────────────────────── -->
       <div class="stab-panel" id="stab-notifications">
+
+        <!-- Alert Types -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="scard-title">Alert Types</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Choose which events trigger alerts and push notifications.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Interface Up / Down</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceUpDown"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">VPN Peer State</span><span class="stoggle-switch"><input type="checkbox" id="s_notifVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">High CPU</span><span class="stoggle-switch"><input type="checkbox" id="s_notifCpu"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Ping Loss</span><span class="stoggle-switch"><input type="checkbox" id="s_notifPing"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">NetWatch Hosts</span><span class="stoggle-switch"><input type="checkbox" id="s_notifNetwatch"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Router Offline / Online</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterStatus"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert Thresholds -->
         <div class="scard">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <span class="scard-title">Alert Thresholds</span>
           </div>
           <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Trigger browser notifications when these thresholds are reached.</p>
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Send alerts when these thresholds are reached.</p>
             <div class="sform-row">
               <div class="sform-group" style="margin-bottom:0">
                 <label class="sform-label">CPU Alert Threshold (%)</label>
@@ -2118,6 +2147,179 @@
             </div>
           </div>
         </div>
+
+        <!-- Interface Alert Filter -->
+        <div class="scard" id="notifIfaceFilterCard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="15" y="2" width="7" height="7" rx="1"/><rect x="2" y="15" width="7" height="7" rx="1"/><path d="M17 17h4m-2-2v4"/></svg>
+            <span class="scard-title">Interface Alert Filter</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Limit interface up/down alerts to specific interface types.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Ethernet</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceEther"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceWlan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Bridge</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceBridge"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">VLAN</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceVlan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Other</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceOther"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notification Channels -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="scard-title">Notification Channels</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:1rem">Configure push notification services. Save settings before using the test button.</p>
+
+            <!-- Telegram -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-bottom:.9rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                <div style="display:flex;align-items:center;gap:.55rem">
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.555l-2.95-.924c-.64-.204-.657-.64.136-.954l11.57-4.46c.532-.194 1 .13.966.004z"/></svg>
+                  <strong style="font-size:.82rem">Telegram</strong>
+                </div>
+                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_telegramEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Bot Token</label>
+                  <input type="password" id="s_telegramBotToken" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
+                </div>
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Chat ID</label>
+                  <input type="text" id="s_telegramChatId" class="sform-input" placeholder="e.g. -100123456789" autocomplete="off">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                <button id="btn-test-telegram" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                <span id="test-telegram-result" style="font-size:.75rem"></span>
+              </div>
+            </div>
+
+            <!-- Pushbullet -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                <div style="display:flex;align-items:center;gap:.55rem">
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.5 18h-3v-2h3v2zm0-4h-3V6h3v8z"/></svg>
+                  <strong style="font-size:.82rem">Pushbullet</strong>
+                </div>
+                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_pushbulletEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">API Key</label>
+                  <input type="password" id="s_pushbulletApiKey" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                <button id="btn-test-pushbullet" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                <span id="test-pushbullet-result" style="font-size:.75rem"></span>
+              </div>
+            </div>
+
+            <!-- SMTP Email -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-top:.9rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                <div style="display:flex;align-items:center;gap:.55rem">
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  <strong style="font-size:.82rem">Email (SMTP)</strong>
+                </div>
+                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_smtpEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="flex:2">
+                  <label class="sform-label">SMTP Host</label>
+                  <input type="text" id="s_smtpHost" class="sform-input" placeholder="smtp.example.com" autocomplete="off">
+                </div>
+                <div class="sform-group" style="flex:1">
+                  <label class="sform-label">Port</label>
+                  <input type="number" id="s_smtpPort" class="sform-input" min="1" max="65535" placeholder="587" autocomplete="off">
+                </div>
+              </div>
+              <div class="sform-group" style="margin-top:.5rem">
+                <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
+                  <input type="checkbox" id="s_smtpSecure">
+                  <span>Use implicit TLS (port 465) — leave unchecked for STARTTLS (port 587)</span>
+                </label>
+              </div>
+              <div class="sform-row" style="margin-top:.5rem">
+                <div class="sform-group">
+                  <label class="sform-label">Username</label>
+                  <input type="text" id="s_smtpUser" class="sform-input" placeholder="optional" autocomplete="off">
+                </div>
+                <div class="sform-group">
+                  <label class="sform-label">Password</label>
+                  <input type="password" id="s_smtpPass" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
+                </div>
+              </div>
+              <div class="sform-row" style="margin-top:.5rem">
+                <div class="sform-group">
+                  <label class="sform-label">From</label>
+                  <input type="email" id="s_smtpFrom" class="sform-input" placeholder="alerts@example.com" autocomplete="off">
+                </div>
+                <div class="sform-group">
+                  <label class="sform-label">To</label>
+                  <input type="email" id="s_smtpTo" class="sform-input" placeholder="you@example.com" autocomplete="off">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.6rem">
+                <button id="btn-test-smtp" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                <span id="test-smtp-result" style="font-size:.75rem"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Message Templates -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span class="scard-title">Message Templates</span>
+          </div>
+          <div class="scard-body">
+            <div class="sform-group">
+              <label class="sform-label">Notification Title</label>
+              <input type="text" id="s_notifTitle" class="sform-input" maxlength="256" placeholder="MikroDash Alert">
+            </div>
+            <div class="sform-row" style="margin-top:.6rem">
+              <div class="sform-group">
+                <label class="sform-label">Body — Down / Alert</label>
+                <textarea id="s_notifBody" class="sform-input" rows="3" maxlength="512" placeholder="⚠️ {{alertType}} on {{routerName}}: {{detail}}" style="resize:vertical;font-family:var(--font-mono);font-size:.78rem"></textarea>
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">Body — Up / Recovery</label>
+                <textarea id="s_notifBodyUp" class="sform-input" rows="3" maxlength="512" placeholder="✅ {{alertType}} on {{routerName}}: {{detail}}" style="resize:vertical;font-family:var(--font-mono);font-size:.78rem"></textarea>
+              </div>
+            </div>
+            <div style="margin-top:.6rem;padding:.6rem .7rem;background:var(--bg-alt);border-radius:.4rem;border:1px solid var(--border)">
+              <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 .3rem;font-weight:600">Available variables</p>
+              <p style="font-size:.72rem;color:var(--text-muted);margin:0;line-height:1.7;font-family:var(--font-mono)">{{alertType}} &nbsp;{{routerName}} &nbsp;{{detail}} &nbsp;{{ifaceName}} &nbsp;{{status}}<br>{{cpuLoad}} &nbsp;{{pingLoss}} &nbsp;{{pingTarget}} &nbsp;{{pingRtt}} &nbsp;{{vpnPeer}} &nbsp;{{host}} &nbsp;{{timestamp}}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert Cooldown -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="scard-title">Alert Cooldown</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Minimum time between repeated push alerts for the same event. Prevents notification flooding.</p>
+            <div class="sform-group" style="margin-bottom:0">
+              <label class="sform-label">Cooldown (seconds)</label>
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <input type="range" id="s_notifCooldownSec" min="10" max="3600" step="10" style="flex:1;accent-color:var(--accent-rx)">
+                <span id="s_notifCooldownSecVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:3.2rem;text-align:right;color:var(--text-main)">60 s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ── Appearance tab ─────────────────────────────────────────────── -->
@@ -2621,6 +2823,13 @@
               </div>
             </div>
           </div>
+        </div>
+        <div class="sform-row sform-group" style="margin-bottom:.6rem">
+          <label class="stoggle">
+            <span class="stoggle-label">Alert Monitoring</span>
+            <span class="stoggle-switch"><input type="checkbox" id="rtrModalAlertsEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+          <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Open a background connection for push alerts even when this router is not the active view.</p>
         </div>
         <div class="sform-row sform-group" style="margin-bottom:.4rem">
           <label class="stoggle" id="rtrStogTls">

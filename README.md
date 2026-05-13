@@ -94,11 +94,12 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 ### Notifications
 - Bell icon in topbar opens an alert history panel showing the last 50 alerts with timestamps
-- Browser push notifications (when permitted) for:
-  - Interface down / back up
-  - WireGuard peer disconnected / reconnected
-  - CPU exceeds 90% (1-minute cooldown)
-  - 100% ping loss to ping target
+- Browser push notifications (when permitted) for interface, VPN, CPU, ping, and NetWatch events
+- **Push notification channels** — Telegram Bot, Pushbullet, and SMTP email; all three can be active simultaneously; credentials stored AES-256-GCM encrypted
+- **Per-router alert monitoring** — lightweight background connection to non-active routers so alerts fire for any configured router, not just the one currently displayed; opt-in per router
+- **Alert types** — Interface up/down (per interface type: ether/wlan/bridge/vlan), WireGuard peer state, CPU ≥ threshold, ping loss ≥ threshold, NetWatch host reachability, router online/offline
+- **Independent Up/Down templates** — separate `notifBody` (⚠️ alert) and `notifBodyUp` (✅ recovery) templates with `{{alertType}}`, `{{routerName}}`, `{{detail}}`, and more variables
+- Configurable cooldown (10 s – 60 min) prevents duplicate notifications per alert subject
 
 ---
 
@@ -136,7 +137,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.32
+docker pull ghcr.io/secops-7/mikrodash:0.5.34
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:

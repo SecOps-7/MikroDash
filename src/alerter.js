@@ -1,0 +1,219 @@
+'use strict';
+const notifier = require('./notifier');
+const Routers  = require('./routers');
+
+let _settings = null;
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function _ts() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+
+function _render(tpl, vars) {
+  return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : ''));
+}
+
+function _noChannelsActive() {
+  return !_settings.telegramEnabled && !_settings.pushbulletEnabled && !_settings.smtpEnabled;
+}
+
+function _ifaceType(name, type) {
+  // Prefer the explicit type field from RouterOS (present in ifstatus:update payloads).
+  // RouterOS 7 new wifi package reports type='wifi' — normalise to 'wlan'.
+  const t = (type || '').toLowerCase();
+  if (t === 'ether')                             return 'ether';
+  if (t === 'wlan' || t === 'wifi')              return 'wlan';
+  if (t === 'bridge')                            return 'bridge';
+  if (t === 'vlan')                              return 'vlan';
+  if (t && t !== 'unknown')                      return 'other';
+  // Fall back to name-based detection when type is missing or unknown.
+  if (/^ether/i.test(name))                      return 'ether';
+  if (/^wlan|^wireless|^wifi/i.test(name))       return 'wlan';
+  if (/^bridge/i.test(name))                     return 'bridge';
+  if (/^vlan|\.\d+$/i.test(name))                return 'vlan';
+  return 'other';
+}
+
+function _ifaceTypeAllowed(type) {
+  const map = { ether:'notifIfaceEther', wlan:'notifIfaceWlan', bridge:'notifIfaceBridge', vlan:'notifIfaceVlan', other:'notifIfaceOther' };
+  return !!_settings[map[type] || 'notifIfaceOther'];
+}
+
+// ── Per-router evaluator factory ──────────────────────────────────────────────
+// Returns an isolated { evaluate(event, data) } with its own cooldown and state maps.
+// getNameFn() is called at fire-time to get the router label for {{routerName}}.
+
+function createEvaluator(getNameFn) {
+  const cooldown          = new Map();
+  const prevIfState       = new Map();
+  let   prevVpnState      = {};
+  let   prevNetwatchState = {};
+  let   prevCpuAlert      = null;   // null=unknown, true=was alerting, false=was normal
+  const prevPingAlert     = {};     // target → boolean (was alerting)
+
+  function fire(key, vars, isUp) {
+    const last = cooldown.get(key) || 0;
+    if ((Date.now() - last) < ((_settings.notifCooldownSec || 60) * 1000)) return;
+    cooldown.set(key, Date.now());
+    const allVars = { routerName: getNameFn(), timestamp: _ts(), ...vars };
+    const title   = _render(_settings.notifTitle   || 'MikroDash Alert', allVars);
+    const bodyTpl = isUp
+      ? (_settings.notifBodyUp  || _settings.notifBody || '✅ {{alertType}} on {{routerName}}: {{detail}}')
+      : (_settings.notifBody    || '⚠️ {{alertType}} on {{routerName}}: {{detail}}');
+    const body = _render(bodyTpl, allVars);
+    notifier.send(_settings, title, body).catch(() => {});
+  }
+
+  function evaluate(event, data) {
+    if (!_settings || _noChannelsActive()) return;
+
+    if (event === 'system:update' && _settings.notifCpu) {
+      if (typeof data.cpuLoad === 'number') {
+        const isHigh = data.cpuLoad >= _settings.alertCpuThreshold;
+        if (isHigh) {
+          fire('cpu:router:down', {
+            alertType: 'High CPU',
+            cpuLoad:   data.cpuLoad + '%',
+            detail:    'CPU at ' + data.cpuLoad + '% (threshold: ' + _settings.alertCpuThreshold + '%)',
+          }, false);
+        } else if (prevCpuAlert === true) {
+          fire('cpu:router:up', {
+            alertType: 'CPU Normal',
+            cpuLoad:   data.cpuLoad + '%',
+            detail:    'CPU back to ' + data.cpuLoad + '% (below threshold)',
+          }, true);
+        }
+        prevCpuAlert = isHigh;
+      }
+    }
+
+    if (event === 'ping:update' && _settings.notifPing) {
+      const target = data.target || 'host';
+      const base   = 'ping:' + target;
+      if (typeof data.loss === 'number') {
+        const isLoss = data.loss >= _settings.alertPingLoss;
+        if (isLoss) {
+          fire(base + ':down', {
+            alertType:  'Ping Loss',
+            pingTarget: data.target || '',
+            pingLoss:   data.loss + '%',
+            pingRtt:    data.rtt != null ? data.rtt + ' ms' : 'N/A',
+            detail:     'Ping loss to ' + data.target + ' is ' + data.loss + '% (threshold: ' + _settings.alertPingLoss + '%)',
+          }, false);
+        } else if (prevPingAlert[target] === true) {
+          fire(base + ':up', {
+            alertType:  'Ping Restored',
+            pingTarget: data.target || '',
+            pingLoss:   data.loss + '%',
+            pingRtt:    data.rtt != null ? data.rtt + ' ms' : 'N/A',
+            detail:     'Ping to ' + data.target + ' restored (loss: ' + data.loss + '%)',
+          }, true);
+        }
+        prevPingAlert[target] = isLoss;
+      }
+    }
+
+    if (event === 'ifstatus:update' && _settings.notifIfaceUpDown && Array.isArray(data.interfaces)) {
+      for (const iface of data.interfaces) {
+        const prev       = prevIfState.get(iface.name);
+        const wasRunning = prev ? prev.running : null;
+        const isRunning  = !!iface.running;
+        if (prev !== null && wasRunning !== null && wasRunning !== isRunning) {
+          const ifType = _ifaceType(iface.name, iface.type);
+          if (_ifaceTypeAllowed(ifType)) {
+            if (!isRunning) {
+              fire('iface:' + iface.name + ':down', { alertType:'Interface Down', ifaceName:iface.name, status:'down', detail:iface.name + ' went down' }, false);
+            } else {
+              fire('iface:' + iface.name + ':up',   { alertType:'Interface Up',   ifaceName:iface.name, status:'up',   detail:iface.name + ' came up'   }, true);
+            }
+          }
+        }
+        prevIfState.set(iface.name, { running: isRunning, disabled: !!iface.disabled });
+      }
+    }
+
+    if (event === 'vpn:update' && _settings.notifVpn && Array.isArray(data.tunnels)) {
+      for (const tunnel of data.tunnels) {
+        const prev    = prevVpnState[tunnel.name];
+        const wasConn = prev === 'connected';
+        const isConn  = tunnel.state === 'connected';
+        if (prev !== undefined && wasConn !== isConn) {
+          if (!isConn) {
+            fire('vpn:' + tunnel.name + ':down', { alertType:'VPN Disconnected', vpnPeer:tunnel.name, status:'down', detail:'VPN peer ' + tunnel.name + ' disconnected' }, false);
+          } else {
+            fire('vpn:' + tunnel.name + ':up',   { alertType:'VPN Connected',    vpnPeer:tunnel.name, status:'up',   detail:'VPN peer ' + tunnel.name + ' connected'    }, true);
+          }
+        }
+        prevVpnState[tunnel.name] = tunnel.state;
+      }
+    }
+
+    if (event === 'netwatch:update' && _settings.notifNetwatch && Array.isArray(data.hosts)) {
+      for (const host of data.hosts) {
+        const prev    = prevNetwatchState[host.id];
+        const wasDown = prev === 'down';
+        const isDown  = host.status === 'down';
+        if (prev !== undefined && wasDown !== isDown) {
+          if (isDown) {
+            fire('netwatch:' + host.id + ':down', { alertType:'Host Down', host:host.host, status:'down', detail:'NetWatch host ' + host.host + ' is unreachable' }, false);
+          } else {
+            fire('netwatch:' + host.id + ':up',   { alertType:'Host Up',   host:host.host, status:'up',   detail:'NetWatch host ' + host.host + ' is reachable'   }, true);
+          }
+        }
+        prevNetwatchState[host.id] = host.status;
+      }
+    }
+  }
+
+  return { evaluate };
+}
+
+// ── Router connectivity alerts ────────────────────────────────────────────────
+const _connCooldowns = new Map();
+
+function fireConnectivityAlert(routerId, routerLabel, connected) {
+  if (!_settings || _noChannelsActive()) return;
+  if (!_settings.notifRouterStatus) return;
+  const key  = 'router-conn:' + routerId + ':' + (connected ? 'up' : 'down');
+  const last = _connCooldowns.get(key) || 0;
+  if ((Date.now() - last) < ((_settings.notifCooldownSec || 60) * 1000)) return;
+  _connCooldowns.set(key, Date.now());
+  const vars = {
+    alertType:  connected ? 'Router Online' : 'Router Offline',
+    routerName: routerLabel,
+    status:     connected ? 'online' : 'offline',
+    detail:     routerLabel + (connected ? ' is now reachable' : ' is unreachable'),
+    timestamp:  _ts(),
+  };
+  const title   = _render(_settings.notifTitle || 'MikroDash Alert', vars);
+  const bodyTpl = connected
+    ? (_settings.notifBodyUp || _settings.notifBody || '✅ {{alertType}} on {{routerName}}: {{detail}}')
+    : (_settings.notifBody   || '⚠️ {{alertType}} on {{routerName}}: {{detail}}');
+  const body = _render(bodyTpl, vars);
+  notifier.send(_settings, title, body).catch(() => {});
+}
+
+// ── Module init ───────────────────────────────────────────────────────────────
+
+function init(io, settings) {
+  _settings = settings;
+  const evaluator = createEvaluator(() => {
+    const r = Routers.getById(_settings.activeRouterId);
+    return (r && r.label) || (r && r.host) || _settings.routerHost || 'router';
+  });
+  const _origEmit = io.emit.bind(io);
+  io.emit = function(event, data) {
+    const result = _origEmit(event, data);
+    try { evaluator.evaluate(event, data); } catch (e) { console.error('[alerter] evaluate error:', e.message); }
+    return result;
+  };
+}
+
+function updateSettings(settings) {
+  _settings = settings;
+}
+
+module.exports = { init, updateSettings, createEvaluator, fireConnectivityAlert };

@@ -109,6 +109,46 @@ const DEFAULTS = {
   alertCpuThreshold: parseInt(process.env.ALERT_CPU_THRESHOLD || '90',  10), // % — trigger CPU spike notification
   alertPingLoss:     parseInt(process.env.ALERT_PING_LOSS     || '100', 10), // % — trigger ping loss notification
 
+  // Notification channels
+  telegramEnabled:   false,
+  telegramBotToken:  '', // stored encrypted
+  telegramChatId:    '',
+  pushbulletEnabled: false,
+  pushbulletApiKey:  '', // stored encrypted
+
+  // SMTP email channel
+  smtpEnabled:  false,
+  smtpHost:     '',
+  smtpPort:     587,
+  smtpSecure:   false,   // true = implicit TLS (port 465); false = STARTTLS (port 587)
+  smtpUser:     '',      // stored encrypted
+  smtpPass:     '',      // stored encrypted
+  smtpFrom:     '',
+  smtpTo:       '',
+
+  // Alert type toggles (server-persisted; drive both browser + push notifications)
+  notifIfaceUpDown:  true,
+  notifVpn:          true,
+  notifCpu:          true,
+  notifPing:         true,
+  notifNetwatch:     false,
+  notifRouterStatus: false,
+
+  // Interface type filter for up/down alerts
+  notifIfaceEther:   true,
+  notifIfaceWlan:    true,
+  notifIfaceBridge:  false,
+  notifIfaceVlan:    false,
+  notifIfaceOther:   false,
+
+  // Notification message templates
+  notifTitle:        'MikroDash Alert',
+  notifBody:         '⚠️ {{alertType}} on {{routerName}}: {{detail}}',
+  notifBodyUp:       '✅ {{alertType}} on {{routerName}}: {{detail}}',
+
+  // Minimum seconds between repeated alerts for the same subject
+  notifCooldownSec:  60,
+
   // Diagnostics
   rosDebug:          (process.env.ROS_DEBUG || 'false').toLowerCase() === 'true',
 
@@ -127,9 +167,9 @@ const DEFAULTS = {
 };
 
 // Fields stored encrypted in JSON
-const ENCRYPTED_FIELDS = ['routerPass', 'dashPass'];
+const ENCRYPTED_FIELDS = ['routerPass', 'dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass'];
 // Fields never sent to the client (only their masked presence)
-const CREDENTIAL_FIELDS = ['routerPass', 'dashPass'];
+const CREDENTIAL_FIELDS = ['routerPass', 'dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass'];
 
 // ── Env-var override map ─────────────────────────────────────────────────────
 // For each settings field that has an env var backing, map field → [envVar, parser].
