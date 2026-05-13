@@ -458,8 +458,7 @@ class ConnectionsCollector {
   // dashboard connCard stays alive and connTableCache stays warm for bandwidth.
   _startPollFallback() {
     if (this._pollTimer) return;
-    const intervalMs = Math.max(this.pollMs * 4, 20000);
-    this._pollTimer = setInterval(() => this._runFallbackTick(), intervalMs);
+    this._pollTimer = setInterval(() => this._runFallbackTick(), this.pollMs);
   }
 
   _stopPollFallback() {
