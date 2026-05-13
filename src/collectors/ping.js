@@ -135,6 +135,9 @@ class PingCollector {
     });
   }
 
+  suspend() { this._stopStream(); }
+  resume()  { if (this.ros.connected && !this._permissionDenied) this._startStream(); }
+
   stop() { this._stopStream(); }
 }
 

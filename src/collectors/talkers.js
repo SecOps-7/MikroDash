@@ -154,6 +154,9 @@ class TopTalkersCollector {
     });
   }
 
+  suspend() { this._stopStream(); }
+  resume()  { if (this.ros.connected) this._startStream(); }
+
   stop() { this._stopStream(); }
 }
 

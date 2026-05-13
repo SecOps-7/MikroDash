@@ -249,6 +249,10 @@ function wireRosEvents(session) {
     session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
     broadcastRosStatus(true);
     _emitRouterStatus(true);
+    // Restore connections stream if someone was on the Connections page when the
+    // session dropped. Collector reconnect handlers fire before this listener,
+    // so start() has already reset to fallback-poll mode by this point.
+    _updateConnsStream(session);
   });
   ros.on('close', () => {
     session.connTableCache.invalidate();
@@ -980,16 +984,34 @@ function _idleSuspend(session) {
   session.wireless.suspend();
   session.vpn.suspend();
   session.firewall.suspend();
+  session.ping.suspend();
+  session.talkers.suspend();
 }
 
 function _idleResume(session) {
   if (!session || !startupReady) return;
-  session.conns.resume();
+  // conns is page-aware — _updateConnsStream() manages its stream independently
   session.ifStatus.resume();
   session.system.resume();
   session.wireless.resume();
   session.vpn.resume();
   session.firewall.resume();
+  session.ping.resume();
+  session.talkers.resume();
+}
+
+// Sync the connections stream with page-connections room membership.
+// Called whenever the room might have changed (page focus/blur, disconnect, reconnect).
+// Resumes the full =interval= stream when the Connections page is open;
+// suspends it (fallback poll takes over) when nobody is watching.
+function _updateConnsStream(session) {
+  if (!session || !startupReady) return;
+  const viewers = io.sockets.adapter.rooms.get('page-connections')?.size || 0;
+  if (viewers > 0) {
+    session.conns.resume();
+  } else {
+    session.conns.suspend();
+  }
 }
 
 io.on('connection', (socket) => {
@@ -1004,6 +1026,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     if (io.engine.clientsCount === 0) _idleSuspend(_session);
+    // The disconnecting socket may have been the last one on the Connections page.
+    // Rooms are cleaned up before this event fires, so the room size is already correct.
+    if (_session) _updateConnsStream(_session);
   });
 
   // Page-aware rooms — clients join/leave rooms as they navigate pages.
@@ -1016,6 +1041,7 @@ io.on('connection', (socket) => {
       // so the page isn't stale while waiting for the next poll cycle.
       const s = _session;
       if (!s) return;
+      if (name === 'connections') _updateConnsStream(s);
       if (name === 'firewall'  && s.firewall  && s.firewall.lastPayload)
         socket.emit('firewall:update',  { ...s.firewall.lastPayload,  ts: Date.now() });
       if (name === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
@@ -1033,6 +1059,7 @@ io.on('connection', (socket) => {
   socket.on('page:blur', (name) => {
     if (typeof name === 'string' && /^[a-z]{2,20}$/.test(name)) {
       socket.leave('page-' + name);
+      if (name === 'connections' && _session) _updateConnsStream(_session);
     }
   });
 

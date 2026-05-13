@@ -46,6 +46,7 @@ class ConnectionsCollector {
     this._lastFp = '';
     this._lastEmitTs = 0;
     this._stream = null;
+    this._pollTimer = null;   // fallback poll timer used when stream is not running
     this._rowsNext = [];      // accumulates rows for the current in-progress batch
     this._rowsPrev = null;    // last committed batch, used for partial-result detection
     this._partialStreak = 0;
@@ -452,6 +453,39 @@ class ConnectionsCollector {
     if (this._started && this.ros.connected) this._startStream();
   }
 
+  // Fallback poll: runs when the connections stream is not active (nobody on the
+  // Connections page). Fetches the connection table at a reduced rate so the
+  // dashboard connCard stays alive and connTableCache stays warm for bandwidth.
+  _startPollFallback() {
+    if (this._pollTimer) return;
+    const intervalMs = Math.max(this.pollMs * 4, 20000);
+    this._pollTimer = setInterval(() => this._runFallbackTick(), intervalMs);
+  }
+
+  _stopPollFallback() {
+    if (!this._pollTimer) return;
+    clearInterval(this._pollTimer);
+    this._pollTimer = null;
+  }
+
+  async _runFallbackTick() {
+    if (!this.ros.connected || this.io.engine.clientsCount === 0) return;
+    try {
+      const rows = (await this.ros.write('/ip/firewall/connection/print', [
+        '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
+      ])) || [];
+      if (this.connTableCache) this.connTableCache.deposit(rows, Date.now());
+      this._rowsPrev = rows;
+      await this._processRows(rows);
+    } catch (e) {
+      const msg = String(e && e.message ? e.message : e);
+      if (!msg.includes('no such item')) {
+        this.state.lastConnsErr = msg;
+        console.error('[connections] fallback poll error:', msg);
+      }
+    }
+  }
+
   // Watchdog: fires every 2× the poll interval. If the stream is supposed to be
   // running but lastConnsTs hasn't moved in 4× the interval, something went
   // wrong (silent stream death, unhandled event, etc.) — restart.
@@ -476,20 +510,25 @@ class ConnectionsCollector {
     this._watchdogTimer = null;
   }
 
-  suspend() { this._stopStream(); }
+  suspend() { this._stopStream(); this._startPollFallback(); }
 
   resume() {
+    this._stopPollFallback();
     if (this._started && this.ros.connected) this._startStream();
   }
 
   stop() {
     this._stopWatchdog();
     this._stopStream();
+    this._stopPollFallback();
   }
 
+  // start() does NOT open the stream immediately. The stream is opened by
+  // resume(), which is called from index.js when the Connections page is open.
+  // The fallback poll keeps the dashboard connCard and connTableCache warm.
   start() {
     this._started = true;
-    this._startStream();
+    this._startPollFallback();
     this._startWatchdog();
   }
 }
