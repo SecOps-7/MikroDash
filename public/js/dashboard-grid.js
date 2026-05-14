@@ -8,7 +8,7 @@
   /* ── Constants ──────────────────────────────────────────────────────────── */
   var COLS = 24, ROWS = 22, GAP = 12, PAD = 20; /* .75rem gap / 1.25rem padding @ 16px base */
   var MIN_W = 1, MIN_H = 1;
-  var LS_KEY = 'mikrodash_dashboard_layout_v12'; /* v12 = netwatch card added */
+  var LS_KEY = 'mikrodash_dashboard_layout_v12'; /* bump only on breaking card-object format changes */
 
   var CARD_LABELS = {
     'card-traffic':       'Traffic',
@@ -114,14 +114,21 @@
     return l.map(function (c) { return Object.assign({}, c); });
   }
 
+  function mergeLayout(saved) {
+    var byId = {};
+    saved.forEach(function (c) { byId[c.id] = c; });
+    return DEFAULT_LAYOUT.map(function (def) {
+      return byId[def.id] ? byId[def.id] : Object.assign({}, def);
+    });
+  }
+
   function loadLayout() {
     try {
       var raw = localStorage.getItem(LS_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.cards) &&
-            parsed.cards.length === DEFAULT_LAYOUT.length) {
-          return parsed.cards;
+        if (parsed && Array.isArray(parsed.cards) && parsed.cards.length > 0) {
+          return mergeLayout(parsed.cards);
         }
       }
     } catch (e) { /* ignore */ }
@@ -720,10 +727,9 @@
     fetch('/api/dashboard-layout')
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (!data || !Array.isArray(data.cards) ||
-            data.cards.length !== DEFAULT_LAYOUT.length) return;
-        localStorage.setItem(LS_KEY, JSON.stringify(data)); /* warm the local cache */
-        layout = data.cards;
+        if (!data || !Array.isArray(data.cards) || !data.cards.length) return;
+        layout = mergeLayout(data.cards);
+        localStorage.setItem(LS_KEY, JSON.stringify({ cards: layout })); /* warm the local cache */
         applyLayout(layout);
       })
       .catch(function () { /* server unavailable — keep localStorage/default */ });

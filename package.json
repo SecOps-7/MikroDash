@@ -8,6 +8,9 @@
     "start": "node src/index.js",
     "test": "node --test"
   },
+  "overrides": {
+    "ip-address@10.1.0": "10.1.1"
+  },
   "dependencies": {
     "compression": "^1.7.5",
     "dotenv": "^16.4.5",
