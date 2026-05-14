@@ -200,7 +200,7 @@ class InterfaceStatusCollector {
 
   _startEmitTimer() {
     if (this._emitTimer) return;
-    this._emitTimer = setInterval(() => this._buildAndEmit(), this.pollMs); // lgtm[js/resource-exhaustion]
+    this._emitTimer = setInterval(() => this._buildAndEmit(), this.pollMs); // codeql[js/resource-exhaustion]
   }
 
   _stopEmitTimer() {

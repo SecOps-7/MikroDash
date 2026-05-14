@@ -486,7 +486,7 @@ class ConnectionsCollector {
       this._pollTimer = null;
       await this._runFallbackTick();
       this._scheduleFallbackNext();
-    }, this.pollMs); // lgtm[js/resource-exhaustion]
+    }, this.pollMs); // codeql[js/resource-exhaustion]
   }
 
   _startPollFallback() {

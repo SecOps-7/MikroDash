@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const HMAC_KEY = crypto.randomBytes(32);
 
 function hmacDigest(value) {
-  return crypto.createHmac('sha256', HMAC_KEY).update(String(value || '')).digest(); // lgtm[js/insufficient-password-hash]
+  return crypto.createHmac('sha256', HMAC_KEY).update(String(value || '')).digest(); // codeql[js/insufficient-password-hash]
 }
 
 function safeEqual(expected, actual) {

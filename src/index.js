@@ -96,7 +96,7 @@ app.use((req, res, next) => {
   if (req.path === '/healthz') return next();
   authLimiter(req, res, (err) => { if (err) return next(err); _authMiddleware(req, res, next); });
 });
-io.engine.use((req, res, next) => { // lgtm[js/missing-rate-limiting]
+io.engine.use((req, res, next) => { // codeql[js/missing-rate-limiting]
   authLimiter(req, res, (err) => { if (err) return next(err); _authMiddleware(req, res, next); });
 });
 app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '7d' }));
@@ -542,7 +542,7 @@ app.post('/api/settings', (req, res) => {
               if (col._inflight) return; col._inflight = true;
               try { await col.tick(); } catch(_){} finally { col._inflight = false; }
             };
-            col.timer = setInterval(run, Math.max(500, col.pollMs)); // lgtm[js/resource-exhaustion]
+            col.timer = setInterval(run, Math.max(500, col.pollMs)); // codeql[js/resource-exhaustion]
           }
         }
       }
