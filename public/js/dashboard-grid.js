@@ -8,7 +8,7 @@
   /* ── Constants ──────────────────────────────────────────────────────────── */
   var COLS = 24, ROWS = 22, GAP = 12, PAD = 20; /* .75rem gap / 1.25rem padding @ 16px base */
   var MIN_W = 1, MIN_H = 1;
-  var LS_KEY = 'mikrodash_dashboard_layout_v11'; /* v11 = user layout saved as default */
+  var LS_KEY = 'mikrodash_dashboard_layout_v12'; /* v12 = netwatch card added */
 
   var CARD_LABELS = {
     'card-traffic':       'Traffic',
@@ -33,7 +33,8 @@
     'dc-card-bw':         'Bandwidth',
     'dc-card-fwaction':   'FW Actions',
     'dc-card-fwhits':     'Total Hits',
-    'dc-card-logs':       'Logs'
+    'dc-card-logs':       'Logs',
+    'dc-card-netwatch':   'NetWatch'
   };
 
   /* Cards that need a backend Socket.IO room (Tier-2: page-gated collectors).
@@ -69,7 +70,8 @@
     { id: 'dc-card-bgp',       x: 1,  y: 1,  w: 6,  h: 4,  visible: false },
     { id: 'dc-card-fwaction',  x: 1,  y: 1,  w: 8,  h: 6,  visible: false },
     { id: 'dc-card-fwhits',    x: 1,  y: 1,  w: 4,  h: 4,  visible: false },
-    { id: 'dc-card-logs',      x: 1,  y: 1,  w: 10, h: 6,  visible: false }
+    { id: 'dc-card-logs',      x: 1,  y: 1,  w: 10, h: 6,  visible: false },
+    { id: 'dc-card-netwatch',  x: 1,  y: 1,  w: 8,  h: 6,  visible: false }
   ];
 
   /* ── Room management helpers ────────────────────────────────────────────── */

@@ -1211,6 +1211,31 @@ socket.on('vpn:update',function(data){
   }
 });
 
+// ── NetWatch dashboard card ─────────────────────────────────────────────────
+socket.on('netwatch:update', function(data) {
+  var hosts = data.hosts || [];
+  var tbody = $('netwatchTable');
+  if (!tbody) return;
+  if (!hosts.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No hosts configured</td></tr>';
+    return;
+  }
+  tbody.innerHTML = hosts.map(function(h) {
+    var isUp   = h.status === 'up';
+    var isDown = h.status === 'down';
+    var statusHtml = isUp
+      ? '<span class="wg-up">Up</span>'
+      : isDown
+        ? '<span class="wg-down">Down</span>'
+        : '<span style="color:var(--text-muted);font-size:.7rem">' + esc(h.status || '?') + '</span>';
+    return '<tr>' +
+      '<td>' + statusHtml + '</td>' +
+      '<td style="font-size:.78rem;font-weight:600">' + esc(h.name || '—') + '</td>' +
+      '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(h.host || '—') + '</td>' +
+      '</tr>';
+  }).join('');
+});
+
 // ── DHCP Leases ────────────────────────────────────────────────────────────
 var _dhcpSortKey = 'ip';
 var _dhcpSortDir = 1;
@@ -1730,6 +1755,7 @@ var staleConfig=[
   {cardId:'talkersCard',  event:'talkers:update',  threshold:20000},
   {cardId:'wirelessCard', event:'wireless:update', threshold:25000},
   {cardId:'vpnCard',      event:'vpn:update',       threshold:90000},  // streamed — heartbeat every 60s
+  {cardId:'netwatchCard', event:'netwatch:update',  threshold:90000},  // streamed — /listen
   {cardId:'firewallCard', event:'firewall:update', threshold:90000},  // streamed — heartbeat every 60s
   {cardId:'ifStatusCard', event:'ifstatus:update', threshold:90000},  // streamed — heartbeat every 60s
   {cardId:'networksCard', event:'lan:overview',    threshold:345000}, // 300s poll + 45s grace
@@ -2008,7 +2034,7 @@ function checkNetwatchNotifs(hosts){
   hosts.forEach(function(h){
     var prev = _notifPrevNetwatch[h.id];
     if(prev !== undefined && prev !== h.status){
-      var label = h.comment || h.host || h.id;
+      var label = h.name || h.host || h.id;
       if(h.status === 'down') sendNotif('NetWatch: Host Down', label + ' is unreachable',      'nw-' + h.id);
       else                    sendNotif('NetWatch: Host Up',   label + ' is reachable again',  'nw-' + h.id);
     }

@@ -2,13 +2,23 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [0.5.36] — Bug fixes: system update indicator, alert toggle sync
+## [0.5.36] — NetWatch dashboard card, bug fixes
+
+### Added
+
+- **NetWatch dashboard card** — new optional dashboard card (hidden by default; add via the Add Card panel). Displays a compact table of configured NetWatch hosts with Status (Up/Down badge), Name, and Host columns, styled identically to the WireGuard peer card. `netwatch:update` handler renders rows in real time; card registered in the 90 s stale-detection config. `dashboard-grid.js` LS_KEY bumped to `v12`. `{{netwatchName}}` template variable added to the notification message preview.
 
 ### Fixed
 
 - **System update indicator stuck at "finding out latest version..."** — `_fetchUpdateStatus` was calling `/system/package/update/print` directly, which only returns RouterOS's cached/transient state. The 12-hour rate limit then locked out any re-poll, so the indicator never resolved. Fix: call `/system/package/update/check-for-updates` first (15 s timeout, errors swallowed) to make RouterOS contact the update server and block until the result is ready, then follow with `print` to read the resolved status. If the result is still transient (update server slow or unreachable), retry in 60 s by rewinding `_lastUpdateFetch`; once a result is confirmed the full 12-hour rate limit applies as before. Removed the misleading "Update info unavailable" label that appeared when `status` was absent but other fields (e.g. `installed-version`) were present.
 
 - **Alert type toggles not synced to browser on connect** — `_alertTypes` in the browser initialised from hardcoded defaults (all `true`), while server defaults differ (e.g. `notifNetwatch: false`). This caused browser notifications to fire while Telegram stayed silent — the mismatch was invisible until the Settings page was opened. Fix: all `notif*` toggle fields (`notifNetwatch`, `notifVpn`, `notifCpu`, `notifPing`, `notifIfaceUpDown`, `notifRouterStatus`, and the five interface-type flags) are now included in every `settings:pages` emit — on new-socket connect, on settings save, and on settings reset. `applyPageVisibility()` (the `settings:pages` socket handler in `app.js`) now applies these fields to `_alertTypes` and `_alertIfaceTypes` immediately, so the browser state always matches the server from the first connected tick.
+
+- **Network Flow card did not fill card real estate** — the SVG had `height:100%` but the flex card-body had no defined height, so the SVG fell back to its intrinsic aspect ratio and either overflowed or appeared undersized. Fixed: card-body changed to `position:relative; padding:0`; SVG set to `position:absolute; inset:0; width:100%; height:100%`. `viewBox` updated to `"-4 18 348 140"` (tight content crop with 8-unit breathing margin). Diagram content is visibly larger at all card sizes with no overflow or clipping; no JS changes required.
+
+- **NetWatch alert detail included only the IP/host address** — RouterOS Netwatch entries have a dedicated `name` field that was not exposed. `netwatch.js _normalize()` now includes `name: row.name || ''`. `alerter.js` resolves the display name as `host.name || host.host` and uses `"Name (IP) is unreachable/reachable"` format when a name is set. The `{{netwatchName}}` template variable follows the same fallback logic.
+
+- **Active router ignored `alertsEnabled: false` toggle** — `alertSessions.syncSessions()` correctly skipped starting a monitoring session for routers with `alertsEnabled: false`, but `alerter.init()`'s `io.emit` wrapper never checked the flag for the active router, so alerts fired regardless of the toggle. Fixed: the wrapper now calls `Routers.getById(_settings.activeRouterId)` before `evaluator.evaluate()` and skips evaluation when the router is missing or `alertsEnabled` is false. `fireConnectivityAlert()` gains the same guard for both active and background routers.
 
 ## [0.5.35] — Router-load reduction, performance optimizations, bug fixes
 

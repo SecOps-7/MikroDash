@@ -450,6 +450,8 @@
     .wg-up{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--accent-ok);background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:4px;padding:1px 6px}
     .wg-idle{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--text-muted);background:rgba(99,130,190,.07);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
     .wg-up::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent-ok);flex-shrink:0}
+    .wg-down{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--accent-err);background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:1px 6px}
+    .wg-down::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent-err);flex-shrink:0}
     /* misc */
     .top-row{display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border)}
     .top-row:last-child{border-bottom:none}
@@ -1084,8 +1086,8 @@
         <div class="dash-resize sw" data-dir="sw"></div>
         <button class="dash-remove-btn" data-card="dc-card-netflow" type="button" title="Remove card">&#x2715;</button>
         <div class="card">
-          <div class="card-body" style="padding:.25rem .4rem;display:flex;flex-direction:column">
-            <svg id="netDiagram" viewBox="0 0 340 172" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block">
+          <div class="card-body" style="padding:0;position:relative">
+            <svg id="netDiagram" viewBox="-4 18 348 140" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;display:block">
               <line id="ndLineWired"    x1="78"  y1="52"  x2="148" y2="75"  class="nd-line"/>
               <line id="ndLineWireless" x1="78"  y1="124" x2="148" y2="85"  class="nd-line"/>
               <line id="ndLineWan"      x1="262" y1="80"  x2="192" y2="80"  class="nd-line nd-line-wan"/>
@@ -1105,8 +1107,8 @@
                 <path d="M33,115 Q41,108 49,115" fill="none" stroke="rgba(167,139,250,.65)" stroke-width="1.4" stroke-linecap="round"/>
                 <path d="M36,119 Q41,115 46,119" fill="none" stroke="rgba(167,139,250,.6)" stroke-width="1.4" stroke-linecap="round"/>
                 <circle cx="41" cy="122" r="1.8" fill="rgba(167,139,250,.8)"/>
-                <text x="41" y="131" class="nd-label">Wireless</text>
-                <text id="ndWirelessCount" x="41" y="143" class="nd-count">—</text>
+                <text x="41" y="127" class="nd-label">Wireless</text>
+                <text id="ndWirelessCount" x="41" y="139" class="nd-count">—</text>
               </g>
               <g id="ndRouter">
                 <rect x="148" y="52" width="44" height="56" rx="9" class="nd-router-bg"/>
@@ -1253,6 +1255,36 @@
       </div>
 
       <!-- ══ Extra dashboard cards — hidden by default, add via Add Card panel ══ -->
+
+      <!-- dc-card-netwatch: NetWatch hosts ──────────────────────────────────── -->
+      <div id="dc-card-netwatch" class="dash-card">
+        <div class="dash-drag-handle">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg>
+        </div>
+        <div class="dash-resize n"  data-dir="n"></div>
+        <div class="dash-resize s"  data-dir="s"></div>
+        <div class="dash-resize e"  data-dir="e"></div>
+        <div class="dash-resize w"  data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div>
+        <div class="dash-resize nw" data-dir="nw"></div>
+        <div class="dash-resize se" data-dir="se"></div>
+        <div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-netwatch" type="button" title="Remove card">&#x2715;</button>
+        <div class="card" id="netwatchCard">
+          <div class="stale-overlay">&#9679; stale</div>
+          <div class="card-header">
+            <h3 class="card-title">NetWatch</h3>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-vcenter mb-0">
+                <thead><tr><th style="width:55px">Status</th><th>Name</th><th>Host</th></tr></thead>
+                <tbody id="netwatchTable"><tr><td colspan="3" class="empty-state">No hosts configured</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- dc-card-signal: Signal Health -->
       <div id="dc-card-signal" class="dash-card">
@@ -2297,7 +2329,7 @@
             </div>
             <div style="margin-top:.6rem;padding:.6rem .7rem;background:var(--bg-alt);border-radius:.4rem;border:1px solid var(--border)">
               <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 .3rem;font-weight:600">Available variables</p>
-              <p style="font-size:.72rem;color:var(--text-muted);margin:0;line-height:1.7;font-family:var(--font-mono)">{{alertType}} &nbsp;{{routerName}} &nbsp;{{detail}} &nbsp;{{ifaceName}} &nbsp;{{status}}<br>{{cpuLoad}} &nbsp;{{pingLoss}} &nbsp;{{pingTarget}} &nbsp;{{pingRtt}} &nbsp;{{vpnPeer}} &nbsp;{{host}} &nbsp;{{timestamp}}</p>
+              <p style="font-size:.72rem;color:var(--text-muted);margin:0;line-height:1.7;font-family:var(--font-mono)">{{alertType}} &nbsp;{{routerName}} &nbsp;{{detail}} &nbsp;{{ifaceName}} &nbsp;{{status}}<br>{{cpuLoad}} &nbsp;{{pingLoss}} &nbsp;{{pingTarget}} &nbsp;{{pingRtt}} &nbsp;{{vpnPeer}} &nbsp;{{host}} &nbsp;{{netwatchName}} &nbsp;{{timestamp}}</p>
             </div>
           </div>
         </div>

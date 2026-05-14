@@ -157,10 +157,12 @@ function createEvaluator(getNameFn) {
         const wasDown = prev === 'down';
         const isDown  = host.status === 'down';
         if (prev !== undefined && wasDown !== isDown) {
+          const netwatchName = host.name || host.host;
+          const netwatchDesc = netwatchName !== host.host ? netwatchName + ' (' + host.host + ')' : host.host;
           if (isDown) {
-            fire('netwatch:' + host.id + ':down', { alertType:'Host Down', host:host.host, status:'down', detail:'NetWatch host ' + host.host + ' is unreachable' }, false);
+            fire('netwatch:' + host.id + ':down', { alertType:'Host Down', host:host.host, netwatchName, status:'down', detail:'NetWatch host ' + netwatchDesc + ' is unreachable' }, false);
           } else {
-            fire('netwatch:' + host.id + ':up',   { alertType:'Host Up',   host:host.host, status:'up',   detail:'NetWatch host ' + host.host + ' is reachable'   }, true);
+            fire('netwatch:' + host.id + ':up',   { alertType:'Host Up',   host:host.host, netwatchName, status:'up',   detail:'NetWatch host ' + netwatchDesc + ' is reachable'   }, true);
           }
         }
         prevNetwatchState[host.id] = host.status;
@@ -177,6 +179,8 @@ const _connCooldowns = new Map();
 function fireConnectivityAlert(routerId, routerLabel, connected) {
   if (!_settings || _noChannelsActive()) return;
   if (!_settings.notifRouterStatus) return;
+  const _r = Routers.getById(routerId);
+  if (_r && !_r.alertsEnabled) return;
   const key  = 'router-conn:' + routerId + ':' + (connected ? 'up' : 'down');
   const last = _connCooldowns.get(key) || 0;
   if ((Date.now() - last) < ((_settings.notifCooldownSec || 60) * 1000)) return;
@@ -207,7 +211,10 @@ function init(io, settings) {
   const _origEmit = io.emit.bind(io);
   io.emit = function(event, data) {
     const result = _origEmit(event, data);
-    try { evaluator.evaluate(event, data); } catch (e) { console.error('[alerter] evaluate error:', e.message); }
+    const r = Routers.getById(_settings.activeRouterId);
+    if (r && r.alertsEnabled) {
+      try { evaluator.evaluate(event, data); } catch (e) { console.error('[alerter] evaluate error:', e.message); }
+    }
     return result;
   };
 }

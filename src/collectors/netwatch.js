@@ -21,7 +21,7 @@ class NetwatchCollector {
       host:    row.host    || '',
       type:    row.type    || 'icmp',
       status:  row.status  || 'unknown',
-      comment: row.comment || '',
+      name:    row.name    || '',
     };
   }
 
