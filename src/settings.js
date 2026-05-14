@@ -247,6 +247,19 @@ function load() {
   if (!merged.dashUser && process.env.BASIC_AUTH_USER) merged.dashUser = process.env.BASIC_AUTH_USER;
   if (!merged.dashPass && process.env.BASIC_AUTH_PASS) merged.dashPass = process.env.BASIC_AUTH_PASS;
 
+  // Clamp poll intervals to their valid ranges so that a corrupt or manually
+  // edited settings file can never produce a sub-minimum timer delay.
+  const _POLL_BOUNDS = {
+    pollConns:[500,60000], pollTalkers:[500,60000], pollBandwidth:[500,60000],
+    pollRouting:[500,300000], pollSystem:[500,60000], pollWireless:[500,60000],
+    pollVpn:[500,30000], pollFirewall:[500,30000], pollIfstatus:[500,60000],
+    pollIfaces:[10000,600000], pollPing:[1000,5000], pollArp:[5000,300000],
+    pollDhcp:[5000,600000],
+  };
+  for (const [k, [lo, hi]] of Object.entries(_POLL_BOUNDS)) {
+    if (typeof merged[k] === 'number') merged[k] = Math.max(lo, Math.min(hi, merged[k]));
+  }
+
   _cache = merged;
   return _cache;
 }

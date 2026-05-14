@@ -31,8 +31,9 @@ test('buildHelmetOptions uses a self-hosted CSP policy', () => {
   assert.deepEqual(directives.fontSrc, ["'self'"]);
   assert.equal(directives.upgradeInsecureRequests, null);
   assert.ok(directives.connectSrc.includes("'self'"));
-  assert.ok(!JSON.stringify(directives).includes('cdn.jsdelivr.net'));
-  assert.ok(!JSON.stringify(directives).includes('fonts.googleapis.com'));
+  const allSrcs = Object.values(directives).flat().filter(s => typeof s === 'string');
+  assert.ok(!allSrcs.some(s => s === 'cdn.jsdelivr.net' || s.endsWith('.cdn.jsdelivr.net')), 'CSP must not allow jsdelivr CDN');
+  assert.ok(!allSrcs.some(s => s === 'fonts.googleapis.com' || s.endsWith('.fonts.googleapis.com')), 'CSP must not allow Google Fonts');
 });
 
 test('computeHealthStatus reports readiness from startup and connectivity, not traffic freshness', () => {

@@ -84,6 +84,7 @@ const io = new Server(server, {
 // take effect on the next request without a server restart.
 const authLimiter = rateLimit({ windowMs: 60_000, max: 100, standardHeaders: true, legacyHeaders: false });
 
+// lgtm[js/missing-rate-limiting] — always invoked through authLimiter in the app.use() wrapper below
 function _authMiddleware(req, res, next) {
   const s = Settings.load();
   if (!(s.dashUser && s.dashPass)) return next(); // auth not configured
@@ -441,8 +442,9 @@ alertSessions.init(io);
 
 // ── Dashboard layout API ──────────────────────────────────────────────────────
 const LAYOUT_FILE = path.join(process.env.DATA_DIR || '/data', 'dashboard-layout.json');
+const layoutLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
 
-app.get('/api/dashboard-layout', (_req, res) => {
+app.get('/api/dashboard-layout', layoutLimiter, (_req, res) => {
   try {
     if (fs.existsSync(LAYOUT_FILE)) {
       res.json(JSON.parse(fs.readFileSync(LAYOUT_FILE, 'utf8')));
@@ -452,7 +454,7 @@ app.get('/api/dashboard-layout', (_req, res) => {
   } catch (_) { res.json(null); }
 });
 
-app.post('/api/dashboard-layout', (req, res) => {
+app.post('/api/dashboard-layout', layoutLimiter, (req, res) => {
   try {
     const body = req.body || {};
     if (!Array.isArray(body.cards)) return res.status(400).json({ ok: false });
@@ -539,7 +541,7 @@ app.post('/api/settings', (req, res) => {
               if (col._inflight) return; col._inflight = true;
               try { await col.tick(); } catch(_){} finally { col._inflight = false; }
             };
-            col.timer = setInterval(run, col.pollMs);
+            col.timer = setInterval(run, Math.max(500, col.pollMs));
           }
         }
       }
