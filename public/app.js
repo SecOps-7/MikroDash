@@ -2288,13 +2288,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     GM:'Gambia',GW:'Guinea-Bissau',SL:'Sierra Leone',GQ:'Eq. Guinea',
     TG:'Togo',BJ:'Benin',DJ:'Djibouti',ER:'Eritrea',KM:'Comoros',
     SC:'Seychelles',MU:'Mauritius',SZ:'Eswatini',LS:'Lesotho',BW:'Botswana',
-    ZB:'Zambia',TN:'Tunisia',LB:'Lebanon',PS:'Palestine',OM:'Oman',
+    ZB:'Zambia',TN:'Tunisia',PS:'Palestine',OM:'Oman',
     YU:'Yugoslavia',SK:'Slovakia',SI:'Slovenia',EE:'Estonia',LV:'Latvia',
-    LT:'Lithuania',FO:'Faroe Islands',IS:'Iceland',MT:'Malta',AL:'Albania',
-    MK:'N. Macedonia',XK:'Kosovo',LI:'Liechtenstein',MC:'Monaco',SM:'San Marino',
+    LT:'Lithuania',FO:'Faroe Islands',IS:'Iceland',MT:'Malta',
+    XK:'Kosovo',LI:'Liechtenstein',MC:'Monaco',SM:'San Marino',
     VA:'Vatican',AD:'Andorra',GI:'Gibraltar',JE:'Jersey',GG:'Guernsey',IM:'Isle of Man',
     HK:'Hong Kong',MO:'Macau',TW:'Taiwan',SG:'Singapore',BN:'Brunei',
-    TL:'Timor-Leste',MY:'Malaysia',MV:'Maldives',BT:'Bhutan',PW:'Palau',
+    TL:'Timor-Leste',MV:'Maldives',PW:'Palau',
     FM:'Micronesia',MH:'Marshall Islands',NR:'Nauru',TV:'Tuvalu',TO:'Tonga',
     WS:'Samoa',FJ:'Fiji',VU:'Vanuatu',SB:'Solomon Islands',KI:'Kiribati',
     PF:'French Polynesia',GU:'Guam',AS:'American Samoa',CK:'Cook Islands',
@@ -2303,16 +2303,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     AG:'Antigua',KN:'St. Kitts',DM:'Dominica',TT:'Trinidad',
     BS:'Bahamas',TC:'Turks & Caicos',KY:'Cayman Islands',VG:'British Virgin Islands',
     VI:'US Virgin Islands',AW:'Aruba',CW:'Curacao',BQ:'Bonaire',SX:'Sint Maarten',
-    MX:'Mexico',BZ:'Belize',GY:'Guyana',SR:'Suriname',GF:'French Guiana',
+    BZ:'Belize',GY:'Guyana',SR:'Suriname',GF:'French Guiana',
     PY:'Paraguay',FK:'Falkland Islands',GL:'Greenland',PM:'St. Pierre',
     MF:'St. Martin',BL:'St. Barthélemy',GP:'Guadeloupe',MQ:'Martinique',RE:'Réunion',
-    YT:'Mayotte',TF:'French S. Territories',CG:'Republic of Congo',AO:'Angola',
-    GQ:'Eq. Guinea',ST:'São Tomé',CV:'Cape Verde',GW:'Guinea-Bissau',EH:'W. Sahara',
-    LY:'Libya',SD:'Sudan',JO:'Jordan',SY:'Syria',LB:'Lebanon',CY:'Cyprus',
-    TR:'Turkey',GE:'Georgia',AM:'Armenia',AZ:'Azerbaijan',KZ:'Kazakhstan',
-    UZ:'Uzbekistan',TM:'Turkmenistan',KG:'Kyrgyzstan',TJ:'Tajikistan',AF:'Afghanistan',
-    PK:'Pakistan',IN:'India',NP:'Nepal',BT:'Bhutan',BD:'Bangladesh',LK:'Sri Lanka',
-    MM:'Myanmar',TH:'Thailand',LA:'Laos',KH:'Cambodia',VN:'Vietnam',MY:'Malaysia'
+    YT:'Mayotte',TF:'French S. Territories',CG:'Republic of Congo',
+    ST:'São Tomé',CV:'Cape Verde',EH:'W. Sahara'
   };
 
   var CC_CENTROIDS = {AF:[67.7,33.9],AL:[20.2,41.2],DZ:[2.6,28.0],AO:[17.9,-11.2],
@@ -5030,7 +5025,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     RS:'Serbia',BY:'Belarus',KZ:'Kazakhstan',AZ:'Azerbaijan',MK:'N. Macedonia',
     TW:'Taiwan',HK:'Hong Kong',SG:'Singapore',MY:'Malaysia',TN:'Tunisia',
     OM:'Oman',BH:'Bahrain',JO:'Jordan',PS:'Palestine',SK:'Slovakia',SI:'Slovenia',
-    EE:'Estonia',LV:'Latvia',LT:'Lithuania',IS:'Iceland',MX:'Mexico',NI:'Nicaragua',
+    EE:'Estonia',LV:'Latvia',LT:'Lithuania',IS:'Iceland',NI:'Nicaragua',
     GT:'Guatemala',HN:'Honduras',CR:'Costa Rica',PA:'Panama',DO:'Dominican Rep.'
   };
 

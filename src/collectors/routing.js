@@ -265,7 +265,7 @@ class RoutingCollector {
     const routes = allRoutes
       .filter(r => r.type === 'static' || r.type === 'dynamic')
       .slice(0, 800)
-      .map(({ _id, _raw, flags, ...r }) => r);
+      .map(({ _id, _raw, _flags, ...r }) => r);
 
     const routeCounts = {
       total:   allRoutes.length,

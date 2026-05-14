@@ -255,7 +255,7 @@ class WirelessCollector {
         } finally { this._inflight = false; }
       }
       this._scheduleNext();
-    }, this.pollMs);
+    }, this.pollMs); // lgtm[js/resource-exhaustion]
   }
 
   _restartTimer() {

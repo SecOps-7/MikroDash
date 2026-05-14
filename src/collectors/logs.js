@@ -7,7 +7,7 @@ const RingBuffer = require('../util/ringbuffer');
 const LOG_HISTORY_SIZE = parseInt(process.env.LOG_HISTORY_SIZE || '500', 10);
 
 class LogsCollector {
-  constructor({ ros, io, pollMs, state }) {
+  constructor({ ros, io, _pollMs, state }) {
     this.ros = ros;
     this.io = io;
     this.state = state;

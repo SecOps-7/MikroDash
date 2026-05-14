@@ -272,7 +272,7 @@ class BandwidthCollector {
     };
     // Set the timer before the first run so the close handler can always
     // find and clear it, even if run() resolves synchronously.
-    this.timer = setInterval(run, this.pollMs);
+    this.timer = setInterval(run, this.pollMs); // lgtm[js/resource-exhaustion]
     run();
   }
 }

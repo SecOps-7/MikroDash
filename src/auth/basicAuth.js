@@ -11,9 +11,8 @@ const crypto = require('crypto');
 // written to disk or a database.
 const HMAC_KEY = crypto.randomBytes(32);
 
-// lgtm[js/insufficient-password-hash] — not a storage hash; HMAC produces fixed-length buffers for timingSafeEqual
 function hmacDigest(value) {
-  return crypto.createHmac('sha256', HMAC_KEY).update(String(value || '')).digest();
+  return crypto.createHmac('sha256', HMAC_KEY).update(String(value || '')).digest(); // lgtm[js/insufficient-password-hash]
 }
 
 function safeEqual(expected, actual) {

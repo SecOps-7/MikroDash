@@ -1,0 +1,34 @@
+{
+  "root": true,
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022
+  },
+  "rules": {
+    "no-undef": "error",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-unreachable": "error",
+    "no-constant-condition": "warn",
+    "no-dupe-keys": "error"
+  },
+  "ignorePatterns": ["public/vendor/", "node_modules/", "test/"],
+  "overrides": [
+    {
+      "files": ["public/app.js"],
+      "env": {
+        "node": false,
+        "browser": true,
+        "es2022": true
+      },
+      "globals": {
+        "io":       "readonly",
+        "Chart":    "readonly",
+        "topojson": "readonly",
+        "L":        "readonly"
+      }
+    }
+  ]
+}

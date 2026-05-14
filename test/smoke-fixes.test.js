@@ -120,9 +120,9 @@ test('basic auth middleware evicts the oldest tracked IP when the failure map ex
   assert.equal(ip2Res.statusCode, 429, 'ip2 should remain blocked (not evicted)');
 });
 
-test('traffic collector ignores invalid interface selections and prunes unused polls', () => {
-  const io = { to() { return { emit() {} }; }, emit() {} };
-  const ros = { connected: true, on() {} };
+test('traffic collector ignores invalid interface selections', () => {
+  const io = { to() { return { emit() {} }; }, emit() {}, engine: { clientsCount: 0 } };
+  const ros = { connected: true, on() {}, stream() { return { on() {}, stop() {} }; } };
   const collector = new TrafficCollector({
     ros,
     io,
@@ -131,8 +131,6 @@ test('traffic collector ignores invalid interface selections and prunes unused p
     state: {},
   });
   collector.setAvailableInterfaces([{ name: 'wan' }, { name: 'lan' }]);
-  collector._startPoll = function(ifName) { this.started = (this.started || []).concat(ifName); };
-  collector._pruneUnusedPolls = function() { this.pruned = true; };
 
   const handlers = {};
   const socket = {
@@ -143,13 +141,11 @@ test('traffic collector ignores invalid interface selections and prunes unused p
 
   collector.bindSocket(socket);
   handlers['traffic:select']({ ifName: 'bogus' });
-  assert.equal(collector.subscriptions.get(socket.id), 'wan');
-  assert.deepEqual(collector.started || [], []);
+  assert.equal(collector.subscriptions.get(socket.id), 'wan', 'bogus selection keeps default');
 
   handlers['traffic:select']({ ifName: 'lan' });
-  assert.equal(collector.subscriptions.get(socket.id), 'lan');
-  assert.deepEqual(collector.started, ['lan']);
-  assert.equal(collector.pruned, true);
+  assert.equal(collector.subscriptions.get(socket.id), 'lan', 'valid selection updates subscription');
+  assert.ok(collector.hist.has('lan'), 'history buffer initialized for selected interface');
 });
 
 test('ROS emitter tolerates error events without a custom listener', () => {

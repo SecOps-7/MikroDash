@@ -10,33 +10,7 @@
 
 const { RouterOSAPI } = require('node-routeros');
 const EventEmitter = require('events');
-const util = require('util');
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-function formatError(err) {
-  if (!err) return 'Unknown error';
-  const parts = [];
-  const name = err.name || (err.constructor && err.constructor.name) || 'Error';
-  const message = err.message || String(err);
-  parts.push(`${name}: ${message}`);
-
-  for (const key of ['code', 'errno', 'syscall', 'address', 'port']) {
-    if (err[key] !== undefined) parts.push(`${key}=${err[key]}`);
-  }
-  if (err.cause) {
-    const cause = err.cause;
-    parts.push(`cause=${cause.name || 'Error'}:${cause.message || String(cause)}`);
-    for (const key of ['code', 'errno', 'syscall', 'address', 'port']) {
-      if (cause[key] !== undefined) parts.push(`cause.${key}=${cause[key]}`);
-    }
-  }
-
-  if (parts.length === 1) {
-    const inspected = util.inspect(err, { depth: 2, breakLength: Infinity });
-    if (inspected && inspected !== '[object Object]') parts.push(inspected);
-  }
-  return parts.join(' ');
-}
 
 class ROS extends EventEmitter {
   constructor(cfg) {

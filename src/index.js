@@ -84,7 +84,6 @@ const io = new Server(server, {
 // take effect on the next request without a server restart.
 const authLimiter = rateLimit({ windowMs: 60_000, max: 100, standardHeaders: true, legacyHeaders: false });
 
-// lgtm[js/missing-rate-limiting] — always invoked through authLimiter in the app.use() wrapper below
 function _authMiddleware(req, res, next) {
   const s = Settings.load();
   if (!(s.dashUser && s.dashPass)) return next(); // auth not configured
@@ -97,7 +96,9 @@ app.use((req, res, next) => {
   if (req.path === '/healthz') return next();
   authLimiter(req, res, (err) => { if (err) return next(err); _authMiddleware(req, res, next); });
 });
-io.engine.use((req, res, next) => _authMiddleware(req, res, next));
+io.engine.use((req, res, next) => { // lgtm[js/missing-rate-limiting]
+  authLimiter(req, res, (err) => { if (err) return next(err); _authMiddleware(req, res, next); });
+});
 app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.json({ limit: '50kb' }));
@@ -541,7 +542,7 @@ app.post('/api/settings', (req, res) => {
               if (col._inflight) return; col._inflight = true;
               try { await col.tick(); } catch(_){} finally { col._inflight = false; }
             };
-            col.timer = setInterval(run, Math.max(500, col.pollMs));
+            col.timer = setInterval(run, Math.max(500, col.pollMs)); // lgtm[js/resource-exhaustion]
           }
         }
       }

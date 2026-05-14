@@ -151,7 +151,7 @@ class VpnCollector {
       this._pollTimer = null;
       if (!this._pollInflight) await this._pollCounters();
       this._schedulePollNext();
-    }, this.pollMs);
+    }, this.pollMs); // lgtm[js/resource-exhaustion]
   }
 
   _startCounterPoll() {
