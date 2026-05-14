@@ -36,7 +36,8 @@ class ConnectionsCollector {
   constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache, geoOrgCache }) {
     this.ros = ros;
     this.io = io;
-    this.pollMs = pollMs;
+    const _cPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
+    this.pollMs = Math.max(500, Math.min(60000, _cPoll));
     this.topN = topN;
     this.maxConns = maxConns || 20000;
     this.dhcpNetworks = dhcpNetworks;

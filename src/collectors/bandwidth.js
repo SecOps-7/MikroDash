@@ -20,7 +20,8 @@ class BandwidthCollector {
   constructor({ ros, io, pollMs, dhcpNetworks, dhcpLeases, arp, ifStatus, state, geoLookup, connTableCache, geoOrgCache }) {
     this.ros          = ros;
     this.io           = io;
-    this.pollMs       = pollMs || 3000;
+    const _bPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 3000;
+    this.pollMs       = Math.max(500, Math.min(60000, _bPoll));
     this.dhcpNetworks = dhcpNetworks;
     this.dhcpLeases   = dhcpLeases;
     this.arp          = arp;

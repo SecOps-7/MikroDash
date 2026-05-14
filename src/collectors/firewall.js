@@ -12,7 +12,8 @@ class FirewallCollector {
   constructor({ ros, io, pollMs, state, topN }) {
     this.ros    = ros;
     this.io     = io;
-    this.pollMs = pollMs || 10000;
+    const _fPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 10000;
+    this.pollMs = Math.max(500, Math.min(30000, _fPoll));
     this.state  = state;
     this.topN   = topN || 15;
 

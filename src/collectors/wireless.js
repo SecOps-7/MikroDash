@@ -20,7 +20,8 @@ class WirelessCollector {
   constructor({ ros, io, pollMs, state, dhcpLeases, arp }) {
     this.ros        = ros;
     this.io         = io;
-    this.pollMs     = pollMs || 5000;
+    const _wPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
+    this.pollMs     = Math.max(500, Math.min(60000, _wPoll));
     this.state      = state;
     this.dhcpLeases = dhcpLeases;
     this.arp        = arp;

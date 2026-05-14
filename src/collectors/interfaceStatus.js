@@ -35,7 +35,8 @@ class InterfaceStatusCollector {
   constructor({ ros, io, pollMs, metaPollMs, state }) {
     this.ros        = ros;
     this.io         = io;
-    this.pollMs     = pollMs    || 5000;   // rate stream + emit timer interval
+    const _iPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
+    this.pollMs     = Math.max(500, Math.min(60000, _iPoll)); // rate stream + emit timer interval
     this.metaPollMs = metaPollMs || 60000; // metadata streams interval
     this.state      = state;
 

@@ -533,7 +533,8 @@ app.post('/api/settings', (req, res) => {
       if (key in updates) {
         const col = collectorMap[name];
         if (col) {
-          col.pollMs = saved[key];
+          const _p = Number.isFinite(Number(saved[key])) ? Math.trunc(Number(saved[key])) : col.pollMs;
+          col.pollMs = Math.max(500, Math.min(600000, _p));
           if (typeof col._restartTimer === 'function') {
             col._restartTimer();
           } else if (col.timer) {
