@@ -2,7 +2,11 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [0.5.37] — Test suite overhaul, tooling fixes
+## [0.5.37] — Test suite overhaul, tooling fixes, CHR/VM stream freeze fix
+
+### Fixed (post-release patch — dc98480)
+
+- **CHR/VM stream freeze (issue #38)** — two root causes fixed. (1) Startup stagger increased from 75 ms to 300 ms and extended to all streaming collector groups; CHR/VM RouterOS has only 2–4 API handler threads and the previous burst of ~15 simultaneous stream-opens exhausted them, forcing a session logout visible as "logout with no login" in the MT log. (2) Stream error handlers in `traffic`, `system`, `ping`, `interfaceStatus`, and `talkers` collectors were clearing the dead stream reference but never scheduling a restart; when CHR kills an individual stream under resource pressure without dropping the TCP connection, the collector now automatically retries after 3 s.
 
 ### Changed
 
