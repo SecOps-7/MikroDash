@@ -2,6 +2,18 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.38] — Stream/poll toggle, CHR/VM API pressure fixes, startup pre-poll
+
+### Added
+
+- **Collection Method toggle** — new "Collection Method" card in Settings → General (between Poll Intervals and Limits). Five individual toggles let you switch each interval-streamed collector between **Stream** (default — RouterOS pushes continuously via `=interval=N`) and **Poll** (one-shot `ros.write()` every `pollMs`). Collectors covered: System / Gauges, Ping, Connections, Top Talkers, and Interface Rates. Intended for CHR/VM installs with limited API handler threads (2–4) where holding several concurrent interval streams causes resource pressure. Traffic is excluded — its single consolidated stream is already the most efficient path. Settings are persisted and each toggle applies immediately without a restart; switching mid-session calls `stop()`, flips `streamMode`, and calls `start()` on the affected collector only.
+
+- **Routing and Firewall startup pre-poll** — both collectors previously did nothing at `start()`, leaving `lastPayload = null` until the user opened the respective page. They now perform a one-shot data load at startup (`_loadRoutes` + `_loadBgpSessions` + `_loadPeerCfg` for routing; `_loadInitial` for firewall) so `sendInitialState` can immediately replay current route counts and firewall rule counts to the first browser connection. Streams and counter polls remain deferred to `resume()` — no extra persistent API channels are opened.
+
+### Fixed
+
+- **Startup poll stagger** — `routing.start()` now has a dedicated 300 ms gap before it in `startCollectors()`. Previously `bandwidth.start()` and `routing.start()` ran back-to-back with no breathing room; on CHR the consecutive bursts of `ros.write()` calls from both collectors arrived simultaneously. The startup sequence now spaces every data-loading group by 300 ms: traffic → conns/talkers → logs → system → vpn/firewall → ifStatus/ping → bandwidth → routing → netwatch.
+
 ## [0.5.37] — Test suite overhaul, tooling fixes, CHR/VM stream freeze fix
 
 ### Fixed (post-release patch #3)

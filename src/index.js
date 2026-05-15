@@ -184,15 +184,15 @@ function buildSession(routerCfg) {
   const arp          = new ArpCollector         ({ros,    pollMs:_cfg.pollArp,       state});
   const dhcpNetworks = new DhcpNetworksCollector({ros,io, pollMs:_cfg.pollDhcp,      dhcpLeases, state, wanIface:DEFAULT_IF});
   const traffic      = new TrafficCollector     ({ros,io, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state});
-  const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache, geoOrgCache});
-  const talkers      = new TopTalkersCollector  ({ros,io, pollMs:_cfg.pollTalkers,  state, topN:_cfg.topTalkersN});
+  const conns        = new ConnectionsCollector ({ros,io, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache, geoOrgCache, streamMode:_cfg.streamConns});
+  const talkers      = new TopTalkersCollector  ({ros,io, pollMs:_cfg.pollTalkers,  state, topN:_cfg.topTalkersN, streamMode:_cfg.streamTalkers});
   const logs         = new LogsCollector        ({ros,io, state});
-  const system       = new SystemCollector      ({ros,io, pollMs:_cfg.pollSystem,   state});
+  const system       = new SystemCollector      ({ros,io, pollMs:_cfg.pollSystem,   state, streamMode:_cfg.streamSystem});
   const wireless     = new WirelessCollector    ({ros,io, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
   const vpn          = new VpnCollector         ({ros,io, pollMs:_cfg.pollVpn,      state});
   const firewall     = new FirewallCollector    ({ros,io, pollMs:_cfg.pollFirewall,  state, topN:_cfg.firewallTopN});
-  const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, metaPollMs:_cfg.pollIfaces, state});
-  const ping         = new PingCollector        ({ros,io, pollMs:_cfg.pollPing,     state, target:PING_TARGET});
+  const ifStatus     = new InterfaceStatusCollector({ros,io, pollMs:_cfg.pollIfstatus, metaPollMs:_cfg.pollIfaces, state, streamMode:_cfg.streamIfrates});
+  const ping         = new PingCollector        ({ros,io, pollMs:_cfg.pollPing,     state, target:PING_TARGET, streamMode:_cfg.streamPing});
   const bandwidth    = new BandwidthCollector   ({ros,io, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache});
   const routing      = new RoutingCollector     ({ros,io, pollMs:_cfg.pollRouting,  state});
   const netwatch     = new NetwatchCollector    ({ros,io,                           state});
@@ -352,6 +352,7 @@ async function startCollectors(session) {
     session.ping.start();
     await _delay(300);
     session.bandwidth.start();
+    await _delay(300);
     await session.routing.start();
     await _delay(300);
     await session.netwatch.start();
@@ -517,6 +518,7 @@ app.post('/api/settings', (req, res) => {
     const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
                         'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting',
                         'pingEnabled','rosDebug',
+                        'streamSystem','streamPing','streamConns','streamTalkers','streamIfrates',
                         'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
                         'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'];
@@ -588,6 +590,21 @@ app.post('/api/settings', (req, res) => {
       s.ifStatus.pollMs = saved.pollIfstatus;
       s.ifStatus._restartEmitTimer();
       s.ifStatus._restartMonitorStream();
+    }
+
+    // streamMode toggles — stop collector, flip flag, restart with new mode
+    for (const [key, collector] of [
+      ['streamSystem',  s.system],
+      ['streamPing',    s.ping],
+      ['streamConns',   s.conns],
+      ['streamTalkers', s.talkers],
+      ['streamIfrates', s.ifStatus],
+    ]) {
+      if (key in updates && collector) {
+        collector.stop();
+        collector.streamMode = saved[key];
+        collector.start();
+      }
     }
 
     // pollIfaces controls the /interface/print + /ip/address/print stream interval

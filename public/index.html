@@ -2083,6 +2083,22 @@
         </div>
         <div class="scard">
           <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+            <span class="scard-title">Collection Method</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Stream mode pushes data continuously from RouterOS. Switch individual collectors to Poll if your router is a CHR or VM with limited API threads.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">System / Gauges</span><span class="stoggle-switch"><input type="checkbox" id="s_streamSystem"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Ping</span><span class="stoggle-switch"><input type="checkbox" id="s_streamPing"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_streamConns"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Top Talkers</span><span class="stoggle-switch"><input type="checkbox" id="s_streamTalkers"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Interface Rates</span><span class="stoggle-switch"><input type="checkbox" id="s_streamIfrates"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
             <span class="scard-title">Limits</span>
           </div>

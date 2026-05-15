@@ -33,9 +33,10 @@ function _cachedCategory(org) {
 }
 
 class ConnectionsCollector {
-  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache, geoOrgCache }) {
+  constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache, geoOrgCache, streamMode }) {
     this.ros = ros;
     this.io = io;
+    this.streamMode = streamMode !== false; // default true
     const _cPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
     this.pollMs = Math.max(500, Math.min(60000, _cPoll));
     this.topN = topN;
@@ -549,6 +550,10 @@ class ConnectionsCollector {
   suspend() { this._stopStream(); this._startPollFallback(); }
 
   resume() {
+    if (!this.streamMode) {
+      this._startPollFallback(); // poll mode: keep fallback running, never open stream
+      return;
+    }
     this._stopPollFallback();
     if (this._started && this.ros.connected) this._startStream();
   }

@@ -1,10 +1,13 @@
 class SystemCollector {
-  constructor({ ros, io, pollMs, state }) {
+  constructor({ ros, io, pollMs, state, streamMode }) {
     this.ros = ros;
     this.io = io;
     this.pollMs = pollMs || 2000;
     this.state = state;
+    this.streamMode = streamMode !== false; // default true
     this._stream = null;
+    this._pollTimer    = null;
+    this._pollInflight = false;
     this._healthTimer = null;
     this._healthInflight = false;
     this._lastHealth = [];
@@ -176,9 +179,39 @@ class SystemCollector {
     }, 30000);
   }
 
+  // ── poll-mode resource path ───────────────────────────────────────────────
+
+  async _pollResourceOnce() {
+    if (!this.ros.connected || this._pollInflight) return;
+    this._pollInflight = true;
+    try {
+      const rows = await this.ros.write('/system/resource/print', [
+        '=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime',
+      ]);
+      if (rows && rows[0]) this._processRow(rows[0]);
+    } catch (e) {
+      this.state.lastSystemErr = String(e && e.message ? e.message : e);
+    } finally {
+      this._pollInflight = false;
+    }
+  }
+
+  _scheduleResourceNext() {
+    clearTimeout(this._pollTimer);
+    this._pollTimer = setTimeout(async () => {
+      this._pollTimer = null;
+      if (!this.streamMode) {
+        await this._pollResourceOnce();
+        this._scheduleResourceNext();
+      }
+    }, this.pollMs);
+  }
+
+  // ── stream-mode resource path ─────────────────────────────────────────────
+
   _restartStream() {
     if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
-    this._startResourceStream();
+    if (this.streamMode) this._startResourceStream();
   }
 
   _startResourceStream() {
@@ -214,10 +247,20 @@ class SystemCollector {
     });
   }
 
+  _startResources() {
+    if (this.streamMode) {
+      this._startResourceStream();
+    } else {
+      console.log('[system] poll mode — polling /system/resource/print every', this.pollMs + 'ms');
+      this._pollResourceOnce();
+      this._scheduleResourceNext();
+    }
+  }
+
   start() {
     this._pollHealth();
     this._scheduleHealthNext();
-    this._startResourceStream();
+    this._startResources();
     this._fetchUpdateStatus().catch(() => {}); // run once at startup
     this.ros.on('close', () => this.stop());
     this.ros.on('connected', () => {
@@ -225,7 +268,7 @@ class SystemCollector {
       this._lastUpdateFetch = 0;
       this._lastUpdateRow = {};
       this._stream = null; // underlying channel was closed when connection dropped
-      this._startResourceStream();
+      this._startResources();
       this._pollHealth();
       this._fetchUpdateStatus().catch(() => {}); // re-check on reconnect
     });
@@ -242,6 +285,7 @@ class SystemCollector {
 
   stop() {
     if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
+    if (this._pollTimer)  { clearTimeout(this._pollTimer);  this._pollTimer  = null; }
     if (this._healthTimer) { clearTimeout(this._healthTimer); this._healthTimer = null; }
   }
 }

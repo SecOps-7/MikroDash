@@ -164,6 +164,13 @@ const DEFAULTS = {
   pageFirewall:    true,
   pageLogs:        true,
   pageBandwidth:   true,
+
+  // Collection method — true = stream (default), false = poll
+  streamSystem:  true,
+  streamPing:    true,
+  streamConns:   true,
+  streamTalkers: true,
+  streamIfrates: true,
 };
 
 // Fields stored encrypted in JSON

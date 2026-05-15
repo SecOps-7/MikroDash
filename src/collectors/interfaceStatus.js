@@ -32,13 +32,14 @@ function bpsToMbps(bps) {
 }
 
 class InterfaceStatusCollector {
-  constructor({ ros, io, pollMs, metaPollMs, state }) {
+  constructor({ ros, io, pollMs, metaPollMs, state, streamMode }) {
     this.ros        = ros;
     this.io         = io;
     const _iPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
     this.pollMs     = Math.max(500, Math.min(60000, _iPoll)); // rate stream + emit timer interval
     this.metaPollMs = metaPollMs || 60000; // metadata streams interval
     this.state      = state;
+    this.streamMode = streamMode !== false; // default true
 
     this._ifaces     = new Map(); // name -> committed interface row
     this._addrs      = new Map(); // interface name -> [cidr, ...]
@@ -54,7 +55,58 @@ class InterfaceStatusCollector {
     this._monitorIfaceKey      = '';
     this._monitorRestartTimer  = null;
 
-    this._emitTimer = null;
+    this._emitTimer    = null;
+    this._ratesTimer   = null;
+    this._ratesInflight = false;
+  }
+
+  // ── poll-mode rate path ───────────────────────────────────────────────────
+
+  async _pollRatesOnce() {
+    if (!this.ros.connected || this._ratesInflight) return;
+    const names = [...this._ifaces.keys()].filter(n => {
+      const iface = this._ifaces.get(n);
+      return iface && !iface.disabled;
+    });
+    if (!names.length) return;
+    this._ratesInflight = true;
+    try {
+      const rows = await this.ros.write('/interface/monitor-traffic', [
+        `=interface=${names.join(',')}`,
+        '=once=',
+        '=.proplist=name,rx-bits-per-second,tx-bits-per-second',
+      ]);
+      if (Array.isArray(rows)) {
+        for (const r of rows) {
+          if (!r || !r.name) continue;
+          this._streamRates.set(r.name, {
+            rxMbps: bpsToMbps(parseBps(r['rx-bits-per-second'])),
+            txMbps: bpsToMbps(parseBps(r['tx-bits-per-second'])),
+          });
+        }
+      }
+    } catch (e) {
+      // Suppress — rates simply stay at last known value until next poll
+    } finally {
+      this._ratesInflight = false;
+    }
+  }
+
+  _scheduleRatesNext() {
+    clearTimeout(this._ratesTimer);
+    this._ratesTimer = setTimeout(async () => {
+      this._ratesTimer = null;
+      if (!this.streamMode) {
+        await this._pollRatesOnce();
+        this._scheduleRatesNext();
+      }
+    }, this.pollMs);
+  }
+
+  _startRatesPoll() {
+    console.log('[ifstatus] poll mode — polling /interface/monitor-traffic every', this.pollMs + 'ms');
+    this._pollRatesOnce();
+    this._scheduleRatesNext();
   }
 
   // ── metadata streams ──────────────────────────────────────────────────────
@@ -153,6 +205,7 @@ class InterfaceStatusCollector {
   _startMonitorStream() {
     const names = [...this._ifaces.keys()];
     if (!names.length) return;
+    if (!this.streamMode) return; // poll mode — rates fetched by _pollRatesOnce
     const key = names.slice().sort().join(',');
     if (this._monitorStream && this._monitorIfaceKey === key) return;
     this._stopMonitorStream();
@@ -262,42 +315,56 @@ class InterfaceStatusCollector {
     this.state.lastIfStatusTs = now;
   }
 
+  _stopRatesPoll() {
+    if (this._ratesTimer) { clearTimeout(this._ratesTimer); this._ratesTimer = null; }
+  }
+
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
   start() {
     this._startMetaStreams();
     this._startEmitTimer();
+    if (!this.streamMode) this._startRatesPoll();
 
     this.ros.on('close', () => {
       this._stopMetaStreams();
       this._stopMonitorStream();
+      this._stopRatesPoll();
       this._stopEmitTimer();
     });
     this.ros.on('connected', () => {
       this._stopMetaStreams();
       this._stopMonitorStream();
+      this._stopRatesPoll();
       this._stopEmitTimer();
       this._ifaces.clear();
       this._addrs.clear();
       this._streamRates.clear();
       this._startMetaStreams();
       this._startEmitTimer();
+      if (!this.streamMode) this._startRatesPoll();
     });
   }
 
   suspend() {
     this._stopMonitorStream();
+    this._stopRatesPoll();
     this._stopEmitTimer();
   }
 
   resume() {
-    this._startMonitorStream();
+    if (this.streamMode) {
+      this._startMonitorStream();
+    } else {
+      this._startRatesPoll();
+    }
     this._startEmitTimer();
   }
 
   stop() {
     this._stopMetaStreams();
     this._stopMonitorStream();
+    this._stopRatesPoll();
     this._stopEmitTimer();
   }
 }

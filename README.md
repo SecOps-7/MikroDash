@@ -137,7 +137,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.35
+docker pull ghcr.io/secops-7/mikrodash:0.5.38
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -194,6 +194,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. Test Connection validates credentials before saving. The active router is selected from the dropdown in the page header |
 | Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
 | Poll Intervals | Per-collector update intervals — controls the push rate for interval-streamed collectors and the poll frequency for polled collectors. Changes apply immediately without restart. Pure event-driven collectors (ARP, Routing, DHCP Leases, Firewall rule changes) show an Event-driven badge instead of a slider |
+| Collection Method | Per-collector toggle between **Stream** (RouterOS pushes data continuously via `=interval=N`) and **Poll** (one-shot request every poll interval). Covers System/Gauges, Ping, Connections, Top Talkers, and Interface Rates. Switch individual collectors to Poll on CHR/VM routers with limited API handler threads (typically 2–4). Traffic is always streamed. Changes apply immediately |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
 | Diagnostics | Enable/disable verbose RouterOS API debug logging at runtime — no container restart required |

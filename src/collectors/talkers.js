@@ -14,12 +14,13 @@
  */
 
 class TopTalkersCollector {
-  constructor({ ros, io, pollMs, state, topN }) {
+  constructor({ ros, io, pollMs, state, topN, streamMode }) {
     this.ros    = ros;
     this.io     = io;
     this.pollMs = pollMs;
     this.state  = state;
     this.topN   = topN || 5;
+    this.streamMode = streamMode !== false; // default true
 
     this._stream      = null;
     this._devicesNext = new Map(); // mac -> { name, mac, rateUp, rateDown }
@@ -29,6 +30,8 @@ class TopTalkersCollector {
     this._backoffMs    = 60000;
     this._unavailable  = false;
     this._lastFp       = '';
+    this._pollTimer    = null;
+    this._pollInflight = false;
   }
 
   _startStream() {
@@ -140,10 +143,81 @@ class TopTalkersCollector {
     this.state.lastTalkersErr = null;
   }
 
+  // ── poll-mode talkers path ────────────────────────────────────────────────
+
+  async _pollTalkersOnce() {
+    if (!this.ros.connected || this._pollInflight) return;
+    if (this.io.engine.clientsCount === 0) return;
+    this._pollInflight = true;
+    try {
+      const rows = await this.ros.write('/ip/kid-control/device/print', [
+        '=.proplist=name,mac-address,rate-up,rate-down',
+      ]);
+      this._devicesNext.clear();
+      if (Array.isArray(rows)) {
+        for (const r of rows) {
+          const mac = r['mac-address'];
+          if (!mac) continue;
+          this._devicesNext.set(mac, {
+            name:     r.name || '',
+            mac,
+            rateUp:   parseInt(r['rate-up']   || '0', 10),
+            rateDown: parseInt(r['rate-down'] || '0', 10),
+          });
+        }
+      }
+      this._commitTick();
+    } catch (e) {
+      const msg = String(e && e.message ? e.message : e);
+      if (msg.includes('unknown command') || msg.includes('no such') || msg.includes('timeout')) {
+        if (!this._unavailable) {
+          this._unavailable = true;
+          console.warn('[talkers] poll: Kid Control unavailable —', msg);
+          const now = Date.now();
+          const payload = { ts: now, devices: [], pollMs: this.pollMs };
+          this.lastPayload = payload;
+          this.io.emit('talkers:update', payload);
+          this.state.lastTalkersTs  = now;
+          this.state.lastTalkersErr = null;
+        }
+      } else {
+        this.state.lastTalkersErr = msg;
+      }
+    } finally {
+      this._pollInflight = false;
+    }
+  }
+
+  _scheduleTalkersNext() {
+    clearTimeout(this._pollTimer);
+    this._pollTimer = setTimeout(async () => {
+      this._pollTimer = null;
+      if (!this.streamMode) {
+        await this._pollTalkersOnce();
+        this._scheduleTalkersNext();
+      }
+    }, this.pollMs);
+  }
+
+  _startTalkers() {
+    if (this.streamMode) {
+      this._startStream();
+    } else {
+      console.log('[talkers] poll mode — polling /ip/kid-control/device/print every', this.pollMs + 'ms');
+      this._pollTalkersOnce();
+      this._scheduleTalkersNext();
+    }
+  }
+
   start() {
-    this._startStream();
-    this.io.on('connection', () => { if (!this._stream) this._startStream(); });
-    this.ros.on('close', () => this._stopStream());
+    this._startTalkers();
+    this.io.on('connection', () => {
+      if (this.streamMode && !this._stream) this._startStream();
+    });
+    this.ros.on('close', () => {
+      this._stopStream();
+      if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+    });
     this.ros.on('connected', () => {
       this._backoffUntil = 0;
       this._backoffMs    = 60000;
@@ -151,15 +225,23 @@ class TopTalkersCollector {
       this._lastFp       = '';
       clearTimeout(this._backoffTimer);
       this._backoffTimer = null;
-      this._stream = null; // underlying channel closed with connection
-      this._startStream();
+      this._stream = null;
+      this._startTalkers();
     });
   }
 
-  suspend() { this._stopStream(); }
-  resume()  { if (this.ros.connected) this._startStream(); }
+  suspend() {
+    this._stopStream();
+    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+  }
+  resume() {
+    if (this.streamMode && this.ros.connected) this._startStream();
+  }
 
-  stop() { this._stopStream(); }
+  stop() {
+    this._stopStream();
+    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+  }
 }
 
 module.exports = TopTalkersCollector;

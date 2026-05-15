@@ -290,11 +290,17 @@ class FirewallCollector {
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
-  start() {
+  async start() {
     // ROS listeners are registered in the constructor.
-    // Data loading is deferred to resume(), which is called by
-    // _updateFirewallStreams() in index.js when the Firewall page or a
-    // firewall dashboard card becomes visible.
+    // Poll once at startup to populate lastPayload — streams and counter poll
+    // open only when the Firewall page becomes visible (resume() is called by
+    // _updateFirewallStreams() in index.js).
+    if (!this.ros.connected) return;
+    try {
+      await this._loadInitial();
+    } catch (e) {
+      // Non-fatal — lastPayload stays null; resume() retries when page opens.
+    }
   }
 
   suspend() {

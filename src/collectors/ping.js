@@ -18,15 +18,18 @@ const MAX_HISTORY  = 60;
 const LOSS_WINDOW  = 10; // rolling window for loss %
 
 class PingCollector {
-  constructor({ ros, io, pollMs, state, target }) {
+  constructor({ ros, io, pollMs, state, target, streamMode }) {
     this.ros    = ros;
     this.io     = io;
     this.pollMs = pollMs || 5000;
     this.state  = state;
     this.target = target || '1.1.1.1';
+    this.streamMode = streamMode !== false; // default true
 
     this.history = new RingBuffer(MAX_HISTORY);
-    this._stream  = null;
+    this._stream       = null;
+    this._pollTimer    = null;
+    this._pollInflight = false;
     this._lastFp  = '';
     this.lastPayload       = null;
     this._permissionDenied = false;
@@ -92,7 +95,53 @@ class PingCollector {
 
   _restartStream() {
     this._stopStream();
-    this._startStream();
+    if (this.streamMode) this._startStream();
+  }
+
+  // ── poll-mode ping path ───────────────────────────────────────────────────
+
+  async _pollPingOnce() {
+    if (!this.ros.connected || this._pollInflight || this._permissionDenied) return;
+    if (this.io.engine.clientsCount === 0) return;
+    this._pollInflight = true;
+    try {
+      const rows = await this.ros.write('/tool/ping', [
+        '=address=' + this.target,
+        '=count=3',
+        '=interval=1',
+      ]);
+      if (Array.isArray(rows)) {
+        for (const r of rows) {
+          if (r && (r.time || r['response-time'] || r.status)) this._processPacket(r);
+        }
+      }
+    } catch (e) {
+      const msg = String(e && e.message ? e.message : e);
+      if (/not enough privileges|permission denied|cannot run/i.test(msg)) {
+        this._permissionDenied = true;
+        console.warn('[ping] poll: test policy not granted — ping disabled.');
+        const point = { ts: Date.now(), rtt: null, loss: null, permissionDenied: true };
+        this.history.push(point);
+        this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
+        this.io.emit('ping:update', this.lastPayload);
+        this.state.lastPingTs = Date.now();
+      } else {
+        this.state.lastPingErr = msg;
+      }
+    } finally {
+      this._pollInflight = false;
+    }
+  }
+
+  _schedulePingNext() {
+    clearTimeout(this._pollTimer);
+    this._pollTimer = setTimeout(async () => {
+      this._pollTimer = null;
+      if (!this.streamMode) {
+        await this._pollPingOnce();
+        this._schedulePingNext();
+      }
+    }, this.pollMs);
   }
 
   _processPacket(packet) {
@@ -124,22 +173,45 @@ class PingCollector {
     return { target: this.target, history: this.history.toArray() };
   }
 
+  _startPing() {
+    if (this.streamMode) {
+      this._startStream();
+    } else {
+      console.log('[ping] poll mode — polling /tool/ping every', this.pollMs + 'ms');
+      this._pollPingOnce();
+      this._schedulePingNext();
+    }
+  }
+
   start() {
-    this._startStream();
-    this.io.on('connection', () => { if (!this._stream) this._startStream(); });
-    this.ros.on('close',     () => this._stopStream());
+    this._startPing();
+    this.io.on('connection', () => {
+      if (this.streamMode && !this._stream) this._startStream();
+    });
+    this.ros.on('close', () => {
+      this._stopStream();
+      if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+    });
     this.ros.on('connected', () => {
       this._lastFp = '';
       this._permissionDenied = false;
       this._stream = null;
-      this._startStream();
+      this._startPing();
     });
   }
 
-  suspend() { this._stopStream(); }
-  resume()  { if (this.ros.connected && !this._permissionDenied) this._startStream(); }
+  suspend() {
+    this._stopStream();
+    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+  }
+  resume() {
+    if (this.streamMode && this.ros.connected && !this._permissionDenied) this._startStream();
+  }
 
-  stop() { this._stopStream(); }
+  stop() {
+    this._stopStream();
+    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+  }
 }
 
 module.exports = PingCollector;

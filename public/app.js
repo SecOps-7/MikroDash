@@ -3560,6 +3560,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) pingEnabledEl.checked = data.pingEnabled !== false;
     var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) rosDebugEl.checked = !!data.rosDebug;
+    // Collection method toggles (true = stream, false = poll)
+    ['streamSystem','streamPing','streamConns','streamTalkers','streamIfrates'].forEach(function(f) {
+      var el = $('s_'+f); if (el) el.checked = data[f] !== false;
+    });
     // Alert thresholds
     var cpuSlider = $('s_alertCpuThreshold'), cpuVal = $('s_alertCpuThresholdVal');
     if (cpuSlider && data.alertCpuThreshold != null) {
@@ -3656,6 +3660,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
     var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) out.rosDebug = rosDebugEl.checked;
+    // Collection method toggles
+    ['streamSystem','streamPing','streamConns','streamTalkers','streamIfrates'].forEach(function(f) {
+      var el = $('s_'+f); if (el) out[f] = el.checked;
+    });
     // Alert thresholds
     var cpuEl = $('s_alertCpuThreshold');  if (cpuEl)  out.alertCpuThreshold  = parseInt(cpuEl.value,  10);
     var pingEl = $('s_alertPingLoss');     if (pingEl) out.alertPingLoss      = parseInt(pingEl.value, 10);

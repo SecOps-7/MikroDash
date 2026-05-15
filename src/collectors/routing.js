@@ -509,10 +509,19 @@ class RoutingCollector {
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
-  start() {
+  async start() {
     // ROS listeners are registered in the constructor.
-    // Data loading is deferred to resume(), which is called by
-    // _updateRoutingStreams() in index.js when the Routing page becomes visible.
+    // Poll once at startup to populate lastPayload — streams open only when the
+    // Routing page becomes visible (_updateRoutingStreams() calls resume()).
+    if (!this.ros.connected) return;
+    try {
+      await this._loadRoutes();
+      await this._loadBgpSessions();
+      await this._loadPeerCfg();
+      this._emit(this._buildPeers());
+    } catch (e) {
+      // Non-fatal — lastPayload stays null; resume() retries when page opens.
+    }
   }
 
   suspend() {
