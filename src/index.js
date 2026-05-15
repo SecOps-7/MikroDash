@@ -323,15 +323,17 @@ async function startCollectors(session) {
     await session.dhcpNetworks.tick().catch(() => {});
     session.dhcpNetworks.start();
     await session.arp.start();
-    // Group B — streaming collectors staggered 75 ms apart to avoid a burst
-    // of simultaneous stream-open commands hitting the router at once.
+    // Group B — streaming collectors staggered 300 ms apart to avoid overwhelming
+    // the RouterOS API handler thread pool. CHR/VM instances have very few handler
+    // threads (typically 2-4); a burst of simultaneous stream-open commands can
+    // exhaust them, forcing RouterOS to terminate the entire API session.
     session.traffic.start();
-    await _delay(75);
-    session.conns.start();
+    await _delay(300);
+    session.conns.start();   // starts fallback poll only — no stream at start()
     session.talkers.start();
-    await _delay(75);
+    await _delay(300);
     session.logs.start();
-    await _delay(75);
+    await _delay(300);
     // Set callback before start() so the first board-name tick never races past it
     session.system._onFirstBoardName = (boardName) => {
       const router = Routers.getById(session.routerId);
@@ -342,12 +344,16 @@ async function startCollectors(session) {
       }
     };
     session.system.start();
+    await _delay(300);
     await session.vpn.start();
     await session.firewall.start();
+    await _delay(300);
     await session.ifStatus.start();
     session.ping.start();
+    await _delay(300);
     session.bandwidth.start();
     await session.routing.start();
+    await _delay(300);
     await session.netwatch.start();
 
     startupReady = true;

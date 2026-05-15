@@ -77,6 +77,7 @@ class PingCollector {
       } else {
         console.error('[ping] stream error:', msg);
         this.state.lastPingErr = msg;
+        setTimeout(() => { if (this.ros.connected && !this._stream && !this._permissionDenied) this._startStream(); }, 3000);
       }
     });
 

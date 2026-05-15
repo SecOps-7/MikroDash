@@ -98,6 +98,7 @@ class InterfaceStatusCollector {
     stream.on('error', (err) => {
       console.error('[ifstatus] /interface/print stream error:', err && err.message ? err.message : String(err));
       this._ifStream = null;
+      setTimeout(() => { if (this.ros.connected && !this._ifStream) this._startIfStream(); }, 3000);
     });
     this._ifStream = stream;
   }
@@ -123,6 +124,7 @@ class InterfaceStatusCollector {
     stream.on('error', (err) => {
       console.error('[ifstatus] /ip/address/print stream error:', err && err.message ? err.message : String(err));
       this._addrStream = null;
+      setTimeout(() => { if (this.ros.connected && !this._addrStream) this._startAddrStream(); }, 3000);
     });
     this._addrStream = stream;
   }

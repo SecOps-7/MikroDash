@@ -80,6 +80,8 @@ class TopTalkersCollector {
       } else {
         console.error('[talkers] stream error:', msg);
         this.state.lastTalkersErr = msg;
+        clearTimeout(this._backoffTimer);
+        this._backoffTimer = setTimeout(() => { this._backoffTimer = null; this._startStream(); }, this._backoffMs);
       }
     });
 

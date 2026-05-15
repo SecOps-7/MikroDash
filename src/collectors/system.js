@@ -210,6 +210,7 @@ class SystemCollector {
       this.state.lastSystemErr = String(err && err.message ? err.message : err);
       console.error('[system] stream error:', this.state.lastSystemErr);
       this._stream = null;
+      setTimeout(() => { if (this.ros.connected && !this._stream) this._startResourceStream(); }, 3000);
     });
   }
 

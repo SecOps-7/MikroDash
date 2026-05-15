@@ -120,21 +120,21 @@ class TrafficCollector {
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
       this._allStream = null;
-      // 'no such item' fires when an interface in the list briefly disappears
-      // (wireless down, VLAN reconfiguration). Suppress the noisy log and
-      // reschedule — the stream will restart with the current interface list.
-      if (msg.includes('no such item')) {
-        this._restartTimer = setTimeout(() => {
-          this._restartTimer = null;
-          if (this.ros.connected && !this._allStream) this._startAllStream();
-        }, 5000);
-        return;
+      const isMissing = msg.includes('no such item');
+      if (!isMissing) {
+        if (!this._loggedErr) {
+          console.error('[traffic] stream error:', msg);
+          this._loggedErr = true;
+        }
+        this.state.lastTrafficErr = msg;
       }
-      if (!this._loggedErr) {
-        console.error('[traffic] stream error:', msg);
-        this._loggedErr = true;
-      }
-      this.state.lastTrafficErr = msg;
+      // Always schedule a restart — 'no such item' is a transient interface blip,
+      // other errors may be CHR/VM killing the stream under resource pressure.
+      this._restartTimer = setTimeout(() => {
+        this._restartTimer = null;
+        this._loggedErr = false;
+        if (this.ros.connected && !this._allStream) this._startAllStream();
+      }, isMissing ? 5000 : 3000);
     });
 
     this._allStream = stream;
