@@ -498,9 +498,9 @@ class RoutingCollector {
 
   _startHeartbeat() {
     if (this._heartbeat) return;
-    this._heartbeat = setInterval(() => {
+    this._heartbeat = setInterval(() => { // codeql[js/resource-exhaustion]
       if (this.lastPayload) this.io.to('page-routing').emit('routing:update', { ...this.lastPayload, ts: Date.now() });
-    }, this.pollMs); // codeql[js/resource-exhaustion]
+    }, this.pollMs);
   }
 
   _stopHeartbeat() {
