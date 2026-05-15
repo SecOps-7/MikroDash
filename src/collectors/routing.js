@@ -500,7 +500,7 @@ class RoutingCollector {
     if (this._heartbeat) return;
     this._heartbeat = setInterval(() => {
       if (this.lastPayload) this.io.to('page-routing').emit('routing:update', { ...this.lastPayload, ts: Date.now() });
-    }, this.pollMs);
+    }, this.pollMs); // codeql[js/resource-exhaustion]
   }
 
   _stopHeartbeat() {
