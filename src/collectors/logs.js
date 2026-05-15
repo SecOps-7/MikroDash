@@ -12,6 +12,8 @@ class LogsCollector {
     this.io = io;
     this.state = state;
     this._restartDelayMs = _restartDelayMs || 2000;
+    this._backoffMs     = this._restartDelayMs; // grows on each failure
+    this._maxBackoffMs  = 300000;               // 5-minute cap
     this.stream = null;
     this._restarting = false;
     this._restartTimer = null;
@@ -37,11 +39,13 @@ class LogsCollector {
       this._stopStream();
       if (this.ros.connected && !this._restarting) {
         this._restarting = true;
+        const delay = this._backoffMs;
+        this._backoffMs = Math.min(this._backoffMs * 2, this._maxBackoffMs);
         this._restartTimer = setTimeout(() => {
           this._restarting = false;
           this._restartTimer = null;
           if (this.ros.connected) this._startStream();
-        }, this._restartDelayMs);
+        }, delay);
       }
       return;
     }
@@ -60,6 +64,7 @@ class LogsCollector {
 
     this.state.lastLogsTs = Date.now();
     this.state.lastLogsErr = null;
+    this._backoffMs = this._restartDelayMs; // reset on successful entry
   }
 
   _startStream() {
@@ -86,6 +91,7 @@ class LogsCollector {
   start() {
     this._startStream();
     this.ros.on('connected', () => {
+      this._backoffMs = this._restartDelayMs; // fresh session — reset backoff
       this._stopStream();
       this._startStream();
     });
