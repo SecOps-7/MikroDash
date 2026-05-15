@@ -31,6 +31,16 @@ class FirewallCollector {
     this._heartbeat  = null;
     this._pollTimer  = null;
     this._pollInflight = false;
+    this._resuming   = false;
+
+    ros.on('close', () => {
+      this._stopAllStreams();
+      this._stopHeartbeat();
+      this._stopCounterPoll();
+    });
+    // On reconnect, clear state — index.js _updateFirewallStreams() calls
+    // resume() if the Firewall page or dashboard card is still open.
+    ros.on('connected', () => this.suspend());
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
@@ -280,35 +290,44 @@ class FirewallCollector {
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
-  async start() {
-    await this._loadInitial();
-    this._startStream('filter', '/ip/firewall/filter/listen');
-    this._startStream('nat',    '/ip/firewall/nat/listen');
-    this._startStream('mangle', '/ip/firewall/mangle/listen');
-    this._startStream('raw',    '/ip/firewall/raw/listen');
-    this._startHeartbeat();
-    this._startCounterPoll();
+  start() {
+    // ROS listeners are registered in the constructor.
+    // Data loading is deferred to resume(), which is called by
+    // _updateFirewallStreams() in index.js when the Firewall page or a
+    // firewall dashboard card becomes visible.
+  }
 
-    this.ros.on('close', () => { this._stopAllStreams(); this._stopHeartbeat(); this._stopCounterPoll(); });
-    this.ros.on('connected', async () => {
-      this._stopAllStreams();
-      this._stopHeartbeat();
-      this._stopCounterPoll();
-      this.prevCounts.clear();
-      this._lastFp = '';
+  suspend() {
+    this._resuming = false;
+    this._stopAllStreams();
+    this._stopHeartbeat();
+    this._stopCounterPoll();
+    this._filter = [];
+    this._nat    = [];
+    this._mangle = [];
+    this._raw    = [];
+    this.prevCounts.clear();
+    this._lastFp = '';
+  }
+
+  async resume() {
+    if (this._resuming) return;
+    if (Object.values(this._streams).some(s => s !== null)) return;
+    if (!this.ros.connected) return;
+    this._resuming = true;
+    try {
       await this._loadInitial();
+      if (!this._resuming) return; // suspend() was called during the load
       this._startStream('filter', '/ip/firewall/filter/listen');
       this._startStream('nat',    '/ip/firewall/nat/listen');
       this._startStream('mangle', '/ip/firewall/mangle/listen');
       this._startStream('raw',    '/ip/firewall/raw/listen');
       this._startHeartbeat();
       this._startCounterPoll();
-    });
+    } finally {
+      this._resuming = false;
+    }
   }
-
-  suspend() { this._stopCounterPoll(); }
-
-  resume()  { this._startCounterPoll(); }
 
   stop() {
     this._stopAllStreams();

@@ -1,18 +1,14 @@
 /**
- * Traffic collector — streams /interface/monitor-traffic =interface=<comma-list> =interval=1.
+ * Traffic collector — streams /interface/monitor-traffic =interface=<list> =interval=1.
  *
- * A single persistent stream covers all known interfaces simultaneously.
- * The interface list is sourced from setAvailableInterfaces(), which is called
- * after fetchInterfaces() completes in sendInitialState().  Until that list
- * arrives, the stream runs for the default interface only.
+ * The stream covers only the union of interfaces currently being watched by
+ * connected clients, plus defaultIf (always included for the WAN status badge).
+ * When subscriptions change (traffic:select, disconnect) the stream is restarted
+ * with the updated list.  This keeps RouterOS API load proportional to what is
+ * actually being watched rather than the total interface count.
  *
- * Each data packet carries a 'name' field (RouterOS includes it when more than
- * one interface is listed); the handler fans it out to the matching socket(s).
- * History is still maintained per-interface in memory.
- *
- * This replaces the previous pattern of opening one stream per subscribed
- * interface, which could create N simultaneous RouterOS streams when multiple
- * browser clients were watching different interfaces.
+ * setAvailableInterfaces() populates availableIfs for input validation only —
+ * it no longer drives the stream.
  */
 const RingBuffer = require('../util/ringbuffer');
 
@@ -41,11 +37,11 @@ class TrafficCollector {
     this.maxPoints  = Math.max(60, historyMinutes * 60);
     this.hist          = new Map();  // ifName -> RingBuffer
     this.subscriptions = new Map();  // socketId -> ifName
-    this._allStream    = null;       // single shared stream for all interfaces
-    this._ifNames      = [];         // ordered list of interface names for the stream
-    this._ifNamesKey   = '';         // sorted key — detect list changes without restart
-    this.availableIfs  = new Set();
+    this._allStream    = null;
+    this._ifNamesKey   = '';         // sorted key of current stream — detects changes
+    this.availableIfs  = new Set();  // validated set from fetchInterfaces()
     this._loggedErr    = false;
+    this._restartTimer = null;
   }
 
   _ensureHistory(ifName) {
@@ -55,12 +51,21 @@ class TrafficCollector {
   setAvailableInterfaces(interfaces) {
     const names = (interfaces || []).map(i => typeof i === 'string' ? i : i && i.name).filter(Boolean);
     this.availableIfs = new Set(names);
+    // Stream is driven by active subscriptions, not the available-interface list.
+  }
 
-    const key = names.slice().sort().join(',');
-    if (key === this._ifNamesKey) return; // same list — no restart needed
-    this._ifNames    = names;
+  // Returns the sorted union of subscribed interfaces + defaultIf.
+  _getStreamNames() {
+    const s = new Set([this.defaultIf]);
+    for (const ifName of this.subscriptions.values()) s.add(ifName);
+    return [...s].sort();
+  }
+
+  // Restart the stream only when the subscription set has changed.
+  _updateStream() {
+    const key = this._getStreamNames().join(',');
+    if (key === this._ifNamesKey) return;
     this._ifNamesKey = key;
-    // Restart stream with the expanded interface list
     this._stopAllStream();
     this._startAllStream();
   }
@@ -79,6 +84,7 @@ class TrafficCollector {
   }
 
   _stopAllStream() {
+    if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
     if (!this._allStream) return;
     try { this._allStream.stop().catch(() => {}); } catch (e) {}
     this._allStream = null;
@@ -89,8 +95,7 @@ class TrafficCollector {
     if (this._allStream) return;
     if (!this.ros.connected) return;
 
-    // Use the full interface list if available, otherwise fall back to defaultIf only.
-    const names = this._ifNames.length ? this._ifNames : [this.defaultIf];
+    const names = this._getStreamNames();
     console.log('[traffic] streaming', names.length, 'interface(s) interval=1s');
 
     const stream = this.ros.stream(
@@ -114,12 +119,22 @@ class TrafficCollector {
 
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
+      this._allStream = null;
+      // 'no such item' fires when an interface in the list briefly disappears
+      // (wireless down, VLAN reconfiguration). Suppress the noisy log and
+      // reschedule — the stream will restart with the current interface list.
+      if (msg.includes('no such item')) {
+        this._restartTimer = setTimeout(() => {
+          this._restartTimer = null;
+          if (this.ros.connected && !this._allStream) this._startAllStream();
+        }, 5000);
+        return;
+      }
       if (!this._loggedErr) {
         console.error('[traffic] stream error:', msg);
         this._loggedErr = true;
       }
       this.state.lastTrafficErr = msg;
-      this._allStream = null;
     });
 
     this._allStream = stream;
@@ -127,13 +142,15 @@ class TrafficCollector {
 
   bindSocket(socket) {
     this.subscriptions.set(socket.id, this.defaultIf);
+    // defaultIf is always in the stream, so this is a no-op on first connect.
+    this._updateStream();
 
     socket.on('traffic:select', (payload) => {
       const nextIf = this._normalizeIfName(payload && payload.ifName);
       if (!nextIf) return;
       this.subscriptions.set(socket.id, nextIf);
       this._ensureHistory(nextIf);
-      // No new stream needed — the single stream already covers all interfaces.
+      this._updateStream(); // expands stream to include nextIf if not already there
       socket.emit('traffic:history', {
         ifName: nextIf,
         points: this.hist.get(nextIf).toArray(),
@@ -142,6 +159,7 @@ class TrafficCollector {
 
     socket.on('disconnect', () => {
       this.subscriptions.delete(socket.id);
+      this._updateStream(); // shrinks stream if nextIf is no longer subscribed
     });
   }
 
@@ -177,11 +195,10 @@ class TrafficCollector {
     this._startAllStream();
 
     this.ros.on('connected', () => {
-      console.log('[traffic] reconnected — restarting stream');
+      this._ifNamesKey = ''; // force restart on reconnect
       this._stopAllStream();
-      this._ifNamesKey = ''; // force restart with current _ifNames on reconnect
       this._ensureHistory(this.defaultIf);
-      this._startAllStream();
+      this._updateStream(); // restart with current subscription set
     });
 
     this.ros.on('close', () => this._stopAllStream());

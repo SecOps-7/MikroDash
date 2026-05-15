@@ -66,7 +66,7 @@ var dhcpSearch       = $('dhcpSearch');
 
 // ── State ──────────────────────────────────────────────────────────────────
 var autoScroll = true, logFilter = '', logLevel = '';
-var currentIf = '', windowSecs = 60;
+var currentIf = '', windowSecs = 60, _ifaceSelectKey = '';
 var fwTab = 'top', fwData = {};
 var connHistory = [], MAX_CONN_HIST = 60;
 var lastTalkers = null, lastLanData = null;
@@ -729,6 +729,7 @@ function ifaceRateRow(name, dir, mbps, peak) {
 
 socket.on('ifstatus:update',function(data){
   var ifaces=data.interfaces||[];
+  _rebuildIfaceSelect(ifaces.filter(function(i){return i.running&&!i.disabled;}).map(function(i){return i.name;}));
   var nb=$('ifacesNavBadge');if(nb){nb.textContent=ifaces.length||'';}
   if(ifaceCount){ifaceCount.textContent=ifaces.length;ifaceCount.className='card-badge'+(ifaces.length>0?' active-blue':'');}
   var wiredUp=ifaces.filter(function(i){return i.running&&!i.disabled&&i.type==='ether';});
@@ -1590,18 +1591,30 @@ Object.keys(logCountEls).forEach(function(sev){
 });;
 
 // ── Interface + window selectors ───────────────────────────────────────────
-socket.on('interfaces:list',function(data){
-  if(data.interfaces&&data.interfaces.length){
-    ifaceSelect.innerHTML='';
-    data.interfaces.forEach(function(i){
-      var opt=document.createElement('option');
-      opt.value=i.name;
-      var suf=(i.disabled==='true'||i.disabled===true)?' [disabled]':(!i.running||i.running==='false')?' [down]':'';
-      opt.textContent=i.name+suf;
-      ifaceSelect.appendChild(opt);
-    });
+function _rebuildIfaceSelect(names) {
+  var key = names.join(',');
+  if (key === _ifaceSelectKey) return;
+  _ifaceSelectKey = key;
+  ifaceSelect.innerHTML = '';
+  names.forEach(function(n) {
+    var opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    ifaceSelect.appendChild(opt);
+  });
+  // Current interface went down — switch to the first active one.
+  if (currentIf && names.indexOf(currentIf) === -1 && names.length) {
+    ifaceSelect.value = names[0];
+    socket.emit('traffic:select', { ifName: names[0] });
+  } else {
+    ifaceSelect.value = currentIf || names[0] || '';
   }
-  if(data.defaultIf)ifaceSelect.value=data.defaultIf;
+}
+socket.on('interfaces:list',function(data){
+  var active=(data.interfaces||[]).filter(function(i){
+    return (i.running===true||i.running==='true')&&i.disabled!==true&&i.disabled!=='true';
+  }).map(function(i){return i.name;});
+  _rebuildIfaceSelect(active);
+  if(data.defaultIf&&!currentIf)ifaceSelect.value=data.defaultIf;
 });
 // If the server failed to fetch the interface list, show a visible placeholder
 // in the dropdown rather than leaving it silently empty.

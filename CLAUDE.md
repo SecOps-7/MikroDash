@@ -16,8 +16,8 @@ docker compose build && docker compose up -d
 docker logs -f mikrodash
 
 # Run all tests (test/ is excluded from the image — copy first)
-docker cp test/ mikrodash:/app/test
-docker exec mikrodash node --test /app/test/
+docker cp test/. mikrodash:/app/test
+docker exec mikrodash node --test --test-force-exit /app/test/
 
 # Run a single test file
 docker exec mikrodash node --test /app/test/production-resilience-regressions.test.js
@@ -80,6 +80,8 @@ RouterOS binary API (TCP)
 - Runner: `node --test` only — no Jest, Mocha, or other frameworks.
 - Test the collector's output payload shape and values, not internal implementation details.
 - Fake ROS/IO patterns and a coverage checklist for new collectors are in `AI_CONTEXT.md` → "Testing conventions".
+- **When editing any collector, update its tests in the same edit.** API changes (new method names, io.to() vs io.emit(), stream vs poll) must be reflected immediately or tests will drift.
+- A `.git/hooks/pre-push` hook runs the full suite before every push — fix failures before pushing.
 
 ---
 

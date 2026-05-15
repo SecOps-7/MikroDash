@@ -2,6 +2,22 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.37] — Test suite overhaul, tooling fixes
+
+### Changed
+
+- **Test suite rewritten for streaming architecture** — all 155 tests (across 4 files) updated to match the current streaming-refactored codebase. Tests no longer call removed methods (`tick()`, `_pollInterface()`, `_loadInitial()`); they drive the new entry points (`_processPacket()`, `_processRow()`, `_buildAndEmit()`, `resume()`, `_devicesNext`/`_commitTick()`). All collectors now have accurate coverage of their real API surface.
+
+- **`docker cp` fixed to prevent nested test directory** — the copy command changed from `docker cp test/` to `docker cp test/.` throughout. The old form copied `test/` into `/app/test/` when the destination existed, creating a stale `/app/test/test/` shadow that caused spurious failures.
+
+- **`--test-force-exit` added to test runner invocation** — the lifecycle test file leaves open handles (RouterOS retry timers) that prevented `node --test` from exiting after all tests passed. Adding `--test-force-exit` resolves the hang without requiring test-level cleanup changes.
+
+### Fixed
+
+- **Pre-push hook** — updated `docker cp` command and added `--test-force-exit` so the hook runs all 155 tests and exits cleanly.
+
+- **CLAUDE.md test commands** — updated to match the corrected `docker cp` and `--test-force-exit` invocations.
+
 ## [0.5.36] — NetWatch dashboard card, bug fixes
 
 ### Added

@@ -3,10 +3,11 @@
  * with a one-shot /print on startup to populate the initial state.
  */
 class DhcpLeasesCollector {
-  constructor({ ros, io, state }) {
+  constructor({ ros, io, state, _restartDelayMs }) {
     this.ros = ros;
     this.io = io;
     this.state = state;
+    this._restartDelayMs = _restartDelayMs || 2000;
     this.byIP  = new Map();
     this.byMAC = new Map();
     this.seenMACs = new Set();
@@ -95,7 +96,7 @@ class DhcpLeasesCollector {
               this._restarting = false;
               this._restartTimer = null;
               if (this.ros.connected) this._startStream();
-            }, 2000);
+            }, this._restartDelayMs);
           }
           return;
         }

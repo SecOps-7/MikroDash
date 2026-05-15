@@ -49,9 +49,10 @@ class InterfaceStatusCollector {
     this._addrStream   = null;
     this._metaDebounce = null;
 
-    this._monitorStream   = null;
-    this._streamRates     = new Map(); // name -> { rxMbps, txMbps }
-    this._monitorIfaceKey = '';
+    this._monitorStream        = null;
+    this._streamRates          = new Map(); // name -> { rxMbps, txMbps }
+    this._monitorIfaceKey      = '';
+    this._monitorRestartTimer  = null;
 
     this._emitTimer = null;
   }
@@ -176,15 +177,27 @@ class InterfaceStatusCollector {
       });
     });
     stream.on('error', (err) => {
-      console.error('[ifstatus] monitor-traffic stream error:', err && err.message ? err.message : String(err));
+      const msg = err && err.message ? err.message : String(err);
       this._monitorStream   = null;
       this._monitorIfaceKey = '';
+      this._streamRates.clear();
+      // 'no such item' fires when an interface in the list briefly disappears.
+      // Suppress the log and reschedule — avoid a rapid restart loop.
+      if (msg.includes('no such item')) {
+        this._monitorRestartTimer = setTimeout(() => {
+          this._monitorRestartTimer = null;
+          if (this.ros.connected) this._startMonitorStream();
+        }, 5000);
+        return;
+      }
+      console.error('[ifstatus] monitor-traffic stream error:', msg);
     });
     this._monitorStream   = stream;
     this._monitorIfaceKey = key;
   }
 
   _stopMonitorStream() {
+    if (this._monitorRestartTimer) { clearTimeout(this._monitorRestartTimer); this._monitorRestartTimer = null; }
     if (!this._monitorStream) return;
     try { this._monitorStream.stop().catch(() => {}); } catch (e) {}
     this._monitorStream   = null;

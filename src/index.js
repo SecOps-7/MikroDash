@@ -96,8 +96,11 @@ app.use((req, res, next) => {
   if (req.path === '/healthz') return next();
   authLimiter(req, res, (err) => { if (err) return next(err); _authMiddleware(req, res, next); });
 });
+// WebSocket upgrade requests bypass Express middleware so don't have req.ip/req.app.
+// authLimiter cannot be used here; auth-only is applied instead. Rate limiting for
+// the preceding polling handshake is covered by the app.use() handler above.
 io.engine.use((req, res, next) => { // codeql[js/missing-rate-limiting]
-  authLimiter(req, res, (err) => { if (err) return next(err); _authMiddleware(req, res, next); });
+  _authMiddleware(req, res, next);
 });
 app.use('/vendor', express.static(path.join(__dirname, '..', 'public', 'vendor'), { maxAge: '7d' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -251,10 +254,12 @@ function wireRosEvents(session) {
     session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
     broadcastRosStatus(true);
     _emitRouterStatus(true);
-    // Restore connections stream if someone was on the Connections page when the
-    // session dropped. Collector reconnect handlers fire before this listener,
-    // so start() has already reset to fallback-poll mode by this point.
+    // Restore page-aware streams for any pages still open after the reconnect.
+    // Collector reconnect handlers (in constructors) fire before this listener
+    // and call suspend() to clear state first.
     _updateConnsStream(session);
+    _updateFirewallStreams(session);
+    _updateRoutingStreams(session);
   });
   ros.on('close', () => {
     session.connTableCache.invalidate();
@@ -1017,18 +1022,20 @@ function _idleSuspend(session) {
   session.wireless.suspend();
   session.vpn.suspend();
   session.firewall.suspend();
+  session.routing.suspend();
   session.ping.suspend();
   session.talkers.suspend();
 }
 
 function _idleResume(session) {
   if (!session || !startupReady) return;
-  // conns is page-aware — _updateConnsStream() manages its stream independently
+  // conns, firewall, routing are page-aware — their _update* functions manage streams
   session.ifStatus.resume();
   session.system.resume();
   session.wireless.resume();
   session.vpn.resume();
-  session.firewall.resume();
+  _updateFirewallStreams(session);
+  _updateRoutingStreams(session);
   session.ping.resume();
   session.talkers.resume();
 }
@@ -1047,6 +1054,29 @@ function _updateConnsStream(session) {
   }
 }
 
+// Sync firewall streams with page-firewall / dash-card-firewall room membership.
+function _updateFirewallStreams(session) {
+  if (!session || !startupReady) return;
+  const viewers = (io.sockets.adapter.rooms.get('page-firewall')?.size    || 0) +
+                  (io.sockets.adapter.rooms.get('dash-card-firewall')?.size || 0);
+  if (viewers > 0) {
+    session.firewall.resume();
+  } else {
+    session.firewall.suspend();
+  }
+}
+
+// Sync routing streams with page-routing room membership.
+function _updateRoutingStreams(session) {
+  if (!session || !startupReady) return;
+  const viewers = io.sockets.adapter.rooms.get('page-routing')?.size || 0;
+  if (viewers > 0) {
+    session.routing.resume();
+  } else {
+    session.routing.suspend();
+  }
+}
+
 io.on('connection', (socket) => {
   if (io.engine.clientsCount > MAX_SOCKETS) {
     console.warn('[MikroDash] connection rejected — max sockets reached:', MAX_SOCKETS);
@@ -1059,9 +1089,10 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     if (io.engine.clientsCount === 0) _idleSuspend(_session);
-    // The disconnecting socket may have been the last one on the Connections page.
-    // Rooms are cleaned up before this event fires, so the room size is already correct.
+    // Rooms are cleaned up before this event fires, so room sizes are already correct.
     if (_session) _updateConnsStream(_session);
+    if (_session) _updateFirewallStreams(_session);
+    if (_session) _updateRoutingStreams(_session);
   });
 
   // Page-aware rooms — clients join/leave rooms as they navigate pages.
@@ -1075,8 +1106,16 @@ io.on('connection', (socket) => {
       const s = _session;
       if (!s) return;
       if (name === 'connections') _updateConnsStream(s);
-      if (name === 'firewall'  && s.firewall  && s.firewall.lastPayload)
-        socket.emit('firewall:update',  { ...s.firewall.lastPayload,  ts: Date.now() });
+      if (name === 'firewall') {
+        _updateFirewallStreams(s);
+        if (s.firewall && s.firewall.lastPayload)
+          socket.emit('firewall:update', { ...s.firewall.lastPayload, ts: Date.now() });
+      }
+      if (name === 'routing') {
+        _updateRoutingStreams(s);
+        if (s.routing && s.routing.lastPayload)
+          socket.emit('routing:update', { ...s.routing.lastPayload, ts: Date.now() });
+      }
       if (name === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
         socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
       if (name === 'logs'      && s.logs)
@@ -1093,6 +1132,8 @@ io.on('connection', (socket) => {
     if (typeof name === 'string' && /^[a-z]{2,20}$/.test(name)) {
       socket.leave('page-' + name);
       if (name === 'connections' && _session) _updateConnsStream(_session);
+      if (name === 'firewall'    && _session) _updateFirewallStreams(_session);
+      if (name === 'routing'     && _session) _updateRoutingStreams(_session);
     }
   });
 
@@ -1103,8 +1144,11 @@ io.on('connection', (socket) => {
     socket.join('dash-card-' + key);
     const s = _session;
     if (!s) return;
-    if (key === 'firewall'  && s.firewall  && s.firewall.lastPayload)
-      socket.emit('firewall:update',  { ...s.firewall.lastPayload,  ts: Date.now() });
+    if (key === 'firewall') {
+      _updateFirewallStreams(s);
+      if (s.firewall && s.firewall.lastPayload)
+        socket.emit('firewall:update', { ...s.firewall.lastPayload, ts: Date.now() });
+    }
     if (key === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
       socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
     if (key === 'logs' && s.logs)
@@ -1113,6 +1157,7 @@ io.on('connection', (socket) => {
   socket.on('dashcard:blur', (key) => {
     if (typeof key !== 'string' || !/^[a-z]{2,20}$/.test(key)) return;
     socket.leave('dash-card-' + key);
+    if (key === 'firewall' && _session) _updateFirewallStreams(_session);
   });
 
   if (_session) _session.traffic.bindSocket(socket);

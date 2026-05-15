@@ -34,23 +34,56 @@ function mockConn({ onConnect, onClose } = {}) {
 }
 
 async function withPatchedIntervals(runTest) {
-  const originalSetInterval = global.setInterval;
+  const originalSetInterval  = global.setInterval;
   const originalClearInterval = global.clearInterval;
   const timers = [];
   global.setInterval = (cb, ms) => {
-    const timer = { cb, ms, cleared: false };
+    const timer = { cb, ms, cleared: false, isInterval: true };
     timers.push(timer);
     return timer;
   };
   global.clearInterval = (timer) => {
     if (timer) timer.cleared = true;
   };
-
   try {
     await runTest(timers);
   } finally {
-    global.setInterval = originalSetInterval;
+    global.setInterval  = originalSetInterval;
     global.clearInterval = originalClearInterval;
+  }
+}
+
+// Like withPatchedIntervals but also patches setTimeout/clearTimeout.
+// Use for collectors that use the seamless-interval pattern (recursive setTimeout).
+async function withPatchedTimers(runTest) {
+  const originalSetInterval  = global.setInterval;
+  const originalClearInterval = global.clearInterval;
+  const originalSetTimeout   = global.setTimeout;
+  const originalClearTimeout  = global.clearTimeout;
+  const timers = [];
+  global.setInterval = (cb, ms) => {
+    const timer = { cb, ms, cleared: false, isInterval: true };
+    timers.push(timer);
+    return timer;
+  };
+  global.clearInterval = (timer) => {
+    if (timer) timer.cleared = true;
+  };
+  global.setTimeout = (cb, ms) => {
+    const timer = { cb, ms, cleared: false, isInterval: false };
+    timers.push(timer);
+    return timer;
+  };
+  global.clearTimeout = (timer) => {
+    if (timer && typeof timer === 'object') timer.cleared = true;
+  };
+  try {
+    await runTest(timers);
+  } finally {
+    global.setInterval  = originalSetInterval;
+    global.clearInterval = originalClearInterval;
+    global.setTimeout   = originalSetTimeout;
+    global.clearTimeout  = originalClearTimeout;
   }
 }
 
@@ -61,7 +94,7 @@ async function withPatchedIntervals(runTest) {
 const dhcpLeaseStub = { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] };
 
 test('polling collector start skips overlapping interval ticks while one run is inflight', async () => {
-  await withPatchedIntervals(async (timers) => {
+  await withPatchedTimers(async (timers) => {
     let tickCount = 0;
     let releaseTick;
     const pendingTick = new Promise((resolve) => { releaseTick = resolve; });
@@ -89,11 +122,10 @@ test('polling collector start skips overlapping interval ticks while one run is 
 });
 
 test('polling collector start resets inflight state after a tick throws', async () => {
-  await withPatchedIntervals(async (timers) => {
-    const state = {};
+  await withPatchedTimers(async (timers) => {
     const ros = mockROS(async () => []);
     const io = { emit() {} };
-    const collector = new SystemCollector({ ros, io, pollMs: 50000, state });
+    const collector = new DhcpNetworksCollector({ ros, io, pollMs: 50000, dhcpLeases: dhcpLeaseStub, state: {} });
     let tickCount = 0;
 
     collector.tick = async function () {
@@ -103,7 +135,8 @@ test('polling collector start resets inflight state after a tick throws', async 
 
     collector.start();
     await Promise.resolve();
-    assert.equal(state.lastSystemErr, 'boom');
+    await Promise.resolve();
+    assert.equal(collector._inflight, false, '_inflight reset after tick throws');
 
     await timers[0].cb();
     assert.equal(tickCount, 2, 'interval callback should run again after the failed start tick');
@@ -111,7 +144,7 @@ test('polling collector start resets inflight state after a tick throws', async 
 });
 
 test('polling collector stops timer on ROS close event', () => {
-  return withPatchedIntervals(async () => {
+  return withPatchedTimers(async () => {
     const ros = mockROS();
     const io = { emit() {} };
     const collector = new DhcpNetworksCollector({ ros, io, pollMs: 30000, dhcpLeases: dhcpLeaseStub, state: {} });
@@ -174,7 +207,7 @@ test('logs collector records stream errors and schedules a restart', async () =>
     return { stop() {} };
   };
   const state = {};
-  const collector = new LogsCollector({ ros, io: { emit() {} }, state });
+  const collector = new LogsCollector({ ros, io: { emit() {} }, state, _restartDelayMs: 50 });
   collector.start();
 
   assert.ok(collector.stream, 'stream should be active');
@@ -184,8 +217,8 @@ test('logs collector records stream errors and schedules a restart', async () =>
   assert.equal(collector.stream, null, 'old stream should be stopped');
   assert.match(state.lastLogsErr, /connection lost/);
 
-  // Fast-forward the 2s restart delay
-  await new Promise(r => setTimeout(r, 2100));
+  // Fast-forward the restart delay
+  await new Promise(r => setTimeout(r, 100));
   assert.equal(streamCalls, 2, 'collector should create a replacement stream after delay');
   assert.ok(collector.stream, 'replacement stream should stay active');
 });
@@ -204,7 +237,7 @@ test('logs collector restarts stream after callback error while ROS remains conn
       },
     };
   };
-  const collector = new LogsCollector({ ros, io: { emit() {} }, state: {} });
+  const collector = new LogsCollector({ ros, io: { emit() {} }, state: {}, _restartDelayMs: 50 });
   collector.start();
 
   callbacks[0](new Error('connection lost'), null);
@@ -212,8 +245,8 @@ test('logs collector restarts stream after callback error while ROS remains conn
   assert.equal(stopCalls, 1, 'stale stream should be stopped before restart');
   assert.equal(streamCalls, 1, 'restart is delayed, not immediate');
 
-  // Fast-forward the 2s restart delay
-  await new Promise(r => setTimeout(r, 2100));
+  // Fast-forward the restart delay
+  await new Promise(r => setTimeout(r, 100));
   assert.equal(streamCalls, 2, 'stream should restart after delay');
   assert.ok(collector.stream, 'replacement stream should be active');
 });
@@ -255,15 +288,15 @@ test('dhcp leases collector restarts stream after callback error and preserves s
       },
     };
   };
-  const collector = new DhcpLeasesCollector({ ros, io, pollMs: 15000, state: {} });
+  const collector = new DhcpLeasesCollector({ ros, io, pollMs: 15000, state: {}, _restartDelayMs: 50 });
   await collector.start();
 
   callbacks[0](new Error('listen lost'), null);
   assert.equal(stopCalls, 1, 'failed stream should be stopped before restart');
   assert.equal(streamCalls, 1, 'restart is delayed, not immediate');
 
-  // Fast-forward the 2s restart delay
-  await new Promise(r => setTimeout(r, 2100));
+  // Fast-forward the restart delay
+  await new Promise(r => setTimeout(r, 100));
   assert.equal(streamCalls, 2, 'stream should restart after delay');
 
   callbacks[1](null, { address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'laptop' });
@@ -376,7 +409,7 @@ test('ROS client write normalizes null result to empty array', async () => {
 test('polling collector resets inflight state after tick catches an internal error', async () => {
   // All collectors catch errors inside tick() rather than propagating them —
   // this test verifies that _inflight is always reset so subsequent ticks can run.
-  await withPatchedIntervals(async (timers) => {
+  await withPatchedTimers(async (timers) => {
     const ros = mockROS(async () => []);
     const io = { emit() {} };
     const state = {};
@@ -403,31 +436,38 @@ test('polling collector resets inflight state after tick catches an internal err
 
 test('system collector still emits data when package/update query fails', async () => {
   const emitted = [];
+  const fakeStream = new EventEmitter();
+  fakeStream.stop = () => Promise.resolve();
   const ros = mockROS(async (cmd) => {
-    if (cmd.includes('resource')) return [{ 'cpu-load': '25', 'total-memory': '1000000', 'free-memory': '750000', version: '7.16' }];
-    if (cmd.includes('health')) return [];
-    if (cmd.includes('update')) throw new Error('no such command');
+    if (cmd.includes('update') || cmd.includes('package')) throw new Error('no such command');
     return [];
   });
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
-  const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
-  await collector.tick();
-
-  assert.equal(emitted.length, 1);
-  assert.equal(emitted[0].data.cpuLoad, 25);
-  assert.equal(emitted[0].data.updateAvailable, false);
-  assert.equal(emitted[0].data.latestVersion, '');
+  ros.stream = () => fakeStream;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  await withPatchedIntervals(async () => {
+    const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
+    collector.start();
+    fakeStream.emit('data', { 'cpu-load': '25', 'total-memory': '1000000', 'free-memory': '750000', version: '7.16' });
+    assert.equal(emitted.length, 1);
+    assert.equal(emitted[0].data.cpuLoad, 25);
+    assert.equal(emitted[0].data.updateAvailable, false);
+    assert.equal(emitted[0].data.latestVersion, '');
+    collector.stop();
+  });
 });
 
 test('system collector skips tick when ros is not connected', async () => {
   const emitted = [];
-  const ros = mockROS(async () => { assert.fail('should not be called'); });
+  const ros = mockROS(async () => []);
   ros.connected = false;
-  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
-  const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
-  await collector.tick();
-
-  assert.equal(emitted.length, 0);
+  ros.stream = () => ({ stop() {}, on() {} });
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  await withPatchedIntervals(async () => {
+    const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
+    collector.start();
+    assert.equal(emitted.length, 0);
+    collector.stop();
+  });
 });
 
 test('traffic collector rejects interface selection before whitelist is loaded', () => {
@@ -534,7 +574,12 @@ test('dhcp networks collector deduplicates LAN CIDRs', async () => {
 // ═══════════════════════════════════════════════════════════════════════════
 const RoutingCollector = require('../src/collectors/routing');
 
-test('routing collector start() opens both route and BGP session streams', async () => {
+// Helper: minimal io mock that supports the to(room).emit() pattern used by routing.
+function routingIo(collector) {
+  return { emit() {}, to(room) { return { emit() {} }; } };
+}
+
+test('routing collector resume() opens both route and BGP session streams', async () => {
   return withPatchedIntervals(async () => {
     let routeStreamOpened = false;
     let bgpStreamOpened   = false;
@@ -550,30 +595,29 @@ test('routing collector start() opens both route and BGP session streams', async
       return { stop() {} };
     };
 
-    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
-    await collector.start();
+    const collector = new RoutingCollector({ ros, io: routingIo(), pollMs: 10000, state: {} });
+    collector.start(); // no-op — listeners registered in constructor
+    await collector.resume();
 
-    assert.ok(printCalled,       '/ip/route/print called on start');
+    assert.ok(printCalled,       '/ip/route/print called on resume');
     assert.ok(routeStreamOpened, '/ip/route/listen stream opened');
     assert.ok(bgpStreamOpened,   '/routing/bgp/session/listen stream opened');
     assert.equal(collector.timer, null, 'no poll timer — fully streamed');
   });
 });
 
-test('routing collector stop() is a safe no-op (no poll timer)', async () => {
+test('routing collector stop() clears all streams and timers', async () => {
   return withPatchedIntervals(async () => {
     const ros = mockROS(async () => []);
     ros.stream = (w, cb) => ({ stop() {} });
-    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
-    await collector.start();
+    const collector = new RoutingCollector({ ros, io: routingIo(), pollMs: 10000, state: {} });
+    await collector.resume();
 
     assert.equal(collector.timer, null, 'timer is null — no poll loop');
     assert.doesNotThrow(() => collector.stop(), 'stop() must not throw');
-    assert.equal(collector.timer, null);
-
-    // streams still running after stop()
-    assert.ok(collector._routeStream !== null, 'route stream survives stop()');
-    assert.ok(collector._bgpStream   !== null, 'BGP stream survives stop()');
+    assert.equal(collector.timer,        null, 'timer still null after stop');
+    assert.equal(collector._routeStream, null, 'route stream cleared by stop()');
+    assert.equal(collector._bgpStream,   null, 'BGP stream cleared by stop()');
   });
 });
 
@@ -589,8 +633,8 @@ test('routing collector stops all streams on ROS close event', async () => {
       },
     });
 
-    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
-    await collector.start();
+    const collector = new RoutingCollector({ ros, io: routingIo(), pollMs: 10000, state: {} });
+    await collector.resume();
 
     ros.emit('close');
 
@@ -601,7 +645,9 @@ test('routing collector stops all streams on ROS close event', async () => {
   });
 });
 
-test('routing collector restarts both streams on ROS reconnect', async () => {
+test('routing collector resumes streams after ROS reconnect via resume()', async () => {
+  // Routing is page-aware: the connected event calls suspend() to clear state;
+  // index.js calls _updateRoutingStreams() → resume() when the Routing page is open.
   return withPatchedIntervals(async () => {
     let routeStreamCount = 0;
     let bgpStreamCount   = 0;
@@ -617,31 +663,33 @@ test('routing collector restarts both streams on ROS reconnect', async () => {
       return { stop() {} };
     };
 
-    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
-    await collector.start();
+    const collector = new RoutingCollector({ ros, io: routingIo(), pollMs: 10000, state: {} });
+    await collector.resume();
 
-    assert.equal(routeStreamCount, 1, 'route stream opened once on start');
-    assert.equal(bgpStreamCount,   1, 'BGP stream opened once on start');
-    assert.equal(printCount,       1, '/ip/route/print called once on start');
+    assert.equal(routeStreamCount, 1, 'route stream opened once on resume');
+    assert.equal(bgpStreamCount,   1, 'BGP stream opened once on resume');
+    assert.equal(printCount,       1, '/ip/route/print called once on resume');
 
     ros.emit('close');
     await new Promise(r => setTimeout(r, 10));
-    ros.emit('connected');
-    await new Promise(r => setTimeout(r, 20));
+    ros.emit('connected'); // triggers suspend() — state cleared, streams stopped
+    await new Promise(r => setTimeout(r, 10));
+    // Simulate index.js calling _updateRoutingStreams() → resume() for open page
+    await collector.resume();
 
-    assert.equal(routeStreamCount, 2, 'route stream reopened on reconnect');
-    assert.equal(bgpStreamCount,   2, 'BGP stream reopened on reconnect');
-    assert.equal(printCount,       2, '/ip/route/print reloaded on reconnect');
+    assert.equal(routeStreamCount, 2, 'route stream reopened after resume');
+    assert.equal(bgpStreamCount,   2, 'BGP stream reopened after resume');
+    assert.equal(printCount,       2, '/ip/route/print reloaded after resume');
   });
 });
 
 test('routing collector does not accumulate listeners across multiple reconnects', async () => {
-  // Regression: listener count must stay at 1 on every reconnect cycle.
+  // Listeners registered once in constructor — count must stay at 1.
   return withPatchedIntervals(async () => {
     const ros = mockROS(async () => []);
     ros.stream = (w, cb) => ({ stop() {} });
-    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
-    await collector.start();
+    const collector = new RoutingCollector({ ros, io: routingIo(), pollMs: 10000, state: {} });
+    collector.start(); // no-op
 
     const counts = [];
     for (let i = 0; i < 4; i++) {
@@ -666,8 +714,8 @@ test('routing collector route stream error triggers reload and restart after 3s 
     return { stop() {} };
   };
 
-  const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
-  await collector.start();
+  const collector = new RoutingCollector({ ros, io: routingIo(), pollMs: 10000, state: {}, _restartDelayMs: 50 });
+  await collector.resume();
 
   assert.equal(streamCount, 1);
   assert.equal(printCount,  1);
@@ -676,7 +724,7 @@ test('routing collector route stream error triggers reload and restart after 3s 
   assert.equal(collector._routeStream, null, 'stream nulled on error');
   assert.equal(streamCount, 1, 'restart is delayed');
 
-  await new Promise(r => setTimeout(r, 3100));
+  await new Promise(r => setTimeout(r, 100));
   assert.equal(printCount,  2, 'route table reloaded after stream error');
   assert.equal(streamCount, 2, 'new route stream started after reload');
 
@@ -692,15 +740,15 @@ test('routing collector BGP session stream error triggers reload and restart aft
     return { stop() {} };
   };
 
-  const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
-  await collector.start();
+  const collector = new RoutingCollector({ ros, io: routingIo(), pollMs: 10000, state: {}, _restartDelayMs: 50 });
+  await collector.resume();
   assert.equal(bgpStreamCount, 1);
 
   bgpCallbacks[0](new Error('bgp stream dropped'), null);
   assert.equal(collector._bgpStream, null);
   assert.equal(bgpStreamCount, 1, 'restart is delayed');
 
-  await new Promise(r => setTimeout(r, 3100));
+  await new Promise(r => setTimeout(r, 100));
   assert.equal(bgpStreamCount, 2, 'BGP stream restarted after error');
 
   collector.stop();
@@ -716,8 +764,8 @@ test('routing collector BGP stream unavailable on v6/no-BGP — route stream sti
       return { stop() {} };
     };
 
-    const collector = new RoutingCollector({ ros, io: { emit() {} }, pollMs: 10000, state: {} });
-    await collector.start(); // must not throw
+    const collector = new RoutingCollector({ ros, io: routingIo(), pollMs: 10000, state: {} });
+    await collector.resume(); // must not throw
 
     assert.ok(routeStreamOpened,              'route stream opens despite BGP unavailable');
     assert.equal(collector._bgpStream, null,  'bgpStream null when endpoint unavailable');
@@ -727,15 +775,18 @@ test('routing collector BGP stream unavailable on v6/no-BGP — route stream sti
 test('routing collector heartbeat re-emits last payload every 60s', async () => {
   return withPatchedIntervals(async (timers) => {
     const emitted = [];
-    const io = { emit(ev, data) { emitted.push({ ev, data }); } };
+    const io = {
+      emit(ev, data)  { emitted.push({ ev, data }); },
+      to(room)        { return { emit: (ev, data) => emitted.push({ ev, data }) }; },
+    };
     const ros = mockROS(async () => []);
     ros.stream = (w, cb) => ({ stop() {} });
 
     const collector = new RoutingCollector({ ros, io, pollMs: 10000, state: {} });
-    await collector.start();
+    await collector.resume();
     const countBefore = emitted.length;
 
-    // Find the heartbeat timer (60s interval)
+    // Find the heartbeat timer (pollMs interval)
     const heartbeatTimer = timers.find(t => !t.cleared);
     assert.ok(heartbeatTimer, 'heartbeat timer exists');
     heartbeatTimer.cb();
@@ -762,7 +813,14 @@ function makeConnsDeps(rosOverrides = {}) {
   };
   const arp = { getByIP: () => null };
   const dhcpNetworks = { getLanCidrs: () => [] };
-  const io = { engine: { clientsCount: 1 }, emit() {} };
+  // io.sockets.adapter.rooms is accessed by _processRows / _runFallbackTick
+  // when checking page-connections room membership — must not be undefined.
+  const io = {
+    engine: { clientsCount: 1 },
+    emit() {},
+    to() { return { emit() {} }; },
+    sockets: { adapter: { rooms: new Map() } },
+  };
   const state = {};
   return { ros, dhcpLeases, arp, dhcpNetworks, io, state };
 }
@@ -773,12 +831,15 @@ test('ConnectionsCollector has a stop() method that clears the timer', () => {
     const collector = new ConnectionsCollector({
       ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
     });
+    try {
+      collector.start();
+      assert.ok(collector._pollTimer, 'fallback poll timer set after start()');
 
-    collector.start();
-    assert.ok(collector.timer, 'timer should be set after start()');
-
-    collector.stop();
-    assert.equal(collector.timer, null, 'stop() must null the timer');
+      collector.stop();
+      assert.equal(collector._pollTimer, null, 'stop() must null the poll timer');
+    } finally {
+      collector.stop();
+    }
   });
 });
 
@@ -788,12 +849,15 @@ test('ConnectionsCollector stop() is idempotent — safe to call when already st
     const collector = new ConnectionsCollector({
       ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
     });
-
-    assert.doesNotThrow(() => collector.stop(), 'stop() before start() must not throw');
-    collector.start();
-    collector.stop();
-    assert.doesNotThrow(() => collector.stop(), 'double stop() must not throw');
-    assert.equal(collector.timer, null);
+    try {
+      assert.doesNotThrow(() => collector.stop(), 'stop() before start() must not throw');
+      collector.start();
+      collector.stop();
+      assert.doesNotThrow(() => collector.stop(), 'double stop() must not throw');
+      assert.equal(collector._pollTimer, null);
+    } finally {
+      collector.stop();
+    }
   });
 });
 
@@ -803,12 +867,15 @@ test('ConnectionsCollector stops on ROS close event via stop()', () => {
     const collector = new ConnectionsCollector({
       ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
     });
+    try {
+      collector.start();
+      assert.ok(collector._pollTimer, 'poll timer set after start()');
 
-    collector.start();
-    assert.ok(collector.timer, 'timer set after start()');
-
-    ros.emit('close');
-    assert.equal(collector.timer, null, 'close event must clear timer via stop()');
+      ros.emit('close');
+      assert.equal(collector._pollTimer, null, 'close event must clear poll timer');
+    } finally {
+      collector.stop();
+    }
   });
 });
 
@@ -818,15 +885,16 @@ test('ConnectionsCollector restarts on ROS connected event', () => {
     const collector = new ConnectionsCollector({
       ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
     });
+    try {
+      collector.start();
+      ros.emit('close');
+      assert.equal(collector._pollTimer, null, 'poll timer cleared on close');
 
-    collector.start();
-    ros.emit('close');
-    assert.equal(collector.timer, null, 'timer cleared on close');
-
-    ros.emit('connected');
-    assert.ok(collector.timer, 'timer restored after connected event');
-
-    collector.stop();
+      ros.emit('connected');
+      assert.ok(collector._pollTimer, 'poll timer restored after connected event');
+    } finally {
+      collector.stop();
+    }
   });
 });
 
@@ -856,49 +924,54 @@ test('ConnectionsCollector does not double-start when connected fires while alre
     const collector = new ConnectionsCollector({
       ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
     });
+    try {
+      collector.start();
+      assert.ok(collector._pollTimer, 'poll timer set after start()');
 
-    collector.start();
-    assert.ok(collector.timer, 'timer set after start()');
+      // Simulate connected firing while already running — stop() then start(),
+      // so there is still exactly one active watchdog interval (setInterval).
+      ros.emit('connected');
 
-    // Simulate connected firing while already running (e.g. a reconnect).
-    // The _started flag is true, so the handler stops the old interval and
-    // starts a fresh one — never two concurrent intervals.
-    ros.emit('connected');
-
-    assert.ok(collector.timer, 'a timer is still active after connected');
-    assert.equal(timers.filter(t => !t.cleared).length, 1, 'exactly one active interval after reconnect');
-
-    collector.stop();
+      assert.ok(collector._pollTimer, 'poll timer still active after connected');
+      assert.equal(timers.filter(t => t.isInterval && !t.cleared).length, 1, 'exactly one active watchdog interval after reconnect');
+    } finally {
+      collector.stop();
+    }
   });
 });
 
 test('ConnectionsCollector inflight guard prevents overlapping ticks', async () => {
-  return withPatchedIntervals(async (timers) => {
-    const { ros, dhcpLeases, arp, dhcpNetworks, io, state } = makeConnsDeps();
-    const collector = new ConnectionsCollector({
-      ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
-    });
-
-    let tickCount = 0;
-    let releaseTick;
-    const pendingTick = new Promise(resolve => { releaseTick = resolve; });
-    collector.tick = async function () { tickCount++; await pendingTick; };
-
-    collector.start();
-    assert.equal(tickCount, 1, 'first tick fires on start()');
-
-    await timers[0].cb();
-    assert.equal(tickCount, 1, 'interval tick no-ops while first run is inflight');
-
-    releaseTick();
-    await pendingTick;
-    await Promise.resolve();
-
-    await timers[0].cb();
-    assert.equal(tickCount, 2, 'next interval runs after inflight resets');
-
-    collector.stop();
+  const { ros, dhcpLeases, arp, dhcpNetworks, io, state } = makeConnsDeps();
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
   });
+  try {
+    let writeCount = 0;
+    let releaseWrite;
+    const slowWrite = new Promise(res => { releaseWrite = res; });
+    ros.write = async () => { writeCount++; await slowWrite; return []; };
+
+    // Start first tick — it holds inside ros.write
+    const firstTick = collector._runFallbackTick();
+    assert.equal(writeCount, 1, 'first tick started a ros.write');
+    assert.equal(collector._fallbackInflight, true, 'inflight flag set while tick runs');
+
+    // Second concurrent call must be a no-op while first is in flight
+    await collector._runFallbackTick();
+    assert.equal(writeCount, 1, 'second call blocked by inflight guard');
+
+    // Release first tick and verify flag clears
+    releaseWrite();
+    await firstTick;
+    assert.equal(collector._fallbackInflight, false, 'inflight flag cleared after tick completes');
+
+    // A fresh tick can now proceed
+    ros.write = async () => { writeCount++; return []; };
+    await collector._runFallbackTick();
+    assert.equal(writeCount, 2, 'tick proceeds after inflight cleared');
+  } finally {
+    collector.stop();
+  }
 });
 
 test('ConnectionsCollector updates state timestamps and clears error on success', async () => {
@@ -910,7 +983,7 @@ test('ConnectionsCollector updates state timestamps and clears error on success'
   });
 
   state.lastConnsErr = 'stale error';
-  await collector.tick();
+  await collector._runFallbackTick();
 
   assert.ok(state.lastConnsTs > 0, 'lastConnsTs updated on success');
   assert.equal(state.lastConnsErr, null, 'lastConnsErr cleared on success');
@@ -931,7 +1004,9 @@ function makeBandwidthDeps(rosOverrides = {}) {
   const arp = { getByIP: () => null };
   const dhcpNetworks = { getLanCidrs: () => [] };
   const ifStatus = { lastPayload: null };
-  const io = { engine: { clientsCount: 1 }, emit() {} };
+  const _toChain = { emit() {} };
+  _toChain.to = () => _toChain;
+  const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _toChain };
   const state = {};
   return { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state };
 }
@@ -1049,11 +1124,11 @@ test('BandwidthCollector does not double-start when connected fires while alread
 });
 
 test('BandwidthCollector updates state timestamps and clears error on success', async () => {
-  const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps({
-    write: async () => [],
-  });
+  const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps();
+  // tick() exits early when snapshot timestamp hasn't changed; provide a cache with a real ts
+  const connTableCache = { latestWithTs: () => ({ rows: [], ts: Date.now() }) };
   const collector = new BandwidthCollector({
-    ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state,
+    ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache,
   });
 
   state.lastBandwidthErr = 'stale error';
@@ -1064,19 +1139,19 @@ test('BandwidthCollector updates state timestamps and clears error on success', 
 });
 
 test('BandwidthCollector records error in state on tick failure', async () => {
-  const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps({
-    write: async () => { throw new Error('ros timeout'); },
-  });
+  const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps();
+  // Make the cache throw so tick() propagates an error that start()'s run() wrapper records
+  const connTableCache = { latestWithTs: () => { throw new Error('cache read error'); } };
   const collector = new BandwidthCollector({
-    ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state,
+    ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache,
   });
 
-  // tick() itself surfaces the error; start()'s run() wrapper records it
-  return withPatchedIntervals(async (timers) => {
+  return withPatchedIntervals(async () => {
     collector.start();
-    // Let the first run finish
-    await new Promise(r => setTimeout(r, 10));
-    assert.match(state.lastBandwidthErr, /ros timeout/, 'error recorded in state on tick failure');
+    // tick() throws synchronously before any await — one microtask turn is enough
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.match(state.lastBandwidthErr, /cache read error/, 'error recorded in state on tick failure');
     collector.stop();
   });
 });
@@ -1087,7 +1162,12 @@ test('BandwidthCollector records error in state on tick failure', async () => {
 
 test('idle-gated collector skips tick when no browser clients connected', async () => {
   const { ros, dhcpLeases, arp, dhcpNetworks, state } = makeConnsDeps();
-  const io = { engine: { clientsCount: 0 }, emit() { assert.fail('must not emit when idle'); } };
+  const io = {
+    engine: { clientsCount: 0 },
+    emit() { assert.fail('must not emit when idle'); },
+    to() { return { emit() {} }; },
+    sockets: { adapter: { rooms: new Map() } },
+  };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
   });
@@ -1099,7 +1179,12 @@ test('idle-gated collector skips tick when no browser clients connected', async 
 test('idle-gated collector resumes when a client connects', async () => {
   const emitted = [];
   const { ros, dhcpLeases, arp, dhcpNetworks, state } = makeConnsDeps();
-  const io = { engine: { clientsCount: 0 }, emit(ev, d) { emitted.push({ ev, d }); } };
+  const io = {
+    engine: { clientsCount: 0 },
+    emit(ev, d) { emitted.push({ ev, d }); },
+    to() { return { emit() {} }; },
+    sockets: { adapter: { rooms: new Map() } },
+  };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
   });
@@ -1119,7 +1204,12 @@ test('dirty-check suppresses emit when connections data is unchanged', async () 
       { '.id': '*1', 'src-address': '192.168.1.10', 'dst-address': '1.1.1.1', protocol: 'tcp', 'dst-port': '443' },
     ],
   });
-  const io = { engine: { clientsCount: 1 }, emit(ev, d) { emitted.push({ ev, d }); } };
+  const io = {
+    engine: { clientsCount: 1 },
+    emit(ev, d) { emitted.push({ ev, d }); },
+    to() { return { emit() {} }; },
+    sockets: { adapter: { rooms: new Map() } },
+  };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
   });
@@ -1146,7 +1236,12 @@ test('dirty-check emits when connections data changes', async () => {
   ros.write = async () => [
     { '.id': '*1', 'src-address': srcIp, 'dst-address': '1.1.1.1', protocol: 'tcp', 'dst-port': '443' },
   ];
-  const io = { engine: { clientsCount: 1 }, emit(ev, d) { emitted.push({ ev, d }); } };
+  const io = {
+    engine: { clientsCount: 1 },
+    emit(ev, d) { emitted.push({ ev, d }); },
+    to() { return { emit() {} }; },
+    sockets: { adapter: { rooms: new Map() } },
+  };
   const collector = new ConnectionsCollector({
     ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
   });
@@ -1154,36 +1249,45 @@ test('dirty-check emits when connections data changes', async () => {
   await collector.tick();
   assert.equal(emitted.length, 1, 'first tick emits');
 
-  // New source IP changes topSources fingerprint → second emit fires
+  // New source IP changes topSources fingerprint → second emit fires.
+  // Reset lastPayload so tick() doesn't short-circuit (it defers to the stream
+  // when lastPayload is set; in tests we simulate a fresh poll cycle instead).
   srcIp = '192.168.1.99';
+  collector.lastPayload = null;
   await collector.tick();
   assert.equal(emitted.length, 2, 'emits again when source IP changes');
 });
 
 // ── stop() coverage for newly-added stop() methods ───────────────────────────
 
-test('PingCollector stop() clears timer', () => {
+test('PingCollector stop() clears stream', () => {
   return withPatchedIntervals(async () => {
     const PingCollector = require('../src/collectors/ping');
+    const fakeStream = new EventEmitter();
+    fakeStream.stop = () => Promise.resolve();
     const ros = mockROS(async () => []);
-    const io = { emit() {} };
+    ros.stream = () => fakeStream;
+    const io = { emit() {}, on() {} };
     const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
     collector.start();
-    assert.ok(collector.timer, 'timer set after start');
+    assert.ok(collector._stream, 'stream set after start');
     collector.stop();
-    assert.equal(collector.timer, null, 'timer cleared by stop()');
+    assert.equal(collector._stream, null, 'stream cleared by stop()');
   });
 });
 
-test('SystemCollector stop() clears timer', () => {
+test('SystemCollector stop() clears health timer', () => {
   return withPatchedIntervals(async () => {
+    const fakeStream = new EventEmitter();
+    fakeStream.stop = () => Promise.resolve();
     const ros = mockROS(async () => []);
-    const io = { emit() {} };
+    ros.stream = () => fakeStream;
+    const io = { engine: { clientsCount: 1 }, emit() {} };
     const collector = new SystemCollector({ ros, io, pollMs: 10000, state: {} });
     collector.start();
-    assert.ok(collector.timer, 'timer set after start');
+    assert.ok(collector._healthTimer, 'health timer set after start');
     collector.stop();
-    assert.equal(collector.timer, null, 'timer cleared by stop()');
+    assert.equal(collector._healthTimer, null, 'health timer cleared by stop()');
   });
 });
 

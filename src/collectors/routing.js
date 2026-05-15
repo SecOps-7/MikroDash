@@ -25,11 +25,12 @@ const HISTORY_LEN = 60;
 const safeInt = (v) => parseInt(v || '0', 10) || 0;
 
 class RoutingCollector {
-  constructor({ ros, io, pollMs, state }) {
+  constructor({ ros, io, pollMs, state, _restartDelayMs }) {
     this.ros    = ros;
     this.io     = io;
     this.pollMs = pollMs || 10000;
     this.state  = state;
+    this._restartDelayMs = _restartDelayMs || 3000;
     this.timer  = null; // unused — kept so shutdown loop / settings code are safe
 
     // Route table — keyed by RouterOS .id for O(1) stream delta updates
@@ -60,6 +61,15 @@ class RoutingCollector {
     this._bgpRestartTimer   = null;
 
     this._heartbeat = null;
+    this._resuming  = false;
+
+    ros.on('close', () => {
+      this._stopAllStreams();
+      this._stopHeartbeat();
+    });
+    // On reconnect, clear state — index.js _updateRoutingStreams() calls
+    // resume() if the Routing page is still open.
+    ros.on('connected', () => this.suspend());
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -291,7 +301,7 @@ class RoutingCollector {
     this.lastPayload          = payload;
     this.state.lastRoutingTs  = now;
     this.state.lastRoutingErr = null;
-    this.io.emit('routing:update', payload);
+    this.io.to('page-routing').emit('routing:update', payload);
   }
 
   // ── initial data load ─────────────────────────────────────────────────────
@@ -363,7 +373,7 @@ class RoutingCollector {
               await this._loadRoutes();
               this._emit(null);
               this._startRouteStream();
-            }, 3000);
+            }, this._restartDelayMs);
           }
           return;
         }
@@ -408,7 +418,7 @@ class RoutingCollector {
               }
               this._emit(null);
               this._startIPv6Stream();
-            }, 3000);
+            }, this._restartDelayMs);
           }
           return;
         }
@@ -448,7 +458,7 @@ class RoutingCollector {
               await this._loadPeerCfg();
               this._emit(this._buildPeers());
               this._startBgpStream();
-            }, 3000);
+            }, this._restartDelayMs);
           }
           return;
         }
@@ -489,7 +499,7 @@ class RoutingCollector {
   _startHeartbeat() {
     if (this._heartbeat) return;
     this._heartbeat = setInterval(() => {
-      if (this.lastPayload) this.io.emit('routing:update', { ...this.lastPayload, ts: Date.now() });
+      if (this.lastPayload) this.io.to('page-routing').emit('routing:update', { ...this.lastPayload, ts: Date.now() });
     }, this.pollMs);
   }
 
@@ -499,43 +509,47 @@ class RoutingCollector {
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
-  stop() {
+  start() {
+    // ROS listeners are registered in the constructor.
+    // Data loading is deferred to resume(), which is called by
+    // _updateRoutingStreams() in index.js when the Routing page becomes visible.
+  }
+
+  suspend() {
+    this._resuming = false;
     this._stopAllStreams();
     this._stopHeartbeat();
+    this._routes.clear();
+    this._sessions.clear();
+    this._sessionsFp = '';
+    this._peerCfg.clear();
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 
-  async start() {
-    await this._loadRoutes();
-    await this._loadBgpSessions();
-    await this._loadPeerCfg();
-    this._emit(this._buildPeers());
-
-    this._startRouteStream();
-    this._startIPv6Stream();
-    this._startBgpStream();
-    this._startHeartbeat();
-
-    this.ros.on('close', () => {
-      this._stopAllStreams();
-      this._stopHeartbeat();
-    });
-    this.ros.on('connected', async () => {
-      this._stopAllStreams();
-      this._stopHeartbeat();
-      this._peerState.clear();
-      this._sessions.clear();
-      this._sessionsFp = '';
-      this._routes.clear();
+  async resume() {
+    if (this._resuming) return;
+    if (this._routeStream || this._ipv6Stream || this._bgpStream) return;
+    if (!this.ros.connected) return;
+    this._resuming = true;
+    try {
       await this._loadRoutes();
       await this._loadBgpSessions();
       await this._loadPeerCfg();
+      if (!this._resuming) return; // suspend() was called during the load
       this._emit(this._buildPeers());
       this._startRouteStream();
       this._startIPv6Stream();
       this._startBgpStream();
       this._startHeartbeat();
-    });
+    } finally {
+      this._resuming = false;
+    }
+  }
+
+  stop() {
+    this._stopAllStreams();
+    this._stopHeartbeat();
+    if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 }
 
