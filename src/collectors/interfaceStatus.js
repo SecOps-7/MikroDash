@@ -158,7 +158,8 @@ class InterfaceStatusCollector {
     this._stopMonitorStream();
     if (!this.ros.connected) return;
 
-    const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+    // /interface/monitor-traffic rejects intervals > 5s ("value of interval is out of range")
+    const intervalSec = Math.max(1, Math.min(5, Math.round(this.pollMs / 1000)));
     console.log('[ifstatus] starting monitor-traffic stream,', names.length, 'interfaces, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
       '/interface/monitor-traffic',

@@ -4,6 +4,10 @@ All notable changes to MikroDash will be documented in this file.
 
 ## [0.5.37] — Test suite overhaul, tooling fixes, CHR/VM stream freeze fix
 
+### Fixed (post-release patch #3)
+
+- **Interface rate sparklines broken when `pollIfstatus` > 5 s** — `/interface/monitor-traffic` on RouterOS hard-limits the `=interval=` parameter to ≤ 5 s. Any user who set the Interface Status poll interval above 5 s in the Settings UI received a `"value of interval is out of range"` error every 60 s (triggered by the meta-stream refresh) and got no per-interface rate data. Fix: cap the derived `intervalSec` at 5 in `_startMonitorStream()` so the stream always opens successfully regardless of the configured `pollMs`.
+
 ### Fixed (post-release patch #2)
 
 - **CHR/VM logs stream hammers API every 2 s (issue #38 follow-up)** — the logs collector restarted `/log/listen` at a fixed 2-second interval with no backoff. On CHR/VM instances where `/log/listen` returns an immediate error, this produced ~30 failed stream-open attempts per minute, keeping RouterOS API handler threads permanently busy. Under that pressure the CHR's limited handler pool (2–4 threads) could not service restarts for other streams (traffic, netwatch), leaving them permanently dead even though the TCP connection stayed healthy. Fix: exponential backoff for the restart timer — 2 s → 4 s → 8 s → … → 5 min cap. The backoff resets to 2 s on the first successfully received log entry and on every fresh ROS reconnect, so routers where `/log/listen` does work are unaffected.
