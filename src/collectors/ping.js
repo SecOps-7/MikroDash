@@ -22,6 +22,7 @@ class PingCollector {
     this.ros    = ros;
     this.io     = io;
     this.pollMs = pollMs || 5000;
+    this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 5000;
     this.state  = state;
     this.target = target || '1.1.1.1';
     this.streamMode = streamMode !== false; // default true
@@ -141,7 +142,7 @@ class PingCollector {
         await this._pollPingOnce();
         this._schedulePingNext();
       }
-    }, Math.max(500, Math.min(60_000, this.pollMs)));
+    }, this._pollDelayMs);
   }
 
   _processPacket(packet) {

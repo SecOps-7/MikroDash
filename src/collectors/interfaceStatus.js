@@ -37,6 +37,7 @@ class InterfaceStatusCollector {
     this.io         = io;
     const _iPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
     this.pollMs     = Math.max(500, Math.min(60000, _iPoll)); // rate stream + emit timer interval
+    this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 5000;
     this.metaPollMs = metaPollMs || 60000; // metadata streams interval
     this.state      = state;
     this.streamMode = streamMode !== false; // default true
@@ -101,7 +102,7 @@ class InterfaceStatusCollector {
         await this._pollRatesOnce();
         this._scheduleRatesNext();
       }
-    }, Math.max(500, Math.min(60_000, this.pollMs)));
+    }, this._pollDelayMs);
   }
 
   _startRatesPoll() {

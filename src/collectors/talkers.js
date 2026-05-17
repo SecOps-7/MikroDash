@@ -18,6 +18,7 @@ class TopTalkersCollector {
     this.ros    = ros;
     this.io     = io;
     this.pollMs = pollMs;
+    this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 3000;
     this.state  = state;
     this.topN   = topN || 5;
     this.streamMode = streamMode !== false; // default true
@@ -216,7 +217,7 @@ class TopTalkersCollector {
         await this._pollTalkersOnce();
         this._scheduleTalkersNext();
       }
-    }, Math.max(500, Math.min(60_000, this.pollMs)));
+    }, this._pollDelayMs);
   }
 
   _startTalkers() {

@@ -26,6 +26,7 @@ class BandwidthCollector {
     this.io           = io;
     const _bPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 3000;
     this.pollMs       = Math.max(500, Math.min(60000, _bPoll));
+    this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 3000;
     this.dhcpNetworks = dhcpNetworks;
     this.dhcpLeases   = dhcpLeases;
     this.arp          = arp;
@@ -279,7 +280,7 @@ class BandwidthCollector {
         this.timer = null;
         await _run();
         _scheduleNext();
-      }, Math.max(500, Math.min(60_000, this.pollMs)));
+      }, this._pollDelayMs);
     };
 
     const _run = async () => {
