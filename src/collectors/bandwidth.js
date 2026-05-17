@@ -16,6 +16,10 @@ try { geoip = require('geoip-lite'); } catch (_) {}
 const bpsToMbps = (bytes, dtMs) =>
   dtMs > 0 ? +((bytes * 8) / (dtMs / 1000) / 1_000_000).toFixed(4) : 0;
 
+// Hoisted out of the hot per-connection loop — avoids allocating a new array
+// on every iteration when lanCidrs is empty (potentially thousands of times/tick).
+const RFC1918 = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16'];
+
 class BandwidthCollector {
   constructor({ ros, io, pollMs, dhcpNetworks, dhcpLeases, arp, ifStatus, state, geoLookup, connTableCache, geoOrgCache }) {
     this.ros          = ros;
@@ -36,9 +40,11 @@ class BandwidthCollector {
     this._orgCache    = geoOrgCache ? geoOrgCache.org : new Map(); // ip -> org string | null
     this.timer        = null;
     this._inflight    = false;
+    this._stopping    = false;
     this.lastPayload  = null;
     this._lastFp      = '';
     this._lastSnapshotTs = 0; // tracks the connTableCache snapshot timestamp to detect cache hits
+    this._lastIfaceTs    = 0; // fingerprint to detect ifStatus payload changes for cache invalidation
     // Set to true by start(), never reset. Allows the connected handler to
     // distinguish the initial connect (where startCollectors() calls start()
     // explicitly) from a reconnect after a close event.
@@ -94,6 +100,11 @@ class BandwidthCollector {
   // Avoids iterating all interface CIDRs for every connection every tick.
 
   _resolveIface(ip) {
+    const currentTs = (this.ifStatus && this.ifStatus.lastPayload && this.ifStatus.lastPayload.ts) || 0;
+    if (currentTs !== this._lastIfaceTs) {
+      this._ifaceCache.clear();
+      this._lastIfaceTs = currentTs;
+    }
     if (this._ifaceCache && this._ifaceCache.has(ip)) return this._ifaceCache.get(ip);
     if (!this.ifStatus || !this.ifStatus.lastPayload) return '';
     const ifaces = this.ifStatus.lastPayload.interfaces || [];
@@ -177,7 +188,6 @@ class BandwidthCollector {
 
       // Only include LAN sources. If lanCidrs isn't populated yet, fall back to
       // RFC-1918 ranges so the page isn't blank on first load.
-      const RFC1918 = ['10.0.0.0/8','172.16.0.0/12','192.168.0.0/16'];
       const activeCidrs = (lanCidrs && lanCidrs.length) ? lanCidrs : RFC1918;
       if (!src || !isInCidrs(src, activeCidrs)) continue;
 
@@ -254,27 +264,42 @@ class BandwidthCollector {
   }
 
   stop() {
-    if (this.timer) { clearInterval(this.timer); this.timer = null; }
+    this._stopping = true;
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    this._inflight = false;
   }
 
   start() {
+    this._stopping = false;
     this._started = true;
-    const run = async () => {
+
+    const _scheduleNext = () => {
+      if (this._stopping) return;
+      this.timer = setTimeout(async () => {
+        this.timer = null;
+        await _run();
+        _scheduleNext();
+      }, this.pollMs);
+    };
+
+    const _run = async () => {
       if (this._inflight) return;
       this._inflight = true;
       try { await this.tick(); } catch (e) {
         const msg = String(e && e.message ? e.message : e);
         // 'no such item' is a transient RouterOS error when a connection table
         // entry disappears between query and response — harmless, suppress it.
-        if (msg.includes('no such item')) return;
-        this.state.lastBandwidthErr = msg;
-        console.error('[bandwidth]', msg);
-      } finally { this._inflight = false; }
+        if (!msg.includes('no such item')) {
+          this.state.lastBandwidthErr = msg;
+          console.error('[bandwidth]', msg);
+        }
+      } finally {
+        this._inflight = false;
+      }
     };
-    // Set the timer before the first run so the close handler can always
-    // find and clear it, even if run() resolves synchronously.
-    this.timer = setInterval(run, this.pollMs); // codeql[js/resource-exhaustion]
-    run();
+
+    _run(); // immediate first run (async, does not block timer setup)
+    _scheduleNext(); // synchronously sets this.timer for next poll
   }
 }
 

@@ -42,6 +42,7 @@ class TrafficCollector {
     this.availableIfs  = new Set();  // validated set from fetchInterfaces()
     this._loggedErr    = false;
     this._restartTimer = null;
+    this.lastWanStatus = null;
   }
 
   _ensureHistory(ifName) {
@@ -164,14 +165,20 @@ class TrafficCollector {
   }
 
   _processPacket(ifName, data) {
-    if (this.io.engine.clientsCount === 0) return;
-
     const rxBps    = parseBps(data['rx-bits-per-second']);
     const txBps    = parseBps(data['tx-bits-per-second']);
     const running  = data.running  !== 'false' && data.running  !== false;
     const disabled = data.disabled === 'true'  || data.disabled === true;
 
     const now    = Date.now();
+
+    // Always update WAN status regardless of idle state (cheap, needed for replay)
+    if (ifName === this.defaultIf) {
+      this.lastWanStatus = { ifName, ts: now, running, disabled };
+    }
+
+    if (this.io.engine.clientsCount === 0) return;
+
     const sample = { ifName, ts: now, rx_mbps: bpsToMbps(rxBps), tx_mbps: bpsToMbps(txBps), running, disabled };
 
     this._ensureHistory(ifName);
@@ -182,7 +189,7 @@ class TrafficCollector {
     }
 
     if (ifName === this.defaultIf) {
-      this.io.emit('wan:status', { ifName, ts: now, running, disabled });
+      this.io.emit('wan:status', this.lastWanStatus);
     }
 
     this.state.lastTrafficTs  = now;

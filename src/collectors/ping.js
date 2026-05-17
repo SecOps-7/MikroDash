@@ -145,8 +145,6 @@ class PingCollector {
   }
 
   _processPacket(packet) {
-    if (this.io.engine.clientsCount === 0) { this._stopStream(); return; }
-
     const replied = !packet.status || packet.status === 'replied';
     const rtt     = replied ? this._parseRtt(packet.time || packet['response-time']) : null;
 
@@ -159,14 +157,19 @@ class PingCollector {
     const point = { ts: Date.now(), rtt, loss };
     this.history.push(point);
 
+    // Always update lastPayload so new clients get fresh replayed data.
     const fp = `${this.target}|${rtt}|${loss}`;
     this.lastPayload = { target: this.target, rtt, loss, ts: point.ts, pollMs: this.pollMs };
+    this.state.lastPingTs  = Date.now();
+    this.state.lastPingErr = null;
+
+    // Suppress emit when no clients — stream keeps running so lastPayload stays current.
+    if (this.io.engine.clientsCount === 0) return;
+
     if (fp !== this._lastFp) {
       this._lastFp = fp;
       this.io.emit('ping:update', this.lastPayload);
     }
-    this.state.lastPingTs  = Date.now();
-    this.state.lastPingErr = null;
   }
 
   getHistory() {

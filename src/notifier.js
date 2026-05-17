@@ -1,5 +1,6 @@
 'use strict';
-const https = require('https');
+const https      = require('https');
+const nodemailer = require('nodemailer');
 
 function _httpsPost(hostname, path, headers, body) {
   return new Promise((resolve, reject) => {
@@ -18,7 +19,7 @@ function _httpsPost(hostname, path, headers, body) {
       res.on('data', c => { raw += c; });
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) resolve(raw);
-        else reject(new Error(`HTTP ${res.statusCode}: ${raw.slice(0, 200)}`));
+        else reject(new Error(`HTTP ${res.statusCode}`));
       });
     });
     req.on('error', reject);
@@ -47,7 +48,6 @@ async function sendPushbullet(apiKey, title, body) {
 }
 
 async function sendSmtp(settings, title, body) {
-  const nodemailer = require('nodemailer');
   const transport = nodemailer.createTransport({
     host:   settings.smtpHost,
     port:   settings.smtpPort || 587,
@@ -56,12 +56,16 @@ async function sendSmtp(settings, title, body) {
               ? { user: settings.smtpUser, pass: settings.smtpPass }
               : undefined,
   });
-  await transport.sendMail({
-    from:    settings.smtpFrom,
-    to:      settings.smtpTo,
-    subject: title,
-    text:    body,
-  });
+  try {
+    await transport.sendMail({
+      from:    settings.smtpFrom,
+      to:      settings.smtpTo,
+      subject: title,
+      text:    body,
+    });
+  } finally {
+    transport.close();
+  }
 }
 
 async function send(settings, title, body) {
@@ -71,7 +75,7 @@ async function send(settings, title, body) {
       await sendTelegram(settings.telegramBotToken, settings.telegramChatId, title, body);
     } catch (e) {
       errs.push('Telegram: ' + e.message);
-      console.error('[notifier] Telegram error:', e.message);
+      console.error('[notifier] Telegram error: HTTP', e.message);
     }
   }
   if (settings.pushbulletEnabled && settings.pushbulletApiKey) {
@@ -79,7 +83,7 @@ async function send(settings, title, body) {
       await sendPushbullet(settings.pushbulletApiKey, title, body);
     } catch (e) {
       errs.push('Pushbullet: ' + e.message);
-      console.error('[notifier] Pushbullet error:', e.message);
+      console.error('[notifier] Pushbullet error: HTTP', e.message);
     }
   }
   if (settings.smtpEnabled && settings.smtpHost && settings.smtpFrom && settings.smtpTo) {
@@ -87,7 +91,7 @@ async function send(settings, title, body) {
       await sendSmtp(settings, title, body);
     } catch (e) {
       errs.push('SMTP: ' + e.message);
-      console.error('[notifier] SMTP error:', e.message);
+      console.error('[notifier] SMTP error:', e.code || e.message);
     }
   }
   if (errs.length) throw new Error(errs.join('; '));
@@ -109,7 +113,7 @@ async function testChannel(settings, channel) {
     if (!settings.smtpTo)   throw new Error('SMTP To address is not configured');
     await sendSmtp(settings, title, body);
   } else {
-    throw new Error('Unknown channel: ' + channel);
+    throw new Error('Unknown notification channel');
   }
 }
 

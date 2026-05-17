@@ -39,7 +39,10 @@ function getStatusMap() {
 }
 
 function _buildSession(router) {
-  const evaluator = alerter.createEvaluator(() => router.label || router.host);
+  const evaluator = alerter.createEvaluator(
+    () => router.label || router.host,
+    () => router,
+  );
 
   const stubIo = {
     engine: { clientsCount: 1 },
@@ -70,8 +73,10 @@ function _buildSession(router) {
 
   const routerId = router.id;
   let _prevConnected = null;
+  const session = { ros, collectors, evaluator, destroyed: false };
 
   ros.on('connected', () => {
+    if (session.destroyed) return;
     console.log(`[alertSession] ✓ ${router.label} (${router.host})`);
     _statusMap.set(routerId, true);
     if (_mainIo) _mainIo.emit('router:status', { routerId, connected: true });
@@ -93,11 +98,12 @@ function _buildSession(router) {
   ros.on('connectionError', _onDisconnect);
 
   ros.connectLoop();
-  return { ros, collectors, evaluator };
+  return session;
 }
 
 function _stopSession(id, session) {
   console.log(`[alertSession] stopping session for router ${id}`);
+  session.destroyed = true;
   for (const c of session.collectors) {
     if (typeof c.stop === 'function') c.stop();
   }

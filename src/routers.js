@@ -52,8 +52,10 @@ function _loadOrCreateSecret() {
   return generated;
 }
 
+let _cachedKey = null;
 function _deriveKey() {
-  return crypto.scryptSync(_loadOrCreateSecret(), SALT, 32);
+  if (!_cachedKey) _cachedKey = crypto.scryptSync(_loadOrCreateSecret(), SALT, 32);
+  return _cachedKey;
 }
 
 function _encrypt(plaintext) {
@@ -77,7 +79,8 @@ function _decrypt(b64) {
     const dec = crypto.createDecipheriv('aes-256-gcm', key, iv);
     dec.setAuthTag(tag);
     return dec.update(enc) + dec.final('utf8');
-  } catch (_) {
+  } catch (e) {
+    console.warn('[routers] AES-GCM auth tag failure — credential may be corrupt or key changed');
     return '';
   }
 }
@@ -91,7 +94,7 @@ function _uuid() {
 // Strips ROS version suffixes like " · ROS 7.22 (stable)" that may have been
 // written into labels by earlier code iterations. Keeps the display name clean.
 function _cleanLabel(s) {
-  return String(s || '').replace(/\s*[··••].*/,'').trim();
+  return String(s || '').replace(/\s*[·•‧․].*/u, '').trim();
 }
 
 // ── Name uniqueness ───────────────────────────────────────────────────────────
@@ -107,6 +110,15 @@ function _uniqueLabel(label, routers, excludeId = null) {
   let n = 2;
   while (taken.has(`${base} - [${n}]`)) n++;
   return `${base} - [${n}]`;
+}
+
+// ── Input validation ──────────────────────────────────────────────────────────
+const VALID_HOST = /^[a-zA-Z0-9.\-]{1,253}$/;
+
+function _validateHostPort(host, port) {
+  if (!VALID_HOST.test(String(host || '').trim())) throw new Error('Invalid host');
+  const p = Number(port);
+  if (!Number.isInteger(p) || p < 1 || p > 65535) throw new Error('Invalid port');
 }
 
 // ── File I/O ──────────────────────────────────────────────────────────────────
@@ -130,7 +142,9 @@ function _readFile() {
 function _writeFile(routers) {
   _ensureDataDir();
   const toWrite = routers.map(r => ({ ...r, password: _encrypt(r.password || '') }));
-  fs.writeFileSync(ROUTERS_FILE, JSON.stringify(toWrite, null, 2), 'utf8');
+  const tmp = ROUTERS_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(toWrite, null, 2), 'utf8');
+  fs.renameSync(tmp, ROUTERS_FILE);
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -188,6 +202,7 @@ function getById(id) {
  * Returns the saved router object (with generated id, decrypted password).
  */
 function add(data) {
+  _validateHostPort(data.host, data.port !== undefined ? data.port : 8729);
   const routers = loadAll();
   const rawLabel = _cleanLabel((data.label || data.host || 'New Router').slice(0, 64));
   const label    = _uniqueLabel(rawLabel, routers);
@@ -199,7 +214,7 @@ function add(data) {
     tls:           data.tls !== false && data.tls !== 'false',
     tlsInsecure:   !!(data.tlsInsecure || data.tlsInsecure === 'true'),
     username:      String(data.username      || 'admin').trim(),
-    password:      String(data.password      || ''),
+    password:      (data.password && data.password !== '••••••••') ? String(data.password) : '',
     defaultIf:     String(data.defaultIf     || 'ether1').trim(),
     pingTarget:    String(data.pingTarget    || '1.1.1.1').trim(),
     bwDownMbps:    Math.max(1, parseInt(data.bwDownMbps || '1000', 10) || 1000),
@@ -224,6 +239,8 @@ function update(id, data) {
   if (idx === -1) return null;
 
   const existing = routers[idx];
+  if (data.host !== undefined) _validateHostPort(data.host, data.port !== undefined ? data.port : existing.port);
+  else if (data.port !== undefined) _validateHostPort(existing.host, data.port);
   const rawLabel  = data.label !== undefined
     ? _cleanLabel(String(data.label).slice(0, 64))
     : _cleanLabel(existing.label);

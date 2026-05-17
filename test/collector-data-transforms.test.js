@@ -683,7 +683,7 @@ test('talkers collector calculates throughput rate between polls', () => {
   // tx_mbps = rateUp * 8 / 1_000_000; rx_mbps = rateDown * 8 / 1_000_000
   const emitted = [];
   const ros = { connected: true, on() {} };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
 
   // Populate _devicesNext as the stream 'data' event handler does, then commit
@@ -698,7 +698,7 @@ test('talkers collector calculates throughput rate between polls', () => {
 test('talkers collector returns zero rate on counter reset', () => {
   const emitted = [];
   const ros = { connected: true, on() {} };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
 
   // Zero rates reflect an idle device (RouterOS sends rate-up=0/rate-down=0)
@@ -712,7 +712,7 @@ test('talkers collector returns zero rate on counter reset', () => {
 test('talkers collector prunes stale devices', () => {
   const emitted = [];
   const ros = { connected: true, on() {} };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
 
   // Tick 1: two devices

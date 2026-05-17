@@ -58,6 +58,7 @@ class InterfaceStatusCollector {
     this._emitTimer    = null;
     this._ratesTimer   = null;
     this._ratesInflight = false;
+    this._lastFp       = '';
   }
 
   // ── poll-mode rate path ───────────────────────────────────────────────────
@@ -192,8 +193,12 @@ class InterfaceStatusCollector {
       this._ifaces     = this._ifacesNext;
       this._ifacesNext = new Map();
     }
-    // Always swap addresses (empty set is valid — no IPs assigned)
-    this._addrs     = this._addrsNext;
+    // Only swap addresses when the new set is non-empty — an empty _addrsNext
+    // means the address stream tick fired before the data arrived, not that
+    // there are genuinely no IPs assigned. Always reset _addrsNext for the next batch.
+    if (this._addrsNext && this._addrsNext.size > 0) {
+      this._addrs = this._addrsNext;
+    }
     this._addrsNext = new Map();
 
     this._startMonitorStream(); // no-op if already running with same iface set
@@ -310,7 +315,14 @@ class InterfaceStatusCollector {
       });
     }
 
+    const fp = JSON.stringify(interfaces.map(i => ({
+      n: i.name, r: i.running, d: i.disabled,
+      rx: +i.rxMbps.toFixed(2), tx: +i.txMbps.toFixed(2),
+      ips: i.ips,
+    })));
     this.lastPayload = { ts: now, interfaces };
+    if (fp === this._lastFp) return;
+    this._lastFp = fp;
     this.io.emit('ifstatus:update', this.lastPayload);
     this.state.lastIfStatusTs = now;
   }
@@ -340,6 +352,7 @@ class InterfaceStatusCollector {
       this._ifaces.clear();
       this._addrs.clear();
       this._streamRates.clear();
+      this._lastFp = '';
       this._startMetaStreams();
       this._startEmitTimer();
       if (!this.streamMode) this._startRatesPoll();

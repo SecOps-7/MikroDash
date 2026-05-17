@@ -32,6 +32,26 @@ class TopTalkersCollector {
     this._lastFp       = '';
     this._pollTimer    = null;
     this._pollInflight = false;
+
+    // Register lifecycle listeners once in the constructor so they never
+    // accumulate across multiple start() calls (hot-swap safety).
+    io.on('connection', () => {
+      if (this.streamMode && !this._stream) this._startStream();
+    });
+    ros.on('close', () => {
+      this._stopStream();
+      if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+    });
+    ros.on('connected', () => {
+      this._backoffUntil = 0;
+      this._backoffMs    = 60000;
+      this._unavailable  = false;
+      this._lastFp       = '';
+      clearTimeout(this._backoffTimer);
+      this._backoffTimer = null;
+      this._stream = null;
+      this._startTalkers();
+    });
   }
 
   _startStream() {
@@ -211,23 +231,6 @@ class TopTalkersCollector {
 
   start() {
     this._startTalkers();
-    this.io.on('connection', () => {
-      if (this.streamMode && !this._stream) this._startStream();
-    });
-    this.ros.on('close', () => {
-      this._stopStream();
-      if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
-    });
-    this.ros.on('connected', () => {
-      this._backoffUntil = 0;
-      this._backoffMs    = 60000;
-      this._unavailable  = false;
-      this._lastFp       = '';
-      clearTimeout(this._backoffTimer);
-      this._backoffTimer = null;
-      this._stream = null;
-      this._startTalkers();
-    });
   }
 
   suspend() {

@@ -1,5 +1,6 @@
 let geoip = null;
 try { geoip = require('geoip-lite'); } catch(e) { console.warn('[connections] geoip-lite not available, geo lookups disabled'); }
+const settings = require('../settings');
 /**
  * Connections collector — streams /ip/firewall/connection/print interval=N.
  * One persistent stream per session; rows are accumulated per batch (each
@@ -68,12 +69,14 @@ class ConnectionsCollector {
     // Set to true by start(), never reset. Allows the connected handler to
     // distinguish the initial connect from a reconnect after a close event.
     this._started = false;
+    this._restarting = false;
 
     this.ros.on('close',     () => this.stop());
     this.ros.on('connected', () => {
       // Clear geo/org caches on reconnect — IPs may be reassigned.
       this._geoCache.clear();
       this._orgCache.clear();
+      this._restarting = false;
       if (this._started) {
         this._lastFp = '';
         this._lastDetailFp = '';
@@ -120,7 +123,7 @@ class ConnectionsCollector {
     let rows;
     if (looksPartial) {
       this._partialStreak++;
-      const dbg = require('../settings').load().rosDebug;
+      const dbg = this._debug;
       if (this._partialStreak >= PARTIAL_MAX_STREAK) {
         if (dbg) console.warn(`[connections] partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — accepted after ${this._partialStreak} consecutive`);
         this._partialStreak = 0;
@@ -259,6 +262,35 @@ class ConnectionsCollector {
         const cat = org ? _cachedCategory(org) : null;
         return { key, count, country, city, proto, org, cat };
       });
+
+    // Post-pass: fill in geo data for top-destination IPs that were beyond the
+    // maxConns cap and therefore never seen in the main processing loop above.
+    // geoLookup is a synchronous in-process MaxMind lookup — no blocking I/O.
+    if (this.geoLookup) {
+      for (const entry of topDestinations) {
+        if (!entry.country && entry.key) {
+          const ip = extractAddress(entry.key);
+          if (isValidIp(ip)) {
+            if (this._geoCache.has(ip)) {
+              const geo = this._geoCache.get(ip);
+              entry.country = geo.country || '';
+              entry.city    = geo.city    || '';
+            } else {
+              const result = this.geoLookup(ip);
+              const geo = result && result.country
+                ? { country: result.country, city: result.city || '' }
+                : { country: '', city: '' };
+              this._geoCache.set(ip, geo);
+              entry.country = geo.country;
+              entry.city    = geo.city;
+            }
+            if (entry.country && !entry.proto.tcp && !entry.proto.udp && !entry.proto.other) {
+              entry.proto = countryProto.get(entry.country) || {};
+            }
+          }
+        }
+      }
+    }
 
     // Only build per-country and per-source indexes when the connections page is
     // actually open — these structures are the most CPU-intensive part of the tick
@@ -420,7 +452,7 @@ class ConnectionsCollector {
   }
 
   _startStream() {
-    if (this._stream) return;
+    if (this._stream || this._restarting) return;
     if (!this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
     console.log('[connections] streaming interval=' + intervalSec + 's');
@@ -453,7 +485,12 @@ class ConnectionsCollector {
       }
       this._stream = null;
       if (this._started && this.ros.connected) {
-        setTimeout(() => this._startStream(), 3000);
+        if (this._restarting) return;
+        this._restarting = true;
+        setTimeout(() => {
+          this._restarting = false;
+          this._startStream();
+        }, 3000);
       }
     });
   }
@@ -559,6 +596,7 @@ class ConnectionsCollector {
   }
 
   stop() {
+    this._restarting = false;
     this._stopWatchdog();
     this._stopStream();
     this._stopPollFallback();
@@ -569,6 +607,7 @@ class ConnectionsCollector {
   // The fallback poll keeps the dashboard connCard and connTableCache warm.
   start() {
     this._started = true;
+    try { this._debug = !!(settings.load().rosDebug); } catch (_) { this._debug = false; }
     this._startPollFallback();
     this._startWatchdog();
   }

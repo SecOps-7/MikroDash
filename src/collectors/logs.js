@@ -72,6 +72,7 @@ class LogsCollector {
     if (!this.ros.connected) return;
     try {
       this.stream = this.ros.stream(['/log/listen'], (err, data) => this._onEntry(err, data));
+      this._backoffMs = this._restartDelayMs; // reset backoff on successful stream creation
       console.log('[logs] streaming /log/listen');
     } catch (e) {
       this.state.lastLogsErr = String(e && e.message ? e.message : e);

@@ -116,8 +116,7 @@ class NetwatchCollector {
 
   stop() {
     this._stopStream();
-    this._lastFp     = '';
-    this.lastPayload = null;
+    this._lastFp = '';
   }
 }
 

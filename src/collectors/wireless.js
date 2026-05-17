@@ -56,7 +56,7 @@ class WirelessCollector {
     if (!this.ros.connected) return;
     if (!force && this.io.engine.clientsCount === 0) return;
 
-    const dbg = require('../settings').load().rosDebug;
+    const dbg = this._debug;
     let rawClients = [], detectedMode = this.mode;
 
     if (detectedMode === 'wifi' || detectedMode === null) {
@@ -265,6 +265,7 @@ class WirelessCollector {
   }
 
   start() {
+    this._debug = require('../settings').load().rosDebug;
     const runFirst = async () => {
       if (this._inflight) return;
       this._inflight = true;
@@ -295,6 +296,7 @@ class WirelessCollector {
   stop() {
     if (this.timer)       { clearTimeout(this.timer);        this.timer      = null; }
     if (this._retryTimer) { clearTimeout(this._retryTimer);  this._retryTimer = null; }
+    this._inflight = false;
   }
 }
 

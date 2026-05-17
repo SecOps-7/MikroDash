@@ -82,12 +82,23 @@ const io = new Server(server, {
 
 // Auth middleware reads settings dynamically so changes via the Settings UI
 // take effect on the next request without a server restart.
+// The middleware instance is cached so the brute-force IP lockout state
+// (failures Map inside basicAuth.js) persists across requests. It is only
+// rebuilt when credentials change.
 const authLimiter = rateLimit({ windowMs: 60_000, max: 100, standardHeaders: true, legacyHeaders: false });
 
+let _authCache = null;
 function _authMiddleware(req, res, next) {
   const s = Settings.load();
   if (!(s.dashUser && s.dashPass)) return next(); // auth not configured
-  createBasicAuthMiddleware({ username: s.dashUser, password: s.dashPass })(req, res, next);
+  const key = `${s.dashUser}:${s.dashPass}`;
+  if (!_authCache || _authCache.key !== key) {
+    _authCache = {
+      key,
+      fn: createBasicAuthMiddleware({ username: s.dashUser, password: s.dashPass })
+    };
+  }
+  _authCache.fn(req, res, next);
 }
 
 app.use(helmet(buildHelmetOptions()));
@@ -225,6 +236,9 @@ let startupReady     = false;
 let rosConnected     = false;
 let _collectorsStarted = false;
 
+const _serverStartTime = Date.now();
+const STARTUP_GRACE_MS = 15000; // 15 s covers staggered collector startup
+
 function broadcastRosStatus(connected, reason) {
   rosConnected = connected;
   io.emit('ros:status', { connected, reason: reason || null });
@@ -310,7 +324,7 @@ function wireRosEvents(session) {
 }
 
 async function startCollectors(session) {
-  if (_collectorsStarted) return;
+  if (_collectorsStarted || session !== _session) return;
   _collectorsStarted = true;
   const _delay = ms => new Promise(r => setTimeout(r, ms));
   try {
@@ -509,7 +523,7 @@ app.post('/api/settings', (req, res) => {
       routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollSystem:[500,60000],
       pollWireless:[500,60000], pollVpn:[500,30000],  pollFirewall:[500,30000],
       pollIfstatus:[500,60000], pollIfaces:[10000,600000], pollPing:[1000,5000], pollArp:[5000,300000],
-      pollBandwidth:[500,60000], pollDhcp:[5000,600000], topN:[1,50], topTalkersN:[1,20],
+      pollBandwidth:[500,60000], pollDhcp:[5000,600000], pollRouting:[500,300000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], vpnDashTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
       alertCpuThreshold:[1,100], alertPingLoss:[1,100], notifCooldownSec:[10,3600],
       smtpPort:[1,65535],
@@ -538,10 +552,14 @@ app.post('/api/settings', (req, res) => {
 
     // Apply poll interval changes live
     const s = _session;
+    if (!s) {
+      // No active session — settings saved but no live-update needed
+      return res.json({ ok: true, requiresRestart: false });
+    }
     const collectorMap = { conns:s.conns, talkers:s.talkers, system:s.system, wireless:s.wireless, vpn:s.vpn, firewall:s.firewall, ifStatus:s.ifStatus, ping:s.ping, arp:s.arp, dhcpNetworks:s.dhcpNetworks, bandwidth:s.bandwidth, routing:s.routing };
     const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
-      pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks' };
+      pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks', pollRouting:'routing' };
     for (const [key, name] of Object.entries(pollMap)) {
       if (key in updates) {
         const col = collectorMap[name];
@@ -604,6 +622,7 @@ app.post('/api/settings', (req, res) => {
         collector.stop();
         collector.streamMode = saved[key];
         collector.start();
+        if (io.engine.clientsCount === 0 && typeof collector.suspend === 'function') collector.suspend();
       }
     }
 
@@ -818,7 +837,8 @@ app.post('/api/routers/:id/activate', async (req, res) => {
 });
 
 // POST /api/routers/test — test a connection without saving
-app.post('/api/routers/test', async (req, res) => {
+const _testConnLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
+app.post('/api/routers/test', _authMiddleware, _testConnLimiter, async (req, res) => {
   const body = req.body || {};
   if (!body.host) return res.status(400).json({ ok:false, error:'host is required' });
 
@@ -889,7 +909,11 @@ app.get('/api/localcc', (_req, res) => {
 
 function sanitizeErr(e) {
   if (!e) return null;
-  return String(e).split('\n')[0].slice(0, 200);
+  const msg = (e && e.message) ? e.message : String(e);
+  return msg
+    .replace(/\/[^\s'"]{2,}/g, '[path]')
+    .replace(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?/g, '[addr]')
+    .slice(0, 200);
 }
 
 app.get('/healthz', (_req, res) => {
@@ -899,8 +923,10 @@ app.get('/healthz', (_req, res) => {
     rosConnected: s ? s.ros.connected : false,
   });
   const st = s ? s.state : {};
+  const isStarting = !startupReady && (Date.now() - _serverStartTime < STARTUP_GRACE_MS);
   const body = {
     ok,
+    starting: isStarting,
     version: APP_VERSION,
     routerConnected: s ? s.ros.connected : false,
     activeRouterId:  s ? s.routerId : null,
@@ -997,6 +1023,7 @@ async function sendInitialState(socket) {
   for (const [ip, v] of s.dhcpLeases.byIP.entries()) allLeases.push({ ip, ...v });
   socket.emit('leases:list', { ts: Date.now(), leases: allLeases });
 
+  if (s.traffic && s.traffic.lastWanStatus) socket.emit('wan:status', s.traffic.lastWanStatus);
   if (s.wireless.lastPayload)  socket.emit('wireless:update',  s.wireless.lastPayload);
   if (s.vpn.lastPayload)       socket.emit('vpn:update',       s.vpn.lastPayload);
   if (s.system.lastPayload)    socket.emit('system:update',    s.system.lastPayload);

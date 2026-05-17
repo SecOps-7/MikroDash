@@ -14,6 +14,7 @@ class DhcpLeasesCollector {
     this.stream = null;
     this._restarting = false;
     this._restartTimer = null;
+    this.lastPayload = null;
   }
 
   getNameByIP(ip)  { return this.byIP.get(ip);  }
@@ -37,7 +38,9 @@ class DhcpLeasesCollector {
   _emitLeases() {
     const leases = [];
     for (const [ip, v] of this.byIP.entries()) leases.push({ ip, ...v });
-    this.io.emit('leases:list', { ts: Date.now(), leases });
+    const payload = { ts: Date.now(), leases };
+    this.lastPayload = payload;
+    this.io.emit('leases:list', payload);
   }
 
   _applyLease(l, emit = false) {

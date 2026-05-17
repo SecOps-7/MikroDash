@@ -155,6 +155,7 @@ class DhcpNetworksCollector {
 
   stop() {
     if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    this._inflight = false;
   }
 
   start() {

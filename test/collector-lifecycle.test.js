@@ -1012,7 +1012,7 @@ function makeBandwidthDeps(rosOverrides = {}) {
 }
 
 test('BandwidthCollector has a stop() method that clears the timer', () => {
-  return withPatchedIntervals(async () => {
+  return withPatchedTimers(async () => {
     const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps();
     const collector = new BandwidthCollector({
       ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state,
@@ -1027,7 +1027,7 @@ test('BandwidthCollector has a stop() method that clears the timer', () => {
 });
 
 test('BandwidthCollector stop() is idempotent', () => {
-  return withPatchedIntervals(async () => {
+  return withPatchedTimers(async () => {
     const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps();
     const collector = new BandwidthCollector({
       ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state,
@@ -1042,7 +1042,7 @@ test('BandwidthCollector stop() is idempotent', () => {
 });
 
 test('BandwidthCollector stops on ROS close event', () => {
-  return withPatchedIntervals(async () => {
+  return withPatchedTimers(async () => {
     const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps();
     const collector = new BandwidthCollector({
       ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state,
@@ -1057,7 +1057,7 @@ test('BandwidthCollector stops on ROS close event', () => {
 });
 
 test('BandwidthCollector restarts and clears caches on ROS connected event', () => {
-  return withPatchedIntervals(async () => {
+  return withPatchedTimers(async () => {
     const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps();
     const collector = new BandwidthCollector({
       ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state,
@@ -1084,7 +1084,7 @@ test('BandwidthCollector restarts and clears caches on ROS connected event', () 
 });
 
 test('BandwidthCollector does not accumulate listeners across reconnects', () => {
-  return withPatchedIntervals(async () => {
+  return withPatchedTimers(async () => {
     const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps();
     new BandwidthCollector({
       ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state,
@@ -1102,7 +1102,7 @@ test('BandwidthCollector does not accumulate listeners across reconnects', () =>
 });
 
 test('BandwidthCollector does not double-start when connected fires while already running', () => {
-  return withPatchedIntervals(async (timers) => {
+  return withPatchedTimers(async (timers) => {
     const { ros, dhcpLeases, arp, dhcpNetworks, ifStatus, io, state } = makeBandwidthDeps();
     const collector = new BandwidthCollector({
       ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state,
@@ -1112,12 +1112,12 @@ test('BandwidthCollector does not double-start when connected fires while alread
     assert.ok(collector.timer, 'timer set after start()');
 
     // Simulate connected firing while already running (e.g. a reconnect).
-    // The _started flag is true, so the handler stops the old interval and
-    // starts a fresh one — never two concurrent intervals.
+    // The _started flag is true, so the handler stops the old timer and
+    // starts a fresh one — never two concurrent timers.
     ros.emit('connected');
 
     assert.ok(collector.timer, 'a timer is still active after connected');
-    assert.equal(timers.filter(t => !t.cleared).length, 1, 'exactly one active interval after reconnect');
+    assert.equal(timers.filter(t => !t.cleared).length, 1, 'exactly one active timer after reconnect');
 
     collector.stop();
   });
@@ -1146,7 +1146,7 @@ test('BandwidthCollector records error in state on tick failure', async () => {
     ros, io, pollMs: 3000, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache,
   });
 
-  return withPatchedIntervals(async () => {
+  return withPatchedTimers(async () => {
     collector.start();
     // tick() throws synchronously before any await — one microtask turn is enough
     await Promise.resolve();

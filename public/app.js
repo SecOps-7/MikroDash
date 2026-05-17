@@ -451,8 +451,8 @@ function _flushSysUpdate() {
     var meta='';
     if(d.boardName)meta+='<div class="sys-meta-item"><strong>'+esc(d.boardName)+'</strong></div>';
     if(d.version)  meta+='<div class="sys-meta-item">ROS <strong>'+esc(d.version)+'</strong></div>';
-    if(d.cpuCount) meta+='<div class="sys-meta-item"><strong>'+d.cpuCount+'</strong>×CPU</div>';
-    if(d.cpuFreq)  meta+='<div class="sys-meta-item"><strong>'+d.cpuFreq+'</strong> MHz</div>';
+    if(d.cpuCount) meta+='<div class="sys-meta-item"><strong>'+esc(d.cpuCount)+'</strong>×CPU</div>';
+    if(d.cpuFreq)  meta+='<div class="sys-meta-item"><strong>'+esc(d.cpuFreq)+'</strong> MHz</div>';
     if(d.totalMem) meta+='<div class="sys-meta-item"><strong>'+fmtBytes(d.totalMem)+'</strong> RAM</div>';
     sysMeta.innerHTML=meta;
     _sysMetaWritten=true;
@@ -462,10 +462,10 @@ function _flushSysUpdate() {
     if(!tempSlot){
       var el=document.createElement('div');
       el.className='sys-meta-item';el.id='sysMetaTemp';
-      el.innerHTML='<strong>'+d.tempC+'°C</strong>';
+      el.innerHTML='<strong>'+esc(d.tempC)+'°C</strong>';
       if(sysMeta)sysMeta.appendChild(el);
     } else {
-      tempSlot.innerHTML='<strong>'+d.tempC+'°C</strong>';
+      tempSlot.innerHTML='<strong>'+esc(d.tempC)+'°C</strong>';
     }
   }
   if(rosUpdateRow){
@@ -656,7 +656,7 @@ function _flushConnUpdate(){
             '<div style="display:flex;align-items:center;gap:0;overflow:hidden">'+
               '<span class="top-name text-truncate has-ip-tip" data-ip="'+esc(d.key)+
                 '" data-org="'+(d.org?esc(d.org):'')+
-                '" data-cat="'+(d.cat||'')+'">'+ esc(d.key)+'</span>'+
+                '" data-cat="'+esc(d.cat||'')+'">'+ esc(d.key)+'</span>'+
               (d.org?svcBadge(d.org,d.cat):'')+
             '</div>'+
           '</div>'+
@@ -2611,7 +2611,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         '<span class="conn-map-flag">'+flag+'</span>'+
         '<div style="flex:1;min-width:0">'+
           '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">'+
-            '<div class="conn-map-label" style="min-width:0">'+(CC_NAMES[e.cc]||e.cc)+(e.city?' <span class="conn-map-label-sub">'+esc(e.city)+'</span>':'')+'</div>'+
+            '<div class="conn-map-label" style="min-width:0">'+esc(CC_NAMES[e.cc]||e.cc)+(e.city?' <span class="conn-map-label-sub">'+esc(e.city)+'</span>':'')+'</div>'+
             (spark?'<div style="flex-shrink:0">'+spark+'</div>':'')+
           '</div>'+
           (e.orgs&&e.orgs.length?'<div class="svc-sub-rows">'+e.orgs.map(function(o){
@@ -2803,7 +2803,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         var flag=iso2Flag(cc);
         var city=_countryCity[cc]||'';
         var proto=_countryProto[cc]||{};
-        tooltipEl.innerHTML=flag+' <strong>'+(CC_NAMES[cc]||cc)+'</strong>'+(city?' · '+esc(city):'')+
+        tooltipEl.innerHTML=flag+' <strong>'+esc(CC_NAMES[cc]||cc)+'</strong>'+(city?' · '+esc(city):'')+
           (n?' &nbsp;<span style="color:var(--accent-rx)">'+n+' conns</span>':'')+
           (proto.tcp||proto.udp?'<br><span style="color:var(--text-muted);font-size:.6rem">TCP:'+
             (proto.tcp||0)+' UDP:'+(proto.udp||0)+'</span>':'');
@@ -4105,6 +4105,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       render();
     }
   });
+
+  // Reset bandwidth chart on router switch so stale data from the old router
+  // doesn't linger in the compact traffic chart.
+  socket.on('router:switching', function() {
+    if (_bwChart) {
+      _bwChart.data.labels = [];
+      if (_bwChart.data.datasets[0]) _bwChart.data.datasets[0].data = [];
+      if (_bwChart.data.datasets[1]) _bwChart.data.datasets[1].data = [];
+      _bwChart.update('none');
+    }
+  });
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -4136,7 +4147,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   function stateBadge(state, flapping) {
     if (flapping) return '<span class="bgp-state flap">Flapping</span>';
-    return '<span class="bgp-state ' + esc(state) + '">' + esc(state) + '</span>';
+    return '<span class="bgp-state ' + state.replace(/[^a-z-]/gi, '') + '">' + esc(state) + '</span>';
   }
 
   // Inline SVG sparkline from prefix history array
@@ -4302,7 +4313,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var ptype = p.peerType || 'upstream';
       var typeBadge = '<span style="font-size:.6rem;font-family:var(--font-ui);padding:.1rem .35rem;border-radius:3px;' +
         'background:' + (typeColors[ptype]||'rgba(99,130,190,.1)') + ';color:' + (typeText[ptype]||'var(--text-muted)') + '">' +
-        (typeLabel[ptype]||ptype) + '</span>';
+        (typeLabel[ptype]||esc(ptype)) + '</span>';
       var nameCell = '<div class="rt-peer-name">' + esc(p.name) + ' ' + typeBadge + '</div>' +
         (p.description ? '<div class="rt-peer-desc">' + esc(p.description) + '</div>' : '');
       var errCell = p.lastError
@@ -4694,6 +4705,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // don't skip incoming payloads from the new router.
     lastLanData = null;
     lastTalkers = null;
+    // Reset system meta so new router's board info replaces old
+    _sysMetaWritten = false;
+    // Clear ping history
+    pingHistory = [];
+    // Clear connection table fingerprint caches
+    _connSrcFp = '';
+    _connDstFp = '';
+    _connProtoFp = '';
+    // Clear log buffer
+    logBuffer = [];
+    if (logsEl) logsEl.innerHTML = '';
   });
 
   // Update the status dot and hide switching overlay on ros:status
@@ -5351,7 +5373,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         var tgt=e.target;
         if(!tgt.dataset||!tgt.dataset.cc){tip.style.display='none';return;}
         var cc=tgt.dataset.cc, n=_dcMapCounts[cc]||0;
-        tip.innerHTML=(DC_CC_NAMES[cc]||cc)+(n?' &nbsp;<span style="color:var(--accent-rx)">'+n+' conns</span>':'');
+        tip.innerHTML=esc(DC_CC_NAMES[cc]||cc)+(n?' &nbsp;<span style="color:var(--accent-rx)">'+esc(String(n))+' conns</span>':'');
         tip.style.display='block';
         var rect=svg.parentElement.getBoundingClientRect();
         tip.style.left=(e.clientX-rect.left+10)+'px';

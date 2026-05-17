@@ -6,6 +6,7 @@ class SystemCollector {
     this.state = state;
     this.streamMode = streamMode !== false; // default true
     this._stream = null;
+    this._restarting   = false;
     this._pollTimer    = null;
     this._pollInflight = false;
     this._healthTimer = null;
@@ -215,7 +216,7 @@ class SystemCollector {
   }
 
   _startResourceStream() {
-    if (this._stream) return;
+    if (this._stream || this._restarting) return;
     if (!this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
 
@@ -243,7 +244,12 @@ class SystemCollector {
       this.state.lastSystemErr = String(err && err.message ? err.message : err);
       console.error('[system] stream error:', this.state.lastSystemErr);
       this._stream = null;
-      setTimeout(() => { if (this.ros.connected && !this._stream) this._startResourceStream(); }, 3000);
+      if (this._restarting) return;
+      this._restarting = true;
+      setTimeout(() => {
+        this._restarting = false;
+        if (this.ros.connected && !this._stream) this._startResourceStream();
+      }, 3000);
     });
   }
 
@@ -264,11 +270,18 @@ class SystemCollector {
     this._fetchUpdateStatus().catch(() => {}); // run once at startup
     this.ros.on('close', () => this.stop());
     this.ros.on('connected', () => {
+      // Tear down any live stream/timers before restarting to prevent duplicates.
+      if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (_) {} this._stream = null; }
+      if (this._pollTimer)  { clearTimeout(this._pollTimer);  this._pollTimer  = null; }
+      if (this._healthTimer) { clearTimeout(this._healthTimer); this._healthTimer = null; }
+      this._pollInflight   = false;
+      this._healthInflight = false;
+      this._restarting     = false;
       this._lastFp = '';
       this._lastUpdateFetch = 0;
       this._lastUpdateRow = {};
-      this._stream = null; // underlying channel was closed when connection dropped
       this._startResources();
+      this._scheduleHealthNext();
       this._pollHealth();
       this._fetchUpdateStatus().catch(() => {}); // re-check on reconnect
     });
@@ -287,6 +300,7 @@ class SystemCollector {
     if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
     if (this._pollTimer)  { clearTimeout(this._pollTimer);  this._pollTimer  = null; }
     if (this._healthTimer) { clearTimeout(this._healthTimer); this._healthTimer = null; }
+    this._restarting = false;
   }
 }
 

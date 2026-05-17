@@ -49,8 +49,8 @@ class VpnCollector {
       const lh        = p['last-handshake'] || '';
       const connected = lh && lh !== 'never';
       const name      = this._peerName(p);
-      const rxBytes   = parseInt(p['rx'] || p['rx-bytes'] || '0', 10);
-      const txBytes   = parseInt(p['tx'] || p['tx-bytes'] || '0', 10);
+      const rxBytes   = parseInt(p['rx'] ?? p['rx-bytes'] ?? '0', 10);
+      const txBytes   = parseInt(p['tx'] ?? p['tx-bytes'] ?? '0', 10);
       const key       = p['public-key'] || name;
       const prev      = this._prev.get(key);
       let rxRate = 0, txRate = 0;

@@ -10,7 +10,7 @@
 
 const { RouterOSAPI } = require('node-routeros');
 const EventEmitter = require('events');
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const log = require('../util/logger');
 
 class ROS extends EventEmitter {
   constructor(cfg) {
@@ -23,7 +23,17 @@ class ROS extends EventEmitter {
     this.backoffMs = 2000;
     this.maxBackoffMs = 30000;
     this._stopping = false;
-    this._sleep = sleep;
+    this._wakeResolve = null;
+    this._sleepTimer = null;
+    // Default sleep is interruptible: stop() can call _wakeResolve() to wake immediately.
+    // Tests override this._sleep to control timing without real delays.
+    this._sleep = (ms) => new Promise(resolve => {
+      this._wakeResolve = resolve;
+      this._sleepTimer = setTimeout(resolve, ms);
+    }).finally(() => {
+      this._wakeResolve = null;
+      this._sleepTimer = null;
+    });
   }
 
   _buildConn() {
@@ -58,7 +68,7 @@ class ROS extends EventEmitter {
       const user = this.cfg.username;
       const tls  = this.cfg.tls !== false;
       try {
-        console.log(`[ROS] connecting to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})…`);
+        log.debug(`[ROS] connecting to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})…`);
         this.conn = this._buildConn();
 
         this.conn.on('error', (err) => {
@@ -90,7 +100,7 @@ class ROS extends EventEmitter {
       }
 
       if (this._stopping) break;
-      console.log(`[ROS] reconnecting to ${host}:${port} in ${this.backoffMs}ms…`);
+      log.debug(`[ROS] reconnecting to ${host}:${port} in ${this.backoffMs}ms…`);
       await this._sleep(this.backoffMs);
       this.backoffMs = Math.min(this.backoffMs * 2, this.maxBackoffMs);
     }
@@ -98,11 +108,17 @@ class ROS extends EventEmitter {
 
   async waitUntilConnected(timeoutMs = 60000) {
     if (this.connected) return;
-    const deadline = Date.now() + timeoutMs;
-    while (!this.connected) {
-      if (Date.now() > deadline) throw new Error('Timed out waiting for RouterOS connection');
-      await sleep(200);
-    }
+    return new Promise((resolve, reject) => {
+      const t = setTimeout(() => {
+        this.off('connected', onConn);
+        reject(new Error('Timed out waiting for RouterOS connection'));
+      }, timeoutMs);
+      const onConn = () => {
+        clearTimeout(t);
+        resolve();
+      };
+      this.once('connected', onConn);
+    });
   }
 
   /**
@@ -151,6 +167,8 @@ class ROS extends EventEmitter {
 
   stop() {
     this._stopping = true;
+    if (this._sleepTimer) { clearTimeout(this._sleepTimer); this._sleepTimer = null; }
+    if (this._wakeResolve) { this._wakeResolve(); this._wakeResolve = null; }
     if (this.conn) {
       try { this.conn.close(); } catch (_) {}
     }

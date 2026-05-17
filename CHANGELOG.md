@@ -2,6 +2,48 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.39] — Security hardening, bug fixes, optimisations
+
+### Security
+
+- **XSS hardening (public/app.js)** — wrapped `d.cpuCount`, `d.cpuFreq`, `d.tempC`, `CC_NAMES[cc]||cc` (map tooltip, mini-map, country list), `typeLabel[ptype]||ptype` (routing peer table), and `d.cat` (data attribute) in `esc()` before HTML injection; `stateBadge` CSS class sanitised with `replace(/[^a-z-]/gi, '')` to prevent class-attribute injection
+- **Auth middleware brute-force bypass fixed (src/index.js)** — `createBasicAuthMiddleware` instance now cached in `_authCache` keyed on `dashUser:dashPass`; rebuilds only on credential change so the `failures` Map persists across requests and IP lockout is functional
+- **Credential leakage prevented (src/notifier.js)** — HTTP response bodies stripped from rejection logs (status code only); SMTP errors log `e.code` only (not the full message which can carry auth challenge data); unknown channel errors no longer echo user-supplied input
+- **Notification template injection blocked (src/alerter.js)** — `_render()` strips control characters and caps values at 200 chars before template substitution
+- **CSP headers tightened (src/security/helmetOptions.js)** — `connectSrc` restricted to `["'self'"]` (removed wildcard `ws:`/`wss:`); HSTS now conditional on `FORCE_HTTPS=true` env var (prevents 180-day HTTPS pin on HTTP-only LAN installs)
+- **SSRF and input validation (src/routers.js)** — `_validateHostPort()` added; validates host against hostname/IP regex and port in range 1–65535 on both `add()` and `update()`; isMasked sentinel `'••••••••'` can no longer be stored as password
+- **sanitizeErr improved (src/index.js)** — extracts `e.message` (not `String(e)`) and strips filesystem paths and IP:port patterns before truncating
+
+### Fixed
+
+- **Router frontend state not reset on router switch** — `router:switching` now resets `_sysMetaWritten`, `pingHistory`, fingerprint caches, `logBuffer`, log DOM, and `_bwChart` datasets
+- **Alerter prototype pollution** — `prevVpnState` and `prevNetwatchState` converted from `{}` to `Map`; interface state guard fixed (`prev !== null` → `prev !== undefined`); null guard added to `_noChannelsActive()`; swallowed send failures now logged; cooldown Maps capped at 500 (`fire()`) and 100 (`_connCooldowns`) entries to prevent unbounded growth
+- **alertSessions torn-down session restart** — sessions carry `destroyed` flag; `ros.on('connected')` handler returns early if session already torn down
+- **Connections stream error race** — `_restarting` guard prevents duplicate restart timers; `settings.load()` removed from batch-complete hot path (read once in `start()` as `this._debug`); GeoIP post-pass fills country for `topDestinations` entries that arrive without geo data
+- **Bandwidth `_ifaceCache` stale after interface change** — cache is invalidated when `ifStatus.lastPayload.ts` changes, so interface reassignments take effect immediately without a reconnect
+- **Traffic `lastWanStatus` missed when idle** — `lastWanStatus` is now updated before the idle gate so the WAN badge is always current
+- **ROS client reconnect delay not interruptible** — backoff sleep now stores `_wakeResolve`/`_sleepTimer`; `stop()` interrupts the sleep immediately instead of waiting for the full backoff period to expire
+- **ROS client `waitUntilConnected` busy-poll** — replaced polling loop with `this.once('connected', ...)` promise with timeout
+- **Double collector start on session swap** — start guard strengthened to `if (_collectorsStarted || session !== _session)` to prevent orphaned collectors when a session swap races with async startup
+- **WAN badge blank on reconnect** — `sendInitialState` now replays `wan:status` from `traffic.lastWanStatus`
+- **AES-256-GCM auth failures silent** — GCM tag mismatch now logs a warning instead of returning `''` silently (both `settings.js` and `routers.js`)
+- **scrypt key re-derived on every crypto op** — `_cachedKey` lazy-init added to both `settings.js` and `routers.js`; `scryptSync` runs once per process lifetime
+- **Settings and router config write not atomic** — both file writers now use `.tmp` + `renameSync` to prevent corruption from a mid-write process kill
+- **Various collector stop/inflight guards** — `wireless.js`, `dhcpNetworks.js` `stop()` now reset `_inflight = false`; `dhcpLeases.js` initialises `lastPayload` in constructor and updates it in `_emitLeases()`; `netwatch.js` stop no longer clears `lastPayload`; `vpn.js` byte counters use `??` instead of `||` (zero-traffic tunnels no longer misread); `logs.js` backoff resets on stream creation not only on data received; `interfaceStatus.js` dirty-check fingerprint suppresses redundant emits and `_commitMeta()` guards the `_addrs` swap
+- **Health endpoint startup/unhealthy distinction** — adds `starting: true` during a 15 s startup grace period so load balancers can distinguish a starting instance from an unhealthy one
+- **Rate limit on router test endpoint** — `POST /api/routers/test` now limited to 10 req/min
+
+### Added
+
+- **`src/util/logger.js`** — lightweight logger with DEBUG/INFO/WARN/ERROR levels gated on `LOG_LEVEL` env var (default `info`); verbose `[ROS] connecting/reconnecting` logs now suppressed at `info` level and visible only with `LOG_LEVEL=debug`
+
+### Tests
+
+- **`test/security-and-validation.test.js`** — 23 new tests covering auth middleware caching and lockout persistence, alerter evaluator guards (`alertsEnabled`, CPU threshold, cooldown), and routers `_validateHostPort` / isMasked sentinel handling
+- Test count raised from 155 to **178** (all passing)
+
+---
+
 ## [0.5.38] — Stream/poll toggle, CHR/VM API pressure fixes, startup pre-poll
 
 ### Added

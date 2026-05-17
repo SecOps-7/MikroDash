@@ -31,8 +31,10 @@ function _loadOrCreateSecret() {
   return generated;
 }
 
+let _cachedKey = null;
 function _deriveKey() {
-  return crypto.scryptSync(_loadOrCreateSecret(), SALT, 32);
+  if (!_cachedKey) _cachedKey = crypto.scryptSync(_loadOrCreateSecret(), SALT, 32);
+  return _cachedKey;
 }
 
 function encrypt(plaintext) {
@@ -57,8 +59,9 @@ function decrypt(b64) {
     const dec  = crypto.createDecipheriv('aes-256-gcm', key, iv);
     dec.setAuthTag(tag);
     return dec.update(enc) + dec.final('utf8');
-  } catch (_) {
-    return ''; // wrong key / corrupted
+  } catch (e) {
+    console.warn('[settings] AES-GCM auth tag failure — credential may be corrupt or key changed');
+    return '';
   }
 }
 
@@ -282,7 +285,9 @@ function save(updates) {
   for (const f of ENCRYPTED_FIELDS) {
     toWrite[f] = encrypt(next[f] || '');
   }
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(toWrite, null, 2), 'utf8');
+  const tmp = SETTINGS_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(toWrite, null, 2), 'utf8');
+  fs.renameSync(tmp, SETTINGS_FILE);
   // Keep process.env in sync so library patches (node-routeros) pick up the change
   if ('rosDebug' in updates) process.env.ROS_DEBUG = next.rosDebug ? 'true' : 'false';
   return next;

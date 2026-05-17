@@ -12,11 +12,18 @@ function _ts() {
   return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
 }
 
+// WARNING: _settings MUST NEVER be spread into the vars/allVars passed here —
+// that would leak credentials (tokens, passwords) into notification messages.
 function _render(tpl, vars) {
-  return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : ''));
+  return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => {
+    if (vars[k] === undefined) return '';
+    // Strip control characters; cap length to prevent oversized payloads.
+    return String(vars[k]).replace(/[\x00-\x1f\x7f]/g, '').slice(0, 200);
+  });
 }
 
 function _noChannelsActive() {
+  if (!_settings) return true;
   return !_settings.telegramEnabled && !_settings.pushbulletEnabled && !_settings.smtpEnabled;
 }
 
@@ -46,17 +53,20 @@ function _ifaceTypeAllowed(type) {
 // Returns an isolated { evaluate(event, data) } with its own cooldown and state maps.
 // getNameFn() is called at fire-time to get the router label for {{routerName}}.
 
-function createEvaluator(getNameFn) {
+function createEvaluator(getNameFn, getRouterFn) {
   const cooldown          = new Map();
   const prevIfState       = new Map();
-  let   prevVpnState      = {};
-  let   prevNetwatchState = {};
+  const prevVpnState      = new Map();
+  const prevNetwatchState = new Map();
   let   prevCpuAlert      = null;   // null=unknown, true=was alerting, false=was normal
   const prevPingAlert     = {};     // target → boolean (was alerting)
 
   function fire(key, vars, isUp) {
     const last = cooldown.get(key) || 0;
     if ((Date.now() - last) < ((_settings.notifCooldownSec || 60) * 1000)) return;
+    // Cap cooldown map to prevent unbounded growth from ephemeral interface names
+    const COOLDOWN_MAX = 500;
+    if (cooldown.size > COOLDOWN_MAX) cooldown.clear();
     cooldown.set(key, Date.now());
     const allVars = { routerName: getNameFn(), timestamp: _ts(), ...vars };
     const title   = _render(_settings.notifTitle   || 'MikroDash Alert', allVars);
@@ -64,11 +74,14 @@ function createEvaluator(getNameFn) {
       ? (_settings.notifBodyUp  || _settings.notifBody || '✅ {{alertType}} on {{routerName}}: {{detail}}')
       : (_settings.notifBody    || '⚠️ {{alertType}} on {{routerName}}: {{detail}}');
     const body = _render(bodyTpl, allVars);
-    notifier.send(_settings, title, body).catch(() => {});
+    notifier.send(_settings, title, body).catch(e => console.warn('[alerter] notify failed:', e.message));
   }
 
   function evaluate(event, data) {
     if (!_settings || _noChannelsActive()) return;
+    // Re-check alertsEnabled in case it was toggled after session creation.
+    const router = typeof getRouterFn === 'function' ? getRouterFn() : null;
+    if (router && !router.alertsEnabled) return;
 
     if (event === 'system:update' && _settings.notifCpu) {
       if (typeof data.cpuLoad === 'number') {
@@ -119,9 +132,9 @@ function createEvaluator(getNameFn) {
     if (event === 'ifstatus:update' && _settings.notifIfaceUpDown && Array.isArray(data.interfaces)) {
       for (const iface of data.interfaces) {
         const prev       = prevIfState.get(iface.name);
-        const wasRunning = prev ? prev.running : null;
+        const wasRunning = prev ? prev.running : undefined;
         const isRunning  = !!iface.running;
-        if (prev !== null && wasRunning !== null && wasRunning !== isRunning) {
+        if (prev !== undefined && wasRunning !== isRunning) {
           const ifType = _ifaceType(iface.name, iface.type);
           if (_ifaceTypeAllowed(ifType)) {
             if (!isRunning) {
@@ -137,7 +150,7 @@ function createEvaluator(getNameFn) {
 
     if (event === 'vpn:update' && _settings.notifVpn && Array.isArray(data.tunnels)) {
       for (const tunnel of data.tunnels) {
-        const prev    = prevVpnState[tunnel.name];
+        const prev    = prevVpnState.get(tunnel.name);
         const wasConn = prev === 'connected';
         const isConn  = tunnel.state === 'connected';
         if (prev !== undefined && wasConn !== isConn) {
@@ -147,13 +160,13 @@ function createEvaluator(getNameFn) {
             fire('vpn:' + tunnel.name + ':up',   { alertType:'VPN Connected',    vpnPeer:tunnel.name, status:'up',   detail:'VPN peer ' + tunnel.name + ' connected'    }, true);
           }
         }
-        prevVpnState[tunnel.name] = tunnel.state;
+        prevVpnState.set(tunnel.name, tunnel.state);
       }
     }
 
     if (event === 'netwatch:update' && _settings.notifNetwatch && Array.isArray(data.hosts)) {
       for (const host of data.hosts) {
-        const prev    = prevNetwatchState[host.id];
+        const prev    = prevNetwatchState.get(host.id);
         const wasDown = prev === 'down';
         const isDown  = host.status === 'down';
         if (prev !== undefined && wasDown !== isDown) {
@@ -165,7 +178,7 @@ function createEvaluator(getNameFn) {
             fire('netwatch:' + host.id + ':up',   { alertType:'Host Up',   host:host.host, netwatchName, status:'up',   detail:'NetWatch host ' + netwatchDesc + ' is reachable'   }, true);
           }
         }
-        prevNetwatchState[host.id] = host.status;
+        prevNetwatchState.set(host.id, host.status);
       }
     }
   }
@@ -184,6 +197,7 @@ function fireConnectivityAlert(routerId, routerLabel, connected) {
   const key  = 'router-conn:' + routerId + ':' + (connected ? 'up' : 'down');
   const last = _connCooldowns.get(key) || 0;
   if ((Date.now() - last) < ((_settings.notifCooldownSec || 60) * 1000)) return;
+  if (_connCooldowns.size > 100) _connCooldowns.clear();
   _connCooldowns.set(key, Date.now());
   const vars = {
     alertType:  connected ? 'Router Online' : 'Router Offline',
@@ -197,17 +211,20 @@ function fireConnectivityAlert(routerId, routerLabel, connected) {
     ? (_settings.notifBodyUp || _settings.notifBody || '✅ {{alertType}} on {{routerName}}: {{detail}}')
     : (_settings.notifBody   || '⚠️ {{alertType}} on {{routerName}}: {{detail}}');
   const body = _render(bodyTpl, vars);
-  notifier.send(_settings, title, body).catch(() => {});
+  notifier.send(_settings, title, body).catch(e => console.warn('[alerter] notify failed:', e.message));
 }
 
 // ── Module init ───────────────────────────────────────────────────────────────
 
 function init(io, settings) {
   _settings = settings;
-  const evaluator = createEvaluator(() => {
-    const r = Routers.getById(_settings.activeRouterId);
-    return (r && r.label) || (r && r.host) || _settings.routerHost || 'router';
-  });
+  const evaluator = createEvaluator(
+    () => {
+      const r = Routers.getById(_settings.activeRouterId);
+      return (r && r.label) || (r && r.host) || _settings.routerHost || 'router';
+    },
+    () => Routers.getById(_settings && _settings.activeRouterId),
+  );
   const _origEmit = io.emit.bind(io);
   io.emit = function(event, data) {
     const result = _origEmit(event, data);
