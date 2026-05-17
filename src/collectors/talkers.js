@@ -216,7 +216,7 @@ class TopTalkersCollector {
         await this._pollTalkersOnce();
         this._scheduleTalkersNext();
       }
-    }, this.pollMs);
+    }, Math.max(500, Math.min(60_000, this.pollMs)));
   }
 
   _startTalkers() {

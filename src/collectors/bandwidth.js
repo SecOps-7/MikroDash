@@ -279,7 +279,7 @@ class BandwidthCollector {
         this.timer = null;
         await _run();
         _scheduleNext();
-      }, this.pollMs);
+      }, Math.max(500, Math.min(60_000, this.pollMs)));
     };
 
     const _run = async () => {

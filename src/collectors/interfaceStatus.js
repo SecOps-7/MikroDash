@@ -101,7 +101,7 @@ class InterfaceStatusCollector {
         await this._pollRatesOnce();
         this._scheduleRatesNext();
       }
-    }, this.pollMs);
+    }, Math.max(500, Math.min(60_000, this.pollMs)));
   }
 
   _startRatesPoll() {

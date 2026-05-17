@@ -141,7 +141,7 @@ class PingCollector {
         await this._pollPingOnce();
         this._schedulePingNext();
       }
-    }, this.pollMs);
+    }, Math.max(500, Math.min(60_000, this.pollMs)));
   }
 
   _processPacket(packet) {
