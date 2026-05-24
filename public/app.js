@@ -336,34 +336,65 @@ var trafficCtx = $('trafficChart');
 var chart = null;
 var allPoints = [];
 var MAX_CLIENT_POINTS = 1800; // 30 min at 1 Hz — matches server HISTORY_MINUTES default
+var _trafficRevealed = true; // false while canvas hidden after initChart(); true on first live update
 
 function windowedPoints(){
   var cutoff = Date.now()-(windowSecs*1000), out=[];
   for(var i=allPoints.length-1;i>=0;i--){if(allPoints[i].ts<cutoff)break;out.unshift(allPoints[i]);}
   return out;
 }
+// Draws 7 evenly-spaced grid lines and timestamp labels at fixed pixel positions.
+// Reads chart.options.scales.x.min/max (the target values set before each update)
+// so labels snap to new timestamps instantly while the data animates behind them.
+var _trafficTickPlugin={id:'trafficStaticTicks',afterDraw:function(c){
+  var x=c.options.scales.x;
+  if(!x||x.min==null||x.max==null)return;
+  var ctx=c.ctx,ca=c.chartArea,w=ca.right-ca.left;
+  var n=Math.min(7,Math.max(2,Math.floor(w/70)+1));
+  ctx.save();
+  ctx.font="10px 'JetBrains Mono',monospace";
+  ctx.textBaseline='top';
+  for(var i=0;i<n;i++){
+    var frac=i/(n-1),px=Math.round(ca.left+frac*w);
+    ctx.beginPath();ctx.strokeStyle='rgba(99,130,190,.07)';ctx.lineWidth=1;
+    ctx.moveTo(px+0.5,ca.top);ctx.lineTo(px+0.5,ca.bottom);ctx.stroke();
+    ctx.fillStyle='rgba(148,163,190,.4)';
+    ctx.textAlign=i===0?'left':i===n-1?'right':'center';
+    ctx.fillText(new Date(x.min+frac*(x.max-x.min)).toLocaleTimeString(),px,ca.bottom+6);
+  }
+  ctx.restore();
+}};
 function makeChartObj(){
   if(chart){chart.destroy();chart=null;}
-  chart=new Chart(trafficCtx,{type:'line',data:{labels:[],datasets:[
+  chart=new Chart(trafficCtx,{type:'line',plugins:[_trafficTickPlugin],data:{datasets:[
     {label:'RX',data:[],borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.08)',borderWidth:1.5,tension:0.3,pointRadius:0,fill:true},
     {label:'TX',data:[],borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.06)',borderWidth:1.5,tension:0.3,pointRadius:0,fill:true}
-  ]},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:1050,easing:'linear'},interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(7,9,15,.9)',borderColor:'rgba(99,130,190,.2)',borderWidth:1,
       titleFont:{family:"'JetBrains Mono',monospace",size:11},bodyFont:{family:"'JetBrains Mono',monospace",size:11},
-      callbacks:{label:function(ctx){return' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y);}}}},
-    scales:{x:{display:true,grid:{color:'rgba(99,130,190,.07)'},ticks:{color:'rgba(148,163,190,.4)',font:{family:"'JetBrains Mono',monospace",size:10},maxTicksLimit:8,maxRotation:0}},
+      callbacks:{title:function(items){return new Date(items[0].parsed.x).toLocaleTimeString();},label:function(ctx){return' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y);}}}},
+    scales:{x:{type:'linear',display:true,min:Date.now()-windowSecs*1000,max:Date.now(),
+               grid:{display:false,drawBorder:false},border:{display:false},ticks:{display:false},
+               afterFit:function(s){s.height=26;}},
             y:{beginAtZero:true,grid:{color:'rgba(99,130,190,.07)'},ticks:{color:'rgba(148,163,190,.4)',font:{family:"'JetBrains Mono',monospace",size:10},callback:function(v){return fmtMbps(v);}}}}}});
 }
 function redrawChart(){
-  var pts=windowedPoints(); if(!chart)makeChartObj();
-  chart.data.labels=pts.map(function(p){return new Date(p.ts).toLocaleTimeString();});
-  chart.data.datasets[0].data=pts.map(function(p){return p.rx_mbps;});
-  chart.data.datasets[1].data=pts.map(function(p){return p.tx_mbps;});
+  var now=Date.now(), pts=windowedPoints(); if(!chart)makeChartObj();
+  chart.data.datasets[0].data=pts.map(function(p){return {x:p.ts,y:p.rx_mbps};});
+  chart.data.datasets[1].data=pts.map(function(p){return {x:p.ts,y:p.tx_mbps};});
+  chart.options.scales.x.min=now-windowSecs*1000;
+  chart.options.scales.x.max=now;
   chart.update('none');
 }
 
 function applyWindow(secs){windowSecs=secs;redrawChart();}
-function initChart(points){allPoints=(points||[]).slice(-MAX_CLIENT_POINTS);if(!chart)makeChartObj();redrawChart();}
+function initChart(points){
+  allPoints=(points||[]).slice(-MAX_CLIENT_POINTS);
+  if(!chart)makeChartObj();
+  _trafficRevealed=false;
+  if(trafficCtx){trafficCtx.style.transition='none';trafficCtx.style.opacity='0';}
+  redrawChart();
+}
 
 // ── WAN ────────────────────────────────────────────────────────────────────
 function renderWanStatus(s){
@@ -1656,12 +1687,20 @@ socket.on('traffic:update',function(sample){
     if(document.hidden || !_pendingTraffic) return;
     var p = _pendingTraffic; _pendingTraffic = null;
     liveRx.textContent=fmtMbps(p.rx_mbps); liveTx.textContent=fmtMbps(p.tx_mbps);
+    if(_currentPage !== 'dashboard') return;
     var cutoff=Date.now()-(windowSecs*1000); if(p.ts<cutoff)return;
     if(!chart)makeChartObj();
-    var lbl=chart.data.labels,rx=chart.data.datasets[0].data,tx=chart.data.datasets[1].data;
-    while(lbl.length>0&&allPoints[allPoints.length-lbl.length].ts<cutoff){lbl.shift();rx.shift();tx.shift();}
-    lbl.push(new Date(p.ts).toLocaleTimeString()); rx.push(p.rx_mbps); tx.push(p.tx_mbps);
-    chart.update('none');
+    if(!_trafficRevealed){_trafficRevealed=true;if(trafficCtx){trafficCtx.style.transition='opacity 0.4s ease';trafficCtx.style.opacity='1';}}
+    var rx=chart.data.datasets[0].data,tx=chart.data.datasets[1].data;
+    // Snap if chart is stale (tab was hidden, reconnect, etc.) to avoid random interpolation lines
+    if(!rx.length||p.ts-rx[rx.length-1].x>2000){redrawChart();return;}
+    // Keep 60 s of extra data beyond the left boundary so the scale animation slides
+    // points off-screen before they are removed — avoids left-edge index-shift artifacts
+    while(rx.length>0&&rx[0].x<cutoff-60000){rx.shift();tx.shift();}
+    rx.push({x:p.ts,y:p.rx_mbps}); tx.push({x:p.ts,y:p.tx_mbps});
+    chart.options.scales.x.min=p.ts-windowSecs*1000;
+    chart.options.scales.x.max=p.ts;
+    chart.update();
   });
 });
 socket.on('wan:status',function(s){renderWanStatus(s);});
@@ -3618,6 +3657,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var smtpPass = $('s_smtpPass');     if (smtpPass)  { smtpPass.value = ''; smtpPass.placeholder = data.smtpPass ? 'leave blank to keep current' : 'optional'; }
     var smtpFrom = $('s_smtpFrom');     if (smtpFrom)  smtpFrom.value   = data.smtpFrom  || '';
     var smtpTo   = $('s_smtpTo');       if (smtpTo)    smtpTo.value     = data.smtpTo    || '';
+    var ntfyEn  = $('s_ntfyEnabled'); if (ntfyEn)  ntfyEn.checked  = !!data.ntfyEnabled;
+    var ntfyUrl = $('s_ntfyUrl');     if (ntfyUrl)  ntfyUrl.value   = data.ntfyUrl || '';
+    var ntfyTok = $('s_ntfyToken');   if (ntfyTok)  { ntfyTok.value = ''; ntfyTok.placeholder = data.ntfyToken ? 'leave blank to keep current' : 'optional'; }
     var notifTitle  = $('s_notifTitle');  if (notifTitle)  notifTitle.value  = data.notifTitle  !== undefined ? data.notifTitle  : '';
     var notifBody   = $('s_notifBody');   if (notifBody)   notifBody.value   = data.notifBody   !== undefined ? data.notifBody   : '';
     var notifBodyUp = $('s_notifBodyUp'); if (notifBodyUp) notifBodyUp.value = data.notifBodyUp !== undefined ? data.notifBodyUp : '';
@@ -3688,6 +3730,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var smtpToEl   = $('s_smtpTo');   if (smtpToEl)   out.smtpTo   = smtpToEl.value.trim();
     var smtpUserEl = $('s_smtpUser'); if (smtpUserEl) out.smtpUser = smtpUserEl.value;
     var smtpPassEl = $('s_smtpPass'); if (smtpPassEl && smtpPassEl.value) out.smtpPass = smtpPassEl.value;
+    // ntfy fields
+    var ntfyEnEl  = $('s_ntfyEnabled'); if (ntfyEnEl)  out.ntfyEnabled = ntfyEnEl.checked;
+    var ntfyUrlEl = $('s_ntfyUrl');     if (ntfyUrlEl)  out.ntfyUrl     = ntfyUrlEl.value.trim();
+    var ntfyTokEl = $('s_ntfyToken');   if (ntfyTokEl && ntfyTokEl.value) out.ntfyToken = ntfyTokEl.value;
     // Templates
     var notifTitleEl  = $('s_notifTitle');  if (notifTitleEl)  out.notifTitle  = notifTitleEl.value.trim();
     var notifBodyEl   = $('s_notifBody');   if (notifBodyEl)   out.notifBody   = notifBodyEl.value.trim();
@@ -3765,6 +3811,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         var smtpW = $('s_smtpPass');    if (smtpW && smtpW.value)   payload.smtpPass   = smtpW.value;
         var smtpF = $('s_smtpFrom');    if (smtpF && smtpF.value)   payload.smtpFrom   = smtpF.value.trim();
         var smtpT = $('s_smtpTo');      if (smtpT && smtpT.value)   payload.smtpTo     = smtpT.value.trim();
+      } else if (channel === 'ntfy') {
+        var ntfyU = $('s_ntfyUrl');   if (ntfyU && ntfyU.value)   payload.ntfyUrl   = ntfyU.value.trim();
+        var ntfyT = $('s_ntfyToken'); if (ntfyT && ntfyT.value)   payload.ntfyToken = ntfyT.value;
       }
       fetch('/api/settings/test-notification', {
         method: 'POST',
@@ -3789,6 +3838,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   _testNotifBtn('btn-test-telegram',  'test-telegram-result',  'telegram');
   _testNotifBtn('btn-test-pushbullet', 'test-pushbullet-result', 'pushbullet');
   _testNotifBtn('btn-test-smtp',       'test-smtp-result',       'smtp');
+  _testNotifBtn('btn-test-ntfy',       'test-ntfy-result',       'ntfy');
 
   // Load settings when page becomes active
   // Load settings on every visit to the settings page
@@ -3871,20 +3921,20 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if (!_bwChartCtx) return;
     _bwChart = new Chart(_bwChartCtx, {
       type: 'line',
-      data: { labels: [], datasets: [
+      data: { datasets: [
         { label:'RX', data:[], borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,.08)', borderWidth:1.5, tension:0.3, pointRadius:0, fill:true },
         { label:'TX', data:[], borderColor:'#34d399', backgroundColor:'rgba(52,211,153,.06)', borderWidth:1.5, tension:0.3, pointRadius:0, fill:true }
       ]},
       options: {
-        responsive:true, maintainAspectRatio:false, animation:false,
+        responsive:true, maintainAspectRatio:false, animation:{duration:1050,easing:'linear'},
         interaction:{ mode:'index', intersect:false },
         plugins:{ legend:{display:false}, tooltip:{
           backgroundColor:'rgba(7,9,15,.9)', borderColor:'rgba(99,130,190,.2)', borderWidth:1,
           titleFont:{family:"'JetBrains Mono',monospace",size:10}, bodyFont:{family:"'JetBrains Mono',monospace",size:10},
-          callbacks:{label:function(ctx){return' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y);}}
+          callbacks:{title:function(items){return new Date(items[0].parsed.x).toLocaleTimeString();},label:function(ctx){return' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y);}}
         }},
         scales:{
-          x:{display:false},
+          x:{type:'linear',display:false,min:Date.now()-windowSecs*1000,max:Date.now()},
           y:{beginAtZero:true, grid:{color:'rgba(99,130,190,.06)'},
              ticks:{color:'rgba(148,163,190,.4)',font:{family:"'JetBrains Mono',monospace",size:9},callback:function(v){return fmtMbps(v);},maxTicksLimit:4}}
         }
@@ -3893,7 +3943,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   // Mirror points from the global traffic chart into the compact one
-  function _syncBwChart() {
+  function _syncBwChart(animated) {
     if (!_bwChart) return;
     // Reuse the same allPoints + windowSecs already maintained by the main chart
     var cutoff = Date.now() - (windowSecs * 1000);
@@ -3902,10 +3952,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (allPoints[i].ts < cutoff) break;
       pts.unshift(allPoints[i]);
     }
-    _bwChart.data.labels = pts.map(function(p){ return new Date(p.ts).toLocaleTimeString(); });
-    _bwChart.data.datasets[0].data = pts.map(function(p){ return p.rx_mbps; });
-    _bwChart.data.datasets[1].data = pts.map(function(p){ return p.tx_mbps; });
-    _bwChart.update('none');
+    _bwChart.data.datasets[0].data = pts.map(function(p){ return {x:p.ts,y:p.rx_mbps}; });
+    _bwChart.data.datasets[1].data = pts.map(function(p){ return {x:p.ts,y:p.tx_mbps}; });
+    _bwChart.options.scales.x.min = cutoff;
+    _bwChart.options.scales.x.max = cutoff + windowSecs*1000;
+    _bwChart.update(animated ? undefined : 'none');
   }
 
   // Update RX/TX stat cards
@@ -3927,10 +3978,20 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // Hook into traffic:update to keep the compact chart live
   socket.on('traffic:update', function(sample) {
     if (!currentIf || sample.ifName !== currentIf) return;
-    if (pageVisible('bandwidth')) {
-      _updateBwStats(sample.rx_mbps, sample.tx_mbps);
-      _syncBwChart();
-    }
+    if (!pageVisible('bandwidth')) return;
+    _updateBwStats(sample.rx_mbps, sample.tx_mbps);
+    if (!_bwChart) { _makeBwChart(); _syncBwChart(false); return; }
+    var cutoff = Date.now() - (windowSecs * 1000);
+    var rx = _bwChart.data.datasets[0].data, tx = _bwChart.data.datasets[1].data;
+    // Snap to full history if chart is stale (page just became visible, reconnect, etc.)
+    if (!rx.length || sample.ts - rx[rx.length - 1].x > 2000) { _syncBwChart(false); return; }
+    // Keep 60 s of extra data past the left boundary to avoid index-shift animation artifacts
+    while (rx.length > 0 && rx[0].x < cutoff - 60000) { rx.shift(); tx.shift(); }
+    rx.push({x: sample.ts, y: sample.rx_mbps});
+    tx.push({x: sample.ts, y: sample.tx_mbps});
+    _bwChart.options.scales.x.min = sample.ts - windowSecs * 1000;
+    _bwChart.options.scales.x.max = sample.ts;
+    _bwChart.update();
   });
 
 
@@ -4097,7 +4158,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   document.addEventListener('mikrodash:pagechange', function(e) {
     if (e.detail === 'bandwidth') {
       if (!_bwChart) _makeBwChart();
-      _syncBwChart();
+      _syncBwChart(false);
       if (allPoints.length) {
         var last = allPoints[allPoints.length - 1];
         _updateBwStats(last.rx_mbps, last.tx_mbps);
@@ -4110,7 +4171,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // doesn't linger in the compact traffic chart.
   socket.on('router:switching', function() {
     if (_bwChart) {
-      _bwChart.data.labels = [];
       if (_bwChart.data.datasets[0]) _bwChart.data.datasets[0].data = [];
       if (_bwChart.data.datasets[1]) _bwChart.data.datasets[1].data = [];
       _bwChart.update('none');
@@ -4569,7 +4629,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var modalBwDownU  = $('rtrModalBwDownUnit');
   var modalBwUp     = $('rtrModalBwUp');
   var modalBwUpU    = $('rtrModalBwUpUnit');
-  var modalAlerts = $('rtrModalAlertsEnabled');
+  var modalAlerts     = $('rtrModalAlertsEnabled');
+  var modalDownThresh = $('rtrModalDownThresh');
   var testBtn   = $('rtrModalTestBtn');
   var testResult= $('rtrTestResult');
   var cancelBtn = $('rtrModalCancelBtn');
@@ -4695,7 +4756,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // once the new router connects and sendInitialState() runs.
     currentIf = '';
     allPoints  = [];
-    if (chart) { chart.data.labels = []; chart.data.datasets[0].data = []; chart.data.datasets[1].data = []; chart.update('none'); }
+    if (chart) { chart.data.datasets[0].data = []; chart.data.datasets[1].data = []; chart.update('none'); }
     // Reset stale timer and clear the chart while switching.
     staleTimers['trafficCard'] = Date.now();
     var tc = $('trafficCard'); if (tc) tc.classList.remove('is-stale');
@@ -4772,7 +4833,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     modalPing.value  = router ? router.pingTarget : '1.1.1.1';
     if (modalTls)    modalTls.checked    = router ? !!router.tls           : true;
     if (modalTlsI)   modalTlsI.checked   = router ? !!router.tlsInsecure   : false;
-    if (modalAlerts) modalAlerts.checked = router ? !!router.alertsEnabled  : false;
+    if (modalAlerts)     modalAlerts.checked  = router ? !!router.alertsEnabled  : false;
+    if (modalDownThresh) modalDownThresh.value = router ? (router.connDownThresholdSec !== undefined ? router.connDownThresholdSec : 30) : 30;
     var bwDown = router ? (router.bwDownMbps || 1000) : 1000;
     var bwUp   = router ? (router.bwUpMbps   || 1000) : 1000;
     if (modalBwDown) {
@@ -4854,7 +4916,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         var v = parseInt(modalBwUp ? modalBwUp.value : '1', 10) || 1;
         return (modalBwUpU && modalBwUpU.value === 'gbps') ? v * 1000 : v;
       }()),
-      alertsEnabled: !!(modalAlerts && modalAlerts.checked),
+      alertsEnabled:       !!(modalAlerts && modalAlerts.checked),
+      connDownThresholdSec:(function(){ var n = parseInt(modalDownThresh ? modalDownThresh.value : '30', 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     };
   }
 

@@ -72,26 +72,53 @@ function _buildSession(router) {
   ];
 
   const routerId = router.id;
-  let _prevConnected = null;
+  let _prevConnected   = null;
+  let _downTimer       = null;
+  let _declaredOffline = false;
   const session = { ros, collectors, evaluator, destroyed: false };
+
+  session._cancelDownTimer = () => { if (_downTimer) { clearTimeout(_downTimer); _downTimer = null; } };
 
   ros.on('connected', () => {
     if (session.destroyed) return;
     console.log(`[alertSession] ✓ ${router.label} (${router.host})`);
+    session._cancelDownTimer();
     _statusMap.set(routerId, true);
     if (_mainIo) _mainIo.emit('router:status', { routerId, connected: true });
-    if (_prevConnected === false)
+    if (_declaredOffline) {
       alerter.fireConnectivityAlert(routerId, router.label || router.host, true);
+      _declaredOffline = false;
+    }
     _prevConnected = true;
     for (const c of collectors) if (typeof c.start === 'function') c.start();
   });
 
   function _onDisconnect() {
-    _statusMap.set(routerId, false);
-    if (_mainIo) _mainIo.emit('router:status', { routerId, connected: false });
-    if (_prevConnected === true)
+    if (session.destroyed) return;
+    if (_downTimer) return;
+    if (_prevConnected === null) {
+      _statusMap.set(routerId, false);
+      if (_mainIo) _mainIo.emit('router:status', { routerId, connected: false });
+      _prevConnected = false;
+      return;
+    }
+    const threshMs = ((router.connDownThresholdSec !== undefined) ? router.connDownThresholdSec : 30) * 1000;
+    if (threshMs <= 0) {
+      _statusMap.set(routerId, false);
+      if (_mainIo) _mainIo.emit('router:status', { routerId, connected: false });
+      if (_prevConnected !== false)
+        alerter.fireConnectivityAlert(routerId, router.label || router.host, false);
+      _prevConnected = false;
+      return;
+    }
+    _downTimer = setTimeout(() => {
+      _downTimer       = null;
+      _declaredOffline = true;
+      _prevConnected   = false;
+      _statusMap.set(routerId, false);
+      if (_mainIo) _mainIo.emit('router:status', { routerId, connected: false });
       alerter.fireConnectivityAlert(routerId, router.label || router.host, false);
-    _prevConnected = false;
+    }, threshMs);
   }
 
   ros.on('close',           _onDisconnect);
@@ -104,6 +131,7 @@ function _buildSession(router) {
 function _stopSession(id, session) {
   console.log(`[alertSession] stopping session for router ${id}`);
   session.destroyed = true;
+  if (session._cancelDownTimer) session._cancelDownTimer();
   for (const c of session.collectors) {
     if (typeof c.stop === 'function') c.stop();
   }

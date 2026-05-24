@@ -223,6 +223,7 @@ async function teardownSession(session) {
   if (!session) return;
   startupReady = false;
   _collectorsStarted = false;
+  if (session._cancelDownTimer) session._cancelDownTimer();
   for (const c of session.allCollectors) {
     if (typeof c.stop === 'function') c.stop();
   }
@@ -250,16 +251,52 @@ function wireRosEvents(session) {
   const port = ros.cfg.port || 8729;
   const user = ros.cfg.username;
   const tls  = ros.cfg.tls !== false;
-  let _prevConnected = null;
+  let _prevConnected  = null;  // null = never connected
+  let _downTimer      = null;  // pending offline-declaration timer
+  let _declaredOffline = false; // timer fired — badge is showing Offline
+
+  session._cancelDownTimer = () => { if (_downTimer) { clearTimeout(_downTimer); _downTimer = null; } };
 
   function _emitRouterStatus(connected) {
-    if (session.routerId) {
-      io.emit('router:status', { routerId: session.routerId, connected });
-      const r = Routers.getById(session.routerId);
-      const label = (r && r.label) || host;
-      if (_prevConnected !== null && _prevConnected !== connected)
-        alerter.fireConnectivityAlert(session.routerId, label, connected);
-      _prevConnected = connected;
+    if (!session.routerId) return;
+    const r     = Routers.getById(session.routerId);
+    const label = (r && r.label) || host;
+
+    if (connected) {
+      // Cancel any pending offline timer and go Online immediately.
+      session._cancelDownTimer();
+      io.emit('router:status', { routerId: session.routerId, connected: true });
+      if (_declaredOffline) {
+        // Recovery alert — only when we had previously declared this router offline.
+        alerter.fireConnectivityAlert(session.routerId, label, true);
+        _declaredOffline = false;
+      }
+      _prevConnected = true;
+    } else {
+      // Don't immediately flip to Offline — start (or continue) the debounce window.
+      if (_downTimer) return; // already counting, don't reset
+      if (_prevConnected === null) {
+        // Never connected at all (startup failure): reflect immediately, no alert.
+        io.emit('router:status', { routerId: session.routerId, connected: false });
+        _prevConnected = false;
+        return;
+      }
+      const threshMs = ((r && r.connDownThresholdSec !== undefined) ? r.connDownThresholdSec : 30) * 1000;
+      if (threshMs <= 0) {
+        // Threshold = 0 → react immediately (original behaviour).
+        io.emit('router:status', { routerId: session.routerId, connected: false });
+        if (_prevConnected !== false)
+          alerter.fireConnectivityAlert(session.routerId, label, false);
+        _prevConnected = false;
+        return;
+      }
+      _downTimer = setTimeout(() => {
+        _downTimer      = null;
+        _declaredOffline = true;
+        _prevConnected  = false;
+        io.emit('router:status', { routerId: session.routerId, connected: false });
+        alerter.fireConnectivityAlert(session.routerId, label, false);
+      }, threshMs);
     }
   }
 
@@ -528,15 +565,15 @@ app.post('/api/settings', (req, res) => {
       alertCpuThreshold:[1,100], alertPingLoss:[1,100], notifCooldownSec:[10,3600],
       smtpPort:[1,65535],
     };
-    const strFields  = ['dashUser', 'pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo'];
+    const strFields  = ['dashUser', 'pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo', 'ntfyUrl'];
     const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
                         'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting',
                         'pingEnabled','rosDebug',
                         'streamSystem','streamPing','streamConns','streamTalkers','streamIfrates',
-                        'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure',
+                        'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure','ntfyEnabled',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
                         'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'];
-    const credFields = ['dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass'];
+    const credFields = ['dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 
     for (const [f, range] of Object.entries(intFields)) {
       if (f in body) { const v = parseInt(body[f],10); if (!isNaN(v) && v>=range[0] && v<=range[1]) updates[f]=v; }
@@ -719,7 +756,8 @@ const _testNotifLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders
 app.post('/api/settings/test-notification', _testNotifLimiter, async (req, res) => {
   try {
     const { channel, apiKey, botToken, chatId,
-            smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFrom, smtpTo } = req.body || {};
+            smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFrom, smtpTo,
+            ntfyUrl, ntfyToken } = req.body || {};
     if (!channel) return res.status(400).json({ ok: false, error: 'channel is required' });
     // Merge any credentials supplied directly (typed but not yet saved) over stored settings.
     const base = Settings.load();
@@ -735,6 +773,8 @@ app.post('/api/settings/test-notification', _testNotifLimiter, async (req, res) 
       ...(smtpPass  && { smtpPass:  String(smtpPass).slice(0, 512)  }),
       ...(smtpPort  !== undefined && { smtpPort:   parseInt(smtpPort,  10) || 587 }),
       ...(smtpSecure !== undefined && { smtpSecure: smtpSecure === true || smtpSecure === 'true' }),
+      ...(ntfyUrl   && { ntfyUrl:   String(ntfyUrl).slice(0, 512)   }),
+      ...(ntfyToken && { ntfyToken: String(ntfyToken).slice(0, 512) }),
     };
     await notifier.testChannel(settings, channel);
     res.json({ ok: true });

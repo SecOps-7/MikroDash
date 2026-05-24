@@ -730,6 +730,78 @@ test('talkers collector prunes stale devices', () => {
   assert.ok(!last.data.devices.find(d => d.mac === 'CC:DD'), 'stale device CC:DD should be pruned');
 });
 
+test('talkers stream error "unknown command" disables permanently with no retry timer', () => {
+  const emitted = [];
+  const streamHandlers = {};
+  const fakeStream = { on(ev, fn) { streamHandlers[ev] = fn; } };
+  const ros = { connected: true, on() {}, stream() { return fakeStream; } };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
+  const state = {};
+  const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state, topN: 5 });
+
+  collector._startStream();
+  streamHandlers.error(new Error('unknown command'));
+
+  assert.equal(collector._unavailable, true);
+  assert.equal(collector._backoffTimer, null, 'no retry timer must be scheduled');
+  assert.equal(emitted.length, 1, 'one empty payload emitted');
+  assert.deepEqual(emitted[0].data.devices, []);
+});
+
+test('talkers stream timeout auto-downgrades to poll mode', () => {
+  const streamHandlers = {};
+  const fakeStream = { on(ev, fn) { streamHandlers[ev] = fn; } };
+  const ros = { connected: true, on() {}, stream() { return fakeStream; }, write: async () => [] };
+  const io = { engine: { clientsCount: 0 }, on() {}, emit() {} };
+  const state = {};
+  const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state, topN: 5 });
+
+  collector._startStream();
+  streamHandlers.error(new Error('request timeout'));
+
+  assert.equal(collector.streamMode, false, 'streamMode must flip to false');
+  assert.notEqual(collector._pollTimer, null, 'poll timer must be scheduled');
+  collector.stop();
+});
+
+test('talkers poll error "unknown command" disables permanently and stops scheduling', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => { throw new Error('unknown command'); },
+  };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
+  const state = {};
+  const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state, topN: 5, streamMode: false });
+
+  await collector._pollTalkersOnce();
+
+  assert.equal(collector._unavailable, true);
+  collector._scheduleTalkersNext();
+  assert.equal(collector._pollTimer, null, 'scheduling must be a no-op when unavailable');
+  assert.deepEqual(emitted[0].data.devices, []);
+});
+
+test('talkers poll timeout is transient — logs error and keeps scheduling', async () => {
+  const ros = {
+    connected: true,
+    on() {},
+    write: async () => { throw new Error('connection timed out'); },
+  };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit() {} };
+  const state = {};
+  const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state, topN: 5, streamMode: false });
+
+  await collector._pollTalkersOnce();
+
+  assert.equal(collector._unavailable, false, 'transient timeout must not set _unavailable');
+  assert.ok(state.lastTalkersErr, 'error should be logged to state.lastTalkersErr');
+  collector._scheduleTalkersNext();
+  assert.notEqual(collector._pollTimer, null, 'poll timer should still be schedulable');
+  collector.stop();
+});
+
 // --- VPN Collector ---
 const VpnCollector = require('../src/collectors/vpn');
 

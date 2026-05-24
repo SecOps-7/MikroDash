@@ -94,7 +94,48 @@ async function send(settings, title, body) {
       console.error('[notifier] SMTP error:', e.code || e.message);
     }
   }
+  if (settings.ntfyEnabled && settings.ntfyUrl) {
+    try {
+      await sendNtfy(settings.ntfyUrl, settings.ntfyToken || '', title, body);
+    } catch (e) {
+      errs.push('ntfy: ' + e.message);
+      console.error('[notifier] ntfy error:', e.message);
+    }
+  }
   if (errs.length) throw new Error(errs.join('; '));
+}
+
+async function sendNtfy(topicUrl, token, title, body) {
+  const parsed = new URL(topicUrl);
+  const isHttps = parsed.protocol === 'https:';
+  const lib = require(isHttps ? 'https' : 'http');
+  const raw = Buffer.from(body, 'utf8');
+  const headers = {
+    'Title':          title,
+    'Content-Type':   'text/plain; charset=utf-8',
+    'Content-Length': raw.length,
+  };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  return new Promise((resolve, reject) => {
+    const req = lib.request({
+      hostname: parsed.hostname,
+      port:     parsed.port || (isHttps ? 443 : 80),
+      path:     parsed.pathname,
+      method:   'POST',
+      headers,
+    }, (res) => {
+      let buf = '';
+      res.on('data', c => { buf += c; });
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) resolve(buf);
+        else reject(new Error('HTTP ' + res.statusCode));
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(new Error('Request timed out')); });
+    req.write(raw);
+    req.end();
+  });
 }
 
 async function testChannel(settings, channel) {
@@ -112,6 +153,9 @@ async function testChannel(settings, channel) {
     if (!settings.smtpFrom) throw new Error('SMTP From address is not configured');
     if (!settings.smtpTo)   throw new Error('SMTP To address is not configured');
     await sendSmtp(settings, title, body);
+  } else if (channel === 'ntfy') {
+    if (!settings.ntfyUrl) throw new Error('ntfy topic URL is not configured');
+    await sendNtfy(settings.ntfyUrl, settings.ntfyToken || '', title, body);
   } else {
     throw new Error('Unknown notification channel');
   }

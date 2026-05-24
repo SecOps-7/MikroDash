@@ -219,8 +219,9 @@ function add(data) {
     pingTarget:    String(data.pingTarget    || '1.1.1.1').trim(),
     bwDownMbps:    Math.max(1, parseInt(data.bwDownMbps || '1000', 10) || 1000),
     bwUpMbps:      Math.max(1, parseInt(data.bwUpMbps   || '1000', 10) || 1000),
-    alertsEnabled: !!(data.alertsEnabled),
-    addedAt:       Date.now(),
+    alertsEnabled:       !!(data.alertsEnabled),
+    connDownThresholdSec:(function(){ var n = parseInt(data.connDownThresholdSec, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
+    addedAt:             Date.now(),
   };
   routers.push(entry);
   _cache = routers;
@@ -258,7 +259,8 @@ function update(id, data) {
     pingTarget:    data.pingTarget     !== undefined ? String(data.pingTarget).trim()  : existing.pingTarget,
     bwDownMbps:    data.bwDownMbps    !== undefined ? Math.max(1, parseInt(data.bwDownMbps, 10) || 1000) : (existing.bwDownMbps || 1000),
     bwUpMbps:      data.bwUpMbps      !== undefined ? Math.max(1, parseInt(data.bwUpMbps,   10) || 1000) : (existing.bwUpMbps   || 1000),
-    alertsEnabled: data.alertsEnabled !== undefined ? !!(data.alertsEnabled)           : !!(existing.alertsEnabled),
+    alertsEnabled:       data.alertsEnabled       !== undefined ? !!(data.alertsEnabled)           : !!(existing.alertsEnabled),
+    connDownThresholdSec:(function(){ var raw = data.connDownThresholdSec !== undefined ? data.connDownThresholdSec : (existing.connDownThresholdSec !== undefined ? existing.connDownThresholdSec : 30); var n = parseInt(raw, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
   };
 
   // Only update password if provided and not the mask sentinel

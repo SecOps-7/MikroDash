@@ -8,9 +8,14 @@
  * A 300 ms debounce accumulates per-device packets from each interval tick
  * before processing (RouterOS sends one !re per device per tick in a burst).
  *
- * Backoff: if the stream errors with "unknown command" or similar, Kid Control
- * is not licensed/configured on this router. The stream is stopped, an empty
- * payload is emitted, and a retry is scheduled (1 min → 2 min → … → 10 min).
+ * Error classification:
+ *   "unknown command" / "no such" → feature not present on this router;
+ *     disable permanently (no retries, empty payload, silent card).
+ *   "timeout" in stream mode → CHR/VM thread starvation; auto-downgrade to
+ *     poll mode and restart. If poll also fails it goes through the poll
+ *     handler below.
+ *   "timeout" in poll mode → transient; log and retry normally.
+ *   other stream errors → exponential backoff, retry stream.
  */
 
 class TopTalkersCollector {
@@ -88,19 +93,22 @@ class TopTalkersCollector {
     stream.on('error', (err) => {
       const msg = String(err && err.message ? err.message : err);
       this._stream = null;
-      if (msg.includes('timeout') || msg.includes('unknown command') || msg.includes('no such')) {
-        this._unavailable  = true;
+      if (msg.includes('unknown command') || msg.includes('no such')) {
+        // Feature not present on this router — disable permanently, no retries.
+        this._unavailable = true;
         const now = Date.now();
-        this._backoffUntil = now + this._backoffMs;
-        this._backoffMs    = Math.min(this._backoffMs * 2, 600000);
-        console.warn('[talkers] Kid Control unavailable — backing off ' + Math.round(this._backoffMs / 1000) + 's');
+        console.warn('[talkers] Kid Control not available on this router — disabling');
         const payload = { ts: now, devices: [], pollMs: this.pollMs };
         this.lastPayload = payload;
         this.io.emit('talkers:update', payload);
         this.state.lastTalkersTs  = now;
         this.state.lastTalkersErr = null;
-        clearTimeout(this._backoffTimer);
-        this._backoffTimer = setTimeout(() => { this._backoffTimer = null; this._startStream(); }, this._backoffMs);
+      } else if (msg.includes('timeout')) {
+        // Stream timeout on CHR/VM (limited API threads). Feature likely exists
+        // but stream mode can't handle it — auto-downgrade to poll mode.
+        console.warn('[talkers] stream timeout — switching to poll mode');
+        this.streamMode = false;
+        this._startTalkers();
       } else {
         console.error('[talkers] stream error:', msg);
         this.state.lastTalkersErr = msg;
@@ -190,10 +198,11 @@ class TopTalkersCollector {
       this._commitTick();
     } catch (e) {
       const msg = String(e && e.message ? e.message : e);
-      if (msg.includes('unknown command') || msg.includes('no such') || msg.includes('timeout')) {
+      if (msg.includes('unknown command') || msg.includes('no such')) {
+        // Feature not present — disable permanently, stop scheduling.
         if (!this._unavailable) {
           this._unavailable = true;
-          console.warn('[talkers] poll: Kid Control unavailable —', msg);
+          console.warn('[talkers] poll: Kid Control not available — disabling');
           const now = Date.now();
           const payload = { ts: now, devices: [], pollMs: this.pollMs };
           this.lastPayload = payload;
@@ -202,6 +211,7 @@ class TopTalkersCollector {
           this.state.lastTalkersErr = null;
         }
       } else {
+        // Timeout or other transient error — log, let normal scheduling continue.
         this.state.lastTalkersErr = msg;
       }
     } finally {
@@ -210,6 +220,7 @@ class TopTalkersCollector {
   }
 
   _scheduleTalkersNext() {
+    if (this._unavailable) return;
     clearTimeout(this._pollTimer);
     this._pollTimer = setTimeout(async () => {
       this._pollTimer = null;

@@ -129,6 +129,11 @@ const DEFAULTS = {
   smtpFrom:     '',
   smtpTo:       '',
 
+  // ntfy channel
+  ntfyEnabled: false,
+  ntfyUrl:     '',
+  ntfyToken:   '', // stored encrypted
+
   // Alert type toggles (server-persisted; drive both browser + push notifications)
   notifIfaceUpDown:  true,
   notifVpn:          true,
@@ -177,9 +182,9 @@ const DEFAULTS = {
 };
 
 // Fields stored encrypted in JSON
-const ENCRYPTED_FIELDS = ['routerPass', 'dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass'];
+const ENCRYPTED_FIELDS = ['routerPass', 'dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 // Fields never sent to the client (only their masked presence)
-const CREDENTIAL_FIELDS = ['routerPass', 'dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass'];
+const CREDENTIAL_FIELDS = ['routerPass', 'dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 
 // ── Env-var override map ─────────────────────────────────────────────────────
 // For each settings field that has an env var backing, map field → [envVar, parser].

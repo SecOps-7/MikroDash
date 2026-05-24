@@ -2,6 +2,26 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.40] — Traffic graph improvements, ntfy channel, offline debounce, talkers resilience
+
+### Added
+
+- **ntfy notification channel (src/notifier.js, src/settings.js, src/index.js, public/)** — new push channel alongside Telegram/Pushbullet/SMTP; plain-text POST to any ntfy topic URL with optional Bearer token; supports self-hosted (HTTP) and ntfy.sh (HTTPS); wired into `send()`, `testChannel()`, settings save/load, and the Notification Channels card in Settings
+- **Router offline debounce (src/index.js, src/alertSessions.js, src/routers.js, public/)** — per-router `connDownThresholdSec` field (0–300 s, default 30); router is only declared Offline after the link has been down for the full threshold period; reconnect before the deadline cancels the timer and fires a recovery alert; `teardownSession` and `_stopSession` cancel any pending timers
+- **Traffic chart smooth scrolling (public/app.js, public/index.html)** — switched from category x-scale to `type:'linear'` with `{x:timestamp,y:value}` pairs; `min`/`max` animated at 1050 ms linear so the whole chart scrolls instead of morphing; left-edge 60 s buffer prevents index-shift artifact; stale-data snap resets instantly after tab hide/reconnect; `_trafficTickPlugin` draws timestamp labels at fixed pixel positions independently of the scale animation; page-hidden RAF guard skips `chart.update()` while not on the dashboard
+- **Traffic graph adaptive timestamps (public/app.js)** — `_trafficTickPlugin` now computes label count dynamically from chart area width (`min 2, max 7`); always shows start and end labels, distributes intermediate ticks as space allows — prevents overlap when the card is resized small
+
+### Fixed
+
+- **Talkers error classification (src/collectors/talkers.js)** — stream `"unknown command"` / `"no such"` sets `_unavailable = true` and permanently stops retrying (fixes routers without Kid Control); stream `"timeout"` auto-downgrades to poll mode (fixes CHR/VM thread starvation); poll `"unknown command"` / `"no such"` also permanently disables; other errors retain existing exponential backoff
+
+### Tests
+
+- **4 new talkers error-path tests (test/collector-data-transforms.test.js)** — stream unknown-command permanent disable, stream timeout poll downgrade, poll unknown-command permanent disable, poll timeout transient
+- Test count raised from 178 to **182** (all passing)
+
+---
+
 ## [0.5.39] — Security hardening, bug fixes, optimisations
 
 ### Security
