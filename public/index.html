@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <script src="/preflight.js"></script>
   <title>MikroDash</title>
   <link rel="stylesheet" href="/vendor/tabler.min.css"/>
   <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
@@ -843,6 +844,30 @@
       #rtRoutesTbody td,.rt-table#rtRoutesTable th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
       .rt-table#rtRoutesTable{min-width:600px;width:600px}
     }
+    /* ── Reports page ─────────────────────────────────────────────────────── */
+    .rpt-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+    .rpt-select,.rpt-date-input{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.38rem .65rem;font-size:.76rem;color:var(--text-main);outline:none;transition:border-color .15s;font-family:var(--font-ui)}
+    .rpt-date-input{font-family:var(--font-mono)}
+    .rpt-select:focus,.rpt-date-input:focus{border-color:var(--accent-rx)}
+    html[data-theme="light"] .rpt-select,html[data-theme="light"] .rpt-date-input{background:rgba(255,255,255,.95)}
+    .rpt-stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.65rem;margin-bottom:.9rem}
+    .rpt-stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem}
+    .rpt-stat-val{font-family:var(--font-mono);font-size:1.35rem;font-weight:700;color:var(--text-main);line-height:1}
+    .rpt-stat-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:.25rem}
+    .rpt-chart-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem 1rem;position:relative;height:190px;margin-bottom:.85rem}
+    .rpt-chart-title{font-family:var(--font-ui);font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.5rem}
+    .rtab-panel{display:none}
+    .rtab-panel.active{display:block}
+    .rpt-export-row{display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:center}
+    .rpt-iface-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
+    .rpt-iface-label{font-size:.72rem;color:var(--text-muted)}
+    .rpt-empty{text-align:center;padding:2.5rem;color:var(--text-muted);font-size:.78rem}
+    .rpt-pager{display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-top:1px solid var(--border);background:rgba(99,130,190,.03);font-family:var(--font-mono);font-size:.72rem}
+    .rpt-pager-info{flex:1;color:var(--text-muted)}
+    .rpt-pager-btn{background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:.28rem .65rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);cursor:pointer;transition:color .15s,border-color .15s}
+    .rpt-pager-btn:hover:not(:disabled){color:var(--text-main);border-color:var(--accent-rx)}
+    .rpt-pager-btn:disabled{opacity:.35;cursor:default}
+    @media(max-width:600px){.rpt-bar{gap:.4rem}.rpt-stat-row{grid-template-columns:repeat(2,1fr)}}
   </style>
 </head>
 <body>
@@ -912,12 +937,27 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
       <span class="nav-label">Logs</span>
     </a>
-    <div style="flex:1;min-height:8px"></div>
-    <div style="margin:0 14px 4px;border-top:1px solid var(--border);opacity:.25"></div>
+    <a class="nav-item" data-page="reports" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+      <span class="nav-label">Reports</span>
+    </a>
     <a class="nav-item" data-page="settings" href="#" id="settingsNavItem">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
       <span class="nav-label">Settings</span>
     </a>
+    <div style="flex:1;min-height:8px"></div>
+    <div style="margin:0 14px 4px;border-top:1px solid var(--border);opacity:.25"></div>
+    <div id="authUserChip" style="display:none">
+      <div class="nav-item" data-page="settings" style="height:44px">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        <span class="nav-label" style="display:flex;align-items:center;justify-content:space-between;flex:1;min-width:0;gap:.4rem">
+          <span id="authUsername" style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0"></span>
+          <button id="logoutBtn" title="Sign out" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:rgba(99,130,190,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0;transition:color .15s,background .15s">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </span>
+      </div>
+    </div>
   </div>
 
 </nav>
@@ -1006,7 +1046,7 @@
               <div class="legend-item"><div class="legend-dot" style="background:var(--accent-tx)"></div><span style="color:var(--text-muted)">TX</span><span class="legend-rate" id="liveTx">&#8212;</span></div>
             </div>
           </div>
-          <div class="card-body" style="padding:.6rem 1rem .75rem"><div class="chart-wrap"><canvas id="trafficChart" style="opacity:0"></canvas></div></div>
+          <div class="card-body" style="padding:.6rem 1rem .75rem"><div class="chart-wrap"><canvas id="trafficChart"></canvas></div></div>
         </div>
       </div>
 
@@ -2032,6 +2072,145 @@
   </div>
 
   <!-- ── Settings ─────────────────────────────────────────────────────────── -->
+  <!-- REPORTS -->
+  <div class="page-view" id="page-reports">
+    <div>
+
+      <!-- Toolbar -->
+      <div class="rpt-bar">
+        <select id="rptRouter" class="rpt-select" title="Router"></select>
+        <input type="datetime-local" id="rptFrom" class="rpt-date-input" title="From date/time"/>
+        <span style="color:var(--text-muted);font-size:.75rem;flex-shrink:0">to</span>
+        <input type="datetime-local" id="rptTo" class="rpt-date-input" title="To date/time"/>
+        <span style="color:var(--text-muted);font-size:.75rem;flex-shrink:0">Group by</span>
+        <select id="rptAggregate" class="rpt-select" title="Aggregation period">
+          <option value="">Default</option>
+          <option value="hour">Hour</option>
+          <option value="day">Day</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+        </select>
+        <button class="sbtn sbtn-primary" id="rptLoadBtn">Load</button>
+        <span id="rptSpinner" style="display:none;font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)">Loading…</span>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="stab-bar" id="rptTabBar">
+        <button class="stab active" data-rtab="ping">Ping Stability</button>
+        <button class="stab" data-rtab="traffic">Traffic History</button>
+        <button class="stab" data-rtab="bandwidth">Bandwidth Usage</button>
+        <button class="stab" data-rtab="alerts">Alert Events</button>
+        <button class="stab" data-rtab="connectivity">Connectivity</button>
+      </div>
+
+      <!-- ── Ping Stability tab ─────────────────────────────────────────── -->
+      <div id="rtab-ping" class="rtab-panel active">
+        <div class="rpt-stat-row" id="rptPingStats"></div>
+        <div class="rpt-chart-wrap">
+          <div class="rpt-chart-title">RTT Trend (ms)</div>
+          <canvas id="rptPingChart" style="width:100%;height:140px"></canvas>
+        </div>
+        <div class="rpt-export-row">
+          <a id="rptPingCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptPingPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptPingThead"><th>Time</th><th>Target</th><th style="text-align:right">RTT (ms)</th><th style="text-align:right">Loss %</th></tr></thead>
+            <tbody id="rptPingTbody"><tr><td colspan="4" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+          <div class="rpt-pager" id="rptPingPager" style="display:none">
+            <span class="rpt-pager-info" id="rptPingPageInfo"></span>
+            <button class="rpt-pager-btn" id="rptPingPrev">&#8592; Prev</button>
+            <button class="rpt-pager-btn" id="rptPingNext">Next &#8594;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Traffic History tab ───────────────────────────────────────── -->
+      <div id="rtab-traffic" class="rtab-panel">
+        <div class="rpt-stat-row" id="rptTrafficStats"></div>
+        <div class="rpt-chart-wrap">
+          <div class="rpt-chart-title">RX / TX (Mbps)</div>
+          <canvas id="rptTrafficChart" style="width:100%;height:140px"></canvas>
+        </div>
+        <div class="rpt-iface-row">
+          <span class="rpt-iface-label">Interface:</span>
+          <select id="rptTrafficIface" class="rpt-select"></select>
+        </div>
+        <div class="rpt-export-row">
+          <a id="rptTrafficCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptTrafficPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptTrafficThead"><th>Time</th><th>Interface</th><th style="text-align:right">RX (Mbps)</th><th style="text-align:right">TX (Mbps)</th></tr></thead>
+            <tbody id="rptTrafficTbody"><tr><td colspan="4" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Bandwidth Usage tab ──────────────────────────────────────── -->
+      <div id="rtab-bandwidth" class="rtab-panel">
+        <div class="rpt-stat-row" id="rptBwStats"></div>
+        <div class="rpt-chart-wrap">
+          <div class="rpt-chart-title">Download / Upload (MB/min)</div>
+          <canvas id="rptBandwidthChart" style="width:100%;height:140px"></canvas>
+        </div>
+        <div class="rpt-iface-row">
+          <span class="rpt-iface-label">Interface:</span>
+          <select id="rptBwIface" class="rpt-select"></select>
+        </div>
+        <div class="rpt-export-row">
+          <a id="rptBwCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptBwPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptBwThead"><th>Time</th><th>Interface</th><th style="text-align:right">Download (MB)</th><th style="text-align:right">Upload (MB)</th></tr></thead>
+            <tbody id="rptBwTbody"><tr><td colspan="4" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="rpt-pager" id="rptBwPager" style="display:none">
+          <span class="rpt-pager-info" id="rptBwPageInfo"></span>
+          <button class="rpt-pager-btn" id="rptBwPrev">&#8592; Prev</button>
+          <button class="rpt-pager-btn" id="rptBwNext">Next &#8594;</button>
+        </div>
+      </div>
+
+      <!-- ── Alert Events tab ──────────────────────────────────────────── -->
+      <div id="rtab-alerts" class="rtab-panel">
+        <div class="rpt-stat-row" id="rptAlertStats"></div>
+        <div class="rpt-export-row">
+          <a id="rptAlertCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptAlertPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptAlertThead"><th>Fired At</th><th>Type</th><th>Subject</th><th>Detail</th><th>Resolved At</th></tr></thead>
+            <tbody id="rptAlertTbody"><tr><td colspan="5" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Connectivity tab ──────────────────────────────────────────── -->
+      <div id="rtab-connectivity" class="rtab-panel">
+        <div class="rpt-stat-row" id="rptConnStats"></div>
+        <div class="rpt-export-row">
+          <a id="rptConnCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptConnPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptConnThead"><th>Time</th><th>Status</th></tr></thead>
+            <tbody id="rptConnTbody"><tr><td colspan="2" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <div class="page-view" id="page-settings">
     <div style="max-width:720px;margin:0 auto">
 
@@ -2071,6 +2250,87 @@
 
       <!-- ── General tab: Poll Intervals + Limits + Diagnostics ─────────── -->
       <div class="stab-panel" id="stab-general">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="scard-title">Regional</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Sets the timezone for all timestamps: dashboard clock, push notifications, reports, and exports.</p>
+            <div class="sform-row" style="margin-bottom:0">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Display Timezone</label>
+                <select class="sform-input" id="s_displayTimezone">
+                  <option value="">Auto (browser / server local)</option>
+                  <optgroup label="UTC">
+                    <option value="UTC">UTC</option>
+                  </optgroup>
+                  <optgroup label="Europe">
+                    <option value="Europe/London">Europe/London</option>
+                    <option value="Europe/Dublin">Europe/Dublin</option>
+                    <option value="Europe/Lisbon">Europe/Lisbon</option>
+                    <option value="Europe/Paris">Europe/Paris</option>
+                    <option value="Europe/Berlin">Europe/Berlin</option>
+                    <option value="Europe/Rome">Europe/Rome</option>
+                    <option value="Europe/Madrid">Europe/Madrid</option>
+                    <option value="Europe/Amsterdam">Europe/Amsterdam</option>
+                    <option value="Europe/Brussels">Europe/Brussels</option>
+                    <option value="Europe/Stockholm">Europe/Stockholm</option>
+                    <option value="Europe/Helsinki">Europe/Helsinki</option>
+                    <option value="Europe/Athens">Europe/Athens</option>
+                    <option value="Europe/Warsaw">Europe/Warsaw</option>
+                    <option value="Europe/Prague">Europe/Prague</option>
+                    <option value="Europe/Budapest">Europe/Budapest</option>
+                    <option value="Europe/Bucharest">Europe/Bucharest</option>
+                    <option value="Europe/Istanbul">Europe/Istanbul</option>
+                    <option value="Europe/Moscow">Europe/Moscow</option>
+                  </optgroup>
+                  <optgroup label="Americas">
+                    <option value="America/New_York">America/New_York (ET)</option>
+                    <option value="America/Chicago">America/Chicago (CT)</option>
+                    <option value="America/Denver">America/Denver (MT)</option>
+                    <option value="America/Phoenix">America/Phoenix (MST)</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles (PT)</option>
+                    <option value="America/Anchorage">America/Anchorage (AKT)</option>
+                    <option value="America/Honolulu">America/Honolulu (HST)</option>
+                    <option value="America/Toronto">America/Toronto</option>
+                    <option value="America/Vancouver">America/Vancouver</option>
+                    <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+                    <option value="America/Argentina/Buenos_Aires">America/Buenos_Aires</option>
+                    <option value="America/Bogota">America/Bogota</option>
+                    <option value="America/Mexico_City">America/Mexico_City</option>
+                  </optgroup>
+                  <optgroup label="Asia">
+                    <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                    <option value="Asia/Karachi">Asia/Karachi (PKT)</option>
+                    <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                    <option value="Asia/Dhaka">Asia/Dhaka (BST)</option>
+                    <option value="Asia/Bangkok">Asia/Bangkok (ICT)</option>
+                    <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                    <option value="Asia/Hong_Kong">Asia/Hong_Kong (HKT)</option>
+                    <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                    <option value="Asia/Seoul">Asia/Seoul (KST)</option>
+                    <option value="Asia/Jerusalem">Asia/Jerusalem (IST)</option>
+                  </optgroup>
+                  <optgroup label="Pacific &amp; Australia">
+                    <option value="Australia/Perth">Australia/Perth (AWST)</option>
+                    <option value="Australia/Adelaide">Australia/Adelaide (ACST)</option>
+                    <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
+                    <option value="Pacific/Auckland">Pacific/Auckland (NZST)</option>
+                    <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
+                  </optgroup>
+                  <optgroup label="Africa &amp; Middle East">
+                    <option value="Africa/Cairo">Africa/Cairo (EET)</option>
+                    <option value="Africa/Johannesburg">Africa/Johannesburg (SAST)</option>
+                    <option value="Africa/Lagos">Africa/Lagos (WAT)</option>
+                    <option value="Africa/Nairobi">Africa/Nairobi (EAT)</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="scard">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -2129,6 +2389,27 @@
               <div class="sform-group" style="margin-bottom:0">
                 <label class="sform-label">Traffic History (min)</label>
                 <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span class="scard-title">Data Retention</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Controls how long historical data is kept in the SQLite database. The daily prune job removes rows older than these limits.</p>
+            <div class="sform-row">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Metrics retention (days)</label>
+                <input class="sform-input" id="s_dbRetentionDays" type="number" min="7" max="3650" placeholder="90">
+                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">Ping &amp; traffic samples</span>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Events retention (days)</label>
+                <input class="sform-input" id="s_dbAlertRetentionDays" type="number" min="7" max="3650" placeholder="365">
+                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">Alerts &amp; connectivity events</span>
               </div>
             </div>
           </div>
@@ -2554,25 +2835,128 @@
 
       <!-- ── Authentication tab ─────────────────────────────────────────── -->
       <div class="stab-panel" id="stab-auth">
+
+        <!-- Card 1: Auth Mode -->
         <div class="scard">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span class="scard-title">Dashboard Auth</span>
+            <span class="scard-title">Authentication Mode</span>
           </div>
           <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.7rem">Leave blank to disable HTTP Basic Auth on the dashboard.</p>
-            <div class="sform-row" style="margin-bottom:0">
-              <div>
-                <label class="sform-label">Username</label>
-                <input class="sform-input" id="s_dashUser" type="text" placeholder="Leave blank to disable">
+            <div style="margin-bottom:.85rem">
+              <label class="sform-label">Mode</label>
+              <select class="sform-input" id="s_authMode">
+                <option value="none">None (open access)</option>
+                <option value="basic">HTTP Basic Auth</option>
+                <option value="modern">Session-based (recommended)</option>
+              </select>
+            </div>
+
+            <!-- Warning: open access -->
+            <div id="authNoneWarn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.25);border-radius:6px;padding:.5rem .75rem;font-size:.76rem;color:var(--accent-warn);margin-bottom:.6rem">
+              ⚠ Dashboard is publicly accessible — anyone on the network can view it.
+            </div>
+
+            <!-- Basic auth fields (legacy) -->
+            <div id="basicAuthFields" style="display:none">
+              <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.7rem">Leave blank to disable HTTP Basic Auth on the dashboard.</p>
+              <div class="sform-row" style="margin-bottom:0">
+                <div>
+                  <label class="sform-label">Username</label>
+                  <input class="sform-input" id="s_dashUser" type="text" placeholder="Leave blank to disable">
+                </div>
+                <div>
+                  <label class="sform-label">Password</label>
+                  <input class="sform-input" id="s_dashPass" type="password" placeholder="unchanged">
+                </div>
               </div>
-              <div>
-                <label class="sform-label">Password</label>
-                <input class="sform-input" id="s_dashPass" type="password" placeholder="unchanged">
+            </div>
+
+            <!-- Modern auth fields -->
+            <div id="modernAuthFields" style="display:none">
+              <div style="margin-bottom:.85rem">
+                <label class="sform-label">Session Timeout</label>
+                <select class="sform-input" id="s_sessionTimeoutMs">
+                  <option value="3600000">1 hour</option>
+                  <option value="14400000">4 hours</option>
+                  <option value="28800000">8 hours</option>
+                  <option value="86400000">24 hours</option>
+                  <option value="0">Never</option>
+                </select>
+                <p style="font-size:.72rem;color:var(--text-muted);margin-top:.35rem">Sessions are cleared on server restart.</p>
+              </div>
+              <!-- Migration banner: shown when dashUser exists but no users created yet -->
+              <div id="authMigrationBanner" style="display:none;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);border-radius:6px;padding:.6rem .75rem;font-size:.76rem;color:var(--accent-rx);margin-bottom:.6rem">
+                A Basic Auth username is configured. You can migrate it to a Modern Auth user.
+                <button id="authMigrateBtn" class="sbtn sbtn-outline" style="margin-top:.45rem;display:block;width:100%">Create admin from existing credentials</button>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- Card 2: User Management (modern mode only) -->
+        <div class="scard" id="userMgmtCard" style="display:none">
+          <div class="scard-header" style="display:flex;align-items:center;justify-content:space-between">
+            <span style="display:flex;align-items:center;gap:.4rem">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span class="scard-title">Users</span>
+            </span>
+            <button class="sbtn sbtn-primary" id="addUserBtn" style="padding:.25rem .65rem;font-size:.75rem">+ Add User</button>
+          </div>
+          <div class="scard-body" style="padding-top:.5rem">
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="userTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Username</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Role</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Routers</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="userTbody">
+                <tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading…</td></tr>
+              </tbody>
+            </table>
+
+            <!-- Add/Edit user inline form -->
+            <div id="userFormWrap" style="display:none;margin-top:1rem;padding:1rem;background:rgba(99,130,190,.06);border:1px solid var(--border);border-radius:8px">
+              <input type="hidden" id="uf_id">
+              <div class="sform-row">
+                <div>
+                  <label class="sform-label">Username</label>
+                  <input class="sform-input" id="uf_username" type="text" placeholder="username" autocomplete="off">
+                </div>
+                <div>
+                  <label class="sform-label">Password <span id="uf_passHint" style="font-weight:400;text-transform:none;letter-spacing:0">(leave blank to keep)</span></label>
+                  <input class="sform-input" id="uf_password" type="password" placeholder="Password" autocomplete="new-password">
+                </div>
+              </div>
+              <div class="sform-row" style="margin-top:.6rem">
+                <div>
+                  <label class="sform-label">Role</label>
+                  <select class="sform-input" id="uf_role">
+                    <option value="admin">Admin</option>
+                    <option value="viewer">Viewer (read-only)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="sform-label">Allowed Routers</label>
+                  <select class="sform-input" id="uf_routerFilter">
+                    <option value="all">All routers</option>
+                    <option value="custom">Selected routers…</option>
+                  </select>
+                </div>
+              </div>
+              <div id="uf_routerList" style="display:none;margin-top:.6rem;padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem" id="uf_routerList"></div>
+              <div style="display:flex;gap:.5rem;margin-top:.85rem;justify-content:flex-end">
+                <button class="sbtn sbtn-outline" id="uf_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="uf_save">Save User</button>
+              </div>
+              <div class="login-error" id="uf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ── About tab ──────────────────────────────────────────────────── -->

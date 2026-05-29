@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MikroDash — Sign In</title>
+  <link rel="icon" href="/logo.png" type="image/png">
+  <link rel="stylesheet" href="/vendor/tabler.min.css">
+  <link rel="stylesheet" href="/vendor/fonts/fonts.css">
+  <style>
+    :root {
+      --bg-deep:    #07090f;
+      --bg-card:    rgba(13,18,30,.92);
+      --border:     rgba(99,130,190,.15);
+      --accent-rx:  #38bdf8;
+      --accent-err: #f87171;
+      --text-muted: rgba(148,163,190,.55);
+      --text-main:  rgba(200,215,240,.9);
+      --font-mono:  'JetBrains Mono', ui-monospace, monospace;
+      --font-ui:    'Syne', sans-serif;
+      --radius:     10px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { height: 100%; }
+
+    body {
+      width: 100%;
+      min-height: 100vh;
+      background: var(--bg-deep);
+      background-image:
+        radial-gradient(ellipse 900px 600px at 10% 0%, rgba(56,189,248,.06) 0%, transparent 70%),
+        radial-gradient(ellipse 600px 400px at 90% 80%, rgba(52,211,153,.04) 0%, transparent 70%);
+      font-family: var(--font-ui);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-wrap {
+      width: 100%;
+      max-width: 380px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .login-brand {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+    }
+    .login-brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      opacity: .92;
+    }
+    .login-brand-name {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: .01em;
+    }
+    .login-brand-sub {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--accent-rx);
+      text-align: center;
+      margin-top: -.4rem;
+    }
+
+    .login-card {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 40px rgba(0,0,0,.35);
+    }
+
+    .login-card h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 1.4rem;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-label {
+      display: block;
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .35rem;
+    }
+    .form-input {
+      width: 100%;
+      background: rgba(99,130,190,.07);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      font-size: .88rem;
+      padding: .55rem .75rem;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .form-input:focus {
+      border-color: rgba(56,189,248,.45);
+      box-shadow: 0 0 0 3px rgba(56,189,248,.1);
+    }
+    .form-input::placeholder { color: var(--text-muted); opacity: .7; }
+
+    .btn-primary {
+      width: 100%;
+      margin-top: .5rem;
+      padding: .65rem 1rem;
+      background: var(--accent-rx);
+      color: #07090f;
+      border: none;
+      border-radius: 6px;
+      font-family: var(--font-ui);
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      letter-spacing: .02em;
+    }
+    .btn-primary:hover  { opacity: .88; }
+    .btn-primary:active { transform: scale(.98); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+    .login-error {
+      display: none;
+      background: rgba(248,113,113,.1);
+      border: 1px solid rgba(248,113,113,.25);
+      border-radius: 6px;
+      color: var(--accent-err);
+      font-size: .8rem;
+      padding: .5rem .75rem;
+      margin-top: .75rem;
+      text-align: center;
+    }
+    .login-error.visible { display: block; }
+
+    .login-note {
+      font-size: .73rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 1rem;
+      line-height: 1.5;
+    }
+
+    #loadingView {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: .82rem;
+      padding: 1rem 0;
+    }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-rx);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: .4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-brand">
+      <img src="/logo.png" alt="MikroDash">
+      <span class="login-brand-name">MikroDash</span>
+    </div>
+    <div class="login-brand-sub">Real-time MikroTik Router Dashboard</div>
+
+    <div class="login-card">
+
+      <!-- Loading state -->
+      <div id="loadingView">
+        <span class="spinner"></span> Loading…
+      </div>
+
+      <!-- Normal login form -->
+      <div id="loginView" style="display:none">
+        <h2>Sign In</h2>
+        <div class="form-group">
+          <label class="form-label" for="loginUser">Username</label>
+          <input class="form-input" id="loginUser" type="text" autocomplete="username" placeholder="Username" autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPass">Password</label>
+          <input class="form-input" id="loginPass" type="password" autocomplete="current-password" placeholder="Password">
+        </div>
+        <button class="btn-primary" id="loginBtn" type="button">Sign In</button>
+        <div class="login-error" id="loginError"></div>
+      </div>
+
+      <!-- First-run: create admin account -->
+      <div id="firstRunView" style="display:none">
+        <h2>Create Admin Account</h2>
+        <p class="login-note" style="margin-top:0;margin-bottom:1rem">
+          No users exist yet. Create the first admin account to get started.
+        </p>
+        <div class="form-group">
+          <label class="form-label" for="setupUser">Username</label>
+          <input class="form-input" id="setupUser" type="text" autocomplete="username" placeholder="admin">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="setupPass">Password</label>
+          <input class="form-input" id="setupPass" type="password" autocomplete="new-password" placeholder="Choose a password">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="setupPass2">Confirm Password</label>
+          <input class="form-input" id="setupPass2" type="password" autocomplete="new-password" placeholder="Confirm password">
+        </div>
+        <button class="btn-primary" id="setupBtn" type="button">Create Account</button>
+        <div class="login-error" id="setupError"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/login.js"></script>
+</body>
+</html>

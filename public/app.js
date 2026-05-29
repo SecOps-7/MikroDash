@@ -2,6 +2,33 @@
 'use strict';
 var socket = io();
 
+// Intercept fetch responses — redirect to login on 401 in modern auth mode.
+(function() {
+  var _origFetch = window.fetch;
+  window.fetch = function() {
+    return _origFetch.apply(this, arguments).then(function(res) {
+      if (res.status === 401 && window._authMode === 'modern') {
+        window.location.href = '/login';
+      }
+      return res;
+    });
+  };
+}());
+
+// Server notifies this socket when its session has expired.
+socket.on('session:expired', function() {
+  if (window._authMode === 'modern') window.location.href = '/login';
+});
+
+// Login entry — preflight.js already set documentElement opacity:0; fade in after brief settle
+if (sessionStorage.getItem('justLoggedIn')) {
+  sessionStorage.removeItem('justLoggedIn');
+  setTimeout(function() {
+    document.documentElement.style.transition = 'opacity 1s ease';
+    document.documentElement.style.opacity = '1';
+  }, 200);
+}
+
 // ── Utilities ──────────────────────────────────────────────────────────────
 var DOT = '\u00b7';
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
@@ -66,7 +93,7 @@ var dhcpSearch       = $('dhcpSearch');
 
 // ── State ──────────────────────────────────────────────────────────────────
 var autoScroll = true, logFilter = '', logLevel = '';
-var currentIf = '', windowSecs = 60, _ifaceSelectKey = '';
+var currentIf = '', windowSecs = 60, RIGHT_BUFFER_MS = 1000, _ifaceSelectKey = '';
 var fwTab = 'top', fwData = {};
 var connHistory = [], MAX_CONN_HIST = 60;
 var lastTalkers = null, lastLanData = null;
@@ -285,7 +312,7 @@ function _syncSwatches() {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing'};
+var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports'};
 var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','routing','bandwidth','firewall','logs'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
@@ -336,31 +363,39 @@ var trafficCtx = $('trafficChart');
 var chart = null;
 var allPoints = [];
 var MAX_CLIENT_POINTS = 1800; // 30 min at 1 Hz — matches server HISTORY_MINUTES default
-var _trafficRevealed = true; // false while canvas hidden after initChart(); true on first live update
+
 
 function windowedPoints(){
-  var cutoff = Date.now()-(windowSecs*1000), out=[];
+  var cutoff = Date.now()-(windowSecs*1000)-RIGHT_BUFFER_MS, out=[];
   for(var i=allPoints.length-1;i>=0;i--){if(allPoints[i].ts<cutoff)break;out.unshift(allPoints[i]);}
   return out;
 }
-// Draws 7 evenly-spaced grid lines and timestamp labels at fixed pixel positions.
+// Draws evenly-spaced grid lines and timestamp labels at fixed pixel positions.
 // Reads chart.options.scales.x.min/max (the target values set before each update)
 // so labels snap to new timestamps instantly while the data animates behind them.
+// Label count scales with chart width to prevent overlap at small sizes.
 var _trafficTickPlugin={id:'trafficStaticTicks',afterDraw:function(c){
   var x=c.options.scales.x;
   if(!x||x.min==null||x.max==null)return;
   var ctx=c.ctx,ca=c.chartArea,w=ca.right-ca.left;
-  var n=Math.min(7,Math.max(2,Math.floor(w/70)+1));
   ctx.save();
   ctx.font="10px 'JetBrains Mono',monospace";
   ctx.textBaseline='top';
-  for(var i=0;i<n;i++){
-    var frac=i/(n-1),px=Math.round(ca.left+frac*w);
-    ctx.beginPath();ctx.strokeStyle='rgba(99,130,190,.07)';ctx.lineWidth=1;
-    ctx.moveTo(px+0.5,ca.top);ctx.lineTo(px+0.5,ca.bottom);ctx.stroke();
+  var labelW=ctx.measureText(new Date(x.min).toLocaleTimeString()).width;
+  var n=Math.min(7,Math.max(1,Math.floor(w/(labelW+20))));
+  if(n===1){
     ctx.fillStyle='rgba(148,163,190,.4)';
-    ctx.textAlign=i===0?'left':i===n-1?'right':'center';
-    ctx.fillText(new Date(x.min+frac*(x.max-x.min)).toLocaleTimeString(),px,ca.bottom+6);
+    ctx.textAlign='right';
+    ctx.fillText(new Date(x.max).toLocaleTimeString(),ca.right,ca.bottom+6);
+  } else {
+    for(var i=0;i<n;i++){
+      var frac=i/(n-1),px=Math.round(ca.left+frac*w);
+      ctx.beginPath();ctx.strokeStyle='rgba(99,130,190,.07)';ctx.lineWidth=1;
+      ctx.moveTo(px+0.5,ca.top);ctx.lineTo(px+0.5,ca.bottom);ctx.stroke();
+      ctx.fillStyle='rgba(148,163,190,.4)';
+      ctx.textAlign=i===0?'left':i===n-1?'right':'center';
+      ctx.fillText(new Date(x.min+frac*(x.max-x.min)).toLocaleTimeString(),px,ca.bottom+6);
+    }
   }
   ctx.restore();
 }};
@@ -369,21 +404,30 @@ function makeChartObj(){
   chart=new Chart(trafficCtx,{type:'line',plugins:[_trafficTickPlugin],data:{datasets:[
     {label:'RX',data:[],borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.08)',borderWidth:1.5,tension:0.3,pointRadius:0,fill:true},
     {label:'TX',data:[],borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.06)',borderWidth:1.5,tension:0.3,pointRadius:0,fill:true}
-  ]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:1050,easing:'linear'},interaction:{mode:'index',intersect:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:1000,easing:'linear'},interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(7,9,15,.9)',borderColor:'rgba(99,130,190,.2)',borderWidth:1,
       titleFont:{family:"'JetBrains Mono',monospace",size:11},bodyFont:{family:"'JetBrains Mono',monospace",size:11},
       callbacks:{title:function(items){return new Date(items[0].parsed.x).toLocaleTimeString();},label:function(ctx){return' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y);}}}},
-    scales:{x:{type:'linear',display:true,min:Date.now()-windowSecs*1000,max:Date.now(),
+    scales:{x:{type:'linear',display:true,min:Date.now()-windowSecs*1000-RIGHT_BUFFER_MS,max:Date.now()-RIGHT_BUFFER_MS,
                grid:{display:false,drawBorder:false},border:{display:false},ticks:{display:false},
                afterFit:function(s){s.height=26;}},
             y:{beginAtZero:true,grid:{color:'rgba(99,130,190,.07)'},ticks:{color:'rgba(148,163,190,.4)',font:{family:"'JetBrains Mono',monospace",size:10},callback:function(v){return fmtMbps(v);}}}}}});
 }
 function redrawChart(){
-  var now=Date.now(), pts=windowedPoints(); if(!chart)makeChartObj();
+  var pts=windowedPoints(); if(!chart)makeChartObj();
   chart.data.datasets[0].data=pts.map(function(p){return {x:p.ts,y:p.rx_mbps};});
   chart.data.datasets[1].data=pts.map(function(p){return {x:p.ts,y:p.tx_mbps};});
-  chart.options.scales.x.min=now-windowSecs*1000;
-  chart.options.scales.x.max=now;
+  var dMax=0;
+  for(var i=0;i<pts.length;i++){if(pts[i].rx_mbps>dMax)dMax=pts[i].rx_mbps;if(pts[i].tx_mbps>dMax)dMax=pts[i].tx_mbps;}
+  _yMaxTarget=dMax||1;
+  _yMaxCurrent=_yMaxTarget;
+  chart.options.scales.y.max=_yMaxCurrent;
+  // Set the X axis using the SAME formula the keepalive uses (current estimated server
+  // time), so the redraw frame paints at exactly the position the keepalive continues
+  // from — no one-frame disagreement that would show as a forward snap.
+  var anchor=_lastSampleTs?Date.now()+_serverOffset:(pts.length?pts[pts.length-1].ts:Date.now());
+  chart.options.scales.x.min=anchor-windowSecs*1000-RIGHT_BUFFER_MS;
+  chart.options.scales.x.max=anchor-RIGHT_BUFFER_MS;
   chart.update('none');
 }
 
@@ -391,8 +435,6 @@ function applyWindow(secs){windowSecs=secs;redrawChart();}
 function initChart(points){
   allPoints=(points||[]).slice(-MAX_CLIENT_POINTS);
   if(!chart)makeChartObj();
-  _trafficRevealed=false;
-  if(trafficCtx){trafficCtx.style.transition='none';trafficCtx.style.opacity='0';}
   redrawChart();
 }
 
@@ -1367,25 +1409,30 @@ document.addEventListener('mikrodash:pagechange', function(e) {
     var w = c.parentElement ? c.parentElement.clientWidth : 0;
     if (w > 0) { c.width = w; fwDrawSparkline(); }
   }
-  // When returning to dashboard, redraw chart from the full buffered allPoints history
-  if (e.detail === 'dashboard' && allPoints.length) {
-    requestAnimationFrame(redrawChart);
-  }
+  // Traffic chart is kept live in the background (no redraw needed on navigate-back).
+  // Chart.js animates against the hidden 0×0 canvas while off-page; its ResizeObserver
+  // re-renders at the correct live position when the canvas returns to full size.
 });
 
 // ── Page Visibility: pause SVG animations and skip rAF flushes when hidden ─
+// Freeze the keepalive on hide by clearing _lastSampleTs. Bound to both visibilitychange
+// AND window blur — when the browser drops behind another app, visibilitychange may not
+// fire but blur does. The keepalive bails on !_lastSampleTs and resumes cleanly from the
+// (EMA-smoothed) _serverOffset when the next sample arrives, so there is no resume jump.
+function _hideTrafficChart(){
+  _lastSampleTs=0;
+  if(trafficCtx){trafficCtx.style.transition='none';trafficCtx.style.opacity='0';}
+}
 document.addEventListener('visibilitychange', function() {
   var svg = $('netDiagram');
-  if (svg) {
-    if (document.hidden) svg.pauseAnimations();
-    else if (!_rosCurrentlyDisconnected) {
-      svg.unpauseAnimations();
-      // Flush any pending data that accumulated while hidden
-      if (_pendingSysData && !_sysRafId) _sysRafId = requestAnimationFrame(_flushSysUpdate);
-      if (_pendingConnData && !_connRafId) _connRafId = requestAnimationFrame(_flushConnUpdate);
-      // Redraw traffic chart from buffered allPoints so the gap while hidden is filled
-      if (allPoints.length) requestAnimationFrame(redrawChart);
-    }
+  if (document.hidden) {
+    if (svg) svg.pauseAnimations();
+    _hideTrafficChart();
+  } else if (!_rosCurrentlyDisconnected) {
+    if (svg) svg.unpauseAnimations();
+    // Flush any pending data that accumulated while hidden
+    if (_pendingSysData && !_sysRafId) _sysRafId = requestAnimationFrame(_flushSysUpdate);
+    if (_pendingConnData && !_connRafId) _connRafId = requestAnimationFrame(_flushConnUpdate);
   }
 });
 
@@ -1675,6 +1722,7 @@ socket.on('traffic:history',function(data){
   var tc=$('trafficCard');if(tc)tc.classList.remove('is-stale');
 });
 var _pendingTraffic = null, _trafficRafId = null;
+var _lastSampleTs = 0, _lastSampleAt = 0, _serverOffset = 0, _chartKeepaliveId = null, _yMaxTarget = 0, _yMaxCurrent = 0;
 socket.on('traffic:update',function(sample){
   if(!currentIf||sample.ifName!==currentIf)return;
   // Always buffer into allPoints so history is preserved while the tab is hidden
@@ -1684,23 +1732,51 @@ socket.on('traffic:update',function(sample){
   _pendingTraffic = sample;
   if(!_trafficRafId) _trafficRafId = requestAnimationFrame(function(){
     _trafficRafId = null;
-    if(document.hidden || !_pendingTraffic) return;
+    if(!_pendingTraffic) return;
     var p = _pendingTraffic; _pendingTraffic = null;
-    liveRx.textContent=fmtMbps(p.rx_mbps); liveTx.textContent=fmtMbps(p.tx_mbps);
-    if(_currentPage !== 'dashboard') return;
-    var cutoff=Date.now()-(windowSecs*1000); if(p.ts<cutoff)return;
-    if(!chart)makeChartObj();
-    if(!_trafficRevealed){_trafficRevealed=true;if(trafficCtx){trafficCtx.style.transition='opacity 0.4s ease';trafficCtx.style.opacity='1';}}
+    if(!document.hidden){liveRx.textContent=fmtMbps(p.rx_mbps); liveTx.textContent=fmtMbps(p.tx_mbps);}
+    // Canvas was hidden on blur/visibility-hide so the absence catch-up (keepalive
+    // advancing the axis forward to current time) happens invisibly. Re-arm the
+    // transition this frame, then fade 0→1 two frames later once the axis has settled.
+    // Guard on !document.hidden: throttled RAFs can still fire while the page is occluded,
+    // and restoring opacity there would un-hide the canvas before the reveal, killing the
+    // fade and exposing the jump. Only fade in once the page is actually visible again.
+    if(!document.hidden&&trafficCtx&&trafficCtx.style.opacity==='0'){
+      // Commit opacity:0 with no transition (force a synchronous reflow), THEN enable the
+      // transition and set opacity:1 in the same tick. The reflow guarantees the browser
+      // registers a real 0→1 transition rather than collapsing it to an instant change.
+      trafficCtx.style.transition='none';
+      void trafficCtx.offsetHeight;
+      trafficCtx.style.transition='opacity 0.4s ease';
+      trafficCtx.style.opacity='1';
+    }
+    _lastSampleTs=p.ts; _lastSampleAt=Date.now();
+    // Sample arrival timing jitters ±several hundred ms, so each sample's raw offset
+    // (p.ts - now) is noisy. Smooth it with an EMA so the keepalive's X axis doesn't
+    // swing back and forth. Seed directly on the first sample / after a reset.
+    var _rawOffset=p.ts-Date.now();
+    _serverOffset=_serverOffset?_serverOffset+(_rawOffset-_serverOffset)*0.1:_rawOffset;
+    if(!_chartKeepaliveId)(function _tick(){
+      _chartKeepaliveId=requestAnimationFrame(_tick);
+      if(!chart||document.hidden||!_lastSampleTs)return;
+      var sn=Date.now()+_serverOffset;
+      var vl=sn-windowSecs*1000-RIGHT_BUFFER_MS;
+      var rd=chart.data.datasets[0].data,td=chart.data.datasets[1].data;
+      while(rd.length>0&&rd[0].x<vl-3000){rd.shift();td.shift();}
+      var newMax=0;
+      for(var i=0;i<rd.length;i++)if(rd[i].y>newMax)newMax=rd[i].y;
+      for(var i=0;i<td.length;i++)if(td[i].y>newMax)newMax=td[i].y;
+      _yMaxTarget=newMax||1;
+      _yMaxCurrent+=(_yMaxTarget-_yMaxCurrent)*0.08;
+      chart.options.scales.y.max=_yMaxCurrent;
+      chart.options.scales.x.min=vl;
+      chart.options.scales.x.max=sn-RIGHT_BUFFER_MS;
+      chart.update('none');
+    })();
     var rx=chart.data.datasets[0].data,tx=chart.data.datasets[1].data;
-    // Snap if chart is stale (tab was hidden, reconnect, etc.) to avoid random interpolation lines
     if(!rx.length||p.ts-rx[rx.length-1].x>2000){redrawChart();return;}
-    // Keep 60 s of extra data beyond the left boundary so the scale animation slides
-    // points off-screen before they are removed — avoids left-edge index-shift artifacts
-    while(rx.length>0&&rx[0].x<cutoff-60000){rx.shift();tx.shift();}
     rx.push({x:p.ts,y:p.rx_mbps}); tx.push({x:p.ts,y:p.tx_mbps});
-    chart.options.scales.x.min=p.ts-windowSecs*1000;
-    chart.options.scales.x.max=p.ts;
-    chart.update();
+    // Scale advance and rendering delegated to 60fps keepalive
   });
 });
 socket.on('wan:status',function(s){renderWanStatus(s);});
@@ -1719,6 +1795,7 @@ var PAGE_NAV_MAP = {
 var _alertCpuThreshold = 90;
 var _alertPingLoss     = 100;
 var _vpnDashTopN       = 5;
+var _displayTimezone   = '';
 
 function applyPageVisibility(pages) {
   for (var key in PAGE_NAV_MAP) {
@@ -1732,6 +1809,7 @@ function applyPageVisibility(pages) {
   if (pages.alertCpuThreshold != null) _alertCpuThreshold = pages.alertCpuThreshold;
   if (pages.alertPingLoss     != null) _alertPingLoss     = pages.alertPingLoss;
   if (pages.vpnDashTopN       != null) _vpnDashTopN       = pages.vpnDashTopN;
+  if (pages.displayTimezone   != null) _displayTimezone   = pages.displayTimezone || '';
   if (pages.pingEnabled       != null) {
     var pingSection = document.getElementById('ndPingSection');
     if (pingSection) pingSection.style.display = pages.pingEnabled ? '' : 'none';
@@ -1767,6 +1845,15 @@ socket.on('connect',function(){
   var svg=$('netDiagram'); if(svg && !_rosCurrentlyDisconnected && !document.hidden) svg.unpauseAnimations();
   // Re-join the current page room after reconnect so room-scoped events resume
   socket.emit('page:focus', _currentPage);
+  // On reconnect in modern auth, verify the session is still valid.
+  // _authMode is only set after the first auth/status fetch, so this guard
+  // ensures the check fires on reconnects but not the very first connect.
+  if (window._authMode === 'modern') {
+    fetch('/api/auth/status')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (!d.session) window.location.href = '/login'; })
+      .catch(function() {});
+  }
 });
 
 // ── RouterOS connection status ──────────────────────────────────────────────
@@ -2084,6 +2171,7 @@ function checkPingNotif(loss){
 function checkNetwatchNotifs(hosts){
   if(!_alertTypes.netwatch) return;
   hosts.forEach(function(h){
+    if(h.status === 'unknown') return; // transient re-probe state (e.g. after entry edit) — skip
     var prev = _notifPrevNetwatch[h.id];
     if(prev !== undefined && prev !== h.status){
       var label = h.name || h.host || h.id;
@@ -2103,9 +2191,18 @@ var _origIfstatus = null;
   socket.on('system:update',   function(d){    checkCpuNotif(d.cpuLoad); });
   socket.on('ping:update',     function(data){ checkPingNotif(data.loss); });
   socket.on('netwatch:update', function(data){ checkNetwatchNotifs(data.hosts||[]); });
-  // Clear interface and VPN state on router switch — ether1 on router A is not
-  // the same interface as ether1 on router B, so stale confirmed states must be
-  // discarded before the new router's first ifstatus:update is compared.
+  // Clear alert-tracking state on every (re)connect so the initial-state payload
+  // from sendInitialState is treated as a fresh baseline, not a transition.
+  // Without this, a state change that occurred while the socket was disconnected
+  // would fire a bell notification but never reach the server alerter
+  // (sendInitialState bypasses buildRouterIo.emit), producing ghost bell alerts.
+  socket.on('connect', function() {
+    _notifPrevIface    = {};
+    _ifacePending      = {};
+    _notifPrevVpn      = {};
+    _notifPrevNetwatch = {};
+  });
+  // Also clear on router switch — ether1 on router A is not ether1 on router B.
   socket.on('router:switching', function() {
     _notifPrevIface    = {};
     _ifacePending      = {};
@@ -2172,11 +2269,15 @@ loadAlertFilters();
   if(!el) return;
   var _clockLast='';
   function tick(){
-    var now = new Date();
-    var h = now.getHours().toString().padStart(2,'0');
-    var m = now.getMinutes().toString().padStart(2,'0');
-    var s = now.getSeconds().toString().padStart(2,'0');
-    var str=h+':'+m+':'+s;
+    var str;
+    if (_displayTimezone) {
+      str = new Intl.DateTimeFormat('en-GB', {
+        timeZone: _displayTimezone, hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false,
+      }).format(new Date());
+    } else {
+      var now = new Date();
+      str = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+    }
     if(str!==_clockLast){ _clockLast=str; el.textContent=str; }
   }
   tick();
@@ -3579,16 +3680,220 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
   }
 
+  // Router name map shared by user list and form; populated by loadUsers()
+  var _currentRouterMap = {};
+
+  function _applyAuthModeVisibility(mode, data) {
+    var noneWarn    = document.getElementById('authNoneWarn');
+    var basicFields = document.getElementById('basicAuthFields');
+    var modernFields = document.getElementById('modernAuthFields');
+    var userCard    = document.getElementById('userMgmtCard');
+    if (noneWarn)     noneWarn.style.display     = (mode === 'none')   ? '' : 'none';
+    if (basicFields)  basicFields.style.display  = (mode === 'basic')  ? '' : 'none';
+    if (modernFields) modernFields.style.display = (mode === 'modern') ? '' : 'none';
+    if (userCard)     userCard.style.display     = (mode === 'modern') ? '' : 'none';
+    var migBanner = document.getElementById('authMigrationBanner');
+    if (migBanner) migBanner.style.display = (mode === 'modern' && data && data.dashUser) ? '' : 'none';
+    if (mode === 'modern') loadUsers();
+  }
+
+  function _routerPillsHtml(allowedRouterIds) {
+    if (!allowedRouterIds || !allowedRouterIds.length) {
+      return '<span style="padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(52,211,153,.1);color:#4ade80;border:1px solid rgba(52,211,153,.2)">All Routers</span>';
+    }
+    return allowedRouterIds.map(function(id) {
+      var name = _currentRouterMap[id] || id;
+      return '<span style="padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.2);margin-right:.2rem">' + esc(name) + '</span>';
+    }).join('');
+  }
+
+  function loadUsers() {
+    var tbody = document.getElementById('userTbody');
+    if (!tbody) return;
+    Promise.all([
+      fetch('/api/users').then(function(r) { return r.json(); }),
+      fetch('/api/routers').then(function(r) { return r.json(); }).catch(function() { return {}; }),
+    ]).then(function(results) {
+      var d = results[0], rd = results[1];
+      var routers = Array.isArray(rd.routers) ? rd.routers : (Array.isArray(rd) ? rd : []);
+      _currentRouterMap = {};
+      routers.forEach(function(rtr) { _currentRouterMap[rtr.id] = rtr.label || rtr.host || rtr.id; });
+      if (!d.ok) { tbody.innerHTML = '<tr><td colspan="4" style="padding:.5rem;color:var(--text-muted)">Failed to load users</td></tr>'; return; }
+      if (!d.users || !d.users.length) { tbody.innerHTML = '<tr><td colspan="4" style="padding:.5rem;color:var(--text-muted)">No users yet</td></tr>'; return; }
+      tbody.innerHTML = '';
+      d.users.forEach(function(u) { tbody.appendChild(renderUserRow(u)); });
+    }).catch(function() { tbody.innerHTML = '<tr><td colspan="4" style="padding:.5rem;color:#f87171">Request failed</td></tr>'; });
+  }
+
+  function renderUserRow(u) {
+    var tr = document.createElement('tr');
+    var roleBadge = u.role === 'admin'
+      ? '<span style="padding:.1rem .45rem;border-radius:4px;font-size:.7rem;background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.2)">Admin</span>'
+      : '<span style="padding:.1rem .45rem;border-radius:4px;font-size:.7rem;background:rgba(148,163,190,.1);color:var(--text-muted);border:1px solid rgba(148,163,190,.15)">Viewer</span>';
+    tr.innerHTML =
+      '<td style="padding:.45rem .5rem;font-size:.82rem">' + esc(u.username) + '</td>' +
+      '<td style="padding:.45rem .5rem">' + roleBadge + '</td>' +
+      '<td style="padding:.45rem .5rem">' + _routerPillsHtml(u.allowedRouterIds) + '</td>' +
+      '<td style="padding:.45rem .5rem;text-align:right;white-space:nowrap">' +
+        '<button class="sbtn sbtn-ghost" style="font-size:.72rem;padding:.2rem .55rem;margin-right:.3rem" data-action="edit">Edit</button>' +
+        '<button class="sbtn sbtn-danger" style="font-size:.72rem;padding:.2rem .55rem" data-action="del">Delete</button>' +
+      '</td>';
+    tr.querySelector('[data-action="edit"]').addEventListener('click', function() { showUserForm(u); });
+    tr.querySelector('[data-action="del"]').addEventListener('click', function() { deleteUser(u.id, u.username); });
+    return tr;
+  }
+
+  function showUserForm(user, prefillUsername) {
+    var wrap   = document.getElementById('userFormWrap');
+    var ufId   = document.getElementById('uf_id');
+    var ufUser = document.getElementById('uf_username');
+    var ufPass = document.getElementById('uf_password');
+    var ufRole = document.getElementById('uf_role');
+    var ufErr  = document.getElementById('uf_error');
+    if (!wrap) return;
+    if (ufId)   ufId.value   = user ? user.id : '';
+    if (ufUser) ufUser.value = user ? user.username : (prefillUsername || '');
+    if (ufPass) { ufPass.value = ''; ufPass.placeholder = user ? 'leave blank to keep current' : 'password'; }
+    if (ufRole) ufRole.value = user ? (user.role || 'viewer') : 'viewer';
+    if (ufErr)  { ufErr.textContent = ''; ufErr.style.display = 'none'; }
+    _populateRouterFilter(user);
+    wrap.style.display = '';
+    if (ufUser) ufUser.focus();
+  }
+
+  function _populateRouterFilter(user) {
+    var sel  = document.getElementById('uf_routerFilter');
+    var list = document.getElementById('uf_routerList');
+    if (!sel || !list) return;
+
+    // Mutable list of selected router IDs; stored on element so _collectAllowedRouterIds can read it
+    sel._selectedIds = (user && user.allowedRouterIds && user.allowedRouterIds.length)
+      ? user.allowedRouterIds.slice() : [];
+
+    // Build dropdown: first option = "All Routers" (resets); rest = individual routers
+    sel.innerHTML = '';
+    var allOpt = document.createElement('option'); allOpt.value = ''; allOpt.textContent = 'All Routers';
+    sel.appendChild(allOpt);
+    Object.keys(_currentRouterMap).forEach(function(id) {
+      var opt = document.createElement('option'); opt.value = id; opt.textContent = _currentRouterMap[id];
+      sel.appendChild(opt);
+    });
+    sel.value = '';
+    list.style.display = '';
+
+    function refreshPills() {
+      list.innerHTML = '';
+      if (!sel._selectedIds.length) {
+        var pill = document.createElement('span');
+        pill.style.cssText = 'display:inline-flex;align-items:center;padding:.15rem .6rem;border-radius:20px;font-size:.76rem;background:rgba(52,211,153,.1);color:#4ade80;border:1px solid rgba(52,211,153,.2);margin:.15rem .15rem .15rem 0';
+        pill.textContent = 'All Routers';
+        list.appendChild(pill);
+      } else {
+        sel._selectedIds.forEach(function(id) {
+          var name = _currentRouterMap[id] || id;
+          var pill = document.createElement('span');
+          pill.style.cssText = 'display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .5rem .15rem .6rem;border-radius:20px;font-size:.76rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);margin:.15rem .15rem .15rem 0';
+          var nameSpan = document.createElement('span'); nameSpan.textContent = name;
+          var xBtn = document.createElement('span');
+          xBtn.textContent = '×';
+          xBtn.title = 'Remove';
+          xBtn.style.cssText = 'cursor:pointer;font-size:1rem;line-height:1;opacity:.75;margin-left:.1rem';
+          xBtn.addEventListener('click', (function(rid) { return function() {
+            var i = sel._selectedIds.indexOf(rid);
+            if (i !== -1) sel._selectedIds.splice(i, 1);
+            refreshPills(); updateOpts();
+          }; })(id));
+          pill.appendChild(nameSpan); pill.appendChild(xBtn);
+          list.appendChild(pill);
+        });
+      }
+    }
+
+    function updateOpts() {
+      // Disable already-added routers in the dropdown; update first-option label
+      allOpt.textContent = sel._selectedIds.length ? '— Add another router —' : 'All Routers';
+      Array.from(sel.options).forEach(function(opt) {
+        if (!opt.value) return;
+        opt.disabled = sel._selectedIds.indexOf(opt.value) !== -1;
+      });
+    }
+
+    sel.onchange = function() {
+      var val = sel.value;
+      sel.value = ''; // always reset after pick
+      if (!val) {
+        sel._selectedIds.length = 0; // "All Routers" selected → clear restriction
+      } else if (sel._selectedIds.indexOf(val) === -1) {
+        sel._selectedIds.push(val);
+      }
+      refreshPills(); updateOpts();
+    };
+
+    refreshPills(); updateOpts();
+  }
+
+  function _collectAllowedRouterIds() {
+    var sel = document.getElementById('uf_routerFilter');
+    return (sel && sel._selectedIds) ? sel._selectedIds.slice() : [];
+  }
+
+  function saveUser() {
+    var ufId   = document.getElementById('uf_id');
+    var ufUser = document.getElementById('uf_username');
+    var ufPass = document.getElementById('uf_password');
+    var ufRole = document.getElementById('uf_role');
+    var ufErr  = document.getElementById('uf_error');
+    var id       = ufId   ? ufId.value.trim()  : '';
+    var username = ufUser ? ufUser.value.trim() : '';
+    var password = ufPass ? ufPass.value        : '';
+    var role     = ufRole ? ufRole.value        : 'viewer';
+    if (ufErr) { ufErr.textContent = ''; ufErr.style.display = 'none'; }
+    if (!username) { if (ufErr) { ufErr.textContent = 'Username required'; ufErr.style.display = ''; } return; }
+    var body = { username: username, role: role, allowedRouterIds: _collectAllowedRouterIds() };
+    if (password) body.password = password;
+    var method = id ? 'PUT' : 'POST';
+    var url    = id ? '/api/users/' + id : '/api/users';
+    fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          var wrap = document.getElementById('userFormWrap');
+          if (wrap) wrap.style.display = 'none';
+          loadUsers();
+        } else {
+          if (ufErr) { ufErr.textContent = d.error || 'Save failed'; ufErr.style.display = ''; }
+        }
+      })
+      .catch(function() { if (ufErr) { ufErr.textContent = 'Request failed'; ufErr.style.display = ''; } });
+  }
+
+  function deleteUser(id, username) {
+    if (!confirm('Delete user "' + username + '"? This cannot be undone.')) return;
+    fetch('/api/users/' + id, { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { if (d.ok) loadUsers(); else showBanner('err', d.error || 'Delete failed'); })
+      .catch(function() { showBanner('err', 'Request failed'); });
+  }
+
   function populate(data) {
     _loaded = data;
     var fields = ['routerHost','routerPort','routerUser','defaultIf','pingTarget',
-                  'dashUser','topN','topTalkersN','firewallTopN','vpnDashTopN','maxConns','historyMinutes'];
+                  'dashUser','topN','topTalkersN','firewallTopN','vpnDashTopN','maxConns','historyMinutes',
+                  'dbRetentionDays','dbAlertRetentionDays'];
     fields.forEach(function(f) {
       var el = $('s_'+f); if (el) el.value = data[f] !== undefined ? data[f] : '';
     });
     // Passwords — show placeholder only, never pre-fill with mask
     var rp = $('s_routerPass'); if (rp) { rp.value = ''; rp.placeholder = data.routerPass ? 'leave blank to keep current' : 'not set'; }
     var dp = $('s_dashPass');   if (dp) { dp.value = ''; dp.placeholder = data.dashPass   ? 'leave blank to keep current' : 'not set'; }
+    // Auth mode + session timeout
+    var authModeEl = $('s_authMode');
+    if (authModeEl) {
+      authModeEl.value = data.authMode || 'basic';
+      _applyAuthModeVisibility(data.authMode || 'basic', data);
+    }
+    var stEl = $('s_sessionTimeoutMs');
+    if (stEl && data.sessionTimeoutMs != null) stEl.value = String(data.sessionTimeoutMs);
     // Booleans
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = !!data[f];
@@ -3599,6 +3904,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) pingEnabledEl.checked = data.pingEnabled !== false;
     var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) rosDebugEl.checked = !!data.rosDebug;
+    var tzEl = $('s_displayTimezone'); if (tzEl) tzEl.value = data.displayTimezone || '';
     // Collection method toggles (true = stream, false = poll)
     ['streamSystem','streamPing','streamConns','streamTalkers','streamIfrates'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
@@ -3687,12 +3993,18 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) out[f] = el.value.trim();
     });
     var portEl = $('s_routerPort'); if (portEl) out.routerPort = parseInt(portEl.value, 10);
-    ['topN','topTalkersN','firewallTopN','vpnDashTopN','maxConns','historyMinutes'].forEach(function(f) {
+    ['topN','topTalkersN','firewallTopN','vpnDashTopN','maxConns','historyMinutes',
+     'dbRetentionDays','dbAlertRetentionDays'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = parseInt(el.value, 10);
     });
     // Passwords — only send if user typed something
     var rpEl = $('s_routerPass'); if (rpEl && rpEl.value) out.routerPass = rpEl.value;
-    var dpEl = $('s_dashPass');   if (dpEl && dpEl.value) out.dashPass   = dpEl.value;
+    // dashPass: only relevant for basic mode; skip in modern to avoid overwriting
+    var amEl2 = $('s_authMode'); var curMode = amEl2 ? amEl2.value : 'basic';
+    if (curMode !== 'modern') { var dpEl = $('s_dashPass'); if (dpEl && dpEl.value) out.dashPass = dpEl.value; }
+    // Auth mode + session timeout
+    if (amEl2) out.authMode = amEl2.value;
+    var stEl2 = $('s_sessionTimeoutMs'); if (stEl2) out.sessionTimeoutMs = parseInt(stEl2.value, 10);
     // Booleans
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
@@ -3702,6 +4014,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
     var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) out.rosDebug = rosDebugEl.checked;
+    var tzEl2 = $('s_displayTimezone'); if (tzEl2) out.displayTimezone = tzEl2.value;
     // Collection method toggles
     ['streamSystem','streamPing','streamConns','streamTalkers','streamIfrates'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
@@ -3840,6 +4153,33 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   _testNotifBtn('btn-test-smtp',       'test-smtp-result',       'smtp');
   _testNotifBtn('btn-test-ntfy',       'test-ntfy-result',       'ntfy');
 
+  // Auth mode change listener
+  var authModeSelect = $('s_authMode');
+  if (authModeSelect) {
+    authModeSelect.addEventListener('change', function() {
+      _applyAuthModeVisibility(this.value, _loaded);
+      if (this.value === 'modern') loadUsers();
+    });
+  }
+
+  // User form wire-up
+  var addUserBtn = $('addUserBtn');
+  if (addUserBtn) addUserBtn.addEventListener('click', function() { showUserForm(null); });
+  var ufSaveBtn = $('uf_save');
+  if (ufSaveBtn) ufSaveBtn.addEventListener('click', saveUser);
+  var ufCancelBtn = $('uf_cancel');
+  if (ufCancelBtn) ufCancelBtn.addEventListener('click', function() {
+    var wrap = document.getElementById('userFormWrap'); if (wrap) wrap.style.display = 'none';
+  });
+
+  // Migration banner — pre-fill user form with existing dashUser
+  var migrateBtn = $('authMigrateBtn');
+  if (migrateBtn) {
+    migrateBtn.addEventListener('click', function() {
+      showUserForm(null, _loaded && _loaded.dashUser ? _loaded.dashUser : '');
+    });
+  }
+
   // Load settings when page becomes active
   // Load settings on every visit to the settings page
   document.addEventListener('mikrodash:pagechange', function(e) {
@@ -3913,8 +4253,14 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var bwLiveTxUnit = $('bwLiveTxUnit');
 
   // ── Compact traffic chart ─────────────────────────────────────────────
+  // Uses the same flow logic as the main dashboard chart: a 60fps keepalive
+  // owns X-axis scrolling (anchored to the shared EMA-smoothed _serverOffset)
+  // and the Y-axis lerp, so it slides smoothly between 1 Hz samples and looks/
+  // behaves identically. Unlike the dashboard chart it does NOT stay alive when
+  // the page isn't viewed — the keepalive self-stops and re-syncs on return.
   var _bwChart = null;
   var _bwChartCtx = $('bwTrafficChart');
+  var _bwYMaxTarget = 0, _bwYMaxCurrent = 0, _bwKeepaliveId = null;
 
   function _makeBwChart() {
     if (_bwChart) { _bwChart.destroy(); _bwChart = null; }
@@ -3926,7 +4272,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         { label:'TX', data:[], borderColor:'#34d399', backgroundColor:'rgba(52,211,153,.06)', borderWidth:1.5, tension:0.3, pointRadius:0, fill:true }
       ]},
       options: {
-        responsive:true, maintainAspectRatio:false, animation:{duration:1050,easing:'linear'},
+        responsive:true, maintainAspectRatio:false, animation:{duration:1000,easing:'linear'},
         interaction:{ mode:'index', intersect:false },
         plugins:{ legend:{display:false}, tooltip:{
           backgroundColor:'rgba(7,9,15,.9)', borderColor:'rgba(99,130,190,.2)', borderWidth:1,
@@ -3934,7 +4280,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
           callbacks:{title:function(items){return new Date(items[0].parsed.x).toLocaleTimeString();},label:function(ctx){return' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y);}}
         }},
         scales:{
-          x:{type:'linear',display:false,min:Date.now()-windowSecs*1000,max:Date.now()},
+          x:{type:'linear',display:false,min:Date.now()-windowSecs*1000-RIGHT_BUFFER_MS,max:Date.now()-RIGHT_BUFFER_MS},
           y:{beginAtZero:true, grid:{color:'rgba(99,130,190,.06)'},
              ticks:{color:'rgba(148,163,190,.4)',font:{family:"'JetBrains Mono',monospace",size:9},callback:function(v){return fmtMbps(v);},maxTicksLimit:4}}
         }
@@ -3942,22 +4288,53 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
   }
 
-  // Mirror points from the global traffic chart into the compact one
+  // Mirror points from the global traffic buffer into the compact one and snap
+  // the axes to the data. Mirrors the dashboard chart's redrawChart(): the X axis
+  // uses the SAME formula the keepalive uses (current estimated server time) so
+  // the redraw paints exactly where the keepalive continues from — no forward snap.
   function _syncBwChart(animated) {
     if (!_bwChart) return;
-    // Reuse the same allPoints + windowSecs already maintained by the main chart
-    var cutoff = Date.now() - (windowSecs * 1000);
+    var cutoff = Date.now() - (windowSecs * 1000) - RIGHT_BUFFER_MS;
     var pts = [];
     for (var i = allPoints.length - 1; i >= 0; i--) {
-      if (allPoints[i].ts < cutoff) break;
+      if (allPoints[i].ts < cutoff - 3000) break;
       pts.unshift(allPoints[i]);
     }
     _bwChart.data.datasets[0].data = pts.map(function(p){ return {x:p.ts,y:p.rx_mbps}; });
     _bwChart.data.datasets[1].data = pts.map(function(p){ return {x:p.ts,y:p.tx_mbps}; });
-    _bwChart.options.scales.x.min = cutoff;
-    _bwChart.options.scales.x.max = cutoff + windowSecs*1000;
+    var dMax = 0;
+    for (var j = 0; j < pts.length; j++) { if (pts[j].rx_mbps > dMax) dMax = pts[j].rx_mbps; if (pts[j].tx_mbps > dMax) dMax = pts[j].tx_mbps; }
+    _bwYMaxTarget = dMax || 1;
+    _bwYMaxCurrent = _bwYMaxTarget;
+    _bwChart.options.scales.y.max = _bwYMaxCurrent;
+    var anchor = _lastSampleTs ? Date.now() + _serverOffset : (pts.length ? pts[pts.length - 1].ts : Date.now());
+    _bwChart.options.scales.x.min = anchor - windowSecs*1000 - RIGHT_BUFFER_MS;
+    _bwChart.options.scales.x.max = anchor - RIGHT_BUFFER_MS;
     _bwChart.update(animated ? undefined : 'none');
   }
+
+  // 60fps keepalive — owns X-axis scrolling + Y-axis lerp between samples, exactly
+  // like the dashboard chart. Self-stops when the chart is gone or the page isn't
+  // viewed (no background-alive guards), and is re-armed by the traffic:update
+  // handler when the page is active again.
+  function _bwTick() {
+    if (!_bwChart || !pageVisible('bandwidth') || !_lastSampleTs) { _bwKeepaliveId = null; return; }
+    _bwKeepaliveId = requestAnimationFrame(_bwTick);
+    var sn = Date.now() + _serverOffset;
+    var vl = sn - windowSecs*1000 - RIGHT_BUFFER_MS;
+    var rd = _bwChart.data.datasets[0].data, td = _bwChart.data.datasets[1].data;
+    while (rd.length > 0 && rd[0].x < vl - 3000) { rd.shift(); td.shift(); }
+    var newMax = 0;
+    for (var i = 0; i < rd.length; i++) if (rd[i].y > newMax) newMax = rd[i].y;
+    for (var k = 0; k < td.length; k++) if (td[k].y > newMax) newMax = td[k].y;
+    _bwYMaxTarget = newMax || 1;
+    _bwYMaxCurrent += (_bwYMaxTarget - _bwYMaxCurrent) * 0.08;
+    _bwChart.options.scales.y.max = _bwYMaxCurrent;
+    _bwChart.options.scales.x.min = vl;
+    _bwChart.options.scales.x.max = sn - RIGHT_BUFFER_MS;
+    _bwChart.update('none');
+  }
+  function _startBwKeepalive() { if (!_bwKeepaliveId) _bwKeepaliveId = requestAnimationFrame(_bwTick); }
 
   // Update RX/TX stat cards
   function _splitRate(mbps) {
@@ -3975,23 +4352,22 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if (bwLiveTxUnit) bwLiveTxUnit.textContent = tx.unit;
   }
 
-  // Hook into traffic:update to keep the compact chart live
+  // Hook into traffic:update to keep the compact chart live. Mirrors the dashboard
+  // chart handler: push the new point only; the keepalive owns scroll + scaling.
+  // The shared _serverOffset / _lastSampleTs are updated by the dashboard handler
+  // for every sample (regardless of page), so the keepalive's clock is always warm.
   socket.on('traffic:update', function(sample) {
     if (!currentIf || sample.ifName !== currentIf) return;
     if (!pageVisible('bandwidth')) return;
     _updateBwStats(sample.rx_mbps, sample.tx_mbps);
-    if (!_bwChart) { _makeBwChart(); _syncBwChart(false); return; }
-    var cutoff = Date.now() - (windowSecs * 1000);
+    if (!_bwChart) { _makeBwChart(); _syncBwChart(false); _startBwKeepalive(); return; }
     var rx = _bwChart.data.datasets[0].data, tx = _bwChart.data.datasets[1].data;
-    // Snap to full history if chart is stale (page just became visible, reconnect, etc.)
-    if (!rx.length || sample.ts - rx[rx.length - 1].x > 2000) { _syncBwChart(false); return; }
-    // Keep 60 s of extra data past the left boundary to avoid index-shift animation artifacts
-    while (rx.length > 0 && rx[0].x < cutoff - 60000) { rx.shift(); tx.shift(); }
+    // Gap (≥2s since the last point) → full resync rather than a stretched segment.
+    if (!rx.length || sample.ts - rx[rx.length - 1].x > 2000) { _syncBwChart(false); _startBwKeepalive(); return; }
     rx.push({x: sample.ts, y: sample.rx_mbps});
     tx.push({x: sample.ts, y: sample.tx_mbps});
-    _bwChart.options.scales.x.min = sample.ts - windowSecs * 1000;
-    _bwChart.options.scales.x.max = sample.ts;
-    _bwChart.update();
+    _startBwKeepalive();
+    // Scale advance + rendering delegated to the 60fps keepalive (_bwTick).
   });
 
 
@@ -4158,7 +4534,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   document.addEventListener('mikrodash:pagechange', function(e) {
     if (e.detail === 'bandwidth') {
       if (!_bwChart) _makeBwChart();
-      _syncBwChart(false);
+      _syncBwChart(false);   // re-seed axes/data from the buffer accumulated while away
+      _startBwKeepalive();   // resume smooth scrolling now that the page is visible
       if (allPoints.length) {
         var last = allPoints[allPoints.length - 1];
         _updateBwStats(last.rx_mbps, last.tx_mbps);
@@ -4170,6 +4547,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // Reset bandwidth chart on router switch so stale data from the old router
   // doesn't linger in the compact traffic chart.
   socket.on('router:switching', function() {
+    _bwYMaxTarget = 0; _bwYMaxCurrent = 0;
     if (_bwChart) {
       if (_bwChart.data.datasets[0]) _bwChart.data.datasets[0].data = [];
       if (_bwChart.data.datasets[1]) _bwChart.data.datasets[1].data = [];
@@ -4714,7 +5092,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       return '<tr>' +
         '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + '</td>' +
         '<td><span class="rtr-status-badge '+badgeCls+'" data-rtr-conn="'+esc(r.id)+'">'+badgeTxt+'</span></td>' +
-        '<td><span class="rtr-host">'+esc(r.host)+':'+r.port+'</span></td>' +
+        '<td><span class="rtr-host">'+esc(r.host)+'</span></td>' +
         '<td>'+tlsBadge+certNote+'</td>' +
         '<td style="text-align:right;white-space:nowrap;display:flex;gap:.3rem;justify-content:flex-end">' +
           '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-action="edit">Edit</button>' +
@@ -5022,14 +5400,29 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var router = _routers.find(function(r){ return r.id === id; });
     if (!router) return;
     if (switchOvl) switchOvl.classList.add('open');
-    if (switchLbl) switchLbl.textContent = 'Switching to ' + router.label + '…';
-    fetch('/api/routers/' + encodeURIComponent(id) + '/activate', { method: 'POST' })
-      .then(function(r){ return r.json(); })
-      .catch(function(e){
-        if (switchOvl) switchOvl.classList.remove('open');
-        alert('Switch failed: ' + e);
-      });
+    if (switchLbl) switchLbl.textContent = 'Switching to ' + esc(router.label || id) + '…';
+    if (window._authMode === 'modern') {
+      // Per-user socket-based switch — no global router change
+      socket.emit('router:switch', id);
+    } else {
+      // Basic/none auth: global admin switch via REST
+      fetch('/api/routers/' + encodeURIComponent(id) + '/activate', { method: 'POST' })
+        .then(function(r){ return r.json(); })
+        .catch(function(e){
+          if (switchOvl) switchOvl.classList.remove('open');
+          alert('Switch failed: ' + e);
+        });
+    }
   }
+
+  socket.on('router:switched', function(data) {
+    _activeRouterId = data.activeId || '';
+    window._activeRouterId = _activeRouterId;
+    if (sel) sel.value = _activeRouterId;
+    var navSel2 = $('navRouterSelect');
+    if (navSel2) navSel2.value = _activeRouterId;
+    if (switchOvl) switchOvl.classList.remove('open');
+  });
 
   // ── Table event delegation (replaces inline onclick) ─────────────────────
   if (tbody) {
@@ -5794,3 +6187,729 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // Initialise save button as locked
   setSaveReady(false);
 })();
+
+// ── Auth status chip (topbar) + viewer RBAC ────────────────────────────────
+(function() {
+  var chip        = document.getElementById('authUserChip');
+  var nameEl      = document.getElementById('authUsername');
+  var logoutBtn   = document.getElementById('logoutBtn');
+  var addRtrBtn   = document.getElementById('rtrAddBtn');
+  var saveSettBtn = document.getElementById('settingsSaveBtn');
+
+  fetch('/api/auth/status')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      window._authMode = d.authMode || 'basic';
+      if (d.authMode !== 'modern') return;
+      if (d.session) {
+        if (nameEl) nameEl.textContent = d.session.username;
+        if (chip)   chip.style.display = '';
+        if (d.session.role === 'viewer') {
+          if (addRtrBtn)   addRtrBtn.style.display   = 'none';
+          if (saveSettBtn) { saveSettBtn.disabled = true; saveSettBtn.title = 'Admin access required'; }
+          var settingsNav = document.getElementById('settingsNavItem');
+          if (settingsNav) settingsNav.style.display = 'none';
+        }
+      }
+    })
+    .catch(function() {}); // non-critical — chip stays hidden on failure
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      fetch('/api/auth/logout')
+        .then(function() { window.location.href = '/login'; })
+        .catch(function() { window.location.href = '/login'; });
+    });
+  }
+})();
+
+// ── Reports page ──────────────────────────────────────────────────────────────
+(function() {
+  var rptRouter      = $('rptRouter');
+  var rptFrom        = $('rptFrom');
+  var rptTo          = $('rptTo');
+  var rptAggregate   = $('rptAggregate');
+  var rptLoadBtn     = $('rptLoadBtn');
+  var rptSpinner     = $('rptSpinner');
+  var rptTabBar      = $('rptTabBar');
+  var rptPingStats   = $('rptPingStats');
+  var rptPingTbody   = $('rptPingTbody');
+  var rptPingPager   = $('rptPingPager');
+  var rptPingPageInfo= $('rptPingPageInfo');
+  var rptPingPrev    = $('rptPingPrev');
+  var rptPingNext    = $('rptPingNext');
+  var rptPingCsvLink = $('rptPingCsvLink');
+  var rptPingPdfLink = $('rptPingPdfLink');
+  var rptTrafficStats   = $('rptTrafficStats');
+  var rptTrafficIface   = $('rptTrafficIface');
+  var rptTrafficTbody   = $('rptTrafficTbody');
+  var rptTrafficCsvLink = $('rptTrafficCsvLink');
+  var rptTrafficPdfLink = $('rptTrafficPdfLink');
+  var rptAlertStats   = $('rptAlertStats');
+  var rptAlertTbody   = $('rptAlertTbody');
+  var rptAlertCsvLink = $('rptAlertCsvLink');
+  var rptAlertPdfLink = $('rptAlertPdfLink');
+  var rptConnStats   = $('rptConnStats');
+  var rptConnTbody   = $('rptConnTbody');
+  var rptConnCsvLink = $('rptConnCsvLink');
+  var rptConnPdfLink = $('rptConnPdfLink');
+
+  var _rptRouters  = [];
+  var _pingChart      = null;
+  var _trafficChart   = null;
+  var _bandwidthChart = null;
+  var _pingRows    = [];
+  var _bwRows      = [];
+  var _bwPage      = 0;
+  var BW_PAGE_SIZE = 100;
+  var _pingPage    = 0;
+  var PING_PAGE_SIZE = 100;
+
+  var _pingRawRows    = [];
+  var _trafficRawRows = [];
+  var _bwRawRows      = [];
+  var _alertRawRows   = [];
+  var _connRawRows    = [];
+  var _pingSort    = { col: 'ts',       dir: 'desc' };
+  var _trafficSort = { col: 'ts',       dir: 'desc' };
+  var _bwSort      = { col: 'ts',       dir: 'desc' };
+  var _alertSort   = { col: 'fired_at', dir: 'desc' };
+  var _connSort    = { col: 'ts',       dir: 'desc' };
+  var _rptToManual = false; // true once user manually edits the To field
+
+  var _rptP = function(n){ return String(n).padStart(2,'0'); };
+  function _dtVal(d) {
+    return d.getFullYear()+'-'+_rptP(d.getMonth()+1)+'-'+_rptP(d.getDate())+'T'+_rptP(d.getHours())+':'+_rptP(d.getMinutes());
+  }
+
+  // ── Default dates: last 7 days ──────────────────────────────────────
+  (function() {
+    var now  = new Date();
+    var past = new Date(+now - 7 * 86400000); past.setHours(0,0,0,0);
+    if (rptFrom) rptFrom.value = _dtVal(past);
+    if (rptTo)   rptTo.value   = _dtVal(now);
+  }());
+  if (rptTo) rptTo.addEventListener('change', function() { _rptToManual = true; });
+
+  // ── Tab switching ───────────────────────────────────────────────────
+  if (rptTabBar) {
+    rptTabBar.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-rtab]');
+      if (!btn) return;
+      rptTabBar.querySelectorAll('.stab').forEach(function(b){ b.classList.toggle('active', b===btn); });
+      document.querySelectorAll('.rtab-panel').forEach(function(p){ p.classList.remove('active'); });
+      var panel = $('rtab-'+btn.dataset.rtab);
+      if (panel) panel.classList.add('active');
+    });
+  }
+
+  // ── Router list sync ────────────────────────────────────────────────
+  socket.on('routers:update', function(list) {
+    _rptRouters = list || [];
+    if (!rptRouter) return;
+    var cur = rptRouter.value;
+    rptRouter.innerHTML = _rptRouters.map(function(r) {
+      return '<option value="'+esc(r.id)+'">'+esc(r.label||r.host)+'</option>';
+    }).join('');
+    if (cur && _rptRouters.find(function(r){ return r.id===cur; })) rptRouter.value = cur;
+  });
+
+  // ── Helpers ─────────────────────────────────────────────────────────
+  function fmtTs(ts) {
+    if (!ts) return '—';
+    if (_displayTimezone) {
+      return new Intl.DateTimeFormat('sv-SE', {
+        timeZone: _displayTimezone,
+        year:'numeric', month:'2-digit', day:'2-digit',
+        hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false,
+      }).format(new Date(ts)).replace('T',' ');
+    }
+    var d = new Date(ts);
+    var p = function(n){ return String(n).padStart(2,'0'); };
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  }
+
+  function fmtDuration(ms) {
+    if (!ms || ms < 0) return '—';
+    var s = Math.floor(ms / 1000);
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    if (h > 0) return h + 'h ' + m + 'm';
+    if (m > 0) return m + 'm ' + sec + 's';
+    return sec + 's';
+  }
+
+  // Returns an X-axis tick label for a chart timestamp, scaled to the visible span.
+  // span <= 12h  → HH:MM
+  // span <= 3d   → MM-DD HH:MM
+  // span >  3d   → MM-DD
+  function _chartLabel(ts, spanMs) {
+    var HOUR = 3600000, DAY = 86400000;
+    if (_displayTimezone) {
+      var opts;
+      if (spanMs <= 12 * HOUR) {
+        opts = { timeZone:_displayTimezone, hour:'2-digit', minute:'2-digit', hour12:false };
+      } else if (spanMs <= 3 * DAY) {
+        opts = { timeZone:_displayTimezone, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false };
+      } else {
+        opts = { timeZone:_displayTimezone, month:'2-digit', day:'2-digit' };
+      }
+      return new Intl.DateTimeFormat('sv-SE', opts).format(new Date(ts));
+    }
+    var d = new Date(ts), p = function(n){ return String(n).padStart(2,'0'); };
+    if (spanMs <= 12 * HOUR) {
+      return p(d.getHours())+':'+p(d.getMinutes());
+    } else if (spanMs <= 3 * DAY) {
+      return p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+    } else {
+      return p(d.getMonth()+1)+'-'+p(d.getDate());
+    }
+  }
+
+  function statCard(val, lbl) {
+    return '<div class="rpt-stat-card"><div class="rpt-stat-val">'+esc(String(val))+'</div><div class="rpt-stat-lbl">'+esc(lbl)+'</div></div>';
+  }
+
+  function dateToTs(dateStr, endOfDay) {
+    if (!dateStr) return endOfDay ? Date.now() : 0;
+    return new Date(dateStr).getTime() || 0;
+  }
+
+  function exportUrl(type, fmt, routerId, from, to, extra) {
+    var agg = rptAggregate ? rptAggregate.value : '';
+    var q = 'routerId='+encodeURIComponent(routerId)+'&from='+from+'&to='+to+'&format='+fmt;
+    if (agg) q += '&aggregate='+encodeURIComponent(agg);
+    if (extra) q += '&'+extra;
+    return '/api/reports/'+type+'/export?'+q;
+  }
+
+  function setExportLinks(csvEl, pdfEl, type, routerId, from, to, extra) {
+    if (csvEl) { csvEl.href = exportUrl(type,'csv',routerId,from,to,extra); csvEl.style.display=''; }
+    if (pdfEl) { pdfEl.href = exportUrl(type,'pdf',routerId,from,to,extra); pdfEl.style.display=''; }
+  }
+
+  function _sortRows(rows, col, dir) {
+    return rows.slice().sort(function(a, b) {
+      var av = a[col]; var bv = b[col];
+      if (av == null && bv == null) return 0;
+      if (av == null) return dir === 'asc' ? -1 : 1;
+      if (bv == null) return dir === 'asc' ?  1 : -1;
+      if (typeof av === 'number' && typeof bv === 'number')
+        return dir === 'asc' ? av - bv : bv - av;
+      av = String(av).toLowerCase(); bv = String(bv).toLowerCase();
+      return dir === 'asc' ? (av < bv ? -1 : av > bv ? 1 : 0) : (av > bv ? -1 : av < bv ? 1 : 0);
+    });
+  }
+
+  // Rewrites a thead <tr> with sort-indicator classes and wires click handlers.
+  // cols: [{key, label, style?}]  sortState: {col, dir}  onSortFn: called after state update
+  function _renderSortHeader(theadId, cols, sortState, onSortFn) {
+    var tr = $(theadId);
+    if (!tr) return;
+    tr.innerHTML = cols.map(function(c) {
+      var cls = c.key === sortState.col ? ' class="sort-'+sortState.dir+'"' : '';
+      var sty = c.style ? ' style="'+c.style+'"' : '';
+      return '<th'+sty+cls+'>'+c.label+'</th>';
+    }).join('');
+    Array.prototype.forEach.call(tr.querySelectorAll('th'), function(th, i) {
+      var key = cols[i] && cols[i].key;
+      if (!key) return;
+      th.addEventListener('click', function() {
+        if (sortState.col === key) {
+          sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortState.col = key;
+          sortState.dir = 'asc';
+        }
+        onSortFn();
+      });
+    });
+  }
+
+  // ── Ping chart ──────────────────────────────────────────────────────
+  function renderPingChart(rows) {
+    var canvas = $('rptPingChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (_pingChart) { _pingChart.destroy(); _pingChart = null; }
+    // Downsample to ≤300 points
+    var step = rows.length > 300 ? Math.ceil(rows.length/300) : 1;
+    var sub  = rows.filter(function(_,i){ return i%step===0; });
+    var span = sub.length > 1 ? sub[sub.length-1].ts - sub[0].ts : 0;
+    var labels = sub.map(function(r){ return _chartLabel(r.ts, span); });
+    var rtts   = sub.map(function(r){ return r.rtt_ms!=null ? +r.rtt_ms.toFixed(1) : null; });
+    var losses = sub.map(function(r){ return +r.loss_pct.toFixed(1); });
+    _pingChart = new Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: [
+        { label:'RTT ms', data:rtts, borderColor:'rgba(56,189,248,.85)', backgroundColor:'rgba(56,189,248,.07)',
+          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true, spanGaps:true, yAxisID:'yR' },
+        { label:'Loss %', data:losses, borderColor:'rgba(248,113,113,.8)', backgroundColor:'transparent',
+          borderWidth:1.5, pointRadius:0, tension:0.2, fill:false, yAxisID:'yL' },
+      ]},
+      options: {
+        responsive:true, maintainAspectRatio:false, animation:false,
+        layout:{ padding:{ bottom:8 } },
+        interaction:{ mode:'index', intersect:false },
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ maxTicksLimit:8, color:'rgba(148,163,190,.5)', font:{size:10,family:'JetBrains Mono,monospace'} }, grid:{ color:'rgba(99,130,190,.08)' } },
+          yR:{ position:'left', ticks:{ color:'rgba(56,189,248,.7)', font:{size:10,family:'JetBrains Mono,monospace'} }, grid:{ color:'rgba(99,130,190,.08)' } },
+          yL:{ position:'right', min:0, max:100, ticks:{ color:'rgba(248,113,113,.7)', font:{size:10,family:'JetBrains Mono,monospace'} }, grid:{ drawOnChartArea:false } },
+        },
+      },
+    });
+  }
+
+  // ── Traffic chart ───────────────────────────────────────────────────
+  function renderTrafficChart(rows) {
+    var canvas = $('rptTrafficChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (_trafficChart) { _trafficChart.destroy(); _trafficChart = null; }
+    var step = rows.length > 300 ? Math.ceil(rows.length / 300) : 1;
+    var sub  = rows.filter(function(_, i) { return i % step === 0; });
+    var span = sub.length > 1 ? sub[sub.length-1].ts - sub[0].ts : 0;
+    var labels = sub.map(function(r) { return _chartLabel(r.ts, span); });
+    var rxData = sub.map(function(r) { return +(+r.rx_mbps).toFixed(3); });
+    var txData = sub.map(function(r) { return +(+r.tx_mbps).toFixed(3); });
+    _trafficChart = new Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: [
+        { label:'RX', data:rxData, borderColor:'rgba(56,189,248,.85)', backgroundColor:'rgba(56,189,248,.07)',
+          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
+        { label:'TX', data:txData, borderColor:'rgba(52,211,153,.8)', backgroundColor:'rgba(52,211,153,.06)',
+          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
+      ]},
+      options: {
+        responsive:true, maintainAspectRatio:false, animation:false,
+        layout:{ padding:{ bottom:8 } },
+        interaction:{ mode:'index', intersect:false },
+        plugins:{ legend:{ display:true, labels:{ color:'rgba(148,163,190,.7)', font:{size:10,family:'JetBrains Mono,monospace'}, boxWidth:12 } },
+          tooltip:{ callbacks:{ label:function(ctx){ return ' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y); } } } },
+        scales:{
+          x:{ ticks:{ maxTicksLimit:8, color:'rgba(148,163,190,.5)', font:{size:10,family:'JetBrains Mono,monospace'} }, grid:{ color:'rgba(99,130,190,.08)' } },
+          y:{ beginAtZero:true, ticks:{ color:'rgba(148,163,190,.5)', font:{size:10,family:'JetBrains Mono,monospace'}, callback:function(v){ return fmtMbps(v); } }, grid:{ color:'rgba(99,130,190,.08)' } },
+        },
+      },
+    });
+  }
+
+  // ── Bandwidth chart ─────────────────────────────────────────────────
+  function renderBandwidthChart(rows) {
+    var canvas = $('rptBandwidthChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    if (_bandwidthChart) { _bandwidthChart.destroy(); _bandwidthChart = null; }
+    var step = rows.length > 300 ? Math.ceil(rows.length / 300) : 1;
+    var sub  = rows.filter(function(_, i) { return i % step === 0; });
+    var span = sub.length > 1 ? sub[sub.length-1].ts - sub[0].ts : 0;
+    var labels = sub.map(function(r) { return _chartLabel(r.ts, span); });
+    var rxData = sub.map(function(r) { return +(+r.rx_mb).toFixed(3); });
+    var txData = sub.map(function(r) { return +(+r.tx_mb).toFixed(3); });
+    _bandwidthChart = new Chart(canvas, {
+      type: 'line',
+      data: { labels: labels, datasets: [
+        { label:'Download', data:rxData, borderColor:'rgba(56,189,248,.85)', backgroundColor:'rgba(56,189,248,.07)',
+          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
+        { label:'Upload',   data:txData, borderColor:'rgba(52,211,153,.8)',  backgroundColor:'rgba(52,211,153,.06)',
+          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
+      ]},
+      options: {
+        responsive:true, maintainAspectRatio:false, animation:false,
+        layout:{ padding:{ bottom:8 } },
+        interaction:{ mode:'index', intersect:false },
+        plugins:{ legend:{ display:true, labels:{ color:'rgba(148,163,190,.7)', font:{size:10,family:'JetBrains Mono,monospace'}, boxWidth:12 } },
+          tooltip:{ callbacks:{ label:function(ctx){ return ' '+ctx.dataset.label+': '+fmtBytes(ctx.parsed.y * 1048576); } } } },
+        scales:{
+          x:{ ticks:{ maxTicksLimit:8, color:'rgba(148,163,190,.5)', font:{size:10,family:'JetBrains Mono,monospace'} }, grid:{ color:'rgba(99,130,190,.08)' } },
+          y:{ beginAtZero:true, ticks:{ color:'rgba(148,163,190,.5)', font:{size:10,family:'JetBrains Mono,monospace'}, callback:function(v){ return fmtBytes(v * 1048576); } }, grid:{ color:'rgba(99,130,190,.08)' } },
+        },
+      },
+    });
+  }
+
+  // ── Bandwidth pagination ─────────────────────────────────────────────
+  function renderBwPage() {
+    var total = _bwRows.length;
+    var pages = total ? Math.ceil(total / BW_PAGE_SIZE) : 1;
+    if (_bwPage >= pages) _bwPage = pages - 1;
+    var start = _bwPage * BW_PAGE_SIZE;
+    var slice = _bwRows.slice(start, start + BW_PAGE_SIZE);
+    var bwTbody  = $('rptBwTbody');
+    var bwPager  = $('rptBwPager');
+    var bwInfo   = $('rptBwPageInfo');
+    var bwPrev   = $('rptBwPrev');
+    var bwNext   = $('rptBwNext');
+    if (bwTbody) bwTbody.innerHTML = slice.length
+      ? slice.map(function(r) {
+          return '<tr>'+
+            '<td style="color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
+            '<td style="font-family:var(--font-mono)">'+esc(r.interface||'')+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-rx)">'+esc(fmtBytes((+r.rx_mb)*1048576))+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-tx)">'+esc(fmtBytes((+r.tx_mb)*1048576))+'</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4" class="rpt-empty">No data for this range.</td></tr>';
+    if (bwPager)  bwPager.style.display  = total > BW_PAGE_SIZE ? '' : 'none';
+    if (bwInfo)   bwInfo.textContent     = 'Page '+(_bwPage+1)+' of '+pages+' ('+total.toLocaleString()+' rows)';
+    if (bwPrev)   bwPrev.disabled        = _bwPage === 0;
+    if (bwNext)   bwNext.disabled        = _bwPage >= pages - 1;
+  }
+
+  // ── Render: Bandwidth ───────────────────────────────────────────────
+  function renderBandwidth(rows, routerId, from, to) {
+    var totalRx = rows.reduce(function(a, r) { return a + (+r.rx_mb); }, 0);
+    var totalTx = rows.reduce(function(a, r) { return a + (+r.tx_mb); }, 0);
+    var peakRx  = rows.length ? Math.max.apply(null, rows.map(function(r){ return +r.rx_mb; })) : 0;
+    var peakTx  = rows.length ? Math.max.apply(null, rows.map(function(r){ return +r.tx_mb; })) : 0;
+    var agg = rptAggregate ? rptAggregate.value : '';
+    var peakSuffix = agg ? '' : '/min';
+    var countLabel = agg ? 'Buckets' : 'Samples';
+    var bwStats = $('rptBwStats');
+    if (bwStats) bwStats.innerHTML =
+      statCard(fmtBytes(totalRx * 1048576), 'Total Download') +
+      statCard(fmtBytes(totalTx * 1048576), 'Total Upload') +
+      statCard(rows.length ? fmtBytes(peakRx * 1048576)+peakSuffix : '—', 'Peak Download') +
+      statCard(rows.length ? fmtBytes(peakTx * 1048576)+peakSuffix : '—', 'Peak Upload') +
+      statCard(rows.length.toLocaleString(), countLabel);
+    renderBandwidthChart(rows);
+    _bwRawRows = rows;
+    _bwSort.col = 'ts'; _bwSort.dir = 'desc';
+    _applyBwSort();
+    var ifExtra = $('rptBwIface') && $('rptBwIface').value ? 'interface='+encodeURIComponent($('rptBwIface').value) : '';
+    setExportLinks($('rptBwCsvLink'), $('rptBwPdfLink'), 'bandwidth', routerId, from, to, ifExtra);
+  }
+
+  function _applyBwSort() {
+    _bwRows = _sortRows(_bwRawRows, _bwSort.col, _bwSort.dir);
+    _bwPage = 0;
+    renderBwPage();
+    _renderSortHeader('rptBwThead', [
+      { key: 'ts',        label: 'Time',           style: '' },
+      { key: 'interface', label: 'Interface',      style: '' },
+      { key: 'rx_mb',     label: 'Download (MB)', style: 'text-align:right' },
+      { key: 'tx_mb',     label: 'Upload (MB)',   style: 'text-align:right' },
+    ], _bwSort, _applyBwSort);
+  }
+
+  // ── Ping pagination ─────────────────────────────────────────────────
+  function renderPingPage() {
+    var total = _pingRows.length;
+    var pages = total ? Math.ceil(total / PING_PAGE_SIZE) : 1;
+    if (_pingPage >= pages) _pingPage = pages - 1;
+    var start = _pingPage * PING_PAGE_SIZE;
+    var slice = _pingRows.slice(start, start + PING_PAGE_SIZE);
+    if (rptPingTbody) rptPingTbody.innerHTML = slice.length
+      ? slice.map(function(r) {
+          var lossClass = r.loss_pct>=5?' style="color:var(--accent-err)"' : r.loss_pct>0?' style="color:var(--accent-warn)"':'';
+          return '<tr><td style="color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
+            '<td style="font-family:var(--font-mono)">'+esc(r.target||'')+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono)">'+(r.rtt_ms!=null?esc((+r.rtt_ms).toFixed(1)):'—')+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono)"'+lossClass+'>'+esc((+r.loss_pct).toFixed(1))+'%</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4" class="rpt-empty">No data for this range.</td></tr>';
+    if (rptPingPager)    rptPingPager.style.display = total > PING_PAGE_SIZE ? '' : 'none';
+    if (rptPingPageInfo) rptPingPageInfo.textContent = 'Page '+((_pingPage+1))+' of '+pages+' ('+total.toLocaleString()+' rows)';
+    if (rptPingPrev)     rptPingPrev.disabled = _pingPage === 0;
+    if (rptPingNext)     rptPingNext.disabled = _pingPage >= pages - 1;
+  }
+
+  if (rptPingPrev) rptPingPrev.addEventListener('click', function() { if (_pingPage > 0) { _pingPage--; renderPingPage(); } });
+  if (rptPingNext) rptPingNext.addEventListener('click', function() { var pages = Math.ceil(_pingRows.length/PING_PAGE_SIZE); if (_pingPage < pages-1) { _pingPage++; renderPingPage(); } });
+
+  // ── Render: Ping ────────────────────────────────────────────────────
+  function renderPing(rows, routerId, from, to) {
+    var rtts   = rows.filter(function(r){ return r.rtt_ms!=null; }).map(function(r){ return r.rtt_ms; });
+    var losses = rows.map(function(r){ return r.loss_pct; });
+    var avgRtt = rtts.length   ? (rtts.reduce(function(a,b){return a+b;},0)/rtts.length).toFixed(1)    : '—';
+    var maxRtt = rtts.length   ? Math.max.apply(null,rtts).toFixed(1)                                   : '—';
+    var avgLoss= losses.length ? (losses.reduce(function(a,b){return a+b;},0)/losses.length).toFixed(1) : '—';
+    var uptime = losses.length ? ((losses.filter(function(l){return l<1;}).length/losses.length)*100).toFixed(1)+'%' : '—';
+    if (rptPingStats) rptPingStats.innerHTML =
+      statCard(uptime,    'Uptime'  ) + statCard(avgRtt!=='—'?avgRtt+' ms':'—','Avg RTT') +
+      statCard(maxRtt!=='—'?maxRtt+' ms':'—','Max RTT') + statCard(avgLoss!=='—'?avgLoss+'%':'—','Avg Loss') +
+      statCard(rows.length.toLocaleString(), 'Samples');
+    renderPingChart(rows);
+    _pingRawRows = rows;
+    _pingSort.col = 'ts'; _pingSort.dir = 'desc';
+    _applyPingSort();
+    setExportLinks(rptPingCsvLink, rptPingPdfLink, 'ping', routerId, from, to, '');
+  }
+
+  function _applyPingSort() {
+    _pingRows = _sortRows(_pingRawRows, _pingSort.col, _pingSort.dir);
+    _pingPage = 0;
+    renderPingPage();
+    _renderSortHeader('rptPingThead', [
+      { key: 'ts',       label: 'Time',     style: '' },
+      { key: 'target',   label: 'Target',   style: '' },
+      { key: 'rtt_ms',   label: 'RTT (ms)', style: 'text-align:right' },
+      { key: 'loss_pct', label: 'Loss %',   style: 'text-align:right' },
+    ], _pingSort, _applyPingSort);
+  }
+
+  // ── Render: Traffic ─────────────────────────────────────────────────
+  function renderTraffic(rows, routerId, from, to) {
+    var rxVals = rows.map(function(r){ return r.rx_mbps; });
+    var txVals = rows.map(function(r){ return r.tx_mbps; });
+    var peakRx = rxVals.length ? Math.max.apply(null,rxVals).toFixed(2)+' Mbps' : '—';
+    var peakTx = txVals.length ? Math.max.apply(null,txVals).toFixed(2)+' Mbps' : '—';
+    var avgRx  = rxVals.length ? (rxVals.reduce(function(a,b){return a+b;},0)/rxVals.length).toFixed(2)+' Mbps' : '—';
+    var sampleLabel = (rptAggregate && rptAggregate.value) ? 'Buckets' : 'Samples';
+    if (rptTrafficStats) rptTrafficStats.innerHTML =
+      statCard(peakRx,'Peak RX') + statCard(peakTx,'Peak TX') + statCard(avgRx,'Avg RX') + statCard(rows.length.toLocaleString(), sampleLabel);
+    renderTrafficChart(rows);
+    _trafficRawRows = rows;
+    _trafficSort.col = 'ts'; _trafficSort.dir = 'desc';
+    _applyTrafficSort();
+    var ifExtra = rptTrafficIface&&rptTrafficIface.value ? 'interface='+encodeURIComponent(rptTrafficIface.value) : '';
+    setExportLinks(rptTrafficCsvLink, rptTrafficPdfLink, 'traffic', routerId, from, to, ifExtra);
+  }
+
+  function _applyTrafficSort() {
+    var sorted = _sortRows(_trafficRawRows, _trafficSort.col, _trafficSort.dir);
+    if (rptTrafficTbody) rptTrafficTbody.innerHTML = sorted.length
+      ? sorted.map(function(r) {
+          return '<tr><td style="color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
+            '<td style="font-family:var(--font-mono)">'+esc(r.interface||'')+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-rx)">'+esc((+r.rx_mbps).toFixed(3))+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-tx)">'+esc((+r.tx_mbps).toFixed(3))+'</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4" class="rpt-empty">No data for this range.</td></tr>';
+    _renderSortHeader('rptTrafficThead', [
+      { key: 'ts',        label: 'Time',       style: '' },
+      { key: 'interface', label: 'Interface',  style: '' },
+      { key: 'rx_mbps',   label: 'RX (Mbps)', style: 'text-align:right' },
+      { key: 'tx_mbps',   label: 'TX (Mbps)', style: 'text-align:right' },
+    ], _trafficSort, _applyTrafficSort);
+  }
+
+  // ── Render: Alerts ──────────────────────────────────────────────────
+  function renderAlerts(rows, routerId, from, to) {
+    var open     = rows.filter(function(r){ return !r.resolved_at; }).length;
+    var resolved = rows.length - open;
+    var typeCounts = {};
+    rows.forEach(function(r){ typeCounts[r.alert_type]=(typeCounts[r.alert_type]||0)+1; });
+    var topType = Object.keys(typeCounts).sort(function(a,b){ return typeCounts[b]-typeCounts[a]; })[0]||'—';
+    if (rptAlertStats) rptAlertStats.innerHTML =
+      statCard(rows.length,'Total') + statCard(open,'Open') + statCard(resolved,'Resolved') + statCard(topType,'Top Type');
+    _alertRawRows = rows;
+    _alertSort.col = 'fired_at'; _alertSort.dir = 'desc';
+    _applyAlertSort();
+    setExportLinks(rptAlertCsvLink, rptAlertPdfLink, 'alerts', routerId, from, to, '');
+  }
+
+  function _applyAlertSort() {
+    var sorted = _sortRows(_alertRawRows, _alertSort.col, _alertSort.dir);
+    if (rptAlertTbody) rptAlertTbody.innerHTML = sorted.length
+      ? sorted.map(function(r) {
+          var res = r.resolved_at ? esc(fmtTs(r.resolved_at)) : '<span style="color:var(--accent-warn)">Open</span>';
+          var dt  = r.resolved_at ? fmtDuration(r.resolved_at - r.fired_at) : '—';
+          return '<tr>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(fmtTs(r.fired_at))+'</td>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem">'+esc(r.alert_type||'')+'</td>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(r.subject||'—')+'</td>'+
+            '<td style="font-size:.71rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.detail||'—')+'</td>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem">'+res+'</td>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem;text-align:right">'+esc(dt)+'</td></tr>';
+        }).join('')
+      : '<tr><td colspan="6" class="rpt-empty">No alerts for this range.</td></tr>';
+    _renderSortHeader('rptAlertThead', [
+      { key: 'fired_at',    label: 'Fired At',    style: '' },
+      { key: 'alert_type',  label: 'Type',        style: '' },
+      { key: 'subject',     label: 'Subject',     style: '' },
+      { key: 'detail',      label: 'Detail',      style: '' },
+      { key: 'resolved_at', label: 'Resolved At', style: '' },
+      { key: 'downtime_ms', label: 'Down Time',   style: 'text-align:right' },
+    ], _alertSort, _applyAlertSort);
+  }
+
+  // ── Render: Connectivity ────────────────────────────────────────────
+  function renderConn(rows, routerId, from, to) {
+    var agg = rptAggregate ? rptAggregate.value : '';
+    var isAgg = agg && rows.length > 0 && rows[0].total !== undefined;
+    var onlineN, offlineN, uptime, totalDownMs;
+    if (isAgg) {
+      onlineN  = rows.reduce(function(a,r){ return a + (+r.online); }, 0);
+      offlineN = rows.reduce(function(a,r){ return a + (+r.offline); }, 0);
+      var total = onlineN + offlineN;
+      uptime   = total ? ((onlineN/total)*100).toFixed(1)+'%' : '—';
+      totalDownMs = null;
+    } else {
+      onlineN  = rows.filter(function(r){ return r.connected; }).length;
+      offlineN = rows.length - onlineN;
+      uptime   = rows.length ? ((onlineN/rows.length)*100).toFixed(1)+'%' : '—';
+      totalDownMs = rows.reduce(function(a,r){ return a + (r.downtime_ms || 0); }, 0);
+    }
+    if (rptConnStats) rptConnStats.innerHTML =
+      statCard(uptime,'Connection Uptime') + statCard(onlineN,'Online Events') + statCard(offlineN,'Offline Events') +
+      (!isAgg && totalDownMs ? statCard(fmtDuration(totalDownMs),'Total Downtime') : statCard(rows.length, isAgg ? 'Buckets' : 'Total Events'));
+    _connRawRows = rows;
+    _connSort.col = 'ts'; _connSort.dir = 'desc';
+    _applyConnSort();
+    setExportLinks(rptConnCsvLink, rptConnPdfLink, 'connectivity', routerId, from, to, '');
+  }
+
+  function _applyConnSort() {
+    var agg = rptAggregate ? rptAggregate.value : '';
+    var isAgg = agg && _connRawRows.length > 0 && _connRawRows[0].total !== undefined;
+    var sorted = _sortRows(_connRawRows, _connSort.col, _connSort.dir);
+    var cols = isAgg ? [
+      { key: 'ts',         label: 'Time',          style: '' },
+      { key: 'total',      label: 'Total',         style: 'text-align:right' },
+      { key: 'online',     label: 'Online',        style: 'text-align:right' },
+      { key: 'offline',    label: 'Offline',       style: 'text-align:right' },
+      { key: 'uptime_pct', label: 'Uptime&nbsp;%', style: 'text-align:right' },
+    ] : [
+      { key: 'ts',          label: 'Time',          style: '' },
+      { key: 'connected',   label: 'Status',        style: '' },
+      { key: 'downtime_ms', label: 'Down Duration', style: 'text-align:right' },
+    ];
+    if (rptConnTbody) {
+      if (!sorted.length) {
+        rptConnTbody.innerHTML = '<tr><td colspan="'+(isAgg?5:3)+'" class="rpt-empty">No connectivity events for this range.</td></tr>';
+      } else if (isAgg) {
+        rptConnTbody.innerHTML = sorted.map(function(r) {
+          return '<tr>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);font-size:.71rem">'+esc(String(r.total))+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);font-size:.71rem;color:var(--accent-ok,#4ade80)">'+esc(String(r.online))+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);font-size:.71rem;color:var(--accent-err,#f87171)">'+esc(String(r.offline))+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);font-size:.71rem">'+esc((+r.uptime_pct).toFixed(1))+'%</td></tr>';
+        }).join('');
+      } else {
+        rptConnTbody.innerHTML = sorted.map(function(r) {
+          var badge = r.connected
+            ? '<span class="rtr-status-badge rtr-status-badge--on">Online</span>'
+            : '<span class="rtr-status-badge rtr-status-badge--off">Offline</span>';
+          var dur = !r.connected
+            ? (r.downtime_ms != null ? esc(fmtDuration(r.downtime_ms)) : '<span style="color:var(--accent-warn)">Ongoing</span>')
+            : '<span style="color:var(--text-muted)">—</span>';
+          return '<tr>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
+            '<td>'+badge+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);font-size:.71rem">'+dur+'</td>'+
+            '</tr>';
+        }).join('');
+      }
+    }
+    _renderSortHeader('rptConnThead', cols, _connSort, _applyConnSort);
+  }
+
+  // ── Load all report data ────────────────────────────────────────────
+  function loadReports() {
+    if (!rptRouter || !rptRouter.value) return;
+    if (rptTo && !_rptToManual) rptTo.value = _dtVal(new Date());
+    var routerId = rptRouter.value;
+    var from = dateToTs(rptFrom ? rptFrom.value : '', false);
+    var to   = dateToTs(rptTo   ? rptTo.value   : '', true);
+    var agg = rptAggregate ? rptAggregate.value : '';
+    var q = 'routerId='+encodeURIComponent(routerId)+'&from='+from+'&to='+to+(agg?'&aggregate='+encodeURIComponent(agg):'');
+    if (rptSpinner)  rptSpinner.style.display  = '';
+    if (rptLoadBtn)  rptLoadBtn.disabled = true;
+
+    Promise.all([
+      fetch('/api/reports/ping?'+q).then(function(r){ return r.json(); }),
+      fetch('/api/reports/traffic?'+q).then(function(r){ return r.json(); }),
+      fetch('/api/reports/bandwidth?'+q).then(function(r){ return r.json(); }),
+      fetch('/api/reports/alerts?'+q).then(function(r){ return r.json(); }),
+      fetch('/api/reports/connectivity?'+q).then(function(r){ return r.json(); }),
+    ]).then(function(results) {
+      renderPing(results[0].rows||[], routerId, from, to);
+
+      // ── Traffic interface selector ───────────────────────────────────
+      var ifaces = results[1].interfaces || [];
+      if (rptTrafficIface) {
+        var curIface = rptTrafficIface.value;
+        rptTrafficIface.innerHTML = ifaces.map(function(i){
+          return '<option value="'+esc(i)+'">'+esc(i)+'</option>';
+        }).join('');
+        if (curIface && ifaces.indexOf(curIface)!==-1) rptTrafficIface.value = curIface;
+      }
+      var iface = rptTrafficIface ? rptTrafficIface.value : (ifaces[0]||'');
+      if (iface) {
+        fetch('/api/reports/traffic?'+q+'&interface='+encodeURIComponent(iface))
+          .then(function(r){ return r.json(); })
+          .then(function(d){ renderTraffic(d.rows||[], routerId, from, to); })
+          .catch(function(){});
+      } else {
+        renderTraffic([], routerId, from, to);
+      }
+
+      // ── Bandwidth interface selector ─────────────────────────────────
+      var bwIfaces = results[2].interfaces || [];
+      var bwIfSel  = $('rptBwIface');
+      if (bwIfSel) {
+        var curBwIface = bwIfSel.value;
+        bwIfSel.innerHTML = bwIfaces.map(function(i){
+          return '<option value="'+esc(i)+'">'+esc(i)+'</option>';
+        }).join('');
+        if (curBwIface && bwIfaces.indexOf(curBwIface)!==-1) bwIfSel.value = curBwIface;
+      }
+      var bwIface = bwIfSel ? bwIfSel.value : (bwIfaces[0]||'');
+      if (bwIface) {
+        fetch('/api/reports/bandwidth?'+q+'&interface='+encodeURIComponent(bwIface))
+          .then(function(r){ return r.json(); })
+          .then(function(d){ renderBandwidth(d.rows||[], routerId, from, to); })
+          .catch(function(){});
+      } else {
+        renderBandwidth([], routerId, from, to);
+      }
+
+      renderAlerts(results[3].rows||[], routerId, from, to);
+      renderConn(results[4].rows||[], routerId, from, to);
+    }).catch(function(e){
+      console.warn('[reports]', e);
+    }).then(function(){
+      if (rptSpinner)  rptSpinner.style.display  = 'none';
+      if (rptLoadBtn)  rptLoadBtn.disabled = false;
+    });
+  }
+
+  // ── Re-load traffic when interface changes ──────────────────────────
+  if (rptTrafficIface) {
+    rptTrafficIface.addEventListener('change', function() {
+      if (!rptRouter||!rptRouter.value||!rptTrafficIface.value) return;
+      var routerId = rptRouter.value;
+      var from = dateToTs(rptFrom?rptFrom.value:'', false);
+      var to   = dateToTs(rptTo  ?rptTo.value  :'', true);
+      var agg  = rptAggregate ? rptAggregate.value : '';
+      var q = 'routerId='+encodeURIComponent(routerId)+'&from='+from+'&to='+to+'&interface='+encodeURIComponent(rptTrafficIface.value)+(agg?'&aggregate='+encodeURIComponent(agg):'');
+      fetch('/api/reports/traffic?'+q).then(function(r){ return r.json(); })
+        .then(function(d){ renderTraffic(d.rows||[], routerId, from, to); })
+        .catch(function(){});
+    });
+  }
+
+  // ── Re-load bandwidth when interface changes ────────────────────────
+  var _bwIfSel = $('rptBwIface');
+  if (_bwIfSel) {
+    _bwIfSel.addEventListener('change', function() {
+      if (!rptRouter||!rptRouter.value||!_bwIfSel.value) return;
+      var routerId = rptRouter.value;
+      var from = dateToTs(rptFrom?rptFrom.value:'', false);
+      var to   = dateToTs(rptTo  ?rptTo.value  :'', true);
+      var agg  = rptAggregate ? rptAggregate.value : '';
+      var q = 'routerId='+encodeURIComponent(routerId)+'&from='+from+'&to='+to+'&interface='+encodeURIComponent(_bwIfSel.value)+(agg?'&aggregate='+encodeURIComponent(agg):'');
+      fetch('/api/reports/bandwidth?'+q).then(function(r){ return r.json(); })
+        .then(function(d){ renderBandwidth(d.rows||[], routerId, from, to); })
+        .catch(function(){});
+    });
+  }
+
+  // ── Bandwidth pagination buttons ────────────────────────────────────
+  var _bwPrevBtn = $('rptBwPrev');
+  var _bwNextBtn = $('rptBwNext');
+  if (_bwPrevBtn) _bwPrevBtn.addEventListener('click', function() { if (_bwPage > 0) { _bwPage--; renderBwPage(); } });
+  if (_bwNextBtn) _bwNextBtn.addEventListener('click', function() { var pages = Math.ceil(_bwRows.length/BW_PAGE_SIZE); if (_bwPage < pages-1) { _bwPage++; renderBwPage(); } });
+
+  if (rptLoadBtn)    rptLoadBtn.addEventListener('click', loadReports);
+  if (rptAggregate)  rptAggregate.addEventListener('change', loadReports);
+
+  // Auto-load when the Reports page becomes active
+  var _rptPage = $('page-reports');
+  if (_rptPage) {
+    new MutationObserver(function() {
+      if (_rptPage.classList.contains('active') && rptRouter && rptRouter.value) loadReports();
+    }).observe(_rptPage, { attributes:true, attributeFilter:['class'] });
+  }
+}());

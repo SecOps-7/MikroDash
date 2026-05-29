@@ -29,14 +29,15 @@ function bpsToMbps(bps) {
 }
 
 class TrafficCollector {
-  constructor({ ros, io, defaultIf, historyMinutes, state }) {
+  constructor({ ros, io, defaultIf, historyMinutes, state, onSample }) {
     this.ros        = ros;
     this.io         = io;
     this.defaultIf  = defaultIf;
     this.state      = state;
+    this._onSample  = onSample || null;
     this.maxPoints  = Math.max(60, historyMinutes * 60);
     this.hist          = new Map();  // ifName -> RingBuffer
-    this.subscriptions = new Map();  // socketId -> ifName
+    this.subscriptions = new Map();  // socketId -> { ifName, socket }
     this._allStream    = null;
     this._ifNamesKey   = '';         // sorted key of current stream — detects changes
     this.availableIfs  = new Set();  // validated set from fetchInterfaces()
@@ -49,6 +50,13 @@ class TrafficCollector {
     if (!this.hist.has(ifName)) this.hist.set(ifName, new RingBuffer(this.maxPoints));
   }
 
+  preloadHistory(ifName, rows) {
+    if (!rows || !rows.length) return;
+    this._ensureHistory(ifName);
+    const buf = this.hist.get(ifName);
+    for (const r of rows) buf.push({ ts: r.ts, rx_mbps: r.rx_mbps, tx_mbps: r.tx_mbps });
+  }
+
   setAvailableInterfaces(interfaces) {
     const names = (interfaces || []).map(i => typeof i === 'string' ? i : i && i.name).filter(Boolean);
     this.availableIfs = new Set(names);
@@ -58,7 +66,7 @@ class TrafficCollector {
   // Returns the sorted union of subscribed interfaces + defaultIf.
   _getStreamNames() {
     const s = new Set([this.defaultIf]);
-    for (const ifName of this.subscriptions.values()) s.add(ifName);
+    for (const { ifName } of this.subscriptions.values()) s.add(ifName);
     return [...s].sort();
   }
 
@@ -142,14 +150,14 @@ class TrafficCollector {
   }
 
   bindSocket(socket) {
-    this.subscriptions.set(socket.id, this.defaultIf);
+    this.subscriptions.set(socket.id, { ifName: this.defaultIf, socket });
     // defaultIf is always in the stream, so this is a no-op on first connect.
     this._updateStream();
 
     socket.on('traffic:select', (payload) => {
       const nextIf = this._normalizeIfName(payload && payload.ifName);
       if (!nextIf) return;
-      this.subscriptions.set(socket.id, nextIf);
+      this.subscriptions.set(socket.id, { ifName: nextIf, socket });
       this._ensureHistory(nextIf);
       this._updateStream(); // expands stream to include nextIf if not already there
       socket.emit('traffic:history', {
@@ -171,21 +179,27 @@ class TrafficCollector {
     const disabled = data.disabled === 'true'  || data.disabled === true;
 
     const now    = Date.now();
+    const rxMbps = bpsToMbps(rxBps);
+    const txMbps = bpsToMbps(txBps);
 
     // Always update WAN status regardless of idle state (cheap, needed for replay)
     if (ifName === this.defaultIf) {
       this.lastWanStatus = { ifName, ts: now, running, disabled };
     }
 
+    // Always fire onSample for DB recording regardless of idle state
+    if (this._onSample) this._onSample(ifName, rxMbps, txMbps, now);
+
+    // Always push to ring buffer so history is available on next browser connect
+    this._ensureHistory(ifName);
+    this.hist.get(ifName).push({ ts: now, rx_mbps: rxMbps, tx_mbps: txMbps });
+
     if (this.io.engine.clientsCount === 0) return;
 
-    const sample = { ifName, ts: now, rx_mbps: bpsToMbps(rxBps), tx_mbps: bpsToMbps(txBps), running, disabled };
+    const sample = { ifName, ts: now, rx_mbps: rxMbps, tx_mbps: txMbps, running, disabled };
 
-    this._ensureHistory(ifName);
-    this.hist.get(ifName).push({ ts: now, rx_mbps: sample.rx_mbps, tx_mbps: sample.tx_mbps });
-
-    for (const [sid, subIf] of this.subscriptions.entries()) {
-      if (subIf === ifName) this.io.to(sid).emit('traffic:update', sample);
+    for (const { ifName: subIf, socket } of this.subscriptions.values()) {
+      if (subIf === ifName) socket.emit('traffic:update', sample);
     }
 
     if (ifName === this.defaultIf) {

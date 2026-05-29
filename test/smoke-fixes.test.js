@@ -141,10 +141,10 @@ test('traffic collector ignores invalid interface selections', () => {
 
   collector.bindSocket(socket);
   handlers['traffic:select']({ ifName: 'bogus' });
-  assert.equal(collector.subscriptions.get(socket.id), 'wan', 'bogus selection keeps default');
+  assert.equal(collector.subscriptions.get(socket.id).ifName, 'wan', 'bogus selection keeps default');
 
   handlers['traffic:select']({ ifName: 'lan' });
-  assert.equal(collector.subscriptions.get(socket.id), 'lan', 'valid selection updates subscription');
+  assert.equal(collector.subscriptions.get(socket.id).ifName, 'lan', 'valid selection updates subscription');
   assert.ok(collector.hist.has('lan'), 'history buffer initialized for selected interface');
 });
 

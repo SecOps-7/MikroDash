@@ -1,12 +1,19 @@
 'use strict';
 const notifier = require('./notifier');
 const Routers  = require('./routers');
+const db       = require('./db');
 
 let _settings = null;
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 function _ts() {
+  const tz = _settings && _settings.displayTimezone;
+  if (tz) {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    }).format(new Date());
+  }
   const d = new Date();
   const p = n => String(n).padStart(2, '0');
   return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
@@ -24,7 +31,7 @@ function _render(tpl, vars) {
 
 function _noChannelsActive() {
   if (!_settings) return true;
-  return !_settings.telegramEnabled && !_settings.pushbulletEnabled && !_settings.smtpEnabled;
+  return !_settings.telegramEnabled && !_settings.pushbulletEnabled && !_settings.smtpEnabled && !_settings.ntfyEnabled;
 }
 
 function _ifaceType(name, type) {
@@ -62,6 +69,26 @@ function createEvaluator(getNameFn, getRouterFn) {
   const prevPingAlert     = {};     // target → boolean (was alerting)
 
   function fire(key, vars, isUp) {
+    // Persist alert to DB unconditionally — the Reports tab must reflect every
+    // event regardless of whether a notification channel is configured. The
+    // cooldown gates only the push notification, not persistence (see below).
+    const router = typeof getRouterFn === 'function' ? getRouterFn() : null;
+    if (router && router.id) {
+      // For up (recovery) events, resolveType holds the matching down alert_type so the
+      // WHERE clause in resolveAlertEvent finds the correct open row.
+      const alertType = (vars.alertType || key).toLowerCase().replace(/\s+/g, '_');
+      const subject   = vars.ifaceName || vars.vpnPeer || vars.netwatchName || vars.pingTarget || null;
+      if (isUp) {
+        db.resolveAlertEvent(router.id, vars.resolveType || alertType, subject);
+      } else {
+        db.insertAlertEvent(router.id, alertType, subject, vars.detail || null);
+      }
+    }
+
+    // Send push notification only when a delivery channel is configured. The
+    // cooldown is consumed only on the path that actually sends, so enabling a
+    // channel later does not find a warm cooldown set while no channel existed.
+    if (_noChannelsActive()) return;
     const last = cooldown.get(key) || 0;
     if ((Date.now() - last) < ((_settings.notifCooldownSec || 60) * 1000)) return;
     // Cap cooldown map to prevent unbounded growth from ephemeral interface names
@@ -78,7 +105,7 @@ function createEvaluator(getNameFn, getRouterFn) {
   }
 
   function evaluate(event, data) {
-    if (!_settings || _noChannelsActive()) return;
+    if (!_settings) return;
     // Re-check alertsEnabled in case it was toggled after session creation.
     const router = typeof getRouterFn === 'function' ? getRouterFn() : null;
     if (router && !router.alertsEnabled) return;
@@ -86,17 +113,18 @@ function createEvaluator(getNameFn, getRouterFn) {
     if (event === 'system:update' && _settings.notifCpu) {
       if (typeof data.cpuLoad === 'number') {
         const isHigh = data.cpuLoad >= _settings.alertCpuThreshold;
-        if (isHigh) {
+        if (isHigh && prevCpuAlert !== true) {
           fire('cpu:router:down', {
             alertType: 'High CPU',
             cpuLoad:   data.cpuLoad + '%',
             detail:    'CPU at ' + data.cpuLoad + '% (threshold: ' + _settings.alertCpuThreshold + '%)',
           }, false);
-        } else if (prevCpuAlert === true) {
+        } else if (!isHigh && prevCpuAlert === true) {
           fire('cpu:router:up', {
-            alertType: 'CPU Normal',
-            cpuLoad:   data.cpuLoad + '%',
-            detail:    'CPU back to ' + data.cpuLoad + '% (below threshold)',
+            alertType:   'CPU Normal',
+            resolveType: 'high_cpu',
+            cpuLoad:     data.cpuLoad + '%',
+            detail:      'CPU back to ' + data.cpuLoad + '% (below threshold)',
           }, true);
         }
         prevCpuAlert = isHigh;
@@ -108,21 +136,22 @@ function createEvaluator(getNameFn, getRouterFn) {
       const base   = 'ping:' + target;
       if (typeof data.loss === 'number') {
         const isLoss = data.loss >= _settings.alertPingLoss;
-        if (isLoss) {
+        if (isLoss && prevPingAlert[target] !== true) {
           fire(base + ':down', {
             alertType:  'Ping Loss',
             pingTarget: data.target || '',
             pingLoss:   data.loss + '%',
             pingRtt:    data.rtt != null ? data.rtt + ' ms' : 'N/A',
-            detail:     'Ping loss to ' + data.target + ' is ' + data.loss + '% (threshold: ' + _settings.alertPingLoss + '%)',
+            detail:     'Ping loss to ' + data.target + ' is ' + data.loss + '%',
           }, false);
-        } else if (prevPingAlert[target] === true) {
+        } else if (!isLoss && prevPingAlert[target] === true) {
           fire(base + ':up', {
-            alertType:  'Ping Restored',
-            pingTarget: data.target || '',
-            pingLoss:   data.loss + '%',
-            pingRtt:    data.rtt != null ? data.rtt + ' ms' : 'N/A',
-            detail:     'Ping to ' + data.target + ' restored (loss: ' + data.loss + '%)',
+            alertType:   'Ping Restored',
+            resolveType: 'ping_loss',
+            pingTarget:  data.target || '',
+            pingLoss:    data.loss + '%',
+            pingRtt:     data.rtt != null ? data.rtt + ' ms' : 'N/A',
+            detail:      'Ping to ' + data.target + ' restored',
           }, true);
         }
         prevPingAlert[target] = isLoss;
@@ -140,7 +169,7 @@ function createEvaluator(getNameFn, getRouterFn) {
             if (!isRunning) {
               fire('iface:' + iface.name + ':down', { alertType:'Interface Down', ifaceName:iface.name, status:'down', detail:iface.name + ' went down' }, false);
             } else {
-              fire('iface:' + iface.name + ':up',   { alertType:'Interface Up',   ifaceName:iface.name, status:'up',   detail:iface.name + ' came up'   }, true);
+              fire('iface:' + iface.name + ':up',   { alertType:'Interface Up',   resolveType:'interface_down', ifaceName:iface.name, status:'up',   detail:iface.name + ' came up'   }, true);
             }
           }
         }
@@ -157,7 +186,7 @@ function createEvaluator(getNameFn, getRouterFn) {
           if (!isConn) {
             fire('vpn:' + tunnel.name + ':down', { alertType:'VPN Disconnected', vpnPeer:tunnel.name, status:'down', detail:'VPN peer ' + tunnel.name + ' disconnected' }, false);
           } else {
-            fire('vpn:' + tunnel.name + ':up',   { alertType:'VPN Connected',    vpnPeer:tunnel.name, status:'up',   detail:'VPN peer ' + tunnel.name + ' connected'    }, true);
+            fire('vpn:' + tunnel.name + ':up',   { alertType:'VPN Connected',    resolveType:'vpn_disconnected', vpnPeer:tunnel.name, status:'up',   detail:'VPN peer ' + tunnel.name + ' connected'    }, true);
           }
         }
         prevVpnState.set(tunnel.name, tunnel.state);
@@ -166,6 +195,7 @@ function createEvaluator(getNameFn, getRouterFn) {
 
     if (event === 'netwatch:update' && _settings.notifNetwatch && Array.isArray(data.hosts)) {
       for (const host of data.hosts) {
+        if (host.status === 'unknown') continue; // transient re-probe state — skip to avoid premature fire/resolve
         const prev    = prevNetwatchState.get(host.id);
         const wasDown = prev === 'down';
         const isDown  = host.status === 'down';
@@ -173,9 +203,9 @@ function createEvaluator(getNameFn, getRouterFn) {
           const netwatchName = host.name || host.host;
           const netwatchDesc = netwatchName !== host.host ? netwatchName + ' (' + host.host + ')' : host.host;
           if (isDown) {
-            fire('netwatch:' + host.id + ':down', { alertType:'Host Down', host:host.host, netwatchName, status:'down', detail:'NetWatch host ' + netwatchDesc + ' is unreachable' }, false);
+            fire('netwatch:' + host.id + ':down', { alertType:'Host Down',                            host:host.host, netwatchName, status:'down', detail:'NetWatch host ' + netwatchDesc + ' is unreachable' }, false);
           } else {
-            fire('netwatch:' + host.id + ':up',   { alertType:'Host Up',   host:host.host, netwatchName, status:'up',   detail:'NetWatch host ' + netwatchDesc + ' is reachable'   }, true);
+            fire('netwatch:' + host.id + ':up',   { alertType:'Host Up', resolveType:'host_down',     host:host.host, netwatchName, status:'up',   detail:'NetWatch host ' + netwatchDesc + ' is reachable'   }, true);
           }
         }
         prevNetwatchState.set(host.id, host.status);
@@ -190,10 +220,22 @@ function createEvaluator(getNameFn, getRouterFn) {
 const _connCooldowns = new Map();
 
 function fireConnectivityAlert(routerId, routerLabel, connected) {
-  if (!_settings || _noChannelsActive()) return;
-  if (!_settings.notifRouterStatus) return;
+  if (!_settings) return;
   const _r = Routers.getById(routerId);
   if (_r && !_r.alertsEnabled) return;
+
+  // Persist connectivity transition to DB unconditionally so the Reports tab
+  // stays complete even when router-status notifications are disabled.
+  if (connected) {
+    db.resolveAlertEvent(routerId, 'connectivity', null);
+  } else {
+    db.insertAlertEvent(routerId, 'connectivity', null,
+      routerLabel + ' is unreachable');
+  }
+
+  // Send push only when the router-status toggle is on AND a channel exists.
+  // Cooldown is consumed only on the sending path (see fire() for rationale).
+  if (!_settings.notifRouterStatus || _noChannelsActive()) return;
   const key  = 'router-conn:' + routerId + ':' + (connected ? 'up' : 'down');
   const last = _connCooldowns.get(key) || 0;
   if ((Date.now() - last) < ((_settings.notifCooldownSec || 60) * 1000)) return;
@@ -216,28 +258,51 @@ function fireConnectivityAlert(routerId, routerLabel, connected) {
 
 // ── Module init ───────────────────────────────────────────────────────────────
 
+// One isolated evaluator per router id. Each owns its own cooldown and
+// threshold-crossing state so concurrently-active routers (the global default
+// plus any on-demand sessions a modern-auth user opened) never clobber each
+// other's prev-state maps or mis-attribute alerts across routers.
+const _evaluators = new Map(); // routerId → { evaluate }
+
+function _evaluatorFor(routerId) {
+  let ev = _evaluators.get(routerId);
+  if (!ev) {
+    ev = createEvaluator(
+      () => {
+        const r = Routers.getById(routerId);
+        return (r && r.label) || (r && r.host) || 'router';
+      },
+      () => Routers.getById(routerId),
+    );
+    _evaluators.set(routerId, ev);
+  }
+  return ev;
+}
+
 function init(io, settings) {
   _settings = settings;
-  const evaluator = createEvaluator(
-    () => {
-      const r = Routers.getById(_settings.activeRouterId);
-      return (r && r.label) || (r && r.host) || _settings.routerHost || 'router';
-    },
-    () => Routers.getById(_settings && _settings.activeRouterId),
-  );
-  const _origEmit = io.emit.bind(io);
-  io.emit = function(event, data) {
-    const result = _origEmit(event, data);
-    const r = Routers.getById(_settings.activeRouterId);
-    if (r && r.alertsEnabled) {
-      try { evaluator.evaluate(event, data); } catch (e) { console.error('[alerter] evaluate error:', e.message); }
-    }
-    return result;
-  };
+}
+
+// Called from buildRouterIo.emit for every event emitted by a pool-session
+// collector. io.to(room).emit bypasses the io.emit wrapper, so this is the only
+// reliable hook for alert evaluation. Routed through the per-router evaluator so
+// the event is attributed to the router that actually produced it.
+function evaluateForRouter(routerId, event, data) {
+  if (!_settings || !routerId) return;
+  const r = Routers.getById(routerId);
+  if (!r || !r.alertsEnabled) return;
+  try { _evaluatorFor(routerId).evaluate(event, data); } catch (e) { console.error('[alerter] evaluate error:', e.message); }
+}
+
+// Drop a router's evaluator when its session is torn down so its prev-state
+// doesn't leak into a future session (e.g. an interface that was down stays
+// "remembered" as down across a teardown/rebuild and suppresses the next alert).
+function dropEvaluator(routerId) {
+  _evaluators.delete(routerId);
 }
 
 function updateSettings(settings) {
   _settings = settings;
 }
 
-module.exports = { init, updateSettings, createEvaluator, fireConnectivityAlert };
+module.exports = { init, updateSettings, createEvaluator, evaluateForRouter, dropEvaluator, fireConnectivityAlert };

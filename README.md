@@ -105,20 +105,22 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 ## ⚠️ Security Notice
 
-MikroDash is designed to run **on your local network only**. It has no built-in HTTPS or role-based access control.
+MikroDash is designed to run **on your local network only**. It has no built-in HTTPS (terminate TLS at a reverse proxy if you need it).
 
-**Do not expose MikroDash directly to the internet.** Doing so would allow anyone to:
+MikroDash supports three authentication modes (**Settings → Authentication**): `none` (open), `basic` (single shared HTTP Basic credential), and `modern` (cookie sessions with per-user accounts, `admin`/`viewer` roles, and optional per-user router restrictions). **The default `basic` mode with no password set, and `none` mode, serve the dashboard with no authentication — the server logs a startup warning in that state.**
+
+**Do not expose MikroDash directly to the internet.** Doing so would allow anyone (in an unauthenticated mode) to:
 - View live data from your router (traffic, clients, connections, firewall rules, logs)
 - Read your WAN IP, LAN topology, and connected device information
 - Monitor your network activity in real time
 
-If you need remote access, place MikroDash **behind an authenticating reverse proxy** (such as Nginx with Basic Auth, Authelia, or Cloudflare Access) or access it exclusively over a VPN.
+If you need remote access, enable `modern` auth **and** place MikroDash behind an authenticating reverse proxy (such as Nginx, Authelia, or Cloudflare Access) or access it exclusively over a VPN.
 
 **Recommended local hardening:**
-- Set a dashboard username and password in **Settings → Dashboard Auth** (HTTP Basic Auth)
+- Enable authentication: set a password in `basic` mode, or switch to `modern` and create user accounts with appropriate roles in **Settings → Authentication**
 - Run on a non-default port and bind to your LAN interface only
 - Use a dedicated read-only API user on the router (see RouterOS Setup below)
-- The encryption key for stored credentials is auto-generated and saved to `/data/.secret` (mode 0600) — keep your Docker volume secure
+- User passwords are scrypt-hashed in `/data/users.json` (mode 0600); the encryption key for stored router credentials is auto-generated and saved to `/data/.secret` (mode 0600) — keep your Docker volume secure
 
 ---
 
@@ -137,7 +139,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.39
+docker pull ghcr.io/secops-7/mikrodash:0.5.41
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -192,7 +194,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 | Section | What you can configure |
 |---|---|
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. Test Connection validates credentials before saving. The active router is selected from the dropdown in the page header |
-| Dashboard Auth | HTTP Basic Auth username and password for the dashboard itself |
+| Authentication | Auth mode (`none` / `basic` HTTP Basic / `modern` cookie sessions). In `modern` mode: manage user accounts with `admin`/`viewer` roles, optional per-user router restrictions, and a configurable session timeout. Passwords are scrypt-hashed |
 | Poll Intervals | Per-collector update intervals — controls the push rate for interval-streamed collectors and the poll frequency for polled collectors. Changes apply immediately without restart. Pure event-driven collectors (ARP, Routing, DHCP Leases, Firewall rule changes) show an Event-driven badge instead of a slider |
 | Collection Method | Per-collector toggle between **Stream** (RouterOS pushes data continuously via `=interval=N`) and **Poll** (one-shot request every poll interval). Covers System/Gauges, Ping, Connections, Top Talkers, and Interface Rates. Switch individual collectors to Poll on CHR/VM routers with limited API handler threads (typically 2–4). Traffic is always streamed. Changes apply immediately |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |

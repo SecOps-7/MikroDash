@@ -80,6 +80,10 @@ const DEFAULTS = {
   dashUser:          '',
   dashPass:          '', // stored encrypted
 
+  // Auth mode and session management
+  authMode:         'basic',   // 'none' | 'basic' | 'modern'
+  sessionTimeoutMs: 3600000,   // ms; 0 = never expire; max 86400000 (24h)
+
   // Ping
   pingEnabled:       true,
   pingTarget:        process.env.PING_TARGET         || '1.1.1.1',
@@ -179,6 +183,13 @@ const DEFAULTS = {
   streamConns:   true,
   streamTalkers: true,
   streamIfrates: true,
+
+  // Database retention
+  dbRetentionDays:      90,  // days to keep ping + traffic samples
+  dbAlertRetentionDays: 365, // days to keep alert + connectivity events
+
+  // Display timezone — IANA name (e.g. 'Europe/London'). Empty = server/browser local.
+  displayTimezone: '',
 };
 
 // Fields stored encrypted in JSON
@@ -291,7 +302,8 @@ function save(updates) {
     toWrite[f] = encrypt(next[f] || '');
   }
   const tmp = SETTINGS_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(toWrite, null, 2), 'utf8');
+  // mode 0o600 — file holds encrypted credentials; keep it owner-only.
+  fs.writeFileSync(tmp, JSON.stringify(toWrite, null, 2), { encoding: 'utf8', mode: 0o600 });
   fs.renameSync(tmp, SETTINGS_FILE);
   // Keep process.env in sync so library patches (node-routeros) pick up the change
   if ('rosDebug' in updates) process.env.ROS_DEBUG = next.rosDebug ? 'true' : 'false';
@@ -311,4 +323,27 @@ function getPublic() {
 /** Returns true if the value is the mask sentinel */
 function isMasked(v) { return v === '••••••••'; }
 
-module.exports = { load, save, getPublic, isMasked, DEFAULTS };
+// Non-sensitive fields a viewer-role user may read so the dashboard renders.
+// Excludes router connection details, auth config, and notification-channel
+// targets (host/chat IDs/SMTP/ntfy) — those are admin-only recon.
+const VIEWER_FIELDS = [
+  'authMode',
+  'pingEnabled', 'pingTarget',
+  'topN', 'topTalkersN', 'firewallTopN', 'vpnDashTopN', 'maxConns', 'historyMinutes',
+  'alertCpuThreshold', 'alertPingLoss',
+  'activeRouterId',
+  'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
+  'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting',
+  'streamSystem', 'streamPing', 'streamConns', 'streamTalkers', 'streamIfrates',
+  'displayTimezone',
+];
+
+/** Returns the viewer-safe subset of settings (no credentials, no admin-only config). */
+function getViewerPublic() {
+  const s = load();
+  const out = {};
+  for (const f of VIEWER_FIELDS) out[f] = s[f];
+  return out;
+}
+
+module.exports = { load, save, getPublic, getViewerPublic, isMasked, DEFAULTS };

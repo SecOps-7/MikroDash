@@ -2,6 +2,36 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.41] — Multi-router correctness, alert attribution, DB/report hardening
+
+This release resolves a cluster of bugs introduced by the multi-session refactor (per-user/on-demand router sessions vs. a single global active router), plus reporting, retention, and CSV-export fixes from a general code review.
+
+### Fixed
+
+- **Per-router alert attribution (src/alerter.js, src/index.js)** — `evaluateForRouter()` drove a single global evaluator whose router resolver always returned the global active router, so alerts emitted by an on-demand (non-active) router session were persisted under the wrong router id, and threshold-crossing state (CPU/ping/interface/cooldown) collided across concurrently-active routers. Replaced with a per-router evaluator map (`_evaluatorFor`); each router gets isolated state and correct attribution. `dropEvaluator()` clears state on idle teardown and router delete so it can't leak into a rebuilt session
+- **Double connectivity tracking (src/alertSessions.js, src/index.js)** — a router watched by a modern-auth user was tracked by both the main session pool and `alertSessions`, doubling `connectivity_events` rows, `router:status` emits, and connectivity alerts per transition. `syncSessions()` now takes an exclude set of pool-owned routers; `_syncAlertSessions()` re-syncs after every pool create/teardown so connectivity has a single owner per router
+- **Inflated uptime on link flap (src/index.js, src/alertSessions.js)** — `recordConnectivity(true)` fired on every `connected` event while the down path is debounced, pushing uptime toward ~100% for a flapping link; now gated on a real transition into connected
+- **router:active flipped other users' view (src/index.js)** — activating the global default router did a global broadcast that reset the router selector for modern-auth users pinned to a different router; now room-scoped so only sockets following the global default are notified
+- **DB retention controls were inert (src/index.js)** — `POST /api/settings` never whitelisted `dbRetentionDays`/`dbAlertRetentionDays`, so the UI retention fields were silently dropped and prune stayed at the 90/365 defaults; both are now validated and saved (1–3650 days)
+- **Alert persistence coupled to notifications (src/alerter.js)** — alert/connectivity events were only written to the DB when a push channel was configured (and per-type toggle enabled), so the Reports tab was incomplete with push disabled; persistence is now unconditional. The notification cooldown is stamped only on the path that actually sends, so enabling a channel later no longer finds a warm cooldown and the first real notification is delivered
+- **Traffic chart history skipped on boot (src/index.js)** — startup built the active session (which backfills the chart from SQLite) before `db.open()`, so the query returned empty and history never preloaded after a restart; `db.open()` + alerter/alertSessions init now run before bootstrap
+- **CSV formula injection (src/index.js)** — report CSV export quoted only comma/quote/newline; a router-controlled field (interface name, ping target, alert subject) beginning with `= + - @` executed as a formula in Excel/Sheets. Such cells are now prefixed with a single quote to neutralise them
+- **Report routes ignored per-user router scope (src/index.js)** — `/api/reports/*` accepted an arbitrary `routerId` with no allowed-router check; new `_scopeRouterId` middleware rejects a `routerId` outside the caller's `allowedRouterIds` in modern auth, matching the per-router scoping of live data
+
+### Changed
+
+- **Bandwidth page traffic graph (public/app.js)** — now uses the same flow logic as the main dashboard chart: a 60fps keepalive owns X-axis scrolling (anchored to the shared EMA-smoothed server-time offset) and a Y-axis lerp drives smooth scale transitions, so it slides smoothly between 1 Hz samples instead of stepping once per second. The keepalive self-stops when the page isn't viewed and re-syncs on return (no background-alive machinery)
+- **Ping samples bucketed (src/db-writer.js)** — `recordPing` accumulated a synchronous raw INSERT per sample (~1/s) on the emit hot path; now buckets into 1-minute averages (avg rtt over non-null samples, avg loss), flushed on minute rollover and shutdown, matching traffic/bandwidth and cutting row growth ~60×
+- **Prepared-statement reuse (src/db.js)** — query and prune functions re-prepared their SQL on every call; a statement cache (`_prep`) now reuses compiled statements, mirroring the insert path
+- **Open-by-default warning (src/index.js)** — logs a prominent startup warning when the dashboard is served with no authentication (`none` mode, or `basic` with no password set)
+
+### Tests
+
+- **New `test/review-fixes.test.js`** — 6 regression tests: ping bucketing (rollover, non-null rtt averaging, per-router flush), alert DB persistence with no channel configured, cooldown not consumed without a channel, and per-router evaluator state isolation
+- Test count raised from 231 to **237** (all passing)
+
+---
+
 ## [0.5.40] — Traffic graph improvements, ntfy channel, offline debounce, talkers resilience
 
 ### Added

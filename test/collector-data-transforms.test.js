@@ -8,21 +8,13 @@ test('traffic collector emits normalized socket and WAN payloads from a poll cyc
   const broadcastEmits = [];
   const state = {};
   const ros = { connected: true, on() {} };
+  const fakeSocket = { emit(ev, data) { socketEmits.push({ ev, data }); } };
   const io = {
     engine: { clientsCount: 1 },
-    to(id) {
-      return {
-        emit(ev, data) {
-          socketEmits.push({ id, ev, data });
-        },
-      };
-    },
-    emit(ev, data) {
-      broadcastEmits.push({ ev, data });
-    },
+    emit(ev, data) { broadcastEmits.push({ ev, data }); },
   };
   const collector = new TrafficCollector({ ros, io, defaultIf: 'wan', historyMinutes: 1, state });
-  collector.subscriptions.set('socket-1', 'wan');
+  collector.subscriptions.set('socket-1', { ifName: 'wan', socket: fakeSocket });
 
   collector._processPacket('wan', {
     'rx-bits-per-second': '27.8kbps',
@@ -52,22 +44,53 @@ test('traffic collector emits normalized socket and WAN payloads from a poll cyc
   assert.equal(state.lastTrafficErr, null);
 });
 
+test('traffic collector calls onSample before idle gate', () => {
+  const samples = [];
+  const ros = { connected: true, on() {} };
+  const io  = { engine: { clientsCount: 0 }, emit() {} }; // idle — no connected clients
+  const collector = new TrafficCollector({
+    ros, io, defaultIf: 'wan', historyMinutes: 1, state: {},
+    onSample: (ifName, rxMbps, txMbps, ts) => samples.push({ ifName, rxMbps, txMbps, ts }),
+  });
+
+  collector._processPacket('wan', { 'rx-bits-per-second': '1000000', 'tx-bits-per-second': '500000', running: 'true', disabled: 'false' });
+
+  assert.equal(samples.length, 1, 'onSample fires even when clientsCount is 0');
+  assert.equal(samples[0].ifName, 'wan');
+  assert.equal(samples[0].rxMbps, 1);
+  assert.equal(samples[0].txMbps, 0.5);
+  assert.equal(typeof samples[0].ts, 'number');
+  // Ring buffer must also accumulate regardless of idle state
+  const buf = collector.hist.get('wan');
+  assert.ok(buf, 'ring buffer created for interface');
+  assert.equal(buf.toArray().length, 1, 'ring buffer has one entry when clientsCount is 0');
+});
+
+test('traffic collector preloadHistory seeds ring buffer from DB rows', () => {
+  const ros = { connected: true, on() {} };
+  const io  = { engine: { clientsCount: 0 }, emit() {} };
+  const collector = new TrafficCollector({ ros, io, defaultIf: 'wan', historyMinutes: 1, state: {} });
+
+  const rows = [
+    { ts: 1000, rx_mbps: 0.5, tx_mbps: 0.1 },
+    { ts: 2000, rx_mbps: 1.0, tx_mbps: 0.2 },
+    { ts: 3000, rx_mbps: 1.5, tx_mbps: 0.3 },
+  ];
+  collector.preloadHistory('wan', rows);
+
+  const pts = collector.hist.get('wan').toArray();
+  assert.equal(pts.length, 3);
+  assert.equal(pts[0].ts, 1000);
+  assert.equal(pts[2].rx_mbps, 1.5);
+});
+
 test('traffic collector treats missing or zero traffic fields as zero Mbps', () => {
   const socketEmits = [];
+  const fakeSocket2 = { emit(ev, data) { socketEmits.push({ ev, data }); } };
   const ros = { connected: true, on() {} };
-  const io = {
-    engine: { clientsCount: 1 },
-    to() {
-      return {
-        emit(ev, data) {
-          socketEmits.push({ ev, data });
-        },
-      };
-    },
-    emit() {},
-  };
+  const io = { engine: { clientsCount: 1 }, emit() {} };
   const collector = new TrafficCollector({ ros, io, defaultIf: 'wan', historyMinutes: 1, state: {} });
-  collector.subscriptions.set('socket-1', 'wan');
+  collector.subscriptions.set('socket-1', { ifName: 'wan', socket: fakeSocket2 });
 
   collector._processPacket('wan', {
     'rx-bits-per-second': undefined,
