@@ -21,7 +21,9 @@
       if (!raw || /[\x00-\x1f]/.test(raw)) return '/';
       var u = new URL(raw, window.location.origin);
       if (u.origin !== window.location.origin) return '/';
-      return u.pathname + u.search + u.hash;
+      var path = u.pathname + u.search + u.hash;
+      if (path.charAt(0) !== '/' || path.charAt(1) === '/' || path.charAt(1) === '\\') return '/';
+      return path;
     } catch (_) {}
     return '/';
   }
