@@ -60,7 +60,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 - **Multi-router switcher** — monitor multiple MikroTik routers from one dashboard instance; switch between them via the dropdown in the page header with no restart or page refresh required
 - **First-run setup wizard** — on a fresh install with no router configured, a guided setup overlay appears automatically; enter router details, test the connection, and connect — no `.env` file or container restart needed
 
-#### Optional dashboard cards (14, hidden by default)
+#### Optional dashboard cards (15, hidden by default)
 | Card | Description |
 |---|---|
 | Signal Health | Per-client RSSI bars for all wireless interfaces |
@@ -77,6 +77,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Firewall Actions | Action breakdown bars (accept / drop / reject / other) |
 | Total Hits | Total firewall match count with per-table sub-totals |
 | Logs | Live scrolling router log feed |
+| NetWatch | Live status table for RouterOS NetWatch monitored hosts (up/down state, last change) |
 
 ### Pages
 | Page | Description |
@@ -90,6 +91,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
 | Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre); static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with severity filter and text search |
+| Reports | Historical data viewer with configurable date range and aggregation. Five tabs: **Ping** (RTT chart + sortable table), **Traffic** (per-interface RX/TX chart + table), **Bandwidth** (usage chart + table), **Alerts** (alert event history), **Connectivity** (router up/down event history). CSV and PDF export on every tab. Admin-only |
 | Settings | Persistent UI configuration — see below |
 
 ### Notifications
@@ -139,7 +141,7 @@ The image is built automatically by GitHub Actions on every push to `main` and o
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.41
+docker pull ghcr.io/secops-7/mikrodash:0.5.42
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -199,6 +201,8 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 | Collection Method | Per-collector toggle between **Stream** (RouterOS pushes data continuously via `=interval=N`) and **Poll** (one-shot request every poll interval). Covers System/Gauges, Ping, Connections, Top Talkers, and Interface Rates. Switch individual collectors to Poll on CHR/VM routers with limited API handler threads (typically 2–4). Traffic is always streamed. Changes apply immediately |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
+| Notifications | Push notification channels — Telegram Bot, Pushbullet, and SMTP email (all three can be active simultaneously); per-type toggles (interface up/down, WireGuard, CPU, ping, NetWatch, router status); separate ⚠️ alert and ✅ recovery message templates with `{{variable}}` substitution; configurable cooldown (10 s – 60 min) per alert subject; test-send button per channel |
+| Data Retention | Traffic/ping/bandwidth sample retention (1–3650 days, default 90) and alert/connectivity event retention (1–3650 days, default 365); pruning runs automatically |
 | Diagnostics | Enable/disable verbose RouterOS API debug logging at runtime — no container restart required |
 | Appearance | 26 named palette swatches (dark and light variants) — applies instantly and persists via `localStorage`. Contrast, Text Brightness, and Background Brightness sliders (15 steps each) for fine-grained adjustment independent of palette. Includes a Visible Pages subsection to toggle individual pages on/off |
 
