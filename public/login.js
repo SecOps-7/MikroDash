@@ -14,12 +14,14 @@
     el.classList.remove('visible');
   }
 
-  // Validate ?next= param — must be a relative path, not open redirect
+  // Validate ?next= param — parse via URL API, assert same origin, return only path
   function safeNext() {
     try {
-      var params = new URLSearchParams(window.location.search);
-      var n = params.get('next') || '/';
-      if (n.charAt(0) === '/' && n.charAt(1) !== '/') return n;
+      var raw = new URLSearchParams(window.location.search).get('next');
+      if (!raw || /[\x00-\x1f]/.test(raw)) return '/';
+      var u = new URL(raw, window.location.origin);
+      if (u.origin !== window.location.origin) return '/';
+      return u.pathname + u.search + u.hash;
     } catch (_) {}
     return '/';
   }
@@ -62,7 +64,7 @@
           sessionStorage.setItem('justLoggedIn', '1');
           document.body.style.transition = 'opacity 1s ease';
           document.body.style.opacity = '0';
-          setTimeout(function() { window.location.replace(safeNext()); }, 1000); // codeql[js/client-side-unvalidated-url-redirection,js/xss]
+          setTimeout(function() { window.location.replace(safeNext()); }, 1000);
         } else {
           btn.disabled = false;
           btn.textContent = 'Sign In';
