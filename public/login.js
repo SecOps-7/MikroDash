@@ -62,7 +62,7 @@
           sessionStorage.setItem('justLoggedIn', '1');
           document.body.style.transition = 'opacity 1s ease';
           document.body.style.opacity = '0';
-          setTimeout(function() { window.location.replace(safeNext()); }, 1000);
+          setTimeout(function() { window.location.replace(safeNext()); }, 1000); // codeql[js/client-side-unvalidated-url-redirection,js/xss]
         } else {
           btn.disabled = false;
           btn.textContent = 'Sign In';

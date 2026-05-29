@@ -2,6 +2,23 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.42] — Talkers fix, CodeQL security alerts resolved
+
+### Fixed
+
+- **Top Talkers values 8× too high (src/collectors/talkers.js)** — `rate-up`/`rate-down` from RouterOS kid-control are bits/second (same units as `rx-bits-per-second` in interface monitor), not bytes/second. The erroneous `* 8` multiplier in `_commitTick()` inflated every device's tx/rx Mbps by 8×
+
+### Security
+
+- **Missing rate limit on login page (src/index.js)** — `GET /login` (static HTML serve) had no rate limiter; `authLimiter` (100 req/min) now applied, consistent with other auth-adjacent routes
+- **CodeQL false positives suppressed (public/login.js)** — `window.location.replace(safeNext())` was flagged for XSS and open redirect; `safeNext()` already enforces a strict relative-path check (must start with `/`, second char must not be `/`), blocking all absolute, protocol-relative, and `javascript:` values. Suppression comment added so GitHub Code Scanning closes alerts #59 and #61
+
+### Tests
+
+- Updated talkers throughput test to use bps input values and corrected the unit comment
+
+---
+
 ## [0.5.41] — Multi-router correctness, alert attribution, DB/report hardening
 
 This release resolves a cluster of bugs introduced by the multi-session refactor (per-user/on-demand router sessions vs. a single global active router), plus reporting, retention, and CSV-export fixes from a general code review.

@@ -785,7 +785,7 @@ alertSessions.init(io);
 })();
 
 // ── Login page route ──────────────────────────────────────────────────────────
-app.get('/login', (_req, res) => res.sendFile(require('path').join(__dirname, '..', 'public', 'login.html')));
+app.get('/login', authLimiter, (_req, res) => res.sendFile(require('path').join(__dirname, '..', 'public', 'login.html')));
 
 // ── Auth API ──────────────────────────────────────────────────────────────────
 

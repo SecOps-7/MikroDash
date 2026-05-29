@@ -154,8 +154,8 @@ class TopTalkersCollector {
     let devices = [...this._devicesNext.values()].map(d => ({
       name:    d.name,
       mac:     d.mac,
-      tx_mbps: +((d.rateUp   * 8) / 1_000_000).toFixed(3),
-      rx_mbps: +((d.rateDown * 8) / 1_000_000).toFixed(3),
+      tx_mbps: +(d.rateUp   / 1_000_000).toFixed(3),
+      rx_mbps: +(d.rateDown / 1_000_000).toFixed(3),
     }));
     this._devicesNext.clear();
 

@@ -702,18 +702,18 @@ test('ping collector maintains bounded history', () => {
 const TopTalkersCollector = require('../src/collectors/talkers');
 
 test('talkers collector calculates throughput rate between polls', () => {
-  // The stream delivers rate-up/rate-down (bytes/second) per device directly.
-  // tx_mbps = rateUp * 8 / 1_000_000; rx_mbps = rateDown * 8 / 1_000_000
+  // The stream delivers rate-up/rate-down (bits/second) per device directly.
+  // tx_mbps = rateUp / 1_000_000; rx_mbps = rateDown / 1_000_000
   const emitted = [];
   const ros = { connected: true, on() {} };
   const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new TopTalkersCollector({ ros, io, pollMs: 3000, state: {}, topN: 5 });
 
   // Populate _devicesNext as the stream 'data' event handler does, then commit
-  collector._devicesNext.set('AA:BB:CC:DD:EE:FF', { name: 'laptop', mac: 'AA:BB:CC:DD:EE:FF', rateUp: 125000, rateDown: 250000 });
+  collector._devicesNext.set('AA:BB:CC:DD:EE:FF', { name: 'laptop', mac: 'AA:BB:CC:DD:EE:FF', rateUp: 1_000_000, rateDown: 2_000_000 });
   collector._commitTick();
 
-  // tx = 125000 * 8 / 1_000_000 = 1.0 Mbps; rx = 250000 * 8 / 1_000_000 = 2.0 Mbps
+  // tx = 1_000_000 / 1_000_000 = 1.0 Mbps; rx = 2_000_000 / 1_000_000 = 2.0 Mbps
   assert.equal(emitted[0].data.devices[0].tx_mbps, 1);
   assert.equal(emitted[0].data.devices[0].rx_mbps, 2);
 });
