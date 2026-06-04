@@ -74,6 +74,7 @@ function _buildSession(router) {
     username: router.username,
     password: router.password,
   });
+  ros.routerLabel = router.label || router.host;
 
   // Alert collectors only run when alertsEnabled — status-only sessions need no
   // collectors since the ROS connection events alone provide Online/Offline state.

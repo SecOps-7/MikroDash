@@ -21,6 +21,7 @@ class PingCollector {
   constructor({ ros, io, pollMs, state, target, streamMode }) {
     this.ros    = ros;
     this.io     = io;
+    this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][ping]` : '[ping]';
     this.pollMs = pollMs || 5000;
     this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 5000;
     this.state  = state;
@@ -49,7 +50,7 @@ class PingCollector {
     if (this._stream || !this.ros.connected || this._permissionDenied) return;
     // RouterOS caps /tool/ping interval at 5 s (00:00:05); clamp to [1,5].
     const intervalSec = Math.min(5, Math.max(1, Math.round(this.pollMs / 1000)));
-    console.log('[ping] streaming /tool/ping →', this.target, 'interval=' + intervalSec + 's');
+    console.log(this._lbl + ' streaming /tool/ping →', this.target, 'interval=' + intervalSec + 's');
 
     const stream = this.ros.stream(
       '/tool/ping',
@@ -72,14 +73,14 @@ class PingCollector {
       this._stream = null;
       if (/not enough privileges|permission denied|cannot run/i.test(msg)) {
         this._permissionDenied = true;
-        console.warn('[ping] test policy not granted — ping disabled. Add "test" to your RouterOS API user group to enable it.');
+        console.warn(this._lbl + ' test policy not granted — ping disabled. Add "test" to your RouterOS API user group to enable it.');
         const point = { ts: Date.now(), rtt: null, loss: null, permissionDenied: true };
         this.history.push(point);
         this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
         this.io.emit('ping:update', this.lastPayload);
         this.state.lastPingTs = Date.now();
       } else {
-        console.error('[ping] stream error:', msg);
+        console.error(this._lbl + `stream error (target=${this.target}):`, msg);
         this.state.lastPingErr = msg;
         setTimeout(() => { if (this.ros.connected && !this._stream && !this._permissionDenied) this._startStream(); }, 3000);
       }
@@ -120,7 +121,7 @@ class PingCollector {
       const msg = String(e && e.message ? e.message : e);
       if (/not enough privileges|permission denied|cannot run/i.test(msg)) {
         this._permissionDenied = true;
-        console.warn('[ping] poll: test policy not granted — ping disabled.');
+        console.warn(this._lbl + ' poll: test policy not granted — ping disabled.');
         const point = { ts: Date.now(), rtt: null, loss: null, permissionDenied: true };
         this.history.push(point);
         this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
@@ -181,7 +182,7 @@ class PingCollector {
     if (this.streamMode) {
       this._startStream();
     } else {
-      console.log('[ping] poll mode — polling /tool/ping every', this.pollMs + 'ms');
+      console.log(this._lbl + ' poll mode — polling /tool/ping every', this.pollMs + 'ms');
       this._pollPingOnce();
       this._schedulePingNext();
     }

@@ -10,6 +10,7 @@ class LogsCollector {
   constructor({ ros, io, _pollMs, state, _restartDelayMs }) {
     this.ros = ros;
     this.io = io;
+    this._lbl = ros.routerLabel ? `[${ros.routerLabel}][logs]` : '[logs]';
     this.state = state;
     this._restartDelayMs = _restartDelayMs || 2000;
     this._backoffMs     = this._restartDelayMs; // grows on each failure
@@ -35,7 +36,7 @@ class LogsCollector {
   _onEntry(err, data) {
     if (err) {
       this.state.lastLogsErr = String(err && err.message ? err.message : err);
-      console.error('[logs] stream error:', this.state.lastLogsErr);
+      console.error(this._lbl + ' stream error:', this.state.lastLogsErr);
       this._stopStream();
       if (this.ros.connected && !this._restarting) {
         this._restarting = true;
@@ -73,10 +74,10 @@ class LogsCollector {
     try {
       this.stream = this.ros.stream(['/log/listen'], (err, data) => this._onEntry(err, data));
       this._backoffMs = this._restartDelayMs; // reset backoff on successful stream creation
-      console.log('[logs] streaming /log/listen');
+      console.log(this._lbl + ' streaming /log/listen');
     } catch (e) {
       this.state.lastLogsErr = String(e && e.message ? e.message : e);
-      console.error('[logs] failed to start stream:', this.state.lastLogsErr);
+      console.error(this._lbl + ' failed to start stream:', this.state.lastLogsErr);
     }
   }
 

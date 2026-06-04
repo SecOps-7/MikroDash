@@ -32,6 +32,7 @@ class TrafficCollector {
   constructor({ ros, io, defaultIf, historyMinutes, state, onSample }) {
     this.ros        = ros;
     this.io         = io;
+    this._lbl       = ros.routerLabel ? `[${ros.routerLabel}][traffic]` : '[traffic]';
     this.defaultIf  = defaultIf;
     this.state      = state;
     this._onSample  = onSample || null;
@@ -85,7 +86,7 @@ class TrafficCollector {
     if (!trimmed || trimmed.length > MAX_INTERFACE_NAME_LENGTH) return null;
     if (/[\r\n\0]/.test(trimmed)) return null;
     if (!this.availableIfs.size) {
-      console.warn('[traffic] traffic:select rejected — interface list not yet ready');
+      console.warn(this._lbl + ' traffic:select rejected — interface list not yet ready');
       return null;
     }
     if (!this.availableIfs.has(trimmed)) return null;
@@ -97,7 +98,7 @@ class TrafficCollector {
     if (!this._allStream) return;
     try { this._allStream.stop().catch(() => {}); } catch (e) {}
     this._allStream = null;
-    console.log('[traffic] stopped stream');
+    console.log(this._lbl + ' stopped stream');
   }
 
   _startAllStream() {
@@ -105,7 +106,7 @@ class TrafficCollector {
     if (!this.ros.connected) return;
 
     const names = this._getStreamNames();
-    console.log('[traffic] streaming', names.length, 'interface(s) interval=1s');
+    console.log(this._lbl + ' streaming', names.length, 'interface(s) interval=1s');
 
     const stream = this.ros.stream(
       '/interface/monitor-traffic',
@@ -132,7 +133,7 @@ class TrafficCollector {
       const isMissing = msg.includes('no such item');
       if (!isMissing) {
         if (!this._loggedErr) {
-          console.error('[traffic] stream error:', msg);
+          console.error(this._lbl + ' stream error:', msg);
           this._loggedErr = true;
         }
         this.state.lastTrafficErr = msg;

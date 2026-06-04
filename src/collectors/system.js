@@ -2,6 +2,7 @@ class SystemCollector {
   constructor({ ros, io, pollMs, state, streamMode }) {
     this.ros = ros;
     this.io = io;
+    this._lbl = ros.routerLabel ? `[${ros.routerLabel}][system]` : '[system]';
     this.pollMs = pollMs || 2000;
     this.state = state;
     this.streamMode = streamMode !== false; // default true
@@ -47,7 +48,7 @@ class SystemCollector {
       const u = result && result[0] ? result[0] : {};
       this._lastUpdateRow = u;
       if (!this._loggedUpdateFields) {
-        console.log('[system] package/update fields:', JSON.stringify(u));
+        console.log(this._lbl + ' package/update fields:', JSON.stringify(u));
         this._loggedUpdateFields = true;
       }
       if (this.lastPayload) {
@@ -71,7 +72,7 @@ class SystemCollector {
       }
     } catch (e) {
       const msg = e && e.message ? e.message : String(e);
-      console.error('[system] update check failed:', msg);
+      console.error(this._lbl + ' update check failed:', msg);
       this._lastUpdateRow = { status: 'Update check unavailable' };
       if (this.lastPayload) {
         const updated = { ...this.lastPayload, ts: Date.now(),
@@ -236,13 +237,13 @@ class SystemCollector {
 
     this._stream.on('data', (packet) => {
       try { this._processRow(packet); } catch (e) {
-        console.error('[system] processRow:', e && e.message ? e.message : e);
+        console.error(this._lbl + ' processRow:', e && e.message ? e.message : e);
       }
     });
 
     this._stream.on('error', (err) => {
       this.state.lastSystemErr = String(err && err.message ? err.message : err);
-      console.error('[system] stream error:', this.state.lastSystemErr);
+      console.error(this._lbl + ' stream error:', this.state.lastSystemErr);
       this._stream = null;
       if (this._restarting) return;
       this._restarting = true;
@@ -257,7 +258,7 @@ class SystemCollector {
     if (this.streamMode) {
       this._startResourceStream();
     } else {
-      console.log('[system] poll mode — polling /system/resource/print every', this.pollMs + 'ms');
+      console.log(this._lbl + ' poll mode — polling /system/resource/print every', this.pollMs + 'ms');
       this._pollResourceOnce();
       this._scheduleResourceNext();
     }

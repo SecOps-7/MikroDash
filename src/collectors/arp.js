@@ -13,6 +13,7 @@
 class ArpCollector {
   constructor({ ros, pollMs, state }) {
     this.ros    = ros;
+    this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][arp]` : '[arp]';
     this.pollMs = pollMs; // retained for Settings UI; no longer drives polling
     this.state  = state;
     this.byIP   = new Map();
@@ -64,9 +65,9 @@ class ArpCollector {
       this.byMAC.clear();
       for (const a of (items || [])) this._applyEntry(a);
       this.state.lastArpTs = Date.now();
-      console.log(`[arp] loaded ${this.byIP.size} entries`);
+      console.log(this._lbl, `loaded ${this.byIP.size} entries`);
     } catch (e) {
-      console.error('[arp] initial load failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' initial load failed:', e && e.message ? e.message : e);
     }
   }
 
@@ -80,7 +81,7 @@ class ArpCollector {
         ['/ip/arp/listen', '=.proplist=address,mac-address,interface'],
         (err, data) => {
           if (err) {
-            console.error('[arp] stream error:', err && err.message ? err.message : err);
+            console.error(this._lbl + ' stream error:', err && err.message ? err.message : err);
             this._stopStream();
             if (this.ros.connected && !this._restarting) {
               this._restarting = true;
@@ -98,9 +99,9 @@ class ArpCollector {
           this.state.lastArpTs = Date.now();
         }
       );
-      console.log('[arp] streaming /ip/arp/listen');
+      console.log(this._lbl + ' streaming /ip/arp/listen');
     } catch (e) {
-      console.error('[arp] stream start failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' stream start failed:', e && e.message ? e.message : e);
     }
   }
 

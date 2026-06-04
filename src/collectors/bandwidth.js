@@ -24,6 +24,7 @@ class BandwidthCollector {
   constructor({ ros, io, pollMs, dhcpNetworks, dhcpLeases, arp, ifStatus, state, geoLookup, connTableCache, geoOrgCache }) {
     this.ros          = ros;
     this.io           = io;
+    this._lbl         = ros.routerLabel ? `[${ros.routerLabel}][bandwidth]` : '[bandwidth]';
     const _bPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 3000;
     this.pollMs       = Math.max(500, Math.min(60000, _bPoll));
     this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 3000;
@@ -292,7 +293,7 @@ class BandwidthCollector {
         // entry disappears between query and response — harmless, suppress it.
         if (!msg.includes('no such item')) {
           this.state.lastBandwidthErr = msg;
-          console.error('[bandwidth]', msg);
+          console.error(this._lbl, msg);
         }
       } finally {
         this._inflight = false;

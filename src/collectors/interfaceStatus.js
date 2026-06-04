@@ -35,6 +35,7 @@ class InterfaceStatusCollector {
   constructor({ ros, io, pollMs, metaPollMs, state, streamMode }) {
     this.ros        = ros;
     this.io         = io;
+    this._lbl       = ros.routerLabel ? `[${ros.routerLabel}][ifstatus]` : '[ifstatus]';
     const _iPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
     this.pollMs     = Math.max(500, Math.min(60000, _iPoll)); // rate stream + emit timer interval
     this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 5000;
@@ -106,7 +107,7 @@ class InterfaceStatusCollector {
   }
 
   _startRatesPoll() {
-    console.log('[ifstatus] poll mode — polling /interface/monitor-traffic every', this.pollMs + 'ms');
+    console.log(this._lbl + ' poll mode — polling /interface/monitor-traffic every', this.pollMs + 'ms');
     this._pollRatesOnce();
     this._scheduleRatesNext();
   }
@@ -135,7 +136,7 @@ class InterfaceStatusCollector {
   _startIfStream() {
     if (this._ifStream || !this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
-    console.log('[ifstatus] streaming /interface/print, interval=' + intervalSec + 's');
+    console.log(this._lbl + ' streaming /interface/print, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
       '/interface/print',
       [
@@ -150,7 +151,7 @@ class InterfaceStatusCollector {
       this._scheduleMetaCommit();
     });
     stream.on('error', (err) => {
-      console.error('[ifstatus] /interface/print stream error:', err && err.message ? err.message : String(err));
+      console.error(this._lbl + ' /interface/print stream error:', err && err.message ? err.message : String(err));
       this._ifStream = null;
       setTimeout(() => { if (this.ros.connected && !this._ifStream) this._startIfStream(); }, 3000);
     });
@@ -160,7 +161,7 @@ class InterfaceStatusCollector {
   _startAddrStream() {
     if (this._addrStream || !this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
-    console.log('[ifstatus] streaming /ip/address/print, interval=' + intervalSec + 's');
+    console.log(this._lbl + ' streaming /ip/address/print, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
       '/ip/address/print',
       [
@@ -176,7 +177,7 @@ class InterfaceStatusCollector {
       this._scheduleMetaCommit();
     });
     stream.on('error', (err) => {
-      console.error('[ifstatus] /ip/address/print stream error:', err && err.message ? err.message : String(err));
+      console.error(this._lbl + ' /ip/address/print stream error:', err && err.message ? err.message : String(err));
       this._addrStream = null;
       setTimeout(() => { if (this.ros.connected && !this._addrStream) this._startAddrStream(); }, 3000);
     });
@@ -219,7 +220,7 @@ class InterfaceStatusCollector {
 
     // /interface/monitor-traffic rejects intervals > 5s ("value of interval is out of range")
     const intervalSec = Math.max(1, Math.min(5, Math.round(this.pollMs / 1000)));
-    console.log('[ifstatus] starting monitor-traffic stream,', names.length, 'interfaces, interval=' + intervalSec + 's');
+    console.log(this._lbl + ' starting monitor-traffic stream,', names.length, 'interfaces, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
       '/interface/monitor-traffic',
       [
@@ -252,7 +253,7 @@ class InterfaceStatusCollector {
         }, 5000);
         return;
       }
-      console.error('[ifstatus] monitor-traffic stream error:', msg);
+      console.error(this._lbl + ' monitor-traffic stream error:', msg);
     });
     this._monitorStream   = stream;
     this._monitorIfaceKey = key;

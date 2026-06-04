@@ -37,6 +37,7 @@ class ConnectionsCollector {
   constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache, geoOrgCache, streamMode }) {
     this.ros = ros;
     this.io = io;
+    this._lbl = ros.routerLabel ? `[${ros.routerLabel}][connections]` : '[connections]';
     this.streamMode = streamMode !== false; // default true
     const _cPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
     this.pollMs = Math.max(500, Math.min(60000, _cPoll));
@@ -125,12 +126,12 @@ class ConnectionsCollector {
       this._partialStreak++;
       const dbg = this._debug;
       if (this._partialStreak >= PARTIAL_MAX_STREAK) {
-        if (dbg) console.warn(`[connections] partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — accepted after ${this._partialStreak} consecutive`);
+        if (dbg) console.warn(this._lbl, `partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — accepted after ${this._partialStreak} consecutive`);
         this._partialStreak = 0;
         rows = fresh;
         this._rowsPrev = fresh;
       } else {
-        if (dbg) console.warn(`[connections] partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — keeping stale (${this._partialStreak}/${PARTIAL_MAX_STREAK})`);
+        if (dbg) console.warn(this._lbl, `partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — keeping stale (${this._partialStreak}/${PARTIAL_MAX_STREAK})`);
         rows = this._rowsPrev;
       }
     } else {
@@ -145,7 +146,7 @@ class ConnectionsCollector {
     // Skip expensive geo/ASN processing when no browser clients are watching
     if (this.io.engine.clientsCount === 0) return;
 
-    this._processRows(rows).catch(e => console.error('[connections]', e));
+    this._processRows(rows).catch(e => console.error(this._lbl, e));
   }
 
   async _processRows(raw) {
@@ -446,7 +447,7 @@ class ConnectionsCollector {
       const msg = String(e && e.message ? e.message : e);
       if (!msg.includes('no such item')) {
         this.state.lastConnsErr = msg;
-        console.error('[connections]', msg);
+        console.error(this._lbl, msg);
       }
     }
   }
@@ -455,7 +456,7 @@ class ConnectionsCollector {
     if (this._stream || this._restarting) return;
     if (!this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
-    console.log('[connections] streaming interval=' + intervalSec + 's');
+    console.log(this._lbl + ' streaming interval=' + intervalSec + 's');
     this._stream = this.ros.stream(
       '/ip/firewall/connection/print',
       [
@@ -478,9 +479,9 @@ class ConnectionsCollector {
       // 'no such item' is a transient RouterOS error when a connection entry
       // expires mid-dump — log at debug level and restart rather than error.
       if (msg.includes('no such item')) {
-        console.warn('[connections] stream: transient "no such item" — restarting');
+        console.warn(this._lbl + ' stream: transient "no such item" — restarting');
       } else {
-        console.error('[connections] stream error:', msg);
+        console.error(this._lbl + ' stream error:', msg);
         this.state.lastConnsErr = msg;
       }
       this._stream = null;
@@ -553,7 +554,7 @@ class ConnectionsCollector {
       const msg = String(e && e.message ? e.message : e);
       if (!msg.includes('no such item')) {
         this.state.lastConnsErr = msg;
-        console.error('[connections] fallback poll error:', msg);
+        console.error(this._lbl + ' fallback poll error:', msg);
       }
     } finally {
       this._fallbackInflight = false;
@@ -573,7 +574,7 @@ class ConnectionsCollector {
       if (Date.now() - this._streamStartTs < staleMs) return;
       const age = Date.now() - this.state.lastConnsTs;
       if (age > staleMs) {
-        console.warn(`[connections] watchdog: no data for ${Math.round(age / 1000)}s — restarting stream`);
+        console.warn(this._lbl, `watchdog: no data for ${Math.round(age / 1000)}s — restarting stream`);
         this._restartStream();
       }
     }, checkMs);

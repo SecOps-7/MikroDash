@@ -2,6 +2,26 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.43] — CAPsMAN wireless support, container log improvements, arm/v7 Docker image
+
+### Added
+
+- **CAPsMAN wireless client support (`src/collectors/wireless.js`, `public/app.js`)** — `wireless.js` now probes `/caps-man/registration-table/print` on start/reconnect to detect whether the router is acting as a CAPsMAN controller; if available, CAPsMAN registration rows are merged into the wireless client list each poll tick. Local wireless clients take priority — any CAPsMAN row whose MAC is already seen from local wireless is skipped. Band is inferred from the AP interface name suffix (`-2g`, `-5g`, `-6g`) when the CAPsMAN row carries no `band` field. CAPsMAN-sourced clients are tagged `source: 'capsman'`; the AP group header in the Wireless page shows a `CAP` badge when any client in the group comes from CAPsMAN. Closes issue #43
+- **linux/arm/v7 Docker image** — `node:20-alpine` ships a native arm/v7 manifest layer; adding `linux/arm/v7` to the QEMU and build-push platform lists in the GitHub Actions workflow is all that was needed. The published GHCR image now covers `linux/amd64`, `linux/arm64`, and `linux/arm/v7`. Useful for deploying MikroDash in a RouterOS container on ARMv7 hardware. Closes issue #44
+- **GitHub Releases from CHANGELOG** — a new `create-release` job in the workflow fires on every `v*.*.*` tag push, extracts the current version's section from `CHANGELOG.md` using awk, and creates a GitHub Release with the curated notes as the body. The release title is derived from the CHANGELOG section header
+
+### Changed
+
+- **Container log format** (`src/index.js`, `src/alertSessions.js`, all 16 `src/collectors/*.js`) — all console output now uses the format `[RouterLabel][collector] message`. `ros.routerLabel` (set from the router's configured label or host in `buildSession()` and `alertSessions._buildSession()`) is read by each collector's constructor into `this._lbl`. Collectors fall back to `[tag]` when `routerLabel` is unset (test mocks), so no test changes were required. Session lifecycle events `── session started` and `── session torn down` provide clear boundary markers in multi-router log streams
+- **Ping error context** (`src/collectors/ping.js`) — stream error lines now include `target=IP` so the failing ping target is immediately visible without cross-referencing config
+
+### Tests
+
+- 5 new wireless/CAPsMAN tests across `test/collector-data-transforms.test.js` (merge, band inference, MAC deduplication) and `test/collector-lifecycle.test.js` (`_probeCAPsMAN` available / unknown-command)
+- Test count raised from 237 to **242** (all passing)
+
+---
+
 ## [0.5.42] — Talkers fix, CodeQL security alerts resolved
 
 ### Fixed

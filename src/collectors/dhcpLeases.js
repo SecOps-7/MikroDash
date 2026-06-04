@@ -6,6 +6,7 @@ class DhcpLeasesCollector {
   constructor({ ros, io, state, _restartDelayMs }) {
     this.ros = ros;
     this.io = io;
+    this._lbl = ros.routerLabel ? `[${ros.routerLabel}][leases]` : '[leases]';
     this.state = state;
     this._restartDelayMs = _restartDelayMs || 2000;
     this.byIP  = new Map();
@@ -81,7 +82,7 @@ class DhcpLeasesCollector {
       this.state.lastLeasesTs = Date.now();
       this._emitLeases();
     } catch (e) {
-      console.error('[leases] initial load failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' initial load failed:', e && e.message ? e.message : e);
     }
   }
 
@@ -91,7 +92,7 @@ class DhcpLeasesCollector {
     try {
       this.stream = this.ros.stream(['/ip/dhcp-server/lease/listen'], (err, data) => {
         if (err) {
-          console.error('[leases] stream error:', err && err.message ? err.message : err);
+          console.error(this._lbl + ' stream error:', err && err.message ? err.message : err);
           this._stopStream();
           if (this.ros.connected && !this._restarting) {
             this._restarting = true;
@@ -105,9 +106,9 @@ class DhcpLeasesCollector {
         }
         if (data) { this._applyLease(data, true); this.state.lastLeasesTs = Date.now(); }
       });
-      console.log('[leases] streaming /ip/dhcp-server/lease/listen');
+      console.log(this._lbl + ' streaming /ip/dhcp-server/lease/listen');
     } catch (e) {
-      console.error('[leases] stream start failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' stream start failed:', e && e.message ? e.message : e);
     }
   }
 

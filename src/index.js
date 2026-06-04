@@ -322,6 +322,7 @@ function buildSession(routerCfg, routerIo) {
     debug:          Settings.load().rosDebug,
     writeTimeoutMs: parseInt(process.env.ROS_WRITE_TIMEOUT_MS || '30000', 10),
   });
+  ros.routerLabel = routerCfg.label || routerCfg.host;
 
   const DEFAULT_IF  = routerCfg.defaultIf  || _cfg.defaultIf  || 'ether1';
   const PING_TARGET = routerCfg.pingTarget  || _cfg.pingTarget || '1.1.1.1';
@@ -385,6 +386,8 @@ function buildSession(routerCfg, routerIo) {
 // Stop all collectors and the ROS connection. `entry` is the _routerSessions entry.
 async function teardownSession(session, entry) {
   if (!session) return;
+  const _tearLabel = (session.ros && session.ros.routerLabel) || 'router';
+  console.log(`[${_tearLabel}] ── session torn down`);
   if (entry) { entry.startupReady = false; entry.collectorsStarted = false; }
   if (session._cancelDownTimer) session._cancelDownTimer();
   for (const c of session.allCollectors) {
@@ -472,7 +475,7 @@ function wireRosEvents(session, entry) {
   }
 
   ros.on('connected', () => {
-    console.log(`[ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
+    console.log(`[${ros.routerLabel}][ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
     session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
     broadcastRosStatus(true, null, entry);
     _emitRouterStatus(true);
@@ -485,7 +488,7 @@ function wireRosEvents(session, entry) {
   });
   ros.on('close', () => {
     session.connTableCache.invalidate();
-    console.log(`[ROS] connection to ${host}:${port} closed`);
+    console.log(`[${ros.routerLabel}][ROS] connection to ${host}:${port} closed`);
     broadcastRosStatus(false, 'RouterOS connection closed', entry);
     _emitRouterStatus(false);
   });
@@ -521,10 +524,10 @@ function wireRosEvents(session, entry) {
         hint   = `Run: /ip service set api disabled=no  — then confirm user "${user}" has API group permissions`;
       }
     }
-    console.error(`[ROS] ✗ ${reason}`);
-    if (hint) console.error(`[ROS]   → ${hint}`);
-    if (e && e.errno) console.error(`[ROS]   errno: ${e.errno}`);
-    console.error(`[ROS]   raw: ${msg}`);
+    console.error(`[${ros.routerLabel}][ROS] ✗ ${reason}`);
+    if (hint) console.error(`[${ros.routerLabel}][ROS]   → ${hint}`);
+    if (e && e.errno) console.error(`[${ros.routerLabel}][ROS]   errno: ${e.errno}`);
+    console.error(`[${ros.routerLabel}][ROS]   raw: ${msg}`);
     broadcastRosStatus(false, reason, entry);
     _emitRouterStatus(false);
   });
@@ -536,7 +539,7 @@ async function startCollectors(session, entry) {
   entry.collectorsStarted = true;
   const _delay = ms => new Promise(r => setTimeout(r, ms));
   try {
-    console.log(`[MikroDash] v${APP_VERSION} — RouterOS connected, starting collectors`);
+    console.log(`[${session.ros.routerLabel}] ── session started (v${APP_VERSION})`);
     // Group A — foundation collectors; awaits provide natural sequencing.
     session.wireless.start();
     await session.dhcpLeases.start();

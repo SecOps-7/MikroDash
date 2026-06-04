@@ -35,6 +35,7 @@ class DhcpNetworksCollector {
   constructor({ ros, io, pollMs, dhcpLeases, state, wanIface }) {
     this.ros = ros;
     this.io = io;
+    this._lbl = ros.routerLabel ? `[${ros.routerLabel}][dhcp-networks]` : '[dhcp-networks]';
     this.pollMs = pollMs;
     this.dhcpLeases = dhcpLeases;
     this.state = state;
@@ -141,7 +142,7 @@ class DhcpNetworksCollector {
       this.timer = null;
       if (!this._inflight) {
         this._inflight = true;
-        try { await this.tick(); } catch (e) { console.error('[dhcp-networks]', e && e.message ? e.message : e); }
+        try { await this.tick(); } catch (e) { console.error(this._lbl, e && e.message ? e.message : e); }
         finally { this._inflight = false; }
       }
       this._scheduleNext();
@@ -162,7 +163,7 @@ class DhcpNetworksCollector {
     const runFirst = async () => {
       if (this._inflight) return;
       this._inflight = true;
-      try { await this.tick(); } catch (e) { console.error('[dhcp-networks]', e && e.message ? e.message : e); }
+      try { await this.tick(); } catch (e) { console.error(this._lbl, e && e.message ? e.message : e); }
       finally { this._inflight = false; }
     };
     runFirst();

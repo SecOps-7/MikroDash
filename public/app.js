@@ -1106,8 +1106,10 @@ function portSvg(sz) {
       var g=groups[key];
       var multiGroup=order.length>1;
       if(multiGroup){
+        var isCapsman=g.clients.some(function(c){return c.source==='capsman';});
         rows+='<tr class="wl-group-row"><td colspan="6">'+
           '<span class="wl-group-label">'+esc(g.iface)+'</span>'+
+          (isCapsman?'<span class="badge badge-outline-azure ms-1" style="font-size:.6rem">CAP</span>':'')+
           (g.ssid?'<span class="wl-group-sub">'+esc(g.ssid)+'</span>':'')+
           '<span class="wl-group-sub">'+g.clients.length+' client'+(g.clients.length!==1?'s':'')+'</span>'+
         '</td></tr>';

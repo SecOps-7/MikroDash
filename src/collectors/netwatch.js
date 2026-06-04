@@ -4,6 +4,7 @@ class NetwatchCollector {
   constructor({ ros, io, state }) {
     this.ros   = ros;
     this.io    = io;
+    this._lbl  = ros.routerLabel ? `[${ros.routerLabel}][netwatch]` : '[netwatch]';
     this.state = state;
 
     this._hosts          = new Map(); // .id -> raw row
@@ -45,16 +46,16 @@ class NetwatchCollector {
         const id = r['.id'] || r.id;
         if (id) this._hosts.set(id, r);
       }
-      console.log('[netwatch]', this._hosts.size, 'entr' + (this._hosts.size === 1 ? 'y' : 'ies') + ' loaded');
+      console.log(this._lbl, this._hosts.size, 'entr' + (this._hosts.size === 1 ? 'y' : 'ies') + ' loaded');
       this._emit();
     } catch (e) {
       const msg = e && e.message ? e.message : String(e);
       if (/not allowed|no such command/i.test(msg)) {
         this._permissionDenied = true;
-        console.warn('[netwatch] permission denied — netwatch alerts disabled');
+        console.warn(this._lbl + ' permission denied — netwatch alerts disabled');
         return;
       }
-      console.error('[netwatch] initial load failed:', msg);
+      console.error(this._lbl + ' initial load failed:', msg);
       this.state.lastNetwatchErr = msg;
     }
   }
@@ -64,7 +65,7 @@ class NetwatchCollector {
     try {
       this._stream = this.ros.stream(['/tool/netwatch/listen'], (err, data) => {
         if (err) {
-          console.error('[netwatch] stream error:', err && err.message ? err.message : err);
+          console.error(this._lbl + ' stream error:', err && err.message ? err.message : err);
           this.state.lastNetwatchErr = String(err && err.message ? err.message : err);
           this._stopStream();
           if (this.ros.connected && !this._restarting) {
@@ -87,9 +88,9 @@ class NetwatchCollector {
         }
         this._emit();
       });
-      console.log('[netwatch] streaming /tool/netwatch/listen');
+      console.log(this._lbl + ' streaming /tool/netwatch/listen');
     } catch (e) {
-      console.error('[netwatch] stream start failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' stream start failed:', e && e.message ? e.message : e);
     }
   }
 

@@ -22,6 +22,7 @@ class TopTalkersCollector {
   constructor({ ros, io, pollMs, state, topN, streamMode }) {
     this.ros    = ros;
     this.io     = io;
+    this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][talkers]` : '[talkers]';
     this.pollMs = pollMs;
     this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 3000;
     this.state  = state;
@@ -66,7 +67,7 @@ class TopTalkersCollector {
     if (Date.now() < this._backoffUntil) return;
 
     const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
-    console.log('[talkers] streaming /ip/kid-control/device/print, interval=' + intervalSec + 's');
+    console.log(this._lbl + ' streaming /ip/kid-control/device/print, interval=' + intervalSec + 's');
 
     const stream = this.ros.stream(
       '/ip/kid-control/device/print',
@@ -97,7 +98,7 @@ class TopTalkersCollector {
         // Feature not present on this router — disable permanently, no retries.
         this._unavailable = true;
         const now = Date.now();
-        console.warn('[talkers] Kid Control not available on this router — disabling');
+        console.warn(this._lbl + ' Kid Control not available on this router — disabling');
         const payload = { ts: now, devices: [], pollMs: this.pollMs };
         this.lastPayload = payload;
         this.io.emit('talkers:update', payload);
@@ -106,11 +107,11 @@ class TopTalkersCollector {
       } else if (msg.includes('timeout')) {
         // Stream timeout on CHR/VM (limited API threads). Feature likely exists
         // but stream mode can't handle it — auto-downgrade to poll mode.
-        console.warn('[talkers] stream timeout — switching to poll mode');
+        console.warn(this._lbl + ' stream timeout — switching to poll mode');
         this.streamMode = false;
         this._startTalkers();
       } else {
-        console.error('[talkers] stream error:', msg);
+        console.error(this._lbl + ' stream error:', msg);
         this.state.lastTalkersErr = msg;
         clearTimeout(this._backoffTimer);
         this._backoffTimer = setTimeout(() => { this._backoffTimer = null; this._startStream(); }, this._backoffMs);
@@ -202,7 +203,7 @@ class TopTalkersCollector {
         // Feature not present — disable permanently, stop scheduling.
         if (!this._unavailable) {
           this._unavailable = true;
-          console.warn('[talkers] poll: Kid Control not available — disabling');
+          console.warn(this._lbl + ' poll: Kid Control not available — disabling');
           const now = Date.now();
           const payload = { ts: now, devices: [], pollMs: this.pollMs };
           this.lastPayload = payload;
@@ -235,7 +236,7 @@ class TopTalkersCollector {
     if (this.streamMode) {
       this._startStream();
     } else {
-      console.log('[talkers] poll mode — polling /ip/kid-control/device/print every', this.pollMs + 'ms');
+      console.log(this._lbl + ' poll mode — polling /ip/kid-control/device/print every', this.pollMs + 'ms');
       this._pollTalkersOnce();
       this._scheduleTalkersNext();
     }

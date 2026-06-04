@@ -553,6 +553,31 @@ test('wireless collector resets mode on reconnect', () => {
   collector.timer = null;
 });
 
+test('wireless _probeCAPsMAN sets _capsmanAvailable=true when API responds', async () => {
+  const ros = { connected: true, on() {}, cfg: {}, write: async () => [] };
+  const io  = { emit() {} };
+  const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
+
+  assert.equal(collector._capsmanAvailable, false, 'false before probe');
+  await collector._probeCAPsMAN();
+  assert.equal(collector._capsmanAvailable, true, 'true after successful probe');
+});
+
+test('wireless _probeCAPsMAN sets _capsmanAvailable=false on unknown-command error', async () => {
+  const ros = {
+    connected: true, on() {}, cfg: {},
+    write: async (cmd) => {
+      if (cmd.includes('/caps-man/')) throw new Error('unknown command');
+      return [];
+    },
+  };
+  const io  = { emit() {} };
+  const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
+
+  await collector._probeCAPsMAN();
+  assert.equal(collector._capsmanAvailable, false, 'false when router rejects the path');
+});
+
 test('dhcp networks collector deduplicates LAN CIDRs', async () => {
   const ros = mockROS(async (cmd) => {
     if (cmd.includes('network')) return [

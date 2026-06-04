@@ -12,6 +12,7 @@ class FirewallCollector {
   constructor({ ros, io, pollMs, state, topN }) {
     this.ros    = ros;
     this.io     = io;
+    this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][firewall]` : '[firewall]';
     const _fPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 10000;
     this.pollMs = Math.max(500, Math.min(30000, _fPoll));
     this.state  = state;
@@ -186,7 +187,7 @@ class FirewallCollector {
       }
       if (changed) this._emit();
     } catch (e) {
-      console.error('[firewall] counter poll error:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' counter poll error:', e && e.message ? e.message : e);
     } finally {
       this._pollInflight = false;
     }
@@ -239,7 +240,7 @@ class FirewallCollector {
     try {
       this._streams[table] = this.ros.stream([cmd], (err, data) => {
         if (err) {
-          console.error(`[firewall] ${table} stream error:`, err && err.message ? err.message : err);
+          console.error(this._lbl, `${table} stream error:`, err && err.message ? err.message : err);
           this.state.lastFirewallErr = String(err && err.message ? err.message : err);
           this._stopStream(table);
           if (this.ros.connected && !this._restarting[table]) {
@@ -259,9 +260,9 @@ class FirewallCollector {
           this._emit();
         }
       });
-      console.log(`[firewall] streaming /ip/firewall/${table}/listen`);
+      console.log(this._lbl, `streaming /ip/firewall/${table}/listen`);
     } catch (e) {
-      console.error(`[firewall] ${table} stream start failed:`, e && e.message ? e.message : e);
+      console.error(this._lbl, `${table} stream start failed:`, e && e.message ? e.message : e);
     }
   }
 

@@ -136,12 +136,12 @@ Pull and run the pre-built image directly — no need to clone the repo or creat
 docker pull ghcr.io/secops-7/mikrodash:latest
 ```
 
-The image is built automatically by GitHub Actions on every push to `main` and on version tags. It is published as a multi-arch manifest covering `linux/amd64` and `linux/arm64`. Docker will automatically pull the correct layer for your platform — this includes Raspberry Pi 4/5, MikroTik's own R5S/RB5009 companion boards, and Apple M-series machines running Linux containers.
+The image is built automatically by GitHub Actions on every push to `main` and on version tags. It is published as a multi-arch manifest covering `linux/amd64`, `linux/arm64`, and `linux/arm/v7`. Docker will automatically pull the correct layer for your platform — this includes Raspberry Pi 4/5, MikroTik's own R5S/RB5009 companion boards, Apple M-series machines running Linux containers, and ARMv7 devices such as MikroTik routers running RouterOS containers.
 
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.5.42
+docker pull ghcr.io/secops-7/mikrodash:0.5.43
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -177,7 +177,7 @@ docker compose up -d
 To build a multi-arch image locally (requires Docker Buildx):
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -t mikrodash:local --load .
+docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t mikrodash:local --load .
 ```
 
 - Dashboard: `http://localhost:3081`

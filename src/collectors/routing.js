@@ -28,6 +28,7 @@ class RoutingCollector {
   constructor({ ros, io, pollMs, state, _restartDelayMs }) {
     this.ros    = ros;
     this.io     = io;
+    this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][routing]` : '[routing]';
     this.pollMs = pollMs || 10000;
     this.state  = state;
     this._restartDelayMs = _restartDelayMs || 3000;
@@ -361,7 +362,7 @@ class RoutingCollector {
       this._routeStream = this.ros.stream(['/ip/route/listen'], (err, data) => {
         if (err) {
           const msg = err && err.message ? err.message : String(err);
-          console.error('[routing] route stream error:', msg);
+          console.error(this._lbl + ' route stream error:', msg);
           this.state.lastRoutingErr = msg;
           this._stopRouteStream();
           if (this.ros.connected && !this._routeRestarting) {
@@ -382,9 +383,9 @@ class RoutingCollector {
           this._emit(null);
         }
       });
-      console.log('[routing] streaming /ip/route/listen');
+      console.log(this._lbl + ' streaming /ip/route/listen');
     } catch (e) {
-      console.error('[routing] route stream start failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' route stream start failed:', e && e.message ? e.message : e);
     }
   }
 
@@ -400,7 +401,7 @@ class RoutingCollector {
       this._ipv6Stream = this.ros.stream(['/ipv6/route/listen'], (err, data) => {
         if (err) {
           const msg = err && err.message ? err.message : String(err);
-          console.error('[routing] IPv6 route stream error:', msg);
+          console.error(this._lbl + ' IPv6 route stream error:', msg);
           this._stopIPv6Stream();
           if (this.ros.connected && !this._ipv6Restarting) {
             this._ipv6Restarting = true;
@@ -427,9 +428,9 @@ class RoutingCollector {
           this._emit(null);
         }
       });
-      console.log('[routing] streaming /ipv6/route/listen');
+      console.log(this._lbl + ' streaming /ipv6/route/listen');
     } catch (e) {
-      console.error('[routing] IPv6 route stream start failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' IPv6 route stream start failed:', e && e.message ? e.message : e);
     }
   }
 
@@ -445,7 +446,7 @@ class RoutingCollector {
       this._bgpStream = this.ros.stream(['/routing/bgp/session/listen'], async (err, data) => {
         if (err) {
           const msg = err && err.message ? err.message : String(err);
-          console.error('[routing] BGP session stream error:', msg);
+          console.error(this._lbl + ' BGP session stream error:', msg);
           this.state.lastRoutingErr = msg;
           this._stopBgpStream();
           if (this.ros.connected && !this._bgpRestarting) {
@@ -471,12 +472,12 @@ class RoutingCollector {
           }
         }
       });
-      console.log('[routing] streaming /routing/bgp/session/listen');
+      console.log(this._lbl + ' streaming /routing/bgp/session/listen');
     } catch (e) {
       // BGP session stream may not be available on RouterOS v6 or non-BGP builds.
       // Log at debug level and fall back gracefully — route data is still streamed.
       if (require('../settings').load().rosDebug) {
-        console.warn('[routing] BGP session stream unavailable:', e && e.message ? e.message : e);
+        console.warn(this._lbl + ' BGP session stream unavailable:', e && e.message ? e.message : e);
       }
       this._bgpStream = null;
     }

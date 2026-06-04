@@ -1163,6 +1163,84 @@ test('wireless collector: client that reappears before eviction resets its absen
   assert.deepEqual(lastEmit.data.clients, [], 'empty clients emitted on eviction');
 });
 
+test('wireless collector merges CAPsMAN clients when _capsmanAvailable is true', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true, on() {}, cfg: {},
+    write: async (cmd) => {
+      if (cmd.includes('/interface/wifi/'))     return [];
+      if (cmd.includes('/interface/wireless/')) return [];
+      if (cmd.includes('/caps-man/'))           return [{ 'mac-address': 'CA:PM:AN:01:02:03', 'rx-signal': '-62', interface: 'ap1-2g', 'tx-rate-set': '54Mbps', uptime: '30m' }];
+      return [];
+    },
+  };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
+  collector._capsmanAvailable = true;
+
+  await collector.tick();
+
+  assert.equal(emitted.length, 1, 'one emit');
+  assert.equal(emitted[0].ev, 'wireless:update');
+  const clients = emitted[0].data.clients;
+  assert.equal(clients.length, 1, 'one CAPsMAN client');
+  assert.equal(clients[0].mac, 'CA:PM:AN:01:02:03');
+  assert.equal(clients[0].signal, -62);
+  assert.equal(clients[0].iface, 'ap1-2g');
+  assert.equal(clients[0].band, '2.4GHz', 'band inferred from -2g suffix');
+  assert.equal(clients[0].source, 'capsman');
+  assert.equal(emitted[0].data.capsmanAvailable, true);
+});
+
+test('wireless collector band inference from CAPsMAN interface name suffixes', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true, on() {}, cfg: {},
+    write: async (cmd) => {
+      if (cmd.includes('/caps-man/')) return [
+        { 'mac-address': 'AA:00:00:00:00:01', 'rx-signal': '-50', interface: 'ap-2g',  uptime: '1m' },
+        { 'mac-address': 'AA:00:00:00:00:02', 'rx-signal': '-50', interface: 'ap-5g',  uptime: '1m' },
+        { 'mac-address': 'AA:00:00:00:00:03', 'rx-signal': '-50', interface: 'ap-6g',  uptime: '1m' },
+        { 'mac-address': 'AA:00:00:00:00:04', 'rx-signal': '-50', interface: 'ap-lan', uptime: '1m' },
+      ];
+      return [];
+    },
+  };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
+  collector._capsmanAvailable = true;
+
+  await collector.tick();
+
+  const byMac = {};
+  emitted[0].data.clients.forEach(function(c){ byMac[c.mac] = c; });
+  assert.equal(byMac['AA:00:00:00:00:01'].band, '2.4GHz');
+  assert.equal(byMac['AA:00:00:00:00:02'].band, '5GHz');
+  assert.equal(byMac['AA:00:00:00:00:03'].band, '6GHz');
+  assert.equal(byMac['AA:00:00:00:00:04'].band, '', 'no band for unrecognised suffix');
+});
+
+test('wireless collector does not duplicate client when MAC appears in both local wireless and CAPsMAN', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true, on() {}, cfg: {},
+    write: async (cmd) => {
+      if (cmd.includes('/interface/wifi/')) return [{ 'mac-address': 'DD:DD:DD:DD:DD:DD', signal: '-40', interface: 'wlan1', band: '5GHz' }];
+      if (cmd.includes('/caps-man/'))       return [{ 'mac-address': 'DD:DD:DD:DD:DD:DD', 'rx-signal': '-40', interface: 'ap-5g', uptime: '1m' }];
+      return [];
+    },
+  };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
+  collector._capsmanAvailable = true;
+
+  await collector.tick();
+
+  const clients = emitted[0].data.clients;
+  assert.equal(clients.length, 1, 'MAC deduplicated — local wireless wins');
+  assert.equal(clients[0].source, undefined, 'local wireless client has no capsman source tag');
+});
+
 // --- Logs Collector ---
 const LogsCollector = require('../src/collectors/logs');
 
