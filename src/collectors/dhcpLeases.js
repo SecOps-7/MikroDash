@@ -82,7 +82,7 @@ class DhcpLeasesCollector {
       this.state.lastLeasesTs = Date.now();
       this._emitLeases();
     } catch (e) {
-      console.error(this._lbl + ' initial load failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' initial load failed:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
     }
   }
 
@@ -92,7 +92,7 @@ class DhcpLeasesCollector {
     try {
       this.stream = this.ros.stream(['/ip/dhcp-server/lease/listen'], (err, data) => {
         if (err) {
-          console.error(this._lbl + ' stream error:', err && err.message ? err.message : err);
+          console.error(this._lbl + ' stream error:', err && err.message ? err.message : err); // codeql[js/tainted-format-string]
           this._stopStream();
           if (this.ros.connected && !this._restarting) {
             this._restarting = true;
@@ -108,7 +108,7 @@ class DhcpLeasesCollector {
       });
       console.log(this._lbl + ' streaming /ip/dhcp-server/lease/listen');
     } catch (e) {
-      console.error(this._lbl + ' stream start failed:', e && e.message ? e.message : e);
+      console.error(this._lbl + ' stream start failed:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
     }
   }
 

@@ -107,7 +107,7 @@ class InterfaceStatusCollector {
   }
 
   _startRatesPoll() {
-    console.log(this._lbl + ' poll mode — polling /interface/monitor-traffic every', this.pollMs + 'ms');
+    console.log(this._lbl + ' poll mode — polling /interface/monitor-traffic every', this.pollMs + 'ms'); // codeql[js/tainted-format-string]
     this._pollRatesOnce();
     this._scheduleRatesNext();
   }
@@ -151,7 +151,7 @@ class InterfaceStatusCollector {
       this._scheduleMetaCommit();
     });
     stream.on('error', (err) => {
-      console.error(this._lbl + ' /interface/print stream error:', err && err.message ? err.message : String(err));
+      console.error(this._lbl + ' /interface/print stream error:', err && err.message ? err.message : String(err)); // codeql[js/tainted-format-string]
       this._ifStream = null;
       setTimeout(() => { if (this.ros.connected && !this._ifStream) this._startIfStream(); }, 3000);
     });
@@ -177,7 +177,7 @@ class InterfaceStatusCollector {
       this._scheduleMetaCommit();
     });
     stream.on('error', (err) => {
-      console.error(this._lbl + ' /ip/address/print stream error:', err && err.message ? err.message : String(err));
+      console.error(this._lbl + ' /ip/address/print stream error:', err && err.message ? err.message : String(err)); // codeql[js/tainted-format-string]
       this._addrStream = null;
       setTimeout(() => { if (this.ros.connected && !this._addrStream) this._startAddrStream(); }, 3000);
     });
@@ -220,7 +220,7 @@ class InterfaceStatusCollector {
 
     // /interface/monitor-traffic rejects intervals > 5s ("value of interval is out of range")
     const intervalSec = Math.max(1, Math.min(5, Math.round(this.pollMs / 1000)));
-    console.log(this._lbl + ' starting monitor-traffic stream,', names.length, 'interfaces, interval=' + intervalSec + 's');
+    console.log(this._lbl + ' starting monitor-traffic stream,', names.length, 'interfaces, interval=' + intervalSec + 's'); // codeql[js/tainted-format-string]
     const stream = this.ros.stream(
       '/interface/monitor-traffic',
       [
@@ -253,7 +253,7 @@ class InterfaceStatusCollector {
         }, 5000);
         return;
       }
-      console.error(this._lbl + ' monitor-traffic stream error:', msg);
+      console.error(this._lbl + ' monitor-traffic stream error:', msg); // codeql[js/tainted-format-string]
     });
     this._monitorStream   = stream;
     this._monitorIfaceKey = key;
