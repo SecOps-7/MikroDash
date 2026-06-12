@@ -6,6 +6,7 @@ All notable changes to MikroDash will be documented in this file.
 
 ### Added
 
+- **Reports preset date-range picker** (`public/index.html`, `public/app.js`) — a 24-option preset dropdown (Last hour → Last year, grouped by day/week/month/year) now appears in the Reports toolbar. Selection is persisted to `localStorage`; changing the preset immediately re-runs the report. Fixes an edge-case where `loadReports()` was overwriting the `To` date back to "now" when a preset was applied — resolved by setting `_rptToManual = true` after applying so the `!_rptToManual` guard in `loadReports()` is suppressed
 - **Disk usage bar on router cards** (`src/index.js`, `public/app.js`) — each router card on the Routers Overview page now shows a Disk bar below RAM, using the same orange (`#fb923c`) colour as the storage gauge on the main dashboard, with the same warn (>75%) and crit (>90%) thresholds
 
 ### Changed
