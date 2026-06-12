@@ -2,6 +2,20 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.44] — Routers page card improvements
+
+### Added
+
+- **Disk usage bar on router cards** (`src/index.js`, `public/app.js`) — each router card on the Routers Overview page now shows a Disk bar below RAM, using the same orange (`#fb923c`) colour as the storage gauge on the main dashboard, with the same warn (>75%) and crit (>90%) thresholds
+
+### Changed
+
+- **Router cards pre-load at startup** (`src/overviewSessions.js`) — background router sessions now start their collectors immediately on connect instead of waiting for the first page visit; Routers page cards show data instantly on first navigation
+- **Router card header** (`public/app.js`) — animated status dot replaced with a WiFi SVG icon (green when connected, red when offline); configured IP address shown as a pink (`#ec4899`) subtitle below the router name (suppressed when the label is the same as the host); card title forced to `color:inherit` to match body text white
+- **Router card stat values** (`public/app.js`) — Uptime and Clients values bumped from `.82rem` to `.9rem`; Clients value coloured `#a855f7` (bright purple)
+
+---
+
 ## [0.5.43] — CAPsMAN wireless support, container log improvements, arm/v7 Docker image
 
 ### Added

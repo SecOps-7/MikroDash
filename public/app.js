@@ -312,7 +312,7 @@ function _syncSwatches() {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports'};
+var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers'};
 var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','routing','bandwidth','firewall','logs'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
@@ -1760,7 +1760,7 @@ socket.on('traffic:update',function(sample){
     _serverOffset=_serverOffset?_serverOffset+(_rawOffset-_serverOffset)*0.1:_rawOffset;
     if(!_chartKeepaliveId)(function _tick(){
       _chartKeepaliveId=requestAnimationFrame(_tick);
-      if(!chart||document.hidden||!_lastSampleTs)return;
+      if(!chart||document.hidden||!_lastSampleTs||_rosCurrentlyDisconnected||document.body.classList.contains('is-disconnected'))return;
       var sn=Date.now()+_serverOffset;
       var vl=sn-windowSecs*1000-RIGHT_BUFFER_MS;
       var rd=chart.data.datasets[0].data,td=chart.data.datasets[1].data;
@@ -1826,11 +1826,14 @@ function applyPageVisibility(pages) {
 }
 socket.on('settings:pages', function(pages) { applyPageVisibility(pages); });
 
+socket.on('routers:stats', function(rows) { _renderRoutersStats(rows); });
+
 socket.on('disconnect',function(){
   reconnectBanner.classList.add('show');
   rosBanner.classList.remove('show');
   document.body.classList.add('is-disconnected');
   var svg=$('netDiagram'); if(svg) svg.pauseAnimations();
+  if(liveRx) liveRx.textContent='—'; if(liveTx) liveTx.textContent='—';
 });
 socket.on('connect',function(){
   reconnectBanner.classList.remove('show');
@@ -1878,6 +1881,7 @@ function setRosBanner(connected, reason){
     // Pause SVG flow-dot animations while the router is unreachable
     var svg = $('netDiagram');
     if(svg) svg.pauseAnimations();
+    if(liveRx) liveRx.textContent='—'; if(liveTx) liveTx.textContent='—';
   }
 }
 socket.on('ros:status', function(data){
@@ -3622,7 +3626,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollPing',      label:'Ping',            min:1000,  max:5000,   step:500,   unit:'ms' },
     { key:'pollWireless',  label:'Wireless',           min:500,   max:60000,  step:500,   unit:'ms' },
     { key:'pollIfaces',    label:'Interface Status',   min:10000, max:600000, step:10000, unit:'ms' },
-    { key:'pollDhcp',      label:'DHCP Networks',      min:30000, max:600000, step:30000, unit:'ms' },
+    { key:'pollDhcp',           label:'DHCP Networks',    min:30000, max:600000, step:30000, unit:'ms' },
     // Streamed — RouterOS pushes changes, no poll interval needed
     { key:'pollArp',       label:'ARP',         streamed:true },
     { key:'pollRouting',   label:'Routing',     streamed:true },
@@ -5048,6 +5052,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var wrap = $('routerSelectWrap');
     if (wrap) wrap.style.display = _routers.length > 1 ? 'flex' : 'none';
     if (_routers.length <= 1 && wrap) wrap.style.display = 'flex'; // always show so label is visible
+    var navRouters = $('nav-routers');
+    if (navRouters) navRouters.style.display = _routers.length > 1 ? '' : 'none';
     sel.value = _activeRouterId || prev || (sel.options[0] && sel.options[0].value);
     if (navSel) navSel.value = sel.value;
   }
@@ -6234,6 +6240,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var rptAggregate   = $('rptAggregate');
   var rptLoadBtn     = $('rptLoadBtn');
   var rptSpinner     = $('rptSpinner');
+  var rptPreset      = $('rptPreset');
   var rptTabBar      = $('rptTabBar');
   var rptPingStats   = $('rptPingStats');
   var rptPingTbody   = $('rptPingTbody');
@@ -6279,18 +6286,63 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var _alertSort   = { col: 'fired_at', dir: 'desc' };
   var _connSort    = { col: 'ts',       dir: 'desc' };
   var _rptToManual = false; // true once user manually edits the To field
+  var RPT_PRESET_KEY = 'mkd_rpt_preset';
 
   var _rptP = function(n){ return String(n).padStart(2,'0'); };
   function _dtVal(d) {
     return d.getFullYear()+'-'+_rptP(d.getMonth()+1)+'-'+_rptP(d.getDate())+'T'+_rptP(d.getHours())+':'+_rptP(d.getMinutes());
   }
 
-  // ── Default dates: last 7 days ──────────────────────────────────────
+  function _applyRptPreset(val) {
+    var now = new Date();
+    function _sod(d) { var r=new Date(d); r.setHours(0,0,0,0); return r; }
+    function _eod(d) { var r=new Date(d); r.setHours(23,59,0,0); return r; }
+    function _sowMon(d) {
+      var r=new Date(d), day=r.getDay();
+      r.setDate(r.getDate()-(day===0?6:day-1)); r.setHours(0,0,0,0); return r;
+    }
+    function _eowSun(d) { var r=_sowMon(d); r.setDate(r.getDate()+6); r.setHours(23,59,0,0); return r; }
+    function _som(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function _eom(d) { var r=new Date(d.getFullYear(), d.getMonth()+1, 0); r.setHours(23,59,0,0); return r; }
+
+    var from, to = new Date(now);
+    switch (val) {
+      case 'last1h':  from=new Date(+now-3600000); break;
+      case 'last3h':  from=new Date(+now-3*3600000); break;
+      case 'last6h':  from=new Date(+now-6*3600000); break;
+      case 'last12h': from=new Date(+now-12*3600000); break;
+      case 'last24h': from=new Date(+now-86400000); break;
+      case 'last2d':  from=_sod(new Date(+now-2*86400000)); break;
+      case 'last7d':  from=_sod(new Date(+now-7*86400000)); break;
+      case 'last30d': from=_sod(new Date(+now-30*86400000)); break;
+      case 'last90d': from=_sod(new Date(+now-90*86400000)); break;
+      case 'last6mo': from=_sod(new Date(now.getFullYear(), now.getMonth()-6, now.getDate())); break;
+      case 'last1y':  from=_sod(new Date(now.getFullYear()-1, now.getMonth(), now.getDate())); break;
+      case 'dayBeforeYesterday': { var _d=_sod(now); _d.setDate(_d.getDate()-2); from=_d; to=_eod(new Date(_d)); break; }
+      case 'thisDayLastWeek':    { var _d=_sod(now); _d.setDate(_d.getDate()-7); from=_d; to=_eod(new Date(_d)); break; }
+      case 'prevWeek':  { var _d=new Date(+now-7*86400000); from=_sowMon(_d); to=_eowSun(_d); break; }
+      case 'prevMonth': { var _d=new Date(now.getFullYear(),now.getMonth()-1,1); from=_som(_d); to=_eom(_d); break; }
+      case 'prevYear':  { from=new Date(now.getFullYear()-1,0,1); to=new Date(now.getFullYear()-1,11,31,23,59,0,0); break; }
+      case 'today':          from=_sod(now); to=_eod(now); break;
+      case 'thisWeek':       from=_sowMon(now); to=_eowSun(now); break;
+      case 'thisMonth':      from=_som(now); to=_eom(now); break;
+      case 'thisYear':       from=new Date(now.getFullYear(),0,1); to=new Date(now.getFullYear(),11,31,23,59,0,0); break;
+      case 'todaySoFar':     from=_sod(now); break;
+      case 'thisWeekSoFar':  from=_sowMon(now); break;
+      case 'thisMonthSoFar': from=_som(now); break;
+      case 'thisYearSoFar':  from=new Date(now.getFullYear(),0,1); break;
+      default: return;
+    }
+    if (rptFrom) rptFrom.value = _dtVal(from);
+    if (rptTo)   rptTo.value   = _dtVal(to);
+  }
+
+  // ── Default dates: restore saved preset (fallback: last 7 days) ─────
   (function() {
-    var now  = new Date();
-    var past = new Date(+now - 7 * 86400000); past.setHours(0,0,0,0);
-    if (rptFrom) rptFrom.value = _dtVal(past);
-    if (rptTo)   rptTo.value   = _dtVal(now);
+    var saved = 'last7d';
+    try { saved = localStorage.getItem(RPT_PRESET_KEY) || 'last7d'; } catch(e) {}
+    if (rptPreset) rptPreset.value = saved;
+    _applyRptPreset(saved);
   }());
   if (rptTo) rptTo.addEventListener('change', function() { _rptToManual = true; });
 
@@ -6906,6 +6958,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   if (rptLoadBtn)    rptLoadBtn.addEventListener('click', loadReports);
   if (rptAggregate)  rptAggregate.addEventListener('change', loadReports);
+  if (rptPreset) rptPreset.addEventListener('change', function() {
+    try { localStorage.setItem(RPT_PRESET_KEY, rptPreset.value); } catch(e) {}
+    _applyRptPreset(rptPreset.value);
+    _rptToManual = true;
+    loadReports();
+  });
 
   // Auto-load when the Reports page becomes active
   var _rptPage = $('page-reports');
@@ -6915,3 +6973,71 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     }).observe(_rptPage, { attributes:true, attributeFilter:['class'] });
   }
 }());
+
+function _renderRoutersStats(rows) {
+  var grid = $('routers-grid');
+  if (!grid) return;
+  if (!rows || !rows.length) {
+    grid.innerHTML = '<div class="col-12 text-muted text-center py-4">No routers configured.</div>';
+    return;
+  }
+  var html = '';
+  rows.forEach(function(r) {
+    var statusClass = r.connected ? 'bg-green' : 'bg-red';
+    var activeBadge = r.isActive ? '<span class="badge badge-outline text-blue ms-2">active</span>' : '';
+    var cpuColor = r.cpu    > 90 ? '#f87171' : r.cpu    > 75 ? '#f59f00' : '#38bdf8';
+    var memColor = r.memPct > 90 ? '#f87171' : r.memPct > 75 ? '#f59f00' : '#34d399';
+    var cpuBar = r.cpu != null
+      ? '<div class="d-flex align-items-center mb-1"><span class="me-2 text-muted" style="width:3rem;font-size:.75rem">CPU</span>'
+        + '<div class="progress flex-grow-1" style="height:6px"><div class="progress-bar" style="width:' + r.cpu + '%;background:' + cpuColor + '"></div></div>'
+        + '<span class="ms-2 text-muted" style="font-size:.75rem;width:2.5rem;text-align:right">' + r.cpu + '%</span></div>'
+      : '<div class="text-muted mb-1" style="font-size:.75rem">CPU —</div>';
+    var memBar = r.memPct != null
+      ? '<div class="d-flex align-items-center mb-1"><span class="me-2 text-muted" style="width:3rem;font-size:.75rem">RAM</span>'
+        + '<div class="progress flex-grow-1" style="height:6px"><div class="progress-bar" style="width:' + r.memPct + '%;background:' + memColor + '"></div></div>'
+        + '<span class="ms-2 text-muted" style="font-size:.75rem;width:2.5rem;text-align:right">' + r.memPct + '%</span></div>'
+      : '<div class="text-muted mb-1" style="font-size:.75rem">RAM —</div>';
+    var hddColor = r.hddPct > 90 ? '#f87171' : r.hddPct > 75 ? '#f59f00' : '#fb923c';
+    var hddBar = r.hddPct != null
+      ? '<div class="d-flex align-items-center mb-2"><span class="me-2 text-muted" style="width:3rem;font-size:.75rem">Disk</span>'
+        + '<div class="progress flex-grow-1" style="height:6px"><div class="progress-bar" style="width:' + r.hddPct + '%;background:' + hddColor + '"></div></div>'
+        + '<span class="ms-2 text-muted" style="font-size:.75rem;width:2.5rem;text-align:right">' + r.hddPct + '%</span></div>'
+      : '<div class="text-muted mb-2" style="font-size:.75rem">Disk —</div>';
+    var uptimeParts = r.uptime ? r.uptime.match(/\d+[wdhm]/g) : null;
+    var uptime  = uptimeParts && uptimeParts.length ? uptimeParts.join(' ') : (r.uptime ? esc(r.uptime) : '—');
+    var rx      = r.rxMbps  != null ? '<span style="color:var(--accent-rx)">&#8595; ' + r.rxMbps.toFixed(2) + ' Mbps</span>' : '—';
+    var tx      = r.txMbps  != null ? '<span style="color:var(--accent-tx)">&#8593; ' + r.txMbps.toFixed(2) + ' Mbps</span>' : '—';
+    var clients = r.clients != null ? r.clients                       : '—';
+    var footerPills = '';
+    if (r.boardName) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);margin-right:.3rem">' + esc(r.boardName) + '</span>';
+    if (r.version)   footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2)">ROS ' + esc(r.version) + '</span>';
+    var footer = footerPills ? '<div class="mt-2">' + footerPills + '</div>' : '';
+    var hostSub = (r.host && r.host !== r.label)
+      ? '<div style="font-size:.72rem;margin-top:.1rem;color:#ec4899">' + esc(r.host) + '</div>'
+      : '';
+    html += '<div class="col-md-6 col-xl-4">'
+      + '<div class="card">'
+      + '<div class="card-header" style="align-items:flex-start">'
+      + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (r.connected ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
+      + '<div class="me-auto">'
+      + '<div class="d-flex align-items-center"><strong class="card-title mb-0 me-1" style="color:inherit">' + esc(r.label) + '</strong>' + activeBadge + '</div>'
+      + hostSub
+      + '</div>'
+      + '<span class="badge ms-2 ' + (r.connected ? 'bg-green-lt' : 'bg-red-lt') + '">'
+      + (r.connected ? 'Online' : 'Offline') + '</span>'
+      + '</div>'
+      + '<div class="card-body">'
+      + cpuBar + memBar + hddBar
+      + '<div class="row g-2 text-center">'
+      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">Uptime</div><div style="font-size:.9rem;font-weight:500;letter-spacing:.02em">' + uptime + '</div></div>'
+      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">Clients</div><div style="font-size:.9rem;font-weight:500;color:#a855f7">' + clients + '</div></div>'
+      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">WAN Rx</div><div style="font-size:.82rem;font-weight:500">' + rx + '</div></div>'
+      + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">WAN Tx</div><div style="font-size:.82rem;font-weight:500">' + tx + '</div></div>'
+      + '</div>'
+      + footer
+      + '</div>'
+      + '</div>'
+      + '</div>';
+  });
+  grid.innerHTML = html;
+}

@@ -82,17 +82,18 @@ jobs:
       - name: Extract changelog for this version
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          # Build title from the CHANGELOG header line, e.g. "v0.5.42 — Talkers fix, ..."
-          TITLE=$(grep "^## \[${VERSION}\]" CHANGELOG.md | head -1 | sed "s/^## \[${VERSION}\] — /v${VERSION} — /")
-          [ -z "$TITLE" ] && TITLE="$GITHUB_REF_NAME"
-          # Extract body: everything between this version's header and the next ## header
-          awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md > release_notes.md
-          echo "RELEASE_TITLE=$TITLE" >> "$GITHUB_ENV"
+          # Extract description from the CHANGELOG header line, e.g. "CAPsMAN support, ..."
+          DESCRIPTION=$(grep "^## \[${VERSION}\]" CHANGELOG.md | head -1 | sed "s/^## \[${VERSION}\] — //")
+          # Build release notes: description as a heading, then the section body
+          {
+            [ -n "$DESCRIPTION" ] && printf '## %s\n\n' "$DESCRIPTION"
+            awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md
+          } > release_notes.md
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            --title "$RELEASE_TITLE" \
+            --title "$GITHUB_REF_NAME" \
             --notes-file release_notes.md

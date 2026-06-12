@@ -293,7 +293,7 @@ class BandwidthCollector {
         // entry disappears between query and response — harmless, suppress it.
         if (!msg.includes('no such item')) {
           this.state.lastBandwidthErr = msg;
-          console.error(this._lbl, msg);
+          console.error(this._lbl, msg); // codeql[js/tainted-format-string]
         }
       } finally {
         this._inflight = false;

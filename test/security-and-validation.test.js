@@ -108,6 +108,137 @@ describe('basicAuth middleware', () => {
     mwB(makeReq('admin', 'pass', ip), makeRes(), () => { nextCalled = true; });
     assert.ok(nextCalled, 'separate instance must have its own failures Map — mwA blocks must not affect mwB');
   });
+
+  test('no credentials configured — middleware always calls next()', () => {
+    const mw = createBasicAuthMiddleware({ username: '', password: '' });
+    let nextCalled = false;
+    mw(makeReq('admin', 'anything'), makeRes(), () => { nextCalled = true; });
+    assert.ok(nextCalled, 'passthrough when no credentials configured');
+  });
+
+  test('missing Authorization header returns 401', () => {
+    const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret' });
+    const req = { ip: '1.2.3.4', socket: { remoteAddress: '1.2.3.4' }, headers: {} };
+    const res = makeRes();
+    mw(req, res, () => { assert.fail('next() must not be called on missing header'); });
+    assert.equal(res.statusCode, 401);
+  });
+
+  test('non-Basic scheme (Bearer) is rejected with 401', () => {
+    const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret' });
+    const req = {
+      ip: '1.2.3.4', socket: { remoteAddress: '1.2.3.4' },
+      headers: { authorization: 'Bearer sometoken' },
+    };
+    const res = makeRes();
+    mw(req, res, () => { assert.fail('next() must not be called for Bearer scheme'); });
+    assert.equal(res.statusCode, 401);
+  });
+
+  test('password containing colons is split only at the first colon', () => {
+    const mw = createBasicAuthMiddleware({ username: 'admin', password: 'pass:with:colons' });
+    let nextCalled = false;
+    mw(makeReq('admin', 'pass:with:colons'), makeRes(), () => { nextCalled = true; });
+    assert.ok(nextCalled, 'password with colons must authenticate correctly');
+  });
+
+  test('successful auth clears the failure counter, allowing fresh failures up to maxFailures', () => {
+    const mw = createBasicAuthMiddleware({
+      username: 'admin', password: 'correct', maxFailures: 3, blockMs: 60_000,
+    });
+    const ip = '10.1.2.3';
+
+    // Two failures — still under limit
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+
+    // Correct auth clears the counter
+    let nextCalled = false;
+    mw(makeReq('admin', 'correct', ip), makeRes(), () => { nextCalled = true; });
+    assert.ok(nextCalled, 'correct credentials should succeed');
+
+    // Two more failures after the counter was cleared — still within fresh limit
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+
+    // Should still authenticate (2 of 3 failures used, counter was reset)
+    nextCalled = false;
+    mw(makeReq('admin', 'correct', ip), makeRes(), () => { nextCalled = true; });
+    assert.ok(nextCalled, 'counter must have been reset by the earlier successful auth');
+  });
+
+  test('block expires after blockMs — access is restored', async () => {
+    const mw = createBasicAuthMiddleware({
+      username: 'admin', password: 'correct', maxFailures: 2, blockMs: 50,
+    });
+    const ip = '10.9.9.9';
+
+    // Exhaust failures and confirm block
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+    const blocked = makeRes();
+    mw(makeReq('admin', 'correct', ip), blocked, () => {});
+    assert.equal(blocked.statusCode, 429, 'must be blocked immediately after exhausting failures');
+
+    // Wait for block to expire
+    await new Promise(r => setTimeout(r, 100));
+
+    let nextCalled = false;
+    mw(makeReq('admin', 'correct', ip), makeRes(), () => { nextCalled = true; });
+    assert.ok(nextCalled, 'access must be restored after blockMs elapses');
+  });
+
+  test('failure counter resets after windowMs elapses', async () => {
+    const mw = createBasicAuthMiddleware({
+      username: 'admin', password: 'correct', maxFailures: 2, windowMs: 50, blockMs: 60_000,
+    });
+    const ip = '10.5.5.5';
+
+    // One failure within the window
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+
+    // Wait for the window to expire
+    await new Promise(r => setTimeout(r, 100));
+
+    // One more failure — starts a fresh window, count = 1 (not 2)
+    mw(makeReq('admin', 'bad', ip), makeRes(), () => {});
+
+    // Correct credentials should succeed (only 1 failure in the new window)
+    let nextCalled = false;
+    mw(makeReq('admin', 'correct', ip), makeRes(), () => { nextCalled = true; });
+    assert.ok(nextCalled, 'failure counter must reset after windowMs elapses');
+  });
+
+  test('different IPs have independent failure counters', () => {
+    const mw = createBasicAuthMiddleware({
+      username: 'admin', password: 'correct', maxFailures: 2, blockMs: 60_000,
+    });
+
+    // Exhaust failures for one IP
+    mw(makeReq('admin', 'bad', '10.0.0.1'), makeRes(), () => {});
+    mw(makeReq('admin', 'bad', '10.0.0.1'), makeRes(), () => {});
+
+    // A different IP must be unaffected
+    let nextCalled = false;
+    mw(makeReq('admin', 'correct', '10.0.0.2'), makeRes(), () => { nextCalled = true; });
+    assert.ok(nextCalled, 'different IP must have its own independent failure counter');
+  });
+
+  test('WWW-Authenticate header contains the configured realm', () => {
+    const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret', realm: 'MyApp' });
+    const res = makeRes();
+    mw(makeReq('admin', 'wrong'), res, () => {});
+    assert.ok(res.headers['WWW-Authenticate'].includes('realm="MyApp"'), 'realm must appear in WWW-Authenticate');
+  });
+
+  test('realm with double-quotes and backslashes is escaped in WWW-Authenticate', () => {
+    const mw = createBasicAuthMiddleware({ username: 'admin', password: 'secret', realm: 'My "App" \\test' });
+    const res = makeRes();
+    mw(makeReq('admin', 'wrong'), res, () => {});
+    const header = res.headers['WWW-Authenticate'];
+    assert.ok(header.includes('\\"App\\"'), 'double-quotes in realm must be backslash-escaped');
+    assert.ok(header.includes('\\\\test'), 'backslashes in realm must be escaped');
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

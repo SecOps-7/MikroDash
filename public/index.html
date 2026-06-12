@@ -849,6 +849,7 @@
     .rpt-select,.rpt-date-input{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.38rem .65rem;font-size:.76rem;color:var(--text-main);outline:none;transition:border-color .15s;font-family:var(--font-ui)}
     .rpt-date-input{font-family:var(--font-mono)}
     .rpt-select:focus,.rpt-date-input:focus{border-color:var(--accent-rx)}
+    #rptPreset optgroup{font-family:var(--font-ui);font-size:.78rem;font-weight:600}
     html[data-theme="light"] .rpt-select,html[data-theme="light"] .rpt-date-input{background:rgba(255,255,255,.95)}
     .rpt-stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.65rem;margin-bottom:.9rem}
     .rpt-stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem}
@@ -940,6 +941,10 @@
     <a class="nav-item" data-page="reports" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
       <span class="nav-label">Reports</span>
+    </a>
+    <a class="nav-item" data-page="routers" href="#" id="nav-routers">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="11" width="18" height="4" rx="1"/><rect x="3" y="18" width="18" height="4" rx="1"/><circle cx="19" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
+      <span class="nav-label">Routers</span>
     </a>
     <a class="nav-item" data-page="settings" href="#" id="settingsNavItem">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
@@ -2079,6 +2084,42 @@
       <!-- Toolbar -->
       <div class="rpt-bar">
         <select id="rptRouter" class="rpt-select" title="Router"></select>
+        <select id="rptPreset" class="rpt-select" title="Quick date range">
+          <optgroup label="Relative">
+            <option value="last1h">Last 1 Hour</option>
+            <option value="last3h">Last 3 Hours</option>
+            <option value="last6h">Last 6 Hours</option>
+            <option value="last12h">Last 12 Hours</option>
+            <option value="last24h">Last 24 Hours</option>
+            <option value="last2d">Last 2 Days</option>
+            <option value="last7d" selected>Last 7 Days</option>
+            <option value="last30d">Last 30 Days</option>
+            <option value="last90d">Last 90 Days</option>
+            <option value="last6mo">Last 6 Months</option>
+            <option value="last1y">Last 1 Year</option>
+          </optgroup>
+          <optgroup label="Specific Days">
+            <option value="dayBeforeYesterday">Day Before Yesterday</option>
+            <option value="thisDayLastWeek">This Day Last Week</option>
+          </optgroup>
+          <optgroup label="Previous Periods">
+            <option value="prevWeek">Previous Week</option>
+            <option value="prevMonth">Previous Month</option>
+            <option value="prevYear">Previous Year</option>
+          </optgroup>
+          <optgroup label="Current Periods">
+            <option value="today">Today</option>
+            <option value="thisWeek">This Week</option>
+            <option value="thisMonth">This Month</option>
+            <option value="thisYear">This Year</option>
+          </optgroup>
+          <optgroup label="So Far">
+            <option value="todaySoFar">Today So Far</option>
+            <option value="thisWeekSoFar">This Week So Far</option>
+            <option value="thisMonthSoFar">This Month So Far</option>
+            <option value="thisYearSoFar">This Year So Far</option>
+          </optgroup>
+        </select>
         <input type="datetime-local" id="rptFrom" class="rpt-date-input" title="From date/time"/>
         <span style="color:var(--text-muted);font-size:.75rem;flex-shrink:0">to</span>
         <input type="datetime-local" id="rptTo" class="rpt-date-input" title="To date/time"/>
@@ -2208,6 +2249,22 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <div class="page-view" id="page-routers">
+    <div class="container-xl">
+      <div class="page-header">
+        <div class="row align-items-center">
+          <div class="col">
+            <h2 class="page-title">Routers</h2>
+            <div class="text-muted mt-1">Live overview of all configured routers</div>
+          </div>
+        </div>
+      </div>
+      <div class="row row-cards mt-3" id="routers-grid">
+        <div class="col-12 text-muted text-center py-4">Loading…</div>
+      </div>
     </div>
   </div>
 

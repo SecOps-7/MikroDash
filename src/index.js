@@ -65,6 +65,7 @@ const NetwatchCollector     = require('./collectors/netwatch');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
+const overviewSessions      = require('./overviewSessions');
 const SessionStore          = require('./auth/sessionStore');
 const Users                 = require('./users');
 const db                    = require('./db');
@@ -280,6 +281,10 @@ function _poolOwnedIds() { return new Set(_routerSessions.keys()); }
 // Call after any change to _routerSessions (create/teardown) or the router list.
 function _syncAlertSessions() {
   alertSessions.syncSessions(Routers.loadAll(), Settings.load().activeRouterId || '', _poolOwnedIds());
+}
+
+function _syncOverviewSessions() {
+  overviewSessions.syncSessions(Routers.loadAll(), _poolOwnedIds());
 }
 
 function _freshState() {
@@ -678,6 +683,7 @@ function ensureRouterSession(routerId) {
   // connectivity/alerts aren't tracked twice. (No-op for the global active router,
   // which alertSessions already excludes.)
   _syncAlertSessions();
+  _syncOverviewSessions();
   return entry;
 }
 
@@ -702,6 +708,7 @@ function scheduleIdleTeardown(routerId, delayMs = 60_000) {
     alerter.dropEvaluator(routerId);
     // No longer pool-owned — let alertSessions resume status-only tracking.
     _syncAlertSessions();
+    _syncOverviewSessions();
   }, delayMs);
 }
 
@@ -781,6 +788,7 @@ alertSessions.init(io);
     _noRouterMode = true;
     // No pool session to own anything yet — start status-only tracking for all routers.
     _syncAlertSessions();
+    _syncOverviewSessions();
     return;
   }
 
@@ -1312,6 +1320,7 @@ app.post('/api/routers', _requireAdmin, (req, res) => {
     const router = Routers.add(body);
     _broadcastRoutersList();
     _syncAlertSessions();
+    _syncOverviewSessions();
     res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
   } catch(e) {
     res.status(500).json({ ok:false, error: sanitizeErr(e) });
@@ -1345,6 +1354,7 @@ app.put('/api/routers/:id', _requireAdmin, (req, res) => {
     }
 
     _syncAlertSessions();
+    _syncOverviewSessions();
     res.json({ ok:true, router: { ...router, password: router.password ? '••••••••' : '' } });
   } catch(e) {
     res.status(500).json({ ok:false, error: sanitizeErr(e) });
@@ -1364,6 +1374,7 @@ app.delete('/api/routers/:id', _requireAdmin, (req, res) => {
     alerter.dropEvaluator(req.params.id);
     _broadcastRoutersList();
     _syncAlertSessions();
+    _syncOverviewSessions();
     res.json({ ok:true });
   } catch(e) {
     res.status(500).json({ ok:false, error: sanitizeErr(e) });
@@ -1391,6 +1402,7 @@ app.post('/api/routers/:id/activate', _requireAdmin, async (req, res) => {
   _broadcastRoutersList();
   io.to('router-' + req.params.id).emit('router:active', { activeId: req.params.id });
   _syncAlertSessions();
+  _syncOverviewSessions();
 });
 
 // POST /api/routers/test — test a connection without saving
@@ -2021,6 +2033,44 @@ app.get('/api/reports/connectivity/export', _requireAdmin, _scopeRouterId, (req,
 });
 
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
+function _buildRoutersStats() {
+  const allRouters  = Routers.loadAll();
+  const bgSummaries = overviewSessions.getSummaries();
+  const cfg         = Settings.load();
+
+  return allRouters.map(r => {
+    const mainEntry = _routerSessions.get(r.id);
+    const s         = mainEntry && mainEntry.session;
+    const bg        = bgSummaries.find(x => x.routerId === r.id);
+    const defaultIf = r.defaultIf || cfg.defaultIf || 'ether1';
+
+    const connected = s ? !!mainEntry.rosConnected : (bg ? bg.connected : false);
+    const sysPay    = s ? s.system.lastPayload    : (bg ? bg.systemPayload   : null);
+    const ifPay     = s ? s.ifStatus.lastPayload  : (bg ? bg.ifStatusPayload : null);
+    const wanIf     = ifPay ? (ifPay.interfaces || []).find(i => i.name === defaultIf) : null;
+
+    return {
+      id:        r.id,
+      label:     r.label || r.host,
+      host:      r.host,
+      isActive:  !!s,
+      connected,
+      cpu:       sysPay ? sysPay.cpuLoad   : null,
+      uptime:    sysPay ? sysPay.uptimeRaw : null,
+      memPct:    sysPay ? sysPay.memPct    : null,
+      hddPct:    sysPay ? sysPay.hddPct    : null,
+      version:   sysPay ? sysPay.version   : null,
+      boardName: sysPay ? sysPay.boardName : null,
+      rxMbps:    wanIf  ? wanIf.rxMbps     : null,
+      txMbps:    wanIf  ? wanIf.txMbps     : null,
+      clients:   (() => {
+        const lp = s ? s.dhcpLeases.lastPayload : (bg ? bg.dhcpLeasesPayload : null);
+        return lp ? lp.leases.length : null;
+      })(),
+    };
+  });
+}
+
 async function sendInitialState(socket, entry) {
   // No router configured yet — prompt the browser to show the setup wizard.
   if (_noRouterMode) {
@@ -2184,6 +2234,10 @@ function _updateRoutingStreams(session, entry) {
   if (viewers > 0) session.routing.resume(); else session.routing.suspend();
 }
 
+// Tracks which sockets are currently viewing the Routers page.
+// Overview session collectors run only while this set is non-empty.
+const _routersPageSockets = new Set();
+
 io.on('connection', (socket) => {
   if (io.engine.clientsCount > MAX_SOCKETS) {
     console.warn('[MikroDash] connection rejected — max sockets reached:', MAX_SOCKETS);
@@ -2214,7 +2268,11 @@ io.on('connection', (socket) => {
     if (roomSize === 1) _idleResume(entry.session, entry);
   }
 
+  let _routersTimer = null;
+
   socket.on('disconnect', () => {
+    if (_routersTimer) { clearInterval(_routersTimer); _routersTimer = null; }
+    if (_routersPageSockets.delete(socket.id) && _routersPageSockets.size === 0) overviewSessions.suspend();
     const rid = socket.routerId;
     if (!rid) return;
     const e = _routerSessions.get(rid);
@@ -2235,6 +2293,16 @@ io.on('connection', (socket) => {
     if (typeof name !== 'string' || !/^[a-z]{2,20}$/.test(name)) return;
     const rid = socket.routerId;
     socket.join('router-' + rid + '-page-' + name);
+    if (name === 'routers') {
+      if (!_routersPageSockets.has(socket.id)) {
+        _routersPageSockets.add(socket.id);
+        if (_routersPageSockets.size === 1) overviewSessions.resume();
+      }
+      if (_routersTimer) clearInterval(_routersTimer);
+      const _emitRouters = () => socket.emit('routers:stats', _buildRoutersStats());
+      _emitRouters();
+      _routersTimer = setInterval(_emitRouters, 2000); // codeql[js/resource-exhaustion]
+    }
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e || !e.session) return;
     const s = e.session;
@@ -2270,6 +2338,10 @@ io.on('connection', (socket) => {
     if (name === 'connections') _updateConnsStream(e.session, e);
     if (name === 'firewall')    _updateFirewallStreams(e.session, e);
     if (name === 'routing')     _updateRoutingStreams(e.session, e);
+    if (name === 'routers') {
+      if (_routersTimer) { clearInterval(_routersTimer); _routersTimer = null; }
+      if (_routersPageSockets.delete(socket.id) && _routersPageSockets.size === 0) overviewSessions.suspend();
+    }
   });
 
   // Dashboard card rooms — emitted by dashboard-grid.js via custom DOM events

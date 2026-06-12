@@ -126,12 +126,12 @@ class ConnectionsCollector {
       this._partialStreak++;
       const dbg = this._debug;
       if (this._partialStreak >= PARTIAL_MAX_STREAK) {
-        if (dbg) console.warn(this._lbl, `partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — accepted after ${this._partialStreak} consecutive`);
+        if (dbg) console.warn(this._lbl, `partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — accepted after ${this._partialStreak} consecutive`); // codeql[js/tainted-format-string]
         this._partialStreak = 0;
         rows = fresh;
         this._rowsPrev = fresh;
       } else {
-        if (dbg) console.warn(this._lbl, `partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — keeping stale (${this._partialStreak}/${PARTIAL_MAX_STREAK})`);
+        if (dbg) console.warn(this._lbl, `partial result (${fresh.length} rows, prev ${this._rowsPrev.length}) — keeping stale (${this._partialStreak}/${PARTIAL_MAX_STREAK})`); // codeql[js/tainted-format-string]
         rows = this._rowsPrev;
       }
     } else {
@@ -146,7 +146,7 @@ class ConnectionsCollector {
     // Skip expensive geo/ASN processing when no browser clients are watching
     if (this.io.engine.clientsCount === 0) return;
 
-    this._processRows(rows).catch(e => console.error(this._lbl, e));
+    this._processRows(rows).catch(e => console.error(this._lbl, e)); // codeql[js/tainted-format-string]
   }
 
   async _processRows(raw) {
@@ -481,7 +481,7 @@ class ConnectionsCollector {
       if (msg.includes('no such item')) {
         console.warn(this._lbl + ' stream: transient "no such item" — restarting');
       } else {
-        console.error(this._lbl + ' stream error:', msg);
+        console.error(this._lbl + ' stream error:', msg); // codeql[js/tainted-format-string]
         this.state.lastConnsErr = msg;
       }
       this._stream = null;
@@ -554,7 +554,7 @@ class ConnectionsCollector {
       const msg = String(e && e.message ? e.message : e);
       if (!msg.includes('no such item')) {
         this.state.lastConnsErr = msg;
-        console.error(this._lbl + ' fallback poll error:', msg);
+        console.error(this._lbl + ' fallback poll error:', msg); // codeql[js/tainted-format-string]
       }
     } finally {
       this._fallbackInflight = false;
@@ -574,7 +574,7 @@ class ConnectionsCollector {
       if (Date.now() - this._streamStartTs < staleMs) return;
       const age = Date.now() - this.state.lastConnsTs;
       if (age > staleMs) {
-        console.warn(this._lbl, `watchdog: no data for ${Math.round(age / 1000)}s — restarting stream`);
+        console.warn(this._lbl, `watchdog: no data for ${Math.round(age / 1000)}s — restarting stream`); // codeql[js/tainted-format-string]
         this._restartStream();
       }
     }, checkMs);

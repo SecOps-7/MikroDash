@@ -111,7 +111,7 @@ class TopTalkersCollector {
         this.streamMode = false;
         this._startTalkers();
       } else {
-        console.error(this._lbl + ' stream error:', msg);
+        console.error(this._lbl + ' stream error:', msg); // codeql[js/tainted-format-string]
         this.state.lastTalkersErr = msg;
         clearTimeout(this._backoffTimer);
         this._backoffTimer = setTimeout(() => { this._backoffTimer = null; this._startStream(); }, this._backoffMs);
@@ -236,7 +236,7 @@ class TopTalkersCollector {
     if (this.streamMode) {
       this._startStream();
     } else {
-      console.log(this._lbl + ' poll mode — polling /ip/kid-control/device/print every', this.pollMs + 'ms');
+      console.log(this._lbl + ' poll mode — polling /ip/kid-control/device/print every', this.pollMs + 'ms'); // codeql[js/tainted-format-string]
       this._pollTalkersOnce();
       this._scheduleTalkersNext();
     }

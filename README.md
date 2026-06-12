@@ -92,6 +92,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre); static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with severity filter and text search |
 | Reports | Historical data viewer with configurable date range and aggregation. Five tabs: **Ping** (RTT chart + sortable table), **Traffic** (per-interface RX/TX chart + table), **Bandwidth** (usage chart + table), **Alerts** (alert event history), **Connectivity** (router up/down event history). CSV and PDF export on every tab. Admin-only |
+| Routers | Per-router overview cards showing connection status (WiFi icon), CPU / RAM / Disk usage bars, Uptime, DHCP client count, and live WAN RX/TX rates; board name and RouterOS version pills. Background sessions pre-load data at startup so cards are populated instantly on first visit. Hidden for single-router setups |
 | Settings | Persistent UI configuration — see below |
 
 ### Notifications

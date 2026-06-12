@@ -384,3 +384,74 @@ describe('settings.getViewerPublic', () => {
     assert.equal('sessionTimeoutMs' in p, true, 'admin view includes admin-only config');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Area 4 — Session cookie helpers (src/auth/sessionStore.js)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('sessionStore.buildCookieHeader', () => {
+  test('includes token value, HttpOnly, SameSite=Strict, and Path=/', () => {
+    const { token, expiresAt } = SessionStore.createSession('u1', 'alice', 'admin', 3600_000);
+    const header = SessionStore.buildCookieHeader(token, expiresAt);
+    assert.ok(header.startsWith(`mikrodash_sid=${token}`), 'token value present');
+    assert.ok(header.includes('HttpOnly'), 'HttpOnly flag present');
+    assert.ok(header.includes('SameSite=Strict'), 'SameSite=Strict present');
+    assert.ok(header.includes('Path=/'), 'Path=/ present');
+    SessionStore.deleteSession(token);
+  });
+
+  test('includes positive Max-Age when expiresAt is finite', () => {
+    const expiresAt = Date.now() + 3600_000;
+    const header = SessionStore.buildCookieHeader('testtoken', expiresAt);
+    const match = header.match(/Max-Age=(\d+)/);
+    assert.ok(match, 'Max-Age must be present for a finite session');
+    assert.ok(Number(match[1]) > 0, 'Max-Age must be a positive integer');
+  });
+
+  test('omits Max-Age when expiresAt is Infinity (never-expires session)', () => {
+    const header = SessionStore.buildCookieHeader('testtoken', Infinity);
+    assert.ok(!header.includes('Max-Age='), 'Max-Age must not appear for Infinity session');
+  });
+});
+
+describe('sessionStore.clearCookieHeader', () => {
+  test('sets Max-Age=0 to expire the cookie and preserves security flags', () => {
+    const header = SessionStore.clearCookieHeader();
+    assert.ok(header.includes('mikrodash_sid=;'), 'token value must be empty');
+    assert.ok(header.includes('Max-Age=0'), 'Max-Age=0 must be set to expire the cookie');
+    assert.ok(header.includes('HttpOnly'), 'HttpOnly must be preserved on the clear header');
+    assert.ok(header.includes('SameSite=Strict'), 'SameSite=Strict must be preserved');
+  });
+});
+
+describe('sessionStore.updateSession', () => {
+  test('merges new fields into an existing session without overwriting others', () => {
+    const { token } = SessionStore.createSession('u1', 'alice', 'admin', 3600_000);
+    SessionStore.updateSession(token, { activeRouterId: 'router-99' });
+    const session = SessionStore.getSession(token);
+    assert.equal(session.activeRouterId, 'router-99', 'new field is merged');
+    assert.equal(session.username, 'alice', 'pre-existing fields are preserved');
+    assert.equal(session.role, 'admin', 'role not overwritten');
+    SessionStore.deleteSession(token);
+  });
+
+  test('does not throw for an unknown token', () => {
+    assert.doesNotThrow(() => SessionStore.updateSession('nonexistent-token-xyz', { foo: 'bar' }));
+  });
+
+  test('does not throw for an expired token', async () => {
+    const { token } = SessionStore.createSession('u1', 'alice', 'admin', 1);
+    await new Promise(r => setTimeout(r, 10));
+    assert.doesNotThrow(() => SessionStore.updateSession(token, { foo: 'bar' }));
+  });
+});
+
+describe('sessionStore.getSessionCount', () => {
+  test('increases by 1 after createSession and decreases by 1 after deleteSession', () => {
+    const before = SessionStore.getSessionCount();
+    const { token } = SessionStore.createSession('u_count', 'x', 'viewer', 3600_000);
+    assert.equal(SessionStore.getSessionCount(), before + 1, 'count must increase after createSession');
+    SessionStore.deleteSession(token);
+    assert.equal(SessionStore.getSessionCount(), before, 'count must decrease after deleteSession');
+  });
+});
