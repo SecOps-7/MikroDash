@@ -76,12 +76,8 @@ const DEFAULTS = {
   routerPass:        '', // stored encrypted
   defaultIf:         process.env.DEFAULT_IF          || 'ether1',
 
-  // Dashboard auth (managed via Settings UI — not env-driven)
-  dashUser:          '',
-  dashPass:          '', // stored encrypted
-
   // Auth mode and session management
-  authMode:         'basic',   // 'none' | 'basic' | 'modern'
+  authMode:         'modern',  // 'none' | 'modern'
   sessionTimeoutMs: 3600000,   // ms; 0 = never expire; max 86400000 (24h)
 
   // Ping
@@ -193,9 +189,9 @@ const DEFAULTS = {
 };
 
 // Fields stored encrypted in JSON
-const ENCRYPTED_FIELDS = ['routerPass', 'dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
+const ENCRYPTED_FIELDS = ['routerPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 // Fields never sent to the client (only their masked presence)
-const CREDENTIAL_FIELDS = ['routerPass', 'dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
+const CREDENTIAL_FIELDS = ['routerPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 
 // ── Env-var override map ─────────────────────────────────────────────────────
 // For each settings field that has an env var backing, map field → [envVar, parser].
@@ -266,12 +262,6 @@ function load() {
   // Router password: env always wins if present.
   if (process.env.ROUTER_PASS !== undefined) merged.routerPass = process.env.ROUTER_PASS;
   else if (!merged.routerPass)              merged.routerPass = '';
-
-  // Basic Auth migration: if settings.json has no dashUser/dashPass yet but
-  // BASIC_AUTH_USER/PASS env vars are set, seed them once so existing deployments
-  // that previously used env-based auth continue to work after upgrade.
-  if (!merged.dashUser && process.env.BASIC_AUTH_USER) merged.dashUser = process.env.BASIC_AUTH_USER;
-  if (!merged.dashPass && process.env.BASIC_AUTH_PASS) merged.dashPass = process.env.BASIC_AUTH_PASS;
 
   // Clamp poll intervals to their valid ranges so that a corrupt or manually
   // edited settings file can never produce a sub-minimum timer delay.

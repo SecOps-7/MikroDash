@@ -1633,7 +1633,9 @@ function flushLogs(){
   updateLogCounts();
 }
 // Batch replay of buffered log history on connect/reconnect (survives page refresh)
-socket.on('logs:history',function(lines){
+socket.on('logs:history',function(data){
+  var lines=Array.isArray(data)?data:(data&&data.entries?data.entries:[]);
+  logBuffer=[];
   lines.forEach(function(line){
     var html=buildLogHtml(line);
     var text=(line.time+' ['+line.topics+'] '+line.message).toLowerCase();
@@ -3689,17 +3691,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // Router name map shared by user list and form; populated by loadUsers()
   var _currentRouterMap = {};
 
-  function _applyAuthModeVisibility(mode, data) {
+  function _applyAuthModeVisibility(mode) {
     var noneWarn    = document.getElementById('authNoneWarn');
-    var basicFields = document.getElementById('basicAuthFields');
     var modernFields = document.getElementById('modernAuthFields');
     var userCard    = document.getElementById('userMgmtCard');
     if (noneWarn)     noneWarn.style.display     = (mode === 'none')   ? '' : 'none';
-    if (basicFields)  basicFields.style.display  = (mode === 'basic')  ? '' : 'none';
     if (modernFields) modernFields.style.display = (mode === 'modern') ? '' : 'none';
     if (userCard)     userCard.style.display     = (mode === 'modern') ? '' : 'none';
-    var migBanner = document.getElementById('authMigrationBanner');
-    if (migBanner) migBanner.style.display = (mode === 'modern' && data && data.dashUser) ? '' : 'none';
     if (mode === 'modern') loadUsers();
   }
 
@@ -3884,19 +3882,18 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function populate(data) {
     _loaded = data;
     var fields = ['routerHost','routerPort','routerUser','defaultIf','pingTarget',
-                  'dashUser','topN','topTalkersN','firewallTopN','vpnDashTopN','maxConns','historyMinutes',
+                  'topN','topTalkersN','firewallTopN','vpnDashTopN','maxConns','historyMinutes',
                   'dbRetentionDays','dbAlertRetentionDays'];
     fields.forEach(function(f) {
       var el = $('s_'+f); if (el) el.value = data[f] !== undefined ? data[f] : '';
     });
     // Passwords — show placeholder only, never pre-fill with mask
     var rp = $('s_routerPass'); if (rp) { rp.value = ''; rp.placeholder = data.routerPass ? 'leave blank to keep current' : 'not set'; }
-    var dp = $('s_dashPass');   if (dp) { dp.value = ''; dp.placeholder = data.dashPass   ? 'leave blank to keep current' : 'not set'; }
     // Auth mode + session timeout
     var authModeEl = $('s_authMode');
     if (authModeEl) {
-      authModeEl.value = data.authMode || 'basic';
-      _applyAuthModeVisibility(data.authMode || 'basic', data);
+      authModeEl.value = data.authMode || 'modern';
+      _applyAuthModeVisibility(data.authMode || 'modern');
     }
     var stEl = $('s_sessionTimeoutMs');
     if (stEl && data.sessionTimeoutMs != null) stEl.value = String(data.sessionTimeoutMs);
@@ -3995,7 +3992,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   function collectForm() {
     var out = {};
-    ['routerHost','routerUser','defaultIf','pingTarget','dashUser'].forEach(function(f) {
+    ['routerHost','routerUser','defaultIf','pingTarget'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.value.trim();
     });
     var portEl = $('s_routerPort'); if (portEl) out.routerPort = parseInt(portEl.value, 10);
@@ -4005,10 +4002,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     // Passwords — only send if user typed something
     var rpEl = $('s_routerPass'); if (rpEl && rpEl.value) out.routerPass = rpEl.value;
-    // dashPass: only relevant for basic mode; skip in modern to avoid overwriting
-    var amEl2 = $('s_authMode'); var curMode = amEl2 ? amEl2.value : 'basic';
-    if (curMode !== 'modern') { var dpEl = $('s_dashPass'); if (dpEl && dpEl.value) out.dashPass = dpEl.value; }
     // Auth mode + session timeout
+    var amEl2 = $('s_authMode');
     if (amEl2) out.authMode = amEl2.value;
     var stEl2 = $('s_sessionTimeoutMs'); if (stEl2) out.sessionTimeoutMs = parseInt(stEl2.value, 10);
     // Booleans
@@ -4177,14 +4172,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   if (ufCancelBtn) ufCancelBtn.addEventListener('click', function() {
     var wrap = document.getElementById('userFormWrap'); if (wrap) wrap.style.display = 'none';
   });
-
-  // Migration banner — pre-fill user form with existing dashUser
-  var migrateBtn = $('authMigrateBtn');
-  if (migrateBtn) {
-    migrateBtn.addEventListener('click', function() {
-      showUserForm(null, _loaded && _loaded.dashUser ? _loaded.dashUser : '');
-    });
-  }
 
   // Load settings when page becomes active
   // Load settings on every visit to the settings page
@@ -6207,7 +6194,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   fetch('/api/auth/status')
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      window._authMode = d.authMode || 'basic';
+      window._authMode = d.authMode || 'modern';
       if (d.authMode !== 'modern') return;
       if (d.session) {
         if (nameEl) nameEl.textContent = d.session.username;
@@ -7009,8 +6996,11 @@ function _renderRoutersStats(rows) {
     var tx      = r.txMbps  != null ? '<span style="color:var(--accent-tx)">&#8593; ' + r.txMbps.toFixed(2) + ' Mbps</span>' : '—';
     var clients = r.clients != null ? r.clients                       : '—';
     var footerPills = '';
-    if (r.boardName) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);margin-right:.3rem">' + esc(r.boardName) + '</span>';
-    if (r.version)   footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2)">ROS ' + esc(r.version) + '</span>';
+    if (r.boardName)    footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);margin-right:.3rem">' + esc(r.boardName) + '</span>';
+    if (r.version)      footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);margin-right:.3rem">ROS ' + esc(r.version) + '</span>';
+    if (r.arch)         footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);margin-right:.3rem">' + esc(r.arch) + '</span>';
+    if (r.serial)       footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);margin-right:.3rem">SN: ' + esc(r.serial) + '</span>';
+    if (r.licenseLevel) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25)">L' + esc(r.licenseLevel) + '</span>';
     var footer = footerPills ? '<div class="mt-2">' + footerPills + '</div>' : '';
     var hostSub = (r.host && r.host !== r.label)
       ? '<div style="font-size:.72rem;margin-top:.1rem;color:#ec4899">' + esc(r.host) + '</div>'

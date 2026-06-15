@@ -2904,7 +2904,6 @@
               <label class="sform-label">Mode</label>
               <select class="sform-input" id="s_authMode">
                 <option value="none">None (open access)</option>
-                <option value="basic">HTTP Basic Auth</option>
                 <option value="modern">Session-based (recommended)</option>
               </select>
             </div>
@@ -2912,21 +2911,6 @@
             <!-- Warning: open access -->
             <div id="authNoneWarn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.25);border-radius:6px;padding:.5rem .75rem;font-size:.76rem;color:var(--accent-warn);margin-bottom:.6rem">
               ⚠ Dashboard is publicly accessible — anyone on the network can view it.
-            </div>
-
-            <!-- Basic auth fields (legacy) -->
-            <div id="basicAuthFields" style="display:none">
-              <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.7rem">Leave blank to disable HTTP Basic Auth on the dashboard.</p>
-              <div class="sform-row" style="margin-bottom:0">
-                <div>
-                  <label class="sform-label">Username</label>
-                  <input class="sform-input" id="s_dashUser" type="text" placeholder="Leave blank to disable">
-                </div>
-                <div>
-                  <label class="sform-label">Password</label>
-                  <input class="sform-input" id="s_dashPass" type="password" placeholder="unchanged">
-                </div>
-              </div>
             </div>
 
             <!-- Modern auth fields -->
@@ -2941,11 +2925,6 @@
                   <option value="0">Never</option>
                 </select>
                 <p style="font-size:.72rem;color:var(--text-muted);margin-top:.35rem">Sessions are cleared on server restart.</p>
-              </div>
-              <!-- Migration banner: shown when dashUser exists but no users created yet -->
-              <div id="authMigrationBanner" style="display:none;background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);border-radius:6px;padding:.6rem .75rem;font-size:.76rem;color:var(--accent-rx);margin-bottom:.6rem">
-                A Basic Auth username is configured. You can migrate it to a Modern Auth user.
-                <button id="authMigrateBtn" class="sbtn sbtn-outline" style="margin-top:.45rem;display:block;width:100%">Create admin from existing credentials</button>
               </div>
             </div>
           </div>

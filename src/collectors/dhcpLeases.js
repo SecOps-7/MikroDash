@@ -77,7 +77,8 @@ class DhcpLeasesCollector {
 
   async _loadInitial() {
     try {
-      const leases = await this.ros.write('/ip/dhcp-server/lease/print');
+      const leases = await this.ros.write('/ip/dhcp-server/lease/print',
+        ['=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name']);
       for (const l of (leases || [])) this._applyLease(l);
       this.state.lastLeasesTs = Date.now();
       this._emitLeases();
@@ -90,7 +91,9 @@ class DhcpLeasesCollector {
     if (this.stream) return;
     if (!this.ros.connected) return;
     try {
-      this.stream = this.ros.stream(['/ip/dhcp-server/lease/listen'], (err, data) => {
+      this.stream = this.ros.stream(
+        ['/ip/dhcp-server/lease/listen', '=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name'],
+        (err, data) => {
         if (err) {
           console.error(this._lbl + ' stream error:', err && err.message ? err.message : err); // codeql[js/tainted-format-string]
           this._stopStream();

@@ -53,10 +53,10 @@ class DhcpNetworksCollector {
   async tick() {
     if (!this.ros.connected) return;
     const [nets, addrs, pools, detect] = await Promise.allSettled([
-      this.ros.write('/ip/dhcp-server/network/print'),
-      this.ros.write('/ip/address/print'),
-      this.ros.write('/ip/pool/print', ['=.proplist=name,ranges']),
-      this.ros.write('/interface/detect-internet/state/print'),
+      this.ros.write('/ip/dhcp-server/network/print', ['=.proplist=address,gateway,dns-server']),
+      this.ros.write('/ip/address/print',             ['=.proplist=address,interface,disabled']),
+      this.ros.write('/ip/pool/print',                ['=.proplist=name,ranges']),
+      this.ros.write('/interface/detect-internet/state/print', ['=.proplist=name,interface,state']),
     ]);
     const netRows    = nets.status    === 'fulfilled' ? (nets.value    || []) : [];
     const addrRows   = addrs.status   === 'fulfilled' ? (addrs.value   || []) : [];

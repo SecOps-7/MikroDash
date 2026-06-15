@@ -135,6 +135,14 @@ class WirelessCollector {
       }
     }
 
+    // Drop rows that lack wireless-specific fields — these are interface metadata
+    // rows (including Ethernet) returned by some RouterOS builds in error.
+    // Every legitimately connected wireless client has at least one of these fields.
+    rawClients = rawClients.filter(function(c) {
+      return c.signal || c['signal-strength'] || c['rx-signal'] ||
+             c.ssid   || c['tx-rate']         || c['rx-rate']  || c['tx-rate-set'];
+    });
+
     // ── Per-MAC absence guard ─────────────────────────────────────────────────
     // Parse this tick's results into a MAC-keyed map.
     const thisTickByMac = new Map();

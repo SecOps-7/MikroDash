@@ -20,6 +20,9 @@ class SystemCollector {
     this._lastFp           = '';
     this.lastPayload       = null;
     this._boardNameReported = false;
+    this._staticSerial  = null;
+    this._staticLicense = null;
+    this._staticFetched = false;
   }
 
   // Fetch update status independently so a slow RouterOS update-server
@@ -85,6 +88,24 @@ class SystemCollector {
     }
   }
 
+  // One-time fetch of static hardware/license info (serial, license level).
+  // Called fire-and-forget from _processRow(); silently ignores failures so
+  // CHR/virtual routers (no routerboard) are handled gracefully.
+  async _fetchStaticInfo() {
+    if (this._staticFetched) return;
+    this._staticFetched = true;
+    try {
+      const [rb, lic] = await Promise.allSettled([
+        this.ros.write('/system/routerboard/print'),
+        this.ros.write('/system/license/print'),
+      ]);
+      if (rb.status === 'fulfilled' && rb.value && rb.value[0])
+        this._staticSerial = rb.value[0]['serial-number'] || null;
+      if (lic.status === 'fulfilled' && lic.value && lic.value[0])
+        this._staticLicense = lic.value[0]['level'] || lic.value[0]['nlevel'] || null;
+    } catch (_) {}
+  }
+
   // Called for every interval push from the resource stream.
   // packet is the raw parsed row object (may include a .section field from
   // RouterOS interval responses — we ignore it and read only the data fields).
@@ -92,6 +113,8 @@ class SystemCollector {
     if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
     // Require at least one real data field so empty .section-only objects are skipped.
     if (!packet['cpu-load'] && !packet['total-memory']) return;
+
+    this._fetchStaticInfo().catch(() => {});
 
     const r = packet;
     const u = this._lastUpdateRow;
@@ -130,6 +153,9 @@ class SystemCollector {
       cpuCount: parseInt(r['cpu-count'] || '1', 10),
       cpuFreq:  parseInt(r['cpu-frequency'] || '0', 10),
       tempC, pollMs: this.pollMs,
+      arch:         r['architecture-name'] || null,
+      serial:       this._staticSerial     || null,
+      licenseLevel: this._staticLicense    || null,
     };
 
     // Always set lastPayload so sendInitialState can replay it regardless of idle state.
@@ -188,7 +214,7 @@ class SystemCollector {
     this._pollInflight = true;
     try {
       const rows = await this.ros.write('/system/resource/print', [
-        '=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime',
+        '=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime,architecture-name',
       ]);
       if (rows && rows[0]) this._processRow(rows[0]);
     } catch (e) {
@@ -230,7 +256,7 @@ class SystemCollector {
       '/system/resource/print',
       [
         `=interval=${intervalSec}`,
-        '=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime',
+        '=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime,architecture-name',
       ],
       null
     );
@@ -281,6 +307,9 @@ class SystemCollector {
       this._lastFp = '';
       this._lastUpdateFetch = 0;
       this._lastUpdateRow = {};
+      this._staticFetched = false;
+      this._staticSerial  = null;
+      this._staticLicense = null;
       this._startResources();
       this._scheduleHealthNext();
       this._pollHealth();

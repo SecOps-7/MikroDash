@@ -43,7 +43,7 @@ let geoip = null;
 try { geoip = require('geoip-lite'); } catch (_) {}
 
 const ROS                  = require('./routeros/client');
-const { createBasicAuthMiddleware } = require('./auth/basicAuth');
+
 const { isValidIp }        = require('./util/ip');
 const { fetchInterfaces }  = require('./collectors/interfaces');
 const TrafficCollector     = require('./collectors/traffic');
@@ -82,6 +82,8 @@ const MAX_SOCKETS = parseInt(process.env.MAX_SOCKETS || '50', 10);
 const io = new Server(server, {
   maxHttpBufferSize: 1e6,
   connectTimeout: 10000,
+  pingInterval: 10000,
+  pingTimeout:  5000,
   perMessageDeflate: { threshold: 128, zlibDeflateOptions: { level: 1 } },
 });
 
@@ -156,19 +158,10 @@ function _sessionFromReq(req) {
   return session;
 }
 
-let _authCache = null;
 function _authMiddleware(req, res, next) {
-  const s    = Settings.load();
-  const mode = s.authMode || 'basic';
+  const mode = Settings.load().authMode || 'modern';
   if (mode === 'none') return next();
-  if (mode === 'modern') return _modernAuthMiddleware(req, res, next);
-  // 'basic' — existing cached basicAuth; behaviour unchanged
-  if (!(s.dashUser && s.dashPass)) return next();
-  const key = `${s.dashUser}:${s.dashPass}`;
-  if (!_authCache || _authCache.key !== key) {
-    _authCache = { key, fn: createBasicAuthMiddleware({ username: s.dashUser, password: s.dashPass }) };
-  }
-  _authCache.fn(req, res, next);
+  return _modernAuthMiddleware(req, res, next);
 }
 
 function _modernAuthMiddleware(req, res, next) {
@@ -181,11 +174,10 @@ function _modernAuthMiddleware(req, res, next) {
 }
 
 // Role-based access control only exists in modern auth (it has a user model with
-// roles). In 'basic'/'none' mode there is a single shared credential and no roles,
-// so every authenticated request is implicitly an admin — this is by design, not a
-// missing check. RBAC is enforced whenever an identity with a role is present.
+// roles). In 'none' mode there is no identity, so every request is implicitly an
+// admin — this is by design. RBAC is enforced whenever an identity with a role is present.
 function _requireAdmin(req, res, next) {
-  if ((Settings.load().authMode || 'basic') !== 'modern') return next();
+  if ((Settings.load().authMode || 'modern') !== 'modern') return next();
   if (!req.authSession || req.authSession.role !== 'admin') {
     return res.status(403).json({ ok: false, error: 'Admin access required' });
   }
@@ -195,9 +187,9 @@ function _requireAdmin(req, res, next) {
 // Reject a report/export request whose ?routerId is outside the caller's allowed
 // set. Live socket data is already per-router scoped (_resolveRouterId); the
 // historical-data routes accept an arbitrary routerId, so a restricted admin must
-// be held to the same boundary here. No-op in basic/none mode (no per-user perms).
+// be held to the same boundary here. No-op in none mode (no per-user perms).
 function _scopeRouterId(req, res, next) {
-  if ((Settings.load().authMode || 'basic') !== 'modern') return next();
+  if ((Settings.load().authMode || 'modern') !== 'modern') return next();
   const allowed = req.authSession && req.authSession.allowedRouterIds;
   if (Array.isArray(allowed) && allowed.length > 0) {
     const rid = String(req.query.routerId || '');
@@ -218,15 +210,11 @@ app.use((req, res, next) => {
 // authLimiter cannot be used here; auth-only is applied instead. Rate limiting for
 // the preceding polling handshake is covered by the app.use() handler above.
 io.engine.use((req, res, next) => { // codeql[js/missing-rate-limiting]
-  const s    = Settings.load();
-  const mode = s.authMode || 'basic';
-  if (mode === 'modern') {
-    const session = _sessionFromReq(req);
-    if (!session) { res.statusCode = 401; return res.end('Not authenticated'); }
-    req._authSession = session; // accessible as socket.request._authSession in io.on('connection')
-    return next();
-  }
-  _authMiddleware(req, res, next);
+  if ((Settings.load().authMode || 'modern') === 'none') return next();
+  const session = _sessionFromReq(req);
+  if (!session) { res.statusCode = 401; return res.end('Not authenticated'); }
+  req._authSession = session; // accessible as socket.request._authSession in io.on('connection')
+  next();
 });
 
 // Start session prune interval (no-op if already started)
@@ -240,7 +228,7 @@ let _sessionSweepTimer = null;
 function _startSessionSweep() {
   if (_sessionSweepTimer) return;
   _sessionSweepTimer = setInterval(() => {
-    if ((Settings.load().authMode || 'basic') !== 'modern') return;
+    if ((Settings.load().authMode || 'modern') !== 'modern') return;
     for (const [, socket] of io.sockets.sockets) {
       const live = _sessionFromReq(socket.request);
       if (!live) {
@@ -482,6 +470,7 @@ function wireRosEvents(session, entry) {
   ros.on('connected', () => {
     console.log(`[${ros.routerLabel}][ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
     session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
+    session._ifacesFetch    = null;
     broadcastRosStatus(true, null, entry);
     _emitRouterStatus(true);
     // Restore page-aware streams for any pages still open after the reconnect.
@@ -758,14 +747,35 @@ db.startPruneInterval(() => Settings.load());
 alerter.init(io, Settings.load());
 alertSessions.init(io);
 
+// Auto-migrate any deployment still on 'basic' mode.
+(function _migrateBasicAuth() {
+  const s = Settings.load();
+  if ((s.authMode || 'basic') !== 'basic') return;
+  if (Users.userCount() > 0) {
+    Settings.save({ authMode: 'modern' });
+    console.warn('[auth] basic mode migrated to modern — existing users retained');
+    return;
+  }
+  if (s.dashUser && s.dashPass) {
+    const dashUser = s.dashUser;
+    Users.createUser({ username: dashUser, password: s.dashPass, role: 'admin', allowedRouterIds: [] })
+      .then(() => {
+        Settings.save({ authMode: 'modern', dashUser: '', dashPass: '' });
+        console.warn('[auth] basic credentials migrated to modern admin account "' + dashUser + '"');
+      })
+      .catch(e => console.error('[auth] migration failed:', e && e.message ? e.message : e));
+    return;
+  }
+  Settings.save({ authMode: 'modern' });
+  console.warn('[auth] basic mode with no credentials — switching to modern; create an admin account to get started');
+})();
+
 // Warn loudly if the dashboard is reachable with no authentication configured.
 (function _warnIfOpen() {
   const s = Settings.load();
-  const mode = s.authMode || 'basic';
-  const open = mode === 'none' || (mode === 'basic' && !(s.dashUser && s.dashPass));
-  if (open) {
+  if ((s.authMode || 'modern') === 'none') {
     console.warn('[MikroDash] ⚠ SECURITY: the dashboard is served with NO authentication.');
-    console.warn('[MikroDash]   Set a dashboard password (Settings → Security) or switch to modern auth.');
+    console.warn('[MikroDash]   Switch to Session-based auth in Settings → Security.');
   }
 })();
 
@@ -1063,9 +1073,9 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
       smtpPort:[1,65535],
       dbRetentionDays:[1,3650], dbAlertRetentionDays:[1,3650],
     };
-    const strFields  = ['dashUser', 'pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo', 'ntfyUrl'];
+    const strFields  = ['pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo', 'ntfyUrl'];
     // authMode: whitelist only valid values
-    if ('authMode' in body && ['none','basic','modern'].includes(body.authMode)) updates.authMode = body.authMode;
+    if ('authMode' in body && ['none','modern'].includes(body.authMode)) updates.authMode = body.authMode;
     // sessionTimeoutMs: 0 (never) or 3600000–86400000 — must not clamp 0 to a minimum
     if ('sessionTimeoutMs' in body) {
       const v = parseInt(body.sessionTimeoutMs, 10);
@@ -1078,7 +1088,7 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
                         'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure','ntfyEnabled',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
                         'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'];
-    const credFields = ['dashPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
+    const credFields = ['telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 
     for (const [f, range] of Object.entries(intFields)) {
       if (f in body) { const v = parseInt(body[f],10); if (!isNaN(v) && v>=range[0] && v<=range[1]) updates[f]=v; }
@@ -1362,7 +1372,7 @@ app.put('/api/routers/:id', _requireAdmin, (req, res) => {
 });
 
 // DELETE /api/routers/:id — delete a router (cannot delete the active router)
-app.delete('/api/routers/:id', _requireAdmin, (req, res) => {
+app.delete('/api/routers/:id', _requireAdmin, async (req, res) => {
   try {
     const _cfg = Settings.load();
     if (req.params.id === _cfg.activeRouterId) {
@@ -1370,6 +1380,13 @@ app.delete('/api/routers/:id', _requireAdmin, (req, res) => {
     }
     const deleted = Routers.remove(req.params.id);
     if (!deleted) return res.status(404).json({ ok:false, error:'Router not found' });
+    // Tear down any live pool session for the deleted router.
+    const _deletedEntry = _routerSessions.get(req.params.id);
+    if (_deletedEntry) {
+      if (_deletedEntry.idleTimer) { clearTimeout(_deletedEntry.idleTimer); _deletedEntry.idleTimer = null; }
+      await teardownSession(_deletedEntry.session, _deletedEntry);
+      _routerSessions.delete(req.params.id);
+    }
     // Drop any pool evaluator/alertSession state for the removed router.
     alerter.dropEvaluator(req.params.id);
     _broadcastRoutersList();
@@ -2060,7 +2077,10 @@ function _buildRoutersStats() {
       memPct:    sysPay ? sysPay.memPct    : null,
       hddPct:    sysPay ? sysPay.hddPct    : null,
       version:   sysPay ? sysPay.version   : null,
-      boardName: sysPay ? sysPay.boardName : null,
+      boardName:    sysPay ? sysPay.boardName    : null,
+      arch:         sysPay ? sysPay.arch         : null,
+      serial:       sysPay ? sysPay.serial       : null,
+      licenseLevel: sysPay ? sysPay.licenseLevel : null,
       rxMbps:    wanIf  ? wanIf.rxMbps     : null,
       txMbps:    wanIf  ? wanIf.txMbps     : null,
       clients:   (() => {
@@ -2106,7 +2126,8 @@ async function sendInitialState(socket, entry) {
 
   let ifs = [];
   try {
-    if (!s.cachedInterfaces) s.cachedInterfaces = await fetchInterfaces(s.ros);
+    if (!s._ifacesFetch) s._ifacesFetch = fetchInterfaces(s.ros);
+    s.cachedInterfaces = await s._ifacesFetch;
     ifs = s.cachedInterfaces;
     s.traffic.setAvailableInterfaces(ifs);
   } catch (e) {

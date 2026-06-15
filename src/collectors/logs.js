@@ -18,6 +18,7 @@ class LogsCollector {
     this.stream = null;
     this._restarting = false;
     this._restartTimer = null;
+    this._loadingInitial = false;
     this._history = new RingBuffer(LOG_HISTORY_SIZE);
   }
 
@@ -68,6 +69,30 @@ class LogsCollector {
     this._backoffMs = this._restartDelayMs; // reset on successful entry
   }
 
+  async _loadInitial() {
+    if (!this.ros.connected || this._loadingInitial) return;
+    this._loadingInitial = true;
+    try {
+      const rows = await this.ros.write('/log/print', ['=.proplist=time,topics,message']);
+      const all = rows || [];
+      const recent = all.length > LOG_HISTORY_SIZE ? all.slice(-LOG_HISTORY_SIZE) : all;
+      for (const data of recent) {
+        if (!data.message) continue;
+        const topicsRaw = data.topics || '';
+        this._history.push({
+          ts: Date.now(), time: data.time || '', topics: topicsRaw,
+          message: data.message, severity: this._classify(topicsRaw),
+        });
+      }
+      if (this.io.engine && this.io.engine.clientsCount > 0)
+        this.io.to('page-logs').to('dash-card-logs').emit('logs:history', this.getHistory());
+    } catch (e) {
+      console.error(this._lbl + ' initial log fetch failed:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
+    } finally {
+      this._loadingInitial = false;
+    }
+  }
+
   _startStream() {
     if (this.stream) return;
     if (!this.ros.connected) return;
@@ -91,10 +116,13 @@ class LogsCollector {
   }
 
   start() {
+    this._loadInitial().catch(() => {});
     this._startStream();
     this.ros.on('connected', () => {
-      this._backoffMs = this._restartDelayMs; // fresh session — reset backoff
+      this._backoffMs = this._restartDelayMs;
       this._stopStream();
+      this._history = new RingBuffer(LOG_HISTORY_SIZE);
+      this._loadInitial().catch(() => {});
       this._startStream();
     });
     this.ros.on('close', () => this._stopStream());

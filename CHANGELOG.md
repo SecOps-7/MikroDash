@@ -2,6 +2,35 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.45] — Security hardening, bandwidth savings, router card identity pills, log history
+
+### Added
+
+- **Router card identity pills** (`src/collectors/system.js`, `src/index.js`, `public/app.js`) — each router card on the Routers page now shows up to three additional footer pills: **Architecture** (violet, e.g. `arm64`), **Serial Number** (amber, `SN: XXXX`), and **License Level** (emerald, `L6`). Architecture comes from `/system/resource/print`; serial and license are fetched once via `/system/routerboard/print` and `/system/license/print` respectively. CHR/virtual routers gracefully omit the serial pill when the routerboard API is unavailable. Closes issue #70
+- **Historical log import on connect** (`src/collectors/logs.js`, `public/app.js`) — when MikroDash first connects to a router (and on every reconnect), it fetches the current RouterOS log buffer via `/log/print` and seeds the ring buffer before starting the `/log/listen` stream. The Logs page and dashboard log card now show existing entries immediately rather than waiting for new events. Ring buffer is cleared on reconnect so stale entries from a prior session are never interleaved with fresh ones. Closes issue #57
+
+### Fixed
+
+- **Wireless detection bug — Ethernet rows filtered** (`src/collectors/wireless.js`) — on certain RouterOS builds, the wireless registration-table endpoint returns interface metadata rows (including Ethernet interfaces) alongside genuine wireless clients. The collector now filters to only rows containing at least one wireless-specific field (`signal`, `signal-strength`, `rx-signal`, `ssid`, `tx-rate`, `rx-rate`, `tx-rate-set`). Closes issue #54
+- **Router deletion leaves orphan session** (`src/index.js`) — deleting a router via `DELETE /api/routers/:id` now tears down any live pool entry (cancels idle timer, calls `teardownSession()`, removes from `_routerSessions`), preventing a dangling TCP connection to the deleted router. Closes issue #48
+- **Duplicate Socket.IO connections on page refresh** (`src/index.js`) — Socket.IO ping interval tightened from 25 s / 20 s to 10 s / 5 s, reducing the stale-socket detection window from ~45 s to ~15 s. A concurrent-`sendInitialState()` race on `fetchInterfaces()` is fixed by caching the in-flight Promise in `session._ifacesFetch`. Closes issue #51
+- **First-run wizard bypassed on Basic Auth migration** (`src/index.js`) — `_migrateBasicAuth()` previously fell back to `authMode:'none'` for Basic Auth deployments with no credentials. It now falls back to `authMode:'modern'`, triggering the first-run wizard. Closes issue #47
+
+### Changed
+
+- **HTTP Basic Authentication removed** (`src/auth/basicAuth.js`, `src/index.js`, `src/settings.js`, `public/index.html`, `public/app.js`) — the legacy `BASIC_AUTH_USER`/`BASIC_AUTH_PASS` env-var auth layer and `authMode:'basic'` have been removed. The dashboard now supports two modes only: `none` (open, with startup warning) and `modern` (cookie sessions, scrypt-hashed passwords, `admin`/`viewer` roles). Existing Basic Auth deployments are migrated to `modern` on first start. Closes issue #46
+
+### Performance
+
+- **Reduced RouterOS API payload size** (`src/collectors/interfaces.js`, `dhcpLeases.js`, `dhcpNetworks.js`) — three collectors now request only the fields they use via `=.proplist=` filtering, reducing per-poll bandwidth on busy routers. Closes issue #49
+
+### Tests
+
+- 4 new tests covering log history seeding, wireless Ethernet-row filtering, system collector identity fields, and log `_loadInitial()` behaviour
+- Test count raised from 233 to **237** (all passing)
+
+---
+
 ## [0.5.44] — Routers page card improvements
 
 ### Added

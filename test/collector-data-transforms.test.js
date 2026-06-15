@@ -201,6 +201,23 @@ test('system collector handles health items without temperature name', () => {
   assert.equal(emitted[0].data.tempC, null);
 });
 
+test('system collector includes arch, serial, and license level in payload', () => {
+  const emitted = [];
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
+  collector._lastUpdateFetch = Date.now();
+  collector._lastHealth = [];
+  collector._lastUpdateRow = {};
+  collector._staticSerial  = 'ABC1234XYZ';
+  collector._staticLicense = '6';
+  collector._staticFetched = true;
+  collector._processRow({ 'cpu-load': '0', 'total-memory': '1', 'architecture-name': 'arm64' });
+  assert.equal(emitted[0].data.arch, 'arm64');
+  assert.equal(emitted[0].data.serial, 'ABC1234XYZ');
+  assert.equal(emitted[0].data.licenseLevel, '6');
+});
+
 // --- Connections Collector ---
 const ConnectionsCollector = require('../src/collectors/connections');
 
@@ -1241,6 +1258,27 @@ test('wireless collector does not duplicate client when MAC appears in both loca
   assert.equal(clients[0].source, undefined, 'local wireless client has no capsman source tag');
 });
 
+test('wireless collector filters out Ethernet interface rows with no wireless-specific fields', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true, on() {}, cfg: {},
+    write: async (cmd) => {
+      if (cmd.includes('/interface/wifi/')) return [];
+      if (cmd.includes('/interface/wireless/')) return [
+        { 'mac-address': 'AA:BB:CC:DD:EE:01', name: 'ether1', type: 'ether' },
+        { 'mac-address': 'AA:BB:CC:DD:EE:02', interface: 'wlan1', 'signal-strength': '-55', ssid: 'MyNet' },
+      ];
+      throw new Error('no such command');
+    },
+  };
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
+  await collector.tick(true);
+  assert.equal(emitted.length, 1, 'one emit');
+  assert.equal(emitted[0].data.clients.length, 1, 'Ethernet row filtered out');
+  assert.equal(emitted[0].data.clients[0].mac, 'AA:BB:CC:DD:EE:02', 'only real wireless client kept');
+});
+
 // --- Logs Collector ---
 const LogsCollector = require('../src/collectors/logs');
 
@@ -1278,6 +1316,37 @@ test('logs collector emits severity-classified entries from stream callbacks and
   assert.equal(emitted.length, 1);
   streamHandler(null, null);
   assert.equal(emitted.length, 1);
+});
+
+test('logs collector _loadInitial() seeds ring buffer from /log/print response', async () => {
+  const emitted = [];
+  const ros = {
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      if (cmd === '/log/print') return [
+        { time: '12:00:00', topics: 'system,info',    message: 'router started' },
+        { time: '12:00:01', topics: 'firewall,error', message: 'packet dropped' },
+        { time: '12:00:02', topics: '',               message: '' },
+      ];
+      return [];
+    },
+    stream() { return { stop() {} }; },
+  };
+  const io = {
+    engine: { clientsCount: 0 },
+    to() { const chain = { to() { return chain; }, emit(ev, d) { emitted.push({ ev, d }); } }; return chain; },
+  };
+  const state = {};
+  const collector = new LogsCollector({ ros, io, state });
+  await collector._loadInitial();
+  const history = collector.getHistory();
+  assert.equal(history.length, 2, 'empty-message row skipped');
+  assert.equal(history[0].message, 'router started');
+  assert.equal(history[0].severity, 'info');
+  assert.equal(history[1].message, 'packet dropped');
+  assert.equal(history[1].severity, 'error');
+  assert.equal(emitted.length, 0, 'no emit when clientsCount is 0');
 });
 
 // --- DHCP Leases Collector ---
