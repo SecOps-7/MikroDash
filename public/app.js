@@ -1997,7 +1997,7 @@ function updatePingChart(chart,history){
   chart.data.datasets[0].backgroundColor=pts.map(function(p){return pingColor(p.rtt);});
   chart.update('none');
 }
-function renderPingUI(rtt, loss){
+function renderPingUI(rtt, loss, minRtt, maxRtt){
   var rttEl=$('ndPingRtt'),lossEl=$('ndPingLoss');
   if(rttEl){
     rttEl.textContent=rtt!=null?rtt:'—';
@@ -2007,6 +2007,9 @@ function renderPingUI(rtt, loss){
     lossEl.textContent=loss+'%';
     lossEl.className='ping-val '+(loss===0?'ping-ok':loss<50?'ping-warn':'ping-bad');
   }
+  var minEl=$('ndPingMin'),maxEl=$('ndPingMax');
+  if(minEl){ minEl.textContent=minRtt!=null?minRtt:'—'; minEl.className='ping-val '+rttClass(minRtt); }
+  if(maxEl){ maxEl.textContent=maxRtt!=null?maxRtt:'—'; maxEl.className='ping-val '+rttClass(maxRtt); }
   if(!pingChartNet)pingChartNet=makePingChart('pingChartNet');
   updatePingChart(pingChartNet,pingHistory);
 }
@@ -2015,7 +2018,7 @@ socket.on('ping:history',function(data){
   var lbl=$('pingTargetLabel'); if(lbl&&data.target) lbl.textContent=data.target;
   if(pingHistory.length){
     var last=pingHistory[pingHistory.length-1];
-    renderPingUI(last.rtt, last.loss);
+    renderPingUI(last.rtt, last.loss, data.minRtt, data.maxRtt);
   }
 });
 socket.on('ping:update',function(data){
@@ -2030,7 +2033,7 @@ socket.on('ping:update',function(data){
   var lbl=$('pingTargetLabel'); if(lbl&&data.target) lbl.textContent=data.target;
   pingHistory.push({ts:data.ts||Date.now(), rtt:rtt, loss:loss});
   if(pingHistory.length>MAX_PING_HIST)pingHistory.shift();
-  renderPingUI(rtt, loss);
+  renderPingUI(rtt, loss, data.minRtt, data.maxRtt);
 });
 
 // ── Browser Notifications ──────────────────────────────────────────────────
@@ -3618,21 +3621,61 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 (function(){
   var POLL_SLIDERS = [
     // Polled — user-configurable interval
-    { key:'pollSystem',    label:'System / Gauges',  min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollConns',     label:'Connections',      min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollTalkers',   label:'Top Talkers',      min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollIfstatus',  label:'Interface Rates',  min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollBandwidth', label:'Bandwidth',        min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollVpn',       label:'VPN / WireGuard', min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollFirewall',  label:'Firewall',        min:500,   max:30000,  step:500,   unit:'ms' },
-    { key:'pollPing',      label:'Ping',            min:1000,  max:5000,   step:500,   unit:'ms' },
-    { key:'pollWireless',  label:'Wireless',           min:500,   max:60000,  step:500,   unit:'ms' },
+    { key:'pollSystem',    label:'System / Gauges',  min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollConns',     label:'Connections',      min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollTalkers',   label:'Top Talkers',      min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollIfstatus',  label:'Interface Rates',  min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollBandwidth', label:'Bandwidth',        min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollVpn',       label:'VPN / WireGuard', min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollFirewall',  label:'Firewall',        min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollPing',      label:'Ping',            min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollWireless',  label:'Wireless',           min:10000, max:600000, step:10000, unit:'ms' },
     { key:'pollIfaces',    label:'Interface Status',   min:10000, max:600000, step:10000, unit:'ms' },
-    { key:'pollDhcp',           label:'DHCP Networks',    min:30000, max:600000, step:30000, unit:'ms' },
-    // Streamed — RouterOS pushes changes, no poll interval needed
-    { key:'pollArp',       label:'ARP',         streamed:true },
-    { key:'pollRouting',   label:'Routing',     streamed:true },
+    { key:'pollDhcp',           label:'DHCP Networks',    min:10000, max:600000, step:10000, unit:'ms' },
   ];
+
+  var POLL_PROFILES = {
+    fast:     { pollSystem:1000,  pollConns:1000,  pollTalkers:1000,  pollIfstatus:1000,  pollBandwidth:1000,  pollVpn:1000,  pollFirewall:1000,  pollPing:1000,  pollWireless:10000,  pollIfaces:10000,  pollDhcp:10000  },
+    faster:   { pollSystem:5000,  pollConns:5000,  pollTalkers:5000,  pollIfstatus:5000,  pollBandwidth:5000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:60000,  pollIfaces:60000,  pollDhcp:60000  },
+    standard: { pollSystem:2000,  pollConns:3000,  pollTalkers:3000,  pollIfstatus:1000,  pollBandwidth:3000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:30000,  pollIfaces:60000,  pollDhcp:290000 },
+    slow:     { pollSystem:10000, pollConns:10000, pollTalkers:10000, pollIfstatus:10000, pollBandwidth:10000, pollVpn:10000, pollFirewall:10000, pollPing:10000, pollWireless:300000, pollIfaces:300000, pollDhcp:300000 },
+    slower:   { pollSystem:30000, pollConns:30000, pollTalkers:30000, pollIfstatus:30000, pollBandwidth:30000, pollVpn:30000, pollFirewall:30000, pollPing:30000, pollWireless:600000, pollIfaces:600000, pollDhcp:600000 },
+  };
+  var POLL_PROFILE_KEY = 'mkd_poll_profile';
+
+  function _detectProfile(data) {
+    for (var name in POLL_PROFILES) {
+      var p = POLL_PROFILES[name], match = true;
+      for (var k in p) { if (data[k] !== p[k]) { match = false; break; } }
+      if (match) return name;
+    }
+    return 'custom';
+  }
+
+  function _setPollProfileUI(name) {
+    document.querySelectorAll('.poll-profile-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.profile === name);
+    });
+    try { localStorage.setItem(POLL_PROFILE_KEY, name); } catch(e) {}
+  }
+
+  function _applyPollProfile(name) {
+    var p = POLL_PROFILES[name];
+    if (p) {
+      POLL_SLIDERS.forEach(function(cfg) {
+        if (cfg.streamed) return;
+        var slider = $('s_'+cfg.key), valEl = $('sv_'+cfg.key);
+        if (slider) { slider.value = p[cfg.key]; if (valEl) valEl.textContent = fmtMs(p[cfg.key]); }
+      });
+    }
+    _setPollProfileUI(name);
+  }
+
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.poll-profile-btn');
+    if (!btn || !btn.dataset.profile) return;
+    _applyPollProfile(btn.dataset.profile);
+  });
 
   var _loaded = {};
   var banner = $('settingsBanner');
@@ -3683,6 +3726,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (slider && valEl) {
         slider.addEventListener('input', function() {
           valEl.textContent = fmtMs(parseInt(slider.value, 10));
+          _setPollProfileUI('custom');
         });
       }
     });
@@ -3980,7 +4024,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         if (coolVal) coolVal.textContent = coolSlider.value + ' s';
       });
     }
+    if (data.customPollProfile) {
+      try { POLL_PROFILES.custom = JSON.parse(data.customPollProfile); } catch(e) {}
+    }
     buildSliders(data);
+    _setPollProfileUI(_detectProfile(data));
   }
 
   function loadSettings() {
@@ -4088,6 +4136,46 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       saveBtn.textContent = 'Save Settings';
       showBanner('err', 'Request failed: '+e);
     });
+  });
+
+  var pollCustomSaveBtn = $('pollCustomSaveBtn');
+  var pollCustomSaveStatus = $('pollCustomSaveStatus');
+  function _showCustomStatus(ok, msg) {
+    if (!pollCustomSaveStatus) return;
+    pollCustomSaveStatus.textContent = msg;
+    pollCustomSaveStatus.style.color = ok ? 'var(--accent-ok)' : 'var(--accent-err)';
+    pollCustomSaveStatus.style.opacity = '1';
+    setTimeout(function() { pollCustomSaveStatus.style.opacity = '0'; }, 3000);
+  }
+  if (pollCustomSaveBtn) pollCustomSaveBtn.addEventListener('click', function() {
+    var customVals = {};
+    POLL_SLIDERS.forEach(function(cfg) {
+      if (cfg.streamed) return;
+      var el = $('s_'+cfg.key); if (el) customVals[cfg.key] = parseInt(el.value, 10);
+    });
+    pollCustomSaveBtn.disabled = true;
+    pollCustomSaveBtn.textContent = 'Saving…';
+    var payload = {};
+    for (var k in customVals) payload[k] = customVals[k];
+    payload.customPollProfile = JSON.stringify(customVals);
+    fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        pollCustomSaveBtn.disabled = false;
+        pollCustomSaveBtn.textContent = 'Save Custom Profile';
+        if (d.ok) {
+          POLL_PROFILES.custom = customVals;
+          _setPollProfileUI('custom');
+          _showCustomStatus(true, '✓ Saved');
+        } else {
+          _showCustomStatus(false, '✗ '+(d.error||'failed'));
+        }
+      })
+      .catch(function(e) {
+        pollCustomSaveBtn.disabled = false;
+        pollCustomSaveBtn.textContent = 'Save Custom Profile';
+        _showCustomStatus(false, '✗ Request failed');
+      });
   });
 
   if (resetBtn) resetBtn.addEventListener('click', function() {
@@ -6033,6 +6121,20 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     _dcLogs.push(entry);
     if(_dcLogs.length>DC_LOG_MAX) _dcLogs.shift();
     _renderDcLogs();
+  });
+
+  /* ── 15: API Diagnostics (diagnostics:update, dash-card-diagnostics room) ── */
+  socket.on('diagnostics:update', function(data){
+    var totalEl=dcEl('dc-diagTotal');
+    if(totalEl) totalEl.textContent=data.total!=null?data.total:'—';
+    var listEl=dcEl('dc-diagList');
+    if(!listEl) return;
+    var cols=data.collectors||[];
+    listEl.innerHTML=cols.map(function(c){
+      var cls=c.streams>0?'diag-count-active':'diag-count-zero';
+      return '<div class="diag-row"><span class="diag-name">'+dcEsc(c.name)+'</span>'+
+             '<span class="diag-count '+cls+'">'+c.streams+'</span></div>';
+    }).join('');
   });
 
 })();

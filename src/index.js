@@ -359,7 +359,7 @@ function buildSession(routerCfg, routerIo) {
   const logs         = new LogsCollector        ({ros, io:routerIo, state});
   const system       = new SystemCollector      ({ros, io:routerIo, pollMs:_cfg.pollSystem,   state, streamMode:_cfg.streamSystem});
   const wireless     = new WirelessCollector    ({ros, io:routerIo, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
-  const vpn          = new VpnCollector         ({ros, io:routerIo, pollMs:_cfg.pollVpn,      state});
+  const vpn          = new VpnCollector         ({ros, io:routerIo, pollMs:_cfg.pollVpn,      state, rid:routerCfg.id});
   const firewall     = new FirewallCollector    ({ros, io:routerIo, pollMs:_cfg.pollFirewall,  state, topN:_cfg.firewallTopN});
   const ifStatus     = new InterfaceStatusCollector({ros, io:routerIo, pollMs:_cfg.pollIfstatus, metaPollMs:_cfg.pollIfaces, state, streamMode:_cfg.streamIfrates});
   const ping         = new PingCollector        ({ros, io:routerIo, pollMs:_cfg.pollPing,     state, target:PING_TARGET, streamMode:_cfg.streamPing});
@@ -382,6 +382,7 @@ async function teardownSession(session, entry) {
   const _tearLabel = (session.ros && session.ros.routerLabel) || 'router';
   console.log(`[${_tearLabel}] ── session torn down`);
   if (entry) { entry.startupReady = false; entry.collectorsStarted = false; }
+  if (entry && entry._diagTimer) { clearInterval(entry._diagTimer); entry._diagTimer = null; }
   if (session._cancelDownTimer) session._cancelDownTimer();
   for (const c of session.allCollectors) {
     if (typeof c.stop === 'function') c.stop();
@@ -476,9 +477,11 @@ function wireRosEvents(session, entry) {
     // Restore page-aware streams for any pages still open after the reconnect.
     // Collector reconnect handlers (in constructors) fire before this listener
     // and call suspend() to clear state first.
-    _updateConnsStream(session, entry);
+    session.conns.resume();
     _updateFirewallStreams(session, entry);
     _updateRoutingStreams(session, entry);
+    _updateWirelessStreams(session, entry);
+    _updateVpnStreams(session, entry);
   });
   ros.on('close', () => {
     session.connTableCache.invalidate();
@@ -537,10 +540,9 @@ async function startCollectors(session, entry) {
     // Group A — foundation collectors; awaits provide natural sequencing.
     session.wireless.start();
     await session.dhcpLeases.start();
-    // Run the first dhcpNetworks tick synchronously so networks/wanIp are
+    // start() does an initial synchronous fetch so networks/wanIp are
     // populated before sendInitialState broadcasts to connected sockets.
-    await session.dhcpNetworks.tick().catch(() => {});
-    session.dhcpNetworks.start();
+    await session.dhcpNetworks.start();
     await session.arp.start();
     // Group B — streaming collectors staggered 300 ms apart to avoid overwhelming
     // the RouterOS API handler thread pool. CHR/VM instances have very few handler
@@ -1064,10 +1066,10 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
     }
     const updates = {};
     const intFields = {
-      routerPort:[1,65535], pollConns:[500,60000], pollTalkers:[500,60000], pollSystem:[500,60000],
-      pollWireless:[500,60000], pollVpn:[500,30000],  pollFirewall:[500,30000],
-      pollIfstatus:[500,60000], pollIfaces:[10000,600000], pollPing:[1000,5000], pollArp:[5000,300000],
-      pollBandwidth:[500,60000], pollDhcp:[5000,600000], pollRouting:[500,300000], topN:[1,50], topTalkersN:[1,20],
+      routerPort:[1,65535], pollConns:[1000,60000], pollTalkers:[1000,60000], pollSystem:[1000,60000],
+      pollWireless:[10000,600000], pollVpn:[1000,30000],  pollFirewall:[1000,30000],
+      pollIfstatus:[1000,60000], pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
+      pollBandwidth:[1000,60000], pollDhcp:[10000,600000], pollRouting:[500,300000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], vpnDashTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
       alertCpuThreshold:[1,100], alertPingLoss:[1,100], notifCooldownSec:[10,3600],
       smtpPort:[1,65535],
@@ -1098,6 +1100,10 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
     for (const f of credFields) { if (f in body && !Settings.isMasked(body[f])) updates[f] = String(body[f]).slice(0,512); }
     if ('notifBody'   in body) updates.notifBody   = String(body.notifBody).trim().slice(0, 512);
     if ('notifBodyUp' in body) updates.notifBodyUp = String(body.notifBodyUp).trim().slice(0, 512);
+    if ('customPollProfile' in body) {
+      const v = String(body.customPollProfile).trim().slice(0, 512);
+      try { if (v === '' || typeof JSON.parse(v) === 'object') updates.customPollProfile = v; } catch(_) {}
+    }
     if ('displayTimezone' in body) {
       const tz = String(body.displayTimezone).trim().slice(0, 64);
       if (tz === '') { updates.displayTimezone = ''; }
@@ -1188,18 +1194,18 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
       s.ifStatus._restartMetaStreams();
     }
 
-    // pollFirewall controls the counter poll interval — restart it live
+    // pollFirewall controls the counter stream interval — restart it live
     if ('pollFirewall' in updates && s.firewall) {
       s.firewall.pollMs = saved.pollFirewall;
-      s.firewall._stopCounterPoll();
-      s.firewall._startCounterPoll();
+      s.firewall._stopCounterStreams();
+      s.firewall._startCounterStreams();
     }
 
-    // pollVpn controls the VPN counter poll interval — restart it live
+    // pollVpn controls the VPN counter stream interval — restart it live
     if ('pollVpn' in updates && s.vpn) {
       s.vpn.pollMs = saved.pollVpn;
-      s.vpn._stopCounterPoll();
-      s.vpn._startCounterPoll();
+      s.vpn._stopCounterStream();
+      s.vpn._startCounterStream();
     }
 
     // Apply pingEnabled toggle live — stop/start the collector immediately
@@ -2197,7 +2203,12 @@ async function sendInitialState(socket, entry) {
 
   if (_ps.pingEnabled !== false) {
     const pingData = s.ping.getHistory();
-    if (pingData.history.length) socket.emit('ping:history', pingData);
+    const pingLp = s.ping.lastPayload;
+    if (pingData.history.length) socket.emit('ping:history', {
+      ...pingData,
+      minRtt: pingLp ? pingLp.minRtt : null,
+      maxRtt: pingLp ? pingLp.maxRtt : null,
+    });
   }
 
   const logHistory = s.logs.getHistory();
@@ -2215,27 +2226,21 @@ function _idleSuspend(session, entry) {
   session.routing.suspend();
   session.ping.suspend();
   session.talkers.suspend();
+  session.dhcpNetworks.suspend();
 }
 
 function _idleResume(session, entry) {
   if (!session || !entry.startupReady) return;
-  // conns, firewall, routing are page-aware — their _update* functions manage streams
+  session.conns.resume();
   session.ifStatus.resume();
   session.system.resume();
-  session.wireless.resume();
-  session.vpn.resume();
+  _updateWirelessStreams(session, entry);
+  _updateVpnStreams(session, entry);
   _updateFirewallStreams(session, entry);
   _updateRoutingStreams(session, entry);
   session.ping.resume();
   session.talkers.resume();
-}
-
-// Sync the connections stream with page-connections room membership.
-function _updateConnsStream(session, entry) {
-  if (!session || !entry.startupReady) return;
-  const rid = session.routerId;
-  const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-page-connections')?.size || 0;
-  if (viewers > 0) session.conns.resume(); else session.conns.suspend();
+  session.dhcpNetworks.resume();
 }
 
 // Sync firewall streams with page-firewall / dash-card-firewall room membership.
@@ -2253,6 +2258,50 @@ function _updateRoutingStreams(session, entry) {
   const rid = session.routerId;
   const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-page-routing')?.size || 0;
   if (viewers > 0) session.routing.resume(); else session.routing.suspend();
+}
+
+// Sync wireless streams with page-wireless room membership.
+function _updateWirelessStreams(session, entry) {
+  if (!session || !entry.startupReady) return;
+  const rid = session.routerId;
+  const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-page-wireless')?.size || 0;
+  if (viewers > 0) session.wireless.resume(); else session.wireless.suspend();
+}
+
+// Sync vpn counter stream with page-vpn / dash-card-vpn room membership.
+function _updateVpnStreams(session, entry) {
+  if (!session || !entry.startupReady) return;
+  const rid = session.routerId;
+  const viewers = (io.sockets.adapter.rooms.get('router-' + rid + '-page-vpn')?.size     || 0) +
+                  (io.sockets.adapter.rooms.get('router-' + rid + '-dash-card-vpn')?.size || 0);
+  if (viewers > 0) session.vpn.resume(); else session.vpn.suspend();
+}
+
+function _emitDiagnostics(session, rid, socket) {
+  const s = session;
+  const countObj = o => o ? Object.values(o).filter(Boolean).length : 0;
+  const collectors = [
+    { name: 'traffic',      streams: s.traffic._allStream    ? 1 : 0 },
+    { name: 'system',       streams: s.system._stream        ? 1 : 0 },
+    { name: 'connections',  streams: s.conns._stream         ? 1 : 0 },
+    { name: 'talkers',      streams: s.talkers._stream       ? 1 : 0 },
+    { name: 'logs',         streams: s.logs._stream          ? 1 : 0 },
+    { name: 'ping',         streams: s.ping._stream          ? 1 : 0 },
+    { name: 'netwatch',     streams: s.netwatch._stream      ? 1 : 0 },
+    { name: 'wireless',     streams: countObj(s.wireless._streams) },
+    { name: 'vpn',          streams: (s.vpn._stream?1:0)+(s.vpn._counterStream?1:0) },
+    { name: 'firewall',     streams: countObj(s.firewall._streams)+countObj(s.firewall._counterStreams) },
+    { name: 'dhcpNetworks', streams: countObj(s.dhcpNetworks._streams) },
+    { name: 'ifStatus',     streams: (s.ifStatus._ifStream?1:0)+(s.ifStatus._addrStream?1:0)+(s.ifStatus._monitorStream?1:0) },
+    { name: 'routing',      streams: (s.routing._routeStream?1:0)+(s.routing._ipv6Stream?1:0)+(s.routing._bgpStream?1:0) },
+  ];
+  const total = collectors.reduce((sum, c) => sum + c.streams, 0);
+  const payload = { ts: Date.now(), total, collectors };
+  if (socket) {
+    socket.emit('diagnostics:update', payload);
+  } else {
+    io.to('router-' + rid + '-dash-card-diagnostics').emit('diagnostics:update', payload);
+  }
 }
 
 // Tracks which sockets are currently viewing the Routers page.
@@ -2304,9 +2353,10 @@ io.on('connection', (socket) => {
       scheduleIdleTeardown(rid);
     }
     // Rooms are cleaned up before this event fires, so room sizes are already correct.
-    _updateConnsStream(e.session, e);
     _updateFirewallStreams(e.session, e);
     _updateRoutingStreams(e.session, e);
+    _updateWirelessStreams(e.session, e);
+    _updateVpnStreams(e.session, e);
   });
 
   // Page-aware rooms — clients join/leave rooms as they navigate pages.
@@ -2327,7 +2377,6 @@ io.on('connection', (socket) => {
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e || !e.session) return;
     const s = e.session;
-    if (name === 'connections') _updateConnsStream(s, e);
     if (name === 'firewall') {
       _updateFirewallStreams(s, e);
       if (s.firewall && s.firewall.lastPayload)
@@ -2337,6 +2386,16 @@ io.on('connection', (socket) => {
       _updateRoutingStreams(s, e);
       if (s.routing && s.routing.lastPayload)
         socket.emit('routing:update', { ...s.routing.lastPayload, ts: Date.now() });
+    }
+    if (name === 'wireless') {
+      _updateWirelessStreams(s, e);
+      if (s.wireless && s.wireless.lastPayload)
+        socket.emit('wireless:update', { ...s.wireless.lastPayload, ts: Date.now() });
+    }
+    if (name === 'vpn') {
+      _updateVpnStreams(s, e);
+      if (s.vpn && s.vpn.lastPayload)
+        socket.emit('vpn:update', { ...s.vpn.lastPayload, ts: Date.now() });
     }
     if (name === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
       socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
@@ -2356,9 +2415,10 @@ io.on('connection', (socket) => {
     socket.leave('router-' + rid + '-page-' + name);
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e) return;
-    if (name === 'connections') _updateConnsStream(e.session, e);
     if (name === 'firewall')    _updateFirewallStreams(e.session, e);
     if (name === 'routing')     _updateRoutingStreams(e.session, e);
+    if (name === 'wireless')    _updateWirelessStreams(e.session, e);
+    if (name === 'vpn')         _updateVpnStreams(e.session, e);
     if (name === 'routers') {
       if (_routersTimer) { clearInterval(_routersTimer); _routersTimer = null; }
       if (_routersPageSockets.delete(socket.id) && _routersPageSockets.size === 0) overviewSessions.suspend();
@@ -2379,6 +2439,21 @@ io.on('connection', (socket) => {
       if (s.firewall && s.firewall.lastPayload)
         socket.emit('firewall:update', { ...s.firewall.lastPayload, ts: Date.now() });
     }
+    if (key === 'vpn') {
+      _updateVpnStreams(s, e);
+      if (s.vpn && s.vpn.lastPayload)
+        socket.emit('vpn:update', { ...s.vpn.lastPayload, ts: Date.now() });
+    }
+    if (key === 'diagnostics') {
+      _emitDiagnostics(s, rid, socket);
+      if (!e._diagTimer) {
+        e._diagTimer = setInterval(() => {
+          const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-dash-card-diagnostics')?.size || 0;
+          if (!viewers) { clearInterval(e._diagTimer); e._diagTimer = null; return; }
+          _emitDiagnostics(s, rid, null);
+        }, 2000);
+      }
+    }
     if (key === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
       socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
     if (key === 'logs' && s.logs)
@@ -2390,7 +2465,13 @@ io.on('connection', (socket) => {
     const rid = socket.routerId;
     socket.leave('router-' + rid + '-dash-card-' + key);
     const e = rid ? _routerSessions.get(rid) : null;
-    if (e) _updateFirewallStreams(e.session, e);
+    if (!e) return;
+    if (key === 'firewall') _updateFirewallStreams(e.session, e);
+    if (key === 'vpn')      _updateVpnStreams(e.session, e);
+    if (key === 'diagnostics') {
+      const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-dash-card-diagnostics')?.size || 0;
+      if (!viewers && e._diagTimer) { clearInterval(e._diagTimer); e._diagTimer = null; }
+    }
   });
 
   // Per-user router switching (modern auth only).

@@ -1,21 +1,24 @@
 /**
- * VPN / WireGuard collector — hybrid stream + counter poll.
+ * VPN / WireGuard collector — hybrid stream + counter stream.
  *
  * /interface/wireguard/peers/listen handles structural changes (peers
  * added/removed). On RouterOS 7, the listen stream does NOT reliably push
  * live rx-bytes, tx-bytes, or last-handshake updates — these are computed
  * fields that RouterOS only emits on structural record changes, not on every
- * counter increment or handshake event. This matches the same behaviour seen
- * in the firewall collector where a dedicated counter poll was required.
+ * counter increment or handshake event.
  *
- * A separate _pollCounters() runs on pollMs to re-fetch all peer counters
- * directly via /print. This drives live rate calculation and last-handshake
- * display. The stream still handles peer add/remove instantly.
+ * A separate =interval=N counter stream re-fetches all peer counters on a
+ * router-managed schedule. This drives live rate calculation and last-handshake
+ * display. The structural stream still handles peer add/remove instantly.
+ *
+ * The counter stream is stopped on idle (suspend) and restarted on resume so
+ * RouterOS does no work when no clients are connected.
  */
 class VpnCollector {
-  constructor({ ros, io, pollMs, state }) {
+  constructor({ ros, io, pollMs, state, rid }) {
     this.ros    = ros;
     this.io     = io;
+    this._rid   = rid || null;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][vpn]` : '[vpn]';
     const _vPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 10000;
     this.pollMs = Math.max(500, Math.min(30000, _vPoll));
@@ -26,12 +29,14 @@ class VpnCollector {
     this._lastFp     = '';
     this._debuggedOnce = false;
 
-    this._stream       = null;
-    this._restarting   = false;
-    this._restartTimer = null;
-    this._heartbeat    = null;
-    this._pollTimer    = null;
-    this._pollInflight = false;
+    this._stream              = null;
+    this._restarting          = false;
+    this._restartTimer        = null;
+    this._heartbeat           = null;
+    this._counterStream       = null;
+    this._counterRestarting   = false;
+    this._counterRestartTimer = null;
+    this._emitDebounce        = null;
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -40,7 +45,7 @@ class VpnCollector {
     if (p.name    && String(p.name).trim())            return String(p.name).trim();
     if (p.comment && String(p.comment).trim())         return String(p.comment).trim();
     if (p['allowed-address'] && String(p['allowed-address']).trim()) return String(p['allowed-address']).trim();
-    return p['public-key'] ? p['public-key'].slice(0, 16) + '\u2026' : '?';
+    return p['public-key'] ? p['public-key'].slice(0, 16) + '…' : '?';
   }
 
   _buildTunnels() {
@@ -65,7 +70,7 @@ class VpnCollector {
         }
       }
       // Only advance timestamp when bytes actually changed, so dtSec always
-      // spans a real measurement window even when the poll fires between
+      // spans a real measurement window even when the counter stream fires between
       // byte-counter updates.
       if (!prev || rxBytes !== prev.rx || txBytes !== prev.tx) {
         this._prev.set(key, { rx: rxBytes, tx: txBytes, ts: now });
@@ -103,67 +108,81 @@ class VpnCollector {
     this.state.lastVpnErr = null;
     if (force || fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.emit('vpn:update', payload);
+      this.io.to('page-vpn').to('dash-card-vpn').emit('vpn:update', payload);
     }
   }
 
-  // ── counter poll ──────────────────────────────────────────────────────────
-  // Re-fetches peer counters (rx-bytes, tx-bytes, last-handshake) on a
-  // regular interval. The /listen stream handles structural changes; this
-  // poll drives live rate and handshake-age updates.
+  // ── counter stream ────────────────────────────────────────────────────────
+  // =interval=N stream re-fetches peer counters (rx, tx, last-handshake) on a
+  // router-managed schedule. Stopped on idle; restarted on resume.
 
-  async _pollCounters() {
-    if (!this.ros.connected || this._pollInflight) return;
-    if (this.io.engine.clientsCount === 0) return;
-    this._pollInflight = true;
-    try {
-      const rows = await this.ros.write('/interface/wireguard/peers/print', ['=detail=']);
-      for (const row of (rows || [])) {
-        const key = row['public-key'] || this._peerName(row);
-        const existing = this._peers.get(key);
-        if (existing) {
-          // Merge only counter fields — preserve structural fields from the stream
-          this._peers.set(key, {
-            ...existing,
-            'rx':             row['rx']             ?? existing['rx'],
-            'tx':             row['tx']             ?? existing['tx'],
-            'last-handshake': row['last-handshake'] || existing['last-handshake'],
-            'endpoint-address':         row['endpoint-address']         || existing['endpoint-address'],
-            'current-endpoint-address': row['current-endpoint-address'] || existing['current-endpoint-address'],
-          });
-        } else {
-          // Peer not yet in map — RouterOS returned incomplete results during
-          // early boot when _loadInitial() ran. Add it now so it appears immediately
-          // without waiting for a stream event.
-          this._peers.set(key, row);
-          console.log(this._lbl, `late-discovered peer: ${key.slice(0, 16)}…`);
-        }
+  _scheduleEmit() {
+    if (this._emitDebounce) return;
+    this._emitDebounce = setTimeout(() => { // codeql[js/resource-exhaustion]
+      this._emitDebounce = null;
+      this._emit();
+    }, 50);
+  }
+
+  _onCounterRecord(row) {
+    const key = row['public-key'] || this._peerName(row);
+    const existing = this._peers.get(key);
+    if (existing) {
+      this._peers.set(key, {
+        ...existing,
+        'rx':             row['rx']             ?? existing['rx'],
+        'tx':             row['tx']             ?? existing['tx'],
+        'last-handshake': row['last-handshake'] || existing['last-handshake'],
+        'endpoint-address':         row['endpoint-address']         || existing['endpoint-address'],
+        'current-endpoint-address': row['current-endpoint-address'] || existing['current-endpoint-address'],
+      });
+    } else {
+      // Peer not yet in map — RouterOS returned incomplete results during
+      // early boot when _loadInitial() ran. Add it now so it appears immediately
+      // without waiting for a stream event.
+      this._peers.set(key, row);
+      console.log(this._lbl, `late-discovered peer: ${key.slice(0, 16)}…`);
+    }
+    this._scheduleEmit();
+  }
+
+  _startCounterStream() {
+    if (this._counterStream || this._counterRestarting) return;
+    if (!this.ros.connected) return;
+    const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+    const stream = this.ros.stream(
+      ['/interface/wireguard/peers/print', '=detail=', `=interval=${intervalSec}`],
+      null
+    );
+    this._counterStream = stream;
+    stream.on('data', (pkt) => {
+      if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
+      this._onCounterRecord(pkt);
+    });
+    stream.on('error', (err) => {
+      const msg = err && err.message ? err.message : String(err);
+      console.error(this._lbl + ' counter stream error:', msg);
+      this._stopCounterStream();
+      if (this.ros.connected && !this._counterRestarting) {
+        this._counterRestarting = true;
+        this._counterRestartTimer = setTimeout(() => { // codeql[js/resource-exhaustion]
+          this._counterRestarting = false;
+          this._counterRestartTimer = null;
+          this._startCounterStream();
+        }, 3000);
       }
-      this._emit(); // dirty-check suppresses emit when bytes and rates are unchanged
-    } catch (e) {
-      console.error(this._lbl + ' counter poll error:', e && e.message ? e.message : e);
-    } finally {
-      this._pollInflight = false;
+    });
+    console.log(this._lbl + ` streaming /interface/wireguard/peers/print interval=${intervalSec}s`);
+  }
+
+  _stopCounterStream() {
+    if (this._counterRestartTimer) { clearTimeout(this._counterRestartTimer); this._counterRestartTimer = null; }
+    this._counterRestarting = false;
+    if (this._emitDebounce) { clearTimeout(this._emitDebounce); this._emitDebounce = null; }
+    if (this._counterStream) {
+      try { this._counterStream.stop(); } catch (_) {}
+      this._counterStream = null;
     }
-  }
-
-  _schedulePollNext() {
-    if (this._pollTimer) return;
-    this._pollTimer = setTimeout(async () => {
-      this._pollTimer = null;
-      if (!this._pollInflight) await this._pollCounters();
-      this._schedulePollNext();
-    }, this.pollMs); // codeql[js/resource-exhaustion]
-  }
-
-  _startCounterPoll() {
-    if (this._pollTimer) return;
-    this._schedulePollNext();
-  }
-
-  _stopCounterPoll() {
-    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
-    this._pollInflight = false;
   }
 
   // ── initial load ──────────────────────────────────────────────────────────
@@ -179,7 +198,6 @@ class VpnCollector {
       if (!this._debuggedOnce && this._peers.size > 0) {
         const ifaces = [...new Set([...this._peers.values()].map(p => p.interface).filter(Boolean))].join(', ') || '?';
         console.log(this._lbl, `${this._peers.size} WireGuard peer(s) found on interfaces: ${ifaces}`);
-
         this._debuggedOnce = true;
       }
       this._emit();
@@ -188,7 +206,7 @@ class VpnCollector {
     }
   }
 
-  // ── stream management ─────────────────────────────────────────────────────
+  // ── structural stream ─────────────────────────────────────────────────────
 
   _startStream() {
     if (this._stream) return;
@@ -234,12 +252,13 @@ class VpnCollector {
 
   // ── heartbeat ────────────────────────────────────────────────────────────
   // Re-emits lastPayload once per minute so the dashboard stale-timer never
-  // fires when peers are stable and the poll is suppressed by dirty-check.
+  // fires when peers are stable and the counter stream is suppressed by dirty-check.
 
   _startHeartbeat() {
     if (this._heartbeat) return;
     this._heartbeat = setInterval(() => {
-      if (this.lastPayload) this.io.emit('vpn:update', { ...this.lastPayload, ts: Date.now() });
+      if (!this.lastPayload) return;
+      this.io.to('page-vpn').to('dash-card-vpn').emit('vpn:update', { ...this.lastPayload, ts: Date.now() });
     }, 60000);
   }
 
@@ -253,34 +272,34 @@ class VpnCollector {
     await this._loadInitial();
     this._startStream();
     this._startHeartbeat();
-    this._startCounterPoll();
+    this._startCounterStream();
 
     this.ros.on('close', () => {
       this._stopStream();
       this._stopHeartbeat();
-      this._stopCounterPoll();
+      this._stopCounterStream();
     });
     this.ros.on('connected', async () => {
       this._stopStream();
       this._stopHeartbeat();
-      this._stopCounterPoll();
+      this._stopCounterStream();
       this._prev.clear();
       this._lastFp = '';
       await this._loadInitial();
       this._startStream();
       this._startHeartbeat();
-      this._startCounterPoll();
+      // counter stream restarted externally by _updateVpnStreams() (page-awareness)
     });
   }
 
-  suspend() { this._stopCounterPoll(); }
+  suspend() { this._stopCounterStream(); }
 
-  resume()  { this._startCounterPoll(); }
+  resume()  { this._startCounterStream(); }
 
   stop() {
     this._stopStream();
     this._stopHeartbeat();
-    this._stopCounterPoll();
+    this._stopCounterStream();
   }
 }
 

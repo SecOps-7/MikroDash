@@ -185,8 +185,8 @@
     .scard-header{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
     .scard-title{font-size:.78rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em;flex:1}
     .scard-body{padding:.9rem 1rem}
-    .sbanner{border-radius:7px;padding:.55rem .85rem;font-size:.75rem;margin-bottom:.75rem;display:none}
-    .sbanner.show{display:flex;align-items:center;gap:.5rem}
+    .sbanner{border-radius:7px;padding:.55rem .85rem;font-size:.75rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;min-height:2rem;visibility:hidden}
+    .sbanner.show{visibility:visible}
     .sbanner-ok{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);color:rgba(52,211,153,.9)}
     .sbanner-warn{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);color:rgba(251,191,36,.9)}
     .sbanner-err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:rgba(248,113,113,.9)}
@@ -544,7 +544,7 @@
     /* Ping chart */
     .ping-section{border-top:1px solid var(--border);padding:.4rem .5rem .35rem;margin-top:.25rem}
     .ping-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;font-family:var(--font-mono);font-size:.7rem}
-    .ping-stat{display:flex;gap:.8rem}
+    .ping-stat{display:flex;gap:1.4rem}
     .ping-val{font-weight:700;font-size:.82rem}
     .ping-ok{color:var(--accent-ok)}
     .ping-warn{color:#fb923c}
@@ -869,6 +869,17 @@
     .rpt-pager-btn:hover:not(:disabled){color:var(--text-main);border-color:var(--accent-rx)}
     .rpt-pager-btn:disabled{opacity:.35;cursor:default}
     @media(max-width:600px){.rpt-bar{gap:.4rem}.rpt-stat-row{grid-template-columns:repeat(2,1fr)}}
+    .poll-profile-btn{background:transparent;border:1px solid var(--border);border-radius:4px;padding:.22rem .65rem;font-size:.72rem;font-family:var(--font-ui);color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+    .poll-profile-btn.active{background:var(--accent-rx);border-color:var(--accent-rx);color:#fff}
+    /* API Diagnostics card */
+    .diag-total-wrap{text-align:center;margin-bottom:.75rem}
+    .diag-total-count{font-size:2rem;font-weight:700;color:var(--accent)}
+    .diag-total-label{font-size:.75rem;color:var(--text-muted);display:block;margin-top:-.2rem}
+    .diag-row{display:flex;justify-content:space-between;align-items:center;padding:.25rem 0;border-bottom:1px solid var(--border);font-size:.8rem}
+    .diag-row:last-child{border-bottom:none}
+    .diag-count{font-weight:600;min-width:1.5rem;text-align:right}
+    .diag-count-zero{color:var(--text-muted)}
+    .diag-count-active{color:var(--accent)}
   </style>
 </head>
 <body>
@@ -1230,6 +1241,8 @@
                 <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel">1.1.1.1</span></span>
                 <div class="ping-stat">
                   <span><span class="ping-val" id="ndPingRtt">—</span> <span style="color:var(--text-muted)">ms</span></span>
+                  <span><span class="ping-val" id="ndPingMin">—</span> <span style="color:var(--text-muted)">min</span></span>
+                  <span><span class="ping-val" id="ndPingMax">—</span> <span style="color:var(--text-muted)">max</span></span>
                   <span><span class="ping-val" id="ndPingLoss">—</span> <span style="color:var(--text-muted)">loss</span></span>
                 </div>
               </div>
@@ -1327,6 +1340,24 @@
                 <tbody id="netwatchTable"><tr><td colspan="3" class="empty-state">No hosts configured</td></tr></tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- dc-card-diagnostics: API Diagnostics ────────────────────────────── -->
+      <div id="dc-card-diagnostics" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-diagnostics" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">API Diagnostics</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="diag-total-wrap">
+              <span class="diag-total-count" id="dc-diagTotal">—</span>
+              <span class="diag-total-label">active streams</span>
+            </div>
+            <div id="dc-diagList"></div>
           </div>
         </div>
       </div>
@@ -2271,8 +2302,6 @@
   <div class="page-view" id="page-settings">
     <div style="max-width:720px;margin:0 auto">
 
-      <div id="settingsBanner" class="sbanner"></div>
-
       <!-- Tab bar -->
       <div class="stab-bar">
         <button class="stab active" data-tab="routers">Routers</button>
@@ -2395,7 +2424,22 @@
           </div>
           <div class="scard-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Changes apply immediately without restart.</p>
-            <div id="pollSlidersWrap"></div>
+            <div id="pollProfileWrap" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem">
+              <button class="poll-profile-btn" data-profile="fast">Fast</button>
+              <button class="poll-profile-btn" data-profile="faster">Faster</button>
+              <button class="poll-profile-btn" data-profile="standard">Standard</button>
+              <button class="poll-profile-btn" data-profile="slow">Slow</button>
+              <button class="poll-profile-btn" data-profile="slower">Slower</button>
+              <button class="poll-profile-btn" data-profile="custom">Custom</button>
+            </div>
+            <details id="pollAdvanced">
+              <summary style="font-size:.74rem;color:var(--text-muted);cursor:pointer;margin-bottom:.7rem;user-select:none">Advanced</summary>
+              <div id="pollSlidersWrap"></div>
+              <div style="margin-top:.7rem;display:flex;align-items:center;gap:.6rem">
+                <button id="pollCustomSaveBtn" style="font-size:.72rem;font-family:var(--font-ui);padding:.28rem .8rem;border-radius:4px;border:1px solid var(--accent-rx);background:transparent;color:var(--accent-rx);cursor:pointer">Save Custom Profile</button>
+                <span id="pollCustomSaveStatus" style="font-size:.72rem;opacity:0;transition:opacity .25s"></span>
+              </div>
+            </details>
           </div>
         </div>
         <div class="scard">
@@ -3070,13 +3114,14 @@
       </div>
 
       <!-- Actions (hidden on Routers and About tabs) -->
-      <div id="settingsActions" style="display:none;gap:.6rem;justify-content:flex-end;padding-bottom:2rem">
+      <div id="settingsActions" style="display:none;gap:.6rem;justify-content:flex-end;padding-bottom:.75rem">
         <button class="sbtn sbtn-ghost" id="settingsResetBtn">Reset to defaults</button>
         <button class="sbtn sbtn-primary" id="settingsSaveBtn">
           <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           Save Settings
         </button>
       </div>
+      <div id="settingsBanner" class="sbanner" style="margin-bottom:2rem"></div>
 
     </div>
   </div>

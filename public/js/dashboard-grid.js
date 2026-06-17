@@ -34,7 +34,8 @@
     'dc-card-fwaction':   'FW Actions',
     'dc-card-fwhits':     'Total Hits',
     'dc-card-logs':       'Logs',
-    'dc-card-netwatch':   'NetWatch'
+    'dc-card-netwatch':    'NetWatch',
+    'dc-card-diagnostics': 'API Diagnostics'
   };
 
   /* Cards that need a backend Socket.IO room (Tier-2: page-gated collectors).
@@ -43,7 +44,9 @@
   var CARD_ROOMS = {
     'dc-card-fwaction': 'firewall',
     'dc-card-fwhits':   'firewall',
-    'dc-card-logs':     'logs'
+    'dc-card-logs':     'logs',
+    'card-wireguard':      'vpn',
+    'dc-card-diagnostics': 'diagnostics',
   };
   /* dc-card-bw uses traffic:update which is already delivered to every socket
      via per-socket emit in traffic.js — no room subscription needed. */
@@ -71,7 +74,8 @@
     { id: 'dc-card-fwaction',  x: 1,  y: 1,  w: 8,  h: 6,  visible: false },
     { id: 'dc-card-fwhits',    x: 1,  y: 1,  w: 4,  h: 4,  visible: false },
     { id: 'dc-card-logs',      x: 1,  y: 1,  w: 10, h: 6,  visible: false },
-    { id: 'dc-card-netwatch',  x: 1,  y: 1,  w: 8,  h: 6,  visible: false }
+    { id: 'dc-card-netwatch',     x: 1,  y: 1,  w: 8,  h: 6,  visible: false },
+    { id: 'dc-card-diagnostics',  x: 1,  y: 1,  w: 6,  h: 10, visible: false }
   ];
 
   /* ── Room management helpers ────────────────────────────────────────────── */

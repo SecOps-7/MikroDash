@@ -45,6 +45,14 @@ class TrafficCollector {
     this._loggedErr    = false;
     this._restartTimer = null;
     this.lastWanStatus = null;
+
+    this.ros.on('connected', () => {
+      this._ifNamesKey = ''; // force restart on reconnect
+      this._stopAllStream();
+      this._ensureHistory(this.defaultIf);
+      this._updateStream();
+    });
+    this.ros.on('close', () => this._stopAllStream());
   }
 
   _ensureHistory(ifName) {
@@ -215,15 +223,6 @@ class TrafficCollector {
   start() {
     this._ensureHistory(this.defaultIf);
     this._startAllStream();
-
-    this.ros.on('connected', () => {
-      this._ifNamesKey = ''; // force restart on reconnect
-      this._stopAllStream();
-      this._ensureHistory(this.defaultIf);
-      this._updateStream(); // restart with current subscription set
-    });
-
-    this.ros.on('close', () => this._stopAllStream());
   }
 
   stop() { this._stopAllStream(); }

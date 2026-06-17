@@ -1,20 +1,23 @@
 /**
- * Wireless collector — polls /interface/wifi/registration-table/print (wifi
+ * Wireless collector — streams /interface/wifi/registration-table/print (wifi
  * package, ROS 7) or /interface/wireless/registration-table/print (legacy).
  *
- * RouterOS wifi-qcom devices (hAP ax2, hAP AX³) send the registration table
- * as separate response blocks per interface, each with its own !done. The
- * node-routeros library is patched (patch-routeros.js MULTI_BLOCK) to
- * accumulate all blocks with a 20 ms debounce before resolving, so a single
- * combined query correctly returns all clients across all interfaces.
+ * Mode detection: start wifi stream first. If the first batch is empty, latch
+ * to 'wireless' mode, stop the wifi stream, start the wireless stream. Once
+ * latched, mode never changes until reconnect.
+ *
+ * CAPsMAN stream runs independently when available. It fires on the same
+ * interval and its clients are merged after each wifi/wireless batch — local
+ * clients always win on MAC conflicts.
  *
  * Guard strategy — per-MAC absence counter:
- *   Instead of replacing the entire client list each tick, we maintain the
- *   union of known clients. A client is removed only after it has been absent
- *   from ABSENCE_THRESHOLD consecutive ticks. New clients are added immediately.
- *   This eliminates the "collapse to subset" symptom without delaying legitimate
- *   disconnects — at 30 s poll intervals, 3 missed ticks = 90 s before a
- *   genuinely disconnected client disappears, which is acceptable for a dashboard.
+ *   A client is removed only after ABSENCE_THRESHOLD consecutive batches where
+ *   it is absent. New clients are added immediately. This eliminates the
+ *   "collapse to subset" symptom from wifi-qcom partial results without
+ *   delaying legitimate disconnects.
+ *
+ * Stream idle teardown: suspend() stops all streams; resume() restarts the
+ * correct stream for the latched mode. RouterOS does no work while idle.
  */
 class WirelessCollector {
   constructor({ ros, io, pollMs, state, dhcpLeases, arp }) {
@@ -28,21 +31,23 @@ class WirelessCollector {
     this.mode       = null;
     this._lastFp    = '';
 
-    // Per-MAC absence counter.  mac -> number of consecutive ticks it was absent.
-    // Clients absent for >= ABSENCE_THRESHOLD ticks are removed.
     this._absentTicks = new Map();
     this.ABSENCE_THRESHOLD = 3;
-
-    // Stable client map: mac -> last-known parsed client object.
-    // This is the source of truth for what we emit.
     this._knownClients = new Map();
-
-    this.timer        = null;
-    this._inflight    = false;
-    this._nameCache   = new Map();
-    this._retryTimer  = null;
+    this._nameCache    = new Map();
+    this._retryTimer   = null;
     this._capsmanAvailable = false;
     this._lbl = ros.routerLabel ? `[${ros.routerLabel}][wireless]` : '[wireless]';
+
+    // Latest complete batches from each source
+    this._lastWifiBatch    = [];
+    this._lastCapsmanBatch = [];
+
+    this._streams    = { wifi: null, wireless: null, capsman: null };
+    this._batches    = { wifi: [], wireless: [], capsman: [] };
+    this._debounces  = { wifi: null, wireless: null, capsman: null };
+    this._restarting = { wifi: false, wireless: false, capsman: false };
+    this._restartTimers = { wifi: null, wireless: null, capsman: null };
   }
 
   resolveName(mac) {
@@ -54,157 +59,80 @@ class WirelessCollector {
     return name;
   }
 
-  async tick(force = false) {
-    if (!this.ros.connected) return;
-    if (!force && this.io.engine.clientsCount === 0) return;
+  // ── client parsing ────────────────────────────────────────────────────────
 
+  _parseClient(c) {
+    const mac     = c['mac-address'] || c.mac || '';
+    const signal  = parseInt(c.signal || c['signal-strength'] || c['rx-signal'] || '0', 10);
+    const iface   = c.interface || c['ap-interface'] || '';
+    const txRate  = c['tx-rate'] || c['tx-rate-set'] || '';
+    const rawBand = (c['band'] || '').toLowerCase();
+    let band = '';
+    if (c._capsman && !rawBand) {
+      const il = iface.toLowerCase();
+      if      (il.endsWith('-2g') || il.includes('2ghz')) band = '2.4GHz';
+      else if (il.endsWith('-5g') || il.includes('5ghz')) band = '5GHz';
+      else if (il.endsWith('-6g') || il.includes('6ghz')) band = '6GHz';
+    } else {
+      if      (rawBand.includes('6')) band = '6GHz';
+      else if (rawBand.includes('5')) band = '5GHz';
+      else if (rawBand.includes('2')) band = '2.4GHz';
+    }
+    const arpEntry = this.arp ? this.arp.getByMAC(mac) : null;
+    const ip       = arpEntry ? arpEntry.ip : '';
+    return {
+      mac, signal, iface, txRate, band, ip,
+      rxRate:  c['rx-rate'] || '',
+      uptime:  c.uptime || '',
+      ssid:    c.ssid   || '',
+      name:    this.resolveName(mac),
+      source:  c._capsman ? 'capsman' : undefined,
+    };
+  }
+
+  // ── absence guard and emit ────────────────────────────────────────────────
+
+  _applyAbsenceGuard(rawClients) {
     const dbg = this._debug;
-    let rawClients = [], detectedMode = this.mode;
-
-    if (detectedMode === 'wifi' || detectedMode === null) {
-      try {
-        const res = await this.ros.write('/interface/wifi/registration-table/print', [
-          // No =.proplist= — on some ROS v7 builds, listing unknown/absent fields
-          // in the proplist causes rows to be silently dropped rather than returned
-          // with those fields empty. Omitting it guarantees all clients are returned.
-          //
-          // Multi-block response (wifi-qcom): RouterOS sends one !done per interface.
-          // patch-routeros.js MULTI_BLOCK patches Channel.js to accumulate all blocks
-          // with a 20 ms debounce before resolving, so all clients are captured here.
-        ]);
-        if (res && res.length) {
-          rawClients = res;
-          detectedMode = 'wifi';
-          if (dbg) {
-            const ifaceCounts = {};
-            for (const c of res) { const k = c.interface || c['ap-interface'] || '(none)'; ifaceCounts[k] = (ifaceCounts[k] || 0) + 1; }
-            console.log(this._lbl + ` wifi API: ${res.length} client(s) — by interface: ${JSON.stringify(ifaceCounts)}`);
-            for (const c of res) {
-              const mac   = c['mac-address'] || c.mac || '?';
-              const iface = c.interface || c['ap-interface'] || '(none)';
-              const band  = c['band'] || '(no band)';
-              const ssid  = c.ssid  || '(no ssid)';
-              const sig   = c.signal || c['signal-strength'] || c['rx-signal'] || '?';
-              console.log(this._lbl + `   mac=${mac} iface=${iface} band=${band} ssid=${ssid} signal=${sig}`);
-            }
-          }
-        } else if (dbg) {
-          console.log(this._lbl + ' wifi API: 0 clients returned');
-        }
-      } catch (e) {
-        if (dbg || (this.ros.cfg && this.ros.cfg.debug))
-          console.warn(this._lbl + ' wifi API probe failed:', e && e.message ? e.message : e);
-      }
-    }
-    if (!rawClients.length && (detectedMode === 'wireless' || detectedMode === null)) {
-      try {
-        const res = await this.ros.write('/interface/wireless/registration-table/print', [
-          // No =.proplist= — same reason as above.
-        ]);
-        if (res && res.length) {
-          rawClients = res;
-          detectedMode = 'wireless';
-          if (dbg) {
-            const ifaceCounts = {};
-            for (const c of res) { const k = c.interface || c['ap-interface'] || '(none)'; ifaceCounts[k] = (ifaceCounts[k] || 0) + 1; }
-            console.log(this._lbl + ` legacy API: ${res.length} client(s) — by interface: ${JSON.stringify(ifaceCounts)}`);
-          }
-        } else if (dbg) {
-          console.log(this._lbl + ' legacy API: 0 clients returned');
-        }
-      } catch (e) {
-        if (dbg || (this.ros.cfg && this.ros.cfg.debug))
-          console.warn(this._lbl + ' legacy API probe failed:', e && e.message ? e.message : e);
-      }
-    }
-
-    if (detectedMode) this.mode = detectedMode;
-
-    if (this._capsmanAvailable) {
-      try {
-        const caps = await this.ros.write('/caps-man/registration-table/print', []);
-        // Skip CAPsMAN rows whose MAC is already present from local wireless — local wins.
-        const seenMacs = new Set(rawClients.map(c => c['mac-address'] || c.mac || '').filter(Boolean));
-        for (const c of (caps || [])) {
-          const mac = c['mac-address'] || '';
-          if (mac && !seenMacs.has(mac)) rawClients.push({ ...c, _capsman: true });
-        }
-        if (dbg && caps && caps.length) console.log(this._lbl + ` capsman: ${caps.length} client(s)`);
-      } catch (e) {
-        if (dbg) console.warn(this._lbl + ' capsman tick failed:', e && e.message ? e.message : e);
-      }
-    }
 
     // Drop rows that lack wireless-specific fields — these are interface metadata
     // rows (including Ethernet) returned by some RouterOS builds in error.
-    // Every legitimately connected wireless client has at least one of these fields.
-    rawClients = rawClients.filter(function(c) {
-      return c.signal || c['signal-strength'] || c['rx-signal'] ||
-             c.ssid   || c['tx-rate']         || c['rx-rate']  || c['tx-rate-set'];
-    });
+    rawClients = rawClients.filter(c =>
+      c.signal || c['signal-strength'] || c['rx-signal'] ||
+      c.ssid   || c['tx-rate']         || c['rx-rate']  || c['tx-rate-set']
+    );
 
-    // ── Per-MAC absence guard ─────────────────────────────────────────────────
-    // Parse this tick's results into a MAC-keyed map.
     const thisTickByMac = new Map();
     for (const c of rawClients) {
       const mac = c['mac-address'] || c.mac || '';
       if (mac) thisTickByMac.set(mac, c);
     }
 
-    // Partial-result detection — same heuristic as connTableCache (#29).
-    // On wifi-qcom devices (hAP ax2, hAP AX³ etc.) with virtual APs, the
-    // registration-table API can consistently return only the virtual AP's
-    // clients while physical radio clients are temporarily unavailable. When
-    // that happens on most ticks the ABSENCE_THRESHOLD guard is eventually
-    // exhausted and physical-radio clients are removed. Fix: if this tick
-    // returned > 0 clients but < 50% of what we know, treat it as a partial
-    // result and skip the absence-aging step entirely for this tick.
     const PARTIAL_RATIO = 0.5;
-    const PARTIAL_MIN   = 3;   // only guard when we have enough known clients
-    const mightBePartial = (
-      this._knownClients.size >= PARTIAL_MIN &&
-      thisTickByMac.size > 0 &&
-      thisTickByMac.size < this._knownClients.size * PARTIAL_RATIO
+    const PARTIAL_MIN   = 3;
+    const nonCapsmanKnown = [...this._knownClients.values()].filter(c => c.source !== 'capsman').length;
+    const nonCapsmanSeen  = [...thisTickByMac.values()].filter(c => !c._capsman).length;
+    const mightBePartial  = (
+      nonCapsmanKnown >= PARTIAL_MIN &&
+      nonCapsmanSeen > 0 &&
+      nonCapsmanSeen < nonCapsmanKnown * PARTIAL_RATIO
     );
     if (dbg && mightBePartial) {
-      console.warn(this._lbl + ` partial result suspected — ${thisTickByMac.size} from API vs ${this._knownClients.size} known — skipping absence aging this tick`);
+      console.warn(this._lbl + ` partial result suspected — ${nonCapsmanSeen} from API vs ${nonCapsmanKnown} known — skipping absence aging`);
     }
 
-    // 1. Add or refresh clients that ARE present this tick.
+    // 1. Add or refresh clients present in this batch
     for (const [mac, c] of thisTickByMac) {
-      this._absentTicks.delete(mac);   // reset absence counter
-      const signal  = parseInt(c.signal || c['signal-strength'] || c['rx-signal'] || '0', 10);
-      const iface   = c.interface || c['ap-interface'] || '';
-      const txRate  = c['tx-rate'] || c['tx-rate-set'] || '';
-      const rawBand = (c['band'] || '').toLowerCase();
-      let band = '';
-      if (c._capsman && !rawBand) {
-        const il = iface.toLowerCase();
-        if      (il.endsWith('-2g') || il.includes('2ghz')) band = '2.4GHz';
-        else if (il.endsWith('-5g') || il.includes('5ghz')) band = '5GHz';
-        else if (il.endsWith('-6g') || il.includes('6ghz')) band = '6GHz';
-      } else {
-        if      (rawBand.includes('6')) band = '6GHz';
-        else if (rawBand.includes('5')) band = '5GHz';
-        else if (rawBand.includes('2')) band = '2.4GHz';
-      }
-      const arpEntry = this.arp ? this.arp.getByMAC(mac) : null;
-      const ip       = arpEntry ? arpEntry.ip : '';
-      this._knownClients.set(mac, {
-        mac, signal, iface, txRate, band, ip,
-        rxRate:  c['rx-rate'] || '',
-        uptime:  c.uptime || '',
-        ssid:    c.ssid   || '',
-        name:    this.resolveName(mac),
-        source:  c._capsman ? 'capsman' : undefined,
-      });
+      this._absentTicks.delete(mac);
+      this._knownClients.set(mac, this._parseClient(c));
     }
 
-    // 2. Age out clients NOT present this tick — skipped when result looks partial.
-    //    Remove them only once they've been absent for ABSENCE_THRESHOLD ticks.
+    // 2. Age out non-capsman clients absent from this batch
     if (!mightBePartial) {
       for (const mac of [...this._knownClients.keys()]) {
         if (thisTickByMac.has(mac)) continue;
+        const client = this._knownClients.get(mac);
+        if (client && client.source === 'capsman') continue; // managed separately
         const absent = (this._absentTicks.get(mac) || 0) + 1;
         if (absent >= this.ABSENCE_THRESHOLD) {
           if (dbg) console.log(this._lbl + ` removing ${mac} — absent ${absent} ticks (>= threshold ${this.ABSENCE_THRESHOLD})`);
@@ -219,24 +147,29 @@ class WirelessCollector {
     }
 
     if (dbg) {
-      console.log(this._lbl + ` tick summary: ${thisTickByMac.size} from API, ${this._knownClients.size} known, ${this._absentTicks.size} held by absence guard${mightBePartial ? ' [partial — aging skipped]' : ''}`);
+      console.log(this._lbl + ` batch: ${thisTickByMac.size} from API, ${this._knownClients.size} known${mightBePartial ? ' [partial — aging skipped]' : ''}`);
     }
+  }
 
-    // 3. Build the sorted client array from the stable known-clients map.
+  _emitClients() {
     const parsed = Array.from(this._knownClients.values())
       .sort((a, b) => b.signal - a.signal);
 
     const fp = JSON.stringify(parsed.map(c => ({
       mac: c.mac, signal: c.signal, iface: c.iface, band: c.band, name: c.name,
     })));
-    const payload = { ts: Date.now(), clients: parsed, mode: this.mode || 'none', pollMs: this.pollMs, capsmanAvailable: this._capsmanAvailable };
-    this.lastPayload        = payload;
+    const payload = {
+      ts: Date.now(), clients: parsed, mode: this.mode || 'none',
+      pollMs: this.pollMs, capsmanAvailable: this._capsmanAvailable,
+    };
+    this.lastPayload           = payload;
     this.state.lastWirelessTs  = Date.now();
     this.state.lastWirelessErr = null;
-    if (fp !== this._lastFp) { this._lastFp = fp; this.io.emit('wireless:update', payload); }
+    if (fp !== this._lastFp) {
+      this._lastFp = fp;
+      this.io.emit('wireless:update', payload);
+    }
 
-    // If any client is still missing a name (DHCP not yet loaded at startup),
-    // schedule a re-resolve using already-fetched data — no extra API call.
     const hasUnnamed = parsed.length > 0 && parsed.some(c => !c.name);
     if (hasUnnamed && !this._retryTimer) {
       const tryResolve = () => {
@@ -250,8 +183,8 @@ class WirelessCollector {
           }
         }
         if (changed) {
-          const reParsed  = Array.from(this._knownClients.values()).sort((a, b) => b.signal - a.signal);
-          const newFp     = JSON.stringify(reParsed.map(c => ({ mac: c.mac, signal: c.signal, iface: c.iface, band: c.band, name: c.name })));
+          const reParsed = Array.from(this._knownClients.values()).sort((a, b) => b.signal - a.signal);
+          const newFp    = JSON.stringify(reParsed.map(c => ({ mac: c.mac, signal: c.signal, iface: c.iface, band: c.band, name: c.name })));
           if (newFp !== this._lastFp) {
             const newPayload = { ...this.lastPayload, ts: Date.now(), clients: reParsed };
             this.lastPayload = newPayload;
@@ -259,7 +192,6 @@ class WirelessCollector {
             this.io.emit('wireless:update', newPayload);
           }
         }
-        // Keep retrying until all names are resolved
         if (Array.from(this._knownClients.values()).some(c => !c.name)) {
           this._retryTimer = setTimeout(tryResolve, 500);
         }
@@ -268,10 +200,126 @@ class WirelessCollector {
     }
   }
 
+  // ── batch processing ──────────────────────────────────────────────────────
+
+  _processMainBatch(records) {
+    // Combine primary (wifi/wireless) with latest capsman; local wins on MAC
+    const localMacs = new Set(records.map(c => c['mac-address'] || c.mac || '').filter(Boolean));
+    const capsFiltered = this._lastCapsmanBatch
+      .filter(c => { const mac = c['mac-address'] || c.mac || ''; return mac && !localMacs.has(mac); });
+    this._applyAbsenceGuard([...records, ...capsFiltered]);
+    this._emitClients();
+  }
+
+  _updateCapsmanClients() {
+    // Remove stale capsman entries from known map
+    for (const [mac, c] of this._knownClients) {
+      if (c.source === 'capsman') this._knownClients.delete(mac);
+    }
+    // Add fresh capsman entries; skip MACs held by local wireless
+    const localMacs = new Set([...this._knownClients.keys()]);
+    for (const c of this._lastCapsmanBatch) {
+      const mac = c['mac-address'] || c.mac || '';
+      if (!mac || localMacs.has(mac)) continue;
+      this._knownClients.set(mac, this._parseClient(c));
+      this._absentTicks.delete(mac);
+    }
+  }
+
+  _onBatch(type, records) {
+    if (type === 'wifi') {
+      if (this.mode === null) {
+        if (records.length > 0) {
+          this.mode = 'wifi';
+          if (this._debug) console.log(this._lbl + ' mode latched: wifi');
+        } else {
+          // Empty first batch — wifi API not populated, fall through to legacy
+          this.mode = 'wireless';
+          if (this._debug) console.log(this._lbl + ' mode latched: wireless (wifi returned empty)');
+          this._stopStream('wifi');
+          this._startStream('wireless');
+          return;
+        }
+      }
+      this._lastWifiBatch = records;
+      this._processMainBatch(records);
+    } else if (type === 'wireless') {
+      this._lastWifiBatch = records;
+      this._processMainBatch(records);
+    } else if (type === 'capsman') {
+      this._lastCapsmanBatch = records.map(c => ({ ...c, _capsman: true }));
+      this._updateCapsmanClients();
+      this._emitClients();
+    }
+  }
+
+  // ── stream management ────────────────────────────────────────────────────
+
+  _startStream(type) {
+    if (this._streams[type] || this._restarting[type]) return;
+    if (!this.ros.connected) return;
+    const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+    const endpoints = {
+      wifi:     '/interface/wifi/registration-table/print',
+      wireless: '/interface/wireless/registration-table/print',
+      capsman:  '/caps-man/registration-table/print',
+    };
+    const stream = this.ros.stream([endpoints[type], `=interval=${intervalSec}`], null);
+    this._streams[type] = stream;
+    stream.on('data', (pkt) => {
+      if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
+      this._batches[type].push(pkt);
+      if (this._debounces[type]) return;
+      this._debounces[type] = setTimeout(() => { // codeql[js/resource-exhaustion]
+        this._debounces[type] = null;
+        const batch = this._batches[type];
+        this._batches[type] = [];
+        this._onBatch(type, batch);
+      }, 50);
+    });
+    stream.on('error', (err) => {
+      const msg = err && err.message ? err.message : String(err);
+      // wifi "unknown command" → router uses legacy wireless API
+      if (type === 'wifi' && (msg.includes('unknown command') || msg.includes('no such'))) {
+        this._stopStream('wifi');
+        if (this.mode === null) {
+          this.mode = 'wireless';
+          if (this._debug) console.log(this._lbl + ' mode latched: wireless (wifi command unknown)');
+          this._startStream('wireless');
+        }
+        return;
+      }
+      console.error(this._lbl, `${type} stream error:`, msg);
+      this.state.lastWirelessErr = msg;
+      this._stopStream(type);
+      if (this.ros.connected && !this._restarting[type]) {
+        this._restarting[type] = true;
+        this._restartTimers[type] = setTimeout(() => { // codeql[js/resource-exhaustion]
+          this._restarting[type] = false;
+          this._restartTimers[type] = null;
+          this._startStream(type);
+        }, 3000);
+      }
+    });
+    console.log(this._lbl, `streaming ${endpoints[type]} interval=${intervalSec}s`);
+  }
+
+  _stopStream(type) {
+    if (this._debounces[type])     { clearTimeout(this._debounces[type]);     this._debounces[type] = null; }
+    if (this._restartTimers[type]) { clearTimeout(this._restartTimers[type]); this._restartTimers[type] = null; }
+    this._restarting[type] = false;
+    if (this._streams[type]) { try { this._streams[type].stop(); } catch (_) {} this._streams[type] = null; }
+    this._batches[type] = [];
+  }
+
+  // ── state reset ───────────────────────────────────────────────────────────
+
   _resetState() {
     this.mode              = null;
     this._lastFp           = '';
     this._capsmanAvailable = false;
+    this._lastWifiBatch    = [];
+    this._lastCapsmanBatch = [];
     this._nameCache.clear();
     this._knownClients.clear();
     this._absentTicks.clear();
@@ -283,72 +331,62 @@ class WirelessCollector {
       await this.ros.write('/caps-man/registration-table/print', []);
       this._capsmanAvailable = true;
       if (this._debug) console.log(this._lbl + ' capsman probe: available');
+      // If resume() was called before this probe completed (page was open), the
+      // wifi/wireless stream is already running — start capsman now to catch up.
+      if (!this._streams.capsman && (this._streams.wifi || this._streams.wireless)) {
+        this._startStream('capsman');
+      }
     } catch (e) {
       const msg = String(e && e.message ? e.message : e);
       if (msg.includes('unknown command') || msg.includes('no such')) {
         this._capsmanAvailable = false;
         if (this._debug) console.log(this._lbl + ' capsman probe: not available on this router');
       }
-      // transient errors (timeout, connection drop) leave _capsmanAvailable = false
-      // and will be re-probed on the next reconnect
+      // transient errors leave _capsmanAvailable = false and re-probe on reconnect
     }
   }
 
-  _scheduleNext() {
-    if (this.timer) return;
-    this.timer = setTimeout(async () => {
-      this.timer = null;
-      if (!this._inflight) {
-        this._inflight = true;
-        try { await this.tick(); } catch (e) {
-          this.state.lastWirelessErr = String(e && e.message ? e.message : e);
-          console.error(this._lbl, this.state.lastWirelessErr);
-        } finally { this._inflight = false; }
-      }
-      this._scheduleNext();
-    }, this.pollMs); // codeql[js/resource-exhaustion]
+  // ── lifecycle ────────────────────────────────────────────────────────────
+
+  suspend() {
+    this._stopStream('wifi');
+    this._stopStream('wireless');
+    this._stopStream('capsman');
   }
 
-  _restartTimer() {
-    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
-    if (this.ros.connected) this._scheduleNext();
+  resume() {
+    if (!this.ros.connected) return;
+    if (this.mode === 'wireless') {
+      this._startStream('wireless');
+    } else {
+      // mode === 'wifi' or null (probe via first empty-batch detection)
+      this._startStream('wifi');
+    }
+    if (this._capsmanAvailable) this._startStream('capsman');
+  }
+
+  stop() {
+    this._stopStream('wifi');
+    this._stopStream('wireless');
+    this._stopStream('capsman');
+    if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
   }
 
   start() {
     this._debug = require('../settings').load().rosDebug;
-    const runFirst = async () => {
-      if (this._inflight) return;
-      this._inflight = true;
-      try { await this.tick(true); } catch (e) {
-        this.state.lastWirelessErr = String(e && e.message ? e.message : e);
-        console.error(this._lbl, this.state.lastWirelessErr);
-      } finally { this._inflight = false; }
+    const doStart = async () => {
+      await this._probeCAPsMAN();
+      this.resume();
     };
-    runFirst();
-    this._probeCAPsMAN();
-    this._scheduleNext();
+    doStart(); // initial start: probe then resume (page may already have viewers)
     this.ros.on('close', () => this.stop());
     this.ros.on('connected', () => {
       this.stop();
       this._resetState();
-      runFirst();
-      this._probeCAPsMAN();
-      this._scheduleNext();
+      // Probe CAPsMAN to refresh availability; resume() is called externally
+      // by _updateWirelessStreams() once this reconnect event propagates to index.js.
+      this._probeCAPsMAN().catch(() => {});
     });
-  }
-
-  suspend() {
-    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
-  }
-
-  resume() {
-    if (this.ros.connected) this._scheduleNext();
-  }
-
-  stop() {
-    if (this.timer)       { clearTimeout(this.timer);        this.timer      = null; }
-    if (this._retryTimer) { clearTimeout(this._retryTimer);  this._retryTimer = null; }
-    this._inflight = false;
   }
 }
 

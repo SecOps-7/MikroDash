@@ -87,91 +87,101 @@ async function withPatchedTimers(runTest) {
   }
 }
 
-// --- Inflight guard and polling lifecycle ---
-// DhcpNetworksCollector is used as the canonical polling collector subject
-// for these generic lifecycle tests. ArpCollector was converted to streaming
-// in a prior refactor and no longer has a tick() or poll timer.
+// --- DhcpNetworksCollector streaming lifecycle ---
 const dhcpLeaseStub = { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] };
 
-test('polling collector start skips overlapping interval ticks while one run is inflight', async () => {
-  await withPatchedTimers(async (timers) => {
-    let tickCount = 0;
-    let releaseTick;
-    const pendingTick = new Promise((resolve) => { releaseTick = resolve; });
-    const ros = mockROS(async () => []);
-    const io = { emit() {} };
-    const collector = new DhcpNetworksCollector({ ros, io, pollMs: 50000, dhcpLeases: dhcpLeaseStub, state: {} });
+function mockRosWithStream(writeFn) {
+  const ros = new EventEmitter();
+  ros.connected = true;
+  ros.write = writeFn || (async () => []);
+  ros.stream = (words) => {
+    const s = { _key: words[0], stopped: false, stop() { this.stopped = true; } };
+    s.on = () => s;
+    return s;
+  };
+  return ros;
+}
 
-    collector.tick = async function () {
-      tickCount++;
-      await pendingTick;
-    };
-
-    collector.start();
-    assert.equal(tickCount, 1, 'start() should launch the first run immediately');
-
-    await timers[0].cb();
-    assert.equal(tickCount, 1, 'interval callback should no-op while the first run is inflight');
-
-    releaseTick();
-    await pendingTick;
-    await Promise.resolve();
-    await timers[0].cb();
-    assert.equal(tickCount, 2, 'next interval should run after inflight state resets');
+test('dhcpNetworks start() opens 4 streams and populates lanCidrs via initial fetch', async () => {
+  const ros = mockRosWithStream(async (cmd) => {
+    if (cmd.includes('network')) return [{ address: '192.168.1.0/24', gateway: '192.168.1.1', 'dns-server': '' }];
+    return [];
   });
-});
-
-test('polling collector start resets inflight state after a tick throws', async () => {
-  await withPatchedTimers(async (timers) => {
-    const ros = mockROS(async () => []);
-    const io = { emit() {} };
-    const collector = new DhcpNetworksCollector({ ros, io, pollMs: 50000, dhcpLeases: dhcpLeaseStub, state: {} });
-    let tickCount = 0;
-
-    collector.tick = async function () {
-      tickCount++;
-      if (tickCount === 1) throw new Error('boom');
-    };
-
-    collector.start();
-    await Promise.resolve();
-    await Promise.resolve();
-    assert.equal(collector._inflight, false, '_inflight reset after tick throws');
-
-    await timers[0].cb();
-    assert.equal(tickCount, 2, 'interval callback should run again after the failed start tick');
-  });
-});
-
-test('polling collector stops timer on ROS close event', () => {
-  return withPatchedTimers(async () => {
-    const ros = mockROS();
-    const io = { emit() {} };
-    const collector = new DhcpNetworksCollector({ ros, io, pollMs: 30000, dhcpLeases: dhcpLeaseStub, state: {} });
-    collector.start();
-    const timer = collector.timer;
-
-    assert.ok(timer);
-    ros.emit('close');
-    assert.equal(timer.cleared, true);
-    assert.equal(collector.timer, null);
-  });
-});
-
-test('polling collector restarts timer on ROS connected event', () => {
-  const ros = mockROS(async () => []);
   const io = { emit() {} };
-  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 30000, dhcpLeases: dhcpLeaseStub, state: {} });
-  collector.start();
+  const state = {};
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 60000, dhcpLeases: dhcpLeaseStub, state, wanIface: 'ether1' });
+
+  await collector.start();
+
+  assert.ok(collector.lanCidrs.length > 0, 'lanCidrs populated after start()');
+  assert.ok(Object.values(collector._streams).some(s => s !== null), 'at least one stream opened');
+
+  collector.stop();
+});
+
+test('dhcpNetworks stop() closes all streams', async () => {
+  const stoppedKeys = [];
+  const ros = new EventEmitter();
+  ros.connected = true;
+  ros.write = async () => [];
+  ros.stream = (words) => {
+    const key = words[0];
+    const s = { key, stop() { stoppedKeys.push(this.key); } };
+    s.on = () => s;
+    return s;
+  };
+  const io = { emit() {} };
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 60000, dhcpLeases: dhcpLeaseStub, state: {}, wanIface: 'ether1' });
+
+  await collector.start();
+  collector.stop();
+
+  assert.equal(stoppedKeys.length, 4, 'all 4 streams stopped');
+});
+
+test('dhcpNetworks stops streams on ROS close event', async () => {
+  const stoppedKeys = [];
+  const ros = new EventEmitter();
+  ros.connected = true;
+  ros.write = async () => [];
+  ros.stream = (words) => {
+    const key = words[0];
+    const s = { key, stop() { stoppedKeys.push(this.key); } };
+    s.on = () => s;
+    return s;
+  };
+  const io = { emit() {} };
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 60000, dhcpLeases: dhcpLeaseStub, state: {}, wanIface: 'ether1' });
+
+  await collector.start();
+  const beforeClose = stoppedKeys.length;
 
   ros.emit('close');
-  assert.equal(collector.timer, null);
+  assert.ok(stoppedKeys.length > beforeClose, 'streams stopped on ROS close');
+});
 
+test('dhcpNetworks restarts streams on ROS connected event', async () => {
+  let streamCount = 0;
+  const ros = new EventEmitter();
+  ros.connected = true;
+  ros.write = async () => [];
+  ros.stream = () => {
+    streamCount++;
+    const s = { stop() {} };
+    s.on = () => s;
+    return s;
+  };
+  const io = { emit() {} };
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 60000, dhcpLeases: dhcpLeaseStub, state: {}, wanIface: 'ether1' });
+
+  await collector.start();
+  const afterStart = streamCount;
+
+  ros.emit('close');
   ros.emit('connected');
-  assert.ok(collector.timer, 'timer should be restored after reconnect');
+  assert.ok(streamCount > afterStart, 'streams re-opened after reconnect');
 
-  clearInterval(collector.timer);
-  collector.timer = null;
+  collector.stop();
 });
 
 // --- Streaming collector lifecycle ---
@@ -406,33 +416,6 @@ test('ROS client write normalizes null result to empty array', async () => {
 
 // --- Error handling and system collector resilience ---
 
-test('polling collector resets inflight state after tick catches an internal error', async () => {
-  // All collectors catch errors inside tick() rather than propagating them —
-  // this test verifies that _inflight is always reset so subsequent ticks can run.
-  await withPatchedTimers(async (timers) => {
-    const ros = mockROS(async () => []);
-    const io = { emit() {} };
-    const state = {};
-    const collector = new DhcpNetworksCollector({ ros, io, pollMs: 50000, dhcpLeases: dhcpLeaseStub, state });
-
-    let tickCount = 0;
-    collector.tick = async function () {
-      tickCount++;
-      if (tickCount === 1) throw new Error('temporary failure');
-    };
-
-    collector.start();
-    assert.equal(tickCount, 1, 'first tick fired on start()');
-    // Let the first (failing) tick settle
-    await Promise.resolve();
-    await Promise.resolve();
-
-    assert.equal(collector._inflight, false, '_inflight must be false after a failed tick');
-
-    await timers[0].cb();
-    assert.equal(tickCount, 2, 'second tick runs after inflight resets');
-  });
-});
 
 test('system collector still emits data when package/update query fails', async () => {
   const emitted = [];
@@ -498,13 +481,10 @@ test('traffic collector rejects control characters and oversized names', () => {
 
 // --- Wireless API detection ---
 
-test('wireless collector detects wifi API mode and locks in', async () => {
-  const ros = mockROS(async (cmd) => {
-    if (cmd.includes('/interface/wifi/')) return [{ 'mac-address': 'AA:BB', signal: '-50', interface: 'wifi1' }];
-    return [];
-  });
-  ros.cfg = {};
-  const io = { engine: { clientsCount: 1 }, emit() {} };
+test('wireless collector detects wifi API mode and locks in', () => {
+  const ros = mockROS();
+  ros.stream = () => { const s = { stop() {} }; s.on = () => s; return s; };
+  const io = { emit() {} };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
@@ -512,31 +492,32 @@ test('wireless collector detects wifi API mode and locks in', async () => {
   });
 
   assert.equal(collector.mode, null);
-  await collector.tick();
+  collector._onBatch('wifi', [{ 'mac-address': 'AA:BB', signal: '-50', interface: 'wifi1' }]);
   assert.equal(collector.mode, 'wifi');
 });
 
-test('wireless collector falls back to legacy API when wifi API fails', async () => {
-  const ros = mockROS(async (cmd) => {
-    if (cmd.includes('/interface/wifi/')) throw new Error('no such command');
-    if (cmd.includes('/interface/wireless/')) return [{ 'mac-address': 'CC:DD', signal: '-60' }];
-    return [];
-  });
-  ros.cfg = {};
-  const io = { engine: { clientsCount: 1 }, emit() {} };
+test('wireless collector falls back to legacy API when wifi returns empty batch', () => {
+  let wirelessStarted = false;
+  const ros = mockROS();
+  ros.stream = (words) => {
+    if (words[0].includes('/interface/wireless/')) wirelessStarted = true;
+    const s = { stop() {} }; s.on = () => s; return s;
+  };
+  const io = { emit() {} };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
     arp: { getByMAC: () => null },
   });
 
-  await collector.tick();
+  collector._onBatch('wifi', []);
   assert.equal(collector.mode, 'wireless');
+  assert.ok(wirelessStarted, 'wireless stream started after empty wifi batch');
 });
 
-test('wireless collector resets mode on reconnect', () => {
-  const ros = mockROS(async () => []);
-  ros.cfg = {};
+test('wireless collector resets mode on reconnect and does not auto-start streams', () => {
+  const ros = mockROS();
+  ros.stream = () => { const s = { stop() {} }; s.on = () => s; return s; };
   const io = { emit() {} };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
@@ -548,9 +529,13 @@ test('wireless collector resets mode on reconnect', () => {
   collector.start();
   ros.emit('connected');
   assert.equal(collector.mode, null, 'mode should reset on reconnect');
+  // Streams must NOT auto-start — resume() is called externally by _updateWirelessStreams()
+  assert.ok(Object.values(collector._streams).every(s => s === null), 'streams stay stopped after reconnect');
+  // After resume() is called externally, streams restart
+  collector.resume();
+  assert.ok(collector._streams.wifi !== null, 'wifi stream starts after resume()');
 
-  clearInterval(collector.timer);
-  collector.timer = null;
+  collector.stop();
 });
 
 test('wireless _probeCAPsMAN sets _capsmanAvailable=true when API responds', async () => {
@@ -589,7 +574,7 @@ test('dhcp networks collector deduplicates LAN CIDRs', async () => {
   });
   const io = { emit() {} };
   const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] }, state: {} });
-  await collector.tick();
+  await collector._fetchOnce();
 
   assert.deepEqual(collector.getLanCidrs(), ['192.168.1.0/24']);
 });
@@ -800,9 +785,11 @@ test('routing collector BGP stream unavailable on v6/no-BGP — route stream sti
 test('routing collector heartbeat re-emits last payload every 60s', async () => {
   return withPatchedIntervals(async (timers) => {
     const emitted = [];
+    const rooms = new Map([['page-routing', { size: 1 }]]);
     const io = {
-      emit(ev, data)  { emitted.push({ ev, data }); },
-      to(room)        { return { emit: (ev, data) => emitted.push({ ev, data }) }; },
+      emit(ev, data) { emitted.push({ ev, data }); },
+      to(room) { return { to() { return this; }, emit: (ev, data) => emitted.push({ ev, data }) }; },
+      sockets: { adapter: { rooms } },
     };
     const ros = mockROS(async () => []);
     ros.stream = (w, cb) => ({ stop() {} });
@@ -858,10 +845,10 @@ test('ConnectionsCollector has a stop() method that clears the timer', () => {
     });
     try {
       collector.start();
-      assert.ok(collector._pollTimer, 'fallback poll timer set after start()');
+      assert.ok(collector._watchdogTimer, 'watchdog timer set after start()');
 
       collector.stop();
-      assert.equal(collector._pollTimer, null, 'stop() must null the poll timer');
+      assert.equal(collector._watchdogTimer, null, 'stop() must null the watchdog timer');
     } finally {
       collector.stop();
     }
@@ -879,7 +866,6 @@ test('ConnectionsCollector stop() is idempotent — safe to call when already st
       collector.start();
       collector.stop();
       assert.doesNotThrow(() => collector.stop(), 'double stop() must not throw');
-      assert.equal(collector._pollTimer, null);
     } finally {
       collector.stop();
     }
@@ -894,10 +880,10 @@ test('ConnectionsCollector stops on ROS close event via stop()', () => {
     });
     try {
       collector.start();
-      assert.ok(collector._pollTimer, 'poll timer set after start()');
+      assert.ok(collector._watchdogTimer, 'watchdog timer set after start()');
 
       ros.emit('close');
-      assert.equal(collector._pollTimer, null, 'close event must clear poll timer');
+      assert.equal(collector._watchdogTimer, null, 'close event must clear watchdog timer');
     } finally {
       collector.stop();
     }
@@ -913,10 +899,10 @@ test('ConnectionsCollector restarts on ROS connected event', () => {
     try {
       collector.start();
       ros.emit('close');
-      assert.equal(collector._pollTimer, null, 'poll timer cleared on close');
+      assert.equal(collector._watchdogTimer, null, 'watchdog timer cleared on close');
 
       ros.emit('connected');
-      assert.ok(collector._pollTimer, 'poll timer restored after connected event');
+      assert.ok(collector._watchdogTimer, 'watchdog timer restored after connected event');
     } finally {
       collector.stop();
     }
@@ -951,13 +937,13 @@ test('ConnectionsCollector does not double-start when connected fires while alre
     });
     try {
       collector.start();
-      assert.ok(collector._pollTimer, 'poll timer set after start()');
+      assert.ok(collector._watchdogTimer, 'watchdog timer set after start()');
 
       // Simulate connected firing while already running — stop() then start(),
       // so there is still exactly one active watchdog interval (setInterval).
       ros.emit('connected');
 
-      assert.ok(collector._pollTimer, 'poll timer still active after connected');
+      assert.ok(collector._watchdogTimer, 'watchdog timer still active after connected');
       assert.equal(timers.filter(t => t.isInterval && !t.cleared).length, 1, 'exactly one active watchdog interval after reconnect');
     } finally {
       collector.stop();
@@ -965,54 +951,6 @@ test('ConnectionsCollector does not double-start when connected fires while alre
   });
 });
 
-test('ConnectionsCollector inflight guard prevents overlapping ticks', async () => {
-  const { ros, dhcpLeases, arp, dhcpNetworks, io, state } = makeConnsDeps();
-  const collector = new ConnectionsCollector({
-    ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
-  });
-  try {
-    let writeCount = 0;
-    let releaseWrite;
-    const slowWrite = new Promise(res => { releaseWrite = res; });
-    ros.write = async () => { writeCount++; await slowWrite; return []; };
-
-    // Start first tick — it holds inside ros.write
-    const firstTick = collector._runFallbackTick();
-    assert.equal(writeCount, 1, 'first tick started a ros.write');
-    assert.equal(collector._fallbackInflight, true, 'inflight flag set while tick runs');
-
-    // Second concurrent call must be a no-op while first is in flight
-    await collector._runFallbackTick();
-    assert.equal(writeCount, 1, 'second call blocked by inflight guard');
-
-    // Release first tick and verify flag clears
-    releaseWrite();
-    await firstTick;
-    assert.equal(collector._fallbackInflight, false, 'inflight flag cleared after tick completes');
-
-    // A fresh tick can now proceed
-    ros.write = async () => { writeCount++; return []; };
-    await collector._runFallbackTick();
-    assert.equal(writeCount, 2, 'tick proceeds after inflight cleared');
-  } finally {
-    collector.stop();
-  }
-});
-
-test('ConnectionsCollector updates state timestamps and clears error on success', async () => {
-  const { ros, dhcpLeases, arp, dhcpNetworks, io, state } = makeConnsDeps({
-    write: async () => [],
-  });
-  const collector = new ConnectionsCollector({
-    ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
-  });
-
-  state.lastConnsErr = 'stale error';
-  await collector._runFallbackTick();
-
-  assert.ok(state.lastConnsTs > 0, 'lastConnsTs updated on success');
-  assert.equal(state.lastConnsErr, null, 'lastConnsErr cleared on success');
-});
 
 // ═══════════════════════════════════════════════════════════════════════════
 // --- BandwidthCollector lifecycle ---
@@ -1316,20 +1254,15 @@ test('SystemCollector stop() clears health timer', () => {
   });
 });
 
-test('WirelessCollector stop() clears timer and retryTimer', () => {
-  return withPatchedIntervals(async () => {
-    const ros = mockROS(async () => []);
-    ros.cfg = {};
-    const io = { engine: { clientsCount: 1 }, emit() {} };
-    const collector = new WirelessCollector({
-      ros, io, pollMs: 10000, state: {},
-      dhcpLeases: { getNameByMAC: () => null },
-      arp: { getByMAC: () => null },
-    });
-    collector.start();
-    assert.ok(collector.timer, 'timer set after start');
-    collector.stop();
-    assert.equal(collector.timer, null, 'timer cleared by stop()');
-    assert.equal(collector._retryTimer, null, '_retryTimer cleared by stop()');
+test('WirelessCollector stop() clears retryTimer', () => {
+  const ros = { connected: true, on() {}, stream: () => ({ stop() {}, on() {} }) };
+  const io = { emit() {} };
+  const collector = new WirelessCollector({
+    ros, io, pollMs: 10000, state: {},
+    dhcpLeases: { getNameByMAC: () => null },
+    arp: { getByMAC: () => null },
   });
+  collector._retryTimer = setTimeout(() => {}, 100000);
+  collector.stop();
+  assert.equal(collector._retryTimer, null, '_retryTimer cleared by stop()');
 });

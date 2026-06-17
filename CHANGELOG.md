@@ -2,6 +2,42 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.46] — Polling Profiles, ping min/max RTT, full streaming conversion, bug fixes
+
+### Added
+
+- **Polling Profiles** (`public/index.html`, `public/app.js`, `src/settings.js`) — Settings → Poll Intervals now shows five named preset buttons: **Fast**, **Faster**, **Standard**, **Slow**, and **Slower**, plus a **Custom** pill that activates when you drag any slider. A **Save Custom Profile** button persists your current slider values as a reusable template. The Custom profile survives settings saves and is restored on page load. Standard is the recommended baseline for most routers. Closes issue #52
+- **Ping card min/max RTT** (`src/collectors/ping.js`, `public/index.html`, `public/app.js`) — the ping stat row now shows four fields: `RTT · min · max · loss`. Min and max are sourced from the RouterOS `min-rtt`/`max-rtt` session counters via the proplist parameter. Values colour-code with the same thresholds as RTT. Present on initial page load via `ping:history`
+- **API Diagnostics dashboard card** (`public/js/dashboard-grid.js`, `public/index.html`, `public/app.js`, `src/index.js`) — a hidden-by-default card showing live stream counts and a per-collector breakdown of active API streams. Activates only while visible; 2 s refresh via `dashcard:focus`/`dashcard:blur` events
+- **Settings banner reserved space** (`public/index.html`) — the Save status banner now uses `visibility` instead of `display` so its space is permanently reserved; clicking Save no longer causes layout shifts
+
+### Changed
+
+- **Full `=interval=N` streaming conversion** — four remaining polling collectors replaced timer-based `setInterval` + `ros.write()` with router-pushed streams; each stream suspends when its page/card is not visible and resumes on focus:
+  - `src/collectors/vpn.js` — WireGuard peer counter stream (`/interface/wireguard/peers/print =interval=N`)
+  - `src/collectors/firewall.js` — four per-table counter streams (`filter`, `nat`, `mangle`, `raw`)
+  - `src/collectors/wireless.js` — wifi, wireless, and CAPsMAN registration streams
+  - `src/collectors/dhcpNetworks.js` — four streams (networks, leases, pools, addresses)
+- **Connections collector idle-gated** (`src/index.js`) — removed page-gate; connections stream runs whenever any browser client is connected, matching the behaviour of all other streaming collectors
+- **Page-aware stream lifecycle** (`src/index.js`, `src/collectors/vpn.js`, `src/collectors/wireless.js`) — `_updateVpnStreams()` and `_updateWirelessStreams()` helpers wire page and dashboard card room events to `suspend()`/`resume()` so RouterOS serves counter streams only while relevant UI is visible
+- **Standard polling profile** — default intervals aligned to optimised baseline: System 2 s, Connections 3 s, Top Talkers 3 s, Interface Rates 1 s, Bandwidth 3 s, VPN 5 s, Firewall 5 s, Ping 5 s, Wireless 30 s, Interface Metadata 60 s, DHCP Networks ~5 min
+- **Settings slider ranges** (`public/app.js`, `src/settings.js`, `src/index.js`) — eight 30 s-cap sliders changed from 500 ms–30 s to 1 s–30 s; DHCP Networks lower bound raised to 10 s; Ping upper bound raised to 30 s; Wireless upper bound raised to 600 s
+
+### Fixed
+
+- **WireGuard dashboard card going stale** (`src/collectors/vpn.js`) — `_emit()` and `_startHeartbeat()` passed the already-prefixed room name (`router-<rid>-dash-card-vpn`) to `routerIo.to()`, which auto-prepends `router-<rid>-`, producing a double-prefixed room no client ever joins. Fixed by passing bare names (`page-vpn`, `dash-card-vpn`)
+- **Connections stale after poll interval change** (`src/collectors/connections.js`) — `_restartStream()` now clears `_restarting` (unblocks `_startStream()` if an error-recovery timer was in flight), resets `_rowsPrev`/`_partialStreak` (prevents first batch being misclassified as partial), and re-arms the watchdog with the current `pollMs` (old watchdog kept original thresholds after a slow→fast change)
+- **Stale counter poll method names** (`src/index.js`) — `pollFirewall` and `pollVpn` live-apply blocks referenced methods from the pre-streaming era; renamed to match current `_stopCounterStreams`/`_startCounterStreams`
+
+### Performance
+
+- **Firewall initial load proplist** (`src/collectors/firewall.js`) — `_loadInitial()` now requests only the 11 fields used by `_processRule()` instead of all 20+ per rule, reducing response size on every Firewall page open
+- **Routing heartbeat idle guard** (`src/collectors/routing.js`) — heartbeat returns immediately when `page-routing` room is empty, skipping route/BGP array rebuilds when nobody is watching
+- **VPN emit scoped to rooms** (`src/collectors/vpn.js`) — heartbeat and `_emit()` now use `io.to('page-vpn').to('dash-card-vpn')` instead of `io.emit()` (was broadcasting to all connected clients every 60 s)
+- **Connections fallback poll removed** (`src/collectors/connections.js`) — ~40 lines of dead code (`_startPollFallback`, `_runFallbackTick`, etc.) removed; watchdog is the sole stream-recovery mechanism
+
+---
+
 ## [0.5.45] — Security hardening, bandwidth savings, router card identity pills, log history
 
 ### Added

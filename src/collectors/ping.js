@@ -36,6 +36,20 @@ class PingCollector {
     this.lastPayload       = null;
     this._permissionDenied = false;
     this._lossWindow       = []; // bool[] — true = replied
+
+    this.io.on('connection', () => {
+      if (this.streamMode && !this._stream) this._startStream();
+    });
+    this.ros.on('close', () => {
+      this._stopStream();
+      if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+    });
+    this.ros.on('connected', () => {
+      this._lastFp = '';
+      this._permissionDenied = false;
+      this._stream = null;
+      this._startPing();
+    });
   }
 
   _parseRtt(val) {
@@ -57,6 +71,7 @@ class PingCollector {
       [
         '=address=' + this.target,
         '=interval=' + intervalSec,
+        '=.proplist=time,response-time,status,min-rtt,max-rtt',
       ],
       null
     );
@@ -111,6 +126,7 @@ class PingCollector {
         '=address=' + this.target,
         '=count=3',
         '=interval=1',
+        '=.proplist=time,response-time,status,min-rtt,max-rtt',
       ]);
       if (Array.isArray(rows)) {
         for (const r of rows) {
@@ -149,6 +165,8 @@ class PingCollector {
   _processPacket(packet) {
     const replied = !packet.status || packet.status === 'replied';
     const rtt     = replied ? this._parseRtt(packet.time || packet['response-time']) : null;
+    const minRtt  = this._parseRtt(packet['min-rtt']);
+    const maxRtt  = this._parseRtt(packet['max-rtt']);
 
     this._lossWindow.push(replied);
     if (this._lossWindow.length > LOSS_WINDOW) this._lossWindow.shift();
@@ -161,7 +179,7 @@ class PingCollector {
 
     // Always update lastPayload so new clients get fresh replayed data.
     const fp = `${this.target}|${rtt}|${loss}`;
-    this.lastPayload = { target: this.target, rtt, loss, ts: point.ts, pollMs: this.pollMs };
+    this.lastPayload = { target: this.target, rtt, loss, minRtt, maxRtt, ts: point.ts, pollMs: this.pollMs };
     this.state.lastPingTs  = Date.now();
     this.state.lastPingErr = null;
 
@@ -190,19 +208,6 @@ class PingCollector {
 
   start() {
     this._startPing();
-    this.io.on('connection', () => {
-      if (this.streamMode && !this._stream) this._startStream();
-    });
-    this.ros.on('close', () => {
-      this._stopStream();
-      if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
-    });
-    this.ros.on('connected', () => {
-      this._lastFp = '';
-      this._permissionDenied = false;
-      this._stream = null;
-      this._startPing();
-    });
   }
 
   suspend() {

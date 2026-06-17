@@ -100,6 +100,9 @@ const DEFAULTS = {
   pollArp:           parseInt(process.env.ARP_POLL_MS       || '30000', 10),
   pollDhcp:          parseInt(process.env.DHCP_POLL_MS      || '600000', 10),
 
+  // Custom poll profile — JSON string of {pollSystem:N,...} saved by user; empty = not configured
+  customPollProfile: '',
+
   // Limits
   topN:              parseInt(process.env.TOP_N             || '5',     10),
   topTalkersN:       parseInt(process.env.TOP_TALKERS_N     || '5',     10),
@@ -266,11 +269,11 @@ function load() {
   // Clamp poll intervals to their valid ranges so that a corrupt or manually
   // edited settings file can never produce a sub-minimum timer delay.
   const _POLL_BOUNDS = {
-    pollConns:[500,60000], pollTalkers:[500,60000], pollBandwidth:[500,60000],
-    pollRouting:[500,300000], pollSystem:[500,60000], pollWireless:[500,60000],
-    pollVpn:[500,30000], pollFirewall:[500,30000], pollIfstatus:[500,60000],
-    pollIfaces:[10000,600000], pollPing:[1000,5000], pollArp:[5000,300000],
-    pollDhcp:[5000,600000],
+    pollConns:[1000,60000], pollTalkers:[1000,60000], pollBandwidth:[1000,60000],
+    pollRouting:[500,300000], pollSystem:[1000,60000], pollWireless:[10000,600000],
+    pollVpn:[1000,30000], pollFirewall:[1000,30000], pollIfstatus:[1000,60000],
+    pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
+    pollDhcp:[10000,600000],
   };
   for (const [k, [lo, hi]] of Object.entries(_POLL_BOUNDS)) {
     if (typeof merged[k] === 'number') merged[k] = Math.max(lo, Math.min(hi, merged[k]));

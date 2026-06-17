@@ -42,28 +42,29 @@ class DhcpNetworksCollector {
     this.wanIface = wanIface || 'WAN1';
     this.lanCidrs = [];
     this.networks = [];
-    this.timer = null;
-    this._inflight = false;
-    this._lastFp   = '';
+    this._lastFp  = '';
     this.lastPayload = null;
+
+    this._streams    = { networks: null, addresses: null, pools: null, internet: null };
+    this._raw        = { networks: [], addresses: [], pools: [], internet: [] };
+    this._batches    = { networks: [], addresses: [], pools: [], internet: [] };
+    this._debounces  = { networks: null, addresses: null, pools: null, internet: null };
+    this._restarting = { networks: false, addresses: false, pools: false, internet: false };
+    this._restartTimers = { networks: null, addresses: null, pools: null, internet: null };
+    this._rebuildDebounce = null;
   }
 
   getLanCidrs() { return this.lanCidrs; }
 
-  async tick() {
-    if (!this.ros.connected) return;
-    const [nets, addrs, pools, detect] = await Promise.allSettled([
-      this.ros.write('/ip/dhcp-server/network/print', ['=.proplist=address,gateway,dns-server']),
-      this.ros.write('/ip/address/print',             ['=.proplist=address,interface,disabled']),
-      this.ros.write('/ip/pool/print',                ['=.proplist=name,ranges']),
-      this.ros.write('/interface/detect-internet/state/print', ['=.proplist=name,interface,state']),
-    ]);
-    const netRows    = nets.status    === 'fulfilled' ? (nets.value    || []) : [];
-    const addrRows   = addrs.status   === 'fulfilled' ? (addrs.value   || []) : [];
-    const poolRows   = pools.status   === 'fulfilled' ? (pools.value   || []) : [];
-    const detectRows = detect.status  === 'fulfilled' ? (detect.value  || []) : [];
+  // ── rebuild (combination logic from former tick()) ────────────────────────
 
-    // Interfaces that have confirmed internet connectivity, with their assigned IP
+  _rebuild() {
+    if (!this.ros.connected) return;
+    const netRows    = this._raw.networks;
+    const addrRows   = this._raw.addresses;
+    const poolRows   = this._raw.pools;
+    const detectRows = this._raw.internet;
+
     const internetIfaces = detectRows
       .filter(r => r.state === 'internet')
       .map(r => {
@@ -78,7 +79,6 @@ class DhcpNetworksCollector {
       if (a.interface === wanIface && a.address) { wanIp = a.address; break; }
     }
 
-    // All lease IPs (all statuses) for counting total leases per subnet.
     const allLeaseIps = this.dhcpLeases ? this.dhcpLeases.getAllLeaseIPs() : [];
 
     const lanCidrs = [];
@@ -88,7 +88,6 @@ class DhcpNetworksCollector {
       if (!n.address) continue;
       lanCidrs.push(n.address);
 
-      // Count all leases in this subnet regardless of status
       const leaseCount = allLeaseIps.reduce(
         (acc, ip) => acc + (ipInCidr(ip, n.address) ? 1 : 0), 0
       );
@@ -136,40 +135,115 @@ class DhcpNetworksCollector {
     this.state.lastNetworksTs = Date.now();
   }
 
-  _scheduleNext() {
-    if (this.timer) return;
-    this.timer = setTimeout(async () => {
-      this.timer = null;
-      if (!this._inflight) {
-        this._inflight = true;
-        try { await this.tick(); } catch (e) { console.error(this._lbl, e && e.message ? e.message : e); }
-        finally { this._inflight = false; }
-      }
-      this._scheduleNext();
-    }, this.pollMs);
+  _scheduleRebuild() {
+    if (this._rebuildDebounce) return;
+    this._rebuildDebounce = setTimeout(() => { // codeql[js/resource-exhaustion]
+      this._rebuildDebounce = null;
+      this._rebuild();
+    }, 10);
   }
 
-  _restartTimer() {
-    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
-    if (this.ros.connected) this._scheduleNext();
+  // ── initial fetch ─────────────────────────────────────────────────────────
+  // Synchronous one-shot fetch to populate getLanCidrs() before stream batches
+  // arrive. Also called on reconnect to restore state immediately.
+
+  async _fetchOnce() {
+    if (!this.ros.connected) return;
+    const [nets, addrs, pools, detect] = await Promise.allSettled([
+      this.ros.write('/ip/dhcp-server/network/print', ['=.proplist=address,gateway,dns-server']),
+      this.ros.write('/ip/address/print',             ['=.proplist=address,interface,disabled']),
+      this.ros.write('/ip/pool/print',                ['=.proplist=name,ranges']),
+      this.ros.write('/interface/detect-internet/state/print', ['=.proplist=name,interface,state']),
+    ]);
+    this._raw.networks  = nets.status   === 'fulfilled' ? (nets.value   || []) : [];
+    this._raw.addresses = addrs.status  === 'fulfilled' ? (addrs.value  || []) : [];
+    this._raw.pools     = pools.status  === 'fulfilled' ? (pools.value  || []) : [];
+    this._raw.internet  = detect.status === 'fulfilled' ? (detect.value || []) : [];
+    this._rebuild();
+  }
+
+  // ── stream management ────────────────────────────────────────────────────
+
+  _startStream(key) {
+    if (this._streams[key] || this._restarting[key]) return;
+    if (!this.ros.connected) return;
+    const intervalSec = Math.max(5, Math.round(this.pollMs / 1000));
+    const cmds = {
+      networks:  ['/ip/dhcp-server/network/print', '=.proplist=address,gateway,dns-server'],
+      addresses: ['/ip/address/print',             '=.proplist=address,interface,disabled'],
+      pools:     ['/ip/pool/print',                '=.proplist=name,ranges'],
+      internet:  ['/interface/detect-internet/state/print', '=.proplist=name,interface,state'],
+    };
+    const stream = this.ros.stream([...cmds[key], `=interval=${intervalSec}`], null);
+    this._streams[key] = stream;
+    stream.on('data', (pkt) => {
+      if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
+      this._batches[key].push(pkt);
+      if (this._debounces[key]) return;
+      this._debounces[key] = setTimeout(() => { // codeql[js/resource-exhaustion]
+        this._debounces[key] = null;
+        this._raw[key] = this._batches[key];
+        this._batches[key] = [];
+        this._scheduleRebuild();
+      }, 50);
+    });
+    stream.on('error', (err) => {
+      const msg = err && err.message ? err.message : String(err);
+      console.error(this._lbl, `${key} stream error:`, msg);
+      this._stopStream(key);
+      if (this.ros.connected && !this._restarting[key]) {
+        this._restarting[key] = true;
+        this._restartTimers[key] = setTimeout(() => { // codeql[js/resource-exhaustion]
+          this._restarting[key] = false;
+          this._restartTimers[key] = null;
+          this._startStream(key);
+        }, 3000);
+      }
+    });
+    console.log(this._lbl, `streaming ${cmds[key][0]} interval=${intervalSec}s`);
+  }
+
+  _stopStream(key) {
+    if (this._debounces[key])     { clearTimeout(this._debounces[key]);     this._debounces[key] = null; }
+    if (this._restartTimers[key]) { clearTimeout(this._restartTimers[key]); this._restartTimers[key] = null; }
+    this._restarting[key] = false;
+    if (this._streams[key]) { try { this._streams[key].stop(); } catch (_) {} this._streams[key] = null; }
+    this._batches[key] = [];
+  }
+
+  _startStreams() { for (const k of ['networks', 'addresses', 'pools', 'internet']) this._startStream(k); }
+  _stopStreams()  { for (const k of ['networks', 'addresses', 'pools', 'internet']) this._stopStream(k); }
+
+  // ── lifecycle ────────────────────────────────────────────────────────────
+
+  async start() {
+    // Initial fetch populates getLanCidrs() synchronously before stream batches
+    // arrive — other collectors depend on it at startup.
+    if (this.ros.connected) {
+      try { await this._fetchOnce(); } catch (e) { console.error(this._lbl, e && e.message ? e.message : e); }
+    }
+    this._startStreams();
+    this.ros.on('close', () => this.stop());
+    this.ros.on('connected', () => {
+      this._lastFp = '';
+      this.stop();
+      this._fetchOnce().catch(e => console.error(this._lbl, e && e.message ? e.message : e));
+      this._startStreams();
+    });
+  }
+
+  suspend() {
+    this._stopStreams();
+    if (this._rebuildDebounce) { clearTimeout(this._rebuildDebounce); this._rebuildDebounce = null; }
+  }
+
+  resume() {
+    if (this.ros.connected) this._startStreams();
   }
 
   stop() {
-    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
-    this._inflight = false;
-  }
-
-  start() {
-    const runFirst = async () => {
-      if (this._inflight) return;
-      this._inflight = true;
-      try { await this.tick(); } catch (e) { console.error(this._lbl, e && e.message ? e.message : e); }
-      finally { this._inflight = false; }
-    };
-    runFirst();
-    this._scheduleNext();
-    this.ros.on('close', () => this.stop());
-    this.ros.on('connected', () => { this._lastFp = ''; this.stop(); runFirst(); this._scheduleNext(); });
+    this._stopStreams();
+    if (this._rebuildDebounce) { clearTimeout(this._rebuildDebounce); this._rebuildDebounce = null; }
   }
 }
 

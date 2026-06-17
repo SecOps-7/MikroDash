@@ -58,9 +58,7 @@ class ConnectionsCollector {
     this._lastFp = '';
     this._lastEmitTs = 0;
     this._lastDetailFp = '';
-    this._fallbackInflight = false;
     this._stream = null;
-    this._pollTimer = null;   // fallback poll timer used when stream is not running
     this._rowsNext = [];      // accumulates rows for the current in-progress batch
     this._rowsPrev = null;    // last committed batch, used for partial-result detection
     this._partialStreak = 0;
@@ -82,7 +80,8 @@ class ConnectionsCollector {
         this._lastFp = '';
         this._lastDetailFp = '';
         this.stop();
-        this.start();
+        this._started = true;
+        this._startWatchdog();
       }
     });
   }
@@ -508,56 +507,16 @@ class ConnectionsCollector {
   }
 
   _restartStream() {
+    this._restarting = false;   // cancel any pending 3s restart timer's effect
     this._stopStream();
     this._lastFp = '';
     this._lastDetailFp = '';
     this._lastEmitTs = 0;
-    if (this._started && this.ros.connected) this._startStream();
-  }
-
-  // Fallback poll: runs when the connections stream is not active (nobody on the
-  // Connections page). Fetches the connection table at pollMs so the dashboard
-  // connCard stays alive and connTableCache stays warm for bandwidth.
-  // Uses recursive setTimeout (seamless interval) so a slow router response never
-  // causes concurrent requests — matching the pattern of all other polling collectors.
-  _scheduleFallbackNext() {
-    if (this._pollTimer) return;
-    this._pollTimer = setTimeout(async () => {
-      this._pollTimer = null;
-      await this._runFallbackTick();
-      this._scheduleFallbackNext();
-    }, this.pollMs); // codeql[js/resource-exhaustion]
-  }
-
-  _startPollFallback() {
-    if (this._pollTimer) return;
-    this._scheduleFallbackNext();
-  }
-
-  _stopPollFallback() {
-    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
-    this._fallbackInflight = false;
-  }
-
-  async _runFallbackTick() {
-    if (!this.ros.connected || this.io.engine.clientsCount === 0) return;
-    if (this._fallbackInflight) return;
-    this._fallbackInflight = true;
-    try {
-      const rows = (await this.ros.write('/ip/firewall/connection/print', [
-        '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
-      ])) || [];
-      if (this.connTableCache) this.connTableCache.deposit(rows, Date.now());
-      this._rowsPrev = rows;
-      await this._processRows(rows);
-    } catch (e) {
-      const msg = String(e && e.message ? e.message : e);
-      if (!msg.includes('no such item')) {
-        this.state.lastConnsErr = msg;
-        console.error(this._lbl + ' fallback poll error:', msg); // codeql[js/tainted-format-string]
-      }
-    } finally {
-      this._fallbackInflight = false;
+    this._rowsPrev = null;      // reset partial-result detection so first batch is always accepted
+    this._partialStreak = 0;
+    if (this._started && this.ros.connected) {
+      this._startWatchdog();    // re-arm watchdog with current pollMs
+      this._startStream();
     }
   }
 
@@ -585,14 +544,9 @@ class ConnectionsCollector {
     this._watchdogTimer = null;
   }
 
-  suspend() { this._stopStream(); this._startPollFallback(); }
+  suspend() { this._stopStream(); }
 
   resume() {
-    if (!this.streamMode) {
-      this._startPollFallback(); // poll mode: keep fallback running, never open stream
-      return;
-    }
-    this._stopPollFallback();
     if (this._started && this.ros.connected) this._startStream();
   }
 
@@ -600,16 +554,13 @@ class ConnectionsCollector {
     this._restarting = false;
     this._stopWatchdog();
     this._stopStream();
-    this._stopPollFallback();
   }
 
-  // start() does NOT open the stream immediately. The stream is opened by
-  // resume(), which is called from index.js when the Connections page is open.
-  // The fallback poll keeps the dashboard connCard and connTableCache warm.
+  // start() does NOT open the stream immediately — resume() opens it when called
+  // by _idleResume() in index.js once clients connect.
   start() {
     this._started = true;
     try { this._debug = !!(settings.load().rosDebug); } catch (_) { this._debug = false; }
-    this._startPollFallback();
     this._startWatchdog();
   }
 }

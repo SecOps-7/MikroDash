@@ -48,9 +48,11 @@ class InterfaceStatusCollector {
     this._ifacesNext = new Map(); // accumulator for current metadata tick
     this._addrsNext  = new Map(); // accumulator for current metadata tick
 
-    this._ifStream     = null;
-    this._addrStream   = null;
-    this._metaDebounce = null;
+    this._ifStream        = null;
+    this._ifRestartTimer  = null;
+    this._addrStream      = null;
+    this._addrRestartTimer = null;
+    this._metaDebounce    = null;
 
     this._monitorStream        = null;
     this._streamRates          = new Map(); // name -> { rxMbps, txMbps }
@@ -61,6 +63,26 @@ class InterfaceStatusCollector {
     this._ratesTimer   = null;
     this._ratesInflight = false;
     this._lastFp       = '';
+
+    this.ros.on('close', () => {
+      this._stopMetaStreams();
+      this._stopMonitorStream();
+      this._stopRatesPoll();
+      this._stopEmitTimer();
+    });
+    this.ros.on('connected', () => {
+      this._stopMetaStreams();
+      this._stopMonitorStream();
+      this._stopRatesPoll();
+      this._stopEmitTimer();
+      this._ifaces.clear();
+      this._addrs.clear();
+      this._streamRates.clear();
+      this._lastFp = '';
+      this._startMetaStreams();
+      this._startEmitTimer();
+      if (!this.streamMode) this._startRatesPoll();
+    });
   }
 
   // ── poll-mode rate path ───────────────────────────────────────────────────
@@ -120,6 +142,8 @@ class InterfaceStatusCollector {
   }
 
   _stopMetaStreams() {
+    if (this._ifRestartTimer)   { clearTimeout(this._ifRestartTimer);   this._ifRestartTimer   = null; }
+    if (this._addrRestartTimer) { clearTimeout(this._addrRestartTimer); this._addrRestartTimer = null; }
     if (this._ifStream)   { try { this._ifStream.stop().catch(() => {}); }   catch (e) {} this._ifStream   = null; }
     if (this._addrStream) { try { this._addrStream.stop().catch(() => {}); } catch (e) {} this._addrStream = null; }
     clearTimeout(this._metaDebounce);
@@ -153,7 +177,12 @@ class InterfaceStatusCollector {
     stream.on('error', (err) => {
       console.error(this._lbl + ' /interface/print stream error:', err && err.message ? err.message : String(err)); // codeql[js/tainted-format-string]
       this._ifStream = null;
-      setTimeout(() => { if (this.ros.connected && !this._ifStream) this._startIfStream(); }, 3000);
+      if (!this._ifRestartTimer) {
+        this._ifRestartTimer = setTimeout(() => {
+          this._ifRestartTimer = null;
+          if (this.ros.connected && !this._ifStream) this._startIfStream();
+        }, 3000);
+      }
     });
     this._ifStream = stream;
   }
@@ -179,7 +208,12 @@ class InterfaceStatusCollector {
     stream.on('error', (err) => {
       console.error(this._lbl + ' /ip/address/print stream error:', err && err.message ? err.message : String(err)); // codeql[js/tainted-format-string]
       this._addrStream = null;
-      setTimeout(() => { if (this.ros.connected && !this._addrStream) this._startAddrStream(); }, 3000);
+      if (!this._addrRestartTimer) {
+        this._addrRestartTimer = setTimeout(() => {
+          this._addrRestartTimer = null;
+          if (this.ros.connected && !this._addrStream) this._startAddrStream();
+        }, 3000);
+      }
     });
     this._addrStream = stream;
   }
@@ -339,26 +373,6 @@ class InterfaceStatusCollector {
     this._startMetaStreams();
     this._startEmitTimer();
     if (!this.streamMode) this._startRatesPoll();
-
-    this.ros.on('close', () => {
-      this._stopMetaStreams();
-      this._stopMonitorStream();
-      this._stopRatesPoll();
-      this._stopEmitTimer();
-    });
-    this.ros.on('connected', () => {
-      this._stopMetaStreams();
-      this._stopMonitorStream();
-      this._stopRatesPoll();
-      this._stopEmitTimer();
-      this._ifaces.clear();
-      this._addrs.clear();
-      this._streamRates.clear();
-      this._lastFp = '';
-      this._startMetaStreams();
-      this._startEmitTimer();
-      if (!this.streamMode) this._startRatesPoll();
-    });
   }
 
   suspend() {

@@ -110,7 +110,8 @@ const SystemCollector = require('../src/collectors/system');
 
 test('system collector parses CPU, memory, and HDD percentages', () => {
   const emitted = [];
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const ros = { connected: true, on() {} };
   const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
   collector._lastUpdateFetch = Date.now();
@@ -133,7 +134,8 @@ test('system collector parses CPU, memory, and HDD percentages', () => {
 
 test('system collector handles zero total memory without division by zero', () => {
   const emitted = [];
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const ros = { connected: true, on() {} };
   const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
   collector._lastUpdateFetch = Date.now();
@@ -149,7 +151,8 @@ test('system collector handles zero total memory without division by zero', () =
 
 test('system collector returns null temperature when health data is missing (virtualized RouterOS)', () => {
   const emitted = [];
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const ros = { connected: true, on() {} };
   const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
   collector._lastUpdateFetch = Date.now();
@@ -162,7 +165,8 @@ test('system collector returns null temperature when health data is missing (vir
 
 test('system collector returns null temperature when health query fails entirely', () => {
   const emitted = [];
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const ros = { connected: true, on() {} };
   const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
   collector._lastUpdateFetch = Date.now();
@@ -177,7 +181,8 @@ test('system collector returns null temperature when health query fails entirely
 
 test('system collector detects no update when versions match', () => {
   const emitted = [];
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const ros = { connected: true, on() {} };
   const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
   collector._lastUpdateFetch = Date.now();
@@ -190,7 +195,8 @@ test('system collector detects no update when versions match', () => {
 
 test('system collector handles health items without temperature name', () => {
   const emitted = [];
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const ros = { connected: true, on() {} };
   const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
   collector._lastUpdateFetch = Date.now();
@@ -203,7 +209,8 @@ test('system collector handles health items without temperature name', () => {
 
 test('system collector includes arch, serial, and license level in payload', () => {
   const emitted = [];
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const ros = { connected: true, on() {} };
   const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
   collector._lastUpdateFetch = Date.now();
@@ -646,7 +653,7 @@ const PingCollector = require('../src/collectors/ping');
 test('ping collector processes reply packets and tracks RTT and loss', () => {
   const emitted = [];
   const ros = { connected: true, on() {} };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
 
   collector._processPacket({ status: 'replied', time: '3ms' });
@@ -661,7 +668,7 @@ test('ping collector processes reply packets and tracks RTT and loss', () => {
 test('ping collector calculates loss percentage', () => {
   const emitted = [];
   const ros = { connected: true, on() {} };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
 
   collector._processPacket({ status: 'replied', time: '3ms' });
@@ -675,7 +682,7 @@ test('ping collector calculates loss percentage', () => {
 test('ping collector returns null rtt and 100% loss on no replies', () => {
   const emitted = [];
   const ros = { connected: true, on() {} };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
 
   collector._processPacket({ status: 'timeout' });
@@ -689,7 +696,7 @@ test('ping collector returns null rtt and 100% loss on no replies', () => {
 test('ping collector parses rtt from response-time field when time is absent', () => {
   const emitted = [];
   const ros = { connected: true, on() {} };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
 
   collector._processPacket({ status: 'replied', 'response-time': '10ms' });
@@ -702,7 +709,7 @@ test('ping collector parses rtt from response-time field when time is absent', (
 
 test('ping collector maintains bounded history', () => {
   const ros = { connected: true, on() {} };
-  const io = { engine: { clientsCount: 1 }, emit() {} };
+  const io = { engine: { clientsCount: 1 }, on() {}, emit() {} };
   const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
 
   for (let i = 0; i < 65; i++) {
@@ -859,7 +866,8 @@ test('vpn collector resolves peer name with fallback chain', async () => {
       { 'last-handshake': '10s', 'rx-bytes': '0', 'tx-bytes': '0' },
     ],
   };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
   await collector._loadInitial();
 
@@ -883,7 +891,8 @@ test('vpn collector detects connected vs idle state', async () => {
       { 'public-key': 'C', 'last-handshake': '', 'rx-bytes': '0', 'tx-bytes': '0' },
     ],
   };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
   await collector._loadInitial();
 
@@ -911,7 +920,8 @@ test('vpn collector calculates rates between polls and prunes stale peers', asyn
     stream: (words, cb) => ({ stop() {} }),
     write: async () => responses[loadNum++],
   };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
 
   await collector._loadInitial();
@@ -935,37 +945,37 @@ test('vpn collector calculates rates between polls and prunes stale peers', asyn
   assert.ok(!collector._prev.has('B'), 'stale peer should be pruned from previous counters');
 });
 
-test('vpn collector: counter poll updates last-handshake and drives live rates', async () => {
+test('vpn collector: counter stream updates last-handshake and drives live rates', async () => {
   // Core regression: /listen stream does not reliably push rx-bytes/tx-bytes/
-  // last-handshake on RouterOS 7. The counter poll (_pollCounters) must fetch
-  // these via /print and emit updated tunnels when they change.
+  // last-handshake on RouterOS 7. The counter stream (_onCounterRecord) must
+  // merge these and emit updated tunnels when they change.
   const emitted = [];
-  let pollNum = 0;
-  // _pollCounters merges row['rx']/row['tx'] (not rx-bytes/tx-bytes) into peers
-  const pollResponses = [
-    [{ 'public-key': 'A', name: 'peer', interface: 'wg0', 'last-handshake': '30s', 'rx': '1000', 'tx': '2000', 'allowed-address': '10.0.0.2/32' }],
-    [{ 'public-key': 'A', name: 'peer', interface: 'wg0', 'last-handshake': '5s',  'rx': '5000', 'tx': '8000', 'allowed-address': '10.0.0.2/32' }],
-  ];
+  const initialPeer = { 'public-key': 'A', name: 'peer', interface: 'wg0', 'last-handshake': '30s', 'rx': '1000', 'tx': '2000', 'allowed-address': '10.0.0.2/32' };
+  const updatedPeer = { 'public-key': 'A', name: 'peer', interface: 'wg0', 'last-handshake': '5s',  'rx': '5000', 'tx': '8000', 'allowed-address': '10.0.0.2/32' };
   const ros = {
     connected: true, on() {},
-    stream: (words, cb) => ({ stop() {} }),
-    write: async () => pollResponses[Math.min(pollNum++, pollResponses.length - 1)],
+    stream: () => ({ stop() {}, on() { return this; } }),
+    write: async () => [initialPeer],
   };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
 
   await collector._loadInitial();
   assert.equal(emitted.length, 1);
   assert.equal(emitted[0].data.tunnels[0].uptime, '30s');
 
-  // Simulate counter poll 2 s later
+  // Simulate counter record arriving 2 s later
   const origNow = Date.now;
   Date.now = () => origNow() + 2000;
-  try { await collector._pollCounters(); } finally { Date.now = origNow; }
+  try {
+    collector._onCounterRecord(updatedPeer);
+    await new Promise(r => setTimeout(r, 100)); // flush 50ms emit debounce
+  } finally { Date.now = origNow; }
 
-  assert.equal(emitted.length, 2, 'counter poll must emit when bytes/handshake change');
+  assert.equal(emitted.length, 2, 'counter record must emit when bytes/handshake change');
   const t = emitted[1].data.tunnels[0];
-  assert.equal(t.uptime, '5s', 'last-handshake updated by counter poll');
+  assert.equal(t.uptime, '5s', 'last-handshake updated by counter record');
   assert.equal(t.rx, 5000, 'rx-bytes updated');
   assert.ok(t.rxRate > 0, 'rxRate positive: ' + t.rxRate);
   assert.ok(t.txRate > 0, 'txRate positive: ' + t.txRate);
@@ -978,7 +988,8 @@ test('vpn collector: _prev.ts not advanced on handshake-only update; rates decay
   Date.now = () => base;
   try {
     const ros = { connected: true, on() {}, stream: (words, cb) => ({ stop() {} }), write: async () => [] };
-    const io = { emit(ev, d) { emitted.push({ ev, d }); } };
+    const _ch = { emit(ev, d) { emitted.push({ ev, d }); } }; _ch.to = () => _ch;
+    const io = { emit(ev, d) { emitted.push({ ev, d }); }, to: () => _ch };
     const collector = new VpnCollector({ ros, io, pollMs: 10000, state: {} });
 
     // Seed _prev 10 s in the past, bytes at 1000/2000
@@ -1001,26 +1012,21 @@ test('vpn collector: _prev.ts not advanced on handshake-only update; rates decay
 // --- Wireless Collector ---
 const WirelessCollector = require('../src/collectors/wireless');
 
-test('wireless collector detects band from RouterOS band field', async () => {
+test('wireless collector detects band from RouterOS band field', () => {
   const emitted = [];
-  const ros = {
-    connected: true,
-    on() {},
-    cfg: {},
-    write: async () => [
-      { 'mac-address': 'AA:BB', interface: 'wifi1', band: '5ghz-n/ac/ax', signal: '-50' },
-      { 'mac-address': 'CC:DD', interface: 'wifi3', band: '6ghz-ax',       signal: '-60' },
-      { 'mac-address': 'EE:FF', interface: 'wlan0', band: '2ghz-b/g/n',    signal: '-70' },
-      { 'mac-address': '11:22', interface: 'wlan0', band: '5ghz-ax',       signal: '-55' },
-    ],
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
     arp: { getByMAC: () => null },
   });
-  await collector.tick();
+  collector._onBatch('wifi', [
+    { 'mac-address': 'AA:BB', interface: 'wifi1', band: '5ghz-n/ac/ax', signal: '-50' },
+    { 'mac-address': 'CC:DD', interface: 'wifi3', band: '6ghz-ax',       signal: '-60' },
+    { 'mac-address': 'EE:FF', interface: 'wlan0', band: '2ghz-b/g/n',    signal: '-70' },
+    { 'mac-address': '11:22', interface: 'wlan0', band: '5ghz-ax',       signal: '-55' },
+  ]);
 
   const clients = emitted[0].data.clients;
   const byMac = Object.fromEntries(clients.map(c => [c.mac, c]));
@@ -1030,49 +1036,37 @@ test('wireless collector detects band from RouterOS band field', async () => {
   assert.equal(byMac['11:22'].band, '5GHz');
 });
 
-test('wireless collector sorts clients by signal strength descending', async () => {
+test('wireless collector sorts clients by signal strength descending', () => {
   const emitted = [];
-  const ros = {
-    connected: true,
-    on() {},
-    cfg: {},
-    write: async () => [
-      { 'mac-address': 'AA:BB', signal: '-70', interface: 'wifi1' },
-      { 'mac-address': 'CC:DD', signal: '-40', interface: 'wifi1' },
-      { 'mac-address': 'EE:FF', signal: '-55', interface: 'wifi1' },
-    ],
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
     arp: { getByMAC: () => null },
   });
-  await collector.tick();
+  collector._onBatch('wifi', [
+    { 'mac-address': 'AA:BB', signal: '-70', interface: 'wifi1' },
+    { 'mac-address': 'CC:DD', signal: '-40', interface: 'wifi1' },
+    { 'mac-address': 'EE:FF', signal: '-55', interface: 'wifi1' },
+  ]);
 
   const macs = emitted[0].data.clients.map(c => c.mac);
   assert.deepEqual(macs, ['CC:DD', 'EE:FF', 'AA:BB']);
 });
 
-test('wireless collector enriches payloads with DHCP names, ARP IPs, and holds absent clients for ABSENCE_THRESHOLD ticks', async () => {
+test('wireless collector enriches payloads with DHCP names, ARP IPs, and holds absent clients for ABSENCE_THRESHOLD ticks', () => {
   const emitted = [];
-  let callNum = 0;
-  const ros = {
-    connected: true,
-    on() {},
-    cfg: {},
-    write: async () => callNum++ === 0
-      ? [{ 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1', 'tx-rate': 'HE-MCS 11 80MHz', ssid: 'Office' }]
-      : [],
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: (mac) => mac === 'AA:BB' ? { name: 'Laptop' } : null },
     arp: { getByMAC: (mac) => mac === 'AA:BB' ? { ip: '192.168.1.20' } : null },
   });
+  const client = { 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1', 'tx-rate': 'HE-MCS 11 80MHz', ssid: 'Office' };
 
-  await collector.tick();                     // tick 1: client present — emits
+  collector._onBatch('wifi', [client]);        // batch 1: client present — emits
   assert.equal(emitted.length, 1);
   assert.equal(emitted[0].data.clients[0].name, 'Laptop');
   assert.equal(emitted[0].data.clients[0].ip, '192.168.1.20');
@@ -1080,122 +1074,102 @@ test('wireless collector enriches payloads with DHCP names, ARP IPs, and holds a
   assert.equal(emitted[0].data.mode, 'wifi');
 
   // Per-MAC absence guard: client must be absent for ABSENCE_THRESHOLD (3)
-  // consecutive ticks before being removed from the emitted list.
-  await collector.tick();   // tick 2: absent tick 1 — held (absentTicks=1)
-  assert.equal(emitted.length, 1, 'absent tick 1 held');
+  // consecutive batches before being removed from the emitted list.
+  collector._onBatch('wifi', []);   // batch 2: absent tick 1 — held (absentTicks=1)
+  assert.equal(emitted.length, 1, 'absent batch 1 held');
   assert.equal(collector._absentTicks.get('AA:BB'), 1);
 
-  await collector.tick();   // tick 3: absent tick 2 — held (absentTicks=2)
-  assert.equal(emitted.length, 1, 'absent tick 2 held');
+  collector._onBatch('wifi', []);   // batch 3: absent tick 2 — held (absentTicks=2)
+  assert.equal(emitted.length, 1, 'absent batch 2 held');
 
-  await collector.tick();   // tick 4: absent tick 3 — authoritative removal, emits []
-  assert.equal(emitted.length, 2, 'removed after 3 absent ticks');
+  collector._onBatch('wifi', []);   // batch 4: absent tick 3 — authoritative removal, emits []
+  assert.equal(emitted.length, 2, 'removed after 3 absent batches');
   assert.deepEqual(emitted[1].data.clients, []);
   assert.equal(emitted[1].data.mode, 'wifi');
   assert.ok(!collector._knownClients.has('AA:BB'), 'client removed from knownClients');
 });
 
-test('wireless collector holds partial result during wifi-qcom re-association (per-MAC absence guard)', async () => {
+test('wireless collector holds partial result during wifi-qcom re-association (per-MAC absence guard)', () => {
   // Simulates HAPax2 wifi-qcom behaviour: physical radios briefly return only
   // the virtual-AP client during re-association. The mightBePartial guard
   // fires when the API returns > 0 but < 50% of known clients (and >= 3 known).
-  // On a partial tick, absence aging is SKIPPED entirely — _absentTicks stays
+  // On a partial batch, absence aging is SKIPPED entirely — _absentTicks stays
   // empty and all known clients are preserved indefinitely until a non-partial
   // result arrives.
   const emitted = [];
-  let callNum = 0;
   const fullList = [
     { 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1' },
     { 'mac-address': 'CC:DD', signal: '-65', interface: 'wifi2' },
     { 'mac-address': 'EE:FF', signal: '-70', interface: 'wifi3-virt' },
   ];
   const partial = [{ 'mac-address': 'EE:FF', signal: '-70', interface: 'wifi3-virt' }];
-  const ros = {
-    connected: true, on() {}, cfg: {},
-    write: async () => callNum++ === 0 ? fullList : partial,
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const state = {};
   const collector = new WirelessCollector({ ros, io, pollMs: 5000, state, dhcpLeases: null, arp: null });
 
-  await collector.tick();   // tick 1: 3 clients (full) — emits
-  assert.equal(emitted[0].data.clients.length, 3, 'all 3 clients on tick 1');
+  collector._onBatch('wifi', fullList);   // batch 1: 3 clients (full) — emits
+  assert.equal(emitted[0].data.clients.length, 3, 'all 3 clients on batch 1');
 
-  await collector.tick();   // tick 2: partial (1/3 < 50%) — mightBePartial=true, aging SKIPPED
-  assert.equal(emitted.length, 1, 'no new emit on partial tick (clients unchanged)');
-  assert.equal(collector._absentTicks.size, 0, 'absence aging skipped on partial tick');
+  collector._onBatch('wifi', partial);    // batch 2: partial (1/3 < 50%) — mightBePartial=true, aging SKIPPED
+  assert.equal(emitted.length, 1, 'no new emit on partial batch (clients unchanged)');
+  assert.equal(collector._absentTicks.size, 0, 'absence aging skipped on partial batch');
   assert.ok(collector._knownClients.has('AA:BB'), 'AA:BB still held during partial');
   assert.ok(collector._knownClients.has('CC:DD'), 'CC:DD still held during partial');
 
-  await collector.tick();   // tick 3: partial — aging still skipped
-  assert.equal(emitted.length, 1, 'still no extra emit on second partial tick');
+  collector._onBatch('wifi', partial);    // batch 3: partial — aging still skipped
+  assert.equal(emitted.length, 1, 'still no extra emit on second partial batch');
   assert.equal(collector._absentTicks.size, 0, 'still no absence ticks');
 
-  // stale timer must be heartbeated throughout
   assert.ok(state.lastWirelessTs > 0, 'lastWirelessTs updated during hold');
 });
 
-test('wireless collector: client that reappears before eviction resets its absence counter', async () => {
+test('wireless collector: client that reappears before eviction resets its absence counter', () => {
   // Ensures that a client which briefly disappears then returns is not evicted.
-  // Also covers the "appear briefly then disappear" regression: a client that
-  // returns on tick 3 must NOT be immediately re-added to the emit and then
-  // evicted on tick 4 — the knownClients map prevents double-flash.
   const emitted = [];
-  let callNum = 0;
   const seq = [
-    [{ 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1' }], // tick 1: present
-    [],                                                                // tick 2: absent (1)
-    [{ 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1' }], // tick 3: returns — reset
-    [],                                                                // tick 4: absent (1) again — held
-    [],                                                                // tick 5: absent (2) — held
-    [],                                                                // tick 6: absent (3) — evicted
+    [{ 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1' }], // batch 1: present
+    [],                                                                // batch 2: absent (1)
+    [{ 'mac-address': 'AA:BB', signal: '-55', interface: 'wifi1' }], // batch 3: returns — reset
+    [],                                                                // batch 4: absent (1) again — held
+    [],                                                                // batch 5: absent (2) — held
+    [],                                                                // batch 6: absent (3) — evicted
   ];
-  const ros = {
-    connected: true, on() {}, cfg: {},
-    write: async () => seq[Math.min(callNum++, seq.length - 1)],
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
 
-  await collector.tick();   // tick 1: present
+  collector._onBatch('wifi', seq[0]);   // batch 1: present
   assert.equal(collector._absentTicks.has('AA:BB'), false, 'no absent entry when present');
 
-  await collector.tick();   // tick 2: absent (1)
+  collector._onBatch('wifi', seq[1]);   // batch 2: absent (1)
   assert.equal(collector._absentTicks.get('AA:BB'), 1);
   assert.ok(collector._knownClients.has('AA:BB'), 'still in knownClients at absent=1');
 
-  await collector.tick();   // tick 3: returns — counter reset
+  collector._onBatch('wifi', seq[2]);   // batch 3: returns — counter reset
   assert.equal(collector._absentTicks.has('AA:BB'), false, 'absent counter cleared on return');
   assert.ok(collector._knownClients.has('AA:BB'), 'still in knownClients after return');
 
-  await collector.tick();   // tick 4: absent (1) fresh
+  collector._onBatch('wifi', seq[3]);   // batch 4: absent (1) fresh
   assert.equal(collector._absentTicks.get('AA:BB'), 1, 'fresh absent counter');
 
-  await collector.tick();   // tick 5: absent (2)
+  collector._onBatch('wifi', seq[4]);   // batch 5: absent (2)
   assert.ok(collector._knownClients.has('AA:BB'), 'still held at absent=2');
 
-  await collector.tick();   // tick 6: absent (3) — evicted
+  collector._onBatch('wifi', seq[5]);   // batch 6: absent (3) — evicted
   assert.ok(!collector._knownClients.has('AA:BB'), 'evicted at absent=3');
   const lastEmit = emitted[emitted.length - 1];
   assert.deepEqual(lastEmit.data.clients, [], 'empty clients emitted on eviction');
 });
 
-test('wireless collector merges CAPsMAN clients when _capsmanAvailable is true', async () => {
+test('wireless collector merges CAPsMAN clients when _capsmanAvailable is true', () => {
   const emitted = [];
-  const ros = {
-    connected: true, on() {}, cfg: {},
-    write: async (cmd) => {
-      if (cmd.includes('/interface/wifi/'))     return [];
-      if (cmd.includes('/interface/wireless/')) return [];
-      if (cmd.includes('/caps-man/'))           return [{ 'mac-address': 'CA:PM:AN:01:02:03', 'rx-signal': '-62', interface: 'ap1-2g', 'tx-rate-set': '54Mbps', uptime: '30m' }];
-      return [];
-    },
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
   collector._capsmanAvailable = true;
 
-  await collector.tick();
+  collector._onBatch('capsman', [{ 'mac-address': 'CA:PM:AN:01:02:03', 'rx-signal': '-62', interface: 'ap1-2g', 'tx-rate-set': '54Mbps', uptime: '30m' }]);
 
   assert.equal(emitted.length, 1, 'one emit');
   assert.equal(emitted[0].ev, 'wireless:update');
@@ -1209,25 +1183,19 @@ test('wireless collector merges CAPsMAN clients when _capsmanAvailable is true',
   assert.equal(emitted[0].data.capsmanAvailable, true);
 });
 
-test('wireless collector band inference from CAPsMAN interface name suffixes', async () => {
+test('wireless collector band inference from CAPsMAN interface name suffixes', () => {
   const emitted = [];
-  const ros = {
-    connected: true, on() {}, cfg: {},
-    write: async (cmd) => {
-      if (cmd.includes('/caps-man/')) return [
-        { 'mac-address': 'AA:00:00:00:00:01', 'rx-signal': '-50', interface: 'ap-2g',  uptime: '1m' },
-        { 'mac-address': 'AA:00:00:00:00:02', 'rx-signal': '-50', interface: 'ap-5g',  uptime: '1m' },
-        { 'mac-address': 'AA:00:00:00:00:03', 'rx-signal': '-50', interface: 'ap-6g',  uptime: '1m' },
-        { 'mac-address': 'AA:00:00:00:00:04', 'rx-signal': '-50', interface: 'ap-lan', uptime: '1m' },
-      ];
-      return [];
-    },
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
   collector._capsmanAvailable = true;
 
-  await collector.tick();
+  collector._onBatch('capsman', [
+    { 'mac-address': 'AA:00:00:00:00:01', 'rx-signal': '-50', interface: 'ap-2g',  uptime: '1m' },
+    { 'mac-address': 'AA:00:00:00:00:02', 'rx-signal': '-50', interface: 'ap-5g',  uptime: '1m' },
+    { 'mac-address': 'AA:00:00:00:00:03', 'rx-signal': '-50', interface: 'ap-6g',  uptime: '1m' },
+    { 'mac-address': 'AA:00:00:00:00:04', 'rx-signal': '-50', interface: 'ap-lan', uptime: '1m' },
+  ]);
 
   const byMac = {};
   emitted[0].data.clients.forEach(function(c){ byMac[c.mac] = c; });
@@ -1237,43 +1205,30 @@ test('wireless collector band inference from CAPsMAN interface name suffixes', a
   assert.equal(byMac['AA:00:00:00:00:04'].band, '', 'no band for unrecognised suffix');
 });
 
-test('wireless collector does not duplicate client when MAC appears in both local wireless and CAPsMAN', async () => {
+test('wireless collector does not duplicate client when MAC appears in both local wireless and CAPsMAN', () => {
   const emitted = [];
-  const ros = {
-    connected: true, on() {}, cfg: {},
-    write: async (cmd) => {
-      if (cmd.includes('/interface/wifi/')) return [{ 'mac-address': 'DD:DD:DD:DD:DD:DD', signal: '-40', interface: 'wlan1', band: '5GHz' }];
-      if (cmd.includes('/caps-man/'))       return [{ 'mac-address': 'DD:DD:DD:DD:DD:DD', 'rx-signal': '-40', interface: 'ap-5g', uptime: '1m' }];
-      return [];
-    },
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
-  collector._capsmanAvailable = true;
-
-  await collector.tick();
+  collector.mode = 'wifi';
+  collector._lastCapsmanBatch = [{ 'mac-address': 'DD:DD:DD:DD:DD:DD', 'rx-signal': '-40', interface: 'ap-5g', uptime: '1m', _capsman: true }];
+  collector._onBatch('wifi', [{ 'mac-address': 'DD:DD:DD:DD:DD:DD', signal: '-40', interface: 'wlan1', band: '5GHz' }]);
 
   const clients = emitted[0].data.clients;
   assert.equal(clients.length, 1, 'MAC deduplicated — local wireless wins');
   assert.equal(clients[0].source, undefined, 'local wireless client has no capsman source tag');
 });
 
-test('wireless collector filters out Ethernet interface rows with no wireless-specific fields', async () => {
+test('wireless collector filters out Ethernet interface rows with no wireless-specific fields', () => {
   const emitted = [];
-  const ros = {
-    connected: true, on() {}, cfg: {},
-    write: async (cmd) => {
-      if (cmd.includes('/interface/wifi/')) return [];
-      if (cmd.includes('/interface/wireless/')) return [
-        { 'mac-address': 'AA:BB:CC:DD:EE:01', name: 'ether1', type: 'ether' },
-        { 'mac-address': 'AA:BB:CC:DD:EE:02', interface: 'wlan1', 'signal-strength': '-55', ssid: 'MyNet' },
-      ];
-      throw new Error('no such command');
-    },
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new WirelessCollector({ ros, io, pollMs: 5000, state: {}, dhcpLeases: null, arp: null });
-  await collector.tick(true);
+  collector.mode = 'wireless';
+  collector._onBatch('wireless', [
+    { 'mac-address': 'AA:BB:CC:DD:EE:01', name: 'ether1', type: 'ether' },
+    { 'mac-address': 'AA:BB:CC:DD:EE:02', interface: 'wlan1', 'signal-strength': '-55', ssid: 'MyNet' },
+  ]);
   assert.equal(emitted.length, 1, 'one emit');
   assert.equal(emitted[0].data.clients.length, 1, 'Ethernet row filtered out');
   assert.equal(emitted[0].data.clients[0].mac, 'AA:BB:CC:DD:EE:02', 'only real wireless client kept');
@@ -1410,7 +1365,8 @@ test('interface status collector normalizes booleans and computes Mbps', () => {
   // streams into _ifaces, _addrs, and _streamRates maps; _buildAndEmit() reads them.
   const emitted = [];
   const ros = { connected: true, on() {}, stream: () => ({ stop() {} }) };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
 
   // Populate as the metadata and monitor-traffic streams would
@@ -1438,7 +1394,8 @@ test('interface status collector clamps malformed throughput fields to zero', ()
   // When no _streamRates entry exists the default {rxMbps:0,txMbps:0} applies.
   const emitted = [];
   const ros = { connected: true, on() {}, stream: () => ({ stop() {} }) };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
   const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
 
   collector._ifaces.set('ether1', { name: 'ether1', running: 'true', disabled: 'false' });
@@ -1526,7 +1483,7 @@ test('dhcp networks collector counts leases per CIDR and extracts WAN IP', async
     getActiveLeaseIPs: () => ['192.168.1.10', '192.168.1.11', '10.0.0.5'], getAllLeaseIPs: () => ['192.168.1.10', '192.168.1.11', '10.0.0.5'],
   };
   const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: leases, state: {}, wanIface: 'WAN1' });
-  await collector.tick();
+  await collector._fetchOnce();
 
   const d = emitted[0].data;
   assert.deepEqual(d.lanCidrs, ['192.168.1.0/24', '10.0.0.0/24']);
@@ -1548,7 +1505,7 @@ test('dhcp networks collector handles one query failing gracefully', async () =>
   };
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] }, state: {}, wanIface: 'WAN1' });
-  await collector.tick();
+  await collector._fetchOnce();
 
   assert.equal(emitted[0].data.networks.length, 0);
   assert.equal(emitted[0].data.wanIp, '1.2.3.4/30');
@@ -1568,7 +1525,7 @@ test('dhcp networks collector clears WAN IP when the configured WAN interface is
   const state = { lastWanIp: '203.0.113.5/30' };
   const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] }, state, wanIface: 'WAN1' });
-  await collector.tick();
+  await collector._fetchOnce();
 
   assert.equal(emitted[0].data.wanIp, '');
   assert.equal(state.lastWanIp, '');
@@ -1985,68 +1942,48 @@ test('routing collector sets pollMs=0 to signal stream-based delivery', async ()
 
 // ── Wireless: proplist removal fixes single-client bug ───────────────────────
 
-test('wireless collector returns all clients without =.proplist= restriction', async () => {
+test('wireless collector returns all clients without =.proplist= restriction', () => {
   const WirelessCollector = require('../src/collectors/wireless');
   const emitted = [];
-  const ros = {
-    connected: true, cfg: {}, on() {},
-    write: async (cmd) => {
-      if (cmd.includes('/interface/wifi/')) return [
-        { 'mac-address': 'AA:01', 'signal-strength': '-55', interface: 'wifi1', band: '5ghz', uptime: '1h' },
-        { 'mac-address': 'AA:02', 'signal-strength': '-65', interface: 'wifi1', band: '5ghz', uptime: '30m' },
-        { 'mac-address': 'AA:03', 'signal-strength': '-70', interface: 'wifi2', band: '2.4ghz', uptime: '15m' },
-      ];
-      return [];
-    },
-  };
   const collector = new WirelessCollector({
-    ros, io: { engine: { clientsCount: 1 }, emit(ev, d) { emitted.push({ ev, data: d }); } }, pollMs: 5000, state: {},
+    ros: { connected: true, on() {} },
+    io: { emit(ev, d) { emitted.push({ ev, data: d }); } }, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
     arp: { getByMAC: () => null },
   });
-  await collector.tick();
+  collector._onBatch('wifi', [
+    { 'mac-address': 'AA:01', 'signal-strength': '-55', interface: 'wifi1', band: '5ghz', uptime: '1h' },
+    { 'mac-address': 'AA:02', 'signal-strength': '-65', interface: 'wifi1', band: '5ghz', uptime: '30m' },
+    { 'mac-address': 'AA:03', 'signal-strength': '-70', interface: 'wifi2', band: '2.4ghz', uptime: '15m' },
+  ]);
   assert.equal(emitted[0].data.clients.length, 3, 'all 3 clients present');
   assert.equal(collector.mode, 'wifi');
 });
 
-test('wireless collector write call contains no =.proplist= parameter', async () => {
+test('wireless collector stream commands contain no =.proplist= restriction', () => {
   const WirelessCollector = require('../src/collectors/wireless');
-  const writeCalls = [];
+  const streamCalls = [];
   const ros = {
-    connected: true, cfg: {}, on() {},
-    write: async (cmd, params) => { writeCalls.push({ cmd, params: params || [] }); return []; },
+    connected: true, on() {},
+    stream: (words) => { streamCalls.push(words); return { stop() {}, on() {} }; },
   };
   const collector = new WirelessCollector({
-    ros, io: { engine: { clientsCount: 1 }, emit() {} }, pollMs: 5000, state: {},
-    dhcpLeases: { getNameByMAC: () => null },
-    arp: { getByMAC: () => null },
+    ros, io: { emit() {} }, pollMs: 5000, state: {},
+    dhcpLeases: null, arp: null,
   });
-  await collector.tick();
-  for (const call of writeCalls) {
-    const hasProplst = call.params.some(p => String(p).includes('.proplist'));
-    assert.ok(!hasProplst, `no .proplist in write params for ${call.cmd}`);
-  }
+  collector._startStream('wifi');
+  assert.equal(streamCalls.length, 1);
+  const hasProplst = streamCalls[0].some(p => String(p).includes('.proplist'));
+  assert.ok(!hasProplst, 'no .proplist in wifi stream command');
 });
 
-test('wireless collector resolves name on second tick when DHCP loads after first tick', async () => {
-  // Regression: names are empty on the first tick because DHCP hasn't loaded yet.
+test('wireless collector resolves name after DHCP loads without a new RouterOS call', async () => {
   // The collector schedules a 500ms retry that re-resolves names from the already-
-  // fetched client list WITHOUT making a second RouterOS API call (some firmware
-  // builds return only partial results when queried soon after startup).
+  // held client list WITHOUT making any new RouterOS API call.
   const emitted = [];
-  let writeCalls = 0;
   let leasesReady = false;
-  const ros = {
-    connected: true, cfg: {}, on() {},
-    write: async () => {
-      writeCalls++;
-      return [
-        { 'mac-address': 'AA:BB', signal: '-50', interface: 'wifi1' },
-        { 'mac-address': 'CC:DD', signal: '-60', interface: 'wifi1' },
-      ];
-    },
-  };
-  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); } };
+  const ros = { connected: true, on() {} };
+  const io = { emit(ev, data) { emitted.push({ ev, data }); } };
   const dhcpLeases = {
     getNameByMAC: (mac) => {
       if (!leasesReady) return null;
@@ -2061,19 +1998,20 @@ test('wireless collector resolves name on second tick when DHCP loads after firs
     arp: { getByMAC: () => null },
   });
 
-  // First tick — DHCP not ready, both clients have empty names
-  await collector.tick();
-  const writeCallsAfterTick1 = writeCalls;
-  assert.equal(emitted.length, 1, 'first tick emits');
+  // First batch — DHCP not ready, both clients have empty names
+  collector._onBatch('wifi', [
+    { 'mac-address': 'AA:BB', signal: '-50', interface: 'wifi1' },
+    { 'mac-address': 'CC:DD', signal: '-60', interface: 'wifi1' },
+  ]);
+  assert.equal(emitted.length, 1, 'first batch emits');
   assert.equal(emitted[0].data.clients.length, 2, 'all clients present on first emit');
   assert.equal(emitted[0].data.clients[0].name, '', 'names empty before DHCP loads');
   assert.ok(collector._retryTimer, 'retry timer scheduled');
 
-  // DHCP now available — retry fires within 500ms without a new API call
+  // DHCP now available — retry fires within 500ms without a new RouterOS call
   leasesReady = true;
   await new Promise(r => setTimeout(r, 600));
 
-  assert.equal(writeCalls, writeCallsAfterTick1, 'retry must not make a second RouterOS API call');
   assert.equal(emitted.length, 2, 'retry emits updated names');
   assert.equal(emitted[1].data.clients.length, 2, 'all clients still present after retry');
   assert.equal(emitted[1].data.clients[0].name, 'Laptop', 'first client name resolved');

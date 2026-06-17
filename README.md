@@ -198,7 +198,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 |---|---|
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. Test Connection validates credentials before saving. The active router is selected from the dropdown in the page header |
 | Authentication | Auth mode (`none` / `modern` cookie sessions). In `modern` mode: manage user accounts with `admin`/`viewer` roles, optional per-user router restrictions, and a configurable session timeout. Passwords are scrypt-hashed |
-| Poll Intervals | Per-collector update intervals — controls the push rate for interval-streamed collectors and the poll frequency for polled collectors. Changes apply immediately without restart. Pure event-driven collectors (ARP, Routing, DHCP Leases, Firewall rule changes) show an Event-driven badge instead of a slider |
+| Poll Intervals | Per-collector update intervals with **Polling Profile** preset buttons (Fast / Faster / Standard / Slow / Slower / Custom). Drag any slider to enter Custom mode; **Save Custom Profile** persists your values as a reusable template. Changes apply immediately without restart. Pure event-driven collectors (ARP, Routing, DHCP Leases, Firewall rule changes) show an Event-driven badge instead of a slider |
 | Collection Method | Per-collector toggle between **Stream** (RouterOS pushes data continuously via `=interval=N`) and **Poll** (one-shot request every poll interval). Covers System/Gauges, Ping, Connections, Top Talkers, and Interface Rates. Switch individual collectors to Poll on CHR/VM routers with limited API handler threads (typically 2–4). Traffic is always streamed. Changes apply immediately |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
@@ -316,11 +316,11 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 ### Polled (concurrent via tagged API multiplexing)
 | Collector | Default interval | Data |
 |---|---|---|
-| Bandwidth | 5 s | Per-connection live RX/TX/Total Mbps (reads from the shared connection-table cache populated by the Connections stream) |
-| VPN counters | 10 s | WireGuard per-peer byte counter refresh for live rates |
+| Bandwidth | 3 s | Per-connection live RX/TX/Total Mbps (reads from the shared connection-table cache populated by the Connections stream) |
+| VPN counters | 5 s | WireGuard per-peer byte counter refresh for live rates |
 | Firewall counters | 5 s | Packet/byte counter refresh for all firewall rules (RouterOS 7.x does not push counter updates via the listen stream) |
 | Wireless | 30 s | Wireless client list |
-| DHCP Networks | 5 min | LAN subnets, pool sizes, WAN IP, internet-facing interfaces |
+| DHCP Networks | ~5 min | LAN subnets, pool sizes, WAN IP, internet-facing interfaces |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
 
