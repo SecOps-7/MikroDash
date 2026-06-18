@@ -44,7 +44,7 @@
     html,body{height:100%;margin:0}
     body{background:var(--bg-deep);background-image:radial-gradient(ellipse 900px 600px at 10% 0%,rgba(56,189,248,.05) 0%,transparent 70%),radial-gradient(ellipse 600px 400px at 90% 80%,rgba(52,211,153,.04) 0%,transparent 70%);font-family:var(--font-ui);display:flex;min-height:100vh;color:var(--text-main)}
     /* sidenav */
-    #sidenav{position:fixed;left:0;top:0;bottom:0;z-index:200;width:var(--nav-w);background:var(--nav-bg);border-right:1px solid var(--border);backdrop-filter:blur(12px);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1)}
+    #sidenav{position:fixed;left:0;top:0;bottom:0;z-index:200;width:var(--nav-w);background:var(--nav-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1)}
     #sidenav:hover{width:var(--nav-w-open)}
     .nav-logo{height:52px;display:flex;align-items:center;justify-content:flex-start;padding:0 14px;gap:.55rem;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
     .nav-logo img{width:24px;height:24px;object-fit:contain;flex-shrink:0;border-radius:4px}
@@ -67,7 +67,7 @@
     /* main */
     #main{margin-left:var(--nav-w);flex:1;min-width:0;display:flex;flex-direction:column}
     /* topbar */
-    #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);backdrop-filter:blur(10px);flex-shrink:0;position:sticky;top:0;z-index:100}
+    #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:100}
     #topbarLogo{font-family:var(--font-ui);font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap}
     #topbarLogo span{color:var(--accent-rx)}
     .topbar-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
@@ -79,7 +79,7 @@
     #themeToggle:hover{color:var(--accent-rx);background:rgba(56,189,248,.1)}
     #themeToggle svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     /* kbd hint */
-    #kbdHint{position:fixed;bottom:.85rem;right:.85rem;z-index:400;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;font-family:var(--font-mono);font-size:.66rem;color:var(--text-muted);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .25s}
+    #kbdHint{position:fixed;bottom:.85rem;right:.85rem;z-index:400;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;font-family:var(--font-mono);font-size:.66rem;color:var(--text-muted);opacity:0;pointer-events:none;transition:opacity .25s}
     #kbdHint.show{opacity:1}
     kbd{background:rgba(99,130,190,.12);border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:.65rem;font-family:var(--font-mono)}
     /* reconnect */
@@ -181,7 +181,7 @@
     .sbtn-danger:hover{background:rgba(248,113,113,.22)}
     .sbtn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
     .sbtn-ghost:hover{color:var(--text-main);border-color:var(--text-muted)}
-    .scard{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden;backdrop-filter:blur(6px);box-shadow:0 4px 24px rgba(0,0,0,.18)}
+    .scard{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.18)}
     .scard-header{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
     .scard-title{font-size:.78rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em;flex:1}
     .scard-body{padding:.9rem 1rem}
@@ -209,7 +209,7 @@
     .swatch-name{font-family:var(--font-mono);font-size:.6rem;color:var(--text-muted);text-align:center;line-height:1.3}
     .page-view.active{display:block}
     /* cards */
-    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.25);backdrop-filter:blur(6px);position:relative}
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.25);position:relative}
     .card-header{border-bottom:1px solid var(--border);padding:.65rem 1rem}
     .card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin:0}
     /* stale */
@@ -385,11 +385,13 @@
     .fw-action-bar-wrap{flex:1;height:6px;background:rgba(99,130,190,.1);border-radius:3px;overflow:hidden}
     .fw-action-bar{height:100%;border-radius:3px;background:var(--accent-rx);transition:width .4s ease}
     .fw-action-count{font-size:.65rem;font-family:var(--font-mono);color:var(--text-muted);min-width:1.8rem;text-align:right}
-    /* Activity sparkline */
-    .fw-activity-wrap{display:flex;flex-direction:column;gap:.4rem}
-    .fw-activity-total{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
-    .fw-activity-sub{font-size:.65rem;color:var(--text-muted);font-family:var(--font-ui);margin-top:.1rem}
-    .fw-spark-wrap{margin-top:.3rem}
+    /* Chain Count vertical bar chart */
+    .fw-vbar-bars{display:flex;gap:.5rem;align-items:stretch;flex:1;min-height:0}
+    .fw-vbar-col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+    .fw-vbar-count{font-size:.68rem;font-family:var(--font-mono);color:var(--text-muted);line-height:1;margin-bottom:.15rem;flex-shrink:0}
+    .fw-vbar{width:60%;border-radius:2px 2px 0 0;min-height:2px;flex-shrink:0}
+    .fw-vbar-labels{display:flex;gap:.5rem;flex-shrink:0;margin-top:.3rem}
+    .fw-vbar-label{flex:1;font-size:.72rem;color:var(--text-muted);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
     /* Delta pulse on active rows */
     .fw-delta-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent-rx);margin-right:.35rem;vertical-align:middle;animation:fw-pulse 1s ease-out forwards}
     @keyframes fw-pulse{0%{opacity:1;transform:scale(1.4)}100%{opacity:.3;transform:scale(1)}}
@@ -1886,16 +1888,10 @@
           </div>
         </div>
 
-        <!-- Activity -->
-        <div class="fw-scard">
-          <div class="fw-scard-title">Total Hits</div>
-          <div class="fw-activity-wrap">
-            <div class="fw-activity-total" id="fwTotalPackets">—</div>
-            <div class="fw-activity-sub" id="fwTotalBytes"></div>
-            <div class="fw-spark-wrap">
-              <canvas id="fwSparkCanvas" width="180" height="32" style="width:100%;height:32px;display:block"></canvas>
-            </div>
-          </div>
+        <!-- Chain Count -->
+        <div class="fw-scard" style="display:flex;flex-direction:column">
+          <div class="fw-scard-title">Chain Count</div>
+          <div id="fwChainCount" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
         </div>
 
       </div>
@@ -1905,8 +1901,7 @@
         <div class="stale-overlay">&#9679; stale</div>
         <div class="card-body p-0">
           <div class="fw-tabs">
-            <div class="fw-tab active" data-fw="top">Top Hits</div>
-            <div class="fw-tab" data-fw="filter">Filter</div>
+            <div class="fw-tab active" data-fw="filter">Filter</div>
             <div class="fw-tab" data-fw="nat">NAT</div>
             <div class="fw-tab" data-fw="mangle">Mangle</div>
             <div class="fw-tab" data-fw="raw">Raw</div>

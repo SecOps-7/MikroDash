@@ -360,7 +360,7 @@ function buildSession(routerCfg, routerIo) {
   const system       = new SystemCollector      ({ros, io:routerIo, pollMs:_cfg.pollSystem,   state, streamMode:_cfg.streamSystem});
   const wireless     = new WirelessCollector    ({ros, io:routerIo, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
   const vpn          = new VpnCollector         ({ros, io:routerIo, pollMs:_cfg.pollVpn,      state, rid:routerCfg.id});
-  const firewall     = new FirewallCollector    ({ros, io:routerIo, pollMs:_cfg.pollFirewall,  state, topN:_cfg.firewallTopN});
+  const firewall     = new FirewallCollector    ({ros, io:routerIo, pollMs:_cfg.pollFirewall,  state});
   const ifStatus     = new InterfaceStatusCollector({ros, io:routerIo, pollMs:_cfg.pollIfstatus, metaPollMs:_cfg.pollIfaces, state, streamMode:_cfg.streamIfrates});
   const ping         = new PingCollector        ({ros, io:routerIo, pollMs:_cfg.pollPing,     state, target:PING_TARGET, streamMode:_cfg.streamPing});
   const bandwidth    = new BandwidthCollector   ({ros, io:routerIo, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache});
@@ -1194,11 +1194,11 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
       s.ifStatus._restartMetaStreams();
     }
 
-    // pollFirewall controls the counter stream interval — restart it live
+    // pollFirewall controls the table stream interval — restart it live
     if ('pollFirewall' in updates && s.firewall) {
       s.firewall.pollMs = saved.pollFirewall;
-      s.firewall._stopCounterStreams();
-      s.firewall._startCounterStreams();
+      s.firewall._stopTableStream();
+      s.firewall._startTableStream(s.firewall._activeTable);
     }
 
     // pollVpn controls the VPN counter stream interval — restart it live
@@ -1242,10 +1242,6 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
       if ('topTalkersN' in updates && s.talkers) {
         s.talkers.topN = saved.topTalkersN;
         s.talkers._lastFp = '';
-      }
-      if ('firewallTopN' in updates && s.firewall) {
-        s.firewall.topN = saved.firewallTopN;
-        s.firewall._lastFp = '';
       }
       if ('maxConns' in updates && s.conns) {
         s.conns.maxConns = saved.maxConns;
@@ -1377,24 +1373,59 @@ app.put('/api/routers/:id', _requireAdmin, (req, res) => {
   }
 });
 
-// DELETE /api/routers/:id — delete a router (cannot delete the active router)
+// DELETE /api/routers/:id — delete a router (active router may also be deleted)
 app.delete('/api/routers/:id', _requireAdmin, async (req, res) => {
   try {
-    const _cfg = Settings.load();
-    if (req.params.id === _cfg.activeRouterId) {
-      return res.status(409).json({ ok:false, error:'Cannot delete the active router. Switch to a different router first.' });
-    }
-    const deleted = Routers.remove(req.params.id);
+    const deletedId  = req.params.id;
+    const _cfg       = Settings.load();
+    const wasActive  = deletedId === _cfg.activeRouterId;
+
+    const deleted = Routers.remove(deletedId);
     if (!deleted) return res.status(404).json({ ok:false, error:'Router not found' });
+
     // Tear down any live pool session for the deleted router.
-    const _deletedEntry = _routerSessions.get(req.params.id);
+    const _deletedEntry = _routerSessions.get(deletedId);
     if (_deletedEntry) {
       if (_deletedEntry.idleTimer) { clearTimeout(_deletedEntry.idleTimer); _deletedEntry.idleTimer = null; }
       await teardownSession(_deletedEntry.session, _deletedEntry);
-      _routerSessions.delete(req.params.id);
+      _routerSessions.delete(deletedId);
     }
+
+    // Purge all historical data for the removed router.
+    db.deleteRouterData(deletedId);
+
     // Drop any pool evaluator/alertSession state for the removed router.
-    alerter.dropEvaluator(req.params.id);
+    alerter.dropEvaluator(deletedId);
+
+    if (wasActive) {
+      const remaining = Routers.loadAll();
+      if (remaining.length > 0) {
+        // Auto-promote the first remaining router.
+        const nextId = remaining[0].id;
+        Settings.save({ activeRouterId: nextId });
+        _cfg.activeRouterId = nextId;
+        _noRouterMode = false;
+        // Move non-modern-auth sockets to the new router room.
+        for (const [, socket] of io.sockets.sockets) {
+          if (!socket.request?._authSession) {
+            if (socket.routerId && socket.routerId !== nextId) {
+              socket.leave('router-' + socket.routerId);
+              socket.routerId = nextId;
+              socket.join('router-' + nextId);
+            }
+          }
+        }
+        ensureRouterSession(nextId);
+        // Notify clients of the new active router.
+        io.to('router-' + nextId).emit('router:active', { activeId: nextId });
+      } else {
+        // No routers left — show setup wizard.
+        _noRouterMode = true;
+        io.emit('setup:required', {});
+        io.emit('routers:update', []);
+      }
+    }
+
     _broadcastRoutersList();
     _syncAlertSessions();
     _syncOverviewSessions();
@@ -2290,7 +2321,7 @@ function _emitDiagnostics(session, rid, socket) {
     { name: 'netwatch',     streams: s.netwatch._stream      ? 1 : 0 },
     { name: 'wireless',     streams: countObj(s.wireless._streams) },
     { name: 'vpn',          streams: (s.vpn._stream?1:0)+(s.vpn._counterStream?1:0) },
-    { name: 'firewall',     streams: countObj(s.firewall._streams)+countObj(s.firewall._counterStreams) },
+    { name: 'firewall',     streams: s.firewall._tableStream ? 1 : 0 },
     { name: 'dhcpNetworks', streams: countObj(s.dhcpNetworks._streams) },
     { name: 'ifStatus',     streams: (s.ifStatus._ifStream?1:0)+(s.ifStatus._addrStream?1:0)+(s.ifStatus._monitorStream?1:0) },
     { name: 'routing',      streams: (s.routing._routeStream?1:0)+(s.routing._ipv6Stream?1:0)+(s.routing._bgpStream?1:0) },
@@ -2472,6 +2503,14 @@ io.on('connection', (socket) => {
       const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-dash-card-diagnostics')?.size || 0;
       if (!viewers && e._diagTimer) { clearInterval(e._diagTimer); e._diagTimer = null; }
     }
+  });
+
+  // Active firewall tab — switch the single table stream to the selected table.
+  socket.on('firewall:tab', (table) => {
+    if (!['filter', 'nat', 'mangle', 'raw'].includes(table)) return;
+    const rid = socket.routerId;
+    const e = rid ? _routerSessions.get(rid) : null;
+    if (e && e.session && e.session.firewall) e.session.firewall.setActiveTable(table);
   });
 
   // Per-user router switching (modern auth only).

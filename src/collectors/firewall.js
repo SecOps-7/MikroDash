@@ -1,49 +1,44 @@
 /**
- * Firewall collector — hybrid stream + counter stream.
+ * Firewall collector — single interval-based stream for the active tab.
  *
- * /ip/firewall/{filter,nat,mangle,raw}/listen handles structural changes (rules
- * added, removed, enabled/disabled, reordered). On RouterOS builds that also
- * push counter updates via the stream, _applyUpdate merges them correctly.
- * On builds that do NOT push counter updates (most v7 stable builds), a
- * separate =interval=N counter stream re-fetches packet/byte counts directly.
- * This guarantees live counters regardless of RouterOS version.
+ * One /ip/firewall/<table>/print =interval=N stream runs at a time, covering
+ * the tab currently open in the browser. RouterOS delivers a full snapshot of
+ * that table's rules on each tick. A 150 ms snapshot-flush debounce waits for
+ * all records in the batch, then swaps staging → live array and emits.
  *
- * Counter streams are stopped on idle (suspend) and restarted on resume so
- * RouterOS does no work when no clients are connected.
+ * All four tables are loaded once at startup / resume so the Chain Count card
+ * has fresh counts for every table even when only one is being streamed.
+ * The active-table stream is stopped on suspend and restarted on resume.
  */
 class FirewallCollector {
-  constructor({ ros, io, pollMs, state, topN }) {
+  constructor({ ros, io, pollMs, state }) {
     this.ros    = ros;
     this.io     = io;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][firewall]` : '[firewall]';
     const _fPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 10000;
     this.pollMs = Math.max(500, Math.min(30000, _fPoll));
     this.state  = state;
-    this.topN   = topN || 15;
 
     this._filter = [];
     this._nat    = [];
     this._mangle = [];
     this._raw    = [];
 
-    this.prevCounts  = new Map();
-    this._lastFp     = '';
+    this.prevCounts       = new Map();
+    this._lastFp          = '';
+    this._activeTable     = 'filter';
 
-    this._streams    = { filter: null, nat: null, mangle: null, raw: null };
-    this._restarting = { filter: false, nat: false, mangle: false, raw: false };
-    this._restartTimers = { filter: null, nat: null, mangle: null, raw: null };
-    this._heartbeat  = null;
-    this._resuming   = false;
-
-    this._counterStreams       = { filter: null, nat: null, mangle: null, raw: null };
-    this._counterRestarting   = { filter: false, nat: false, mangle: false, raw: false };
-    this._counterRestartTimers = { filter: null, nat: null, mangle: null, raw: null };
-    this._emitDebounce        = null;
+    this._tableStream      = null;
+    this._tableRestarting  = false;
+    this._tableRestartTimer = null;
+    this._staging          = [];
+    this._snapshotDebounce = null;
+    this._heartbeat        = null;
+    this._resuming         = false;
 
     ros.on('close', () => {
-      this._stopAllStreams();
+      this._stopTableStream();
       this._stopHeartbeat();
-      this._stopCounterStreams();
     });
     // On reconnect, clear state — index.js _updateFirewallStreams() calls
     // resume() if the Firewall page or dashboard card is still open.
@@ -68,51 +63,8 @@ class FirewallCollector {
     };
   }
 
-  _applyUpdate(table, data) {
-    const id = data['.id'];
-    if (!id) return;
-
-    if (data['.dead'] === 'true' || data['.dead'] === true) {
-      this[table] = this[table].filter(r => r.id !== id);
-      this.prevCounts.delete(id);
-      return;
-    }
-
-    const existing = this[table].findIndex(r => r.id === id);
-    if (existing >= 0) {
-      const rule = this[table][existing];
-      const packets = data.packets !== undefined ? parseInt(data.packets, 10) : rule.packets;
-      const bytes   = data.bytes   !== undefined ? parseInt(data.bytes,   10) : rule.bytes;
-      const prev    = this.prevCounts.get(id);
-      const deltaPackets = prev ? Math.max(0, packets - prev.packets) : 0;
-      if (id) this.prevCounts.set(id, { packets, bytes });
-      if (data.disabled === 'true' || data.disabled === true) {
-        this[table].splice(existing, 1);
-        return;
-      }
-      this[table][existing] = {
-        ...rule, packets, bytes, deltaPackets,
-        ...(data.chain           !== undefined && { chain:       data.chain           || '' }),
-        ...(data.action          !== undefined && { action:      data.action          || '?' }),
-        ...(data.comment         !== undefined && { comment:     data.comment         || '' }),
-        ...(data['src-address']  !== undefined && { srcAddress:  data['src-address']  || '' }),
-        ...(data['dst-address']  !== undefined && { dstAddress:  data['dst-address']  || '' }),
-        ...(data.protocol        !== undefined && { protocol:    data.protocol        || '' }),
-        ...(data['dst-port']     !== undefined && { dstPort:     data['dst-port']     || '' }),
-        ...(data['in-interface'] !== undefined && { inInterface: data['in-interface'] || '' }),
-      };
-    } else {
-      const processed = this._processRule(data);
-      if (processed) this[table].push(processed);
-    }
-  }
-
   _emit() {
-    const all       = [...this._filter, ...this._nat, ...this._mangle, ...this._raw];
-    const topByHits = all.filter(r => r.packets > 0)
-                         .sort((a, b) => b.packets - a.packets)
-                         .slice(0, this.topN);
-
+    const all = [...this._filter, ...this._nat, ...this._mangle, ...this._raw];
     const seenIds = new Set(all.map(r => r.id).filter(Boolean));
     for (const id of this.prevCounts.keys()) {
       if (!seenIds.has(id)) this.prevCounts.delete(id);
@@ -126,13 +78,13 @@ class FirewallCollector {
     });
 
     const payload = {
-      ts: Date.now(),
-      filter:   this._filter,
-      nat:      this._nat,
-      mangle:   this._mangle,
-      raw:      this._raw,
-      topByHits,
-      pollMs:   this.pollMs,
+      ts:          Date.now(),
+      filter:      this._filter,
+      nat:         this._nat,
+      mangle:      this._mangle,
+      raw:         this._raw,
+      activeTable: this._activeTable,
+      pollMs:      this.pollMs,
     };
     this.lastPayload = payload;
     this.state.lastFirewallTs  = Date.now();
@@ -144,86 +96,102 @@ class FirewallCollector {
     }
   }
 
-  // ── counter streams ───────────────────────────────────────────────────────
-  // One =interval=N stream per table re-fetches packet/byte counts on a
-  // router-managed schedule. Stopped on idle; restarted on resume.
+  // ── snapshot flush ────────────────────────────────────────────────────────
+  // RouterOS delivers counter records one-by-one (.id, packets, bytes only).
+  // A 150 ms debounce fires after the last record arrives; we then merge the
+  // updated counters into the existing rule objects loaded by _loadInitial().
 
-  _scheduleEmit() {
-    if (this._emitDebounce) return;
-    this._emitDebounce = setTimeout(() => { // codeql[js/resource-exhaustion]
-      this._emitDebounce = null;
+  _scheduleSnapshotFlush() {
+    if (this._snapshotDebounce) clearTimeout(this._snapshotDebounce);
+    this._snapshotDebounce = setTimeout(() => { // codeql[js/resource-exhaustion]
+      this._snapshotDebounce = null;
+      const tableKey = '_' + this._activeTable;
+      const updates = new Map();
+      for (const r of this._staging) { if (r['.id']) updates.set(r['.id'], r); }
+      this._staging = [];
+      this[tableKey] = this[tableKey].map(rule => {
+        const u = updates.get(rule.id);
+        if (!u) return rule;
+        const packets = parseInt(u.packets || '0', 10);
+        const bytes   = parseInt(u.bytes   || '0', 10);
+        const prev    = this.prevCounts.get(rule.id);
+        const deltaPackets = prev ? Math.max(0, packets - prev.packets) : 0;
+        this.prevCounts.set(rule.id, { packets, bytes });
+        return { ...rule, packets, bytes, deltaPackets };
+      });
       this._emit();
-    }, 50);
+    }, 150);
   }
 
-  _onCounterRecord(table, pkt) {
-    const id      = pkt['.id'];
-    const packets = parseInt(pkt.packets || '0', 10);
-    const bytes   = parseInt(pkt.bytes   || '0', 10);
-    if (!id) return;
-    const tableKey = '_' + table;
-    const idx = this[tableKey].findIndex(r => r.id === id);
-    if (idx < 0) return;
-    const rule = this[tableKey][idx];
-    const prev = this.prevCounts.get(id);
-    if (prev && (packets !== rule.packets || bytes !== rule.bytes)) {
-      const deltaPackets = Math.max(0, packets - (prev.packets || 0));
-      this[tableKey][idx] = { ...rule, packets, bytes, deltaPackets };
-      this.prevCounts.set(id, { packets, bytes });
-      this._scheduleEmit();
-    } else if (!prev) {
-      this.prevCounts.set(id, { packets, bytes });
-    }
-  }
+  // ── table stream ──────────────────────────────────────────────────────────
 
-  _startCounterStream(table) {
-    if (this._counterStreams[table] || this._counterRestarting[table]) return;
+  _startTableStream(table) {
+    if (this._tableStream || this._tableRestarting) return;
     if (!this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
+    const pl = '=.proplist=.id,packets,bytes';
     const stream = this.ros.stream(
-      [`/ip/firewall/${table}/print`, '=.proplist=.id,packets,bytes', `=interval=${intervalSec}`],
+      [`/ip/firewall/${table}/print`, `=interval=${intervalSec}`, pl],
       null
     );
-    this._counterStreams[table] = stream;
+    this._tableStream = stream;
     stream.on('data', (pkt) => {
       if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
-      this._onCounterRecord(table, pkt);
+      this._staging.push(pkt);
+      this._scheduleSnapshotFlush();
     });
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
-      console.error(this._lbl, `${table} counter stream error:`, msg);
-      this._stopCounterStream(table);
-      if (this.ros.connected && !this._counterRestarting[table]) {
-        this._counterRestarting[table] = true;
-        this._counterRestartTimers[table] = setTimeout(() => { // codeql[js/resource-exhaustion]
-          this._counterRestarting[table] = false;
-          this._counterRestartTimers[table] = null;
-          this._startCounterStream(table);
+      console.error(this._lbl + ` ${table} stream error:`, msg); // codeql[js/tainted-format-string]
+      this.state.lastFirewallErr = msg;
+      this._stopTableStream();
+      if (this.ros.connected && !this._tableRestarting) {
+        this._tableRestarting = true;
+        this._tableRestartTimer = setTimeout(() => { // codeql[js/resource-exhaustion]
+          this._tableRestarting = false;
+          this._tableRestartTimer = null;
+          this._startTableStream(this._activeTable);
         }, 3000);
       }
     });
-    console.log(this._lbl, `streaming /ip/firewall/${table}/print interval=${intervalSec}s`);
+    console.log(this._lbl + ` streaming /ip/firewall/${table}/print interval=${intervalSec}s`); // codeql[js/tainted-format-string]
   }
 
-  _stopCounterStream(table) {
-    if (this._counterRestartTimers[table]) { clearTimeout(this._counterRestartTimers[table]); this._counterRestartTimers[table] = null; }
-    this._counterRestarting[table] = false;
-    if (this._counterStreams[table]) {
-      try { this._counterStreams[table].stop(); } catch (_) {}
-      this._counterStreams[table] = null;
+  _stopTableStream() {
+    if (this._snapshotDebounce) { clearTimeout(this._snapshotDebounce); this._snapshotDebounce = null; }
+    if (this._tableRestartTimer) { clearTimeout(this._tableRestartTimer); this._tableRestartTimer = null; }
+    this._tableRestarting = false;
+    this._staging = [];
+    if (this._tableStream) {
+      try { this._tableStream.stop(); } catch (_) {}
+      this._tableStream = null;
     }
   }
 
-  _startCounterStreams() {
-    for (const t of ['filter', 'nat', 'mangle', 'raw']) this._startCounterStream(t);
+  setActiveTable(table) {
+    if (table === this._activeTable && this._tableStream) return;
+    this._activeTable = table;
+    this._stopTableStream();
+    // If resume() is in progress let it start the stream with the updated _activeTable.
+    if (this.ros.connected && !this._resuming) this._startTableStream(table);
   }
 
-  _stopCounterStreams() {
-    if (this._emitDebounce) { clearTimeout(this._emitDebounce); this._emitDebounce = null; }
-    for (const t of ['filter', 'nat', 'mangle', 'raw']) this._stopCounterStream(t);
+  // ── heartbeat ────────────────────────────────────────────────────────────
+
+  _startHeartbeat() {
+    if (this._heartbeat) return;
+    this._heartbeat = setInterval(() => { // codeql[js/resource-exhaustion]
+      if (this.lastPayload) this.io.to('page-firewall').emit('firewall:update', { ...this.lastPayload, ts: Date.now() });
+    }, 60000);
+  }
+
+  _stopHeartbeat() {
+    if (this._heartbeat) { clearInterval(this._heartbeat); this._heartbeat = null; }
   }
 
   // ── initial load ─────────────────────────────────────────────────────────
+  // Fetches all four tables once so the Chain Count card has fresh counts
+  // for every chain even while only the active table is being streamed.
 
   async _loadInitial() {
     const safeGet = async (cmd, params) => {
@@ -244,69 +212,11 @@ class FirewallCollector {
     this._emit();
   }
 
-  // ── structural stream management ──────────────────────────────────────────
-
-  _startStream(table, cmd) {
-    if (this._streams[table]) return;
-    if (!this.ros.connected) return;
-    try {
-      this._streams[table] = this.ros.stream([cmd], (err, data) => {
-        if (err) {
-          console.error(this._lbl, `${table} stream error:`, err && err.message ? err.message : err);
-          this.state.lastFirewallErr = String(err && err.message ? err.message : err);
-          this._stopStream(table);
-          if (this.ros.connected && !this._restarting[table]) {
-            this._restarting[table] = true;
-            this._restartTimers[table] = setTimeout(() => {
-              this._restarting[table] = false;
-              this._restartTimers[table] = null;
-              if (this.ros.connected) {
-                this._loadInitial().then(() => this._startStream(table, cmd));
-              }
-            }, 3000);
-          }
-          return;
-        }
-        if (data) {
-          this._applyUpdate('_' + table, data);
-          this._emit();
-        }
-      });
-      console.log(this._lbl, `streaming /ip/firewall/${table}/listen`);
-    } catch (e) {
-      console.error(this._lbl, `${table} stream start failed:`, e && e.message ? e.message : e);
-    }
-  }
-
-  _stopStream(table) {
-    if (this._restartTimers[table]) { clearTimeout(this._restartTimers[table]); this._restartTimers[table] = null; }
-    this._restarting[table] = false;
-    if (this._streams[table]) { try { this._streams[table].stop(); } catch (_) {} this._streams[table] = null; }
-  }
-
-  _stopAllStreams() {
-    for (const t of ['filter', 'nat', 'mangle', 'raw']) this._stopStream(t);
-  }
-
-  // ── heartbeat ────────────────────────────────────────────────────────────
-
-  _startHeartbeat() {
-    if (this._heartbeat) return;
-    this._heartbeat = setInterval(() => {
-      if (this.lastPayload) this.io.to('page-firewall').emit('firewall:update', { ...this.lastPayload, ts: Date.now() });
-    }, 60000);
-  }
-
-  _stopHeartbeat() {
-    if (this._heartbeat) { clearInterval(this._heartbeat); this._heartbeat = null; }
-  }
-
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
   async start() {
-    // Poll once at startup to populate lastPayload — structural streams and
-    // counter streams open only when the Firewall page becomes visible
-    // (resume() is called by _updateFirewallStreams() in index.js).
+    // One-shot load at startup to populate lastPayload. The table stream opens
+    // only when the Firewall page becomes visible (resume() via _updateFirewallStreams).
     if (!this.ros.connected) return;
     try {
       await this._loadInitial();
@@ -317,9 +227,8 @@ class FirewallCollector {
 
   suspend() {
     this._resuming = false;
-    this._stopAllStreams();
+    this._stopTableStream();
     this._stopHeartbeat();
-    this._stopCounterStreams();
     this._filter = [];
     this._nat    = [];
     this._mangle = [];
@@ -328,29 +237,25 @@ class FirewallCollector {
     this._lastFp = '';
   }
 
-  async resume() {
+  async resume(activeTable) {
+    if (activeTable) this._activeTable = activeTable;
     if (this._resuming) return;
-    if (Object.values(this._streams).some(s => s !== null)) return;
+    if (this._tableStream) return;
     if (!this.ros.connected) return;
     this._resuming = true;
     try {
       await this._loadInitial();
       if (!this._resuming) return; // suspend() was called during the load
-      this._startStream('filter', '/ip/firewall/filter/listen');
-      this._startStream('nat',    '/ip/firewall/nat/listen');
-      this._startStream('mangle', '/ip/firewall/mangle/listen');
-      this._startStream('raw',    '/ip/firewall/raw/listen');
+      this._startTableStream(this._activeTable);
       this._startHeartbeat();
-      this._startCounterStreams();
     } finally {
       this._resuming = false;
     }
   }
 
   stop() {
-    this._stopAllStreams();
+    this._stopTableStream();
     this._stopHeartbeat();
-    this._stopCounterStreams();
   }
 }
 

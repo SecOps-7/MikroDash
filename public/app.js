@@ -94,7 +94,7 @@ var dhcpSearch       = $('dhcpSearch');
 // ── State ──────────────────────────────────────────────────────────────────
 var autoScroll = true, logFilter = '', logLevel = '';
 var currentIf = '', windowSecs = 60, RIGHT_BUFFER_MS = 1000, _ifaceSelectKey = '';
-var fwTab = 'top', fwData = {};
+var fwTab = 'filter', fwData = {};
 var connHistory = [], MAX_CONN_HIST = 60;
 var lastTalkers = null, lastLanData = null;
 var allLeases = [], leaseFilter = '';
@@ -353,7 +353,9 @@ document.addEventListener('keydown', function(e){
 document.querySelectorAll('.fw-tab').forEach(function(tab){
   tab.addEventListener('click', function(){
     document.querySelectorAll('.fw-tab').forEach(function(t){t.classList.remove('active');});
-    tab.classList.add('active'); fwTab = tab.dataset.fw; renderFirewallTab();
+    tab.classList.add('active'); fwTab = tab.dataset.fw;
+    socket.emit('firewall:tab', fwTab);
+    renderFirewallTab();
   });
 });
 
@@ -404,7 +406,7 @@ function makeChartObj(){
   chart=new Chart(trafficCtx,{type:'line',plugins:[_trafficTickPlugin],data:{datasets:[
     {label:'RX',data:[],borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.08)',borderWidth:1.5,tension:0.3,pointRadius:0,fill:true},
     {label:'TX',data:[],borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.06)',borderWidth:1.5,tension:0.3,pointRadius:0,fill:true}
-  ]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:1000,easing:'linear'},interaction:{mode:'index',intersect:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,devicePixelRatio:Math.min(window.devicePixelRatio,1.5),animation:{duration:1000,easing:'linear'},interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(7,9,15,.9)',borderColor:'rgba(99,130,190,.2)',borderWidth:1,
       titleFont:{family:"'JetBrains Mono',monospace",size:11},bodyFont:{family:"'JetBrains Mono',monospace",size:11},
       callbacks:{title:function(items){return new Date(items[0].parsed.x).toLocaleTimeString();},label:function(ctx){return' '+ctx.dataset.label+': '+fmtMbps(ctx.parsed.y);}}}},
@@ -1401,20 +1403,6 @@ if(dhcpSearch) dhcpSearch.addEventListener('input',function(){
 
 // ── Firewall ───────────────────────────────────────────────────────────────
 var _fwSearch = '';
-var _fwDeltaHistory = []; // rolling sparkline of total deltaPackets per update
-var _fwSparkCtx = (function(){ var c=$('fwSparkCanvas'); return c?c.getContext('2d'):null; })();
-
-// Resize canvas when the firewall page becomes visible (clientWidth is 0 while hidden)
-document.addEventListener('mikrodash:pagechange', function(e) {
-  if (e.detail === 'firewall') {
-    var c = $('fwSparkCanvas'); if (!c) return;
-    var w = c.parentElement ? c.parentElement.clientWidth : 0;
-    if (w > 0) { c.width = w; fwDrawSparkline(); }
-  }
-  // Traffic chart is kept live in the background (no redraw needed on navigate-back).
-  // Chart.js animates against the hidden 0×0 canvas while off-page; its ResizeObserver
-  // re-renders at the correct live position when the canvas returns to full size.
-});
 
 // ── Page Visibility: pause SVG animations and skip rAF flushes when hidden ─
 // Freeze the keepalive on hide by clearing _lastSampleTs. Bound to both visibilitychange
@@ -1437,24 +1425,6 @@ document.addEventListener('visibilitychange', function() {
     if (_pendingConnData && !_connRafId) _connRafId = requestAnimationFrame(_flushConnUpdate);
   }
 });
-
-function fwDrawSparkline(){
-  var c=$('fwSparkCanvas'); if(!c||!_fwSparkCtx) return;
-  var w=c.width, h=c.height, data=_fwDeltaHistory;
-  _fwSparkCtx.clearRect(0,0,w,h);
-  if(data.length<2) return;
-  var max=Math.max.apply(null,data)||1;
-  _fwSparkCtx.beginPath();
-  _fwSparkCtx.strokeStyle='rgba(56,189,248,.7)';
-  _fwSparkCtx.lineWidth=1.5;
-  _fwSparkCtx.lineJoin='round';
-  for(var i=0;i<data.length;i++){
-    var x=(i/(data.length-1))*w;
-    var y=h-(data[i]/max)*(h-3)-1;
-    i===0?_fwSparkCtx.moveTo(x,y):_fwSparkCtx.lineTo(x,y);
-  }
-  _fwSparkCtx.stroke();
-}
 
 function fwUpdateSummary(data){
   var filter=data.filter||[], nat=data.nat||[], mangle=data.mangle||[], raw=data.raw||[];
@@ -1498,16 +1468,30 @@ function fwUpdateSummary(data){
     }).join('') || '<div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">No rules</span></div>';
   }
 
-  // Activity / sparkline
-  var totalPkts=all.reduce(function(a,r){return a+r.packets;},0);
-  var totalBytes=all.reduce(function(a,r){return a+(r.bytes||0);},0);
-  var deltaPkts=all.reduce(function(a,r){return a+(r.deltaPackets||0);},0);
-  var tp=$('fwTotalPackets'), tb=$('fwTotalBytes');
-  if(tp) tp.textContent=totalPkts.toLocaleString();
-  if(tb) tb.textContent=totalBytes>0?('/ '+fmtBytes(totalBytes)+' total'):'';
-  _fwDeltaHistory.push(deltaPkts);
-  if(_fwDeltaHistory.length>40) _fwDeltaHistory.shift();
-  fwDrawSparkline();
+  fwUpdateChainCount(data);
+}
+
+function fwUpdateChainCount(data){
+  var el=$('fwChainCount'); if(!el) return;
+  var all=(data.filter||[]).concat(data.nat||[]).concat(data.mangle||[]).concat(data.raw||[]);
+  var counts={};
+  all.forEach(function(r){ if(r.chain) counts[r.chain]=(counts[r.chain]||0)+1; });
+  var entries=Object.keys(counts).map(function(k){return[k,counts[k]];}).sort(function(a,b){return b[1]-a[1];});
+  if(!entries.length){el.innerHTML='<span style="color:var(--text-muted);font-size:.7rem">No rules</span>';return;}
+  var max=entries[0][1];
+  var CHAIN_COL={forward:'#4299e1',input:'#4299e1',output:'#4299e1',srcnat:'#48bb78',dstnat:'#48bb78',masquerade:'#48bb78',prerouting:'#ed8936',postrouting:'#ed8936'};
+  var bars=entries.map(function(e){
+    var h=Math.max(3,Math.round((e[1]/max)*88))+'%';
+    var col=CHAIN_COL[e[0]]||'#a0aec0';
+    return'<div class="fw-vbar-col">'+
+      '<span class="fw-vbar-count">'+e[1]+'</span>'+
+      '<div class="fw-vbar" style="height:'+h+';background:'+col+'"></div>'+
+    '</div>';
+  }).join('');
+  var labels=entries.map(function(e){
+    return'<span class="fw-vbar-label" title="'+esc(e[0])+'">'+esc(e[0])+'</span>';
+  }).join('');
+  el.innerHTML='<div class="fw-vbar-bars">'+bars+'</div><div class="fw-vbar-labels">'+labels+'</div>';
 }
 
 var _fwRafId=null;
@@ -1527,7 +1511,7 @@ socket.on('firewall:update',function(data){
 
 function fwUpdateCountersInPlace(data){
   if(!firewallTable) return false;
-  var rules=fwTab==='top'?(data.topByHits||[]):fwTab==='filter'?(data.filter||[]):fwTab==='nat'?(data.nat||[]):fwTab==='raw'?(data.raw||[]):(data.mangle||[]);
+  var rules=fwTab==='filter'?(data.filter||[]):fwTab==='nat'?(data.nat||[]):fwTab==='raw'?(data.raw||[]):(data.mangle||[]);
   // Check all rows are already present with matching IDs
   var rows=firewallTable.querySelectorAll('tr[data-rule-id]');
   if(!rows.length) return false;
@@ -1571,7 +1555,7 @@ if(fwSearchEl) fwSearchEl.addEventListener('input',_debounce(function(){
 },200));
 
 function renderFirewallTab(){
-  var rules=fwTab==='top'?(fwData.topByHits||[]):fwTab==='filter'?(fwData.filter||[]):fwTab==='nat'?(fwData.nat||[]):fwTab==='raw'?(fwData.raw||[]):(fwData.mangle||[]);
+  var rules=fwTab==='filter'?(fwData.filter||[]):fwTab==='nat'?(fwData.nat||[]):fwTab==='raw'?(fwData.raw||[]):(fwData.mangle||[]);
   // Apply search filter
   if(_fwSearch){
     var q=_fwSearch;
@@ -1587,7 +1571,7 @@ function renderFirewallTab(){
   }
   if(!rules.length){
     firewallTable.innerHTML='<tr><td colspan="6" class="empty-state">'+(
-      _fwSearch?'No rules match search':(fwTab==='top'?'No rules with hits':'No rules'))+'</td></tr>';
+      _fwSearch?'No rules match search':'No rules')+'</td></tr>';
     return;
   }
   firewallTable.innerHTML=rules.map(function(r){
@@ -1726,7 +1710,7 @@ socket.on('traffic:history',function(data){
   var tc=$('trafficCard');if(tc)tc.classList.remove('is-stale');
 });
 var _pendingTraffic = null, _trafficRafId = null;
-var _lastSampleTs = 0, _lastSampleAt = 0, _serverOffset = 0, _chartKeepaliveId = null, _yMaxTarget = 0, _yMaxCurrent = 0;
+var _lastSampleTs = 0, _lastSampleAt = 0, _serverOffset = 0, _chartKeepaliveId = null, _yMaxTarget = 0, _yMaxCurrent = 0, _lastTickMs = 0;
 socket.on('traffic:update',function(sample){
   if(!currentIf||sample.ifName!==currentIf)return;
   // Always buffer into allPoints so history is preserved while the tab is hidden
@@ -1763,7 +1747,8 @@ socket.on('traffic:update',function(sample){
     if(!_chartKeepaliveId)(function _tick(){
       _chartKeepaliveId=requestAnimationFrame(_tick);
       if(!chart||document.hidden||!_lastSampleTs||_rosCurrentlyDisconnected||document.body.classList.contains('is-disconnected'))return;
-      var sn=Date.now()+_serverOffset;
+      var now=Date.now(); if(now-_lastTickMs<33)return; _lastTickMs=now;
+      var sn=now+_serverOffset;
       var vl=sn-windowSecs*1000-RIGHT_BUFFER_MS;
       var rd=chart.data.datasets[0].data,td=chart.data.datasets[1].data;
       while(rd.length>0&&rd[0].x<vl-3000){rd.shift();td.shift();}
@@ -5162,9 +5147,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var isActive = r.id === _activeRouterId;
       var activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
 
-      var delBtn = !isActive
-        ? '<button class="sbtn sbtn-danger" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-label="'+esc(r.label)+'" data-rtr-action="delete" title="Delete">&#128465;</button>'
-        : '';
+      var delBtn = '<button class="sbtn sbtn-danger" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-label="'+esc(r.label)+'" data-rtr-action="delete" title="Delete">&#128465;</button>';
       var tlsBadge = r.tls
         ? '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(52,211,153,.1);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.2)">TLS</span>'
         : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">Unencrypted</span>';
@@ -5517,7 +5500,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (action === 'edit')   { var r = _routers.find(function(x){ return x.id===id; }); if(r) openModal(r); }
       if (action === 'delete') {
         var label = btn.dataset.rtrLabel || id;
-        if (!confirm('Delete router "' + label + '"? This cannot be undone.')) return;
+        if (!confirm('Delete router "' + label + '"?\n\nAll accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.\n\nThis cannot be undone.')) return;
         fetch('/api/routers/' + encodeURIComponent(id), { method: 'DELETE' })
           .then(function(r){ return r.json(); })
           .then(function(r){ if (!r.ok) alert('Delete failed: ' + (r.error||'Unknown error')); })

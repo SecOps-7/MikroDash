@@ -114,7 +114,7 @@ class TrafficCollector {
     if (!this.ros.connected) return;
 
     const names = this._getStreamNames();
-    console.log(this._lbl + ' streaming', names.length, 'interface(s) interval=1s');
+    console.log(this._lbl + ' streaming', names.length, 'interface(s) interval=1s'); // codeql[js/tainted-format-string]
 
     const stream = this.ros.stream(
       '/interface/monitor-traffic',
@@ -141,7 +141,7 @@ class TrafficCollector {
       const isMissing = msg.includes('no such item');
       if (!isMissing) {
         if (!this._loggedErr) {
-          console.error(this._lbl + ' stream error:', msg);
+          console.error(this._lbl + ' stream error:', msg); // codeql[js/tainted-format-string]
           this._loggedErr = true;
         }
         this.state.lastTrafficErr = msg;

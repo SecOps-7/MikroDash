@@ -2,6 +2,32 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.47] — Firewall redesign, active router deletion, GPU reduction, security fixes
+
+### Added
+
+- **Firewall Chain Count card** (`public/index.html`, `public/app.js`) — replaces the Total Hits sparkline; shows rule counts per chain type (forward / input / output / srcnat / dstnat / prerouting / postrouting etc.) aggregated across all four tables, rendered as a colour-coded vertical bar chart that fills the card height. Blue = filter-family chains, green = NAT chains, orange = mangle/raw chains
+- **Active router deletion** (`src/db.js`, `src/index.js`, `public/app.js`) — the active router can now be deleted; MikroDash auto-promotes the next available router (hot-swaps session, emits `router:active`) or enters no-router setup mode when none remain. All historical time-series data for the deleted router is purged via a new `db.deleteRouterData(routerId)` transaction
+
+### Changed
+
+- **Firewall collector stream architecture** (`src/collectors/firewall.js`, `src/index.js`) — reduced from 8 simultaneous streams (4 `/listen` + 4 counter `/print =interval=N`) to a single stream covering only the active tab. Tab switches via a new `firewall:tab` socket event start a fresh stream and stop the previous one; the page suspends the stream entirely when closed. Rule metadata is loaded once via parallel one-shot reads on page open; the ongoing stream uses a trimmed proplist of `.id,packets,bytes` only and merges counter updates into existing rule objects. Closes #67
+- **Firewall UI** (`public/index.html`, `public/app.js`) — removed Top Hits tab and Total Hits sparkline card; Filter is now the default active tab; Chain Count card replaces Total Hits in the summary row
+
+### Performance
+
+- **GPU compositing reduction** (`public/index.html`, `public/app.js`) — removed `backdrop-filter` from `#sidenav`, `.card`, `#topbar`, `.scard`, and `#kbdHint` (blur was imperceptible at 70–97% opaque backgrounds but forced each element onto its own GPU compositing layer); traffic chart rAF keepalive throttled to 30 fps; `devicePixelRatio` capped at 1.5 to halve pixel load on HiDPI displays
+
+### Fixed
+
+- **CodeQL false positives** (`src/collectors/traffic.js`, `src/collectors/ping.js`, `src/collectors/system.js`, `src/collectors/interfaceStatus.js`) — added `// codeql[js/tainted-format-string]` and `// codeql[js/resource-exhaustion]` suppression comments on 7 flagged lines
+
+### Security
+
+- **Dependency updates** — `nodemailer` and `ws` patched for reported CVEs; `js-yaml` updated (PR #82)
+
+---
+
 ## [0.5.46] — Polling Profiles, ping min/max RTT, full streaming conversion, bug fixes
 
 ### Added

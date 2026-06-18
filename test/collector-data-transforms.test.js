@@ -643,8 +643,8 @@ test('firewall collector includes raw table in payload and counter poll', async 
   // raw rule tracked in prevCounts
   assert.ok(collector.prevCounts.has('*R1'), 'raw rule tracked in prevCounts');
 
-  // topByHits includes raw rule when it has packets
-  assert.ok(payload.topByHits.some(r => r.id === '*R1'), 'raw rule included in topByHits');
+  // activeTable field present in payload
+  assert.ok('activeTable' in payload, 'payload includes activeTable');
 });
 
 // --- Ping Collector ---

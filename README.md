@@ -75,7 +75,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | BGP Peers | BGP session state and prefix counts |
 | Bandwidth | Download / Upload utilisation bars (% of configured capacity, 30 s average) |
 | Firewall Actions | Action breakdown bars (accept / drop / reject / other) |
-| Total Hits | Total firewall match count with per-table sub-totals |
+| Chain Count | Rule count per chain type (forward / input / output / srcnat / dstnat / prerouting etc.) across all tables, shown as a colour-coded vertical bar chart |
 | Logs | Live scrolling router log feed |
 | NetWatch | Live status table for RouterOS NetWatch monitored hosts (up/down state, last change) |
 
@@ -87,7 +87,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | DHCP | Subnet utilisation card with per-network lease counts, pool sizes, and colour-coded progress bars; IP Utilisation gauge driven live from the lease stream; active lease table with hostname, IP, MAC, and status; sortable columns |
 | VPN | Summary stats bar (Total / Connected / Idle / Throughput); all WireGuard peers as tiles sorted active-first, with colour-coded handshake age badge, live RX/TX rates, allowed IPs, and endpoint |
 | Connections | World map with animated arcs to destination countries; per-country protocol breakdown and org breakdown; sparklines; top ports panel; click-to-filter by country or by individual LAN client |
-| Firewall | Rule Counts, Action Breakdown, and Total Hits summary cards; search bar; Top Hits, Filter, NAT, Mangle, and Raw rule tables with packet counts, byte totals, and live delta-pulse indicators |
+| Firewall | Rule Counts, Action Breakdown, and Chain Count summary cards; search bar; Filter, NAT, Mangle, and Raw rule tables (tab-gated — only the active tab streams); packet counts, byte totals, and live delta-pulse indicators |
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
 | Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre); static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with historical log import on connect, severity filter and text search |

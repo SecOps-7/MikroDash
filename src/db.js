@@ -342,6 +342,18 @@ function startPruneInterval(getSettings) {
   _pruneTimer.unref();
 }
 
+function deleteRouterData(routerId) {
+  if (!_db) return;
+  _db.transaction(() => {
+    _prep('DELETE FROM ping_samples        WHERE router_id = ?').run(routerId);
+    _prep('DELETE FROM traffic_samples     WHERE router_id = ?').run(routerId);
+    _prep('DELETE FROM bandwidth_usage     WHERE router_id = ?').run(routerId);
+    _prep('DELETE FROM alert_events        WHERE router_id = ?').run(routerId);
+    _prep('DELETE FROM connectivity_events WHERE router_id = ?').run(routerId);
+  })();
+  console.log(`[db] deleted all data for router ${routerId}`);
+}
+
 module.exports = {
   open, close,
   insertPingSample, insertTrafficSample, insertBandwidthSample,
@@ -350,5 +362,5 @@ module.exports = {
   queryTrafficSamples, queryTrafficSamplesAgg, queryTrafficInterfaces,
   queryBandwidthSamples, queryBandwidthSamplesAgg, queryBandwidthInterfaces,
   queryAlertEvents, queryConnectivityEvents, queryConnectivityEventsAgg,
-  prune, startPruneInterval,
+  prune, startPruneInterval, deleteRouterData,
 };

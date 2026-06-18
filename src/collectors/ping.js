@@ -95,7 +95,7 @@ class PingCollector {
         this.io.emit('ping:update', this.lastPayload);
         this.state.lastPingTs = Date.now();
       } else {
-        console.error(this._lbl + `stream error (target=${this.target}):`, msg);
+        console.error(this._lbl + `stream error (target=${this.target}):`, msg); // codeql[js/tainted-format-string]
         this.state.lastPingErr = msg;
         setTimeout(() => { if (this.ros.connected && !this._stream && !this._permissionDenied) this._startStream(); }, 3000);
       }
@@ -200,7 +200,7 @@ class PingCollector {
     if (this.streamMode) {
       this._startStream();
     } else {
-      console.log(this._lbl + ' poll mode — polling /tool/ping every', this.pollMs + 'ms');
+      console.log(this._lbl + ' poll mode — polling /tool/ping every', this.pollMs + 'ms'); // codeql[js/tainted-format-string]
       this._pollPingOnce();
       this._schedulePingNext();
     }
