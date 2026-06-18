@@ -22,7 +22,7 @@
     "helmet": "^8.1.0",
     "ipaddr.js": "^2.2.0",
     "node-routeros": "^1.6.9",
-    "nodemailer": "^8.0.9",
+    "nodemailer": "^9.0.1",
     "pdfkit": "^0.15.2",
     "socket.io": "^4.7.5"
   },
