@@ -205,7 +205,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 | Notifications | Push notification channels — Telegram Bot, Pushbullet, and SMTP email (all three can be active simultaneously); per-type toggles (interface up/down, WireGuard, CPU, ping, NetWatch, router status); separate ⚠️ alert and ✅ recovery message templates with `{{variable}}` substitution; configurable cooldown (10 s – 60 min) per alert subject; test-send button per channel |
 | Data Retention | Traffic/ping/bandwidth sample retention (1–3650 days, default 90) and alert/connectivity event retention (1–3650 days, default 365); pruning runs automatically |
 | Diagnostics | Enable/disable verbose RouterOS API debug logging at runtime — no container restart required |
-| Appearance | 26 named palette swatches (dark and light variants) — applies instantly and persists via `localStorage`. Contrast, Text Brightness, and Background Brightness sliders (15 steps each) for fine-grained adjustment independent of palette. Includes a Visible Pages subsection to toggle individual pages on/off |
+| Appearance | 26 named palette swatches (dark and light variants) — applies instantly and persists via `localStorage`. Contrast, Text Brightness, and Background Brightness sliders (15 steps each) for fine-grained adjustment independent of palette. **Font Family** picker with 24 self-hosted options (Inter, IBM Plex Sans, Source Sans 3, Geist, JetBrains Mono, and 19 more — all served as local WOFF2 files, no CDN). **Font Size** with six presets (Extra Small to Extra Large). Includes a Visible Pages subsection to toggle individual pages on/off |
 
 ### Credential encryption
 

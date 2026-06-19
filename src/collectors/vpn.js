@@ -102,7 +102,7 @@ class VpnCollector {
       name: t.name, state: t.state, rx: t.rx, tx: t.tx,
       rxRate: +t.rxRate.toFixed(2), txRate: +t.txRate.toFixed(2),
     })));
-    const payload = { ts: Date.now(), tunnels, pollMs: this.pollMs };
+    const payload = { ts: Date.now(), tunnels, pollMs: 0 };
     this.lastPayload = payload;
     this.state.lastVpnTs  = Date.now();
     this.state.lastVpnErr = null;

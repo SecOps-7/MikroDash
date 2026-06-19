@@ -32,7 +32,6 @@
     'dc-card-bgp':        'BGP Peers',
     'dc-card-bw':         'Bandwidth',
     'dc-card-fwaction':   'FW Actions',
-    'dc-card-fwhits':     'Total Hits',
     'dc-card-logs':       'Logs',
     'dc-card-netwatch':    'NetWatch',
     'dc-card-diagnostics': 'API Diagnostics'
@@ -43,7 +42,6 @@
      Two cards can share the same room (fwaction + fwhits both use 'firewall'). */
   var CARD_ROOMS = {
     'dc-card-fwaction': 'firewall',
-    'dc-card-fwhits':   'firewall',
     'dc-card-logs':     'logs',
     'card-wireguard':      'vpn',
     'dc-card-diagnostics': 'diagnostics',
@@ -72,7 +70,6 @@
     { id: 'dc-card-routes',    x: 1,  y: 1,  w: 6,  h: 6,  visible: false },
     { id: 'dc-card-bgp',       x: 1,  y: 1,  w: 6,  h: 4,  visible: false },
     { id: 'dc-card-fwaction',  x: 1,  y: 1,  w: 8,  h: 6,  visible: false },
-    { id: 'dc-card-fwhits',    x: 1,  y: 1,  w: 4,  h: 4,  visible: false },
     { id: 'dc-card-logs',      x: 1,  y: 1,  w: 10, h: 6,  visible: false },
     { id: 'dc-card-netwatch',     x: 1,  y: 1,  w: 8,  h: 6,  visible: false },
     { id: 'dc-card-diagnostics',  x: 1,  y: 1,  w: 6,  h: 10, visible: false }
@@ -691,6 +688,12 @@
         syncDashRooms(active);
       }).observe(pageDash, { attributes: true, attributeFilter: ['class'] });
     }
+
+    /* Re-sync rooms after Socket.IO reconnect — room memberships are per-socket
+       and are lost when the connection drops. app.js dispatches this event. */
+    document.addEventListener('socket:reconnect', function () {
+      if (_dashActive()) syncDashRooms(true);
+    });
 
     /* Update grid overlay CSS vars on resize */
     if (window.ResizeObserver) {

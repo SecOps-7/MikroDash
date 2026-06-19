@@ -130,7 +130,47 @@ var PALETTE_KEY      = 'mikrodash_palette';
 var CONTRAST_KEY     = 'mikrodash_contrast';
 var TEXT_BRIGHT_KEY  = 'mikrodash_text_bright';
 var BG_BRIGHT_KEY    = 'mikrodash_bg_bright';
+var FONT_KEY         = 'mikrodash_font';
+var FONT_SIZE_KEY    = 'mikrodash_font_size';
 var APPEAR_DEFAULT   = 8; // neutral midpoint for all appearance sliders
+
+var FONTS = [
+  { id: 'system',        family: 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif' },
+  { id: 'syne',          family: "'Syne',sans-serif" },
+  { id: 'geist',         family: "'Geist',sans-serif" },
+  { id: 'inter',         family: "'Inter',sans-serif" },
+  { id: 'plus-jakarta',  family: "'Plus Jakarta Sans',sans-serif" },
+  { id: 'dm-sans',       family: "'DM Sans',sans-serif" },
+  { id: 'outfit',        family: "'Outfit',sans-serif" },
+  { id: 'space-grotesk', family: "'Space Grotesk',sans-serif" },
+  { id: 'sofia-sans',    family: "'Sofia Sans',sans-serif" },
+  { id: 'nunito',        family: "'Nunito',sans-serif" },
+  { id: 'poppins',       family: "'Poppins',sans-serif" },
+  { id: 'montserrat',    family: "'Montserrat',sans-serif" },
+  { id: 'raleway',       family: "'Raleway',sans-serif" },
+  { id: 'manrope',       family: "'Manrope',sans-serif" },
+  { id: 'roboto',        family: "'Roboto',sans-serif" },
+  { id: 'open-sans',     family: "'Open Sans',sans-serif" },
+  { id: 'lato',          family: "'Lato',sans-serif" },
+  { id: 'source-sans',   family: "'Source Sans 3',sans-serif" },
+  { id: 'work-sans',     family: "'Work Sans',sans-serif" },
+  { id: 'fira-sans',     family: "'Fira Sans',sans-serif" },
+  { id: 'jetbrains-mono',family: "'JetBrains Mono',monospace" },
+  { id: 'fira-code',     family: "'Fira Code',monospace" },
+  { id: 'quicksand',     family: "'Quicksand',sans-serif" },
+  { id: 'comfortaa',     family: "'Comfortaa',sans-serif" },
+  { id: 'ibm-plex-sans', family: "'IBM Plex Sans',sans-serif" },
+];
+
+var FONT_SIZES = [
+  { id: 'xs',     px: 12   },
+  { id: 'sm',     px: 14   },
+  { id: 'normal', px: null },
+  { id: 'md',     px: 18   },
+  { id: 'lg',     px: 20   },
+  { id: 'xl',     px: 22   },
+];
+
 var CONTRAST_FACTORS    = [0.15, 0.25, 0.35, 0.50, 0.65, 0.80, 0.92, 1.0, 1.20, 1.50, 2.00, 2.75, 3.50, 4.50, 6.00];
 var TEXT_BRIGHT_FACTORS = [0.20, 0.30, 0.42, 0.55, 0.65, 0.78, 0.90, 1.0, 1.05, 1.10, 1.17, 1.25, 1.33, 1.42, 1.50];
 var BG_BRIGHT_FACTORS   = [0.20, 0.30, 0.42, 0.55, 0.65, 0.78, 0.90, 1.0, 1.05, 1.10, 1.17, 1.25, 1.33, 1.42, 1.50];
@@ -253,6 +293,35 @@ function _syncSwatches() {
   });
 }
 
+function applyFont(fontId) {
+  var font = null;
+  for (var i = 0; i < FONTS.length; i++) { if (FONTS[i].id === fontId) { font = FONTS[i]; break; } }
+  if (!font) font = FONTS[1]; // fallback to Syne
+  document.documentElement.style.setProperty('--font-ui', font.family);
+  try { localStorage.setItem(FONT_KEY, font.id); } catch(e) {}
+}
+
+function applyFontSize(sizeId) {
+  var size = null;
+  for (var i = 0; i < FONT_SIZES.length; i++) { if (FONT_SIZES[i].id === sizeId) { size = FONT_SIZES[i]; break; } }
+  if (!size) size = FONT_SIZES[2];
+  if (size.px === null) {
+    document.documentElement.style.removeProperty('font-size');
+  } else {
+    document.documentElement.style.fontSize = size.px + 'px';
+  }
+  try { localStorage.setItem(FONT_SIZE_KEY, size.id); } catch(e) {}
+}
+
+(function(){
+  var savedFont     = 'syne';
+  var savedFontSize = 'normal';
+  try { savedFont     = localStorage.getItem(FONT_KEY)      || 'syne'; } catch(e) {}
+  try { savedFontSize = localStorage.getItem(FONT_SIZE_KEY) || 'normal'; } catch(e) {}
+  applyFont(savedFont);
+  applyFontSize(savedFontSize);
+})();
+
 (function(){
   var savedPalette   = 'default';
   var savedContrast  = APPEAR_DEFAULT;
@@ -302,12 +371,18 @@ function _syncSwatches() {
       _reapplyBgVars();
     });
   }
+  var fontSel     = $('appearanceFont');
+  var fontSizeSel = $('appearanceFontSize');
+  if (fontSel)     fontSel.addEventListener('change', function() { applyFont(this.value); });
+  if (fontSizeSel) fontSizeSel.addEventListener('change', function() { applyFontSize(this.value); });
   document.addEventListener('mikrodash:pagechange', function(e) {
     if (e.detail !== 'settings') return;
     _syncSwatches();
     if (contrastSlider)   contrastSlider.value   = document.documentElement.getAttribute('data-contrast')    || String(APPEAR_DEFAULT);
     if (textBrightSlider) textBrightSlider.value = document.documentElement.getAttribute('data-text-bright') || String(APPEAR_DEFAULT);
     if (bgBrightSlider)   bgBrightSlider.value   = document.documentElement.getAttribute('data-bg-bright')   || String(APPEAR_DEFAULT);
+    if (fontSel) { var cf = 'syne'; try { cf = localStorage.getItem(FONT_KEY) || 'syne'; } catch(e) {} fontSel.value = cf; }
+    if (fontSizeSel) { var csz = 'normal'; try { csz = localStorage.getItem(FONT_SIZE_KEY) || 'normal'; } catch(e) {} fontSizeSel.value = csz; }
   });
 })();
 
@@ -1837,6 +1912,19 @@ socket.on('connect',function(){
   var svg=$('netDiagram'); if(svg && !_rosCurrentlyDisconnected && !document.hidden) svg.unpauseAnimations();
   // Re-join the current page room after reconnect so room-scoped events resume
   socket.emit('page:focus', _currentPage);
+  // Re-sync dashcard rooms — dashboard-grid.js listens and re-joins any visible
+  // room-gated cards (e.g. dash-card-vpn) whose membership was lost on reconnect.
+  document.dispatchEvent(new CustomEvent('socket:reconnect'));
+  // Reset all stale timers on (re)connect — prevents cards from showing stale
+  // during the gap before collectors deliver their first post-reconnect payload.
+  // Cards where the server has no lastPayload (e.g. fresh session after a restart)
+  // would otherwise expire against a stale timer set in the previous session.
+  staleConfig.forEach(function(cfg){
+    staleTimers[cfg.cardId]=Date.now();
+    var card=$(cfg.cardId);if(card)card.classList.remove('is-stale');
+  });
+  staleTimers['trafficCard']=Date.now();
+  var _tc=$('trafficCard');if(_tc)_tc.classList.remove('is-stale');
   // On reconnect in modern auth, verify the session is still valid.
   // _authMode is only set after the first auth/status fetch, so this guard
   // ensures the check fires on reconnects but not the very first connect.
@@ -6058,12 +6146,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       }).join('')||'<div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">No rules</span></div>';
     }
 
-    /* Total Hits — fw-activity-total style */
-    var totalPkts=all.reduce(function(a,r){return a+r.packets;},0);
-    var totalBytes=all.reduce(function(a,r){return a+(r.bytes||0);},0);
-    var tp=dcEl('dc-fwTotalPackets'),tb=dcEl('dc-fwTotalBytes');
-    if(tp) tp.textContent=totalPkts.toLocaleString();
-    if(tb) tb.textContent=totalBytes>0?('/ '+fmtBytes(totalBytes)+' total'):'';
   });
 
   /* ── 14: Logs (logs:history replay + logs:new stream, dash-card-logs room) */
