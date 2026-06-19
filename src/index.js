@@ -1184,7 +1184,11 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
         collector.stop();
         collector.streamMode = saved[key];
         collector.start();
-        if (io.engine.clientsCount === 0 && typeof collector.suspend === 'function') collector.suspend();
+        if (io.engine.clientsCount === 0 && typeof collector.suspend === 'function') {
+          collector.suspend();
+        } else if (typeof collector.resume === 'function') {
+          collector.resume();
+        }
       }
     }
 

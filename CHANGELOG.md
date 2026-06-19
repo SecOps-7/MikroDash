@@ -2,6 +2,28 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.48] -- Font picker, stale fixes, connection stream fixes
+
+### Added
+
+- **Font Family picker** (`public/index.html`, `public/app.js`, `public/css/app-fonts.css`, `public/fonts/`) -- 24 self-hosted font options (System UI, Syne, Inter, IBM Plex Sans, JetBrains Mono, Fira Code, and 18 more) selectable in Settings > Appearance; stored in `localStorage`, applied instantly via `--font-ui` CSS variable. All fonts are served as self-hosted WOFF2 files with no CDN requests. Closes #73
+- **Font Size picker** (`public/index.html`, `public/app.js`) -- six presets (Extra Small to Extra Large) in Settings > Appearance; stored in `localStorage`, applied by setting `document.documentElement.style.fontSize`
+
+### Changed
+
+- **Total Hits dashboard card removed** (`public/index.html`, `public/js/dashboard-grid.js`, `public/app.js`) -- the `dc-card-fwhits` card (firewall total hits sparkline) has been removed from the dashboard; HTML, layout entry, `CARD_ROOMS`/`CARD_LABELS` entries, and `firewall:update` rendering code all deleted. Closes #69
+- **Top Talkers, WireGuard, and NetWatch table headers** (`public/index.html`) -- removed gray `thead` background so headers blend with the dark card background
+
+### Fixed
+
+- **WireGuard dashboard card stale with stable peers** (`src/collectors/vpn.js`, `public/app.js`, `public/js/dashboard-grid.js`) -- VPN payload was emitting `pollMs: 5000`, causing the browser to set the stale threshold to 25 s; with a 60 s heartbeat this meant the card went stale whenever peers were idle. Fixed by emitting `pollMs: 0` to keep the fixed 90 s threshold. Added post-reconnect dashcard room re-sync so the heartbeat reaches the socket after a Socket.IO reconnect
+- **NetWatch dashboard card stale when state is unchanged** (`src/collectors/netwatch.js`) -- added a 60 s heartbeat that re-emits `lastPayload`, keeping the browser's 90 s stale threshold from firing when no host status changes
+- **Connections card stale on stable networks** (`src/collectors/connections.js`) -- force-emit guard reduced from 15 s to 10 s so the actual gap (10 s + pollMs) stays within the 23 s frontend stale threshold at any poll setting
+- **Connections stream killed after settings save** (`src/index.js`) -- the stream-mode toggle loop called `stop()+start()` on all stream-mode collectors but `start()` does not re-open the stream (it waits for `resume()`); clients already connected so `_idleResume` never refired, leaving the stream dead. Fixed by adding `else collector.resume()` so the stream restarts when clients are present
+- **Stale timers not reset on socket reconnect** (`public/app.js`) -- all stale countdown timers now reset on reconnect so cards do not show stale during the gap before collectors deliver their first post-reconnect payload
+
+---
+
 ## [0.5.47] — Firewall redesign, active router deletion, GPU reduction, security fixes
 
 ### Added

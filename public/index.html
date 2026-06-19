@@ -7,6 +7,7 @@
   <title>MikroDash</title>
   <link rel="stylesheet" href="/vendor/tabler.min.css"/>
   <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
+  <link rel="stylesheet" href="/css/app-fonts.css"/>
   <link rel="stylesheet" href="/css/dashboard-grid.css"/>
   <link rel="icon" type="image/png" href="/logo.png"/>
   <style>
@@ -68,7 +69,7 @@
     #main{margin-left:var(--nav-w);flex:1;min-width:0;display:flex;flex-direction:column}
     /* topbar */
     #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:100}
-    #topbarLogo{font-family:var(--font-ui);font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap}
+    #topbarLogo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap}
     #topbarLogo span{color:var(--accent-rx)}
     .topbar-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
     #pageTitle{font-family:var(--font-ui);font-weight:600;font-size:.85rem;color:var(--text-muted);letter-spacing:.01em}
@@ -355,6 +356,7 @@
     /* tables */
     .table{font-family:var(--font-mono);font-size:.76rem}
     .table th{color:var(--text-muted);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;border-color:var(--border) !important;font-weight:400;padding:.45rem .75rem}
+    #talkersCard .table thead th,#vpnCard .table thead th,#netwatchCard .table thead th{background:transparent!important}
     .table td{border-color:var(--border) !important;vertical-align:middle;padding:.45rem .75rem;color:var(--text-main)}
     .table tbody tr:hover td{background:rgba(99,130,190,.05)}
     /* signal bars */
@@ -1623,22 +1625,6 @@
         </div>
       </div>
 
-      <!-- dc-card-fwhits: Total Hits -->
-      <div id="dc-card-fwhits" class="dash-card">
-        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
-        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
-        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
-        <button class="dash-remove-btn" data-card="dc-card-fwhits" type="button" title="Remove card">&#x2715;</button>
-        <div class="card">
-          <div class="card-header"><h3 class="card-title">Total Hits</h3></div>
-          <div class="card-body" style="padding:.75rem">
-            <div class="fw-activity-wrap">
-              <div class="fw-activity-total" id="dc-fwTotalPackets">—</div>
-              <div class="fw-activity-sub" id="dc-fwTotalBytes"></div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- dc-card-logs: Recent Logs -->
       <div id="dc-card-logs" class="dash-card">
@@ -2907,6 +2893,44 @@
               <input type="range" id="appearanceBgBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
               <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Light</span>
             </div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+            <label class="sform-label">Font Family</label>
+            <select id="appearanceFont" class="sform-input" style="margin-bottom:.75rem">
+              <option value="system">System UI</option>
+              <option value="syne">Syne (Default)</option>
+              <option value="geist">Geist</option>
+              <option value="inter">Inter</option>
+              <option value="plus-jakarta">Plus Jakarta Sans</option>
+              <option value="dm-sans">DM Sans</option>
+              <option value="outfit">Outfit</option>
+              <option value="space-grotesk">Space Grotesk</option>
+              <option value="sofia-sans">Sofia Sans</option>
+              <option value="nunito">Nunito</option>
+              <option value="poppins">Poppins</option>
+              <option value="montserrat">Montserrat</option>
+              <option value="raleway">Raleway</option>
+              <option value="manrope">Manrope</option>
+              <option value="roboto">Roboto</option>
+              <option value="open-sans">Open Sans</option>
+              <option value="lato">Lato</option>
+              <option value="source-sans">Source Sans 3</option>
+              <option value="work-sans">Work Sans</option>
+              <option value="fira-sans">Fira Sans</option>
+              <option value="jetbrains-mono">JetBrains Mono</option>
+              <option value="fira-code">Fira Code</option>
+              <option value="quicksand">Quicksand</option>
+              <option value="comfortaa">Comfortaa</option>
+              <option value="ibm-plex-sans">IBM Plex Sans</option>
+            </select>
+            <label class="sform-label" style="margin-top:.25rem">Font Size</label>
+            <select id="appearanceFontSize" class="sform-input">
+              <option value="xs">Extra Small</option>
+              <option value="sm">Small</option>
+              <option value="normal">Normal</option>
+              <option value="md">Medium</option>
+              <option value="lg">Large</option>
+              <option value="xl">Extra Large</option>
+            </select>
             <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
             <label class="sform-label">Visible Pages</label>
             <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings are always visible.</p>

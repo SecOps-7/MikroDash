@@ -396,9 +396,10 @@ class ConnectionsCollector {
       src: Object.fromEntries([...srcCounts.entries()]),
     }) : '';
 
-    // Force-emit every 15 s even when data is unchanged — keeps the frontend
-    // stale timer (pollMs + 20 s grace = 25 s) from expiring on stable networks.
-    if (fp !== this._lastFp || now - this._lastEmitTs > 15000) {
+    // Force-emit every 10 s even when data is unchanged — keeps the frontend
+    // stale timer (pollMs + 20 s grace) from expiring on stable networks.
+    // Gap = 10 s + pollMs (e.g. 13 s at 3 s poll) vs 23 s threshold — 10 s margin.
+    if (fp !== this._lastFp || now - this._lastEmitTs > 10000) {
       this._lastFp = fp;
       this._lastEmitTs = now;
       // Global emit omits countryDests, countryPorts, sourceDests, sourcePorts —

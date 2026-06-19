@@ -12,6 +12,7 @@ class NetwatchCollector {
     this._stream         = null;
     this._restarting     = false;
     this._restartTimer   = null;
+    this._heartbeat      = null;
     this._permissionDenied = false;
     this.lastPayload     = null;
   }
@@ -100,23 +101,42 @@ class NetwatchCollector {
     if (this._stream) { try { this._stream.stop(); } catch (_) {} this._stream = null; }
   }
 
+  // Re-emits lastPayload every 60 s so the browser stale-timer (threshold 90 s)
+  // never fires when the NetWatch state is stable and no change events arrive.
+  _startHeartbeat() {
+    if (this._heartbeat) return;
+    this._heartbeat = setInterval(() => {
+      if (!this.lastPayload) return;
+      this.io.emit('netwatch:update', { ...this.lastPayload, ts: Date.now() });
+    }, 60000);
+  }
+
+  _stopHeartbeat() {
+    if (this._heartbeat) { clearInterval(this._heartbeat); this._heartbeat = null; }
+  }
+
   async start() {
     await this._loadInitial();
     this._startStream();
+    this._startHeartbeat();
 
     this.ros.on('close', () => {
       this._stopStream();
+      this._stopHeartbeat();
     });
     this.ros.on('connected', async () => {
       this._stopStream();
+      this._stopHeartbeat();
       this._lastFp = '';
       await this._loadInitial();
       this._startStream();
+      this._startHeartbeat();
     });
   }
 
   stop() {
     this._stopStream();
+    this._stopHeartbeat();
     this._lastFp = '';
   }
 }
