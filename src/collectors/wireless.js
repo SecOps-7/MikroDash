@@ -1,3 +1,6 @@
+'use strict';
+const dns = require('dns').promises;
+
 /**
  * Wireless collector — streams /interface/wifi/registration-table/print (wifi
  * package, ROS 7) or /interface/wireless/registration-table/print (legacy).
@@ -35,6 +38,7 @@ class WirelessCollector {
     this.ABSENCE_THRESHOLD = 3;
     this._knownClients = new Map();
     this._nameCache    = new Map();
+    this._ptrCache     = new Map(); // ip → { name: string, ts: number }
     this._retryTimer   = null;
     this._capsmanAvailable = false;
     this._lbl = ros.routerLabel ? `[${ros.routerLabel}][wireless]` : '[wireless]';
@@ -50,13 +54,32 @@ class WirelessCollector {
     this._restartTimers = { wifi: null, wireless: null, capsman: null };
   }
 
-  resolveName(mac) {
+  resolveName(mac, ip) {
     if (!mac) return '';
     if (this._nameCache.has(mac)) return this._nameCache.get(mac);
     const byMac = this.dhcpLeases ? this.dhcpLeases.getNameByMAC(mac) : null;
-    const name  = (byMac && byMac.name) ? byMac.name : '';
-    if (name) this._nameCache.set(mac, name);
-    return name;
+    if (byMac && byMac.name) { this._nameCache.set(mac, byMac.name); return byMac.name; }
+    if (!ip) return '';
+    const cached = this._ptrCache.get(ip);
+    if (cached) return cached.name;
+    this._ptrLookup(ip);
+    return '';
+  }
+
+  _ptrLookup(ip) {
+    const cached = this._ptrCache.get(ip);
+    if (cached) {
+      const ttl = cached.name ? 60000 : 15000;
+      if (Date.now() - cached.ts < ttl) return;
+      this._ptrCache.delete(ip);
+    }
+    dns.reverse(ip).then(hosts => {
+      const raw  = (hosts && hosts[0]) ? hosts[0].replace(/\.$/, '') : '';
+      const name = raw.split('.')[0] || '';
+      this._ptrCache.set(ip, { name, ts: Date.now() });
+    }).catch(() => {
+      this._ptrCache.set(ip, { name: '', ts: Date.now() });
+    });
   }
 
   // ── client parsing ────────────────────────────────────────────────────────
@@ -85,7 +108,7 @@ class WirelessCollector {
       rxRate:  c['rx-rate'] || '',
       uptime:  c.uptime || '',
       ssid:    c.ssid   || '',
-      name:    this.resolveName(mac),
+      name:    this.resolveName(mac, ip),
       source:  c._capsman ? 'capsman' : undefined,
     };
   }
@@ -178,7 +201,7 @@ class WirelessCollector {
         let changed = false;
         for (const [mac, client] of this._knownClients) {
           if (!client.name) {
-            const name = this.resolveName(mac);
+            const name = this.resolveName(mac, client.ip || '');
             if (name) { this._knownClients.set(mac, { ...client, name }); changed = true; }
           }
         }
@@ -192,7 +215,10 @@ class WirelessCollector {
             this.io.emit('wireless:update', newPayload);
           }
         }
-        if (Array.from(this._knownClients.values()).some(c => !c.name)) {
+        // Keep retrying only while PTR lookups for known IPs are still in-flight
+        const stillPending = Array.from(this._knownClients.values())
+          .some(c => !c.name && c.ip && !this._ptrCache.has(c.ip));
+        if (stillPending) {
           this._retryTimer = setTimeout(tryResolve, 500);
         }
       };
@@ -321,6 +347,7 @@ class WirelessCollector {
     this._lastWifiBatch    = [];
     this._lastCapsmanBatch = [];
     this._nameCache.clear();
+    this._ptrCache.clear();
     this._knownClients.clear();
     this._absentTicks.clear();
     if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
