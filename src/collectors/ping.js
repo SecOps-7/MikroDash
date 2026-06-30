@@ -64,7 +64,7 @@ class PingCollector {
     if (this._stream || !this.ros.connected || this._permissionDenied) return;
     // RouterOS caps /tool/ping interval at 5 s (00:00:05); clamp to [1,5].
     const intervalSec = Math.min(5, Math.max(1, Math.round(this.pollMs / 1000)));
-    console.log(this._lbl + ' streaming /tool/ping →', this.target, 'interval=' + intervalSec + 's');
+    console.log(this._lbl + ' streaming /tool/ping →', this.target, 'interval=' + intervalSec + 's'); // codeql[js/tainted-format-string]
 
     const stream = this.ros.stream(
       '/tool/ping',

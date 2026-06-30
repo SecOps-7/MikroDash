@@ -125,7 +125,7 @@ class InterfaceStatusCollector {
         await this._pollRatesOnce();
         this._scheduleRatesNext();
       }
-    }, this._pollDelayMs); // codeql[js/resource-exhaustion]
+    }, Math.max(500, Math.min(60000, this._pollDelayMs)));
   }
 
   _startRatesPoll() {
