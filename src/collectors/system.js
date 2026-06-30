@@ -252,7 +252,7 @@ class SystemCollector {
         await this._pollResourceOnce();
         this._scheduleResourceNext();
       }
-    }, this.pollMs); // codeql[js/resource-exhaustion]
+    }, Math.max(500, Math.min(60000, this.pollMs)));
   }
 
   // ── stream-mode resource path ─────────────────────────────────────────────
