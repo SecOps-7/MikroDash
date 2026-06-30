@@ -53,6 +53,10 @@ class RoutingCollector {
     this._ipv6Stream     = null;
     this._bgpStream      = null;
 
+    // Debounce timers — collapse per-delta emit storms from the RouterOS initial snapshot
+    this._routeEmitTimer = null;
+    this._ipv6EmitTimer  = null;
+
     // Restart state (one set per stream)
     this._routeRestarting   = false;
     this._routeRestartTimer  = null;
@@ -380,7 +384,12 @@ class RoutingCollector {
         }
         if (data) {
           this._applyRouteDelta(data);
-          this._emit(null);
+          if (!this._routeEmitTimer) {
+            this._routeEmitTimer = setTimeout(() => {
+              this._routeEmitTimer = null;
+              this._emit(null);
+            }, 100);
+          }
         }
       });
       console.log(this._lbl + ' streaming /ip/route/listen');
@@ -390,6 +399,7 @@ class RoutingCollector {
   }
 
   _stopRouteStream() {
+    if (this._routeEmitTimer) { clearTimeout(this._routeEmitTimer); this._routeEmitTimer = null; }
     if (this._routeRestartTimer) { clearTimeout(this._routeRestartTimer); this._routeRestartTimer = null; }
     this._routeRestarting = false;
     if (this._routeStream) { try { this._routeStream.stop(); } catch (_) {} this._routeStream = null; }
@@ -425,7 +435,12 @@ class RoutingCollector {
         }
         if (data) {
           this._applyRouteDelta(data, 'ipv6');
-          this._emit(null);
+          if (!this._ipv6EmitTimer) {
+            this._ipv6EmitTimer = setTimeout(() => {
+              this._ipv6EmitTimer = null;
+              this._emit(null);
+            }, 100);
+          }
         }
       });
       console.log(this._lbl + ' streaming /ipv6/route/listen');
@@ -435,6 +450,7 @@ class RoutingCollector {
   }
 
   _stopIPv6Stream() {
+    if (this._ipv6EmitTimer) { clearTimeout(this._ipv6EmitTimer); this._ipv6EmitTimer = null; }
     if (this._ipv6RestartTimer) { clearTimeout(this._ipv6RestartTimer); this._ipv6RestartTimer = null; }
     this._ipv6Restarting = false;
     if (this._ipv6Stream) { try { this._ipv6Stream.stop(); } catch (_) {} this._ipv6Stream = null; }

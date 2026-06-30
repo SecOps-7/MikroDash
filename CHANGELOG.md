@@ -2,6 +2,19 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.49] — Router disable/enable, wireless PTR name resolution, routes flicker fix
+
+### Added
+
+- **Router disable/enable** (`src/routers.js`, `src/index.js`, `public/app.js`, `public/index.html`) — routers can now be disabled from the Routers page without deleting them; disabled routers are excluded from monitoring sessions, the active-router dropdown, and the Routers stats overview; attempting to disable the currently active router returns a 400 error; disabled rows are visually dimmed with a yellow "Disabled" status badge and an Enable/Disable toggle button in the actions column; a `router:disabled` socket event automatically switches connected clients to the next available router
+- **Wireless client hostname resolution for external DHCP** (`src/collectors/wireless.js`) — when the DHCP server is on an external device (OPNSense, pfSense, Pi-hole, etc.) and RouterOS has no lease entries, the wireless collector now falls back to a reverse-DNS (PTR) lookup using the IP from the ARP table; compatible with any DNS resolver that registers PTR records for its DHCP clients (Unbound, dnsmasq, etc.); results are cached 60 s on success / 15 s on failure; no new dependencies
+
+### Fixed
+
+- **Routes page flashing on connect** (`src/collectors/routing.js`) — debounced the emit in both `/ip/route/listen` and `/ipv6/route/listen` stream callbacks (100 ms) to collapse RouterOS's initial-snapshot burst into a single emit, eliminating the visible flicker when navigating to the Routes page. Closes #86
+
+---
+
 ## [0.5.48] -- Font picker, stale fixes, connection stream fixes
 
 ### Added

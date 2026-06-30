@@ -5182,7 +5182,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // Also rebuild the mobile nav select
     var navSel = $('navRouterSelect');
     if (navSel) navSel.innerHTML = '';
-    _routers.forEach(function(r) {
+    _routers.filter(function(r) { return !r.disabled; }).forEach(function(r) {
       var label = (r.label || r.host || '?').replace(/\s*[·•·•].*$/, '').trim();
       var opt = document.createElement('option');
       opt.value = r.id;
@@ -5225,35 +5225,46 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   // ── Table render ──────────────────────────────────────────────────────────
+  function _renderRow(r) {
+    var isActive = r.id === _activeRouterId;
+    var activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
+    var delBtn = '<button class="sbtn sbtn-danger" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-label="'+esc(r.label)+'" data-rtr-action="delete" title="Delete">&#128465;</button>';
+    var toggleBtn = '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem"'
+      + (isActive ? ' disabled title="Cannot disable the active router"' : '')
+      + ' data-rtr-id="'+esc(r.id)+'" data-rtr-action="toggle">'
+      + (r.disabled ? 'Enable' : 'Disable') + '</button>';
+    var tlsBadge = r.tls
+      ? '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(52,211,153,.1);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.2)">TLS</span>'
+      : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">Unencrypted</span>';
+    var certNote = r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
+    var connState = _routerStatus[r.id];
+    var badgeCls  = connState === true ? 'rtr-status-badge--on' : connState === false ? 'rtr-status-badge--off' : 'rtr-status-badge--unknown';
+    var badgeTxt  = connState === true ? 'Online' : connState === false ? 'Offline' : '—';
+    var statusCell = r.disabled
+      ? '<span class="rtr-status-badge rtr-status-badge--disabled" data-rtr-conn="'+esc(r.id)+'">Disabled</span>'
+      : '<span class="rtr-status-badge '+badgeCls+'" data-rtr-conn="'+esc(r.id)+'">'+badgeTxt+'</span>';
+    return '<tr'+(r.disabled?' style="opacity:.55"':'')+'>'+
+      '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + '</td>' +
+      '<td>'+statusCell+'</td>' +
+      '<td><span class="rtr-host">'+esc(r.host)+'</span></td>' +
+      '<td>'+tlsBadge+certNote+'</td>' +
+      '<td style="text-align:right;white-space:nowrap">' +
+        '<div style="display:flex;gap:.3rem;justify-content:flex-end">' +
+          toggleBtn +
+          '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-action="edit">Edit</button>' +
+          delBtn +
+        '</div>' +
+      '</td>' +
+      '</tr>';
+  }
+
   function renderTable() {
     if (!tbody) return;
     if (!_routers.length) {
       tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
       return;
     }
-    tbody.innerHTML = _routers.map(function(r) {
-      var isActive = r.id === _activeRouterId;
-      var activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
-
-      var delBtn = '<button class="sbtn sbtn-danger" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-label="'+esc(r.label)+'" data-rtr-action="delete" title="Delete">&#128465;</button>';
-      var tlsBadge = r.tls
-        ? '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(52,211,153,.1);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.2)">TLS</span>'
-        : '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8);border:1px solid rgba(251,191,36,.2)">Unencrypted</span>';
-      var certNote = r.tlsInsecure ? ' <span style="font-size:.6rem;color:var(--text-muted)">self-signed</span>' : '';
-      var connState = _routerStatus[r.id];
-      var badgeCls  = connState === true ? 'rtr-status-badge--on' : connState === false ? 'rtr-status-badge--off' : 'rtr-status-badge--unknown';
-      var badgeTxt  = connState === true ? 'Online' : connState === false ? 'Offline' : '—';
-      return '<tr>' +
-        '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + '</td>' +
-        '<td><span class="rtr-status-badge '+badgeCls+'" data-rtr-conn="'+esc(r.id)+'">'+badgeTxt+'</span></td>' +
-        '<td><span class="rtr-host">'+esc(r.host)+'</span></td>' +
-        '<td>'+tlsBadge+certNote+'</td>' +
-        '<td style="text-align:right;white-space:nowrap;display:flex;gap:.3rem;justify-content:flex-end">' +
-          '<button class="sbtn sbtn-ghost" style="padding:.25rem .6rem;font-size:.68rem" data-rtr-id="'+esc(r.id)+'" data-rtr-action="edit">Edit</button>' +
-          delBtn +
-        '</td>' +
-        '</tr>';
-    }).join('');
+    tbody.innerHTML = _routers.map(_renderRow).join('');
   }
 
   // ── Socket events ─────────────────────────────────────────────────────────
@@ -5329,6 +5340,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       _switchFalseCount++;
       if (_switchFalseCount > 1) switchOvl.classList.remove('open');
     }
+  });
+
+  // If this client was watching a router that just got disabled, auto-switch to next available
+  socket.on('router:disabled', function(data) {
+    var next = _routers.find(function(r) { return !r.disabled && r.id !== data.routerId; });
+    if (next) activateRouter(next.id);
   });
 
   // Update per-router status dots in the Routers table
@@ -5586,6 +5603,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var action = btn.dataset.rtrAction;
       var id     = btn.dataset.rtrId;
       if (action === 'edit')   { var r = _routers.find(function(x){ return x.id===id; }); if(r) openModal(r); }
+      if (action === 'toggle') {
+        var rr = _routers.find(function(x){ return x.id===id; });
+        if (!rr) return;
+        fetch('/api/routers/'+encodeURIComponent(id), {
+          method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+          body:JSON.stringify({disabled:!rr.disabled})
+        }).then(function(res){ return res.json(); })
+          .then(function(j){ if (!j.ok) alert(j.error||'Toggle failed'); })
+          .catch(function(){ alert('Network error'); });
+      }
       if (action === 'delete') {
         var label = btn.dataset.rtrLabel || id;
         if (!confirm('Delete router "' + label + '"?\n\nAll accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.\n\nThis cannot be undone.')) return;

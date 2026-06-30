@@ -268,11 +268,11 @@ function _poolOwnedIds() { return new Set(_routerSessions.keys()); }
 // Re-sync the alertSessions pool, always excluding routers the main pool owns.
 // Call after any change to _routerSessions (create/teardown) or the router list.
 function _syncAlertSessions() {
-  alertSessions.syncSessions(Routers.loadAll(), Settings.load().activeRouterId || '', _poolOwnedIds());
+  alertSessions.syncSessions(Routers.loadAll().filter(r => !r.disabled), Settings.load().activeRouterId || '', _poolOwnedIds());
 }
 
 function _syncOverviewSessions() {
-  overviewSessions.syncSessions(Routers.loadAll(), _poolOwnedIds());
+  overviewSessions.syncSessions(Routers.loadAll().filter(r => !r.disabled), _poolOwnedIds());
 }
 
 function _freshState() {
@@ -1344,9 +1344,28 @@ app.post('/api/routers', _requireAdmin, (req, res) => {
 });
 
 // PUT /api/routers/:id — edit a router
-app.put('/api/routers/:id', _requireAdmin, (req, res) => {
+app.put('/api/routers/:id', _requireAdmin, async (req, res) => {
   try {
-    const router = Routers.update(req.params.id, req.body || {});
+    const body = req.body || {};
+    if (body.disabled === true && req.params.id === Settings.load().activeRouterId) {
+      return res.status(400).json({ ok:false, error:'Switch to another router before disabling this one.' });
+    }
+    if (body.disabled === true) {
+      const _e = _routerSessions.get(req.params.id);
+      if (_e) {
+        if (_e.idleTimer) { clearTimeout(_e.idleTimer); _e.idleTimer = null; }
+        await teardownSession(_e.session, _e);
+        _routerSessions.delete(req.params.id);
+      }
+      const disabledRoom = 'router-' + req.params.id;
+      for (const [, sock] of io.sockets.sockets) {
+        if (sock.rooms && sock.rooms.has(disabledRoom)) {
+          sock.leave(disabledRoom);
+          sock.emit('router:disabled', { routerId: req.params.id });
+        }
+      }
+    }
+    const router = Routers.update(req.params.id, body);
     if (!router) return res.status(404).json({ ok:false, error:'Router not found' });
     _broadcastRoutersList();
 
@@ -2096,7 +2115,7 @@ function _buildRoutersStats() {
   const bgSummaries = overviewSessions.getSummaries();
   const cfg         = Settings.load();
 
-  return allRouters.map(r => {
+  return allRouters.filter(r => !r.disabled).map(r => {
     const mainEntry = _routerSessions.get(r.id);
     const s         = mainEntry && mainEntry.session;
     const bg        = bgSummaries.find(x => x.routerId === r.id);

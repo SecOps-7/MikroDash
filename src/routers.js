@@ -221,6 +221,7 @@ function add(data) {
     bwUpMbps:      Math.max(1, parseInt(data.bwUpMbps   || '1000', 10) || 1000),
     alertsEnabled:       !!(data.alertsEnabled),
     connDownThresholdSec:(function(){ var n = parseInt(data.connDownThresholdSec, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
+    disabled:            false,
     addedAt:             Date.now(),
   };
   routers.push(entry);
@@ -261,6 +262,7 @@ function update(id, data) {
     bwUpMbps:      data.bwUpMbps      !== undefined ? Math.max(1, parseInt(data.bwUpMbps,   10) || 1000) : (existing.bwUpMbps   || 1000),
     alertsEnabled:       data.alertsEnabled       !== undefined ? !!(data.alertsEnabled)           : !!(existing.alertsEnabled),
     connDownThresholdSec:(function(){ var raw = data.connDownThresholdSec !== undefined ? data.connDownThresholdSec : (existing.connDownThresholdSec !== undefined ? existing.connDownThresholdSec : 30); var n = parseInt(raw, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
+    disabled:            data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),
   };
 
   // Only update password if provided and not the mask sentinel
