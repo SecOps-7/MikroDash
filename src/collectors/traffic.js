@@ -11,34 +11,25 @@
  * it no longer drives the stream.
  */
 const RingBuffer = require('../util/ringbuffer');
+const { parseBps, bpsToMbps, clampPoll, stopStreamSafe } = require('./util');
 
 const MAX_INTERFACE_NAME_LENGTH = 128;
 
-function parseBps(val) {
-  if (!val || val === '0') return 0;
-  var s = String(val);
-  if (s.endsWith('kbps') || s.endsWith('Kbps')) return parseFloat(s) * 1000;
-  if (s.endsWith('Mbps') || s.endsWith('mbps')) return parseFloat(s) * 1_000_000;
-  if (s.endsWith('Gbps') || s.endsWith('gbps')) return parseFloat(s) * 1_000_000_000;
-  if (s.endsWith('bps')) return parseFloat(s);
-  return parseInt(s, 10) || 0;
-}
-
-function bpsToMbps(bps) {
-  return +((bps || 0) / 1_000_000).toFixed(3);
-}
-
 class TrafficCollector {
-  constructor({ ros, io, defaultIf, historyMinutes, state, onSample }) {
+  constructor({ ros, io, defaultIf, historyMinutes, pollMs, state, onSample }) {
     this.ros        = ros;
     this.io         = io;
     this._lbl       = ros.routerLabel ? `[${ros.routerLabel}][traffic]` : '[traffic]';
     this.defaultIf  = defaultIf;
     this.state      = state;
     this._onSample  = onSample || null;
+    // Contract metadata only — the stream interval is fixed at 1 s, and the
+    // db-writer's MB accumulation assumes exactly one sample per second.
+    this.pollMs     = clampPoll(pollMs, 1000);
     this.maxPoints  = Math.max(60, historyMinutes * 60);
     this.hist          = new Map();  // ifName -> RingBuffer
     this.subscriptions = new Map();  // socketId -> { ifName, socket }
+    this._boundSockets = new Map();  // socketId -> { socket, onSelect, onDisconnect }
     this._allStream    = null;
     this._ifNamesKey   = '';         // sorted key of current stream — detects changes
     this.availableIfs  = new Set();  // validated set from fetchInterfaces()
@@ -104,7 +95,7 @@ class TrafficCollector {
   _stopAllStream() {
     if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
     if (!this._allStream) return;
-    try { this._allStream.stop().catch(() => {}); } catch (e) {}
+    stopStreamSafe(this._allStream);
     this._allStream = null;
     console.log(this._lbl + ' stopped stream');
   }
@@ -148,6 +139,7 @@ class TrafficCollector {
       }
       // Always schedule a restart — 'no such item' is a transient interface blip,
       // other errors may be CHR/VM killing the stream under resource pressure.
+      if (this._restartTimer) clearTimeout(this._restartTimer); // overlapping errors must not leak timers
       this._restartTimer = setTimeout(() => {
         this._restartTimer = null;
         this._loggedErr = false;
@@ -163,7 +155,11 @@ class TrafficCollector {
     // defaultIf is always in the stream, so this is a no-op on first connect.
     this._updateStream();
 
-    socket.on('traffic:select', (payload) => {
+    // bindSocket is called on connect, hot-swap replay and router:switch —
+    // attach the listeners only once per socket or they stack.
+    if (this._boundSockets.has(socket.id)) return;
+
+    const onSelect = (payload) => {
       const nextIf = this._normalizeIfName(payload && payload.ifName);
       if (!nextIf) return;
       this.subscriptions.set(socket.id, { ifName: nextIf, socket });
@@ -173,12 +169,25 @@ class TrafficCollector {
         ifName: nextIf,
         points: this.hist.get(nextIf).toArray(),
       });
-    });
+    };
+    const onDisconnect = () => this.unbindSocket(socket);
 
-    socket.on('disconnect', () => {
-      this.subscriptions.delete(socket.id);
-      this._updateStream(); // shrinks stream if nextIf is no longer subscribed
-    });
+    this._boundSockets.set(socket.id, { socket, onSelect, onDisconnect });
+    socket.on('traffic:select', onSelect);
+    socket.on('disconnect', onDisconnect);
+  }
+
+  // Detach listeners and drop the subscription — used on disconnect, on
+  // router:switch (socket moves to another session's collector) and in stop().
+  unbindSocket(socket) {
+    const bound = this._boundSockets.get(socket.id);
+    if (bound) {
+      socket.off('traffic:select', bound.onSelect);
+      socket.off('disconnect', bound.onDisconnect);
+      this._boundSockets.delete(socket.id);
+    }
+    this.subscriptions.delete(socket.id);
+    this._updateStream(); // shrinks stream if the interface is no longer subscribed
   }
 
   _processPacket(ifName, data) {
@@ -225,7 +234,16 @@ class TrafficCollector {
     this._startAllStream();
   }
 
-  stop() { this._stopAllStream(); }
+  stop() {
+    this._stopAllStream();
+    // Release socket listeners/references so a torn-down session can be GC'd.
+    for (const { socket, onSelect, onDisconnect } of this._boundSockets.values()) {
+      socket.off('traffic:select', onSelect);
+      socket.off('disconnect', onDisconnect);
+    }
+    this._boundSockets.clear();
+    this.subscriptions.clear();
+  }
 }
 
 module.exports = TrafficCollector;

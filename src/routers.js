@@ -31,6 +31,7 @@
 const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
+const { isValidIp } = require('./util/ip');
 
 const DATA_DIR     = process.env.DATA_DIR || '/data';
 const ROUTERS_FILE = path.join(DATA_DIR, 'routers.json');
@@ -121,6 +122,13 @@ function _validateHostPort(host, port) {
   if (!Number.isInteger(p) || p < 1 || p > 65535) throw new Error('Invalid port');
 }
 
+// Same rules buildSession() enforces — reject at save time, because a persisted
+// bad value makes buildSession throw on every future connection (survives restart).
+function _validateTargets(defaultIf, pingTarget) {
+  if (defaultIf && !/^[A-Za-z0-9_./-]{1,128}$/.test(defaultIf)) throw new Error('Invalid defaultIf');
+  if (pingTarget && !isValidIp(pingTarget)) throw new Error('Invalid pingTarget — must be a valid IP address');
+}
+
 // ── File I/O ──────────────────────────────────────────────────────────────────
 function _ensureDataDir() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
@@ -128,12 +136,21 @@ function _ensureDataDir() {
 
 let _cache = null; // in-memory list of decrypted router objects
 
+// Ciphertext that failed to decrypt (key mismatch/corruption), keyed by router id.
+// Preserved verbatim on save so an unrelated edit can't blank the stored
+// credential permanently; cleared when a new password is explicitly set.
+const _cipherKeep = new Map();
+
 function _readFile() {
   _ensureDataDir();
   try {
     const raw = JSON.parse(fs.readFileSync(ROUTERS_FILE, 'utf8'));
     if (!Array.isArray(raw)) return [];
-    return raw.map(r => ({ ...r, password: _decrypt(r.password || '') }));
+    return raw.map(r => {
+      const plain = _decrypt(r.password || '');
+      if (!plain && r.password) _cipherKeep.set(r.id, r.password);
+      return { ...r, password: plain };
+    });
   } catch (_) {
     return [];
   }
@@ -141,9 +158,13 @@ function _readFile() {
 
 function _writeFile(routers) {
   _ensureDataDir();
-  const toWrite = routers.map(r => ({ ...r, password: _encrypt(r.password || '') }));
+  const toWrite = routers.map(r => ({
+    ...r,
+    password: r.password ? _encrypt(r.password) : (_cipherKeep.get(r.id) || ''),
+  }));
   const tmp = ROUTERS_FILE + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(toWrite, null, 2), 'utf8');
+  // mode 0o600 — file holds encrypted credentials; keep it owner-only.
+  fs.writeFileSync(tmp, JSON.stringify(toWrite, null, 2), { encoding: 'utf8', mode: 0o600 });
   fs.renameSync(tmp, ROUTERS_FILE);
 }
 
@@ -224,6 +245,7 @@ function add(data) {
     disabled:            false,
     addedAt:             Date.now(),
   };
+  _validateTargets(entry.defaultIf, entry.pingTarget);
   routers.push(entry);
   _cache = routers;
   _writeFile(routers);
@@ -265,9 +287,12 @@ function update(id, data) {
     disabled:            data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),
   };
 
+  _validateTargets(updated.defaultIf, updated.pingTarget);
+
   // Only update password if provided and not the mask sentinel
   if (data.password !== undefined && data.password !== '••••••••' && data.password !== '') {
     updated.password = String(data.password);
+    _cipherKeep.delete(id); // explicit new password supersedes preserved ciphertext
   }
 
   routers[idx] = updated;
@@ -296,6 +321,7 @@ function remove(id) {
   const routers = loadAll();
   const next    = routers.filter(r => r.id !== id);
   if (next.length === routers.length) return false;
+  _cipherKeep.delete(id);
   _cache = next;
   _writeFile(next);
   return true;

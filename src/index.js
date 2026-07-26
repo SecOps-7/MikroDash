@@ -75,7 +75,14 @@ const compression = require('compression');
 const app = express();
 
 const TRUSTED_PROXY = process.env.TRUSTED_PROXY;
-if (TRUSTED_PROXY) app.set('trust proxy', TRUSTED_PROXY);
+if (TRUSTED_PROXY === 'true' || TRUSTED_PROXY === '1') {
+  // 'true' would trust the entire X-Forwarded-For chain, letting any client spoof
+  // its IP and defeat the login/setup rate limiters. Trust exactly one hop instead.
+  if (TRUSTED_PROXY === 'true') console.warn('[MikroDash] TRUSTED_PROXY=true is unsafe — trusting only the first proxy hop. Set an IP/CIDR or hop count to silence this.');
+  app.set('trust proxy', 1);
+} else if (TRUSTED_PROXY) {
+  app.set('trust proxy', /^\d+$/.test(TRUSTED_PROXY) ? parseInt(TRUSTED_PROXY, 10) : TRUSTED_PROXY);
+}
 
 const server = http.createServer(app);
 const MAX_SOCKETS = parseInt(process.env.MAX_SOCKETS || '50', 10);
@@ -92,22 +99,30 @@ const io = new Server(server, {
 // automatically scoped to the correct router room with no internal changes.
 function buildRouterIo(routerId) {
   const room = 'router-' + routerId;
+  // Handlers collectors register via on() land on the process-global `io`;
+  // track them so teardownSession can remove them — otherwise every hot-swap
+  // leaks listeners that retain the whole dead session.
+  const _handlers = [];
+  // Room-scoped emits must still feed the alerter, or events that only ever go
+  // through to() (e.g. vpn:update) can never trigger notifications.
+  const _hook = (event, data) => alerter.evaluateForRouter(routerId, event, data);
   return {
     emit(event, data) {
       io.to(room).emit(event, data);
       if (event === 'ping:update' && data && typeof data.loss === 'number') {
         dbWriter.recordPing(routerId, data.target, data.rtt != null ? data.rtt : null, data.loss, data.ts);
       }
-      alerter.evaluateForRouter(routerId, event, data);
+      _hook(event, data);
     },
     to(subRoom) {
       return {
-        emit(event, data) { io.to(room + '-' + subRoom).emit(event, data); },
-        to(r2)            { return { emit(e, d) { io.to(room + '-' + subRoom).to(room + '-' + r2).emit(e, d); } }; },
+        emit(event, data) { io.to(room + '-' + subRoom).emit(event, data); _hook(event, data); },
+        to(r2)            { return { emit(e, d) { io.to(room + '-' + subRoom).to(room + '-' + r2).emit(e, d); _hook(e, d); } }; },
       };
     },
     // Collectors may call io.on('connection', ...) to restart streams on reconnect.
-    on(event, handler)   { io.on(event, handler); },
+    on(event, handler)   { _handlers.push([event, handler]); io.on(event, handler); },
+    removeAllHandlers()  { for (const [ev, h] of _handlers) io.off(ev, h); _handlers.length = 0; },
     engine: { get clientsCount() { return io.sockets.adapter.rooms.get(room)?.size || 0; } },
     // Collectors that check room sizes (e.g. connections) use io.sockets.adapter.rooms.get(subRoom).
     // Transparently scope the lookup to this router's rooms so they get the right count.
@@ -158,9 +173,16 @@ function _sessionFromReq(req) {
   return session;
 }
 
+// Single source of truth for the effective auth mode. Only 'none' and 'modern'
+// exist; anything else (including a falsy/legacy value) resolves to 'modern' so
+// no call site can accidentally fail open by defaulting to the removed 'basic'.
+function _authMode() {
+  return Settings.load().authMode === 'none' ? 'none' : 'modern';
+}
+function _isModern() { return _authMode() === 'modern'; }
+
 function _authMiddleware(req, res, next) {
-  const mode = Settings.load().authMode || 'modern';
-  if (mode === 'none') return next();
+  if (_authMode() === 'none') return next();
   return _modernAuthMiddleware(req, res, next);
 }
 
@@ -177,7 +199,7 @@ function _modernAuthMiddleware(req, res, next) {
 // roles). In 'none' mode there is no identity, so every request is implicitly an
 // admin — this is by design. RBAC is enforced whenever an identity with a role is present.
 function _requireAdmin(req, res, next) {
-  if ((Settings.load().authMode || 'modern') !== 'modern') return next();
+  if (!_isModern()) return next();
   if (!req.authSession || req.authSession.role !== 'admin') {
     return res.status(403).json({ ok: false, error: 'Admin access required' });
   }
@@ -189,7 +211,7 @@ function _requireAdmin(req, res, next) {
 // historical-data routes accept an arbitrary routerId, so a restricted admin must
 // be held to the same boundary here. No-op in none mode (no per-user perms).
 function _scopeRouterId(req, res, next) {
-  if ((Settings.load().authMode || 'modern') !== 'modern') return next();
+  if (!_isModern()) return next();
   const allowed = req.authSession && req.authSession.allowedRouterIds;
   if (Array.isArray(allowed) && allowed.length > 0) {
     const rid = String(req.query.routerId || '');
@@ -210,7 +232,7 @@ app.use((req, res, next) => {
 // authLimiter cannot be used here; auth-only is applied instead. Rate limiting for
 // the preceding polling handshake is covered by the app.use() handler above.
 io.engine.use((req, res, next) => { // codeql[js/missing-rate-limiting]
-  if ((Settings.load().authMode || 'modern') === 'none') return next();
+  if (_authMode() === 'none') return next();
   const session = _sessionFromReq(req);
   if (!session) { res.statusCode = 401; return res.end('Not authenticated'); }
   req._authSession = session; // accessible as socket.request._authSession in io.on('connection')
@@ -228,7 +250,7 @@ let _sessionSweepTimer = null;
 function _startSessionSweep() {
   if (_sessionSweepTimer) return;
   _sessionSweepTimer = setInterval(() => {
-    if ((Settings.load().authMode || 'modern') !== 'modern') return;
+    if (!_isModern()) return;
     for (const [, socket] of io.sockets.sockets) {
       const live = _sessionFromReq(socket.request);
       if (!live) {
@@ -288,7 +310,7 @@ function _freshState() {
     lastWirelessTs:0, lastWirelessErr:null,
     lastVpnTs:0,      lastVpnErr:null,
     lastFirewallTs:0, lastFirewallErr:null,
-    lastIfStatusTs:0,
+    lastIfStatusTs:0, lastIfStatusErr:null,
     lastPingTs:0,
     lastRoutingTs:0,  lastRoutingErr:null,
     lastBandwidthTs:0, lastBandwidthErr:null,
@@ -383,6 +405,10 @@ async function teardownSession(session, entry) {
   console.log(`[${_tearLabel}] ── session torn down`);
   if (entry) { entry.startupReady = false; entry.collectorsStarted = false; }
   if (entry && entry._diagTimer) { clearInterval(entry._diagTimer); entry._diagTimer = null; }
+  // Detach collector-registered global io listeners so the dead session can be GC'd.
+  if (entry && entry.routerIo && typeof entry.routerIo.removeAllHandlers === 'function') {
+    entry.routerIo.removeAllHandlers();
+  }
   if (session._cancelDownTimer) session._cancelDownTimer();
   for (const c of session.allCollectors) {
     if (typeof c.stop === 'function') c.stop();
@@ -478,10 +504,7 @@ function wireRosEvents(session, entry) {
     // Collector reconnect handlers (in constructors) fire before this listener
     // and call suspend() to clear state first.
     session.conns.resume();
-    _updateFirewallStreams(session, entry);
-    _updateRoutingStreams(session, entry);
-    _updateWirelessStreams(session, entry);
-    _updateVpnStreams(session, entry);
+    _updateAllPageStreams(session, entry);
   });
   ros.on('close', () => {
     session.connTableCache.invalidate();
@@ -525,7 +548,9 @@ function wireRosEvents(session, entry) {
     if (hint) console.error(`[${ros.routerLabel}][ROS]   → ${hint}`);
     if (e && e.errno) console.error(`[${ros.routerLabel}][ROS]   errno: ${e.errno}`);
     console.error(`[${ros.routerLabel}][ROS]   raw: ${msg}`);
-    broadcastRosStatus(false, reason, entry);
+    // No classifier matched → reason is still the raw message; sanitize before
+    // it reaches the browser (hard constraint: never send raw .message).
+    broadcastRosStatus(false, reason === msg ? sanitizeErr(e) : reason, entry);
     _emitRouterStatus(false);
   });
   ros.on('connected', () => startCollectors(session, entry));
@@ -622,7 +647,9 @@ async function switchRouter(newRouterId) {
     if (oldEntry) {
       broadcastRosStatus(false, `Switching to ${router.label}…`, oldEntry);
     }
-    io.emit('router:switching', { routerId: newRouterId, label: router.label });
+    // Only sockets watching the outgoing router should reset their UI state —
+    // a global emit would wipe charts/logs in every other user's browser.
+    if (oldActiveId) io.to('router-' + oldActiveId).emit('router:switching', { routerId: newRouterId, label: router.label });
 
     // Save the new active router id
     Settings.save({ activeRouterId: newRouterId });
@@ -632,22 +659,28 @@ async function switchRouter(newRouterId) {
       if (oldEntry.idleTimer) { clearTimeout(oldEntry.idleTimer); oldEntry.idleTimer = null; }
       await teardownSession(oldEntry.session, oldEntry);
       _routerSessions.delete(oldActiveId);
+      // Drop stale alert edge-detection state (prevIfState/prevVpnState/…) for
+      // the torn-down session — same as idle teardown and router delete do.
+      alerter.dropEvaluator(oldActiveId);
     }
     _noRouterMode = false;
 
-    // Move non-modern-auth sockets to the new router room
+    // Relocate every socket that was watching the just-torn-down router — in
+    // modern auth that's everyone following the global default; users pinned to
+    // a different router via router:switch keep their own view. (The old check
+    // skipped sockets with an auth session, orphaning all modern-auth clients.)
     for (const [, socket] of io.sockets.sockets) {
-      if (!socket.request?._authSession) {
-        if (socket.routerId && socket.routerId !== newRouterId) {
-          socket.leave('router-' + socket.routerId);
-          socket.routerId = newRouterId;
-          socket.join('router-' + newRouterId);
+      if (socket.routerId === oldActiveId && socket.routerId !== newRouterId) {
+        for (const room of [...socket.rooms]) {
+          if (room.startsWith('router-' + socket.routerId)) socket.leave(room);
         }
+        socket.routerId = newRouterId;
+        socket.join('router-' + newRouterId);
       }
     }
 
     // Build and start new session
-    const newEntry = ensureRouterSession(newRouterId);
+    ensureRouterSession(newRouterId);
     return { ok: true };
   } finally {
     _switching = false;
@@ -669,7 +702,9 @@ function ensureRouterSession(routerId) {
   entry = { session, startupReady: false, collectorsStarted: false, rosConnected: false, idleTimer: null, routerIo };
   _routerSessions.set(routerId, entry);
   wireRosEvents(session, entry);
-  session.ros.connectLoop();
+  session.ros.connectLoop().catch((e) => {
+    console.error(`[${session.ros.routerLabel}] connectLoop exited unexpectedly:`, e && e.message ? e.message : e);
+  });
   // This router is now pool-owned — drop any alertSessions session for it so
   // connectivity/alerts aren't tracked twice. (No-op for the global active router,
   // which alertSessions already excludes.)
@@ -724,8 +759,7 @@ function _resolveRouterId(socket) {
 // Return the router list visible to a specific socket (filtered by allowedRouterIds).
 function _routersForSocket(socket) {
   const all = Routers.getPublic();
-  const cfg = Settings.load();
-  if ((cfg.authMode || 'basic') !== 'modern') return all;
+  if (!_isModern()) return all;
   const allowed = socket.request?._authSession?.allowedRouterIds;
   if (Array.isArray(allowed) && allowed.length > 0) return all.filter(r => allowed.includes(r.id));
   return all;
@@ -774,8 +808,7 @@ alertSessions.init(io);
 
 // Warn loudly if the dashboard is reachable with no authentication configured.
 (function _warnIfOpen() {
-  const s = Settings.load();
-  if ((s.authMode || 'modern') === 'none') {
+  if (_authMode() === 'none') {
     console.warn('[MikroDash] ⚠ SECURITY: the dashboard is served with NO authentication.');
     console.warn('[MikroDash]   Switch to Session-based auth in Settings → Security.');
   }
@@ -808,14 +841,15 @@ alertSessions.init(io);
 })();
 
 // ── Login page route ──────────────────────────────────────────────────────────
-app.get('/login', authLimiter, (_req, res) => res.sendFile(require('path').join(__dirname, '..', 'public', 'login.html')));
+// authLimiter already applies globally (app.use above) — no route-level repeat,
+// which would consume two of the 100/min budget per request.
+app.get('/login', (_req, res) => res.sendFile(require('path').join(__dirname, '..', 'public', 'login.html')));
 
 // ── Auth API ──────────────────────────────────────────────────────────────────
 
 // GET /api/auth/status — mode, firstRun flag, current session info (no auth needed)
 app.get('/api/auth/status', (req, res) => {
-  const s        = Settings.load();
-  const mode     = s.authMode || 'basic';
+  const mode     = _authMode();
   const session  = _sessionFromReq(req); // live role (reflects demotions/deletions)
   const firstRun = mode === 'modern' && Users.userCount() === 0;
   res.json({
@@ -901,8 +935,7 @@ const _USERNAME_RE = /^[a-zA-Z0-9_.\-]{1,64}$/;
 let _setupClaimed = false;
 app.post('/api/users/setup', setupLimiter, async (req, res) => {
   try {
-    const s = Settings.load();
-    if ((s.authMode || 'basic') !== 'modern') return res.status(400).json({ ok: false, error: 'Modern auth not enabled' });
+    if (!_isModern()) return res.status(400).json({ ok: false, error: 'Modern auth not enabled' });
     if (_setupClaimed || Users.userCount() > 0) return res.status(409).json({ ok: false, error: 'Setup already complete' });
     const { username, password } = req.body || {};
     if (!username || !_USERNAME_RE.test(username)) return res.status(400).json({ ok: false, error: 'Invalid username' });
@@ -1033,8 +1066,7 @@ app.post('/api/dashboard-layout', layoutLimiter, (req, res) => {
 // In modern auth, viewers get only a non-sensitive subset; admins get the full
 // (credential-masked) settings. Basic/none mode is unchanged (full masked view).
 app.get('/api/settings', (req, res) => {
-  const modern = (Settings.load().authMode || 'basic') === 'modern';
-  if (modern && (!req.authSession || req.authSession.role !== 'admin')) {
+  if (_isModern() && (!req.authSession || req.authSession.role !== 'admin')) {
     return res.json(Settings.getViewerPublic());
   }
   res.json(Settings.getPublic());
@@ -1317,7 +1349,7 @@ app.get('/api/routers', (req, res) => {
   const cfg    = Settings.load();
   const active = cfg.activeRouterId || '';
   let routers  = Routers.getPublic();
-  if ((cfg.authMode || 'basic') === 'modern' && req.authSession) {
+  if (_isModern() && req.authSession) {
     const allowed = req.authSession.allowedRouterIds;
     if (Array.isArray(allowed) && allowed.length > 0) {
       routers = routers.filter(r => allowed.includes(r.id));
@@ -1356,6 +1388,7 @@ app.put('/api/routers/:id', _requireAdmin, async (req, res) => {
         if (_e.idleTimer) { clearTimeout(_e.idleTimer); _e.idleTimer = null; }
         await teardownSession(_e.session, _e);
         _routerSessions.delete(req.params.id);
+        alerter.dropEvaluator(req.params.id);
       }
       const disabledRoom = 'router-' + req.params.id;
       for (const [, sock] of io.sockets.sockets) {
@@ -1426,16 +1459,15 @@ app.delete('/api/routers/:id', _requireAdmin, async (req, res) => {
         // Auto-promote the first remaining router.
         const nextId = remaining[0].id;
         Settings.save({ activeRouterId: nextId });
-        _cfg.activeRouterId = nextId;
         _noRouterMode = false;
-        // Move non-modern-auth sockets to the new router room.
+        // Relocate every socket that was watching the deleted router (see switchRouter).
         for (const [, socket] of io.sockets.sockets) {
-          if (!socket.request?._authSession) {
-            if (socket.routerId && socket.routerId !== nextId) {
-              socket.leave('router-' + socket.routerId);
-              socket.routerId = nextId;
-              socket.join('router-' + nextId);
+          if (socket.routerId === deletedId && socket.routerId !== nextId) {
+            for (const room of [...socket.rooms]) {
+              if (room.startsWith('router-' + socket.routerId)) socket.leave(room);
             }
+            socket.routerId = nextId;
+            socket.join('router-' + nextId);
           }
         }
         ensureRouterSession(nextId);
@@ -1526,7 +1558,8 @@ app.post('/api/routers/test', _requireAdmin, _testConnLimiter, async (req, res) 
         ? `TLS handshake failed — check that RouterOS api-ssl is enabled${errno}`
         : `RouterOS API error${errno} — check that api service is enabled and user has API access`;
     }
-    done(false, reason);
+    // No classifier matched → sanitize the raw message before responding.
+    done(false, reason === msg ? sanitizeErr(e) : reason);
   });
   testRos.on('connected', async () => {
     clearTimeout(timeout);
@@ -1545,13 +1578,16 @@ app.post('/api/routers/test', _requireAdmin, _testConnLimiter, async (req, res) 
 });
 
 // ── Existing read-only endpoints ──────────────────────────────────────────────
-app.get('/api/localcc', (_req, res) => {
+app.get('/api/localcc', (req, res) => {
   const s = _globalSession();
   if (!s) return res.json({ cc: '', wanIp: '' });
   const wanIp = (s.state.lastWanIp || '').split('/')[0];
   let cc = '';
   if (geoip && wanIp) { const g = geoip.lookup(wanIp); if (g) cc = g.country || ''; }
-  res.json({ cc, wanIp });
+  // Viewers only need the country code (world-map arc origin); the WAN IP is
+  // withheld from them like the rest of the router network detail.
+  const isAdmin = !_isModern() || (req.authSession && req.authSession.role === 'admin');
+  res.json({ cc, wanIp: isAdmin ? wanIp : '' });
 });
 
 function sanitizeErr(e) {
@@ -1560,10 +1596,14 @@ function sanitizeErr(e) {
   return msg
     .replace(/\/[^\s'"]{2,}/g, '[path]')
     .replace(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?/g, '[addr]')
+    // Provider errors (SMTP auth, Telegram API) can embed the account/email or
+    // bot token — redact both before anything reaches the browser.
+    .replace(/[\w.+-]+@[\w.-]+\.\w+/g, '[email]')
+    .replace(/\b\d{6,}:[A-Za-z0-9_-]{20,}\b/g, '[token]')
     .slice(0, 200);
 }
 
-app.get('/healthz', (_req, res) => {
+app.get('/healthz', (req, res) => {
   const ge = _globalEntry();
   const s  = ge ? ge.session : null;
   const { ok, statusCode } = computeHealthStatus({
@@ -1572,6 +1612,12 @@ app.get('/healthz', (_req, res) => {
   });
   const st = s ? s.state : {};
   const isStarting = !(ge && ge.startupReady) && (Date.now() - _serverStartTime < STARTUP_GRACE_MS);
+  // Unauthenticated callers (the Docker healthcheck) only need the status code
+  // and ok/starting flags — version, router ids and collector detail would
+  // otherwise be free fingerprinting for anyone who can reach the port.
+  if (_isModern() && !_sessionFromReq(req)) {
+    return res.status(statusCode).json({ ok, starting: isStarting });
+  }
   const body = {
     ok,
     starting: isStarting,
@@ -1593,7 +1639,8 @@ app.get('/healthz', (_req, res) => {
       wireless: { ts:st.lastWirelessTs, err:sanitizeErr(st.lastWirelessErr) },
       vpn:      { ts:st.lastVpnTs,      err:sanitizeErr(st.lastVpnErr)      },
       firewall: { ts:st.lastFirewallTs, err:sanitizeErr(st.lastFirewallErr) },
-      ping:     { ts:st.lastPingTs,     err:null                            },
+      ifstatus: { ts:st.lastIfStatusTs, err:sanitizeErr(st.lastIfStatusErr) },
+      ping:     { ts:st.lastPingTs,     err:sanitizeErr(st.lastPingErr)     },
       netwatch: { ts:st.lastNetwatchTs, err:sanitizeErr(st.lastNetwatchErr) },
     },
   };
@@ -1817,6 +1864,21 @@ function _toPdf(title, columns, rows, res, meta) {
   doc.end();
 }
 
+// Math.max(...arr) overflows the call stack above ~65k arguments — report
+// queries default to a 100k row limit, so reduce instead of spreading.
+const _maxOf = (arr) => arr.reduce((m, v) => (v > m ? v : m), -Infinity);
+
+// Pair each Offline row with the next Online row to compute outage duration.
+// Single backward pass (rows are ts-ASC); null downtime = still offline.
+function _annotateDowntime(rows) {
+  let nextOnlineTs = null;
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (rows[i].connected) { nextOnlineTs = rows[i].ts; rows[i].downtime_ms = null; }
+    else rows[i].downtime_ms = nextOnlineTs != null ? nextOnlineTs - rows[i].ts : null;
+  }
+  return rows;
+}
+
 function _tsFmt(ts) {
   if (!ts) return '';
   const tz = Settings.load().displayTimezone;
@@ -1863,7 +1925,7 @@ app.get('/api/reports/ping/export', _requireAdmin, _scopeRouterId, (req, res) =>
     const rtts   = rows.filter(r => r.rtt_ms != null).map(r => r.rtt_ms);
     const losses = rows.map(r => r.loss_pct);
     const avgRtt = rtts.length   ? (rtts.reduce((a,b)=>a+b,0)/rtts.length).toFixed(1) : '—';
-    const maxRtt = rtts.length   ? Math.max(...rtts).toFixed(1) : '—';
+    const maxRtt = rtts.length   ? _maxOf(rtts).toFixed(1) : '—';
     const avgLoss= losses.length ? (losses.reduce((a,b)=>a+b,0)/losses.length).toFixed(1) : '—';
     const uptime = losses.length ? ((losses.filter(l=>l<1).length/losses.length)*100).toFixed(1)+'%' : '—';
     const step   = rows.length > 150 ? Math.ceil(rows.length / 150) : 1;
@@ -1921,8 +1983,8 @@ app.get('/api/reports/traffic/export', _requireAdmin, _scopeRouterId, (req, res)
     const txs   = rows.map(r => r.tx_mbps);
     const avgRx = rxs.length ? (rxs.reduce((a,b)=>a+b,0)/rxs.length).toFixed(1) : '—';
     const avgTx = txs.length ? (txs.reduce((a,b)=>a+b,0)/txs.length).toFixed(1) : '—';
-    const peakRx= rxs.length ? Math.max(...rxs).toFixed(1) : '—';
-    const peakTx= txs.length ? Math.max(...txs).toFixed(1) : '—';
+    const peakRx= rxs.length ? _maxOf(rxs).toFixed(1) : '—';
+    const peakTx= txs.length ? _maxOf(txs).toFixed(1) : '—';
     const step  = rows.length > 150 ? Math.ceil(rows.length / 150) : 1;
     const sub   = rows.filter((_,i)=>i%step===0);
     const rtr   = Routers.getById(routerId);
@@ -1978,8 +2040,8 @@ app.get('/api/reports/bandwidth/export', _requireAdmin, _scopeRouterId, (req, re
     const txs    = rows.map(r => r.tx_mb);
     const totalRx= rxs.reduce((a,b)=>a+b,0).toFixed(1);
     const totalTx= txs.reduce((a,b)=>a+b,0).toFixed(1);
-    const peakRx = rxs.length ? Math.max(...rxs).toFixed(1) : '—';
-    const peakTx = txs.length ? Math.max(...txs).toFixed(1) : '—';
+    const peakRx = rxs.length ? _maxOf(rxs).toFixed(1) : '—';
+    const peakTx = txs.length ? _maxOf(txs).toFixed(1) : '—';
     const step   = rows.length > 150 ? Math.ceil(rows.length / 150) : 1;
     const sub    = rows.filter((_,i)=>i%step===0);
     const rtr    = Routers.getById(routerId);
@@ -2052,16 +2114,7 @@ app.get('/api/reports/connectivity', _requireAdmin, _scopeRouterId, (req, res) =
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   if (aggregate) return res.json({ ok: true, rows: db.queryConnectivityEventsAgg(routerId, from, to, aggregate) });
-  const rows = db.queryConnectivityEvents(routerId, from, to);
-  // Pair each Offline row with the next Online row to compute outage duration
-  for (let i = 0; i < rows.length; i++) {
-    if (!rows[i].connected) {
-      const next = rows.slice(i + 1).find(r => r.connected);
-      rows[i].downtime_ms = next ? next.ts - rows[i].ts : null; // null = still offline
-    } else {
-      rows[i].downtime_ms = null;
-    }
-  }
+  const rows = _annotateDowntime(db.queryConnectivityEvents(routerId, from, to));
   res.json({ ok: true, rows });
 });
 
@@ -2069,15 +2122,7 @@ app.get('/api/reports/connectivity', _requireAdmin, _scopeRouterId, (req, res) =
 app.get('/api/reports/connectivity/export', _requireAdmin, _scopeRouterId, (req, res) => {
   const { routerId, from, to } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
-  const rows = db.queryConnectivityEvents(routerId, from, to);
-  for (let i = 0; i < rows.length; i++) {
-    if (!rows[i].connected) {
-      const next = rows.slice(i + 1).find(r => r.connected);
-      rows[i].downtime_ms = next ? next.ts - rows[i].ts : null;
-    } else {
-      rows[i].downtime_ms = null;
-    }
-  }
+  const rows = _annotateDowntime(db.queryConnectivityEvents(routerId, from, to));
   const fmt  = (req.query.format || 'csv').toLowerCase();
   const cols = ['ts', 'status', 'down_duration'];
   const label = rows.map(r => ({
@@ -2091,7 +2136,7 @@ app.get('/api/reports/connectivity/export', _requireAdmin, _scopeRouterId, (req,
     const offlineRows   = rows.filter(r => !r.connected);
     const resolvedMs    = offlineRows.filter(r => r.downtime_ms != null).map(r => r.downtime_ms);
     const totalDownMs   = resolvedMs.reduce((a, b) => a + b, 0);
-    const longestDownMs = resolvedMs.length ? Math.max(...resolvedMs) : null;
+    const longestDownMs = resolvedMs.length ? _maxOf(resolvedMs) : null;
     const rtr = Routers.getById(routerId);
     return _toPdf('Connectivity Report', ['Timestamp', 'Status', 'Down Duration'],
       label.map(r => ({ Timestamp: r.ts, Status: r.status, 'Down Duration': r.down_duration || '—' })), res, {
@@ -2110,12 +2155,22 @@ app.get('/api/reports/connectivity/export', _requireAdmin, _scopeRouterId, (req,
 });
 
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
-function _buildRoutersStats() {
+function _buildRoutersStats(socket) {
   const allRouters  = Routers.loadAll();
   const bgSummaries = overviewSessions.getSummaries();
   const cfg         = Settings.load();
 
-  return allRouters.filter(r => !r.disabled).map(r => {
+  // Same RBAC boundary as _routersForSocket: a restricted user only ever sees
+  // stats (host/serial/version/cpu…) for routers in their allowed set.
+  let visible = allRouters.filter(r => !r.disabled);
+  if (_isModern()) {
+    const allowed = socket?.request?._authSession?.allowedRouterIds;
+    if (Array.isArray(allowed) && allowed.length > 0) {
+      visible = visible.filter(r => allowed.includes(r.id));
+    }
+  }
+
+  return visible.map(r => {
     const mainEntry = _routerSessions.get(r.id);
     const s         = mainEntry && mainEntry.session;
     const bg        = bgSummaries.find(x => x.routerId === r.id);
@@ -2173,7 +2228,11 @@ async function sendInitialState(socket, entry) {
   socket.emit('router:active', { activeId: s.routerId });
   // Send live reachability status for this router and all alert-session routers
   socket.emit('router:status', { routerId: s.routerId, connected: entry.rosConnected });
+  // Reachability of other routers is only disclosed within the caller's allowed set.
+  const _allowedIds  = socket.request?._authSession?.allowedRouterIds;
+  const _restricted  = _isModern() && Array.isArray(_allowedIds) && _allowedIds.length > 0;
   for (const [routerId, connected] of alertSessions.getStatusMap()) {
+    if (_restricted && !_allowedIds.includes(routerId)) continue;
     socket.emit('router:status', { routerId, connected });
   }
 
@@ -2191,6 +2250,9 @@ async function sendInitialState(socket, entry) {
     ifs = s.cachedInterfaces;
     s.traffic.setAvailableInterfaces(ifs);
   } catch (e) {
+    // Don't cache the rejected promise — the next connect should retry instead
+    // of replaying this failure until the router reconnects.
+    s._ifacesFetch = null;
     const reason = sanitizeErr(e);
     console.error('[MikroDash] fetchInterfaces failed for socket', socket.id, ':', reason);
     socket.emit('interfaces:error', { reason });
@@ -2288,47 +2350,32 @@ function _idleResume(session, entry) {
   session.conns.resume();
   session.ifStatus.resume();
   session.system.resume();
-  _updateWirelessStreams(session, entry);
-  _updateVpnStreams(session, entry);
-  _updateFirewallStreams(session, entry);
-  _updateRoutingStreams(session, entry);
+  _updateAllPageStreams(session, entry);
   session.ping.resume();
   session.talkers.resume();
   session.dhcpNetworks.resume();
 }
 
-// Sync firewall streams with page-firewall / dash-card-firewall room membership.
-function _updateFirewallStreams(session, entry) {
+// Room-driven suspend/resume for the page-aware collectors: each keeps
+// streaming only while at least one socket is in one of its rooms. The keys
+// double as the session property and page name (session.firewall ↔ 'firewall').
+const _PAGE_STREAM_ROOMS = {
+  firewall: ['page-firewall', 'dash-card-firewall'],
+  routing:  ['page-routing'],
+  wireless: ['page-wireless'],
+  vpn:      ['page-vpn', 'dash-card-vpn'],
+};
+
+function _updatePageStream(session, entry, which) {
   if (!session || !entry.startupReady) return;
   const rid = session.routerId;
-  const viewers = (io.sockets.adapter.rooms.get('router-' + rid + '-page-firewall')?.size    || 0) +
-                  (io.sockets.adapter.rooms.get('router-' + rid + '-dash-card-firewall')?.size || 0);
-  if (viewers > 0) session.firewall.resume(); else session.firewall.suspend();
+  const viewers = _PAGE_STREAM_ROOMS[which].reduce(
+    (n, room) => n + (io.sockets.adapter.rooms.get('router-' + rid + '-' + room)?.size || 0), 0);
+  if (viewers > 0) session[which].resume(); else session[which].suspend();
 }
 
-// Sync routing streams with page-routing room membership.
-function _updateRoutingStreams(session, entry) {
-  if (!session || !entry.startupReady) return;
-  const rid = session.routerId;
-  const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-page-routing')?.size || 0;
-  if (viewers > 0) session.routing.resume(); else session.routing.suspend();
-}
-
-// Sync wireless streams with page-wireless room membership.
-function _updateWirelessStreams(session, entry) {
-  if (!session || !entry.startupReady) return;
-  const rid = session.routerId;
-  const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-page-wireless')?.size || 0;
-  if (viewers > 0) session.wireless.resume(); else session.wireless.suspend();
-}
-
-// Sync vpn counter stream with page-vpn / dash-card-vpn room membership.
-function _updateVpnStreams(session, entry) {
-  if (!session || !entry.startupReady) return;
-  const rid = session.routerId;
-  const viewers = (io.sockets.adapter.rooms.get('router-' + rid + '-page-vpn')?.size     || 0) +
-                  (io.sockets.adapter.rooms.get('router-' + rid + '-dash-card-vpn')?.size || 0);
-  if (viewers > 0) session.vpn.resume(); else session.vpn.suspend();
+function _updateAllPageStreams(session, entry) {
+  for (const which of Object.keys(_PAGE_STREAM_ROOMS)) _updatePageStream(session, entry, which);
 }
 
 function _emitDiagnostics(session, rid, socket) {
@@ -2407,10 +2454,7 @@ io.on('connection', (socket) => {
       scheduleIdleTeardown(rid);
     }
     // Rooms are cleaned up before this event fires, so room sizes are already correct.
-    _updateFirewallStreams(e.session, e);
-    _updateRoutingStreams(e.session, e);
-    _updateWirelessStreams(e.session, e);
-    _updateVpnStreams(e.session, e);
+    _updateAllPageStreams(e.session, e);
   });
 
   // Page-aware rooms — clients join/leave rooms as they navigate pages.
@@ -2424,32 +2468,17 @@ io.on('connection', (socket) => {
         if (_routersPageSockets.size === 1) overviewSessions.resume();
       }
       if (_routersTimer) clearInterval(_routersTimer);
-      const _emitRouters = () => socket.emit('routers:stats', _buildRoutersStats());
+      const _emitRouters = () => socket.emit('routers:stats', _buildRoutersStats(socket));
       _emitRouters();
       _routersTimer = setInterval(_emitRouters, 2000); // codeql[js/resource-exhaustion]
     }
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e || !e.session) return;
     const s = e.session;
-    if (name === 'firewall') {
-      _updateFirewallStreams(s, e);
-      if (s.firewall && s.firewall.lastPayload)
-        socket.emit('firewall:update', { ...s.firewall.lastPayload, ts: Date.now() });
-    }
-    if (name === 'routing') {
-      _updateRoutingStreams(s, e);
-      if (s.routing && s.routing.lastPayload)
-        socket.emit('routing:update', { ...s.routing.lastPayload, ts: Date.now() });
-    }
-    if (name === 'wireless') {
-      _updateWirelessStreams(s, e);
-      if (s.wireless && s.wireless.lastPayload)
-        socket.emit('wireless:update', { ...s.wireless.lastPayload, ts: Date.now() });
-    }
-    if (name === 'vpn') {
-      _updateVpnStreams(s, e);
-      if (s.vpn && s.vpn.lastPayload)
-        socket.emit('vpn:update', { ...s.vpn.lastPayload, ts: Date.now() });
+    if (_PAGE_STREAM_ROOMS[name]) {
+      _updatePageStream(s, e, name);
+      if (s[name] && s[name].lastPayload)
+        socket.emit(name + ':update', { ...s[name].lastPayload, ts: Date.now() });
     }
     if (name === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
       socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
@@ -2469,10 +2498,7 @@ io.on('connection', (socket) => {
     socket.leave('router-' + rid + '-page-' + name);
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e) return;
-    if (name === 'firewall')    _updateFirewallStreams(e.session, e);
-    if (name === 'routing')     _updateRoutingStreams(e.session, e);
-    if (name === 'wireless')    _updateWirelessStreams(e.session, e);
-    if (name === 'vpn')         _updateVpnStreams(e.session, e);
+    if (_PAGE_STREAM_ROOMS[name]) _updatePageStream(e.session, e, name);
     if (name === 'routers') {
       if (_routersTimer) { clearInterval(_routersTimer); _routersTimer = null; }
       if (_routersPageSockets.delete(socket.id) && _routersPageSockets.size === 0) overviewSessions.suspend();
@@ -2488,15 +2514,10 @@ io.on('connection', (socket) => {
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e || !e.session) return;
     const s = e.session;
-    if (key === 'firewall') {
-      _updateFirewallStreams(s, e);
-      if (s.firewall && s.firewall.lastPayload)
-        socket.emit('firewall:update', { ...s.firewall.lastPayload, ts: Date.now() });
-    }
-    if (key === 'vpn') {
-      _updateVpnStreams(s, e);
-      if (s.vpn && s.vpn.lastPayload)
-        socket.emit('vpn:update', { ...s.vpn.lastPayload, ts: Date.now() });
+    if (key === 'firewall' || key === 'vpn') {
+      _updatePageStream(s, e, key);
+      if (s[key] && s[key].lastPayload)
+        socket.emit(key + ':update', { ...s[key].lastPayload, ts: Date.now() });
     }
     if (key === 'diagnostics') {
       _emitDiagnostics(s, rid, socket);
@@ -2520,8 +2541,7 @@ io.on('connection', (socket) => {
     socket.leave('router-' + rid + '-dash-card-' + key);
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e) return;
-    if (key === 'firewall') _updateFirewallStreams(e.session, e);
-    if (key === 'vpn')      _updateVpnStreams(e.session, e);
+    if (key === 'firewall' || key === 'vpn') _updatePageStream(e.session, e, key);
     if (key === 'diagnostics') {
       const viewers = io.sockets.adapter.rooms.get('router-' + rid + '-dash-card-diagnostics')?.size || 0;
       if (!viewers && e._diagTimer) { clearInterval(e._diagTimer); e._diagTimer = null; }
@@ -2532,6 +2552,10 @@ io.on('connection', (socket) => {
   socket.on('firewall:tab', (table) => {
     if (!['filter', 'nat', 'mangle', 'raw'].includes(table)) return;
     const rid = socket.routerId;
+    // The active table is shared session state streamed to every viewer of this
+    // router — only sockets actually viewing the firewall page/card may drive it.
+    if (!socket.rooms.has('router-' + rid + '-page-firewall') &&
+        !socket.rooms.has('router-' + rid + '-dash-card-firewall')) return;
     const e = rid ? _routerSessions.get(rid) : null;
     if (e && e.session && e.session.firewall) e.session.firewall.setActiveTable(table);
   });
@@ -2547,6 +2571,9 @@ io.on('connection', (socket) => {
     if (typeof newRouterId !== 'string') return;
     const router = Routers.getById(newRouterId);
     if (!router) return;
+    // A disabled router's session was deliberately torn down — don't let any
+    // client resurrect it via router:switch.
+    if (router.disabled) return;
 
     // Validate access: viewer can only switch to allowed routers
     if (authSession.role !== 'admin') {
@@ -2556,6 +2583,11 @@ io.on('connection', (socket) => {
 
     const oldRid = socket.routerId;
     if (oldRid === newRouterId) return;
+
+    // Detach from the old session's traffic collector — otherwise it keeps this
+    // socket's interface in its monitor-traffic stream until disconnect.
+    const oldEntry = oldRid ? _routerSessions.get(oldRid) : null;
+    if (oldEntry && oldEntry.session) oldEntry.session.traffic.unbindSocket(socket);
 
     // Leave old router room (and all its sub-rooms)
     for (const room of [...socket.rooms]) {

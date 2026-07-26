@@ -9,6 +9,7 @@
 
 const { extractAddress, isInCidrs, isValidIp } = require('../util/ip');
 const { lookupOrg, lookupCategory }             = require('../util/asnLookup');
+const { clampPoll } = require('./util');
 
 let geoip = null;
 try { geoip = require('geoip-lite'); } catch (_) {}
@@ -25,9 +26,8 @@ class BandwidthCollector {
     this.ros          = ros;
     this.io           = io;
     this._lbl         = ros.routerLabel ? `[${ros.routerLabel}][bandwidth]` : '[bandwidth]';
-    const _bPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 3000;
-    this.pollMs       = Math.max(500, Math.min(60000, _bPoll));
-    this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 3000;
+    this.pollMs       = clampPoll(pollMs, 3000);
+    this._pollDelayMs = clampPoll(pollMs, 3000);
     this.dhcpNetworks = dhcpNetworks;
     this.dhcpLeases   = dhcpLeases;
     this.arp          = arp;

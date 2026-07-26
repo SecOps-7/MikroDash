@@ -1,5 +1,6 @@
 'use strict';
 const dns = require('dns').promises;
+const { clampPoll, stopStreamSafe } = require('./util');
 
 /**
  * Wireless collector — streams /interface/wifi/registration-table/print (wifi
@@ -26,13 +27,13 @@ class WirelessCollector {
   constructor({ ros, io, pollMs, state, dhcpLeases, arp }) {
     this.ros        = ros;
     this.io         = io;
-    const _wPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
-    this.pollMs     = Math.max(500, Math.min(60000, _wPoll));
+    this.pollMs     = clampPoll(pollMs, 5000);
     this.state      = state;
     this.dhcpLeases = dhcpLeases;
     this.arp        = arp;
     this.mode       = null;
     this._lastFp    = '';
+    this.lastPayload = null;
 
     this._absentTicks = new Map();
     this.ABSENCE_THRESHOLD = 3;
@@ -293,7 +294,14 @@ class WirelessCollector {
     const stream = this.ros.stream([endpoints[type], `=interval=${intervalSec}`], null);
     this._streams[type] = stream;
     stream.on('data', (pkt) => {
-      if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
+      // RStream emits [] when the table produced no rows this interval — deliver
+      // an empty batch so departed clients age out instead of persisting forever
+      // (and so an empty wifi table can still latch legacy-wireless fallback).
+      if (Array.isArray(pkt)) {
+        if (pkt.length === 0 && !this._batches[type].length && !this._debounces[type]) this._onBatch(type, []);
+        return;
+      }
+      if (!pkt || typeof pkt !== 'object') return;
       this._batches[type].push(pkt);
       if (this._debounces[type]) return;
       this._debounces[type] = setTimeout(() => { // codeql[js/resource-exhaustion]
@@ -334,7 +342,7 @@ class WirelessCollector {
     if (this._debounces[type])     { clearTimeout(this._debounces[type]);     this._debounces[type] = null; }
     if (this._restartTimers[type]) { clearTimeout(this._restartTimers[type]); this._restartTimers[type] = null; }
     this._restarting[type] = false;
-    if (this._streams[type]) { try { this._streams[type].stop(); } catch (_) {} this._streams[type] = null; }
+    if (this._streams[type]) { stopStreamSafe(this._streams[type]); this._streams[type] = null; }
     this._batches[type] = [];
   }
 

@@ -1,10 +1,13 @@
 'use strict';
 
+const { stopStreamSafe } = require('./util');
+
 class NetwatchCollector {
   constructor({ ros, io, state }) {
     this.ros   = ros;
     this.io    = io;
     this._lbl  = ros.routerLabel ? `[${ros.routerLabel}][netwatch]` : '[netwatch]';
+    this.pollMs = 60000; // contract metadata — event-driven via /listen; 60 s heartbeat
     this.state = state;
 
     this._hosts          = new Map(); // .id -> raw row
@@ -98,7 +101,7 @@ class NetwatchCollector {
   _stopStream() {
     if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
     this._restarting = false;
-    if (this._stream) { try { this._stream.stop(); } catch (_) {} this._stream = null; }
+    if (this._stream) { stopStreamSafe(this._stream); this._stream = null; }
   }
 
   // Re-emits lastPayload every 60 s so the browser stale-timer (threshold 90 s)
@@ -107,6 +110,9 @@ class NetwatchCollector {
     if (this._heartbeat) return;
     this._heartbeat = setInterval(() => {
       if (!this.lastPayload) return;
+      // Idle gate: state changes still reach the alerter via the /listen stream;
+      // this re-emit only serves browser stale-timers.
+      if (this.io.engine.clientsCount === 0) return;
       this.io.emit('netwatch:update', { ...this.lastPayload, ts: Date.now() });
     }, 60000);
   }

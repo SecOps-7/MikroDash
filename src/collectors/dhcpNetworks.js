@@ -1,4 +1,5 @@
 const ipaddr = require('ipaddr.js');
+const { stopStreamSafe } = require('./util');
 
 function ipInCidr(ip, cidr) {
   try { return ipaddr.parse(ip).match(ipaddr.parseCIDR(cidr)); } catch { return false; }
@@ -177,7 +178,16 @@ class DhcpNetworksCollector {
     const stream = this.ros.stream([...cmds[key], `=interval=${intervalSec}`], null);
     this._streams[key] = stream;
     stream.on('data', (pkt) => {
-      if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
+      // RStream emits [] when the table is empty this interval — rebuild from an
+      // empty row set so deleted entries actually disappear.
+      if (Array.isArray(pkt)) {
+        if (pkt.length === 0 && !this._batches[key].length && !this._debounces[key]) {
+          this._raw[key] = [];
+          this._scheduleRebuild();
+        }
+        return;
+      }
+      if (!pkt || typeof pkt !== 'object') return;
       this._batches[key].push(pkt);
       if (this._debounces[key]) return;
       this._debounces[key] = setTimeout(() => { // codeql[js/resource-exhaustion]
@@ -207,7 +217,7 @@ class DhcpNetworksCollector {
     if (this._debounces[key])     { clearTimeout(this._debounces[key]);     this._debounces[key] = null; }
     if (this._restartTimers[key]) { clearTimeout(this._restartTimers[key]); this._restartTimers[key] = null; }
     this._restarting[key] = false;
-    if (this._streams[key]) { try { this._streams[key].stop(); } catch (_) {} this._streams[key] = null; }
+    if (this._streams[key]) { stopStreamSafe(this._streams[key]); this._streams[key] = null; }
     this._batches[key] = [];
   }
 

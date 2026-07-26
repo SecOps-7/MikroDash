@@ -10,13 +10,14 @@
  * has fresh counts for every table even when only one is being streamed.
  * The active-table stream is stopped on suspend and restarted on resume.
  */
+const { clampPoll, stopStreamSafe } = require('./util');
+
 class FirewallCollector {
   constructor({ ros, io, pollMs, state }) {
     this.ros    = ros;
     this.io     = io;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][firewall]` : '[firewall]';
-    const _fPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 10000;
-    this.pollMs = Math.max(500, Math.min(30000, _fPoll));
+    this.pollMs = clampPoll(pollMs, 10000, 30000);
     this.state  = state;
 
     this._filter = [];
@@ -136,7 +137,13 @@ class FirewallCollector {
     );
     this._tableStream = stream;
     stream.on('data', (pkt) => {
-      if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
+      // RStream emits [] when the table is empty this interval — flush an empty
+      // snapshot so a cleared table doesn't keep showing its old rules.
+      if (Array.isArray(pkt)) {
+        if (pkt.length === 0 && !this._staging.length) this._scheduleSnapshotFlush();
+        return;
+      }
+      if (!pkt || typeof pkt !== 'object') return;
       this._staging.push(pkt);
       this._scheduleSnapshotFlush();
     });
@@ -163,7 +170,7 @@ class FirewallCollector {
     this._tableRestarting = false;
     this._staging = [];
     if (this._tableStream) {
-      try { this._tableStream.stop(); } catch (_) {}
+      stopStreamSafe(this._tableStream);
       this._tableStream = null;
     }
   }
@@ -181,7 +188,8 @@ class FirewallCollector {
   _startHeartbeat() {
     if (this._heartbeat) return;
     this._heartbeat = setInterval(() => { // codeql[js/resource-exhaustion]
-      if (this.lastPayload) this.io.to('page-firewall').emit('firewall:update', { ...this.lastPayload, ts: Date.now() });
+      // Same rooms as the live emit — the dashboard card has its own stale timer too.
+      if (this.lastPayload) this.io.to('page-firewall').to('dash-card-firewall').emit('firewall:update', { ...this.lastPayload, ts: Date.now() });
     }, 60000);
   }
 

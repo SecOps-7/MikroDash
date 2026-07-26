@@ -61,6 +61,9 @@ function _buildSession(router) {
     emit(event, data) {
       if (evaluator) try { evaluator.evaluate(event, data); } catch (_) {}
     },
+    // Collectors that emit via io.to(room).emit (e.g. vpn) must still reach the
+    // evaluator here — without to() they would throw and VPN alerts never fire.
+    to() { return { emit: (e, d) => stubIo.emit(e, d), to: () => ({ emit: (e, d) => stubIo.emit(e, d) }) }; },
     on() {},
     sockets: { adapter: { rooms: { get() { return undefined; } } } },
   };
@@ -147,7 +150,9 @@ function _buildSession(router) {
   ros.on('close',           _onDisconnect);
   ros.on('connectionError', _onDisconnect);
 
-  ros.connectLoop();
+  ros.connectLoop().catch((e) => {
+    console.error(`[alertSession] connectLoop exited unexpectedly for ${router.host}:`, e && e.message ? e.message : e);
+  });
   return session;
 }
 

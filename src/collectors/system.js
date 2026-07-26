@@ -1,3 +1,5 @@
+const { stopStreamSafe } = require('./util');
+
 class SystemCollector {
   constructor({ ros, io, pollMs, state, streamMode }) {
     this.ros = ros;
@@ -26,7 +28,7 @@ class SystemCollector {
 
     this.ros.on('close', () => this.stop());
     this.ros.on('connected', () => {
-      if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (_) {} this._stream = null; }
+      if (this._stream) { stopStreamSafe(this._stream); this._stream = null; }
       if (this._pollTimer)  { clearTimeout(this._pollTimer);  this._pollTimer  = null; }
       if (this._healthTimer) { clearTimeout(this._healthTimer); this._healthTimer = null; }
       this._pollInflight   = false;
@@ -258,7 +260,7 @@ class SystemCollector {
   // ── stream-mode resource path ─────────────────────────────────────────────
 
   _restartStream() {
-    if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
+    if (this._stream) { stopStreamSafe(this._stream); this._stream = null; }
     if (this.streamMode) this._startResourceStream();
   }
 
@@ -293,7 +295,8 @@ class SystemCollector {
       this._stream = null;
       if (this._restarting) return;
       this._restarting = true;
-      setTimeout(() => {
+      this._errRestartTimer = setTimeout(() => {
+        this._errRestartTimer = null;
         this._restarting = false;
         if (this.ros.connected && !this._stream) this._startResourceStream();
       }, 3000);
@@ -327,9 +330,10 @@ class SystemCollector {
   }
 
   stop() {
-    if (this._stream) { try { this._stream.stop().catch(() => {}); } catch (e) {} this._stream = null; }
+    if (this._stream) { stopStreamSafe(this._stream); this._stream = null; }
     if (this._pollTimer)  { clearTimeout(this._pollTimer);  this._pollTimer  = null; }
     if (this._healthTimer) { clearTimeout(this._healthTimer); this._healthTimer = null; }
+    if (this._errRestartTimer) { clearTimeout(this._errRestartTimer); this._errRestartTimer = null; }
     this._restarting = false;
   }
 }

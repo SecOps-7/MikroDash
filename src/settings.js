@@ -236,6 +236,10 @@ const ENV_MAP = {
 // ── Load / Save ──────────────────────────────────────────────────────────────
 let _cache = null;
 
+// field → original ciphertext that failed to decrypt; written back verbatim on
+// save unless the field is explicitly updated. See load()/save().
+const _cipherKeep = new Map();
+
 function _ensureDataDir() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
 }
@@ -253,7 +257,14 @@ function load() {
   const merged = { ...DEFAULTS };
   for (const [k, v] of Object.entries(stored)) {
     if (k in DEFAULTS || ENCRYPTED_FIELDS.includes(k)) {
-      merged[k] = ENCRYPTED_FIELDS.includes(k) ? decrypt(v) : v;
+      if (ENCRYPTED_FIELDS.includes(k)) {
+        merged[k] = decrypt(v);
+        // Preserve undecryptable ciphertext (key mismatch/corruption) so the
+        // next save doesn't permanently overwrite the credential with ''.
+        if (v && !merged[k]) _cipherKeep.set(k, v);
+      } else {
+        merged[k] = v;
+      }
     }
   }
   // Re-apply any env var that is explicitly set — env always wins over settings.json.
@@ -292,7 +303,9 @@ function save(updates) {
   // Encrypt sensitive fields before writing
   const toWrite = { ...next };
   for (const f of ENCRYPTED_FIELDS) {
-    toWrite[f] = encrypt(next[f] || '');
+    // An explicit update (set or clear) supersedes any preserved ciphertext.
+    if (f in updates) _cipherKeep.delete(f);
+    toWrite[f] = next[f] ? encrypt(next[f]) : (_cipherKeep.get(f) || '');
   }
   const tmp = SETTINGS_FILE + '.tmp';
   // mode 0o600 — file holds encrypted credentials; keep it owner-only.

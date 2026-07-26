@@ -24,6 +24,8 @@ const HISTORY_LEN = 60;
 // parseInt that returns 0 instead of NaN for non-numeric strings
 const safeInt = (v) => parseInt(v || '0', 10) || 0;
 
+const { stopStreamSafe } = require('./util');
+
 class RoutingCollector {
   constructor({ ros, io, pollMs, state, _restartDelayMs }) {
     this.ros    = ros;
@@ -402,7 +404,7 @@ class RoutingCollector {
     if (this._routeEmitTimer) { clearTimeout(this._routeEmitTimer); this._routeEmitTimer = null; }
     if (this._routeRestartTimer) { clearTimeout(this._routeRestartTimer); this._routeRestartTimer = null; }
     this._routeRestarting = false;
-    if (this._routeStream) { try { this._routeStream.stop(); } catch (_) {} this._routeStream = null; }
+    if (this._routeStream) { stopStreamSafe(this._routeStream); this._routeStream = null; }
   }
 
   _startIPv6Stream() {
@@ -453,7 +455,7 @@ class RoutingCollector {
     if (this._ipv6EmitTimer) { clearTimeout(this._ipv6EmitTimer); this._ipv6EmitTimer = null; }
     if (this._ipv6RestartTimer) { clearTimeout(this._ipv6RestartTimer); this._ipv6RestartTimer = null; }
     this._ipv6Restarting = false;
-    if (this._ipv6Stream) { try { this._ipv6Stream.stop(); } catch (_) {} this._ipv6Stream = null; }
+    if (this._ipv6Stream) { stopStreamSafe(this._ipv6Stream); this._ipv6Stream = null; }
   }
 
   _startBgpStream() {
@@ -502,7 +504,7 @@ class RoutingCollector {
   _stopBgpStream() {
     if (this._bgpRestartTimer) { clearTimeout(this._bgpRestartTimer); this._bgpRestartTimer = null; }
     this._bgpRestarting = false;
-    if (this._bgpStream) { try { this._bgpStream.stop(); } catch (_) {} this._bgpStream = null; }
+    if (this._bgpStream) { stopStreamSafe(this._bgpStream); this._bgpStream = null; }
   }
 
   _stopAllStreams() {

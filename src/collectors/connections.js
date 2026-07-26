@@ -9,6 +9,7 @@ const settings = require('../settings');
  * read, then the expensive geo/ASN processing runs (skipped when idle).
  */
 const { extractAddress, isInCidrs, isValidIp } = require('../util/ip');
+const { clampPoll, stopStreamSafe } = require('./util');
 const { lookupOrg, lookupCategory } = require('../util/asnLookup');
 
 function makeDestKey(c) {
@@ -39,8 +40,7 @@ class ConnectionsCollector {
     this.io = io;
     this._lbl = ros.routerLabel ? `[${ros.routerLabel}][connections]` : '[connections]';
     this.streamMode = streamMode !== false; // default true
-    const _cPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
-    this.pollMs = Math.max(500, Math.min(60000, _cPoll));
+    this.pollMs = clampPoll(pollMs, 5000);
     this.topN = topN;
     this.maxConns = maxConns || 20000;
     this.dhcpNetworks = dhcpNetworks;
@@ -69,6 +69,10 @@ class ConnectionsCollector {
     // distinguish the initial connect from a reconnect after a close event.
     this._started = false;
     this._restarting = false;
+    this._errRestartTimer = null;
+    // Starts suspended: only resume() (called when a viewer is present) opens
+    // the stream, so the watchdog can't open it for an idle router.
+    this._suspended = true;
 
     this.ros.on('close',     () => this.stop());
     this.ros.on('connected', () => {
@@ -485,10 +489,11 @@ class ConnectionsCollector {
         this.state.lastConnsErr = msg;
       }
       this._stream = null;
-      if (this._started && this.ros.connected) {
+      if (this._started && !this._suspended && this.ros.connected) {
         if (this._restarting) return;
         this._restarting = true;
-        setTimeout(() => {
+        this._errRestartTimer = setTimeout(() => {
+          this._errRestartTimer = null;
           this._restarting = false;
           this._startStream();
         }, 3000);
@@ -499,9 +504,12 @@ class ConnectionsCollector {
   _stopStream() {
     clearTimeout(this._commitTimer);
     this._commitTimer  = null;
+    // Cancel any pending error-restart so a suspended/stopped collector can't
+    // silently reopen its stream 3 s later.
+    if (this._errRestartTimer) { clearTimeout(this._errRestartTimer); this._errRestartTimer = null; this._restarting = false; }
     this._streamStartTs = 0;
     if (this._stream) {
-      try { this._stream.stop().catch(() => {}); } catch (_) {}
+      stopStreamSafe(this._stream);
       this._stream = null;
     }
     this._rowsNext = [];
@@ -515,7 +523,7 @@ class ConnectionsCollector {
     this._lastEmitTs = 0;
     this._rowsPrev = null;      // reset partial-result detection so first batch is always accepted
     this._partialStreak = 0;
-    if (this._started && this.ros.connected) {
+    if (this._started && !this._suspended && this.ros.connected) {
       this._startWatchdog();    // re-arm watchdog with current pollMs
       this._startStream();
     }
@@ -529,7 +537,14 @@ class ConnectionsCollector {
     const checkMs   = Math.max(this.pollMs * 2, 10000);
     const staleMs   = Math.max(this.pollMs * 4, 20000);
     this._watchdogTimer = setInterval(() => {
-      if (!this._started || !this.ros.connected || !this._stream) return;
+      if (!this._started || this._suspended || this._restarting || !this.ros.connected) return;
+      if (!this._stream) {
+        // Stream died and its 3 s restart never landed (e.g. ros was momentarily
+        // disconnected when the timer fired) — recover it now.
+        console.warn(this._lbl, 'watchdog: stream missing — restarting');
+        this._restartStream();
+        return;
+      }
       // Grace period: don't trigger within one staleMs window of stream start
       if (Date.now() - this._streamStartTs < staleMs) return;
       const age = Date.now() - this.state.lastConnsTs;
@@ -545,9 +560,16 @@ class ConnectionsCollector {
     this._watchdogTimer = null;
   }
 
-  suspend() { this._stopStream(); }
+  suspend() {
+    this._suspended = true;
+    this._stopStream();
+  }
 
   resume() {
+    // Reconnects call resume() unconditionally — don't reopen the full
+    // connection-table stream for a router nobody is watching.
+    if (this.io.engine.clientsCount === 0) return;
+    this._suspended = false;
     if (this._started && this.ros.connected) this._startStream();
   }
 

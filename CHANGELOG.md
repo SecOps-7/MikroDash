@@ -2,6 +2,46 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.50] — Security & stability hardening, collector refactor
+
+Full-codebase review remediation: 17 P1 bugs fixed across security and stability, plus the first round of the planned refactors.
+
+### Security
+
+- **RBAC**: `routers:stats`, `router:status` replay and `/api/localcc` now respect `allowedRouterIds` — restricted viewers no longer receive host/serial/license/version/cpu (or the WAN IP) for routers outside their allowed set (`src/index.js`)
+- **Auth mode split-brain fixed**: new `_authMode()`/`_isModern()` helpers replace six call sites that defaulted to the removed `'basic'` mode — a falsy `authMode` could previously hand full settings (SMTP/Telegram/router detail) to viewer-role users via `GET /api/settings`
+- **Error sanitization**: unclassified RouterOS connection errors no longer reach the browser as raw `e.message` (`wireRosEvents`, `/api/routers/test`); `sanitizeErr()` additionally redacts email addresses and bot tokens from provider errors
+- **Rate limiting**: `TRUSTED_PROXY=true` no longer trusts the whole X-Forwarded-For chain (would let clients spoof IPs past the login limiter); double `authLimiter` on `/login` removed; `/healthz` returns only `{ok, starting}` to unauthenticated callers (Docker healthcheck unaffected)
+- `firewall:tab` accepted only from sockets actually viewing the firewall page/card; `router:switch` rejects disabled routers; `routers.json` written mode 0600
+
+### Fixed
+
+- **Reconnect loop could die permanently** — a throwing `connectionError`/`close` listener escaped `connectLoop`'s catch and ended retries forever; listeners are now contained (`_safeEmit`) and all `connectLoop()` call sites log instead of leaking unhandled rejections (`src/routeros/client.js`)
+- **Listener/memory leak per router hot-swap** — collector handlers registered on the global Socket.IO server are now tracked and removed in `teardownSession`; each leaked handler retained the entire dead session
+- **Hot-swap orphaned all modern-auth sockets** — switching or deleting the active router now relocates every socket watching it (previously only legacy no-auth sockets moved, leaving everyone else in a dead room)
+- **VPN disconnect alerts never fired** — the alerter hook only covered `routerIo.emit()`, but `vpn:update` goes through `.to()`; room-scoped emits now feed the alerter, and the alert-session stub gained the `.to()` method whose absence made its VPN collector throw
+- **Phantom wireless clients / stale tables** — RStream's empty-array packets (table emptied) are now handled by wireless, talkers, firewall and dhcpNetworks; departed clients age out and cleared tables actually clear; an empty wifi table now latches the legacy-wireless fallback
+- **Restart-timer leaks defeating idle gating** — bare `setTimeout` restarts in system/connections/ping (and an uncleared overwrite in traffic) are stored and cancelled on stop/suspend; connections gained a `_suspended` flag, its watchdog now recovers a dead stream (previously bailed on exactly that state), and `resume()` no longer reopens the connection-table stream with zero viewers
+- **12 unhandled promise rejections on stream teardown** — `try/catch` around `stream.stop()` cannot catch its promise rejection; all sites use a promise-safe teardown now
+- **PDF/report exports crashed on large ranges** — `Math.max(...rows)` overflowed the call stack above ~65k rows; replaced with a reduce (ping/traffic/bandwidth/connectivity exports)
+- **Credentials could be permanently blanked** — an AES-GCM decrypt failure (key mismatch/corruption) no longer causes the next save to overwrite the stored ciphertext with an empty string; the original ciphertext is preserved until a new credential is explicitly set (`src/settings.js`, `src/routers.js`)
+- **Bad `pingTarget`/`defaultIf` bricked connections** — validated at save time in `Routers.add/update` (previously a persisted bad value made every future browser connection throw, surviving restarts)
+- **`router:switching` wiped every user's UI** — now scoped to the outgoing router's room; `switchRouter`/disable paths drop stale alert-evaluator state; a rejected interface-list fetch is no longer cached forever; firewall's 60 s heartbeat reaches the dashboard card room (stale-badge fix); `/healthz` reports real ping/ifstatus errors
+- Traffic `bindSocket` is idempotent (listeners no longer stack on hot-swap/router-switch) and `stop()` releases all socket references
+
+### Changed (refactors)
+
+- New `src/collectors/util.js`: shared `clampPoll()`, `stopStreamSafe()`, `parseBps()`/`bpsToMbps()` — removes ~10 drifting clamp blocks, 23 hand-rolled stream teardowns and both bps-parser copies; Traffic and Interfaces pages now agree on Mbps precision
+- `src/index.js`: four `_update*Streams` functions collapsed into one data-driven `_updatePageStream()`; O(n²) connectivity outage pairing replaced by a single-pass helper
+- Collector contract sweep: `lastPayload` declared everywhere, `traffic.pollMs`/`netwatch.pollMs` present, netwatch heartbeat idle-gated, interfaceStatus reports `lastIfStatusErr`, advances its health timestamp on unchanged ticks, keeps `lastPayload` fresh while idle, and recovers monitor-traffic stream errors in 3 s instead of up to 60 s
+- Docs: `CLAUDE.md`/`AI_CONTEXT.md` no longer describe the removed Basic Auth; netwatch documented; traffic idle-gating claim corrected
+
+### Tests
+
+- New `test/code-review-remediation.test.js` (13 regression tests: connectLoop listener containment, connections suspend/watchdog, traffic bind idempotency, empty-table packets, restart-timer cleanup, router validation, ciphertext preservation) — suite now 247 tests, all passing
+
+---
+
 ## [0.5.49] — Router disable/enable, wireless PTR name resolution, routes flicker fix
 
 ### Added
