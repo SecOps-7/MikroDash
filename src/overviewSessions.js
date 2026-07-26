@@ -13,6 +13,7 @@ let   _suspended = false;
 const _nullIo = {
   engine: { clientsCount: 1 },
   emit() {},
+  to() { return { emit() {}, to() { return { emit() {} }; } }; },
   on() {},
   sockets: { adapter: { rooms: { get() { return undefined; } } } },
 };
@@ -89,9 +90,10 @@ function _buildSession(router) {
   const ifStatus   = new InterfaceStatusCollector({ ros, io: _nullIo, pollMs, metaPollMs: pollMs * 12, state });
   const dhcpLeases = new DhcpLeasesCollector     ({ ros, io: _nullIo, state });
 
-  const session = { ros, system, ifStatus, dhcpLeases, connected: false };
+  const session = { ros, system, ifStatus, dhcpLeases, connected: false, destroyed: false };
 
   ros.on('connected', () => {
+    if (session.destroyed) return; // in-flight event after _stopSession — don't restart collectors
     session.connected = true;
     if (!_suspended) {
       system.start();
@@ -103,11 +105,14 @@ function _buildSession(router) {
   ros.on('close',           () => { session.connected = false; });
   ros.on('connectionError', () => { session.connected = false; });
 
-  ros.connectLoop();
+  ros.connectLoop().catch((e) => {
+    console.error(`[overviewSession] connectLoop exited unexpectedly for ${router.host}:`, e && e.message ? e.message : e);
+  });
   return session;
 }
 
 function _stopSession(id, session) {
+  session.destroyed = true;
   if (typeof session.system.stop     === 'function') session.system.stop();
   if (typeof session.ifStatus.stop   === 'function') session.ifStatus.stop();
   if (typeof session.dhcpLeases.stop === 'function') session.dhcpLeases.stop();

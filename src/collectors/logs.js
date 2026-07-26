@@ -4,6 +4,7 @@
  * Zero polling, zero seen-set needed — we just receive and forward.
  */
 const RingBuffer = require('../util/ringbuffer');
+const { stopStreamSafe } = require('./util');
 const LOG_HISTORY_SIZE = parseInt(process.env.LOG_HISTORY_SIZE || '500', 10);
 
 class LogsCollector {
@@ -110,7 +111,7 @@ class LogsCollector {
     if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
     this._restarting = false;
     if (this.stream) {
-      try { this.stream.stop(); } catch (_) {}
+      stopStreamSafe(this.stream);
       this.stream = null;
     }
   }

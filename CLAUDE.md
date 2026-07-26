@@ -37,7 +37,7 @@ RouterOS binary API (TCP)
         │
    src/routeros/client.js   ← ROS class: connectLoop, write(), stream()
         │
-   src/collectors/          ← 15 domain collectors, orchestrated by index.js
+   src/collectors/          ← 16 domain collectors, orchestrated by index.js
         │                                        │
    Socket.IO emit            ← one named event   src/db-writer.js → src/db.js (SQLite)
         │                      per collector        time-series: traffic, ping, bandwidth
@@ -45,7 +45,7 @@ RouterOS binary API (TCP)
 ```
 
 **`src/index.js`** is the hub:
-- `buildSession(routerCfg)` — creates ROS + all 15 collectors wired together
+- `buildSession(routerCfg)` — creates ROS + all 16 collectors wired together
 - `teardownSession(session)` — clean shutdown for hot-swap
 - `sendInitialState(socket)` — replays `lastPayload` from every collector on new connect
 - `connTableCache` — shared between `connections.js` and `bandwidth.js`
@@ -57,9 +57,11 @@ RouterOS binary API (TCP)
 
 **Database** (`src/db.js`) — SQLite via `better-sqlite3`, opened at `/data/mikrodash.db`. Schema is managed by numbered migrations in `MIGRATIONS[]`. Stores time-series data: `ping_samples`, `traffic_samples`, `bandwidth_usage`, `alert_events`, `connectivity_events`. `src/db-writer.js` is the write facade: it accumulates raw per-second traffic/bandwidth samples into 1-minute bucketed averages before flushing, so the DB never sees raw per-second rows. Call `db.open()` once at startup; `db.close()` on shutdown.
 
-**Auth** — two layers that co-exist:
-- Legacy HTTP Basic Auth (`src/auth/basicAuth.js`): enabled via `BASIC_AUTH_USER`/`BASIC_AUTH_PASS` env vars; covers all HTTP routes + Socket.IO engine.
-- Session auth (`src/auth/sessionStore.js` + `src/users.js`): cookie-based (`mikrodash_sid`), users stored in `/data/users.json` with scrypt-hashed passwords, roles `admin`/`viewer`, optional `allowedRouterIds` per user. Login UI at `public/login.html` + `public/login.js`; `public/preflight.js` is the client-side auth gate loaded before `app.js`.
+**Auth** — two modes, resolved by `_authMode()` in `index.js` (`settings.authMode`, anything other than `'none'` means `'modern'`):
+- `modern` (default): session auth (`src/auth/sessionStore.js` + `src/users.js`) — cookie-based (`mikrodash_sid`), users stored in `/data/users.json` with scrypt-hashed passwords, roles `admin`/`viewer`, optional `allowedRouterIds` per user. Login UI at `public/login.html` + `public/login.js`; `public/preflight.js` is the client-side auth gate loaded before `app.js`.
+- `none`: no authentication at all (every request is implicitly admin) — intended for trusted LANs only; the server logs a loud warning.
+
+(Legacy HTTP Basic Auth was removed in 0.5.45 — `src/auth/basicAuth.js` and the `BASIC_AUTH_*` env vars no longer exist. A stored `authMode` of `'basic'` or an absent value is migrated to `'modern'` at startup.)
 
 ---
 

@@ -10,6 +10,8 @@
  * synchronously — the Maps are updated in-place so callers always see the
  * latest data without any coordination overhead.
  */
+const { stopStreamSafe } = require('./util');
+
 class ArpCollector {
   constructor({ ros, pollMs, state }) {
     this.ros    = ros;
@@ -108,7 +110,7 @@ class ArpCollector {
   _stopStream() {
     if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
     this._restarting = false;
-    if (this._stream) { try { this._stream.stop(); } catch (_) {} this._stream = null; }
+    if (this._stream) { stopStreamSafe(this._stream); this._stream = null; }
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────────

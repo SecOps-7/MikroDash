@@ -2,6 +2,8 @@
  * DHCP Leases — streams /ip/dhcp-server/lease/listen for instant updates,
  * with a one-shot /print on startup to populate the initial state.
  */
+const { stopStreamSafe } = require('./util');
+
 class DhcpLeasesCollector {
   constructor({ ros, io, state, _restartDelayMs }) {
     this.ros = ros;
@@ -118,7 +120,7 @@ class DhcpLeasesCollector {
   _stopStream() {
     if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
     this._restarting = false;
-    if (this.stream) { try { this.stream.stop(); } catch (_) {} this.stream = null; }
+    if (this.stream) { stopStreamSafe(this.stream); this.stream = null; }
   }
 
   async start() {

@@ -60,7 +60,10 @@ src/
 ├── health.js                  # computeHealthStatus() — logic for /healthz endpoint
 ├── shutdown.js                # scheduleForcedShutdownTimer() — fallback exit after 5 s
 ├── auth/
-│   └── basicAuth.js           # createBasicAuthMiddleware() — HTTP Basic Auth, also applied to Socket.IO engine
+│   └── sessionStore.js        # Cookie session store: createSession(), getSession(), parseCookieHeader(),
+│                              #   buildCookieHeader(), prune interval. Tokens are 32-byte random hex.
+├── users.js                   # User accounts in /data/users.json — scrypt-hashed passwords, admin/viewer
+│                              #   roles, per-user allowedRouterIds, timingSafeEqual verification
 ├── collectors/                # One file per RouterOS data domain (see Collector Pattern below)
 │   ├── traffic.js             # RX/TX Mbps per interface, 1 s polling, ring-buffer history
 │   ├── system.js              # CPU/RAM/HDD/temp/uptime/version/update-check
@@ -78,6 +81,7 @@ src/
 │   ├── interfaceStatus.js     # All interfaces: running, disabled, IPs, RX/TX Mbps, cumulative bytes
 │   ├── ping.js                # ICMP ping RTT + loss%, ring-buffer history, fallback averaging
 │   ├── routing.js             # Route table (/ip/route/listen stream) + BGP sessions (/routing/bgp/session/listen stream)
+│   ├── netwatch.js            # NetWatch host up/down state (/tool/netwatch/listen stream), 60 s heartbeat
 │   └── logs.js                # RouterOS log stream, severity classification, bounded history buffer
 ├── routeros/
 │   ├── client.js              # ROS class (extends EventEmitter): connectLoop() with exponential backoff,
@@ -170,7 +174,7 @@ Change only the `"version"` field. Nothing else.
 
 | Collector | Delivery | RouterOS endpoint(s) | Notes |
 |---|---|---|---|
-| `traffic.js` | **Stream** (interval=1 s) | `/interface/monitor-traffic` | One persistent channel per subscribed interface; idle-gated |
+| `traffic.js` | **Stream** (interval=1 s) | `/interface/monitor-traffic` | One persistent channel per subscribed interface. NOT idle-gated: the stream always runs to feed the SQLite history; only browser emits are suppressed when no clients |
 | `system.js` | **Stream** (interval=N s) | `/system/resource/print` | Resource stream pushes every pollMs; `/system/health/print` polled separately at 2× interval (no interval= support); update-check every 12 h |
 | `connections.js` | **Stream** (interval=N s) | `/ip/firewall/connection/print` | Initial `/print` on connect; interval stream replaces polling; watchdog restarts stale streams; idle-gated; skips geo computation when `page-connections` room is empty |
 | `bandwidth.js` | Poll | `/ip/firewall/connection/print` | Shares `connTableCache` with connections; idle-gated |
@@ -184,6 +188,7 @@ Change only the `"version"` field. Nothing else.
 | `interfaceStatus.js` | **Stream** (interval=N s, ×3) | `/interface/print`, `/ip/address/print`, `/interface/monitor-traffic` | Three concurrent interval streams: interface state, IP addresses, byte counters; idle-gated |
 | `ping.js` | **Stream** (interval=N s) | `/tool/ping` | Persistent interval stream replaces per-tick write(); ring-buffer history |
 | `routing.js` | **Stream** | `/ip/route/listen` + `/routing/bgp/session/listen` | BGP keepalives fingerprint-suppressed |
+| `netwatch.js` | **Stream** | `/tool/netwatch/listen` | Initial `/print` on connect; 60 s heartbeat re-emit; drives NetWatch host-down alerts |
 | `logs.js` | **Stream** | `/log/listen` | Bounded history buffer (500 entries) |
 
 **Rule:** always prefer streaming. Use `/listen` for event-driven data; use `=interval=N` on print commands that lack a `/listen` variant. Fall back to `setInterval` polling only when the RouterOS command genuinely cannot push (rare — check both mechanisms first).
@@ -433,7 +438,7 @@ module.exports = XyzCollector;
 
 ## Shared infrastructure in index.js
 
-**`buildSession(routerCfg)`** — creates a fresh ROS instance + all 15 collectors + connTableCache wired to the given router config. Called on startup and on every hot-swap.
+**`buildSession(routerCfg)`** — creates a fresh ROS instance + all 16 collectors + connTableCache wired to the given router config. Called on startup and on every hot-swap.
 
 **`teardownSession(session)`** — stops all collectors (timers + streams), stops the ROS connection, waits 150 ms for in-flight callbacks to settle.
 
@@ -453,8 +458,8 @@ module.exports = XyzCollector;
 
 ### What is built (invariants — never weaken these)
 
-- **LAN-only assumption.** No HTTPS termination. No role separation. Designed for trusted networks only.
-- **Basic Auth** (optional): enabled when `BASIC_AUTH_USER` + `BASIC_AUTH_PASS` are set. Applied to all HTTP routes and the Socket.IO engine. Rate-limited to 100 req/min (skipped for `/healthz`).
+- **LAN-only assumption.** No HTTPS termination. Designed for trusted networks only.
+- **Session auth** (`authMode: 'modern'`, the default): cookie sessions via `src/auth/sessionStore.js`, users with scrypt-hashed passwords and `admin`/`viewer` roles in `/data/users.json`. Applied to all HTTP routes and the Socket.IO engine; only `_MODERN_PUBLIC` paths and `/vendor/*` are exempt. Rate-limited to 100 req/min (skipped for `/healthz`). `authMode: 'none'` disables all auth (implicit admin) — legacy Basic Auth was removed in 0.5.45.
 - **CSP:** `helmetOptions.js` enforces a strict Content Security Policy allowing only self-hosted assets. No inline scripts beyond what already exists.
 - **Error sanitization:** `sanitizeErr(e)` in `index.js` strips stack traces and truncates to 200 chars. Never send raw error objects to the browser.
 - **Credential masking:** `settings.getPublic()` and `routers.getPublic()` ensure passwords are never returned in API responses. `isMasked()` prevents the mask sentinel `••••••••` from being written back as a real password value.
@@ -467,7 +472,7 @@ module.exports = XyzCollector;
 Every change — new endpoint, new setting, new UI feature — must be evaluated against the following checklist before implementation. These are not optional.
 
 #### New REST endpoints
-- All new endpoints must require Basic Auth. The only exempt endpoint is `/healthz` (health probe). Never add a new exempt endpoint without explicit justification.
+- All new endpoints are covered by the global auth middleware; admin-mutating routes must additionally use `_requireAdmin`, and report/export routes `_scopeRouterId`. The only fully exempt endpoint is `/healthz` (health probe — and it returns only `{ok, starting}` when unauthenticated). Never add a new `_MODERN_PUBLIC` entry without explicit justification.
 - Validate and sanitize all input before using it. For string fields: trim, enforce a maximum length (256 chars for general strings, 512 for passwords). For integer fields: parse with `parseInt`, validate against a `[min, max]` range, reject `NaN`. For boolean fields: compare strictly (`=== true || === 'true'`).
 - Never return raw Node.js error objects, stack traces, or `e.message` directly in API responses. Use `String(e.message || e).slice(0, 200)`.
 - For operations that modify state (POST/PUT/DELETE), emit the relevant Socket.IO event so all connected clients see the update — don't rely on clients polling.
@@ -489,7 +494,7 @@ This distinction is a security boundary, not just a UX choice:
 | `PORT` — TCP bind port | Top-N limits |
 | `MAX_SOCKETS` — DoS protection | Dashboard auth credentials (username/password) |
 | `ROS_DEBUG` — raw API logging | Traffic history window |
-| `BASIC_AUTH_USER` / `BASIC_AUTH_PASS` | Ping target |
+| `ROS_WRITE_TIMEOUT_MS` — API write timeout | Ping target |
 | `DATA_DIR` — volume mount path | Router connection details (via Routers card) |
 
 `TRUSTED_PROXY` must remain `.env`-only. Allowing it to be set via the UI would let a misconfigured or malicious value cause Express to trust spoofed `X-Forwarded-For` headers, bypassing the rate limiter and potentially spoofing client IPs in auth decisions. Similarly, `DATA_SECRET` must never be exposed in the UI — changing it at runtime would invalidate all encrypted credentials on disk.
@@ -568,8 +573,6 @@ try { await collector.tick(); } finally { Date.now = orig; }
 | `ROUTER_USER` | `admin` | RouterOS API username |
 | `ROUTER_PASS` | _(empty)_ | RouterOS API password |
 | `DEFAULT_IF` | `ether1` | Default WAN interface name |
-| `BASIC_AUTH_USER` | _(empty)_ | Dashboard Basic Auth username |
-| `BASIC_AUTH_PASS` | _(empty)_ | Dashboard Basic Auth password |
 | `PING_TARGET` | `1.1.1.1` | ICMP ping destination |
 | `ROS_WRITE_TIMEOUT_MS` | `30000` | RouterOS API write timeout (ms) |
 | `ROS_DEBUG` | `false` | RouterOS API debug logging |

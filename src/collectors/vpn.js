@@ -14,20 +14,22 @@
  * The counter stream is stopped on idle (suspend) and restarted on resume so
  * RouterOS does no work when no clients are connected.
  */
+const { clampPoll, stopStreamSafe } = require('./util');
+
 class VpnCollector {
   constructor({ ros, io, pollMs, state, rid }) {
     this.ros    = ros;
     this.io     = io;
     this._rid   = rid || null;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][vpn]` : '[vpn]';
-    const _vPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 10000;
-    this.pollMs = Math.max(500, Math.min(30000, _vPoll));
+    this.pollMs = clampPoll(pollMs, 10000, 30000);
     this.state  = state;
 
     this._peers      = new Map(); // public-key -> raw peer row
     this._prev       = new Map(); // public-key -> { rx, tx, ts }
     this._lastFp     = '';
     this._debuggedOnce = false;
+    this.lastPayload = null;
 
     this._stream              = null;
     this._restarting          = false;
@@ -180,7 +182,7 @@ class VpnCollector {
     this._counterRestarting = false;
     if (this._emitDebounce) { clearTimeout(this._emitDebounce); this._emitDebounce = null; }
     if (this._counterStream) {
-      try { this._counterStream.stop(); } catch (_) {}
+      stopStreamSafe(this._counterStream);
       this._counterStream = null;
     }
   }
@@ -247,7 +249,7 @@ class VpnCollector {
   _stopStream() {
     if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
     this._restarting = false;
-    if (this._stream) { try { this._stream.stop(); } catch (_) {} this._stream = null; }
+    if (this._stream) { stopStreamSafe(this._stream); this._stream = null; }
   }
 
   // ── heartbeat ────────────────────────────────────────────────────────────

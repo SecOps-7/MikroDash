@@ -54,11 +54,19 @@ class ROS extends EventEmitter {
     return new RouterOSAPI(opts);
   }
 
+  // emit() runs listeners synchronously — one throwing listener would otherwise
+  // escape connectLoop's catch and permanently end the reconnect loop (or, from
+  // a conn callback, crash the process). Contain it here.
+  _safeEmit(event, arg) {
+    try { this.emit(event, arg); }
+    catch (e) { console.error(`[ROS] "${event}" listener threw:`, e && e.message ? e.message : e); }
+  }
+
   _emitConnectionError(err) {
-    this.emit('connectionError', err);
+    this._safeEmit('connectionError', err);
     // Only forward to 'error' if someone is explicitly listening —
     // emitting 'error' with no listeners would crash the process.
-    if (this.listenerCount('error') > 0) this.emit('error', err);
+    if (this.listenerCount('error') > 0) this._safeEmit('error', err);
   }
 
   async connectLoop() {
@@ -79,14 +87,14 @@ class ROS extends EventEmitter {
 
         this.conn.on('close', () => {
           this.connected = false;
-          this.emit('close');
+          this._safeEmit('close');
         });
 
         await this.conn.connect();
         this.connected = true;
         this.backoffMs = 2000;
         // Success is logged by wireRosEvents connected handler
-        this.emit('connected');
+        this._safeEmit('connected');
 
         await new Promise((resolve) => {
           this.conn.once('close', resolve);

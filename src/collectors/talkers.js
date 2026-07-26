@@ -18,16 +18,19 @@
  *   other stream errors → exponential backoff, retry stream.
  */
 
+const { clampPoll, stopStreamSafe } = require('./util');
+
 class TopTalkersCollector {
   constructor({ ros, io, pollMs, state, topN, streamMode }) {
     this.ros    = ros;
     this.io     = io;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][talkers]` : '[talkers]';
     this.pollMs = pollMs;
-    this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 3000;
+    this._pollDelayMs = clampPoll(pollMs, 3000);
     this.state  = state;
     this.topN   = topN || 5;
     this.streamMode = streamMode !== false; // default true
+    this.lastPayload = null;
 
     this._stream      = null;
     this._devicesNext = new Map(); // mac -> { name, mac, rateUp, rateDown }
@@ -79,7 +82,13 @@ class TopTalkersCollector {
     );
 
     stream.on('data', (packet) => {
-      if (!packet || typeof packet !== 'object' || Array.isArray(packet)) return;
+      // RStream emits [] when the kid-control table is empty this interval —
+      // clear the device list instead of showing the last devices forever.
+      if (Array.isArray(packet)) {
+        if (packet.length === 0 && this._devicesNext.size > 0) { this._devicesNext.clear(); this._scheduleCommit(); }
+        return;
+      }
+      if (!packet || typeof packet !== 'object') return;
       const mac = packet['mac-address'];
       if (!mac) return;
       this._devicesNext.set(mac, {
@@ -125,7 +134,7 @@ class TopTalkersCollector {
     clearTimeout(this._commitTimer);  this._commitTimer  = null;
     clearTimeout(this._backoffTimer); this._backoffTimer = null;
     if (!this._stream) return;
-    try { this._stream.stop().catch(() => {}); } catch (e) {}
+    stopStreamSafe(this._stream);
     this._stream = null;
     this._devicesNext.clear();
   }

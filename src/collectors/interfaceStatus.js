@@ -17,28 +17,15 @@
  * for the next emit tick.
  */
 
-function parseBps(val) {
-  if (!val || val === '0') return 0;
-  const s = String(val);
-  if (s.endsWith('kbps') || s.endsWith('Kbps')) return parseFloat(s) * 1000;
-  if (s.endsWith('Mbps') || s.endsWith('mbps')) return parseFloat(s) * 1_000_000;
-  if (s.endsWith('Gbps') || s.endsWith('gbps')) return parseFloat(s) * 1_000_000_000;
-  if (s.endsWith('bps')) return parseFloat(s);
-  return parseInt(s, 10) || 0;
-}
-
-function bpsToMbps(bps) {
-  return +((bps || 0) / 1_000_000).toFixed(4);
-}
+const { parseBps, bpsToMbps, clampPoll, stopStreamSafe } = require('./util');
 
 class InterfaceStatusCollector {
   constructor({ ros, io, pollMs, metaPollMs, state, streamMode }) {
     this.ros        = ros;
     this.io         = io;
     this._lbl       = ros.routerLabel ? `[${ros.routerLabel}][ifstatus]` : '[ifstatus]';
-    const _iPoll = Number.isFinite(Number(pollMs)) ? Math.trunc(Number(pollMs)) : 5000;
-    this.pollMs     = Math.max(500, Math.min(60000, _iPoll)); // rate stream + emit timer interval
-    this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 5000;
+    this.pollMs       = clampPoll(pollMs, 5000); // rate stream + emit timer interval
+    this._pollDelayMs = clampPoll(pollMs, 5000);
     this.metaPollMs = metaPollMs || 60000; // metadata streams interval
     this.state      = state;
     this.streamMode = streamMode !== false; // default true
@@ -63,6 +50,7 @@ class InterfaceStatusCollector {
     this._ratesTimer   = null;
     this._ratesInflight = false;
     this._lastFp       = '';
+    this.lastPayload   = null;
 
     this.ros.on('close', () => {
       this._stopMetaStreams();
@@ -144,8 +132,8 @@ class InterfaceStatusCollector {
   _stopMetaStreams() {
     if (this._ifRestartTimer)   { clearTimeout(this._ifRestartTimer);   this._ifRestartTimer   = null; }
     if (this._addrRestartTimer) { clearTimeout(this._addrRestartTimer); this._addrRestartTimer = null; }
-    if (this._ifStream)   { try { this._ifStream.stop().catch(() => {}); }   catch (e) {} this._ifStream   = null; }
-    if (this._addrStream) { try { this._addrStream.stop().catch(() => {}); } catch (e) {} this._addrStream = null; }
+    if (this._ifStream)   { stopStreamSafe(this._ifStream);   this._ifStream   = null; }
+    if (this._addrStream) { stopStreamSafe(this._addrStream); this._addrStream = null; }
     clearTimeout(this._metaDebounce);
     this._metaDebounce = null;
     this._ifacesNext   = new Map();
@@ -175,7 +163,9 @@ class InterfaceStatusCollector {
       this._scheduleMetaCommit();
     });
     stream.on('error', (err) => {
-      console.error(this._lbl + ' /interface/print stream error:', err && err.message ? err.message : String(err)); // codeql[js/tainted-format-string]
+      const msg = err && err.message ? err.message : String(err);
+      console.error(this._lbl + ' /interface/print stream error:', msg); // codeql[js/tainted-format-string]
+      this.state.lastIfStatusErr = msg;
       this._ifStream = null;
       if (!this._ifRestartTimer) {
         this._ifRestartTimer = setTimeout(() => {
@@ -206,7 +196,9 @@ class InterfaceStatusCollector {
       this._scheduleMetaCommit();
     });
     stream.on('error', (err) => {
-      console.error(this._lbl + ' /ip/address/print stream error:', err && err.message ? err.message : String(err)); // codeql[js/tainted-format-string]
+      const msg = err && err.message ? err.message : String(err);
+      console.error(this._lbl + ' /ip/address/print stream error:', msg); // codeql[js/tainted-format-string]
+      this.state.lastIfStatusErr = msg;
       this._addrStream = null;
       if (!this._addrRestartTimer) {
         this._addrRestartTimer = setTimeout(() => {
@@ -288,6 +280,15 @@ class InterfaceStatusCollector {
         return;
       }
       console.error(this._lbl + ' monitor-traffic stream error:', msg); // codeql[js/tainted-format-string]
+      this.state.lastIfStatusErr = msg;
+      // Recover directly instead of waiting up to metaPollMs (60 s default)
+      // for _commitMeta to incidentally reopen the stream.
+      if (!this._monitorRestartTimer) {
+        this._monitorRestartTimer = setTimeout(() => {
+          this._monitorRestartTimer = null;
+          if (this.ros.connected && !this._monitorStream) this._startMonitorStream();
+        }, 3000);
+      }
     });
     this._monitorStream   = stream;
     this._monitorIfaceKey = key;
@@ -296,7 +297,7 @@ class InterfaceStatusCollector {
   _stopMonitorStream() {
     if (this._monitorRestartTimer) { clearTimeout(this._monitorRestartTimer); this._monitorRestartTimer = null; }
     if (!this._monitorStream) return;
-    try { this._monitorStream.stop().catch(() => {}); } catch (e) {}
+    stopStreamSafe(this._monitorStream);
     this._monitorStream   = null;
     this._monitorIfaceKey = '';
     this._streamRates.clear();
@@ -331,7 +332,6 @@ class InterfaceStatusCollector {
 
   _buildAndEmit() {
     if (!this._ifaces.size) return;
-    if (this.io.engine.clientsCount === 0) return;
 
     const now = Date.now();
     const interfaces = [];
@@ -357,10 +357,14 @@ class InterfaceStatusCollector {
       ips: i.ips,
     })));
     this.lastPayload = { ts: now, interfaces };
+    // Healthy tick — advance ts / clear err even when nothing changed, and keep
+    // lastPayload fresh for replay while idle; only the emit is gated below.
+    this.state.lastIfStatusTs  = now;
+    this.state.lastIfStatusErr = null;
+    if (this.io.engine.clientsCount === 0) return;
     if (fp === this._lastFp) return;
     this._lastFp = fp;
     this.io.emit('ifstatus:update', this.lastPayload);
-    this.state.lastIfStatusTs = now;
   }
 
   _stopRatesPoll() {

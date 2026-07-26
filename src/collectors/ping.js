@@ -13,6 +13,7 @@
  * set _permissionDenied and stop retrying — the API user needs the 'test' policy.
  */
 const RingBuffer = require('../util/ringbuffer');
+const { clampPoll, stopStreamSafe } = require('./util');
 
 const MAX_HISTORY  = 60;
 const LOSS_WINDOW  = 10; // rolling window for loss %
@@ -23,7 +24,7 @@ class PingCollector {
     this.io     = io;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][ping]` : '[ping]';
     this.pollMs = pollMs || 5000;
-    this._pollDelayMs = Number.isFinite(Number(pollMs)) ? Math.max(500, Math.min(60_000, Math.trunc(Number(pollMs)))) : 5000;
+    this._pollDelayMs = clampPoll(pollMs, 5000);
     this.state  = state;
     this.target = target || '1.1.1.1';
     this.streamMode = streamMode !== false; // default true
@@ -31,6 +32,7 @@ class PingCollector {
     this.history = new RingBuffer(MAX_HISTORY);
     this._stream       = null;
     this._pollTimer    = null;
+    this._errRestartTimer = null;
     this._pollInflight = false;
     this._lastFp  = '';
     this.lastPayload       = null;
@@ -97,7 +99,11 @@ class PingCollector {
       } else {
         console.error(this._lbl + `stream error (target=${this.target}):`, msg); // codeql[js/tainted-format-string]
         this.state.lastPingErr = msg;
-        setTimeout(() => { if (this.ros.connected && !this._stream && !this._permissionDenied) this._startStream(); }, 3000);
+        clearTimeout(this._errRestartTimer);
+        this._errRestartTimer = setTimeout(() => {
+          this._errRestartTimer = null;
+          if (this.ros.connected && !this._stream && !this._permissionDenied) this._startStream();
+        }, 3000);
       }
     });
 
@@ -105,8 +111,10 @@ class PingCollector {
   }
 
   _stopStream() {
+    // A pending error-restart would silently reopen the stream after stop()/suspend().
+    if (this._errRestartTimer) { clearTimeout(this._errRestartTimer); this._errRestartTimer = null; }
     if (!this._stream) return;
-    try { this._stream.stop().catch(() => {}); } catch (e) {}
+    stopStreamSafe(this._stream);
     this._stream = null;
   }
 
