@@ -515,6 +515,37 @@ This distinction is a security boundary, not just a UX choice:
 - The `test` connection endpoint (`POST /api/routers/test`) creates a temporary ROS instance. It must always call `testRos.stop()` in all code paths — including errors and timeouts — to prevent connection leaks.
 - `tlsInsecure: true` disables certificate verification. This is a user-acknowledged risk for self-signed certs on private networks. It must never be set to `true` programmatically without the user's explicit opt-in.
 
+### Static analysis (CodeQL) — standing dismissals
+
+Inline `// codeql[rule-id]` comments are **not** honoured by GitHub code scanning (they are
+LGTM-era syntax). Alerts previously "closed" that way silently reopened on every scan. Suppress
+via the API/UI instead, or fix the code. Three classes are dismissed on this repo, with reasons:
+
+**`js/tainted-format-string` — dismissed "won't fix" (inert by construction).**
+`_patchConsole()` in `src/index.js` wraps `console.{log,info,warn,error}` so **every** call
+receives the timestamp as argument 0. The caller's string therefore lands in an *argument*
+position, never the format-string position, and `util.format` performs no specifier substitution
+on it — verify with `console.log('[ts]', 'a %s b', 'X')`, which prints `a %s b X`. The tainted
+values are the router label (set by an authenticated admin, or derived from the device's
+board-name) and `router.host` (validated by `VALID_HOST = /^[a-zA-Z0-9.\-]{1,253}$/`, which
+cannot contain `%`). The sink is a log line, not a security boundary.
+
+> ⚠ **Invariant:** 85+ call sites pass `this._lbl + '…'` as argument 0. If `_patchConsole` is ever
+> changed to merge the caller's string into the format position (e.g. `` orig(`[${ts()}] ${args[0]}`, …) ``),
+> those specifiers become live and every one of those call sites must first be converted to a
+> literal format string (`console.error('%s …: %s', this._lbl, msg)`). Do not change the logger
+> in isolation — that trades 11 flagged sites for 85 real ones.
+
+**`js/resource-exhaustion` — dismissed "false positive".** The `setTimeout` delays in
+`system.js` (`_scheduleResourceNext`) and `interfaceStatus.js` (`_scheduleRatesNext`) are clamped
+inline at the call site to `Math.max(500, Math.min(60000, …))`, and `Settings.load()` clamps every
+poll interval to its documented range beforehand. The delay cannot be unbounded or near-zero.
+
+**`js/missing-rate-limiting` — dismissed "false positive".** `authLimiter` (100 req/min) is
+applied globally by the `app.use()` block near the top of `src/index.js`, ahead of every route
+except `/healthz`. CodeQL cannot trace the limiter through that wrapper closure. Route-level
+duplicates were removed deliberately — they consumed two of the 100/min budget per request.
+
 ---
 
 ## Testing conventions
