@@ -1,0 +1,61 @@
+name: Tests
+
+# Runs the suite on every PR and on pushes to main. Tests execute inside the
+# production image rather than on a bare runner, so a PR that breaks the
+# Dockerfile, the node-routeros patch step or a native build fails here too.
+# test/ is excluded from the image, so it is mounted in — the same way the
+# local pre-push hook copies it into the running container.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # amd64 only — this job verifies behaviour, not multi-arch packaging.
+      # docker-publish.yml covers arm64/arm/v7 on tagged releases.
+      - name: Build image
+        run: docker build -t mikrodash:ci .
+
+      # $PWD is the checkout dir; avoids interpolating a ${{ }} expression
+      # into a shell command, which is the workflow-injection footgun.
+      - name: Run test suite
+        run: |
+          docker run --rm --entrypoint node \
+            -v "$PWD/test:/app/test:ro" \
+            mikrodash:ci --test --test-force-exit /app/test/
+
+      # Catches startup-only failures the suite cannot see: src/index.js is not
+      # covered by any test, so a bad config value or a dependency behaviour
+      # change (e.g. body-parser's limit validation) would otherwise reach main.
+      # 503 with {"starting":true} is a pass here — no router is configured, so
+      # the app never reaches ready; we only assert that it serves HTTP.
+      - name: Smoke-test startup
+        run: |
+          cid=$(docker run -d --rm --tmpfs /data -p 3099:3081 \
+            -e DATA_SECRET=ci-smoke-test mikrodash:ci)
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3099/healthz || true)
+            if [ "$code" = "200" ] || [ "$code" = "503" ]; then
+              echo "Server responded with HTTP $code."
+              docker logs "$cid"
+              docker stop "$cid" > /dev/null
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server did not respond within 40s:"
+          docker logs "$cid"
+          docker stop "$cid" > /dev/null
+          exit 1
