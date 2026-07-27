@@ -63,6 +63,38 @@ async function withPatchedTimers(runTest) {
   finally { [global.setInterval, global.clearInterval, global.setTimeout, global.clearTimeout] = o; }
 }
 
+// ── ROS client: router label is sanitised for log safety ────────────────────
+
+test('routerLabel strips control characters so a label cannot forge log lines', () => {
+  const ros = new ROS({ host: 'h', username: 'u', password: 'p' });
+  ros.routerLabel = 'hAP AX3\n2026-01-01 00:00:00 [FAKE] forged line';
+  assert.ok(!ros.routerLabel.includes('\n'), 'newline stripped');
+  assert.equal(ros.routerLabel, 'hAP AX32026-01-01 00:00:00 [FAKE] forged line');
+  ros.routerLabel = 'a\r\tb\x00c\x7f';
+  assert.equal(ros.routerLabel, 'abc');
+});
+
+test('routerLabel strips % so it can never act as a format specifier', () => {
+  const ros = new ROS({ host: 'h', username: 'u', password: 'p' });
+  ros.routerLabel = 'router %s %d %j';
+  assert.equal(ros.routerLabel, 'router s d j');
+  assert.ok(!ros.routerLabel.includes('%'));
+  // A legitimate label keeps its text, minus the percent sign.
+  ros.routerLabel = 'Site 50% Backup';
+  assert.equal(ros.routerLabel, 'Site 50 Backup');
+});
+
+test('routerLabel passes ordinary labels through unchanged and handles null', () => {
+  const ros = new ROS({ host: 'h', username: 'u', password: 'p' });
+  ros.routerLabel = 'Mikrotik hAP AX3';
+  assert.equal(ros.routerLabel, 'Mikrotik hAP AX3');
+  // Collectors do `ros.routerLabel ? ... : '[tag]'`, so an unset label must stay falsy.
+  const fresh = new ROS({ host: 'h', username: 'u', password: 'p' });
+  assert.ok(!fresh.routerLabel, 'unset label is falsy');
+  ros.routerLabel = null;
+  assert.equal(ros.routerLabel, '');
+});
+
 // ── ROS client: listener exceptions must not kill connectLoop ────────────────
 
 test('a throwing connectionError listener does not kill connectLoop', async () => {

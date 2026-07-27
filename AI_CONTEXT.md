@@ -521,14 +521,23 @@ Inline `// codeql[rule-id]` comments are **not** honoured by GitHub code scannin
 LGTM-era syntax). Alerts previously "closed" that way silently reopened on every scan. Suppress
 via the API/UI instead, or fix the code. Three classes are dismissed on this repo, with reasons:
 
-**`js/tainted-format-string` — dismissed "won't fix" (inert by construction).**
-`_patchConsole()` in `src/index.js` wraps `console.{log,info,warn,error}` so **every** call
-receives the timestamp as argument 0. The caller's string therefore lands in an *argument*
-position, never the format-string position, and `util.format` performs no specifier substitution
-on it — verify with `console.log('[ts]', 'a %s b', 'X')`, which prints `a %s b X`. The tainted
-values are the router label (set by an authenticated admin, or derived from the device's
-board-name) and `router.host` (validated by `VALID_HOST = /^[a-zA-Z0-9.\-]{1,253}$/`, which
-cannot contain `%`). The sink is a log line, not a security boundary.
+**`js/tainted-format-string` — dismissed "won't fix" (sanitised at source, and inert anyway).**
+Two independent reasons:
+
+1. *Sanitised at source.* `ROS.routerLabel` is a setter (`src/routeros/client.js`) that strips
+   control characters and `%` from every label before storing it. That is the single origin of
+   the `this._lbl` prefix used by all collectors, so no format specifier — and no newline that
+   could forge a log line — can reach a logging call, whatever shape the call site has. The other
+   tainted value, `router.host`, is validated by `VALID_HOST = /^[a-zA-Z0-9.\-]{1,253}$/`, which
+   cannot contain `%` either.
+2. *Inert by construction.* `_patchConsole()` in `src/index.js` wraps
+   `console.{log,info,warn,error}` so **every** call receives the timestamp as argument 0. The
+   caller's string therefore lands in an *argument* position, never the format-string position,
+   and `util.format` performs no specifier substitution on it — verify with
+   `console.log('[ts]', 'a %s b', 'X')`, which prints `a %s b X`.
+
+The sink is a log line, not a security boundary. Sanitising the one source was preferred over
+rewriting 85+ sinks; see the invariant below for when that calculus changes.
 
 > ⚠ **Invariant:** 85+ call sites pass `this._lbl + '…'` as argument 0. If `_patchConsole` is ever
 > changed to merge the caller's string into the format position (e.g. `` orig(`[${ts()}] ${args[0]}`, …) ``),

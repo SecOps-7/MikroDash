@@ -36,6 +36,19 @@ class ROS extends EventEmitter {
     });
   }
 
+  // Router label — used only to prefix log lines (collectors build `_lbl` from it).
+  // It comes from an admin-typed label or, while the label is still the default,
+  // from the device's own board-name — so a hostile or compromised router can
+  // influence it. Sanitise once here instead of at the 85+ logging call sites:
+  // control characters would let a label forge whole log lines, and `%` would
+  // become a format specifier if a log line ever placed the label in format-string
+  // position. See AI_CONTEXT.md → "Static analysis (CodeQL)".
+  set routerLabel(v) {
+    this._routerLabel = String(v == null ? '' : v).replace(/[\x00-\x1f\x7f]/g, '').replace(/%/g, '');
+  }
+
+  get routerLabel() { return this._routerLabel; }
+
   _buildConn() {
     // Pass this.cfg.tls directly — it may be false, true, or an options object
     // such as { rejectUnauthorized: false } built by buildSession()/test endpoint.
