@@ -1,8 +1,9 @@
 /**
  * MikroDash RouterOS client — node-routeros wrapper v0.3.3
  *
- * node-routeros stream() signature:
- *   conn.stream(wordsArray, callback)   ← two args only, no params array
+ * node-routeros stream() accepts a flattened words array.  This wrapper also
+ * supports the write()-style three-argument form used by collectors:
+ *   stream(command, paramsArray, callback)
  *
  * node-routeros write() signature:
  *   conn.write(cmd, paramsArray)        ← cmd string + optional array of '=k=v' strings
@@ -180,10 +181,17 @@ class ROS extends EventEmitter {
    *   callback   — function(err, data) called on every !re sentence
    * Returns a Stream object with .stop(), .pause(), .resume() methods.
    */
-  stream(words, callback) {
+  stream(words, paramsOrCallback, callback) {
     if (!this.conn || !this.connected) throw new Error('Not connected');
-    if (!Array.isArray(words)) words = [words];
-    return this.conn.stream(words, callback);
+    const wordsArr = Array.isArray(words) ? [...words] : [words];
+    let cb = null;
+
+    if (Array.isArray(paramsOrCallback)) wordsArr.push(...paramsOrCallback);
+    else if (typeof paramsOrCallback === 'string') wordsArr.push(paramsOrCallback);
+    else if (typeof paramsOrCallback === 'function') cb = paramsOrCallback;
+
+    if (typeof callback === 'function') cb = callback;
+    return this.conn.stream(wordsArr, cb);
   }
 
   stop() {

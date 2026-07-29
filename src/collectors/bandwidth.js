@@ -45,6 +45,7 @@ class BandwidthCollector {
     this._stopping    = false;
     this.lastPayload  = null;
     this._lastFp      = '';
+    this._lastEmitTs  = 0;
     this._lastSnapshotTs = 0; // tracks the connTableCache snapshot timestamp to detect cache hits
     this._lastIfaceTs    = 0; // fingerprint to detect ifStatus payload changes for cache invalidation
     // Set to true by start(), never reset. Allows the connected handler to
@@ -61,6 +62,7 @@ class BandwidthCollector {
       this._orgCache.clear();
       this._ifaceCache.clear();
       this._lastFp = '';
+      this._lastEmitTs = 0;
       this._lastSnapshotTs = 0;
       // Only restart here on reconnect after a close. On the very first
       // connect, startCollectors() in index.js calls start() explicitly —
@@ -257,8 +259,9 @@ class BandwidthCollector {
 
     this.lastPayload = { ts: now, devices, pollMs: this.pollMs };
     const fp = JSON.stringify(devices.map(d => ({ src: d.srcIp, rx: d.rxMbps, tx: d.txMbps })));
-    if (fp !== this._lastFp) {
+    if (fp !== this._lastFp || now - this._lastEmitTs >= 10000) {
       this._lastFp = fp;
+      this._lastEmitTs = now;
       this.io.to('page-bandwidth').to('dash-card-bandwidth').emit('bandwidth:update', this.lastPayload);
     }
     this.state.lastBandwidthTs  = now;

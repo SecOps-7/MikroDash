@@ -13,6 +13,7 @@ const path = require('path');
 const ROS                  = require('../src/routeros/client');
 const ConnectionsCollector = require('../src/collectors/connections');
 const TrafficCollector     = require('../src/collectors/traffic');
+const InterfaceStatusCollector = require('../src/collectors/interfaceStatus');
 const TopTalkersCollector  = require('../src/collectors/talkers');
 const WirelessCollector    = require('../src/collectors/wireless');
 const PingCollector        = require('../src/collectors/ping');
@@ -93,6 +94,24 @@ test('routerLabel passes ordinary labels through unchanged and handles null', ()
   assert.ok(!fresh.routerLabel, 'unset label is falsy');
   ros.routerLabel = null;
   assert.equal(ros.routerLabel, '');
+});
+
+test('ROS stream supports command, params array, callback without dropping words', () => {
+  const ros = new ROS({});
+  ros.connected = true;
+  let forwardedWords = null;
+  let forwardedCb = null;
+  ros.conn = {
+    stream(words, cb) {
+      forwardedWords = words;
+      forwardedCb = cb;
+      return { stop() {} };
+    },
+  };
+  const cb = () => {};
+  ros.stream('/interface/monitor-traffic', ['=interface=wan', '=interval=1'], cb);
+  assert.deepEqual(forwardedWords, ['/interface/monitor-traffic', '=interface=wan', '=interval=1']);
+  assert.equal(forwardedCb, cb);
 });
 
 // ── ROS client: listener exceptions must not kill connectLoop ────────────────
@@ -221,6 +240,44 @@ test('traffic bindSocket attaches listeners once per socket; unbind/stop release
   assert.equal(sock.listenerCount('traffic:select'), 0, 'stop() releases socket listeners');
   assert.equal(t.subscriptions.size, 0);
   assert.equal(t._boundSockets.size, 0);
+});
+
+test('traffic watchdog restarts a silently stalled stream', async () => {
+  await withPatchedTimers(async (timers) => {
+    const ros = mockStreamRos();
+    const t = new TrafficCollector({ ros, io: stubIo(0), defaultIf: 'wan', historyMinutes: 1, pollMs: 1000, state: {} });
+    t.start();
+    const first = t._allStream;
+    t._streamStartTs = Date.now() - 11000;
+    t._lastDataTs = 0;
+    const watchdog = timers.find(timer => timer.isInterval && timer.ms === 5000 && !timer.cleared);
+    assert.ok(watchdog, 'traffic watchdog armed');
+    watchdog.cb();
+    assert.notEqual(t._allStream, first, 'stalled stream replaced');
+    t.stop();
+  });
+});
+
+test('traffic stream accepts numeric zero counters as a healthy idle sample', () => {
+  const ros = mockStreamRos();
+  const state = {};
+  const t = new TrafficCollector({ ros, io: stubIo(0), defaultIf: 'wan', historyMinutes: 1, pollMs: 1000, state });
+  t.start();
+  t._allStream.emit('data', { 'rx-bits-per-second': 0, 'tx-bits-per-second': 0 });
+  assert.ok(state.lastTrafficTs > 0, 'idle zero-rate packet advances freshness');
+  t.stop();
+});
+
+test('interface rate poll records errors without advancing freshness', async () => {
+  const state = { lastIfStatusTs: 123 };
+  const ros = new EventEmitter();
+  ros.connected = true;
+  ros.write = async () => { throw new Error('monitor failed'); };
+  const collector = new InterfaceStatusCollector({ ros, io: stubIo(1), pollMs: 1000, state, streamMode: false });
+  collector._ifaces.set('wan', { name: 'wan', disabled: false });
+  await collector._pollRatesOnce();
+  assert.equal(state.lastIfStatusTs, 123, 'failed poll does not look fresh');
+  assert.match(state.lastIfStatusErr, /monitor failed/);
 });
 
 // ── Empty-table stream packets ───────────────────────────────────────────────

@@ -1606,11 +1606,21 @@ function sanitizeErr(e) {
 app.get('/healthz', (req, res) => {
   const ge = _globalEntry();
   const s  = ge ? ge.session : null;
-  const { ok, statusCode } = computeHealthStatus({
+  const st = s ? s.state : {};
+  const activeRoomSize = s ? (io.sockets.adapter.rooms.get('router-' + s.routerId)?.size || 0) : 0;
+  // High-frequency system/interface collectors are intentionally suspended
+  // while nobody is viewing this router. Traffic remains active for history
+  // recording, so it is always required; add viewer-driven collectors only
+  // while their suspension would be unexpected.
+  const requiredCollectors = activeRoomSize > 0
+    ? ['traffic', 'system', 'ifstatus']
+    : ['traffic'];
+  const { ok, statusCode, stale } = computeHealthStatus({
     startupReady: ge ? ge.startupReady : false,
     rosConnected: s ? s.ros.connected : false,
+    state: st,
+    requiredCollectors,
   });
-  const st = s ? s.state : {};
   const isStarting = !(ge && ge.startupReady) && (Date.now() - _serverStartTime < STARTUP_GRACE_MS);
   // Unauthenticated callers (the Docker healthcheck) only need the status code
   // and ok/starting flags — version, router ids and collector detail would
@@ -1625,6 +1635,7 @@ app.get('/healthz', (req, res) => {
     routerConnected: s ? s.ros.connected : false,
     activeRouterId:  s ? s.routerId : null,
     startupReady: ge ? ge.startupReady : false,
+    stale,
     uptime: process.uptime(),
     now: Date.now(),
     defaultIf: s ? s.DEFAULT_IF : '',
