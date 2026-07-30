@@ -30,6 +30,7 @@ const { version: APP_VERSION } = require('../package.json');
 const { buildHelmetOptions } = require('./security/helmetOptions');
 const { computeHealthStatus } = require('./health');
 const { verifyRouterOSPatchMarkers } = require('./routeros/patchVerification');
+const { classifyRosError } = require('./routeros/classifyError');
 const { scheduleForcedShutdownTimer } = require('./shutdown');
 
 try {
@@ -509,6 +510,7 @@ function wireRosEvents(session, entry) {
     console.log(`[${ros.routerLabel}][ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
     session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
     session._ifacesFetch    = null;
+    if (entry) { entry.lastError = null; entry.lastErrorTs = 0; } // recovered (#92)
     broadcastRosStatus(true, null, entry);
     _emitRouterStatus(true);
     // Restore page-aware streams for any pages still open after the reconnect.
@@ -524,44 +526,17 @@ function wireRosEvents(session, entry) {
     _emitRouterStatus(false);
   });
   ros.on('connectionError', (e) => {
-    const msg = e && e.message ? e.message : String(e);
-    let reason = msg;
-    let hint   = '';
-    if (/ECONNREFUSED/.test(msg)) {
-      reason = `Connection refused — is RouterOS reachable at ${host}?`;
-      hint   = `Check that the RouterOS API service is enabled: /ip service set api${tls?'-ssl':''} disabled=no`;
-    } else if (/ETIMEDOUT/.test(msg) || /timed out/i.test(msg)) {
-      reason = 'Connection timed out — check host and firewall rules';
-      hint   = `Verify ${host}:${port} is reachable and not blocked by a firewall rule`;
-    } else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg)) {
-      reason = `Host not found — check router host setting (${host})`;
-      hint   = 'Ensure the hostname or IP address is correct and DNS is resolving';
-    } else if (/ECONNRESET/.test(msg)) {
-      reason = 'Connection reset by router';
-      hint   = 'The router closed the connection unexpectedly — check RouterOS logs';
-    } else if (/certificate/i.test(msg)) {
-      reason = 'TLS certificate error — try enabling "Allow self-signed cert"';
-      hint   = 'Set tlsInsecure=true in settings or use a valid certificate on the router';
-    } else if (/authentication/i.test(msg) || /login/i.test(msg) || /invalid user/i.test(msg) || /wrong password/i.test(msg) || /username.*invalid|password.*invalid/i.test(msg) || (e && e.errno === 'CANTLOGIN')) {
-      reason = 'Authentication failed — check username and password';
-      hint   = `Confirm user "${user}" exists on the router and has API access: /user print`;
-    } else if (/RosException/.test(msg) || (e && e.name === 'RosException')) {
-      const errno = e && e.errno ? e.errno : '';
-      if (tls) {
-        reason = `TLS handshake failed — check that RouterOS api-ssl is enabled${errno ? ` [${errno}]` : ''}`;
-        hint   = 'Run: /ip service set api-ssl disabled=no  — and verify the certificate is valid';
-      } else {
-        reason = `RouterOS API error${errno ? ` [${errno}]` : ''} — check that the API service is enabled and the user has API access`;
-        hint   = `Run: /ip service set api disabled=no  — then confirm user "${user}" has API group permissions`;
-      }
-    }
+    const { reason, hint, msg, classified } = classifyRosError(e, { host, port, user, tls });
     console.error(`[${ros.routerLabel}][ROS] ✗ ${reason}`);
     if (hint) console.error(`[${ros.routerLabel}][ROS]   → ${hint}`);
     if (e && e.errno) console.error(`[${ros.routerLabel}][ROS]   errno: ${e.errno}`);
     console.error(`[${ros.routerLabel}][ROS]   raw: ${msg}`);
     // No classifier matched → reason is still the raw message; sanitize before
     // it reaches the browser (hard constraint: never send raw .message).
-    broadcastRosStatus(false, reason === msg ? sanitizeErr(e) : reason, entry);
+    const safeReason = classified ? reason : sanitizeErr(e);
+    // Remember it so the Routers page can say *why* this router is offline (#92).
+    if (entry) { entry.lastError = safeReason; entry.lastErrorTs = Date.now(); }
+    broadcastRosStatus(false, safeReason, entry);
     _emitRouterStatus(false);
   });
   ros.on('connected', () => startCollectors(session, entry));
@@ -2199,6 +2174,10 @@ function _buildRoutersStats(socket) {
     const defaultIf = r.defaultIf || cfg.defaultIf || 'ether1';
 
     const connected = s ? !!mainEntry.rosConnected : (bg ? bg.connected : false);
+    // Why it is offline, so the card can explain itself (#92). Already sanitized
+    // at the point of capture; null while connected.
+    const lastError = connected ? null
+      : (s ? (mainEntry.lastError || null) : (bg ? (bg.lastError || null) : null));
     const sysPay    = s ? s.system.lastPayload    : (bg ? bg.systemPayload   : null);
     const ifPay     = s ? s.ifStatus.lastPayload  : (bg ? bg.ifStatusPayload : null);
     const wanIf     = ifPay ? (ifPay.interfaces || []).find(i => i.name === defaultIf) : null;
@@ -2209,6 +2188,7 @@ function _buildRoutersStats(socket) {
       host:      r.host,
       isActive:  !!s,
       connected,
+      lastError,
       cpu:       sysPay ? sysPay.cpuLoad   : null,
       uptime:    sysPay ? sysPay.uptimeRaw : null,
       memPct:    sysPay ? sysPay.memPct    : null,

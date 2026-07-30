@@ -64,6 +64,68 @@ async function withPatchedTimers(runTest) {
   finally { [global.setInterval, global.clearInterval, global.setTimeout, global.clearTimeout] = o; }
 }
 
+// ── ROS error classifier (#92) ───────────────────────────────────────────────
+
+const { classifyRosError } = require('../src/routeros/classifyError');
+const CTX = { host: '192.168.1.32', port: 8728, user: 'admin', tls: false };
+
+test('classifyRosError maps the common failures to readable reasons', () => {
+  const cases = [
+    ['connect ECONNREFUSED 192.168.1.32:8728', /Connection refused/],
+    ['connect ETIMEDOUT 192.168.1.32:8728',    /timed out/],
+    ['getaddrinfo ENOTFOUND rb5009.lan',        /Host not found/],
+    ['read ECONNRESET',                         /reset by router/],
+    ['unable to verify the first certificate',  /TLS certificate error/],
+    ['invalid user name or password (6)',       /Authentication failed/],
+  ];
+  for (const [msg, expected] of cases) {
+    const out = classifyRosError(new Error(msg), CTX);
+    assert.match(out.reason, expected, msg);
+    assert.equal(out.classified, true, 'should be classified: ' + msg);
+    assert.ok(out.hint, 'classified errors carry an operator hint');
+  }
+});
+
+test('classifyRosError distinguishes TLS from plain for RosException', () => {
+  const err = new Error('RosException: cannot connect');
+  err.errno = 'CANTCONN';
+  assert.match(classifyRosError(err, { ...CTX, tls: true }).reason,  /TLS handshake failed/);
+  assert.match(classifyRosError(err, { ...CTX, tls: false }).reason, /RouterOS API error/);
+});
+
+test('classifyRosError resolves numeric errnos that arrive with no matching text', () => {
+  // node-routeros wraps socket failures in a RosException carrying only errno,
+  // which previously surfaced as an opaque "RouterOS API error [-111]".
+  const mk = (errno) => Object.assign(new Error('RosException: cannot connect'), { errno, name: 'RosException' });
+  assert.match(classifyRosError(mk(-111), CTX).reason, /Connection refused/);
+  assert.match(classifyRosError(mk(-110), CTX).reason, /timed out/);
+  assert.match(classifyRosError(mk(-113), CTX).reason, /Network unreachable/);
+  assert.match(classifyRosError(mk(-101), CTX).reason, /Network unreachable/);
+  // An errno with no alias still falls through to the generic RouterOS branch.
+  assert.match(classifyRosError(mk('CANTCONN'), CTX).reason, /RouterOS API error/);
+});
+
+test('classifyRosError reports unmatched errors as unclassified so callers sanitize', () => {
+  const out = classifyRosError(new Error('something weird at /app/src/secret.js'), CTX);
+  assert.equal(out.classified, false, 'unknown message must not be treated as safe text');
+  assert.equal(out.reason, out.msg, 'reason falls back to the raw message');
+});
+
+test('classifyRosError echoes only the supplied context, not driver internals', () => {
+  // The reason is shown in the browser, so it must not carry addresses the
+  // driver happened to include.
+  const out = classifyRosError(new Error('connect ECONNREFUSED 10.9.9.9:8728'), CTX);
+  assert.ok(out.classified);
+  assert.ok(!out.reason.includes('10.9.9.9'), 'raw address from the driver is not echoed');
+  assert.ok(out.reason.includes('192.168.1.32'), 'uses the configured host instead');
+});
+
+test('classifyRosError tolerates a null error and missing context', () => {
+  assert.doesNotThrow(() => classifyRosError(null));
+  assert.doesNotThrow(() => classifyRosError(undefined, {}));
+  assert.equal(typeof classifyRosError(null).reason, 'string');
+});
+
 // ── ROS client: router label is sanitised for log safety ────────────────────
 
 test('routerLabel strips control characters so a label cannot forge log lines', () => {
