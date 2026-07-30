@@ -4,21 +4,23 @@ All notable changes to MikroDash will be documented in this file.
 
 ## [0.5.51] — Stream recovery, accurate connectivity history, self-explaining offline routers
 
-Two separate "it says offline but it isn't" reports turned out to be different bugs, and both are fixed. Includes a watchdog for silently stalled traffic streams, contributed by @invoker-karl.
+Two separate "it says offline but it isn't" reports turned out to be different bugs, and both are fixed.
+
+Most of the stream recovery and collector freshness work in this release was contributed by **[@invoker-karl](https://github.com/invoker-karl)** in [#91](https://github.com/SecOps-7/MikroDash/pull/91). Thank you.
 
 ### Fixed
 
 - **Phantom router outages after a switch or idle teardown** (`src/index.js`). Tearing a session down cancelled the pending offline debounce timer and then closed the API connection, but the resulting `close` event arrived *after* that cancel and armed a fresh 30 second timer which nothing cancelled. It then recorded an Offline event and fired a router down alert for a router that was never unreachable. Every router switch, idle teardown, disable and delete took this path, so the Connectivity report accumulated outages that showed as "Ongoing", because the torn down session never reconnects and no closing row was ever written. With alerts enabled it also produced bogus notifications. Closes #84
-- **Silently stalled traffic streams** (`src/collectors/traffic.js`). A persistent RouterOS stream can stay attached while delivering nothing, leaving the graph frozen after a few seconds while the app still reports as connected. A watchdog now restarts the stream after ten seconds without data. Addresses #90 and #55
-- **Collector freshness was never checked** (`src/health.js`, `src/index.js`). `/healthz` only tested the parent RouterOS connection, so a dead collector still looked healthy. It now validates that critical collectors are delivering fresh data, while excluding collectors intentionally suspended because nobody is viewing them
-- **Interface rate poll failures were suppressed** (`src/collectors/interfaceStatus.js`). Errors were swallowed while `_buildAndEmit()` kept advancing `lastIfStatusTs`, so a broken collector reported itself healthy. Failures are now recorded and no longer advance the freshness timestamp
-- **Traffic health froze with no browser connected** (`src/collectors/traffic.js`). The collector's timestamps were updated after the idle gate, so a perfectly healthy stream looked stale to `/healthz` on an idle dashboard
-- **Idle interfaces reporting numeric zero counters** were discarded as empty packets, and are now treated as valid samples
+- **Silently stalled traffic streams** (`src/collectors/traffic.js`). A persistent RouterOS stream can stay attached while delivering nothing, leaving the graph frozen after a few seconds while the app still reports as connected. A watchdog now restarts the stream after ten seconds without data. Addresses #90 and #55 (#91, @invoker-karl)
+- **Collector freshness was never checked** (`src/health.js`, `src/index.js`). `/healthz` only tested the parent RouterOS connection, so a dead collector still looked healthy. It now validates that critical collectors are delivering fresh data, while excluding collectors intentionally suspended because nobody is viewing them (#91, @invoker-karl)
+- **Interface rate poll failures were suppressed** (`src/collectors/interfaceStatus.js`). Errors were swallowed while `_buildAndEmit()` kept advancing `lastIfStatusTs`, so a broken collector reported itself healthy. Failures are now recorded and no longer advance the freshness timestamp (#91, @invoker-karl)
+- **Traffic health froze with no browser connected** (`src/collectors/traffic.js`). The collector's timestamps were updated after the idle gate, so a perfectly healthy stream looked stale to `/healthz` on an idle dashboard (#91, @invoker-karl)
+- **Idle interfaces reporting numeric zero counters** were discarded as empty packets, and are now treated as valid samples (#91, @invoker-karl)
 
 ### Added
 
 - **Offline routers explain themselves** (`src/routeros/classifyError.js`, `public/app.js`). The Routers page now shows why a router is unreachable, for example "Connection refused", "Authentication failed" or "Network unreachable", instead of a bare "Offline". The classifier was extracted from `wireRosEvents()` so the status only sessions produce identical wording, which is what makes the reason available for routers you are not currently viewing. Numeric error codes are resolved too: node-routeros wraps socket failures in a `RosException` carrying only an errno, so a refused connection previously surfaced as an opaque `RouterOS API error [-111]`. Closes #92
-- **Heartbeat emissions for unchanged data** (`src/collectors/interfaceStatus.js`, `src/collectors/bandwidth.js`), so a stable reading is not mistaken by the browser for a dead collector
+- **Heartbeat emissions for unchanged data** (`src/collectors/interfaceStatus.js`, `src/collectors/bandwidth.js`), so a stable reading is not mistaken by the browser for a dead collector (#91, @invoker-karl)
 - **Tests run on every pull request** (`.github/workflows/test.yml`). Builds the production image, runs the full suite inside it and smoke tests startup. Previously only CodeQL ran on pull requests
 
 ### Security
@@ -28,9 +30,13 @@ Two separate "it says offline but it isn't" reports turned out to be different b
 
 ### Changed
 
-- `stream(command, params, callback)` is now explicitly supported by the RouterOS wrapper rather than relying on a quirk of the vendored driver
+- `stream(command, params, callback)` is now explicitly supported by the RouterOS wrapper rather than relying on a quirk of the vendored driver (#91, @invoker-karl)
 - `AI_CONTEXT.md` documents the standing CodeQL dismissals and the logger invariant behind them
 - `README.md` describes the stricter `/healthz` behaviour
+
+### Contributors
+
+- [@invoker-karl](https://github.com/invoker-karl) — traffic stream watchdog, collector freshness checks in `/healthz`, interface poll error reporting, heartbeat emissions, zero-counter handling and explicit three-argument `stream()` support ([#91](https://github.com/SecOps-7/MikroDash/pull/91))
 
 ---
 
