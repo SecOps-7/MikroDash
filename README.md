@@ -182,7 +182,7 @@ docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t mikrodash
 ```
 
 - Dashboard: `http://localhost:3081`
-- Health check: `http://localhost:3081/healthz` (`200` only after startup completes and RouterOS is connected)
+- Health check: `http://localhost:3081/healthz` (`200` only after startup completes, RouterOS is connected, and the critical collectors are delivering fresh data; a stalled traffic stream or an unreachable `defaultIf` now returns `503`)
 
 Source builds require the bundled `node-routeros` compatibility patch. If startup reports a missing patch marker, run `node patch-routeros.js` again before launching MikroDash.
 
