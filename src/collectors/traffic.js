@@ -35,6 +35,9 @@ class TrafficCollector {
     this.availableIfs  = new Set();  // validated set from fetchInterfaces()
     this._loggedErr    = false;
     this._restartTimer = null;
+    this._watchdogTimer = null;
+    this._streamStartTs = 0;
+    this._lastDataTs    = 0;
     this.lastWanStatus = null;
 
     this.ros.on('connected', () => {
@@ -42,8 +45,12 @@ class TrafficCollector {
       this._stopAllStream();
       this._ensureHistory(this.defaultIf);
       this._updateStream();
+      this._startWatchdog();
     });
-    this.ros.on('close', () => this._stopAllStream());
+    this.ros.on('close', () => {
+      this._stopAllStream();
+      this._stopWatchdog();
+    });
   }
 
   _ensureHistory(ifName) {
@@ -94,9 +101,13 @@ class TrafficCollector {
 
   _stopAllStream() {
     if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
-    if (!this._allStream) return;
+    if (!this._allStream) {
+      this._streamStartTs = 0;
+      return;
+    }
     stopStreamSafe(this._allStream);
     this._allStream = null;
+    this._streamStartTs = 0;
     console.log(this._lbl + ' stopped stream');
   }
 
@@ -105,6 +116,8 @@ class TrafficCollector {
     if (!this.ros.connected) return;
 
     const names = this._getStreamNames();
+    this._streamStartTs = Date.now();
+    this._lastDataTs = 0;
     console.log(this._lbl + ' streaming', names.length, 'interface(s) interval=1s'); // codeql[js/tainted-format-string]
 
     const stream = this.ros.stream(
@@ -122,7 +135,10 @@ class TrafficCollector {
       // When a single interface is monitored, RouterOS may omit the 'name' field.
       const ifName = packet.name || (names.length === 1 ? names[0] : null);
       if (!ifName) return;
-      if (!packet['rx-bits-per-second'] && !packet['tx-bits-per-second']) return;
+      const hasRx = Object.prototype.hasOwnProperty.call(packet, 'rx-bits-per-second');
+      const hasTx = Object.prototype.hasOwnProperty.call(packet, 'tx-bits-per-second');
+      if (!hasRx && !hasTx) return;
+      this._lastDataTs = Date.now();
       this._processPacket(ifName, packet);
     });
 
@@ -148,6 +164,30 @@ class TrafficCollector {
     });
 
     this._allStream = stream;
+  }
+
+  _startWatchdog() {
+    this._stopWatchdog();
+    const staleMs = 10000;
+    this._watchdogTimer = setInterval(() => {
+      if (!this.ros.connected || this._restartTimer) return;
+      if (!this._allStream) {
+        console.warn(this._lbl + ' watchdog: stream missing — restarting');
+        this._startAllStream();
+        return;
+      }
+      const last = this._lastDataTs || this._streamStartTs;
+      if (last && Date.now() - last > staleMs) {
+        console.warn(this._lbl + ' watchdog: no data for ' + Math.round((Date.now() - last) / 1000) + 's — restarting stream');
+        this._stopAllStream();
+        this._startAllStream();
+      }
+    }, 5000);
+  }
+
+  _stopWatchdog() {
+    if (this._watchdogTimer) clearInterval(this._watchdogTimer);
+    this._watchdogTimer = null;
   }
 
   bindSocket(socket) {
@@ -212,6 +252,12 @@ class TrafficCollector {
     this._ensureHistory(ifName);
     this.hist.get(ifName).push({ ts: now, rx_mbps: rxMbps, tx_mbps: txMbps });
 
+    // Collector health must advance even with no browser connected. Previously
+    // this happened after the idle gate, so a healthy stream looked stale.
+    this.state.lastTrafficTs  = now;
+    this.state.lastTrafficErr = null;
+    this._loggedErr = false;
+
     if (this.io.engine.clientsCount === 0) return;
 
     const sample = { ifName, ts: now, rx_mbps: rxMbps, tx_mbps: txMbps, running, disabled };
@@ -224,18 +270,17 @@ class TrafficCollector {
       this.io.emit('wan:status', this.lastWanStatus);
     }
 
-    this.state.lastTrafficTs  = now;
-    this.state.lastTrafficErr = null;
-    this._loggedErr = false;
   }
 
   start() {
     this._ensureHistory(this.defaultIf);
     this._startAllStream();
+    this._startWatchdog();
   }
 
   stop() {
     this._stopAllStream();
+    this._stopWatchdog();
     // Release socket listeners/references so a torn-down session can be GC'd.
     for (const { socket, onSelect, onDisconnect } of this._boundSockets.values()) {
       socket.off('traffic:select', onSelect);

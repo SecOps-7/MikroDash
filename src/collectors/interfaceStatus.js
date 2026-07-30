@@ -50,6 +50,9 @@ class InterfaceStatusCollector {
     this._ratesTimer   = null;
     this._ratesInflight = false;
     this._lastFp       = '';
+    this._lastEmitTs   = 0;
+    this._lastRatesSuccessTs = 0;
+    this._lastPollErrLogTs = 0;
     this.lastPayload   = null;
 
     this.ros.on('close', () => {
@@ -97,9 +100,19 @@ class InterfaceStatusCollector {
             txMbps: bpsToMbps(parseBps(r['tx-bits-per-second'])),
           });
         }
+        const now = Date.now();
+        this._lastRatesSuccessTs = now;
+        this.state.lastIfStatusTs = now;
+        this.state.lastIfStatusErr = null;
       }
     } catch (e) {
-      // Suppress — rates simply stay at last known value until next poll
+      const msg = e && e.message ? e.message : String(e);
+      this.state.lastIfStatusErr = msg;
+      const now = Date.now();
+      if (now - this._lastPollErrLogTs >= 60000) {
+        this._lastPollErrLogTs = now;
+        console.error(this._lbl + ' monitor-traffic poll error:', msg); // codeql[js/tainted-format-string]
+      }
     } finally {
       this._ratesInflight = false;
     }
@@ -264,6 +277,10 @@ class InterfaceStatusCollector {
         rxMbps: bpsToMbps(parseBps(packet['rx-bits-per-second'])),
         txMbps: bpsToMbps(parseBps(packet['tx-bits-per-second'])),
       });
+      const now = Date.now();
+      this._lastRatesSuccessTs = now;
+      this.state.lastIfStatusTs = now;
+      this.state.lastIfStatusErr = null;
     });
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
@@ -357,13 +374,12 @@ class InterfaceStatusCollector {
       ips: i.ips,
     })));
     this.lastPayload = { ts: now, interfaces };
-    // Healthy tick — advance ts / clear err even when nothing changed, and keep
-    // lastPayload fresh for replay while idle; only the emit is gated below.
-    this.state.lastIfStatusTs  = now;
-    this.state.lastIfStatusErr = null;
     if (this.io.engine.clientsCount === 0) return;
-    if (fp === this._lastFp) return;
+    // Re-emit a heartbeat even when rates are unchanged so the browser can
+    // distinguish an idle interface from a dead collector.
+    if (fp === this._lastFp && now - this._lastEmitTs < 60000) return;
     this._lastFp = fp;
+    this._lastEmitTs = now;
     this.io.emit('ifstatus:update', this.lastPayload);
   }
 
