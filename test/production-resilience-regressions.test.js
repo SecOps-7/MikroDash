@@ -36,22 +36,53 @@ test('buildHelmetOptions uses a self-hosted CSP policy', () => {
   assert.ok(!allSrcs.some(s => s === 'fonts.googleapis.com' || s.endsWith('.fonts.googleapis.com')), 'CSP must not allow Google Fonts');
 });
 
-test('computeHealthStatus reports readiness from startup and connectivity, not traffic freshness', () => {
+test('computeHealthStatus requires startup, connectivity, and fresh critical collectors', () => {
   const { computeHealthStatus } = require('../src/health');
+  const now = 1_000_000;
 
-  // state is passed intentionally — proves traffic freshness doesn't influence health
   const ready = computeHealthStatus({
     startupReady: true,
     rosConnected: true,
-    state: { lastTrafficTs: 0 },
+    now,
+    state: {
+      lastTrafficTs: now - 1000,
+      lastSystemTs: now - 1000,
+      lastIfStatusTs: now - 1000,
+    },
+    requiredCollectors: ['traffic', 'system', 'ifstatus'],
   });
   assert.equal(ready.ok, true);
   assert.equal(ready.statusCode, 200);
+  assert.deepEqual(ready.stale, []);
+
+  const staleTraffic = computeHealthStatus({
+    startupReady: true,
+    rosConnected: true,
+    now,
+    state: {
+      lastTrafficTs: now - 30000,
+      lastSystemTs: now - 1000,
+      lastIfStatusTs: now - 1000,
+    },
+    requiredCollectors: ['traffic', 'system', 'ifstatus'],
+  });
+  assert.equal(staleTraffic.ok, false);
+  assert.equal(staleTraffic.statusCode, 503);
+  assert.deepEqual(staleTraffic.stale, ['traffic']);
+
+  const idle = computeHealthStatus({
+    startupReady: true,
+    rosConnected: true,
+    now,
+    state: { lastTrafficTs: now - 1000, lastSystemTs: 0, lastIfStatusTs: 0 },
+  });
+  assert.equal(idle.ok, true, 'intentionally suspended viewer collectors are optional by default');
 
   const booting = computeHealthStatus({
     startupReady: false,
     rosConnected: true,
-    state: { lastTrafficTs: Date.now() },
+    now,
+    state: {},
   });
   assert.equal(booting.ok, false);
   assert.equal(booting.statusCode, 503);
@@ -59,7 +90,8 @@ test('computeHealthStatus reports readiness from startup and connectivity, not t
   const disconnected = computeHealthStatus({
     startupReady: true,
     rosConnected: false,
-    state: { lastTrafficTs: Date.now() },
+    now,
+    state: {},
   });
   assert.equal(disconnected.ok, false);
   assert.equal(disconnected.statusCode, 503);
