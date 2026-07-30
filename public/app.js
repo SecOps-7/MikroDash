@@ -7199,6 +7199,13 @@ function _renderRoutersStats(rows) {
     var hostSub = (r.host && r.host !== r.label)
       ? '<div style="font-size:.72rem;margin-top:.1rem;color:#ec4899">' + esc(r.host) + '</div>'
       : '';
+    // Explain an offline card rather than leaving the user to read container
+    // logs. The server sends this already sanitized; esc() it like any other value.
+    var offlineWhy = (!r.connected && r.lastError)
+      ? '<div style="font-size:.72rem;line-height:1.35;color:#d63939;background:rgba(214,57,57,.08);'
+        + 'border:1px solid rgba(214,57,57,.22);border-radius:6px;padding:.35rem .55rem;margin-bottom:.75rem">'
+        + esc(r.lastError) + '</div>'
+      : '';
     html += '<div class="col-md-6 col-xl-4">'
       + '<div class="card">'
       + '<div class="card-header" style="align-items:flex-start">'
@@ -7211,6 +7218,7 @@ function _renderRoutersStats(rows) {
       + (r.connected ? 'Online' : 'Offline') + '</span>'
       + '</div>'
       + '<div class="card-body">'
+      + offlineWhy
       + cpuBar + memBar + hddBar
       + '<div class="row g-2 text-center">'
       + '<div class="col-6"><div class="text-muted" style="font-size:.72rem">Uptime</div><div style="font-size:.9rem;font-weight:500;letter-spacing:.02em">' + uptime + '</div></div>'
