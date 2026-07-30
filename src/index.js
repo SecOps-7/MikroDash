@@ -409,6 +409,13 @@ async function teardownSession(session, entry) {
   if (entry && entry.routerIo && typeof entry.routerIo.removeAllHandlers === 'function') {
     entry.routerIo.removeAllHandlers();
   }
+  // Mark the session dead BEFORE stopping the ROS connection. ros.stop() closes
+  // the socket, and the resulting 'close' event arrives asynchronously, after the
+  // cancel below, so without this flag it re-enters _emitRouterStatus() and starts
+  // a fresh offline-debounce timer that nobody cancels. That timer then recorded a
+  // phantom outage (and fired a router-down alert) about 30 s after every router
+  // switch or idle teardown, for a router that was never unreachable. See #84.
+  session._destroyed = true;
   if (session._cancelDownTimer) session._cancelDownTimer();
   for (const c of session.allCollectors) {
     if (typeof c.stop === 'function') c.stop();
@@ -445,6 +452,10 @@ function wireRosEvents(session, entry) {
 
   function _emitRouterStatus(connected) {
     if (!session.routerId) return;
+    // Session torn down (router switch, idle teardown, disable, delete): the
+    // disconnect is our own doing, not a router outage, so it must not reach the
+    // connectivity log or the alerter. Same guard alertSessions.js already uses.
+    if (session._destroyed) return;
     const r     = Routers.getById(session.routerId);
     const label = (r && r.label) || host;
 
