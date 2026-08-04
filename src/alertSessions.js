@@ -135,13 +135,16 @@ function _buildSession(router) {
       _prevConnected = false;
       return;
     }
+    // The outage started now, not when the debounce expires. Record the
+    // observed time so downtime is not under-reported by threshMs (#99).
+    const downAt = Date.now();
     _downTimer = setTimeout(() => {
       _downTimer       = null;
       _declaredOffline = true;
       _prevConnected   = false;
       _statusMap.set(routerId, false);
       if (_mainIo) _mainIo.emit('router:status', { routerId, connected: false });
-      dbWriter.recordConnectivity(routerId, false);
+      dbWriter.recordConnectivity(routerId, false, downAt);
       if (alertsEnabled)
         alerter.fireConnectivityAlert(routerId, router.label || router.host, false);
     }, threshMs);

@@ -495,12 +495,15 @@ function wireRosEvents(session, entry) {
         _prevConnected = false;
         return;
       }
+      // The outage started now, not when the debounce expires. Record the
+      // observed time so downtime is not under-reported by threshMs (#99).
+      const downAt = Date.now();
       _downTimer = setTimeout(() => {
         _downTimer      = null;
         _declaredOffline = true;
         _prevConnected  = false;
         io.emit('router:status', { routerId: session.routerId, connected: false });
-        dbWriter.recordConnectivity(session.routerId, false);
+        dbWriter.recordConnectivity(session.routerId, false, downAt);
         alerter.fireConnectivityAlert(session.routerId, label, false);
       }, threshMs);
     }
@@ -2151,6 +2154,75 @@ app.get('/api/reports/connectivity/export', _requireAdmin, _scopeRouterId, (req,
   res.send(_toCsv(label, cols));
 });
 
+// ── Historical data cleanup ───────────────────────────────────────────────────
+
+// A restricted admin (non-empty allowedRouterIds) must not be able to run a
+// global purge, since that would delete history for routers they cannot even
+// see. Force them to name a router, and hold it to their allowed set.
+function _purgeScope(req) {
+  const routerId = String((req.body && req.body.routerId) || '').trim();
+  if (!_isModern()) return { routerId };
+  const allowed = req.authSession && req.authSession.allowedRouterIds;
+  if (Array.isArray(allowed) && allowed.length > 0) {
+    if (!routerId) return { error: 'Select a router — your account cannot purge all routers' };
+    if (!allowed.includes(routerId)) return { error: 'Router not permitted' };
+  }
+  return { routerId };
+}
+
+// Age presets the UI offers, in days. 0 means "everything, regardless of age".
+const _PURGE_AGES = [0, 1, 7, 30, 90, 365];
+
+function _purgeOpts(req) {
+  const scope = _purgeScope(req);
+  if (scope.error) return scope;
+  const body  = req.body || {};
+  const types = Array.isArray(body.types)
+    ? body.types.filter(t => db.PURGE_TYPES.includes(t))
+    : [];
+  if (Array.isArray(body.types) && types.length === 0) {
+    return { error: 'No valid data types selected' };
+  }
+  const days = Number(body.olderThanDays);
+  if (!_PURGE_AGES.includes(days)) return { error: 'Invalid age filter' };
+  return { routerId: scope.routerId, types, olderThanMs: days * 86400000 };
+}
+
+app.get('/api/db/stats', _requireAdmin, (req, res) => {
+  try {
+    const s = db.stats();
+    // Restricted admins only see their own routers' row counts.
+    const allowed = _isModern() && req.authSession && req.authSession.allowedRouterIds;
+    if (Array.isArray(allowed) && allowed.length > 0) {
+      s.byRouter = s.byRouter.filter(r => allowed.includes(r.routerId));
+    }
+    res.json({ ok: true, ...s });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: sanitizeErr(e) });
+  }
+});
+
+app.post('/api/db/purge', _requireAdmin, (req, res) => {
+  const opts = _purgeOpts(req);
+  if (opts.error) return res.status(400).json({ ok: false, error: opts.error });
+  try {
+    // dryRun powers the "this will delete N rows" preview shown before the user
+    // confirms. Same predicate as the delete, so the two can never disagree.
+    if (req.body && req.body.dryRun) {
+      return res.json({ ok: true, dryRun: true, ...db.countPurge(opts) });
+    }
+    const before = db.stats().bytes;
+    const result = db.purge(opts);
+    // Without this the rows go but the file on disk never shrinks, which reads
+    // as the cleanup having done nothing.
+    const vac    = result.deleted > 0 ? db.vacuum() : { before, after: before };
+    console.log(`[db] purge by ${req.authSession ? req.authSession.username : 'local'}: ${result.deleted} rows`);
+    res.json({ ok: true, deleted: result.deleted, bytesBefore: vac.before, bytesAfter: vac.after });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: sanitizeErr(e) });
+  }
+});
+
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
 function _buildRoutersStats(socket) {
   const allRouters  = Routers.loadAll();
@@ -2282,9 +2354,18 @@ async function sendInitialState(socket, entry) {
     });
   }
 
-  const allLeases = [];
-  for (const [ip, v] of s.dhcpLeases.byIP.entries()) allLeases.push({ ip, ...v });
-  socket.emit('leases:list', { ts: Date.now(), leases: allLeases });
+  // Replay the collector's own payload rather than rebuilding it here — a
+  // hand-built copy silently drops any field the collector adds later (it had
+  // already lost the DHCP server summary the leases filter needs). The manual
+  // build stays only as a fallback for a socket that connects before the first
+  // lease load completes.
+  if (s.dhcpLeases.lastPayload) {
+    socket.emit('leases:list', s.dhcpLeases.lastPayload);
+  } else {
+    const allLeases = [];
+    for (const [ip, v] of s.dhcpLeases.byIP.entries()) allLeases.push({ ip, ...v });
+    socket.emit('leases:list', { ts: Date.now(), leases: allLeases, servers: [] });
+  }
 
   if (s.traffic && s.traffic.lastWanStatus) socket.emit('wan:status', s.traffic.lastWanStatus);
   if (s.wireless.lastPayload)  socket.emit('wireless:update',  s.wireless.lastPayload);

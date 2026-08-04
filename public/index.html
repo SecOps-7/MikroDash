@@ -12,31 +12,31 @@
   <link rel="icon" type="image/png" href="/logo.png"/>
   <style>
     :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
-    html[data-theme="light"]{--bg-deep:#f0f2f7;--bg-card:rgba(255,255,255,.92);--border:rgba(100,120,160,.18);--text-muted:rgba(80,100,140,.55);--text-main:#1a2030;--nav-bg:rgba(240,242,247,.95);--topbar-bg:rgba(240,242,247,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
+    html[data-theme="light"]{--bg-deep:#e8eaee;--bg-card:rgba(255,255,255,.92);--border:#b1bbcf;--accent-rx:#247ba1;--accent-tx:#20835f;--text-muted:#5f7196;--text-main:#1a2030;--nav-bg:rgba(232,234,239,.95);--topbar-bg:rgba(232,234,239,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
     html[data-palette="nord"]{--bg-deep:#1e2430;--bg-card:rgba(46,52,64,.9);--border:rgba(76,86,106,.4);--accent-rx:#88c0d0;--accent-tx:#a3be8c;--text-muted:rgba(216,222,233,.5);--text-main:rgba(236,239,244,.9);--nav-bg:rgba(25,30,40,.95);--topbar-bg:rgba(25,30,40,.8)}
-    html[data-palette="nord"][data-theme="light"]{--bg-deep:#e5e9f0;--bg-card:rgba(236,239,244,.95);--border:rgba(76,86,106,.18);--accent-rx:#5e81ac;--accent-tx:#4b7a55;--text-muted:rgba(59,66,82,.55);--text-main:rgba(46,52,64,.9);--nav-bg:rgba(216,222,233,.97);--topbar-bg:rgba(216,222,233,.9)}
+    html[data-palette="nord"][data-theme="light"]{--bg-deep:#d8dce3;--bg-card:rgba(236,239,244,.95);--border:#a9afba;--accent-rx:#5e81ac;--accent-tx:#4b7a55;--text-muted:#626876;--text-main:rgba(46,52,64,.9);--nav-bg:rgba(204,210,220,.97);--topbar-bg:rgba(204,210,220,.9)}
     html[data-palette="catppuccin"]{--bg-deep:#11111b;--bg-card:rgba(30,30,46,.9);--border:rgba(69,71,90,.4);--accent-rx:#89b4fa;--accent-tx:#a6e3a1;--text-muted:rgba(166,173,200,.55);--text-main:rgba(205,214,244,.9);--nav-bg:rgba(17,17,27,.95);--topbar-bg:rgba(17,17,27,.8)}
-    html[data-palette="catppuccin"][data-theme="light"]{--bg-deep:#dce0e8;--bg-card:rgba(239,241,245,.95);--border:rgba(172,176,190,.3);--accent-rx:#1e66f5;--accent-tx:#40a02b;--text-muted:rgba(108,111,137,.55);--text-main:rgba(76,79,105,.9);--nav-bg:rgba(230,233,239,.97);--topbar-bg:rgba(230,233,239,.9)}
+    html[data-palette="catppuccin"][data-theme="light"]{--bg-deep:#dadee6;--bg-card:rgba(239,241,245,.95);--border:#acb0be;--accent-rx:#1e66f5;--accent-tx:#40a02b;--text-muted:#656880;--text-main:#454759;--nav-bg:rgba(228,231,237,.97);--topbar-bg:rgba(228,231,237,.9)}
     html[data-palette="dracula"]{--bg-deep:#1c1e26;--bg-card:rgba(40,42,54,.9);--border:rgba(68,71,90,.5);--accent-rx:#8be9fd;--accent-tx:#50fa7b;--text-muted:rgba(98,114,164,.7);--text-main:rgba(248,248,242,.9);--nav-bg:rgba(25,26,38,.97);--topbar-bg:rgba(25,26,38,.8)}
     html[data-palette="tokyo"]{--bg-deep:#13141e;--bg-card:rgba(26,27,38,.9);--border:rgba(41,46,66,.5);--accent-rx:#7aa2f7;--accent-tx:#9ece6a;--text-muted:rgba(86,95,137,.7);--text-main:rgba(192,202,245,.9);--nav-bg:rgba(16,16,24,.97);--topbar-bg:rgba(16,16,24,.8)}
     html[data-palette="gruvbox"]{--bg-deep:#1d2021;--bg-card:rgba(40,40,40,.9);--border:rgba(60,56,54,.55);--accent-rx:#83a598;--accent-tx:#8ec07c;--text-muted:rgba(168,153,132,.55);--text-main:rgba(235,219,178,.9);--nav-bg:rgba(24,24,24,.97);--topbar-bg:rgba(24,24,24,.8)}
-    html[data-palette="gruvbox"][data-theme="light"]{--bg-deep:#f2e5bc;--bg-card:rgba(251,241,199,.95);--border:rgba(168,153,132,.28);--accent-rx:#076678;--accent-tx:#427b58;--text-muted:rgba(60,56,54,.55);--text-main:rgba(60,56,54,.9);--nav-bg:rgba(235,219,178,.97);--topbar-bg:rgba(235,219,178,.9)}
+    html[data-palette="gruvbox"][data-theme="light"]{--bg-deep:#eaddb5;--bg-card:rgba(251,241,199,.95);--border:#bcae94;--accent-rx:#076678;--accent-tx:#427b58;--text-muted:#6e695c;--text-main:#4c4742;--nav-bg:rgba(227,211,172,.97);--topbar-bg:rgba(227,211,172,.9)}
     html[data-palette="rosepine"]{--bg-deep:#14121e;--bg-card:rgba(31,29,46,.9);--border:rgba(110,106,134,.35);--accent-rx:#c4a7e7;--accent-tx:#9ccfd8;--text-muted:rgba(110,106,134,.6);--text-main:rgba(224,222,244,.9);--nav-bg:rgba(18,16,28,.97);--topbar-bg:rgba(18,16,28,.8)}
-    html[data-palette="rosepine"][data-theme="light"]{--bg-deep:#f0ebe3;--bg-card:rgba(250,244,237,.95);--border:rgba(206,198,187,.4);--accent-rx:#907aa9;--accent-tx:#286983;--text-muted:rgba(152,147,165,.55);--text-main:rgba(87,82,121,.9);--nav-bg:rgba(232,226,217,.97);--topbar-bg:rgba(232,226,217,.9)}
+    html[data-palette="rosepine"][data-theme="light"]{--bg-deep:#e5e0d9;--bg-card:rgba(250,244,237,.95);--border:#b9b2a8;--accent-rx:#907aa9;--accent-tx:#286983;--text-muted:#6d6a76;--text-main:#4b4761;--nav-bg:rgba(221,215,207,.97);--topbar-bg:rgba(221,215,207,.9)}
     html[data-palette="rosepine-moon"]{--bg-deep:#1d1b30;--bg-card:rgba(42,40,55,.9);--border:rgba(86,82,117,.4);--accent-rx:#c4a7e7;--accent-tx:#9ccfd8;--text-muted:rgba(110,106,134,.6);--text-main:rgba(224,222,244,.9);--nav-bg:rgba(24,22,42,.97);--topbar-bg:rgba(24,22,42,.8)}
     html[data-palette="onedark"]{--bg-deep:#21252b;--bg-card:rgba(40,44,52,.9);--border:rgba(56,60,67,.6);--accent-rx:#61afef;--accent-tx:#98c379;--text-muted:rgba(171,178,191,.5);--text-main:rgba(171,178,191,.9);--nav-bg:rgba(28,31,36,.97);--topbar-bg:rgba(28,31,36,.8)}
-    html[data-palette="onedark"][data-theme="light"]{--bg-deep:#eff0f1;--bg-card:rgba(250,250,250,.95);--border:rgba(200,201,204,.45);--accent-rx:#4078f2;--accent-tx:#50a14f;--text-muted:rgba(160,161,167,.6);--text-main:rgba(56,58,66,.9);--nav-bg:rgba(235,236,238,.97);--topbar-bg:rgba(235,236,238,.9)}
+    html[data-palette="onedark"][data-theme="light"]{--bg-deep:#e5e6e7;--bg-card:rgba(250,250,250,.95);--border:#b6b7ba;--accent-rx:#4078f2;--accent-tx:#50a14f;--text-muted:#6e6e73;--text-main:rgba(56,58,66,.9);--nav-bg:rgba(225,226,228,.97);--topbar-bg:rgba(225,226,228,.9)}
     html[data-palette="solarized"]{--bg-deep:#002b36;--bg-card:rgba(7,54,66,.9);--border:rgba(88,110,117,.4);--accent-rx:#268bd2;--accent-tx:#2aa198;--text-muted:rgba(131,148,150,.55);--text-main:rgba(131,148,150,.9);--nav-bg:rgba(0,36,48,.97);--topbar-bg:rgba(0,36,48,.8)}
-    html[data-palette="solarized"][data-theme="light"]{--bg-deep:#eee8d5;--bg-card:rgba(253,246,227,.95);--border:rgba(147,161,161,.3);--accent-rx:#268bd2;--accent-tx:#2aa198;--text-muted:rgba(101,123,131,.55);--text-main:rgba(101,123,131,.9);--nav-bg:rgba(233,228,210,.97);--topbar-bg:rgba(233,228,210,.9)}
+    html[data-palette="solarized"][data-theme="light"]{--bg-deep:#e8e2d0;--bg-card:rgba(253,246,227,.95);--border:#aeb6b2;--accent-rx:#268bd2;--accent-tx:#2aa198;--text-muted:#5c7077;--text-main:#424d51;--nav-bg:rgba(227,222,205,.97);--topbar-bg:rgba(227,222,205,.9)}
     html[data-palette="everforest"]{--bg-deep:#1e2528;--bg-card:rgba(45,53,59,.9);--border:rgba(65,75,79,.5);--accent-rx:#a7c080;--accent-tx:#7fbbb3;--text-muted:rgba(211,198,170,.5);--text-main:rgba(211,198,170,.9);--nav-bg:rgba(26,31,34,.97);--topbar-bg:rgba(26,31,34,.8)}
     html[data-palette="kanagawa"]{--bg-deep:#16161d;--bg-card:rgba(31,31,40,.9);--border:rgba(54,54,70,.6);--accent-rx:#7e9cd8;--accent-tx:#98bb6c;--text-muted:rgba(114,113,105,.6);--text-main:rgba(220,215,186,.9);--nav-bg:rgba(19,19,26,.97);--topbar-bg:rgba(19,19,26,.8)}
     html[data-palette="monokai"]{--bg-deep:#1d1e19;--bg-card:rgba(39,40,34,.9);--border:rgba(60,61,53,.6);--accent-rx:#66d9e8;--accent-tx:#a6e22e;--text-muted:rgba(117,113,94,.65);--text-main:rgba(248,248,242,.9);--nav-bg:rgba(22,23,18,.97);--topbar-bg:rgba(22,23,18,.8)}
     html[data-palette="monokai-pro"]{--bg-deep:#1e1c20;--bg-card:rgba(45,42,46,.9);--border:rgba(58,55,64,.5);--accent-rx:#78dce8;--accent-tx:#a9dc76;--text-muted:rgba(128,122,136,.65);--text-main:rgba(252,252,250,.9);--nav-bg:rgba(24,22,26,.97);--topbar-bg:rgba(24,22,26,.8)}
     html[data-palette="material"]{--bg-deep:#1b2528;--bg-card:rgba(38,50,56,.9);--border:rgba(53,74,82,.55);--accent-rx:#80cbc4;--accent-tx:#c3e88d;--text-muted:rgba(176,190,197,.55);--text-main:rgba(238,255,255,.9);--nav-bg:rgba(21,30,34,.97);--topbar-bg:rgba(21,30,34,.8)}
-    html[data-palette="material"][data-theme="light"]{--bg-deep:#f0f0f0;--bg-card:rgba(250,250,250,.95);--border:rgba(200,200,200,.4);--accent-rx:#00acc1;--accent-tx:#43a047;--text-muted:rgba(117,117,117,.55);--text-main:rgba(33,33,33,.9);--nav-bg:rgba(240,240,240,.97);--topbar-bg:rgba(240,240,240,.9)}
+    html[data-palette="material"][data-theme="light"]{--bg-deep:#e6e6e6;--bg-card:rgba(250,250,250,.95);--border:#b7b7b7;--accent-rx:#00acc1;--accent-tx:#43a047;--text-muted:#6f6f6f;--text-main:rgba(33,33,33,.9);--nav-bg:rgba(230,230,230,.97);--topbar-bg:rgba(230,230,230,.9)}
     html[data-palette="palenight"]{--bg-deep:#202336;--bg-card:rgba(41,45,62,.9);--border:rgba(63,68,98,.45);--accent-rx:#82aaff;--accent-tx:#c3e88d;--text-muted:rgba(191,199,213,.5);--text-main:rgba(191,199,213,.9);--nav-bg:rgba(26,29,46,.97);--topbar-bg:rgba(26,29,46,.8)}
     html[data-palette="github"]{--bg-deep:#010409;--bg-card:rgba(22,27,34,.9);--border:rgba(48,54,61,.5);--accent-rx:#58a6ff;--accent-tx:#3fb950;--text-muted:rgba(139,148,158,.6);--text-main:rgba(201,209,217,.9);--nav-bg:rgba(8,10,16,.97);--topbar-bg:rgba(8,10,16,.8)}
-    html[data-palette="github"][data-theme="light"]{--bg-deep:#e7ecf0;--bg-card:rgba(246,248,250,.95);--border:rgba(208,215,222,.5);--accent-rx:#0969da;--accent-tx:#1a7f37;--text-muted:rgba(87,96,106,.55);--text-main:rgba(36,41,47,.9);--nav-bg:rgba(228,234,239,.97);--topbar-bg:rgba(228,234,239,.9)}
+    html[data-palette="github"][data-theme="light"]{--bg-deep:#e0e5e9;--bg-card:rgba(246,248,250,.95);--border:#b0b6bc;--accent-rx:#0969da;--accent-tx:#1a7f37;--text-muted:#666e78;--text-main:rgba(36,41,47,.9);--nav-bg:rgba(221,227,232,.97);--topbar-bg:rgba(221,227,232,.9)}
     :root{--card-badge-bg:rgba(99,130,190,.12);--card-badge-color:rgba(148,163,190,.7);--card-badge-bg-active-blue:rgba(56,189,248,.15);--card-badge-color-active-blue:rgba(56,189,248,.9);--card-badge-bg-active-green:rgba(52,211,153,.15);--card-badge-color-active-green:rgba(52,211,153,.9)}
     .card-badge{font-family:var(--font-mono);font-size:.68rem;font-weight:600;padding:.15em .55em;border-radius:5px;background:var(--card-badge-bg);color:var(--card-badge-color);border:none;line-height:1.5}
     .card-badge.active-blue{background:var(--card-badge-bg-active-blue);color:var(--card-badge-color-active-blue)}
@@ -182,6 +182,29 @@
     .sbtn-danger:hover{background:rgba(248,113,113,.22)}
     .sbtn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
     .sbtn-ghost:hover{color:var(--text-main);border-color:var(--text-muted)}
+    /* Data Cleanup card (Settings) */
+    .dbc-stats{display:flex;gap:.5rem;flex-wrap:wrap}
+    .dbc-stat{flex:1 1 120px;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.5rem .6rem}
+    .dbc-stat-label{display:block;font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+    .dbc-stat-value{display:block;font-family:var(--font-mono);font-size:.86rem;font-weight:600;color:var(--text-main);margin-top:.15rem}
+    .dbc-routers{display:flex;flex-direction:column;gap:.25rem;margin-top:.5rem}
+    .dbc-router{display:flex;justify-content:space-between;gap:.6rem;font-size:.7rem;color:var(--text-muted);padding:.25rem .1rem}
+    .dbc-router b{font-family:var(--font-mono);font-weight:600;color:var(--text-main)}
+    .dbc-types{display:flex;gap:.45rem;flex-wrap:wrap}
+    .dbc-type{display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--text-main);
+              background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.3rem .55rem;cursor:pointer}
+    .dbc-type input{accent-color:var(--accent-rx);cursor:pointer}
+    .dbc-summary{margin-top:.8rem;font-size:.73rem;color:var(--text-muted);line-height:1.5;min-height:1px}
+    .dbc-summary b{color:var(--text-main);font-family:var(--font-mono)}
+    .dbc-result{margin-top:.6rem;font-size:.73rem;line-height:1.5}
+    .dbc-result.ok{color:var(--accent-tx)}
+    .dbc-result.err{color:var(--accent-err)}
+    .dbc-result.busy{color:var(--text-muted)}
+    /* Scoped to this card so other settings buttons keep their current look. */
+    .dbc-actions .sbtn:disabled{opacity:.45;cursor:not-allowed}
+    .dbc-spin{display:inline-block;width:11px;height:11px;border:2px solid var(--border);
+              border-top-color:var(--accent-rx);border-radius:50%;animation:spin .7s linear infinite;
+              vertical-align:-1px;margin-right:.45rem}
     .scard{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.18)}
     .scard-header{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
     .scard-title{font-size:.78rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em;flex:1}
@@ -353,8 +376,36 @@
     #routerSelectWrap:hover{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35)}
     .rtr-status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent-tx);flex-shrink:0;box-shadow:0 0 5px rgba(52,211,153,.6)}
     .rtr-status-dot.offline{background:rgba(248,113,113,.9);box-shadow:0 0 5px rgba(248,113,113,.5)}
-    #routerSelect{background:transparent;border:none;color:var(--text-main);font-family:var(--font-mono);font-size:.72rem;font-weight:600;cursor:pointer;outline:none;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0}
-    #routerSelect option{background:var(--bg-deep);color:var(--text-main)}
+    /* Router picker — a custom popover replaces the native select so the list can
+       show per-router status and be styled with the app. The mobile nav keeps its
+       native select on purpose: the OS picker is the better control on touch. */
+    #routerSelectBtn{display:flex;align-items:center;gap:.35rem;background:transparent;border:none;color:var(--text-main);font-family:var(--font-mono);font-size:.72rem;font-weight:600;cursor:pointer;outline:none;max-width:200px;padding:0}
+    #routerSelectLabel{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rtr-dd-caret{width:11px;height:11px;flex-shrink:0;opacity:.65;transition:transform .16s ease}
+    #routerSelectWrap.open .rtr-dd-caret{transform:rotate(180deg)}
+    .rtr-dd{position:absolute;top:calc(100% + 7px);right:0;z-index:950;min-width:248px;max-width:330px;
+      background:var(--bg-card);border:1px solid var(--border);border-radius:10px;
+      box-shadow:0 14px 36px rgba(0,0,0,.32);backdrop-filter:blur(14px);display:none;overflow:hidden;cursor:default}
+    #routerSelectWrap.open .rtr-dd{display:block}
+    .rtr-dd-search{padding:.5rem .5rem .4rem;border-bottom:1px solid var(--border)}
+    .rtr-dd-search input{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;
+      color:var(--text-main);font-family:var(--font-ui);font-size:.72rem;padding:.35rem .5rem;outline:none}
+    .rtr-dd-search input:focus{border-color:var(--accent-tx)}
+    .rtr-dd-list{max-height:286px;overflow-y:auto;padding:.3rem}
+    .rtr-dd-item{display:flex;align-items:center;gap:.55rem;padding:.42rem .5rem;border-radius:6px;
+      cursor:pointer;border:1px solid transparent}
+    .rtr-dd-item:hover,.rtr-dd-item.hl{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.28)}
+    .rtr-dd-item.active{background:rgba(52,211,153,.15)}
+    .rtr-dd-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--text-muted)}
+    .rtr-dd-dot.on{background:var(--accent-tx);box-shadow:0 0 6px var(--accent-tx)}
+    .rtr-dd-dot.off{background:var(--accent-err)}
+    .rtr-dd-meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.05rem}
+    .rtr-dd-name{font-family:var(--font-mono);font-size:.72rem;font-weight:600;color:var(--text-main);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rtr-dd-host{font-family:var(--font-mono);font-size:.62rem;color:var(--text-muted);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rtr-dd-check{flex-shrink:0;color:var(--accent-tx);font-size:.78rem;line-height:1}
+    .rtr-dd-empty{padding:.7rem;text-align:center;font-size:.7rem;color:var(--text-muted)}
     /* tables */
     .table{font-family:var(--font-mono);font-size:.76rem}
     .table th{color:var(--text-muted);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;border-color:var(--border) !important;font-weight:400;padding:.45rem .75rem}
@@ -1005,9 +1056,16 @@
       </div>
       <span id="tobarClock" class="topbar-mobile-hide" style="font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);white-space:nowrap"></span>
       <span id="uptimeChip" title="Router uptime"></span>
-      <div id="routerSelectWrap" class="topbar-mobile-hide">
+      <div id="routerSelectWrap" class="topbar-mobile-hide" style="position:relative">
         <span class="rtr-status-dot" id="rtrStatusDot"></span>
-        <select id="routerSelect" title="Switch router"></select>
+        <button id="routerSelectBtn" type="button" title="Switch router" aria-haspopup="listbox" aria-expanded="false">
+          <span id="routerSelectLabel">—</span>
+          <svg class="rtr-dd-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="routerDropdown" class="rtr-dd" role="listbox" aria-label="Switch router">
+          <div class="rtr-dd-search"><input id="routerDropdownSearch" type="text" placeholder="Search routers…" autocomplete="off" spellcheck="false"/></div>
+          <div id="routerDropdownList" class="rtr-dd-list"></div>
+        </div>
       </div>
       <!-- Dashboard grid edit controls (visible in edit mode) -->
       <div id="dashEditControls">
@@ -1804,7 +1862,16 @@
             <h3 class="card-title mb-0">DHCP Leases</h3>
             <span id="dhcpTotalBadge" class="card-badge">0</span>
           </div>
-          <input id="dhcpSearch" class="form-control form-control-sm" placeholder="Search hostname, IP, MAC&#8230;" style="max-width:260px"/>
+          <!-- Tabler gives form controls width:100%, so inside a wrapping flex row
+               each one claims the full width and drops onto its own line. Pin the
+               flex basis so they sit side by side, and let them shrink (and only
+               then wrap) on narrow screens. -->
+          <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <input id="dhcpSearch" class="form-control form-control-sm" placeholder="Search hostname, IP, MAC&#8230;" style="flex:0 1 240px;width:240px"/>
+            <select id="dhcpServerFilter" class="form-select form-select-sm" style="flex:0 1 240px;width:240px" title="Filter leases by DHCP server">
+              <option value="">All leases</option>
+            </select>
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="table-responsive">
@@ -2500,6 +2567,53 @@
         </div>
         <div class="scard">
           <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-err);stroke-width:2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            <span class="scard-title">Data Cleanup</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Delete stored history on demand. Retention above prunes automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.</p>
+            <div class="dbc-stats" id="dbcStats">
+              <div class="dbc-stat"><span class="dbc-stat-label">Database size</span><span class="dbc-stat-value" id="dbcSize">—</span></div>
+              <div class="dbc-stat"><span class="dbc-stat-label">Stored rows</span><span class="dbc-stat-value" id="dbcRows">—</span></div>
+              <div class="dbc-stat"><span class="dbc-stat-label">Oldest record</span><span class="dbc-stat-value" id="dbcOldest">—</span></div>
+            </div>
+            <div id="dbcByRouter" class="dbc-routers"></div>
+            <div class="sform-row" style="margin-top:.9rem">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Routers</label>
+                <select class="sform-input" id="dbcScope"><option value="">All routers</option></select>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Delete data older than</label>
+                <select class="sform-input" id="dbcAge">
+                  <option value="1">1 day</option>
+                  <option value="7">7 days</option>
+                  <option value="30" selected>30 days</option>
+                  <option value="90">90 days</option>
+                  <option value="365">1 year</option>
+                  <option value="0">Everything (no age limit)</option>
+                </select>
+              </div>
+            </div>
+            <div class="sform-group" style="margin-top:.8rem;margin-bottom:0">
+              <label class="sform-label">Data types</label>
+              <div class="dbc-types" id="dbcTypes">
+                <label class="dbc-type"><input type="checkbox" value="traffic" checked><span>Traffic graphs</span></label>
+                <label class="dbc-type"><input type="checkbox" value="ping" checked><span>Ping history</span></label>
+                <label class="dbc-type"><input type="checkbox" value="bandwidth" checked><span>Bandwidth usage</span></label>
+                <label class="dbc-type"><input type="checkbox" value="events" checked><span>Alerts &amp; connectivity</span></label>
+              </div>
+            </div>
+            <div class="dbc-summary" id="dbcSummary"></div>
+            <div class="dbc-actions" style="display:flex;gap:.5rem;margin-top:.8rem;flex-wrap:wrap">
+              <button class="sbtn sbtn-ghost" id="dbcPreviewBtn" type="button">Preview</button>
+              <button class="sbtn sbtn-danger" id="dbcPurgeBtn" type="button" disabled>Delete data</button>
+            </div>
+            <div class="dbc-result" id="dbcResult"></div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             <span class="scard-title">Diagnostics</span>
           </div>
@@ -3073,6 +3187,10 @@
               <span id="stabAboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v—</span>
             </div>
             <div style="font-size:.72rem;color:var(--text-muted)">Built with Node.js · Socket.IO · Chart.js · Bootstrap</div>
+            <div style="margin-top:.7rem">
+              <a href="https://github.com/SecOps-7/MikroDash/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" title="Read the full licence"
+                 style="font-family:var(--font-mono);font-size:.72rem;background:rgba(52,211,153,.1);color:var(--accent-tx);border:1px solid rgba(52,211,153,.3);border-radius:5px;padding:.15rem .55rem;text-decoration:none">MIT License</a>
+            </div>
           </div>
         </div>
         <div class="scard">
@@ -3105,19 +3223,6 @@
             <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">Documentation</a>
             <a href="https://github.com/SecOps-7/MikroDash/issues" target="_blank" rel="noopener" class="info-btn info-btn-outline">Report a Bug</a>
             <a href="https://mikrotik.com/software" target="_blank" rel="noopener" class="info-btn info-btn-outline">MikroTik RouterOS</a>
-          </div>
-        </div>
-        <div class="scard">
-          <div class="scard-header">
-            <span class="scard-title">License</span>
-          </div>
-          <div class="scard-body">
-            <div style="font-family:var(--font-mono);font-size:.75rem;color:var(--text-main);margin-bottom:.5rem">MIT License</div>
-            <div style="font-size:.75rem;color:var(--text-muted);line-height:1.6">
-              Permission is hereby granted, free of charge, to any person obtaining a copy of this software to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the following conditions:<br><br>
-              The above copyright notice and this permission notice shall be included in all copies or substantial portions of the software.<br><br>
-              <span style="color:rgba(148,163,190,.5)">THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.</span>
-            </div>
           </div>
         </div>
         <div class="scard" style="border-color:rgba(251,191,36,.15)">
