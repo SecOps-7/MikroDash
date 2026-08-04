@@ -1458,6 +1458,120 @@ test('arp collector replaces stale snapshot entries on each poll', async () => {
   assert.equal(collector.getByIP('192.168.1.11').mac, 'CC:DD');
 });
 
+// --- DHCP lease filtering by server / interface / VLAN (#65) ---
+
+// A lease only carries its DHCP server name; the interface and VLAN behind it
+// come from /ip/dhcp-server and /interface/vlan. Route each path to its own
+// canned response so the join is exercised properly.
+function makeLeaseRos(leases, { servers, vlans, failMap } = {}) {
+  return {
+    connected: true,
+    on() {},
+    async write(path) {
+      if (path === '/ip/dhcp-server/print') {
+        if (failMap) throw new Error('no permission');
+        return servers || [];
+      }
+      if (path === '/interface/vlan/print') {
+        if (failMap) throw new Error('no permission');
+        return vlans || [];
+      }
+      return leases;
+    },
+    stream() { return { stop() {} }; },
+  };
+}
+
+const SERVERS = [
+  { name: 'Home DHCP',   interface: 'Home' },
+  { name: 'IoT DHCP',    interface: 'IoT' },
+  { name: 'Office DHCP', interface: 'ether3' },   // plain interface, no VLAN
+];
+const VLANS = [
+  { name: 'Home', 'vlan-id': '5' },
+  { name: 'IoT',  'vlan-id': '10' },
+];
+const LEASES = [
+  { address: '10.0.0.5',  'mac-address': 'AA:01', 'host-name': 'desktop', server: 'Home DHCP',   status: 'bound' },
+  { address: '10.0.0.6',  'mac-address': 'AA:02', 'host-name': 'nas',     server: 'Home DHCP',   status: 'bound' },
+  { address: '10.0.10.5', 'mac-address': 'AA:03', 'host-name': 'bulb',    server: 'IoT DHCP',    status: 'bound' },
+  { address: '10.0.20.5', 'mac-address': 'AA:04', 'host-name': 'printer', server: 'Office DHCP', status: 'bound' },
+];
+
+test('dhcp leases resolve their server interface and VLAN id', async () => {
+  const emitted = [];
+  const ros = makeLeaseRos(LEASES, { servers: SERVERS, vlans: VLANS });
+  const collector = new DhcpLeasesCollector({
+    ros, io: { emit: (ev, p) => { if (ev === 'leases:list') emitted.push(p); } }, state: {},
+  });
+  await collector.start();
+
+  const byIp = Object.fromEntries(emitted[emitted.length - 1].leases.map(l => [l.ip, l]));
+  assert.equal(byIp['10.0.0.5'].server, 'Home DHCP');
+  assert.equal(byIp['10.0.0.5'].iface, 'Home');
+  assert.equal(byIp['10.0.0.5'].vlanId, '5');
+  assert.equal(byIp['10.0.10.5'].vlanId, '10');
+  // A server on a plain interface has an interface but no VLAN.
+  assert.equal(byIp['10.0.20.5'].iface, 'ether3');
+  assert.equal(byIp['10.0.20.5'].vlanId, '', 'non-VLAN interface must not invent a VLAN id');
+});
+
+test('leases:list carries a server summary with per-server counts', async () => {
+  const emitted = [];
+  const ros = makeLeaseRos(LEASES, { servers: SERVERS, vlans: VLANS });
+  const collector = new DhcpLeasesCollector({
+    ros, io: { emit: (ev, p) => { if (ev === 'leases:list') emitted.push(p); } }, state: {},
+  });
+  await collector.start();
+
+  const servers = emitted[emitted.length - 1].servers;
+  assert.equal(servers.length, 3);
+  // Sorted by count descending, so the busiest server leads the dropdown.
+  assert.equal(servers[0].name, 'Home DHCP');
+  assert.equal(servers[0].count, 2);
+  assert.equal(servers[0].vlanId, '5');
+  const office = servers.find(s => s.name === 'Office DHCP');
+  assert.equal(office.count, 1);
+  assert.equal(office.iface, 'ether3');
+  assert.equal(office.vlanId, '');
+  assert.equal(servers.reduce((a, s) => a + s.count, 0), 4, 'counts account for every lease');
+});
+
+test('a server whose config could not be read still appears, without interface or VLAN', async () => {
+  const emitted = [];
+  // Lease references a server missing from /ip/dhcp-server (added since connect).
+  const leases = LEASES.concat([
+    { address: '10.0.30.5', 'mac-address': 'AA:05', 'host-name': 'new', server: 'Lab DHCP', status: 'bound' },
+  ]);
+  const ros = makeLeaseRos(leases, { servers: SERVERS, vlans: VLANS });
+  const collector = new DhcpLeasesCollector({
+    ros, io: { emit: (ev, p) => { if (ev === 'leases:list') emitted.push(p); } }, state: {},
+  });
+  await collector.start();
+
+  const lab = emitted[emitted.length - 1].servers.find(s => s.name === 'Lab DHCP');
+  assert.ok(lab, 'unknown server is still offered as a filter option');
+  assert.equal(lab.count, 1);
+  assert.equal(lab.iface, '');
+  assert.equal(lab.vlanId, '');
+});
+
+test('leases still load when the server/VLAN lookup fails', async () => {
+  const emitted = [];
+  const ros = makeLeaseRos(LEASES, { failMap: true });
+  const collector = new DhcpLeasesCollector({
+    ros, io: { emit: (ev, p) => { if (ev === 'leases:list') emitted.push(p); } }, state: {},
+  });
+  await collector.start();
+
+  const payload = emitted[emitted.length - 1];
+  assert.equal(payload.leases.length, 4, 'lease table is unaffected by the failed join');
+  // Degrades to server-only filtering rather than losing the filter entirely.
+  assert.equal(payload.leases[0].server, 'Home DHCP');
+  assert.equal(payload.leases[0].iface, '');
+  assert.equal(payload.servers.length, 3);
+});
+
 // --- DHCP Networks Collector ---
 const DhcpNetworksCollector = require('../src/collectors/dhcpNetworks');
 

@@ -18,7 +18,20 @@
       --text-main:  rgba(200,215,240,.9);
       --font-mono:  'JetBrains Mono', ui-monospace, monospace;
       --font-ui:    'Syne', sans-serif;
+      --font-btn:   'Inter', var(--font-ui);
       --radius:     10px;
+    }
+
+    /* Syne is a display face and ships only 400/600/800, so a 700 button fell up
+       to 800 and rendered heavy and cramped. Inter has a true 700 and reads as a
+       proper UI control. Declared here rather than in /vendor/fonts/fonts.css,
+       which is vendored and must not be modified. */
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 700;
+      font-display: swap;
+      src: url('/vendor/fonts/inter-700.woff2') format('woff2');
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -130,7 +143,7 @@
       color: #07090f;
       border: none;
       border-radius: 6px;
-      font-family: var(--font-ui);
+      font-family: var(--font-btn);
       font-size: .9rem;
       font-weight: 700;
       cursor: pointer;

@@ -262,10 +262,13 @@ test('logs collector restarts stream after callback error while ROS remains conn
 });
 
 test('dhcp leases collector loads initial data and starts stream', async () => {
-  let writeCalls = 0;
+  let leasePrints = 0;
   let streamCalls = 0;
-  const ros = mockROS(async () => {
-    writeCalls++;
+  // start() also reads /ip/dhcp-server and /interface/vlan to resolve each
+  // lease's interface and VLAN, so count the lease print specifically rather
+  // than every write.
+  const ros = mockROS(async (path) => {
+    if (path === '/ip/dhcp-server/lease/print') leasePrints++;
     return [{ address: '192.168.1.10', 'mac-address': 'AA:BB', comment: 'test' }];
   });
   ros.stream = (words, cb) => {
@@ -275,7 +278,7 @@ test('dhcp leases collector loads initial data and starts stream', async () => {
   const collector = new DhcpLeasesCollector({ ros, io: { emit() {} }, pollMs: 15000, state: {} });
   await collector.start();
 
-  assert.equal(writeCalls, 1, 'initial /print called');
+  assert.equal(leasePrints, 1, 'initial /print called');
   assert.equal(streamCalls, 1, 'listen stream started');
   assert.equal(collector.getNameByIP('192.168.1.10').name, 'test');
 });

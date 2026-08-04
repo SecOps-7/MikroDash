@@ -18,6 +18,11 @@ class DhcpLeasesCollector {
     this._restarting = false;
     this._restartTimer = null;
     this.lastPayload = null;
+    // DHCP server name → { iface, vlanId }. A lease only carries its server
+    // name, so the interface and VLAN behind it have to be joined from the
+    // server config. Both tables change rarely, so this is refreshed on
+    // connect rather than polled.
+    this.serverMeta = new Map();
   }
 
   getNameByIP(ip)  { return this.byIP.get(ip);  }
@@ -38,10 +43,25 @@ class DhcpLeasesCollector {
     return out;
   }
 
+  // Server list for the leases filter. Built from the leases actually present so
+  // a server whose config we could not read (added since the last connect) still
+  // appears, just without its interface and VLAN.
+  _serverSummary(leases) {
+    const counts = new Map();
+    for (const l of leases) {
+      if (!l.server) continue;
+      counts.set(l.server, (counts.get(l.server) || 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([name, count]) => {
+      const meta = this.serverMeta.get(name) || {};
+      return { name, iface: meta.iface || '', vlanId: meta.vlanId || '', count };
+    }).sort((a, b) => b.count - a.count);
+  }
+
   _emitLeases() {
     const leases = [];
     for (const [ip, v] of this.byIP.entries()) leases.push({ ip, ...v });
-    const payload = { ts: Date.now(), leases };
+    const payload = { ts: Date.now(), leases, servers: this._serverSummary(leases) };
     this.lastPayload = payload;
     this.io.emit('leases:list', payload);
   }
@@ -65,7 +85,11 @@ class DhcpLeasesCollector {
     const name = (l.comment && l.comment.trim()) ? l.comment.trim()
                : (l['host-name'] && l['host-name'].trim()) ? l['host-name'].trim() : '';
 
-    if (ip)  this.byIP.set(ip,   { name, mac, hostName: l['host-name'] || '', comment: l.comment || '', status });
+    const server = l.server || '';
+    const meta   = this.serverMeta.get(server) || {};
+
+    if (ip)  this.byIP.set(ip,   { name, mac, hostName: l['host-name'] || '', comment: l.comment || '', status,
+                                   server, iface: meta.iface || '', vlanId: meta.vlanId || '' });
     if (mac) this.byMAC.set(mac, { name, ip });
 
     if (mac && ip && !this.seenMACs.has(mac)) {
@@ -77,10 +101,38 @@ class DhcpLeasesCollector {
     if (emit) this._emitLeases();
   }
 
+  // Resolve each DHCP server to the interface it serves, and that interface to a
+  // VLAN id when it is a VLAN. A server on a plain ether interface simply has no
+  // vlanId. Failure here is not fatal: leases still carry their server name, so
+  // the filter degrades to server-only rather than disappearing.
+  async _loadServerMap() {
+    try {
+      const [servers, vlans] = await Promise.all([
+        this.ros.write('/ip/dhcp-server/print', ['=.proplist=name,interface']),
+        this.ros.write('/interface/vlan/print', ['=.proplist=name,vlan-id']),
+      ]);
+      const vlanById = new Map();
+      for (const v of (vlans || [])) {
+        if (v.name) vlanById.set(v.name, v['vlan-id'] || '');
+      }
+      this.serverMeta.clear();
+      for (const s of (servers || [])) {
+        if (!s.name) continue;
+        const iface = s.interface || '';
+        this.serverMeta.set(s.name, { iface, vlanId: vlanById.get(iface) || '' });
+      }
+    } catch (e) {
+      console.warn(this._lbl + ' server/VLAN map unavailable:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
+    }
+  }
+
   async _loadInitial() {
     try {
+      // Must precede the lease load so the first _applyLease can already resolve
+      // each lease's interface and VLAN.
+      await this._loadServerMap();
       const leases = await this.ros.write('/ip/dhcp-server/lease/print',
-        ['=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name']);
+        ['=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server']);
       for (const l of (leases || [])) this._applyLease(l);
       this.state.lastLeasesTs = Date.now();
       this._emitLeases();
@@ -94,7 +146,7 @@ class DhcpLeasesCollector {
     if (!this.ros.connected) return;
     try {
       this.stream = this.ros.stream(
-        ['/ip/dhcp-server/lease/listen', '=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name'],
+        ['/ip/dhcp-server/lease/listen', '=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server'],
         (err, data) => {
         if (err) {
           console.error(this._lbl + ' stream error:', err && err.message ? err.message : err); // codeql[js/tainted-format-string]

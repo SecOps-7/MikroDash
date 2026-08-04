@@ -71,7 +71,7 @@ src/
 │   │                          #   geo enrichment, port aggregates, IPv6, truncation metadata
 │   ├── bandwidth.js           # Per-connection bandwidth (Mbps), ASN/org badges, interface+proto filters
 │   ├── talkers.js             # Top-N devices by MAC with TX/RX rate calculation
-│   ├── dhcpLeases.js          # DHCP lease stream + initial load; name resolution (comment > hostname)
+│   ├── dhcpLeases.js          # DHCP lease stream + initial load; name resolution (comment > hostname); server→interface→VLAN join
 │   ├── dhcpNetworks.js        # LAN CIDRs, WAN IP from interface addresses, lease counts per network
 │   ├── arp.js                 # ARP table snapshot; bidirectional IP↔MAC lookup
 │   ├── wireless.js            # Wireless clients: band detection, signal, SSID, DHCP/ARP enrichment.
@@ -179,7 +179,7 @@ Change only the `"version"` field. Nothing else.
 | `connections.js` | **Stream** (interval=N s) | `/ip/firewall/connection/print` | Initial `/print` on connect; interval stream replaces polling; watchdog restarts stale streams; idle-gated; skips geo computation when `page-connections` room is empty |
 | `bandwidth.js` | Poll | `/ip/firewall/connection/print` | Shares `connTableCache` with connections; idle-gated |
 | `talkers.js` | **Stream** (interval=N s) | `/ip/kid-control/device/print` | Backs off when Kid Control unavailable; idle-gated |
-| `dhcpLeases.js` | **Stream** | `/ip/dhcp-server/lease/listen` | Initial `/print` on connect |
+| `dhcpLeases.js` | **Stream** | `/ip/dhcp-server/lease/listen` | Initial `/print` on connect; also reads `/ip/dhcp-server` + `/interface/vlan` once per connect to resolve each lease's interface and VLAN |
 | `dhcpNetworks.js` | Poll | `/ip/dhcp-server/network/print` | Slow poll (default 10 min) |
 | `arp.js` | **Stream** | `/ip/arp/listen` | Initial `/print` on connect |
 | `wireless.js` | Poll | `/interface/wifi/registration-table/print` | Probes both wifi and legacy wireless APIs |

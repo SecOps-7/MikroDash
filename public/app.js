@@ -20,6 +20,35 @@ socket.on('session:expired', function() {
   if (window._authMode === 'modern') window.location.href = '/login';
 });
 
+// The handshake is auth-gated server-side (io.engine.use), so once a session is
+// gone — expired, or wiped by a container restart — every reconnect attempt is
+// refused with a 401 and 'connect' never fires. The auth check in the connect
+// handler is therefore unreachable, session:expired needs a live socket, and the
+// fetch interceptor never sees it because Socket.IO polls over XMLHttpRequest.
+// Without this the tab sits on an empty dashboard until the user reloads by hand.
+//
+// A failed handshake alone does not mean the session died — the server may just
+// be down — so ask before redirecting: if /api/auth/status answers (it is public)
+// and reports no session, the session is genuinely gone. If the fetch itself
+// fails the server is unreachable, which is what the reconnect banner is for.
+var _authRecheckAt = 0;
+function _verifySessionAfterFailure() {
+  if (window._authMode !== 'modern') return;
+  var now = Date.now();
+  if (now - _authRecheckAt < 3000) return;   // reconnect attempts are frequent
+  _authRecheckAt = now;
+  fetch('/api/auth/status', { credentials: 'same-origin' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { if (d && !d.session) window.location.href = '/login'; })
+    .catch(function() {});                    // server down, not a session problem
+}
+socket.on('connect_error', _verifySessionAfterFailure);
+// Returning to a backgrounded tab should resolve immediately rather than waiting
+// for the next backoff retry, which is the case the user actually notices.
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && !socket.connected) _verifySessionAfterFailure();
+});
+
 // Login entry — preflight.js already set documentElement opacity:0; fade in after brief settle
 if (sessionStorage.getItem('justLoggedIn')) {
   sessionStorage.removeItem('justLoggedIn');
@@ -97,7 +126,7 @@ var currentIf = '', windowSecs = 60, RIGHT_BUFFER_MS = 1000, _ifaceSelectKey = '
 var fwTab = 'filter', fwData = {};
 var connHistory = [], MAX_CONN_HIST = 60;
 var lastTalkers = null, lastLanData = null;
-var allLeases = [], leaseFilter = '';
+var allLeases = [], leaseFilter = '', leaseServerFilter = '';
 var _dhcpTotalPoolSize = 0;  // updated from lan:overview; used to render gauge from leases:list
 var _dhcpNetworksData  = null; // last lan:overview payload
 
@@ -177,31 +206,31 @@ var BG_BRIGHT_FACTORS   = [0.20, 0.30, 0.42, 0.55, 0.65, 0.78, 0.90, 1.0, 1.05, 
 
 var PALETTE_COLORS = {
   'default:dark':    { main:[200,215,240,.9], muted:[148,163,190,.55], bgDeep:[7,9,15,1],     bgCard:[13,18,30,.85]    },
-  'default:light':   { main:[26,32,48,1.0],   muted:[80,100,140,.55],  bgDeep:[240,242,247,1], bgCard:[255,255,255,.92] },
+  'default:light':   { main:[26,32,48,1.0],   muted:[95,113,150,1],  bgDeep:[232,234,238,1], bgCard:[255,255,255,.92] },
   'nord:dark':       { main:[236,239,244,.9], muted:[216,222,233,.50], bgDeep:[30,36,48,1],    bgCard:[46,52,64,.9]     },
-  'nord:light':      { main:[46,52,64,.9],    muted:[59,66,82,.55],    bgDeep:[229,233,240,1], bgCard:[236,239,244,.95] },
+  'nord:light':      { main:[46,52,64,.9],    muted:[98,104,118,1],    bgDeep:[216,220,227,1], bgCard:[236,239,244,.95] },
   'catppuccin:dark': { main:[205,214,244,.9], muted:[166,173,200,.55], bgDeep:[17,17,27,1],    bgCard:[30,30,46,.9]     },
-  'catppuccin:light':{ main:[76,79,105,.9],   muted:[108,111,137,.55], bgDeep:[220,224,232,1], bgCard:[239,241,245,.95] },
+  'catppuccin:light':{ main:[69,71,89,1],   muted:[101,104,128,1], bgDeep:[218,222,230,1], bgCard:[239,241,245,.95] },
   'dracula:dark':    { main:[248,248,242,.9], muted:[98,114,164,.70],  bgDeep:[28,30,38,1],    bgCard:[40,42,54,.9]     },
   'tokyo:dark':      { main:[192,202,245,.9], muted:[86,95,137,.70],   bgDeep:[19,20,30,1],    bgCard:[26,27,38,.9]     },
   'gruvbox:dark':        { main:[235,219,178,.9], muted:[168,153,132,.55], bgDeep:[29,32,33,1],    bgCard:[40,40,40,.9]     },
-  'gruvbox:light':       { main:[60,56,54,.9],    muted:[60,56,54,.55],    bgDeep:[242,229,188,1], bgCard:[251,241,199,.95] },
+  'gruvbox:light':       { main:[76,71,66,1],    muted:[110,105,92,1],    bgDeep:[234,221,181,1], bgCard:[251,241,199,.95] },
   'rosepine:dark':       { main:[224,222,244,.9], muted:[110,106,134,.6],  bgDeep:[20,18,30,1],    bgCard:[31,29,46,.9]     },
-  'rosepine:light':      { main:[87,82,121,.9],   muted:[152,147,165,.55], bgDeep:[240,235,227,1], bgCard:[250,244,237,.95] },
+  'rosepine:light':      { main:[75,71,97,1],   muted:[109,106,118,1], bgDeep:[229,224,217,1], bgCard:[250,244,237,.95] },
   'rosepine-moon:dark':  { main:[224,222,244,.9], muted:[110,106,134,.6],  bgDeep:[29,27,48,1],    bgCard:[42,40,55,.9]     },
   'onedark:dark':        { main:[171,178,191,.9], muted:[171,178,191,.5],  bgDeep:[33,37,43,1],    bgCard:[40,44,52,.9]     },
-  'onedark:light':       { main:[56,58,66,.9],    muted:[160,161,167,.6],  bgDeep:[239,240,241,1], bgCard:[250,250,250,.95] },
+  'onedark:light':       { main:[56,58,66,.9],    muted:[110,110,115,1],  bgDeep:[229,230,231,1], bgCard:[250,250,250,.95] },
   'solarized:dark':      { main:[131,148,150,.9], muted:[131,148,150,.55], bgDeep:[0,43,54,1],     bgCard:[7,54,66,.9]      },
-  'solarized:light':     { main:[101,123,131,.9], muted:[101,123,131,.55], bgDeep:[238,232,213,1], bgCard:[253,246,227,.95] },
+  'solarized:light':     { main:[66,77,81,1], muted:[92,112,119,1], bgDeep:[232,226,208,1], bgCard:[253,246,227,.95] },
   'everforest:dark':     { main:[211,198,170,.9], muted:[211,198,170,.5],  bgDeep:[30,37,40,1],    bgCard:[45,53,59,.9]     },
   'kanagawa:dark':       { main:[220,215,186,.9], muted:[114,113,105,.6],  bgDeep:[22,22,29,1],    bgCard:[31,31,40,.9]     },
   'monokai:dark':        { main:[248,248,242,.9], muted:[117,113,94,.65],  bgDeep:[29,30,25,1],    bgCard:[39,40,34,.9]     },
   'monokai-pro:dark':    { main:[252,252,250,.9], muted:[128,122,136,.65], bgDeep:[30,28,32,1],    bgCard:[45,42,46,.9]     },
   'material:dark':       { main:[238,255,255,.9], muted:[176,190,197,.55], bgDeep:[27,37,40,1],    bgCard:[38,50,56,.9]     },
-  'material:light':      { main:[33,33,33,.9],    muted:[117,117,117,.55], bgDeep:[240,240,240,1], bgCard:[250,250,250,.95] },
+  'material:light':      { main:[33,33,33,.9],    muted:[111,111,111,1], bgDeep:[230,230,230,1], bgCard:[250,250,250,.95] },
   'palenight:dark':      { main:[191,199,213,.9], muted:[191,199,213,.5],  bgDeep:[32,35,54,1],    bgCard:[41,45,62,.9]     },
   'github:dark':         { main:[201,209,217,.9], muted:[139,148,158,.6],  bgDeep:[1,4,9,1],       bgCard:[22,27,34,.9]     },
-  'github:light':        { main:[36,41,47,.9],    muted:[87,96,106,.55],   bgDeep:[231,236,240,1], bgCard:[246,248,250,.95] },
+  'github:light':        { main:[36,41,47,.9],    muted:[102,110,120,1],   bgDeep:[224,229,233,1], bgCard:[246,248,250,.95] },
 };
 
 function _scaleBright(c, factor) {
@@ -1427,19 +1456,24 @@ function _sortLeases(leases) {
 }
 
 function renderDhcp(leases){
-  var filtered = leaseFilter
-    ? leases.filter(function(l){
-        var hay=(l.name+' '+l.ip+' '+l.mac+' '+(l.comment||'')).toLowerCase();
-        return hay.indexOf(leaseFilter)!==-1;
-      })
+  // Server filter first, then free text — the two compose, so you can search
+  // within one VLAN rather than having to choose between the controls.
+  var filtered = leaseServerFilter
+    ? leases.filter(function(l){ return (l.server||'') === leaseServerFilter; })
     : leases;
+  if (leaseFilter) {
+    filtered = filtered.filter(function(l){
+      var hay=(l.name+' '+l.ip+' '+l.mac+' '+(l.comment||'')).toLowerCase();
+      return hay.indexOf(leaseFilter)!==-1;
+    });
+  }
   var count = leases.length;
   if(dhcpTotalBadge){
     dhcpTotalBadge.textContent = count;
     dhcpTotalBadge.className = 'card-badge' + (count > 0 ? ' active-blue' : '');
   }
   if(dhcpNavBadge) dhcpNavBadge.textContent = count;
-  if(!filtered.length){dhcpTable.innerHTML='<tr><td colspan="4" class="empty-state">No leases'+(leaseFilter?' matching filter':'')+'…</td></tr>';return;}
+  if(!filtered.length){dhcpTable.innerHTML='<tr><td colspan="4" class="empty-state">No leases'+((leaseFilter||leaseServerFilter)?' matching filter':'')+'…</td></tr>';return;}
   filtered = _sortLeases(filtered);
   dhcpTable.innerHTML=filtered.map(function(l){
     var st=(l.status||'').toLowerCase();
@@ -1465,14 +1499,45 @@ _dhcpSortCols.forEach(function(col) {
 });
 _refreshDhcpSortHeaders();
 
+// One control covers the interface, DHCP-server and VLAN filters asked for in
+// #65: on a real config a DHCP server binds to exactly one interface and that
+// interface is the VLAN, so the three are the same axis. Each option therefore
+// names the server and shows its interface and VLAN as context. A server on a
+// plain ether interface just has no VLAN segment.
+function _renderDhcpServerOptions(servers){
+  var sel = $('dhcpServerFilter');
+  if(!sel) return;
+  if(!servers || !servers.length){ sel.style.display='none'; return; }
+  sel.style.display='';
+  var total = allLeases.length;
+  var html = '<option value="">All leases ('+total+')</option>';
+  html += servers.map(function(s){
+    var bits = [s.name];
+    if(s.iface && s.iface !== s.name) bits.push(s.iface);
+    if(s.vlanId) bits.push('VLAN '+s.vlanId);
+    return '<option value="'+esc(s.name)+'">'+esc(bits.join(' · '))+' ('+s.count+')</option>';
+  }).join('');
+  sel.innerHTML = html;
+  // A server can disappear between updates (config change); fall back to All.
+  var stillThere = servers.some(function(s){ return s.name === leaseServerFilter; });
+  if(leaseServerFilter && !stillThere) leaseServerFilter = '';
+  sel.value = leaseServerFilter;
+}
+
 socket.on('leases:list',function(data){
   allLeases=data.leases||[];
+  _renderDhcpServerOptions(data.servers);
   renderDhcp(allLeases);
   renderDhcpGauge(); // update gauge with fresh lease count
   if(window._connSrcFilterSetLeases) window._connSrcFilterSetLeases(allLeases);
 });
 if(dhcpSearch) dhcpSearch.addEventListener('input',function(){
   leaseFilter=(dhcpSearch.value||'').trim().toLowerCase();
+  renderDhcp(allLeases);
+});
+var _dhcpServerSel = $('dhcpServerFilter');
+if(_dhcpServerSel) _dhcpServerSel.addEventListener('change',function(){
+  leaseServerFilter = _dhcpServerSel.value || '';
   renderDhcp(allLeases);
 });
 
@@ -4341,6 +4406,158 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   });
 })();
 
+// ── Data cleanup (Settings → Data Cleanup) ────────────────────────────────
+(function(){
+  var scope   = $('dbcScope'),      age    = $('dbcAge'),     types  = $('dbcTypes');
+  var prevBtn = $('dbcPreviewBtn'), delBtn = $('dbcPurgeBtn');
+  var summary = $('dbcSummary'),    result = $('dbcResult');
+  if (!scope || !prevBtn || !delBtn) return;
+
+  var TYPE_LABELS = { traffic:'Traffic graphs', ping:'Ping history',
+                      bandwidth:'Bandwidth usage', events:'Alerts & connectivity' };
+  var _known = [];   // routers this user may see, from /api/routers
+
+  function selectedTypes() {
+    return Array.prototype.slice.call(types.querySelectorAll('input:checked'))
+      .map(function(i) { return i.value; });
+  }
+  function currentOpts() {
+    return { routerId: scope.value || '', types: selectedTypes(),
+             olderThanDays: parseInt(age.value, 10) };
+  }
+  function post(body) {
+    return fetch('/api/db/purge', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin', body: JSON.stringify(body),
+    }).then(function(r) { return r.json(); });
+  }
+  function say(cls, msg) { result.className = 'dbc-result ' + cls; result.textContent = msg; }
+
+  // A purge deletes rows and then compacts the file, which on a large database
+  // is slow enough that the card looks frozen without this. Lock both buttons
+  // for the duration so neither can be fired twice.
+  var _pendingCount = 0;   // rows the last preview matched; 0 keeps delete locked
+  var PREVIEW_LABEL = prevBtn.textContent, DELETE_LABEL = delBtn.textContent;
+  function setBusy(on, which, msg) {
+    prevBtn.disabled = on;
+    delBtn.disabled  = on || _pendingCount === 0;
+    prevBtn.textContent = (on && which === 'preview') ? 'Checking…' : PREVIEW_LABEL;
+    delBtn.textContent  = (on && which === 'delete')  ? 'Deleting…' : DELETE_LABEL;
+    if (on) {
+      result.className = 'dbc-result busy';
+      result.innerHTML = '<span class="dbc-spin"></span>' + esc(msg || '');
+    }
+  }
+
+  // Rows can outlive their router (removed before the delete purged its data, or
+  // an id that changed). Name those explicitly rather than showing a bare UUID,
+  // and still let the user select them so the orphaned data can be cleaned up.
+  function routerName(id) {
+    var m = _known.find(function(x) { return x.id === id; });
+    if (m) return m.label || m.host || id;
+    return 'Removed router (' + String(id).slice(0, 8) + '…)';
+  }
+
+  function renderStats(s) {
+    $('dbcSize').textContent   = fmtBytes(s.bytes || 0);
+    $('dbcRows').textContent   = (s.total || 0).toLocaleString();
+    $('dbcOldest').textContent = s.oldestTs ? new Date(s.oldestTs).toLocaleDateString() : '—';
+    $('dbcByRouter').innerHTML = (s.byRouter || []).map(function(r) {
+      return '<div class="dbc-router"><span>' + esc(routerName(r.routerId)) + '</span><b>' +
+             r.rows.toLocaleString() + ' rows</b></div>';
+    }).join('');
+    renderScope(s.byRouter || []);
+  }
+
+  function renderScope(byRouter) {
+    var keep = scope.value;
+    var ids  = _known.map(function(r) { return r.id; });
+    (byRouter || []).forEach(function(r) {
+      if (ids.indexOf(r.routerId) === -1) ids.push(r.routerId);
+    });
+    scope.innerHTML = '<option value="">All routers</option>';
+    ids.forEach(function(id) {
+      var o = document.createElement('option');
+      o.value = id; o.text = routerName(id);
+      scope.appendChild(o);
+    });
+    scope.value = keep;
+  }
+
+  function loadStats() {
+    return fetch('/api/routers', { credentials: 'same-origin' })
+      .then(function(r) { return r.json(); })
+      .then(function(j) { _known = (j && j.routers) || []; })
+      .catch(function() {})
+      .then(function() { return fetch('/api/db/stats', { credentials: 'same-origin' }); })
+      .then(function(r) { return r.json(); })
+      .then(function(j) { if (j && j.ok) renderStats(j); })
+      .catch(function() {});
+  }
+
+  // Any change to the selection invalidates the previous preview, so the delete
+  // button can never act on a count the user did not actually see.
+  function invalidate() {
+    _pendingCount = 0;
+    delBtn.disabled = true;
+    summary.innerHTML = '';
+    result.textContent = '';
+    result.className = 'dbc-result';
+  }
+  scope.addEventListener('change', invalidate);
+  age.addEventListener('change', invalidate);
+  types.addEventListener('change', invalidate);
+
+  prevBtn.addEventListener('click', function() {
+    var opts = currentOpts();
+    if (!opts.types.length) { say('err', 'Select at least one data type.'); return; }
+    _pendingCount = 0;
+    setBusy(true, 'preview', 'Counting matching rows…');
+    post({ routerId: opts.routerId, types: opts.types,
+           olderThanDays: opts.olderThanDays, dryRun: true })
+      .then(function(j) {
+        setBusy(false);
+        if (!j || !j.ok) { say('err', (j && j.error) || 'Preview failed'); return; }
+        say('', '');
+        if (!j.total) { summary.innerHTML = 'Nothing matches that selection.'; return; }
+        _pendingCount = j.total;
+        var parts = opts.types.filter(function(t) { return j.byType[t]; })
+          .map(function(t) { return TYPE_LABELS[t] + ' <b>' + j.byType[t].toLocaleString() + '</b>'; });
+        var where = opts.routerId ? routerName(opts.routerId) : 'all routers';
+        var when  = opts.olderThanDays
+          ? 'older than ' + opts.olderThanDays + ' day' + (opts.olderThanDays === 1 ? '' : 's')
+          : 'of any age';
+        summary.innerHTML = 'Will delete <b>' + j.total.toLocaleString() + '</b> rows from ' +
+                            esc(where) + ', ' + when + '.<br>' + parts.join(' &middot; ');
+        delBtn.disabled = false;
+      })
+      .catch(function() { setBusy(false); say('err', 'Preview failed'); });
+  });
+
+  delBtn.addEventListener('click', function() {
+    var opts = currentOpts();
+    if (!opts.types.length) return;
+    if (!confirm('Delete this data permanently? This cannot be undone.')) return;
+    var n = _pendingCount;
+    _pendingCount = 0;   // the preview is spent either way
+    setBusy(true, 'delete', 'Deleting ' + n.toLocaleString() + ' rows and compacting the database…');
+    post({ routerId: opts.routerId, types: opts.types, olderThanDays: opts.olderThanDays })
+      .then(function(j) {
+        setBusy(false);
+        if (!j || !j.ok) { say('err', (j && j.error) || 'Delete failed'); return; }
+        var freed = Math.max(0, (j.bytesBefore || 0) - (j.bytesAfter || 0));
+        say('ok', '✓ Deleted ' + (j.deleted || 0).toLocaleString() + ' rows, freed ' + fmtBytes(freed) + '.');
+        summary.innerHTML = '';
+        loadStats();
+      })
+      .catch(function() { setBusy(false); say('err', 'Delete failed'); });
+  });
+
+  document.addEventListener('mikrodash:pagechange', function(e) {
+    if (e.detail === 'settings') { invalidate(); loadStats(); }
+  });
+})();
+
 // ── Settings tab switcher ─────────────────────────────────────────────────
 (function(){
   var SETTINGS_TAB_KEY = 'mikrodash_settings_tab';
@@ -5142,7 +5359,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     _testPassed = ready;
   }
 
-  var sel       = $('routerSelect');
   var tbody     = $('rtrTbody');
   var addBtn    = $('rtrAddBtn');
   var modalBg   = $('rtrModalBg');
@@ -5174,47 +5390,133 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // Keep _activeRouterId in sync for the system:update board name patch
   window._activeRouterId = _activeRouterId;
 
-  // ── Topbar select ──────────────────────────────────────────────────────────
-  function rebuildSelect() {
-    if (!sel) return;
-    var prev = sel.value;
-    sel.innerHTML = '';
-    // Also rebuild the mobile nav select
-    var navSel = $('navRouterSelect');
-    if (navSel) navSel.innerHTML = '';
-    _routers.filter(function(r) { return !r.disabled; }).forEach(function(r) {
-      var label = (r.label || r.host || '?').replace(/\s*[·•·•].*$/, '').trim();
-      var opt = document.createElement('option');
-      opt.value = r.id;
-      opt.text  = label;
-      sel.appendChild(opt);
-      // Mirror into mobile nav select
-      if (navSel) {
-        var navOpt = document.createElement('option');
-        navOpt.value = r.id;
-        navOpt.text  = label;
-        navSel.appendChild(navOpt);
-      }
+  // ── Topbar router picker ───────────────────────────────────────────────────
+  // A custom popover rather than a native <select>, so each row can carry the
+  // router's live status and the list can be searched. The mobile nav keeps its
+  // native select deliberately: the OS picker is the better control on touch.
+  var ddWrap   = $('routerSelectWrap');
+  var ddBtn    = $('routerSelectBtn');
+  var ddLabel  = $('routerSelectLabel');
+  var ddPanel  = $('routerDropdown');
+  var ddList   = $('routerDropdownList');
+  var ddSearch = $('routerDropdownSearch');
+  var _ddOpen = false, _ddFilter = '', _ddHl = -1;
+  var DD_SEARCH_MIN = 5;   // only surface the search box once the list is long
+
+  function _rtrLabel(r) {
+    return (r.label || r.host || '?').replace(/\s*[·•].*$/, '').trim();
+  }
+  function _ddRouters() {
+    var q = _ddFilter.trim().toLowerCase();
+    return _routers.filter(function(r) { return !r.disabled; })
+      .filter(function(r) {
+        if (!q) return true;
+        return ((r.label || '') + ' ' + (r.host || '')).toLowerCase().indexOf(q) !== -1;
+      });
+  }
+  function renderDropdown() {
+    if (!ddList) return;
+    var rows = _ddRouters();
+    if (!rows.length) { ddList.innerHTML = '<div class="rtr-dd-empty">No routers match</div>'; return; }
+    var html = '';
+    rows.forEach(function(r, i) {
+      var st  = _routerStatus[r.id];
+      var dot = st === true ? 'on' : st === false ? 'off' : '';
+      var act = r.id === _activeRouterId;
+      html += '<div class="rtr-dd-item' + (act ? ' active' : '') + (i === _ddHl ? ' hl' : '') + '"'
+           +  ' role="option" aria-selected="' + (act ? 'true' : 'false') + '" data-rtr="' + esc(r.id) + '">'
+           +  '<span class="rtr-dd-dot ' + dot + '"></span>'
+           +  '<span class="rtr-dd-meta"><span class="rtr-dd-name">' + esc(_rtrLabel(r)) + '</span>'
+           +  (r.host ? '<span class="rtr-dd-host">' + esc(r.host) + '</span>' : '') + '</span>'
+           +  (act ? '<span class="rtr-dd-check">&#10003;</span>' : '')
+           +  '</div>';
     });
-    // Only show the topbar select when there are multiple routers
-    var wrap = $('routerSelectWrap');
-    if (wrap) wrap.style.display = _routers.length > 1 ? 'flex' : 'none';
-    if (_routers.length <= 1 && wrap) wrap.style.display = 'flex'; // always show so label is visible
+    ddList.innerHTML = html;
+  }
+  function updateDropdownLabel() {
+    if (!ddLabel) return;
+    var r = _routers.find(function(x) { return x.id === _activeRouterId; });
+    ddLabel.textContent = r ? _rtrLabel(r) : '—';
+  }
+  function openDropdown() {
+    if (_ddOpen || !ddWrap) return;
+    _ddOpen = true; _ddFilter = ''; _ddHl = -1;
+    if (ddSearch) ddSearch.value = '';
+    var many = _routers.filter(function(r) { return !r.disabled; }).length >= DD_SEARCH_MIN;
+    var box = ddPanel && ddPanel.querySelector('.rtr-dd-search');
+    if (box) box.style.display = many ? '' : 'none';
+    ddWrap.classList.add('open');
+    if (ddBtn) ddBtn.setAttribute('aria-expanded', 'true');
+    renderDropdown();
+    if (many && ddSearch) ddSearch.focus();
+  }
+  function closeDropdown() {
+    if (!_ddOpen || !ddWrap) return;
+    _ddOpen = false;
+    ddWrap.classList.remove('open');
+    if (ddBtn) ddBtn.setAttribute('aria-expanded', 'false');
+  }
+  function chooseRouter(id) {
+    closeDropdown();
+    if (!id || id === _activeRouterId) return;
+    activateRouter(id);
+  }
+
+  function rebuildSelect() {
+    // Mobile nav keeps the native select
+    var navSel = $('navRouterSelect');
+    if (navSel) {
+      navSel.innerHTML = '';
+      _routers.filter(function(r) { return !r.disabled; }).forEach(function(r) {
+        var opt = document.createElement('option');
+        opt.value = r.id;
+        opt.text  = _rtrLabel(r);
+        navSel.appendChild(opt);
+      });
+      navSel.value = _activeRouterId || (navSel.options[0] && navSel.options[0].value) || '';
+    }
+    if (ddWrap) ddWrap.style.display = 'flex';
     var navRouters = $('nav-routers');
     if (navRouters) navRouters.style.display = _routers.length > 1 ? '' : 'none';
-    sel.value = _activeRouterId || prev || (sel.options[0] && sel.options[0].value);
-    if (navSel) navSel.value = sel.value;
+    updateDropdownLabel();
+    if (_ddOpen) renderDropdown();
   }
 
-  if (sel) {
-    sel.addEventListener('change', function() {
-      var newId = sel.value;
-      if (!newId || newId === _activeRouterId) return;
-      activateRouter(newId);
+  if (ddBtn) {
+    ddBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (_ddOpen) closeDropdown(); else openDropdown();
     });
   }
+  if (ddList) {
+    ddList.addEventListener('click', function(e) {
+      var row = e.target.closest('[data-rtr]');
+      if (row) chooseRouter(row.getAttribute('data-rtr'));
+    });
+  }
+  if (ddSearch) {
+    ddSearch.addEventListener('input', function() {
+      _ddFilter = ddSearch.value; _ddHl = -1; renderDropdown();
+    });
+  }
+  if (ddWrap) {
+    ddWrap.addEventListener('keydown', function(e) {
+      if (!_ddOpen) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); openDropdown(); }
+        return;
+      }
+      var rows = _ddRouters();
+      if (e.key === 'Escape')         { e.preventDefault(); closeDropdown(); if (ddBtn) ddBtn.focus(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); _ddHl = Math.min(rows.length - 1, _ddHl + 1); renderDropdown(); }
+      else if (e.key === 'ArrowUp')   { e.preventDefault(); _ddHl = Math.max(0, _ddHl - 1); renderDropdown(); }
+      else if (e.key === 'Enter')     { e.preventDefault(); if (rows[_ddHl]) chooseRouter(rows[_ddHl].id); }
+    });
+  }
+  document.addEventListener('click', function(e) {
+    if (_ddOpen && ddWrap && !ddWrap.contains(e.target)) closeDropdown();
+  });
 
-  // Mobile nav select — mirrors the topbar select
+  // Mobile nav select — mirrors the topbar picker
   var navSel = $('navRouterSelect');
   if (navSel) {
     navSel.addEventListener('change', function() {
@@ -5278,7 +5580,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   socket.on('router:active', function(data) {
     _activeRouterId = data.activeId || '';
     window._activeRouterId = _activeRouterId;
-    if (sel) sel.value = _activeRouterId;
+    updateDropdownLabel();
+    if (_ddOpen) renderDropdown();
     var navSel2 = $('navRouterSelect');
     if (navSel2) navSel2.value = _activeRouterId;
     renderTable();
@@ -5363,6 +5666,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         if (el) { if (data.connected) el.classList.remove('offline'); else el.classList.add('offline'); }
       });
     }
+    if (_ddOpen) renderDropdown();   // keep the per-router dots live while open
   });
 
   // ── Modal helpers ──────────────────────────────────────────────────────────
@@ -5589,7 +5893,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   socket.on('router:switched', function(data) {
     _activeRouterId = data.activeId || '';
     window._activeRouterId = _activeRouterId;
-    if (sel) sel.value = _activeRouterId;
+    updateDropdownLabel();
+    if (_ddOpen) renderDropdown();
     var navSel2 = $('navRouterSelect');
     if (navSel2) navSel2.value = _activeRouterId;
     if (switchOvl) switchOvl.classList.remove('open');

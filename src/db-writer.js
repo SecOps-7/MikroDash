@@ -129,9 +129,11 @@ function recordPing(routerId, target, rttMs, lossPct, ts) {
 
 // ── Connectivity writer ───────────────────────────────────────────────────────
 
-function recordConnectivity(routerId, connected) {
+// ts is optional and defaults to now. Debounced offline paths pass the moment
+// the disconnect was observed, not the moment they declared it (#99).
+function recordConnectivity(routerId, connected, ts) {
   if (!routerId) return;
-  db.insertConnectivityEvent(routerId, connected);
+  db.insertConnectivityEvent(routerId, connected, ts);
 }
 
 module.exports = { recordTraffic, flushTraffic, recordPing, recordConnectivity };

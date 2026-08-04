@@ -9,7 +9,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Rebuild and restart the container (do this after every source change)
+# Rebuild and restart the container
+# (a Stop hook does this automatically at the end of each turn — run it by hand
+#  only when you need the rebuilt container mid-turn, e.g. to run the tests)
 docker compose build && docker compose up -d
 
 # View live logs
@@ -97,7 +99,7 @@ RouterOS binary API (TCP)
 
 ## Workflow rules
 
-- Rebuild the container after every source edit: `docker compose build && docker compose up -d`.
+- The container rebuilds **once per turn**, not once per edit — a Stop hook runs `docker compose build && docker compose up -d`, checksum-gated over `src/`, `public/`, `patch-routeros.js`, `package*.json`, `Dockerfile` and `docker-compose.yml`. Run the rebuild by hand only when you need it mid-turn (running the tests, driving the UI); the gate then makes the turn-end run a no-op.
 - Append to `Changes.md` after every file edit (not in a batch at the end).
 - Always confirm before `git push` or Docker push.
 - A `v*.*.*` git tag is required alongside every version bump so GitHub Actions publishes the Docker image.

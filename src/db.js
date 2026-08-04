@@ -172,9 +172,14 @@ function resolveAlertEvent(routerId, alertType, subject) {
   _stmtResolveAlert.run(Date.now(), routerId, alertType, subject || null);
 }
 
-function insertConnectivityEvent(routerId, connected) {
+// ts is when the state change actually happened. It defaults to now because
+// most callers report live transitions, but the offline paths debounce for
+// connDownThresholdSec before declaring a router down — without passing the
+// original disconnect time they would record the declaration instead, making
+// every outage look shorter than it was (#99).
+function insertConnectivityEvent(routerId, connected, ts) {
   if (!_db) return;
-  _stmtInsertConn.run(routerId, connected ? 1 : 0, Date.now());
+  _stmtInsertConn.run(routerId, connected ? 1 : 0, ts || Date.now());
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────
@@ -342,6 +347,132 @@ function startPruneInterval(getSettings) {
   _pruneTimer.unref();
 }
 
+// ── On-demand cleanup ─────────────────────────────────────────────────────────
+
+// The five stores, keyed by the labels the cleanup UI offers. 'events' covers
+// both alert and connectivity history because they share a retention setting
+// and users think of them as one thing.
+const PURGE_TABLES = {
+  ping:      [{ table: 'ping_samples',        ts: 'ts' }],
+  traffic:   [{ table: 'traffic_samples',     ts: 'ts' }],
+  bandwidth: [{ table: 'bandwidth_usage',     ts: 'ts' }],
+  events:    [{ table: 'alert_events',        ts: 'fired_at' },
+              { table: 'connectivity_events', ts: 'ts' }],
+};
+const PURGE_TYPES = Object.keys(PURGE_TABLES);
+
+// Build the WHERE clause shared by the count and the delete, so a preview can
+// never disagree with what the delete actually removes.
+function _purgeWhere(opts, tsCol) {
+  const where = [], params = [];
+  if (opts.routerId) { where.push('router_id = ?'); params.push(opts.routerId); }
+  if (opts.olderThanMs > 0) { where.push(tsCol + ' < ?'); params.push(Date.now() - opts.olderThanMs); }
+  return { sql: where.length ? ' WHERE ' + where.join(' AND ') : '', params };
+}
+
+function _purgeTargets(types) {
+  const wanted = (Array.isArray(types) && types.length) ? types : PURGE_TYPES;
+  return wanted.filter(t => PURGE_TABLES[t]).flatMap(t => PURGE_TABLES[t]);
+}
+
+// Row counts a purge with these options would remove, per type. Runs the same
+// predicate as purge() so the number shown before confirming is exact.
+function countPurge(opts = {}) {
+  if (!_db) return { total: 0, byType: {} };
+  const wanted = (Array.isArray(opts.types) && opts.types.length) ? opts.types : PURGE_TYPES;
+  const byType = {};
+  let total = 0;
+  for (const type of wanted) {
+    if (!PURGE_TABLES[type]) continue;
+    let n = 0;
+    for (const { table, ts } of PURGE_TABLES[type]) {
+      const w = _purgeWhere(opts, ts);
+      n += _prep(`SELECT COUNT(*) AS n FROM ${table}${w.sql}`).get(...w.params).n;
+    }
+    byType[type] = n;
+    total += n;
+  }
+  return { total, byType };
+}
+
+// Delete matching rows. opts.routerId limits to one router (omit for all),
+// opts.types limits to a subset of PURGE_TYPES (omit for all), opts.olderThanMs
+// keeps anything newer than that age (0 or omitted deletes regardless of age).
+function purge(opts = {}) {
+  if (!_db) return { deleted: 0 };
+  let deleted = 0;
+  _db.transaction(() => {
+    for (const { table, ts } of _purgeTargets(opts.types)) {
+      const w = _purgeWhere(opts, ts);
+      deleted += _prep(`DELETE FROM ${table}${w.sql}`).run(...w.params).changes;
+    }
+  })();
+  console.log(`[db] purge removed ${deleted} rows (router: ${opts.routerId || 'all'}, types: ${(opts.types || PURGE_TYPES).join('+')}, olderThanMs: ${opts.olderThanMs || 0})`);
+  return { deleted };
+}
+
+// SQLite keeps freed pages inside the file, so a delete alone never shrinks it
+// on disk. Callers run this after a purge; it cannot go inside purge()'s
+// transaction because VACUUM is not allowed within one.
+function vacuum() {
+  if (!_db) return { before: 0, after: 0 };
+  const before = _fileSize();
+  // Fold the WAL into the main file first. We run in WAL mode, so a delete's
+  // freed pages sit in the -wal until a checkpoint; VACUUM on its own then has
+  // nothing to reclaim and the file on disk does not shrink at all. Checkpoint
+  // again afterwards so the rewritten file is what the caller measures.
+  _db.pragma('wal_checkpoint(TRUNCATE)');
+  _db.exec('VACUUM');
+  _db.pragma('wal_checkpoint(TRUNCATE)');
+  const after = _fileSize();
+  console.log(`[db] vacuum reclaimed ${Math.max(0, before - after)} bytes`);
+  return { before, after };
+}
+
+function _fileSize() {
+  let total = 0;
+  for (const suffix of ['', '-wal']) {
+    try { total += fs.statSync(DB_FILE + suffix).size; } catch (_) {}
+  }
+  return total;
+}
+
+// Size on disk plus row counts per type, overall and broken down by router, so
+// the cleanup UI can show what is actually taking up space.
+function stats() {
+  if (!_db) return { bytes: 0, total: 0, byType: {}, oldestTs: null, byRouter: [] };
+  const byType = {};
+  const perRouter = new Map();
+  let total = 0;
+  for (const type of PURGE_TYPES) {
+    let n = 0;
+    for (const { table } of PURGE_TABLES[type]) {
+      n += _prep(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
+      for (const row of _prep(`SELECT router_id, COUNT(*) AS n FROM ${table} GROUP BY router_id`).all()) {
+        perRouter.set(row.router_id, (perRouter.get(row.router_id) || 0) + row.n);
+      }
+    }
+    byType[type] = n;
+    total += n;
+  }
+  const oldest = _prep(`
+    SELECT MIN(t) AS t FROM (
+      SELECT MIN(ts) AS t FROM ping_samples        UNION ALL
+      SELECT MIN(ts) AS t FROM traffic_samples     UNION ALL
+      SELECT MIN(ts) AS t FROM bandwidth_usage     UNION ALL
+      SELECT MIN(ts) AS t FROM connectivity_events UNION ALL
+      SELECT MIN(fired_at) AS t FROM alert_events
+    )`).get().t;
+  return {
+    bytes: _fileSize(),
+    total,
+    byType,
+    oldestTs: oldest || null,
+    byRouter: [...perRouter.entries()].map(([routerId, rows]) => ({ routerId, rows }))
+                                      .sort((a, b) => b.rows - a.rows),
+  };
+}
+
 function deleteRouterData(routerId) {
   if (!_db) return;
   _db.transaction(() => {
@@ -363,4 +494,5 @@ module.exports = {
   queryBandwidthSamples, queryBandwidthSamplesAgg, queryBandwidthInterfaces,
   queryAlertEvents, queryConnectivityEvents, queryConnectivityEventsAgg,
   prune, startPruneInterval, deleteRouterData,
+  purge, countPurge, vacuum, stats, PURGE_TYPES,
 };
