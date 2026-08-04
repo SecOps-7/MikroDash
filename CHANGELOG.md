@@ -2,6 +2,18 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.53] — Socket.IO parser security patch
+
+Single-fix release, published so the patch below reaches a tagged image. It landed on `main` shortly after v0.5.52 was tagged, so the `0.5.52` image does not contain it. Upgrade if you are running `0.5.52` or earlier.
+
+Nothing else changed.
+
+### Security
+
+- **socket.io-parser 4.2.7** (#102), closing a high severity advisory: [CVE-2026-69185](https://github.com/advisories/GHSA-2m8v-j782-fhvr), "Socket.IO: Zero-attachment Memory Exhaustion". A binary packet declaring zero attachments was accepted and could be used to exhaust memory. 4.2.7 rejects it — the decoder now refuses any attachment count below one, where previously only counts above the maximum were checked.
+
+  This is a transitive dependency of `socket.io` and sits in the path of every packet MikroDash sends, so the upgrade was verified rather than taken on trust: the guard was confirmed present in the shipped code, the full suite passes against the upgraded tree, and the app was booted and driven in a browser with the socket connected and live data rendering.
+
 ## [0.5.52] — Data cleanup, DHCP lease filtering, a readable light theme
 
 Housekeeping release. You can now delete stored history on demand instead of waiting for retention to catch up, filter DHCP leases by VLAN, and actually read the light theme.
