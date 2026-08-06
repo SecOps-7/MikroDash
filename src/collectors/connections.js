@@ -1,5 +1,4 @@
-let geoip = null;
-try { geoip = require('geoip-lite'); } catch(e) { console.warn('[connections] geoip-lite not available, geo lookups disabled'); }
+const geo = require('../geo');
 const settings = require('../settings');
 /**
  * Connections collector — streams /ip/firewall/connection/print interval=N.
@@ -47,7 +46,7 @@ class ConnectionsCollector {
     this.dhcpLeases = dhcpLeases;
     this.arp = arp;
     this.state = state;
-    this.geoLookup = geoLookup || (geoip ? (ip) => geoip.lookup(ip) : null);
+    this.geoLookup = geoLookup || (geo.available() ? (ip) => geo.lookup(ip) : null);
     this.connTableCache = connTableCache || null;
     // Shared with BandwidthCollector so geo/org lookups for the same IPs are
     // computed once and reused across both collectors and across ticks.

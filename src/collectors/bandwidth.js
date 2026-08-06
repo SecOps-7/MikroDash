@@ -11,8 +11,7 @@ const { extractAddress, isInCidrs, isValidIp } = require('../util/ip');
 const { lookupOrg, lookupCategory }             = require('../util/asnLookup');
 const { clampPoll } = require('./util');
 
-let geoip = null;
-try { geoip = require('geoip-lite'); } catch (_) {}
+const geo = require('../geo');
 
 const bpsToMbps = (bytes, dtMs) =>
   dtMs > 0 ? +((bytes * 8) / (dtMs / 1000) / 1_000_000).toFixed(4) : 0;
@@ -33,7 +32,7 @@ class BandwidthCollector {
     this.arp          = arp;
     this.ifStatus     = ifStatus;
     this.state        = state;
-    this.geoLookup    = geoLookup || (geoip ? ip => geoip.lookup(ip) : null);
+    this.geoLookup    = geoLookup || (geo.available() ? ip => geo.lookup(ip) : null);
     // prev: connId -> { origBytes, replBytes, ts, src, dst, proto, iface }
     this._prev        = new Map();
     this._ifaceCache  = new Map(); // srcIp -> iface name

@@ -40,8 +40,7 @@ try {
   process.exit(1);
 }
 
-let geoip = null;
-try { geoip = require('geoip-lite'); } catch (_) {}
+const geo = require('./geo');
 
 const ROS                  = require('./routeros/client');
 
@@ -1572,7 +1571,7 @@ app.get('/api/localcc', (req, res) => {
   if (!s) return res.json({ cc: '', wanIp: '' });
   const wanIp = (s.state.lastWanIp || '').split('/')[0];
   let cc = '';
-  if (geoip && wanIp) { const g = geoip.lookup(wanIp); if (g) cc = g.country || ''; }
+  if (wanIp) { const g = geo.lookup(wanIp); if (g) cc = g.country || ''; }
   // Viewers only need the country code (world-map arc origin); the WAN IP is
   // withheld from them like the rest of the router network detail.
   const isAdmin = !_isModern() || (req.authSession && req.authSession.role === 'admin');
@@ -2537,7 +2536,14 @@ function _emitDiagnostics(session, rid, socket) {
     { name: 'routing',      streams: (s.routing._routeStream?1:0)+(s.routing._ipv6Stream?1:0)+(s.routing._bgpStream?1:0) },
   ];
   const total = collectors.reduce((sum, c) => sum + c.streams, 0);
-  const payload = { ts: Date.now(), total, collectors };
+  // Geo availability rides along here so a failed geoip-lite load is visible in
+  // the UI rather than only in the container log. Without it the world map and
+  // country breakdowns just render empty and look like a router with no
+  // traffic. See issue #101.
+  const payload = {
+    ts: Date.now(), total, collectors,
+    geo: { available: geo.available(), reason: geo.unavailableReason() },
+  };
   if (socket) {
     socket.emit('diagnostics:update', payload);
   } else {
