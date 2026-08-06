@@ -6824,7 +6824,15 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var listEl=dcEl('dc-diagList');
     if(!listEl) return;
     var cols=data.collectors||[];
-    listEl.innerHTML=cols.map(function(c){
+    // A failed geoip-lite load makes the world map and country breakdowns
+    // render empty, which looks identical to a quiet network. Say so instead.
+    var geoRow='';
+    if(data.geo&&!data.geo.available){
+      geoRow='<div class="diag-row" title="'+dcEsc(data.geo.reason||'geoip-lite failed to load')+'">'+
+             '<span class="diag-name">geo lookups</span>'+
+             '<span class="diag-count diag-count-zero">unavailable</span></div>';
+    }
+    listEl.innerHTML=geoRow+cols.map(function(c){
       var cls=c.streams>0?'diag-count-active':'diag-count-zero';
       return '<div class="diag-row"><span class="diag-name">'+dcEsc(c.name)+'</span>'+
              '<span class="diag-count '+cls+'">'+c.streams+'</span></div>';

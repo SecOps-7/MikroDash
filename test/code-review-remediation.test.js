@@ -472,3 +472,79 @@ test('settings: undecryptable credential ciphertext survives unrelated saves', (
     delete process.env.DATA_DIR;
   }
 });
+
+// --- geoip-lite degradation is reported, not silent (issue #101) ---
+
+test('geo module exposes availability so a failed load cannot degrade silently', () => {
+  const geo = require('../src/geo');
+  assert.equal(typeof geo.available, 'function');
+  assert.equal(typeof geo.unavailableReason, 'function');
+  assert.equal(typeof geo.lookup, 'function');
+  // In this environment geoip-lite installs fine, so the contract to pin is
+  // that availability is a real boolean and that a reason accompanies only the
+  // unavailable state. The failure path is covered below with a stubbed loader.
+  assert.equal(typeof geo.available(), 'boolean');
+  if (geo.available()) {
+    assert.equal(geo.unavailableReason(), '', 'no reason reported while available');
+  } else {
+    assert.ok(geo.unavailableReason().length > 0, 'unavailable must carry a reason');
+  }
+});
+
+test('geo lookup returns null rather than throwing when geoip-lite is missing', () => {
+  // Reproduces the load failure by resolving the module with geoip-lite forced
+  // to throw, which is what a Node version mismatch would do. The old code
+  // caught this into an empty block at two of three call sites, so every
+  // lookup silently returned nothing and nothing recorded why.
+  const Module = require('module');
+  const geoPath = require.resolve('../src/geo');
+  const realLoad = Module._load;
+  const warnings = [];
+  const realWarn = console.warn;
+  console.warn = (...a) => warnings.push(a.join(' '));
+  delete require.cache[geoPath];
+  Module._load = function (request, ...rest) {
+    if (request === 'geoip-lite') throw new Error('Cannot find module geoip-lite');
+    return realLoad.call(this, request, ...rest);
+  };
+  let broken;
+  try {
+    broken = require('../src/geo');
+  } finally {
+    Module._load = realLoad;
+    console.warn = realWarn;
+    delete require.cache[geoPath];
+  }
+
+  assert.equal(broken.available(), false, 'reports unavailable');
+  assert.match(broken.unavailableReason(), /geoip-lite/, 'records why');
+  assert.equal(broken.lookup('8.8.8.8'), null, 'lookup degrades to null, does not throw');
+  assert.ok(
+    warnings.some(w => /geo lookups unavailable/i.test(w)),
+    'load failure is logged, not swallowed'
+  );
+});
+
+test('collectors disable geo lookups rather than crashing when geo is unavailable', () => {
+  // Both collectors previously derived this from their own `geoip` handle. They
+  // now share src/geo, so the null-when-unavailable contract has to hold for
+  // the injected-override path too, which is what other tests rely on.
+  const BandwidthCollector = require('../src/collectors/bandwidth');
+  const ros = { connected: true, on() {}, stream: () => ({ on() {}, stop() {} }) };
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 0 }, emit() {}, to: () => _chain };
+
+  const injected = new BandwidthCollector({
+    ros, io, state: {}, geoLookup: (ip) => ({ country: 'ZZ', ip }),
+  });
+  assert.deepEqual(injected.geoLookup('1.2.3.4'), { country: 'ZZ', ip: '1.2.3.4' },
+    'an injected lookup still wins over the shared module');
+
+  const dflt = new BandwidthCollector({ ros, io, state: {} });
+  const geo = require('../src/geo');
+  if (geo.available()) {
+    assert.equal(typeof dflt.geoLookup, 'function');
+  } else {
+    assert.equal(dflt.geoLookup, null, 'null signals "skip geo" to the collector');
+  }
+});

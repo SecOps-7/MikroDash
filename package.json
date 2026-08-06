@@ -4,6 +4,9 @@
   "private": true,
   "description": "MikroTik RouterOS v7 live dashboard — streaming binary API, Tabler + Socket.IO",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test --test-force-exit",
@@ -13,7 +16,7 @@
     "ip-address@10.1.0": "10.1.1"
   },
   "dependencies": {
-    "better-sqlite3": "^9.6.0",
+    "better-sqlite3": "^13.0.3",
     "compression": "^1.7.5",
     "dotenv": "^16.4.5",
     "express": "^4.22.2",

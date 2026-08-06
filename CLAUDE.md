@@ -18,8 +18,10 @@ docker compose build && docker compose up -d
 docker logs -f mikrodash
 
 # Run all tests (test/ is excluded from the image — copy first)
+# Quote the glob: Node 24's test runner treats a bare directory argument as a
+# module to load and fails with MODULE_NOT_FOUND.
 docker cp test/. mikrodash:/app/test
-docker exec mikrodash node --test --test-force-exit /app/test/
+docker exec mikrodash node --test --test-force-exit '/app/test/*.test.js'
 
 # Run a single test file
 docker exec mikrodash node --test /app/test/production-resilience-regressions.test.js
