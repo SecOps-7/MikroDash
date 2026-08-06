@@ -1,6 +1,10 @@
-# Supports linux/amd64, linux/arm64, and linux/arm/v7.
-# node:24-alpine ships native layers for all three platforms so no emulation
-# is needed at runtime — only the CI build step uses QEMU for cross-compilation.
+# Supports linux/amd64 and linux/arm64.
+# node:24-alpine ships native layers for both platforms so no emulation is
+# needed at runtime — only the CI build step uses QEMU for cross-compilation.
+#
+# linux/arm/v7 was dropped here: Node 24 dropped 32-bit ARM upstream, so
+# node:24-alpine publishes amd64, arm64/v8 and s390x only. ARMv7 devices
+# (RouterOS containers, 32-bit Pi builds) stay on 0.5.54, which is Node 20.
 # TARGETPLATFORM is injected automatically by `docker buildx build --platform ...`
 # and does not need to be declared or defaulted here.
 #

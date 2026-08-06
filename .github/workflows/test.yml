@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v7
 
       # amd64 only — this job verifies behaviour, not multi-arch packaging.
-      # docker-publish.yml covers arm64/arm/v7 on tagged releases.
+      # docker-publish.yml covers arm64 on tagged releases.
       - name: Build image
         run: docker build -t mikrodash:ci .
 
