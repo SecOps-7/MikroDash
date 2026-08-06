@@ -2,6 +2,59 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.6.0] — Node 24, ARMv7 dropped, and a release pipeline that publishes on tags
+
+First release with a breaking change, hence the minor bump rather than another 0.5.x. **If you run MikroDash on 32-bit ARM hardware, read the first section before upgrading.**
+
+Everything else here is infrastructure: a Node 24 base image, a database driver that will not break on the next Node release, and a CI pipeline that stops publishing unreleased code as `latest`.
+
+### Removed
+
+- **`linux/arm/v7` images are no longer built.** MikroDash moved to a Node 24 base image and Node 24 dropped 32-bit ARM upstream, so the official image has no arm/v7 variant to build on. The build fails at image resolution, before any of our code compiles, and there is no flag around it:
+
+  ```
+  node:20-alpine   amd64, arm/v6, arm/v7, arm64/v8, ppc64le, s390x
+  node:22-alpine   amd64, arm/v6, arm/v7, arm64/v8, s390x
+  node:24-alpine   amd64, arm64/v8, s390x
+  ```
+
+  Releases now cover `linux/amd64` and `linux/arm64` only.
+
+  **If you are on ARMv7** — a RouterOS container on 32-bit hardware such as the hEX S (2025), or an older 32-bit Raspberry Pi — pin to `ghcr.io/secops-7/mikrodash:0.5.54`, the last release built for you. It will not receive further updates, including security fixes. Do not stay on `:latest`, which now resolves to a manifest with no arm/v7 entry, so your pull will fail rather than degrade gracefully.
+
+  Because this is a minor bump, **anyone pinned to `:0.5` is unaffected and stays on 0.5.54.** That was the reason for choosing 0.6.0 over 0.5.55.
+
+  ARMv7 support was added in 0.5.43 for issue #44, which is reopened to track whether a separate ARMv7 build is worth maintaining. That depends on how many people are actually running one, so please comment there if this affects you.
+
+### Changed
+
+- **Base image is now `node:24-alpine`** (was `node:20-alpine`). Node 20 is past the end of its LTS maintenance window, and `geoip-lite` 2.x declares `engines: { node: '>=24' }`. npm only warns on an engine mismatch, so a future `geoip-lite` patch using a Node 24 API would have installed cleanly, passed CI and then failed to load in production. `package.json` now declares `engines: { node: '>=24.0.0' }` so the supported range is explicit rather than implied by the Dockerfile. Addresses #101
+
+- **`better-sqlite3` 9.6.0 → 13.0.3.** The base image bump forced this: 9.6.0 does not compile against Node 24, whose V8 headers require C++20 (`v8config.h: error: "C++20 or later required."`) while 9.6.0's build config does not request it. Majors 10 through 12 were end-of-life Node drops rather than API changes.
+
+  Version 13 is the first N-API build, which is the part that matters beyond this release: N-API is ABI-stable across Node majors, so a native module that fails to compile on the next Node is no longer a recurring hazard. It also removes 29 transitive build dependencies (`prebuild-install`, `bindings`, `tar-fs`, `tar-stream`, `node-abi`, `rc`, `simple-get` and others) that existed only to fetch and locate prebuilt binaries, in favour of a single `node-addon-api`.
+
+  Verified against a populated production database rather than a fresh one: 312,189 rows reopened under the new driver with identical oldest-sample timestamps and both routers intact. Your data does not need migrating. **Downgrading back to 0.5.54 after upgrading is untested**, so take a copy of `/data` first if you want a guaranteed way back.
+
+- **Container images are published on version tags only.** Previously the workflow ran on every push to `main` *and* on tags, and tagged `latest` unconditionally, so `latest` tracked unreleased work rather than the newest release. Anyone following the README's `docker pull ...:latest` was running whatever was last merged. Pushes to `main` still build every architecture as a check, they just publish nothing.
+
+  This also fixes the failure that delayed 0.5.54: two builds racing to upload the same layers tripped a GHCR secondary rate limit. Cache writes are now restricted to tag builds, so a validation run performs no registry writes at all.
+
+- **All GitHub Actions upgraded** to their Node 24 majors, since GitHub has deprecated the Node 20 action runtime: `actions/checkout` v4→v7, `docker/setup-qemu-action` and `docker/setup-buildx-action` v3→v4, `docker/login-action` v3→v4, `docker/metadata-action` v5→v6, `docker/build-push-action` v6→v7.
+
+### Fixed
+
+- **A `geoip-lite` load failure was silent.** It was required independently at three call sites, two of which swallowed the error into an empty `catch`. A failure left every geo lookup returning nothing, so the world map, country breakdowns and connection geo data quietly emptied out while the dashboard otherwise looked healthy — indistinguishable from a network with no traffic.
+
+  `src/geo.js` is now the single load point: one require, one warning, and availability is reported in the API Diagnostics card as a `geo lookups / unavailable` row carrying the loader's reason. Part of #101
+
+- **`node --test` invocation broken by Node 24.** The runner now treats a bare directory argument as a module to load and exits with `MODULE_NOT_FOUND`. The pre-push hook, the CI workflow and the documented command now pass a quoted `'/app/test/*.test.js'` glob. Contributors updating an existing checkout should note the pre-push hook lives in `.git/` and is not updated by pulling; re-copy it if your pushes start failing on a trivially empty suite.
+
+### Notes
+
+- Test suite is at 314, up from 311.
+- No application behaviour changed in this release. Every user-visible feature is as it was in 0.5.54.
+
 ## [0.5.54] — Interface list view, VPN sessions, and honest bandwidth reports
 
 Feature release built mostly out of open issues. The Interfaces page gains a table view that surfaces error and drop counters MikroDash has never read, VPN monitoring finally covers PPP and IPsec rather than WireGuard alone, and the Reports page stops conflating link speed with data volume.

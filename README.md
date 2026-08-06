@@ -139,7 +139,11 @@ docker pull ghcr.io/secops-7/mikrodash:latest
 
 Images are published by GitHub Actions on version tags only, so `latest` always tracks the most recent release rather than unreleased work on `main`. (Pushes to `main` still build both architectures as a check, they just are not published.) Each release is a multi-arch manifest covering `linux/amd64` and `linux/arm64`. Docker will automatically pull the correct layer for your platform — this includes Raspberry Pi 4/5, MikroTik's own R5S/RB5009 companion boards, and Apple M-series machines running Linux containers.
 
-> **ARMv7 (32-bit ARM) is no longer built, from the first release after 0.5.54.** MikroDash moved to a Node 24 base image, and Node 24 dropped 32-bit ARM upstream, so `node:24-alpine` publishes no `linux/arm/v7` variant. If you run MikroDash on ARMv7 hardware — a RouterOS container on a 32-bit device, or an older Raspberry Pi — pin to `ghcr.io/secops-7/mikrodash:0.5.54`, the last release built for it. It will not receive further updates. If this affects you, please open an issue: whether it is worth maintaining a separate ARMv7 build depends on how many people are actually on one.
+> **ARMv7 (32-bit ARM) is no longer built, as of 0.6.0.** MikroDash moved to a Node 24 base image, and Node 24 dropped 32-bit ARM upstream, so `node:24-alpine` publishes no `linux/arm/v7` variant.
+>
+> If you run MikroDash on ARMv7 hardware — a RouterOS container on a 32-bit device such as the hEX S (2025), or an older Raspberry Pi — pin to `ghcr.io/secops-7/mikrodash:0.5.54`, the last release built for it. **If you are already pinned to `:0.5` you are fine and need do nothing**, since 0.6.0 does not match that tag. Do not stay on `:latest`: it now resolves to a manifest with no arm/v7 entry, so your pull will fail rather than degrade gracefully.
+>
+> 0.5.54 will not receive further updates, including security fixes. Whether a separate ARMv7 build is worth maintaining depends on how many people are actually on one, so please comment on [#44](https://github.com/SecOps-7/MikroDash/issues/44) if this affects you.
 
 To pin to a specific release:
 
