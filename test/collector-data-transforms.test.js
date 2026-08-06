@@ -879,7 +879,7 @@ test('vpn collector resolves peer name with fallback chain', async () => {
   assert.equal(t[4].name, '?');
 });
 
-test('vpn collector detects connected vs idle state', async () => {
+test('vpn collector distinguishes active, stale and never-connected peers', async () => {
   const emitted = [];
   const ros = {
     connected: true,
@@ -889,6 +889,8 @@ test('vpn collector detects connected vs idle state', async () => {
       { 'public-key': 'A', 'last-handshake': '30s', 'rx-bytes': '0', 'tx-bytes': '0' },
       { 'public-key': 'B', 'last-handshake': 'never', 'rx-bytes': '0', 'tx-bytes': '0' },
       { 'public-key': 'C', 'last-handshake': '', 'rx-bytes': '0', 'tx-bytes': '0' },
+      // Handshook once, then vanished. The old rule called this connected.
+      { 'public-key': 'D', 'last-handshake': '3d4h', 'rx-bytes': '0', 'tx-bytes': '0' },
     ],
   };
   const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
@@ -897,9 +899,10 @@ test('vpn collector detects connected vs idle state', async () => {
   await collector._loadInitial();
 
   const t = emitted[0].data.tunnels;
-  assert.equal(t[0].state, 'connected');
-  assert.equal(t[1].state, 'idle');
-  assert.equal(t[2].state, 'idle');
+  assert.equal(t[0].state, 'active');
+  assert.equal(t[1].state, 'never');
+  assert.equal(t[2].state, 'never');
+  assert.equal(t[3].state, 'stale', 'a peer last seen days ago is not active');
 });
 
 test('vpn collector calculates rates between polls and prunes stale peers', async () => {
@@ -963,7 +966,7 @@ test('vpn collector: counter stream updates last-handshake and drives live rates
 
   await collector._loadInitial();
   assert.equal(emitted.length, 1);
-  assert.equal(emitted[0].data.tunnels[0].uptime, '30s');
+  assert.equal(emitted[0].data.tunnels[0].lastHandshake, '30s');
 
   // Simulate counter record arriving 2 s later
   const origNow = Date.now;
@@ -975,7 +978,7 @@ test('vpn collector: counter stream updates last-handshake and drives live rates
 
   assert.equal(emitted.length, 2, 'counter record must emit when bytes/handshake change');
   const t = emitted[1].data.tunnels[0];
-  assert.equal(t.uptime, '5s', 'last-handshake updated by counter record');
+  assert.equal(t.lastHandshake, '5s', 'last-handshake updated by counter record');
   assert.equal(t.rx, 5000, 'rx-bytes updated');
   assert.ok(t.rxRate > 0, 'rxRate positive: ' + t.rxRate);
   assert.ok(t.txRate > 0, 'txRate positive: ' + t.txRate);
@@ -1406,6 +1409,180 @@ test('interface status collector clamps malformed throughput fields to zero', ()
   const iface = emitted[0].data.interfaces[0];
   assert.equal(iface.rxMbps, 0);
   assert.equal(iface.txMbps, 0);
+});
+
+// --- Interface Status: cumulative counters for the list view ---
+
+// _commitMeta() reaches _startMonitorStream(), which attaches 'data' and
+// 'error' listeners — so unlike the _buildAndEmit-only tests above, this
+// harness needs a stream stub that actually behaves like an emitter.
+function fakeStream() { return { on() {}, stop() {} }; }
+
+function ifStatusHarness() {
+  const emitted = [];
+  const ros = { connected: true, on() {}, stream: () => fakeStream() };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
+  return { collector, emitted, byName: () => {
+    const last = emitted[emitted.length - 1];
+    const out = {};
+    for (const i of last.data.interfaces) out[i.name] = i;
+    return out;
+  } };
+}
+
+test('interface status collector reads ethernet PHY error counters, which /interface/print omits for ether', () => {
+  // Verified against live hardware: ether rows return tx-queue-drop but none of
+  // the rx/tx error counters, so without the /interface/ethernet merge the
+  // Errors column would be empty on exactly the ports where cabling faults show.
+  const h = ifStatusHarness();
+  h.collector._ifaces.set('ether3', { name: 'ether3', type: 'ether', running: 'true', disabled: 'false',
+    'rx-byte': '184249905040', 'tx-byte': '5000', 'tx-queue-drop': '6992' });
+  h.collector._eth.set('ether3', { name: 'ether3', 'rx-fcs-error': '650', 'rx-align-error': '6', 'tx-late-collision': '0' });
+
+  h.collector._buildAndEmit();
+
+  const i = h.byName().ether3;
+  assert.equal(i.errors, 656, 'PHY counters summed');
+  assert.equal(i.drops, 6992, 'tx-queue-drop carried through');
+  assert.equal(i.rxBytes, 184249905040);
+  assert.equal(i.txBytes, 5000);
+});
+
+test('interface status collector sums driver error counters for non-ether types', () => {
+  const h = ifStatusHarness();
+  // A WireGuard peer reports rx/tx-error directly and has no PHY row.
+  h.collector._ifaces.set('WG-HOME', { name: 'WG-HOME', type: 'wg', running: 'true', disabled: 'false',
+    'rx-error': '3', 'tx-error': '30340', 'rx-drop': '1', 'tx-drop': '2', 'tx-queue-drop': '4' });
+
+  h.collector._buildAndEmit();
+
+  const i = h.byName()['WG-HOME'];
+  assert.equal(i.errors, 30343, 'rx-error + tx-error');
+  assert.equal(i.drops, 7, 'rx-drop + tx-drop + tx-queue-drop kept separate from errors');
+});
+
+test('interface status collector reports null, not zero, for counters an interface does not expose', () => {
+  // The distinction the UI depends on: "this driver does not report errors" must
+  // not render as a clean bill of health.
+  const h = ifStatusHarness();
+  h.collector._ifaces.set('ether1', { name: 'ether1', type: 'ether', running: 'true', disabled: 'false' });
+  // No _eth entry — the ethernet stream failed or the router has no ether ports.
+
+  h.collector._buildAndEmit();
+
+  const i = h.byName().ether1;
+  assert.strictEqual(i.errors, null);
+  assert.strictEqual(i.drops, null);
+  assert.strictEqual(i.rxBytes, null);
+  assert.strictEqual(i.linkDowns, null);
+  assert.notStrictEqual(i.errors, 0, 'a missing counter must never collapse to 0');
+});
+
+test('interface status collector emits counter movement since the previous metadata tick', () => {
+  const h = ifStatusHarness();
+  h.collector._ifacesNext.set('ether3', { name: 'ether3', type: 'ether', running: 'true', 'tx-queue-drop': '100' });
+  h.collector._eth.set('ether3', { name: 'ether3', 'rx-fcs-error': '650' });
+  h.collector._commitMeta();
+
+  let i = h.byName().ether3;
+  assert.strictEqual(i.errorsDelta, null, 'no baseline on the first tick, so no delta is claimed');
+
+  h.collector._ifacesNext.set('ether3', { name: 'ether3', type: 'ether', running: 'true', 'tx-queue-drop': '112' });
+  h.collector._eth.set('ether3', { name: 'ether3', 'rx-fcs-error': '656' });
+  h.collector._commitMeta();
+
+  i = h.byName().ether3;
+  assert.equal(i.errors, 656, 'lifetime total still absolute');
+  assert.equal(i.errorsDelta, 6, 'movement since the previous tick');
+  assert.equal(i.dropsDelta, 12);
+  assert.ok(i.deltaWindowMs >= 0, 'window is reported so the rate is interpretable');
+});
+
+test('interface status collector treats a counter reset as zero movement, never negative', () => {
+  // A reboot or /interface/reset-counters restarts every counter at 0. Reporting
+  // that as a large negative delta would be nonsense.
+  const h = ifStatusHarness();
+  h.collector._ifacesNext.set('ether3', { name: 'ether3', type: 'ether', 'tx-queue-drop': '9000' });
+  h.collector._eth.set('ether3', { name: 'ether3', 'rx-fcs-error': '656' });
+  h.collector._commitMeta();
+
+  h.collector._ifacesNext.set('ether3', { name: 'ether3', type: 'ether', 'tx-queue-drop': '4' });
+  h.collector._eth.set('ether3', { name: 'ether3', 'rx-fcs-error': '0' });
+  h.collector._commitMeta();
+
+  const i = h.byName().ether3;
+  assert.equal(i.errorsDelta, 0);
+  assert.equal(i.dropsDelta, 0);
+});
+
+test('interface status collector does not fabricate a delta window on an address-only commit', () => {
+  // The address and ethernet streams tick independently and also trigger
+  // _commitMeta. Differencing the interface rows against themselves would
+  // report a zero-error window that never actually elapsed.
+  const h = ifStatusHarness();
+  h.collector._ifacesNext.set('ether3', { name: 'ether3', type: 'ether', 'tx-queue-drop': '100' });
+  h.collector._commitMeta();
+  h.collector._ifacesNext.set('ether3', { name: 'ether3', type: 'ether', 'tx-queue-drop': '150' });
+  h.collector._commitMeta();
+  assert.equal(h.byName().ether3.dropsDelta, 50);
+
+  // Now a commit driven purely by the address stream — no new counter read.
+  h.collector._addrsNext.set('ether3', ['10.0.0.1/24']);
+  h.collector._commitMeta();
+
+  const i = h.byName().ether3;
+  assert.equal(i.dropsDelta, 50, 'previous delta retained rather than reset to a phantom 0');
+  assert.deepEqual(i.ips, ['10.0.0.1/24'], 'address still applied');
+});
+
+test('interface status collector drops the counter baseline on reconnect', () => {
+  // A reconnect may follow a reboot where counters restarted. Keeping the old
+  // baseline would report the drop-to-zero as activity.
+  const handlers = {};
+  const ros = { connected: true, on(ev, fn) { handlers[ev] = fn; }, stream: () => fakeStream() };
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 0 }, emit() {}, to: () => _chain };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, state: {} });
+
+  collector._ifacesNext.set('ether3', { name: 'ether3', type: 'ether', 'tx-queue-drop': '9000' });
+  collector._commitMeta();
+  assert.equal(collector._prevCounters.size, 1);
+
+  handlers.connected();
+  assert.equal(collector._prevCounters.size, 0, 'baseline cleared');
+  assert.equal(collector._deltas.size, 0);
+});
+
+test('interface status collector passes link flap count and last-up time through', () => {
+  const h = ifStatusHarness();
+  h.collector._ifaces.set('WAN1', { name: 'WAN1', type: 'ether', running: 'true', disabled: 'false',
+    'link-downs': '3', 'last-link-up-time': '2026-07-28 22:49:20' });
+
+  h.collector._buildAndEmit();
+
+  const i = h.byName().WAN1;
+  assert.strictEqual(i.linkDowns, 3, 'parsed as a number, not the raw string');
+  assert.equal(i.lastLinkUp, '2026-07-28 22:49:20');
+});
+
+test('interface status fingerprint reacts to error movement but not to byte totals', () => {
+  // Byte counters creep up even on an idle link, so including them would defeat
+  // the idle-emit suppression entirely. Errors hold steady when healthy, so any
+  // movement should push immediately.
+  const h = ifStatusHarness();
+  h.collector._ifaces.set('ether1', { name: 'ether1', type: 'ether', running: 'true', 'rx-byte': '1000', 'rx-error': '0' });
+  h.collector._buildAndEmit();
+  const afterFirst = h.emitted.length;
+
+  h.collector._ifaces.set('ether1', { name: 'ether1', type: 'ether', running: 'true', 'rx-byte': '2000', 'rx-error': '0' });
+  h.collector._buildAndEmit();
+  assert.equal(h.emitted.length, afterFirst, 'byte growth alone does not force an emit');
+
+  h.collector._ifaces.set('ether1', { name: 'ether1', type: 'ether', running: 'true', 'rx-byte': '3000', 'rx-error': '5' });
+  h.collector._buildAndEmit();
+  assert.equal(h.emitted.length, afterFirst + 1, 'an error appearing does');
 });
 
 // --- ARP Collector ---
@@ -2193,4 +2370,98 @@ test('routing collector peerState is pruned when peer disappears from sessions',
   collector._sessions.clear();
   collector._buildPeers();
   assert.ok(!collector._peerState.has('10.0.0.1'), 'peerState pruned after peer removed from sessions');
+});
+
+// --- VPN: peer liveness, PPP and IPsec (#64) ---
+
+// The bug this replaces: state was "has this peer ever handshaken", so a peer
+// that vanished days ago still counted as connected — while the UI graded the
+// same value by age and drew it red. State is now derived from age.
+test('vpn peer state is derived from handshake age, not mere existence', () => {
+  assert.equal(VpnCollector.peerState('30s'),   'active');
+  assert.equal(VpnCollector.peerState('2m59s'), 'active', 'just inside the 3 minute rekey window');
+  assert.equal(VpnCollector.peerState('3m1s'),  'stale',  'just outside it');
+  assert.equal(VpnCollector.peerState('3d4h'),  'stale',  'gone for days is not connected');
+  assert.equal(VpnCollector.peerState('never'), 'never');
+  assert.equal(VpnCollector.peerState(''),      'never');
+  // The old rule would have called every one of these connected.
+  const oldRule = (lh) => !!(lh && lh !== 'never');
+  assert.equal(oldRule('3d4h'), true, 'old rule counted a 3-day-old peer as connected');
+  assert.notEqual(VpnCollector.peerState('3d4h'), 'active');
+});
+
+test('vpn handshake age parses RouterOS duration strings', () => {
+  assert.equal(VpnCollector.handshakeAgeSec('45s'), 45);
+  assert.equal(VpnCollector.handshakeAgeSec('2m30s'), 150);
+  assert.equal(VpnCollector.handshakeAgeSec('1h5m20s'), 3920);
+  assert.equal(VpnCollector.handshakeAgeSec('3d4h'), 273600);
+  assert.equal(VpnCollector.handshakeAgeSec('never'), Infinity);
+  assert.equal(VpnCollector.handshakeAgeSec(''), Infinity);
+});
+
+test('vpn parses PPP sessions, which carry a real uptime', () => {
+  const rows = [
+    { name: 'roadwarrior', service: 'l2tp', address: '10.20.0.2', uptime: '5m12s',
+      'caller-id': '203.0.113.9', 'bytes-in': '1024', 'bytes-out': '2048' },
+    { name: 'branch', service: 'sstp', address: '10.20.0.3', uptime: '2h1m' },
+    {},                                   // sentinel row from the API
+  ];
+  const out = VpnCollector.parsePppSessions(rows);
+  assert.equal(out.length, 2, 'empty sentinel rows dropped');
+  assert.equal(out[0].type, 'PPP');
+  assert.equal(out[0].service, 'L2TP');
+  assert.equal(out[0].uptime, '5m12s', 'a genuine session uptime, unlike WireGuard');
+  assert.equal(out[0].rx, 1024);
+  assert.equal(out[0].tx, 2048);
+  assert.equal(out[1].rx, 0, 'missing counters default to zero rather than NaN');
+});
+
+test('vpn joins IPsec peers to their SA ciphers', () => {
+  const peers = [
+    { 'remote-address': '203.0.113.9', state: 'established', uptime: '10m', side: 'responder' },
+    { 'remote-address': '198.51.100.4', state: 'established', uptime: '1m' },
+  ];
+  const sas = [
+    { 'dst-address': '203.0.113.9/32', 'enc-algorithm': 'aes-256-cbc', 'auth-algorithm': 'sha256' },
+  ];
+  const out = VpnCollector.parseIpsecPeers(peers, sas);
+  assert.equal(out.length, 2);
+  assert.equal(out[0].name, '203.0.113.9');
+  assert.equal(out[0].enc, 'aes-256-cbc', 'encryption details come from the SA, not the peer');
+  assert.equal(out[0].auth, 'sha256');
+  assert.equal(out[1].enc, '', 'a peer with no matching SA degrades rather than throwing');
+  assert.deepEqual(VpnCollector.parseIpsecPeers(null, null), []);
+});
+
+test('vpn backs off polling once PPP and IPsec come back empty', async () => {
+  const calls = [];
+  const ros = { connected: true, on() {}, stream() { return { stop() {} }; },
+    async write(path) { calls.push(path); return []; } };
+  const collector = new VpnCollector({ ros, io: { to() { return { to() { return { emit() {} }; } }; } }, pollMs: 10000, state: {} });
+
+  await collector._loadOtherVpns();
+  assert.equal(collector._ppp.length, 0);
+  assert.equal(collector._ipsec.length, 0);
+  assert.ok(VpnCollector.OTHER_IDLE_MS > VpnCollector.OTHER_ACTIVE_MS,
+    'idle cadence must be slower than the active one');
+
+  // Suspend must leave no timer behind, or the idle gate is defeated.
+  collector._scheduleOtherVpns(50000);
+  assert.ok(collector._otherTimer, 'timer scheduled');
+  collector.suspend();
+  assert.equal(collector._otherTimer, null, 'suspend cancels the poll timer');
+  collector.stop();
+});
+
+test('vpn stops probing a router that has neither subsystem', async () => {
+  const ros = { connected: true, on() {}, stream() { return { stop() {} }; },
+    async write() { throw new Error('no such command or directory (ppp)'); } };
+  const collector = new VpnCollector({ ros, io: { to() { return { to() { return { emit() {} }; } }; } }, pollMs: 10000, state: {} });
+
+  await collector._loadOtherVpns();
+  assert.equal(collector._pppAvailable, false, 'latched off after "no such command"');
+  assert.equal(collector._ipsecAvailable, false);
+  collector._scheduleOtherVpns(0);
+  assert.equal(collector._otherTimer, null, 'no timer scheduled when nothing is supported');
+  collector.stop();
 });

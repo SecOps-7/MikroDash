@@ -1,15 +1,16 @@
 /**
- * Interface Status collector — all three data sources use persistent streams.
+ * Interface Status collector — all four data sources use persistent streams.
  *
  * Metadata streams (interval = metaPollMs, default 60 s):
- *   /interface/print =.proplist=name,type,running,disabled,comment,mac-address =interval=N
+ *   /interface/print =.proplist=name,type,running,disabled,comment,mac-address,<counters> =interval=N
  *   /ip/address/print =.proplist=interface,address =interval=N
+ *   /interface/ethernet/print =.proplist=name,<phy errors> =interval=N
  *
  * Rate stream (interval derived from pollMs, default 5 s):
  *   /interface/monitor-traffic =interface=<all> =.proplist=name,rx-bits-per-second,tx-bits-per-second =interval=N
  *
- * All three use ros.stream() with null callback + 'data' event to bypass
- * RStream's section-handling debounce.
+ * All use ros.stream() with null callback + 'data' event to bypass RStream's
+ * section-handling debounce.
  *
  * _emitTimer fires every pollMs — calls _buildAndEmit() so rate bars update
  * smoothly. _commitMeta() fires immediately after each metadata tick (via a
@@ -18,6 +19,54 @@
  */
 
 const { parseBps, bpsToMbps, clampPoll, stopStreamSafe } = require('./util');
+
+// Cumulative counters carried by /interface/print. Which of these a row
+// actually returns depends on the interface type, so they are read defensively
+// and a missing counter stays null rather than collapsing to 0 — "this driver
+// does not report errors" and "this interface has no errors" are different
+// claims and the UI renders them differently.
+const IF_COUNTER_PROPS = 'rx-byte,tx-byte,rx-error,tx-error,rx-drop,tx-drop,tx-queue-drop,link-downs,last-link-up-time';
+
+// Ethernet is the notable gap: ether rows return tx-queue-drop but none of the
+// rx/tx error or drop counters. The PHY-level equivalents live on
+// /interface/ethernet instead, which is why that stream exists at all.
+const ETH_ERR_FIELDS = [
+  'rx-fcs-error', 'rx-align-error', 'rx-fragment', 'rx-overflow',
+  'rx-too-short', 'rx-too-long',
+  'tx-underrun', 'tx-late-collision', 'tx-excessive-collision',
+];
+
+// Errors are link-integrity faults (corruption, collisions). Drops are
+// discards (full queue, no buffer). Both are counted, but conflating them
+// would hide the difference between a bad cable and a congested link.
+const IF_ERR_FIELDS  = ['rx-error', 'tx-error'];
+const IF_DROP_FIELDS = ['rx-drop', 'tx-drop', 'tx-queue-drop'];
+
+function num(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Sums the fields a row actually reports. Returns null only when the row
+// reports none of them, which is how an unsupported counter set stays
+// distinguishable from a genuine zero.
+function sumCounters(row, fields) {
+  let total = null;
+  for (const f of fields) {
+    const n = num(row[f]);
+    if (n === null) continue;
+    total = (total === null ? 0 : total) + n;
+  }
+  return total;
+}
+
+// A counter that went backwards means it was reset (reboot, or an explicit
+// reset-counters), not that negative errors occurred.
+function deltaOf(prev, cur) {
+  if (prev === null || prev === undefined || cur === null) return null;
+  return cur >= prev ? cur - prev : 0;
+}
 
 class InterfaceStatusCollector {
   constructor({ ros, io, pollMs, metaPollMs, state, streamMode }) {
@@ -32,13 +81,23 @@ class InterfaceStatusCollector {
 
     this._ifaces     = new Map(); // name -> committed interface row
     this._addrs      = new Map(); // interface name -> [cidr, ...]
+    this._eth        = new Map(); // ether name -> committed PHY error row
     this._ifacesNext = new Map(); // accumulator for current metadata tick
     this._addrsNext  = new Map(); // accumulator for current metadata tick
+    this._ethNext    = new Map(); // accumulator for current metadata tick
+
+    // Counter snapshot from the previous metadata commit, used to turn
+    // lifetime totals into "errors since the last tick". A lifetime count of
+    // 656 says nothing about whether the fault is ongoing; the delta does.
+    this._prevCounters = new Map(); // name -> { errors, drops, ts }
+    this._deltas       = new Map(); // name -> { errors, drops, windowMs }
 
     this._ifStream        = null;
     this._ifRestartTimer  = null;
     this._addrStream      = null;
     this._addrRestartTimer = null;
+    this._ethStream       = null;
+    this._ethRestartTimer = null;
     this._metaDebounce    = null;
 
     this._monitorStream        = null;
@@ -68,7 +127,13 @@ class InterfaceStatusCollector {
       this._stopEmitTimer();
       this._ifaces.clear();
       this._addrs.clear();
+      this._eth.clear();
       this._streamRates.clear();
+      // A reconnect may follow a router reboot, where every counter restarts
+      // from zero. Dropping the baseline costs one tick of delta and avoids
+      // reporting a spurious drop-to-zero as activity.
+      this._prevCounters.clear();
+      this._deltas.clear();
       this._lastFp = '';
       this._startMetaStreams();
       this._startEmitTimer();
@@ -111,7 +176,9 @@ class InterfaceStatusCollector {
       const now = Date.now();
       if (now - this._lastPollErrLogTs >= 60000) {
         this._lastPollErrLogTs = now;
-        console.error(this._lbl + ' monitor-traffic poll error:', msg); // codeql[js/tainted-format-string]
+        // Constant format string; label and message are arguments, so a '%' in
+        // either cannot act as a format specifier (CodeQL js/tainted-format-string).
+        console.error('%s monitor-traffic poll error: %s', this._lbl, msg);
       }
     } finally {
       this._ratesInflight = false;
@@ -140,17 +207,21 @@ class InterfaceStatusCollector {
   _startMetaStreams() {
     this._startIfStream();
     this._startAddrStream();
+    this._startEthStream();
   }
 
   _stopMetaStreams() {
     if (this._ifRestartTimer)   { clearTimeout(this._ifRestartTimer);   this._ifRestartTimer   = null; }
     if (this._addrRestartTimer) { clearTimeout(this._addrRestartTimer); this._addrRestartTimer = null; }
+    if (this._ethRestartTimer)  { clearTimeout(this._ethRestartTimer);  this._ethRestartTimer  = null; }
     if (this._ifStream)   { stopStreamSafe(this._ifStream);   this._ifStream   = null; }
     if (this._addrStream) { stopStreamSafe(this._addrStream); this._addrStream = null; }
+    if (this._ethStream)  { stopStreamSafe(this._ethStream);  this._ethStream  = null; }
     clearTimeout(this._metaDebounce);
     this._metaDebounce = null;
     this._ifacesNext   = new Map();
     this._addrsNext    = new Map();
+    this._ethNext      = new Map();
   }
 
   _restartMetaStreams() {
@@ -166,7 +237,7 @@ class InterfaceStatusCollector {
       '/interface/print',
       [
         `=interval=${intervalSec}`,
-        '=.proplist=name,type,running,disabled,comment,mac-address',
+        `=.proplist=name,type,running,disabled,comment,mac-address,${IF_COUNTER_PROPS}`,
       ],
       null
     );
@@ -223,6 +294,42 @@ class InterfaceStatusCollector {
     this._addrStream = stream;
   }
 
+  // PHY error counters for ether ports only. A router with no ethernet (CHR,
+  // a pure-wireless CAP) simply never emits here and the map stays empty,
+  // which the row builder already treats as "not reported".
+  _startEthStream() {
+    if (this._ethStream || !this.ros.connected) return;
+    const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
+    console.log(this._lbl + ' streaming /interface/ethernet/print, interval=' + intervalSec + 's');
+    const stream = this.ros.stream(
+      '/interface/ethernet/print',
+      [
+        `=interval=${intervalSec}`,
+        `=.proplist=name,${ETH_ERR_FIELDS.join(',')}`,
+      ],
+      null
+    );
+    stream.on('data', (packet) => {
+      if (!packet || !packet.name || typeof packet.name !== 'string') return;
+      this._ethNext.set(packet.name, packet);
+      this._scheduleMetaCommit();
+    });
+    stream.on('error', (err) => {
+      const msg = err && err.message ? err.message : String(err);
+      this._ethStream = null;
+      // Not fatal and not worth a reconnect loop: every other column still
+      // renders, the PHY error column just goes blank for ether ports.
+      console.error('%s /interface/ethernet/print stream error: %s', this._lbl, msg);
+      if (!this._ethRestartTimer) {
+        this._ethRestartTimer = setTimeout(() => {
+          this._ethRestartTimer = null;
+          if (this.ros.connected && !this._ethStream) this._startEthStream();
+        }, 3000);
+      }
+    });
+    this._ethStream = stream;
+  }
+
   _scheduleMetaCommit() {
     clearTimeout(this._metaDebounce);
     this._metaDebounce = setTimeout(() => this._commitMeta(), 300);
@@ -230,7 +337,12 @@ class InterfaceStatusCollector {
 
   _commitMeta() {
     this._metaDebounce = null;
-    if (this._ifacesNext.size > 0) {
+    // Deltas are only meaningful against a fresh counter read. A commit driven
+    // solely by the address or ethernet stream leaves _ifaces untouched, and
+    // differencing it against itself would report a zero-error window that
+    // never actually elapsed.
+    const ifacesTicked = this._ifacesNext.size > 0;
+    if (ifacesTicked) {
       this._ifaces     = this._ifacesNext;
       this._ifacesNext = new Map();
     }
@@ -242,8 +354,55 @@ class InterfaceStatusCollector {
     }
     this._addrsNext = new Map();
 
+    // Same reasoning as addresses: an empty tick is a timing artefact, not an
+    // ethernet-free router.
+    if (this._ethNext && this._ethNext.size > 0) {
+      this._eth = this._ethNext;
+    }
+    this._ethNext = new Map();
+
+    if (ifacesTicked) this._computeDeltas();
+
     this._startMonitorStream(); // no-op if already running with same iface set
     this._buildAndEmit();
+  }
+
+  // Total link-integrity errors for a row: the driver-level counters where the
+  // interface reports them, plus the PHY counters for ether ports, which are
+  // the only place ethernet exposes them.
+  _errorsFor(row) {
+    const base = sumCounters(row, IF_ERR_FIELDS);
+    const eth  = this._eth.get(row.name);
+    const phy  = eth ? sumCounters(eth, ETH_ERR_FIELDS) : null;
+    if (base === null && phy === null) return null;
+    return (base || 0) + (phy || 0);
+  }
+
+  _dropsFor(row) {
+    return sumCounters(row, IF_DROP_FIELDS);
+  }
+
+  _computeDeltas() {
+    const now     = Date.now();
+    const deltas  = new Map();
+    const snapshot = new Map();
+    for (const i of this._ifaces.values()) {
+      const errors = this._errorsFor(i);
+      const drops  = this._dropsFor(i);
+      const prev   = this._prevCounters.get(i.name);
+      if (prev) {
+        const dErr  = deltaOf(prev.errors, errors);
+        const dDrop = deltaOf(prev.drops, drops);
+        if (dErr !== null || dDrop !== null) {
+          deltas.set(i.name, { errors: dErr, drops: dDrop, windowMs: now - prev.ts });
+        }
+      }
+      snapshot.set(i.name, { errors, drops, ts: now });
+    }
+    // Rebuilt rather than mutated so an interface that disappears does not
+    // leave a stale delta behind for a name that later gets reused.
+    this._deltas       = deltas;
+    this._prevCounters = snapshot;
   }
 
   // ── monitor-traffic stream ────────────────────────────────────────────────
@@ -355,6 +514,7 @@ class InterfaceStatusCollector {
 
     for (const i of this._ifaces.values()) {
       const sr = this._streamRates.get(i.name) || { rxMbps: 0, txMbps: 0 };
+      const d  = this._deltas.get(i.name) || null;
       interfaces.push({
         name:     i.name     || '',
         type:     i.type     || 'ether',
@@ -365,13 +525,31 @@ class InterfaceStatusCollector {
         rxMbps:   sr.rxMbps,
         txMbps:   sr.txMbps,
         ips: this._addrs.get(i.name) || [],
+        // Cumulative counters. null means the interface does not report the
+        // counter at all, which the list view renders as a dash rather than 0.
+        rxBytes:    num(i['rx-byte']),
+        txBytes:    num(i['tx-byte']),
+        errors:     this._errorsFor(i),
+        drops:      this._dropsFor(i),
+        linkDowns:  num(i['link-downs']),
+        lastLinkUp: i['last-link-up-time'] || '',
+        // Movement over the last metadata window, null until a baseline exists.
+        errorsDelta:   d ? d.errors : null,
+        dropsDelta:    d ? d.drops : null,
+        deltaWindowMs: d ? d.windowMs : null,
       });
     }
 
+    // Byte totals are deliberately absent from the fingerprint. They creep up
+    // even on an idle link (broadcast traffic), so including them would defeat
+    // the idle-suppression this check exists for. Errors, drops and flap counts
+    // are in: they hold steady on a healthy link, so any movement is worth
+    // pushing immediately, and the 60 s heartbeat carries the totals along.
     const fp = JSON.stringify(interfaces.map(i => ({
       n: i.name, r: i.running, d: i.disabled,
       rx: +i.rxMbps.toFixed(2), tx: +i.txMbps.toFixed(2),
       ips: i.ips,
+      e: i.errors, dr: i.drops, ld: i.linkDowns,
     })));
     this.lastPayload = { ts: now, interfaces };
     if (this.io.engine.clientsCount === 0) return;

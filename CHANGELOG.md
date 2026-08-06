@@ -2,6 +2,74 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.5.54] — Interface list view, VPN sessions, and honest bandwidth reports
+
+Feature release built mostly out of open issues. The Interfaces page gains a table view that surfaces error and drop counters MikroDash has never read, VPN monitoring finally covers PPP and IPsec rather than WireGuard alone, and the Reports page stops conflating link speed with data volume.
+
+Several of the fixes below were found while building the features rather than reported. Two are worth calling out because they were confidently wrong rather than merely missing: the bandwidth report's "peak" was a peak of averages, understating a real 938 Mbps spike as roughly 4 Mbps, and a WireGuard peer that vanished days ago still counted as connected.
+
+### Added
+
+- **List view on the Interfaces page** (`src/collectors/interfaceStatus.js`, `public/index.html`, `public/app.js`). The card size control becomes a view picker — Compact, Comfortable, Large, List — and the table carries what a tile has no room for: cumulative RX/TX totals, error and drop counters, link flap count, and time since the link last came up. Every column sorts on click, types are colour-coded from the same palette the Interface Types card uses, and unknown values always sort last so a descending sort on Errors surfaces the faulty interfaces rather than burying them under the ones reporting no counter at all.
+
+  Errors and drops are kept as separate columns rather than summed, because they mean different things: errors are link integrity faults (FCS, alignment, collisions), drops are discards (full queue, no buffer). A bad cable and a congested link are not the same problem.
+
+  Lifetime counters are paired with a delta. A lifetime count of 656 says a fault happened at some point; it does not say whether it is still happening. The collector snapshots counters on each metadata tick and shows the movement since the previous one as a `+N` badge. A counter that goes backwards (reboot, or an explicit reset-counters) yields zero rather than a negative, and the baseline is dropped on reconnect so a reboot does not report a spurious spike.
+
+  A counter an interface does not report emits `null` and renders as a dimmed dash, never as `0`. A WireGuard peer showing "0 errors" would imply a health check that is not happening.
+
+  Collecting this needed a third metadata stream. Ethernet ports return `tx-queue-drop` but none of the rx/tx error counters — those live at PHY level on `/interface/ethernet` — so without it the Errors column would have been empty on exactly the ports where cabling faults show up. Roughly 4.5 KB/min extra on a 30-interface router, on the existing 60 s stream; the 1 s rate stream is untouched. Closes #56
+
+- **Interface card sizes** (`public/index.html`, `public/app.js`). Compact, Comfortable and Large, persisted to `localStorage`. Everything scales from two custom properties, so a larger card shows more of a long name rather than rearranging the layout.
+
+- **ISP view on Reports → Bandwidth Usage** (`src/db.js`, `src/index.js`, `public/app.js`). Link utilisation against the router's configured `bwDownMbps`/`bwUpMbps`, resolved server-side from the requested router so a report for router B is correct while router A is active. Deliberately **not** clamped at 100%: the live dashboard card clamps, which is exactly what hid that one test router's peak upload runs at 177% of its configured capacity. Over-capacity is flagged. Also adds a nearest-rank 95th percentile, a truncation hint when the chart shows fewer samples than the totals cover, dashed per-bucket peak lines, and an opt-in capacity reference line (off by default, because on a 1 Gbps link carrying a few Mbps it flattens the real curve onto the baseline). Closes #62
+
+- **PPP and IPsec in VPN monitoring** (`src/collectors/vpn.js`, `public/index.html`, `public/app.js`). MikroDash watched WireGuard and nothing else. `/ppp/active` is where a genuine session uptime exists, and `/ip/ipsec/active-peers` joined to `/ip/ipsec/installed-sa` is where negotiated ciphers exist, so both are now answerable. `/ppp/secret` is deliberately never queried: it holds credentials, and the active list already carries everything worth showing. Both sections stay hidden unless the router has rows, so a WireGuard-only setup looks exactly as it did. Closes #64
+
+- **Oxanium and Orbitron fonts** (`public/fonts/`, `public/css/app-fonts.css`), bringing the picker to 26 options. Latin-subset WOFF2 at weights 400/500/600/700. `public/fonts/OFL.txt` adds licence notices for every bundled family, fetched from upstream rather than retyped.
+
+### Changed
+
+- **Reports now distinguishes link speed from data volume.** The Bandwidth Usage tab was showing Mbps cards, which belong to Traffic History. Traffic History answers "how fast was the link"; Bandwidth Usage answers "how much data moved". The tabs no longer borrow each other's units.
+
+- **VPN peer `uptime` renamed to `lastHandshake`.** It never held an uptime. WireGuard is stateless, so there is no session and no uptime to report, and the misleading name is most of why the issue asked for one.
+
+- **Idle gating on the new VPN polls**, in three layers: they ride the existing page-visibility gate, a `no such command` response latches the subsystem off permanently, and a router that has the commands but no sessions backs off from 10 s to 60 s after three empty polls, resetting as soon as something appears.
+
+### Fixed
+
+- **Bandwidth report peak was a peak of averages** (`src/db.js`, `public/app.js`). SQL bucketed with `AVG()` and the browser took the maximum across buckets, so a real 938.3 Mbps spike displayed as roughly 4 Mbps on a daily view. Stat figures now come from SQL over the whole range instead of being reduced from returned rows.
+
+- **Bandwidth totals were about 4.9% high.** `rx_mb` is written as `Mbps/8`, which is decimal, but was rendered against 1024-based thresholds. ISP quotas are decimal too. Browser totals will read slightly lower than before, and the bandwidth PDF's "Peak Download/Upload" changes unit from MB/min to Mbps.
+
+- **Bandwidth totals were computed from truncated data**, under-reporting 171.8 GB (6.7%) at all-time because the rows had already been capped by `LIMIT 100000`. Fixed by the same move to SQL-side aggregation, which also retires a `Math.max.apply` stack-overflow risk on 100k-row arrays.
+
+- **A VPN peer that vanished days ago still counted as connected** (`src/collectors/vpn.js`). `state` was derived from whether a peer had *ever* handshaken. The UI already graded the same value by age and drew it red, so the badge and the connected count actively contradicted each other. State now comes from handshake age using the thresholds the badge already used: active (under 3 minutes, matching WireGuard's rekey interval), stale, never. A separate Never Connected tile was added.
+
+- **Long interface names slid underneath the tile sparkline** (`public/index.html`). The name had nowrap and ellipsis but measured against the full tile width, while the sparkline sits absolutely positioned over the top-right corner, so a name truncated at the tile edge instead of before the graph. Closes the display half of #56.
+
+- **A long interface comment made its tile taller than its neighbours**, because `.iface-type` had no nowrap and wrapped to a second line.
+
+- **Interfaces without an IP produced short rows.** The IP line was only rendered when an address existed, so a row of address-less interfaces came out a line shorter. The element is now always present with a blank placeholder, and the grid uses `grid-auto-rows:1fr`, so every tile matches the tallest and rate bars line up across the page.
+
+- **`wifi` and `wg` were missing from the interface type palette** (`public/app.js`). RouterOS reports the newer drivers under those names rather than `wlan` and `wireguard`, so on current hardware the two most common types fell through to the rotating fallback colours in the Interface Types card. Fallback colours for genuinely unknown types are now hashed from the type name rather than assigned by position, so a type keeps its colour across renders.
+
+- **`fmtBytes` had no terabyte tier**, so any counter past 1 TB rendered as a four-digit GB figure.
+
+- **README overstated the Interfaces page**, claiming the tiles showed cumulative RX/TX totals. They never had — no byte-total field existed anywhere in the codebase. Corrected, and the List view now provides them.
+
+### Security
+
+- **Two `js/tainted-format-string` alerts resolved** (`src/collectors/dhcpLeases.js`, `src/collectors/interfaceStatus.js`), both flagged high by CodeQL. Each concatenated the router label and an error message into `console`'s *first* argument, which Node treats as a format string, so a `%` in a router label could consume a later argument. Demonstrated rather than assumed: with a label of `[%s-evil][leases]` the old call swallowed the error message into the label position and the actual error vanished from the line. Both now use a constant format string with the values passed as arguments. Output for a normal label is byte-identical.
+
+  Worth knowing for anyone auditing: the `// codeql[...]` comments scattered across the collectors are not suppressing anything. 75 further sites share the same concatenation pattern and most carry that comment, yet only these two were ever flagged, so CodeQL is finding them by dataflow and ignoring the comments. The remaining sites are mitigated in practice because the label is stripped of `%` at its source in `src/routeros/client.js`. A mechanical sweep would remove the class entirely.
+
+### Notes
+
+- **The PPP and IPsec paths are unverified against live data.** The development fleet is WireGuard-exclusive, so those tables are empty here. The transforms are covered by unit tests with synthetic rows and the frontend was verified by injecting a synthetic payload, but nothing has exercised them against a real L2TP session or IPsec SA. Reports welcome.
+
+- Test suite is at 311, up from 283 at 0.5.53.
+
 ## [0.5.53] — Socket.IO parser security patch
 
 Single-fix release, published so the patch below reaches a tagged image. It landed on `main` shortly after v0.5.52 was tagged, so the `0.5.52` image does not contain it. Upgrade if you are running `0.5.52` or earlier.

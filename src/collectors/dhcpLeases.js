@@ -122,7 +122,13 @@ class DhcpLeasesCollector {
         this.serverMeta.set(s.name, { iface, vlanId: vlanById.get(iface) || '' });
       }
     } catch (e) {
-      console.warn(this._lbl + ' server/VLAN map unavailable:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
+      // Constant format string, with the router label and error passed as
+      // arguments. Concatenating them into the first argument put attacker
+      // influenced text in the format-string position (CodeQL
+      // js/tainted-format-string), so a '%' in a router label could consume a
+      // later argument. The label is already stripped of '%' at its source in
+      // routeros/client.js; not depending on that is cheaper than depending on it.
+      console.warn('%s server/VLAN map unavailable: %s', this._lbl, e && e.message ? e.message : e);
     }
   }
 

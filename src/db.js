@@ -197,6 +197,78 @@ function _aggBucket(agg) {
   return null;
 }
 
+// Nearest-rank percentile for one column over a range. SQLite has no percentile
+// function; ORDER BY + OFFSET is exact and needs no extra index — the existing
+// (router_id, interface, ts) index narrows the range and the sort runs over that
+// subset only. `table` and `col` are literals supplied by this module, never by a
+// caller, so they cannot carry injection.
+function _percentileCol(table, col, routerId, iface, fromTs, toTs, n, pct) {
+  if (!n || n < 1) return null;
+  let off = Math.ceil((n * pct) / 100) - 1;
+  if (off < 0)     off = 0;
+  if (off > n - 1) off = n - 1;
+  const row = _prep(`
+    SELECT ${col} AS v FROM ${table}
+    WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
+    ORDER  BY ${col} ASC LIMIT 1 OFFSET ?
+  `).get(routerId, iface, fromTs, toTs, off);
+  return row ? row.v : null;
+}
+
+// Rate summary for one interface over a range, computed entirely in SQL.
+//
+// This exists because the report stat cards used to be reduced from whatever
+// rows the API returned, which made them wrong two ways at once: aggregated rows
+// are averages, so the max across them is a peak of averages rather than a real
+// peak, and the row queries are capped by LIMIT so totals silently truncated on
+// long ranges. Computing here is correct regardless of the aggregation setting
+// and regardless of how many rows are shipped.
+function queryTrafficSummary(routerId, iface, fromTs, toTs, pct) {
+  const empty = { samples: 0, rxAvgMbps: null, txAvgMbps: null, rxMaxMbps: null,
+                  txMaxMbps: null, rxP95Mbps: null, txP95Mbps: null };
+  if (!_db) return empty;
+  const from = fromTs || 0;
+  const to   = toTs   || Date.now();
+  const p    = Math.min(99, Math.max(1, Number(pct) || 95));
+  const r = _prep(`
+    SELECT COUNT(*)     AS n,
+           AVG(rx_mbps) AS rx_avg, AVG(tx_mbps) AS tx_avg,
+           MAX(rx_mbps) AS rx_max, MAX(tx_mbps) AS tx_max
+    FROM   traffic_samples
+    WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
+  `).get(routerId, iface, from, to);
+  if (!r || !r.n) return empty;
+  return {
+    samples:   r.n,
+    rxAvgMbps: r.rx_avg,
+    txAvgMbps: r.tx_avg,
+    rxMaxMbps: r.rx_max,
+    txMaxMbps: r.tx_max,
+    rxP95Mbps: _percentileCol('traffic_samples', 'rx_mbps', routerId, iface, from, to, r.n, p),
+    txP95Mbps: _percentileCol('traffic_samples', 'tx_mbps', routerId, iface, from, to, r.n, p),
+  };
+}
+
+// Volume summary for one interface over a range. Kept on bandwidth_usage rather
+// than derived from traffic_samples: the two are the same measurement at
+// different scalings but are not reliably interconvertible, because a bandwidth
+// bucket is only written when the minute actually moved bytes and a minute may
+// carry fewer than 60 samples.
+function queryBandwidthSummary(routerId, iface, fromTs, toTs) {
+  const empty = { samples: 0, rxTotalMb: 0, txTotalMb: 0, rxMaxMb: null, txMaxMb: null };
+  if (!_db) return empty;
+  const r = _prep(`
+    SELECT COUNT(*)   AS n,
+           SUM(rx_mb) AS rx_sum, SUM(tx_mb) AS tx_sum,
+           MAX(rx_mb) AS rx_max, MAX(tx_mb) AS tx_max
+    FROM   bandwidth_usage
+    WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
+  `).get(routerId, iface, fromTs || 0, toTs || Date.now());
+  if (!r || !r.n) return empty;
+  return { samples: r.n, rxTotalMb: r.rx_sum || 0, txTotalMb: r.tx_sum || 0,
+           rxMaxMb: r.rx_max, txMaxMb: r.tx_max };
+}
+
 function queryPingSamples(routerId, fromTs, toTs, limit) {
   if (!_db) return [];
   return _prep(`
@@ -260,6 +332,8 @@ function queryTrafficSamplesAgg(routerId, iface, fromTs, toTs, agg) {
            interface,
            AVG(rx_mbps) AS rx_mbps,
            AVG(tx_mbps) AS tx_mbps,
+           MAX(rx_mbps) AS rx_max_mbps,
+           MAX(tx_mbps) AS tx_max_mbps,
            COUNT(*) AS sample_count
     FROM   traffic_samples
     WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
@@ -277,6 +351,8 @@ function queryBandwidthSamplesAgg(routerId, iface, fromTs, toTs, agg) {
            interface,
            SUM(rx_mb) AS rx_mb,
            SUM(tx_mb) AS tx_mb,
+           MAX(rx_mb) AS rx_max_mb,
+           MAX(tx_mb) AS tx_max_mb,
            COUNT(*) AS sample_count
     FROM   bandwidth_usage
     WHERE  router_id = ? AND interface = ? AND ts >= ? AND ts <= ?
@@ -492,6 +568,7 @@ module.exports = {
   queryPingSamples, queryPingSamplesAgg,
   queryTrafficSamples, queryTrafficSamplesAgg, queryTrafficInterfaces,
   queryBandwidthSamples, queryBandwidthSamplesAgg, queryBandwidthInterfaces,
+  queryTrafficSummary, queryBandwidthSummary,
   queryAlertEvents, queryConnectivityEvents, queryConnectivityEventsAgg,
   prune, startPruneInterval, deleteRouterData,
   purge, countPurge, vacuum, stats, PURGE_TYPES,

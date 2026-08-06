@@ -39,6 +39,19 @@ class VpnCollector {
     this._counterRestarting   = false;
     this._counterRestartTimer = null;
     this._emitDebounce        = null;
+
+    // Non-WireGuard tunnels. These are polled, not streamed — none of the paths
+    // supports /listen — so they are gated three ways: only while someone is
+    // viewing (suspend/resume), latched off entirely when the router does not
+    // have the subsystem, and backed off to a slow cadence once the tables have
+    // come back empty a few times running. A WireGuard-only router therefore
+    // settles at one cheap probe a minute and stops as soon as the page closes.
+    this._ppp            = [];
+    this._ipsec          = [];
+    this._otherTimer     = null;
+    this._otherEmpties   = 0;
+    this._pppAvailable   = true;   // false once the router says "no such command"
+    this._ipsecAvailable = true;
   }
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -50,12 +63,34 @@ class VpnCollector {
     return p['public-key'] ? p['public-key'].slice(0, 16) + '…' : '?';
   }
 
+  // WireGuard re-keys roughly every 2 minutes while a peer is actually passing
+  // traffic, so handshake *age* is the only real liveness signal. The previous
+  // rule was "has this peer ever handshaken", which counted a peer that
+  // disappeared days ago as connected, and contradicted the UI, which already
+  // graded the same value by age and drew it red. Thresholds match that badge.
+  static peerState(lastHandshake) {
+    if (!lastHandshake || lastHandshake === 'never') return 'never';
+    return VpnCollector.handshakeAgeSec(lastHandshake) < 180 ? 'active' : 'stale';
+  }
+
+  // Parse a RouterOS duration ("2m30s", "1h5m20s", "3d4h") to seconds.
+  static handshakeAgeSec(s) {
+    if (!s || s === 'never') return Infinity;
+    let total = 0, m;
+    if ((m = s.match(/(\d+)w/))) total += parseInt(m[1], 10) * 604800;
+    if ((m = s.match(/(\d+)d/))) total += parseInt(m[1], 10) * 86400;
+    if ((m = s.match(/(\d+)h/))) total += parseInt(m[1], 10) * 3600;
+    if ((m = s.match(/(\d+)m/))) total += parseInt(m[1], 10) * 60;
+    if ((m = s.match(/(\d+)s/))) total += parseInt(m[1], 10);
+    return total;
+  }
+
   _buildTunnels() {
     const now = Date.now();
     const tunnels = [];
     for (const p of this._peers.values()) {
       const lh        = p['last-handshake'] || '';
-      const connected = lh && lh !== 'never';
+      const state     = VpnCollector.peerState(lh);
       const name      = this._peerName(p);
       const rxBytes   = parseInt(p['rx'] ?? p['rx-bytes'] ?? '0', 10);
       const txBytes   = parseInt(p['tx'] ?? p['tx-bytes'] ?? '0', 10);
@@ -78,9 +113,12 @@ class VpnCollector {
         this._prev.set(key, { rx: rxBytes, tx: txBytes, ts: now });
       }
       tunnels.push({
-        type: 'WireGuard', name,
-        state: connected ? 'connected' : 'idle',
-        uptime: lh,
+        type: 'WireGuard', name, state,
+        // Named for what it actually is. WireGuard is stateless — there is no
+        // session and therefore no uptime; this field has always held the time
+        // since the last handshake, and calling it uptime made it read as one.
+        lastHandshake: lh,
+        keepalive:  p['persistent-keepalive'] || '',
         endpoint:   p['endpoint-address'] || p['current-endpoint-address'] || '',
         allowedIp:  p['allowed-address'] || '',
         interface:  p.interface || '',
@@ -100,11 +138,18 @@ class VpnCollector {
     // when throughput transitions to/from zero without forcing every identical
     // idle tick to emit. uptime (last-handshake) is excluded: it changes every
     // ~3 min even with zero traffic, causing spurious emits.
-    const fp = JSON.stringify(tunnels.map(t => ({
-      name: t.name, state: t.state, rx: t.rx, tx: t.tx,
-      rxRate: +t.rxRate.toFixed(2), txRate: +t.txRate.toFixed(2),
-    })));
-    const payload = { ts: Date.now(), tunnels, pollMs: 0 };
+    const fp = JSON.stringify({
+      w: tunnels.map(t => ({
+        name: t.name, state: t.state, rx: t.rx, tx: t.tx,
+        rxRate: +t.rxRate.toFixed(2), txRate: +t.txRate.toFixed(2),
+      })),
+      // Included so a PPP session coming or going actually reaches the browser.
+      // Uptime is excluded for the same reason last-handshake is: it ticks
+      // constantly and would defeat the suppression.
+      p: this._ppp.map(s => ({ n: s.name, s: s.service, a: s.address, rx: s.rx, tx: s.tx })),
+      i: this._ipsec.map(s => ({ n: s.name, st: s.state, e: s.enc, a: s.auth })),
+    });
+    const payload = { ts: Date.now(), tunnels, ppp: this._ppp, ipsec: this._ipsec, pollMs: 0 };
     this.lastPayload = payload;
     this.state.lastVpnTs  = Date.now();
     this.state.lastVpnErr = null;
@@ -208,6 +253,108 @@ class VpnCollector {
     }
   }
 
+  // ── other VPN types ───────────────────────────────────────────────────────
+  // WireGuard was the only protocol MikroDash watched. PPP-based tunnels
+  // (L2TP, PPTP, SSTP, OpenVPN) and IPsec are where the rest of #64 actually
+  // lives: /ppp/active carries a genuine session uptime, which WireGuard has no
+  // concept of, and the IPsec SAs carry the negotiated ciphers, which WireGuard
+  // does not negotiate.
+  //
+  // /ppp/secret is deliberately NOT read — it holds credentials, and the active
+  // session list already has everything worth displaying.
+
+  static parsePppSessions(rows) {
+    return (rows || []).filter(r => r && r.name).map(r => ({
+      type:     'PPP',
+      name:     r.name,
+      service:  (r.service || '').toUpperCase(),   // l2tp | pptp | sstp | ovpn | pppoe
+      address:  r.address || '',
+      callerId: r['caller-id'] || '',
+      uptime:   r.uptime || '',                    // a real session uptime
+      rx:       parseInt(r['bytes-in']  || '0', 10),
+      tx:       parseInt(r['bytes-out'] || '0', 10),
+    }));
+  }
+
+  // Active peers carry the session; installed SAs carry the ciphers. Joined on
+  // the peer address so each row can state what it actually negotiated.
+  static parseIpsecPeers(peers, sas) {
+    const byAddr = new Map();
+    for (const sa of (sas || [])) {
+      const addr = (sa['dst-address'] || '').split('/')[0];
+      if (addr && !byAddr.has(addr)) byAddr.set(addr, sa);
+    }
+    return (peers || []).filter(p => p && (p['remote-address'] || p.id)).map(p => {
+      const addr = (p['remote-address'] || '').split('/')[0];
+      const sa   = byAddr.get(addr) || {};
+      return {
+        type:    'IPsec',
+        name:    addr || '(peer)',
+        state:   p.state || '',
+        uptime:  p.uptime || '',
+        side:    p.side || '',
+        enc:     sa['enc-algorithm']  || '',
+        auth:    sa['auth-algorithm'] || '',
+      };
+    });
+  }
+
+  // Polled rather than streamed: these tables change only when a tunnel comes
+  // up or down, and none of the paths supports /listen. Absent subsystems are
+  // latched off after the first "no such command" so an unsupported router is
+  // not re-probed on every cycle.
+  async _loadOtherVpns() {
+    const tryRead = async (path, flag) => {
+      if (this[flag] === false) return [];
+      try {
+        const rows = await this.ros.write(path, []);
+        return (rows || []).filter(r => r && Object.keys(r).length);
+      } catch (e) {
+        const msg = String((e && e.message) || e).toLowerCase();
+        if (msg.includes('no such') || msg.includes('unknown command')) this[flag] = false;
+        return [];
+      }
+    };
+    const [ppp, peers, sas] = await Promise.all([
+      tryRead('/ppp/active/print',            '_pppAvailable'),
+      tryRead('/ip/ipsec/active-peers/print', '_ipsecAvailable'),
+      tryRead('/ip/ipsec/installed-sa/print', '_ipsecAvailable'),
+    ]);
+    this._ppp   = VpnCollector.parsePppSessions(ppp);
+    this._ipsec = VpnCollector.parseIpsecPeers(peers, sas);
+  }
+
+  // Poll cadence for the non-WireGuard tables. Fast while something is up, slow
+  // once they have been empty a few times running.
+  static get OTHER_ACTIVE_MS() { return 10000; }
+  static get OTHER_IDLE_MS()   { return 60000; }
+  static get OTHER_EMPTY_LIMIT() { return 3; }
+
+  _scheduleOtherVpns(delayMs) {
+    if (this._otherTimer) { clearTimeout(this._otherTimer); this._otherTimer = null; }
+    // Router has neither subsystem — stop entirely rather than probing forever.
+    if (this._pppAvailable === false && this._ipsecAvailable === false) return;
+    this._otherTimer = setTimeout(async () => {
+      this._otherTimer = null;
+      if (!this.ros.connected) return;
+      const hadAny = this._ppp.length + this._ipsec.length;
+      await this._loadOtherVpns();
+      const hasAny = this._ppp.length + this._ipsec.length;
+      if (hasAny) this._otherEmpties = 0;
+      else        this._otherEmpties++;
+      // Only emit when something actually changed state, so an idle router does
+      // not push an identical payload every minute.
+      if (hasAny || hadAny) this._emit();
+      this._scheduleOtherVpns(this._otherEmpties >= VpnCollector.OTHER_EMPTY_LIMIT
+        ? VpnCollector.OTHER_IDLE_MS : VpnCollector.OTHER_ACTIVE_MS);
+    }, delayMs);
+    if (this._otherTimer.unref) this._otherTimer.unref();
+  }
+
+  _stopOtherVpns() {
+    if (this._otherTimer) { clearTimeout(this._otherTimer); this._otherTimer = null; }
+  }
+
   // ── structural stream ─────────────────────────────────────────────────────
 
   _startStream() {
@@ -280,6 +427,7 @@ class VpnCollector {
       this._stopStream();
       this._stopHeartbeat();
       this._stopCounterStream();
+      this._stopOtherVpns();
     });
     this.ros.on('connected', async () => {
       this._stopStream();
@@ -294,14 +442,21 @@ class VpnCollector {
     });
   }
 
-  suspend() { this._stopCounterStream(); }
+  // The PPP/IPsec poll rides the same page-visibility gate as the counter
+  // stream: nobody looking at the VPN page means no polling at all.
+  suspend() { this._stopCounterStream(); this._stopOtherVpns(); }
 
-  resume()  { this._startCounterStream(); }
+  resume()  {
+    this._startCounterStream();
+    this._otherEmpties = 0;                 // re-probe promptly on reopen
+    this._scheduleOtherVpns(0);
+  }
 
   stop() {
     this._stopStream();
     this._stopHeartbeat();
     this._stopCounterStream();
+    this._stopOtherVpns();
   }
 }
 
