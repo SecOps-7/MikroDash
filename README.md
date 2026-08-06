@@ -137,7 +137,9 @@ Pull and run the pre-built image directly — no need to clone the repo or creat
 docker pull ghcr.io/secops-7/mikrodash:latest
 ```
 
-Images are published by GitHub Actions on version tags only, so `latest` always tracks the most recent release rather than unreleased work on `main`. (Pushes to `main` still build all three architectures as a check, they just are not published.) Each release is a multi-arch manifest covering `linux/amd64`, `linux/arm64`, and `linux/arm/v7`. Docker will automatically pull the correct layer for your platform — this includes Raspberry Pi 4/5, MikroTik's own R5S/RB5009 companion boards, Apple M-series machines running Linux containers, and ARMv7 devices such as MikroTik routers running RouterOS containers.
+Images are published by GitHub Actions on version tags only, so `latest` always tracks the most recent release rather than unreleased work on `main`. (Pushes to `main` still build both architectures as a check, they just are not published.) Each release is a multi-arch manifest covering `linux/amd64` and `linux/arm64`. Docker will automatically pull the correct layer for your platform — this includes Raspberry Pi 4/5, MikroTik's own R5S/RB5009 companion boards, and Apple M-series machines running Linux containers.
+
+> **ARMv7 (32-bit ARM) is no longer built, from the first release after 0.5.54.** MikroDash moved to a Node 24 base image, and Node 24 dropped 32-bit ARM upstream, so `node:24-alpine` publishes no `linux/arm/v7` variant. If you run MikroDash on ARMv7 hardware — a RouterOS container on a 32-bit device, or an older Raspberry Pi — pin to `ghcr.io/secops-7/mikrodash:0.5.54`, the last release built for it. It will not receive further updates. If this affects you, please open an issue: whether it is worth maintaining a separate ARMv7 build depends on how many people are actually on one.
 
 To pin to a specific release:
 
@@ -178,7 +180,7 @@ docker compose up -d
 To build a multi-arch image locally (requires Docker Buildx):
 
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t mikrodash:local --load .
+docker buildx build --platform linux/amd64,linux/arm64 -t mikrodash:local --load .
 ```
 
 - Dashboard: `http://localhost:3081`
