@@ -312,29 +312,88 @@
     .if-port-item[data-state="dis"]  .if-port-svg .port-body{fill:rgba(99,130,190,.07);stroke:rgba(99,130,190,.2)}
     .if-port-item[data-state="dis"]  .if-port-svg .port-led {fill:rgba(99,130,190,.3)}
     .if-port-item[data-state="dis"]  .if-port-label{color:var(--text-muted)}
-    .iface-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:.55rem}
-    .iface-tile{padding:.6rem .7rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s,background .2s}
+    /* Tile sizing is driven by two custom properties so the card size control
+       scales every element together: --if-w sets the grid track, --if-scale
+       multiplies each type size and the sparkline. --if-spark-w is the
+       sparkline's intrinsic width (see ifaceSparkSvg), reserved on the name so
+       a long name ellipsises *before* the graph rather than sliding under it. */
+    /* grid-auto-rows:1fr makes every row the same height as the tallest, so a
+       row of interfaces without IP addresses is no shorter than one with them.
+       Tiles stretch to fill their row by default. */
+    .iface-grid{--if-w:175px;--if-scale:1;--if-spark-w:56px;
+                display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--if-w),1fr));
+                grid-auto-rows:1fr;gap:.55rem}
+    .iface-grid[data-size="md"]{--if-w:230px;--if-scale:1.18}
+    .iface-grid[data-size="lg"]{--if-w:300px;--if-scale:1.42}
+    .iface-tile{padding:.6rem .7rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:calc(.7rem * var(--if-scale));transition:border-color .2s,background .2s}
     .iface-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
     .iface-tile.down{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.03);opacity:.6}
     .iface-tile.disabled{opacity:.35}
-    .iface-name{font-weight:600;font-size:.77rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.1rem}
-    .iface-type{font-size:.62rem;color:var(--text-muted)}
-    .iface-ip{font-size:.65rem;color:var(--accent-rx);margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    /* padding-right keeps the name clear of the absolutely positioned sparkline */
+    .iface-name{font-weight:600;font-size:calc(.77rem * var(--if-scale));color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.1rem;
+                padding-right:calc(var(--if-spark-w) * var(--if-scale) + .35rem)}
+    /* nowrap matters here too: a long comment used to wrap and make the tile
+       taller than its neighbours in the same row */
+    .iface-type{font-size:calc(.62rem * var(--if-scale));color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .iface-ip{font-size:calc(.65rem * var(--if-scale));color:var(--accent-rx);margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .iface-rates{margin-top:.35rem;display:flex;flex-direction:column;gap:.18rem}
-    .iface-rate-row{display:flex;align-items:center;gap:.3rem;font-size:.63rem}
+    .iface-rate-row{display:flex;align-items:center;gap:.3rem;font-size:calc(.63rem * var(--if-scale))}
     .iface-rate-label{width:.7rem;text-align:right;opacity:.55;flex-shrink:0}
     .iface-rate-bar-wrap{flex:1;height:3px;border-radius:2px;background:rgba(99,130,190,.1);overflow:hidden;min-width:0}
     .iface-rate-bar{height:100%;border-radius:2px;transition:width .6s ease;min-width:0}
     .iface-rate-bar.rx{background:var(--accent-rx)}
     .iface-rate-bar.tx{background:var(--accent-tx)}
-    .iface-rate-val{width:5.8rem;text-align:right;flex-shrink:0;white-space:nowrap;font-size:.61rem}
+    .iface-rate-val{width:calc(5.8rem * var(--if-scale));text-align:right;flex-shrink:0;white-space:nowrap;font-size:calc(.61rem * var(--if-scale))}
     .iface-rate-val.rx{color:var(--accent-rx)}
     .iface-rate-val.tx{color:var(--accent-tx)}
     .iface-rate-val.zero{color:var(--text-muted)}
     .iface-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle}
     .iface-dot.up{background:var(--accent-ok)} .iface-dot.down{background:var(--accent-err)} .iface-dot.dis{background:var(--text-muted)}
     .iface-tile{position:relative}
-    .iface-spark{position:absolute;top:.35rem;right:.4rem;pointer-events:none;opacity:.75}
+    .iface-spark{position:absolute;top:.35rem;right:.4rem;pointer-events:none;opacity:.75;
+                 width:calc(var(--if-spark-w) * var(--if-scale));height:calc(18px * var(--if-scale))}
+    /* ── Interfaces: list view ─────────────────────────────────── */
+    /* Wide table, so it scrolls inside its own container rather than pushing
+       the page sideways. */
+    /* .iface-grid sets display:grid, which outranks the user-agent [hidden]
+       rule, so the attribute needs an explicit counterpart to take effect. */
+    .iface-grid[hidden],.iface-list-wrap[hidden]{display:none}
+    .iface-list-wrap{overflow-x:auto}
+    .iface-list{font-family:var(--font-mono);font-size:.7rem;margin-bottom:0;white-space:nowrap}
+    .iface-list th{font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.3rem .5rem}
+    .iface-list td{padding:.28rem .5rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle}
+    .iface-list tbody tr:hover{background:rgba(99,130,190,.06)}
+    .iface-list tr.down td{opacity:.6}
+    .iface-list tr.disabled td{opacity:.38}
+    .iface-list th[data-sort]{cursor:pointer;user-select:none}
+    .iface-list th[data-sort]:hover{color:var(--text-main)}
+    .iface-list th.sort-asc::after{content:' \2191'}
+    .iface-list th.sort-desc::after{content:' \2193'}
+    .ifl-num{text-align:right;font-variant-numeric:tabular-nums}
+    /* Colour is carried inline, from the same palette the Interface Types card
+       uses, so a type reads the same in both places. */
+    .ifl-type-pill{display:inline-block;padding:.03rem .32rem;border-radius:3px;font-size:.6rem;font-weight:600;letter-spacing:.02em}
+    /* Scoped to `.iface-list td` on purpose. Tabler sets a colour on every cell
+       via `.table>:not(caption)>*>*`, which outranks a bare class, so an
+       unscoped `.ifl-rx` was being overridden and the rate columns rendered in
+       the default text colour instead of matching the tile cards. Spans nested
+       inside a cell are unaffected, which is why the rules below this one do
+       not need the same treatment. */
+    .iface-list td.ifl-name{font-weight:600;color:var(--text-main);max-width:16rem;overflow:hidden;text-overflow:ellipsis}
+    .iface-list td.ifl-type{color:var(--text-muted);font-size:.65rem}
+    .iface-list td.ifl-ip{color:var(--accent-rx);max-width:12rem;overflow:hidden;text-overflow:ellipsis}
+    /* Same variables the tile cards use for live rates, so the two views match */
+    .iface-list td.ifl-rx{color:var(--accent-rx)} .iface-list td.ifl-tx{color:var(--accent-tx)}
+    .iface-list td.ifl-zero{color:var(--text-muted)}
+    /* A counter the interface does not report at all. Distinct from a zero so
+       an unsupported counter never reads as a clean bill of health. */
+    .ifl-na{color:var(--text-muted);opacity:.4}
+    .ifl-bad{color:var(--accent-err)}
+    /* Movement since the previous poll — the part that says a fault is live
+       rather than historical. */
+    .ifl-delta{margin-left:.3rem;font-size:.6rem;padding:0 .25rem;border-radius:3px;
+               background:rgba(248,113,113,.16);color:var(--accent-err)}
+    @media (max-width:1400px){ .iface-list{font-size:.66rem} }
     /* ── Router modal & management ─────────────────────────────── */
     .rtr-modal-bg{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
     .rtr-modal-bg.open{display:flex}
@@ -565,7 +624,7 @@
       #uptimeChip{display:none !important}
       .topbar-mobile-hide{display:none !important}
       #navRouterWrap{display:flex}
-      .iface-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+      .iface-grid{--if-w:160px}
       .page-view{padding:.65rem .6rem}
     }
     /* Dashboard grid */
@@ -755,6 +814,7 @@
     .vpn-summary-row{display:flex;gap:.6rem;margin-bottom:.85rem;flex-wrap:wrap}
     .vpn-stat-tile{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.65rem .9rem;display:flex;flex-direction:column;gap:.1rem;min-width:110px;flex:1}
     .vpn-stat-label{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.2rem;white-space:nowrap}
+    .vpn-proto-pill{display:inline-block;font-family:var(--font-mono);font-size:.64rem;padding:.1rem .4rem;border-radius:4px;background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25)}
     .vpn-stat-value{font-size:1.5rem;font-weight:700;font-family:var(--font-mono);line-height:1;color:var(--text-main)}
     .vpn-stat-value.connected{color:rgba(74,222,128,.9)}
     .vpn-stat-value.idle{color:var(--text-muted)}
@@ -1985,11 +2045,15 @@
           <span class="vpn-stat-value" id="vpnStatTotal">—</span>
         </div>
         <div class="vpn-stat-tile">
-          <span class="vpn-stat-label">Connected</span>
+          <span class="vpn-stat-label">Active</span>
           <span class="vpn-stat-value connected" id="vpnStatConn">—</span>
         </div>
+        <div class="vpn-stat-tile" title="Handshook before, but not within the last 3 minutes">
+          <span class="vpn-stat-label">Stale</span>
+          <span class="vpn-stat-value idle" id="vpnStatStale">—</span>
+        </div>
         <div class="vpn-stat-tile">
-          <span class="vpn-stat-label">Idle</span>
+          <span class="vpn-stat-label">Never Connected</span>
           <span class="vpn-stat-value idle" id="vpnStatIdle">—</span>
         </div>
         <div class="vpn-stat-tile">
@@ -2004,6 +2068,33 @@
         <div class="card-body" style="padding:.65rem .75rem">
           <div class="vpn-tile-grid" id="vpnPageGrid">
             <div class="empty-state">No peers configured</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PPP sessions (L2TP / PPTP / SSTP / OpenVPN). Hidden unless the router
+           actually has sessions, so a WireGuard-only setup is unchanged. -->
+      <div class="card" id="vpnPppCard" style="display:none">
+        <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">PPP Sessions</h3><span id="vpnPppCount" class="card-badge">0</span></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-vcenter mb-0">
+              <thead><tr><th>User</th><th>Service</th><th>Address</th><th>Caller ID</th><th>Uptime</th><th style="text-align:right">RX / TX</th></tr></thead>
+              <tbody id="vpnPppTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- IPsec peers, joined to their installed SAs for the negotiated ciphers. -->
+      <div class="card" id="vpnIpsecCard" style="display:none">
+        <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">IPsec Peers</h3><span id="vpnIpsecCount" class="card-badge">0</span></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-vcenter mb-0">
+              <thead><tr><th>Peer</th><th>State</th><th>Side</th><th>Uptime</th><th>Encryption</th><th>Authentication</th></tr></thead>
+              <tbody id="vpnIpsecTbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -2068,9 +2159,33 @@
           <select id="ifaceTypeFilter" class="conn-src-filter ms-auto" title="Filter by type" style="min-width:120px">
             <option value="">All Types</option>
           </select>
+          <select id="ifaceCardSize" class="conn-src-filter" title="View &#8212; larger cards show longer names in full; List adds counters and error columns" style="min-width:120px">
+            <option value="sm">Compact</option>
+            <option value="md">Comfortable</option>
+            <option value="lg">Large</option>
+            <option value="list">List</option>
+          </select>
         </div>
         <div class="card-body" style="padding:.65rem .75rem">
           <div class="iface-grid" id="ifaceGrid"><div class="empty-state">Waiting&#8230;</div></div>
+          <div class="iface-list-wrap" id="ifaceListWrap" hidden>
+            <table class="table table-sm iface-list">
+              <thead><tr>
+                <th data-sort="name">Interface</th>
+                <th data-sort="type">Type</th>
+                <th data-sort="ip">IP</th>
+                <th class="ifl-num" data-sort="rxMbps">RX</th>
+                <th class="ifl-num" data-sort="txMbps">TX</th>
+                <th class="ifl-num" data-sort="rxBytes" title="Total received since the counter was last reset">Total RX</th>
+                <th class="ifl-num" data-sort="txBytes" title="Total sent since the counter was last reset">Total TX</th>
+                <th class="ifl-num" data-sort="errors" title="Link integrity faults: CRC/FCS, alignment, collisions. A rising count means a cable or duplex problem">Errors</th>
+                <th class="ifl-num" data-sort="drops" title="Packets discarded rather than corrupted: full queue, no buffer. A rising count means congestion">Drops</th>
+                <th class="ifl-num" data-sort="linkDowns" title="Times the link has gone down since the counter was last reset">Flaps</th>
+                <th data-sort="lastLinkUp" title="When the link last came up">Last Up</th>
+              </tr></thead>
+              <tbody id="ifaceListBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2259,6 +2374,10 @@
         <div class="rpt-iface-row">
           <span class="rpt-iface-label">Interface:</span>
           <select id="rptTrafficIface" class="rpt-select"></select>
+          <label style="display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--text-muted);cursor:pointer;margin-left:.6rem">
+            <input type="checkbox" id="rptShowCapacity" style="accent-color:var(--accent-rx);cursor:pointer">
+            Show link capacity
+          </label>
         </div>
         <div class="rpt-export-row">
           <a id="rptTrafficCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
@@ -2275,8 +2394,9 @@
       <!-- ── Bandwidth Usage tab ──────────────────────────────────────── -->
       <div id="rtab-bandwidth" class="rtab-panel">
         <div class="rpt-stat-row" id="rptBwStats"></div>
+        <div id="rptBwTruncHint" style="display:none;font-size:.7rem;color:var(--text-muted);margin:-.4rem 0 .6rem"></div>
         <div class="rpt-chart-wrap">
-          <div class="rpt-chart-title">Download / Upload (MB/min)</div>
+          <div class="rpt-chart-title" id="rptBwChartTitle">Download / Upload (MB/min)</div>
           <canvas id="rptBandwidthChart" style="width:100%;height:140px"></canvas>
         </div>
         <div class="rpt-iface-row">
@@ -3037,6 +3157,8 @@
               <option value="quicksand">Quicksand</option>
               <option value="comfortaa">Comfortaa</option>
               <option value="ibm-plex-sans">IBM Plex Sans</option>
+              <option value="oxanium">Oxanium</option>
+              <option value="orbitron">Orbitron</option>
             </select>
             <label class="sform-label" style="margin-top:.25rem">Font Size</label>
             <select id="appearanceFontSize" class="sform-input">

@@ -1868,6 +1868,25 @@ function _toPdf(title, columns, rows, res, meta) {
 // queries default to a 100k row limit, so reduce instead of spreading.
 const _maxOf = (arr) => arr.reduce((m, v) => (v > m ? v : m), -Infinity);
 
+// Format a stored bandwidth_usage MB value for display. Decimal thresholds are
+// deliberate: rx_mb is written as Mbps/8, i.e. 10^6-based, so rendering it
+// against 1024-based thresholds overstated every total by ~4.9%. Decimal is
+// also the right convention here — ISP quotas are quoted decimal.
+// A volume peak is per bucket, so the label has to say which bucket. Without an
+// aggregation the stored granularity is one minute.
+function _bucketNoun(agg) {
+  return agg === 'hour' ? 'Hour' : agg === 'day' ? 'Day'
+       : agg === 'week' ? 'Week' : agg === 'month' ? 'Month' : 'Minute';
+}
+
+function _fmtDataMB(mb) {
+  const n = +mb || 0;
+  if (n >= 1e6)  return (n / 1e6).toFixed(2) + ' TB';
+  if (n >= 1000) return (n / 1000).toFixed(2) + ' GB';
+  if (n >= 1)    return n.toFixed(1) + ' MB';
+  return (n * 1000).toFixed(0) + ' KB';
+}
+
 // Pair each Offline row with the next Online row to compute outage duration.
 // Single backward pass (rows are ts-ASC); null downtime = still offline.
 function _annotateDowntime(rows) {
@@ -1953,6 +1972,35 @@ app.get('/api/reports/ping/export', _requireAdmin, _scopeRouterId, (req, res) =>
 });
 
 // GET /api/reports/traffic
+// Per-interface report summary: rate stats (peak, mean, 95th percentile) from
+// traffic_samples, volume stats (totals) from bandwidth_usage, and the link
+// utilisation those rates represent.
+//
+// Capacity is resolved here from the *requested* routerId rather than in the
+// browser from whichever router happens to be active, so a report for router B
+// viewed while router A is selected still uses B's line speed. _scopeRouterId
+// has already authorised this id, and only the two capacity integers are read
+// off the record.
+//
+// Utilisation is deliberately NOT clamped to 100. The live dashboard card does
+// clamp, which is what hides a misconfigured capacity — a link reporting 151%
+// is telling you the configured figure is wrong, and that is worth seeing.
+function _ifaceSummary(routerId, iface, from, to) {
+  const t = db.queryTrafficSummary(routerId, iface, from, to, 95);
+  const b = db.queryBandwidthSummary(routerId, iface, from, to);
+  const r = Routers.getById(routerId);
+  const capDown = Math.max(1, parseInt(r && r.bwDownMbps, 10) || 1000);
+  const capUp   = Math.max(1, parseInt(r && r.bwUpMbps,   10) || 1000);
+  const pct = (v, cap) => (v == null ? null : +((v / cap) * 100).toFixed(1));
+  return {
+    ...t, ...b,
+    capacityDownMbps: capDown,
+    capacityUpMbps:   capUp,
+    rxPeakPct: pct(t.rxMaxMbps, capDown), txPeakPct: pct(t.txMaxMbps, capUp),
+    rxP95Pct:  pct(t.rxP95Mbps, capDown), txP95Pct:  pct(t.txP95Mbps, capUp),
+  };
+}
+
 app.get('/api/reports/traffic', _requireAdmin, _scopeRouterId, (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
@@ -1961,7 +2009,7 @@ app.get('/api/reports/traffic', _requireAdmin, _scopeRouterId, (req, res) => {
     const rows = aggregate
       ? db.queryTrafficSamplesAgg(routerId, iface, from, to, aggregate)
       : db.queryTrafficSamples(routerId, iface, from, to);
-    return res.json({ ok: true, rows });
+    return res.json({ ok: true, rows, summary: _ifaceSummary(routerId, iface, from, to) });
   }
   res.json({ ok: true, interfaces: db.queryTrafficInterfaces(routerId) });
 });
@@ -1979,12 +2027,15 @@ app.get('/api/reports/traffic/export', _requireAdmin, _scopeRouterId, (req, res)
   const cols  = ['ts', 'interface', 'rx_mbps', 'tx_mbps'];
   const label = rows.map(r => ({ ...r, ts: _tsFmt(r.ts), rx_mbps: +r.rx_mbps.toFixed(1), tx_mbps: +r.tx_mbps.toFixed(1) }));
   if (fmt === 'pdf') {
-    const rxs   = rows.map(r => r.rx_mbps);
-    const txs   = rows.map(r => r.tx_mbps);
-    const avgRx = rxs.length ? (rxs.reduce((a,b)=>a+b,0)/rxs.length).toFixed(1) : '—';
-    const avgTx = txs.length ? (txs.reduce((a,b)=>a+b,0)/txs.length).toFixed(1) : '—';
-    const peakRx= rxs.length ? _maxOf(rxs).toFixed(1) : '—';
-    const peakTx= txs.length ? _maxOf(txs).toFixed(1) : '—';
+    // Shared summary rather than reducing `rows`: those are averages once an
+    // aggregation is selected, so a max over them is a peak of averages, and
+    // they are capped by the query LIMIT.
+    const s     = _ifaceSummary(routerId, iface, from, to);
+    const n1    = (v) => (v == null ? '—' : v.toFixed(1));
+    const avgRx = n1(s.rxAvgMbps);
+    const avgTx = n1(s.txAvgMbps);
+    const peakRx= n1(s.rxMaxMbps);
+    const peakTx= n1(s.txMaxMbps);
     const step  = rows.length > 150 ? Math.ceil(rows.length / 150) : 1;
     const sub   = rows.filter((_,i)=>i%step===0);
     const rtr   = Routers.getById(routerId);
@@ -1992,11 +2043,15 @@ app.get('/api/reports/traffic/export', _requireAdmin, _scopeRouterId, (req, res)
       label.map(r => ({ Timestamp: r.ts, Interface: r.interface, 'RX (Mbps)': r.rx_mbps, 'TX (Mbps)': r.tx_mbps })), res, {
         router: rtr ? (rtr.label || rtr.host) : routerId, from, to,
         stats: [
-          { label: 'Peak RX', value: peakRx !== '—' ? peakRx+' Mbps' : '—' },
-          { label: 'Peak TX', value: peakTx !== '—' ? peakTx+' Mbps' : '—' },
-          { label: 'Avg RX',  value: avgRx  !== '—' ? avgRx +' Mbps' : '—' },
-          { label: 'Avg TX',  value: avgTx  !== '—' ? avgTx +' Mbps' : '—' },
-          { label: 'Samples', value: rows.length.toLocaleString() },
+          { label: 'Peak RX',   value: peakRx !== '—' ? peakRx+' Mbps' : '—' },
+          { label: 'Peak TX',   value: peakTx !== '—' ? peakTx+' Mbps' : '—' },
+          { label: 'Avg RX',    value: avgRx  !== '—' ? avgRx +' Mbps' : '—' },
+          { label: 'Avg TX',    value: avgTx  !== '—' ? avgTx +' Mbps' : '—' },
+          { label: '95th RX',   value: n1(s.rxP95Mbps) !== '—' ? n1(s.rxP95Mbps)+' Mbps' : '—' },
+          // Utilisation against the router's configured line capacity, not
+          // clamped at 100 — over-capacity is the signal worth seeing.
+          { label: 'Peak Util', value: s.rxPeakPct == null ? '—'
+                                  : Math.round(s.rxPeakPct)+'% / '+Math.round(s.txPeakPct)+'%' },
         ],
         chartData: { yLabel: 'Mbps', lines: [
           { label: 'RX Mbps', color: '#38bdf8', pts: sub.map(r=>({ x:r.ts, y:r.rx_mbps })) },
@@ -2018,7 +2073,7 @@ app.get('/api/reports/bandwidth', _requireAdmin, _scopeRouterId, (req, res) => {
     const rows = aggregate
       ? db.queryBandwidthSamplesAgg(routerId, iface, from, to, aggregate)
       : db.queryBandwidthSamples(routerId, iface, from, to);
-    return res.json({ ok: true, rows });
+    return res.json({ ok: true, rows, summary: _ifaceSummary(routerId, iface, from, to) });
   }
   res.json({ ok: true, interfaces: db.queryBandwidthInterfaces(routerId) });
 });
@@ -2036,24 +2091,26 @@ app.get('/api/reports/bandwidth/export', _requireAdmin, _scopeRouterId, (req, re
   const cols  = ['ts', 'interface', 'rx_mb', 'tx_mb'];
   const label = rows.map(r => ({ ...r, ts: _tsFmt(r.ts), rx_mb: +r.rx_mb.toFixed(1), tx_mb: +r.tx_mb.toFixed(1) }));
   if (fmt === 'pdf') {
-    const rxs    = rows.map(r => r.rx_mb);
-    const txs    = rows.map(r => r.tx_mb);
-    const totalRx= rxs.reduce((a,b)=>a+b,0).toFixed(1);
-    const totalTx= txs.reduce((a,b)=>a+b,0).toFixed(1);
-    const peakRx = rxs.length ? _maxOf(rxs).toFixed(1) : '—';
-    const peakTx = txs.length ? _maxOf(txs).toFixed(1) : '—';
+    // Same summary the on-screen cards use, so the two cannot disagree. Totals
+    // come from SQL over the whole range rather than from `rows`, which is
+    // capped by the query LIMIT. Volume only here — rates belong to the traffic
+    // report, so that the two reports stay about different things.
+    const s      = _ifaceSummary(routerId, iface, from, to);
     const step   = rows.length > 150 ? Math.ceil(rows.length / 150) : 1;
     const sub    = rows.filter((_,i)=>i%step===0);
     const rtr    = Routers.getById(routerId);
     return _toPdf('Bandwidth Usage Report', ['Timestamp', 'Interface', 'Download (MB)', 'Upload (MB)'],
       label.map(r => ({ Timestamp: r.ts, Interface: r.interface, 'Download (MB)': r.rx_mb, 'Upload (MB)': r.tx_mb })), res, {
         router: rtr ? (rtr.label || rtr.host) : routerId, from, to,
+        // Six boxes maximum — _toPdf renders them with lineBreak:false, so a
+        // seventh starts truncating values rather than wrapping.
         stats: [
-          { label: 'Total Download', value: totalRx+' MB' },
-          { label: 'Total Upload',   value: totalTx+' MB' },
-          { label: 'Peak Download',  value: peakRx !== '—' ? peakRx+' MB' : '—' },
-          { label: 'Peak Upload',    value: peakTx !== '—' ? peakTx+' MB' : '—' },
-          { label: 'Samples',        value: rows.length.toLocaleString() },
+          { label: 'Total Download', value: _fmtDataMB(s.rxTotalMb) },
+          { label: 'Total Upload',   value: _fmtDataMB(s.txTotalMb) },
+          { label: 'Total',          value: _fmtDataMB((s.rxTotalMb || 0) + (s.txTotalMb || 0)) },
+          { label: 'Busiest ' + _bucketNoun(aggregate) + ' ↓', value: s.rxMaxMb == null ? '—' : _fmtDataMB(s.rxMaxMb) },
+          { label: 'Busiest ' + _bucketNoun(aggregate) + ' ↑', value: s.txMaxMb == null ? '—' : _fmtDataMB(s.txMaxMb) },
+          { label: aggregate ? 'Buckets' : 'Samples', value: s.samples.toLocaleString() },
         ],
         chartData: { yLabel: 'MB/min', lines: [
           { label: 'Download MB', color: '#38bdf8', pts: sub.map(r=>({ x:r.ts, y:r.rx_mb })) },

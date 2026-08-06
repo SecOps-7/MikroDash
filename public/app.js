@@ -62,7 +62,16 @@ if (sessionStorage.getItem('justLoggedIn')) {
 var DOT = '\u00b7';
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
 function fmtMbps(v){var n=+v||0;if(n>=1000)return(n/1000).toFixed(2)+' Gbps';if(n>=1)return n.toFixed(2)+' Mbps';return(n*1000).toFixed(1)+' Kbps';}
-function fmtBytes(b){if(b>=1073741824)return(b/1073741824).toFixed(1)+' GB';if(b>=1048576)return(b/1048576).toFixed(1)+' MB';if(b>=1024)return(b/1024).toFixed(1)+' KB';return b+' B';}
+// TB tier added for interface lifetime counters, which pass 1 TB on any
+// long-running WAN port and would otherwise render as a four-digit GB figure.
+function fmtBytes(b){if(b>=1099511627776)return(b/1099511627776).toFixed(2)+' TB';if(b>=1073741824)return(b/1073741824).toFixed(1)+' GB';if(b>=1048576)return(b/1048576).toFixed(1)+' MB';if(b>=1024)return(b/1024).toFixed(1)+' KB';return b+' B';}
+// Format a stored bandwidth_usage MB value. Decimal thresholds, unlike fmtBytes:
+// rx_mb is written as Mbps/8, i.e. 10^6-based, so rendering it against 1024-based
+// thresholds overstated every reported total by ~4.9%. ISP quotas are decimal too.
+function fmtDataMB(mb){var n=+mb||0;if(n>=1e6)return(n/1e6).toFixed(2)+' TB';if(n>=1000)return(n/1000).toFixed(2)+' GB';if(n>=1)return n.toFixed(1)+' MB';return(n*1000).toFixed(0)+' KB';}
+// Math.max.apply spreads the array as arguments and blows the call stack past
+// ~65k entries; report queries can return 100k rows. Mirrors _maxOf server-side.
+function maxOf(a){var m=-Infinity;for(var i=0;i<a.length;i++){var v=+a[i];if(v>m)m=v;}return m===-Infinity?0:m;}
 // Parse RouterOS duration string (e.g. "2h10m5s", "30s", "1d2h") to seconds. Returns Infinity for empty/never.
 function parseDurationSec(s){if(!s||s==='never')return Infinity;var m=0;var r=/(\d+)([wdhms])/g,x;while((x=r.exec(s))!==null){var n=parseInt(x[1],10);if(x[2]==='w')m+=n*604800;else if(x[2]==='d')m+=n*86400;else if(x[2]==='h')m+=n*3600;else if(x[2]==='m')m+=n*60;else m+=n;}return m||Infinity;}
 function signalBars(dbm){var bars=dbm>=-55?4:dbm>=-65?3:dbm>=-75?2:dbm>-85?1:0;var h='<span class="signal-bars">';for(var i=1;i<=4;i++)h+='<span'+(i<=bars?' class="lit"':'')+'>&#8203;</span>';return h+'</span>';}
@@ -189,6 +198,8 @@ var FONTS = [
   { id: 'quicksand',     family: "'Quicksand',sans-serif" },
   { id: 'comfortaa',     family: "'Comfortaa',sans-serif" },
   { id: 'ibm-plex-sans', family: "'IBM Plex Sans',sans-serif" },
+  { id: 'oxanium',       family: "'Oxanium',sans-serif" },
+  { id: 'orbitron',      family: "'Orbitron',sans-serif" },
 ];
 
 var FONT_SIZES = [
@@ -873,6 +884,10 @@ socket.on('talkers:update',function(data){
 
 // ── Interface Status ───────────────────────────────────────────────────────
 var _ifaceTypeFilter = '';
+// Last payload, kept so switching view or type filter can re-render the list
+// immediately instead of waiting for the next poll.
+var _lastIfaces = [];
+var _ifaceView = 'sm';
 var _ifacePeaks   = {};
 // Per-interface ring buffer of combined rx+tx Mbps samples for sparkline.
 // 30 samples at ~5 s poll interval = ~2.5 min of trend history.
@@ -906,14 +921,174 @@ function ifaceRateRow(name, dir, mbps, peak) {
     '</div>';
 }
 
+// ── Interfaces: list view ──────────────────────────────────────────────────
+// A counter of null means the interface does not report it. Rendering that as
+// "0" would claim a clean bill of health the router never gave us, so it shows
+// a dash instead.
+function iflCounter(v, delta) {
+  if (v === null || v === undefined) return '<span class="ifl-na" title="Not reported by this interface type">&mdash;</span>';
+  var cls  = v > 0 ? 'ifl-bad' : 'ifl-zero';
+  var body = '<span class="' + cls + '">' + v.toLocaleString() + '</span>';
+  // Only movement since the last poll gets the badge. A lifetime count says a
+  // fault happened at some point; the delta says it is happening now.
+  if (delta > 0) body += '<span class="ifl-delta" title="' + delta.toLocaleString() + ' since the last poll">+' + delta.toLocaleString() + '</span>';
+  return body;
+}
+
+function iflBytes(v) {
+  if (v === null || v === undefined) return '<span class="ifl-na">&mdash;</span>';
+  return fmtBytes(v);
+}
+
+// RouterOS reports link-up time in the router's local timezone with no offset,
+// so a browser in a different zone would skew the age. A timestamp that parses
+// into the future is that skew showing, and the raw string is shown instead of
+// a nonsensical negative age.
+function iflLastUp(s) {
+  if (!s) return '<span class="ifl-na">&mdash;</span>';
+  var t = Date.parse(s.replace(' ', 'T'));
+  if (!isFinite(t)) return '<span title="' + esc(s) + '">' + esc(s) + '</span>';
+  var sec = (Date.now() - t) / 1000;
+  if (sec < 0) return '<span title="' + esc(s) + '">' + esc(s) + '</span>';
+  var out = sec < 60 ? Math.floor(sec) + 's'
+          : sec < 3600 ? Math.floor(sec / 60) + 'm'
+          : sec < 86400 ? Math.floor(sec / 3600) + 'h'
+          : Math.floor(sec / 86400) + 'd';
+  return '<span title="' + esc(s) + '">' + out + '</span>';
+}
+
+// Sortable columns. `str` marks the ones compared as text; everything else is
+// numeric, including Last Up, which sorts on parsed time rather than the string.
+var IFL_COLS = {
+  name:       { str: true, get: function(i){ return i.name || ''; } },
+  type:       { str: true, get: function(i){ return i.type || ''; } },
+  ip:         { str: true, get: function(i){ return i.ips && i.ips.length ? i.ips[0] : ''; } },
+  rxMbps:     { get: function(i){ return i.rxMbps || 0; } },
+  txMbps:     { get: function(i){ return i.txMbps || 0; } },
+  rxBytes:    { get: function(i){ return i.rxBytes; } },
+  txBytes:    { get: function(i){ return i.txBytes; } },
+  errors:     { get: function(i){ return i.errors; } },
+  drops:      { get: function(i){ return i.drops; } },
+  linkDowns:  { get: function(i){ return i.linkDowns; } },
+  lastLinkUp: { get: function(i){ var t = Date.parse(String(i.lastLinkUp || '').replace(' ', 'T')); return isFinite(t) ? t : null; } },
+};
+// No sort until a header is clicked, so the default order stays the router's
+// own, matching the tile view.
+var _iflSort  = { key: '', dir: 1 };
+var _iflOrder = '';
+
+function iflSortRows(rows) {
+  var col = IFL_COLS[_iflSort.key];
+  if (!col) return rows;
+  var dir = _iflSort.dir;
+  return rows.slice().sort(function(a, b) {
+    var av = col.get(a), bv = col.get(b);
+    // Unknown values sort last in both directions. Sorting Errors descending
+    // should surface the worst interfaces, not bury them under the ones that
+    // report no counter at all.
+    var an = av === null || av === undefined || av === '';
+    var bn = bv === null || bv === undefined || bv === '';
+    if (an && bn) return 0;
+    if (an) return 1;
+    if (bn) return -1;
+    // numeric collation so ether10 sorts after ether2, not before it
+    if (col.str) return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' }) * dir;
+    return (av - bv) * dir;
+  });
+}
+
+function iflRefreshHeaders() {
+  var head = document.querySelectorAll('.iface-list th[data-sort]');
+  if (!head) return;
+  head.forEach(function(th) {
+    th.className = th.className.replace(/\s*sort-(asc|desc)/g, '');
+    if (th.dataset.sort === _iflSort.key) th.className += (_iflSort.dir === 1 ? ' sort-asc' : ' sort-desc');
+  });
+}
+
+function iflSetSort(key) {
+  if (!IFL_COLS[key]) return;
+  if (_iflSort.key === key) { _iflSort.dir *= -1; }
+  // Text starts ascending (A first); counters start descending, since the
+  // reason to sort by Errors is to see the worst offender.
+  else { _iflSort.key = key; _iflSort.dir = IFL_COLS[key].str ? 1 : -1; }
+  iflRefreshHeaders();
+  renderIfaceList(_lastIfaces);
+}
+
+function renderIfaceList(ifaces) {
+  var tbody = $('ifaceListBody');
+  if (!tbody) return;
+  var rows = ifaces.filter(function(i){ return !_ifaceTypeFilter || i.type === _ifaceTypeFilter; });
+  rows = iflSortRows(rows);
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No interfaces</td></tr>'; _iflOrder = ''; return; }
+
+  var existing = {};
+  tbody.querySelectorAll('tr[data-iface]').forEach(function(el){ existing[el.dataset.iface] = el; });
+  if (!Object.keys(existing).length) tbody.innerHTML = '';
+
+  var seen = {}, els = [];
+  rows.forEach(function(i) {
+    seen[i.name] = true;
+    var cls = i.disabled ? 'disabled' : i.running ? 'up' : 'down';
+    var ipStr = i.ips && i.ips.length ? i.ips.join(', ') : '';
+    // Rebuild a row only when something it displays actually changed. Most
+    // interfaces are idle, so a full innerHTML sweep every second would churn
+    // the DOM, break text selection and flicker on hover for no reason.
+    var fp = [cls, ipStr, i.rxMbps, i.txMbps, i.rxBytes, i.txBytes,
+              i.errors, i.drops, i.errorsDelta, i.dropsDelta, i.linkDowns, i.lastLinkUp].join('|');
+    var tr = existing[i.name];
+    // Collected in sorted order either way — an unchanged row still needs its
+    // position known so the reorder pass below can place it.
+    if (tr && tr.dataset.fp === fp) { els.push(tr); return; }
+    if (!tr) {
+      tr = document.createElement('tr');
+      tr.dataset.iface = i.name;
+      tbody.appendChild(tr);
+    }
+    els.push(tr);
+    tr.className = cls;
+    tr.dataset.fp = fp;
+    var dotCls = i.disabled ? 'dis' : i.running ? 'up' : 'down';
+    tr.innerHTML =
+      '<td class="ifl-name" title="' + esc(i.name + (i.comment ? ' · ' + i.comment : '')) + '">' +
+        '<span class="iface-dot ' + dotCls + '"></span>' + esc(i.name) + '</td>' +
+      '<td class="ifl-type">' + ifTypePill(i.type) + '</td>' +
+      '<td class="ifl-ip" title="' + esc(ipStr) + '">' + (ipStr ? esc(ipStr) : '<span class="ifl-na">&mdash;</span>') + '</td>' +
+      '<td class="ifl-num ' + (i.rxMbps ? 'ifl-rx' : 'ifl-zero') + '">' + fmtMbps(i.rxMbps || 0) + '</td>' +
+      '<td class="ifl-num ' + (i.txMbps ? 'ifl-tx' : 'ifl-zero') + '">' + fmtMbps(i.txMbps || 0) + '</td>' +
+      '<td class="ifl-num">' + iflBytes(i.rxBytes) + '</td>' +
+      '<td class="ifl-num">' + iflBytes(i.txBytes) + '</td>' +
+      '<td class="ifl-num">' + iflCounter(i.errors, i.errorsDelta) + '</td>' +
+      '<td class="ifl-num">' + iflCounter(i.drops, i.dropsDelta) + '</td>' +
+      '<td class="ifl-num">' + iflCounter(i.linkDowns, null) + '</td>' +
+      '<td>' + iflLastUp(i.lastLinkUp) + '</td>';
+  });
+
+  Object.keys(existing).forEach(function(name){ if (!seen[name]) existing[name].remove(); });
+
+  // Rows are reused in place, so DOM order does not follow the sorted array on
+  // its own. Re-append only when the order actually changed: appendChild moves
+  // an existing node, and doing that every tick would drop text selection for
+  // no reason. With no sort applied the order is constant, so this never runs.
+  var orderKey = rows.map(function(i){ return i.name; }).join('|');
+  if (orderKey !== _iflOrder) {
+    _iflOrder = orderKey;
+    els.forEach(function(tr){ tbody.appendChild(tr); });
+  }
+}
+
 socket.on('ifstatus:update',function(data){
   var ifaces=data.interfaces||[];
+  _lastIfaces = ifaces;
   _rebuildIfaceSelect(ifaces.filter(function(i){return i.running&&!i.disabled;}).map(function(i){return i.name;}));
   var nb=$('ifacesNavBadge');if(nb){nb.textContent=ifaces.length||'';}
   if(ifaceCount){ifaceCount.textContent=ifaces.length;ifaceCount.className='card-badge'+(ifaces.length>0?' active-blue':'');}
   var wiredUp=ifaces.filter(function(i){return i.running&&!i.disabled&&i.type==='ether';});
   var ndWired=$('ndWiredCount');if(ndWired)ndWired.textContent=wiredUp.length;
-  if(!ifaces.length){if(ifaceGrid)ifaceGrid.innerHTML='<div class="empty-state">No interfaces</div>';return;}
+  // The grid is hidden in list view, so its empty state is not enough — the
+  // table would keep showing the previous poll's rows.
+  if(!ifaces.length){if(ifaceGrid)ifaceGrid.innerHTML='<div class="empty-state">No interfaces</div>';if(_ifaceView==='list')renderIfaceList([]);return;}
   if(!ifaceGrid)return;
 
   ifaces.forEach(function(i) {
@@ -956,9 +1131,15 @@ socket.on('ifstatus:update',function(data){
       div.dataset.ifaceType = i.type || '';
       div.innerHTML =
         ifaceSparkSvg(_ifaceHistory[i.name]||[]) +
-        '<div class="iface-name"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
-        '<div class="iface-type">'+esc(i.type)+(i.comment?' \u00b7 '+esc(i.comment):'')+'</div>'+
-        (ipStr?'<div class="iface-ip">'+esc(ipStr)+'</div>':'')+
+        // title carries the full text, so a name the CSS had to truncate is
+        // still readable on hover. #56 asked for full names; this gives them
+        // without letting a long one change the tile's size.
+        '<div class="iface-name" title="'+esc(i.name)+'"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
+        '<div class="iface-type" title="'+esc(i.type+(i.comment?' \u00b7 '+i.comment:''))+'">'+esc(i.type)+(i.comment?' \u00b7 '+esc(i.comment):'')+'</div>'+
+        // Always rendered, with a blank placeholder when the interface has no
+        // address. Omitting it made those tiles one line shorter, so their rate
+        // bars sat higher than their neighbours' and whole rows came up short.
+        '<div class="iface-ip">'+(ipStr?esc(ipStr):' ')+'</div>'+
         '<div class="iface-rates">'+
           ifaceRateRow(i.name,'rx',i.rxMbps||0,p.rx)+
           ifaceRateRow(i.name,'tx',i.txMbps||0,p.tx)+
@@ -982,15 +1163,17 @@ socket.on('ifstatus:update',function(data){
       var dot = tile.querySelector('.iface-dot');
       if (dot) dot.className = 'iface-dot ' + dotCls;
 
-      // IP address (changes rarely)
+      // IP address (changes rarely). The element is never removed — losing a
+      // line would make the tile shorter than its neighbours — so an interface
+      // without an address keeps a blank placeholder in its place.
       var ipEl = tile.querySelector('.iface-ip');
-      if (ipStr) {
-        if (ipEl) { if (ipEl.textContent !== ipStr) ipEl.textContent = ipStr; }
-        else {
-          var typeEl = tile.querySelector('.iface-type');
-          if (typeEl) typeEl.insertAdjacentHTML('afterend','<div class="iface-ip">'+esc(ipStr)+'</div>');
-        }
-      } else if (ipEl) { ipEl.remove(); }
+      var ipText = ipStr || ' ';
+      if (ipEl) {
+        if (ipEl.textContent !== ipText) ipEl.textContent = ipText;
+      } else {
+        var typeEl = tile.querySelector('.iface-type');
+        if (typeEl) typeEl.insertAdjacentHTML('afterend','<div class="iface-ip">'+esc(ipText)+'</div>');
+      }
 
       // Rate bars + values (changes on every poll)
       var ratesEl = tile.querySelector('.iface-rates');
@@ -1028,9 +1211,52 @@ socket.on('ifstatus:update',function(data){
     ifaceCount.className = 'card-badge' + (total > 0 ? ' active-blue' : '');
   }
 
+  if (_ifaceView === 'list') renderIfaceList(ifaces);
+
   renderIfTypes(ifaces);
   renderIfPorts(ifaces);
 });
+
+// ── Interface view ─────────────────────────────────────────────────────────
+// The three card sizes are purely a CSS switch: the grid carries data-size, and
+// the tile stylesheet derives the track width, every type size and the
+// sparkline from it, so all elements scale together. Larger cards leave more
+// room before a long name has to be truncated at all.
+// 'list' is the one option that swaps the container rather than rescaling it,
+// trading the sparkline for the counter and error columns a table can fit.
+(function(){
+  var IFACE_SIZE_KEY = 'mikrodash_iface_size';
+  var sel  = $('ifaceCardSize');
+  var wrap = $('ifaceListWrap');
+  function apply(size) {
+    _ifaceView = size;
+    var isList = size === 'list';
+    if (ifaceGrid) {
+      ifaceGrid.hidden = isList;
+      // Keep the last real size on the grid so returning from list view
+      // restores the card scale rather than defaulting back to compact.
+      if (!isList) ifaceGrid.dataset.size = size;
+    }
+    if (wrap) wrap.hidden = !isList;
+    if (sel) sel.value = size;
+    if (isList) renderIfaceList(_lastIfaces);
+  }
+  var saved = 'sm';
+  try { saved = localStorage.getItem(IFACE_SIZE_KEY) || 'sm'; } catch (e) {}
+  apply(saved);
+  if (sel) sel.addEventListener('change', function() {
+    apply(sel.value);
+    try { localStorage.setItem(IFACE_SIZE_KEY, sel.value); } catch (e) {}
+  });
+
+  // Delegated so it survives the tbody being rebuilt; the headers themselves
+  // are static, but one listener is cheaper than eleven.
+  var head = document.querySelector('.iface-list thead');
+  if (head) head.addEventListener('click', function(e) {
+    var th = e.target.closest ? e.target.closest('th[data-sort]') : null;
+    if (th) iflSetSort(th.dataset.sort);
+  });
+}());
 
 // ── Interface type filter ──────────────────────────────────────────────────
 if (ifaceTypeFilter) {
@@ -1047,6 +1273,9 @@ if (ifaceTypeFilter) {
     if (ifaceCount) {
       ifaceCount.textContent = _ifaceTypeFilter ? (visible + '/' + total) : total;
     }
+    // The list view filters its own rows rather than hiding tiles, so it needs
+    // an explicit re-render — the tile visibility sweep above does not reach it.
+    if (_ifaceView === 'list') renderIfaceList(_lastIfaces);
   });
 }
 
@@ -1055,15 +1284,38 @@ if (ifaceTypeFilter) {
 var IF_TYPE_COLOURS = {
   ether:      'rgba(56,189,248,.9)',
   wlan:       'rgba(167,139,250,.9)',
+  // RouterOS reports the newer drivers as 'wifi' and 'wg', not 'wlan' and
+  // 'wireguard'. Without these two, the most common types on current hardware
+  // fell through to the rotating fallback palette.
+  wifi:       'rgba(167,139,250,.9)',
   bridge:     'rgba(52,211,153,.9)',
   vlan:       'rgba(251,191,36,.9)',
   wireguard:  'rgba(99,190,130,.9)',
+  wg:         'rgba(99,190,130,.9)',
   'pppoe-client':'rgba(251,113,133,.9)',
   lte:        'rgba(245,159,0,.9)',
   loopback:   'rgba(99,130,190,.6)',
 };
 var IF_TYPE_FALLBACKS = ['rgba(56,189,248,.7)','rgba(167,139,250,.7)','rgba(52,211,153,.7)',
   'rgba(251,191,36,.7)','rgba(251,113,133,.7)','rgba(245,159,0,.7)'];
+
+// Stable colour for a type name. The Interface Types card assigns fallbacks by
+// position within a single render, which is fine for a legend but would make a
+// list-view pill change colour whenever an interface appears or disappears.
+// Hashing the name instead keeps a type the same colour across every render.
+function ifTypeColour(t) {
+  if (IF_TYPE_COLOURS[t]) return IF_TYPE_COLOURS[t];
+  var h = 0;
+  for (var i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+  return IF_TYPE_FALLBACKS[h % IF_TYPE_FALLBACKS.length];
+}
+// The palette is rgba, so the pill background is the same colour at low alpha.
+function ifTypePill(t) {
+  if (!t) return '<span class="ifl-na">&mdash;</span>';
+  var col = ifTypeColour(t);
+  var bg  = col.replace(/,\s*[\d.]+\)$/, ',.14)');
+  return '<span class="ifl-type-pill" style="color:' + col + ';background:' + bg + '">' + esc(t) + '</span>';
+}
 
 function renderIfTypes(ifaces) {
   var panel = $('ifTypeGrid'); if (!panel) return;
@@ -1333,15 +1585,16 @@ function vpnHsBadge(uptime, connected) {
 socket.on('vpn:update',function(data){
   var allTunnels = data.tunnels || [];
   var wgPeers   = allTunnels.filter(function(t){ return t.type === 'WireGuard'; });
-  var connected = wgPeers.filter(function(t){ return t.state === 'connected'; });
-  var idle      = wgPeers.filter(function(t){ return t.state !== 'connected'; });
+  var connected = wgPeers.filter(function(t){ return t.state === 'active'; });
+  var stale     = wgPeers.filter(function(t){ return t.state === 'stale'; });
+  var idle      = wgPeers.filter(function(t){ return t.state !== 'active'; });
 
   // ── Dashboard nav badges ──────────────────────────────────────────────────
   if (vpnPageCount) { vpnPageCount.textContent = wgPeers.length; vpnPageCount.className = 'card-badge' + (wgPeers.length > 0 ? ' active-blue' : ''); }
   var nb = $('vpnNavBadge'); if (nb) nb.textContent = connected.length;
 
   // ── Dashboard mini card ───────────────────────────────────────────────────
-  connected.sort(function(a,b){ return parseDurationSec(a.uptime) - parseDurationSec(b.uptime); });
+  connected.sort(function(a,b){ return parseDurationSec(a.lastHandshake) - parseDurationSec(b.lastHandshake); });
   if (!connected.length) {
     vpnTable.innerHTML = '<tr><td colspan="3" class="empty-state">No active peers</td></tr>';
   } else {
@@ -1350,7 +1603,7 @@ socket.on('vpn:update',function(data){
       return '<tr>' +
         '<td><span class="wg-up">Up</span></td>' +
         '<td><div style="font-size:.78rem;font-weight:600">' + esc(t.name || t.interface || '\u2014') + '</div>' + endStr + '</td>' +
-        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(t.uptime || '\u2014') + '</td>' +
+        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(t.lastHandshake || '\u2014') + '</td>' +
         '</tr>';
     }).join('');
   }
@@ -1361,20 +1614,64 @@ socket.on('vpn:update',function(data){
   }, 0);
   var stTotal = $('vpnStatTotal'), stConn = $('vpnStatConn');
   var stIdle  = $('vpnStatIdle'),  stTput = $('vpnStatThroughput');
+  var stStale = $('vpnStatStale');
+  var never   = wgPeers.filter(function(t){ return t.state === 'never'; });
   if (stTotal) stTotal.textContent = wgPeers.length;
   if (stConn)  stConn.textContent  = connected.length;
-  if (stIdle)  stIdle.textContent  = idle.length;
+  if (stStale) stStale.textContent = stale.length;
+  // "Never connected" is now its own count rather than being lumped in with
+  // peers that were connected once and went away.
+  if (stIdle)  stIdle.textContent  = never.length;
   if (stTput)  stTput.textContent  = totalThroughputMbps > 0 ? fmtMbps(totalThroughputMbps) : '0';
 
+  // ── PPP sessions and IPsec peers ──────────────────────────────────────────
+  // Both cards stay hidden unless the router actually has any, so a
+  // WireGuard-only setup looks exactly as it did before.
+  var ppp = data.ppp || [], ipsec = data.ipsec || [];
+  var pppCard = $('vpnPppCard'), pppBody = $('vpnPppTbody'), pppCount = $('vpnPppCount');
+  if (pppCard) pppCard.style.display = ppp.length ? '' : 'none';
+  if (pppCount) pppCount.textContent = ppp.length;
+  if (pppBody && !ppp.length) pppBody.innerHTML = '';
+  if (pppBody && ppp.length) {
+    pppBody.innerHTML = ppp.map(function(s) {
+      return '<tr>' +
+        '<td style="font-weight:600">' + esc(s.name || '—') + '</td>' +
+        '<td><span class="vpn-proto-pill">' + esc(s.service || '—') + '</span></td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(s.address || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted)">' + esc(s.callerId || '—') + '</td>' +
+        '<td style="font-size:.72rem">' + esc(s.uptime || '—') + '</td>' +
+        '<td style="text-align:right;font-family:var(--font-mono);font-size:.72rem">' +
+          '<span style="color:var(--accent-rx)">' + esc(fmtBytes(s.rx || 0)) + '</span> / ' +
+          '<span style="color:var(--accent-tx)">' + esc(fmtBytes(s.tx || 0)) + '</span></td>' +
+        '</tr>';
+    }).join('');
+  }
+  var ipCard = $('vpnIpsecCard'), ipBody = $('vpnIpsecTbody'), ipCount = $('vpnIpsecCount');
+  if (ipCard) ipCard.style.display = ipsec.length ? '' : 'none';
+  if (ipCount) ipCount.textContent = ipsec.length;
+  if (ipBody && !ipsec.length) ipBody.innerHTML = '';
+  if (ipBody && ipsec.length) {
+    ipBody.innerHTML = ipsec.map(function(p) {
+      return '<tr>' +
+        '<td style="font-family:var(--font-mono);font-size:.74rem;font-weight:600">' + esc(p.name || '—') + '</td>' +
+        '<td><span class="vpn-proto-pill">' + esc(p.state || '—') + '</span></td>' +
+        '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(p.side || '—') + '</td>' +
+        '<td style="font-size:.72rem">' + esc(p.uptime || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.enc || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.auth || '—') + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
   // ── Tile grid — all peers, connected first ────────────────────────────────
-  wgPeers.sort(function(a, b) { return (b.state === 'connected' ? 1 : 0) - (a.state === 'connected' ? 1 : 0); });
+  wgPeers.sort(function(a, b) { return (b.state === 'active' ? 1 : 0) - (a.state === 'active' ? 1 : 0); });
   var grid = $('vpnPageGrid');
   if (grid) {
     if (!wgPeers.length) {
       grid.innerHTML = '<div class="empty-state">No peers configured</div>';
     } else {
       grid.innerHTML = wgPeers.map(function(t) {
-        var isConn  = t.state === 'connected';
+        var isConn  = t.state === 'active';
         var rxR = t.rxRate || 0, txR = t.txRate || 0;
         var rxRateStr = rxR > 0 ? '<span style="color:var(--accent-rx)">↓ ' + fmtBytes(Math.round(rxR)) + '/s</span>' : '';
         var txRateStr = txR > 0 ? '<span style="color:var(--accent-tx)">↑ ' + fmtBytes(Math.round(txR)) + '/s</span>' : '';
@@ -1385,7 +1682,7 @@ socket.on('vpn:update',function(data){
           '<div class="vpn-tile-name"><span class="iface-dot ' + dotCls + '"></span><span class="vpn-tile-name-text">' + esc(t.name || t.interface || '—') + '</span></div>' +
           (t.interface ? '<div class="vpn-tile-iface">' + esc(t.interface) + (t.allowedIp ? ' · ' + esc(t.allowedIp) : '') + '</div>' : '') +
           (t.endpoint ? '<div class="vpn-tile-ip">' + esc(t.endpoint) + '</div>' : '') +
-          '<div class="vpn-tile-hs">' + vpnHsBadge(t.uptime, isConn) + '</div>' +
+          '<div class="vpn-tile-hs">' + vpnHsBadge(t.lastHandshake, isConn) + '</div>' +
           ((rxRateStr || txRateStr) ? '<div class="vpn-tile-traffic">' + rxRateStr + txRateStr + '</div>' : (isConn ? '<div class="vpn-tile-traffic">' + totStr + '</div>' : '')) +
         '</div>';
       }).join('');
@@ -2287,7 +2584,7 @@ function checkVpnNotifs(tunnels){
   if(!_alertTypes.vpn) return;
   tunnels.forEach(function(t){
     var name = t.name || t.interface || '?';
-    var isConn = t.state === 'connected';
+    var isConn = t.state === 'active';
     var wasConn = _notifPrevVpn[name];
     if(wasConn === true && !isConn){
       sendNotif('VPN Peer Disconnected', name + ' has gone idle', 'vpn-' + name);
@@ -7003,24 +7300,67 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   // ── Traffic chart ───────────────────────────────────────────────────
-  function renderTrafficChart(rows) {
+  var _trafficLastSummary = null;   // last server summary, for the capacity toggle
+  var RPT_CAP_KEY = 'mikrodash_rpt_capacity';
+  function rptShowCapacity() {
+    try { return localStorage.getItem(RPT_CAP_KEY) === '1'; } catch (e) { return false; }
+  }
+  // Re-renders from the rows already in hand — toggling a reference line needs no
+  // refetch.
+  (function(){
+    var cb = $('rptShowCapacity');
+    if (!cb) return;
+    cb.checked = rptShowCapacity();
+    cb.addEventListener('change', function() {
+      try { localStorage.setItem(RPT_CAP_KEY, cb.checked ? '1' : '0'); } catch (e) {}
+      renderTrafficChart(_trafficRawRows || [], _trafficLastSummary);
+    });
+  }());
+
+  function renderTrafficChart(rows, summary) {
     var canvas = $('rptTrafficChart');
     if (!canvas || typeof Chart === 'undefined') return;
     if (_trafficChart) { _trafficChart.destroy(); _trafficChart = null; }
+    var s    = summary || {};
+    var agg  = rptAggregate && rptAggregate.value;
     var step = rows.length > 300 ? Math.ceil(rows.length / 300) : 1;
     var sub  = rows.filter(function(_, i) { return i % step === 0; });
     var span = sub.length > 1 ? sub[sub.length-1].ts - sub[0].ts : 0;
     var labels = sub.map(function(r) { return _chartLabel(r.ts, span); });
     var rxData = sub.map(function(r) { return +(+r.rx_mbps).toFixed(3); });
     var txData = sub.map(function(r) { return +(+r.tx_mbps).toFixed(3); });
+    var sets = [
+      { label:'RX', data:rxData, borderColor:'rgba(56,189,248,.85)', backgroundColor:'rgba(56,189,248,.07)',
+        borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
+      { label:'TX', data:txData, borderColor:'rgba(52,211,153,.8)', backgroundColor:'rgba(52,211,153,.06)',
+        borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
+    ];
+    // Aggregated points are bucket averages, so a spike inside a bucket is
+    // invisible. Show the within-bucket peak faintly. Pointless when
+    // unaggregated — those rows are already the peaks.
+    if (agg && sub.length && sub[0].rx_max_mbps != null) {
+      sets.push({ label:'Peak RX in bucket', data:sub.map(function(r){ return +(+r.rx_max_mbps).toFixed(3); }),
+        borderColor:'rgba(56,189,248,.35)', borderDash:[3,3], borderWidth:1, pointRadius:0, tension:0.2, fill:false });
+      sets.push({ label:'Peak TX in bucket', data:sub.map(function(r){ return +(+r.tx_max_mbps).toFixed(3); }),
+        borderColor:'rgba(52,211,153,.35)', borderDash:[3,3], borderWidth:1, pointRadius:0, tension:0.2, fill:false });
+    }
+    // Capacity belongs on this chart, not the volume one: the axis is already
+    // Mbps, so the line is a direct comparison with no conversion. Off by
+    // default — on a 1 Gbps link carrying a few Mbps it rescales the y-axis by
+    // orders of magnitude and flattens the real curve onto the baseline.
+    if (rptShowCapacity() && s.capacityDownMbps && labels.length) {
+      sets.push({ label:'Capacity RX ('+s.capacityDownMbps+' Mbps)',
+        data:labels.map(function(){ return s.capacityDownMbps; }),
+        borderColor:'rgba(148,163,190,.55)', borderDash:[6,4], borderWidth:1, pointRadius:0, fill:false });
+      if (s.capacityUpMbps && s.capacityUpMbps !== s.capacityDownMbps) {
+        sets.push({ label:'Capacity TX ('+s.capacityUpMbps+' Mbps)',
+          data:labels.map(function(){ return s.capacityUpMbps; }),
+          borderColor:'rgba(148,163,190,.35)', borderDash:[2,4], borderWidth:1, pointRadius:0, fill:false });
+      }
+    }
     _trafficChart = new Chart(canvas, {
       type: 'line',
-      data: { labels: labels, datasets: [
-        { label:'RX', data:rxData, borderColor:'rgba(56,189,248,.85)', backgroundColor:'rgba(56,189,248,.07)',
-          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
-        { label:'TX', data:txData, borderColor:'rgba(52,211,153,.8)', backgroundColor:'rgba(52,211,153,.06)',
-          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
-      ]},
+      data: { labels: labels, datasets: sets },
       options: {
         responsive:true, maintainAspectRatio:false, animation:false,
         layout:{ padding:{ bottom:8 } },
@@ -7036,33 +7376,45 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   // ── Bandwidth chart ─────────────────────────────────────────────────
-  function renderBandwidthChart(rows) {
+  // Volume only. A capacity line would be meaningless against a MB-per-bucket
+  // axis, so it lives on the Traffic History chart where the axis is Mbps.
+  function renderBandwidthChart(rows, summary) {
     var canvas = $('rptBandwidthChart');
     if (!canvas || typeof Chart === 'undefined') return;
     if (_bandwidthChart) { _bandwidthChart.destroy(); _bandwidthChart = null; }
+    var agg  = rptAggregate && rptAggregate.value;
     var step = rows.length > 300 ? Math.ceil(rows.length / 300) : 1;
     var sub  = rows.filter(function(_, i) { return i % step === 0; });
     var span = sub.length > 1 ? sub[sub.length-1].ts - sub[0].ts : 0;
     var labels = sub.map(function(r) { return _chartLabel(r.ts, span); });
     var rxData = sub.map(function(r) { return +(+r.rx_mb).toFixed(3); });
     var txData = sub.map(function(r) { return +(+r.tx_mb).toFixed(3); });
+    var sets = [
+      { label:'Download', data:rxData, borderColor:'rgba(56,189,248,.85)', backgroundColor:'rgba(56,189,248,.07)',
+        borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
+      { label:'Upload',   data:txData, borderColor:'rgba(52,211,153,.8)',  backgroundColor:'rgba(52,211,153,.06)',
+        borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
+    ];
+    // Under aggregation each point is a bucket sum, so the busiest sub-bucket is
+    // invisible. Show it faintly.
+    if (agg && sub.length && sub[0].rx_max_mb != null) {
+      sets.push({ label:'Busiest minute ↓', data:sub.map(function(r){ return +(+r.rx_max_mb).toFixed(3); }),
+        borderColor:'rgba(56,189,248,.35)', borderDash:[3,3], borderWidth:1, pointRadius:0, tension:0.2, fill:false });
+      sets.push({ label:'Busiest minute ↑', data:sub.map(function(r){ return +(+r.tx_max_mb).toFixed(3); }),
+        borderColor:'rgba(52,211,153,.35)', borderDash:[3,3], borderWidth:1, pointRadius:0, tension:0.2, fill:false });
+    }
     _bandwidthChart = new Chart(canvas, {
       type: 'line',
-      data: { labels: labels, datasets: [
-        { label:'Download', data:rxData, borderColor:'rgba(56,189,248,.85)', backgroundColor:'rgba(56,189,248,.07)',
-          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
-        { label:'Upload',   data:txData, borderColor:'rgba(52,211,153,.8)',  backgroundColor:'rgba(52,211,153,.06)',
-          borderWidth:1.5, pointRadius:0, tension:0.2, fill:true },
-      ]},
+      data: { labels: labels, datasets: sets },
       options: {
         responsive:true, maintainAspectRatio:false, animation:false,
         layout:{ padding:{ bottom:8 } },
         interaction:{ mode:'index', intersect:false },
         plugins:{ legend:{ display:true, labels:{ color:'rgba(148,163,190,.7)', font:{size:10,family:'JetBrains Mono,monospace'}, boxWidth:12 } },
-          tooltip:{ callbacks:{ label:function(ctx){ return ' '+ctx.dataset.label+': '+fmtBytes(ctx.parsed.y * 1048576); } } } },
+          tooltip:{ callbacks:{ label:function(ctx){ return ' '+ctx.dataset.label+': '+fmtDataMB(ctx.parsed.y); } } } },
         scales:{
           x:{ ticks:{ maxTicksLimit:8, color:'rgba(148,163,190,.5)', font:{size:10,family:'JetBrains Mono,monospace'} }, grid:{ color:'rgba(99,130,190,.08)' } },
-          y:{ beginAtZero:true, ticks:{ color:'rgba(148,163,190,.5)', font:{size:10,family:'JetBrains Mono,monospace'}, callback:function(v){ return fmtBytes(v * 1048576); } }, grid:{ color:'rgba(99,130,190,.08)' } },
+          y:{ beginAtZero:true, ticks:{ color:'rgba(148,163,190,.5)', font:{size:10,family:'JetBrains Mono,monospace'}, callback:function(v){ return fmtDataMB(v); } }, grid:{ color:'rgba(99,130,190,.08)' } },
         },
       },
     });
@@ -7085,8 +7437,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
           return '<tr>'+
             '<td style="color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
             '<td style="font-family:var(--font-mono)">'+esc(r.interface||'')+'</td>'+
-            '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-rx)">'+esc(fmtBytes((+r.rx_mb)*1048576))+'</td>'+
-            '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-tx)">'+esc(fmtBytes((+r.tx_mb)*1048576))+'</td></tr>';
+            '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-rx)">'+esc(fmtDataMB(+r.rx_mb))+'</td>'+
+            '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-tx)">'+esc(fmtDataMB(+r.tx_mb))+'</td></tr>';
         }).join('')
       : '<tr><td colspan="4" class="rpt-empty">No data for this range.</td></tr>';
     if (bwPager)  bwPager.style.display  = total > BW_PAGE_SIZE ? '' : 'none';
@@ -7096,22 +7448,46 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   // ── Render: Bandwidth ───────────────────────────────────────────────
-  function renderBandwidth(rows, routerId, from, to) {
-    var totalRx = rows.reduce(function(a, r) { return a + (+r.rx_mb); }, 0);
-    var totalTx = rows.reduce(function(a, r) { return a + (+r.tx_mb); }, 0);
-    var peakRx  = rows.length ? Math.max.apply(null, rows.map(function(r){ return +r.rx_mb; })) : 0;
-    var peakTx  = rows.length ? Math.max.apply(null, rows.map(function(r){ return +r.tx_mb; })) : 0;
+  // Format a percentage of link capacity. Deliberately not clamped at 100 — the
+  // live dashboard card clamps, which is exactly what hides a capacity that has
+  // been configured wrong. Over 100% is a signal, not something to round away.
+  function utilPct(v) { return v == null ? '—' : (v < 10 ? v.toFixed(1) : Math.round(v)) + '%'; }
+  function mbpsOrDash(v) { return v == null ? '—' : fmtMbps(v); }
+  // A volume peak is per bucket, so it has to say which bucket. Without an
+  // aggregation the stored granularity is one minute.
+  function bucketNoun(agg) {
+    return agg === 'hour' ? 'Hour' : agg === 'day' ? 'Day'
+         : agg === 'week' ? 'Week' : agg === 'month' ? 'Month' : 'Minute';
+  }
+
+  function renderBandwidth(rows, routerId, from, to, summary) {
+    // Every figure comes from the server summary, which is computed in SQL over
+    // the whole range. Reducing `rows` here used to get it wrong twice: those
+    // rows are averages once an aggregation is picked, and they are capped by
+    // the query LIMIT, so long ranges silently under-counted.
+    // This tab is about accumulated data volume. Speed lives on Traffic History —
+    // no Mbps here, or the two tabs stop meaning different things.
+    var s = summary || {};
     var agg = rptAggregate ? rptAggregate.value : '';
-    var peakSuffix = agg ? '' : '/min';
     var countLabel = agg ? 'Buckets' : 'Samples';
     var bwStats = $('rptBwStats');
     if (bwStats) bwStats.innerHTML =
-      statCard(fmtBytes(totalRx * 1048576), 'Total Download') +
-      statCard(fmtBytes(totalTx * 1048576), 'Total Upload') +
-      statCard(rows.length ? fmtBytes(peakRx * 1048576)+peakSuffix : '—', 'Peak Download') +
-      statCard(rows.length ? fmtBytes(peakTx * 1048576)+peakSuffix : '—', 'Peak Upload') +
-      statCard(rows.length.toLocaleString(), countLabel);
-    renderBandwidthChart(rows);
+      statCard(fmtDataMB(s.rxTotalMb), 'Total Download') +
+      statCard(fmtDataMB(s.txTotalMb), 'Total Upload') +
+      statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↓') +
+      statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↑') +
+      statCard((agg ? rows.length : (s.samples || 0)).toLocaleString(), countLabel);
+    // The stat cards now cover the whole range but the chart and table still
+    // only show the rows that fit under the LIMIT. Say so rather than let the
+    // two quietly disagree.
+    var hint = $('rptBwTruncHint');
+    if (hint) {
+      var truncated = !agg && s.samples && s.samples > rows.length;
+      hint.style.display = truncated ? '' : 'none';
+      if (truncated) hint.textContent = 'Chart and table show ' + rows.length.toLocaleString() +
+        ' of ' + s.samples.toLocaleString() + ' samples — choose an aggregation to cover the full range. Totals above are for the full range.';
+    }
+    renderBandwidthChart(rows, s);
     _bwRawRows = rows;
     _bwSort.col = 'ts'; _bwSort.dir = 'desc';
     _applyBwSort();
@@ -7161,7 +7537,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var rtts   = rows.filter(function(r){ return r.rtt_ms!=null; }).map(function(r){ return r.rtt_ms; });
     var losses = rows.map(function(r){ return r.loss_pct; });
     var avgRtt = rtts.length   ? (rtts.reduce(function(a,b){return a+b;},0)/rtts.length).toFixed(1)    : '—';
-    var maxRtt = rtts.length   ? Math.max.apply(null,rtts).toFixed(1)                                   : '—';
+    var maxRtt = rtts.length   ? maxOf(rtts).toFixed(1)                                   : '—';
     var avgLoss= losses.length ? (losses.reduce(function(a,b){return a+b;},0)/losses.length).toFixed(1) : '—';
     var uptime = losses.length ? ((losses.filter(function(l){return l<1;}).length/losses.length)*100).toFixed(1)+'%' : '—';
     if (rptPingStats) rptPingStats.innerHTML =
@@ -7188,16 +7564,29 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   // ── Render: Traffic ─────────────────────────────────────────────────
-  function renderTraffic(rows, routerId, from, to) {
-    var rxVals = rows.map(function(r){ return r.rx_mbps; });
-    var txVals = rows.map(function(r){ return r.tx_mbps; });
-    var peakRx = rxVals.length ? Math.max.apply(null,rxVals).toFixed(2)+' Mbps' : '—';
-    var peakTx = txVals.length ? Math.max.apply(null,txVals).toFixed(2)+' Mbps' : '—';
-    var avgRx  = rxVals.length ? (rxVals.reduce(function(a,b){return a+b;},0)/rxVals.length).toFixed(2)+' Mbps' : '—';
-    var sampleLabel = (rptAggregate && rptAggregate.value) ? 'Buckets' : 'Samples';
+  function renderTraffic(rows, routerId, from, to, summary) {
+    // From the server summary, not from `rows`: with an aggregation selected the
+    // rows are bucket averages, so the max across them is a peak of averages —
+    // which buried a 938 Mbps spike as ~4 Mbps on a daily view.
+    // This tab is about link speed, so every rate metric lives here: peaks, means,
+    // the 95th percentile ISPs bill on, and utilisation against the configured
+    // line capacity. Accumulated volume belongs on Bandwidth Usage.
+    var s = summary || {};
+    var agg = rptAggregate && rptAggregate.value;
+    var sampleLabel = agg ? 'Buckets' : 'Samples';
+    var over = (s.rxPeakPct > 100 || s.txPeakPct > 100);
     if (rptTrafficStats) rptTrafficStats.innerHTML =
-      statCard(peakRx,'Peak RX') + statCard(peakTx,'Peak TX') + statCard(avgRx,'Avg RX') + statCard(rows.length.toLocaleString(), sampleLabel);
-    renderTrafficChart(rows);
+      statCard(mbpsOrDash(s.rxMaxMbps), 'Peak RX') +
+      statCard(mbpsOrDash(s.txMaxMbps), 'Peak TX') +
+      statCard(mbpsOrDash(s.rxAvgMbps), 'Avg RX') +
+      statCard(mbpsOrDash(s.txAvgMbps), 'Avg TX') +
+      statCard(mbpsOrDash(s.rxP95Mbps), '95th %ile RX') +
+      statCard(mbpsOrDash(s.txP95Mbps), '95th %ile TX') +
+      statCard(utilPct(s.rxPeakPct) + ' / ' + utilPct(s.txPeakPct),
+               'Peak Util RX/TX' + (over ? ' ⚠' : '')) +
+      statCard((agg ? rows.length : (s.samples || 0)).toLocaleString(), sampleLabel);
+    _trafficLastSummary = s;
+    renderTrafficChart(rows, s);
     _trafficRawRows = rows;
     _trafficSort.col = 'ts'; _trafficSort.dir = 'desc';
     _applyTrafficSort();
@@ -7369,7 +7758,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (iface) {
         fetch('/api/reports/traffic?'+q+'&interface='+encodeURIComponent(iface))
           .then(function(r){ return r.json(); })
-          .then(function(d){ renderTraffic(d.rows||[], routerId, from, to); })
+          .then(function(d){ renderTraffic(d.rows||[], routerId, from, to, d.summary); })
           .catch(function(){});
       } else {
         renderTraffic([], routerId, from, to);
@@ -7389,7 +7778,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (bwIface) {
         fetch('/api/reports/bandwidth?'+q+'&interface='+encodeURIComponent(bwIface))
           .then(function(r){ return r.json(); })
-          .then(function(d){ renderBandwidth(d.rows||[], routerId, from, to); })
+          .then(function(d){ renderBandwidth(d.rows||[], routerId, from, to, d.summary); })
           .catch(function(){});
       } else {
         renderBandwidth([], routerId, from, to);
@@ -7415,7 +7804,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var agg  = rptAggregate ? rptAggregate.value : '';
       var q = 'routerId='+encodeURIComponent(routerId)+'&from='+from+'&to='+to+'&interface='+encodeURIComponent(rptTrafficIface.value)+(agg?'&aggregate='+encodeURIComponent(agg):'');
       fetch('/api/reports/traffic?'+q).then(function(r){ return r.json(); })
-        .then(function(d){ renderTraffic(d.rows||[], routerId, from, to); })
+        .then(function(d){ renderTraffic(d.rows||[], routerId, from, to, d.summary); })
         .catch(function(){});
     });
   }
@@ -7431,7 +7820,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var agg  = rptAggregate ? rptAggregate.value : '';
       var q = 'routerId='+encodeURIComponent(routerId)+'&from='+from+'&to='+to+'&interface='+encodeURIComponent(_bwIfSel.value)+(agg?'&aggregate='+encodeURIComponent(agg):'');
       fetch('/api/reports/bandwidth?'+q).then(function(r){ return r.json(); })
-        .then(function(d){ renderBandwidth(d.rows||[], routerId, from, to); })
+        .then(function(d){ renderBandwidth(d.rows||[], routerId, from, to, d.summary); })
         .catch(function(){});
     });
   }
