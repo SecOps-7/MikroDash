@@ -42,8 +42,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # On a version tag (v0.5.21): push :0.5.21, :0.5, and :latest
-      # On a main branch push: push :latest only
+      # Only version tags produce published images: v0.5.21 pushes :0.5.21,
+      # :0.5 and :latest. A push to main builds but publishes nothing, so
+      # :latest always points at the newest release rather than at whatever was
+      # merged most recently.
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -52,19 +54,27 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
+      # Main pushes still build all three architectures, they just do not
+      # publish. better-sqlite3 compiles natively per architecture, so an
+      # arm/v7 break is a real possibility and finding it at tag time would be
+      # finding it too late.
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64,linux/arm/v7
-          push: true
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Layer cache stored in the registry so repeat builds are fast
+          # Layer cache stored in the registry so repeat builds are fast.
+          # Reading is always safe; writing is restricted to tag builds so a
+          # validation run never writes to the registry. Two concurrent writers
+          # of the same layers is what tripped GHCR's secondary rate limit and
+          # blocked the v0.5.54 publish.
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+          cache-to: ${{ startsWith(github.ref, 'refs/tags/v') && format('type=registry,ref={0}/{1}:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAME) || '' }}
 
   # Create a GitHub Release on version tags, using the matching CHANGELOG section
   # as the release body. Only runs after the Docker image is successfully published.
