@@ -69,9 +69,13 @@ function deltaOf(prev, cur) {
 }
 
 class InterfaceStatusCollector {
-  constructor({ ros, io, pollMs, metaPollMs, state, streamMode }) {
+  constructor({ ros, io, pollMs, metaPollMs, state, streamMode, alertsActive }) {
     this.ros        = ros;
     this.io         = io;
+    // See SystemCollector: alerts are fed from the emit path, so a router with
+    // alerts enabled must keep emitting with no viewer attached or interface
+    // up/down alerts never fire.
+    this._alertsActive = typeof alertsActive === 'function' ? alertsActive : () => false;
     this._lbl       = ros.routerLabel ? `[${ros.routerLabel}][ifstatus]` : '[ifstatus]';
     this.pollMs       = clampPoll(pollMs, 5000); // rate stream + emit timer interval
     this._pollDelayMs = clampPoll(pollMs, 5000);
@@ -552,7 +556,9 @@ class InterfaceStatusCollector {
       e: i.errors, dr: i.drops, ld: i.linkDowns,
     })));
     this.lastPayload = { ts: now, interfaces };
-    if (this.io.engine.clientsCount === 0) return;
+    // Alerts ride the emit path, so a router with alerts enabled is exempt from
+    // the idle gate or interface up/down alerts never fire.
+    if (this.io.engine.clientsCount === 0 && !this._alertsActive()) return;
     // Re-emit a heartbeat even when rates are unchanged so the browser can
     // distinguish an idle interface from a dead collector.
     if (fp === this._lastFp && now - this._lastEmitTs < 60000) return;

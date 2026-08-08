@@ -91,6 +91,11 @@ const DEFAULTS = {
   pollRouting:       parseInt(process.env.ROUTING_POLL_MS    || '10000', 10),
   pageRouting:       true,
   pollSystem:        parseInt(process.env.SYSTEM_POLL_MS    || '2000',  10),
+  // Hours between RouterOS update checks. This is the only poll in MikroDash
+  // that leaves the router and reaches upgrade.mikrotik.com, so it is measured
+  // in hours rather than milliseconds and clamped well away from anything that
+  // would look like hammering their update servers.
+  updateCheckHours:  parseInt(process.env.UPDATE_CHECK_HOURS || '12',    10),
   pollWireless:      parseInt(process.env.WIRELESS_POLL_MS  || '30000', 10),
   pollVpn:           parseInt(process.env.VPN_POLL_MS       || '10000', 10),
   pollFirewall:      parseInt(process.env.FIREWALL_POLL_MS  || '5000',  10),
@@ -144,6 +149,9 @@ const DEFAULTS = {
   notifPing:         true,
   notifNetwatch:     false,
   notifRouterStatus: false,
+  // Off by default deliberately: switching a new alert type on for existing
+  // installs would fire on upgrade for every router already behind a release.
+  notifRouterUpdate: false,
 
   // Interface type filter for up/down alerts
   notifIfaceEther:   true,
@@ -214,6 +222,7 @@ const ENV_MAP = {
   pollBandwidth:     ['BANDWIDTH_POLL_MS',    v => parseInt(v, 10)],
   pollRouting:       ['ROUTING_POLL_MS',      v => parseInt(v, 10)],
   pollSystem:        ['SYSTEM_POLL_MS',       v => parseInt(v, 10)],
+  updateCheckHours:  ['UPDATE_CHECK_HOURS',   v => parseInt(v, 10)],
   pollWireless:      ['WIRELESS_POLL_MS',     v => parseInt(v, 10)],
   pollVpn:           ['VPN_POLL_MS',          v => parseInt(v, 10)],
   pollFirewall:      ['FIREWALL_POLL_MS',     v => parseInt(v, 10)],
@@ -286,6 +295,14 @@ function load() {
     pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
     pollDhcp:[10000,600000],
   };
+  // Separate from _POLL_BOUNDS because the unit is hours, not milliseconds.
+  // Floor of 1 h protects MikroTik's update servers from a hand-edited config;
+  // ceiling of 1 week keeps the check meaningful.
+  if (typeof merged.updateCheckHours === 'number' && Number.isFinite(merged.updateCheckHours)) {
+    merged.updateCheckHours = Math.max(1, Math.min(168, Math.round(merged.updateCheckHours)));
+  } else {
+    merged.updateCheckHours = 12;
+  }
   for (const [k, [lo, hi]] of Object.entries(_POLL_BOUNDS)) {
     if (typeof merged[k] === 'number') merged[k] = Math.max(lo, Math.min(hi, merged[k]));
   }

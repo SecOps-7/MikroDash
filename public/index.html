@@ -2429,8 +2429,11 @@
         </div>
         <div class="bw-table-wrap">
           <table class="bw-table">
-            <thead><tr id="rptAlertThead"><th>Fired At</th><th>Type</th><th>Subject</th><th>Detail</th><th>Resolved At</th></tr></thead>
-            <tbody id="rptAlertTbody"><tr><td colspan="5" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+            <!-- Six columns, matching what _applyAlertSort renders. The static
+                 markup declared five, so the header and the empty-state colspan
+                 disagreed with the rendered table until the first Load. -->
+            <thead><tr id="rptAlertThead"><th>Fired At</th><th>Type</th><th>Subject</th><th>Detail</th><th>Resolved At</th><th style="text-align:right">Down Time</th></tr></thead>
+            <tbody id="rptAlertTbody"><tr><td colspan="6" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2602,6 +2605,17 @@
               <button class="poll-profile-btn" data-profile="slower">Slower</button>
               <button class="poll-profile-btn" data-profile="custom">Custom</button>
             </div>
+            <!-- Deliberately outside the profile grid: every other interval
+                 polls the router locally, this one reaches MikroTik's update
+                 servers, so it is measured in hours and is not touched by the
+                 Fast/Slow presets. -->
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;flex-wrap:wrap">
+              <label for="s_updateCheckHours" style="font-size:.74rem;color:var(--text-muted)">RouterOS update check every</label>
+              <input type="number" id="s_updateCheckHours" min="1" max="168" step="1"
+                     style="width:5rem;font-size:.74rem;font-family:var(--font-mono);padding:.22rem .4rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-main)">
+              <span style="font-size:.74rem;color:var(--text-muted)">hours</span>
+              <span style="font-size:.7rem;color:var(--text-muted);opacity:.75;flex-basis:100%">The only check that contacts MikroTik rather than your router. Minimum 1 hour.</span>
+            </div>
             <details id="pollAdvanced">
               <summary style="font-size:.74rem;color:var(--text-muted);cursor:pointer;margin-bottom:.7rem;user-select:none">Advanced</summary>
               <div id="pollSlidersWrap"></div>
@@ -2764,6 +2778,7 @@
               <label class="stoggle"><span class="stoggle-label">Ping Loss</span><span class="stoggle-switch"><input type="checkbox" id="s_notifPing"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">NetWatch Hosts</span><span class="stoggle-switch"><input type="checkbox" id="s_notifNetwatch"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Router Offline / Online</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterStatus"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle" title="Notify once per release when RouterOS has a newer version available"><span class="stoggle-label">RouterOS Update Available</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterUpdate"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             </div>
           </div>
         </div>

@@ -97,10 +97,10 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 ### Notifications
 - Bell icon in topbar opens an alert history panel showing the last 50 alerts with timestamps
-- Browser push notifications (when permitted) for interface, VPN, CPU, ping, and NetWatch events
-- **Push notification channels** — Telegram Bot, Pushbullet, and SMTP email; all three can be active simultaneously; credentials stored AES-256-GCM encrypted
-- **Per-router alert monitoring** — lightweight background connection to non-active routers so alerts fire for any configured router, not just the one currently displayed; opt-in per router
-- **Alert types** — Interface up/down (per interface type: ether/wlan/bridge/vlan), WireGuard peer state, CPU ≥ threshold, ping loss ≥ threshold, NetWatch host reachability, router online/offline
+- Browser push notifications (when permitted) for interface, VPN, CPU, ping, NetWatch, router online/offline, and RouterOS update events
+- **Push notification channels** — Telegram Bot, Pushbullet, SMTP email, and ntfy; all four can be active simultaneously; credentials stored AES-256-GCM encrypted
+- **Per-router alert monitoring** — lightweight background connection to non-active routers so alerts fire for any configured router, not just the one currently displayed; opt-in per router. A router with alerts enabled keeps its alert collectors running even when no browser is watching it
+- **Alert types** — Interface up/down (per interface type: ether/wlan/bridge/vlan), WireGuard peer state, CPU ≥ threshold, ping loss ≥ threshold, NetWatch host reachability, router online/offline, RouterOS update available
 - **Independent Up/Down templates** — separate `notifBody` (⚠️ alert) and `notifBodyUp` (✅ recovery) templates with `{{alertType}}`, `{{routerName}}`, `{{detail}}`, and more variables
 - Configurable cooldown (10 s – 60 min) prevents duplicate notifications per alert subject
 
@@ -208,7 +208,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 | Collection Method | Per-collector toggle between **Stream** (RouterOS pushes data continuously via `=interval=N`) and **Poll** (one-shot request every poll interval). Covers System/Gauges, Ping, Connections, Top Talkers, and Interface Rates. Switch individual collectors to Poll on CHR/VM routers with limited API handler threads (typically 2–4). Traffic is always streamed. Changes apply immediately |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
-| Notifications | Push notification channels — Telegram Bot, Pushbullet, and SMTP email (all three can be active simultaneously); per-type toggles (interface up/down, WireGuard, CPU, ping, NetWatch, router status); separate ⚠️ alert and ✅ recovery message templates with `{{variable}}` substitution; configurable cooldown (10 s – 60 min) per alert subject; test-send button per channel |
+| Notifications | Push notification channels — Telegram Bot, Pushbullet, SMTP email, and ntfy (all four can be active simultaneously); per-type toggles (interface up/down, WireGuard, CPU, ping, NetWatch, router status, RouterOS update); separate ⚠️ alert and ✅ recovery message templates with `{{variable}}` substitution; configurable cooldown (10 s – 60 min) per alert subject; test-send button per channel |
 | Data Retention | Traffic/ping/bandwidth sample retention (1–3650 days, default 90) and alert/connectivity event retention (1–3650 days, default 365); pruning runs automatically |
 | Data Cleanup | Delete stored history on demand rather than waiting for retention. Scope by router (one or all), data type (traffic, ping, bandwidth, alerts & connectivity) and age (1 / 7 / 30 / 90 / 365 days, or everything). Shows database size, total rows and a per-router breakdown; **Preview** reports exactly how many rows the selection would remove before you confirm. The database is compacted afterwards so the space is returned to disk. Admin only |
 | Diagnostics | Enable/disable verbose RouterOS API debug logging at runtime — no container restart required |

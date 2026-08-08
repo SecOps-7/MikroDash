@@ -473,6 +473,137 @@ test('settings: undecryptable credential ciphertext survives unrelated saves', (
   }
 });
 
+// --- client alert defaults must match the server (issue #79) ---
+
+test('client _alertTypes defaults match src/settings.js DEFAULTS', () => {
+  // These govern the window between script parse and the first settings:pages
+  // broadcast. Drift means the bell can fire for a category the server has
+  // switched off — netwatch, bridge, vlan and other were all true here against
+  // false on the server. The comment in app.js claimed they matched.
+  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const { DEFAULTS } = require('../src/settings');
+
+  const parse = (name) => {
+    const m = app.match(new RegExp('var ' + name + '\\s*=\\s*\\{([\\s\\S]*?)\\};'));
+    assert.ok(m, name + ' literal found');
+    const out = {};
+    for (const [, k, v] of m[1].matchAll(/(\w+)\s*:\s*(true|false)/g)) out[k] = v === 'true';
+    return out;
+  };
+
+  const TYPES = { ifaceUpDown:'notifIfaceUpDown', vpn:'notifVpn', cpu:'notifCpu',
+                  ping:'notifPing', netwatch:'notifNetwatch',
+                  routerStatus:'notifRouterStatus', routerUpdate:'notifRouterUpdate' };
+  const IFACE = { ether:'notifIfaceEther', wlan:'notifIfaceWlan', bridge:'notifIfaceBridge',
+                  vlan:'notifIfaceVlan', other:'notifIfaceOther' };
+
+  const check = (literal, map, label) => {
+    const parsed = parse(literal);
+    for (const [clientKey, serverKey] of Object.entries(map)) {
+      assert.ok(clientKey in parsed, `${label}: ${clientKey} must be declared — syncUI reads it, and an undeclared key renders the toggle permanently off`);
+      assert.equal(parsed[clientKey], DEFAULTS[serverKey],
+        `${label}: ${clientKey} defaults to ${parsed[clientKey]} but ${serverKey} is ${DEFAULTS[serverKey]}`);
+    }
+  };
+  check('_alertTypes', TYPES, '_alertTypes');
+  check('_alertIfaceTypes', IFACE, '_alertIfaceTypes');
+});
+
+// --- connectivity alerts must be resolvable at every threshold (issue #79) ---
+
+for (const file of ['index.js', 'alertSessions.js']) {
+  test(`${file}: the immediate offline branch declares offline so recovery can resolve`, () => {
+    // Both files debounce a router going offline, and both have a
+    // connDownThresholdSec <= 0 shortcut that reacts immediately. The recovery
+    // path is guarded on _declaredOffline, which was set only inside the
+    // debounce timer — so a router configured with threshold 0 opened a
+    // connectivity alert that could never be resolved, and the row stayed open
+    // until retention deleted it. Closure-scoped state, so this is asserted
+    // against the source rather than by calling it.
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', file), 'utf8');
+    const immediate = src.match(/if \(threshMs <= 0\) \{([\s\S]*?)\n\s{4,6}\}/);
+    assert.ok(immediate, `found the threshMs <= 0 branch in ${file}`);
+    assert.match(immediate[1], /fireConnectivityAlert/,
+      `${file}: sanity — this is the branch that fires the alert`);
+    assert.match(immediate[1], /_declaredOffline\s*=\s*true/,
+      `${file}: the immediate branch must set _declaredOffline, or the alert it fires can never resolve`);
+  });
+}
+
+// --- settings POST allowlist keeps up with DEFAULTS ---
+
+test('every notif* default is accepted by the settings POST allowlist', () => {
+  // POST /api/settings filters the body through explicit boolFields/intFields
+  // allowlists. A new setting missing from them is dropped silently: the
+  // request returns ok, getPublic() still reports the default, and the toggle
+  // springs back to off with nothing logged anywhere. That is exactly how
+  // notifRouterUpdate shipped broken, so this guards the whole class.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const boolBlock = src.match(/const boolFields = \[([\s\S]*?)\];/);
+  assert.ok(boolBlock, 'boolFields allowlist found in the POST handler');
+
+  const { DEFAULTS } = require('../src/settings');
+  const missing = Object.keys(DEFAULTS)
+    .filter(k => /^notif/.test(k) && typeof DEFAULTS[k] === 'boolean')
+    .filter(k => !new RegExp("'" + k + "'").test(boolBlock[1]));
+
+  assert.deepEqual(missing, [],
+    'notif* booleans missing from the POST allowlist save as no-ops: ' + missing.join(', '));
+});
+
+test('settings:pages is built from one shared source, never an inline literal', () => {
+  // The browser builds its _alertTypes map from this payload, so a key missing
+  // from any emission leaves that alert type switched off in the UI while the
+  // server has it enabled: the push channel fires and the notification bell
+  // stays empty, with nothing logged. Three hand-maintained copies of the
+  // payload drifted three times while adding a single setting, so they were
+  // collapsed into _pageSettings(). This keeps them collapsed.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const emissions = [...src.matchAll(/emit\('settings:pages',\s*([^)]*)\)/g)].map(m => m[1].trim());
+  assert.ok(emissions.length >= 3, 'expected every emission site, found ' + emissions.length);
+
+  const inline = emissions.filter(e => e.startsWith('{'));
+  assert.deepEqual(inline, [], 'settings:pages must not be built from an inline literal');
+
+  emissions.forEach(e => {
+    assert.ok(/^_pageSettings\(|^pageSettings$/.test(e),
+      'emission should use the shared builder, got: ' + e);
+  });
+});
+
+test('every notif* boolean default is carried into the settings:pages payload', () => {
+  // _PAGE_SETTING_KEYS derives the notif* entries from DEFAULTS so a new alert
+  // toggle reaches the client without touching this list. If that derivation is
+  // ever replaced by a hand-written list, this catches the first key it forgets.
+  const { DEFAULTS } = require('../src/settings');
+  const notifKeys = Object.keys(DEFAULTS)
+    .filter(k => /^notif/.test(k) && typeof DEFAULTS[k] === 'boolean');
+  assert.ok(notifKeys.length >= 6, 'sanity: found the alert toggles, got ' + notifKeys.length);
+
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const block = src.match(/const _PAGE_SETTING_KEYS = \[([\s\S]*?)\];/);
+  assert.ok(block, '_PAGE_SETTING_KEYS found');
+
+  const derives = /Object\.keys\(Settings\.DEFAULTS\)[\s\S]*?\/\^notif\//.test(block[1]);
+  if (!derives) {
+    const missing = notifKeys.filter(k => !new RegExp("'" + k + "'").test(block[1]));
+    assert.deepEqual(missing, [],
+      'hand-listed page settings omit these alert toggles: ' + missing.join(', '));
+  }
+  // Credentials must never ride along on a payload broadcast to every client.
+  ['routerPass', 'telegramBotToken', 'pushbulletApiKey', 'smtpPass', 'ntfyToken']
+    .forEach(c => assert.ok(!new RegExp("'" + c + "'").test(block[1]),
+      c + ' must not be in the broadcast payload'));
+});
+
+test('updateCheckHours is range-checked by the settings POST handler', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const intBlock = src.match(/const intFields = \{([\s\S]*?)\};/);
+  assert.ok(intBlock, 'intFields table found');
+  assert.match(intBlock[1], /updateCheckHours:\s*\[\s*1\s*,\s*168\s*\]/,
+    'the update interval must be accepted and clamped, with a 1 h floor protecting MikroTik');
+});
+
 // --- geoip-lite degradation is reported, not silent (issue #101) ---
 
 test('geo module exposes availability so a failed load cannot degrade silently', () => {

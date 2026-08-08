@@ -108,6 +108,41 @@ test('alert is persisted to DB even when no notification channel is configured',
   assert.equal(dbStub.alerts[0].type, 'high_cpu');
 });
 
+// --- VPN alert contract with VpnCollector (regression: shipped broken in v0.5.54) ---
+
+test('VPN alerts fire on the states the collector actually emits', () => {
+  // The collector emits 'active' | 'stale' | 'never' (VpnCollector.peerState).
+  // The alerter compared against 'connected', a value the collector stopped
+  // emitting when peerState was introduced, so wasConn and isConn were both
+  // permanently false and no VPN alert could ever fire. This pins the two sides
+  // together: it is a contract test, not a logic test.
+  const VpnCollector = require('../src/collectors/vpn');
+  assert.equal(VpnCollector.peerState(null), 'never');
+  assert.equal(VpnCollector.peerState('never'), 'never');
+  assert.equal(VpnCollector.peerState('10s'), 'active');
+  assert.equal(VpnCollector.peerState('3d4h'), 'stale');
+
+  dbStub.reset(); notifierStub.calls = [];
+  alerter.updateSettings(makeSettings({ notifVpn: true }));
+  const router = { id: 'rVPN', label: 'R', alertsEnabled: true };
+  const { evaluate } = alerter.createEvaluator(() => 'R', () => router);
+
+  // Seed the previous state, then drop the peer out of the active window.
+  evaluate('vpn:update', { tunnels: [{ name: 'WG-HOME', state: 'active' }] });
+  assert.equal(dbStub.alerts.length, 0, 'first observation seeds state, does not alert');
+
+  evaluate('vpn:update', { tunnels: [{ name: 'WG-HOME', state: 'stale' }] });
+  assert.equal(dbStub.alerts.length, 1, 'active -> stale must raise a disconnect alert');
+  assert.equal(dbStub.alerts[0].type, 'vpn_disconnected');
+  assert.equal(dbStub.alerts[0].subj, 'WG-HOME');
+
+  // Recovering resolves the open row, using the stored (lowercased) type.
+  evaluate('vpn:update', { tunnels: [{ name: 'WG-HOME', state: 'active' }] });
+  assert.equal(dbStub.resolves.length, 1, 'stale -> active must resolve');
+  assert.equal(dbStub.resolves[0].type, 'vpn_disconnected',
+    'resolveType must already be in stored form or the row never matches');
+});
+
 test('cooldown is not consumed when no channel is active, so enabling one later still notifies', async () => {
   dbStub.reset(); notifierStub.calls = [];
   // First: no channel. A down event persists but must NOT stamp the cooldown.

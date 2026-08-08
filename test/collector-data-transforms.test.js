@@ -1411,6 +1411,175 @@ test('interface status collector clamps malformed throughput fields to zero', ()
   assert.equal(iface.txMbps, 0);
 });
 
+// --- Idle gating must not silence alerts (issue #79) ---
+
+test('a router with alerts enabled keeps emitting with no viewers attached', () => {
+  // The alerter is fed from the emit path, so an idle-gated collector silences
+  // alerts entirely. This stayed invisible because non-active routers were
+  // fine — alertSessions stubs clientsCount to 1 — so only the router you were
+  // looking at went quiet, and only once you stopped looking at it.
+  const mk = (alertsActive) => {
+    const emitted = [];
+    const ros = { connected: true, on() {}, stream: () => ({ on() {}, stop() {} }),
+                  cfg: { host: '10.50.0.1', port: 8728 }, write: async () => [{}] };
+    const _chain = { emit() {} }; _chain.to = () => _chain;
+    const io = { engine: { clientsCount: 0 }, emit(ev, d) { emitted.push({ ev, d }); }, to: () => _chain };
+    const c = new SystemCollector({ ros, io, pollMs: 2000, state: {}, alertsActive });
+    return { c, emitted };
+  };
+  const row = { 'cpu-load': '42', 'total-memory': '1000000', 'free-memory': '500000', version: '7.23.2' };
+
+  const off = mk(() => false);
+  off.c._processRow(row);
+  assert.equal(off.emitted.length, 0, 'alerts off: the idle gate still suppresses the emit');
+
+  const on = mk(() => true);
+  on.c._processRow(row);
+  assert.ok(on.emitted.some(e => e.ev === 'system:update'),
+    'alerts on: the emit must reach the alerter despite zero viewers');
+});
+
+test('alertsActive defaults to off so existing call sites keep the idle behaviour', () => {
+  const ros = { connected: true, on() {}, stream: () => ({ on() {}, stop() {} }), write: async () => [] };
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  // PingCollector subscribes via io.on() in its constructor, so the stub needs it.
+  const io = { engine: { clientsCount: 0 }, emit() {}, on() {}, to: () => _chain };
+
+  const ping = new PingCollector({ ros, io, pollMs: 5000, state: {}, target: '1.1.1.1' });
+  assert.equal(typeof ping._alertsActive, 'function', 'a predicate, never undefined');
+  assert.equal(ping._alertsActive(), false, 'default preserves the old idle behaviour');
+
+  const pingOn = new PingCollector({ ros, io, pollMs: 5000, state: {}, target: '1.1.1.1',
+                                     alertsActive: () => true });
+  assert.equal(pingOn._alertsActive(), true);
+});
+
+// --- RouterOS update check: scheduling and failure reporting ---
+
+// Each harness gets its own host. The update schedule is keyed per router by
+// design, so reusing one address would make each test inherit the previous
+// test's consumed interval and skip its own fetch.
+let _sysHarnessSeq = 0;
+function sysHarness(rosOverrides) {
+  const emitted = [];
+  const calls = [];
+  const ros = {
+    connected: true, on() {}, stream: () => ({ on() {}, stop() {} }),
+    cfg: { host: '10.0.0.' + (++_sysHarnessSeq), port: 8728 },
+    write: async (path) => { calls.push(path); return [{}]; },
+    ...rosOverrides,
+  };
+  const _chain = { emit(ev, data) { emitted.push({ ev, data }); } }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit(ev, data) { emitted.push({ ev, data }); }, to: () => _chain };
+  return { ros, io, calls, emitted,
+           collector: new SystemCollector({ ros, io, pollMs: 2000, state: {} }) };
+}
+
+test('update check keeps its result when it runs before the first resource tick', async () => {
+  // start() fires the check while lastPayload is still null. The apply path
+  // used to sit behind `if (this.lastPayload)`, so a cold start consumed the
+  // 12 h window and threw the answer away.
+  const h = sysHarness({
+    write: async (path) => {
+      if (path === '/system/package/update/check-for-updates') return [];
+      return [{ 'latest-version': '7.23.3', status: 'New version is available' }];
+    },
+  });
+  assert.equal(h.collector.lastPayload, null, 'precondition: no payload yet');
+
+  await h.collector._fetchUpdateStatus();
+
+  assert.equal(h.collector._lastUpdateRow['latest-version'], '7.23.3',
+    'row retained even with no payload to merge into');
+});
+
+test('a denied check-for-updates is reported instead of silently showing cached state', async () => {
+  // /print succeeds on read permission alone, so swallowing the denial left
+  // the dashboard presenting stale data as if it were current.
+  const h = sysHarness({
+    write: async (path) => {
+      if (path === '/system/package/update/check-for-updates') throw new Error('not enough permissions (9)');
+      return [{ 'latest-version': '7.23.2', status: 'System is already up to date' }];
+    },
+  });
+  h.collector.lastPayload = { ts: 1, version: '7.23.2' };
+
+  await h.collector._fetchUpdateStatus();
+
+  assert.match(h.collector.lastPayload.updateStatus, /unavailable/i, 'status flags the problem');
+  assert.match(h.collector.lastPayload.updateStatus, /write permission/i, 'and says how to fix it');
+  assert.equal(h.collector.lastPayload.updateAvailable, false);
+});
+
+test('update schedule is shared per router so one interval means one upstream call', async () => {
+  // SystemCollector is constructed up to three times per router; each start()
+  // previously fired its own check-for-updates against MikroTik.
+  const shared = { host: '10.9.9.9', port: 8728 };
+  const mk = () => {
+    const calls = [];
+    const ros = { connected: true, on() {}, stream: () => ({ on() {}, stop() {} }), cfg: shared,
+                  write: async (p) => { calls.push(p); return [{ 'latest-version': '7.1', status: 'ok' }]; } };
+    const _chain = { emit() {} }; _chain.to = () => _chain;
+    const io = { engine: { clientsCount: 0 }, emit() {}, to: () => _chain };
+    return { calls, collector: new SystemCollector({ ros, io, pollMs: 2000, state: {} }) };
+  };
+  const a = mk(), b = mk(), c = mk();
+
+  await a.collector._fetchUpdateStatus();
+  await b.collector._fetchUpdateStatus();
+  await c.collector._fetchUpdateStatus();
+
+  const checks = [...a.calls, ...b.calls, ...c.calls]
+    .filter(p => p === '/system/package/update/check-for-updates');
+  assert.equal(checks.length, 1, 'exactly one upstream check across three collectors');
+});
+
+test('collectors on different routers keep independent update schedules', async () => {
+  const mk = (host) => {
+    const calls = [];
+    const ros = { connected: true, on() {}, stream: () => ({ on() {}, stop() {} }), cfg: { host, port: 8728 },
+                  write: async (p) => { calls.push(p); return [{ 'latest-version': '7.1', status: 'ok' }]; } };
+    const _chain = { emit() {} }; _chain.to = () => _chain;
+    const io = { engine: { clientsCount: 0 }, emit() {}, to: () => _chain };
+    return { calls, collector: new SystemCollector({ ros, io, pollMs: 2000, state: {} }) };
+  };
+  const a = mk('10.1.1.1'), b = mk('10.2.2.2');
+
+  await a.collector._fetchUpdateStatus();
+  await b.collector._fetchUpdateStatus();
+
+  assert.ok(a.calls.includes('/system/package/update/check-for-updates'));
+  assert.ok(b.calls.includes('/system/package/update/check-for-updates'),
+    'a second router must not be blocked by the first router schedule');
+});
+
+test('transient update state retries a bounded number of times', async () => {
+  // Unbounded, this became a 60 s upstream poll whenever the update server
+  // never settled.
+  const h = sysHarness({
+    write: async (path) => {
+      if (path === '/system/package/update/check-for-updates') return [];
+      return [{ status: 'finding out latest version...' }];
+    },
+  });
+  const slot = h.collector._updateSlot();
+
+  for (let i = 0; i < 6; i++) {
+    slot.lastFetch = 0;           // simulate the retry window elapsing
+    await h.collector._fetchUpdateStatus();
+  }
+  assert.ok(slot.retries <= h.collector.UPDATE_MAX_RETRIES,
+    'retries stay capped, got ' + slot.retries);
+});
+
+test('update interval follows the configured hours and stays writable', () => {
+  const h = sysHarness();
+  assert.equal(typeof h.collector.UPDATE_INTERVAL, 'number');
+  assert.ok(h.collector.UPDATE_INTERVAL >= 60 * 60 * 1000, 'never below the 1 h floor');
+  h.collector.UPDATE_INTERVAL = 1234;
+  assert.equal(h.collector.UPDATE_INTERVAL, 1234, 'an explicit assignment still wins (tests rely on it)');
+});
+
 // --- Interface Status: cumulative counters for the list view ---
 
 // _commitMeta() reaches _startMonitorStream(), which attaches 'data' and

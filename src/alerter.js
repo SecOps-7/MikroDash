@@ -29,7 +29,19 @@ function _render(tpl, vars) {
   });
 }
 
+// Delegates to the notifier so "configured" means the same thing on both
+// sides. Checking only the *Enabled flags here, while send() also required
+// credentials, meant a channel ticked without a token consumed the cooldown,
+// sent nothing, and logged nothing — a silent no-op that also suppressed the
+// next alert for the whole cooldown window.
 function _noChannelsActive() {
+  if (typeof notifier.hasConfiguredChannel === 'function') {
+    return !notifier.hasConfiguredChannel(_settings);
+  }
+  return _legacyNoChannelsActive();
+}
+
+function _legacyNoChannelsActive() {
   if (!_settings) return true;
   return !_settings.telegramEnabled && !_settings.pushbulletEnabled && !_settings.smtpEnabled && !_settings.ntfyEnabled;
 }
@@ -67,6 +79,18 @@ function createEvaluator(getNameFn, getRouterFn) {
   const prevNetwatchState = new Map();
   let   prevCpuAlert      = null;   // null=unknown, true=was alerting, false=was normal
   const prevPingAlert     = {};     // target → boolean (was alerting)
+  // The version last alerted on, not a boolean. system:update fires every poll
+  // (~2 s), so a boolean would re-fire as soon as the cooldown lapsed. Keying
+  // on the version gives one alert per release, and a later release still
+  // notifies instead of being swallowed as "already alerting".
+  let   prevUpdateVersion = null;
+
+  // The cooldown map is capped against churn from ephemeral interface names,
+  // but the prev-state maps are populated from that same churning source and
+  // had no cap at all — dynamic pppoe/l2tp/WireGuard peers grew them for the
+  // lifetime of the evaluator. Same bound, same reasoning.
+  const STATE_MAX = 500;
+  function _capMap(m) { if (m.size > STATE_MAX) m.clear(); }
 
   function fire(key, vars, isUp) {
     // Persist alert to DB unconditionally — the Reports tab must reflect every
@@ -131,6 +155,35 @@ function createEvaluator(getNameFn, getRouterFn) {
       }
     }
 
+    if (event === 'system:update' && _settings.notifRouterUpdate) {
+      const latest = data.latestVersion || '';
+      if (data.updateAvailable && latest) {
+        // Only on a version we have not announced. Without this the alert
+        // would repeat on every poll once the cooldown expired.
+        if (prevUpdateVersion !== latest) {
+          prevUpdateVersion = latest;
+          fire('update:router:down', {
+            alertType: 'RouterOS Update',
+            detail:    'RouterOS ' + latest + ' is available (running ' +
+                       ((data.version || '').replace(/\s*\(.*\)/, '').trim() || 'unknown') + ')',
+          }, false);
+        }
+      } else if (!data.updateAvailable && prevUpdateVersion !== null) {
+        // Router reached the version, or the channel changed. Clear the open
+        // alert so the Reports tab does not show it pending forever.
+        prevUpdateVersion = null;
+        fire('update:router:up', {
+          alertType:   'RouterOS Updated',
+          // Must be the stored form: fire() lowercases and underscores
+          // vars.alertType before inserting, but passes resolveType through
+          // untouched, so anything else here silently fails to match the row.
+          resolveType: 'routeros_update',
+          detail:      'RouterOS is up to date (' +
+                       ((data.version || '').replace(/\s*\(.*\)/, '').trim() || 'unknown') + ')',
+        }, true);
+      }
+    }
+
     if (event === 'ping:update' && _settings.notifPing) {
       const target = data.target || 'host';
       const base   = 'ping:' + target;
@@ -163,7 +216,14 @@ function createEvaluator(getNameFn, getRouterFn) {
         const prev       = prevIfState.get(iface.name);
         const wasRunning = prev ? prev.running : undefined;
         const isRunning  = !!iface.running;
-        if (prev !== undefined && wasRunning !== isRunning) {
+        const isDisabled = !!iface.disabled;
+        // An interface disabled by an admin also stops running, which used to
+        // fire "Interface Down". The disabled flag was already being captured
+        // for exactly this purpose and then never read. Suppress both the alert
+        // and the recovery when the transition is administrative, so an admin
+        // re-enabling it does not produce an unpaired "Interface Up" either.
+        const adminToggled = isDisabled || (prev && prev.disabled);
+        if (prev !== undefined && wasRunning !== isRunning && !adminToggled) {
           const ifType = _ifaceType(iface.name, iface.type);
           if (_ifaceTypeAllowed(ifType)) {
             if (!isRunning) {
@@ -173,15 +233,22 @@ function createEvaluator(getNameFn, getRouterFn) {
             }
           }
         }
-        prevIfState.set(iface.name, { running: isRunning, disabled: !!iface.disabled });
+        _capMap(prevIfState);
+        prevIfState.set(iface.name, { running: isRunning, disabled: isDisabled });
       }
     }
 
     if (event === 'vpn:update' && _settings.notifVpn && Array.isArray(data.tunnels)) {
       for (const tunnel of data.tunnels) {
+        // VpnCollector.peerState emits 'active' | 'stale' | 'never' — there is no
+        // 'connected'. It previously emitted 'connected'/'idle' and this compared
+        // against that; when the collector's contract changed this consumer was
+        // missed, so wasConn and isConn were both permanently false and VPN
+        // alerts could not fire at all. Connected means actively handshaking,
+        // which is what the UI badge shows too.
         const prev    = prevVpnState.get(tunnel.name);
-        const wasConn = prev === 'connected';
-        const isConn  = tunnel.state === 'connected';
+        const wasConn = prev === 'active';
+        const isConn  = tunnel.state === 'active';
         if (prev !== undefined && wasConn !== isConn) {
           if (!isConn) {
             fire('vpn:' + tunnel.name + ':down', { alertType:'VPN Disconnected', vpnPeer:tunnel.name, status:'down', detail:'VPN peer ' + tunnel.name + ' disconnected' }, false);
@@ -189,6 +256,7 @@ function createEvaluator(getNameFn, getRouterFn) {
             fire('vpn:' + tunnel.name + ':up',   { alertType:'VPN Connected',    resolveType:'vpn_disconnected', vpnPeer:tunnel.name, status:'up',   detail:'VPN peer ' + tunnel.name + ' connected'    }, true);
           }
         }
+        _capMap(prevVpnState);
         prevVpnState.set(tunnel.name, tunnel.state);
       }
     }
@@ -208,6 +276,7 @@ function createEvaluator(getNameFn, getRouterFn) {
             fire('netwatch:' + host.id + ':up',   { alertType:'Host Up', resolveType:'host_down',     host:host.host, netwatchName, status:'up',   detail:'NetWatch host ' + netwatchDesc + ' is reachable'   }, true);
           }
         }
+        _capMap(prevNetwatchState);
         prevNetwatchState.set(host.id, host.status);
       }
     }

@@ -2,6 +2,38 @@
 const https      = require('https');
 const nodemailer = require('nodemailer');
 
+// Pull a human reason out of an error response body. Telegram and ntfy both
+// return one; without it a failure reads as a bare status code. Kept short so a
+// long HTML error page cannot flood the log or the test-notification response.
+function _reason(raw) {
+  if (!raw) return '';
+  let msg = '';
+  try {
+    const j = JSON.parse(raw);
+    msg = j.description || j.error || j.message || '';
+  } catch (_) {
+    msg = String(raw).trim();
+  }
+  if (!msg) return '';
+  msg = msg.replace(/\s+/g, ' ').slice(0, 160);
+  return ' — ' + msg;
+}
+
+// A channel counts as usable only when it is enabled *and* has the config its
+// send path requires. The alerter previously decided "is any channel active?"
+// from the *Enabled flags alone, while send() checked flags plus credentials —
+// so a channel ticked without a token consumed the alert cooldown, sent
+// nothing, and logged nothing. Both sides now ask this one question.
+function hasConfiguredChannel(s) {
+  if (!s) return false;
+  return !!(
+    (s.telegramEnabled   && s.telegramBotToken && s.telegramChatId) ||
+    (s.pushbulletEnabled && s.pushbulletApiKey) ||
+    (s.smtpEnabled       && s.smtpHost && s.smtpFrom && s.smtpTo) ||
+    (s.ntfyEnabled       && s.ntfyUrl)
+  );
+}
+
 function _httpsPost(hostname, path, headers, body) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body);
@@ -18,8 +50,12 @@ function _httpsPost(hostname, path, headers, body) {
       let raw = '';
       res.on('data', c => { raw += c; });
       res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) resolve(raw);
-        else reject(new Error(`HTTP ${res.statusCode}`));
+        if (res.statusCode >= 200 && res.statusCode < 300) return resolve(raw);
+        // Include the reason, not just the status. Telegram puts the actual
+        // cause ("chat not found", "Unauthorized") in the JSON `description`
+        // and it was already buffered here, so discarding it left users with a
+        // bare "HTTP 400" and nothing to act on.
+        reject(new Error(`HTTP ${res.statusCode}${_reason(raw)}`));
       });
     });
     req.on('error', reject);
@@ -55,6 +91,13 @@ async function sendSmtp(settings, title, body) {
     auth:   (settings.smtpUser || settings.smtpPass)
               ? { user: settings.smtpUser, pass: settings.smtpPass }
               : undefined,
+    // The other three channels enforce 10 s. Without these, nodemailer's
+    // defaults (~2 min) apply, and because send() awaits each channel in turn a
+    // black-holed SMTP host stalls every later channel behind it — and holds
+    // the test-notification HTTP request open for the same period.
+    connectionTimeout: 10000,
+    greetingTimeout:   10000,
+    socketTimeout:     15000,
   });
   try {
     await transport.sendMail({
@@ -75,7 +118,9 @@ async function send(settings, title, body) {
       await sendTelegram(settings.telegramBotToken, settings.telegramChatId, title, body);
     } catch (e) {
       errs.push('Telegram: ' + e.message);
-      console.error('[notifier] Telegram error: HTTP', e.message);
+      // Not necessarily an HTTP failure — this also catches DNS and timeout
+      // errors, which the old "error: HTTP <message>" prefix mislabelled.
+      console.error('[notifier] Telegram error: %s', e.message);
     }
   }
   if (settings.pushbulletEnabled && settings.pushbulletApiKey) {
@@ -83,7 +128,7 @@ async function send(settings, title, body) {
       await sendPushbullet(settings.pushbulletApiKey, title, body);
     } catch (e) {
       errs.push('Pushbullet: ' + e.message);
-      console.error('[notifier] Pushbullet error: HTTP', e.message);
+      console.error('[notifier] Pushbullet error: %s', e.message);
     }
   }
   if (settings.smtpEnabled && settings.smtpHost && settings.smtpFrom && settings.smtpTo) {
@@ -161,4 +206,4 @@ async function testChannel(settings, channel) {
   }
 }
 
-module.exports = { send, testChannel };
+module.exports = { send, testChannel, hasConfiguredChannel };

@@ -2242,7 +2242,8 @@ function applyPageVisibility(pages) {
   }
   // Sync alert type toggles so browser notifications match server settings
   var AT = { notifIfaceUpDown:'ifaceUpDown', notifVpn:'vpn', notifCpu:'cpu',
-             notifPing:'ping', notifNetwatch:'netwatch', notifRouterStatus:'routerStatus' };
+             notifPing:'ping', notifNetwatch:'netwatch', notifRouterStatus:'routerStatus',
+             notifRouterUpdate:'routerUpdate' };
   for (var f in AT) { if (pages[f] !== undefined) _alertTypes[AT[f]] = !!pages[f]; }
   var AI = { notifIfaceEther:'ether', notifIfaceWlan:'wlan', notifIfaceBridge:'bridge',
              notifIfaceVlan:'vlan', notifIfaceOther:'other' };
@@ -2485,8 +2486,18 @@ var NOTIF_COOLDOWN  = 60000; // 1 min between repeat alerts
 // Alert-type and interface-type filters — browser-local, stored in localStorage
 var NOTIF_TYPES_KEY       = 'mkd_notif_types';
 var NOTIF_IFACE_TYPES_KEY = 'mkd_notif_iface_types';
-var _alertTypes      = { ifaceUpDown: true, vpn: true, cpu: true, ping: true, netwatch: true };
-var _alertIfaceTypes = { ether: true, wlan: true, bridge: true, vlan: true, other: true };
+// Every key used in TYPE_MAP must be declared here. syncUI() sets each checkbox
+// from `_alertTypes[field]`, so an undeclared key reads as undefined and forces
+// the toggle off on every visit to the settings page; loadAlertFilters() also
+// iterates Object.keys(_alertTypes), so it would never be restored from
+// localStorage either. Default matches the server default for the same setting.
+// These must match src/settings.js DEFAULTS. They govern the window between
+// script parse and the first settings:pages broadcast, so drift means the bell
+// can fire for categories the server has switched off. netwatch, bridge, vlan
+// and other were all true here against false on the server.
+var _alertTypes      = { ifaceUpDown: true, vpn: true, cpu: true, ping: true, netwatch: false,
+                         routerStatus: false, routerUpdate: false };
+var _alertIfaceTypes = { ether: true, wlan: true, bridge: false, vlan: false, other: false };
 
 function loadAlertFilters() {
   try {
@@ -2604,6 +2615,57 @@ function checkCpuNotif(cpuLoad){
   }
 }
 
+// The bell is fed entirely client-side; alerter.js only drives Telegram and the
+// other push channels. Without this the update alert reached the phone and left
+// no trace in the UI.
+var _updateNotifiedVersion = null;
+function checkUpdateNotif(d){
+  if(!_alertTypes.routerUpdate) return;
+  var latest = d.latestVersion || '';
+  if(d.updateAvailable && latest){
+    // Keyed on the version rather than a timer. system:update arrives on every
+    // poll (~2 s), so a NOTIF_COOLDOWN gate would re-fire indefinitely; keying
+    // on the version gives one entry per release and still notifies for a
+    // later one. Mirrors the server-side rule in alerter.js.
+    if(_updateNotifiedVersion !== latest){
+      _updateNotifiedVersion = latest;
+      var installed = (d.version || '').replace(/\s*\(.*\)/, '').trim() || 'unknown';
+      sendNotif('RouterOS Update',
+                'RouterOS ' + latest + ' is available (running ' + installed + ')',
+                'ros-update');
+    }
+  } else if(!d.updateAvailable){
+    _updateNotifiedVersion = null; // upgraded, so a future release notifies again
+  }
+}
+
+// Router up/down had a settings toggle and a server-side push path, but no
+// client check at all — so s_notifRouterStatus reached Telegram and never the
+// bell. Labels come from routers:update because router:status only carries an
+// id, and a UUID in a notification is useless.
+var _notifRouterLabels = {};
+var _routerStatusPrev  = {};
+socket.on('routers:update', function(list){
+  (list || []).forEach(function(r){
+    if (r && r.id) _notifRouterLabels[r.id] = r.label || r.host || r.id;
+  });
+});
+
+function checkRouterStatusNotif(d){
+  if (!_alertTypes.routerStatus) return;
+  if (!d || !d.routerId) return;
+  var was = _routerStatusPrev[d.routerId];
+  var is  = !!d.connected;
+  // Keyed on the transition, not a timer: router:status repeats on every
+  // reconnect attempt, and the first observation only seeds the baseline.
+  if (was !== undefined && was !== is) {
+    var name = _notifRouterLabels[d.routerId] || d.routerId;
+    if (!is) sendNotif('Router Offline', name + ' is not reachable', 'rtr-' + d.routerId);
+    else     sendNotif('Router Online',  name + ' is reachable again', 'rtr-' + d.routerId);
+  }
+  _routerStatusPrev[d.routerId] = is;
+}
+
 function checkPingNotif(loss){
   if(!_alertTypes.ping) return;
   var now = Date.now();
@@ -2634,9 +2696,10 @@ var _origIfstatus = null;
   var _listeners = [];
   socket.on('ifstatus:update', function(data){ checkIfaceNotifs(data.interfaces||[]); });
   socket.on('vpn:update',      function(data){ checkVpnNotifs(data.tunnels||[]); });
-  socket.on('system:update',   function(d){    checkCpuNotif(d.cpuLoad); });
+  socket.on('system:update',   function(d){    checkCpuNotif(d.cpuLoad); checkUpdateNotif(d); });
   socket.on('ping:update',     function(data){ checkPingNotif(data.loss); });
   socket.on('netwatch:update', function(data){ checkNetwatchNotifs(data.hosts||[]); });
+  socket.on('router:status',   function(d){    checkRouterStatusNotif(d); });
   // Clear alert-tracking state on every (re)connect so the initial-state payload
   // from sendInitialState is treated as a fresh baseline, not a transition.
   // Without this, a state change that occurred while the socket was disconnected
@@ -2654,6 +2717,16 @@ var _origIfstatus = null;
     _ifacePending      = {};
     _notifPrevVpn      = {};
     _notifPrevNetwatch = {};
+    // These were left behind on a switch, so router B inherited router A's
+    // state: A's cooldowns suppressed B's first CPU/ping alert for up to a
+    // minute, and A's remembered version either fired a bogus update alert for
+    // B or swallowed B's real one.
+    _cpuAlertedAt          = 0;
+    _pingAlertedAt         = 0;
+    _updateNotifiedVersion = null;
+    // Router status is fleet-wide rather than per-router, so _routerStatusPrev
+    // is deliberately not cleared here — clearing it would re-seed every
+    // router's baseline and lose a transition that happened during the switch.
   });
 })();
 
@@ -2668,6 +2741,8 @@ loadAlertFilters();
     { id: 's_notifCpu',         obj: _alertTypes,      field: 'cpu',         key: 'notifCpu'         },
     { id: 's_notifPing',        obj: _alertTypes,      field: 'ping',        key: 'notifPing'        },
     { id: 's_notifNetwatch',    obj: _alertTypes,      field: 'netwatch',    key: 'notifNetwatch'    },
+    { id: 's_notifRouterStatus',obj: _alertTypes,      field: 'routerStatus',key: 'notifRouterStatus'},
+    { id: 's_notifRouterUpdate',obj: _alertTypes,      field: 'routerUpdate',key: 'notifRouterUpdate'},
     { id: 's_notifIfaceEther',  obj: _alertIfaceTypes, field: 'ether',       key: 'notifIfaceEther'  },
     { id: 's_notifIfaceWlan',   obj: _alertIfaceTypes, field: 'wlan',        key: 'notifIfaceWlan'   },
     { id: 's_notifIfaceBridge', obj: _alertIfaceTypes, field: 'bridge',      key: 'notifIfaceBridge' },
@@ -4392,6 +4467,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     // Alert thresholds
+    var uchLoad = $('s_updateCheckHours');
+    if (uchLoad && data.updateCheckHours != null) uchLoad.value = data.updateCheckHours;
+
     var cpuSlider = $('s_alertCpuThreshold'), cpuVal = $('s_alertCpuThresholdVal');
     if (cpuSlider && data.alertCpuThreshold != null) {
       cpuSlider.value = data.alertCpuThreshold;
@@ -4416,6 +4494,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       { field: 'notifPing',        obj: _alertTypes,     key: 'ping'        },
       { field: 'notifNetwatch',      obj: _alertTypes,     key: 'netwatch'      },
       { field: 'notifRouterStatus',  obj: _alertTypes,     key: 'routerStatus'  },
+      { field: 'notifRouterUpdate',  obj: _alertTypes,     key: 'routerUpdate'  },
       { field: 'notifIfaceEther',    obj: _alertIfaceTypes, key: 'ether'        },
       { field: 'notifIfaceWlan',   obj: _alertIfaceTypes, key: 'wlan'       },
       { field: 'notifIfaceBridge', obj: _alertIfaceTypes, key: 'bridge'     },
@@ -4508,9 +4587,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var pingEl = $('s_alertPingLoss');     if (pingEl) out.alertPingLoss      = parseInt(pingEl.value, 10);
     // Alert type + iface type toggles
     ['notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
+     'notifRouterUpdate',
      'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
+    // Hours, not milliseconds — the only interval that leaves the router.
+    var uchEl = $('s_updateCheckHours');
+    if (uchEl && uchEl.value !== '') {
+      var uch = parseInt(uchEl.value, 10);
+      if (isFinite(uch)) out.updateCheckHours = Math.max(1, Math.min(168, uch));
+    }
     // Notification channel toggles
     ['telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
@@ -7629,7 +7715,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var topType = Object.keys(typeCounts).sort(function(a,b){ return typeCounts[b]-typeCounts[a]; })[0]||'—';
     if (rptAlertStats) rptAlertStats.innerHTML =
       statCard(rows.length,'Total') + statCard(open,'Open') + statCard(resolved,'Resolved') + statCard(topType,'Top Type');
-    _alertRawRows = rows;
+    // The Down Time header sorts on `downtime_ms`, which queryAlertEvents never
+    // returns — so clicking it compared undefined against undefined and did
+    // nothing. Derive it here from the two columns the row does carry, matching
+    // exactly what the cell renders. Open alerts stay null so they sort last
+    // rather than pretending to be zero-length outages.
+    _alertRawRows = (rows || []).map(function(r) {
+      return Object.assign({}, r, {
+        downtime_ms: r.resolved_at ? (r.resolved_at - r.fired_at) : null,
+      });
+    });
     _alertSort.col = 'fired_at'; _alertSort.dir = 'desc';
     _applyAlertSort();
     setExportLinks(rptAlertCsvLink, rptAlertPdfLink, 'alerts', routerId, from, to, '');
