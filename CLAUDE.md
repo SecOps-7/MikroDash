@@ -6,6 +6,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Code navigation and editing
+
+This repo is indexed by **Serena** (MCP). Use its symbolic tools for code — they are cheaper and more
+precise than whole-file reads. `src/index.js` is 2800 lines and `public/app.js` is 8000; reading
+either in full wastes most of a context window for no benefit.
+
+| Task | Use | Not |
+|---|---|---|
+| Understand a file | `get_symbols_overview`, then `find_symbol` with `include_body` on the symbols you actually need | `Read` on the whole file |
+| Find a definition | `find_symbol` / `find_declaration` | `Grep` then `Read` |
+| Find callers before changing a signature | `find_referencing_symbols` | `Grep` |
+| Replace a whole function / class / method | `replace_symbol_body` | `Edit` |
+| Change a few lines inside a larger symbol | `replace_content` (regex mode: `start.*?end` beats quoting the block) | `Edit` |
+| Same edit across many files | `replace_in_files` (`dry_run: true` first) | a batch of `Edit`s |
+| Rename a symbol everywhere | `rename_symbol` | hand-rolled find-and-replace |
+
+- `Glob` and `Grep` are fine for **discovery** — locating candidate files. The follow-up read or
+  reference search should go through Serena.
+- **Scope:** `src/**` and `public/*.js`. This does *not* apply to markdown, JSON, YAML, `.gitignore`,
+  `Dockerfile`, or shell scripts — Serena has no symbol model for those, so `Read`/`Edit`/`Write` are
+  the correct tools there. `public/vendor/` is read-only; never edit it.
+- When `rename_symbol` or `safe_delete_symbol` returns success the refactor is already applied
+  consistently across all references — don't re-read files or re-run the suite just to confirm it
+  propagated.
+- Serena is **per-session**: call `initial_instructions` once per conversation, and expect one Serena
+  process (and one dashboard port, 24282+) per Claude session. Two sessions on this project share
+  `.serena/memories/` with no locking — concurrent memory writes clobber each other.
+- Project memories live in `.serena/memories/` (gitignored). `mem:core` is the entry point and links
+  to `mem:tech_stack`, `mem:suggested_commands`, `mem:conventions`, `mem:task_completion`,
+  `mem:frontend/core`. They point into `AI_CONTEXT.md` rather than duplicating it — keep it that way,
+  and retire a memory when the thing it describes changes.
+
+---
+
 ## Commands
 
 ```bash
