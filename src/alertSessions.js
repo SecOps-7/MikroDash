@@ -59,7 +59,13 @@ function _buildSession(router) {
   const stubIo = {
     engine: { clientsCount: 1 },
     emit(event, data) {
-      if (evaluator) try { evaluator.evaluate(event, data); } catch (_) {}
+      // Logged, not swallowed: this used to be an empty catch, so a throw inside
+    // trigger evaluation silenced alerts for this router with no trace at all.
+    // The pool path already logs the equivalent (alerter.js evaluateForRouter).
+    if (evaluator) {
+      try { evaluator.evaluate(event, data); }
+      catch (e) { console.error('[alertSessions] evaluate error: %s', e && e.message ? e.message : e); }
+    }
     },
     // Collectors that emit via io.to(room).emit (e.g. vpn) must still reach the
     // evaluator here — without to() they would throw and VPN alerts never fire.
@@ -130,8 +136,14 @@ function _buildSession(router) {
       _statusMap.set(routerId, false);
       if (_mainIo) _mainIo.emit('router:status', { routerId, connected: false });
       dbWriter.recordConnectivity(routerId, false);
-      if (alertsEnabled && _prevConnected !== false)
+      if (alertsEnabled && _prevConnected !== false) {
+        // Mirrors the debounce branch below. The recovery path is guarded on
+        // _declaredOffline, so leaving it false here meant a router with
+        // connDownThresholdSec = 0 opened a connectivity alert that could
+        // never be resolved.
+        _declaredOffline = true;
         alerter.fireConnectivityAlert(routerId, router.label || router.host, false);
+      }
       _prevConnected = false;
       return;
     }

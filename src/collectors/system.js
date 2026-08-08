@@ -1,9 +1,21 @@
 const { stopStreamSafe } = require('./util');
 
+// Update-check schedule, shared per router across every SystemCollector
+// instance. See _updateSlot() for why this cannot live on the instance.
+// Keyed 'host:port'; entries are tiny and bounded by the number of configured
+// routers, so they are never evicted.
+const _updateSchedule = new Map();
+
 class SystemCollector {
-  constructor({ ros, io, pollMs, state, streamMode }) {
+  constructor({ ros, io, pollMs, state, streamMode, alertsActive }) {
     this.ros = ros;
     this.io = io;
+    // The alerter is fed from the emit path, so idle-gating the emit also
+    // silences alerts. A router with alerts enabled must keep emitting with no
+    // viewer attached; non-active routers already behave this way because
+    // alertSessions stubs clientsCount to 1. Defaults to off, so every existing
+    // call site and test keeps today's idle behaviour.
+    this._alertsActive = typeof alertsActive === 'function' ? alertsActive : () => false;
     this._lbl = ros.routerLabel ? `[${ros.routerLabel}][system]` : '[system]';
     this.pollMs = pollMs || 2000;
     this.state = state;
@@ -16,8 +28,16 @@ class SystemCollector {
     this._healthInflight = false;
     this._lastHealth = [];
     this._loggedUpdateFields = false;
-    this.UPDATE_INTERVAL   = 12 * 60 * 60 * 1000;
-    this._lastUpdateFetch  = 0;
+    // Default only. The live value is read from settings on each check (see
+    // the UPDATE_INTERVAL accessor) so a change takes effect without a
+    // restart, matching how the other intervals behave. Assigning to it still
+    // works, which the tests rely on.
+    this._updateIntervalOverride = null;
+    // Bounded retry for a router still resolving the check. Unbounded, this
+    // would become a 60 s upstream poll whenever the update server never
+    // settles, which is exactly the pattern that earns a rate limit.
+    this.UPDATE_RETRY_MS      = 60 * 1000;
+    this.UPDATE_MAX_RETRIES   = 3;
     this._lastUpdateRow    = {};
     this._lastFp           = '';
     this.lastPayload       = null;
@@ -35,8 +55,11 @@ class SystemCollector {
       this._healthInflight = false;
       this._restarting     = false;
       this._lastFp = '';
-      this._lastUpdateFetch = 0;
-      this._lastUpdateRow = {};
+      // The update schedule and the cached row deliberately survive a
+      // reconnect. Resetting them meant every reconnect fired another
+      // check-for-updates, so a flapping link turned the 12 h interval into
+      // one upstream call per flap, and wiping the row blanked the version
+      // info on the dashboard until the next check.
       this._staticFetched = false;
       this._staticSerial  = null;
       this._staticLicense = null;
@@ -47,22 +70,87 @@ class SystemCollector {
     });
   }
 
+  // The schedule is keyed on the router, not on this instance. SystemCollector
+  // is constructed up to three times per router — the active session
+  // (index.js), the routers-overview session (overviewSessions.js) and the
+  // background alert session (alertSessions.js) — and each start() would
+  // otherwise fire its own check-for-updates, with overviewSessions starting
+  // again on every reconnect. check-for-updates is the only call here that
+  // leaves the router and reaches upgrade.mikrotik.com, so that turned one
+  // interval into several upstream calls per router.
+  // Hours in settings, milliseconds here. settings.load() is cached, so reading
+  // it per check is cheap. An explicit assignment wins, which keeps the field
+  // writable for tests that pin the interval.
+  get UPDATE_INTERVAL() {
+    if (this._updateIntervalOverride != null) return this._updateIntervalOverride;
+    let hours = 12;
+    try {
+      const h = require('../settings').load().updateCheckHours;
+      if (Number.isFinite(h) && h > 0) hours = h;
+    } catch (_) { /* settings unreadable — fall back to the default */ }
+    return hours * 60 * 60 * 1000;
+  }
+  set UPDATE_INTERVAL(v) { this._updateIntervalOverride = v; }
+
+  _updateSlot() {
+    const cfg = (this.ros && this.ros.cfg) || {};
+    // Stub ROS objects in tests carry no host, so they get a private slot and
+    // cannot leak scheduling state into each other.
+    if (!cfg.host) return (this._ownUpdateSlot || (this._ownUpdateSlot = { lastFetch: 0, inflight: false, retries: 0 }));
+    const key = cfg.host + ':' + (cfg.port || '');
+    let slot = _updateSchedule.get(key);
+    if (!slot) { slot = { lastFetch: 0, inflight: false, retries: 0 }; _updateSchedule.set(key, slot); }
+    return slot;
+  }
+
+  // Accessors so the field stays writable: tests set it directly to suppress a
+  // fetch, and the retry path below rewinds it.
+  get _lastUpdateFetch()  { return this._updateSlot().lastFetch; }
+  set _lastUpdateFetch(v) { this._updateSlot().lastFetch = v; }
+
+  // Applies a /system/package/update row to the cached payload and emits.
+  // Safe to call before the first resource tick: _lastUpdateRow is what
+  // _buildPayload reads, so the values still reach the next emit even when
+  // there is no payload to update yet. Previously all of this sat behind
+  // `if (this.lastPayload)`, so the startup check — which runs before the
+  // resource stream has delivered anything — discarded its result while still
+  // consuming the 12 h window.
+  _applyUpdateRow(u) {
+    this._lastUpdateRow = u;
+    if (!this.lastPayload) return;
+    const latestVersion   = u['latest-version'] || '';
+    const updateStatus    = u['status'] || '';
+    const installedBase   = (this.lastPayload.version || '').replace(/\s*\(.*\)/, '').trim();
+    const updateAvailable = latestVersion
+      ? latestVersion !== installedBase
+      : updateStatus.toLowerCase().includes('new version');
+    const updated = { ...this.lastPayload, ts: Date.now(), latestVersion,
+                      updateAvailable: !!updateAvailable, updateStatus };
+    this.lastPayload = updated;
+    this._lastFp = '';
+    this.io.emit('system:update', updated);
+  }
+
   // Fetch update status independently so a slow RouterOS update-server
   // response never delays the resource/health tick (and thus the gauges).
   async _fetchUpdateStatus() {
     if (!this.ros.connected) return;
+    const slot = this._updateSlot();
+    if (slot.inflight) return;
     const now = Date.now();
-    if ((now - this._lastUpdateFetch) < this.UPDATE_INTERVAL) return;
-    this._lastUpdateFetch = now;
+    if ((now - slot.lastFetch) < this.UPDATE_INTERVAL) return;
+    slot.inflight = true;
+    slot.lastFetch = now;
     try {
       // Explicitly trigger a check with the update server (blocks until done or times out).
       // Without this, print returns cached/transient "finding out latest version..." state.
       const checkTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('check-for-updates timed out')), 15000));
+      let checkErr = null;
       await Promise.race([
         this.ros.write('/system/package/update/check-for-updates'),
         checkTimeout,
-      ]).catch(() => {}); // ignore errors — fall through to print regardless
+      ]).catch(e => { checkErr = e; });
 
       const printTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('update check timed out')), 5000));
@@ -71,42 +159,54 @@ class SystemCollector {
         printTimeout,
       ]);
       const u = result && result[0] ? result[0] : {};
-      this._lastUpdateRow = u;
       if (!this._loggedUpdateFields) {
         console.log(this._lbl + ' package/update fields:', JSON.stringify(u)); // codeql[js/tainted-format-string]
         this._loggedUpdateFields = true;
       }
-      if (this.lastPayload) {
-        const latestVersion   = u['latest-version'] || '';
-        const updateStatus    = u['status'] || '';
-        const installedBase   = (this.lastPayload.version || '').replace(/\s*\(.*\)/, '').trim();
-        const updateAvailable = latestVersion
-          ? latestVersion !== installedBase
-          : updateStatus.toLowerCase().includes('new version');
-        const updated = { ...this.lastPayload, ts: Date.now(), latestVersion, updateAvailable: !!updateAvailable, updateStatus };
-        this.lastPayload = updated;
-        this._lastFp = '';
-        this.io.emit('system:update', updated);
 
-        // If still unresolved, retry in 60 s (update server may be slow)
-        const isTransient = !latestVersion && (
-          updateStatus === '' ||
-          /finding out|checking|in progress/i.test(updateStatus)
-        );
-        if (isTransient) this._lastUpdateFetch = now - this.UPDATE_INTERVAL + 60000;
+      // A denied check is not a transient condition. /print still succeeds on
+      // read permission alone and returns whatever the router last cached, so
+      // swallowing this error made the dashboard show stale data and look
+      // healthy doing it. Report it instead, and do not retry: only a config
+      // change fixes it. The word "unavailable" is deliberate, since the
+      // frontend styles a status matching it as a warning row.
+      const denied = checkErr && /not enough permission|no permission|not allowed/i.test(checkErr.message || '');
+      if (denied) {
+        if (!this._loggedCheckDenied) {
+          this._loggedCheckDenied = true;
+          console.warn('%s update check unavailable: the API user lacks "write" permission for ' +
+            '/system/package/update/check-for-updates, so only the router\'s cached state is shown', this._lbl);
+        }
+        this._applyUpdateRow({ ...u, status: 'Update check unavailable — API user needs write permission' });
+        slot.retries = 0;
+        return;
+      }
+      if (checkErr && !this._loggedCheckErr) {
+        this._loggedCheckErr = true;
+        console.warn('%s check-for-updates failed (%s); reporting the router\'s cached state',
+          this._lbl, checkErr.message || String(checkErr));
+      }
+
+      this._applyUpdateRow(u);
+
+      // Retry only while the router says it is still working, and only a
+      // bounded number of times. Each retry is another upstream call, so an
+      // update server that never settles must not become a 60 s poll forever.
+      const latestVersion = u['latest-version'] || '';
+      const status        = u['status'] || '';
+      const isTransient = !latestVersion && (status === '' || /finding out|checking|in progress/i.test(status));
+      if (isTransient && slot.retries < this.UPDATE_MAX_RETRIES) {
+        slot.retries++;
+        slot.lastFetch = now - this.UPDATE_INTERVAL + this.UPDATE_RETRY_MS;
+      } else {
+        slot.retries = 0;
       }
     } catch (e) {
       const msg = e && e.message ? e.message : String(e);
       console.error(this._lbl + ' update check failed:', msg); // codeql[js/tainted-format-string]
-      this._lastUpdateRow = { status: 'Update check unavailable' };
-      if (this.lastPayload) {
-        const updated = { ...this.lastPayload, ts: Date.now(),
-          latestVersion: '', updateAvailable: false,
-          updateStatus: 'Update check unavailable' };
-        this.lastPayload = updated;
-        this._lastFp = '';
-        this.io.emit('system:update', updated);
-      }
+      this._applyUpdateRow({ status: 'Update check unavailable' });
+    } finally {
+      slot.inflight = false;
     }
   }
 
@@ -192,8 +292,9 @@ class SystemCollector {
     // UPDATE_INTERVAL (12 h) so this is effectively a no-op on most ticks.
     this._fetchUpdateStatus().catch(() => {});
 
-    // Gate emit only — lastPayload already set above.
-    if (this.io.engine.clientsCount === 0) return;
+    // Gate emit only — lastPayload already set above. Alerts ride the emit
+    // path, so a router with alerts enabled must not be gated here.
+    if (this.io.engine.clientsCount === 0 && !this._alertsActive()) return;
 
     const fp = `${cpuLoad},${memPct},${hddPct},${tempC},${r.uptime||''},${updateAvailable},${latestVersion}`;
     if (fp !== this._lastFp) {

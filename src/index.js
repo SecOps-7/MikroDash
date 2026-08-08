@@ -379,12 +379,21 @@ function buildSession(routerCfg, routerIo) {
   const conns        = new ConnectionsCollector ({ros, io:routerIo, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache, geoOrgCache, streamMode:_cfg.streamConns});
   const talkers      = new TopTalkersCollector  ({ros, io:routerIo, pollMs:_cfg.pollTalkers,  state, topN:_cfg.topTalkersN, streamMode:_cfg.streamTalkers});
   const logs         = new LogsCollector        ({ros, io:routerIo, state});
-  const system       = new SystemCollector      ({ros, io:routerIo, pollMs:_cfg.pollSystem,   state, streamMode:_cfg.streamSystem});
+  // Read live rather than captured: alertsEnabled can be toggled without
+  // rebuilding the session. The alerter only sees events that are actually
+  // emitted, so the three collectors feeding CPU / ping / interface alerts must
+  // not be idle-gated while alerts are on. Non-active routers already behave
+  // this way via the stubbed clientsCount in alertSessions.
+  const _alertsActive = () => {
+    const r = Routers.getById(routerCfg.id);
+    return !!(r && r.alertsEnabled);
+  };
+  const system       = new SystemCollector      ({ros, io:routerIo, pollMs:_cfg.pollSystem,   state, streamMode:_cfg.streamSystem, alertsActive:_alertsActive});
   const wireless     = new WirelessCollector    ({ros, io:routerIo, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
   const vpn          = new VpnCollector         ({ros, io:routerIo, pollMs:_cfg.pollVpn,      state, rid:routerCfg.id});
   const firewall     = new FirewallCollector    ({ros, io:routerIo, pollMs:_cfg.pollFirewall,  state});
-  const ifStatus     = new InterfaceStatusCollector({ros, io:routerIo, pollMs:_cfg.pollIfstatus, metaPollMs:_cfg.pollIfaces, state, streamMode:_cfg.streamIfrates});
-  const ping         = new PingCollector        ({ros, io:routerIo, pollMs:_cfg.pollPing,     state, target:PING_TARGET, streamMode:_cfg.streamPing});
+  const ifStatus     = new InterfaceStatusCollector({ros, io:routerIo, pollMs:_cfg.pollIfstatus, metaPollMs:_cfg.pollIfaces, state, streamMode:_cfg.streamIfrates, alertsActive:_alertsActive});
+  const ping         = new PingCollector        ({ros, io:routerIo, pollMs:_cfg.pollPing,     state, target:PING_TARGET, streamMode:_cfg.streamPing, alertsActive:_alertsActive});
   const bandwidth    = new BandwidthCollector   ({ros, io:routerIo, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache});
   const routing      = new RoutingCollector     ({ros, io:routerIo, pollMs:_cfg.pollRouting,  state});
   const netwatch     = new NetwatchCollector    ({ros, io:routerIo,                           state});
@@ -489,8 +498,15 @@ function wireRosEvents(session, entry) {
         // Threshold = 0 → react immediately (original behaviour).
         io.emit('router:status', { routerId: session.routerId, connected: false });
         dbWriter.recordConnectivity(session.routerId, false);
-        if (_prevConnected !== false)
+        if (_prevConnected !== false) {
+          // Must mirror the debounce branch below: the recovery path is guarded
+          // on _declaredOffline, so leaving it false here meant a router with
+          // connDownThresholdSec = 0 opened a connectivity alert that could
+          // never be resolved. Set inside the same condition that fires the
+          // alert, so recovery cannot emit an unpaired "online".
+          _declaredOffline = true;
           alerter.fireConnectivityAlert(session.routerId, label, false);
+        }
         _prevConnected = false;
         return;
       }
@@ -1060,28 +1076,42 @@ app.get('/api/settings', (req, res) => {
   res.json(Settings.getPublic());
 });
 
+// Single source for the settings:pages payload.
+//
+// Three call sites used to maintain identical 26-key object literals by hand:
+// the _reset branch, the post-save broadcast and the on-connect emit. The
+// browser builds its _alertTypes map from this payload, so a key missing from
+// any one of them left that alert type switched off in the UI while the server
+// had it enabled — the push channel fired and the notification bell stayed
+// empty, with nothing logged. Adding a single setting drifted this three times.
+//
+// The notif* booleans are derived from DEFAULTS rather than listed, so a new
+// alert toggle reaches the client automatically. That assumes every boolean
+// named notif* is a client-facing alert toggle, which holds today; anything
+// sensitive must not adopt that prefix. Credentials are excluded structurally
+// (they are strings, and filtered by CREDENTIAL_FIELDS in settings.js).
+const _PAGE_SETTING_KEYS = [
+  'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
+  'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting',
+  'alertCpuThreshold', 'alertPingLoss', 'vpnDashTopN', 'pingEnabled',
+  'displayTimezone',
+  ...Object.keys(Settings.DEFAULTS)
+    .filter(k => /^notif/.test(k) && typeof Settings.DEFAULTS[k] === 'boolean'),
+];
+
+function _pageSettings(src) {
+  const out = {};
+  for (const k of _PAGE_SETTING_KEYS) out[k] = src[k];
+  return out;
+}
+
 app.post('/api/settings', _requireAdmin, (req, res) => {
   try {
     const body = req.body || {};
     if (body._reset) {
       const { DEFAULTS } = require('./settings');
       Settings.save(DEFAULTS);
-      io.emit('settings:pages', {
-        pageWireless:DEFAULTS.pageWireless, pageInterfaces:DEFAULTS.pageInterfaces,
-        pageDhcp:DEFAULTS.pageDhcp, pageVpn:DEFAULTS.pageVpn,
-        pageConnections:DEFAULTS.pageConnections, pageFirewall:DEFAULTS.pageFirewall,
-        pageLogs:DEFAULTS.pageLogs, pageBandwidth:DEFAULTS.pageBandwidth,
-        pageRouting:DEFAULTS.pageRouting,
-        alertCpuThreshold:DEFAULTS.alertCpuThreshold, alertPingLoss:DEFAULTS.alertPingLoss,
-        vpnDashTopN:DEFAULTS.vpnDashTopN, pingEnabled:DEFAULTS.pingEnabled,
-        notifIfaceUpDown:DEFAULTS.notifIfaceUpDown, notifVpn:DEFAULTS.notifVpn,
-        notifCpu:DEFAULTS.notifCpu, notifPing:DEFAULTS.notifPing, notifNetwatch:DEFAULTS.notifNetwatch,
-        notifRouterStatus:DEFAULTS.notifRouterStatus,
-        notifIfaceEther:DEFAULTS.notifIfaceEther, notifIfaceWlan:DEFAULTS.notifIfaceWlan,
-        notifIfaceBridge:DEFAULTS.notifIfaceBridge, notifIfaceVlan:DEFAULTS.notifIfaceVlan,
-        notifIfaceOther:DEFAULTS.notifIfaceOther,
-        displayTimezone:DEFAULTS.displayTimezone,
-      });
+      io.emit('settings:pages', _pageSettings(DEFAULTS));
       return res.json({ ok:true, requiresRestart:false });
     }
     const updates = {};
@@ -1092,6 +1122,9 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
       pollBandwidth:[1000,60000], pollDhcp:[10000,600000], pollRouting:[500,300000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], vpnDashTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
       alertCpuThreshold:[1,100], alertPingLoss:[1,100], notifCooldownSec:[10,3600],
+      // Hours, not milliseconds. Floor of 1 h mirrors the clamp in settings.js
+      // and protects MikroTik's update servers from a hand-crafted request.
+      updateCheckHours:[1,168],
       smtpPort:[1,65535],
       dbRetentionDays:[1,3650], dbAlertRetentionDays:[1,3650],
     };
@@ -1109,6 +1142,7 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
                         'streamSystem','streamPing','streamConns','streamTalkers','streamIfrates',
                         'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure','ntfyEnabled',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
+                        'notifRouterUpdate',
                         'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'];
     const credFields = ['telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 
@@ -1272,22 +1306,7 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
       }
     }
 
-    const pageSettings = {
-      pageWireless:saved.pageWireless, pageInterfaces:saved.pageInterfaces,
-      pageDhcp:saved.pageDhcp, pageVpn:saved.pageVpn,
-      pageConnections:saved.pageConnections, pageFirewall:saved.pageFirewall,
-      pageLogs:saved.pageLogs, pageBandwidth:saved.pageBandwidth,
-      pageRouting:saved.pageRouting,
-      alertCpuThreshold:saved.alertCpuThreshold, alertPingLoss:saved.alertPingLoss,
-      vpnDashTopN:saved.vpnDashTopN, pingEnabled:saved.pingEnabled,
-      notifIfaceUpDown:saved.notifIfaceUpDown, notifVpn:saved.notifVpn,
-      notifCpu:saved.notifCpu, notifPing:saved.notifPing, notifNetwatch:saved.notifNetwatch,
-      notifRouterStatus:saved.notifRouterStatus,
-      notifIfaceEther:saved.notifIfaceEther, notifIfaceWlan:saved.notifIfaceWlan,
-      notifIfaceBridge:saved.notifIfaceBridge, notifIfaceVlan:saved.notifIfaceVlan,
-      notifIfaceOther:saved.notifIfaceOther,
-      displayTimezone:saved.displayTimezone,
-    };
+    const pageSettings = _pageSettings(saved);
     io.emit('settings:pages', pageSettings);
     res.json({ ok:true, requiresRestart:false });
   } catch(e) {
@@ -2440,21 +2459,7 @@ async function sendInitialState(socket, entry) {
   if (s.routing.lastPayload)   socket.emit('routing:update',   s.routing.lastPayload);
   if (s.netwatch.lastPayload)  socket.emit('netwatch:update',  s.netwatch.lastPayload);
 
-  socket.emit('settings:pages', {
-    pageWireless:_ps.pageWireless, pageInterfaces:_ps.pageInterfaces,
-    pageDhcp:_ps.pageDhcp, pageVpn:_ps.pageVpn,
-    pageConnections:_ps.pageConnections, pageFirewall:_ps.pageFirewall,
-    pageLogs:_ps.pageLogs, pageBandwidth:_ps.pageBandwidth, pageRouting:_ps.pageRouting,
-    alertCpuThreshold:_ps.alertCpuThreshold, alertPingLoss:_ps.alertPingLoss,
-    vpnDashTopN:_ps.vpnDashTopN, pingEnabled:_ps.pingEnabled,
-    notifIfaceUpDown:_ps.notifIfaceUpDown, notifVpn:_ps.notifVpn,
-    notifCpu:_ps.notifCpu, notifPing:_ps.notifPing, notifNetwatch:_ps.notifNetwatch,
-    notifRouterStatus:_ps.notifRouterStatus,
-    notifIfaceEther:_ps.notifIfaceEther, notifIfaceWlan:_ps.notifIfaceWlan,
-    notifIfaceBridge:_ps.notifIfaceBridge, notifIfaceVlan:_ps.notifIfaceVlan,
-    notifIfaceOther:_ps.notifIfaceOther,
-    displayTimezone:_ps.displayTimezone,
-  });
+  socket.emit('settings:pages', _pageSettings(_ps));
 
   if (_ps.pingEnabled !== false) {
     const pingData = s.ping.getHistory();

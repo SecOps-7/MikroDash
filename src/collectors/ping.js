@@ -19,9 +19,12 @@ const MAX_HISTORY  = 60;
 const LOSS_WINDOW  = 10; // rolling window for loss %
 
 class PingCollector {
-  constructor({ ros, io, pollMs, state, target, streamMode }) {
+  constructor({ ros, io, pollMs, state, target, streamMode, alertsActive }) {
     this.ros    = ros;
     this.io     = io;
+    // See SystemCollector: alerts are fed from the emit path, so a router with
+    // alerts enabled must keep pinging and emitting with no viewer attached.
+    this._alertsActive = typeof alertsActive === 'function' ? alertsActive : () => false;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][ping]` : '[ping]';
     this.pollMs = pollMs || 5000;
     this._pollDelayMs = clampPoll(pollMs, 5000);
@@ -127,7 +130,9 @@ class PingCollector {
 
   async _pollPingOnce() {
     if (!this.ros.connected || this._pollInflight || this._permissionDenied) return;
-    if (this.io.engine.clientsCount === 0) return;
+    // Skipping the ping itself, not just the emit — with alerts enabled there
+    // would be no loss figure to alert on at all.
+    if (this.io.engine.clientsCount === 0 && !this._alertsActive()) return;
     this._pollInflight = true;
     try {
       const rows = await this.ros.write('/tool/ping', [
@@ -191,8 +196,10 @@ class PingCollector {
     this.state.lastPingTs  = Date.now();
     this.state.lastPingErr = null;
 
-    // Suppress emit when no clients — stream keeps running so lastPayload stays current.
-    if (this.io.engine.clientsCount === 0) return;
+    // Suppress emit when no clients — stream keeps running so lastPayload stays
+    // current. Alerts ride the emit path, so a router with alerts enabled is
+    // exempt or ping-loss alerts never fire.
+    if (this.io.engine.clientsCount === 0 && !this._alertsActive()) return;
 
     if (fp !== this._lastFp) {
       this._lastFp = fp;
