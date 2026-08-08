@@ -9,7 +9,8 @@ This file gives AI coding assistants (Claude, Copilot, Cursor, etc.) immediate g
 MikroDash is a **real-time MikroTik RouterOS v7 dashboard**. It connects directly to the RouterOS binary API over a persistent TCP connection, streams live network data to a browser via Socket.IO, and serves a static single-page UI over Express. There are no page refreshes, no polling from the browser, no external agents, and no build step.
 
 **Target user:** Network operator/admin on a trusted LAN.  
-**Not for:** Public internet exposure — there is no HTTPS termination or role-based access control built in.
+**Not for:** Public internet exposure — there is no HTTPS termination. (Role-based access control *does*
+exist: cookie sessions with `admin`/`viewer` roles — see the Security model section.)
 
 ---
 
@@ -59,6 +60,24 @@ src/
 │                              #   Exports: load(), save(), getPublic(), isMasked(), DEFAULTS
 ├── health.js                  # computeHealthStatus() — logic for /healthz endpoint
 ├── shutdown.js                # scheduleForcedShutdownTimer() — fallback exit after 5 s
+├── db.js                      # SQLite (better-sqlite3) at /data/mikrodash.db. Numbered MIGRATIONS[].
+│                              #   Tables: ping_samples, traffic_samples, bandwidth_usage,
+│                              #   alert_events, connectivity_events. open() once; close() on shutdown
+├── db-writer.js               # Write facade. Accumulates raw per-second traffic/bandwidth/ping samples
+│                              #   into 1-minute bucketed averages before flushing — the DB never sees
+│                              #   raw per-second rows. Collectors must not write to db.js directly
+├── geo.js                     # The single load point for geoip-lite: available(), lookup(),
+│                              #   unavailableReason(). Never require('geoip-lite') elsewhere — a load
+│                              #   failure must stay visible instead of silently returning no geo data
+├── alerter.js                 # Alert evaluator: wraps io.emit to detect threshold crossings, applies
+│                              #   per-subject cooldown, drives push notifications
+├── notifier.js                # Push delivery — Telegram Bot API, Pushbullet, SMTP (nodemailer).
+│                              #   testChannel() backs POST /api/settings/test-notification
+├── alertSessions.js           # Background per-router sessions (System/Ping/Netwatch/Vpn/
+│                              #   InterfaceStatus collectors) so alerts fire for NON-active routers
+│                              #   too. syncSessions(), getStatusMap()
+├── overviewSessions.js        # Same idea for the Routers-page overview cards: getSummaries(), plus
+│                              #   suspend()/resume() when that page is not visible
 ├── auth/
 │   └── sessionStore.js        # Cookie session store: createSession(), getSession(), parseCookieHeader(),
 │                              #   buildCookieHeader(), prune interval. Tokens are 32-byte random hex.
@@ -86,13 +105,15 @@ src/
 ├── routeros/
 │   ├── client.js              # ROS class (extends EventEmitter): connectLoop() with exponential backoff,
 │   │                          #   write(), stream(), waitUntilConnected(). Emits: connected, close, error
-│   └── patchVerification.js   # verifyRouterOSPatchMarkers() — exits process if patch is missing
+│   ├── patchVerification.js   # verifyRouterOSPatchMarkers() — exits process if patch is missing
+│   └── classifyError.js       # classifyRosError() — maps raw Node/ROS error codes to human reasons
 ├── security/
 │   └── helmetOptions.js       # buildHelmetOptions() — CSP with self-hosted asset allowlist, HSTS
 └── util/
-    ├── ringbuffer.js          # RingBuffer(size): push(item), toArray(), get(i)
-    ├── ip.js                  # isPrivateIP(), cidrContains(), normalizeIP() — wraps ipaddr.js
-    └── asnLookup.js           # lookupASN(ip) → { asn, org } using geoip-lite data
+    ├── ringbuffer.js           # RingBuffer(size): push(item), toArray(), get(i)
+    ├── ip.js                   # isPrivateIP(), cidrContains(), normalizeIP() — wraps ipaddr.js
+    ├── logger.js               # timestamped console wrapper — see the CodeQL note on _patchConsole
+    └── asnLookup.js            # lookupASN(ip) → { asn, org } using geoip-lite data
 
 public/
 ├── index.html                 # Single-page app shell: nav, page containers, modal templates
@@ -105,11 +126,22 @@ public/
     ├── world-atlas/countries-110m.json
     └── fonts/                 # JetBrains Mono, Syne (woff2 + fonts.css)
 
-test/
+test/                          # 11 files. NOT copied into the image — `docker cp test/. mikrodash:/app/test`
 ├── collector-data-transforms.test.js          # tick() → emitted payload shape and value correctness
 ├── collector-lifecycle.test.js                # start(), timer setup/teardown, stream, reconnect
 ├── production-resilience-regressions.test.js  # Regression tests for confirmed production bugs
-└── smoke-fixes.test.js                        # Smoke-level sanity checks
+├── smoke-fixes.test.js                        # Smoke-level sanity checks
+├── auth-rbac.test.js                          # Session auth + admin/viewer RBAC + allowedRouterIds scoping
+├── security-and-validation.test.js            # Alerter evaluator, input validation, credential masking
+├── data-cleanup.test.js                       # #77 purge: scoping by router/type/age, preview == delete, VACUUM
+├── reports-bandwidth-summary.test.js          # #62 report summary queries (moved out of the browser)
+├── connectivity-timestamp.test.js             # #99: a debounced offline event records when the disconnect
+│                                              #   was OBSERVED, not when the debounce expired
+├── review-fixes.test.js                       # 2026-05-29 review: ping bucketing, alerter DB decoupling +
+│                                              #   cooldown ordering, per-router evaluator isolation
+└── code-review-remediation.test.js            # 2026-07-26 review: connectLoop listener containment,
+                                               #   connections suspend/watchdog, traffic bindSocket
+                                               #   idempotency, empty-table stream packets, ping restart timer
 
 docs/superpowers/specs/
 └── 2026-03-10-test-coverage-design.md         # Authoritative test design philosophy for this project
@@ -401,24 +433,46 @@ module.exports = XyzCollector;
 
 ## REST endpoints
 
+Auth is applied by a single global middleware (`_authGate`) registered near the top of `src/index.js`,
+ahead of every route. Only `_MODERN_PUBLIC` paths and `/vendor/*` are exempt. The **Auth** column below
+therefore means:
+
+- **none** — in the `_MODERN_PUBLIC` allowlist; reachable unauthenticated.
+- **session** — any valid session, either role (`admin` or `viewer`).
+- **admin** — additionally wrapped in `_requireAdmin`. In `authMode: 'none'` there is no identity, so
+  every request is implicitly admin; RBAC is enforced only when a role is present.
+- **admin + scope** — `_requireAdmin` plus `_scopeRouterId`, which confines the query to routers the
+  caller is allowed to see.
+
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/healthz` | none | Readiness probe. Returns `{ ok, version, routerConnected, startupReady, uptime, checks }` |
-| `GET` | `/api/settings` | Basic Auth | Returns current settings with credentials masked as `••••••••` |
-| `POST` | `/api/settings` | Basic Auth | Updates settings (poll intervals, page visibility, dashboard auth). Applies poll changes live. Broadcasts `settings:pages`. Router connection fields are managed via `/api/routers` instead. |
-| `GET` | `/api/routers` | Basic Auth | List all routers, passwords masked. Returns `{ routers, activeId }` |
-| `POST` | `/api/routers` | Basic Auth | Add a router. Returns saved entry (password masked) |
-| `PUT` | `/api/routers/:id` | Basic Auth | Edit a router. Returns updated entry |
-| `DELETE` | `/api/routers/:id` | Basic Auth | Delete a router. 409 if it is the active router |
-| `POST` | `/api/routers/:id/activate` | Basic Auth | Hot-swap to router — tears down current session, builds new one in-process |
-| `POST` | `/api/routers/test` | Basic Auth | Test a connection without saving. Returns `{ ok, boardName }` |
-| `GET` | `/api/localcc` | Basic Auth | Returns `{ cc, wanIp }` — country code for WAN IP via geoip-lite |
-| `GET` | `/api/routers` | Basic Auth | List all routers with passwords masked. Returns `{ routers, activeId }` |
-| `POST` | `/api/routers` | Basic Auth | Add a router. Body: `{ host, port, tls, tlsInsecure, username, password, defaultIf, pingTarget, label }` |
-| `PUT` | `/api/routers/:id` | Basic Auth | Edit a router. Same body as POST; password ignored if `'••••••••'` |
-| `DELETE` | `/api/routers/:id` | Basic Auth | Delete a router. Returns `409` if target is the active router |
-| `POST` | `/api/routers/:id/activate` | Basic Auth | Hot-swap to a different router. Responds immediately; swap runs async |
-| `POST` | `/api/routers/test` | Basic Auth | Test a connection without saving. Returns `{ ok, boardName?, error? }` |
+| `GET` | `/healthz` | none | Readiness probe. Returns `{ ok, version, routerConnected, startupReady, uptime, checks }` — or only `{ ok, starting }` to an unauthenticated caller |
+| `GET` | `/login` | none | Serves `public/login.html` |
+| `GET` | `/api/auth/status` | none | Whether auth is required, whether any user exists yet, and the current identity if there is one |
+| `POST` | `/api/auth/login` | none | Login. Rate-limited by `loginLimiter`; sets the `mikrodash_sid` cookie |
+| `POST` | `/api/users/setup` | none | First-run admin creation. Rate-limited by `setupLimiter`; refuses once a user exists |
+| `GET` | `/api/auth/logout` | session | Destroys the session and clears the cookie |
+| `PUT` | `/api/auth/me/active-router` | session | Sets the caller's **own** active router; honours their `allowedRouterIds` |
+| `GET` | `/api/dashboard-layout` | session | Per-user dashboard card layout |
+| `POST` | `/api/dashboard-layout` | session | Saves the layout |
+| `GET` | `/api/settings` | session | Current settings, credentials masked as `••••••••` |
+| `GET` | `/api/routers` | session | `{ routers, activeId }` with passwords masked |
+| `GET` | `/api/localcc` | session | `{ cc, wanIp }` — country code for the WAN IP via geoip-lite |
+| `POST` | `/api/settings` | admin | Updates settings (poll intervals, page visibility, alert toggles). Applies poll changes live, broadcasts `settings:pages`. Router connection fields are **not** settable here — use `/api/routers` |
+| `POST` | `/api/settings/test-notification` | admin | Sends a test push through one channel. Rate-limited |
+| `POST` | `/api/routers` | admin | Add a router. Body: `{ host, port, tls, tlsInsecure, username, password, defaultIf, pingTarget, label }`. Returns the saved entry, password masked |
+| `PUT` | `/api/routers/:id` | admin | Edit a router. Same body; the password field is ignored when it is the `••••••••` sentinel |
+| `DELETE` | `/api/routers/:id` | admin | Delete a router. `409 Conflict` if it is the active one |
+| `POST` | `/api/routers/:id/activate` | admin | Hot-swap to a router. Responds immediately; the swap runs async |
+| `POST` | `/api/routers/test` | admin | Test a connection without saving. Returns `{ ok, boardName?, error? }`. Rate-limited |
+| `GET` | `/api/users` | admin | List user accounts (never password hashes) |
+| `POST` | `/api/users` | admin | Create a user |
+| `PUT` | `/api/users/:id` | admin | Edit a user (role, `allowedRouterIds`, password) |
+| `DELETE` | `/api/users/:id` | admin | Delete a user |
+| `GET` | `/api/reports/{ping,traffic,bandwidth,alerts,connectivity}` | admin + scope | Time-series report data from SQLite |
+| `GET` | `/api/reports/{…}/export` | admin + scope | Same data as a file export (`pdfkit` for PDF) |
+| `GET` | `/api/db/stats` | admin | Row counts and oldest-sample timestamps per table |
+| `POST` | `/api/db/purge` | admin | Deletes time-series rows |
 
 ---
 
