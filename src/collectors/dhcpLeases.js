@@ -143,7 +143,7 @@ class DhcpLeasesCollector {
       this.state.lastLeasesTs = Date.now();
       this._emitLeases();
     } catch (e) {
-      console.error(this._lbl + ' initial load failed:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
+      console.error('%s', this._lbl + ' initial load failed:', e && e.message ? e.message : e);
     }
   }
 
@@ -155,7 +155,7 @@ class DhcpLeasesCollector {
         ['/ip/dhcp-server/lease/listen', '=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server'],
         (err, data) => {
         if (err) {
-          console.error(this._lbl + ' stream error:', err && err.message ? err.message : err); // codeql[js/tainted-format-string]
+          console.error('%s', this._lbl + ' stream error:', err && err.message ? err.message : err);
           this._stopStream();
           if (this.ros.connected && !this._restarting) {
             this._restarting = true;
@@ -169,9 +169,9 @@ class DhcpLeasesCollector {
         }
         if (data) { this._applyLease(data, true); this.state.lastLeasesTs = Date.now(); }
       });
-      console.log(this._lbl + ' streaming /ip/dhcp-server/lease/listen');
+      console.log('%s', this._lbl + ' streaming /ip/dhcp-server/lease/listen');
     } catch (e) {
-      console.error(this._lbl + ' stream start failed:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
+      console.error('%s', this._lbl + ' stream start failed:', e && e.message ? e.message : e);
     }
   }
 

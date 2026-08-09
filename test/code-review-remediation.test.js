@@ -679,3 +679,55 @@ test('collectors disable geo lookups rather than crashing when geo is unavailabl
     assert.equal(dflt.geoLookup, null, 'null signals "skip geo" to the collector');
   }
 });
+
+// ── Source guard: no tainted console format strings ───────────────────────────
+// CodeQL js/tainted-format-string kept re-opening (33 dismissed, then #130) not
+// because the code changed but because dismissals are pinned to a file+line: any
+// edit that shifts a line re-reports the same pattern as a new alert. The fix was
+// to stop building the router label into console's format-string position across
+// the collectors. This guard keeps it that way.
+//
+// Deliberately a regex, not an AST walk: the test suite runs inside the container,
+// which installs with --omit=dev, so no parser package is available there.
+test('no console call builds the router label into the format-string position', () => {
+  const fs = require('fs'), path = require('path');
+  const files = [];
+  (function walk(d) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p); else if (e.name.endsWith('.js')) files.push(p);
+    }
+  })(path.join(__dirname, '..', 'src'));
+
+  const offenders = [];
+  for (const f of files) {
+    fs.readFileSync(f, 'utf8').split('\n').forEach((line, i) => {
+      // console.<level>(this._lbl ...  — the label as argument 0.
+      if (/console\.\w+\(\s*this\._lbl\b/.test(line)) {
+        offenders.push(`${path.relative(path.join(__dirname, '..'), f)}:${i + 1}`);
+      }
+    });
+  }
+  assert.deepEqual(offenders, [],
+    'pass the label as an argument after a literal format string, e.g.\n' +
+    "  console.error('%s', this._lbl + ' stream error:', msg)\n" +
+    'offenders:\n  ' + offenders.join('\n  '));
+});
+
+// The '%s' convention above only renders correctly because _patchConsole merges
+// its timestamp INTO the caller's format string. If it goes back to passing the
+// timestamp as a separate leading argument, the timestamp becomes the format
+// string, every caller's specifiers stop substituting, and logs print a literal
+// "%s". That combination is the bug this pair of guards exists to prevent.
+test('the console timestamp patch merges into the caller format string', () => {
+  const fs = require('fs'), path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const patch = src.slice(src.indexOf('_patchConsole'), src.indexOf('_patchConsole') + 1200);
+
+  assert.ok(/typeof args\[0\] === 'string'/.test(patch),
+    'patch must branch on a string first argument so it can merge into it');
+  assert.ok(/orig\(`\[\$\{ts\(\)\}\] \$\{args\[0\]\}`/.test(patch),
+    'timestamp must be concatenated into the format string, not passed beside it');
+  assert.ok(!/console\[level\] = \(\.\.\.args\) => orig\(`\[\$\{ts\(\)\}\]`, \.\.\.args\)/.test(patch),
+    'the old shape (timestamp as a separate leading argument) must not return');
+});

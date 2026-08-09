@@ -92,7 +92,7 @@ class TrafficCollector {
     if (!trimmed || trimmed.length > MAX_INTERFACE_NAME_LENGTH) return null;
     if (/[\r\n\0]/.test(trimmed)) return null;
     if (!this.availableIfs.size) {
-      console.warn(this._lbl + ' traffic:select rejected — interface list not yet ready');
+      console.warn('%s', this._lbl + ' traffic:select rejected — interface list not yet ready');
       return null;
     }
     if (!this.availableIfs.has(trimmed)) return null;
@@ -108,7 +108,7 @@ class TrafficCollector {
     stopStreamSafe(this._allStream);
     this._allStream = null;
     this._streamStartTs = 0;
-    console.log(this._lbl + ' stopped stream');
+    console.log('%s', this._lbl + ' stopped stream');
   }
 
   _startAllStream() {
@@ -118,7 +118,7 @@ class TrafficCollector {
     const names = this._getStreamNames();
     this._streamStartTs = Date.now();
     this._lastDataTs = 0;
-    console.log(this._lbl + ' streaming', names.length, 'interface(s) interval=1s'); // codeql[js/tainted-format-string]
+    console.log('%s', this._lbl + ' streaming', names.length, 'interface(s) interval=1s');
 
     const stream = this.ros.stream(
       '/interface/monitor-traffic',
@@ -148,7 +148,7 @@ class TrafficCollector {
       const isMissing = msg.includes('no such item');
       if (!isMissing) {
         if (!this._loggedErr) {
-          console.error(this._lbl + ' stream error:', msg); // codeql[js/tainted-format-string]
+          console.error('%s', this._lbl + ' stream error:', msg);
           this._loggedErr = true;
         }
         this.state.lastTrafficErr = msg;
@@ -172,13 +172,13 @@ class TrafficCollector {
     this._watchdogTimer = setInterval(() => {
       if (!this.ros.connected || this._restartTimer) return;
       if (!this._allStream) {
-        console.warn(this._lbl + ' watchdog: stream missing — restarting');
+        console.warn('%s', this._lbl + ' watchdog: stream missing — restarting');
         this._startAllStream();
         return;
       }
       const last = this._lastDataTs || this._streamStartTs;
       if (last && Date.now() - last > staleMs) {
-        console.warn(this._lbl + ' watchdog: no data for ' + Math.round((Date.now() - last) / 1000) + 's — restarting stream');
+        console.warn('%s', this._lbl + ' watchdog: no data for ' + Math.round((Date.now() - last) / 1000) + 's — restarting stream');
         this._stopAllStream();
         this._startAllStream();
       }

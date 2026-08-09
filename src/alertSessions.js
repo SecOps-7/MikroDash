@@ -113,7 +113,7 @@ function _buildSession(router) {
 
   ros.on('connected', () => {
     if (session.destroyed) return;
-    console.log(`[alertSession] ✓ ${router.label} (${router.host})${alertsEnabled ? '' : ' [status-only]'}`);
+    console.log('%s', `[alertSession] ✓ ${router.label} (${router.host})${alertsEnabled ? '' : ' [status-only]'}`);
     session._cancelDownTimer();
     _statusMap.set(routerId, true);
     if (_mainIo) _mainIo.emit('router:status', { routerId, connected: true });
@@ -173,13 +173,13 @@ function _buildSession(router) {
   ros.on('connectionError', _onDisconnect);
 
   ros.connectLoop().catch((e) => {
-    console.error(`[alertSession] connectLoop exited unexpectedly for ${router.host}:`, e && e.message ? e.message : e);
+    console.error('%s', `[alertSession] connectLoop exited unexpectedly for ${router.host}:`, e && e.message ? e.message : e);
   });
   return session;
 }
 
 function _stopSession(id, session) {
-  console.log(`[alertSession] stopping session for router ${id}`);
+  console.log('%s', `[alertSession] stopping session for router ${id}`);
   session.destroyed = true;
   if (session._cancelDownTimer) session._cancelDownTimer();
   for (const c of session.collectors) {

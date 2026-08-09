@@ -38,7 +38,7 @@ class LogsCollector {
   _onEntry(err, data) {
     if (err) {
       this.state.lastLogsErr = String(err && err.message ? err.message : err);
-      console.error(this._lbl + ' stream error:', this.state.lastLogsErr);
+      console.error('%s', this._lbl + ' stream error:', this.state.lastLogsErr);
       this._stopStream();
       if (this.ros.connected && !this._restarting) {
         this._restarting = true;
@@ -88,7 +88,7 @@ class LogsCollector {
       if (this.io.engine && this.io.engine.clientsCount > 0)
         this.io.to('page-logs').to('dash-card-logs').emit('logs:history', this.getHistory());
     } catch (e) {
-      console.error(this._lbl + ' initial log fetch failed:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
+      console.error('%s', this._lbl + ' initial log fetch failed:', e && e.message ? e.message : e);
     } finally {
       this._loadingInitial = false;
     }
@@ -100,10 +100,10 @@ class LogsCollector {
     try {
       this.stream = this.ros.stream(['/log/listen'], (err, data) => this._onEntry(err, data));
       this._backoffMs = this._restartDelayMs; // reset backoff on successful stream creation
-      console.log(this._lbl + ' streaming /log/listen');
+      console.log('%s', this._lbl + ' streaming /log/listen');
     } catch (e) {
       this.state.lastLogsErr = String(e && e.message ? e.message : e);
-      console.error(this._lbl + ' failed to start stream:', this.state.lastLogsErr);
+      console.error('%s', this._lbl + ' failed to start stream:', this.state.lastLogsErr);
     }
   }
 

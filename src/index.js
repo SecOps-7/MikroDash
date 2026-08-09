@@ -12,7 +12,15 @@ require('dotenv').config();
   };
   for (const level of ['log', 'info', 'warn', 'error']) {
     const orig = console[level].bind(console);
-    console[level] = (...args) => orig(`[${ts()}]`, ...args);
+    // Merge the timestamp INTO the caller's format string rather than passing it
+    // as a separate leading argument. Passing it separately made the timestamp
+    // itself the format string, so every caller's specifiers were left
+    // unsubstituted — 'Telegram error: %s' printed literally as "%s boom".
+    // A non-string first argument (an object, an Error) has no format string to
+    // merge into, so it keeps the old shape.
+    console[level] = (...args) => (typeof args[0] === 'string'
+      ? orig(`[${ts()}] ${args[0]}`, ...args.slice(1))
+      : orig(`[${ts()}]`, ...args));
   }
 })();
 
@@ -411,7 +419,7 @@ function buildSession(routerCfg, routerIo) {
 async function teardownSession(session, entry) {
   if (!session) return;
   const _tearLabel = (session.ros && session.ros.routerLabel) || 'router';
-  console.log(`[${_tearLabel}] ── session torn down`);
+  console.log('%s', `[${_tearLabel}] ── session torn down`);
   if (entry) { entry.startupReady = false; entry.collectorsStarted = false; }
   if (entry && entry._diagTimer) { clearInterval(entry._diagTimer); entry._diagTimer = null; }
   // Detach collector-registered global io listeners so the dead session can be GC'd.
@@ -525,7 +533,7 @@ function wireRosEvents(session, entry) {
   }
 
   ros.on('connected', () => {
-    console.log(`[${ros.routerLabel}][ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
+    console.log('%s', `[${ros.routerLabel}][ROS] ✓ connected to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})`);
     session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
     session._ifacesFetch    = null;
     if (entry) { entry.lastError = null; entry.lastErrorTs = 0; } // recovered (#92)
@@ -539,16 +547,16 @@ function wireRosEvents(session, entry) {
   });
   ros.on('close', () => {
     session.connTableCache.invalidate();
-    console.log(`[${ros.routerLabel}][ROS] connection to ${host}:${port} closed`);
+    console.log('%s', `[${ros.routerLabel}][ROS] connection to ${host}:${port} closed`);
     broadcastRosStatus(false, 'RouterOS connection closed', entry);
     _emitRouterStatus(false);
   });
   ros.on('connectionError', (e) => {
     const { reason, hint, msg, classified } = classifyRosError(e, { host, port, user, tls });
-    console.error(`[${ros.routerLabel}][ROS] ✗ ${reason}`);
-    if (hint) console.error(`[${ros.routerLabel}][ROS]   → ${hint}`);
-    if (e && e.errno) console.error(`[${ros.routerLabel}][ROS]   errno: ${e.errno}`);
-    console.error(`[${ros.routerLabel}][ROS]   raw: ${msg}`);
+    console.error('%s', `[${ros.routerLabel}][ROS] ✗ ${reason}`);
+    if (hint) console.error('%s', `[${ros.routerLabel}][ROS]   → ${hint}`);
+    if (e && e.errno) console.error('%s', `[${ros.routerLabel}][ROS]   errno: ${e.errno}`);
+    console.error('%s', `[${ros.routerLabel}][ROS]   raw: ${msg}`);
     // No classifier matched → reason is still the raw message; sanitize before
     // it reaches the browser (hard constraint: never send raw .message).
     const safeReason = classified ? reason : sanitizeErr(e);
@@ -565,7 +573,7 @@ async function startCollectors(session, entry) {
   entry.collectorsStarted = true;
   const _delay = ms => new Promise(r => setTimeout(r, ms));
   try {
-    console.log(`[${session.ros.routerLabel}] ── session started (v${APP_VERSION})`);
+    console.log('%s', `[${session.ros.routerLabel}] ── session started (v${APP_VERSION})`);
     // Group A — foundation collectors; awaits provide natural sequencing.
     session.wireless.start();
     await session.dhcpLeases.start();
@@ -644,7 +652,7 @@ async function switchRouter(newRouterId) {
 
   _switching = true;
   try {
-    console.log(`[MikroDash] Switching to router: ${router.label} (${router.host})`);
+    console.log('%s', `[MikroDash] Switching to router: ${router.label} (${router.host})`);
 
     // Find old global-default entry before saving the new id
     const oldActiveId = Settings.load().activeRouterId;
@@ -708,7 +716,7 @@ function ensureRouterSession(routerId) {
   _routerSessions.set(routerId, entry);
   wireRosEvents(session, entry);
   session.ros.connectLoop().catch((e) => {
-    console.error(`[${session.ros.routerLabel}] connectLoop exited unexpectedly:`, e && e.message ? e.message : e);
+    console.error('%s', `[${session.ros.routerLabel}] connectLoop exited unexpectedly:`, e && e.message ? e.message : e);
   });
   // This router is now pool-owned — drop any alertSessions session for it so
   // connectivity/alerts aren't tracked twice. (No-op for the global active router,
@@ -733,7 +741,7 @@ function scheduleIdleTeardown(routerId, delayMs = 60_000) {
     entry.idleTimer = null;
     const room = io.sockets.adapter.rooms.get('router-' + routerId);
     if (room && room.size > 0) return; // sockets rejoined while timer was pending
-    console.log(`[MikroDash] Idle teardown — router ${routerId}`);
+    console.log('%s', `[MikroDash] Idle teardown — router ${routerId}`);
     await teardownSession(entry.session, entry);
     _routerSessions.delete(routerId);
     alerter.dropEvaluator(routerId);
@@ -820,7 +828,7 @@ overviewSessions.setIdentityHook(_persistRouterIdentity);
     Users.createUser({ username: dashUser, password: s.dashPass, role: 'admin', allowedRouterIds: [] })
       .then(() => {
         Settings.save({ authMode: 'modern', dashUser: '', dashPass: '' });
-        console.warn('[auth] basic credentials migrated to modern admin account "' + dashUser + '"');
+        console.warn('%s', '[auth] basic credentials migrated to modern admin account "' + dashUser + '"');
       })
       .catch(e => console.error('[auth] migration failed:', e && e.message ? e.message : e));
     return;
@@ -904,13 +912,13 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     // work (constant-time), so response timing doesn't leak whether the user exists.
     const ok = await Users.verifyPassword(user, password);
     if (!ok) {
-      console.warn(`[auth] login failed — user="${_logSafe(username)}" ip=${_clientIp(req)}`);
+      console.warn('%s', `[auth] login failed — user="${_logSafe(username)}" ip=${_clientIp(req)}`);
       return res.status(401).json({ ok: false, error: 'Invalid username or password' });
     }
     const timeoutMs   = _sessionTimeoutMs();
     const { token, expiresAt } = SessionStore.createSession(user.id, user.username, user.role, timeoutMs, user.allowedRouterIds);
     res.setHeader('Set-Cookie', SessionStore.buildCookieHeader(token, expiresAt));
-    console.log(`[auth] login — user="${user.username}" role=${user.role} ip=${_clientIp(req)}`);
+    console.log('%s', `[auth] login — user="${user.username}" role=${user.role} ip=${_clientIp(req)}`);
     res.json({ ok: true, role: user.role, username: user.username });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
@@ -923,7 +931,7 @@ app.get('/api/auth/logout', (req, res) => {
   const session = token ? SessionStore.getSession(token) : null;
   if (token) SessionStore.deleteSession(token);
   res.setHeader('Set-Cookie', SessionStore.clearCookieHeader());
-  if (session) console.log(`[auth] logout — user="${session.username}" ip=${_clientIp(req)}`);
+  if (session) console.log('%s', `[auth] logout — user="${session.username}" ip=${_clientIp(req)}`);
   res.json({ ok: true });
 });
 
@@ -2310,7 +2318,7 @@ app.post('/api/db/purge', _requireAdmin, (req, res) => {
     // Without this the rows go but the file on disk never shrinks, which reads
     // as the cleanup having done nothing.
     const vac    = result.deleted > 0 ? db.vacuum() : { before, after: before };
-    console.log(`[db] purge by ${req.authSession ? req.authSession.username : 'local'}: ${result.deleted} rows`);
+    console.log('%s', `[db] purge by ${req.authSession ? req.authSession.username : 'local'}: ${result.deleted} rows`);
     res.json({ ok: true, deleted: result.deleted, bytesBefore: vac.before, bytesAfter: vac.after });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
@@ -2814,11 +2822,11 @@ io.on('connection', (socket) => {
 });
 
 const PORT = parseInt(process.env.PORT || '3081', 10);
-server.listen(PORT, () => console.log(`[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
+server.listen(PORT, () => console.log('%s', `[MikroDash] v${APP_VERSION} listening on http://0.0.0.0:${PORT}`));
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 function shutdown(signal) {
-  console.log(`[MikroDash] ${signal} received, shutting down…`);
+  console.log('%s', `[MikroDash] ${signal} received, shutting down…`);
   SessionStore.shutdown();
   for (const [, entry] of _routerSessions) {
     if (entry.idleTimer) { clearTimeout(entry.idleTimer); entry.idleTimer = null; }

@@ -160,7 +160,7 @@ class SystemCollector {
       ]);
       const u = result && result[0] ? result[0] : {};
       if (!this._loggedUpdateFields) {
-        console.log(this._lbl + ' package/update fields:', JSON.stringify(u)); // codeql[js/tainted-format-string]
+        console.log('%s', this._lbl + ' package/update fields:', JSON.stringify(u));
         this._loggedUpdateFields = true;
       }
 
@@ -174,7 +174,7 @@ class SystemCollector {
       if (denied) {
         if (!this._loggedCheckDenied) {
           this._loggedCheckDenied = true;
-          console.warn('%s update check unavailable: the API user lacks "write" permission for ' +
+          console.warn('%s', '%s update check unavailable: the API user lacks "write" permission for ' +
             '/system/package/update/check-for-updates, so only the router\'s cached state is shown', this._lbl);
         }
         this._applyUpdateRow({ ...u, status: 'Update check unavailable — API user needs write permission' });
@@ -405,13 +405,13 @@ class SystemCollector {
 
     this._stream.on('data', (packet) => {
       try { this._processRow(packet); } catch (e) {
-        console.error(this._lbl + ' processRow:', e && e.message ? e.message : e); // codeql[js/tainted-format-string]
+        console.error('%s', this._lbl + ' processRow:', e && e.message ? e.message : e);
       }
     });
 
     this._stream.on('error', (err) => {
       this.state.lastSystemErr = String(err && err.message ? err.message : err);
-      console.error(this._lbl + ' stream error:', this.state.lastSystemErr); // codeql[js/tainted-format-string]
+      console.error('%s', this._lbl + ' stream error:', this.state.lastSystemErr);
       this._stream = null;
       if (this._restarting) return;
       this._restarting = true;
@@ -427,7 +427,7 @@ class SystemCollector {
     if (this.streamMode) {
       this._startResourceStream();
     } else {
-      console.log(this._lbl + ' poll mode — polling /system/resource/print every', this.pollMs + 'ms'); // codeql[js/tainted-format-string]
+      console.log('%s', this._lbl + ' poll mode — polling /system/resource/print every', this.pollMs + 'ms');
       this._pollResourceOnce();
       this._scheduleResourceNext();
     }

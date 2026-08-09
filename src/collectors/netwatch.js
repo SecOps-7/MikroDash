@@ -50,16 +50,16 @@ class NetwatchCollector {
         const id = r['.id'] || r.id;
         if (id) this._hosts.set(id, r);
       }
-      console.log(this._lbl, this._hosts.size, 'entr' + (this._hosts.size === 1 ? 'y' : 'ies') + ' loaded');
+      console.log('%s', this._lbl, this._hosts.size, 'entr' + (this._hosts.size === 1 ? 'y' : 'ies') + ' loaded');
       this._emit();
     } catch (e) {
       const msg = e && e.message ? e.message : String(e);
       if (/not allowed|no such command/i.test(msg)) {
         this._permissionDenied = true;
-        console.warn(this._lbl + ' permission denied — netwatch alerts disabled');
+        console.warn('%s', this._lbl + ' permission denied — netwatch alerts disabled');
         return;
       }
-      console.error(this._lbl + ' initial load failed:', msg);
+      console.error('%s', this._lbl + ' initial load failed:', msg);
       this.state.lastNetwatchErr = msg;
     }
   }
@@ -69,7 +69,7 @@ class NetwatchCollector {
     try {
       this._stream = this.ros.stream(['/tool/netwatch/listen'], (err, data) => {
         if (err) {
-          console.error(this._lbl + ' stream error:', err && err.message ? err.message : err);
+          console.error('%s', this._lbl + ' stream error:', err && err.message ? err.message : err);
           this.state.lastNetwatchErr = String(err && err.message ? err.message : err);
           this._stopStream();
           if (this.ros.connected && !this._restarting) {
@@ -92,9 +92,9 @@ class NetwatchCollector {
         }
         this._emit();
       });
-      console.log(this._lbl + ' streaming /tool/netwatch/listen');
+      console.log('%s', this._lbl + ' streaming /tool/netwatch/listen');
     } catch (e) {
-      console.error(this._lbl + ' stream start failed:', e && e.message ? e.message : e);
+      console.error('%s', this._lbl + ' stream start failed:', e && e.message ? e.message : e);
     }
   }
 

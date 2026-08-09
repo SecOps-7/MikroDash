@@ -123,7 +123,7 @@ function _buildSession(router) {
   });
 
   ros.connectLoop().catch((e) => {
-    console.error(`[overviewSession] connectLoop exited unexpectedly for ${router.host}:`, e && e.message ? e.message : e);
+    console.error('%s', `[overviewSession] connectLoop exited unexpectedly for ${router.host}:`, e && e.message ? e.message : e);
   });
   return session;
 }

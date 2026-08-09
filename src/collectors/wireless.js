@@ -142,7 +142,7 @@ class WirelessCollector {
       nonCapsmanSeen < nonCapsmanKnown * PARTIAL_RATIO
     );
     if (dbg && mightBePartial) {
-      console.warn(this._lbl + ` partial result suspected — ${nonCapsmanSeen} from API vs ${nonCapsmanKnown} known — skipping absence aging`);
+      console.warn('%s', this._lbl + ` partial result suspected — ${nonCapsmanSeen} from API vs ${nonCapsmanKnown} known — skipping absence aging`);
     }
 
     // 1. Add or refresh clients present in this batch
@@ -159,19 +159,19 @@ class WirelessCollector {
         if (client && client.source === 'capsman') continue; // managed separately
         const absent = (this._absentTicks.get(mac) || 0) + 1;
         if (absent >= this.ABSENCE_THRESHOLD) {
-          if (dbg) console.log(this._lbl + ` removing ${mac} — absent ${absent} ticks (>= threshold ${this.ABSENCE_THRESHOLD})`);
+          if (dbg) console.log('%s', this._lbl + ` removing ${mac} — absent ${absent} ticks (>= threshold ${this.ABSENCE_THRESHOLD})`);
           this._knownClients.delete(mac);
           this._absentTicks.delete(mac);
           this._nameCache.delete(mac);
         } else {
-          if (dbg) console.log(this._lbl + ` holding ${mac} — absent ${absent}/${this.ABSENCE_THRESHOLD} ticks`);
+          if (dbg) console.log('%s', this._lbl + ` holding ${mac} — absent ${absent}/${this.ABSENCE_THRESHOLD} ticks`);
           this._absentTicks.set(mac, absent);
         }
       }
     }
 
     if (dbg) {
-      console.log(this._lbl + ` batch: ${thisTickByMac.size} from API, ${this._knownClients.size} known${mightBePartial ? ' [partial — aging skipped]' : ''}`);
+      console.log('%s', this._lbl + ` batch: ${thisTickByMac.size} from API, ${this._knownClients.size} known${mightBePartial ? ' [partial — aging skipped]' : ''}`);
     }
   }
 
@@ -258,11 +258,11 @@ class WirelessCollector {
       if (this.mode === null) {
         if (records.length > 0) {
           this.mode = 'wifi';
-          if (this._debug) console.log(this._lbl + ' mode latched: wifi');
+          if (this._debug) console.log('%s', this._lbl + ' mode latched: wifi');
         } else {
           // Empty first batch — wifi API not populated, fall through to legacy
           this.mode = 'wireless';
-          if (this._debug) console.log(this._lbl + ' mode latched: wireless (wifi returned empty)');
+          if (this._debug) console.log('%s', this._lbl + ' mode latched: wireless (wifi returned empty)');
           this._stopStream('wifi');
           this._startStream('wireless');
           return;
@@ -318,12 +318,12 @@ class WirelessCollector {
         this._stopStream('wifi');
         if (this.mode === null) {
           this.mode = 'wireless';
-          if (this._debug) console.log(this._lbl + ' mode latched: wireless (wifi command unknown)');
+          if (this._debug) console.log('%s', this._lbl + ' mode latched: wireless (wifi command unknown)');
           this._startStream('wireless');
         }
         return;
       }
-      console.error(this._lbl, `${type} stream error:`, msg);
+      console.error('%s', this._lbl, `${type} stream error:`, msg);
       this.state.lastWirelessErr = msg;
       this._stopStream(type);
       if (this.ros.connected && !this._restarting[type]) {
@@ -335,7 +335,7 @@ class WirelessCollector {
         }, 3000);
       }
     });
-    console.log(this._lbl, `streaming ${endpoints[type]} interval=${intervalSec}s`);
+    console.log('%s', this._lbl, `streaming ${endpoints[type]} interval=${intervalSec}s`);
   }
 
   _stopStream(type) {
@@ -365,7 +365,7 @@ class WirelessCollector {
     try {
       await this.ros.write('/caps-man/registration-table/print', []);
       this._capsmanAvailable = true;
-      if (this._debug) console.log(this._lbl + ' capsman probe: available');
+      if (this._debug) console.log('%s', this._lbl + ' capsman probe: available');
       // If resume() was called before this probe completed (page was open), the
       // wifi/wireless stream is already running — start capsman now to catch up.
       if (!this._streams.capsman && (this._streams.wifi || this._streams.wireless)) {
@@ -375,7 +375,7 @@ class WirelessCollector {
       const msg = String(e && e.message ? e.message : e);
       if (msg.includes('unknown command') || msg.includes('no such')) {
         this._capsmanAvailable = false;
-        if (this._debug) console.log(this._lbl + ' capsman probe: not available on this router');
+        if (this._debug) console.log('%s', this._lbl + ' capsman probe: not available on this router');
       }
       // transient errors leave _capsmanAvailable = false and re-probe on reconnect
     }

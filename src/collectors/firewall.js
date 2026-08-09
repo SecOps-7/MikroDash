@@ -149,7 +149,7 @@ class FirewallCollector {
     });
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
-      console.error(this._lbl + ` ${table} stream error:`, msg); // codeql[js/tainted-format-string]
+      console.error('%s', this._lbl + ` ${table} stream error:`, msg);
       this.state.lastFirewallErr = msg;
       this._stopTableStream();
       if (this.ros.connected && !this._tableRestarting) {
@@ -161,7 +161,7 @@ class FirewallCollector {
         }, 3000);
       }
     });
-    console.log(this._lbl + ` streaming /ip/firewall/${table}/print interval=${intervalSec}s`); // codeql[js/tainted-format-string]
+    console.log('%s', this._lbl + ` streaming /ip/firewall/${table}/print interval=${intervalSec}s`);
   }
 
   _stopTableStream() {

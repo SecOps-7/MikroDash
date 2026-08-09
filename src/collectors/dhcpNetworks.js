@@ -199,7 +199,7 @@ class DhcpNetworksCollector {
     });
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
-      console.error(this._lbl, `${key} stream error:`, msg);
+      console.error('%s', this._lbl, `${key} stream error:`, msg);
       this._stopStream(key);
       if (this.ros.connected && !this._restarting[key]) {
         this._restarting[key] = true;
@@ -210,7 +210,7 @@ class DhcpNetworksCollector {
         }, 3000);
       }
     });
-    console.log(this._lbl, `streaming ${cmds[key][0]} interval=${intervalSec}s`);
+    console.log('%s', this._lbl, `streaming ${cmds[key][0]} interval=${intervalSec}s`);
   }
 
   _stopStream(key) {
@@ -230,14 +230,14 @@ class DhcpNetworksCollector {
     // Initial fetch populates getLanCidrs() synchronously before stream batches
     // arrive — other collectors depend on it at startup.
     if (this.ros.connected) {
-      try { await this._fetchOnce(); } catch (e) { console.error(this._lbl, e && e.message ? e.message : e); }
+      try { await this._fetchOnce(); } catch (e) { console.error('%s', this._lbl, e && e.message ? e.message : e); }
     }
     this._startStreams();
     this.ros.on('close', () => this.stop());
     this.ros.on('connected', () => {
       this._lastFp = '';
       this.stop();
-      this._fetchOnce().catch(e => console.error(this._lbl, e && e.message ? e.message : e));
+      this._fetchOnce().catch(e => console.error('%s', this._lbl, e && e.message ? e.message : e));
       this._startStreams();
     });
   }

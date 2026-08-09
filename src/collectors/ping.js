@@ -69,7 +69,7 @@ class PingCollector {
     if (this._stream || !this.ros.connected || this._permissionDenied) return;
     // RouterOS caps /tool/ping interval at 5 s (00:00:05); clamp to [1,5].
     const intervalSec = Math.min(5, Math.max(1, Math.round(this.pollMs / 1000)));
-    console.log(this._lbl + ' streaming /tool/ping →', this.target, 'interval=' + intervalSec + 's'); // codeql[js/tainted-format-string]
+    console.log('%s', this._lbl + ' streaming /tool/ping →', this.target, 'interval=' + intervalSec + 's');
 
     const stream = this.ros.stream(
       '/tool/ping',
@@ -93,14 +93,14 @@ class PingCollector {
       this._stream = null;
       if (/not enough privileges|permission denied|cannot run/i.test(msg)) {
         this._permissionDenied = true;
-        console.warn(this._lbl + ' test policy not granted — ping disabled. Add "test" to your RouterOS API user group to enable it.');
+        console.warn('%s', this._lbl + ' test policy not granted — ping disabled. Add "test" to your RouterOS API user group to enable it.');
         const point = { ts: Date.now(), rtt: null, loss: null, permissionDenied: true };
         this.history.push(point);
         this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
         this.io.emit('ping:update', this.lastPayload);
         this.state.lastPingTs = Date.now();
       } else {
-        console.error(this._lbl + `stream error (target=${this.target}):`, msg); // codeql[js/tainted-format-string]
+        console.error('%s', this._lbl + `stream error (target=${this.target}):`, msg);
         this.state.lastPingErr = msg;
         clearTimeout(this._errRestartTimer);
         this._errRestartTimer = setTimeout(() => {
@@ -150,7 +150,7 @@ class PingCollector {
       const msg = String(e && e.message ? e.message : e);
       if (/not enough privileges|permission denied|cannot run/i.test(msg)) {
         this._permissionDenied = true;
-        console.warn(this._lbl + ' poll: test policy not granted — ping disabled.');
+        console.warn('%s', this._lbl + ' poll: test policy not granted — ping disabled.');
         const point = { ts: Date.now(), rtt: null, loss: null, permissionDenied: true };
         this.history.push(point);
         this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
@@ -215,7 +215,7 @@ class PingCollector {
     if (this.streamMode) {
       this._startStream();
     } else {
-      console.log(this._lbl + ' poll mode — polling /tool/ping every', this.pollMs + 'ms'); // codeql[js/tainted-format-string]
+      console.log('%s', this._lbl + ' poll mode — polling /tool/ping every', this.pollMs + 'ms');
       this._pollPingOnce();
       this._schedulePingNext();
     }
