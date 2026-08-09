@@ -63,6 +63,15 @@ class ROS extends EventEmitter {
       port:     this.cfg.port    || 8729,
       tls:      this.cfg.tls     || false,
       timeout:  this.cfg.timeout || 15,
+      // node-routeros closes a connection idle for `timeout` seconds, and
+      // without keepalive nothing prevents that. A session with no collectors
+      // (the status-only alert session built for a router with alerts disabled)
+      // sends nothing at all, so it was closed at 15 s and reconnected after the
+      // 2 s backoff, forever: a login every ~17 s against every non-active
+      // router, each one a fresh TLS handshake. keepalive writes a '#' no-op
+      // every timeout/2 (7.5 s), comfortably inside the window. Connections that
+      // carry collectors are never idle, so it costs them nothing. (#107)
+      keepalive: true,
     };
     if (this.cfg.debug) opts.debug = true;
     return new RouterOSAPI(opts);
