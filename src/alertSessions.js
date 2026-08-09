@@ -11,6 +11,7 @@ const VpnCollector             = require('./collectors/vpn');
 const NetwatchCollector        = require('./collectors/netwatch');
 
 let _mainIo = null;
+let _identityHook = null;     // (routerId, {model, serial, osVersion}) → void
 const _sessions  = new Map(); // routerId → { ros, collectors, evaluator }
 const _statusMap = new Map(); // routerId → connected boolean
 
@@ -97,6 +98,12 @@ function _buildSession(router) {
   ] : [];
 
   const routerId = router.id;
+  // This pool runs whenever alerts are enabled, so it is usually the first to
+  // learn a non-active router's identity — well before anyone opens a page.
+  if (typeof _identityHook === 'function') {
+    const sys = collectors.find(c => c instanceof SystemCollector);
+    if (sys) sys._onIdentity = (identity) => _identityHook(routerId, identity);
+  }
   let _prevConnected   = null;
   let _downTimer       = null;
   let _declaredOffline = false;
@@ -182,4 +189,7 @@ function _stopSession(id, session) {
   _statusMap.delete(id);
 }
 
-module.exports = { init, syncSessions, getStatusMap };
+/** Called with (routerId, {model, serial, osVersion}) when RouterOS reports identity. */
+function setIdentityHook(fn) { _identityHook = typeof fn === 'function' ? fn : null; }
+
+module.exports = { init, syncSessions, getStatusMap, setIdentityHook };

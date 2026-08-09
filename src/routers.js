@@ -316,6 +316,40 @@ function updateLabel(id, rawLabel) {
   return routers[idx];
 }
 
+/** Identity fields learned from RouterOS rather than entered by the user. */
+const IDENTITY_FIELDS = ['model', 'serial', 'osVersion'];
+
+/**
+ * Record hardware/firmware identity reported by RouterOS. Persisted so the
+ * Routers table can still show model, serial and version for a router that is
+ * currently offline or disabled — which is the point of an inventory column,
+ * and why this is stored rather than read from the live stats feed.
+ *
+ * Returns the updated router, or null when nothing changed. Callers rely on
+ * that null: the system collector reports identity on every tick, and only a
+ * genuine change should cost a file write and a broadcast to every client.
+ */
+function updateIdentity(id, identity) {
+  const routers = loadAll();
+  const idx     = routers.findIndex(r => r.id === id);
+  if (idx === -1) return null;
+
+  const current = routers[idx];
+  const changed = {};
+  for (const key of IDENTITY_FIELDS) {
+    const val = identity ? identity[key] : null;
+    if (typeof val !== 'string') continue;
+    const clean = val.trim().slice(0, 64);
+    if (clean && clean !== current[key]) changed[key] = clean;
+  }
+  if (!Object.keys(changed).length) return null;
+
+  routers[idx] = { ...current, ...changed };
+  _cache = routers;
+  _writeFile(routers);
+  return routers[idx];
+}
+
 /** Delete a router by id. Returns true if deleted, false if not found. */
 function remove(id) {
   const routers = loadAll();
@@ -337,4 +371,4 @@ function getPublic() {
 /** Invalidate the in-memory cache (used after external settings changes). */
 function invalidateCache() { _cache = null; }
 
-module.exports = { loadAll, getById, add, update, updateLabel, remove, getPublic, invalidateCache };
+module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, remove, getPublic, invalidateCache };

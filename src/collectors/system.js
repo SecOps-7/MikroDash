@@ -288,6 +288,21 @@ class SystemCollector {
       this._onFirstBoardName(payload.boardName);
     }
 
+    // Report hardware/firmware identity so index.js can persist it against the
+    // router entry. Fires only when the triple actually changes: this method
+    // runs every tick, and while model and serial are fixed for the life of a
+    // device, the version does change on upgrade and must not be write-once.
+    //
+    // installedBase, not payload.version: the Routers table wants a bare
+    // "7.23.3", and dropping the channel from the stored value (rather than
+    // only hiding it in the UI) also means switching stable→testing at the same
+    // release does not churn a write and a broadcast.
+    const identityKey = [payload.boardName, payload.serial, installedBase].join(' ');
+    if (identityKey !== this._lastIdentityKey && typeof this._onIdentity === 'function') {
+      this._lastIdentityKey = identityKey;
+      this._onIdentity({ model: payload.boardName, serial: payload.serial, osVersion: installedBase });
+    }
+
     // Run update check independently of browser connections — rate-limited by
     // UPDATE_INTERVAL (12 h) so this is effectively a no-op on most ticks.
     this._fetchUpdateStatus().catch(() => {});
