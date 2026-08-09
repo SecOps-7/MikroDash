@@ -2788,7 +2788,27 @@ var _origIfstatus = null;
   socket.on('system:update',   function(d){    checkCpuNotif(d.cpuLoad); checkUpdateNotif(d); });
   socket.on('ping:update',     function(data){ checkPingNotif(data.loss); });
   socket.on('netwatch:update', function(data){ checkNetwatchNotifs(data.hosts||[]); });
-  socket.on('router:status',   function(d){    checkRouterStatusNotif(d); });
+  // Persistent stream failure (#106). The watchdog restarts a dead stream every
+// few seconds and will do so forever; on its own that turns a hard fault into a
+// chart with unexplained holes. The server now reports the degraded state on
+// transition, so say so on the affected card instead of only dimming it.
+var STREAM_WARN_CARDS = { traffic: 'trafficCard', connections: 'connCard' };
+socket.on('stream:health', function (h) {
+  if (!h || !STREAM_WARN_CARDS[h.collector]) return;
+  var card = $(STREAM_WARN_CARDS[h.collector]);
+  var warn = $(STREAM_WARN_CARDS[h.collector] + 'Warn');
+  if (!card || !warn) return;
+  if (h.degraded) {
+    warn.textContent = '\u26A0 Data incomplete \u2014 stream restarted '
+      + h.restarts + ' times without recovering';
+    card.classList.add('is-degraded');
+  } else {
+    warn.textContent = '';
+    card.classList.remove('is-degraded');
+  }
+});
+
+socket.on('router:status',   function(d){    checkRouterStatusNotif(d); });
   // Clear alert-tracking state on every (re)connect so the initial-state payload
   // from sendInitialState is treated as a fresh baseline, not a transition.
   // Without this, a state change that occurred while the socket was disconnected

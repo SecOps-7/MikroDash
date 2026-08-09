@@ -11,7 +11,7 @@
  * it no longer drives the stream.
  */
 const RingBuffer = require('../util/ringbuffer');
-const { parseBps, bpsToMbps, clampPoll, stopStreamSafe } = require('./util');
+const { parseBps, bpsToMbps, clampPoll, stopStreamSafe, createStreamHealth } = require('./util');
 
 const MAX_INTERFACE_NAME_LENGTH = 128;
 
@@ -39,6 +39,11 @@ class TrafficCollector {
     this._streamStartTs = 0;
     this._lastDataTs    = 0;
     this.lastWanStatus = null;
+    // Restarting a dead stream forever is correct recovery for a transient
+    // stall, but it turns a persistent fault into a silent sawtooth: the chart
+    // just grows holes and nothing says why. Track it and report it. (#106)
+    this._health = createStreamHealth();
+    this.lastHealth = null;
 
     this.ros.on('connected', () => {
       this._ifNamesKey = ''; // force restart on reconnect
@@ -166,6 +171,23 @@ class TrafficCollector {
     this._allStream = stream;
   }
 
+  // Emit only on a transition (createStreamHealth returns null otherwise), so a
+  // degraded stream does not spam the socket every 5 s watchdog tick.
+  _reportHealth(changed) {
+    if (changed === null) return;
+    this.lastHealth = {
+      collector: 'traffic',
+      degraded:  changed,
+      restarts:  this._health.restarts,
+      since:     this._health.since || null,
+      ts:        Date.now(),
+    };
+    console.warn('%s', this._lbl + (changed
+      ? ' stream degraded — ' + this._health.restarts + ' restarts without recovery'
+      : ' stream recovered'));
+    this.io.emit('stream:health', this.lastHealth);
+  }
+
   _startWatchdog() {
     this._stopWatchdog();
     const staleMs = 10000;
@@ -179,8 +201,11 @@ class TrafficCollector {
       const last = this._lastDataTs || this._streamStartTs;
       if (last && Date.now() - last > staleMs) {
         console.warn('%s', this._lbl + ' watchdog: no data for ' + Math.round((Date.now() - last) / 1000) + 's — restarting stream');
+        this._reportHealth(this._health.recordRestart());
         this._stopAllStream();
         this._startAllStream();
+      } else if (this._streamStartTs) {
+        this._reportHealth(this._health.recordHealthy(Date.now() - this._streamStartTs));
       }
     }, 5000);
   }

@@ -8,7 +8,7 @@ const settings = require('../settings');
  * read, then the expensive geo/ASN processing runs (skipped when idle).
  */
 const { extractAddress, isInCidrs, isValidIp } = require('../util/ip');
-const { clampPoll, stopStreamSafe } = require('./util');
+const { clampPoll, stopStreamSafe, createStreamHealth } = require('./util');
 const { lookupOrg, lookupCategory } = require('../util/asnLookup');
 
 function makeDestKey(c) {
@@ -63,6 +63,10 @@ class ConnectionsCollector {
     this._partialStreak = 0;
     this._commitTimer  = null; // debounce: fires 300ms after last row arrives
     this._watchdogTimer = null;
+    // See traffic.js: a stream that keeps dying must be reported, not just
+    // restarted forever behind the user's back. (#106)
+    this._health = createStreamHealth();
+    this.lastHealth = null;
     this._streamStartTs = 0;  // when _startStream() last ran, for watchdog grace period
     // Set to true by start(), never reset. Allows the connected handler to
     // distinguish the initial connect from a reconnect after a close event.
@@ -549,9 +553,29 @@ class ConnectionsCollector {
       const age = Date.now() - this.state.lastConnsTs;
       if (age > staleMs) {
         console.warn('%s', this._lbl, `watchdog: no data for ${Math.round(age / 1000)}s — restarting stream`);
+        this._reportHealth(this._health.recordRestart());
         this._restartStream();
+      } else {
+        this._reportHealth(this._health.recordHealthy(Date.now() - this._streamStartTs));
       }
     }, checkMs);
+  }
+
+  // Emit only on a transition, so a degraded stream does not spam the socket
+  // on every watchdog tick.
+  _reportHealth(changed) {
+    if (changed === null) return;
+    this.lastHealth = {
+      collector: 'connections',
+      degraded:  changed,
+      restarts:  this._health.restarts,
+      since:     this._health.since || null,
+      ts:        Date.now(),
+    };
+    console.warn('%s', this._lbl, changed
+      ? 'stream degraded — ' + this._health.restarts + ' restarts without recovery'
+      : 'stream recovered');
+    this.io.emit('stream:health', this.lastHealth);
   }
 
   _stopWatchdog() {
