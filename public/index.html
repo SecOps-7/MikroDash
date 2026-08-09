@@ -309,6 +309,13 @@
     /* stale */
     .stale-overlay{position:absolute;inset:0;border-radius:10px;background:rgba(7,9,15,.55);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted);z-index:10;opacity:0;pointer-events:none;transition:opacity .3s}
     .card.is-stale .stale-overlay{opacity:1;pointer-events:auto}
+    /* A stream the watchdog keeps restarting is a persistent fault, not a
+       transient stall. .is-stale only dims the card once data stops; this says
+       why, and stays visible while the stream is still delivering bursts. */
+    .stream-warn{display:none;align-items:center;gap:.4rem;font-family:var(--font-mono);font-size:.62rem;
+                 color:rgba(251,191,36,.95);background:rgba(251,191,36,.10);
+                 border-bottom:1px solid rgba(251,191,36,.25);padding:.25rem .7rem}
+    .card.is-degraded .stream-warn{display:flex}
     /* traffic */
     .chart-wrap{position:relative;height:200px;width:100%}
     .chart-legend{display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
@@ -1245,6 +1252,7 @@
         <button class="dash-remove-btn" data-card="card-traffic" type="button" title="Remove card">&#x2715;</button>
         <div class="card" id="trafficCard">
           <div class="stale-overlay">&#9679; stale</div>
+          <div class="stream-warn" id="trafficCardWarn" role="status"></div>
           <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2" style="min-width:0;flex-wrap:nowrap">
               <h3 class="card-title mb-0" style="white-space:nowrap">Traffic</h3>
@@ -1279,6 +1287,7 @@
         <button class="dash-remove-btn" data-card="card-connections" type="button" title="Remove card">&#x2715;</button>
         <div class="card" id="connCard">
           <div class="stale-overlay">&#9679; stale</div>
+          <div class="stream-warn" id="connCardWarn" role="status"></div>
           <div class="card-header d-flex align-items-center gap-2">
             <h3 class="card-title">Connections</h3>
           </div>

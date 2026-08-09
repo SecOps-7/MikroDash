@@ -1269,3 +1269,80 @@ test('WirelessCollector stop() clears retryTimer', () => {
   collector.stop();
   assert.equal(collector._retryTimer, null, '_retryTimer cleared by stop()');
 });
+
+
+// ── Stream health reporting (#106) ────────────────────────────────────────────
+// The watchdog restarts a dead stream forever, which turns a persistent fault
+// into a silent sawtooth. These pin the rule that decides when to stop calling
+// it transient.
+const { createStreamHealth } = require('../src/collectors/util');
+
+test('stream health degrades only after repeated restarts', () => {
+  const h = createStreamHealth({ degradeAfter: 3, healthyMs: 60000 });
+  assert.equal(h.recordRestart(), null, 'first restart is transient');
+  assert.equal(h.recordRestart(), null, 'second is still transient');
+  assert.equal(h.recordRestart(), true, 'third crosses the threshold');
+  assert.equal(h.degraded, true);
+  assert.equal(h.restarts, 3);
+});
+
+test('stream health reports the transition once, not on every restart', () => {
+  const h = createStreamHealth({ degradeAfter: 2 });
+  h.recordRestart();
+  assert.equal(h.recordRestart(), true, 'transition reported');
+  assert.equal(h.recordRestart(), null, 'already degraded, no repeat emit');
+  assert.equal(h.recordRestart(), null);
+  assert.equal(h.restarts, 4, 'still counting for the message');
+});
+
+test('a short-lived stream does not count as recovery', () => {
+  // The exact failure mode on the hAP ac2: the stream dies every ~15s but
+  // delivers a burst right after each restart. If a burst reset the counter the
+  // fault would never be reported.
+  const h = createStreamHealth({ degradeAfter: 3, healthyMs: 60000 });
+  for (let i = 0; i < 3; i++) {
+    assert.equal(h.recordHealthy(5000), null, 'a 5s-old stream is not recovered');
+    h.recordRestart();
+  }
+  assert.equal(h.degraded, true, 'degraded despite data arriving between restarts');
+});
+
+test('stream health recovers only after a sustained healthy period', () => {
+  const h = createStreamHealth({ degradeAfter: 2, healthyMs: 60000 });
+  h.recordRestart();
+  assert.equal(h.recordRestart(), true);
+  assert.equal(h.recordHealthy(59000), null, 'just under the window does not clear it');
+  assert.equal(h.degraded, true);
+  assert.equal(h.recordHealthy(60000), false, 'sustained health clears it, reported once');
+  assert.equal(h.degraded, false);
+  assert.equal(h.restarts, 0);
+  assert.equal(h.recordHealthy(90000), null, 'already healthy, no repeat emit');
+});
+
+test('stream health reset clears counters without emitting', () => {
+  const h = createStreamHealth({ degradeAfter: 1 });
+  assert.equal(h.recordRestart(), true);
+  h.reset();
+  assert.equal(h.degraded, false);
+  assert.equal(h.restarts, 0);
+});
+
+test('traffic collector emits stream:health when its stream keeps dying', () => {
+  const emitted = [];
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit: (ev, d) => emitted.push({ ev, d }), to: () => _chain };
+  const ros = { connected: true, on() {}, stream: () => { const s = { on() {}, stop() {} }; return s; } };
+  const c = new TrafficCollector({ ros, io, defaultIf: 'ether1', state: {} });
+
+  // Three restarts without a sustained healthy window.
+  c._reportHealth(c._health.recordRestart());
+  c._reportHealth(c._health.recordRestart());
+  c._reportHealth(c._health.recordRestart());
+
+  const health = emitted.filter(e => e.ev === 'stream:health');
+  assert.equal(health.length, 1, 'exactly one transition emitted');
+  assert.equal(health[0].d.collector, 'traffic');
+  assert.equal(health[0].d.degraded, true);
+  assert.equal(health[0].d.restarts, 3);
+  assert.equal(c.lastHealth.degraded, true, 'exposed for replay to a new client');
+});

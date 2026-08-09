@@ -41,4 +41,49 @@ function bpsToMbps(bps) {
   return +((bps || 0) / 1_000_000).toFixed(3);
 }
 
-module.exports = { clampPoll, stopStreamSafe, parseBps, bpsToMbps };
+/**
+ * Tracks watchdog restarts so a stream that never recovers can be reported to
+ * the user instead of being silently restarted forever.
+ *
+ * The subtlety is what counts as "recovered". A stream that dies every 15 s
+ * still delivers a burst of rows immediately after each restart, so resetting
+ * the counter the moment data appears would mean it never climbs and the fault
+ * stays invisible. Recovery therefore requires the stream to have been up for
+ * `healthyMs`, not merely to have produced a packet.
+ *
+ * record* returns null when the degraded state did not change, and the new
+ * boolean when it did, so callers emit only on a transition.
+ */
+function createStreamHealth({ degradeAfter = 3, healthyMs = 60000 } = {}) {
+  let restarts = 0;
+  let degraded = false;
+  let since    = 0;
+
+  return {
+    /** Watchdog had to restart the stream. */
+    recordRestart() {
+      restarts++;
+      if (degraded || restarts < degradeAfter) return null;
+      degraded = true;
+      since = Date.now();
+      return true;
+    },
+    /** Watchdog tick found data flowing; streamAgeMs is how long it has been up. */
+    recordHealthy(streamAgeMs) {
+      if (!(streamAgeMs >= healthyMs)) return null;   // not up long enough to count
+      if (!degraded && restarts === 0) return null;
+      const was = degraded;
+      restarts = 0;
+      degraded = false;
+      since = 0;
+      return was ? false : null;
+    },
+    /** Drop all state (stream stopped deliberately, or the router reconnected). */
+    reset() { restarts = 0; degraded = false; since = 0; },
+    get degraded() { return degraded; },
+    get restarts() { return restarts; },
+    get since()    { return since; },
+  };
+}
+
+module.exports = { clampPoll, stopStreamSafe, parseBps, bpsToMbps, createStreamHealth };
