@@ -8,6 +8,7 @@ const { classifyRosError }     = require('./routeros/classifyError');
 // routerId → { ros, system, ifStatus, dhcpLeases, connected }
 const _sessions  = new Map();
 let   _suspended = false;
+let   _identityHook = null;   // (routerId, {model, serial, osVersion}) → void
 
 // Null-io: collectors need an io object but we don't want them to broadcast.
 // clientsCount=1 prevents idle-gating inside the collectors.
@@ -89,6 +90,9 @@ function _buildSession(router) {
 
   const state      = {};
   const system     = new SystemCollector         ({ ros, io: _nullIo, pollMs, state });
+  if (typeof _identityHook === 'function') {
+    system._onIdentity = (identity) => _identityHook(router.id, identity);
+  }
   const ifStatus   = new InterfaceStatusCollector({ ros, io: _nullIo, pollMs, metaPollMs: pollMs * 12, state });
   const dhcpLeases = new DhcpLeasesCollector     ({ ros, io: _nullIo, state });
 
@@ -132,4 +136,7 @@ function _stopSession(id, session) {
   session.ros.stop();
 }
 
-module.exports = { syncSessions, getSummaries, stopAll, suspend, resume };
+/** Called with (routerId, {model, serial, osVersion}) when RouterOS reports identity. */
+function setIdentityHook(fn) { _identityHook = typeof fn === 'function' ? fn : null; }
+
+module.exports = { syncSessions, getSummaries, stopAll, suspend, resume, setIdentityHook };

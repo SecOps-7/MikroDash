@@ -72,6 +72,58 @@ function fmtDataMB(mb){var n=+mb||0;if(n>=1e6)return(n/1e6).toFixed(2)+' TB';if(
 // Math.max.apply spreads the array as arguments and blows the call stack past
 // ~65k entries; report queries can return 100k rows. Mirrors _maxOf server-side.
 function maxOf(a){var m=-Infinity;for(var i=0;i<a.length;i++){var v=+a[i];if(v>m)m=v;}return m===-Infinity?0:m;}
+
+// ── Shared table sorting ───────────────────────────────────────────────────
+// Hoisted out of the Reports IIFE so every page can use one implementation.
+// Reports, Bandwidth, Routing and Interfaces each had sortable tables while
+// Wireless, DHCP leases and Firewall did not, purely because these two helpers
+// were not in scope there. Reports still reaches them via the scope chain, so
+// its call sites are unchanged.
+function _sortRows(rows, col, dir) {
+  return rows.slice().sort(function(a, b) {
+    var av = a[col]; var bv = b[col];
+    if (av == null && bv == null) return 0;
+    if (av == null) return dir === 'asc' ? -1 : 1;
+    if (bv == null) return dir === 'asc' ?  1 : -1;
+    if (typeof av === 'number' && typeof bv === 'number')
+      return dir === 'asc' ? av - bv : bv - av;
+    av = String(av).toLowerCase(); bv = String(bv).toLowerCase();
+    return dir === 'asc' ? (av < bv ? -1 : av > bv ? 1 : 0) : (av > bv ? -1 : av < bv ? 1 : 0);
+  });
+}
+
+// Rewrites a thead <tr> with sort-indicator classes and wires click handlers.
+// cols: [{key, label, style?}]  sortState: {col, dir}  onSortFn: called after state update
+function _renderSortHeader(theadId, cols, sortState, onSortFn) {
+  var tr = $(theadId);
+  if (!tr) return;
+  tr.innerHTML = cols.map(function(c) {
+    // c.cls carries column classes that must survive the rewrite: the wireless
+    // header pairs wl-col-* on the th with the same class on its td, and
+    // dropping it here would silently break that pairing.
+    var sortCls = c.key === sortState.col ? 'sort-'+sortState.dir : '';
+    var allCls  = [c.cls || '', sortCls].filter(Boolean).join(' ');
+    var cls = allCls ? ' class="'+allCls+'"' : '';
+    // A sortable column should look sortable. Each table used to hand-roll this
+    // inline, so some sortable headers offered no affordance at all.
+    var base = c.key ? 'cursor:pointer;user-select:none;' : '';
+    var sty  = (base || c.style) ? ' style="'+base+(c.style || '')+'"' : '';
+    return '<th'+sty+cls+'>'+c.label+'</th>';
+  }).join('');
+  Array.prototype.forEach.call(tr.querySelectorAll('th'), function(th, i) {
+    var key = cols[i] && cols[i].key;
+    if (!key) return;
+    th.addEventListener('click', function() {
+      if (sortState.col === key) {
+        sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortState.col = key;
+        sortState.dir = 'asc';
+      }
+      onSortFn();
+    });
+  });
+}
 // Parse RouterOS duration string (e.g. "2h10m5s", "30s", "1d2h") to seconds. Returns Infinity for empty/never.
 function parseDurationSec(s){if(!s||s==='never')return Infinity;var m=0;var r=/(\d+)([wdhms])/g,x;while((x=r.exec(s))!==null){var n=parseInt(x[1],10);if(x[2]==='w')m+=n*604800;else if(x[2]==='d')m+=n*86400;else if(x[2]==='h')m+=n*3600;else if(x[2]==='m')m+=n*60;else m+=n;}return m||Infinity;}
 function signalBars(dbm){var bars=dbm>=-55?4:dbm>=-65?3:dbm>=-75?2:dbm>-85?1:0;var h='<span class="signal-bars">';for(var i=1;i<=4;i++)h+='<span'+(i<=bars?' class="lit"':'')+'>&#8203;</span>';return h+'</span>';}
@@ -1401,7 +1453,6 @@ function portSvg(sz) {
 // ── Wireless ───────────────────────────────────────────────────────────────
 (function(){
   var _wlClients = [];
-  var _wlSort    = 'signal';
 
   function sigQuality(dbm){
     if(dbm>=-55) return'<span style="color:rgba(52,211,153,.9)">Excellent</span>';
@@ -1436,18 +1487,52 @@ function portSvg(sz) {
     return'<span class="wl-band '+cls+'">'+band+'</span>';
   }
 
-  function sortClients(clients, key){
-    var c=clients.slice();
-    if(key==='signal') c.sort(function(a,b){return b.signal-a.signal;});
-    else if(key==='txRate') c.sort(function(a,b){return parseTxRateNum(b.txRate)-parseTxRateNum(a.txRate);});
-    else if(key==='uptime') c.sort(function(a,b){return uptimeToSecs(b.uptime)-uptimeToSecs(a.uptime);});
-    else if(key==='name') c.sort(function(a,b){return(a.name||a.mac).localeCompare(b.name||b.mac);});
+  // Comparators are written ascending and reversed for descending, so the
+  // button bar and the column headers cannot disagree about ordering.
+  var WL_CMP = {
+    name:   function(a,b){ return String(a.name||a.mac||'').localeCompare(String(b.name||b.mac||'')); },
+    signal: function(a,b){ return (a.signal||0) - (b.signal||0); },
+    txRate: function(a,b){ return parseTxRateNum(a.txRate) - parseTxRateNum(b.txRate); },
+    uptime: function(a,b){ return uptimeToSecs(a.uptime) - uptimeToSecs(b.uptime); },
+  };
+  // Preserves what the buttons did before headers existed: strongest signal,
+  // fastest rate and longest uptime first, but names A to Z.
+  var WL_DEFAULT_DIR = { name:'asc', signal:'desc', txRate:'desc', uptime:'desc' };
+
+  function sortClients(clients, key, dir){
+    var cmp = WL_CMP[key];
+    if(!cmp) return clients.slice();
+    var c = clients.slice().sort(cmp);
+    if(dir === 'desc') c.reverse();
     return c;
+  }
+
+  // Both controls drive this one object, so whichever you use, the other
+  // reflects it.
+  var _wlSortState = { col:'signal', dir:WL_DEFAULT_DIR.signal };
+
+  function _wlSyncSortBtns(){
+    var wrap=$('wifiSortBtns'); if(!wrap) return;
+    wrap.querySelectorAll('.wl-sort-btn').forEach(function(b){
+      b.classList.toggle('active', b.dataset.sort === _wlSortState.col);
+    });
   }
 
   function renderWireless(){
     if(!wirelessTable) return;
-    var clients=sortClients(_wlClients, _wlSort);
+    // Interface and Band carry no key on purpose: the table is grouped by
+    // interface, so sorting on it is meaningless, and Band is a derived label.
+    // wl-col-* classes are passed through because the matching td carries them.
+    _renderSortHeader('wlThead', [
+      { key:'name',   label:'Device' },
+      { key:null,     label:'Interface', cls:'wl-col-iface' },
+      { key:null,     label:'Band' },
+      { key:'signal', label:'Signal',    cls:'text-end' },
+      { key:'txRate', label:'TX / RX' },
+      { key:'uptime', label:'Uptime',    cls:'wl-col-uptime' },
+    ], _wlSortState, function(){ _wlSyncSortBtns(); renderWireless(); });
+
+    var clients=sortClients(_wlClients, _wlSortState.col, _wlSortState.dir);
     if(!clients.length){
       wirelessTable.innerHTML='<tr><td colspan="6" class="empty-state">No wireless clients</td></tr>';
       return;
@@ -1547,8 +1632,12 @@ function portSvg(sz) {
   var sortBtns=$('wifiSortBtns');
   if(sortBtns) sortBtns.addEventListener('click',function(e){
     var btn=e.target.closest('.wl-sort-btn'); if(!btn) return;
-    _wlSort=btn.dataset.sort;
-    sortBtns.querySelectorAll('.wl-sort-btn').forEach(function(b){b.classList.toggle('active',b===btn);});
+    // A button press picks the column and resets it to that column's natural
+    // direction; toggling is the header's job. Both write the same state, so
+    // the header indicator follows the button and vice versa.
+    _wlSortState.col = btn.dataset.sort;
+    _wlSortState.dir = WL_DEFAULT_DIR[_wlSortState.col] || 'desc';
+    _wlSyncSortBtns();
     renderWireless();
   });
 })();
@@ -5928,10 +6017,20 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var statusCell = r.disabled
       ? '<span class="rtr-status-badge rtr-status-badge--disabled" data-rtr-conn="'+esc(r.id)+'">Disabled</span>'
       : '<span class="rtr-status-badge '+badgeCls+'" data-rtr-conn="'+esc(r.id)+'">'+badgeTxt+'</span>';
+    // Identity is persisted on the router entry rather than read from the live
+    // stats feed, so these stay populated while a router is offline or disabled.
+    // A router that has never connected has nothing to show yet.
+    var unknown     = '<span style="color:var(--text-muted)">—</span>';
+    var modelCell   = r.model     ? esc(r.model) : unknown;
+    var serialCell  = r.serial    ? '<span class="rtr-host">'+esc(r.serial)+'</span>'    : unknown;
+    var versionCell = r.osVersion ? '<span class="rtr-ver-pill">'+esc(r.osVersion)+'</span>' : unknown;
     return '<tr'+(r.disabled?' style="opacity:.55"':'')+'>'+
       '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + '</td>' +
       '<td>'+statusCell+'</td>' +
       '<td><span class="rtr-host">'+esc(r.host)+'</span></td>' +
+      '<td>'+modelCell+'</td>' +
+      '<td>'+serialCell+'</td>' +
+      '<td>'+versionCell+'</td>' +
       '<td>'+tlsBadge+certNote+'</td>' +
       '<td style="text-align:right;white-space:nowrap">' +
         '<div style="display:flex;gap:.3rem;justify-content:flex-end">' +
@@ -5946,7 +6045,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function renderTable() {
     if (!tbody) return;
     if (!_routers.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.73rem">No routers configured. Click Add Router to get started.</td></tr>';
       return;
     }
     tbody.innerHTML = _routers.map(_renderRow).join('');
@@ -7321,43 +7420,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if (pdfEl) { pdfEl.href = exportUrl(type,'pdf',routerId,from,to,extra); pdfEl.style.display=''; }
   }
 
-  function _sortRows(rows, col, dir) {
-    return rows.slice().sort(function(a, b) {
-      var av = a[col]; var bv = b[col];
-      if (av == null && bv == null) return 0;
-      if (av == null) return dir === 'asc' ? -1 : 1;
-      if (bv == null) return dir === 'asc' ?  1 : -1;
-      if (typeof av === 'number' && typeof bv === 'number')
-        return dir === 'asc' ? av - bv : bv - av;
-      av = String(av).toLowerCase(); bv = String(bv).toLowerCase();
-      return dir === 'asc' ? (av < bv ? -1 : av > bv ? 1 : 0) : (av > bv ? -1 : av < bv ? 1 : 0);
-    });
-  }
-
-  // Rewrites a thead <tr> with sort-indicator classes and wires click handlers.
-  // cols: [{key, label, style?}]  sortState: {col, dir}  onSortFn: called after state update
-  function _renderSortHeader(theadId, cols, sortState, onSortFn) {
-    var tr = $(theadId);
-    if (!tr) return;
-    tr.innerHTML = cols.map(function(c) {
-      var cls = c.key === sortState.col ? ' class="sort-'+sortState.dir+'"' : '';
-      var sty = c.style ? ' style="'+c.style+'"' : '';
-      return '<th'+sty+cls+'>'+c.label+'</th>';
-    }).join('');
-    Array.prototype.forEach.call(tr.querySelectorAll('th'), function(th, i) {
-      var key = cols[i] && cols[i].key;
-      if (!key) return;
-      th.addEventListener('click', function() {
-        if (sortState.col === key) {
-          sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
-        } else {
-          sortState.col = key;
-          sortState.dir = 'asc';
-        }
-        onSortFn();
-      });
-    });
-  }
 
   // ── Ping chart ──────────────────────────────────────────────────────
   function renderPingChart(rows) {
@@ -8004,7 +8066,11 @@ function _renderRoutersStats(rows) {
         + esc(r.lastError) + '</div>'
       : '';
     html += '<div class="col-md-6 col-xl-4">'
-      + '<div class="card">'
+      // h-100 so cards in a row match height. Without it the card is only as
+      // tall as its content, and a router whose identity pills wrap to a second
+      // row (longer label, serial or extra licence pill) sat visibly taller
+      // than its neighbours — measured at 297px against 275px.
+      + '<div class="card h-100">'
       + '<div class="card-header" style="align-items:flex-start">'
       + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (r.connected ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
       + '<div class="me-auto">'

@@ -43,6 +43,37 @@
     .card-badge.active-green{background:var(--card-badge-bg-active-green);color:var(--card-badge-color-active-green)}
     *,*::before,*::after{box-sizing:border-box}
     html,body{height:100%;margin:0}
+    /* Keyboard focus. Before this there were seven :focus rules in the whole
+       app, all border-colour on inputs and none at all on buttons, so tabbing
+       through the UI gave no indication of position (WCAG 2.4.7). Uses
+       :focus-visible so a mouse click does not leave a ring behind. */
+    /* !important is deliberate and load-bearing here. A dozen component classes
+       set `outline:none` in their *base* rule rather than a :focus rule —
+       .conn-src-filter, .sform-input, .rt-sel, .rpt-select, .bw-toolbar
+       input/select among them — so those apply in every state, and
+       #navRouterSelect / #routerSelectBtn are ID selectors that outrank any
+       class-based focus rule outright. Without it the ring is suppressed across
+       most of the interactive surface. An accessibility guarantee should not be
+       defeatable by a decorative reset. */
+
+    /* ── Shared data-table behaviour ─────────────────────────────────────
+       One definition each, instead of a copy per table. The sort indicators
+       existed four times (.bw-table, .rt-table, .iface-list, #page-dhcp) and
+       had already drifted in encoding, and any new sortable table had to
+       remember to add its own pair. Global on th means it is now free.
+       Row hover was also four copies, one of which had drifted to .06 alpha
+       against .05 everywhere else; they now match. Column widths, padding
+       and density stay per-table, because those genuinely differ. */
+    th.sort-asc::after{content:' \2191'}
+    th.sort-desc::after{content:' \2193'}
+    .table tbody tr:hover td,.bw-table tr:hover td,.rt-table tr:hover td,
+    .iface-list tbody tr:hover td{background:rgba(99,130,190,.05)}
+    :focus-visible{outline:2px solid var(--accent-rx) !important;outline-offset:2px;border-radius:3px}
+    /* Fallback for engines without :focus-visible support. */
+    @supports not selector(:focus-visible){
+      button:focus,a:focus,input:focus,select:focus,textarea:focus,[tabindex]:focus{
+        outline:2px solid var(--accent-rx) !important;outline-offset:2px}
+    }
     body{background:var(--bg-deep);background-image:radial-gradient(ellipse 900px 600px at 10% 0%,rgba(56,189,248,.05) 0%,transparent 70%),radial-gradient(ellipse 600px 400px at 90% 80%,rgba(52,211,153,.04) 0%,transparent 70%);font-family:var(--font-ui);display:flex;min-height:100vh;color:var(--text-main)}
     /* sidenav */
     #sidenav{position:fixed;left:0;top:0;bottom:0;z-index:200;width:var(--nav-w);background:var(--nav-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1)}
@@ -117,7 +148,9 @@
     html[data-theme="light"] .bw-toolbar input,html[data-theme="light"] .bw-toolbar select{background:rgba(255,255,255,.95);color:var(--text-main)}
     .bw-table-wrap{background:var(--bg-card)}
     .conn-src-filter{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.25rem .5rem;padding-right:1.7rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,190,.5)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .4rem center;cursor:pointer;min-width:160px;transition:border-color .15s,color .15s}
-    .conn-src-filter:focus{border-color:var(--accent-rx);color:var(--text-main);outline:none}
+    /* outline:none removed — it suppressed the global focus ring on every
+       filter dropdown in the app, which is most of them. */
+    .conn-src-filter:focus{border-color:var(--accent-rx);color:var(--text-main)}
     .conn-src-filter.active{border-color:var(--accent-rx);color:var(--accent-rx)}
     html[data-theme="light"] .conn-src-filter{background:rgba(255,255,255,.95);color:var(--text-main)}
 
@@ -125,14 +158,9 @@
     .bw-table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
     .bw-table th{padding:.45rem .75rem;text-align:left;font-size:.66rem;font-weight:400;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-color:var(--border);background:rgba(99,130,190,.04);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;font-family:var(--font-ui)}
     .bw-table th:hover{color:var(--text-main)}
-    .bw-table th.sort-asc::after{content:' ↑'}
-    .bw-table th.sort-desc::after{content:' ↓'}
-    #page-dhcp th.sort-asc::after{content:' ↑'}
-    #page-dhcp th.sort-desc::after{content:' ↓'}
     #page-dhcp th{cursor:pointer;user-select:none}
     .bw-table td{padding:.4rem .7rem;border-bottom:1px solid rgba(99,130,190,.08);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
     .bw-table tr:last-child td{border-bottom:none}
-    .bw-table tr:hover td{background:rgba(99,130,190,.05)}
     .bw-rate{font-family:var(--font-mono);font-size:.72rem}
     .bw-rate-rx{color:var(--accent-rx)}
     .bw-rate-tx{color:var(--accent-tx)}
@@ -206,6 +234,13 @@
               border-top-color:var(--accent-rx);border-radius:50%;animation:spin .7s linear infinite;
               vertical-align:-1px;margin-right:.45rem}
     .scard{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+    /* Settings lays its cards out on a grid rather than one long strip. Cards
+       need min-width:0 so they can shrink inside a track (same reason as
+       .mikrodash-col--center). */
+    .scard{min-width:0}
+    /* Cards that want the whole width: tables, the tallest card (which would
+       otherwise leave a large gap beside it), and tabs holding only one card. */
+    .scard--wide{grid-column:1/-1}
     .scard-header{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
     .scard-title{font-size:.78rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em;flex:1}
     .scard-body{padding:.9rem 1rem}
@@ -223,7 +258,42 @@
     .stab:hover{color:var(--text-main)}
     .stab.active{color:var(--accent-rx);border-bottom-color:var(--accent-rx)}
     .stab-panel{display:none}
-    .stab-panel.active{display:block}
+    /* A grid, not CSS columns. Columns flowed cards down one track and into the
+       next, and column-span:all split the flow into independent regions, which
+       stranded a lone card beside a full-width one. On a grid every card in a
+       row shares the row's height (the same reason router cards use h-100), so
+       rows line up instead of ending ragged.
+       Two fixed columns above 1100px rather than auto-fit: the card count per
+       tab is small and odd, so a third column strands one card in a third-width
+       row mid-page (Notifications did exactly this at 1920px). No auto-fit
+       minimum yields two columns at both 1200px and 1920px without collapsing
+       1200px to one, so the count is pinned and the cards are paired by height
+       to suit it. Two columns also keeps each card near the ~720px these forms
+       were laid out for; three squeezed them to 492px and wrapped labels badly.
+       'dense' backfills the hole a full-width card would otherwise leave. It
+       lets a later card move up visually while tab order follows the DOM, which
+       is acceptable here only because settings cards are self-contained and
+       carry no meaningful sequence. */
+    .stab-panel.active{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;grid-auto-flow:row dense}
+    @media (min-width:1100px){.stab-panel.active{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    /* margin-bottom on .scard would double up the grid gap. */
+    .stab-panel.active .scard{margin-bottom:0}
+    /* Pushbullet and ntfy sit side by side inside Notification Channels: both
+       are short (a key, or a URL and token, plus a test button), so a full row
+       each was mostly empty. auto-fit rather than a media query because the
+       width here follows the card, not the viewport — the card is full-width in
+       a settings grid that itself changes column count. With two children the
+       third track collapses, giving two equal columns, and one column once the
+       card is too narrow for two 22rem tracks. */
+    .nchan-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:.9rem}
+    /* About is a read-only page of short blurbs. Grid stretched them into wide
+       shallow bands, so it keeps the original stacked single column. */
+    #stab-about.stab-panel.active{display:block;max-width:46rem;margin:0 auto}
+    #stab-about .scard{margin-bottom:1rem}
+    /* Save bar pinned to the bottom of .page-view (the scroll container) so it
+       stays reachable however long the panel gets. app.js sets display on this
+       element to show/hide it per tab, so this rule must not declare display. */
+    #settingsActions{position:sticky;bottom:0;z-index:4;background:var(--bg-deep);border-top:1px solid var(--border);padding-top:.6rem}
     .theme-swatch-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem}
     .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:.35rem;cursor:pointer;border-radius:8px;padding:.4rem;border:2px solid transparent;transition:border-color .15s}
     .theme-swatch:hover{border-color:rgba(99,130,190,.3)}
@@ -362,13 +432,10 @@
     .iface-list{font-family:var(--font-mono);font-size:.7rem;margin-bottom:0;white-space:nowrap}
     .iface-list th{font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.3rem .5rem}
     .iface-list td{padding:.28rem .5rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle}
-    .iface-list tbody tr:hover{background:rgba(99,130,190,.06)}
     .iface-list tr.down td{opacity:.6}
     .iface-list tr.disabled td{opacity:.38}
     .iface-list th[data-sort]{cursor:pointer;user-select:none}
     .iface-list th[data-sort]:hover{color:var(--text-main)}
-    .iface-list th.sort-asc::after{content:' \2191'}
-    .iface-list th.sort-desc::after{content:' \2193'}
     .ifl-num{text-align:right;font-variant-numeric:tabular-nums}
     /* Colour is carried inline, from the same palette the Interface Types card
        uses, so a type reads the same in both places. */
@@ -424,6 +491,16 @@
     .rtr-list tr:last-child td{border-bottom:none}
     .rtr-active-badge{font-size:.6rem;font-family:var(--font-ui);padding:.1rem .45rem;border-radius:4px;background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);white-space:nowrap}
     .rtr-host{font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)}
+    /* Same purple the rest of the UI uses, at low alpha for the pill ground.
+       Literal rather than a var because this colour is a literal everywhere else. */
+    .rtr-ver-pill{display:inline-block;padding:.05rem .38rem;border-radius:3px;font-family:var(--font-mono);
+                  font-size:.65rem;font-weight:600;color:rgba(167,139,250,.95);background:rgba(167,139,250,.14);
+                  border:1px solid rgba(167,139,250,.28)}
+    /* The light palettes need a darker violet: measured against the card ground,
+       rgba(167,139,250,.95) lands at ~2.5:1 there versus 6.9:1 on dark, which is
+       under the 3:1 floor. This shade measures ~7:1 on the light cards. */
+    :root[data-theme="light"] .rtr-ver-pill{color:rgba(109,40,217,.95);background:rgba(109,40,217,.10);
+                                            border-color:rgba(109,40,217,.30)}
     .rtr-switching-overlay{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:1rem}
     .rtr-switching-overlay.open{display:flex}
     .rtr-switching-spinner{width:28px;height:28px;border:2.5px solid rgba(56,189,248,.2);border-top-color:var(--accent-rx);border-radius:50%;animation:spin .7s linear infinite}
@@ -470,7 +547,6 @@
     .table th{color:var(--text-muted);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;border-color:var(--border) !important;font-weight:400;padding:.45rem .75rem}
     #talkersCard .table thead th,#vpnCard .table thead th,#netwatchCard .table thead th{background:transparent!important}
     .table td{border-color:var(--border) !important;vertical-align:middle;padding:.45rem .75rem;color:var(--text-main)}
-    .table tbody tr:hover td{background:rgba(99,130,190,.05)}
     /* signal bars */
     .signal-bars{display:inline-flex;align-items:flex-end;gap:2px;height:13px}
     .signal-bars span{width:3px;border-radius:1px;background:rgba(99,130,190,.2)}
@@ -917,11 +993,8 @@
     .rt-table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
     .rt-table th{padding:.45rem .7rem;text-align:left;font-size:.66rem;font-weight:400;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:1px solid var(--border);background:rgba(99,130,190,.04);white-space:nowrap;cursor:pointer;user-select:none;font-family:var(--font-ui)}
     .rt-table th:hover{color:var(--text-main)}
-    .rt-table th.sort-asc::after{content:' ↑'}
-    .rt-table th.sort-desc::after{content:' ↓'}
     .rt-table td{padding:.4rem .7rem;border-bottom:1px solid rgba(99,130,190,.08);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0}
     .rt-table tr:last-child td{border-bottom:none}
-    .rt-table tr:hover td{background:rgba(99,130,190,.05)}
     /* state badges */
     .bgp-state{display:inline-block;padding:.1rem .4rem;border-radius:4px;font-size:.65rem;font-weight:600;font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.04em}
     .bgp-state.established{background:rgba(52,211,153,.15);color:rgba(52,211,153,.95);border:1px solid rgba(52,211,153,.25)}
@@ -1175,7 +1248,7 @@
           <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
             <div class="d-flex align-items-center gap-2" style="min-width:0;flex-wrap:nowrap">
               <h3 class="card-title mb-0" style="white-space:nowrap">Traffic</h3>
-              <select id="ifaceSelect" class="form-select form-select-sm" style="min-width:90px;max-width:130px;font-size:.76rem"></select>
+              <select id="ifaceSelect" class="form-select form-select-sm" style="min-width:90px;max-width:130px;font-size:.76rem" aria-label="Interface"></select>
               <select id="windowSelect" class="form-select form-select-sm" style="width:90px;font-size:.76rem" title="Time window">
                 <option value="1m" selected>1m</option><option value="5m">5m</option><option value="15m">15m</option><option value="30m">30m</option>
               </select>
@@ -1876,7 +1949,10 @@
         <div class="card-body p-0" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
           <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:520px">
             <colgroup><col style="width:170px"><col style="width:80px"><col style="width:72px"><col style="width:110px"><col style="width:70px"><col style="width:70px"></colgroup>
-            <thead><tr><th>Device</th><th class="wl-col-iface">Interface</th><th>Band</th><th class="text-end">Signal</th><th>TX / RX</th><th class="wl-col-uptime">Uptime</th></tr></thead>
+            <!-- id required by _renderSortHeader, which rewrites this row to add
+                 sort indicators and click handlers. The static contents are the
+                 pre-render fallback and must match renderWireless()'s column list. -->
+            <thead><tr id="wlThead"><th>Device</th><th class="wl-col-iface">Interface</th><th>Band</th><th class="text-end">Signal</th><th>TX / RX</th><th class="wl-col-uptime">Uptime</th></tr></thead>
             <tbody id="wirelessTable"><tr><td colspan="6" class="empty-state">No wireless clients</td></tr></tbody>
           </table>
         </div>
@@ -2114,7 +2190,7 @@
             <span class="log-count-badge log-count-debug" id="logCountDebug" title="Filter debug" data-sev="debug">0 debug</span>
           </div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
-            <select id="logSeverity" class="form-select form-select-sm" style="max-width:110px;font-size:.73rem">
+            <select id="logSeverity" class="form-select form-select-sm" style="max-width:110px;font-size:.73rem" aria-label="Log severity filter">
               <option value="">All levels</option><option value="error">Error</option><option value="warning">Warning</option><option value="info">Info</option><option value="debug">Debug</option>
             </select>
             <input id="logSearch" class="form-control form-control-sm" placeholder="Search&#8230;" style="max-width:200px;font-size:.73rem"/>
@@ -2220,20 +2296,20 @@
     </div>
     <div class="bw-toolbar">
       <input class="bw-search" id="bwSearch" type="text" placeholder="Search IP / hostname / MAC…">
-      <select id="bwIface" style="margin-left:auto">
+      <select id="bwIface" style="margin-left:auto" aria-label="Interface filter">
         <option value="">All interfaces</option>
       </select>
-      <select id="bwScope">
+      <select id="bwScope" aria-label="Traffic scope filter">
         <option value="">LAN + WAN</option>
         <option value="lan">LAN only</option>
         <option value="wan">WAN only</option>
       </select>
-      <select id="bwIpver">
+      <select id="bwIpver" aria-label="IP version filter">
         <option value="">IPv4 + IPv6</option>
         <option value="4">IPv4 only</option>
         <option value="6">IPv6 only</option>
       </select>
-      <select id="bwTopN">
+      <select id="bwTopN" aria-label="Number of devices to show">
         <option value="10" selected>Top 10</option>
         <option value="20">Top 20</option>
         <option value="50">Top 50</option>
@@ -2373,7 +2449,7 @@
         </div>
         <div class="rpt-iface-row">
           <span class="rpt-iface-label">Interface:</span>
-          <select id="rptTrafficIface" class="rpt-select"></select>
+          <select id="rptTrafficIface" class="rpt-select" aria-label="Interface"></select>
           <label style="display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--text-muted);cursor:pointer;margin-left:.6rem">
             <input type="checkbox" id="rptShowCapacity" style="accent-color:var(--accent-rx);cursor:pointer">
             Show link capacity
@@ -2401,7 +2477,7 @@
         </div>
         <div class="rpt-iface-row">
           <span class="rpt-iface-label">Interface:</span>
-          <select id="rptBwIface" class="rpt-select"></select>
+          <select id="rptBwIface" class="rpt-select" aria-label="Interface"></select>
         </div>
         <div class="rpt-export-row">
           <a id="rptBwCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
@@ -2473,7 +2549,10 @@
   </div>
 
   <div class="page-view" id="page-settings">
-    <div style="max-width:720px;margin:0 auto">
+    <!-- Was max-width:720px;margin:0 auto - a centred column that left most of a
+         wide window empty while the page grew ever longer. Now the house
+         full-width idiom, with .stab-panel.active doing the columnising. -->
+    <div class="container-fluid px-0" style="width:100%">
 
       <!-- Tab bar -->
       <div class="stab-bar">
@@ -2487,7 +2566,7 @@
 
       <!-- ── Routers tab ─────────────────────────────────────────────────── -->
       <div class="stab-panel active" id="stab-routers">
-        <div class="scard">
+        <div class="scard scard--wide">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="var(--accent-rx)" stroke="none"/></svg>
             <span class="scard-title">Routers</span>
@@ -2496,12 +2575,14 @@
               Add Router
             </button>
           </div>
-          <div class="scard-body" style="padding:.5rem">
+          <!-- overflow-x here because .scard is overflow:hidden — without it the
+               extra identity columns are clipped on a narrow window, not scrolled. -->
+          <div class="scard-body" style="padding:.5rem;overflow-x:auto">
             <table class="rtr-list" id="rtrTable">
               <thead><tr>
-                <th>Name</th><th>Status</th><th>Host</th><th>Connection</th><th style="text-align:right">Actions</th>
+                <th>Name</th><th>Status</th><th>Host</th><th>Model</th><th>Serial</th><th>Version</th><th>Connection</th><th style="text-align:right">Actions</th>
               </tr></thead>
-              <tbody id="rtrTbody"><tr><td colspan="5" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.73rem">Loading…</td></tr></tbody>
+              <tbody id="rtrTbody"><tr><td colspan="8" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.73rem">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -2519,7 +2600,7 @@
             <div class="sform-row" style="margin-bottom:0">
               <div class="sform-group" style="margin-bottom:0">
                 <label class="sform-label">Display Timezone</label>
-                <select class="sform-input" id="s_displayTimezone">
+                <select class="sform-input" id="s_displayTimezone" aria-label="Display timezone">
                   <option value="">Auto (browser / server local)</option>
                   <optgroup label="UTC">
                     <option value="UTC">UTC</option>
@@ -2651,29 +2732,29 @@
             <div class="sform-row3">
               <div class="sform-group">
                 <label class="sform-label">Top Connections N</label>
-                <input class="sform-input" id="s_topN" type="number" min="1" max="50">
+                <input class="sform-input" id="s_topN" type="number" min="1" max="50" aria-label="Top connections count">
               </div>
               <div class="sform-group">
                 <label class="sform-label">Top Talkers N</label>
-                <input class="sform-input" id="s_topTalkersN" type="number" min="1" max="20">
+                <input class="sform-input" id="s_topTalkersN" type="number" min="1" max="20" aria-label="Top talkers count">
               </div>
               <div class="sform-group">
                 <label class="sform-label">Firewall Top N</label>
-                <input class="sform-input" id="s_firewallTopN" type="number" min="1" max="50">
+                <input class="sform-input" id="s_firewallTopN" type="number" min="1" max="50" aria-label="Top firewall rules count">
               </div>
               <div class="sform-group">
                 <label class="sform-label">VPN Dashboard Top N</label>
-                <input class="sform-input" id="s_vpnDashTopN" type="number" min="1" max="50">
+                <input class="sform-input" id="s_vpnDashTopN" type="number" min="1" max="50" aria-label="VPN peers shown on dashboard">
               </div>
             </div>
             <div class="sform-row" style="margin-bottom:0">
               <div class="sform-group" style="margin-bottom:0">
                 <label class="sform-label">Max Connections</label>
-                <input class="sform-input" id="s_maxConns" type="number" min="1000" max="100000">
+                <input class="sform-input" id="s_maxConns" type="number" min="1000" max="100000" aria-label="Maximum connections tracked">
               </div>
               <div class="sform-group" style="margin-bottom:0">
                 <label class="sform-label">Traffic History (min)</label>
-                <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120">
+                <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120" aria-label="Chart history window in minutes">
               </div>
             </div>
           </div>
@@ -2699,7 +2780,7 @@
             </div>
           </div>
         </div>
-        <div class="scard">
+        <div class="scard scard--wide">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-err);stroke-width:2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             <span class="scard-title">Data Cleanup</span>
@@ -2715,11 +2796,11 @@
             <div class="sform-row" style="margin-top:.9rem">
               <div class="sform-group" style="margin-bottom:0">
                 <label class="sform-label">Routers</label>
-                <select class="sform-input" id="dbcScope"><option value="">All routers</option></select>
+                <select class="sform-input" id="dbcScope" aria-label="Data cleanup scope"><option value="">All routers</option></select>
               </div>
               <div class="sform-group" style="margin-bottom:0">
                 <label class="sform-label">Delete data older than</label>
-                <select class="sform-input" id="dbcAge">
+                <select class="sform-input" id="dbcAge" aria-label="Data cleanup age">
                   <option value="1">1 day</option>
                   <option value="7">7 days</option>
                   <option value="30" selected>30 days</option>
@@ -2783,33 +2864,6 @@
           </div>
         </div>
 
-        <!-- Alert Thresholds -->
-        <div class="scard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <span class="scard-title">Alert Thresholds</span>
-          </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Send alerts when these thresholds are reached.</p>
-            <div class="sform-row">
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">CPU Alert Threshold (%)</label>
-                <div style="display:flex;align-items:center;gap:.6rem">
-                  <input type="range" id="s_alertCpuThreshold" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)">
-                  <span id="s_alertCpuThresholdVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">90%</span>
-                </div>
-              </div>
-              <div class="sform-group" style="margin-bottom:0">
-                <label class="sform-label">Ping Loss Alert (%)</label>
-                <div style="display:flex;align-items:center;gap:.6rem">
-                  <input type="range" id="s_alertPingLoss" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)">
-                  <span id="s_alertPingLossVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">100%</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Interface Alert Filter -->
         <div class="scard" id="notifIfaceFilterCard">
           <div class="scard-header">
@@ -2828,8 +2882,53 @@
           </div>
         </div>
 
-        <!-- Notification Channels -->
+        <!-- Alert Thresholds -->
         <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span class="scard-title">Alert Thresholds</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Send alerts when these thresholds are reached.</p>
+            <div class="sform-row">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">CPU Alert Threshold (%)</label>
+                <div style="display:flex;align-items:center;gap:.6rem">
+                  <input type="range" id="s_alertCpuThreshold" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="CPU alert threshold, percent">
+                  <span id="s_alertCpuThresholdVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">90%</span>
+                </div>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Ping Loss Alert (%)</label>
+                <div style="display:flex;align-items:center;gap:.6rem">
+                  <input type="range" id="s_alertPingLoss" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Ping loss alert threshold, percent">
+                  <span id="s_alertPingLossVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">100%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert Cooldown -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="scard-title">Alert Cooldown</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Minimum time between repeated push alerts for the same event. Prevents notification flooding.</p>
+            <div class="sform-group" style="margin-bottom:0">
+              <label class="sform-label">Cooldown (seconds)</label>
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <input type="range" id="s_notifCooldownSec" min="10" max="3600" step="10" style="flex:1;accent-color:var(--accent-rx)" aria-label="Notification cooldown, seconds">
+                <span id="s_notifCooldownSecVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:3.2rem;text-align:right;color:var(--text-main)">60 s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notification Channels -->
+        <div class="scard scard--wide">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
             <span class="scard-title">Notification Channels</span>
@@ -2862,51 +2961,53 @@
               </div>
             </div>
 
-            <!-- Pushbullet -->
-            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                <div style="display:flex;align-items:center;gap:.55rem">
-                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.5 18h-3v-2h3v2zm0-4h-3V6h3v8z"/></svg>
-                  <strong style="font-size:.82rem">Pushbullet</strong>
+            <div class="nchan-pair">
+              <!-- Pushbullet -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.5 18h-3v-2h3v2zm0-4h-3V6h3v8z"/></svg>
+                    <strong style="font-size:.82rem">Pushbullet</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_pushbulletEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
                 </div>
-                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_pushbulletEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              </div>
-              <div class="sform-row">
-                <div class="sform-group" style="margin-bottom:.55rem">
-                  <label class="sform-label">API Key</label>
-                  <input type="password" id="s_pushbulletApiKey" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">API Key</label>
+                    <input type="password" id="s_pushbulletApiKey" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-test-pushbullet" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                  <span id="test-pushbullet-result" style="font-size:.75rem"></span>
                 </div>
               </div>
-              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                <button id="btn-test-pushbullet" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                <span id="test-pushbullet-result" style="font-size:.75rem"></span>
-              </div>
-            </div>
 
-            <!-- ntfy -->
-            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-top:.9rem">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
-                <div style="display:flex;align-items:center;gap:.55rem">
-                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                  <strong style="font-size:.82rem">ntfy</strong>
+              <!-- ntfy -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <strong style="font-size:.82rem">ntfy</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_ntfyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
                 </div>
-                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_ntfyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              </div>
-              <div class="sform-row">
-                <div class="sform-group" style="margin-bottom:.55rem">
-                  <label class="sform-label">Topic URL</label>
-                  <input type="url" id="s_ntfyUrl" class="sform-input" placeholder="https://ntfy.sh/my-topic" autocomplete="off">
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">Topic URL</label>
+                    <input type="url" id="s_ntfyUrl" class="sform-input" placeholder="https://ntfy.sh/my-topic" autocomplete="off">
+                  </div>
                 </div>
-              </div>
-              <div class="sform-row">
-                <div class="sform-group" style="margin-bottom:.55rem">
-                  <label class="sform-label">Access Token <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
-                  <input type="password" id="s_ntfyToken" class="sform-input" placeholder="optional" autocomplete="off">
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">Access Token <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+                    <input type="password" id="s_ntfyToken" class="sform-input" placeholder="optional" autocomplete="off">
+                  </div>
                 </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
-                <button id="btn-test-ntfy" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
-                <span id="test-ntfy-result" style="font-size:.75rem"></span>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-test-ntfy" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                  <span id="test-ntfy-result" style="font-size:.75rem"></span>
+                </div>
               </div>
             </div>
 
@@ -2964,7 +3065,7 @@
         </div>
 
         <!-- Message Templates -->
-        <div class="scard">
+        <div class="scard scard--wide">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             <span class="scard-title">Message Templates</span>
@@ -2991,29 +3092,11 @@
           </div>
         </div>
 
-        <!-- Alert Cooldown -->
-        <div class="scard">
-          <div class="scard-header">
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span class="scard-title">Alert Cooldown</span>
-          </div>
-          <div class="scard-body">
-            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Minimum time between repeated push alerts for the same event. Prevents notification flooding.</p>
-            <div class="sform-group" style="margin-bottom:0">
-              <label class="sform-label">Cooldown (seconds)</label>
-              <div style="display:flex;align-items:center;gap:.6rem">
-                <input type="range" id="s_notifCooldownSec" min="10" max="3600" step="10" style="flex:1;accent-color:var(--accent-rx)">
-                <span id="s_notifCooldownSecVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:3.2rem;text-align:right;color:var(--text-main)">60 s</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
 
       <!-- ── Appearance tab ─────────────────────────────────────────────── -->
       <div class="stab-panel" id="stab-appearance">
-        <div class="scard">
+        <div class="scard scard--wide">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="3"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
             <span class="scard-title">Appearance</span>
@@ -3129,24 +3212,24 @@
             <label class="sform-label">Contrast</label>
             <div style="display:flex;align-items:center;gap:.6rem">
               <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Low</span>
-              <input type="range" id="appearanceContrast" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+              <input type="range" id="appearanceContrast" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Contrast">
               <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">High</span>
             </div>
             <label class="sform-label" style="margin-top:.75rem">Text Brightness</label>
             <div style="display:flex;align-items:center;gap:.6rem">
               <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dim</span>
-              <input type="range" id="appearanceTextBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+              <input type="range" id="appearanceTextBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Text brightness">
               <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Bright</span>
             </div>
             <label class="sform-label" style="margin-top:.75rem">Background Brightness</label>
             <div style="display:flex;align-items:center;gap:.6rem">
               <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dark</span>
-              <input type="range" id="appearanceBgBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)">
+              <input type="range" id="appearanceBgBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Background brightness">
               <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Light</span>
             </div>
             <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
             <label class="sform-label">Font Family</label>
-            <select id="appearanceFont" class="sform-input" style="margin-bottom:.75rem">
+            <select id="appearanceFont" class="sform-input" style="margin-bottom:.75rem" aria-label="Interface font">
               <option value="system">System UI</option>
               <option value="syne">Syne (Default)</option>
               <option value="geist">Geist</option>
@@ -3176,7 +3259,7 @@
               <option value="orbitron">Orbitron</option>
             </select>
             <label class="sform-label" style="margin-top:.25rem">Font Size</label>
-            <select id="appearanceFontSize" class="sform-input">
+            <select id="appearanceFontSize" class="sform-input" aria-label="Interface font size">
               <option value="xs">Extra Small</option>
               <option value="sm">Small</option>
               <option value="normal">Normal</option>
@@ -3218,7 +3301,7 @@
           <div class="scard-body">
             <div style="margin-bottom:.85rem">
               <label class="sform-label">Mode</label>
-              <select class="sform-input" id="s_authMode">
+              <select class="sform-input" id="s_authMode" aria-label="Authentication mode">
                 <option value="none">None (open access)</option>
                 <option value="modern">Session-based (recommended)</option>
               </select>
@@ -3233,7 +3316,7 @@
             <div id="modernAuthFields" style="display:none">
               <div style="margin-bottom:.85rem">
                 <label class="sform-label">Session Timeout</label>
-                <select class="sform-input" id="s_sessionTimeoutMs">
+                <select class="sform-input" id="s_sessionTimeoutMs" aria-label="Session timeout">
                   <option value="3600000">1 hour</option>
                   <option value="14400000">4 hours</option>
                   <option value="28800000">8 hours</option>
@@ -3286,14 +3369,14 @@
               <div class="sform-row" style="margin-top:.6rem">
                 <div>
                   <label class="sform-label">Role</label>
-                  <select class="sform-input" id="uf_role">
+                  <select class="sform-input" id="uf_role" aria-label="User role">
                     <option value="admin">Admin</option>
                     <option value="viewer">Viewer (read-only)</option>
                   </select>
                 </div>
                 <div>
                   <label class="sform-label">Allowed Routers</label>
-                  <select class="sform-input" id="uf_routerFilter">
+                  <select class="sform-input" id="uf_routerFilter" aria-label="Router access filter">
                     <option value="all">All routers</option>
                     <option value="custom">Selected routers…</option>
                   </select>
@@ -3446,17 +3529,17 @@
         <div class="rt-toolbar">
           <span class="rt-card-title" style="margin-bottom:0;flex-shrink:0">Static &amp; Dynamic Routes</span>
           <input type="text" class="rt-search" id="rtRouteSearch" placeholder="Search destination or gateway…">
-          <select class="rt-sel" id="rtRouteSelType">
+          <select class="rt-sel" id="rtRouteSelType" aria-label="Route type filter">
             <option value="">Static + Dynamic</option>
             <option value="static">Static only</option>
             <option value="dynamic">Dynamic only</option>
           </select>
-          <select class="rt-sel" id="rtRouteSelFamily">
+          <select class="rt-sel" id="rtRouteSelFamily" aria-label="Address family filter">
             <option value="">IPv4 + IPv6</option>
             <option value="ipv4">IPv4 only</option>
             <option value="ipv6">IPv6 only</option>
           </select>
-          <select class="rt-sel" id="rtRouteSelActive">
+          <select class="rt-sel" id="rtRouteSelActive" aria-label="Active routes filter">
             <option value="">All routes</option>
             <option value="active">Active only</option>
           </select>
@@ -3493,7 +3576,7 @@
         <div class="rt-toolbar">
           <span class="rt-card-title" style="flex-shrink:0">BGP Peers</span>
           <input type="text" class="rt-search" id="rtSearch" placeholder="Search peer name, IP or ASN…">
-          <select class="rt-sel" id="rtSelState">
+          <select class="rt-sel" id="rtSelState" aria-label="BGP session state filter">
             <option value="">All states</option>
             <option value="established">Established</option>
             <option value="idle">Idle</option>
@@ -3502,13 +3585,13 @@
             <option value="opensent">OpenSent</option>
             <option value="openconfirm">OpenConfirm</option>
           </select>
-          <select class="rt-sel" id="rtSelType">
+          <select class="rt-sel" id="rtSelType" aria-label="BGP peer type filter">
             <option value="">All types</option>
             <option value="upstream">Upstream</option>
             <option value="ix">IX / Route Server</option>
             <option value="private">Private / Internal</option>
           </select>
-          <select class="rt-sel" id="rtSelIpver">
+          <select class="rt-sel" id="rtSelIpver" aria-label="BGP address family filter">
             <option value="">IPv4 + IPv6</option>
             <option value="4">IPv4 only</option>
             <option value="6">IPv6 only</option>
@@ -3618,7 +3701,7 @@
           <div>
             <label class="sform-label">Bandwidth Down (capacity)</label>
             <div style="display:flex;gap:.3rem">
-              <input class="sform-input" id="rtrModalBwDown" type="number" min="1" step="1" value="1" style="flex:1">
+              <input class="sform-input" id="rtrModalBwDown" type="number" min="1" step="1" value="1" style="flex:1" aria-label="Download capacity, Mbps">
               <input type="hidden" id="rtrModalBwDownUnit" value="gbps">
               <div class="bw-unit-toggle" data-unit-for="rtrModalBwDownUnit">
                 <button type="button" class="bw-unit-btn active" data-val="gbps">Gbps</button>
@@ -3629,7 +3712,7 @@
           <div>
             <label class="sform-label">Bandwidth Up (capacity)</label>
             <div style="display:flex;gap:.3rem">
-              <input class="sform-input" id="rtrModalBwUp" type="number" min="1" step="1" value="1" style="flex:1">
+              <input class="sform-input" id="rtrModalBwUp" type="number" min="1" step="1" value="1" style="flex:1" aria-label="Upload capacity, Mbps">
               <input type="hidden" id="rtrModalBwUpUnit" value="gbps">
               <div class="bw-unit-toggle" data-unit-for="rtrModalBwUpUnit">
                 <button type="button" class="bw-unit-btn active" data-val="gbps">Gbps</button>
@@ -3684,17 +3767,17 @@
             </div>
             <div>
               <label class="sform-label">API Port</label>
-              <input class="sform-input" id="setupPort" type="number" min="1" max="65535" value="8729">
+              <input class="sform-input" id="setupPort" type="number" min="1" max="65535" value="8729" aria-label="RouterOS API port">
             </div>
           </div>
           <div class="sform-row sform-group">
             <div>
               <label class="sform-label">Username</label>
-              <input class="sform-input" id="setupUser" type="text" value="admin" autocomplete="off">
+              <input class="sform-input" id="setupUser" type="text" value="admin" autocomplete="off" aria-label="RouterOS username">
             </div>
             <div>
               <label class="sform-label">Password</label>
-              <input class="sform-input" id="setupPass" type="password" placeholder="" autocomplete="new-password">
+              <input class="sform-input" id="setupPass" aria-label="RouterOS password" type="password" placeholder="" autocomplete="new-password">
             </div>
           </div>
           <div class="sform-row sform-group">

@@ -2,6 +2,34 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.6.1] — Settings layout, accessibility, and router identity columns
+
+The Settings page used to sit in a 720 px column in the middle of the window, and it had grown long enough that finding anything meant scrolling past everything else. It now uses the full width. Alongside that: a keyboard-accessibility pass over the whole UI, and three new columns in the Routers table.
+
+### Added
+
+- **Model, Serial, and RouterOS version columns** in Settings → Routers. These are learned from RouterOS but stored against the router entry, so they stay populated for a router that is offline or disabled — which is the point of an inventory column. Version renders as a bare `7.23.3` in a violet pill.
+- **Header sorting on the Wireless client table**, alongside the existing button bar rather than replacing it.
+- **A visible keyboard focus ring** across the whole UI. There was none before, so tabbing gave no indication of position — a WCAG 2.4.7 failure.
+- **40 `aria-label`s** on icon-only buttons, which previously announced nothing at all to a screen reader.
+
+### Changed
+
+- **Settings is full width**, laid out on a two-column grid with equal-height rows. Tables and the tallest cards span the full width. Measured against the old layout, the General tab is 37 % shorter and Notifications 24 % shorter at 1600 px.
+- **The About tab keeps its original stacked, centred column** — its short blurbs read badly as wide, shallow bands.
+- **Save Settings is pinned to the bottom** of the scroll container, so it stays reachable however long a tab gets.
+- **Pushbullet and ntfy share a row** inside Notification Channels. Both are short, so a full-width row each was mostly empty; this takes 194 px off the card.
+- **Router cards match heights** within a row instead of each sizing to its own content.
+
+### Fixed
+
+- **VPN peer alerts fired on the wrong transition.** The collector's peer state became a three-way `never` / `active` / `stale` in 0.5.54 without `alerter.js` being updated to match, so it compared against a boolean that no longer existed. Introduced in 0.5.54 and shipped for a full release.
+- **The wireless sort indicator was invisible** — the arrow never rendered. The test that should have caught it asserted the CSS class rather than the rendered output.
+
+### Notes for upgraders
+
+This adds three optional string fields — `model`, `serial`, `osVersion` — to each entry in `/data/routers.json`. Existing files are untouched until a router connects and reports, and older builds ignore unknown fields, so a rollback is safe.
+
 ## [0.6.0] — Node 24, ARMv7 dropped, and a release pipeline that publishes on tags
 
 First release with a breaking change, hence the minor bump rather than another 0.5.x. **If you run MikroDash on 32-bit ARM hardware, read the first section before upgrading.**

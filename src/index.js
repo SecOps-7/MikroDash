@@ -593,6 +593,7 @@ async function startCollectors(session, entry) {
         _broadcastRoutersList();
       }
     };
+    session.system._onIdentity = (identity) => _persistRouterIdentity(session.routerId, identity);
     session.system.start();
     await _delay(300);
     await session.vpn.start();
@@ -769,6 +770,19 @@ function _routersForSocket(socket) {
   return all;
 }
 
+// Persist model/serial/version learned from RouterOS against the router entry,
+// and tell clients only when something actually changed. Every session pool
+// (main, overview, alert) wires its system collector here, so identity is
+// learned for a router whether or not anyone has the Routers page open.
+function _persistRouterIdentity(routerId, identity) {
+  if (!routerId) return;
+  try {
+    if (Routers.updateIdentity(routerId, identity)) _broadcastRoutersList();
+  } catch (e) {
+    console.warn('[MikroDash] could not persist router identity:', sanitizeErr(e));
+  }
+}
+
 // Broadcast updated router list to every connected socket, filtered per-user.
 function _broadcastRoutersList() {
   for (const [, socket] of io.sockets.sockets) {
@@ -786,6 +800,11 @@ db.open();
 db.startPruneInterval(() => Settings.load());
 alerter.init(io, Settings.load());
 alertSessions.init(io);
+
+// Register before either pool syncs: both read the hook when they build a
+// session, so a hook set later would miss every router created at startup.
+alertSessions.setIdentityHook(_persistRouterIdentity);
+overviewSessions.setIdentityHook(_persistRouterIdentity);
 
 // Auto-migrate any deployment still on 'basic' mode.
 (function _migrateBasicAuth() {
