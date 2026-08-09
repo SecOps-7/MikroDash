@@ -203,7 +203,11 @@ class SystemCollector {
       }
     } catch (e) {
       const msg = e && e.message ? e.message : String(e);
-      console.error(this._lbl + ' update check failed:', msg); // codeql[js/tainted-format-string]
+      // Literal format string with the label passed as an argument, not
+      // concatenated into position 0. console.* treats its first argument as a
+      // format string, and _lbl embeds the user-set router label — a router
+      // named with a "%s" would otherwise swallow msg and garble the line.
+      console.error('%s update check failed: %s', this._lbl, msg);
       this._applyUpdateRow({ status: 'Update check unavailable' });
     } finally {
       slot.inflight = false;

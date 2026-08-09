@@ -2634,3 +2634,34 @@ test('vpn stops probing a router that has neither subsystem', async () => {
   assert.equal(collector._otherTimer, null, 'no timer scheduled when nothing is supported');
   collector.stop();
 });
+
+// Regression for CodeQL js/tainted-format-string (alert #130, system.js:206).
+// console.* treats its first argument as a format string. The label embeds the
+// user-set router name, so concatenating it into position 0 meant a router
+// named with a "%s" consumed the error message — the failure reason vanished
+// from the log entirely, which is worse than the "garbled output" the rule
+// describes.
+test('system collector logs a %s-bearing router label literally and keeps the error', async () => {
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
+  // Unique host: _updateSchedule is module-level and keyed 'host:port'.
+  const ros = {
+    connected: true, on() {}, host: '203.0.113.77', port: 8729,
+    write: () => Promise.reject(new Error('ECONNREFUSED')),
+  };
+  ros.routerLabel = '%s pwned';
+
+  const collector = new SystemCollector({ ros, io, pollMs: 5000, state: {} });
+  collector._updateIntervalOverride = 0;   // don't wait out the 12 h window
+
+  const util = require('node:util');
+  const orig = console.error;
+  const lines = [];
+  console.error = (...a) => lines.push(util.format(...a));
+  try { await collector._fetchUpdateStatus(); } finally { console.error = orig; }
+
+  const line = lines.find(l => l.includes('update check failed'));
+  assert.ok(line, 'the failure was logged at all');
+  assert.ok(line.includes('[%s pwned][system]'), 'label rendered literally, got: ' + line);
+  assert.ok(line.includes('ECONNREFUSED'), 'error reason survived the format, got: ' + line);
+});
