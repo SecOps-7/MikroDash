@@ -97,7 +97,7 @@ function _runMigrations(db) {
       m.up(db);
       db.prepare('INSERT INTO schema_version (version, applied_at) VALUES (?, ?)').run(m.version, Date.now());
     })();
-    console.log(`[db] migration v${m.version} applied`);
+    console.log('%s', `[db] migration v${m.version} applied`);
   }
 }
 
@@ -112,7 +112,7 @@ function open() {
   _db.exec(`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL);`);
   _runMigrations(_db);
   _prepareStatements();
-  console.log(`[db] opened ${DB_FILE}`);
+  console.log('%s', `[db] opened ${DB_FILE}`);
   return _db;
 }
 
@@ -409,7 +409,7 @@ function prune(retentionDays, alertRetentionDays) {
   const r4 = _prep('DELETE FROM alert_events        WHERE fired_at < ?').run(alertCutoff);
   const r5 = _prep('DELETE FROM connectivity_events WHERE ts < ?').run(alertCutoff);
   const total = r1.changes + r2.changes + r3.changes + r4.changes + r5.changes;
-  if (total > 0) console.log(`[db] pruned ${total} rows (metrics: ${retentionDays}d, events: ${alertRetentionDays}d)`);
+  if (total > 0) console.log('%s', `[db] pruned ${total} rows (metrics: ${retentionDays}d, events: ${alertRetentionDays}d)`);
 }
 
 function startPruneInterval(getSettings) {
@@ -483,7 +483,7 @@ function purge(opts = {}) {
       deleted += _prep(`DELETE FROM ${table}${w.sql}`).run(...w.params).changes;
     }
   })();
-  console.log(`[db] purge removed ${deleted} rows (router: ${opts.routerId || 'all'}, types: ${(opts.types || PURGE_TYPES).join('+')}, olderThanMs: ${opts.olderThanMs || 0})`);
+  console.log('%s', `[db] purge removed ${deleted} rows (router: ${opts.routerId || 'all'}, types: ${(opts.types || PURGE_TYPES).join('+')}, olderThanMs: ${opts.olderThanMs || 0})`);
   return { deleted };
 }
 
@@ -501,7 +501,7 @@ function vacuum() {
   _db.exec('VACUUM');
   _db.pragma('wal_checkpoint(TRUNCATE)');
   const after = _fileSize();
-  console.log(`[db] vacuum reclaimed ${Math.max(0, before - after)} bytes`);
+  console.log('%s', `[db] vacuum reclaimed ${Math.max(0, before - after)} bytes`);
   return { before, after };
 }
 
@@ -558,7 +558,7 @@ function deleteRouterData(routerId) {
     _prep('DELETE FROM alert_events        WHERE router_id = ?').run(routerId);
     _prep('DELETE FROM connectivity_events WHERE router_id = ?').run(routerId);
   })();
-  console.log(`[db] deleted all data for router ${routerId}`);
+  console.log('%s', `[db] deleted all data for router ${routerId}`);
 }
 
 module.exports = {

@@ -73,7 +73,7 @@ class ROS extends EventEmitter {
   // a conn callback, crash the process). Contain it here.
   _safeEmit(event, arg) {
     try { this.emit(event, arg); }
-    catch (e) { console.error(`[ROS] "${event}" listener threw:`, e && e.message ? e.message : e); }
+    catch (e) { console.error('%s', `[ROS] "${event}" listener threw:`, e && e.message ? e.message : e); }
   }
 
   _emitConnectionError(err) {

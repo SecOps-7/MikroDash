@@ -188,7 +188,7 @@ class VpnCollector {
       // early boot when _loadInitial() ran. Add it now so it appears immediately
       // without waiting for a stream event.
       this._peers.set(key, row);
-      console.log(this._lbl, `late-discovered peer: ${key.slice(0, 16)}…`);
+      console.log('%s', this._lbl, `late-discovered peer: ${key.slice(0, 16)}…`);
     }
     this._scheduleEmit();
   }
@@ -208,7 +208,7 @@ class VpnCollector {
     });
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
-      console.error(this._lbl + ' counter stream error:', msg);
+      console.error('%s', this._lbl + ' counter stream error:', msg);
       this._stopCounterStream();
       if (this.ros.connected && !this._counterRestarting) {
         this._counterRestarting = true;
@@ -219,7 +219,7 @@ class VpnCollector {
         }, 3000);
       }
     });
-    console.log(this._lbl + ` streaming /interface/wireguard/peers/print interval=${intervalSec}s`);
+    console.log('%s', this._lbl + ` streaming /interface/wireguard/peers/print interval=${intervalSec}s`);
   }
 
   _stopCounterStream() {
@@ -244,12 +244,12 @@ class VpnCollector {
       }
       if (!this._debuggedOnce && this._peers.size > 0) {
         const ifaces = [...new Set([...this._peers.values()].map(p => p.interface).filter(Boolean))].join(', ') || '?';
-        console.log(this._lbl, `${this._peers.size} WireGuard peer(s) found on interfaces: ${ifaces}`);
+        console.log('%s', this._lbl, `${this._peers.size} WireGuard peer(s) found on interfaces: ${ifaces}`);
         this._debuggedOnce = true;
       }
       this._emit();
     } catch (e) {
-      console.error(this._lbl + ' initial load failed:', e && e.message ? e.message : e);
+      console.error('%s', this._lbl + ' initial load failed:', e && e.message ? e.message : e);
     }
   }
 
@@ -363,7 +363,7 @@ class VpnCollector {
     try {
       this._stream = this.ros.stream(['/interface/wireguard/peers/listen'], (err, data) => {
         if (err) {
-          console.error(this._lbl + ' stream error:', err && err.message ? err.message : err);
+          console.error('%s', this._lbl + ' stream error:', err && err.message ? err.message : err);
           this.state.lastVpnErr = String(err && err.message ? err.message : err);
           this._stopStream();
           if (this.ros.connected && !this._restarting) {
@@ -387,9 +387,9 @@ class VpnCollector {
         }
         this._emit();
       });
-      console.log(this._lbl + ' streaming /interface/wireguard/peers/listen');
+      console.log('%s', this._lbl + ' streaming /interface/wireguard/peers/listen');
     } catch (e) {
-      console.error(this._lbl + ' stream start failed:', e && e.message ? e.message : e);
+      console.error('%s', this._lbl + ' stream start failed:', e && e.message ? e.message : e);
     }
   }
 

@@ -201,7 +201,7 @@ class InterfaceStatusCollector {
   }
 
   _startRatesPoll() {
-    console.log(this._lbl + ' poll mode — polling /interface/monitor-traffic every', this.pollMs + 'ms'); // codeql[js/tainted-format-string]
+    console.log('%s', this._lbl + ' poll mode — polling /interface/monitor-traffic every', this.pollMs + 'ms');
     this._pollRatesOnce();
     this._scheduleRatesNext();
   }
@@ -236,7 +236,7 @@ class InterfaceStatusCollector {
   _startIfStream() {
     if (this._ifStream || !this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
-    console.log(this._lbl + ' streaming /interface/print, interval=' + intervalSec + 's');
+    console.log('%s', this._lbl + ' streaming /interface/print, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
       '/interface/print',
       [
@@ -252,7 +252,7 @@ class InterfaceStatusCollector {
     });
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
-      console.error(this._lbl + ' /interface/print stream error:', msg); // codeql[js/tainted-format-string]
+      console.error('%s', this._lbl + ' /interface/print stream error:', msg);
       this.state.lastIfStatusErr = msg;
       this._ifStream = null;
       if (!this._ifRestartTimer) {
@@ -268,7 +268,7 @@ class InterfaceStatusCollector {
   _startAddrStream() {
     if (this._addrStream || !this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
-    console.log(this._lbl + ' streaming /ip/address/print, interval=' + intervalSec + 's');
+    console.log('%s', this._lbl + ' streaming /ip/address/print, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
       '/ip/address/print',
       [
@@ -285,7 +285,7 @@ class InterfaceStatusCollector {
     });
     stream.on('error', (err) => {
       const msg = err && err.message ? err.message : String(err);
-      console.error(this._lbl + ' /ip/address/print stream error:', msg); // codeql[js/tainted-format-string]
+      console.error('%s', this._lbl + ' /ip/address/print stream error:', msg);
       this.state.lastIfStatusErr = msg;
       this._addrStream = null;
       if (!this._addrRestartTimer) {
@@ -304,7 +304,7 @@ class InterfaceStatusCollector {
   _startEthStream() {
     if (this._ethStream || !this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
-    console.log(this._lbl + ' streaming /interface/ethernet/print, interval=' + intervalSec + 's');
+    console.log('%s', this._lbl + ' streaming /interface/ethernet/print, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
       '/interface/ethernet/print',
       [
@@ -422,7 +422,7 @@ class InterfaceStatusCollector {
 
     // /interface/monitor-traffic rejects intervals > 5s ("value of interval is out of range")
     const intervalSec = Math.max(1, Math.min(5, Math.round(this.pollMs / 1000)));
-    console.log(this._lbl + ' starting monitor-traffic stream,', names.length, 'interfaces, interval=' + intervalSec + 's'); // codeql[js/tainted-format-string]
+    console.log('%s', this._lbl + ' starting monitor-traffic stream,', names.length, 'interfaces, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
       '/interface/monitor-traffic',
       [
@@ -459,7 +459,7 @@ class InterfaceStatusCollector {
         }, 5000);
         return;
       }
-      console.error(this._lbl + ' monitor-traffic stream error:', msg); // codeql[js/tainted-format-string]
+      console.error('%s', this._lbl + ' monitor-traffic stream error:', msg);
       this.state.lastIfStatusErr = msg;
       // Recover directly instead of waiting up to metaPollMs (60 s default)
       // for _commitMeta to incidentally reopen the stream.
