@@ -174,7 +174,7 @@ class SystemCollector {
       if (denied) {
         if (!this._loggedCheckDenied) {
           this._loggedCheckDenied = true;
-          console.warn('%s', '%s update check unavailable: the API user lacks "write" permission for ' +
+          console.warn('%s update check unavailable: the API user lacks "write" permission for ' +
             '/system/package/update/check-for-updates, so only the router\'s cached state is shown', this._lbl);
         }
         this._applyUpdateRow({ ...u, status: 'Update check unavailable — API user needs write permission' });
