@@ -719,3 +719,95 @@ test('connections still does not poll for a router nobody is watching', () => {
   assert.ok(c._pollTimer, 'a viewer arriving must start the poll');
   c.stop();
 });
+
+// ─── Update info must survive a router switch ────────────────────────────────
+
+function updateRos(host, writeFn) {
+  const ros = new EventEmitter();
+  ros.setMaxListeners(30);
+  ros.connected = true;
+  ros.cfg = { host, port: 8728 };
+  ros.write = writeFn;
+  ros.stream = () => { const s = new EventEmitter(); s.stop = () => Promise.resolve(); return s; };
+  return ros;
+}
+
+function updateCollector(host, calls) {
+  const SystemCollector = require('../src/collectors/system');
+  const ros = updateRos(host, async (cmd) => {
+    calls.push(cmd);
+    if (cmd === '/system/package/update/print') {
+      return [{ 'latest-version': '7.20.1', status: 'New version is available' }];
+    }
+    return [];
+  });
+  return new SystemCollector({
+    ros, io: { engine: { clientsCount: 1 }, emit() {}, on() {} },
+    pollMs: 2000, state: {}, streamMode: false,
+  });
+}
+
+test('switching to a router shows its update info instead of an empty card', async () => {
+  // The schedule slot that rate-limits check-for-updates is module-level and keyed
+  // by host:port, so it is SHARED by every session for that router — main pool,
+  // alertSessions and overviewSessions alike. The update row itself is per
+  // collector instance. alert/overview sessions run a SystemCollector against a
+  // null io, so they consume the 12 h window and throw the answer away.
+  //
+  // Switching the active router builds a brand new collector: its own row is
+  // empty, the shared slot is inside its window, so the fetch returned early and
+  // the card stayed blank for up to 12 hours.
+  const host  = 'switch-test-' + Date.now();
+  const calls = [];
+
+  const background = updateCollector(host, calls);        // stands in for alertSessions
+  await background._fetchUpdateStatus();
+  assert.ok(calls.includes('/system/package/update/check-for-updates'),
+    'the background session performs the check and consumes the shared window');
+
+  const upstreamBefore = calls.filter(c => c === '/system/package/update/check-for-updates').length;
+
+  const switched = updateCollector(host, calls);          // the router switch
+  await switched._fetchUpdateStatus();
+
+  assert.equal(switched._lastUpdateRow['latest-version'], '7.20.1',
+    'the freshly built collector must have update info, not an empty row');
+  assert.equal(
+    calls.filter(c => c === '/system/package/update/check-for-updates').length, upstreamBefore,
+    'and it must come from the cache — no extra call to upgrade.mikrotik.com');
+});
+
+test('a router whose update state was never resolved still gets one check on switch', async () => {
+  // If the shared slot holds no answer (nothing ever succeeded), adopting the
+  // cache is not an option, so the switch must be allowed to check even though
+  // the window is open — but exactly once per collector, so a router that always
+  // fails cannot turn the 2 s resource tick into an upstream poll.
+  const SystemCollector = require('../src/collectors/system');
+  const host  = 'never-resolved-' + Date.now();
+  const calls = [];
+  const mk = () => {
+    const ros = updateRos(host, async (cmd) => {
+      calls.push(cmd);
+      return cmd === '/system/package/update/print' ? [{}] : [];   // never resolves
+    });
+    return new SystemCollector({
+      ros, io: { engine: { clientsCount: 1 }, emit() {}, on() {} },
+      pollMs: 2000, state: {}, streamMode: false,
+    });
+  };
+
+  const background = mk();
+  await background._fetchUpdateStatus();
+  const after1 = calls.filter(c => c === '/system/package/update/check-for-updates').length;
+
+  const switched = mk();
+  await switched._fetchUpdateStatus();
+  const after2 = calls.filter(c => c === '/system/package/update/check-for-updates').length;
+  assert.ok(after2 > after1, 'the switch must be allowed one check when nothing is cached');
+
+  // Repeated ticks on the same collector must NOT keep calling out.
+  await switched._fetchUpdateStatus();
+  await switched._fetchUpdateStatus();
+  assert.equal(calls.filter(c => c === '/system/package/update/check-for-updates').length, after2,
+    'further ticks must respect the interval; one bypass per collector, not per tick');
+});

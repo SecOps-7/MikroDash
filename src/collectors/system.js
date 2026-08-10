@@ -39,6 +39,9 @@ class SystemCollector {
     this.UPDATE_RETRY_MS      = 60 * 1000;
     this.UPDATE_MAX_RETRIES   = 3;
     this._lastUpdateRow    = {};
+    // One interval-bypass per collector instance, for a router whose update check
+    // has never resolved (see _fetchUpdateStatus).
+    this._forcedUpdateCheck = false;
     this._lastFp           = '';
     this.lastPayload       = null;
     this._boardNameReported = false;
@@ -115,8 +118,27 @@ class SystemCollector {
   // `if (this.lastPayload)`, so the startup check — which runs before the
   // resource stream has delivered anything — discarded its result while still
   // consuming the 12 h window.
+  // A row counts as an "answer" only once the router has actually resolved the
+  // check. While it is still working, status is empty or says so and there is no
+  // version — caching that would make every later session believe the question
+  // had already been answered.
+  static _isUpdateAnswer(u) {
+    if (!u || typeof u !== 'object') return false;
+    const latest = u['latest-version'] || '';
+    const status = u['status'] || '';
+    if (latest) return true;
+    if (!status) return false;
+    return !/finding out|checking|in progress/i.test(status);
+  }
+
   _applyUpdateRow(u) {
     this._lastUpdateRow = u;
+    // Cache the answer on the shared per-router slot. That slot is keyed by
+    // host:port and shared by every session for the router, so a collector built
+    // later — switching the active router builds a brand new one — can show the
+    // result immediately instead of sitting blank until the window reopens.
+    // Costs no upstream call.
+    if (SystemCollector._isUpdateAnswer(u)) this._updateSlot().row = u;
     if (!this.lastPayload) return;
     const latestVersion   = u['latest-version'] || '';
     const updateStatus    = u['status'] || '';
@@ -138,7 +160,30 @@ class SystemCollector {
     const slot = this._updateSlot();
     if (slot.inflight) return;
     const now = Date.now();
-    if ((now - slot.lastFetch) < this.UPDATE_INTERVAL) return;
+
+    // This collector has no answer of its own yet, but one is already cached for
+    // the router: adopt it. This is the router-switch case — alertSessions and
+    // overviewSessions run their own SystemCollector against a null io, so they
+    // consume the shared window and discard the result, leaving the session you
+    // actually switch to with a blank Updates card for up to updateCheckHours.
+    if (!SystemCollector._isUpdateAnswer(this._lastUpdateRow) &&
+        SystemCollector._isUpdateAnswer(slot.row)) {
+      this._applyUpdateRow(slot.row);
+      return;
+    }
+
+    if ((now - slot.lastFetch) < this.UPDATE_INTERVAL) {
+      // Nothing cached and the window is still open — normally we wait. But a
+      // router that has never resolved its check would then stay blank until the
+      // window reopens, which is the very thing being fixed. Allow exactly one
+      // bypass per collector instance: enough to fill the card on a switch, and
+      // bounded, so a router whose check always fails cannot turn the 2 s
+      // resource tick into a poll against upgrade.mikrotik.com.
+      const haveAnswer = SystemCollector._isUpdateAnswer(slot.row) ||
+                         SystemCollector._isUpdateAnswer(this._lastUpdateRow);
+      if (haveAnswer || this._forcedUpdateCheck) return;
+      this._forcedUpdateCheck = true;
+    }
     slot.inflight = true;
     slot.lastFetch = now;
     try {
