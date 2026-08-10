@@ -661,3 +661,61 @@ test('no collector clears a poll timer on suspend without restarting it on resum
   assert.deepEqual(offenders, [],
     'these collectors stop polling on suspend and never resume it:\n  ' + offenders.join(', '));
 });
+
+test('connections polls when its session is built while a viewer is already watching', async () => {
+  // The router-switch bug. buildSession registers TWO ros 'connected' listeners:
+  // the first calls conns.resume() (index.js:556), the second runs
+  // startCollectors() -> conns.start() (index.js:601). EventEmitter fires them in
+  // registration order, so resume() runs while _started is still false and bails
+  // out — leaving _suspended=false but no poll timer.
+  //
+  // In stream mode start() arms a watchdog that resurrects the dead stream, so the
+  // race is invisible. Poll mode has no watchdog (correctly — there is no stream to
+  // resurrect), so connections goes permanently silent.
+  //
+  // Cold start hides it too: with no viewer, resume() returns at the clientsCount
+  // check and the later idle->active transition schedules the poll properly. It
+  // only bites when a viewer is ALREADY present as the session is built — exactly
+  // what happens when you switch the active router from one box to another.
+  const ConnectionsCollector = require('../src/collectors/connections');
+  const ros = pollRos(async () => []);
+  const c = new ConnectionsCollector({
+    ros, io: { engine: { clientsCount: 1 }, emit() {}, on() {},
+               to() { return { emit() {}, to() { return { emit() {} }; } }; } },
+    pollMs: 3000, state: {}, topN: 5, maxConns: 100, streamMode: false,
+    dhcpNetworks: { networks: [] }, dhcpLeases: { getNameByIP: () => null },
+    arp: { getNameByIP: () => null }, connTableCache: { deposit() {} },
+  });
+
+  c.resume();                                   // listener 1 — _started still false
+  assert.equal(c._pollTimer, null, 'precondition: resume() before start() cannot schedule');
+  c.start();                                    // listener 2 — startCollectors()
+
+  assert.ok(c._pollTimer,
+    'connections must be polling after start(); otherwise switching to this router ' +
+    'leaves the Connections card frozen with no watchdog to recover it');
+  c.stop();
+});
+
+test('connections still does not poll for a router nobody is watching', () => {
+  // The fix must not undo the idle gate: a cold start with no viewer should stay
+  // quiet until someone actually connects.
+  const ConnectionsCollector = require('../src/collectors/connections');
+  const ros = pollRos(async () => []);
+  const c = new ConnectionsCollector({
+    ros, io: { engine: { clientsCount: 0 }, emit() {}, on() {},
+               to() { return { emit() {}, to() { return { emit() {} }; } }; } },
+    pollMs: 3000, state: {}, topN: 5, maxConns: 100, streamMode: false,
+    dhcpNetworks: { networks: [] }, dhcpLeases: { getNameByIP: () => null },
+    arp: { getNameByIP: () => null }, connTableCache: { deposit() {} },
+  });
+  c.resume();                                   // no viewer — returns immediately
+  c.start();
+  assert.equal(c._pollTimer, null, 'must stay idle with no viewer present');
+
+  // ...and must come alive on the idle->active transition.
+  c.io.engine.clientsCount = 1;
+  c.resume();
+  assert.ok(c._pollTimer, 'a viewer arriving must start the poll');
+  c.stop();
+});

@@ -668,7 +668,18 @@ class ConnectionsCollector {
     try { this._debug = !!(settings.load().rosDebug); } catch (_) { this._debug = false; }
     // The watchdog exists to resurrect a dead stream; in poll mode there is no
     // stream, so #106 degraded reporting correctly does not apply here.
-    if (this.streamMode) this._startWatchdog();
+    if (this.streamMode) { this._startWatchdog(); return; }
+
+    // Poll mode has no watchdog, so it cannot paper over the startup race the way
+    // stream mode does. buildSession registers its ros 'connected' handler (which
+    // calls resume(), index.js:556) BEFORE the one that runs startCollectors() ->
+    // start(). resume() therefore fires while _started is still false and bails,
+    // clearing _suspended but scheduling nothing. With no viewer that is harmless
+    // — the later idle->active transition schedules the poll — but when a viewer is
+    // already watching, no such transition ever comes and the Connections card
+    // stays frozen. That is what switching the active router looks like.
+    // _scheduleNextPoll() is idempotent, so re-asserting here is safe.
+    if (!this._suspended && this.ros.connected) this._scheduleNextPoll();
   }
 }
 
