@@ -302,7 +302,32 @@ class WirelessCollector {
         const rows = (await this.ros.write(WL_ENDPOINTS[type])) || [];
         this._onBatch(type, rows);    // same batch path the stream uses
       } catch (e) {
-        console.error('%s', this._lbl + ` ${type} poll error:`, e && e.message ? e.message : e);
+        const msg = (e && e.message) ? e.message : String(e);
+        // An API being absent is proven by the command being refused. The stream
+        // path has had this fallback all along (see the stream 'error' handler);
+        // the poll path had none, so a router pointed at a command tree it does
+        // not have just error-logged every interval, forever.
+        //
+        // Both directions matter. wifi->wireless mirrors the stream. The reverse
+        // rescues a board that latched legacy from an EMPTY wifi table — the
+        // deliberate heuristic in _onBatch, which is right for a RouterOS 7 box
+        // whose radios really are legacy, but wrong for a wifi-only board such as
+        // a hAP ac2 with its radios disabled, where wifi answers empty and
+        // /interface/wireless does not exist at all. That board now heals itself
+        // on the first error instead of staying blank until a restart.
+        if (/no such command|unknown command/i.test(msg)) {
+          const fallback = type === 'wifi' ? 'wireless' : (type === 'wireless' ? 'wifi' : null);
+          this._stopStream(type);
+          if (fallback) {
+            if (this._debug) {
+              console.log('%s', this._lbl + ` ${type} unavailable (${msg}); switching to ${fallback}`);
+            }
+            this.mode = fallback;
+            this._startDelivery(fallback);
+          }
+          continue;   // capsman simply is not on this board — stop asking.
+        }
+        console.error('%s', this._lbl + ` ${type} poll error:`, msg);
       }
     }
   }

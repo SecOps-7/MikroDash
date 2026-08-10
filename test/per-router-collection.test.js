@@ -811,3 +811,62 @@ test('a router whose update state was never resolved still gets one check on swi
   assert.equal(calls.filter(c => c === '/system/package/update/check-for-updates').length, after2,
     'further ticks must respect the interval; one bypass per collector, not per tick');
 });
+
+// ─── Wireless API detection must not mistake "no clients" for "no wifi API" ──
+
+function wlCollector(writeFn, streamMode) {
+  const WirelessCollector = require('../src/collectors/wireless');
+  const ros = new EventEmitter();
+  ros.setMaxListeners(30);
+  ros.connected = true;
+  ros.cfg = { host: '10.0.0.9', port: 8728 };
+  ros.write = writeFn;
+  ros.stream = () => { const s = new EventEmitter(); s.stop = () => Promise.resolve(); return s; };
+  return new WirelessCollector({
+    ros, io: { engine: { clientsCount: 1 }, emit() {}, on() {},
+               to() { return { emit() {}, to() { return { emit() {} }; } }; } },
+    pollMs: 30000, state: {}, streamMode: streamMode === true,
+    dhcpLeases: { getNameByMAC: () => null }, arp: { getNameByIP: () => null },
+  });
+}
+
+test('a wifi command error does still fall back to the legacy API', async () => {
+  // Absence is proven by the command erroring, which is the signal the stream
+  // path already used and the poll path had no equivalent for at all.
+  const cmds = [];
+  const c = wlCollector(async (cmd) => {
+    cmds.push(cmd);
+    if (cmd === '/interface/wifi/registration-table/print') throw new Error('no such command prefix');
+    return [{ mac_address: '00:11:22:33:44:55', 'signal-strength': '-50' }];
+  });
+  c._pollTypes.add('wifi');
+
+  await c._pollOnce();
+  assert.equal(c.mode, 'wireless', 'a real "no such command" must latch legacy');
+  await c._pollOnce();
+  assert.ok(cmds.includes('/interface/wireless/registration-table/print'),
+    'and delivery must move to the legacy endpoint');
+  c.stop();
+});
+
+test('a router mis-latched onto the legacy API heals itself', async () => {
+  // Existing installs are already stuck on mode "wireless" from the empty-table
+  // bug. Without a reverse fallback they stay broken until the process restarts.
+  const cmds = [];
+  const c = wlCollector(async (cmd) => {
+    cmds.push(cmd);
+    if (cmd === '/interface/wireless/registration-table/print') {
+      throw new Error('no such command or directory (wireless)');
+    }
+    return [{ mac_address: 'aa:bb:cc:dd:ee:ff', 'signal-strength': '-40' }];
+  });
+  c.mode = 'wireless';
+  c._pollTypes.add('wireless');
+
+  await c._pollOnce();
+  assert.equal(c.mode, 'wifi', 'a legacy endpoint that does not exist must send us back to wifi');
+  await c._pollOnce();
+  assert.ok(cmds.includes('/interface/wifi/registration-table/print'),
+    'and it must actually poll wifi afterwards');
+  c.stop();
+});
