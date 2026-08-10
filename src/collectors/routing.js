@@ -24,10 +24,15 @@ const HISTORY_LEN = 60;
 // parseInt that returns 0 instead of NaN for non-numeric strings
 const safeInt = (v) => parseInt(v || '0', 10) || 0;
 
-const { stopStreamSafe } = require('./util');
+const { stopStreamSafe, createPollLoop } = require('./util');
 
 class RoutingCollector {
-  constructor({ ros, io, pollMs, state, _restartDelayMs }) {
+  constructor({ ros, io, pollMs, state, _restartDelayMs, streamMode }) {
+    // Delivery per router (#105). The three /listen streams maintain _routes
+    // incrementally, so poll mode instead re-runs the same full loads resume()
+    // already performs and emits through the same path.
+    this.streamMode = streamMode !== false;
+    this._poll = createPollLoop(() => this._pollOnce(), () => this.pollMs);
     this.ros    = ros;
     this.io     = io;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][routing]` : '[routing]';
@@ -547,6 +552,7 @@ class RoutingCollector {
 
   suspend() {
     this._resuming = false;
+    this._poll.stop();
     this._stopAllStreams();
     this._stopHeartbeat();
     this._routes.clear();
@@ -556,9 +562,22 @@ class RoutingCollector {
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
   }
 
+  async _pollOnce() {
+    if (!this.ros.connected) return;
+    try {
+      await this._loadRoutes();
+      await this._loadBgpSessions();
+      await this._loadPeerCfg();
+      this._emit(this._buildPeers());
+    } catch (e) {
+      console.error('%s', this._lbl + ' poll error:', e && e.message ? e.message : e);
+    }
+  }
+
   async resume() {
     if (this._resuming) return;
     if (this._routeStream || this._ipv6Stream || this._bgpStream) return;
+    if (!this.streamMode && this._poll.running) return;
     if (!this.ros.connected) return;
     this._resuming = true;
     try {
@@ -567,9 +586,13 @@ class RoutingCollector {
       await this._loadPeerCfg();
       if (!this._resuming) return; // suspend() was called during the load
       this._emit(this._buildPeers());
-      this._startRouteStream();
-      this._startIPv6Stream();
-      this._startBgpStream();
+      if (this.streamMode) {
+        this._startRouteStream();
+        this._startIPv6Stream();
+        this._startBgpStream();
+      } else {
+        this._poll.start();
+      }
       this._startHeartbeat();
     } finally {
       this._resuming = false;
@@ -577,6 +600,7 @@ class RoutingCollector {
   }
 
   stop() {
+    this._poll.stop();
     this._stopAllStreams();
     this._stopHeartbeat();
     if (this.timer) { clearInterval(this.timer); this.timer = null; }

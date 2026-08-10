@@ -386,7 +386,7 @@ function buildSession(routerCfg, routerIo) {
 
   const dhcpLeases   = new DhcpLeasesCollector ({ros, io:routerIo, state, pollMs:eff.poll.dhcpLeases, streamMode:eff.stream.dhcpLeases});
   const arp          = new ArpCollector         ({ros,              pollMs:eff.poll.arp,       state, streamMode:eff.stream.arp});
-  const dhcpNetworks = new DhcpNetworksCollector({ros, io:routerIo, pollMs:eff.poll.dhcpNetworks, dhcpLeases, state, wanIface:DEFAULT_IF});
+  const dhcpNetworks = new DhcpNetworksCollector({ros, io:routerIo, pollMs:eff.poll.dhcpNetworks, dhcpLeases, state, wanIface:DEFAULT_IF, streamMode:eff.stream.dhcpNetworks});
   const traffic      = new TrafficCollector     ({ros, io:routerIo, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state,
     onSample: (ifName, rxMbps, txMbps, ts) => dbWriter.recordTraffic(routerCfg.id, ifName, rxMbps, txMbps, ts)});
   // Backfill ring buffer from SQLite so the chart has history on first browser connect
@@ -407,13 +407,13 @@ function buildSession(routerCfg, routerIo) {
     return !!(r && r.alertsEnabled);
   };
   const system       = new SystemCollector      ({ros, io:routerIo, pollMs:eff.poll.system,   state, streamMode:eff.stream.system, alertsActive:_alertsActive});
-  const wireless     = _on('wireless', () => new WirelessCollector    ({ros, io:routerIo, pollMs:eff.poll.wireless, state, dhcpLeases, arp}));
-  const vpn          = _on('vpn', () => new VpnCollector         ({ros, io:routerIo, pollMs:eff.poll.vpn,      state, rid:routerCfg.id}));
-  const firewall     = _on('firewall', () => new FirewallCollector    ({ros, io:routerIo, pollMs:eff.poll.firewall,  state}));
+  const wireless     = _on('wireless', () => new WirelessCollector    ({ros, io:routerIo, pollMs:eff.poll.wireless, state, dhcpLeases, arp, streamMode:eff.stream.wireless}));
+  const vpn          = _on('vpn', () => new VpnCollector         ({ros, io:routerIo, pollMs:eff.poll.vpn,      state, rid:routerCfg.id, streamMode:eff.stream.vpn}));
+  const firewall     = _on('firewall', () => new FirewallCollector    ({ros, io:routerIo, pollMs:eff.poll.firewall,  state, streamMode:eff.stream.firewall}));
   const ifStatus     = _on('ifStatus', () => new InterfaceStatusCollector({ros, io:routerIo, pollMs:eff.poll.ifStatus, metaPollMs:_cfg.pollIfaces, state, streamMode:eff.stream.ifStatus, alertsActive:_alertsActive}));
   const ping         = _on('ping', () => new PingCollector        ({ros, io:routerIo, pollMs:eff.poll.ping,     state, target:PING_TARGET, streamMode:eff.stream.ping, alertsActive:_alertsActive}));
   const bandwidth    = _on('bandwidth', () => new BandwidthCollector   ({ros, io:routerIo, pollMs:eff.poll.bandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache}));
-  const routing      = _on('routing', () => new RoutingCollector     ({ros, io:routerIo, pollMs:eff.poll.routing,  state}));
+  const routing      = _on('routing', () => new RoutingCollector     ({ros, io:routerIo, pollMs:eff.poll.routing,  state, streamMode:eff.stream.routing}));
   const netwatch     = _on('netwatch', () => new NetwatchCollector    ({ros, io:routerIo, pollMs:eff.poll.netwatch,  state, streamMode:eff.stream.netwatch}));
 
   const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch];

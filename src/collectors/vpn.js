@@ -14,10 +14,14 @@
  * The counter stream is stopped on idle (suspend) and restarted on resume so
  * RouterOS does no work when no clients are connected.
  */
-const { clampPoll, stopStreamSafe } = require('./util');
+const { clampPoll, stopStreamSafe, createPollLoop } = require('./util');
 
 class VpnCollector {
-  constructor({ ros, io, pollMs, state, rid }) {
+  constructor({ ros, io, pollMs, state, rid, streamMode }) {
+    // Delivery per router (#105). Only the counter refresh is convertible; the
+    // peer add/remove /listen stays, as polling it would miss transitions.
+    this.streamMode = streamMode !== false;
+    this._counterPoll = createPollLoop(() => this._pollCountersOnce(), () => this.pollMs);
     this.ros    = ros;
     this.io     = io;
     this._rid   = rid || null;
@@ -193,7 +197,18 @@ class VpnCollector {
     this._scheduleEmit();
   }
 
+  async _pollCountersOnce() {
+    if (!this.ros.connected) return;
+    try {
+      const rows = (await this.ros.write('/interface/wireguard/peers/print', ['=detail='])) || [];
+      for (const r of rows) this._onCounterRecord(r);   // same per-record path
+    } catch (e) {
+      console.error('%s', this._lbl + ' counter poll error:', e && e.message ? e.message : e);
+    }
+  }
+
   _startCounterStream() {
+    if (!this.streamMode) { this._counterPoll.start(); return; }
     if (this._counterStream || this._counterRestarting) return;
     if (!this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
@@ -223,6 +238,7 @@ class VpnCollector {
   }
 
   _stopCounterStream() {
+    this._counterPoll.stop();
     if (this._counterRestartTimer) { clearTimeout(this._counterRestartTimer); this._counterRestartTimer = null; }
     this._counterRestarting = false;
     if (this._emitDebounce) { clearTimeout(this._emitDebounce); this._emitDebounce = null; }

@@ -1,5 +1,5 @@
 const ipaddr = require('ipaddr.js');
-const { stopStreamSafe } = require('./util');
+const { stopStreamSafe, createPollLoop } = require('./util');
 
 function ipInCidr(ip, cidr) {
   try { return ipaddr.parse(ip).match(ipaddr.parseCIDR(cidr)); } catch { return false; }
@@ -32,8 +32,20 @@ function poolRangeSize(rangesStr) {
   return total;
 }
 
+// Shared by the stream and poll paths so the two cannot query different fields.
+const DHCPNET_CMDS = {
+  networks:  ['/ip/dhcp-server/network/print', '=.proplist=address,gateway,dns-server'],
+  addresses: ['/ip/address/print',             '=.proplist=address,interface,disabled'],
+  pools:     ['/ip/pool/print',                '=.proplist=name,ranges'],
+  internet:  ['/interface/detect-internet/state/print', '=.proplist=name,interface,state'],
+};
+
 class DhcpNetworksCollector {
-  constructor({ ros, io, pollMs, dhcpLeases, state, wanIface }) {
+  constructor({ ros, io, pollMs, dhcpLeases, state, wanIface, streamMode }) {
+    // Delivery per router (#105): poll re-reads the same four tables the
+    // =interval= streams push, feeding the identical rebuild path.
+    this.streamMode = streamMode !== false;
+    this._poll = createPollLoop(() => this._pollAllOnce(), () => this.pollMs);
     this.ros = ros;
     this.io = io;
     this._lbl = ros.routerLabel ? `[${ros.routerLabel}][dhcp-networks]` : '[dhcp-networks]';
@@ -169,12 +181,7 @@ class DhcpNetworksCollector {
     if (this._streams[key] || this._restarting[key]) return;
     if (!this.ros.connected) return;
     const intervalSec = Math.max(5, Math.round(this.pollMs / 1000));
-    const cmds = {
-      networks:  ['/ip/dhcp-server/network/print', '=.proplist=address,gateway,dns-server'],
-      addresses: ['/ip/address/print',             '=.proplist=address,interface,disabled'],
-      pools:     ['/ip/pool/print',                '=.proplist=name,ranges'],
-      internet:  ['/interface/detect-internet/state/print', '=.proplist=name,interface,state'],
-    };
+    const cmds = DHCPNET_CMDS;
     const stream = this.ros.stream([...cmds[key], `=interval=${intervalSec}`], null);
     this._streams[key] = stream;
     stream.on('data', (pkt) => {
@@ -221,8 +228,26 @@ class DhcpNetworksCollector {
     this._batches[key] = [];
   }
 
-  _startStreams() { for (const k of ['networks', 'addresses', 'pools', 'internet']) this._startStream(k); }
-  _stopStreams()  { for (const k of ['networks', 'addresses', 'pools', 'internet']) this._stopStream(k); }
+  async _pollAllOnce() {
+    if (!this.ros.connected) return;
+    for (const key of Object.keys(DHCPNET_CMDS)) {
+      try {
+        const [cmd, ...args] = DHCPNET_CMDS[key];
+        this._raw[key] = (await this.ros.write(cmd, args)) || [];
+      } catch (e) {
+        console.error('%s', this._lbl + ` ${key} poll error:`, e && e.message ? e.message : e);
+      }
+    }
+    this._scheduleRebuild();     // same rebuild the stream path triggers
+  }
+
+  // One place deciding stream vs poll for all four tables.
+  _startStreams() {
+    if (!this.streamMode) { this._poll.start(); return; }
+    for (const k of Object.keys(DHCPNET_CMDS)) this._startStream(k);
+  }
+  _stopStreams()  {
+    this._poll.stop(); for (const k of ['networks', 'addresses', 'pools', 'internet']) this._stopStream(k); }
 
   // ── lifecycle ────────────────────────────────────────────────────────────
 
