@@ -7,3 +7,7 @@ docs/superpowers/
 
 # Playwright MCP session artifacts (snapshots, console logs)
 .playwright-mcp/
+
+# Stray screenshots dropped in the repo root by browser tooling.
+# Real assets live in screenshots/ and public/, which are unaffected.
+/*.png
