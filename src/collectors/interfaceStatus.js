@@ -69,7 +69,7 @@ function deltaOf(prev, cur) {
 }
 
 class InterfaceStatusCollector {
-  constructor({ ros, io, pollMs, metaPollMs, state, streamMode, alertsActive }) {
+  constructor({ ros, io, pollMs, metaPollMs, state, streamMode, alertsActive, rid }) {
     this.ros        = ros;
     this.io         = io;
     // See SystemCollector: alerts are fed from the emit path, so a router with
@@ -82,6 +82,11 @@ class InterfaceStatusCollector {
     this.metaPollMs = metaPollMs || 60000; // metadata streams interval
     this.state      = state;
     this.streamMode = streamMode !== false; // default true
+    // Stamped onto every payload so the browser can tell WHICH router an
+    // interface list describes. Without it the client compares by interface
+    // name alone, and a late in-flight update from the outgoing session — the
+    // teardown is asynchronous — reads as ether2..5 going down and back up.
+    this.rid = rid || '';
 
     this._ifaces     = new Map(); // name -> committed interface row
     this._addrs      = new Map(); // interface name -> [cidr, ...]
@@ -559,7 +564,7 @@ class InterfaceStatusCollector {
       ips: i.ips,
       e: i.errors, dr: i.drops, ld: i.linkDowns,
     })));
-    this.lastPayload = { ts: now, interfaces };
+    this.lastPayload = { ts: now, routerId: this.rid, interfaces };
     // Alerts ride the emit path, so a router with alerts enabled is exempt from
     // the idle gate or interface up/down alerts never fire.
     if (this.io.engine.clientsCount === 0 && !this._alertsActive()) return;

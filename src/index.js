@@ -411,7 +411,7 @@ function buildSession(routerCfg, routerIo) {
   const wireless     = _on('wireless', () => new WirelessCollector    ({ros, io:routerIo, pollMs:eff.poll.wireless, state, dhcpLeases, arp, streamMode:eff.stream.wireless}));
   const vpn          = _on('vpn', () => new VpnCollector         ({ros, io:routerIo, pollMs:eff.poll.vpn,      state, rid:routerCfg.id, streamMode:eff.stream.vpn}));
   const firewall     = _on('firewall', () => new FirewallCollector    ({ros, io:routerIo, pollMs:eff.poll.firewall,  state, streamMode:eff.stream.firewall}));
-  const ifStatus     = _on('ifStatus', () => new InterfaceStatusCollector({ros, io:routerIo, pollMs:eff.poll.ifStatus, metaPollMs:eff.poll.ifaces, state, streamMode:eff.stream.ifStatus, alertsActive:_alertsActive}));
+  const ifStatus     = _on('ifStatus', () => new InterfaceStatusCollector({ros, io:routerIo, pollMs:eff.poll.ifStatus, metaPollMs:eff.poll.ifaces, state, streamMode:eff.stream.ifStatus, alertsActive:_alertsActive, rid:routerCfg.id}));
   const ping         = _on('ping', () => new PingCollector        ({ros, io:routerIo, pollMs:eff.poll.ping,     state, target:PING_TARGET, streamMode:eff.stream.ping, alertsActive:_alertsActive}));
   const bandwidth    = _on('bandwidth', () => new BandwidthCollector   ({ros, io:routerIo, pollMs:eff.poll.bandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache}));
   const routing      = _on('routing', () => new RoutingCollector     ({ros, io:routerIo, pollMs:eff.poll.routing,  state, streamMode:eff.stream.routing}));

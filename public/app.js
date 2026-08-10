@@ -2793,16 +2793,33 @@ function checkUpdateNotif(d){
 // bell. Labels come from routers:update because router:status only carries an
 // id, and a UUID in a notification is useless.
 var _notifRouterLabels = {};
+var _notifRouterAlerts = {};   // routerId -> false when Alert Monitoring is off
 var _routerStatusPrev  = {};
 socket.on('routers:update', function(list){
   (list || []).forEach(function(r){
-    if (r && r.id) _notifRouterLabels[r.id] = r.label || r.host || r.id;
+    if (r && r.id) {
+      _notifRouterLabels[r.id] = r.label || r.host || r.id;
+      // Per-router "Alert Monitoring". The SERVER alerter already honours this
+      // (alerter.js re-checks it before firing), but these browser-side detectors
+      // were written independently and never consulted it, so a router with
+      // monitoring switched off still raised bell notifications of its own.
+      _notifRouterAlerts[r.id] = r.alertsEnabled !== false;
+    }
   });
 });
+
+// Default true for an id we have not been told about: better to show an alert we
+// cannot attribute than to silently swallow a real one.
+function _alertsAllowedFor(routerId){
+  if (!routerId) return true;
+  return _notifRouterAlerts[routerId] !== false;
+}
 
 function checkRouterStatusNotif(d){
   if (!_alertTypes.routerStatus) return;
   if (!d || !d.routerId) return;
+  // Keyed on the router the status is ABOUT, not the one being viewed.
+  if (!_alertsAllowedFor(d.routerId)) return;
   var was = _routerStatusPrev[d.routerId];
   var is  = !!d.connected;
   // Keyed on the transition, not a timer: router:status repeats on every
@@ -2843,11 +2860,37 @@ function checkNetwatchNotifs(hosts){
 var _origIfstatus = null;
 (function(){
   var _listeners = [];
-  socket.on('ifstatus:update', function(data){ checkIfaceNotifs(data.interfaces||[]); });
-  socket.on('vpn:update',      function(data){ checkVpnNotifs(data.tunnels||[]); });
-  socket.on('system:update',   function(d){    checkCpuNotif(d.cpuLoad); checkUpdateNotif(d); });
-  socket.on('ping:update',     function(data){ checkPingNotif(data.loss); });
-  socket.on('netwatch:update', function(data){ checkNetwatchNotifs(data.hosts||[]); });
+  socket.on('ifstatus:update', function(data){
+    // Reject a payload describing a router we are not viewing. Session teardown
+    // is asynchronous, so a final in-flight update from the OUTGOING router can
+    // land after router:switching has already cleared the baseline — and because
+    // the comparison is by interface name alone, router A's ether2..5 then read
+    // as router B's going down, and back up on the way home. The routerId stamp
+    // makes that impossible rather than merely unlikely.
+    if (data && data.routerId && window._activeRouterId &&
+        data.routerId !== window._activeRouterId) return;
+    if (!_alertsAllowedFor(window._activeRouterId)) return;
+    checkIfaceNotifs(data.interfaces||[]);
+  });
+  // Every remaining detector is scoped to whichever router is being viewed, so
+  // they all answer to that router's Alert Monitoring setting. "Disabled" has to
+  // mean no alerts at all, not merely no server-side ones.
+  socket.on('vpn:update',      function(data){
+    if (!_alertsAllowedFor(window._activeRouterId)) return;
+    checkVpnNotifs(data.tunnels||[]);
+  });
+  socket.on('system:update',   function(d){
+    if (!_alertsAllowedFor(window._activeRouterId)) return;
+    checkCpuNotif(d.cpuLoad); checkUpdateNotif(d);
+  });
+  socket.on('ping:update',     function(data){
+    if (!_alertsAllowedFor(window._activeRouterId)) return;
+    checkPingNotif(data.loss);
+  });
+  socket.on('netwatch:update', function(data){
+    if (!_alertsAllowedFor(window._activeRouterId)) return;
+    checkNetwatchNotifs(data.hosts||[]);
+  });
   // Persistent stream failure (#106). The watchdog restarts a dead stream every
 // few seconds and will do so forever; on its own that turns a hard fault into a
 // chart with unexplained holes. The server now reports the degraded state on
