@@ -21,6 +21,9 @@ function makeDestKey(c) {
   return displayDst || 'unknown';
 }
 
+// One definition, used by the stream, the poll path and the connect-time kick.
+const CONN_PROPLIST = '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes';
+
 const PARTIAL_DROP_RATIO = 0.5;
 const PARTIAL_DROP_MIN   = 10;
 const PARTIAL_MAX_STREAK = 5;
@@ -63,6 +66,8 @@ class ConnectionsCollector {
     this._partialStreak = 0;
     this._commitTimer  = null; // debounce: fires 300ms after last row arrives
     this._watchdogTimer = null;
+    this._pollTimer     = null;
+    this._pollInflight  = false;
     // See traffic.js: a stream that keeps dying must be reported, not just
     // restarted forever behind the user's back. (#106)
     this._health = createStreamHealth();
@@ -88,7 +93,8 @@ class ConnectionsCollector {
         this._lastDetailFp = '';
         this.stop();
         this._started = true;
-        this._startWatchdog();
+        // Poll mode has no stream to resurrect, so the watchdog stays off.
+        if (this.streamMode) this._startWatchdog();
       }
     });
   }
@@ -445,11 +451,13 @@ class ConnectionsCollector {
     if (this.lastPayload) return; // stream is running; wait for next batch
     try {
       const rows = (await this.ros.write('/ip/firewall/connection/print', [
-        '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
+        CONN_PROPLIST,
       ])) || [];
-      if (this.connTableCache) this.connTableCache.deposit(rows, Date.now());
-      this._rowsPrev = rows;
-      await this._processRows(rows);
+      // Route through the one commit path. Depositing inline bypassed
+      // partial-result detection, so a truncated connect-time dump could poison
+      // _rowsPrev and make every later batch look like a drop.
+      this._rowsNext = rows;
+      this._onBatchComplete();
     } catch (e) {
       const msg = String(e && e.message ? e.message : e);
       if (!msg.includes('no such item')) {
@@ -467,7 +475,7 @@ class ConnectionsCollector {
     this._stream = this.ros.stream(
       '/ip/firewall/connection/print',
       [
-        '=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes',
+        CONN_PROPLIST,
         `=interval=${intervalSec}`,
       ],
       null  // null callback — use 'data' event to bypass section-handling debounce
@@ -518,6 +526,48 @@ class ConnectionsCollector {
     this._rowsNext = [];
   }
 
+  // ── Poll path (#105) ─────────────────────────────────────────────────────
+  // /print returns the whole table in one reply, so there is nothing for the
+  // 300ms stream debounce to do: assign _rowsNext and call the same commit the
+  // stream path uses. That keeps partial-result detection, the connTableCache
+  // deposit BandwidthCollector depends on, and the idle skip of geo/ASN work in
+  // exactly one place.
+  async _pollOnce(force = false) {
+    if (!this.ros.connected || this._pollInflight) return;
+    if (!this._started || this._suspended) return;
+    if (!force && this.io.engine.clientsCount === 0) return;
+    this._pollInflight = true;
+    try {
+      const rows = (await this.ros.write('/ip/firewall/connection/print', [CONN_PROPLIST])) || [];
+      this._rowsNext = rows;
+      this._onBatchComplete();
+      this.state.lastConnsErr = null;
+    } catch (e) {
+      const msg = String(e && e.message ? e.message : e);
+      if (!msg.includes('no such item')) {
+        this.state.lastConnsErr = msg;
+        console.error('%s', this._lbl, 'poll error:', msg);
+      }
+    } finally {
+      this._pollInflight = false;
+    }
+  }
+
+  _scheduleNextPoll() {
+    if (this._pollTimer || this.streamMode) return;
+    const delay = Math.max(500, Math.min(600000, this.pollMs));
+    this._pollTimer = setTimeout(async () => {
+      this._pollTimer = null;
+      if (this.streamMode) return;            // mode flipped while waiting
+      await this._pollOnce();
+      if (this._started && !this._suspended) this._scheduleNextPoll();
+    }, delay);
+  }
+
+  _stopPoll() {
+    if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
+  }
+
   _restartStream() {
     this._restarting = false;   // cancel any pending 3s restart timer's effect
     this._stopStream();
@@ -526,9 +576,15 @@ class ConnectionsCollector {
     this._lastEmitTs = 0;
     this._rowsPrev = null;      // reset partial-result detection so first batch is always accepted
     this._partialStreak = 0;
+    this._stopPoll();
     if (this._started && !this._suspended && this.ros.connected) {
-      this._startWatchdog();    // re-arm watchdog with current pollMs
-      this._startStream();
+      if (this.streamMode) {
+        this._startWatchdog();  // re-arm watchdog with current pollMs
+        this._startStream();
+      } else {
+        // Nothing to resurrect in poll mode, so the stream watchdog stays off.
+        this._scheduleNextPoll();
+      }
     }
   }
 
@@ -586,6 +642,7 @@ class ConnectionsCollector {
   suspend() {
     this._suspended = true;
     this._stopStream();
+    this._stopPoll();
   }
 
   resume() {
@@ -593,13 +650,15 @@ class ConnectionsCollector {
     // connection-table stream for a router nobody is watching.
     if (this.io.engine.clientsCount === 0) return;
     this._suspended = false;
-    if (this._started && this.ros.connected) this._startStream();
+    if (!this._started || !this.ros.connected) return;
+    if (this.streamMode) this._startStream(); else this._scheduleNextPoll();
   }
 
   stop() {
     this._restarting = false;
     this._stopWatchdog();
     this._stopStream();
+    this._stopPoll();
   }
 
   // start() does NOT open the stream immediately — resume() opens it when called
@@ -607,7 +666,9 @@ class ConnectionsCollector {
   start() {
     this._started = true;
     try { this._debug = !!(settings.load().rosDebug); } catch (_) { this._debug = false; }
-    this._startWatchdog();
+    // The watchdog exists to resurrect a dead stream; in poll mode there is no
+    // stream, so #106 degraded reporting correctly does not apply here.
+    if (this.streamMode) this._startWatchdog();
   }
 }
 
