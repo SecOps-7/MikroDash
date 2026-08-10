@@ -10,10 +10,13 @@
  * synchronously — the Maps are updated in-place so callers always see the
  * latest data without any coordination overhead.
  */
-const { stopStreamSafe } = require('./util');
+const { stopStreamSafe, createPollLoop } = require('./util');
 
 class ArpCollector {
-  constructor({ ros, pollMs, state }) {
+  constructor({ ros, pollMs, state, streamMode }) {
+    this.streamMode = streamMode !== false;   // default stream
+    this.pollMs     = Math.max(500, Math.min(600000, Number(pollMs) || 30000));
+    this._poll      = createPollLoop(() => this._loadInitial(), () => this.pollMs);
     this.ros    = ros;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][arp]` : '[arp]';
     this.pollMs = pollMs; // retained for Settings UI; no longer drives polling
@@ -115,19 +118,34 @@ class ArpCollector {
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
 
+  // Delivery switch (#105). /listen is event-driven and cheap when idle, but it
+  // still holds an open channel, and concurrent channels are what strain a small
+  // router. Poll mode swaps the listen stream for a periodic re-read using the
+  // same _loadInitial() the stream path already runs on connect, so there is no
+  // second parsing path to keep in step.
+  _deliver() {
+    if (this.streamMode) this._startStream();
+    else this._poll.start();
+  }
+
+  _stopDelivery() {
+    this._stopStream();
+    this._poll.stop();
+  }
+
   async start() {
     await this._loadInitial();
-    this._startStream();
+    this._deliver();
 
-    this.ros.on('close', () => this._stopStream());
+    this.ros.on('close', () => this._stopDelivery());
     this.ros.on('connected', async () => {
-      this._stopStream();
+      this._stopDelivery();
       await this._loadInitial();
-      this._startStream();
+      this._deliver();
     });
   }
 
-  stop() { this._stopStream(); }
+  stop() { this._stopDelivery(); }
 }
 
 module.exports = ArpCollector;

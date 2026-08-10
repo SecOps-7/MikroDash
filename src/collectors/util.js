@@ -86,4 +86,45 @@ function createStreamHealth({ degradeAfter = 3, healthyMs = 60000 } = {}) {
   };
 }
 
-module.exports = { clampPoll, stopStreamSafe, parseBps, bpsToMbps, createStreamHealth };
+/**
+ * A self-rescheduling poll loop, shared by every collector that gained a poll
+ * path in #105 rather than each growing its own timer, inflight guard and
+ * clamp (the drift that produced the variants clampPoll was written to unify).
+ *
+ * Recursive setTimeout, not setInterval: the next delay is measured from the end
+ * of the previous run, so a slow reply cannot queue overlapping requests at a
+ * router that is already struggling — which is the whole reason poll mode
+ * exists.
+ *
+ *   run()        async; one poll. Its rejections are swallowed here, so the
+ *                caller owns error reporting.
+ *   getDelayMs() read per tick, so an interval change applies without a restart.
+ */
+function createPollLoop(run, getDelayMs) {
+  let timer = null, inflight = false, stopped = true;
+
+  const schedule = () => {
+    if (timer || stopped) return;
+    const raw = Number(getDelayMs()) || 1000;
+    timer = setTimeout(tick, Math.max(500, Math.min(600000, raw)));
+  };
+  const tick = async () => {
+    timer = null;
+    if (stopped) return;
+    if (!inflight) {
+      inflight = true;
+      try { await run(); } catch (_) { /* caller reports; never kill the loop */ }
+      finally { inflight = false; }
+    }
+    schedule();
+  };
+
+  return {
+    start() { if (!stopped) return; stopped = false; schedule(); },
+    stop()  { stopped = true; if (timer) { clearTimeout(timer); timer = null; } },
+    get running() { return !stopped; },
+    get pending() { return timer !== null; },
+  };
+}
+
+module.exports = { clampPoll, stopStreamSafe, parseBps, bpsToMbps, createStreamHealth, createPollLoop };

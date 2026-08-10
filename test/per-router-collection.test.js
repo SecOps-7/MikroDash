@@ -312,3 +312,49 @@ test('null collector methods are chainable, not bare undefined', async () => {
   }
   await assert.doesNotReject(() => c.tick(true).catch(() => {}));
 });
+
+// ── Shared poll loop ─────────────────────────────────────────────────────────
+
+test('poll loop does not overlap runs when a poll is slow', async () => {
+  // Recursive setTimeout, not setInterval: a router that is already struggling
+  // must not accumulate queued requests. This is the whole point of poll mode.
+  const { createPollLoop } = require('../src/collectors/util');
+  let running = 0, maxConcurrent = 0, runs = 0;
+  const loop = createPollLoop(async () => {
+    running++; runs++; maxConcurrent = Math.max(maxConcurrent, running);
+    await new Promise(r => setTimeout(r, 30));
+    running--;
+  }, () => 500);
+  loop.start();
+  await new Promise(r => setTimeout(r, 1300));
+  loop.stop();
+  assert.ok(runs >= 2, `expected repeats, got ${runs}`);
+  assert.equal(maxConcurrent, 1, 'runs must never overlap');
+});
+
+test('poll loop stops cleanly and a rejecting run does not kill it', async () => {
+  const { createPollLoop } = require('../src/collectors/util');
+  let runs = 0;
+  const loop = createPollLoop(async () => { runs++; throw new Error('boom'); }, () => 500);
+  loop.start();
+  await new Promise(r => setTimeout(r, 1300));
+  const seen = runs;
+  assert.ok(seen >= 2, 'a throwing run must not stop the loop');
+  loop.stop();
+  assert.equal(loop.pending, false, 'no timer left behind');
+  await new Promise(r => setTimeout(r, 700));
+  assert.equal(runs, seen, 'stopped means stopped');
+});
+
+test('poll loop reads its delay per tick so an interval change applies live', async () => {
+  const { createPollLoop } = require('../src/collectors/util');
+  let delay = 500, runs = 0;
+  const loop = createPollLoop(async () => { runs++; }, () => delay);
+  loop.start();
+  await new Promise(r => setTimeout(r, 1200));
+  const slow = runs;
+  delay = 5000;                       // widen without restarting
+  await new Promise(r => setTimeout(r, 1500));
+  loop.stop();
+  assert.ok(runs - slow <= 1, 'a longer interval must take effect without a restart');
+});

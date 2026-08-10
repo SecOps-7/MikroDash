@@ -384,8 +384,8 @@ function buildSession(routerCfg, routerIo) {
     invalidate()      { this._rows = null; this._ts = 0; },
   };
 
-  const dhcpLeases   = new DhcpLeasesCollector ({ros, io:routerIo, state});
-  const arp          = new ArpCollector         ({ros,              pollMs:eff.poll.arp,       state});
+  const dhcpLeases   = new DhcpLeasesCollector ({ros, io:routerIo, state, pollMs:eff.poll.dhcpLeases, streamMode:eff.stream.dhcpLeases});
+  const arp          = new ArpCollector         ({ros,              pollMs:eff.poll.arp,       state, streamMode:eff.stream.arp});
   const dhcpNetworks = new DhcpNetworksCollector({ros, io:routerIo, pollMs:eff.poll.dhcpNetworks, dhcpLeases, state, wanIface:DEFAULT_IF});
   const traffic      = new TrafficCollector     ({ros, io:routerIo, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state,
     onSample: (ifName, rxMbps, txMbps, ts) => dbWriter.recordTraffic(routerCfg.id, ifName, rxMbps, txMbps, ts)});
@@ -414,7 +414,7 @@ function buildSession(routerCfg, routerIo) {
   const ping         = _on('ping', () => new PingCollector        ({ros, io:routerIo, pollMs:eff.poll.ping,     state, target:PING_TARGET, streamMode:eff.stream.ping, alertsActive:_alertsActive}));
   const bandwidth    = _on('bandwidth', () => new BandwidthCollector   ({ros, io:routerIo, pollMs:eff.poll.bandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache}));
   const routing      = _on('routing', () => new RoutingCollector     ({ros, io:routerIo, pollMs:eff.poll.routing,  state}));
-  const netwatch     = _on('netwatch', () => new NetwatchCollector    ({ros, io:routerIo,                           state}));
+  const netwatch     = _on('netwatch', () => new NetwatchCollector    ({ros, io:routerIo, pollMs:eff.poll.netwatch,  state, streamMode:eff.stream.netwatch}));
 
   const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch];
 

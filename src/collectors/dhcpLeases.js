@@ -2,10 +2,13 @@
  * DHCP Leases — streams /ip/dhcp-server/lease/listen for instant updates,
  * with a one-shot /print on startup to populate the initial state.
  */
-const { stopStreamSafe } = require('./util');
+const { stopStreamSafe, createPollLoop } = require('./util');
 
 class DhcpLeasesCollector {
-  constructor({ ros, io, state, _restartDelayMs }) {
+  constructor({ ros, io, state, _restartDelayMs, pollMs, streamMode }) {
+    this.streamMode = streamMode !== false;   // default stream
+    this.pollMs     = Math.max(500, Math.min(600000, Number(pollMs) || 600000));
+    this._poll      = createPollLoop(() => this._loadInitial(), () => this.pollMs);
     this.ros = ros;
     this.io = io;
     this._lbl = ros.routerLabel ? `[${ros.routerLabel}][leases]` : '[leases]';
@@ -181,18 +184,33 @@ class DhcpLeasesCollector {
     if (this.stream) { stopStreamSafe(this.stream); this.stream = null; }
   }
 
-  async start() {
-    await this._loadInitial();
-    this._startStream();
-    this.ros.on('connected', async () => {
-      this._stopStream();
-      await this._loadInitial();
-      this._startStream();
-    });
-    this.ros.on('close', () => this._stopStream());
+  // Delivery switch (#105). /listen is event-driven and cheap when idle, but it
+  // still holds an open channel, and concurrent channels are what strain a small
+  // router. Poll mode swaps the listen stream for a periodic re-read using the
+  // same _loadInitial() the stream path already runs on connect, so there is no
+  // second parsing path to keep in step.
+  _deliver() {
+    if (this.streamMode) this._startStream();
+    else this._poll.start();
   }
 
-  stop() { this._stopStream(); }
+  _stopDelivery() {
+    this._stopStream();
+    this._poll.stop();
+  }
+
+  async start() {
+    await this._loadInitial();
+    this._deliver();
+    this.ros.on('connected', async () => {
+      this._stopDelivery();
+      await this._loadInitial();
+      this._deliver();
+    });
+    this.ros.on('close', () => this._stopDelivery());
+  }
+
+  stop() { this._stopDelivery(); }
 }
 
 module.exports = DhcpLeasesCollector;
