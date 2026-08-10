@@ -151,7 +151,11 @@ class InterfaceStatusCollector {
     if (!this.ros.connected || this._ratesInflight) return;
     const names = [...this._ifaces.keys()].filter(n => {
       const iface = this._ifaces.get(n);
-      return iface && !iface.disabled;
+      // RouterOS sends `disabled` as the STRING "false", which is truthy — so a
+      // bare !iface.disabled filters out EVERY interface, names comes back empty,
+      // _pollRatesOnce returns before its write, and rates sit at 0 forever. The
+      // payload builder below already guards this with an explicit === 'true'.
+      return iface && !(iface.disabled === 'true' || iface.disabled === true);
     });
     if (!names.length) return;
     this._ratesInflight = true;

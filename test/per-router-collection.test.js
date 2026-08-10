@@ -537,3 +537,127 @@ test('the migration can still read the retired keys after they left DEFAULTS', (
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ─── Poll-mode delivery bugs found by running a real router in Poll (#105) ───
+//
+// All three predate this work (v0.5.38, commit a264480) and were invisible
+// because nobody had actually run a router in poll mode end to end. They share a
+// shape: the poll path is *started* correctly, so the startup log says "poll mode
+// — polling ... every Nms", and then no data ever arrives.
+
+const EventEmitter = require('events');
+
+function pollRos(writeFn) {
+  const ros = new EventEmitter();
+  ros.setMaxListeners(30);
+  ros.connected = true;
+  ros.write  = writeFn || (async () => []);
+  ros.stream = () => { const s = new EventEmitter(); s.stop = () => Promise.resolve(); return s; };
+  return ros;
+}
+
+test('ifStatus poll asks for rates even though RouterOS sends disabled="false"', async () => {
+  // The trap: RouterOS returns booleans as STRINGS, so `!iface.disabled` is
+  // `!"false"` === false and every interface is filtered out. names came back
+  // empty, _pollRatesOnce returned before its write, _streamRates stayed empty,
+  // every rate rendered 0.00, the emit fingerprint never changed, and the
+  // Interfaces page updated once per 60 s heartbeat instead of once per second.
+  const InterfaceStatusCollector = require('../src/collectors/interfaceStatus');
+  const calls = [];
+  const ros = pollRos(async (cmd, params) => {
+    calls.push(cmd);
+    if (cmd === '/interface/monitor-traffic') {
+      return [{ name: 'ether2', 'rx-bits-per-second': '2000000', 'tx-bits-per-second': '1000000' }];
+    }
+    return [];
+  });
+  const c = new InterfaceStatusCollector({
+    ros, io: { engine: { clientsCount: 1 }, emit() {} },
+    pollMs: 1000, metaPollMs: 60000, state: {}, streamMode: false,
+  });
+  // Exactly what the metadata stream deposits: string-valued flags.
+  c._ifaces.set('ether2', { name: 'ether2', disabled: 'false', running: 'true' });
+  c._ifaces.set('ether3', { name: 'ether3', disabled: 'true',  running: 'false' });
+
+  await c._pollRatesOnce();
+
+  assert.ok(calls.includes('/interface/monitor-traffic'),
+    'the poll must actually issue monitor-traffic; an empty name list silently skips it');
+  assert.equal(c._streamRates.size, 1, 'the enabled interface must get a rate entry');
+  assert.deepEqual(c._streamRates.get('ether2'), { rxMbps: 2, txMbps: 1 });
+  assert.ok(c._lastRatesSuccessTs > 0, 'a successful poll must be recorded');
+  c.stop();
+});
+
+test('ifStatus poll still excludes genuinely disabled interfaces', () => {
+  // The fix must not swing the other way and monitor disabled interfaces.
+  const InterfaceStatusCollector = require('../src/collectors/interfaceStatus');
+  const asked = [];
+  const ros = pollRos(async (cmd, params) => {
+    if (cmd === '/interface/monitor-traffic') asked.push(params.find(p => p.startsWith('=interface=')));
+    return [];
+  });
+  const c = new InterfaceStatusCollector({
+    ros, io: { engine: { clientsCount: 1 }, emit() {} },
+    pollMs: 1000, metaPollMs: 60000, state: {}, streamMode: false,
+  });
+  c._ifaces.set('up',   { name: 'up',   disabled: 'false' });
+  c._ifaces.set('down', { name: 'down', disabled: 'true'  });
+  c._ifaces.set('bool', { name: 'bool', disabled: true    });   // some paths hand back real booleans
+  return c._pollRatesOnce().then(() => {
+    assert.deepEqual(asked, ['=interface=up']);
+    c.stop();
+  });
+});
+
+for (const [name, mod, sched] of [
+  ['PingCollector',       '../src/collectors/ping',    '_pollTimer'],
+  ['TopTalkersCollector', '../src/collectors/talkers', '_pollTimer'],
+]) {
+  test(`${name}.resume() restarts the poll loop, not just the stream`, async () => {
+    // suspend() clears _pollTimer as well as the stream, but resume() only ever
+    // restarted the stream — so the first time every viewer disconnected, a
+    // poll-mode collector died permanently and its card sat stale forever.
+    const Collector = require(mod);
+    const ros = pollRos(async () => []);
+    const c = new Collector({
+      ros, io: { engine: { clientsCount: 1 }, emit() {}, on() {},
+                 to() { return { emit() {}, to() { return { emit() {} }; } }; } },
+      pollMs: 1000, state: {}, target: '1.1.1.1', topN: 5, streamMode: false,
+    });
+    c.start();
+    assert.ok(c[sched], 'poll timer armed by start()');
+
+    c.suspend();
+    assert.equal(c[sched], null, 'suspend() clears the poll timer');
+
+    c.resume();
+    assert.ok(c[sched], 'resume() must re-arm the poll timer in poll mode');
+    c.stop();
+  });
+}
+
+test('no collector clears a poll timer on suspend without restarting it on resume', () => {
+  // Source guard for the whole class of bug above: ping and talkers each had a
+  // suspend() that stopped polling and a resume() that only knew about streams.
+  const fs   = require('fs');
+  const path = require('path');
+  const dir  = path.join(__dirname, '..', 'src', 'collectors');
+  const body = (src, name) => {
+    const i = src.indexOf('\n  ' + name + '() {');
+    if (i === -1) return null;
+    return src.slice(i, src.indexOf('\n  }', i));
+  };
+  const offenders = [];
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(dir, f), 'utf8');
+    if (!src.includes('streamMode')) continue;          // no poll path to strand
+    const s = body(src, 'suspend'), r = body(src, 'resume');
+    if (!s || !r) continue;                              // no suspend/resume pair
+    const stopsPoll   = /_pollTimer|_stopPoll|_stopRatesPoll|Poll\.stop\(\)/.test(s);
+    const restartsPoll = /_schedule|_startRatesPoll|_poll[A-Z]\w*Once|_startPoll|Poll\.start\(\)|streamMode/.test(r);
+    if (stopsPoll && !restartsPoll) offenders.push(f);
+  }
+  assert.deepEqual(offenders, [],
+    'these collectors stop polling on suspend and never resume it:\n  ' + offenders.join(', '));
+});
