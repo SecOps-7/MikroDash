@@ -10,10 +10,15 @@
  * has fresh counts for every table even when only one is being streamed.
  * The active-table stream is stopped on suspend and restarted on resume.
  */
-const { clampPoll, stopStreamSafe } = require('./util');
+const { clampPoll, stopStreamSafe, createPollLoop } = require('./util');
 
 class FirewallCollector {
-  constructor({ ros, io, pollMs, state }) {
+  constructor({ ros, io, pollMs, state, streamMode }) {
+    // Delivery is per-router (#105). Poll swaps the =interval= push for a
+    // periodic /print that stages into the same buffer and reuses the same
+    // snapshot flush, so counters have one merge path.
+    this.streamMode = streamMode !== false;
+    this._tablePoll = createPollLoop(() => this._pollTableOnce(), () => this.pollMs);
     this.ros    = ros;
     this.io     = io;
     this._lbl   = ros.routerLabel ? `[${ros.routerLabel}][firewall]` : '[firewall]';
@@ -126,6 +131,30 @@ class FirewallCollector {
 
   // ── table stream ──────────────────────────────────────────────────────────
 
+  async _pollTableOnce() {
+    const table = this._activeTable;
+    if (!this.ros.connected || !table) return;
+    try {
+      const rows = (await this.ros.write(
+        `/ip/firewall/${table}/print`, ['=.proplist=.id,packets,bytes'])) || [];
+      // Same staging buffer and same flush the stream path uses: /print returns
+      // the whole table at once, so the debounce simply fires once.
+      this._staging = rows;
+      this._scheduleSnapshotFlush();
+      this.state.lastFirewallErr = null;
+    } catch (e) {
+      const msg = e && e.message ? e.message : String(e);
+      this.state.lastFirewallErr = msg;
+      console.error('%s', this._lbl + ` ${table} poll error:`, msg);
+    }
+  }
+
+  // One place where stream-vs-poll is decided.
+  _startTableDelivery(table) {
+    if (this.streamMode) this._startTableStream(table);
+    else this._tablePoll.start();
+  }
+
   _startTableStream(table) {
     if (this._tableStream || this._tableRestarting) return;
     if (!this.ros.connected) return;
@@ -165,6 +194,7 @@ class FirewallCollector {
   }
 
   _stopTableStream() {
+    this._tablePoll.stop();
     if (this._snapshotDebounce) { clearTimeout(this._snapshotDebounce); this._snapshotDebounce = null; }
     if (this._tableRestartTimer) { clearTimeout(this._tableRestartTimer); this._tableRestartTimer = null; }
     this._tableRestarting = false;
@@ -180,7 +210,7 @@ class FirewallCollector {
     this._activeTable = table;
     this._stopTableStream();
     // If resume() is in progress let it start the stream with the updated _activeTable.
-    if (this.ros.connected && !this._resuming) this._startTableStream(table);
+    if (this.ros.connected && !this._resuming) this._startTableDelivery(table);
   }
 
   // ── heartbeat ────────────────────────────────────────────────────────────
@@ -254,7 +284,7 @@ class FirewallCollector {
     try {
       await this._loadInitial();
       if (!this._resuming) return; // suspend() was called during the load
-      this._startTableStream(this._activeTable);
+      this._startTableDelivery(this._activeTable);
       this._startHeartbeat();
     } finally {
       this._resuming = false;

@@ -1,6 +1,6 @@
 'use strict';
 const dns = require('dns').promises;
-const { clampPoll, stopStreamSafe } = require('./util');
+const { clampPoll, stopStreamSafe, createPollLoop } = require('./util');
 
 /**
  * Wireless collector — streams /interface/wifi/registration-table/print (wifi
@@ -23,8 +23,21 @@ const { clampPoll, stopStreamSafe } = require('./util');
  * Stream idle teardown: suspend() stops all streams; resume() restarts the
  * correct stream for the latched mode. RouterOS does no work while idle.
  */
+// Shared by the stream and poll paths so both query the same table.
+const WL_ENDPOINTS = {
+  wifi:     '/interface/wifi/registration-table/print',
+  wireless: '/interface/wireless/registration-table/print',
+  capsman:  '/caps-man/registration-table/print',
+};
+
 class WirelessCollector {
-  constructor({ ros, io, pollMs, state, dhcpLeases, arp }) {
+  constructor({ ros, io, pollMs, state, dhcpLeases, arp, streamMode }) {
+    // Delivery per router (#105). Poll re-reads the same registration table the
+    // =interval= stream pushes and hands it to the same _onBatch(), so the
+    // wifi/wireless/capsman mode latching is untouched.
+    this.streamMode = streamMode !== false;
+    this._pollTypes = new Set();   // capsman can run alongside wifi/wireless
+    this._poll      = createPollLoop(() => this._pollOnce(), () => this.pollMs);
     this.ros        = ros;
     this.io         = io;
     this.pollMs     = clampPoll(pollMs, 5000);
@@ -264,7 +277,7 @@ class WirelessCollector {
           this.mode = 'wireless';
           if (this._debug) console.log('%s', this._lbl + ' mode latched: wireless (wifi returned empty)');
           this._stopStream('wifi');
-          this._startStream('wireless');
+          this._startDelivery('wireless');
           return;
         }
       }
@@ -282,15 +295,30 @@ class WirelessCollector {
 
   // ── stream management ────────────────────────────────────────────────────
 
+  async _pollOnce() {
+    if (!this.ros.connected || !this._pollTypes.size) return;
+    for (const type of this._pollTypes) {
+      try {
+        const rows = (await this.ros.write(WL_ENDPOINTS[type])) || [];
+        this._onBatch(type, rows);    // same batch path the stream uses
+      } catch (e) {
+        console.error('%s', this._lbl + ` ${type} poll error:`, e && e.message ? e.message : e);
+      }
+    }
+  }
+
+  // Single place deciding stream vs poll; callers keep using _startStream(type).
+  _startDelivery(type) {
+    if (this.streamMode) { this._startStream(type); return; }
+    this._pollTypes.add(type);
+    this._poll.start();
+  }
+
   _startStream(type) {
     if (this._streams[type] || this._restarting[type]) return;
     if (!this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
-    const endpoints = {
-      wifi:     '/interface/wifi/registration-table/print',
-      wireless: '/interface/wireless/registration-table/print',
-      capsman:  '/caps-man/registration-table/print',
-    };
+    const endpoints = WL_ENDPOINTS;
     const stream = this.ros.stream([endpoints[type], `=interval=${intervalSec}`], null);
     this._streams[type] = stream;
     stream.on('data', (pkt) => {
@@ -319,7 +347,7 @@ class WirelessCollector {
         if (this.mode === null) {
           this.mode = 'wireless';
           if (this._debug) console.log('%s', this._lbl + ' mode latched: wireless (wifi command unknown)');
-          this._startStream('wireless');
+          this._startDelivery('wireless');
         }
         return;
       }
@@ -339,6 +367,8 @@ class WirelessCollector {
   }
 
   _stopStream(type) {
+    this._pollTypes.delete(type);
+    if (!this._pollTypes.size) this._poll.stop();
     if (this._debounces[type])     { clearTimeout(this._debounces[type]);     this._debounces[type] = null; }
     if (this._restartTimers[type]) { clearTimeout(this._restartTimers[type]); this._restartTimers[type] = null; }
     this._restarting[type] = false;
@@ -369,7 +399,7 @@ class WirelessCollector {
       // If resume() was called before this probe completed (page was open), the
       // wifi/wireless stream is already running — start capsman now to catch up.
       if (!this._streams.capsman && (this._streams.wifi || this._streams.wireless)) {
-        this._startStream('capsman');
+        this._startDelivery('capsman');
       }
     } catch (e) {
       const msg = String(e && e.message ? e.message : e);
@@ -392,12 +422,12 @@ class WirelessCollector {
   resume() {
     if (!this.ros.connected) return;
     if (this.mode === 'wireless') {
-      this._startStream('wireless');
+      this._startDelivery('wireless');
     } else {
       // mode === 'wifi' or null (probe via first empty-batch detection)
-      this._startStream('wifi');
+      this._startDelivery('wifi');
     }
-    if (this._capsmanAvailable) this._startStream('capsman');
+    if (this._capsmanAvailable) this._startDelivery('capsman');
   }
 
   stop() {
