@@ -1346,3 +1346,93 @@ test('traffic collector emits stream:health when its stream keeps dying', () => 
   assert.equal(health[0].d.restarts, 3);
   assert.equal(c.lastHealth.degraded, true, 'exposed for replay to a new client');
 });
+
+// ── Connections poll path (#105) ─────────────────────────────────────────────
+// streamConns existed as a constructor option but was never read, so the
+// collector always streamed. These pin the poll path, and in particular that it
+// reuses _onBatchComplete() rather than duplicating the commit logic that
+// BandwidthCollector depends on.
+
+function connIo(clients) {
+  const chain = { emit() {} }; chain.to = () => chain;
+  return { engine: { clientsCount: clients }, emit() {}, to: () => chain };
+}
+function connDeps() {
+  return {
+    dhcpNetworks: { getLanCidrs: () => [] },
+    dhcpLeases:   { getNameByIP: () => null, getNameByMAC: () => null },
+    arp:          { getByIP: () => null },
+  };
+}
+
+test('connections in poll mode issues /print and never opens a stream', async () => {
+  const writes = [];
+  let streamOpened = false;
+  const ros = {
+    connected: true, on() {},
+    write: (cmd) => { writes.push(cmd); return Promise.resolve([]); },
+    stream: () => { streamOpened = true; return { on() {}, stop() {} }; },
+  };
+  const cache = { rows: null, deposit(r) { this.rows = r; } };
+  const c = new ConnectionsCollector({ ros, io: connIo(1), pollMs: 1000, topN: 5,
+    ...connDeps(), state: {}, connTableCache: cache, streamMode: false });
+
+  c.start();
+  c._suspended = false;   // resume() does this when a viewer is present
+  await c._pollOnce(true);
+
+  assert.equal(streamOpened, false, 'poll mode must not open a stream');
+  assert.ok(writes.includes('/ip/firewall/connection/print'), 'polled the connection table');
+  assert.equal(c._watchdogTimer, null, 'no stream watchdog in poll mode');
+  c.stop();
+});
+
+test('the poll batch feeds connTableCache through the shared commit path', async () => {
+  const rows = Array.from({ length: 40 }, (_, i) => ({ '.id': '*' + i, 'src-address': '10.0.0.1' }));
+  const ros = { connected: true, on() {}, write: () => Promise.resolve(rows), stream: () => ({ on() {}, stop() {} }) };
+  const cache = { rows: null, ts: 0, deposit(r, t) { this.rows = r; this.ts = t; } };
+  const c = new ConnectionsCollector({ ros, io: connIo(0), pollMs: 1000, topN: 5,
+    ...connDeps(), state: {}, connTableCache: cache, streamMode: false });
+  c.start();
+  c._suspended = false;   // resume() does this when a viewer is present
+  await c._pollOnce(true);
+  assert.equal(cache.rows.length, 40, 'BandwidthCollector reads this cache; it must be filled');
+  assert.ok(cache.ts > 0);
+  c.stop();
+});
+
+test('the poll path keeps partial-result detection', async () => {
+  // A truncated dump must not replace a good batch, exactly as in stream mode.
+  const big   = Array.from({ length: 100 }, (_, i) => ({ '.id': '*' + i }));
+  const small = Array.from({ length: 3 },  (_, i) => ({ '.id': '*' + i }));
+  let next = big;
+  const ros = { connected: true, on() {}, write: () => Promise.resolve(next), stream: () => ({ on() {}, stop() {} }) };
+  const cache = { rows: null, deposit(r) { this.rows = r; } };
+  const c = new ConnectionsCollector({ ros, io: connIo(0), pollMs: 1000, topN: 5,
+    ...connDeps(), state: {}, connTableCache: cache, streamMode: false });
+  c.start();
+  c._suspended = false;   // resume() does this when a viewer is present
+  await c._pollOnce(true);
+  assert.equal(cache.rows.length, 100);
+  next = small;
+  await c._pollOnce(true);
+  assert.equal(cache.rows.length, 100, 'a sudden 97% drop is treated as partial, not real');
+  c.stop();
+});
+
+test('poll mode honours idle gating and stops cleanly', async () => {
+  let calls = 0;
+  const ros = { connected: true, on() {}, write: () => { calls++; return Promise.resolve([]); },
+                stream: () => ({ on() {}, stop() {} }) };
+  const c = new ConnectionsCollector({ ros, io: connIo(0), pollMs: 1000, topN: 5,
+    ...connDeps(), state: {}, connTableCache: null, streamMode: false });
+  c.start();
+  await c._pollOnce();                       // not forced, no clients
+  assert.equal(calls, 0, 'no work for a router nobody is watching');
+
+  c._suspended = false;
+  c._scheduleNextPoll();
+  assert.ok(c._pollTimer, 'poll timer armed');
+  c.stop();
+  assert.equal(c._pollTimer, null, 'stop() clears the poll timer');
+});
