@@ -781,3 +781,43 @@ test('every field routers.add() writes is also handled by routers.update()', () 
   assert.ok(addKeys.has('collection') && updateKeys.has('collection'),
     'the guard itself must be exercising the collection field');
 });
+
+// ── Source guard: the null collector must cover everything index.js touches ───
+// A disabled collector is replaced on the session by makeNullCollector(). If
+// index.js reads a member the stub lacks, that is a TypeError which takes the
+// whole dashboard down for that router. Scraping index.js keeps the stub honest
+// as it grows, rather than relying on someone remembering to update it.
+test('null collector exposes every member index.js touches on a disableable collector', () => {
+  const fs   = require('fs');
+  const path = require('path');
+  const src  = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const { DISABLEABLE, BY_KEY } = require('../src/collection');
+  const { makeNullCollector }   = require('../src/collectors/nullCollector');
+
+  const props = DISABLEABLE.map(k => BY_KEY[k].sessionProp);
+  const re = new RegExp('\\b(?:s|session|_gs|entry\\.session)\\.(' + props.join('|') + ')\\.([A-Za-z_$][\\w$]*)', 'g');
+
+  const missing = [];
+  for (const m of src.matchAll(re)) {
+    const key = DISABLEABLE.find(k => BY_KEY[k].sessionProp === m[1]);
+    const stub = makeNullCollector(key);
+    if (!(m[2] in stub)) missing.push(`${m[1]}.${m[2]}`);
+  }
+  assert.deepEqual([...new Set(missing)].sort(), [],
+    'index.js reads these off a collector, but makeNullCollector does not provide them:\n  '
+    + [...new Set(missing)].sort().join('\n  '));
+});
+
+test('null collector methods are safe to call and payloads are empty', () => {
+  const { makeNullCollector } = require('../src/collectors/nullCollector');
+  for (const key of ['conns', 'ping', 'logs', 'ifStatus', 'firewall']) {
+    const c = makeNullCollector(key);
+    assert.equal(c.disabled, true);
+    assert.equal(c.lastPayload, null);
+    assert.doesNotThrow(() => { c.start(); c.suspend(); c.resume(); c.stop(); c.tick(); });
+    assert.doesNotThrow(() => c._restartStream());
+  }
+  // Shape matters: these two are consumed differently by index.js.
+  assert.deepEqual(makeNullCollector('logs').getHistory(), []);
+  assert.deepEqual(makeNullCollector('ping').getHistory().history, []);
+});
