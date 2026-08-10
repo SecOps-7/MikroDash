@@ -192,3 +192,82 @@ test('fingerprint reacts to a global interval change for an inheriting router', 
 test('MODES is exactly the two-way switch the UI offers', () => {
   assert.deepEqual([...MODES], ['stream', 'poll']);
 });
+
+// ── Storage: routers.js normalisation ────────────────────────────────────────
+// update() rebuilds a record field by field, so a field it does not enumerate is
+// silently dropped on edit even though ...existing preserves it. That is the bug
+// class that lost notifRouterUpdate, and `collection` is exactly such a field.
+
+const fs   = require('fs');
+const os   = require('os');
+const path = require('path');
+
+function makeTmpDir() { return fs.mkdtempSync(path.join(os.tmpdir(), 'mikrodash-coll-')); }
+function freshRouters(tmpDir) {
+  process.env.DATA_DIR = tmpDir;
+  delete require.cache[require.resolve('../src/routers')];
+  delete require.cache[require.resolve('../src/settings')];
+  delete require.cache[require.resolve('../src/collection')];
+  return require('../src/routers');
+}
+
+test('a router with no collection block stores nothing extra', () => {
+  const R = freshRouters(makeTmpDir());
+  const added = R.add({ host: '192.168.88.1' });
+  assert.equal(added.collection, undefined,
+    'defaults must leave routers.json byte-identical to before this feature');
+});
+
+test('collection survives an unrelated edit', () => {
+  const R = freshRouters(makeTmpDir());
+  const a = R.add({ host: '192.168.88.1', collection: { mode: 'poll', off: ['conns'] } });
+  assert.equal(a.collection.mode, 'poll');
+  const edited = R.update(a.id, { label: 'renamed' });   // body omits collection
+  assert.equal(edited.label, 'renamed');
+  assert.deepEqual(edited.collection, { mode: 'poll', off: ['conns'] },
+    'omitting the field on edit must not wipe it');
+});
+
+test('explicit null resets collection to inherit', () => {
+  const R = freshRouters(makeTmpDir());
+  const a = R.add({ host: '192.168.88.1', collection: { mode: 'poll' } });
+  const cleared = R.update(a.id, { collection: null });
+  assert.equal(cleared.collection, undefined);
+});
+
+test('normalisation drops junk and clamps intervals', () => {
+  const R = freshRouters(makeTmpDir());
+  const a = R.add({ host: '192.168.88.1', collection: {
+    mode: 'sideways',                                  // not a valid mode
+    off: ['conns', 'conns', 'arp', 'nonsense'],        // dupe, protected, unknown
+    overrides: { pollSystem: 999999, streamPing: 'true', bogusKey: 1 },
+  }});
+  assert.equal(a.collection.mode, undefined, 'invalid mode dropped');
+  assert.deepEqual(a.collection.off, ['conns'], 'deduped, protected and unknown removed');
+  assert.equal(a.collection.overrides.pollSystem, 60000, 'clamped to the shared bounds');
+  assert.equal(a.collection.overrides.streamPing, true, 'string "true" coerced');
+  assert.equal('bogusKey' in a.collection.overrides, false);
+});
+
+test('a block carrying no information is stored as absent', () => {
+  const R = freshRouters(makeTmpDir());
+  const a = R.add({ host: '192.168.88.1', collection: { mode: 'stream', off: [], overrides: {} } });
+  assert.equal(a.collection, undefined, 'stream is the default, so this says nothing');
+});
+
+test('collection round-trips through disk', () => {
+  const tmp = makeTmpDir();
+  const R = freshRouters(tmp);
+  const a = R.add({ host: '192.168.88.1', collection: { mode: 'poll', off: ['talkers'] } });
+  const R2 = freshRouters(tmp);                       // re-read from disk
+  assert.deepEqual(R2.getById(a.id).collection, { mode: 'poll', off: ['talkers'] });
+});
+
+test('getPublic exposes collection but still masks the password', () => {
+  const R = freshRouters(makeTmpDir());
+  const a = R.add({ host: '192.168.88.1', password: 'sup3r-secret',
+                    collection: { mode: 'poll' } });
+  const pub = R.getPublic().find(r => r.id === a.id);
+  assert.equal(pub.collection.mode, 'poll');
+  assert.equal(pub.password, '••••••••');
+});

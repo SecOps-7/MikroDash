@@ -24,6 +24,12 @@
  *   bwDownMbps:  number,   // WAN download capacity in Mbps (default 1000 = 1 Gbps)
  *   bwUpMbps:    number,   // WAN upload capacity in Mbps   (default 1000 = 1 Gbps)
  *   addedAt:     number,   // epoch ms
+ *   model/serial/osVersion: string,  // learned from RouterOS, see updateIdentity()
+ *   collection:  {         // optional, per-router collection settings (#105)
+ *     mode:      'stream'|'poll',        // delivery; absent = stream
+ *     off:       string[],               // collector keys turned off
+ *     overrides: { pollX:number, streamX:boolean },
+ *   },
  * }
  */
 
@@ -32,6 +38,7 @@ const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
 const { isValidIp } = require('./util/ip');
+const { MODES, DISABLEABLE, POLL_KEYS, STREAM_KEYS, clampPollValue } = require('./collection');
 
 const DATA_DIR     = process.env.DATA_DIR || '/data';
 const ROUTERS_FILE = path.join(DATA_DIR, 'routers.json');
@@ -114,6 +121,55 @@ function _uniqueLabel(label, routers, excludeId = null) {
 }
 
 // ── Input validation ──────────────────────────────────────────────────────────
+/**
+ * Normalise a per-router `collection` block (#105).
+ *
+ * Server-side truth: the UI mirrors these rules but a hand-edited routers.json
+ * must not be able to produce a combination that breaks a card, so filtering
+ * happens here rather than in the browser.
+ *
+ *   undefined  the caller omitted the field entirely -> keep what is stored.
+ *              update() rebuilds records field by field, so without this an
+ *              unrelated edit would silently wipe the block.
+ *   null       explicit reset to "inherit everything".
+ *
+ * A block that carries no information is stored as undefined, so a router left
+ * on defaults keeps routers.json byte-identical to before this feature.
+ */
+function _normalizeCollection(input, existing) {
+  const prev = existing ? existing.collection : undefined;
+  if (input === undefined) return prev;
+  if (input === null) return undefined;
+  if (typeof input !== 'object' || Array.isArray(input)) return prev;
+
+  const out = {};
+  if (MODES.includes(input.mode)) out.mode = input.mode;
+
+  if (Array.isArray(input.off)) {
+    // Unknown and protected keys are dropped silently, matching how update()
+    // already ignores unknown fields.
+    const off = [...new Set(input.off.filter(k => DISABLEABLE.includes(k)))].sort();
+    if (off.length) out.off = off;
+  }
+
+  if (input.overrides && typeof input.overrides === 'object') {
+    const ovr = {};
+    for (const [k, v] of Object.entries(input.overrides)) {
+      if (POLL_KEYS.includes(k)) {
+        const n = clampPollValue(k, v);      // same bounds settings.js enforces
+        if (n !== null) ovr[k] = n;
+      } else if (STREAM_KEYS.includes(k)) {
+        ovr[k] = (v === true || v === 'true');
+      }
+    }
+    if (Object.keys(ovr).length) out.overrides = ovr;
+  }
+
+  // 'stream' is the default, so a block saying only that carries no information.
+  const hasInfo = (out.mode && out.mode !== 'stream') || out.off || out.overrides;
+  return hasInfo ? out : undefined;
+}
+
 const VALID_HOST = /^[a-zA-Z0-9.\-]{1,253}$/;
 
 function _validateHostPort(host, port) {
@@ -242,6 +298,7 @@ function add(data) {
     bwUpMbps:      Math.max(1, parseInt(data.bwUpMbps   || '1000', 10) || 1000),
     alertsEnabled:       !!(data.alertsEnabled),
     connDownThresholdSec:(function(){ var n = parseInt(data.connDownThresholdSec, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
+    collection:          _normalizeCollection(data.collection, null),
     disabled:            false,
     addedAt:             Date.now(),
   };
@@ -284,6 +341,7 @@ function update(id, data) {
     bwUpMbps:      data.bwUpMbps      !== undefined ? Math.max(1, parseInt(data.bwUpMbps,   10) || 1000) : (existing.bwUpMbps   || 1000),
     alertsEnabled:       data.alertsEnabled       !== undefined ? !!(data.alertsEnabled)           : !!(existing.alertsEnabled),
     connDownThresholdSec:(function(){ var raw = data.connDownThresholdSec !== undefined ? data.connDownThresholdSec : (existing.connDownThresholdSec !== undefined ? existing.connDownThresholdSec : 30); var n = parseInt(raw, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
+    collection:          _normalizeCollection(data.collection, existing),
     disabled:            data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),
   };
 
