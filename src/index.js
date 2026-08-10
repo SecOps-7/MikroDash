@@ -62,6 +62,8 @@ const ConnectionsCollector = require('./collectors/connections');
 const TopTalkersCollector  = require('./collectors/talkers');
 const LogsCollector        = require('./collectors/logs');
 const SystemCollector      = require('./collectors/system');
+const { resolveCollection, collectionFingerprint } = require('./collection');
+const { makeNullCollector } = require('./collectors/nullCollector');
 const WirelessCollector    = require('./collectors/wireless');
 const VpnCollector         = require('./collectors/vpn');
 const FirewallCollector    = require('./collectors/firewall');
@@ -328,6 +330,14 @@ function _freshState() {
 
 function buildSession(routerCfg, routerIo) {
   const _cfg   = Settings.load();
+  // Per-router collection config (#105). Intervals inherit from _cfg; delivery
+  // (stream vs poll) and enable/disable are per-router. Resolving once here is
+  // what makes every collector below honour this router's own settings.
+  const eff    = resolveCollection(_cfg, routerCfg);
+  // A disabled collector must never be CONSTRUCTED: 11 of the 16 open their
+  // streams from a ros.on('connected') handler in the constructor, so skipping
+  // start() would not stop them. makeNullCollector stands in on the session.
+  const _on    = (key, build) => eff.enabled[key] ? build() : makeNullCollector(key);
   const state  = _freshState();
 
   // When TLS is enabled, pass an options object rather than a boolean so we can
@@ -375,8 +385,8 @@ function buildSession(routerCfg, routerIo) {
   };
 
   const dhcpLeases   = new DhcpLeasesCollector ({ros, io:routerIo, state});
-  const arp          = new ArpCollector         ({ros,              pollMs:_cfg.pollArp,       state});
-  const dhcpNetworks = new DhcpNetworksCollector({ros, io:routerIo, pollMs:_cfg.pollDhcp,      dhcpLeases, state, wanIface:DEFAULT_IF});
+  const arp          = new ArpCollector         ({ros,              pollMs:eff.poll.arp,       state});
+  const dhcpNetworks = new DhcpNetworksCollector({ros, io:routerIo, pollMs:eff.poll.dhcpNetworks, dhcpLeases, state, wanIface:DEFAULT_IF});
   const traffic      = new TrafficCollector     ({ros, io:routerIo, defaultIf:DEFAULT_IF, historyMinutes:HISTORY_MINUTES, pollMs:1000, state,
     onSample: (ifName, rxMbps, txMbps, ts) => dbWriter.recordTraffic(routerCfg.id, ifName, rxMbps, txMbps, ts)});
   // Backfill ring buffer from SQLite so the chart has history on first browser connect
@@ -384,9 +394,9 @@ function buildSession(routerCfg, routerIo) {
   const _histFromTs = Date.now() - HISTORY_MINUTES * 60 * 1000;
   const _histRows   = db.queryTrafficSamples(routerCfg.id, DEFAULT_IF, _histFromTs, Date.now(), traffic.maxPoints);
   if (_histRows.length) traffic.preloadHistory(DEFAULT_IF, _histRows);
-  const conns        = new ConnectionsCollector ({ros, io:routerIo, pollMs:_cfg.pollConns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache, geoOrgCache, streamMode:_cfg.streamConns});
-  const talkers      = new TopTalkersCollector  ({ros, io:routerIo, pollMs:_cfg.pollTalkers,  state, topN:_cfg.topTalkersN, streamMode:_cfg.streamTalkers});
-  const logs         = new LogsCollector        ({ros, io:routerIo, state});
+  const conns        = _on('conns', () => new ConnectionsCollector ({ros, io:routerIo, pollMs:eff.poll.conns,    topN:_cfg.topN, maxConns:_cfg.maxConns, dhcpNetworks, dhcpLeases, arp, state, connTableCache, geoOrgCache, streamMode:eff.stream.conns}));
+  const talkers      = _on('talkers', () => new TopTalkersCollector  ({ros, io:routerIo, pollMs:eff.poll.talkers,  state, topN:_cfg.topTalkersN, streamMode:eff.stream.talkers}));
+  const logs         = _on('logs', () => new LogsCollector        ({ros, io:routerIo, state}));
   // Read live rather than captured: alertsEnabled can be toggled without
   // rebuilding the session. The alerter only sees events that are actually
   // emitted, so the three collectors feeding CPU / ping / interface alerts must
@@ -396,19 +406,19 @@ function buildSession(routerCfg, routerIo) {
     const r = Routers.getById(routerCfg.id);
     return !!(r && r.alertsEnabled);
   };
-  const system       = new SystemCollector      ({ros, io:routerIo, pollMs:_cfg.pollSystem,   state, streamMode:_cfg.streamSystem, alertsActive:_alertsActive});
-  const wireless     = new WirelessCollector    ({ros, io:routerIo, pollMs:_cfg.pollWireless, state, dhcpLeases, arp});
-  const vpn          = new VpnCollector         ({ros, io:routerIo, pollMs:_cfg.pollVpn,      state, rid:routerCfg.id});
-  const firewall     = new FirewallCollector    ({ros, io:routerIo, pollMs:_cfg.pollFirewall,  state});
-  const ifStatus     = new InterfaceStatusCollector({ros, io:routerIo, pollMs:_cfg.pollIfstatus, metaPollMs:_cfg.pollIfaces, state, streamMode:_cfg.streamIfrates, alertsActive:_alertsActive});
-  const ping         = new PingCollector        ({ros, io:routerIo, pollMs:_cfg.pollPing,     state, target:PING_TARGET, streamMode:_cfg.streamPing, alertsActive:_alertsActive});
-  const bandwidth    = new BandwidthCollector   ({ros, io:routerIo, pollMs:_cfg.pollBandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache});
-  const routing      = new RoutingCollector     ({ros, io:routerIo, pollMs:_cfg.pollRouting,  state});
-  const netwatch     = new NetwatchCollector    ({ros, io:routerIo,                           state});
+  const system       = new SystemCollector      ({ros, io:routerIo, pollMs:eff.poll.system,   state, streamMode:eff.stream.system, alertsActive:_alertsActive});
+  const wireless     = _on('wireless', () => new WirelessCollector    ({ros, io:routerIo, pollMs:eff.poll.wireless, state, dhcpLeases, arp}));
+  const vpn          = _on('vpn', () => new VpnCollector         ({ros, io:routerIo, pollMs:eff.poll.vpn,      state, rid:routerCfg.id}));
+  const firewall     = _on('firewall', () => new FirewallCollector    ({ros, io:routerIo, pollMs:eff.poll.firewall,  state}));
+  const ifStatus     = _on('ifStatus', () => new InterfaceStatusCollector({ros, io:routerIo, pollMs:eff.poll.ifStatus, metaPollMs:_cfg.pollIfaces, state, streamMode:eff.stream.ifStatus, alertsActive:_alertsActive}));
+  const ping         = _on('ping', () => new PingCollector        ({ros, io:routerIo, pollMs:eff.poll.ping,     state, target:PING_TARGET, streamMode:eff.stream.ping, alertsActive:_alertsActive}));
+  const bandwidth    = _on('bandwidth', () => new BandwidthCollector   ({ros, io:routerIo, pollMs:eff.poll.bandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache}));
+  const routing      = _on('routing', () => new RoutingCollector     ({ros, io:routerIo, pollMs:eff.poll.routing,  state}));
+  const netwatch     = _on('netwatch', () => new NetwatchCollector    ({ros, io:routerIo,                           state}));
 
   const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch];
 
-  return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES,
+  return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES, collection: eff,
            dhcpLeases, dhcpNetworks, arp, traffic, conns, talkers, logs, system,
            wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, allCollectors,
            routerId: routerCfg.id, cachedInterfaces: null };
@@ -724,6 +734,34 @@ function ensureRouterSession(routerId) {
   _syncAlertSessions();
   _syncOverviewSessions();
   return entry;
+}
+
+/**
+ * Rebuild one router's session in place (#105).
+ *
+ * ensureRouterSession() memoises on _routerSessions and returns early when a
+ * session exists, so it will never pick up an edited setting. Collection
+ * settings cannot be live-patched either: whether a collector runs at all is
+ * decided at construction. So a change means teardown and rebuild, for that one
+ * router.
+ *
+ * Sockets are deliberately untouched. Rooms are keyed by routerId, which does
+ * not change, so nobody leaves `router-<id>` or its page sub-rooms; the tail of
+ * startCollectors() re-binds traffic and replays initial state for every socket
+ * already in the room. No page reload, and no other router is affected.
+ */
+async function rebuildRouterSession(routerId) {
+  const entry = _routerSessions.get(routerId);
+  if (!entry) {                       // nothing live to rebuild
+    _syncAlertSessions();
+    _syncOverviewSessions();
+    return null;
+  }
+  if (entry.idleTimer) { clearTimeout(entry.idleTimer); entry.idleTimer = null; }
+  await teardownSession(entry.session, entry);
+  _routerSessions.delete(routerId);
+  alerter.dropEvaluator(routerId);
+  return ensureRouterSession(routerId);
 }
 
 // Schedule idle teardown for a router after all its sockets disconnect.
@@ -1432,9 +1470,22 @@ app.put('/api/routers/:id', _requireAdmin, async (req, res) => {
         }
       }
     }
+    // Snapshot before the write so we can tell whether anything that shapes the
+    // session actually changed. A label-only edit must not cost a reconnect.
+    const _beforeRouter = Routers.getById(req.params.id);
+    const _beforeFp = _beforeRouter ? collectionFingerprint(Settings.load(), _beforeRouter) : null;
+
     const router = Routers.update(req.params.id, body);
     if (!router) return res.status(404).json({ ok:false, error:'Router not found' });
     _broadcastRoutersList();
+
+    // Collection settings are decided at construction, so applying a change means
+    // rebuilding this one router's session. Skipped when the router was just
+    // disabled above (its session is already gone).
+    const _afterFp = collectionFingerprint(Settings.load(), router);
+    if (_beforeFp !== null && _afterFp !== _beforeFp && !router.disabled) {
+      await rebuildRouterSession(req.params.id);
+    }
 
     // If this is the active router and pingTarget changed, update the live
     // collector immediately — don't make the user wait for the next poll cycle.
