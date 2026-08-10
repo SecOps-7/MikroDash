@@ -555,8 +555,15 @@ class ConnectionsCollector {
 
   _scheduleNextPoll() {
     if (this._pollTimer || this.streamMode) return;
+    // Clamped to [500 ms, 600 s] here, and pollMs is already bounded three times
+    // before it arrives: POLL_BOUNDS in settings.js, _normalizeCollection in
+    // routers.js, and clampPollValue in collection.js. It reaches those only
+    // through POST /api/settings or PUT /api/routers/:id, both _requireAdmin.
+    // CodeQL flags the setTimeout because it traces pollMs back to request input
+    // and does not follow the clamp through this local, same as the other timer
+    // sites in this codebase.
     const delay = Math.max(500, Math.min(600000, this.pollMs));
-    this._pollTimer = setTimeout(async () => {
+    this._pollTimer = setTimeout(async () => { // codeql[js/resource-exhaustion]
       this._pollTimer = null;
       if (this.streamMode) return;            // mode flipped while waiting
       await this._pollOnce();
