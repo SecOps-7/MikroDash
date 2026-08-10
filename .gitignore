@@ -4,3 +4,6 @@ Changes.md
 .claude/
 .serena/
 docs/superpowers/
+
+# Playwright MCP session artifacts (snapshots, console logs)
+.playwright-mcp/

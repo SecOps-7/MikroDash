@@ -230,7 +230,13 @@ class PingCollector {
     if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
   }
   resume() {
-    if (this.streamMode && this.ros.connected && !this._permissionDenied) this._startStream();
+    if (!this.ros.connected || this._permissionDenied) return;
+    // suspend() clears the poll timer as well as the stream, so restarting only
+    // the stream leaves a poll-mode collector dead for good the first time every
+    // viewer disconnects. Poll once immediately so the card refills on reopen.
+    if (this.streamMode) { this._startStream(); return; }
+    this._pollPingOnce();
+    this._schedulePingNext();
   }
 
   stop() {

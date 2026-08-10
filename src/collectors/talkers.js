@@ -260,7 +260,13 @@ class TopTalkersCollector {
     if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
   }
   resume() {
-    if (this.streamMode && this.ros.connected) this._startStream();
+    if (!this.ros.connected) return;
+    // Same trap as ping: suspend() clears _pollTimer, so a resume that only
+    // restarts the stream strands poll mode permanently once the last viewer
+    // has ever gone away — which is why the Top Talkers card stayed stale.
+    if (this.streamMode) { this._startStream(); return; }
+    this._pollTalkersOnce();
+    this._scheduleTalkersNext();
   }
 
   stop() {
