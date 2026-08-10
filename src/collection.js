@@ -102,6 +102,51 @@ function clampPollValue(key, raw) {
  * intervals, so choosing Poll cannot silently also mean "slower" — which would
  * be unrecoverable from the UI.
  */
+// Legacy app-global stream-vs-poll keys, retired in #105. Read only by
+// planMigration below; nothing else in the codebase may consult them.
+const LEGACY_STREAM_KEYS = Object.freeze({
+  streamSystem:  'system',
+  streamPing:    'ping',
+  streamConns:   'conns',
+  streamTalkers: 'talkers',
+  streamIfrates: 'ifStatus',
+});
+
+/**
+ * Work out how the retired global Collection Method maps onto per-router blocks.
+ *
+ * Pure: returns `[{ id, collection }]` for the routers that need writing, so the
+ * caller owns persistence and the mapping itself is testable. Routers that
+ * already carry a `mode` are left alone — an explicit per-router choice must
+ * never be overwritten by a global that no longer has a UI.
+ *
+ * All-true is the new default, so it needs no block at all; that is why the
+ * common case returns an empty array and writes nothing.
+ */
+function planMigration(settings, routers) {
+  const cfg     = settings || {};
+  const present = Object.keys(LEGACY_STREAM_KEYS).filter(k => typeof cfg[k] === 'boolean');
+  if (!present.length) return [];
+
+  const allOff = present.every(k => cfg[k] === false);
+  const allOn  = present.every(k => cfg[k] === true);
+  if (allOn) return [];                       // already the default
+
+  const plan = [];
+  for (const r of (routers || [])) {
+    if (r && r.collection && r.collection.mode) continue;
+    if (allOff) {
+      plan.push({ id: r.id, collection: { mode: 'poll' } });
+    } else {
+      // Mixed: stay on stream and record only the collectors that were polled.
+      const overrides = {};
+      for (const k of present) if (cfg[k] === false) overrides[k] = false;
+      plan.push({ id: r.id, collection: { mode: 'stream', overrides } });
+    }
+  }
+  return plan;
+}
+
 function resolveCollection(settings, routerRecord) {
   const cfg  = settings || {};
   const coll = (routerRecord && routerRecord.collection) || {};
@@ -131,6 +176,12 @@ function resolveCollection(settings, routerRecord) {
     enabled[c.key] = c.disableable ? !off.includes(c.key) : true;
   }
 
+  // pollIfaces is interfaceStatus's *metadata* interval, not a collector of its
+  // own, so it has no registry row — but it is override-able like any other.
+  const _ifaces = clampPollValue('pollIfaces',
+    ovr.pollIfaces !== undefined ? ovr.pollIfaces : cfg.pollIfaces);
+  poll.ifaces = _ifaces === null ? 60000 : _ifaces;
+
   // pingEnabled is a separate global kill switch and still wins.
   if (cfg.pingEnabled === false) enabled.ping = false;
 
@@ -147,7 +198,10 @@ function resolveCollection(settings, routerRecord) {
     }
   }
 
-  return { mode, poll, stream, enabled };
+  // `overrides` is passed through so callers can tell an inherited value from a
+  // pinned one — the settings live-patch must not drag a pinned router back to
+  // the fleet default.
+  return { mode, poll, stream, enabled, overrides: ovr };
 }
 
 /**
@@ -175,5 +229,5 @@ function collectionFingerprint(settings, routerRecord) {
 
 module.exports = {
   COLLECTORS, BY_KEY, DISABLEABLE, POLL_KEYS, STREAM_KEYS, MODES, DEFAULT_MODE,
-  clampPollValue, resolveCollection, collectionFingerprint,
+  clampPollValue, resolveCollection, collectionFingerprint, planMigration, LEGACY_STREAM_KEYS,
 };

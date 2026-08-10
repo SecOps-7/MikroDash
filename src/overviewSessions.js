@@ -4,6 +4,9 @@ const SystemCollector          = require('./collectors/system');
 const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const DhcpLeasesCollector      = require('./collectors/dhcpLeases');
 const { classifyRosError }     = require('./routeros/classifyError');
+const Settings                 = require('./settings');
+const { resolveCollection }    = require('./collection');
+const { makeNullCollector }    = require('./collectors/nullCollector');
 
 // routerId → { ros, system, ifStatus, dhcpLeases, connected }
 const _sessions  = new Map();
@@ -76,7 +79,11 @@ function stopAll() {
 }
 
 function _buildSession(router) {
-  const pollMs  = 1000;
+  // These are the Routers-page overview sessions for routers the main pool is not
+  // serving. They used to hardcode a 1 s interval and read no settings at all, so
+  // merely having the Routers page open polled every other router harder than the
+  // active one (#105). Honour the same per-router collection config as buildSession.
+  const eff     = resolveCollection(Settings.load(), router);
   const tlsOpts = router.tls ? { rejectUnauthorized: !router.tlsInsecure } : false;
 
   const ros = new ROS({
@@ -89,12 +96,21 @@ function _buildSession(router) {
   ros.routerLabel = router.label || router.host;
 
   const state      = {};
-  const system     = new SystemCollector         ({ ros, io: _nullIo, pollMs, state });
+  const system     = new SystemCollector         ({ ros, io: _nullIo, pollMs: eff.poll.system, state,
+                                                    streamMode: eff.stream.system });
   if (typeof _identityHook === 'function') {
     system._onIdentity = (identity) => _identityHook(router.id, identity);
   }
-  const ifStatus   = new InterfaceStatusCollector({ ros, io: _nullIo, pollMs, metaPollMs: pollMs * 12, state });
-  const dhcpLeases = new DhcpLeasesCollector     ({ ros, io: _nullIo, state });
+  // A disabled collector must not be constructed: 11 of the 16 open their streams
+  // from a ros.on('connected') handler in the constructor, so skipping start() is
+  // not enough. The null stub keeps every reader below shape-compatible.
+  const ifStatus   = eff.enabled.ifStatus
+    ? new InterfaceStatusCollector({ ros, io: _nullIo, pollMs: eff.poll.ifStatus, state,
+                                     metaPollMs: eff.poll.ifaces, streamMode: eff.stream.ifStatus })
+    : makeNullCollector('ifStatus');
+  const dhcpLeases = new DhcpLeasesCollector     ({ ros, io: _nullIo, state,
+                                                    pollMs: eff.poll.dhcpLeases,
+                                                    streamMode: eff.stream.dhcpLeases });
 
   const session = { ros, system, ifStatus, dhcpLeases, connected: false, destroyed: false, lastError: null };
 

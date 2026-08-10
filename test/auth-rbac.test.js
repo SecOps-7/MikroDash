@@ -373,7 +373,9 @@ describe('settings.getViewerPublic', () => {
 
   test('includes dashboard-rendering fields a viewer needs', () => {
     const v = Settings.getViewerPublic();
-    for (const f of ['pageWireless', 'pageVpn', 'displayTimezone', 'alertCpuThreshold', 'streamPing', 'activeRouterId']) {
+    // streamPing used to be in this list. It was removed in #105: stream-vs-poll is
+    // per-router now, and the client learns it from `collection:config` instead.
+    for (const f of ['pageWireless', 'pageVpn', 'displayTimezone', 'alertCpuThreshold', 'activeRouterId']) {
       assert.equal(f in v, true, `${f} should be present for the viewer dashboard`);
     }
   });

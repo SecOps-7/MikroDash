@@ -107,7 +107,13 @@ RouterOS binary API (TCP)
 
 - **No build step.** CommonJS only — no TypeScript, no bundler, no transpiler.
 - **No new runtime deps** without explicit approval. (`better-sqlite3` is approved and in use.)
-- **Streaming-first.** Prefer `/listen` (event-driven) over `=interval=N` (timed push) over `setInterval` (polling). See `AI_CONTEXT.md` for the full rule.
+- **Streaming-first — but per-router polling is a supported escape hatch.** New code still prefers
+  `/listen` (event-driven) over `=interval=N` (timed push) over `setInterval` (polling), and Stream
+  remains the default. Since #105 each router carries its own `collection` block (mode, disabled
+  collectors, interval overrides), because concurrent open channels — not data volume — are what
+  overwhelm small hardware such as a hAP ac2. **Every new pollable collector must therefore ship
+  both paths**, resolved through `src/collection.js`, never by reading `Settings` directly. See
+  `AI_CONTEXT.md` for the full rule.
 - **No CDN.** All frontend assets live in `public/vendor/` (read-only — never modify).
 - **`sanitizeErr(e)`** before any error reaches the browser. Never send raw `.message` or stack traces.
 - **`esc()`** around every user-supplied string injected into HTML in `app.js`.
