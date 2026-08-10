@@ -23,7 +23,7 @@ exist: cookie sessions with `admin`/`viewer` roles — see the Security model se
 | No CDN dependencies | All frontend assets are vendored under `public/vendor/`. Never add a `<script src="https://...">` tag. |
 | No new runtime deps without approval | The dependency list in `package.json` is intentional and minimal. |
 | Collector pattern must be followed | Every new data collector must implement the contract described below. |
-| Streaming-first architecture | **Prefer streaming over polling wherever RouterOS supports it.** Two streaming mechanisms exist: (1) `/listen` streams — event-driven, fires only when data changes (e.g. `/ip/arp/listen`); (2) `=interval=N` on print commands — RouterOS pushes a full snapshot every N seconds over a persistent channel (e.g. `/system/resource/print =interval=2`). Use `=interval=N` for any command that lacks a `/listen` variant but produces regular data (system resources, traffic counters, ping RTT, connection table). Polling via `setInterval` is a last resort only when neither mechanism is viable. When converting a collector to streaming, set `pollMs: 0` in the payload and show "Event-driven" in the Settings UI instead of a slider. |
+| Streaming-first architecture | **Prefer streaming over polling wherever RouterOS supports it.** Two streaming mechanisms exist: (1) `/listen` streams — event-driven, fires only when data changes (e.g. `/ip/arp/listen`); (2) `=interval=N` on print commands — RouterOS pushes a full snapshot every N seconds over a persistent channel (e.g. `/system/resource/print =interval=2`). Use `=interval=N` for any command that lacks a `/listen` variant but produces regular data (system resources, traffic counters, ping RTT, connection table). Polling via `setInterval` is a last resort only when neither mechanism is viable. When converting a collector to streaming, set `pollMs: 0` in the payload and show "Event-driven" in the Settings UI instead of a slider. Streaming is the default, not a mandate: since #105 each router can be switched to Poll mode via its `collection` block, so a `pollable` collector must implement both paths. |
 | Credentials never in plaintext | Router and dashboard passwords are AES-256-GCM encrypted in `settings.json` and masked in all API responses. |
 | Vendored assets are read-only | Never modify `public/vendor/` unless explicitly instructed. |
 
@@ -249,7 +249,14 @@ When RouterOS sends a packet for a tag that `node-routeros` has already cleaned 
 
 ## Collector pattern
 
-**Streaming-first:** always prefer a `/listen` stream over a poll interval when the RouterOS endpoint supports it. See the constraint table above. Use the polling pattern only when no stream is available.
+**Streaming-first, with a per-router opt-out:** always prefer a `/listen` stream over a poll interval
+when the RouterOS endpoint supports it. Streaming stays the default, but since #105 a router may be
+switched to Poll mode, may have individual collectors disabled, and may override any interval — all
+resolved by `resolveCollection()` in `src/collection.js` and applied in `buildSession()`. A collector
+marked `pollable` in the registry **must** implement both paths, and both must produce the identical
+`lastPayload` for the same rows. A disabled collector is replaced by `makeNullCollector(key)` rather
+than merely left unstarted, because 11 of the 16 open their streams from a `ros.on('connected')`
+handler in the constructor. See the constraint table above. Use the polling pattern only when no stream is available.
 
 ### Streaming collector pattern (preferred)
 

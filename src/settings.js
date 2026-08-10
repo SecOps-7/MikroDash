@@ -184,12 +184,9 @@ const DEFAULTS = {
   pageLogs:        true,
   pageBandwidth:   true,
 
-  // Collection method — true = stream (default), false = poll
-  streamSystem:  true,
-  streamPing:    true,
-  streamConns:   true,
-  streamTalkers: true,
-  streamIfrates: true,
+  // Set once by the #105 migration, then never read again.
+  collectionMigrated: false,
+
 
   // Database retention
   dbRetentionDays:      90,  // days to keep ping + traffic samples
@@ -264,6 +261,31 @@ const POLL_BOUNDS = Object.freeze({
   pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
   pollDhcp:[10000,600000],
 });
+
+/**
+ * Read raw values straight off disk for keys that are no longer in DEFAULTS.
+ *
+ * load() deliberately drops any stored key it does not recognise, which is right
+ * for live settings but makes a *retired* key invisible — and a migration whose
+ * whole job is to read a retired key would then be a silent no-op for exactly the
+ * installs that need it. Returns only the requested keys, and only when the
+ * stored value is a boolean, number or string.
+ */
+function readRetired(keys) {
+  _ensureDataDir();
+  let stored = {};
+  try {
+    stored = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+  } catch (_) {
+    return {};
+  }
+  const out = {};
+  for (const k of keys) {
+    const t = typeof stored[k];
+    if (t === 'boolean' || t === 'number' || t === 'string') out[k] = stored[k];
+  }
+  return out;
+}
 
 function load() {
   if (_cache) return _cache;
@@ -366,7 +388,6 @@ const VIEWER_FIELDS = [
   'activeRouterId',
   'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
   'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting',
-  'streamSystem', 'streamPing', 'streamConns', 'streamTalkers', 'streamIfrates',
   'displayTimezone',
 ];
 
@@ -378,4 +399,4 @@ function getViewerPublic() {
   return out;
 }
 
-module.exports = { load, save, getPublic, getViewerPublic, isMasked, DEFAULTS, POLL_BOUNDS };
+module.exports = { load, save, getPublic, getViewerPublic, isMasked, readRetired, DEFAULTS, POLL_BOUNDS };

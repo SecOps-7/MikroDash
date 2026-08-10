@@ -62,7 +62,8 @@ const ConnectionsCollector = require('./collectors/connections');
 const TopTalkersCollector  = require('./collectors/talkers');
 const LogsCollector        = require('./collectors/logs');
 const SystemCollector      = require('./collectors/system');
-const { resolveCollection, collectionFingerprint } = require('./collection');
+const { resolveCollection, collectionFingerprint, planMigration,
+        LEGACY_STREAM_KEYS } = require('./collection');
 const { makeNullCollector } = require('./collectors/nullCollector');
 const WirelessCollector    = require('./collectors/wireless');
 const VpnCollector         = require('./collectors/vpn');
@@ -410,7 +411,7 @@ function buildSession(routerCfg, routerIo) {
   const wireless     = _on('wireless', () => new WirelessCollector    ({ros, io:routerIo, pollMs:eff.poll.wireless, state, dhcpLeases, arp, streamMode:eff.stream.wireless}));
   const vpn          = _on('vpn', () => new VpnCollector         ({ros, io:routerIo, pollMs:eff.poll.vpn,      state, rid:routerCfg.id, streamMode:eff.stream.vpn}));
   const firewall     = _on('firewall', () => new FirewallCollector    ({ros, io:routerIo, pollMs:eff.poll.firewall,  state, streamMode:eff.stream.firewall}));
-  const ifStatus     = _on('ifStatus', () => new InterfaceStatusCollector({ros, io:routerIo, pollMs:eff.poll.ifStatus, metaPollMs:_cfg.pollIfaces, state, streamMode:eff.stream.ifStatus, alertsActive:_alertsActive}));
+  const ifStatus     = _on('ifStatus', () => new InterfaceStatusCollector({ros, io:routerIo, pollMs:eff.poll.ifStatus, metaPollMs:eff.poll.ifaces, state, streamMode:eff.stream.ifStatus, alertsActive:_alertsActive}));
   const ping         = _on('ping', () => new PingCollector        ({ros, io:routerIo, pollMs:eff.poll.ping,     state, target:PING_TARGET, streamMode:eff.stream.ping, alertsActive:_alertsActive}));
   const bandwidth    = _on('bandwidth', () => new BandwidthCollector   ({ros, io:routerIo, pollMs:eff.poll.bandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache}));
   const routing      = _on('routing', () => new RoutingCollector     ({ros, io:routerIo, pollMs:eff.poll.routing,  state, streamMode:eff.stream.routing}));
@@ -871,6 +872,29 @@ alertSessions.init(io);
 // Register before either pool syncs: both read the hook when they build a
 // session, so a hook set later would miss every router created at startup.
 alertSessions.setIdentityHook(_persistRouterIdentity);
+
+// One-shot migration for #105: stream-vs-poll used to be a global setting and is
+// now per-router. Without this, anyone running global Poll would silently revert
+// to Stream on upgrade. planMigration() decides; this just persists the result.
+(function _migrateCollectionMode() {
+  try {
+    const cfg = Settings.load();
+    if (cfg.collectionMigrated) return;
+    // The legacy stream* keys are no longer in DEFAULTS, so load() filters them
+    // out. They have to be read straight off disk or this sees nothing at all.
+    const legacy = Settings.readRetired(Object.keys(LEGACY_STREAM_KEYS));
+    const plan   = planMigration(legacy, Routers.loadAll());
+    for (const { id, collection } of plan) Routers.update(id, { collection });
+    if (plan.length) {
+      console.log('[MikroDash] migrated global collection method onto %d router(s) (#105)', plan.length);
+    }
+    Settings.save({ collectionMigrated: true });
+  } catch (e) {
+    console.warn('[MikroDash] collection migration skipped: %s', sanitizeErr(e));
+  }
+})();
+
+
 overviewSessions.setIdentityHook(_persistRouterIdentity);
 
 // Auto-migrate any deployment still on 'basic' mode.
@@ -1225,7 +1249,6 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
     const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
                         'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting',
                         'pingEnabled','rosDebug',
-                        'streamSystem','streamPing','streamConns','streamTalkers','streamIfrates',
                         'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure','ntfyEnabled',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
                         'notifRouterUpdate',
@@ -1258,12 +1281,18 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
     if (!s) {
       return res.json({ ok: true, requiresRestart: false });
     }
+    // A per-router interval override outranks the fleet default (#105). Without
+    // this the global save would silently un-pin whichever router the pool is
+    // currently serving, and the modal would then disagree with reality.
+    const _ovr    = (s.collection && s.collection.overrides) || {};
+    const _pinned = (key) => _ovr[key] !== undefined;
+
     const collectorMap = { conns:s.conns, talkers:s.talkers, system:s.system, wireless:s.wireless, vpn:s.vpn, firewall:s.firewall, ifStatus:s.ifStatus, ping:s.ping, arp:s.arp, dhcpNetworks:s.dhcpNetworks, bandwidth:s.bandwidth, routing:s.routing };
     const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks', pollRouting:'routing' };
     for (const [key, name] of Object.entries(pollMap)) {
-      if (key in updates) {
+      if (key in updates && !_pinned(key)) {
         const col = collectorMap[name];
         if (col) {
           const _p = Number.isFinite(Number(saved[key])) ? Math.trunc(Number(saved[key])) : col.pollMs;
@@ -1282,71 +1311,51 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
       }
     }
     // pollConns controls the /ip/firewall/connection/print stream interval
-    if ('pollConns' in updates && s.conns) {
+    if ('pollConns' in updates && !_pinned('pollConns') && s.conns) {
       s.conns.pollMs = saved.pollConns;
       s.conns._restartStream();
     }
 
     // pollPing controls the /tool/ping stream interval
-    if ('pollPing' in updates && s.ping) {
+    if ('pollPing' in updates && !_pinned('pollPing') && s.ping) {
       s.ping.pollMs = saved.pollPing;
       s.ping._restartStream();
     }
 
     // pollTalkers controls the kid-control stream interval
-    if ('pollTalkers' in updates && s.talkers) {
+    if ('pollTalkers' in updates && !_pinned('pollTalkers') && s.talkers) {
       s.talkers.pollMs = saved.pollTalkers;
       s.talkers._restartStream();
     }
 
     // pollSystem controls the ros.stream() interval — restart with new =interval=N
-    if ('pollSystem' in updates && s.system) {
+    if ('pollSystem' in updates && !_pinned('pollSystem') && s.system) {
       s.system.pollMs = saved.pollSystem;
       s.system._restartStream();
     }
 
     // pollIfstatus controls the emit timer + monitor-traffic stream interval
-    if ('pollIfstatus' in updates && s.ifStatus) {
+    if ('pollIfstatus' in updates && !_pinned('pollIfstatus') && s.ifStatus) {
       s.ifStatus.pollMs = saved.pollIfstatus;
       s.ifStatus._restartEmitTimer();
       s.ifStatus._restartMonitorStream();
     }
 
-    // streamMode toggles — stop collector, flip flag, restart with new mode
-    for (const [key, collector] of [
-      ['streamSystem',  s.system],
-      ['streamPing',    s.ping],
-      ['streamConns',   s.conns],
-      ['streamTalkers', s.talkers],
-      ['streamIfrates', s.ifStatus],
-    ]) {
-      if (key in updates && collector) {
-        collector.stop();
-        collector.streamMode = saved[key];
-        collector.start();
-        if (io.engine.clientsCount === 0 && typeof collector.suspend === 'function') {
-          collector.suspend();
-        } else if (typeof collector.resume === 'function') {
-          collector.resume();
-        }
-      }
-    }
-
     // pollIfaces controls the /interface/print + /ip/address/print stream interval
-    if ('pollIfaces' in updates && s.ifStatus) {
+    if ('pollIfaces' in updates && !_pinned('pollIfaces') && s.ifStatus) {
       s.ifStatus.metaPollMs = saved.pollIfaces;
       s.ifStatus._restartMetaStreams();
     }
 
     // pollFirewall controls the table stream interval — restart it live
-    if ('pollFirewall' in updates && s.firewall) {
+    if ('pollFirewall' in updates && !_pinned('pollFirewall') && s.firewall) {
       s.firewall.pollMs = saved.pollFirewall;
       s.firewall._stopTableStream();
       s.firewall._startTableStream(s.firewall._activeTable);
     }
 
     // pollVpn controls the VPN counter stream interval — restart it live
-    if ('pollVpn' in updates && s.vpn) {
+    if ('pollVpn' in updates && !_pinned('pollVpn') && s.vpn) {
       s.vpn.pollMs = saved.pollVpn;
       s.vpn._stopCounterStream();
       s.vpn._startCounterStream();

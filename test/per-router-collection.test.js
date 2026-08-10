@@ -11,6 +11,8 @@ const assert = require('node:assert');
 const {
   COLLECTORS, DISABLEABLE, MODES, DEFAULT_MODE,
   resolveCollection, collectionFingerprint,
+  planMigration,
+  LEGACY_STREAM_KEYS,
 } = require('../src/collection');
 
 // A realistic subset of Settings.load() output.
@@ -357,4 +359,181 @@ test('poll loop reads its delay per tick so an interval change applies live', as
   await new Promise(r => setTimeout(r, 1500));
   loop.stop();
   assert.ok(runs - slow <= 1, 'a longer interval must take effect without a restart');
+});
+
+// ─── Phase 7: retiring the app-global Collection Method ─────────────────────
+//
+// Stream-vs-poll used to be five app-global settings. They are now per-router,
+// which means an install that had switched the fleet to Poll must not silently
+// revert to Stream on upgrade — and the old control must be gone, not merely
+// hidden, or two half-wired controls would disagree.
+
+test('the global Collection Method control is fully removed, not just hidden', () => {
+  const fs   = require('fs');
+  const path = require('path');
+  const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
+
+  const html = read('public', 'index.html');
+  assert.ok(!html.includes('Collection Method'), 'the global Collection Method card still exists');
+  assert.deepEqual(html.match(/s_stream[A-Za-z]+/g), null, 'stream* inputs remain in the settings page');
+
+  const app = read('public', 'app.js');
+  assert.deepEqual(app.match(/'stream(System|Ping|Conns|Talkers|Ifrates)'/g), null,
+    'app.js still reads or writes the retired global stream* settings');
+
+  // Settings must no longer offer them: a stale key in DEFAULTS would be echoed
+  // back by getPublic() and re-saved forever, and one in the allowlist would let
+  // a hand-crafted POST resurrect a setting nothing reads.
+  const settings = read('src', 'settings.js');
+  assert.deepEqual(settings.match(/^\s*stream\w+:/gm), null, 'stream* keys remain in Settings.DEFAULTS');
+
+  const Settings = require('../src/settings');
+  for (const k of ['streamSystem', 'streamPing', 'streamConns', 'streamTalkers', 'streamIfrates']) {
+    assert.ok(!(k in Settings.DEFAULTS), `${k} is still a settings default`);
+  }
+});
+
+test('resolveCollection ignores leftover global stream* keys', () => {
+  // An upgraded /data/settings.json still physically contains the old keys.
+  // They must have no effect, or a router would be stuck in whatever mode the
+  // retired global control was last left in.
+  const legacy = { ...GLOBAL, streamSystem: false, streamPing: false, streamConns: false,
+                   streamTalkers: false, streamIfrates: false };
+  const eff = resolveCollection(legacy, { id: 'r1' });
+  assert.equal(eff.mode, 'stream', 'default mode must not be inferred from the legacy globals');
+  for (const k of ['system', 'ping', 'conns', 'talkers', 'ifStatus']) {
+    assert.equal(eff.stream[k], true, `${k} must stream by default despite the legacy global`);
+  }
+});
+
+test('resolveCollection reports which intervals are pinned', () => {
+  // The settings live-patch needs to distinguish inherited from pinned, so it can
+  // leave a pinned router alone instead of dragging it to the new fleet default.
+  const eff = resolveCollection(GLOBAL, { id: 'r1', collection: { overrides: { pollSystem: 15000 } } });
+  assert.equal(eff.overrides.pollSystem, 15000);
+  assert.equal(eff.overrides.pollConns, undefined, 'an inherited key must not appear as pinned');
+  assert.equal(eff.poll.conns, GLOBAL.pollConns, 'inherited value still resolves from the globals');
+});
+
+test('the settings live-patch skips pinned intervals', () => {
+  // Source guard: every `'pollX' in updates` branch in the POST /api/settings
+  // handler must also test _pinned('pollX'). Missing one silently un-pins a
+  // router the moment anyone saves global settings.
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const unguarded = [];
+  const re = /if \('(poll[A-Za-z]+)' in updates && (?!!_pinned)/g;
+  let m;
+  while ((m = re.exec(src))) unguarded.push(m[1]);
+  assert.deepEqual(unguarded, [],
+    'these interval branches would overwrite a per-router override:\n  ' + unguarded.join(', '));
+});
+
+test('overviewSessions no longer hardcodes a 1 s interval', () => {
+  // Every router NOT served by the main pool got polled at 1 s whenever the
+  // Routers page was open — harder than the active router itself.
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'src', 'overviewSessions.js'), 'utf8');
+  assert.ok(!/const\s+pollMs\s*=\s*1000/.test(src), 'the hardcoded 1 s interval is back');
+  assert.ok(src.includes('resolveCollection'), 'overviewSessions must resolve per-router config');
+  assert.ok(src.includes('makeNullCollector'),
+    'a disabled collector must be stubbed, not constructed — its constructor opens streams');
+});
+
+test('planMigration maps the retired global mode onto routers', () => {
+  const off = { streamSystem: false, streamPing: false, streamConns: false,
+                streamTalkers: false, streamIfrates: false };
+  const on  = { streamSystem: true,  streamPing: true,  streamConns: true,
+                streamTalkers: true,  streamIfrates: true };
+
+  // All-off was the whole point of the old control: it must survive the upgrade.
+  assert.deepEqual(planMigration(off, [{ id: 'a' }, { id: 'b' }]), [
+    { id: 'a', collection: { mode: 'poll' } },
+    { id: 'b', collection: { mode: 'poll' } },
+  ]);
+
+  // All-on is already the default, so writing anything would be noise.
+  assert.deepEqual(planMigration(on, [{ id: 'a' }]), []);
+
+  // Mixed keeps streaming and records only the exceptions.
+  assert.deepEqual(planMigration({ ...on, streamPing: false }, [{ id: 'a' }]),
+    [{ id: 'a', collection: { mode: 'stream', overrides: { streamPing: false } } }]);
+
+  // A router that already made its own choice is never overwritten.
+  assert.deepEqual(planMigration(off, [{ id: 'a', collection: { mode: 'stream' } }]), []);
+
+  // A fresh install has no legacy keys at all.
+  assert.deepEqual(planMigration({}, [{ id: 'a' }]), []);
+  assert.deepEqual(planMigration(null, null), []);
+});
+
+test('the migrated mode actually resolves through routers.js and resolveCollection', () => {
+  // End to end: planMigration output must survive _normalizeCollection (which
+  // rejects anything it does not recognise) and come back out as poll mode.
+  // freshRouters() takes the tmp dir: calling it bare sets DATA_DIR to the string
+  // "undefined" and scatters an ./undefined/ directory into the repo.
+  const Routers = freshRouters(makeTmpDir());
+  const r = Routers.add({ label: 'ac2', host: '10.0.0.1', username: 'u', password: 'p' });
+  const [{ id, collection }] = planMigration(
+    { streamSystem: false, streamPing: false, streamConns: false,
+      streamTalkers: false, streamIfrates: false }, [r]);
+  Routers.update(id, { collection });
+
+  const eff = resolveCollection(GLOBAL, Routers.getById(id));
+  assert.equal(eff.mode, 'poll');
+  assert.equal(eff.stream.conns, false, 'poll mode must reach the collectors');
+  assert.equal(eff.stream.traffic, true, 'traffic stays streamed even in poll mode');
+});
+
+test('the migration can still read the retired keys after they left DEFAULTS', () => {
+  // The trap this catches: load() drops any stored key that is not in DEFAULTS.
+  // Removing stream* from DEFAULTS therefore made them invisible to load(), which
+  // would have turned the migration into a silent no-op for exactly the installs
+  // it exists for — every upgraded Poll-mode user reverting to Stream on restart.
+  const fs   = require('fs');
+  const os   = require('os');
+  const path = require('path');
+  const dir  = fs.mkdtempSync(path.join(os.tmpdir(), 'md-retired-'));
+  const prev = process.env.DATA_DIR;
+  process.env.DATA_DIR = dir;
+  for (const k of Object.keys(require.cache)) if (/src[\\/](settings|routers)\.js$/.test(k)) delete require.cache[k];
+
+  try {
+    // An upgraded install: the file on disk still carries the old global Poll choice.
+    fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({
+      streamSystem: false, streamPing: false, streamConns: false,
+      streamTalkers: false, streamIfrates: false, pollSystem: 2000,
+    }));
+    const Settings = require('../src/settings');
+
+    // load() cannot see them — that is correct behaviour, and the reason readRetired exists.
+    assert.equal(Settings.load().streamSystem, undefined,
+      'load() should filter unknown keys; if this fails the keys were never really retired');
+
+    const legacy = Settings.readRetired(Object.keys(LEGACY_STREAM_KEYS));
+    assert.deepEqual(legacy, {
+      streamSystem: false, streamPing: false, streamConns: false,
+      streamTalkers: false, streamIfrates: false,
+    });
+    assert.deepEqual(planMigration(legacy, [{ id: 'a' }]),
+      [{ id: 'a', collection: { mode: 'poll' } }]);
+
+    // A missing or corrupt file must not throw during startup.
+    fs.writeFileSync(path.join(dir, 'settings.json'), 'not json');
+    assert.deepEqual(Settings.readRetired(['streamPing']), {});
+
+    // And index.js must actually take that path — reading the migration input
+    // from load() would compile, pass every other test, and quietly do nothing.
+    const idx = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+    const mig = idx.slice(idx.indexOf('_migrateCollectionMode'),
+                          idx.indexOf('_migrateCollectionMode') + 900);
+    assert.ok(mig.includes('readRetired'),
+      'the startup migration must read the retired keys off disk, not via load()');
+    assert.ok(!/planMigration\(cfg\b/.test(mig),
+      'planMigration must not be fed the filtered load() result');
+  } finally {
+    if (prev === undefined) delete process.env.DATA_DIR; else process.env.DATA_DIR = prev;
+    for (const k of Object.keys(require.cache)) if (/src[\\/](settings|routers)\.js$/.test(k)) delete require.cache[k];
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
