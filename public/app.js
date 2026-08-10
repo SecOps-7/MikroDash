@@ -2437,6 +2437,39 @@ var COLLECTOR_CARDS = {
   routing: ["routingProtoCard", "routingBgpCard", "routingPeersCard", "routingRoutesCard"],
   netwatch: ["netwatchCard"],
 };
+// Every dashboard card that renders rows, mapped to the tbody holding them.
+// Switching routers used to clear each card's in-memory guard piecemeal (see the
+// router:switching handlers further down) but never the rendered rows, so a card
+// kept showing the PREVIOUS router's data until the new one produced its first
+// payload — indefinitely if that collector is disabled or slow. Top Talkers was
+// the visible case; the same was true of eight others.
+//
+// A source guard in test/per-router-collection.test.js checks this list against
+// the collector registry, so a card added later cannot quietly be left behind.
+var _DASH_CARD_TABLES = {
+  bandwidthCard:     'bwTbody',
+  talkersCard:       'talkersTable',
+  ifStatusCard:      'ifaceListBody',
+  wirelessCard:      'wirelessTable',
+  vpnCard:           'vpnTable',
+  firewallCard:      'firewallTable',
+  routingPeersCard:  'rtTbody',
+  routingRoutesCard: 'rtRoutesTbody',
+  netwatchCard:      'netwatchTable',
+};
+
+// Blank every rendered row on the dashboard. Called while the switching overlay
+// is up, so the empty state is never visible; the new router's first payload
+// repopulates each card.
+function clearDashboardData() {
+  Object.keys(_DASH_CARD_TABLES).forEach(function (cardId) {
+    var body = $(_DASH_CARD_TABLES[cardId]);
+    if (body) body.innerHTML = '';
+  });
+}
+
+socket.on('router:switching', function () { clearDashboardData(); });
+
 var _collectionOff = {};      // cardId -> true when its collector is off here
 function _collectionOffCard(cardId){ return !!_collectionOff[cardId]; }
 

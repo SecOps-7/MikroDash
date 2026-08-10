@@ -993,3 +993,47 @@ test('the ifStatus payload actually carries the router id', () => {
     'the emitted payload must carry it too, not just lastPayload');
   c.stop();
 });
+
+test('every dashboard card that renders rows is cleared on a router switch', () => {
+  // Switching routers cleared each card's in-memory guard but not its rendered
+  // rows, so a card kept showing the PREVIOUS router's data until the new one
+  // produced a payload — forever if that collector is disabled. Top Talkers was
+  // the reported case; this guard covers the whole class by checking the clear
+  // list against the markup rather than against a hand-written expectation.
+  const fs   = require('fs');
+  const path = require('path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  const app  = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  const listed = {};
+  const block = app.slice(app.indexOf('var _DASH_CARD_TABLES'), app.indexOf('function clearDashboardData'));
+  for (const m of block.matchAll(/(\w+):\s*'(\w+)'/g)) listed[m[1]] = m[2];
+  assert.ok(Object.keys(listed).length > 0, '_DASH_CARD_TABLES did not parse');
+
+  // Walk each registry card in the markup and find the tbody it owns.
+  const tag = /<div\b|<\/div>/g;
+  for (const c of COLLECTORS) {
+    for (const cardId of c.cards) {
+      const m = new RegExp('<div[^>]*id="' + cardId + '"').exec(html);
+      if (!m) continue;
+      let depth = 0, j = m.index, end = -1;
+      tag.lastIndex = j;
+      let t;
+      while ((t = tag.exec(html))) {
+        if (t[0] === '</div>') { depth--; if (depth === 0) { end = t.index + 6; break; } }
+        else depth++;
+      }
+      if (end === -1) continue;
+      const seg  = html.slice(m.index, end);
+      const body = /<tbody[^>]*id="([A-Za-z0-9_]+)"/.exec(seg);
+      if (!body) continue;                       // chart/stat-only card
+      assert.equal(listed[cardId], body[1],
+        cardId + ' renders rows into <tbody id="' + body[1] + '"> but is not cleared on ' +
+        'router:switching — it will keep showing the previous router\'s data');
+    }
+  }
+
+  // ...and the clear must actually be wired to the switch.
+  assert.ok(/socket\.on\('router:switching', function \(\) \{ clearDashboardData\(\); \}\)/.test(app),
+    'clearDashboardData() is never called on router:switching');
+});
