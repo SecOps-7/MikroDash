@@ -13,9 +13,6 @@
  *  4. Channel.js   — accumulate multi-block !done responses (wifi-qcom devices
  *                    send one !done per interface; without this patch only the
  *                    first interface's clients are returned)
- *  6. Receiver.js  — correct sentence reassembly across TCP segment boundaries
- *                    (dropped packets and mis-framed words under concurrent
- *                    streams; see #104)
  */
 
 'use strict';
@@ -194,94 +191,6 @@ patch(
   }
   fs.writeFileSync(channelPath, src.replace(find, replace), 'utf8');
   console.log('[patch] MULTI_BLOCK_V2 — applied');
-})();
-
-// ---------------------------------------------------------------------------
-// Patch 6 — Receiver.js: correct sentence reassembly across TCP segment
-// boundaries.
-//
-// Two independent defects in processRawData() corrupted the stream whenever a
-// reply was split across TCP segments, which happens constantly once several
-// tagged streams share one connection and is why this only bit visibly on a
-// slower router (MikroDash #104).
-//
-//  a) hadMore was computed as `data.length !== this.dataLength` inside the
-//     branch that has just consumed the ENTIRE segment, where dataLength is 0.
-//     It therefore reported "there is more data" for any non-empty segment, so
-//     a sentence whose last word ended exactly on a segment boundary was never
-//     dispatched to its tag. Correct value there is false.
-//
-//  b) A length descriptor split across segments was mishandled. decodeLength()
-//     reads up to 5 bytes via data[idx++]; past the end that yields undefined
-//     and the length becomes NaN. The >dataLength branch stashed the fragment
-//     but then carried on with the NaN length, and the fresh-word branch had no
-//     guard at all, silently discarding the partial descriptor so the stream
-//     resynchronised at the wrong offset. Both now stash and stop.
-//
-// Verified with a deterministic harness: feeding a 20 KB multi-sentence stream
-// (1, 2 and 3 byte length descriptors) through 400 random chunkings plus a
-// byte-at-a-time feed corrupts 52 of 400 unpatched and 0 of 400 patched.
-(function patchReceiverReassembly() {
-  const recvPath = path.join(BASE, 'connector', 'Receiver.js');
-  if (!fs.existsSync(recvPath)) {
-    console.warn('[patch] RECV_REASSEMBLY — Receiver.js not found');
-    return;
-  }
-  let src = fs.readFileSync(recvPath, 'utf8');
-  if (src.includes('MIKRODASH_PATCHED_RECV_REASSEMBLY')) {
-    console.log('[patch] RECV_REASSEMBLY — already applied, skipping');
-    return;
-  }
-
-  const edits = [
-    { // (a) hadMore on a fully-consumed segment
-      find: `                        this.sentencePipe.push({
-                            sentence: this.currentLine,
-                            hadMore: data.length !== this.dataLength,
-                        });`,
-      replace: `                        // MIKRODASH_PATCHED_RECV_REASSEMBLY
-                        this.sentencePipe.push({
-                            sentence: this.currentLine,
-                            hadMore: false,
-                        });` },
-    { // (b1) split descriptor in the >dataLength branch
-      find: `                    if (descriptor_length > data.length) {
-                        this.lengthDescriptorSegment = data;
-                    }
-                    // Save this as our next desired length
-                    this.dataLength = length;`,
-      replace: `                    if (descriptor_length > data.length) {
-                        this.lengthDescriptorSegment = data;
-                        this.dataLength = 0;
-                        this.sentencePipe.push({ sentence: line, hadMore: true });
-                        this.processSentence();
-                        break;
-                    }
-                    // Save this as our next desired length
-                    this.dataLength = length;` },
-    { // (b2) split descriptor at the start of a fresh word
-      find: `                const [descriptor_length, length] = this.decodeLength(data);
-                // store how long our data is
-                this.dataLength = length;`,
-      replace: `                const [descriptor_length, length] = this.decodeLength(data);
-                if (descriptor_length > data.length) {
-                    this.lengthDescriptorSegment = data;
-                    this.dataLength = 0;
-                    break;
-                }
-                // store how long our data is
-                this.dataLength = length;` },
-  ];
-
-  for (const { find, replace } of edits) {
-    if (!src.includes(find)) {
-      console.warn('[patch] RECV_REASSEMBLY — a target was not found, aborting this patch');
-      return;
-    }
-    src = src.replace(find, replace);
-  }
-  fs.writeFileSync(recvPath, src, 'utf8');
-  console.log('[patch] RECV_REASSEMBLY — applied');
 })();
 
 console.log('[patch] Done.');
