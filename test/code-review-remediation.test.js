@@ -731,3 +731,53 @@ test('the console timestamp patch merges into the caller format string', () => {
   assert.ok(!/console\[level\] = \(\.\.\.args\) => orig\(`\[\$\{ts\(\)\}\]`, \.\.\.args\)/.test(patch),
     'the old shape (timestamp as a separate leading argument) must not return');
 });
+
+// ── Source guard: routers.js add() and update() must stay in step ─────────────
+// update() rebuilds a record field by field over ...existing. A field written by
+// add() but not enumerated in update() survives on disk yet is silently ignored
+// on every edit, which is how notifRouterUpdate was lost from the settings
+// allowlist. `collection` (#105) is exactly such a field. This catches the whole
+// class rather than that one instance.
+test('every field routers.add() writes is also handled by routers.update()', () => {
+  const fs   = require('fs');
+  const path = require('path');
+  const src  = fs.readFileSync(path.join(__dirname, '..', 'src', 'routers.js'), 'utf8');
+
+  const body = (fnName, literalVar) => {
+    const at = src.indexOf('function ' + fnName + '(');
+    assert.ok(at > -1, fnName + ' not found');
+    const decl = new RegExp('const\\s+' + literalVar + '\\s*=\\s*\\{');
+    const rel  = src.slice(at).search(decl);
+    assert.ok(rel > -1, literalVar + ' literal not found in ' + fnName);
+    const start = at + rel;
+    // Read to the closing brace of the object literal, tracking depth.
+    let depth = 0, i = src.indexOf('{', start);
+    const from = i;
+    for (; i < src.length; i++) {
+      if (src[i] === '{') depth++;
+      else if (src[i] === '}') { depth--; if (depth === 0) break; }
+    }
+    return src.slice(from, i + 1);
+  };
+
+  const keysOf = (text) => {
+    const out = new Set();
+    // Only top-level `key:` at the literal's own indentation.
+    for (const m of text.matchAll(/^\s{4}([A-Za-z_][A-Za-z0-9_]*)\s*:/gm)) out.add(m[1]);
+    return out;
+  };
+
+  const addKeys    = keysOf(body('add', 'entry'));
+  const updateKeys = keysOf(body('update', 'updated'));
+
+  // Legitimately add-only: identity is generated once, and password has its own
+  // conditional branch in update() rather than a line in the literal.
+  const ADD_ONLY = new Set(['id', 'addedAt', 'password']);
+
+  const missing = [...addKeys].filter(k => !ADD_ONLY.has(k) && !updateKeys.has(k)).sort();
+  assert.deepEqual(missing, [],
+    'these fields are written by add() but ignored by update(), so editing a router drops them:\n  '
+    + missing.join('\n  '));
+  assert.ok(addKeys.has('collection') && updateKeys.has('collection'),
+    'the guard itself must be exercising the collection field');
+});
