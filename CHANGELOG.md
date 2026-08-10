@@ -2,6 +2,74 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.0] — Per-router collection settings, and the poll path made real
+
+Stream-vs-poll and collector enablement used to live once in `settings.json` and apply to every
+router. A hAP ax3 runs all 16 collectors happily; a hAP ac2 acting as an access point received the
+same ~17 concurrent streams for data it does not have, and the only way to calm one router was to
+slow every router. Both now live on each router.
+
+Measured on the ac2, not assumed: cutting the stream count took `traffic:update` from 28 to 93
+events per 120 s. The evidence points at concurrent open channels rather than data volume, which is
+why every pollable collector now ships both paths.
+
+### Added
+
+- **Per-router collection settings**, in the Add/Edit Router modal: a Stream/Poll master switch,
+  enable/disable for 11 collectors, and interval overrides. Changing any of them rebuilds that one
+  router's session; a label-only edit costs nothing.
+- **Poll paths for eight more collectors** — arp, dhcpLeases, dhcpNetworks, firewall, netwatch,
+  routing, vpn, wireless — so Poll genuinely means poll. Logs and the traffic graph stay streamed by
+  design: polling `/log/print` drops entries between polls, and 1 s `monitor-traffic` polling is
+  worse than one stream.
+- **A neutral "collection disabled" scrim** on cards whose collector is switched off, so a disabled
+  card no longer dims and reads as a fault.
+- **RouterOS API keepalive**, which stops non-active routers reconnecting every ~17 s (#107).
+- **Persistent stream failure is now reported** on the affected card instead of being restarted
+  silently forever (#106).
+
+### Changed
+
+- **The global Collection Method setting is gone.** A one-shot migration maps the old global choice
+  onto each router first, so an install running global Poll does not revert to Stream on upgrade.
+  Global Poll Intervals stay as the fleet-wide default that per-router values override.
+- **Settings always opens on the Routers tab** rather than restoring the last tab used.
+- **The router Add/Edit modal is two columns** and no longer scrolls on a normal desktop window.
+- **Streaming-first is reframed, not abandoned** — streaming remains the default; per-router polling
+  is a supported escape hatch for constrained hardware.
+
+### Fixed
+
+- **Interface rates never updated in poll mode.** The poll filtered interfaces with
+  `!iface.disabled`, but RouterOS sends `disabled` as the string `"false"` — truthy — so every
+  interface was excluded and all rates sat at 0.00.
+- **Ping and Top Talkers died permanently in poll mode** the first time every viewer disconnected:
+  `suspend()` cleared the poll timer and `resume()` restarted only the stream.
+- **Connections went silent when switching routers.** `resume()` runs before `start()` sets
+  `_started`, so poll mode scheduled nothing. Stream mode hid this because its watchdog resurrects
+  the stream; poll mode has no watchdog by design.
+- **Page-gated cards were blank for a full interval** on every visit — 30 s for Wireless — because a
+  poll loop armed its first timer an interval ahead instead of polling immediately.
+- **A router's update info stayed blank after switching to it**, for up to `updateCheckHours`. The
+  check's rate-limit slot is shared per router, so background sessions consumed the window and threw
+  the answer away.
+- **Dashboard cards kept the previous router's rows** after a switch. Nine cards were affected; Top
+  Talkers was the visible one.
+- **False bell notifications on switch.** The browser runs its own alert detectors, and they ignored
+  each router's Alert Monitoring setting; `ifstatus:update` also carried no router id, so a late
+  in-flight update from the outgoing router read as interfaces going down and back up.
+- **A wireless collector could latch onto a command tree the board does not have** and never
+  recover — a wifi-only board with its radios disabled answers empty, not with an error.
+- **A settings save no longer overwrites a per-router interval override.**
+- **The Routers page no longer polls every non-active router at 1 s** regardless of configuration.
+
+### Notes for upgraders
+
+The five `stream*` keys are removed from `settings.json`. The migration runs once at startup and
+writes an equivalent `collection` block onto any router that needs one, so no action is required.
+Per-router settings live in `/data/routers.json`; a router with no `collection` block streams, which
+is the previous default.
+
 ## [0.6.1] — Settings layout, accessibility, and router identity columns
 
 The Settings page used to sit in a 720 px column in the middle of the window, and it had grown long enough that finding anything meant scrolling past everything else. It now uses the full width. Alongside that: a keyboard-accessibility pass over the whole UI, and three new columns in the Routers table.
