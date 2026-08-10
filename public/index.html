@@ -477,12 +477,22 @@
     /* ── Router modal & management ─────────────────────────────── */
     .rtr-modal-bg{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
     .rtr-modal-bg.open{display:flex}
-    .rtr-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:min(520px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+    .rtr-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:min(960px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 16px 40px rgba(0,0,0,.5)}
     .rtr-modal-hdr{padding:.9rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
     .rtr-modal-title{font-size:.82rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em}
     .rtr-modal-close{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;padding:.2rem .4rem;border-radius:4px;line-height:1}
     .rtr-modal-close:hover{color:var(--text-main)}
     .rtr-modal-body{padding:1rem 1.1rem}
+    /* The router form is ten field groups deep, which made a 520px modal a long
+       scroll on every edit. Above 900px it splits into two columns — connection
+       settings left, monitoring and collection right — so the whole form fits
+       without scrolling. Below that it falls back to the original single column,
+       where a narrow screen has no side space to fill anyway. */
+    .rtr-modal-col{min-width:0}
+    @media(min-width:900px){
+      .rtr-modal-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.5rem;align-items:start}
+      .rtr-modal-col+.rtr-modal-col{border-left:1px solid var(--border);padding-left:1.5rem}
+    }
     .rtr-modal-footer{padding:.75rem 1.1rem;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:.5rem}
     .rtr-test-result{font-size:.72rem;padding:.3rem .6rem;border-radius:5px;margin-right:auto}
     .rtr-test-result.ok{color:rgba(52,211,153,.9);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2)}
@@ -3651,6 +3661,7 @@
       </div>
       <div class="rtr-modal-body">
         <input type="hidden" id="rtrModalId">
+        <div class="rtr-modal-col">
         <div class="sform-group">
           <label class="sform-label">Display Name</label>
           <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
@@ -3720,14 +3731,14 @@
             </div>
           </div>
         </div>
-        <div class="sform-row sform-group" style="margin-bottom:.6rem">
+                <div class="sform-row sform-group" style="margin-bottom:.6rem">
           <label class="stoggle">
             <span class="stoggle-label">Alert Monitoring</span>
             <span class="stoggle-switch"><input type="checkbox" id="rtrModalAlertsEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
           </label>
           <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Open a background connection for push alerts even when this router is not the active view.</p>
         </div>
-        <div class="sform-group" style="margin-bottom:.6rem">
+<div class="sform-group" style="margin-bottom:.6rem">
           <label class="sform-label" for="rtrModalDownThresh">Offline threshold</label>
           <div style="display:flex;align-items:center;gap:.5rem">
             <input class="sform-input" id="rtrModalDownThresh" type="number" min="0" max="300" step="1" value="30" style="width:5rem">
@@ -3735,6 +3746,8 @@
           </div>
           <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Status badge and alerts only change after the router has been unreachable for this long. Set to 0 to react immediately.</p>
         </div>
+        
+        </div><div class="rtr-modal-col">
 
         <!-- Collection (#105) — per-router, because a fleet is not uniform.
              An access point has no routed traffic and no Kid Control devices,
@@ -3771,6 +3784,7 @@
             Turning off Interface Rates also stops interface up/down alerts; turning off Ping also
             stops ping-loss alerts. Saving briefly reconnects this router.
           </p>
+        </div>
         </div>
       </div>
       <div class="rtr-modal-footer">
