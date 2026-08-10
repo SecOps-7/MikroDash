@@ -101,18 +101,22 @@ function createStreamHealth({ degradeAfter = 3, healthyMs = 60000 } = {}) {
  *   getDelayMs() read per tick, so an interval change applies without a restart.
  */
 function createPollLoop(run, getDelayMs) {
-  let timer = null, inflight = false, stopped = true;
+  let timer = null, inflight = false, stopped = true, lastRun = 0;
 
-  const schedule = () => {
-    if (timer || stopped) return;
+  const delayMs = () => {
     const raw = Number(getDelayMs()) || 1000;
-    timer = setTimeout(tick, Math.max(500, Math.min(600000, raw)));
+    return Math.max(500, Math.min(600000, raw));
+  };
+  const schedule = (ms) => {
+    if (timer || stopped) return;
+    timer = setTimeout(tick, ms === undefined ? delayMs() : ms);
   };
   const tick = async () => {
     timer = null;
     if (stopped) return;
     if (!inflight) {
       inflight = true;
+      lastRun = Date.now();
       try { await run(); } catch (_) { /* caller reports; never kill the loop */ }
       finally { inflight = false; }
     }
@@ -120,7 +124,22 @@ function createPollLoop(run, getDelayMs) {
   };
 
   return {
-    start() { if (!stopped) return; stopped = false; schedule(); },
+    // Poll as soon as delivery starts rather than one whole interval later. A
+    // streamed `print =interval=N` hands back its first batch immediately, so the
+    // old behaviour left every page-gated poll collector blank for a full period
+    // on each visit — 30 s for wireless, which is exactly what "the wireless table
+    // is empty" looked like.
+    //
+    // Still bounded: poll mode exists to be gentle on small hardware, and page
+    // navigation calls suspend()/resume() freely, so a restart inside the current
+    // interval waits out the remainder instead of firing another request.
+    start() {
+      if (!stopped) return;
+      stopped = false;
+      const since = Date.now() - lastRun;
+      const wait  = delayMs();
+      schedule(since >= wait ? 0 : wait - since);
+    },
     stop()  { stopped = true; if (timer) { clearTimeout(timer); timer = null; } },
     get running() { return !stopped; },
     get pending() { return timer !== null; },

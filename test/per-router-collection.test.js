@@ -870,3 +870,41 @@ test('a router mis-latched onto the legacy API heals itself', async () => {
     'and it must actually poll wifi afterwards');
   c.stop();
 });
+
+test('a poll loop delivers immediately on start, not one interval later', async () => {
+  // Why the Wireless page sat blank for ~30 s in poll mode. start() only armed a
+  // setTimeout for a full interval, so the first data arrived one whole poll
+  // period after delivery began — and because wireless is page-gated, that
+  // happened on every visit to the page. Streaming never showed this: a RouterOS
+  // `print =interval=N` returns its first batch immediately and then every N.
+  const { createPollLoop } = require('../src/collectors/util');
+  let runs = 0;
+  const loop = createPollLoop(async () => { runs++; }, () => 30000);
+
+  loop.start();
+  await new Promise(r => setTimeout(r, 150));
+  assert.equal(runs, 1, 'the first poll must happen straight away, not after 30 s');
+  loop.stop();
+});
+
+test('restarting a poll loop does not re-poll inside its own interval', async () => {
+  // Poll mode exists to be gentle on small hardware, so an eager first tick must
+  // not become a way to hammer a router: flipping between pages calls
+  // suspend()/resume() repeatedly, and each resume would otherwise fire a fresh
+  // request no matter how recently one ran.
+  const { createPollLoop } = require('../src/collectors/util');
+  let runs = 0;
+  const loop = createPollLoop(async () => { runs++; }, () => 5000);
+
+  loop.start();
+  await new Promise(r => setTimeout(r, 100));
+  assert.equal(runs, 1);
+
+  for (let i = 0; i < 4; i++) {           // four rapid page flips
+    loop.stop();
+    loop.start();
+    await new Promise(r => setTimeout(r, 60));
+  }
+  assert.equal(runs, 1, 'still one poll — the interval has not elapsed yet');
+  loop.stop();
+});
