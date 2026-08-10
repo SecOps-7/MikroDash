@@ -628,6 +628,9 @@ async function startCollectors(session, entry) {
 
     entry.startupReady = true;
     console.log('[MikroDash] All collectors running');
+    if (entry.routerIo) {
+      entry.routerIo.emit('collection:config', _collectionPayload(session.routerId, session));
+    }
 
     // If no sockets are in this router's room, suspend high-frequency streams.
     const routerRoom = io.sockets.adapter.rooms.get('router-' + session.routerId);
@@ -827,6 +830,24 @@ function _persistRouterIdentity(routerId, identity) {
   } catch (e) {
     console.warn('[MikroDash] could not persist router identity:', sanitizeErr(e));
   }
+}
+
+// Tell the client which collectors are off for a router, and how it delivers
+// (#105). Router-scoped on purpose: settings:pages is a global io.emit with no
+// router id, so it structurally cannot express this. Without it the client marks
+// a deliberately-disabled card as stale, which reads as a fault.
+function _collectionPayload(routerId, session) {
+  const eff = (session && session.collection)
+    || resolveCollection(Settings.load(), Routers.getById(routerId) || {});
+  return {
+    routerId,
+    mode:    eff.mode,
+    enabled: eff.enabled,
+    stream:  eff.stream,
+    poll:    eff.poll,
+    // Keys the user cannot turn off, so the UI never offers them.
+    off:     Object.keys(eff.enabled).filter(k => !eff.enabled[k]),
+  };
 }
 
 // Broadcast updated router list to every connected socket, filtered per-user.
@@ -2443,6 +2464,10 @@ async function sendInitialState(socket, entry) {
 
   const s = entry.session;
   const _ps = Settings.load(); // single load — used for routers, settings:pages, pingEnabled
+
+  // Before any replay: a card for a disabled collector must be marked as such
+  // before it would otherwise start its stale countdown.
+  socket.emit('collection:config', _collectionPayload(entry.session.routerId, entry.session));
 
   socket.emit('traffic:history', {
     ifName: s.DEFAULT_IF,

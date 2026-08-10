@@ -2372,7 +2372,9 @@ socket.on('connect',function(){
   // Cards where the server has no lastPayload (e.g. fresh session after a restart)
   // would otherwise expire against a stale timer set in the previous session.
   staleConfig.forEach(function(cfg){
-    staleTimers[cfg.cardId]=Date.now();
+    // A card whose collector is switched off for this router must not be
+    // re-armed: the sweep guards on last>0, so 0 keeps it quiet (#105).
+    staleTimers[cfg.cardId]=_collectionOffCard(cfg.cardId)?0:Date.now();
     var card=$(cfg.cardId);if(card)card.classList.remove('is-stale');
   });
   staleTimers['trafficCard']=Date.now();
@@ -2418,6 +2420,51 @@ socket.on('ros:status', function(data){
 // ── Stale detection ────────────────────────────────────────────────────────
 // Grace period added on top of pollMs before a card is considered stale.
 // traffic:update is fixed at 1 s so its threshold is also fixed.
+// Per-router collection settings (#105). A collector switched off for this
+// router is a deliberate setting, not a fault, so the card must say so rather
+// than dimming with the amber "stale" scrim it would otherwise get 20-90s later.
+// Router-scoped because settings:pages is a global emit with no router id.
+// Mirrors the disableable entries of COLLECTORS in src/collection.js. A source
+// guard asserts every disableable collector with cards appears here.
+var COLLECTOR_CARDS = {
+  conns: ["connCard"],
+  bandwidth: ["bandwidthCard"],
+  talkers: ["talkersCard"],
+  ifStatus: ["ifStatusCard"],
+  wireless: ["wirelessCard"],
+  vpn: ["vpnCard"],
+  firewall: ["firewallCard"],
+  routing: ["routingProtoCard", "routingBgpCard", "routingPeersCard", "routingRoutesCard"],
+  netwatch: ["netwatchCard"],
+};
+var _collectionOff = {};      // cardId -> true when its collector is off here
+function _collectionOffCard(cardId){ return !!_collectionOff[cardId]; }
+
+socket.on('collection:config', function (cfg) {
+  if (!cfg || !cfg.enabled) return;
+  _collectionOff = {};
+  Object.keys(COLLECTOR_CARDS).forEach(function (key) {
+    var isOff = cfg.enabled[key] === false;
+    COLLECTOR_CARDS[key].forEach(function (cardId) {
+      var card = $(cardId);
+      if (isOff) _collectionOff[cardId] = true;
+      if (!card) return;
+      card.classList.toggle('is-collector-off', isOff);
+      if (isOff) {
+        // Suppress the stale countdown entirely; the sweep ignores 0.
+        staleTimers[cardId] = 0;
+        card.classList.remove('is-stale');
+        var ov = card.querySelector('.stale-overlay');
+        if (ov) ov.textContent = '\u25CF collection disabled';
+      } else {
+        var ov2 = card.querySelector('.stale-overlay');
+        if (ov2) ov2.textContent = '\u25CF stale';
+        if (staleTimers[cardId] === 0) staleTimers[cardId] = Date.now();
+      }
+    });
+  });
+});
+
 var STALE_GRACE = 20000; // 20 s grace on top of poll interval
 var staleConfig=[
   // trafficCard is handled manually below — its stale timer must only reset
@@ -2476,6 +2523,19 @@ setInterval(function(){
   staleConfig.forEach(function(cfg){
     var last=staleTimers[cfg.cardId],card=$(cfg.cardId);
     if(!card)return;
+    // Re-assert the disabled marking (#105). The dashboard grid re-renders cards
+    // after collection:config arrives on first load, which would otherwise wipe
+    // the class and let the card fall into a false "stale" state. Doing it here
+    // costs nothing and self-heals any later re-render too.
+    if(_collectionOffCard(cfg.cardId)){
+      card.classList.add('is-collector-off');
+      card.classList.remove('is-stale');
+      staleTimers[cfg.cardId]=0;
+      var ov=card.querySelector('.stale-overlay');
+      if(ov&&ov.textContent.indexOf('disabled')===-1)ov.textContent='\u25CF collection disabled';
+      return;
+    }
+    if(card.classList.contains('is-collector-off'))card.classList.remove('is-collector-off');
     if(last>0&&now-last>cfg.threshold)card.classList.add('is-stale');
   });
 },3000);
@@ -5871,6 +5931,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var modalBwUpU    = $('rtrModalBwUpUnit');
   var modalAlerts     = $('rtrModalAlertsEnabled');
   var modalDownThresh = $('rtrModalDownThresh');
+  var modalMode       = $('rtrModalMode');
+  var modalModeWrap   = $('rtrModalModeWrap');
+  var modalCollectors = $('rtrModalCollectors');
   var testBtn   = $('rtrModalTestBtn');
   var testResult= $('rtrTestResult');
   var cancelBtn = $('rtrModalCancelBtn');
@@ -6019,6 +6082,39 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   // ── Table render ──────────────────────────────────────────────────────────
+  // ── Collection section (#105) ────────────────────────────────────────────
+  function _collToggles() {
+    return modalCollectors ? Array.prototype.slice.call(
+      modalCollectors.querySelectorAll('input[data-coll]')) : [];
+  }
+  function _setMode(mode) {
+    if (modalMode) modalMode.value = (mode === 'poll') ? 'poll' : 'stream';
+    if (!modalModeWrap || !modalMode) return;
+    Array.prototype.forEach.call(modalModeWrap.querySelectorAll('[data-mode]'), function (b) {
+      b.classList.toggle('active', b.getAttribute('data-mode') === modalMode.value);
+    });
+  }
+  // Bandwidth reads the connection table that Connections fills, so it cannot run
+  // without it. The server enforces this too; mirroring it here stops the form
+  // showing a state the server would silently override.
+  function _syncCollDeps() {
+    var conns = null, bw = null;
+    _collToggles().forEach(function (t) {
+      if (t.getAttribute('data-coll') === 'conns') conns = t;
+      if (t.getAttribute('data-coll') === 'bandwidth') bw = t;
+    });
+    if (!conns || !bw) return;
+    var lbl = bw.closest ? bw.closest('.stoggle') : null;
+    if (!conns.checked) { bw.checked = false; bw.disabled = true; if (lbl) lbl.style.opacity = '.5'; }
+    else { bw.disabled = false; if (lbl) lbl.style.opacity = ''; }
+  }
+  if (modalModeWrap) modalModeWrap.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('[data-mode]') : null;
+    if (!b) return;
+    e.preventDefault(); _setMode(b.getAttribute('data-mode'));
+  });
+  if (modalCollectors) modalCollectors.addEventListener('change', _syncCollDeps);
+
   function _renderRow(r) {
     var isActive = r.id === _activeRouterId;
     var activeBadge = isActive ? '<span class="rtr-active-badge">Active</span>' : '';
@@ -6202,6 +6298,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       else                     { modalBwUp.value = bwUp;          if (modalBwUpU) modalBwUpU.value = 'mbps'; }
       _syncUnitToggle(modalBwUpU);
     }
+    var coll = (router && router.collection) || {};
+    _setMode(coll.mode || 'stream');
+    var offList = Array.isArray(coll.off) ? coll.off : [];
+    _collToggles().forEach(function (t) {
+      t.checked = offList.indexOf(t.getAttribute('data-coll')) === -1;
+    });
+    _syncCollDeps();
     hideTestResult();
     setSaveReady(!!router);
     modalBg.classList.add('open');
@@ -6273,6 +6376,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       }()),
       alertsEnabled:       !!(modalAlerts && modalAlerts.checked),
       connDownThresholdSec:(function(){ var n = parseInt(modalDownThresh ? modalDownThresh.value : '30', 10); return (n >= 0 && n <= 300) ? n : 30; }()),
+      collection: (function () {
+        var off = _collToggles().filter(function (t) { return !t.checked; })
+                                .map(function (t) { return t.getAttribute('data-coll'); });
+        // Server normalisation drops a block carrying no information, so sending
+        // the defaults is harmless and leaves routers.json unchanged.
+        return { mode: modalMode ? modalMode.value : 'stream', off: off };
+      })(),
     };
   }
 

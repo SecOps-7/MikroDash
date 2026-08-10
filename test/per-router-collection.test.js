@@ -271,3 +271,44 @@ test('getPublic exposes collection but still masks the password', () => {
   assert.equal(pub.collection.mode, 'poll');
   assert.equal(pub.password, '••••••••');
 });
+
+// ── Client card map must mirror the registry ─────────────────────────────────
+
+test('every disableable collector with cards is mapped in the client', () => {
+  const fs   = require('fs');
+  const p    = require('path').join(__dirname, '..', 'public', 'app.js');
+  const app  = fs.readFileSync(p, 'utf8');
+  const block = app.slice(app.indexOf('var COLLECTOR_CARDS = {'));
+  const mapText = block.slice(0, block.indexOf('};') + 2);
+
+  const missing = COLLECTORS
+    .filter(c => c.disableable && c.cards.length)
+    .filter(c => !new RegExp('\\b' + c.key + '\\s*:').test(mapText))
+    .map(c => c.key);
+  assert.deepEqual(missing, [],
+    'these disableable collectors have dashboard cards but no COLLECTOR_CARDS entry, '
+    + 'so their cards would show a false "stale" scrim when switched off:\n  ' + missing.join(', '));
+
+  // And every card id referenced must exist in the markup.
+  const html = fs.readFileSync(require('path').join(__dirname, '..', 'public', 'index.html'), 'utf8');
+  for (const c of COLLECTORS) {
+    for (const card of c.cards) {
+      assert.ok(html.includes('id="' + card + '"'), `card ${card} (${c.key}) not found in index.html`);
+    }
+  }
+});
+
+test('null collector methods are chainable, not bare undefined', async () => {
+  // index.js:2888 does `c.tick(true).catch(...)` and elsewhere awaits start().
+  // Returning undefined throws a TypeError that silently aborts sendInitialState,
+  // so the browser never learns which collectors are disabled.
+  const { makeNullCollector } = require('../src/collectors/nullCollector');
+  const c = makeNullCollector('conns');
+  for (const m of ['tick', 'start', 'stop', 'suspend', 'resume']) {
+    const r = c[m](true);
+    assert.ok(r && typeof r.then === 'function', `${m}() must return a promise`);
+    assert.ok(typeof r.catch === 'function', `${m}() result must be catchable`);
+    await r;
+  }
+  await assert.doesNotReject(() => c.tick(true).catch(() => {}));
+});

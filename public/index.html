@@ -316,6 +316,12 @@
                  color:rgba(251,191,36,.95);background:rgba(251,191,36,.10);
                  border-bottom:1px solid rgba(251,191,36,.25);padding:.25rem .7rem}
     .card.is-degraded .stream-warn{display:flex}
+    /* A collector switched off for this router is a deliberate setting, not a
+       fault, so it gets the neutral grey scrim rather than the amber warning
+       bar above (which means "should be working and isn't"). (#105) */
+    .card.is-collector-off{opacity:.5}
+    .card.is-collector-off .stale-overlay{opacity:1;pointer-events:auto;
+      background:rgba(7,9,15,.62);color:rgba(148,163,190,.75)}
     /* traffic */
     .chart-wrap{position:relative;height:200px;width:100%}
     .chart-legend{display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
@@ -3744,6 +3750,43 @@
             <span style="font-size:.8rem;color:var(--text-muted)">seconds</span>
           </div>
           <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Status badge and alerts only change after the router has been unreachable for this long. Set to 0 to react immediately.</p>
+        </div>
+
+        <!-- Collection (#105) — per-router, because a fleet is not uniform.
+             An access point has no routed traffic and no Kid Control devices,
+             so running those collectors against it is pure load. -->
+        <div class="sform-group" style="margin-bottom:.6rem;border-top:1px solid var(--border);padding-top:.7rem">
+          <label class="sform-label">Collection method</label>
+          <div class="poll-profile-row" id="rtrModalModeWrap" style="display:flex;gap:.35rem;margin-bottom:.5rem">
+            <button type="button" class="poll-profile-btn active" data-mode="stream">Stream</button>
+            <button type="button" class="poll-profile-btn" data-mode="poll">Poll</button>
+          </div>
+          <input type="hidden" id="rtrModalMode" value="stream">
+          <p style="font-size:.68rem;color:var(--text-muted);margin:0 0 .6rem">
+            Poll suits lower-end hardware: it replaces persistent API streams with periodic requests,
+            which is what actually strains a small router. Logs and the traffic graph always stream —
+            polling them would drop log lines and cost more than it saves.
+          </p>
+
+          <label class="sform-label">Collectors</label>
+          <div class="stoggle-grid" id="rtrModalCollectors">
+            <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_conns" data-coll="conns" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle" data-requires="conns"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_bandwidth" data-coll="bandwidth" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Top Talkers</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_talkers" data-coll="talkers" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Interface Rates</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_ifStatus" data-coll="ifStatus" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Ping</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_ping" data-coll="ping" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_wireless" data-coll="wireless" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">VPN</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_vpn" data-coll="vpn" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_firewall" data-coll="firewall" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Routing</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_routing" data-coll="routing" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">NetWatch</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_netwatch" data-coll="netwatch" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_logs" data-coll="logs" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+          </div>
+          <p style="font-size:.68rem;color:var(--text-muted);margin:.35rem 0 0">
+            Turn off what a router has no data for. Bandwidth needs Connections and follows it.
+            Turning off Interface Rates also stops interface up/down alerts; turning off Ping also
+            stops ping-loss alerts. Saving briefly reconnects this router.
+          </p>
         </div>
       </div>
       <div class="rtr-modal-footer">

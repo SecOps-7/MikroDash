@@ -15,7 +15,11 @@
 // test/code-review-remediation.test.js keeps that coverage complete as index.js
 // grows.
 
-const noop = () => {};
+// Returns a resolved promise, not undefined. index.js chains on some of these
+// (`c.tick(true).catch(...)` at index.js:2888, and several `await x.start()`),
+// so a bare undefined throws a TypeError that silently aborts the caller. That
+// exact bug swallowed sendInitialState for a router with a disabled collector.
+const noop = () => Promise.resolve();
 
 /** Per-key shapes where an empty value of the wrong type would still break a caller. */
 const HISTORY_SHAPE = {
