@@ -5180,7 +5180,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
 // ── Settings tab switcher ─────────────────────────────────────────────────
 (function(){
-  var SETTINGS_TAB_KEY = 'mikrodash_settings_tab';
   var NO_SAVE_TABS = ['routers', 'about'];
   var _aboutFetched = false;
 
@@ -5199,20 +5198,19 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         var el = $('stabAboutVersion'); if (el && d.version) el.textContent = 'v' + d.version;
       }).catch(function(){});
     }
-    try { localStorage.setItem(SETTINGS_TAB_KEY, tabName); } catch(e) {}
   }
 
   document.querySelectorAll('#page-settings .stab').forEach(function(t){
     t.addEventListener('click', function(){ activateTab(t.dataset.tab); });
   });
 
+  // Settings always opens on Routers. It used to restore the last tab from
+  // localStorage, which meant landing on whatever you happened to be editing
+  // last — usually not where you want to start. The persistence is gone rather
+  // than merely ignored, so nothing keeps writing a key no one reads.
   document.addEventListener('mikrodash:pagechange', function(e) {
     if (e.detail !== 'settings') return;
-    var saved = '';
-    try { saved = localStorage.getItem(SETTINGS_TAB_KEY) || ''; } catch(e) {}
-    var tabs = document.querySelectorAll('#page-settings .stab');
-    var valid = Array.from(tabs).some(function(t){ return t.dataset.tab === saved; });
-    activateTab(valid ? saved : 'routers');
+    activateTab('routers');
   });
 })();
 
