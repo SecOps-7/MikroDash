@@ -908,3 +908,88 @@ test('restarting a poll loop does not re-poll inside its own interval', async ()
   assert.equal(runs, 1, 'still one poll — the interval has not elapsed yet');
   loop.stop();
 });
+
+// ─── Bell notifications must respect per-router Alert Monitoring ─────────────
+
+test('every browser-side alert detector honours per-router Alert Monitoring', () => {
+  // The server alerter re-checks alertsEnabled before firing (alerter.js), but the
+  // browser has its OWN detectors that call sendNotif directly, and they never
+  // consulted the flag. That is why a hAP ac2 with Alert Monitoring switched off
+  // still produced "Router Online" and interface up/down entries in the bell.
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  assert.ok(/function _alertsAllowedFor\(/.test(src), 'the gate helper must exist');
+  assert.ok(/_notifRouterAlerts\[r\.id\] = r\.alertsEnabled !== false/.test(src),
+    'routers:update must record each router\'s alertsEnabled');
+
+  // app.js registers several handlers per event (rendering, charts, notifications).
+  // Anchor on the check* CALL SITE and scan back to the socket.on that encloses
+  // it — a fixed window from the first handler of that event name overlaps
+  // neighbouring code and silently passes, which this test did at first.
+  for (const [ev, fn] of [['ifstatus:update', 'checkIfaceNotifs'],
+                          ['vpn:update',      'checkVpnNotifs'],
+                          ['system:update',   'checkCpuNotif'],
+                          ['ping:update',     'checkPingNotif'],
+                          ['netwatch:update', 'checkNetwatchNotifs']]) {
+    // The call inside a handler, not the function declaration itself.
+    let call = -1;
+    for (let k = src.indexOf(fn + '('); k !== -1; k = src.indexOf(fn + '(', k + 1)) {
+      if (!/function\s*$/.test(src.slice(Math.max(0, k - 12), k))) { call = k; break; }
+    }
+    assert.ok(call > 0, 'no call site found for ' + fn);
+    const open = src.lastIndexOf('socket.on(', call);
+    assert.ok(open > 0, 'no enclosing socket.on for ' + fn);
+    const handler = src.slice(open, call);
+    assert.ok(handler.includes("'" + ev + "'"),
+      fn + ' is not inside a ' + ev + ' handler (found: ' + handler.slice(0, 40) + ')');
+    assert.ok(handler.includes('_alertsAllowedFor'),
+      ev + ' can raise a bell notification without checking Alert Monitoring');
+  }
+
+  // Router Online/Offline keys on the router the status is ABOUT.
+  const rs = src.indexOf('function checkRouterStatusNotif');
+  assert.ok(src.slice(rs, rs + 400).includes('_alertsAllowedFor(d.routerId)'),
+    'router status alerts must use the subject router\'s flag, not the viewed one');
+});
+
+test('interface alerts ignore a payload from a router we are not viewing', () => {
+  // Session teardown is asynchronous, so a final in-flight ifstatus:update from
+  // the OUTGOING router can arrive after router:switching cleared the baseline.
+  // Compared by interface name alone, router A's ether2..5 then read as router
+  // B's going down — and back up on the return trip. That is the reported
+  // "Interface Down ether2..5" then "Interface Up ether2..5" burst.
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const i = src.indexOf("socket.on('ifstatus:update', function");
+  const body = src.slice(i, i + 700);
+  assert.ok(/data\.routerId !== window\._activeRouterId/.test(body),
+    'the client must reject an interface payload stamped with another router id');
+
+  // ...which only works if the server actually stamps it.
+  const coll = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'src', 'collectors', 'interfaceStatus.js'), 'utf8');
+  assert.ok(/lastPayload = \{ ts: now, routerId: this\.rid, interfaces \}/.test(coll),
+    'interfaceStatus must stamp routerId onto every payload');
+  const idx = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const c = idx.indexOf('new InterfaceStatusCollector(');
+  assert.ok(idx.slice(c, c + 320).includes('rid:routerCfg.id'),
+    'buildSession must pass the router id to the ifStatus collector');
+});
+
+test('the ifStatus payload actually carries the router id', () => {
+  const InterfaceStatusCollector = require('../src/collectors/interfaceStatus');
+  const emitted = [];
+  const c = new InterfaceStatusCollector({
+    ros: pollRos(async () => []),
+    io: { engine: { clientsCount: 1 }, emit: (ev, d) => emitted.push({ ev, d }), on() {} },
+    pollMs: 1000, metaPollMs: 60000, state: {}, streamMode: false, rid: 'router-abc',
+  });
+  c._ifaces.set('ether2', { name: 'ether2', disabled: 'false', running: 'true' });
+  c._buildAndEmit();
+  assert.equal(c.lastPayload.routerId, 'router-abc');
+  assert.ok(emitted.some(e => e.ev === 'ifstatus:update' && e.d.routerId === 'router-abc'),
+    'the emitted payload must carry it too, not just lastPayload');
+  c.stop();
+});
