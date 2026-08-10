@@ -253,6 +253,18 @@ function _ensureDataDir() {
   try { fs.mkdirSync(DATA_DIR, { recursive: true }); } catch (_) {}
 }
 
+// Valid ranges for every poll interval, in milliseconds. Exported so the
+// per-router override path (src/collection.js) clamps against exactly these
+// numbers; a second copy would drift. A source guard asserts routers.js and
+// collection.js declare no bounds table of their own.
+const POLL_BOUNDS = Object.freeze({
+  pollConns:[1000,60000], pollTalkers:[1000,60000], pollBandwidth:[1000,60000],
+  pollRouting:[500,300000], pollSystem:[1000,60000], pollWireless:[10000,600000],
+  pollVpn:[1000,30000], pollFirewall:[1000,30000], pollIfstatus:[1000,60000],
+  pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
+  pollDhcp:[10000,600000],
+});
+
 function load() {
   if (_cache) return _cache;
   _ensureDataDir();
@@ -288,13 +300,10 @@ function load() {
 
   // Clamp poll intervals to their valid ranges so that a corrupt or manually
   // edited settings file can never produce a sub-minimum timer delay.
-  const _POLL_BOUNDS = {
-    pollConns:[1000,60000], pollTalkers:[1000,60000], pollBandwidth:[1000,60000],
-    pollRouting:[500,300000], pollSystem:[1000,60000], pollWireless:[10000,600000],
-    pollVpn:[1000,30000], pollFirewall:[1000,30000], pollIfstatus:[1000,60000],
-    pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
-    pollDhcp:[10000,600000],
-  };
+  // The table itself lives at module scope (POLL_BOUNDS) and is exported, so the
+  // per-router override path in collection.js clamps against the same numbers
+  // instead of keeping a second copy that could drift.
+  const _POLL_BOUNDS = POLL_BOUNDS;
   // Separate from _POLL_BOUNDS because the unit is hours, not milliseconds.
   // Floor of 1 h protects MikroTik's update servers from a hand-edited config;
   // ceiling of 1 week keeps the check meaningful.
@@ -369,4 +378,4 @@ function getViewerPublic() {
   return out;
 }
 
-module.exports = { load, save, getPublic, getViewerPublic, isMasked, DEFAULTS };
+module.exports = { load, save, getPublic, getViewerPublic, isMasked, DEFAULTS, POLL_BOUNDS };
