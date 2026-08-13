@@ -91,7 +91,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
 | Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre); static and dynamic route table (event-driven via `/ip/route/listen`); BGP peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with historical log import on connect, severity filter and text search |
-| Reports | Historical data viewer with configurable date range and aggregation. Five tabs: **Ping** (RTT chart + sortable table), **Traffic** (per-interface RX/TX chart + table), **Bandwidth** (usage chart + table), **Alerts** (alert event history), **Connectivity** (router up/down event history). CSV and PDF export on every tab. Admin-only |
+| Reports | Historical data viewer with configurable date range and aggregation. Five tabs: **Ping** (RTT chart + sortable table), **Traffic** (per-interface RX/TX chart + table), **Bandwidth** (usage chart + table), **Alerts** (alert event history), **Connectivity** (router up/down event history). CSV and PDF export on every tab. Requires read on the Reports page |
 | Routers | Per-router overview cards showing connection status (WiFi icon), CPU / RAM / Disk usage bars, Uptime, DHCP client count, and live WAN RX/TX rates; board name, RouterOS version, architecture, serial number, and license level pills. Background sessions pre-load data at startup so cards are populated instantly on first visit. Hidden for single-router setups |
 | Settings | Persistent UI configuration — see below |
 
@@ -110,7 +110,9 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 MikroDash is designed to run **on your local network only**. It has no built-in HTTPS (terminate TLS at a reverse proxy if you need it).
 
-MikroDash supports two authentication modes (**Settings → Authentication**): `none` (open access) and `modern` (cookie sessions with per-user accounts, `admin`/`viewer` roles, and optional per-user router restrictions). **`none` mode serves the dashboard with no authentication — the server logs a startup warning in that state.**
+MikroDash supports two authentication modes (**Settings → Authentication**): `none` (open access) and `modern` (cookie sessions with per-user accounts and role-based access control). **`none` mode serves the dashboard with no authentication — the server logs a startup warning in that state.**
+
+In `modern` mode, access is granted as **(role, scope)**: a role says *which pages* someone sees and whether they may act on them, and the scope says *which routers* — everything, one site, or a single router. Roles are editable rather than fixed: **Administrator** is built in and always sees everything, while **Read Only** and **Operator** are ordinary roles you can change, alongside any you create. A grant can go to a user or to a group, and a router can belong to a site so a whole location is granted at once. Managing users, groups, roles and sites is always Administrator-only, and only at global scope — an administrator of one site cannot grant themselves more.
 
 **Do not expose MikroDash directly to the internet.** Doing so would allow anyone (in an unauthenticated mode) to:
 - View live data from your router (traffic, clients, connections, firewall rules, logs)
@@ -120,7 +122,7 @@ MikroDash supports two authentication modes (**Settings → Authentication**): `
 If you need remote access, enable `modern` auth **and** place MikroDash behind an authenticating reverse proxy (such as Nginx, Authelia, or Cloudflare Access) or access it exclusively over a VPN.
 
 **Recommended local hardening:**
-- Enable authentication: switch to `modern` mode and create user accounts with appropriate roles in **Settings → Authentication**
+- Enable authentication: switch to `modern` mode and create user accounts in **Settings → Authentication → Access Management**, granting each the narrowest role and scope that suits them
 - Run on a non-default port and bind to your LAN interface only
 - Use a dedicated read-only API user on the router (see RouterOS Setup below)
 - User passwords are scrypt-hashed in `/data/users.json` (mode 0600); the encryption key for stored router credentials is auto-generated and saved to `/data/.secret` (mode 0600) — keep your Docker volume secure
@@ -203,7 +205,7 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 | Section | What you can configure |
 |---|---|
 | Routers | Add, edit, and delete router connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. The table also shows each router's model, serial number, and RouterOS version, learned from the device and stored against the entry so they stay visible while a router is offline or disabled. Test Connection validates credentials before saving. The active router is selected from the picker in the page header, which lists each router with its host and a live online/offline dot, and gains a search box once you have five or more Each router also carries its own collection settings — Stream or Poll, which collectors run, and interval overrides. |
-| Authentication | Auth mode (`none` / `modern` cookie sessions). In `modern` mode: manage user accounts with `admin`/`viewer` roles, optional per-user router restrictions, and a configurable session timeout. Passwords are scrypt-hashed |
+| Authentication | Auth mode (`none` / `modern` cookie sessions) and session timeout. In `modern` mode, **Access Management** holds four tabs: **Users**, **Groups**, **Sites** and **Roles** — a role is a per-page read/write matrix, granted to a user or group over all routers, a site, or one router. Passwords are scrypt-hashed |
 | Poll Intervals | Per-collector update intervals with **Polling Profile** preset buttons (Fast / Faster / Standard / Slow / Slower / Custom). Drag any slider to enter Custom mode; **Save Custom Profile** persists your values as a reusable template. Changes apply immediately without restart. Pure event-driven collectors (ARP, Routing, DHCP Leases, Firewall rule changes) show an Event-driven badge instead of a slider |
 | Collection Method | **Moved to each router** (Settings → Routers → edit). A per-router Stream/Poll master switch, per-collector enable/disable, and interval overrides. Poll replaces persistent API streams with periodic requests, which suits lower-end hardware where concurrent open channels — not data volume — are the constraint. Logs and the traffic graph always stream. |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |

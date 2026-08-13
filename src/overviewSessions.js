@@ -18,7 +18,10 @@ let   _identityHook = null;   // (routerId, {model, serial, osVersion}) → void
 const _nullIo = {
   engine: { clientsCount: 1 },
   emit() {},
-  to() { return { emit() {}, to() { return { emit() {} }; } }; },
+  // Recursively chainable. A collector reaching three rooms (ifstatus, #108)
+  // threw here with the old two-level shim; this pool discards emits entirely,
+  // so the depth it is called with must never matter.
+  to() { const _c = { to: () => _c, emit() {} }; return _c; },
   on() {},
   sockets: { adapter: { rooms: { get() { return undefined; } } } },
 };

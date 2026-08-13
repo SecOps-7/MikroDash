@@ -143,7 +143,15 @@ class DhcpNetworksCollector {
     };
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.emit('lan:overview', this.lastPayload);
+      // Pool sizes, lease totals and per-network detail are what the DHCP page
+      // and the Network card render, so they are page-scoped (issue #108).
+      //
+      // The WAN IP stays router-wide: it drives the geo origin for the
+      // connections map and the WAN readout in the network-devices diagram,
+      // both chrome. Note this is unchanged from before — it was already
+      // broadcast to every session with router:read.
+      this.io.to('page-dhcp').to('dash-card-network').emit('lan:overview', this.lastPayload);
+      this.io.emit('lan:wan', { ts: this.lastPayload.ts, wanIp: this.lastPayload.wanIp });
     }
     this.state.lastNetworksTs = Date.now();
   }

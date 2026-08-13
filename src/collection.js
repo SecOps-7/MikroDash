@@ -32,45 +32,53 @@ const { POLL_BOUNDS } = require('./settings');
  *   requires      collectors whose data it cannot work without
  *   cards         dashboard card ids, so the client can mark them
  */
+// `page` is the page whose view this collector feeds — the single source for the
+// collector↔page edge (issue #108). null means the collector belongs to no one
+// page: traffic and system drive the header gauges on every page, and arp emits
+// nothing at all, it only feeds other collectors' name resolution. A collector
+// that also surfaces as a dashboard card says so through `cards`, not by
+// claiming a second page.
 const COLLECTORS = Object.freeze([
   // ── Protected: read directly by other collectors, or feed stored history ───
   { key: 'traffic', label: 'Traffic',      sessionProp: 'traffic',      pollKey: null,           defaultPollMs: 1000,
-    streamKey: null,             pollable: false, disableable: false, requires: [], cards: ['trafficCard'] },
+    streamKey: null,             pollable: false, disableable: false, requires: [], page: null, cards: ['trafficCard'] },
   { key: 'system', label: 'System / Gauges',       sessionProp: 'system',       pollKey: 'pollSystem',   defaultPollMs: 2000,
-    streamKey: 'streamSystem',   pollable: true,  disableable: false, requires: [], cards: ['systemCard'] },
+    streamKey: 'streamSystem',   pollable: true,  disableable: false, requires: [], page: null, cards: ['systemCard'] },
   { key: 'arp', label: 'ARP',          sessionProp: 'arp',          pollKey: 'pollArp',      defaultPollMs: 30000,
-    streamKey: 'streamArp',      pollable: true,  disableable: false, requires: [], cards: [] },
+    streamKey: 'streamArp',      pollable: true,  disableable: false, requires: [], page: null, cards: [] },
   { key: 'dhcpLeases', label: 'DHCP Leases',   sessionProp: 'dhcpLeases',   pollKey: 'pollDhcp',     defaultPollMs: 600000,
-    streamKey: 'streamLeases',   pollable: true,  disableable: false, requires: [], cards: [] },
+    streamKey: 'streamLeases',   pollable: true,  disableable: false, requires: [], page: 'dhcp', cards: [] },
   { key: 'dhcpNetworks', label: 'DHCP Networks', sessionProp: 'dhcpNetworks', pollKey: 'pollDhcp',     defaultPollMs: 600000,
-    streamKey: 'streamDhcp',     pollable: true,  disableable: false, requires: [], cards: ['networksCard'] },
+    streamKey: 'streamDhcp',     pollable: true,  disableable: false, requires: [], page: 'dhcp', cards: ['networksCard'] },
 
   // ── Disableable ────────────────────────────────────────────────────────────
   { key: 'conns', label: 'Connections',        sessionProp: 'conns',        pollKey: 'pollConns',    defaultPollMs: 5000,
-    streamKey: 'streamConns',    pollable: true,  disableable: true,  requires: [], cards: ['connCard'] },
+    streamKey: 'streamConns',    pollable: true,  disableable: true,  requires: [], page: 'connections', cards: ['connCard'] },
   { key: 'bandwidth', label: 'Bandwidth',    sessionProp: 'bandwidth',    pollKey: 'pollBandwidth', defaultPollMs: 5000,
-    streamKey: null,             pollable: true,  disableable: true,  requires: ['conns'], cards: ['bandwidthCard'] },
+    streamKey: null,             pollable: true,  disableable: true,  requires: ['conns'], page: 'bandwidth', cards: ['bandwidthCard'] },
   { key: 'talkers', label: 'Top Talkers',      sessionProp: 'talkers',      pollKey: 'pollTalkers',  defaultPollMs: 3000,
-    streamKey: 'streamTalkers',  pollable: true,  disableable: true,  requires: [], cards: ['talkersCard'] },
+    streamKey: 'streamTalkers',  pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: ['talkersCard'] },
   { key: 'ifStatus', label: 'Interface Rates',     sessionProp: 'ifStatus',     pollKey: 'pollIfstatus', defaultPollMs: 5000,
-    streamKey: 'streamIfrates',  pollable: true,  disableable: true,  requires: [], cards: ['ifStatusCard'] },
+    streamKey: 'streamIfrates',  pollable: true,  disableable: true,  requires: [], page: 'interfaces', cards: ['ifStatusCard'] },
   { key: 'ping', label: 'Ping',         sessionProp: 'ping',         pollKey: 'pollPing',     defaultPollMs: 5000,
-    streamKey: 'streamPing',     pollable: true,  disableable: true,  requires: [], cards: [] },
+    streamKey: 'streamPing',     pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: [] },
   { key: 'wireless', label: 'Wireless',     sessionProp: 'wireless',     pollKey: 'pollWireless', defaultPollMs: 30000,
-    streamKey: 'streamWireless', pollable: true,  disableable: true,  requires: [], cards: ['wirelessCard'] },
+    streamKey: 'streamWireless', pollable: true,  disableable: true,  requires: [], page: 'wireless', cards: ['wirelessCard'] },
   { key: 'vpn', label: 'VPN',          sessionProp: 'vpn',          pollKey: 'pollVpn',      defaultPollMs: 10000,
-    streamKey: 'streamVpn',      pollable: true,  disableable: true,  requires: [], cards: ['vpnCard'] },
+    streamKey: 'streamVpn',      pollable: true,  disableable: true,  requires: [], page: 'vpn', cards: ['vpnCard'] },
   { key: 'firewall', label: 'Firewall',     sessionProp: 'firewall',     pollKey: 'pollFirewall', defaultPollMs: 5000,
-    streamKey: 'streamFirewall', pollable: true,  disableable: true,  requires: [], cards: ['firewallCard'] },
+    streamKey: 'streamFirewall', pollable: true,  disableable: true,  requires: [], page: 'firewall', cards: ['firewallCard'] },
   { key: 'routing', label: 'Routing',      sessionProp: 'routing',      pollKey: 'pollRouting',  defaultPollMs: 10000,
-    streamKey: 'streamRouting',  pollable: true,  disableable: true,  requires: [],
+    streamKey: 'streamRouting',  pollable: true,  disableable: true,  requires: [], page: 'routing',
     cards: ['routingProtoCard', 'routingBgpCard', 'routingPeersCard', 'routingRoutesCard'] },
   { key: 'netwatch', label: 'NetWatch',     sessionProp: 'netwatch',     pollKey: null,           defaultPollMs: 30000,
-    streamKey: 'streamNetwatch', pollable: true,  disableable: true,  requires: [], cards: ['netwatchCard'] },
+    streamKey: 'streamNetwatch', pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: ['netwatchCard'] },
+  { key: 'topology', label: 'Network Topology', sessionProp: 'topology', pollKey: 'pollTopology', defaultPollMs: 30000,
+    streamKey: 'streamTopology', pollable: true,  disableable: true,  requires: [], page: 'topology', cards: ['topologyCard'] },
   // logs stays streamed even in poll mode: /log/listen pushes new entries, and
   // polling /log/print would drop lines between polls. Correctness, not fidelity.
   { key: 'logs', label: 'Logs',         sessionProp: 'logs',         pollKey: null,           defaultPollMs: 0,
-    streamKey: null,             pollable: false, disableable: true,  requires: [], cards: [] },
+    streamKey: null,             pollable: false, disableable: true,  requires: [], page: 'logs', cards: [] },
 ]);
 
 const BY_KEY      = Object.freeze(Object.fromEntries(COLLECTORS.map(c => [c.key, c])));

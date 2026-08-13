@@ -9,10 +9,11 @@
   <link rel="stylesheet" href="/vendor/fonts/fonts.css"/>
   <link rel="stylesheet" href="/css/app-fonts.css"/>
   <link rel="stylesheet" href="/css/dashboard-grid.css"/>
+  <link rel="stylesheet" href="/css/topology.css"/>
   <link rel="icon" type="image/png" href="/logo.png"/>
   <style>
-    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
-    html[data-theme="light"]{--bg-deep:#e8eaee;--bg-card:rgba(255,255,255,.92);--border:#b1bbcf;--accent-rx:#247ba1;--accent-tx:#20835f;--text-muted:#5f7196;--text-main:#1a2030;--nav-bg:rgba(232,234,239,.95);--topbar-bg:rgba(232,234,239,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
+    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--accent-alt:#a78bfa;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
+    html[data-theme="light"]{--bg-deep:#e8eaee;--bg-card:rgba(255,255,255,.92);--border:#b1bbcf;--accent-rx:#247ba1;--accent-tx:#20835f;--accent-alt:#6a3fb0;--text-muted:#5f7196;--text-main:#1a2030;--nav-bg:rgba(232,234,239,.95);--topbar-bg:rgba(232,234,239,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
     html[data-palette="nord"]{--bg-deep:#1e2430;--bg-card:rgba(46,52,64,.9);--border:rgba(76,86,106,.4);--accent-rx:#88c0d0;--accent-tx:#a3be8c;--text-muted:rgba(216,222,233,.5);--text-main:rgba(236,239,244,.9);--nav-bg:rgba(25,30,40,.95);--topbar-bg:rgba(25,30,40,.8)}
     html[data-palette="nord"][data-theme="light"]{--bg-deep:#d8dce3;--bg-card:rgba(236,239,244,.95);--border:#a9afba;--accent-rx:#5e81ac;--accent-tx:#4b7a55;--text-muted:#626876;--text-main:rgba(46,52,64,.9);--nav-bg:rgba(204,210,220,.97);--topbar-bg:rgba(204,210,220,.9)}
     html[data-palette="catppuccin"]{--bg-deep:#11111b;--bg-card:rgba(30,30,46,.9);--border:rgba(69,71,90,.4);--accent-rx:#89b4fa;--accent-tx:#a6e3a1;--text-muted:rgba(166,173,200,.55);--text-main:rgba(205,214,244,.9);--nav-bg:rgba(17,17,27,.95);--topbar-bg:rgba(17,17,27,.8)}
@@ -103,6 +104,9 @@
     #topbarLogo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap}
     #topbarLogo span{color:var(--accent-rx)}
     .topbar-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
+    #pageTitleWrap{display:flex;align-items:center;gap:.45rem;min-width:0}
+    #pageTitleIcon{display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-muted)}
+    #pageTitleIcon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
     #pageTitle{font-family:var(--font-ui);font-weight:600;font-size:.85rem;color:var(--text-muted);letter-spacing:.01em}
     .topbar-right{margin-left:auto;display:flex;align-items:center;gap:.65rem}
     #uptimeChip{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:5px;padding:2px 8px;white-space:nowrap;display:none}
@@ -208,8 +212,62 @@
     .sbtn-primary:hover{background:rgba(56,189,248,.25)}
     .sbtn-danger{background:rgba(248,113,113,.12);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
     .sbtn-danger:hover{background:rgba(248,113,113,.22)}
-    .sbtn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
-    .sbtn-ghost:hover{color:var(--text-main);border-color:var(--text-muted)}
+    /* .sbtn-outline shares the ghost treatment. It was referenced in a dozen
+       places but never defined, so those buttons fell through to the bare .sbtn
+       — which sets border:none and no background — and picked up the browser's
+       default grey chrome instead of the theme. */
+    .sbtn-ghost,.sbtn-outline{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
+    .sbtn-ghost:hover,.sbtn-outline:hover{color:var(--text-main);border-color:var(--text-muted);background:rgba(99,130,190,.07)}
+    .sbtn-outline:disabled,.sbtn-primary:disabled{opacity:.4;cursor:not-allowed}
+    .sbtn-outline:disabled:hover{color:var(--text-muted);border-color:var(--border);background:transparent}
+    /* Principal tabs — Users / Groups / Sites / Roles share one card, because
+       four full cards made the Authentication panel a long scroll of tables.
+       Same visual language as the settings tabs above them (.stab), one level in. */
+    .ptabs{display:flex;gap:.15rem;overflow-x:auto;scrollbar-width:none}
+    .ptabs::-webkit-scrollbar{display:none}
+    .ptab{background:transparent;border:none;border-bottom:2px solid transparent;padding:.45rem .9rem;font-size:.76rem;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:6px 6px 0 0;transition:color .15s,border-color .15s;margin-bottom:-1px;white-space:nowrap;flex-shrink:0}
+    .ptab:hover{color:var(--text-main)}
+    .ptab.active{color:var(--accent-rx);border-bottom-color:var(--accent-rx)}
+    .ptab-panel{display:none}
+    .ptab-panel.active{display:block}
+    /* Each panel's own action row: the blurb on the left, its Add button right,
+       replacing the four card headers these panels used to have. */
+    .ptab-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.9rem;margin-bottom:.7rem}
+    .ptab-desc{font-size:.72rem;color:var(--text-muted);flex:1;min-width:0}
+    /* Authentication spans both columns, so its two short controls sit side by
+       side rather than stacking into a tall, mostly empty card.
+       Two fixed tracks rather than auto-fit: when "require sign-in" is off the
+       right-hand field is hidden, and auto-fit would stretch the lone toggle
+       across the whole card. */
+    .auth-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem 1.75rem;align-items:start}
+    @media (min-width:820px){.auth-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    /* Each column is label → control → hint, so the two read as one row. The
+       toggle pill and the select are separate components with different
+       padding (.55rem vs .45rem), which left them a few pixels out of line —
+       one height for both fixes it. */
+    .auth-grid .stoggle,.auth-grid .sform-input{min-height:2.4rem}
+    .auth-grid .stoggle{padding-top:0;padding-bottom:0}
+    .auth-hint{font-size:.72rem;color:var(--text-muted);margin-top:.4rem;line-height:1.5}
+    /* The principals card runs to the bottom of the viewport and scrolls its own
+       body, so the tab strip stays put while a long table moves under it. Its
+       height is set in JS from the card's actual top offset — a CSS calc() would
+       need to hardcode the topbar, tab strip, Authentication card and save bar,
+       and go wrong the moment any of them changes. */
+    #principalsCard{display:flex;flex-direction:column;min-height:0}
+    #principalsCard>.scard-header,#principalsCard>.ptabs-bar{flex-shrink:0}
+    #principalsCard>.scard-body{flex:1;min-height:0;overflow-y:auto}
+    /* The tab strip's own row, under the card title. Its bottom border is the
+       divider the header would otherwise provide. */
+    .ptabs-bar{padding:.4rem 1rem 0;border-bottom:1px solid var(--border)}
+    /* Narrower than the router modal: these forms are a single column.
+       Qualified with .rtr-modal so it beats that rule's width regardless of
+       source order — both are one class otherwise, and .rtr-modal is declared
+       further down the sheet. */
+    .rtr-modal.pmodal{width:min(640px,94vw)}
+    /* The router modal splits its body into two .rtr-modal-col children at wide
+       viewports. These forms have no columns — their fields go straight into the
+       body — so that grid would slice the form in half. */
+    .rtr-modal.pmodal>.rtr-modal-body{display:block}
     /* Data Cleanup card (Settings) */
     .dbc-stats{display:flex;gap:.5rem;flex-wrap:wrap}
     .dbc-stat{flex:1 1 120px;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.5rem .6rem}
@@ -241,6 +299,12 @@
     /* Cards that want the whole width: tables, the tallest card (which would
        otherwise leave a large gap beside it), and tabs holding only one card. */
     .scard--wide{grid-column:1/-1}
+    /* Grid items already stretch to their row, so a card only looks short when
+       it is alone on its row with nothing to stretch against — which is exactly
+       what happens to Sites and Users once Users spans the grid. A min-height on
+       the body (not the card) keeps the table area from collapsing while still
+       letting the card grow past it as rows are added. */
+    .scard--tall .scard-body{min-height:15rem}
     .scard-header{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
     .scard-title{font-size:.78rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em;flex:1}
     .scard-body{padding:.9rem 1rem}
@@ -863,6 +927,19 @@
     .notif-item-title{font-weight:700;color:var(--text-main);margin-bottom:.1rem}
     .notif-item-body{color:var(--text-muted)}
     .notif-item-time{font-size:.6rem;color:rgba(148,163,190,.35);margin-top:.1rem}
+    /* An open alert is still happening; a resolved one is history. The bell now
+       shows both, so they have to be tellable apart at a glance — the left bar
+       carries that, not colour alone, which the dot already spends. */
+    .notif-item.is-open{border-left:2px solid var(--accent-err);padding-left:calc(.75rem - 2px)}
+    .notif-item.is-resolved{border-left:2px solid var(--accent-ok);padding-left:calc(.75rem - 2px);opacity:.6}
+    .notif-sep{padding:.3rem .75rem;font-family:var(--font-mono);font-size:.58rem;
+               letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);
+               background:var(--bg-deep);border-bottom:1px solid var(--border)}
+    .notif-ack-btn{margin-top:.3rem;padding:.15rem .45rem;font-family:var(--font-mono);
+                   font-size:.58rem;letter-spacing:.04em;text-transform:uppercase;
+                   color:var(--text-muted);background:transparent;
+                   border:1px solid var(--border);border-radius:3px;cursor:pointer}
+    .notif-ack-btn:hover{color:var(--text-main);border-color:var(--accent-rx)}
     /* Geo flag */
     .geo-flag{font-size:.8rem;margin-right:.2rem}
     /* Wireless enhancements */
@@ -1120,6 +1197,11 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
       <span class="nav-label">Dashboard</span>
     </a>
+    <a class="nav-item" data-page="topology" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.6"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><line x1="10.2" y1="10.4" x2="5.5" y2="6.4"/><line x1="13.8" y1="10.4" x2="18.5" y2="6.4"/><line x1="10.2" y1="13.6" x2="5.5" y2="17.6"/><line x1="13.8" y1="13.6" x2="18.5" y2="17.6"/></svg></span>
+      <span class="nav-label">Topology</span>
+      <span class="nav-badge" id="topologyNavBadge"></span>
+    </a>
     <a class="nav-item" data-page="wireless" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
       <span class="nav-label">Wireless</span>
@@ -1195,7 +1277,10 @@
   <div id="topbar">
     <h1 id="topbarLogo">Mikro<span>Dash</span></h1>
     <div class="topbar-sep"></div>
-    <span id="pageTitle">Dashboard</span>
+    <div id="pageTitleWrap">
+      <span id="pageTitleIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      <span id="pageTitle">Dashboard</span>
+    </div>
     <div class="topbar-right">
       <div class="notif-wrap">
         <button id="notifToggleBtn" title="Notifications" style="background:none;border:none;cursor:pointer;padding:2px 4px;display:flex;align-items:center;transition:opacity .2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
@@ -2533,8 +2618,8 @@
             <!-- Six columns, matching what _applyAlertSort renders. The static
                  markup declared five, so the header and the empty-state colspan
                  disagreed with the rendered table until the first Load. -->
-            <thead><tr id="rptAlertThead"><th>Fired At</th><th>Type</th><th>Subject</th><th>Detail</th><th>Resolved At</th><th style="text-align:right">Down Time</th></tr></thead>
-            <tbody id="rptAlertTbody"><tr><td colspan="6" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+            <thead><tr id="rptAlertThead"><th>Fired At</th><th>Type</th><th>Subject</th><th>Detail</th><th>Resolved At</th><th>Acknowledged</th><th style="text-align:right">Down Time</th></tr></thead>
+            <tbody id="rptAlertTbody"><tr><td colspan="7" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -2869,6 +2954,7 @@
               <label class="stoggle"><span class="stoggle-label">NetWatch Hosts</span><span class="stoggle-switch"><input type="checkbox" id="s_notifNetwatch"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Router Offline / Online</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterStatus"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle" title="Notify once per release when RouterOS has a newer version available"><span class="stoggle-label">RouterOS Update Available</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterUpdate"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle" title="BGP peer up/down, large prefix-count swings, session flapping and hold-timer misconfiguration"><span class="stoggle-label">BGP Peers</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBgp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             </div>
           </div>
         </div>
@@ -3289,6 +3375,7 @@
               <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBandwidth"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Routing</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouting"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Topology</span><span class="stoggle-switch"><input type="checkbox" id="s_pageTopology"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             </div>
             <p style="font-size:.74rem;color:var(--text-muted);margin:.75rem 0 .5rem">Dashboard widgets</p>
             <div class="stoggle-grid">
@@ -3301,30 +3388,26 @@
       <!-- ── Authentication tab ─────────────────────────────────────────── -->
       <div class="stab-panel" id="stab-auth">
 
-        <!-- Card 1: Auth Mode -->
-        <div class="scard">
+        <div class="scard scard--wide">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <span class="scard-title">Authentication Mode</span>
+            <span class="scard-title">Authentication</span>
           </div>
           <div class="scard-body">
-            <div style="margin-bottom:.85rem">
-              <label class="sform-label">Mode</label>
-              <select class="sform-input" id="s_authMode" aria-label="Authentication mode">
-                <option value="none">None (open access)</option>
-                <option value="modern">Session-based (recommended)</option>
-              </select>
-            </div>
+            <!-- Two columns: the card spans the full grid width, so stacking two
+                 short controls left a lot of empty space to their right. -->
+            <div class="auth-grid">
+              <!-- Both columns follow the same shape — heading, control, hint —
+                   so the controls sit on one line and the hints start together. -->
+              <div>
+                <span class="sform-label">Sign-in</span>
+                <label class="stoggle"><span class="stoggle-label">Require sign-in</span><span class="stoggle-switch"><input type="checkbox" id="s_authEnabled" aria-label="Require sign-in"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                <p class="auth-hint">Off means no login at all — anyone who can reach this page has full control. Only sensible on a trusted network.</p>
+              </div>
 
-            <!-- Warning: open access -->
-            <div id="authNoneWarn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.25);border-radius:6px;padding:.5rem .75rem;font-size:.76rem;color:var(--accent-warn);margin-bottom:.6rem">
-              ⚠ Dashboard is publicly accessible — anyone on the network can view it.
-            </div>
-
-            <!-- Modern auth fields -->
-            <div id="modernAuthFields" style="display:none">
-              <div style="margin-bottom:.85rem">
-                <label class="sform-label">Session Timeout</label>
+              <!-- Modern auth fields -->
+              <div id="modernAuthFields" style="display:none">
+                <span class="sform-label">Session Timeout</span>
                 <select class="sform-input" id="s_sessionTimeoutMs" aria-label="Session timeout">
                   <option value="3600000">1 hour</option>
                   <option value="14400000">4 hours</option>
@@ -3332,28 +3415,220 @@
                   <option value="86400000">24 hours</option>
                   <option value="0">Never</option>
                 </select>
-                <p style="font-size:.72rem;color:var(--text-muted);margin-top:.35rem">Sessions are cleared on server restart.</p>
+                <p class="auth-hint">Sessions are cleared on server restart. Signing in again is all that is needed.</p>
               </div>
+            </div>
+
+            <!-- Warning: open access. Full width beneath both columns — it is the
+                 loudest thing on the card when it shows, and must not be a
+                 narrow strip beside the toggle. -->
+            <div id="authNoneWarn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.25);border-radius:6px;padding:.5rem .75rem;font-size:.76rem;color:var(--accent-warn);margin-top:.75rem">
+              ⚠ Dashboard is publicly accessible — anyone on the network can view it.
             </div>
           </div>
         </div>
 
-        <!-- Card 2: User Management (modern mode only) -->
-        <div class="scard" id="userMgmtCard" style="display:none">
-          <div class="scard-header" style="display:flex;align-items:center;justify-content:space-between">
-            <span style="display:flex;align-items:center;gap:.4rem">
-              <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <span class="scard-title">Users</span>
-            </span>
-            <button class="sbtn sbtn-primary" id="addUserBtn" style="padding:.25rem .65rem;font-size:.75rem">+ Add User</button>
+        <!-- Users, Groups, Sites and Roles share one card. Four separate cards
+             turned this panel into a long scroll of tables; each keeps its own
+             table, form and Add button, one per tab. -->
+        <div class="scard scard--wide" id="principalsCard" data-cap="managePrincipals" style="display:none">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M21 2l-2 2"/><path d="M15.5 7.5L19 4l3 3-3.5 3.5"/><path d="M15.5 7.5l-4.11 4.11a5.5 5.5 0 1 1-2.83-1.5"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>
+            <span class="scard-title">Access Management</span>
           </div>
-          <div class="scard-body" style="padding-top:.5rem">
+          <!-- Tabs sit in their own row beneath the title, so the card reads like
+               every other settings card and the strip still divides header from body. -->
+          <div class="ptabs-bar">
+            <div class="ptabs" role="tablist" aria-label="Access management sections">
+              <button class="ptab active" data-ptab="users"  role="tab" aria-selected="true"  id="ptabBtn-users">Users</button>
+              <button class="ptab"        data-ptab="groups" role="tab" aria-selected="false">Groups</button>
+              <button class="ptab"        data-ptab="sites"  role="tab" aria-selected="false">Sites</button>
+              <button class="ptab"        data-ptab="roles"  role="tab" aria-selected="false">Roles</button>
+            </div>
+          </div>
+          <div class="scard-body">
+
+          <div class="ptab-panel" id="ptab-sites" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">A site groups routers by location. A router belongs to one site, or none — assign it in the router's settings.</span>
+              <button class="sbtn sbtn-primary" id="addSiteBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Site</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="siteTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Name</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Description</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Routers</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="siteTbody">
+                <tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading…</td></tr>
+              </tbody>
+            </table>
+
+            <!-- Add/Edit site inline form -->
+            <!-- Centre-screen dialog rather than an inline panel that pushed the
+                 table down. Reuses the router modal's treatment — the rtr- prefix
+                 is historical; it is the app's only modal styling. -->
+            <div class="rtr-modal-bg" id="siteFormWrap">
+             <div class="rtr-modal pmodal">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="sf_title">Add Site</span>
+                <button class="rtr-modal-close" data-modal-close="siteFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
+              <input type="hidden" id="sf_id">
+              <div class="sform-row">
+                <div>
+                  <label class="sform-label">Name</label>
+                  <input class="sform-input" id="sf_name" type="text" placeholder="Head Office" autocomplete="off" maxlength="64">
+                </div>
+                <div>
+                  <label class="sform-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                  <input class="sform-input" id="sf_description" type="text" placeholder="Main building, ground floor" autocomplete="off" maxlength="256">
+                </div>
+              </div>
+              <div style="margin-top:.6rem">
+                <label class="sform-label">Routers at this site</label>
+                <div id="sf_routers" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:12rem;overflow-y:auto"></div>
+                <div style="font-size:.7rem;color:var(--text-muted);margin-top:.35rem">A router belongs to one site at most. Ticking it here moves it from whatever site it was in before.</div>
+              </div>
+              <div class="login-error" id="sf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
+                <button class="sbtn sbtn-outline" id="sf_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="sf_save">Save Site</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+          <div class="ptab-panel" id="ptab-groups" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">A group collects users so a role can be granted to all of them at once — for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.</span>
+              <button class="sbtn sbtn-primary" id="addGroupBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Group</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="groupTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Name</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Members</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Access</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="groupTbody">
+                <tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading…</td></tr>
+              </tbody>
+            </table>
+
+            <div class="rtr-modal-bg" id="groupFormWrap">
+             <div class="rtr-modal pmodal">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="gf_title">Add Group</span>
+                <button class="rtr-modal-close" data-modal-close="groupFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
+              <input type="hidden" id="gf_id">
+              <div class="sform-row">
+                <div>
+                  <label class="sform-label">Name</label>
+                  <input class="sform-input" id="gf_name" type="text" placeholder="Network Operators" autocomplete="off" maxlength="64">
+                </div>
+                <div>
+                  <label class="sform-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                  <input class="sform-input" id="gf_description" type="text" placeholder="Team responsible for day-to-day monitoring" autocomplete="off" maxlength="256">
+                </div>
+              </div>
+              <div style="margin-top:.6rem">
+                <label class="sform-label">Members</label>
+                <div id="gf_members" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:12rem;overflow-y:auto"></div>
+              </div>
+              <div style="margin-top:.6rem">
+                <label class="sform-label">Access granted to this group</label>
+                <div id="gf_grants" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem"></div>
+              </div>
+              <div class="login-error" id="gf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
+                <button class="sbtn sbtn-outline" id="gf_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="gf_save">Save Group</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+          <div class="ptab-panel" id="ptab-roles" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says <em>what</em>, the scope says <em>which routers</em>. Administrator is built in and always sees everything.</span>
+              <button class="sbtn sbtn-primary" id="addRoleBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Role</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="roleTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Name</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Pages</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">In use</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="roleTbody">
+                <tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading…</td></tr>
+              </tbody>
+            </table>
+
+            <div class="rtr-modal-bg" id="roleFormWrap">
+             <div class="rtr-modal pmodal">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="rf_title">Add Role</span>
+                <button class="rtr-modal-close" data-modal-close="roleFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
+              <input type="hidden" id="rf_id">
+              <div class="sform-row">
+                <div>
+                  <label class="sform-label">Name</label>
+                  <input class="sform-input" id="rf_name" type="text" placeholder="NOC Tier 1" autocomplete="off" maxlength="64">
+                </div>
+                <div>
+                  <label class="sform-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                  <input class="sform-input" id="rf_description" type="text" placeholder="First-line monitoring: logs and reports" autocomplete="off" maxlength="256">
+                </div>
+              </div>
+              <div style="margin-top:.7rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+                  <label class="sform-label" style="margin:0">Page access</label>
+                  <div style="display:flex;gap:.3rem">
+                    <button class="sbtn sbtn-outline rf-bulk" data-bulk="none"  style="padding:.15rem .5rem;font-size:.68rem">All none</button>
+                    <button class="sbtn sbtn-outline rf-bulk" data-bulk="read"  style="padding:.15rem .5rem;font-size:.68rem">All read</button>
+                    <button class="sbtn sbtn-outline rf-bulk" data-bulk="write" style="padding:.15rem .5rem;font-size:.68rem">All write</button>
+                  </div>
+                </div>
+                <div id="rf_pages" style="margin-top:.4rem;padding:.35rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:22rem;overflow-y:auto"></div>
+              </div>
+              <div class="login-error" id="rf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
+                <button class="sbtn sbtn-outline" id="rf_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="rf_save">Save Role</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+          <!-- Users is the default tab, and the only one that also depends on
+               auth mode: in 'none' mode there are no accounts to manage. -->
+          <div class="ptab-panel active" id="ptab-users" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">Each user signs in with their own account. Access comes from the roles granted to them here, and from any group they belong to.</span>
+              <button class="sbtn sbtn-primary" id="addUserBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add User</button>
+            </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="userTable">
               <thead>
                 <tr style="border-bottom:1px solid var(--border)">
                   <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Username</th>
-                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Role</th>
-                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Routers</th>
+                  <th colspan="2" style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Access</th>
                   <th style="padding:.35rem .5rem"></th>
                 </tr>
               </thead>
@@ -3363,7 +3638,13 @@
             </table>
 
             <!-- Add/Edit user inline form -->
-            <div id="userFormWrap" style="display:none;margin-top:1rem;padding:1rem;background:rgba(99,130,190,.06);border:1px solid var(--border);border-radius:8px">
+            <div class="rtr-modal-bg" id="userFormWrap">
+             <div class="rtr-modal pmodal">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="uf_title">Add User</span>
+                <button class="rtr-modal-close" data-modal-close="userFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
               <input type="hidden" id="uf_id">
               <div class="sform-row">
                 <div>
@@ -3375,31 +3656,27 @@
                   <input class="sform-input" id="uf_password" type="password" placeholder="Password" autocomplete="new-password">
                 </div>
               </div>
-              <div class="sform-row" style="margin-top:.6rem">
-                <div>
-                  <label class="sform-label">Role</label>
-                  <select class="sform-input" id="uf_role" aria-label="User role">
-                    <option value="admin">Admin</option>
-                    <option value="viewer">Viewer (read-only)</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="sform-label">Allowed Routers</label>
-                  <select class="sform-input" id="uf_routerFilter" aria-label="Router access filter">
-                    <option value="all">All routers</option>
-                    <option value="custom">Selected routers…</option>
-                  </select>
-                </div>
+              <!-- Access is granted the same way for users as for groups (#108):
+                   rows of [Role] over [All routers | Site | Router]. The old
+                   single-role select plus an all-or-listed router picker could
+                   not express a custom role, nor two different roles at two
+                   different sites. -->
+              <div style="margin-top:.6rem">
+                <label class="sform-label">Access granted to this user</label>
+                <div id="uf_grants" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem"></div>
               </div>
-              <div id="uf_routerList" style="display:none;margin-top:.6rem;padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem"></div>
-              <div style="display:flex;gap:.5rem;margin-top:.85rem;justify-content:flex-end">
+              <div class="login-error" id="uf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
                 <button class="sbtn sbtn-outline" id="uf_cancel">Cancel</button>
                 <button class="sbtn sbtn-primary" id="uf_save">Save User</button>
               </div>
-              <div class="login-error" id="uf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+             </div>
             </div>
           </div>
-        </div>
+
+          </div><!-- /scard-body -->
+        </div><!-- /principalsCard -->
 
       </div>
 
@@ -3644,6 +3921,62 @@
     </div><!-- /container -->
   </div><!-- /page-routing -->
 
+  <!-- NETWORK TOPOLOGY -->
+  <div class="page-view" id="page-topology">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="topo-stats" id="topoStats">
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatDevices">—</span><span class="topo-stat-lbl">Devices</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatLinks">—</span><span class="topo-stat-lbl">Links</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatThru">—</span><span class="topo-stat-lbl">Throughput</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatRtt">—</span><span class="topo-stat-lbl">Worst latency</span></div>
+      </div>
+
+      <div class="card" id="topologyCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="rt-toolbar">
+          <span class="rt-card-title" style="margin-bottom:0;flex-shrink:0">Network Topology</span>
+          <input type="text" class="rt-search" id="topoSearch" placeholder="Find a device by name, IP or MAC…">
+          <select class="rt-sel" id="topoVlan" aria-label="VLAN filter" title="Show only clients on a VLAN">
+            <option value="">All VLANs</option>
+          </select>
+          <select class="rt-sel" id="topoType" aria-label="Device type filter">
+            <option value="">All types</option>
+            <option value="router">Routers</option>
+            <option value="switch">Switches</option>
+            <option value="ap">Access points</option>
+            <option value="station">Stations</option>
+            <option value="other">Other</option>
+          </select>
+          <button class="topo-chip is-on" id="topoFlowBtn" title="Toggle animated traffic flow">Flow</button>
+          <button class="topo-chip is-on" id="topoRateBtn" title="Toggle link rate labels">Rates</button>
+          <button class="topo-chip" id="topoClientsBtn" title="Show every client device. Collapsed by default — use the count chip on a device to expand just that one.">Clients</button>
+          <span class="topo-tools">
+            <button class="topo-btn" id="topoZoomOut" title="Zoom out" aria-label="Zoom out">&minus;</button>
+            <button class="topo-btn" id="topoZoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+            <button class="topo-btn" id="topoFit" title="Fit to view">Fit</button>
+            <button class="topo-btn" id="topoRelayout" title="Discard saved positions and lay out again">Re-layout</button>
+          </span>
+        </div>
+
+        <div class="topo-stage" id="topoStage">
+          <svg id="topoSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Network topology map">
+            <g id="topoViewport">
+              <g id="topoEdges"></g>
+              <g id="topoFlow"></g>
+              <g id="topoNodes"></g>
+            </g>
+          </svg>
+          <div class="topo-empty" id="topoEmpty"></div>
+          <aside class="topo-panel" id="topoPanel" aria-live="polite"></aside>
+        </div>
+
+        <div class="topo-foot" id="topoFoot"></div>
+      </div>
+
+    </div><!-- /container -->
+  </div><!-- /page-topology -->
+
 </div><!-- /main -->
 
 <div id="mapFsOverlay">
@@ -3665,6 +3998,12 @@
         <div class="sform-group">
           <label class="sform-label">Display Name</label>
           <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
+        </div>
+        <div class="sform-group">
+          <label class="sform-label">Site</label>
+          <select class="sform-input" id="rtrModalSite" aria-label="Site this router belongs to">
+            <option value="">— No site —</option>
+          </select>
         </div>
         <div class="sform-row sform-group">
           <div>
@@ -3871,6 +4210,7 @@
 <script src="/vendor/chart.umd.min.js"></script>
 <script src="/app.js"></script>
 <script src="/js/dashboard-grid.js"></script>
+<script src="/js/topology.js"></script>
 
 </body>
 </html>

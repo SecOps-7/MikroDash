@@ -64,6 +64,31 @@ function _hashPassword(password, salt) {
   });
 }
 
+// Roles, in ascending privilege. Single source of truth — the HTTP layer
+// validates against this rather than repeating the list.
+//
+// Validated, never coerced. Both call sites below used to read
+// `role === 'viewer' ? 'viewer' : 'admin'`, which silently turned ANY
+// unrecognised value into an administrator: a typo, a stale client, or a role
+// added later and not yet wired up here. That is the wrong direction to fail
+// in, and it is why adding a third role has to start here — `role: 'operator'`
+// would otherwise have quietly created an admin.
+// Ascending privilege. 'operator' sits between read-only and administrator: it
+// can acknowledge alerts, read history and run diagnostics, and it is the tier
+// that will receive RouterOS write actions when issue #97 lands.
+//
+// This could only be widened safely after the coercion above became validation:
+// under the old `role === 'viewer' ? 'viewer' : 'admin'`, adding 'operator' here
+// would have silently created administrators.
+const ROLES = ['viewer', 'operator', 'admin'];
+
+function _validRole(role) {
+  if (!ROLES.includes(role)) {
+    throw new Error('Invalid role: ' + String(role) + ' (expected one of ' + ROLES.join(', ') + ')');
+  }
+  return role;
+}
+
 // ── Public API (all async except userCount) ───────────────────────────────────
 
 async function createUser({ username, password, role, allowedRouterIds }) {
@@ -74,7 +99,7 @@ async function createUser({ username, password, role, allowedRouterIds }) {
     username:         String(username).trim(),
     passwordHash,
     salt,
-    role:             role === 'viewer' ? 'viewer' : 'admin',
+    role:             _validRole(role),
     allowedRouterIds: Array.isArray(allowedRouterIds) ? allowedRouterIds : [],
     createdAt:        Date.now(),
   };
@@ -111,7 +136,7 @@ async function updateUser(id, updates) {
   const updated  = { ...existing };
 
   if (updates.username !== undefined) updated.username = String(updates.username).trim();
-  if (updates.role     !== undefined) updated.role = updates.role === 'viewer' ? 'viewer' : 'admin';
+  if (updates.role     !== undefined) updated.role = _validRole(updates.role);
   if (Array.isArray(updates.allowedRouterIds)) updated.allowedRouterIds = updates.allowedRouterIds;
 
   if (updates.password !== undefined && updates.password !== '') {
@@ -134,6 +159,15 @@ async function deleteUser(id) {
   _cache = next;
   _writeFile(next);
   return true;
+}
+
+// Synchronous sibling of listUsers(), for callers that cannot await: the RBAC
+// migration runs during startup before the server listens, and the orphan sweep
+// runs inside a SQLite transaction, where a Promise would be worse than useless.
+// _load() is already synchronous — the async on listUsers is a convention of
+// this module, not a real I/O boundary. Same precedent as getUserSync().
+function listUsersSync() {
+  return _load().map(_toPublic);
 }
 
 async function listUsers() {
@@ -167,15 +201,18 @@ function userCount() {
   return _load().length;
 }
 
-// Number of users with the admin role — used to block removing the last admin.
-function adminCount() {
-  return _load().filter(u => u.role === 'admin').length;
-}
+// adminCount() lived here: a count of user records carrying role === 'admin',
+// used to block removing the last one. It was deleted with issue #108, not
+// merely left unused — administration is a grant now, and a record count cannot
+// see an administrator whose grant is held through a group, nor notice one
+// demoted in the grant editor. It would answer confidently and wrongly.
+// Rbac.wouldOrphanGlobalAdmin() is the question to ask instead.
 
 function invalidateCache() { _cache = null; }
 
 module.exports = {
   createUser, getUser, getUserSync, getUserByUsername,
-  updateUser, deleteUser, listUsers,
-  verifyPassword, userCount, adminCount, invalidateCache,
+  updateUser, deleteUser, listUsers, listUsersSync,
+  verifyPassword, userCount, invalidateCache,
+  ROLES,
 };

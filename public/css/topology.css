@@ -1,0 +1,162 @@
+/* Network Topology page.
+ *
+ * Every colour here is a design token or `currentColor`. Node status is set by a
+ * class on the node <g> which assigns `color:`; every shape inside inherits it via
+ * currentColor. That is what makes the 8 palettes x 2 themes work with no
+ * per-palette rules — do not introduce a literal hex value in this file.
+ */
+
+/* ── Stat strip ──────────────────────────────────────────────────────────── */
+.topo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:.85rem}
+.topo-stat{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;
+  padding:.6rem .9rem;display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.topo-stat-num{font-family:var(--font-mono);font-size:1.15rem;font-weight:600;color:var(--text-main);
+  line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topo-stat-lbl{font-family:var(--font-ui);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--text-muted)}
+@media(max-width:700px){.topo-stats{grid-template-columns:repeat(2,1fr)}}
+
+/* ── Toolbar extras (reuses .rt-toolbar / .rt-search / .rt-sel) ───────────── */
+.topo-chip,.topo-btn{font-family:var(--font-ui);font-size:.7rem;color:var(--text-muted);
+  background:var(--bg-card);border:1px solid var(--border);border-radius:6px;
+  padding:.26rem .6rem;cursor:pointer;transition:color .15s,border-color .15s,background .15s;
+  white-space:nowrap}
+.topo-chip:hover,.topo-btn:hover{color:var(--accent-rx);border-color:var(--accent-rx)}
+.topo-chip.is-on{color:var(--accent-rx);border-color:var(--accent-rx);
+  background:color-mix(in srgb,var(--accent-rx) 12%,transparent)}
+.topo-tools{margin-left:auto;display:flex;gap:.3rem;flex-shrink:0}
+.topo-btn{min-width:1.9rem}
+
+/* ── Stage ───────────────────────────────────────────────────────────────── */
+.topo-stage{position:relative;height:clamp(380px,62vh,760px);overflow:hidden;
+  border-radius:0 0 10px 10px;background:
+    radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent-rx) 6%,transparent),transparent 62%),
+    var(--bg-deep)}
+#topoSvg{width:100%;height:100%;display:block;cursor:grab;touch-action:none;
+  -webkit-user-select:none;user-select:none}
+#topoSvg.is-panning{cursor:grabbing}
+
+/* ── Edges ───────────────────────────────────────────────────────────────── */
+.topo-edge{fill:none;stroke:var(--border);stroke-width:1.5;stroke-linecap:round}
+.topo-edge.is-shared{stroke-dasharray:5 4}
+/* An inferred link is real — the device IS behind that switch — but the router
+   cannot see which switch port, so it is drawn in its own colour to set it apart
+   from a directly observed link. */
+.topo-edge.is-inferred{stroke:var(--accent-alt);stroke-width:2;stroke-dasharray:none}
+.topo-edge.is-gone{opacity:.32}
+.topo-edge-load{fill:none;stroke-linecap:round;opacity:.85;transition:stroke-width .4s ease}
+.topo-edge-hit{fill:none;stroke:transparent;stroke-width:18;cursor:pointer}
+.topo-elabel{font-family:var(--font-mono);font-size:8.6px;fill:var(--text-muted);
+  text-anchor:middle;pointer-events:none;paint-order:stroke;
+  stroke:var(--bg-deep);stroke-width:3px;stroke-linejoin:round}
+.topo-iflabel{font-family:var(--font-ui);font-size:8px;fill:var(--text-muted);opacity:.75;
+  text-anchor:middle;pointer-events:none;paint-order:stroke;
+  stroke:var(--bg-deep);stroke-width:3px;stroke-linejoin:round}
+.topo-flow-dot{pointer-events:none}
+
+/* ── Nodes ───────────────────────────────────────────────────────────────── */
+.topo-node{cursor:grab;touch-action:none}
+.topo-node.is-dragging{cursor:grabbing}
+.topo-node.is-animated{transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.topo-halo{fill:none;stroke:currentColor;stroke-opacity:.16;stroke-width:8}
+.topo-disc{fill:var(--bg-card);stroke:currentColor;stroke-width:2}
+.topo-glyph{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.topo-label{font-family:var(--font-ui);font-size:11px;font-weight:600;fill:var(--text-main);
+  text-anchor:middle;pointer-events:none;paint-order:stroke;
+  stroke:var(--bg-deep);stroke-width:3px;stroke-linejoin:round}
+.topo-sub{font-family:var(--font-mono);font-size:9.5px;fill:var(--text-muted);
+  text-anchor:middle;pointer-events:none;paint-order:stroke;
+  stroke:var(--bg-deep);stroke-width:3px;stroke-linejoin:round}
+.topo-rtt-bg{fill:var(--bg-card);stroke:currentColor;stroke-opacity:.5;stroke-width:1}
+.topo-rtt-tx{font-family:var(--font-mono);font-size:8px;fill:currentColor;text-anchor:middle}
+.topo-ring{fill:none;stroke:currentColor;stroke-opacity:.35;stroke-width:1;stroke-dasharray:3 7}
+
+/* ── Client tier ─────────────────────────────────────────────────────────────
+   Clients outnumber infrastructure by an order of magnitude, so they are drawn
+   as plainly as possible: a dot and a label, no halo, no glyph, no status ring. */
+.topo-node.is-client .topo-cdot{stroke-width:1.5;stroke:currentColor;fill:var(--bg-card)}
+.topo-node.is-client{color:var(--text-muted)}
+.topo-node.is-client.is-wifi{color:var(--accent-rx)}
+.topo-node.is-client.is-wired{color:var(--accent-tx)}
+.topo-clabel{font-family:var(--font-ui);font-size:8.5px;fill:var(--text-muted);
+  text-anchor:middle;pointer-events:none;paint-order:stroke;
+  stroke:var(--bg-deep);stroke-width:2.5px;stroke-linejoin:round}
+.topo-node.is-client.is-sel .topo-cdot{stroke-width:2.5;r:8}
+
+/* Client-count chip; doubles as the expand control. */
+.topo-chip-g{cursor:pointer}
+.topo-chip-bg{fill:var(--bg-card);stroke:currentColor;stroke-opacity:.45;stroke-width:1}
+.topo-chip-tx{font-family:var(--font-mono);font-size:8.5px;fill:currentColor;text-anchor:middle}
+.topo-chip-g:hover .topo-chip-bg{stroke-opacity:1}
+.topo-chip-g.is-open .topo-chip-bg{fill:color-mix(in srgb,currentColor 18%,var(--bg-card))}
+
+/* Status -> colour. Children use currentColor, so this one property drives all of them. */
+.topo-node.st-up      {color:var(--accent-ok)}
+.topo-node.st-warn    {color:var(--accent-warn)}
+.topo-node.st-down    {color:var(--accent-err)}
+.topo-node.st-unknown {color:var(--text-muted)}
+.topo-node.is-core    {color:var(--accent-rx)}
+.topo-node.is-gone .topo-disc{stroke-dasharray:4 3}
+.topo-node.is-gone   {opacity:.55}
+.topo-node.is-dim    {opacity:.2}
+.topo-node.is-sel .topo-halo{stroke-opacity:.42;stroke-width:11}
+
+/* Pulse only the halo, and only when something is wrong — a map that pulses
+   everywhere reads as noise rather than as an alert. */
+.topo-node.st-warn .topo-halo,
+.topo-node.st-down .topo-halo{animation:topoPulse 2s ease-in-out infinite}
+@keyframes topoPulse{0%,100%{stroke-opacity:.16}50%{stroke-opacity:.46}}
+@media(prefers-reduced-motion:reduce){
+  .topo-node.st-warn .topo-halo,.topo-node.st-down .topo-halo{animation:none}
+  .topo-node.is-animated{transition:none}
+}
+
+/* ── Empty / diagnostic state ────────────────────────────────────────────── */
+.topo-empty{position:absolute;inset:0;display:none;flex-direction:column;gap:.5rem;
+  align-items:center;justify-content:center;text-align:center;padding:1.5rem;
+  font-family:var(--font-ui);font-size:.78rem;color:var(--text-muted)}
+.topo-empty.show{display:flex}
+.topo-empty b{color:var(--text-main);font-weight:600;font-size:.86rem}
+.topo-empty code{font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx)}
+.topo-empty-hint{max-width:34rem;line-height:1.5;opacity:.85}
+
+/* ── Detail panel ────────────────────────────────────────────────────────── */
+.topo-panel{position:absolute;top:0;right:0;bottom:0;width:min(19rem,82%);
+  background:var(--bg-card);border-left:1px solid var(--border);
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  transform:translateX(101%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
+  overflow-y:auto;padding:.85rem .95rem;display:flex;flex-direction:column;gap:.7rem}
+.topo-panel.open{transform:none}
+.topo-panel-hdr{display:flex;align-items:flex-start;gap:.55rem}
+.topo-panel-hdr svg{width:20px;height:20px;flex-shrink:0;margin-top:.1rem;
+  fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.topo-panel-name{font-family:var(--font-ui);font-weight:600;font-size:.9rem;color:var(--text-main);
+  line-height:1.25;word-break:break-word;flex:1;min-width:0}
+.topo-panel-close{background:none;border:none;color:var(--text-muted);cursor:pointer;
+  font-size:1rem;line-height:1;padding:.1rem .25rem;flex-shrink:0}
+.topo-panel-close:hover{color:var(--accent-err)}
+.topo-badges{display:flex;flex-wrap:wrap;gap:.3rem}
+.topo-badge{font-family:var(--font-ui);font-size:.62rem;letter-spacing:.04em;text-transform:uppercase;
+  padding:.14rem .42rem;border-radius:4px;border:1px solid var(--border);
+  background:var(--card-badge-bg);color:var(--card-badge-color)}
+.topo-badge.is-guess{border-color:var(--accent-warn);color:var(--accent-warn)}
+.topo-badge.is-vlan{border-color:var(--accent-alt);color:var(--accent-alt)}
+.topo-kv{display:grid;grid-template-columns:auto 1fr;gap:.24rem .6rem;font-size:.71rem;align-items:baseline}
+.topo-kv dt{font-family:var(--font-ui);color:var(--text-muted);white-space:nowrap}
+.topo-kv dd{font-family:var(--font-mono);color:var(--text-main);margin:0;word-break:break-word}
+.topo-panel-sec{font-family:var(--font-ui);font-size:.64rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-muted);border-top:1px solid var(--border);padding-top:.55rem;margin-top:.1rem}
+
+/* ── Footer note ─────────────────────────────────────────────────────────── */
+.topo-foot{padding:.5rem .8rem;border-top:1px solid var(--border);
+  font-family:var(--font-ui);font-size:.68rem;color:var(--text-muted);
+  display:flex;gap:.8rem;flex-wrap:wrap;align-items:center}
+.topo-foot .topo-legend{display:inline-flex;align-items:center;gap:.28rem}
+.topo-foot .topo-swatch{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* Light theme: the stage keeps a deep ground in dark mode but must not stay
+   near-black on a light page. Tokens already flip; this only softens the glow. */
+html[data-theme="light"] .topo-stage{
+  background:
+    radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent-rx) 9%,transparent),transparent 62%),
+    var(--bg-deep)}

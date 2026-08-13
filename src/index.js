@@ -73,6 +73,7 @@ const PingCollector         = require('./collectors/ping');
 const BandwidthCollector    = require('./collectors/bandwidth');
 const RoutingCollector      = require('./collectors/routing');
 const NetwatchCollector     = require('./collectors/netwatch');
+const TopologyCollector     = require('./collectors/topology');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
@@ -80,6 +81,8 @@ const overviewSessions      = require('./overviewSessions');
 const SessionStore          = require('./auth/sessionStore');
 const Users                 = require('./users');
 const db                    = require('./db');
+const Rbac                  = require('./rbac');
+const Pages                 = require('./pages');
 const dbWriter              = require('./db-writer');
 
 const compression = require('compression');
@@ -116,20 +119,38 @@ function buildRouterIo(routerId) {
   const _handlers = [];
   // Room-scoped emits must still feed the alerter, or events that only ever go
   // through to() (e.g. vpn:update) can never trigger notifications.
-  const _hook = (event, data) => alerter.evaluateForRouter(routerId, event, data);
+  // Side effects of an emit, independent of who receives it. Persisting a ping
+  // sample and evaluating alerts are consequences of the payload existing, not
+  // of its delivery scope — recordPing used to sit on the router-wide emit()
+  // alone, so the moment ping:update became page-scoped (issue #108) history
+  // would have stopped being written, silently, with the Ping report going
+  // empty and nothing logging an error.
+  const _hook = (event, data) => {
+    if (event === 'ping:update' && data && typeof data.loss === 'number') {
+      dbWriter.recordPing(routerId, data.target, data.rtt != null ? data.rtt : null, data.loss, data.ts);
+    }
+    alerter.evaluateForRouter(routerId, event, data);
+  };
   return {
     emit(event, data) {
       io.to(room).emit(event, data);
-      if (event === 'ping:update' && data && typeof data.loss === 'number') {
-        dbWriter.recordPing(routerId, data.target, data.rtt != null ? data.rtt : null, data.loss, data.ts);
-      }
       _hook(event, data);
     },
+    // Recursively chainable, so .to(a).to(b).to(c) works. This used to hardcode
+    // exactly two levels: the second .to() returned an object with only emit(),
+    // so a third threw "to is not a function" at runtime — invisible until a
+    // collector needed to reach three rooms (ifstatus does, issue #108).
     to(subRoom) {
-      return {
-        emit(event, data) { io.to(room + '-' + subRoom).emit(event, data); _hook(event, data); },
-        to(r2)            { return { emit(e, d) { io.to(room + '-' + subRoom).to(room + '-' + r2).emit(e, d); _hook(e, d); } }; },
-      };
+      const _chain = (rooms) => ({
+        to(r) { return _chain(rooms.concat(r)); },
+        emit(event, data) {
+          let op = io;
+          for (const r of rooms) op = op.to(room + '-' + r);
+          op.emit(event, data);
+          _hook(event, data);
+        },
+      });
+      return _chain([subRoom]);
     },
     // Collectors may call io.on('connection', ...) to restart streams on reconnect.
     on(event, handler)   { _handlers.push([event, handler]); io.on(event, handler); },
@@ -206,32 +227,13 @@ function _modernAuthMiddleware(req, res, next) {
   return res.redirect(302, `/login?next=${next_url}`);
 }
 
-// Role-based access control only exists in modern auth (it has a user model with
-// roles). In 'none' mode there is no identity, so every request is implicitly an
-// admin — this is by design. RBAC is enforced whenever an identity with a role is present.
-function _requireAdmin(req, res, next) {
-  if (!_isModern()) return next();
-  if (!req.authSession || req.authSession.role !== 'admin') {
-    return res.status(403).json({ ok: false, error: 'Admin access required' });
-  }
-  next();
-}
-
-// Reject a report/export request whose ?routerId is outside the caller's allowed
-// set. Live socket data is already per-router scoped (_resolveRouterId); the
-// historical-data routes accept an arbitrary routerId, so a restricted admin must
-// be held to the same boundary here. No-op in none mode (no per-user perms).
-function _scopeRouterId(req, res, next) {
-  if (!_isModern()) return next();
-  const allowed = req.authSession && req.authSession.allowedRouterIds;
-  if (Array.isArray(allowed) && allowed.length > 0) {
-    const rid = String(req.query.routerId || '');
-    if (rid && !allowed.includes(rid)) {
-      return res.status(403).json({ ok: false, error: 'Router not permitted' });
-    }
-  }
-  next();
-}
+// Authorization lives in src/rbac.js. _requireAdmin, _routerPermitted and
+// _scopeRouterId used to sit here; all three are gone, deliberately rather than
+// left dormant. Each carried its own copy of the "in 'none' auth mode everything
+// is implicitly admin" short circuit, and each read allowedRouterIds directly,
+// where an empty array meant UNRESTRICTED. A second authorization helper left
+// alive is one a future route reaches for, quietly bypassing the grant model —
+// so the only way to answer "may this caller do this?" is now Rbac.can().
 
 app.use(helmet(buildHelmetOptions()));
 app.use(compression());
@@ -268,7 +270,18 @@ function _startSessionSweep() {
         socket.emit('session:expired');
         socket.disconnect(true);
       } else {
-        socket.request._authSession = live; // refresh live role/allowedRouterIds
+        socket.request._authSession = live; // refresh live role/grants
+        // Revocation used to take effect only on the next page load, so a
+        // socket kept streaming a router its owner had just lost. Room
+        // membership is the actual data boundary, so leaving the rooms is what
+        // stops the data — the notice is only so the page can explain itself.
+        if (socket.routerId && !_socketCan(socket, 'router:read', socket.routerId)) {
+          for (const room of socket.rooms) {
+            if (room.startsWith('router-')) socket.leave(room);
+          }
+          socket.routerId = '';
+          socket.emit('access:revoked');
+        }
       }
     }
   }, 60_000);
@@ -326,6 +339,7 @@ function _freshState() {
     lastRoutingTs:0,  lastRoutingErr:null,
     lastBandwidthTs:0, lastBandwidthErr:null,
     lastNetwatchTs:0, lastNetwatchErr:null,
+    lastTopologyTs:0, lastTopologyErr:null,
   };
 }
 
@@ -416,12 +430,15 @@ function buildSession(routerCfg, routerIo) {
   const bandwidth    = _on('bandwidth', () => new BandwidthCollector   ({ros, io:routerIo, pollMs:eff.poll.bandwidth, dhcpNetworks, dhcpLeases, arp, ifStatus, state, connTableCache, geoOrgCache}));
   const routing      = _on('routing', () => new RoutingCollector     ({ros, io:routerIo, pollMs:eff.poll.routing,  state, streamMode:eff.stream.routing}));
   const netwatch     = _on('netwatch', () => new NetwatchCollector    ({ros, io:routerIo, pollMs:eff.poll.netwatch,  state, streamMode:eff.stream.netwatch}));
+  // Constructed last: it enriches neighbours from arp/ifStatus/system rather than
+  // re-fetching what they already hold, so it must come after all three.
+  const topology     = _on('topology', () => new TopologyCollector    ({ros, io:routerIo, pollMs:eff.poll.topology,  state, streamMode:eff.stream.topology, rid:routerCfg.id, arp, ifStatus, system, dhcpLeases}));
 
-  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch];
+  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology];
 
   return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES, collection: eff,
            dhcpLeases, dhcpNetworks, arp, traffic, conns, talkers, logs, system,
-           wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, allCollectors,
+           wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology, allCollectors,
            routerId: routerCfg.id, cachedInterfaces: null };
 }
 
@@ -626,6 +643,8 @@ async function startCollectors(session, entry) {
     await session.routing.start();
     await _delay(300);
     await session.netwatch.start();
+    await _delay(300);
+    await session.topology.start();
 
     entry.startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -793,31 +812,116 @@ function scheduleIdleTeardown(routerId, delayMs = 60_000) {
   }, delayMs);
 }
 
+// Socket-side authorization. Sockets carry their session on
+// socket.request._authSession rather than req.authSession, so these two exist to
+// keep every handler asking Rbac rather than reaching for allowedRouterIds — the
+// legacy field cannot express a grant held through a group or a site.
+function _visibleRouterIds(socket) {
+  return Rbac.effectiveRouterIds(socket?.request?._authSession, 'router:read');
+}
+function _socketCan(socket, permission, routerId) {
+  return Rbac.can(socket?.request?._authSession, permission, routerId);
+}
+
+/**
+ * Tell every connected browser its permissions changed (issue #108).
+ *
+ * Without this, editing a role leaves every open session on stale permissions
+ * until someone reloads — the feature looks broken. This does not push the new
+ * caps (the socket's cached session may itself be stale); it tells the client to
+ * re-fetch, which re-resolves server-side and cannot be spoofed by the payload.
+ */
+function _broadcastPermsChanged() {
+  try { io.emit('perms:changed', {}); } catch (_) { /* io not up yet during startup */ }
+}
+
+/**
+ * May this socket see (or act on) a page for the router it is watching?
+ *
+ * The one place requirement "globally enabled AND the role grants it" is
+ * decided (issue #108). The install-wide toggle is a statement about the
+ * deployment — "this site does not use Topology" — and a role narrows further;
+ * neither can widen the other. Keeping the conjunction here, rather than inside
+ * Rbac.canPage(), is what lets the two be tested independently.
+ *
+ * Only 10 of the 14 pages have an install toggle; dashboard, reports, routers
+ * and settings are governed by role alone, which is what the settingsKey guard
+ * below allows for.
+ */
+function _pageAllowed(socket, page, access = 'read') {
+  const rid = socket?.routerId;
+  if (!rid) return false;
+  const def = Pages.BY_KEY[page];
+  if (!def) return false;                       // unknown page: deny
+  if (def.settingsKey && Settings.load()[def.settingsKey] === false) return false;
+  return Rbac.canPage(socket.request?._authSession, page, access, rid);
+}
+
+/**
+ * The page a dashboard card borrows its data from.
+ *
+ * Derived from the collector registry — the dash-card keys ARE collector keys —
+ * so it cannot drift from src/pages.js. 'diagnostics' is not a collector and is
+ * the dashboard's own card, hence the fallback.
+ */
+function _dashCardPage(key) {
+  // A card room is named after either a page or the collector that feeds it —
+  // 'firewall' happens to be both. Page first, so a room added for a page whose
+  // collector has a different key ('connections' vs the 'conns' collector) is
+  // still gated on that page rather than silently falling back to dashboard.
+  if (Pages.BY_KEY[key]) return key;
+  return Pages.pageForCollector(key) || 'dashboard';
+}
+
+/**
+ * May this socket receive a collector's payload on connect?
+ *
+ * `traffic` and `system` have no page — they drive the header gauges on every
+ * page — so they follow router:read like the router list itself and are never
+ * withheld. `arp` emits nothing at all.
+ */
+function _mayReplay(socket, collectorKey) {
+  const page = Pages.pageForCollector(collectorKey);
+  return page === null || _pageAllowed(socket, page);
+}
+
 // Resolve which router a connecting socket should watch.
 function _resolveRouterId(socket) {
   const authSession = socket.request?._authSession;
   const cfg = Settings.load();
   if (authSession) {
-    const allowed = authSession.allowedRouterIds;
-    const hasRestriction = Array.isArray(allowed) && allowed.length > 0;
-    // Personal preference — validate it's still within the allowed set
-    if (authSession.activeRouterId) {
-      if (!hasRestriction || allowed.includes(authSession.activeRouterId)) {
-        return authSession.activeRouterId;
-      }
+    const allowed = _visibleRouterIds(socket);
+    // Newly reachable case: under the old model an empty allowedRouterIds meant
+    // "everything", so "no routers at all" could not happen. Deny-by-default
+    // makes it real, and returning '' here is what lets the caller emit
+    // access:none instead of leaving a dashboard spinning forever.
+    if (!allowed.length) return '';
+    // Precedence matters, and an earlier version of this got it wrong: it
+    // returned allowed[0] for everyone, and effectiveRouterIds sorts by id — so
+    // an unrestricted admin with no personal preference landed on whichever
+    // router happened to have the lowest UUID instead of the one configured as
+    // active. Sessions are in-memory, so any restart makes that the common path.
+    //
+    //   1. personal preference, if they may still read it
+    //   2. the globally configured active router, if they may read it
+    //   3. anything they can read
+    if (authSession.activeRouterId && allowed.includes(authSession.activeRouterId)) {
+      return authSession.activeRouterId;
     }
-    if (hasRestriction) return allowed[0];
+    if (cfg.activeRouterId && allowed.includes(cfg.activeRouterId)) {
+      return cfg.activeRouterId;
+    }
+    return allowed[0];
   }
   return cfg.activeRouterId || '';
 }
 
-// Return the router list visible to a specific socket (filtered by allowedRouterIds).
+// The router list a specific socket may see, resolved through grants.
 function _routersForSocket(socket) {
   const all = Routers.getPublic();
   if (!_isModern()) return all;
-  const allowed = socket.request?._authSession?.allowedRouterIds;
-  if (Array.isArray(allowed) && allowed.length > 0) return all.filter(r => allowed.includes(r.id));
-  return all;
+  const visible = new Set(_visibleRouterIds(socket));
+  return all.filter(r => visible.has(r.id));
 }
 
 // Persist model/serial/version learned from RouterOS against the router entry,
@@ -865,6 +969,52 @@ function _broadcastRoutersList() {
 // to have run). Getting this order wrong silently skips the chart backfill on
 // every restart and builds status-only sessions before _mainIo is set.
 db.open();
+
+// ── RBAC (issue #78) ─────────────────────────────────────────────────────────
+// Computed but NOT enforced yet: every existing guard still decides. This runs
+// here so the grant table exists and is populated before anything can read it.
+//
+// isModern is injected rather than imported by rbac.js, which would otherwise
+// have to pull in the whole settings stack to answer one question.
+Rbac.init({ isModern: _isModern });
+Rbac.migrateFromLegacy();
+// Users and routers live in JSON, so nothing stops a grant outliving its
+// subject — a hand-edited users.json, or a router removed by an older build.
+// Sweeping at startup is both the safety net and the repair path.
+db.sweepOrphanGrants(
+  Users.listUsersSync().map(u => u.id),
+  Routers.loadAll().map(r => r.id),
+);
+
+// One-time import of the per-user layout JSON files into user_layouts.
+//
+// Gated on the table being empty, so it can never re-import over layouts saved
+// since. The source files are deliberately LEFT on disk: they are small, and an
+// operator who rolls back to an older image needs them to still be there.
+(function _migrateLayoutFiles() {
+  if (db.layoutCount() > 0) return;
+  const dir = process.env.DATA_DIR || '/data';
+  let names = [];
+  try { names = fs.readdirSync(dir); } catch (_) { return; }
+
+  let imported = 0;
+  for (const name of names) {
+    const m = /^(dashboard|topology)-layout(?:-(.+))?\.json$/.exec(name);
+    if (!m) continue;
+    const kind = m[1] === 'dashboard' ? 'dashboard' : 'topology';
+    const uid  = m[2] || db.SHARED_LAYOUT_USER;
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+      // Skip empties rather than writing a row that means nothing — a fresh
+      // topology file is literally "{}".
+      if (!data || (typeof data === 'object' && !Object.keys(data).length)) continue;
+      db.setLayout(uid, kind, data);
+      imported++;
+    } catch (_) { /* corrupt file — the old readers ignored it too */ }
+  }
+  if (imported) console.log('%s', `[db] imported ${imported} layout file(s) into user_layouts`);
+})();
+
 db.startPruneInterval(() => Settings.load());
 alerter.init(io, Settings.load());
 alertSessions.init(io);
@@ -909,7 +1059,12 @@ overviewSessions.setIdentityHook(_persistRouterIdentity);
   if (s.dashUser && s.dashPass) {
     const dashUser = s.dashUser;
     Users.createUser({ username: dashUser, password: s.dashPass, role: 'admin', allowedRouterIds: [] })
-      .then(() => {
+      .then((user) => {
+        // This runs AFTER Rbac.migrateFromLegacy(), which is gated on there
+        // being no grants yet — so this account would never get one, and the
+        // upgraded deployment would come back up with nobody able to log in
+        // usefully. Grant it explicitly.
+        Rbac.syncUserGrants(user);
         Settings.save({ authMode: 'modern', dashUser: '', dashPass: '' });
         console.warn('%s', '[auth] basic credentials migrated to modern admin account "' + dashUser + '"');
       })
@@ -969,7 +1124,13 @@ app.get('/api/auth/status', (req, res) => {
   res.json({
     authMode: mode,
     firstRun,
-    session: session ? { username: session.username, role: session.role } : null,
+    // caps, not role: with three roles and per-router scope, "is this person a
+    // viewer?" no longer answers "may they press this button". Resolved
+    // booleans and id lists only — never the grant graph, which would disclose
+    // every other principal's access to anyone who opened devtools.
+    session: session
+      ? { username: session.username, role: session.role, caps: Rbac.capsFor(session) }
+      : null,
   });
 });
 
@@ -1028,11 +1189,8 @@ app.put('/api/auth/me/active-router', (req, res) => {
   // Validate: admin can switch to any router; viewer only to allowed ones
   const router = Routers.getById(routerId);
   if (!router) return res.status(404).json({ ok: false, error: 'Router not found' });
-  if (authSession.role !== 'admin') {
-    const allowed = authSession.allowedRouterIds || [];
-    if (allowed.length > 0 && !allowed.includes(routerId)) {
-      return res.status(403).json({ ok: false, error: 'Router not in allowed list' });
-    }
+  if (!Rbac.can(authSession, 'router:read', routerId)) {
+    return res.status(403).json({ ok: false, error: 'Not permitted' });
   }
   SessionStore.updateSession(token, { activeRouterId: routerId });
   res.json({ ok: true });
@@ -1057,6 +1215,10 @@ app.post('/api/users/setup', setupLimiter, async (req, res) => {
     _setupClaimed = true; // claim synchronously, before the first await
     try {
       const user = await Users.createUser({ username, password, role: 'admin', allowedRouterIds: [] });
+      // Without this the very first administrator of a fresh install holds no
+      // grants, and every guard refuses them — locked out of their own instance
+      // the moment setup completes.
+      Rbac.syncUserGrants(user);
       res.json({ ok: true, user });
     } catch (e) {
       _setupClaimed = false; // creation failed — let setup be retried
@@ -1068,23 +1230,34 @@ app.post('/api/users/setup', setupLimiter, async (req, res) => {
 });
 
 // GET /api/users
-app.get('/api/users', _requireAdmin, async (_req, res) => {
+app.get('/api/users', Rbac.requireGlobalAdmin, async (_req, res) => {
   try {
-    res.json({ ok: true, users: await Users.listUsers() });
+    // Grants are joined here the way /api/groups already does, so the Users card
+    // can render real access instead of the legacy role + allowedRouterIds pair
+    // (issue #108). One fetch, and the two principal types stay symmetric.
+    const users = (await Users.listUsers()).map(u => Object.assign({}, u, {
+      grants: db.listGrants({ principalType: 'user', principalId: u.id }),
+    }));
+    res.json({ ok: true, users });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
   }
 });
 
 // POST /api/users
-app.post('/api/users', _requireAdmin, async (req, res) => {
+app.post('/api/users', Rbac.requireGlobalAdmin, async (req, res) => {
   try {
     const { username, password, role, allowedRouterIds } = req.body || {};
     if (!username || !_USERNAME_RE.test(username)) return res.status(400).json({ ok: false, error: 'Invalid username' });
     if (!password || String(password).length < 4)  return res.status(400).json({ ok: false, error: 'Password too short' });
-    if (role && !['admin','viewer'].includes(role))  return res.status(400).json({ ok: false, error: 'Invalid role' });
+    if (role && !Users.ROLES.includes(role))         return res.status(400).json({ ok: false, error: 'Invalid role' });
     if (await Users.getUserByUsername(username))     return res.status(409).json({ ok: false, error: 'Username already exists' });
     const user = await Users.createUser({ username, password, role: role || 'viewer', allowedRouterIds });
+    // Project the legacy fields onto grants ONLY when a caller actually sent
+    // them. The Users card grants access through /api/grants now (#108), so a
+    // new user starts with none and is granted explicitly — projecting a
+    // default 'viewer' here would hand every new account read of every router.
+    if (role !== undefined || allowedRouterIds !== undefined) Rbac.syncUserGrants(user);
     res.json({ ok: true, user });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
@@ -1092,29 +1265,39 @@ app.post('/api/users', _requireAdmin, async (req, res) => {
 });
 
 // PUT /api/users/:id
-app.put('/api/users/:id', _requireAdmin, async (req, res) => {
+app.put('/api/users/:id', Rbac.requireGlobalAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body || {};
-    // Block admin from downgrading their own role
-    if (req.authSession && req.authSession.userId === id && updates.role === 'viewer') {
-      return res.status(400).json({ ok: false, error: 'Cannot remove admin role from your own account' });
-    }
+    // The old "cannot demote your own account" and "cannot demote the last
+    // admin" guards lived here, keyed on updates.role === 'viewer' and
+    // Users.adminCount(). Both are gone (issue #108): the Users card no longer
+    // sends a role at all, and administration is a grant, not a field. Losing
+    // administrator access now means removing the grant, which
+    // DELETE /api/grants/:id already guards with wouldOrphanGlobalAdmin — the
+    // one check that can see a grant held through a group.
     if (updates.username !== undefined && !_USERNAME_RE.test(updates.username)) {
       return res.status(400).json({ ok: false, error: 'Invalid username' });
     }
-    if (updates.role !== undefined && !['admin','viewer'].includes(updates.role)) {
+    if (updates.role !== undefined && !Users.ROLES.includes(updates.role)) {
       return res.status(400).json({ ok: false, error: 'Invalid role' });
-    }
-    // Don't let the last admin be demoted — that would lock everyone out of admin functions.
-    if (updates.role === 'viewer') {
-      const target = await Users.getUser(id);
-      if (target && target.role === 'admin' && Users.adminCount() <= 1) {
-        return res.status(400).json({ ok: false, error: 'Cannot demote the last admin' });
-      }
     }
     const updated = await Users.updateUser(id, updates);
     if (!updated) return res.status(404).json({ ok: false, error: 'User not found' });
+    // Re-project onto grants ONLY if this request actually carried the legacy
+    // fields. syncUserGrants() deletes every grant the principal holds and
+    // rebuilds them from role + allowedRouterIds — so running it
+    // unconditionally would mean renaming a user silently destroyed every grant
+    // an administrator had built in the editor. A legacy caller still sends the
+    // fields and still gets the projection.
+    if (updates.role !== undefined || updates.allowedRouterIds !== undefined) {
+      // Demoting the last administrator through the legacy field is still a way
+      // to orphan administration, so the projection is probed before it runs.
+      if (Rbac.wouldOrphanGlobalAdmin(() => Rbac.syncUserGrants(updated))) {
+        return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
+      }
+      Rbac.syncUserGrants(updated);
+    }
     res.json({ ok: true, user: updated });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
@@ -1122,19 +1305,38 @@ app.put('/api/users/:id', _requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/users/:id
-app.delete('/api/users/:id', _requireAdmin, async (req, res) => {
+app.delete('/api/users/:id', Rbac.requireGlobalAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     if (req.authSession && req.authSession.userId === id) {
       return res.status(400).json({ ok: false, error: 'Cannot delete your own account' });
     }
-    // Don't let the last admin be deleted — that would lock everyone out of admin functions.
-    const target = await Users.getUser(id);
-    if (target && target.role === 'admin' && Users.adminCount() <= 1) {
-      return res.status(400).json({ ok: false, error: 'Cannot delete the last admin' });
+    // Don't let the last administrator be deleted — that would lock everyone out
+    // of administration with no way back in.
+    //
+    // Asked of the GRANTS, not of Users.adminCount() (issue #108). That counted
+    // user records carrying role === 'admin', a field nothing has decided
+    // anything with since roles became rows: it cannot see an administrator
+    // whose grant is held through a group, and it counts one who was demoted in
+    // the editor. The probe below runs the deletion in a transaction, checks
+    // whether any global administrator survives, and always rolls back.
+    //
+    // The user record lives in JSON and cannot join that transaction, so the
+    // grant deletion is what gets probed — which is exactly what
+    // globalAdminUserIds() reads.
+    if (Rbac.wouldOrphanGlobalAdmin(() => db.deleteGrantsForPrincipal('user', id))) {
+      return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
     }
     const deleted = await Users.deleteUser(id);
     if (!deleted) return res.status(404).json({ ok: false, error: 'User not found' });
+    // Users live in JSON, so their grants and memberships have no foreign key to
+    // cascade through — clear them here rather than leaving rows pointing at an
+    // id that could later be reused.
+    db.deleteGrantsForPrincipal('user', id);
+    // The JSON files had no cleanup path at all, so every deleted user left
+    // their dashboard and topology layouts on disk indefinitely.
+    db.deleteLayouts(id);
+    Rbac.bump(); _broadcastPermsChanged();
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
@@ -1143,44 +1345,102 @@ app.delete('/api/users/:id', _requireAdmin, async (req, res) => {
 
 // ── Dashboard layout API ──────────────────────────────────────────────────────
 // Per-user layout when modern auth is active; falls back to shared file otherwise.
-function _layoutFile(req) {
-  const uid  = req.authSession?.userId;
-  const base = process.env.DATA_DIR || '/data';
-  return path.join(base, uid ? `dashboard-layout-${uid}.json` : 'dashboard-layout.json');
+// Whose layout this request is for. In authMode 'none' there is no identity, so
+// everyone shares one row — the same behaviour the unsuffixed
+// dashboard-layout.json had, now explicit rather than emergent from a filename.
+function _layoutUser(req) {
+  return req.authSession?.userId || db.SHARED_LAYOUT_USER;
 }
 
 const layoutLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
 
-app.get('/api/dashboard-layout', layoutLimiter, (req, res) => {
+// The dashboard layout is a per-user preference with no router in the request,
+// so a scoped check with no target would fail closed and lock everyone out.
+// Requiring the page on at least one visible router is the equivalent question.
+const _requireDashboard = (req, res, next) =>
+  Rbac.canPageAnywhere(req.authSession, 'dashboard')
+    ? next()
+    : res.status(403).json({ ok: false, error: 'Not permitted' });
+
+app.get('/api/dashboard-layout', layoutLimiter, _requireDashboard, (req, res) => {
   try {
-    const file = _layoutFile(req);
-    if (fs.existsSync(file)) {
-      return res.json(JSON.parse(fs.readFileSync(file, 'utf8')));
-    }
-    // Per-user file doesn't exist yet — fall back to shared file so the client's
+    const own = db.getLayout(_layoutUser(req), 'dashboard');
+    if (own) return res.json(own);
+    // No layout of their own yet — fall back to the shared one so the client's
     // localStorage cache is refreshed rather than left stale from a previous user.
-    const shared = path.join(process.env.DATA_DIR || '/data', 'dashboard-layout.json');
-    if (fs.existsSync(shared)) {
-      return res.json(JSON.parse(fs.readFileSync(shared, 'utf8')));
-    }
-    res.json(null);
+    const shared = db.getLayout(db.SHARED_LAYOUT_USER, 'dashboard');
+    res.json(shared || null);
   } catch (_) { res.json(null); }
 });
 
-app.post('/api/dashboard-layout', layoutLimiter, (req, res) => {
+app.post('/api/dashboard-layout', layoutLimiter, _requireDashboard, (req, res) => {
   try {
     const body = req.body || {};
     if (!Array.isArray(body.cards)) return res.status(400).json({ ok: false });
-    fs.writeFileSync(_layoutFile(req), JSON.stringify({ cards: body.cards }), 'utf8');
+    db.setLayout(_layoutUser(req), 'dashboard', { cards: body.cards });
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ ok: false }); }
+  } catch (e) {
+    console.error('[dashboard-layout] save failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+// ── Topology layout API ───────────────────────────────────────────────────────
+// Saved node positions for the Topology map, one row per user holding every
+// router, so the row count stays bounded as the fleet grows.
+function _readTopoLayoutRow(req) {
+  return db.getLayout(_layoutUser(req), 'topology')
+      || db.getLayout(db.SHARED_LAYOUT_USER, 'topology')
+      || {};
+}
+
+const { isValidRouterId: _topoValidRid, cleanPositions: _cleanPositions } = require('./topologyLayout');
+
+/** Whole-file read: per-user file first, shared file as the fallback, matching
+ *  how /api/dashboard-layout resolves a user who has not saved anything yet. */
+
+// Scoped on the Topology page (issue #108). These take a routerId, so before
+// this they were a cross-router probe: any authenticated session could confirm
+// a router's existence and read its saved node positions.
+app.get('/api/topology-layout', layoutLimiter,
+        Rbac.requirePage('topology', 'read', Rbac.fromQuery('routerId')), (req, res) => {
+  try {
+    const rid = String(req.query.routerId || '');
+    if (!_topoValidRid(rid)) return res.json(null);
+    const all = _readTopoLayoutRow(req);
+    res.json({ positions: all[rid] || {} });
+  } catch (_) { res.json(null); }
+});
+
+app.post('/api/topology-layout', layoutLimiter,
+         Rbac.requirePage('topology', 'read', Rbac.fromBody('routerId')), (req, res) => {
+  try {
+    const body = req.body || {};
+    const rid = String(body.routerId || '');
+    if (!_topoValidRid(rid)) return res.status(400).json({ ok: false });
+    const positions = _cleanPositions(body.positions);
+    if (!positions) return res.status(400).json({ ok: false });
+
+    // Merge: a save for one router must never discard another router's layout.
+    const all = _readTopoLayoutRow(req);
+    if (Object.keys(positions).length) all[rid] = positions;
+    else delete all[rid];                       // Re-layout posts {} to reset
+    db.setLayout(_layoutUser(req), 'topology', all);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[topology-layout] save failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
 });
 
 // ── Settings API ──────────────────────────────────────────────────────────────
 // In modern auth, viewers get only a non-sensitive subset; admins get the full
 // (credential-masked) settings. Basic/none mode is unchanged (full masked view).
 app.get('/api/settings', (req, res) => {
-  if (_isModern() && (!req.authSession || req.authSession.role !== 'admin')) {
+  // Not session.role: an administrator whose grant is held through a group has
+  // role 'viewer' on their user record, and would have been handed the reduced
+  // payload while every other route treated them as an admin.
+  if (!Rbac.can(req.authSession, 'system:settings')) {
     return res.json(Settings.getViewerPublic());
   }
   res.json(Settings.getPublic());
@@ -1201,8 +1461,7 @@ app.get('/api/settings', (req, res) => {
 // sensitive must not adopt that prefix. Credentials are excluded structurally
 // (they are strings, and filtered by CREDENTIAL_FIELDS in settings.js).
 const _PAGE_SETTING_KEYS = [
-  'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
-  'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting',
+  ...Pages.SETTING_KEYS,
   'alertCpuThreshold', 'alertPingLoss', 'vpnDashTopN', 'pingEnabled',
   'displayTimezone',
   ...Object.keys(Settings.DEFAULTS)
@@ -1215,7 +1474,7 @@ function _pageSettings(src) {
   return out;
 }
 
-app.post('/api/settings', _requireAdmin, (req, res) => {
+app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
   try {
     const body = req.body || {};
     if (body._reset) {
@@ -1246,12 +1505,11 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
       const v = parseInt(body.sessionTimeoutMs, 10);
       if (!isNaN(v) && (v === 0 || (v >= 3600000 && v <= 86400000))) updates.sessionTimeoutMs = v;
     }
-    const boolFields = ['pageWireless','pageInterfaces','pageDhcp','pageVpn',
-                        'pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting',
+    const boolFields = [...Pages.SETTING_KEYS,
                         'pingEnabled','rosDebug',
                         'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure','ntfyEnabled',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
-                        'notifRouterUpdate',
+                        'notifRouterUpdate','notifBgp',
                         'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'];
     const credFields = ['telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 
@@ -1413,7 +1671,7 @@ app.post('/api/settings', _requireAdmin, (req, res) => {
 // ── Notification test endpoint ────────────────────────────────────────────────
 const _testNotifLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
 
-app.post('/api/settings/test-notification', _requireAdmin, _testNotifLimiter, async (req, res) => {
+app.post('/api/settings/test-notification', Rbac.requireGlobalAdmin, _testNotifLimiter, async (req, res) => {
   try {
     const { channel, apiKey, botToken, chatId,
             smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFrom, smtpTo,
@@ -1451,23 +1709,25 @@ app.get('/api/routers', (req, res) => {
   const cfg    = Settings.load();
   const active = cfg.activeRouterId || '';
   let routers  = Routers.getPublic();
-  if (_isModern() && req.authSession) {
-    const allowed = req.authSession.allowedRouterIds;
-    if (Array.isArray(allowed) && allowed.length > 0) {
-      routers = routers.filter(r => allowed.includes(r.id));
-    }
+  if (_isModern()) {
+    // effectiveRouterIds, not allowedRouterIds: the legacy field cannot express
+    // a grant held via a group or a site, so filtering on it would hide routers
+    // the caller is genuinely entitled to see.
+    const visible = new Set(Rbac.effectiveRouterIds(req.authSession, 'router:read'));
+    routers = routers.filter(r => visible.has(r.id));
   }
   res.json({ routers, activeId: active });
 });
 
 // POST /api/routers — add a new router
-app.post('/api/routers', _requireAdmin, (req, res) => {
+app.post('/api/routers', Rbac.requireGlobalAdmin, (req, res) => {
   try {
     const body = req.body || {};
     if (!body.host || !String(body.host).trim()) {
       return res.status(400).json({ ok:false, error:'host is required' });
     }
     const router = Routers.add(body);
+    Rbac.bump(); _broadcastPermsChanged();
     _broadcastRoutersList();
     _syncAlertSessions();
     _syncOverviewSessions();
@@ -1478,7 +1738,7 @@ app.post('/api/routers', _requireAdmin, (req, res) => {
 });
 
 // PUT /api/routers/:id — edit a router
-app.put('/api/routers/:id', _requireAdmin, async (req, res) => {
+app.put('/api/routers/:id', Rbac.requirePerm('router:manage', Rbac.fromParam('id')), async (req, res) => {
   try {
     const body = req.body || {};
     if (body.disabled === true && req.params.id === Settings.load().activeRouterId) {
@@ -1505,7 +1765,10 @@ app.put('/api/routers/:id', _requireAdmin, async (req, res) => {
     const _beforeRouter = Routers.getById(req.params.id);
     const _beforeFp = _beforeRouter ? collectionFingerprint(Settings.load(), _beforeRouter) : null;
 
+    // A siteId change alters who can reach this router, so every cached
+    // authorization view is stale. Easy to miss: it reads as router config.
     const router = Routers.update(req.params.id, body);
+    Rbac.bump(); _broadcastPermsChanged();
     if (!router) return res.status(404).json({ ok:false, error:'Router not found' });
     _broadcastRoutersList();
 
@@ -1545,7 +1808,7 @@ app.put('/api/routers/:id', _requireAdmin, async (req, res) => {
 });
 
 // DELETE /api/routers/:id — delete a router (active router may also be deleted)
-app.delete('/api/routers/:id', _requireAdmin, async (req, res) => {
+app.delete('/api/routers/:id', Rbac.requirePerm('router:manage', Rbac.fromParam('id')), async (req, res) => {
   try {
     const deletedId  = req.params.id;
     const _cfg       = Settings.load();
@@ -1553,6 +1816,8 @@ app.delete('/api/routers/:id', _requireAdmin, async (req, res) => {
 
     const deleted = Routers.remove(deletedId);
     if (!deleted) return res.status(404).json({ ok:false, error:'Router not found' });
+    db.deleteGrantsForScope('router', deletedId);
+    Rbac.bump(); _broadcastPermsChanged();
 
     // Tear down any live pool session for the deleted router.
     const _deletedEntry = _routerSessions.get(deletedId);
@@ -1606,7 +1871,7 @@ app.delete('/api/routers/:id', _requireAdmin, async (req, res) => {
 });
 
 // POST /api/routers/:id/activate — switch to a different router (hot-swap)
-app.post('/api/routers/:id/activate', _requireAdmin, async (req, res) => {
+app.post('/api/routers/:id/activate', Rbac.requireGlobalAdmin, async (req, res) => {
   const _cfg = Settings.load();
   if (req.params.id === _cfg.activeRouterId) {
     return res.json({ ok:true, alreadyActive:true });
@@ -1631,7 +1896,7 @@ app.post('/api/routers/:id/activate', _requireAdmin, async (req, res) => {
 
 // POST /api/routers/test — test a connection without saving
 const _testConnLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
-app.post('/api/routers/test', _requireAdmin, _testConnLimiter, async (req, res) => {
+app.post('/api/routers/test', Rbac.requireGlobalAdmin, _testConnLimiter, async (req, res) => {
   const body = req.body || {};
   if (!body.host) return res.status(400).json({ ok:false, error:'host is required' });
 
@@ -1701,8 +1966,9 @@ app.get('/api/localcc', (req, res) => {
   if (wanIp) { const g = geo.lookup(wanIp); if (g) cc = g.country || ''; }
   // Viewers only need the country code (world-map arc origin); the WAN IP is
   // withheld from them like the rest of the router network detail.
-  const isAdmin = !_isModern() || (req.authSession && req.authSession.role === 'admin');
-  res.json({ cc, wanIp: isAdmin ? wanIp : '' });
+  // Same reasoning as GET /api/settings: resolve through grants, not the role
+  // field, which cannot see access conferred by a group.
+  res.json({ cc, wanIp: Rbac.can(req.authSession, 'system:settings') ? wanIp : '' });
 });
 
 function sanitizeErr(e) {
@@ -1717,6 +1983,406 @@ function sanitizeErr(e) {
     .replace(/\b\d{6,}:[A-Za-z0-9_-]{20,}\b/g, '[token]')
     .slice(0, 200);
 }
+
+// ── Sites (issue #78) ────────────────────────────────────────────────────────
+// A site groups routers; a router belongs to exactly one, or none. In this phase
+// sites are organisational only — nothing authorises against them yet, so writes
+// are admin-only exactly as the router routes are. Phase 3 moves these to
+// `system:principals` and filters the GET by what the caller may see.
+
+// Parse the body of a site create/update. Returns {error} or {value}. Names and
+// descriptions are rendered in the browser, so they are length-capped here and
+// escaped there. Coordinates are range-checked: a bad latitude silently stored
+// would put a marker in the wrong hemisphere rather than fail visibly.
+function _parseSiteBody(body, { partial } = {}) {
+  const out = {};
+  const b   = body || {};
+
+  if (b.name !== undefined || !partial) {
+    const name = String(b.name === undefined ? '' : b.name).trim();
+    if (!name || name.length > 64) return { error: 'Name must be 1-64 characters' };
+    out.name = name;
+  }
+  if (b.description !== undefined) {
+    const d = String(b.description == null ? '' : b.description).trim();
+    if (d.length > 256) return { error: 'Description must be 256 characters or fewer' };
+    out.description = d || null;
+  }
+  for (const [key, limit] of [['lat', 90], ['lon', 180]]) {
+    if (b[key] === undefined) continue;
+    if (b[key] === null || b[key] === '') { out[key] = null; continue; }
+    const n = parseFloat(b[key]);
+    // Number.isFinite rejects NaN and Infinity; the range check rejects a
+    // longitude pasted into the latitude box.
+    if (!Number.isFinite(n) || n < -limit || n > limit) {
+      return { error: key === 'lat' ? 'Latitude must be between -90 and 90'
+                                    : 'Longitude must be between -180 and 180' };
+    }
+    out[key] = n;
+  }
+  return { value: out };
+}
+
+// ── Groups and grants (issue #78) ────────────────────────────────────────────
+// All of these are system:principals, which is GLOBAL-only by construction — a
+// site-scoped administrator cannot reach them, and therefore cannot edit their
+// own grant to widen it. That is what makes a site scope a boundary rather than
+// a default view.
+
+function _parseName(body, { partial } = {}) {
+  const out = {}, b = body || {};
+  if (b.name !== undefined || !partial) {
+    const name = String(b.name === undefined ? '' : b.name).trim();
+    if (!name || name.length > 64) return { error: 'Name must be 1-64 characters' };
+    out.name = name;
+  }
+  if (b.description !== undefined) {
+    const d = String(b.description == null ? '' : b.description).trim();
+    if (d.length > 256) return { error: 'Description must be 256 characters or fewer' };
+    out.description = d || null;
+  }
+  return { value: out };
+}
+
+app.get('/api/groups', Rbac.requireGlobalAdmin, (req, res) => {
+  const groups = db.listGroups().map(g => Object.assign({}, g, {
+    memberUserIds: db.getGroupMembers(g.id),
+    grants:        db.listGrants({ principalType: 'group', principalId: g.id }),
+  }));
+  res.json({ ok: true, groups });
+});
+
+app.post('/api/groups', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    const parsed = _parseName(req.body, { partial: false });
+    if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+    const group = db.createGroup(parsed.value);
+    if (Array.isArray(req.body.memberUserIds)) db.setGroupMembers(group.id, req.body.memberUserIds);
+    Rbac.bump(); _broadcastPermsChanged();
+    res.json({ ok: true, group });
+  } catch (e) {
+    if (/UNIQUE constraint failed/.test(e.message)) {
+      return res.status(409).json({ ok: false, error: 'A group with that name already exists' });
+    }
+    console.error('[groups] create failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.put('/api/groups/:id', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    if (!db.getGroup(req.params.id)) return res.status(404).json({ ok: false, error: 'No such group' });
+    const parsed = _parseName(req.body, { partial: true });
+    if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+
+    // Emptying the group that holds the only global admin grant is one of the
+    // five ways to orphan the last administrator, and the least obvious.
+    if (Array.isArray(req.body.memberUserIds) &&
+        Rbac.wouldOrphanGlobalAdmin(() => db.setGroupMembers(req.params.id, req.body.memberUserIds))) {
+      return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
+    }
+    const group = db.updateGroup(req.params.id, parsed.value);
+    if (Array.isArray(req.body.memberUserIds)) db.setGroupMembers(req.params.id, req.body.memberUserIds);
+    Rbac.bump(); _broadcastPermsChanged();
+    res.json({ ok: true, group });
+  } catch (e) {
+    if (/UNIQUE constraint failed/.test(e.message)) {
+      return res.status(409).json({ ok: false, error: 'A group with that name already exists' });
+    }
+    console.error('[groups] update failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.delete('/api/groups/:id', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    if (!db.getGroup(req.params.id)) return res.status(404).json({ ok: false, error: 'No such group' });
+    if (Rbac.wouldOrphanGlobalAdmin(() => db.deleteGroup(req.params.id))) {
+      return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
+    }
+    db.deleteGroup(req.params.id);
+    Rbac.bump(); _broadcastPermsChanged();
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[groups] delete failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.get('/api/grants', Rbac.requireGlobalAdmin, (req, res) => {
+  res.json({ ok: true, grants: db.listGrants({
+    principalType: req.query.principalType, principalId: req.query.principalId,
+  }) });
+});
+
+app.post('/api/grants', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!['user', 'group'].includes(b.principalType)) return res.status(400).json({ ok: false, error: 'Invalid principal type' });
+    // roleId is the current form; `role` is accepted for the legacy three so an
+    // older client — or a scripted caller — keeps working until Phase 6.
+    const roleId = b.roleId || { admin: 'administrator', operator: 'operator', viewer: 'readonly' }[b.role];
+    if (!roleId || !db.getRole(roleId))               return res.status(400).json({ ok: false, error: 'Invalid role' });
+    if (!['global', 'site', 'router'].includes(b.scopeType)) return res.status(400).json({ ok: false, error: 'Invalid scope type' });
+    const scopeId = b.scopeType === 'global' ? '' : String(b.scopeId || '');
+    if (b.scopeType !== 'global' && !scopeId)   return res.status(400).json({ ok: false, error: 'Scope id required' });
+    // Refuse a grant naming something that does not exist: it would sit in the
+    // table forever, conferring nothing, and read as working in the UI.
+    if (b.scopeType === 'site'   && !db.getSite(scopeId))     return res.status(404).json({ ok: false, error: 'No such site' });
+    if (b.scopeType === 'router' && !Routers.getById(scopeId)) return res.status(404).json({ ok: false, error: 'No such router' });
+    if (b.principalType === 'group' && !db.getGroup(b.principalId)) return res.status(404).json({ ok: false, error: 'No such group' });
+
+    const grant = db.upsertGrant({
+      principalType: b.principalType, principalId: String(b.principalId),
+      roleId, scopeType: b.scopeType, scopeId,
+      createdBy: req.authSession ? req.authSession.userId : null,
+    });
+    Rbac.bump(); _broadcastPermsChanged();
+    res.json({ ok: true, grant });
+  } catch (e) {
+    console.error('[grants] create failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.delete('/api/grants/:id', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    if (Rbac.wouldOrphanGlobalAdmin(() => db.deleteGrant(req.params.id))) {
+      return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
+    }
+    if (!db.deleteGrant(req.params.id)) return res.status(404).json({ ok: false, error: 'No such grant' });
+    Rbac.bump(); _broadcastPermsChanged();
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[grants] delete failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+// What the caller may do, as resolved booleans and id lists. Deliberately NOT in
+// _MODERN_PUBLIC and deliberately not the raw grant graph — shipping the graph
+// would disclose every other principal's access to anyone who opened devtools.
+// ── Roles (issue #108) ───────────────────────────────────────────────────────
+//
+// Every verb is global-admin, INCLUDING the read. Two reasons: a role holding
+// settings:write must not be able to widen itself in one request, and the full
+// matrix of every role discloses the security model. An ordinary user learns
+// only their own resolution, via capsFor().
+
+/** Validate a submitted page matrix against the registry. */
+function _parseRolePages(body) {
+  if (body.pages === undefined) return { value: null };  // not submitted: leave alone
+  if (!Array.isArray(body.pages)) return { error: 'pages must be an array' };
+  const out = [], seen = new Set();
+  for (const row of body.pages) {
+    if (!row || typeof row !== 'object') return { error: 'Each page entry must be an object' };
+    const page = String(row.page || '');
+    if (!Pages.BY_KEY[page]) return { error: 'Unknown page: ' + page };
+    if (seen.has(page)) return { error: 'Duplicate page: ' + page };
+    if (row.access !== 'read' && row.access !== 'write') {
+      return { error: 'access must be read or write' };
+    }
+    seen.add(page);
+    out.push({ page, access: row.access });
+  }
+  return { value: out };
+}
+
+const _roleView = (r) => ({ ...r, builtin: !!r.builtin, pages: db.rolePages(r.id), grants: db.countGrantsForRole(r.id) });
+
+app.get('/api/roles', Rbac.requireGlobalAdmin, (req, res) => {
+  // writeCapablePages is derived from the projection table, never restated in
+  // the client — it is what greys out a Write toggle that would confer nothing.
+  res.json({
+    ok: true,
+    roles: db.listRoles().map(_roleView),
+    pages: Pages.PAGES.map(p => ({ key: p.key, title: p.title, settingsKey: p.settingsKey })),
+    writeCapablePages: Object.keys(Rbac.WRITE_CONFERS),
+  });
+});
+
+app.post('/api/roles', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    const parsed = _parseName(req.body, { partial: false });
+    if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+    const pages = _parseRolePages(req.body);
+    if (pages.error) return res.status(400).json({ ok: false, error: pages.error });
+
+    const role = db.createRole(parsed.value);
+    if (pages.value) db.setRolePages(role.id, pages.value);
+    Rbac.bump(); _broadcastPermsChanged();
+    res.json({ ok: true, role: _roleView(role) });
+  } catch (e) {
+    if (/UNIQUE constraint failed/.test(e.message)) {
+      return res.status(409).json({ ok: false, error: 'A role with that name already exists' });
+    }
+    console.error('[roles] create failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.put('/api/roles/:id', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    const existing = db.getRole(req.params.id);
+    if (!existing) return res.status(404).json({ ok: false, error: 'No such role' });
+    // Administrator's reach is structural. Letting it be edited would either do
+    // nothing (it has no page rows) or silently narrow every admin in the fleet.
+    if (existing.builtin) {
+      return res.status(400).json({ ok: false, error: 'The Administrator role cannot be edited' });
+    }
+    const parsed = _parseName(req.body, { partial: true });
+    if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+    const pages = _parseRolePages(req.body);
+    if (pages.error) return res.status(400).json({ ok: false, error: pages.error });
+
+    const role = db.updateRole(req.params.id, parsed.value);
+    if (pages.value) db.setRolePages(req.params.id, pages.value);
+    // Editing a role changes the answer for every principal holding it, at any
+    // scope — the easiest bump to forget, and silent when missed.
+    Rbac.bump(); _broadcastPermsChanged();
+    res.json({ ok: true, role: _roleView(role) });
+  } catch (e) {
+    if (/UNIQUE constraint failed/.test(e.message)) {
+      return res.status(409).json({ ok: false, error: 'A role with that name already exists' });
+    }
+    console.error('[roles] update failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.delete('/api/roles/:id', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    const existing = db.getRole(req.params.id);
+    if (!existing) return res.status(404).json({ ok: false, error: 'No such role' });
+    if (existing.builtin) {
+      return res.status(400).json({ ok: false, error: 'The Administrator role cannot be deleted' });
+    }
+    // The foreign key would refuse this anyway; saying how many grants block it
+    // is more useful than surfacing a constraint error.
+    const used = db.countGrantsForRole(req.params.id);
+    if (used) {
+      return res.status(409).json({
+        ok: false,
+        error: `That role is still assigned by ${used} grant${used === 1 ? '' : 's'}`,
+      });
+    }
+    db.deleteRole(req.params.id);
+    Rbac.bump(); _broadcastPermsChanged();
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[roles] delete failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.get('/api/auth/permissions', (req, res) => {
+  try {
+    res.json({ ok: true, caps: Rbac.capsFor(req.authSession) });
+  } catch (e) {
+    console.error('[rbac] permissions failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.get('/api/sites', (req, res) => {
+  try {
+    res.json({ ok: true, sites: db.listSites() });
+  } catch (e) {
+    console.error('[sites] list failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.post('/api/sites', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    const parsed = _parseSiteBody(req.body, { partial: false });
+    if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+    const site = db.createSite(parsed.value);
+    io.emit('sites:update', db.listSites());
+    res.json({ ok: true, site });
+  } catch (e) {
+    // The UNIQUE ... COLLATE NOCASE index is what actually enforces distinct
+    // names, so a duplicate surfaces here rather than from a pre-check that
+    // would race anyway.
+    if (/UNIQUE constraint failed/.test(e.message)) {
+      return res.status(409).json({ ok: false, error: 'A site with that name already exists' });
+    }
+    console.error('[sites] create failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.put('/api/sites/:id', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    if (!db.getSite(req.params.id)) return res.status(404).json({ ok: false, error: 'No such site' });
+    const parsed = _parseSiteBody(req.body, { partial: true });
+    if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+    const site = db.updateSite(req.params.id, parsed.value);
+    io.emit('sites:update', db.listSites());
+    res.json({ ok: true, site });
+  } catch (e) {
+    if (/UNIQUE constraint failed/.test(e.message)) {
+      return res.status(409).json({ ok: false, error: 'A site with that name already exists' });
+    }
+    console.error('[sites] update failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+// Assign routers to a site in one call. The router modal can also set a site one
+// router at a time; this is the same operation from the other direction, which is
+// how anyone actually thinks about it when setting a site up.
+//
+// One request rather than N router PUTs so a half-applied assignment is not
+// possible, and so removals are handled: a router previously here and no longer
+// listed has to be detached, which a per-router save never sees.
+app.put('/api/sites/:id/routers', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    if (!db.getSite(req.params.id)) return res.status(404).json({ ok: false, error: 'No such site' });
+    const wanted = Array.isArray(req.body && req.body.routerIds)
+      ? req.body.routerIds.map(String) : null;
+    if (!wanted) return res.status(400).json({ ok: false, error: 'routerIds must be an array' });
+
+    const all = Routers.loadAll();
+    let changed = 0;
+    for (const r of all) {
+      const shouldBeHere = wanted.includes(r.id);
+      const isHere       = r.siteId === req.params.id;
+      if (shouldBeHere && !isHere)      { Routers.update(r.id, { siteId: req.params.id }); changed++; }
+      else if (!shouldBeHere && isHere) { Routers.update(r.id, { siteId: '' });            changed++; }
+    }
+    if (changed) {
+      // A router's site determines who can reach it through a site-scoped grant.
+      Rbac.bump(); _broadcastPermsChanged(); _broadcastPermsChanged();
+      _broadcastRoutersList();
+    }
+    res.json({ ok: true, changed });
+  } catch (e) {
+    console.error('[sites] router assignment failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.delete('/api/sites/:id', Rbac.requireGlobalAdmin, (req, res) => {
+  try {
+    if (!db.getSite(req.params.id)) return res.status(404).json({ ok: false, error: 'No such site' });
+    // Routers live in routers.json, so SQLite cannot cascade into them. Detach
+    // first: a router pointing at a site that no longer exists would render a
+    // blank chip and, once Phase 3 lands, be unreachable to a site-scoped grant.
+    const detached = Routers.clearSite(req.params.id);
+    db.deleteSite(req.params.id);
+    // Site-scoped grants would otherwise outlive the site they name.
+    db.deleteGrantsForScope('site', req.params.id);
+    // Detaching routers changes who can reach them, so every cached view is stale.
+    Rbac.bump(); _broadcastPermsChanged();
+    io.emit('sites:update', db.listSites());
+    if (detached) _broadcastRoutersList();
+    res.json({ ok: true, detached });
+  } catch (e) {
+    console.error('[sites] delete failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
 
 app.get('/healthz', (req, res) => {
   const ge = _globalEntry();
@@ -1768,6 +2434,7 @@ app.get('/healthz', (req, res) => {
       ifstatus: { ts:st.lastIfStatusTs, err:sanitizeErr(st.lastIfStatusErr) },
       ping:     { ts:st.lastPingTs,     err:sanitizeErr(st.lastPingErr)     },
       netwatch: { ts:st.lastNetwatchTs, err:sanitizeErr(st.lastNetwatchErr) },
+      topology: { ts:st.lastTopologyTs, err:sanitizeErr(st.lastTopologyErr) },
     },
   };
   res.status(statusCode).json(body);
@@ -2047,7 +2714,7 @@ function _fmtDuration(ms) {
 }
 
 // GET /api/reports/ping
-app.get('/api/reports/ping', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/ping', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const rows = aggregate
@@ -2057,7 +2724,7 @@ app.get('/api/reports/ping', _requireAdmin, _scopeRouterId, (req, res) => {
 });
 
 // GET /api/reports/ping/export
-app.get('/api/reports/ping/export', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/ping/export', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const rows = aggregate
@@ -2127,7 +2794,7 @@ function _ifaceSummary(routerId, iface, from, to) {
   };
 }
 
-app.get('/api/reports/traffic', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/traffic', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const iface = req.query.interface || '';
@@ -2141,7 +2808,7 @@ app.get('/api/reports/traffic', _requireAdmin, _scopeRouterId, (req, res) => {
 });
 
 // GET /api/reports/traffic/export
-app.get('/api/reports/traffic/export', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/traffic/export', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const iface = req.query.interface || '';
@@ -2191,7 +2858,7 @@ app.get('/api/reports/traffic/export', _requireAdmin, _scopeRouterId, (req, res)
 });
 
 // GET /api/reports/bandwidth
-app.get('/api/reports/bandwidth', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/bandwidth', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const iface = req.query.interface || '';
@@ -2205,7 +2872,7 @@ app.get('/api/reports/bandwidth', _requireAdmin, _scopeRouterId, (req, res) => {
 });
 
 // GET /api/reports/bandwidth/export
-app.get('/api/reports/bandwidth/export', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/bandwidth/export', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const iface = req.query.interface || '';
@@ -2250,14 +2917,88 @@ app.get('/api/reports/bandwidth/export', _requireAdmin, _scopeRouterId, (req, re
 });
 
 // GET /api/reports/alerts
-app.get('/api/reports/alerts', _requireAdmin, _scopeRouterId, (req, res) => {
+// ── Alert acknowledgment ──────────────────────────────────────────────────────
+// Acknowledgment is what makes "Clear all" on the bell mean something. It is
+// deliberately separate from resolution: `resolved_at` is what the system
+// observed, `acknowledged_at` is what a person decided. An alert can be
+// acknowledged while still open, and recovering later must not erase who
+// acknowledged it.
+const ackLimiter = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false });
+
+/** DB row -> the shape the browser gets, matching the alert:fired payload so the
+ *  bell never has to care whether an entry arrived live or via replay. */
+function _alertRow(r) {
+  return {
+    id: r.id,
+    routerId: r.router_id || null,
+    alertType: r.alert_type,
+    subject: r.subject || null,
+    detail: r.detail || null,
+    firedAt: r.fired_at,
+    resolvedAt: r.resolved_at || null,
+    acknowledgedAt: r.acknowledged_at || null,
+    acknowledgedBy: r.acknowledged_by || null,
+  };
+}
+
+app.post('/api/alerts/:id/ack', ackLimiter, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ ok: false });
+    // Scope check BEFORE the write. The caller supplies only an alert id, so
+    // without this a user restricted to one router could acknowledge alerts on
+    // every other one — the same boundary _scopeRouterId holds for the report
+    // routes, which can enforce it as middleware because they take ?routerId.
+    const owner = db.getAlertRouterId(id);
+    if (!owner) return res.status(404).json({ ok: false });
+    // Acknowledging is an operator action now, not something any authenticated
+    // viewer may do. The router is only known after resolving the alert, which
+    // is why this is an inline check rather than route middleware.
+    if (!Rbac.can(req.authSession, 'router:ack', owner)) {
+      return res.status(403).json({ ok: false, error: 'Not permitted' });
+    }
+    const who = req.authSession?.username || null;
+    const row = db.acknowledgeAlert(id, who);
+    if (!row) return res.status(404).json({ ok: false });
+    // Tell every browser on that router, so two people looking at the same
+    // alert do not each have to acknowledge it.
+    io.to('router-' + row.router_id).emit('alert:acked', _alertRow(row));
+    res.json({ ok: true, alert: _alertRow(row) });
+  } catch (e) {
+    console.error('[alerts] ack failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.post('/api/alerts/ack-all', ackLimiter, (req, res) => {
+  try {
+    const rid = String((req.body && req.body.routerId) || '');
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(rid)) return res.status(400).json({ ok: false });
+    if (!Rbac.can(req.authSession, 'router:ack', rid)) {
+      return res.status(403).json({ ok: false, error: 'Not permitted' });
+    }
+    const who = req.authSession?.username || null;
+    const ids = db.acknowledgeAllAlerts(rid, who);
+    if (ids.length) {
+      io.to('router-' + rid).emit('alerts:acked-all', {
+        routerId: rid, ids, acknowledgedAt: Date.now(), acknowledgedBy: who,
+      });
+    }
+    res.json({ ok: true, count: ids.length });
+  } catch (e) {
+    console.error('[alerts] ack-all failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.get('/api/reports/alerts', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   res.json({ ok: true, rows: db.queryAlertEvents(routerId, from, to) });
 });
 
 // GET /api/reports/alerts/export
-app.get('/api/reports/alerts/export', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/alerts/export', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const rows  = db.queryAlertEvents(routerId, from, to);
@@ -2293,7 +3034,7 @@ app.get('/api/reports/alerts/export', _requireAdmin, _scopeRouterId, (req, res) 
 });
 
 // GET /api/reports/connectivity
-app.get('/api/reports/connectivity', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/connectivity', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   if (aggregate) return res.json({ ok: true, rows: db.queryConnectivityEventsAgg(routerId, from, to, aggregate) });
@@ -2302,7 +3043,7 @@ app.get('/api/reports/connectivity', _requireAdmin, _scopeRouterId, (req, res) =
 });
 
 // GET /api/reports/connectivity/export
-app.get('/api/reports/connectivity/export', _requireAdmin, _scopeRouterId, (req, res) => {
+app.get('/api/reports/connectivity/export', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const rows = _annotateDowntime(db.queryConnectivityEvents(routerId, from, to));
@@ -2345,11 +3086,15 @@ app.get('/api/reports/connectivity/export', _requireAdmin, _scopeRouterId, (req,
 function _purgeScope(req) {
   const routerId = String((req.body && req.body.routerId) || '').trim();
   if (!_isModern()) return { routerId };
-  const allowed = req.authSession && req.authSession.allowedRouterIds;
-  if (Array.isArray(allowed) && allowed.length > 0) {
-    if (!routerId) return { error: 'Select a router — your account cannot purge all routers' };
-    if (!allowed.includes(routerId)) return { error: 'Router not permitted' };
+  // A global purge deletes history for every router, including ones the caller
+  // may not even be able to see, so it is a system-level action rather than a
+  // scoped one.
+  if (!routerId) {
+    return Rbac.can(req.authSession, 'system:db')
+      ? { routerId }
+      : { error: 'Select a router — your account cannot purge all routers' };
   }
+  if (!Rbac.can(req.authSession, 'router:purge', routerId)) return { error: 'Router not permitted' };
   return { routerId };
 }
 
@@ -2371,13 +3116,13 @@ function _purgeOpts(req) {
   return { routerId: scope.routerId, types, olderThanMs: days * 86400000 };
 }
 
-app.get('/api/db/stats', _requireAdmin, (req, res) => {
+app.get('/api/db/stats', Rbac.requireGlobalAdmin, (req, res) => {
   try {
     const s = db.stats();
     // Restricted admins only see their own routers' row counts.
-    const allowed = _isModern() && req.authSession && req.authSession.allowedRouterIds;
-    if (Array.isArray(allowed) && allowed.length > 0) {
-      s.byRouter = s.byRouter.filter(r => allowed.includes(r.routerId));
+    if (_isModern()) {
+      const readable = new Set(Rbac.effectiveRouterIds(req.authSession, 'router:read'));
+      s.byRouter = s.byRouter.filter(r => readable.has(r.routerId));
     }
     res.json({ ok: true, ...s });
   } catch (e) {
@@ -2385,7 +3130,7 @@ app.get('/api/db/stats', _requireAdmin, (req, res) => {
   }
 });
 
-app.post('/api/db/purge', _requireAdmin, (req, res) => {
+app.post('/api/db/purge', Rbac.requireGlobalAdmin, (req, res) => {
   const opts = _purgeOpts(req);
   if (opts.error) return res.status(400).json({ ok: false, error: opts.error });
   try {
@@ -2416,10 +3161,8 @@ function _buildRoutersStats(socket) {
   // stats (host/serial/version/cpu…) for routers in their allowed set.
   let visible = allRouters.filter(r => !r.disabled);
   if (_isModern()) {
-    const allowed = socket?.request?._authSession?.allowedRouterIds;
-    if (Array.isArray(allowed) && allowed.length > 0) {
-      visible = visible.filter(r => allowed.includes(r.id));
-    }
+    const readable = new Set(_visibleRouterIds(socket));
+    visible = visible.filter(r => readable.has(r.id));
   }
 
   return visible.map(r => {
@@ -2490,10 +3233,9 @@ async function sendInitialState(socket, entry) {
   // Send live reachability status for this router and all alert-session routers
   socket.emit('router:status', { routerId: s.routerId, connected: entry.rosConnected });
   // Reachability of other routers is only disclosed within the caller's allowed set.
-  const _allowedIds  = socket.request?._authSession?.allowedRouterIds;
-  const _restricted  = _isModern() && Array.isArray(_allowedIds) && _allowedIds.length > 0;
+  const _readable = _isModern() ? new Set(_visibleRouterIds(socket)) : null;
   for (const [routerId, connected] of alertSessions.getStatusMap()) {
-    if (_restricted && !_allowedIds.includes(routerId)) continue;
+    if (_readable && !_readable.has(routerId)) continue;
     socket.emit('router:status', { routerId, connected });
   }
 
@@ -2527,7 +3269,16 @@ async function sendInitialState(socket, entry) {
       .find(i => i.name && i.name.toLowerCase() === _wanIface && i.ips && i.ips.length);
     if (_match) _wanIp = _match.ips[0];
   }
+  // Both DHCP replays follow the DHCP page, including the dashboard's networks
+  // card they also feed — same rule as the dash-card rooms: a page you were
+  // denied must not reappear as a dashboard widget.
+  // The WAN IP is chrome (map origin, network diagram), so it is replayed
+  // regardless of whether the DHCP page is permitted — same as it is broadcast.
   if (s.dhcpNetworks.lastPayload) {
+    socket.emit('lan:wan', { ts: s.dhcpNetworks.lastPayload.ts, wanIp: s.dhcpNetworks.lastPayload.wanIp });
+  }
+  if (!_mayReplay(socket, 'dhcpNetworks')) { /* denied: no LAN overview */ }
+  else if (s.dhcpNetworks.lastPayload) {
     socket.emit('lan:overview', s.dhcpNetworks.lastPayload);
   } else {
     socket.emit('lan:overview', {
@@ -2546,7 +3297,8 @@ async function sendInitialState(socket, entry) {
   // already lost the DHCP server summary the leases filter needs). The manual
   // build stays only as a fallback for a socket that connects before the first
   // lease load completes.
-  if (s.dhcpLeases.lastPayload) {
+  if (!_mayReplay(socket, 'dhcpLeases')) { /* denied: no lease list */ }
+  else if (s.dhcpLeases.lastPayload) {
     socket.emit('leases:list', s.dhcpLeases.lastPayload);
   } else {
     const allLeases = [];
@@ -2554,22 +3306,63 @@ async function sendInitialState(socket, entry) {
     socket.emit('leases:list', { ts: Date.now(), leases: allLeases, servers: [] });
   }
 
+  // Page-scoped replays (issue #108). Without this filter the page gate on
+  // page:focus is cosmetic: connecting alone would hand a socket the current
+  // payload of every collector regardless of which pages its role allows.
+  //
+  // `traffic` and `system` are deliberately unfiltered — they drive the header
+  // gauges on every page and belong to no single one, so they follow
+  // router:read like the router list itself.
   if (s.traffic && s.traffic.lastWanStatus) socket.emit('wan:status', s.traffic.lastWanStatus);
-  if (s.wireless.lastPayload)  socket.emit('wireless:update',  s.wireless.lastPayload);
-  if (s.vpn.lastPayload)       socket.emit('vpn:update',       s.vpn.lastPayload);
   if (s.system.lastPayload)    socket.emit('system:update',    s.system.lastPayload);
-  if (s.ifStatus.lastPayload)  socket.emit('ifstatus:update',  s.ifStatus.lastPayload);
-  if (s.firewall.lastPayload)  socket.emit('firewall:update',  s.firewall.lastPayload);
+  if (s.wireless.lastPayload  && _mayReplay(socket, 'wireless'))  socket.emit('wireless:update',  s.wireless.lastPayload);
+  if (s.wireless.lastPayload) {
+    socket.emit('wireless:count', { ts: s.wireless.lastPayload.ts, count: (s.wireless.lastPayload.clients || []).length });
+  }
+  if (s.vpn.lastPayload       && _mayReplay(socket, 'vpn'))       socket.emit('vpn:update',       s.vpn.lastPayload);
+  if (s.ifStatus.lastPayload  && _mayReplay(socket, 'ifStatus'))  socket.emit('ifstatus:update',  s.ifStatus.lastPayload);
+  if (s.ifStatus.lastPayload) {
+    // Names only — the traffic picker and sidebar badge need these whatever the
+    // role allows, and they disclose nothing the Interfaces page would have.
+    const _ifs = s.ifStatus.lastPayload.interfaces || [];
+    socket.emit('ifstatus:names', {
+      ts: s.ifStatus.lastPayload.ts,
+      total: _ifs.length,
+      interfaces: _ifs.map(i => ({ name: i.name, running: !!i.running, disabled: !!i.disabled })),
+    });
+  }
+  if (s.firewall.lastPayload  && _mayReplay(socket, 'firewall'))  socket.emit('firewall:update',  s.firewall.lastPayload);
+  // The sidebar count is chrome, so it is replayed unconditionally — otherwise
+  // the badge sits blank until the collector's next tick.
   if (s.conns.lastPayload) {
+    socket.emit('conn:count', { ts: s.conns.lastPayload.ts, total: s.conns.lastPayload.total });
+  }
+  if (s.conns.lastPayload     && _mayReplay(socket, 'conns')) {
     socket.emit('conn:update', s.conns.lastPayload);
     if (s.conns.lastPayload.sourceDests)
       socket.emit('conn:source-data', { ts: s.conns.lastPayload.ts, sourceDests: s.conns.lastPayload.sourceDests, sourcePorts: s.conns.lastPayload.sourcePorts });
   }
-  if (s.talkers.lastPayload)   socket.emit('talkers:update',   s.talkers.lastPayload);
-  if (s.ping.lastPayload)      socket.emit('ping:update',      s.ping.lastPayload);
-  if (s.bandwidth.lastPayload) socket.emit('bandwidth:update', s.bandwidth.lastPayload);
-  if (s.routing.lastPayload)   socket.emit('routing:update',   s.routing.lastPayload);
-  if (s.netwatch.lastPayload)  socket.emit('netwatch:update',  s.netwatch.lastPayload);
+  if (s.talkers.lastPayload   && _mayReplay(socket, 'talkers'))   socket.emit('talkers:update',   s.talkers.lastPayload);
+  if (s.ping.lastPayload      && _mayReplay(socket, 'ping'))      socket.emit('ping:update',      s.ping.lastPayload);
+  if (s.bandwidth.lastPayload && _mayReplay(socket, 'bandwidth')) socket.emit('bandwidth:update', s.bandwidth.lastPayload);
+  if (s.routing.lastPayload   && _mayReplay(socket, 'routing'))   socket.emit('routing:update',   s.routing.lastPayload);
+  if (s.netwatch.lastPayload  && _mayReplay(socket, 'netwatch'))  socket.emit('netwatch:update',  s.netwatch.lastPayload);
+
+  // The bell's initial state. Without this it would start empty on every load
+  // and only fill as new alerts happened — which is exactly the "empty again
+  // after a refresh while the database holds open alerts" problem this replaces.
+  // Recently-resolved rows ride along so the panel shows what just happened as
+  // well as what is still wrong.
+  try {
+    socket.emit('alerts:open', {
+      routerId: s.routerId,
+      open:     db.queryOpenAlerts(s.routerId, 200).map(_alertRow),
+      recent:   db.queryRecentAlerts(s.routerId, Date.now() - 24 * 3600 * 1000, 50).map(_alertRow),
+    });
+  } catch (e) {
+    console.warn('[alerts] initial state failed:', sanitizeErr(e));
+  }
+  if (s.topology.lastPayload && _mayReplay(socket, 'topology')) socket.emit('topology:update', s.topology.lastPayload);
 
   socket.emit('settings:pages', _pageSettings(_ps));
 
@@ -2584,7 +3377,7 @@ async function sendInitialState(socket, entry) {
   }
 
   const logHistory = s.logs.getHistory();
-  if (logHistory.length) socket.emit('logs:history', logHistory);
+  if (logHistory.length && _mayReplay(socket, 'logs')) socket.emit('logs:history', logHistory);
 }
 
 function _idleSuspend(session, entry) {
@@ -2596,6 +3389,7 @@ function _idleSuspend(session, entry) {
   session.vpn.suspend();
   session.firewall.suspend();
   session.routing.suspend();
+  session.topology.suspend();
   session.ping.suspend();
   session.talkers.suspend();
   session.dhcpNetworks.suspend();
@@ -2615,12 +3409,7 @@ function _idleResume(session, entry) {
 // Room-driven suspend/resume for the page-aware collectors: each keeps
 // streaming only while at least one socket is in one of its rooms. The keys
 // double as the session property and page name (session.firewall ↔ 'firewall').
-const _PAGE_STREAM_ROOMS = {
-  firewall: ['page-firewall', 'dash-card-firewall'],
-  routing:  ['page-routing'],
-  wireless: ['page-wireless'],
-  vpn:      ['page-vpn', 'dash-card-vpn'],
-};
+const _PAGE_STREAM_ROOMS = Pages.STREAM_ROOMS;
 
 function _updatePageStream(session, entry, which) {
   if (!session || !entry.startupReady) return;
@@ -2651,6 +3440,7 @@ function _emitDiagnostics(session, rid, socket) {
     { name: 'dhcpNetworks', streams: countObj(s.dhcpNetworks._streams) },
     { name: 'ifStatus',     streams: (s.ifStatus._ifStream?1:0)+(s.ifStatus._addrStream?1:0)+(s.ifStatus._monitorStream?1:0) },
     { name: 'routing',      streams: (s.routing._routeStream?1:0)+(s.routing._ipv6Stream?1:0)+(s.routing._bgpStream?1:0) },
+    { name: 'topology',     streams: s.topology._stream      ? 1 : 0 },
   ];
   const total = collectors.reduce((sum, c) => sum + c.streams, 0);
   // Geo availability rides along here so a failed geoip-lite load is visible in
@@ -2683,6 +3473,15 @@ io.on('connection', (socket) => {
   // teardown for it, and ensure the session is running.
   const routerId = _resolveRouterId(socket);
   socket.routerId = routerId;
+
+  // Routers exist, but this session may read none of them. Impossible under the
+  // old model — an empty allowedRouterIds meant "all" — and newly reachable now
+  // that access is deny-by-default. Say so explicitly: otherwise the client
+  // cannot tell this apart from "no routers configured yet" and shows the
+  // first-run setup wizard, or simply spins.
+  if (_isModern() && !routerId && Routers.loadAll().length > 0) {
+    socket.emit('access:none');
+  }
 
   if (routerId) {
     const existingEntry = _routerSessions.get(routerId);
@@ -2724,6 +3523,11 @@ io.on('connection', (socket) => {
   socket.on('page:focus', (name) => {
     if (typeof name !== 'string' || !/^[a-z]{2,20}$/.test(name)) return;
     const rid = socket.routerId;
+    // Two things happen below — a room join AND an immediate replay of
+    // lastPayload straight to this socket. Gating only the join would still
+    // hand the caller a full payload for a page they cannot see, so this
+    // returns before both.
+    if (!_pageAllowed(socket, name)) return;
     socket.join('router-' + rid + '-page-' + name);
     if (name === 'routers') {
       if (!_routersPageSockets.has(socket.id)) {
@@ -2747,6 +3551,12 @@ io.on('connection', (socket) => {
       socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
     if (name === 'logs' && s.logs)
       socket.emit('logs:history', { entries: s.logs.getHistory() });
+    // Interfaces and Topology both render the full interface payload, and
+    // neither has a suspendable stream to replay through _PAGE_STREAM_ROOMS —
+    // so without this, opening either shows nothing until the next tick now
+    // that the emit is page-scoped (issue #108).
+    if ((name === 'interfaces' || name === 'topology') && s.ifStatus && s.ifStatus.lastPayload)
+      socket.emit('ifstatus:update', { ...s.ifStatus.lastPayload, ts: Date.now() });
     if (name === 'connections' && s.conns && s.conns.lastPayload) {
       if (s.conns.lastPayload.countryDests)
         socket.emit('conn:country-data', { ts: s.conns.lastPayload.ts, countryDests: s.conns.lastPayload.countryDests, countryPorts: s.conns.lastPayload.countryPorts });
@@ -2773,6 +3583,13 @@ io.on('connection', (socket) => {
   socket.on('dashcard:focus', (key) => {
     if (typeof key !== 'string' || !/^[a-z]{2,20}$/.test(key)) return;
     const rid = socket.routerId;
+    // A dashboard card needs the dashboard AND the page it borrows its data
+    // from. Denying someone the Firewall page while still streaming them
+    // firewall data through a dashboard card would make the whole matrix a lie,
+    // and that is the first thing an operator will check.
+    if (!_pageAllowed(socket, 'dashboard')) return;
+    const src = _dashCardPage(key);
+    if (src !== 'dashboard' && !_pageAllowed(socket, src)) return;
     socket.join('router-' + rid + '-dash-card-' + key);
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e || !e.session) return;
@@ -2819,6 +3636,10 @@ io.on('connection', (socket) => {
     // router — only sockets actually viewing the firewall page/card may drive it.
     if (!socket.rooms.has('router-' + rid + '-page-firewall') &&
         !socket.rooms.has('router-' + rid + '-dash-card-firewall')) return;
+    // Room membership says who is WATCHING; it never said who may change what
+    // everyone else sees. A viewer could switch the table out from under every
+    // other viewer of this router. Changing it is a diagnostic action.
+    if (!_pageAllowed(socket, 'firewall', 'write')) return;
     const e = rid ? _routerSessions.get(rid) : null;
     if (e && e.session && e.session.firewall) e.session.firewall.setActiveTable(table);
   });
@@ -2838,11 +3659,9 @@ io.on('connection', (socket) => {
     // client resurrect it via router:switch.
     if (router.disabled) return;
 
-    // Validate access: viewer can only switch to allowed routers
-    if (authSession.role !== 'admin') {
-      const allowed = authSession.allowedRouterIds || [];
-      if (allowed.length > 0 && !allowed.includes(newRouterId)) return;
-    }
+    // The session was re-resolved just above rather than trusting the ≤60s-stale
+    // cached view, so this asks the live grant set.
+    if (!_socketCan(socket, 'router:read', newRouterId)) return;
 
     const oldRid = socket.routerId;
     if (oldRid === newRouterId) return;

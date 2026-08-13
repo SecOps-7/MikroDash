@@ -172,7 +172,13 @@ test('connections collector emits processed count and processingCapped when trun
   const io = {
     engine: { clientsCount: 1 },
     sockets: { adapter: { rooms: new Map() } },
-    to(room) { return { emit() {} }; },
+    // Records chained room emits too: since issue #108 the full conn:update
+    // payload is scoped to page-connections + dash-card-connections, while only
+    // the sidebar count stays router-wide.
+    to(room) {
+      const rec = { to() { return rec; }, emit(event, payload) { emitted.push({ event, payload, room }); } };
+      return rec;
+    },
     emit(event, payload) {
       emitted.push({ event, payload });
     },
@@ -191,10 +197,19 @@ test('connections collector emits processed count and processingCapped when trun
 
   await collector.tick();
 
-  assert.equal(emitted.length, 1);
-  assert.equal(emitted[0].event, 'conn:update');
-  assert.equal(emitted[0].payload.total, 3);
-  assert.equal(emitted[0].payload.processed, 2);
-  assert.equal(emitted[0].payload.processingCapped, true);
+  // Two emits since issue #108 split delivery: a router-wide count for the
+  // sidebar badge, and the full payload scoped to the Connections page and its
+  // dashboard card. Assert on the event by name rather than by position.
+  const count = emitted.find(e => e.event === 'conn:count');
+  const full  = emitted.find(e => e.event === 'conn:update');
+
+  assert.ok(count, 'the sidebar count must stay router-wide');
+  assert.equal(count.payload.total, 3);
+  assert.ok(!('topSources' in count.payload), 'the count carries no page detail');
+
+  assert.ok(full, 'the full payload must still be emitted');
+  assert.equal(full.payload.total, 3);
+  assert.equal(full.payload.processed, 2);
+  assert.equal(full.payload.processingCapped, true);
 });
 

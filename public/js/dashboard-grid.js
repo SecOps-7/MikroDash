@@ -45,6 +45,18 @@
     'dc-card-logs':     'logs',
     'card-wireguard':      'vpn',
     'dc-card-diagnostics': 'diagnostics',
+    /* Added with issue #108: these collectors used to broadcast router-wide, so
+       their cards needed no subscription. Now that the payload is page-scoped —
+       a role denying Connections must not receive connection detail — the card
+       has to say it is watching, exactly like the four above. The lightweight
+       counts their nav badges use still arrive router-wide. */
+    'card-connections': 'connections',
+    /* The network-devices diagram shows a wireless client count, so it needs
+       the wireless payload as well. One card, a room it does not own — the
+       mirror image of fwaction/fwhits sharing one room. */
+    'dc-card-netflow':   'wireless',
+    'dc-card-physports': 'interfaces',
+    'card-network':      'dhcp',
   };
   /* dc-card-bw uses traffic:update which is already delivered to every socket
      via per-socket emit in traffic.js — no room subscription needed. */

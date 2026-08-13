@@ -168,9 +168,33 @@ describe('users', () => {
     assert.equal(user.salt, undefined, 'no salt in public output');
   });
 
-  test('createUser defaults non-viewer roles to admin', async () => {
-    const user = await Users.createUser({ username: 'bob', password: 'pw', role: 'superuser' });
-    assert.equal(user.role, 'admin');
+  // This test asserted the OPPOSITE — that an unrecognised role became 'admin'.
+  // That was a coercion masquerading as a default, and it failed in the worst
+  // possible direction: a typo, a stale client, or a role added elsewhere and
+  // not yet wired into users.js would silently mint an administrator. It also
+  // made adding a third role unsafe, because `role: 'operator'` would have
+  // created an admin until every branch was updated. Roles are now validated.
+  test('createUser rejects an unknown role rather than defaulting to admin', async () => {
+    await assert.rejects(
+      () => Users.createUser({ username: 'bob', password: 'pw', role: 'superuser' }),
+      /Invalid role/,
+      'an unrecognised role must be refused, never silently promoted');
+  });
+
+  test('createUser requires an explicit role', async () => {
+    // Every production call site passes one. Refusing the omission keeps the
+    // failure loud rather than quietly picking a privilege level for the caller.
+    await assert.rejects(
+      () => Users.createUser({ username: 'bob', password: 'pw' }),
+      /Invalid role/);
+  });
+
+  test('updateUser rejects an unknown role', async () => {
+    const user = await Users.createUser({ username: 'bob', password: 'pw', role: 'viewer' });
+    await assert.rejects(
+      () => Users.updateUser(user.id, { role: 'superuser' }),
+      /Invalid role/);
+    assert.equal((await Users.getUser(user.id)).role, 'viewer', 'the stored role must be untouched');
   });
 
   test('createUser with viewer role stores viewer', async () => {
@@ -308,21 +332,26 @@ describe('users', () => {
     assert.equal(Users.getUserSync(created.id), null);
   });
 
-  // ── Security hardening: adminCount (#8 last-admin guard) ────────────────────
-  test('adminCount counts only admin-role users', async () => {
-    assert.equal(Users.adminCount(), 0);
-    await Users.createUser({ username: 'a', password: 'p', role: 'admin' });
-    await Users.createUser({ username: 'b', password: 'p', role: 'viewer' });
-    await Users.createUser({ username: 'c', password: 'p', role: 'admin' });
-    assert.equal(Users.adminCount(), 2);
-  });
-
-  test('adminCount drops when an admin is demoted', async () => {
-    const a = await Users.createUser({ username: 'a', password: 'p', role: 'admin' });
-    await Users.createUser({ username: 'b', password: 'p', role: 'admin' });
-    assert.equal(Users.adminCount(), 2);
-    await Users.updateUser(a.id, { role: 'viewer' });
-    assert.equal(Users.adminCount(), 1);
+  // ── The last-admin guard no longer counts records (#108) ────────────────────
+  //
+  // adminCount() used to live on Users and answer "how many admins are there?"
+  // by counting user records with role === 'admin'. Two tests covered it; both
+  // are gone with the function, because the answer it gave became wrong rather
+  // than merely unused: administration is a grant now, so a record count cannot
+  // see an admin whose grant is held through a group, and still counts one whose
+  // grant was removed in the editor. Either way it fails in the dangerous
+  // direction — refusing a safe deletion, or permitting one that orphans
+  // administration entirely.
+  test('nothing decides administration by counting user records', () => {
+    assert.equal(Users.adminCount, undefined, 'the function is gone, not just unused');
+    const src = require('node:fs').readFileSync(
+      require('node:path').join(__dirname, '..', 'src', 'index.js'), 'utf8');
+    assert.ok(!/adminCount\(\)/.test(src.replace(/\/\/[^\n]*/g, '')),
+      'no live call site may count admin records');
+    // What replaced it: a probe of the grants, which sees group-held access.
+    const rbacSrc = require('node:fs').readFileSync(
+      require('node:path').join(__dirname, '..', 'src', 'rbac.js'), 'utf8');
+    assert.match(rbacSrc, /function wouldOrphanGlobalAdmin/);
   });
 
   // ── Security hardening: verifyPassword constant-time path (#5) ───────────────

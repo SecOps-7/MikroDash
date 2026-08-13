@@ -3,12 +3,24 @@
 var socket = io();
 
 // Intercept fetch responses — redirect to login on 401 in modern auth mode.
+//
+// 403 is handled differently on purpose: it means "still signed in, but no
+// longer permitted", which a redirect to /login would misreport as a session
+// problem. Instead re-resolve permissions so the UI catches up with whatever
+// changed — a role edited, a grant revoked — rather than failing silently, as
+// it did before page permissions existed (#108).
 (function() {
   var _origFetch = window.fetch;
+  var _lastRefresh = 0;
   window.fetch = function() {
     return _origFetch.apply(this, arguments).then(function(res) {
       if (res.status === 401 && window._authMode === 'modern') {
         window.location.href = '/login';
+      } else if (res.status === 403 && window._authMode === 'modern' && window._refreshCaps) {
+        // Throttled: one denied page can fire several requests at once, and
+        // each must not trigger its own re-resolve.
+        var now = Date.now();
+        if (now - _lastRefresh > 3000) { _lastRefresh = now; window._refreshCaps(); }
       }
       return res;
     });
@@ -18,6 +30,31 @@ var socket = io();
 // Server notifies this socket when its session has expired.
 socket.on('session:expired', function() {
   if (window._authMode === 'modern') window.location.href = '/login';
+});
+
+// Routers exist, but this account may read none of them. Distinct from "no
+// routers configured yet", which shows the setup wizard — telling someone to set
+// up a router they are not permitted to see would be actively misleading, and
+// under the old model this state could not occur at all.
+function _showNoAccess(msg) {
+  var el = document.getElementById('noAccessNotice');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'noAccessNotice';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
+      'justify-content:center;background:var(--bg-deep);color:var(--text-main);' +
+      'font-family:var(--font-ui);text-align:center;padding:2rem';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = '<div><div style="font-size:1.05rem;font-weight:600;margin-bottom:.5rem">' +
+    'No routers have been shared with you</div>' +
+    '<div style="font-size:.82rem;color:var(--text-muted);max-width:32rem">' + esc(msg) + '</div></div>';
+}
+socket.on('access:none', function() {
+  _showNoAccess('Your account does not currently have access to any router. Ask an administrator to grant you access.');
+});
+socket.on('access:revoked', function() {
+  _showNoAccess('Your access to this router was changed. Reload to see what you can still reach.');
 });
 
 // The handshake is auth-gated server-side (io.engine.use), so once a session is
@@ -172,6 +209,7 @@ var wirelessNavBadge = $('wirelessNavBadge');
 var vpnTable         = $('vpnTable');
 var firewallTable    = $('firewallTable');
 var pageTitle        = $('pageTitle');
+var pageTitleIcon    = $('pageTitleIcon');
 var ifaceGrid        = $('ifaceGrid');
 var ifaceCount       = $('ifaceCount');
 var ifaceTypeFilter  = $('ifaceTypeFilter');
@@ -479,7 +517,7 @@ function applyFontSize(sizeId) {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers'};
+var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers'};
 var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','routing','bandwidth','firewall','logs'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
@@ -491,6 +529,11 @@ function showPage(name){
   var page = $('page-'+name); if(page) page.classList.add('active');
   var nav  = document.querySelector('.nav-item[data-page="'+name+'"]'); if(nav) nav.classList.add('active');
   if(pageTitle) pageTitle.textContent = PAGE_TITLES[name]||name;
+  if(pageTitleIcon){
+    pageTitleIcon.innerHTML = '';
+    var navSvg = nav && nav.querySelector('.nav-icon svg');
+    if(navSvg) pageTitleIcon.appendChild(navSvg.cloneNode(true));
+  }
   document.dispatchEvent(new CustomEvent('mikrodash:pagechange', { detail: name }));
   // Notify server so it only delivers page-specific events to clients that need them
   if (prev && prev !== name) socket.emit('page:blur', prev);
@@ -735,13 +778,17 @@ socket.on('system:update',function(d){
 });
 
 // ── LAN ────────────────────────────────────────────────────────────────────
-socket.on('lan:overview',function(data){
-  // Detect local country from WAN IP for arc origin
+// The WAN IP is chrome — it sets the connections map's arc origin and the WAN
+// readout in the network-devices diagram — so it arrives router-wide while the
+// pool and per-network detail is page-scoped (issue #108).
+socket.on('lan:wan',function(data){
   if(window._wanGeoDetect) window._wanGeoDetect(data.wanIp);
-  // WAN IP (SVG diagram)
-  var wip=(data.wanIp||'').split('/')[0]||'\u2014';
+  var wip=(data.wanIp||'').split('/')[0]||'—';
   var ndWanIp=$('ndWanIp'); if(ndWanIp)ndWanIp.textContent=wip;
   if(wanIpDisplay)wanIpDisplay.textContent=wip;
+});
+
+socket.on('lan:overview',function(data){
   // Network card: internet-facing interfaces from detect-internet
   var ifaceEl=$('netInternetIfaces');
   if(ifaceEl){
@@ -909,9 +956,14 @@ function _flushConnUpdate(){
     }else{topDests.innerHTML='<div class="empty-state">\u2014</div>';}
   }
 }
+// The connection count is chrome — the sidebar badge is on every page — so it
+// arrives router-wide while the full payload is page-scoped (issue #108).
+socket.on('conn:count',function(data){
+  var connNavBadge=$("connNavBadge"); if(connNavBadge) connNavBadge.textContent=data.total;
+});
+
 socket.on('conn:update',function(data){
   connTotal.textContent=data.total;
-  var connNavBadge=$("connNavBadge"); if(connNavBadge) connNavBadge.textContent=data.total;
   connHistory.push({ts:data.ts,total:data.total});
   if(connHistory.length>MAX_CONN_HIST)connHistory.shift();
   drawSparkline(connHistory);
@@ -1130,11 +1182,19 @@ function renderIfaceList(ifaces) {
   }
 }
 
+// Names and up/down only, router-wide: the traffic chart's interface picker and
+// the sidebar badge are chrome on every page, so they cannot depend on holding
+// the Interfaces page. Rates, IPs and MACs ride on ifstatus:update, which is
+// page-scoped (issue #108).
+socket.on('ifstatus:names',function(data){
+  var ifaces=data.interfaces||[];
+  _rebuildIfaceSelect(ifaces.filter(function(i){return i.running&&!i.disabled;}).map(function(i){return i.name;}));
+  var nb=$('ifacesNavBadge');if(nb){nb.textContent=(data.total||ifaces.length)||'';}
+});
+
 socket.on('ifstatus:update',function(data){
   var ifaces=data.interfaces||[];
   _lastIfaces = ifaces;
-  _rebuildIfaceSelect(ifaces.filter(function(i){return i.running&&!i.disabled;}).map(function(i){return i.name;}));
-  var nb=$('ifacesNavBadge');if(nb){nb.textContent=ifaces.length||'';}
   if(ifaceCount){ifaceCount.textContent=ifaces.length;ifaceCount.className='card-badge'+(ifaces.length>0?' active-blue':'');}
   var wiredUp=ifaces.filter(function(i){return i.running&&!i.disabled&&i.type==='ether';});
   var ndWired=$('ndWiredCount');if(ndWired)ndWired.textContent=wiredUp.length;
@@ -1588,11 +1648,16 @@ function portSvg(sz) {
     wirelessTable.innerHTML=rows;
   }
 
+  // The client count is chrome — the sidebar badge shows on every page — so it
+  // arrives router-wide while the client list itself is page-scoped (#108).
+  socket.on('wireless:count',function(data){
+    if(wirelessNavBadge) wirelessNavBadge.textContent=data.count;
+  });
+
   socket.on('wireless:update',function(data){
     _wlClients=data.clients||[];
     var ndWC=$('ndWirelessCount'); if(ndWC) ndWC.textContent=_wlClients.length;
     wirelessTabBadge.textContent=_wlClients.length; wirelessTabBadge.className='card-badge'+(_wlClients.length>0?' active-blue':'');
-    wirelessNavBadge.textContent=_wlClients.length;
 
     // Band split card
     var b24=0,b5=0,b6=0;
@@ -2300,11 +2365,22 @@ socket.on('wan:status',function(s){renderWanStatus(s);});
 var _rosCurrentlyDisconnected = false;
 
 // ── Settings: page visibility + alert thresholds ─────────────────────────────
+// Install-wide visibility toggles: settings key → page. Only ten pages have one;
+// dashboard, reports, routers and settings are governed by role alone.
 var PAGE_NAV_MAP = {
   pageWireless:'wireless', pageInterfaces:'interfaces', pageDhcp:'dhcp',
   pageVpn:'vpn', pageConnections:'connections', pageFirewall:'firewall', pageLogs:'logs',
-  pageBandwidth:'bandwidth', pageRouting:'routing',
+  pageBandwidth:'bandwidth', pageRouting:'routing', pageTopology:'topology',
 };
+// Every page the nav can show. Kept in step with src/pages.js — the drift check
+// lives in test/page-registry.test.js.
+var ALL_NAV_PAGES = ['dashboard','topology','wireless','interfaces','dhcp','vpn',
+                     'connections','routing','bandwidth','firewall','logs',
+                     'reports','routers','settings'];
+// The two inputs to page visibility, merged by applyPageVisibility(): what the
+// install allows, and what this session's role allows. Both must say yes.
+var _pageInstall = {};
+var _pageAccess  = null;   // null until caps arrive — unknown must not mean hidden
 
 // Alert thresholds — updated live from settings:pages broadcasts
 var _alertCpuThreshold = 90;
@@ -2313,13 +2389,34 @@ var _vpnDashTopN       = 5;
 var _displayTimezone   = '';
 
 function applyPageVisibility(pages) {
-  for (var key in PAGE_NAV_MAP) {
-    var pageName = PAGE_NAV_MAP[key];
-    var navEl = document.querySelector('.nav-item[data-page="'+pageName+'"]');
-    var visible = pages[key] !== false;
-    if (navEl) navEl.style.display = visible ? '' : 'none';
-    // If currently on a now-hidden page, redirect to dashboard
-    if (!visible && _currentPage === pageName) showPage('dashboard');
+  if (pages) _pageInstall = pages;
+  pages = _pageInstall;
+
+  // A page shows only if the install allows it AND the role grants it. The role
+  // half is skipped until caps have arrived (_pageAccess null), so the nav is
+  // not blanked during the first paint — the server denies anything the role
+  // does not allow regardless, so a brief extra item is cosmetic, whereas a
+  // blank nav looks broken.
+  var settingKeyFor = {};
+  for (var k in PAGE_NAV_MAP) settingKeyFor[PAGE_NAV_MAP[k]] = k;
+
+  var firstVisible = null;
+  for (var i = 0; i < ALL_NAV_PAGES.length; i++) {
+    var pageName = ALL_NAV_PAGES[i];
+    var sKey     = settingKeyFor[pageName];
+    var byInstall = !sKey || pages[sKey] !== false;
+    var byRole    = !_pageAccess || !!_pageAccess[pageName];
+    var visible   = byInstall && byRole;
+
+    document.querySelectorAll('.nav-item[data-page="' + pageName + '"]').forEach(function (navEl) {
+      navEl.style.display = visible ? '' : 'none';
+    });
+    if (visible && !firstVisible) firstVisible = pageName;
+    // Move off a page that just became hidden. Not always to the dashboard —
+    // a role can deny that too, so fall back to whatever is still reachable.
+    if (!visible && _currentPage === pageName) {
+      showPage(firstVisible || 'dashboard');
+    }
   }
   if (pages.alertCpuThreshold != null) _alertCpuThreshold = pages.alertCpuThreshold;
   if (pages.alertPingLoss     != null) _alertPingLoss     = pages.alertPingLoss;
@@ -2436,6 +2533,7 @@ var COLLECTOR_CARDS = {
   firewall: ["firewallCard"],
   routing: ["routingProtoCard", "routingBgpCard", "routingPeersCard", "routingRoutesCard"],
   netwatch: ["netwatchCard"],
+  topology: ["topologyCard"],
 };
 // Every dashboard card that renders rows, mapped to the tbody holding them.
 // Switching routers used to clear each card's in-memory guard piecemeal (see the
@@ -2516,6 +2614,7 @@ var staleConfig=[
   {cardId:'routingBgpCard',   event:'routing:update',   threshold:90000},
   {cardId:'routingPeersCard',  event:'routing:update',   threshold:90000},
   {cardId:'routingRoutesCard', event:'routing:update',   threshold:90000},
+  {cardId:'topologyCard',      event:'topology:update',  threshold:90000},  // streamed — heartbeat every 60s
 ];
 var staleTimers={};
 staleConfig.forEach(function(cfg){
@@ -2656,14 +2755,6 @@ socket.on('ping:update',function(data){
 
 // ── Browser Notifications ──────────────────────────────────────────────────
 var _notifEnabled = false;
-var _notifPrevIface    = {};  // name -> confirmed running state
-var _ifacePending      = {};  // name -> { newState, since } — debounce timer
-var IFACE_DEBOUNCE_MS  = 10000; // ms state must be stable before alert fires
-var _notifPrevVpn      = {};   // name -> wasConnected
-var _notifPrevNetwatch = {};   // id   -> last known status
-var _cpuAlertedAt   = 0;
-var _pingAlertedAt  = 0;
-var NOTIF_COOLDOWN  = 60000; // 1 min between repeat alerts
 
 // Alert-type and interface-type filters — browser-local, stored in localStorage
 var NOTIF_TYPES_KEY       = 'mkd_notif_types';
@@ -2678,7 +2769,7 @@ var NOTIF_IFACE_TYPES_KEY = 'mkd_notif_iface_types';
 // can fire for categories the server has switched off. netwatch, bridge, vlan
 // and other were all true here against false on the server.
 var _alertTypes      = { ifaceUpDown: true, vpn: true, cpu: true, ping: true, netwatch: false,
-                         routerStatus: false, routerUpdate: false };
+                         routerStatus: false, routerUpdate: false, bgp: true };
 var _alertIfaceTypes = { ether: true, wlan: true, bridge: false, vlan: false, other: false };
 
 function loadAlertFilters() {
@@ -2726,205 +2817,16 @@ function updateNotifBtn(){
   btn.style.opacity = _notifEnabled ? '1' : '0.4';
 }
 
-// Trigger notifications from data events
-function checkIfaceNotifs(ifaces){
-  if(!_alertTypes.ifaceUpDown) return;
-  var now = Date.now();
-  ifaces.forEach(function(i){
-    if(i.disabled) return;
-    var isRunning = !!i.running;
-    var confirmed = _notifPrevIface[i.name];
+// There are deliberately no detectors here. alerter.js on the server evaluates
+// interface, VPN, CPU, RouterOS-update, ping, NetWatch and router up/down from
+// the same payloads, records each to alert_events, and pushes alert:fired /
+// alert:resolved to the bell. Re-deriving any of them in the browser produced a
+// second implementation of every rule, which is how this file ended up with
+// defaults that disagreed with the server, a hardcoded 60 s cooldown that
+// ignored notifCooldownSec, and alert types that existed on only one side.
+// sendNotif() is still called — by the alert:fired handler, from server data.
 
-    // First observation — seed confirmed state, no alert
-    if(confirmed === undefined){
-      _notifPrevIface[i.name] = isRunning;
-      return;
-    }
-
-    if(isRunning !== confirmed){
-      // State differs from confirmed. Start (or continue) timing how long it
-      // has held this new state. Only fire once it has been stable for
-      // IFACE_DEBOUNCE_MS — brief wifi association flaps resolve well within
-      // that window and never trigger an alert.
-      var pending = _ifacePending[i.name];
-      if(!pending || pending.newState !== isRunning){
-        _ifacePending[i.name] = { newState: isRunning, since: now };
-      } else if(now - pending.since >= IFACE_DEBOUNCE_MS){
-        // Check interface type filter before firing.
-        // RouterOS 7 new wifi package reports type 'wifi'; normalize to 'wlan'
-        // so the Wireless toggle covers both old and new wireless interfaces.
-        var ifType = i.type || 'other';
-        if (ifType === 'wifi') ifType = 'wlan';
-        var typeKey = Object.prototype.hasOwnProperty.call(_alertIfaceTypes, ifType) ? ifType : 'other';
-        if(_alertIfaceTypes[typeKey]){
-          if(!isRunning){
-            sendNotif('Interface Down', i.name + ' is no longer running', 'iface-' + i.name);
-          } else {
-            sendNotif('Interface Up', i.name + ' is back online', 'iface-' + i.name);
-          }
-        }
-        _notifPrevIface[i.name] = isRunning;
-        delete _ifacePending[i.name];
-      }
-    } else {
-      // Returned to confirmed state — cancel any pending alert
-      delete _ifacePending[i.name];
-    }
-  });
-}
-
-function checkVpnNotifs(tunnels){
-  if(!_alertTypes.vpn) return;
-  tunnels.forEach(function(t){
-    var name = t.name || t.interface || '?';
-    var isConn = t.state === 'active';
-    var wasConn = _notifPrevVpn[name];
-    if(wasConn === true && !isConn){
-      sendNotif('VPN Peer Disconnected', name + ' has gone idle', 'vpn-' + name);
-    } else if(wasConn === false && isConn){
-      sendNotif('VPN Peer Connected', name + ' is now active', 'vpn-' + name);
-    }
-    _notifPrevVpn[name] = isConn;
-  });
-}
-
-function checkCpuNotif(cpuLoad){
-  if(!_alertTypes.cpu) return;
-  var now = Date.now();
-  if(cpuLoad >= _alertCpuThreshold && now - _cpuAlertedAt > NOTIF_COOLDOWN){
-    sendNotif('High CPU', 'Router CPU at ' + cpuLoad + '% (threshold: ' + _alertCpuThreshold + '%)', 'cpu-high');
-    _cpuAlertedAt = now;
-  }
-}
-
-// The bell is fed entirely client-side; alerter.js only drives Telegram and the
-// other push channels. Without this the update alert reached the phone and left
-// no trace in the UI.
-var _updateNotifiedVersion = null;
-function checkUpdateNotif(d){
-  if(!_alertTypes.routerUpdate) return;
-  var latest = d.latestVersion || '';
-  if(d.updateAvailable && latest){
-    // Keyed on the version rather than a timer. system:update arrives on every
-    // poll (~2 s), so a NOTIF_COOLDOWN gate would re-fire indefinitely; keying
-    // on the version gives one entry per release and still notifies for a
-    // later one. Mirrors the server-side rule in alerter.js.
-    if(_updateNotifiedVersion !== latest){
-      _updateNotifiedVersion = latest;
-      var installed = (d.version || '').replace(/\s*\(.*\)/, '').trim() || 'unknown';
-      sendNotif('RouterOS Update',
-                'RouterOS ' + latest + ' is available (running ' + installed + ')',
-                'ros-update');
-    }
-  } else if(!d.updateAvailable){
-    _updateNotifiedVersion = null; // upgraded, so a future release notifies again
-  }
-}
-
-// Router up/down had a settings toggle and a server-side push path, but no
-// client check at all — so s_notifRouterStatus reached Telegram and never the
-// bell. Labels come from routers:update because router:status only carries an
-// id, and a UUID in a notification is useless.
-var _notifRouterLabels = {};
-var _notifRouterAlerts = {};   // routerId -> false when Alert Monitoring is off
-var _routerStatusPrev  = {};
-socket.on('routers:update', function(list){
-  (list || []).forEach(function(r){
-    if (r && r.id) {
-      _notifRouterLabels[r.id] = r.label || r.host || r.id;
-      // Per-router "Alert Monitoring". The SERVER alerter already honours this
-      // (alerter.js re-checks it before firing), but these browser-side detectors
-      // were written independently and never consulted it, so a router with
-      // monitoring switched off still raised bell notifications of its own.
-      _notifRouterAlerts[r.id] = r.alertsEnabled !== false;
-    }
-  });
-});
-
-// Default true for an id we have not been told about: better to show an alert we
-// cannot attribute than to silently swallow a real one.
-function _alertsAllowedFor(routerId){
-  if (!routerId) return true;
-  return _notifRouterAlerts[routerId] !== false;
-}
-
-function checkRouterStatusNotif(d){
-  if (!_alertTypes.routerStatus) return;
-  if (!d || !d.routerId) return;
-  // Keyed on the router the status is ABOUT, not the one being viewed.
-  if (!_alertsAllowedFor(d.routerId)) return;
-  var was = _routerStatusPrev[d.routerId];
-  var is  = !!d.connected;
-  // Keyed on the transition, not a timer: router:status repeats on every
-  // reconnect attempt, and the first observation only seeds the baseline.
-  if (was !== undefined && was !== is) {
-    var name = _notifRouterLabels[d.routerId] || d.routerId;
-    if (!is) sendNotif('Router Offline', name + ' is not reachable', 'rtr-' + d.routerId);
-    else     sendNotif('Router Online',  name + ' is reachable again', 'rtr-' + d.routerId);
-  }
-  _routerStatusPrev[d.routerId] = is;
-}
-
-function checkPingNotif(loss){
-  if(!_alertTypes.ping) return;
-  var now = Date.now();
-  if(loss >= _alertPingLoss && now - _pingAlertedAt > NOTIF_COOLDOWN){
-    sendNotif('Ping Loss', 'Ping loss at ' + loss + '% — possible WAN outage', 'ping-loss');
-    _pingAlertedAt = now;
-  }
-  if(loss < _alertPingLoss) _pingAlertedAt = 0; // reset so next outage fires again
-}
-
-function checkNetwatchNotifs(hosts){
-  if(!_alertTypes.netwatch) return;
-  hosts.forEach(function(h){
-    if(h.status === 'unknown') return; // transient re-probe state (e.g. after entry edit) — skip
-    var prev = _notifPrevNetwatch[h.id];
-    if(prev !== undefined && prev !== h.status){
-      var label = h.name || h.host || h.id;
-      if(h.status === 'down') sendNotif('NetWatch: Host Down', label + ' is unreachable',      'nw-' + h.id);
-      else                    sendNotif('NetWatch: Host Up',   label + ' is reachable again',  'nw-' + h.id);
-    }
-    _notifPrevNetwatch[h.id] = h.status;
-  });
-}
-
-// Wire into existing handlers
-var _origIfstatus = null;
-(function(){
-  var _listeners = [];
-  socket.on('ifstatus:update', function(data){
-    // Reject a payload describing a router we are not viewing. Session teardown
-    // is asynchronous, so a final in-flight update from the OUTGOING router can
-    // land after router:switching has already cleared the baseline — and because
-    // the comparison is by interface name alone, router A's ether2..5 then read
-    // as router B's going down, and back up on the way home. The routerId stamp
-    // makes that impossible rather than merely unlikely.
-    if (data && data.routerId && window._activeRouterId &&
-        data.routerId !== window._activeRouterId) return;
-    if (!_alertsAllowedFor(window._activeRouterId)) return;
-    checkIfaceNotifs(data.interfaces||[]);
-  });
-  // Every remaining detector is scoped to whichever router is being viewed, so
-  // they all answer to that router's Alert Monitoring setting. "Disabled" has to
-  // mean no alerts at all, not merely no server-side ones.
-  socket.on('vpn:update',      function(data){
-    if (!_alertsAllowedFor(window._activeRouterId)) return;
-    checkVpnNotifs(data.tunnels||[]);
-  });
-  socket.on('system:update',   function(d){
-    if (!_alertsAllowedFor(window._activeRouterId)) return;
-    checkCpuNotif(d.cpuLoad); checkUpdateNotif(d);
-  });
-  socket.on('ping:update',     function(data){
-    if (!_alertsAllowedFor(window._activeRouterId)) return;
-    checkPingNotif(data.loss);
-  });
-  socket.on('netwatch:update', function(data){
-    if (!_alertsAllowedFor(window._activeRouterId)) return;
-    checkNetwatchNotifs(data.hosts||[]);
-  });
-  // Persistent stream failure (#106). The watchdog restarts a dead stream every
+// Persistent stream failure (#106). The watchdog restarts a dead stream every
 // few seconds and will do so forever; on its own that turns a hard fault into a
 // chart with unexplained holes. The server now reports the degraded state on
 // transition, so say so on the affected card instead of only dimming it.
@@ -2935,7 +2837,7 @@ socket.on('stream:health', function (h) {
   var warn = $(STREAM_WARN_CARDS[h.collector] + 'Warn');
   if (!card || !warn) return;
   if (h.degraded) {
-    warn.textContent = '\u26A0 Data incomplete \u2014 stream restarted '
+    warn.textContent = '⚠ Data incomplete — stream restarted '
       + h.restarts + ' times without recovering';
     card.classList.add('is-degraded');
   } else {
@@ -2943,37 +2845,6 @@ socket.on('stream:health', function (h) {
     card.classList.remove('is-degraded');
   }
 });
-
-socket.on('router:status',   function(d){    checkRouterStatusNotif(d); });
-  // Clear alert-tracking state on every (re)connect so the initial-state payload
-  // from sendInitialState is treated as a fresh baseline, not a transition.
-  // Without this, a state change that occurred while the socket was disconnected
-  // would fire a bell notification but never reach the server alerter
-  // (sendInitialState bypasses buildRouterIo.emit), producing ghost bell alerts.
-  socket.on('connect', function() {
-    _notifPrevIface    = {};
-    _ifacePending      = {};
-    _notifPrevVpn      = {};
-    _notifPrevNetwatch = {};
-  });
-  // Also clear on router switch — ether1 on router A is not ether1 on router B.
-  socket.on('router:switching', function() {
-    _notifPrevIface    = {};
-    _ifacePending      = {};
-    _notifPrevVpn      = {};
-    _notifPrevNetwatch = {};
-    // These were left behind on a switch, so router B inherited router A's
-    // state: A's cooldowns suppressed B's first CPU/ping alert for up to a
-    // minute, and A's remembered version either fired a bogus update alert for
-    // B or swallowed B's real one.
-    _cpuAlertedAt          = 0;
-    _pingAlertedAt         = 0;
-    _updateNotifiedVersion = null;
-    // Router status is fleet-wide rather than per-router, so _routerStatusPrev
-    // is deliberately not cleared here — clearing it would re-seed every
-    // router's baseline and lose a transition that happened during the switch.
-  });
-})();
 
 initNotifications();
 loadAlertFilters();
@@ -2988,6 +2859,7 @@ loadAlertFilters();
     { id: 's_notifNetwatch',    obj: _alertTypes,      field: 'netwatch',    key: 'notifNetwatch'    },
     { id: 's_notifRouterStatus',obj: _alertTypes,      field: 'routerStatus',key: 'notifRouterStatus'},
     { id: 's_notifRouterUpdate',obj: _alertTypes,      field: 'routerUpdate',key: 'notifRouterUpdate'},
+    { id: 's_notifBgp',         obj: _alertTypes,      field: 'bgp',         key: 'notifBgp'         },
     { id: 's_notifIfaceEther',  obj: _alertIfaceTypes, field: 'ether',       key: 'notifIfaceEther'  },
     { id: 's_notifIfaceWlan',   obj: _alertIfaceTypes, field: 'wlan',        key: 'notifIfaceWlan'   },
     { id: 's_notifIfaceBridge', obj: _alertIfaceTypes, field: 'bridge',      key: 'notifIfaceBridge' },
@@ -3050,43 +2922,132 @@ loadAlertFilters();
   setInterval(tick, 1000);
 })();
 
-// ── Notification history ───────────────────────────────────────────────────
-var _notifHistory = [];
-var MAX_NOTIF_HIST = 50;
+// ── Alert feed ─────────────────────────────────────────────────────────────
+//
+// The bell is a VIEW of what the server detected, not a second detector. Every
+// entry came from alerter.js, which is now the only thing that decides an alert
+// happened. Its state is seeded from the database on connect, so it survives a
+// refresh and agrees with the Reports tab instead of contradicting it.
+// `sendNotif` remains, purely as the desktop-notification transport.
+var _alerts = [];              // newest first; open and recently-resolved
+var MAX_ALERTS = 100;
 
-function addNotifHistory(title, body){
-  var ts = Date.now();
-  _notifHistory.unshift({title:title, body:body, ts:ts});
-  if(_notifHistory.length > MAX_NOTIF_HIST) _notifHistory.pop();
+function _alertKey(a){ return a.alertType + '|' + (a.subject || ''); }
+function _alertIsOpen(a){ return !a.resolvedAt; }
+
+/** Unacknowledged open alerts are what the dot means. */
+function _alertsNeedingAttention(){
+  return _alerts.filter(function(a){ return _alertIsOpen(a) && !a.acknowledgedAt; });
+}
+
+function _syncNotifDot(){
+  var dot = $('notifDot'); if(!dot) return;
+  dot.style.display = _alertsNeedingAttention().length ? 'block' : 'none';
+}
+
+function setAlerts(open, recent){
+  _alerts = (open || []).concat(recent || []);
+  _alerts.sort(function(a,b){ return (b.firedAt||0) - (a.firedAt||0); });
+  if(_alerts.length > MAX_ALERTS) _alerts.length = MAX_ALERTS;
   renderNotifPanel();
-  var dot = $('notifDot'); if(dot) dot.style.display = 'block';
+  _syncNotifDot();
+}
+
+function addAlert(a){
+  if(!a) return;
+  // Replace any existing OPEN entry for the same thing rather than stacking, so
+  // a flapping interface cannot bury everything else in the panel.
+  var k = _alertKey(a);
+  _alerts = _alerts.filter(function(x){ return !(_alertKey(x) === k && _alertIsOpen(x)); });
+  _alerts.unshift(a);
+  if(_alerts.length > MAX_ALERTS) _alerts.pop();
+  renderNotifPanel();
+  _syncNotifDot();
+}
+
+function resolveAlerts(ids, resolvedAt){
+  var set = {}; (ids || []).forEach(function(id){ set[id] = 1; });
+  _alerts.forEach(function(a){ if(set[a.id]) a.resolvedAt = resolvedAt || Date.now(); });
+  renderNotifPanel();
+  _syncNotifDot();
+}
+
+function ackAlerts(ids, at, by){
+  var set = {}; (ids || []).forEach(function(id){ set[id] = 1; });
+  _alerts.forEach(function(a){
+    if(set[a.id]){ a.acknowledgedAt = at || Date.now(); a.acknowledgedBy = by || null; }
+  });
+  renderNotifPanel();
+  _syncNotifDot();
+}
+
+function _alertAgeStr(ts){
+  var age = Date.now() - ts;
+  if(age < 60000) return 'just now';
+  if(age < 3600000) return Math.floor(age/60000) + 'm ago';
+  if(age < 86400000) return Math.floor(age/3600000) + 'h ago';
+  return Math.floor(age/86400000) + 'd ago';
 }
 
 function renderNotifPanel(){
   var list = $('notifList'); if(!list) return;
-  if(!_notifHistory.length){
-    list.innerHTML = '<div class="notif-empty">No alerts yet</div>';
+  // Acknowledging is what removes an alert from the bell — that is what makes
+  // "Clear all" clear anything. They stay in _alerts so a later alert:resolved
+  // can still find them by id, and they stay in the database for Reports, which
+  // is where the history belongs. An acknowledged alert that is still OPEN is
+  // therefore invisible here by design: the operator said they had seen it.
+  var shown = _alerts.filter(function(a){ return !a.acknowledgedAt; });
+  if(!shown.length){
+    list.innerHTML = '<div class="notif-empty">No alerts</div>';
     return;
   }
-  list.innerHTML = _notifHistory.map(function(n){
-    var age = Date.now() - n.ts;
-    var ageStr = age < 60000 ? 'just now'
-      : age < 3600000 ? Math.floor(age/60000)+'m ago'
-      : Math.floor(age/3600000)+'h ago';
-    return '<div class="notif-item">'+
-      '<div class="notif-item-title">'+esc(n.title)+'</div>'+
-      '<div class="notif-item-body">'+esc(n.body)+'</div>'+
-      '<div class="notif-item-time">'+ageStr+'</div>'+
+  var open = shown.filter(_alertIsOpen);
+  var done = shown.filter(function(a){ return !_alertIsOpen(a); });
+
+  function row(a){
+    var cls = 'notif-item' + (_alertIsOpen(a) ? ' is-open' : ' is-resolved');
+    var when = _alertIsOpen(a) ? a.firedAt : (a.resolvedAt || a.firedAt);
+    return '<div class="' + cls + '" data-alert-id="' + a.id + '">' +
+      '<div class="notif-item-title">' + esc(a.label || a.alertType) +
+        (a.subject ? ' — ' + esc(a.subject) : '') + '</div>' +
+      '<div class="notif-item-body">' + esc(a.detail || '') + '</div>' +
+      '<div class="notif-item-time">' + esc(a.routerName || '') + ' · ' +
+        _alertAgeStr(when) + '</div>' +
+      (_alertIsOpen(a)
+        ? '<button class="notif-ack-btn" data-ack="' + a.id + '">Acknowledge</button>' : '') +
     '</div>';
-  }).join('');
+  }
+
+  list.innerHTML =
+    open.map(row).join('') +
+    (open.length && done.length ? '<div class="notif-sep">Recently resolved</div>' : '') +
+    done.map(row).join('');
 }
 
-// Hook into sendNotif to also record history
-var _origSendNotif = sendNotif;
-sendNotif = function(title, body, tag){
-  _origSendNotif(title, body, tag);
-  addNotifHistory(title, body);
-};
+// Server → bell. These four are the entire feed; there is no client-side
+// detection left in this path.
+socket.on('alerts:open', function(d){
+  if(!d) return;
+  setAlerts(d.open, d.recent);
+});
+socket.on('alert:fired', function(a){
+  if(!a) return;
+  addAlert(a);
+  sendNotif((a.label || a.alertType) + (a.subject ? ' — ' + a.subject : ''),
+            a.detail || '', a.alertType + '-' + (a.subject || ''));
+});
+socket.on('alert:resolved', function(d){
+  if(!d) return;
+  resolveAlerts(d.ids, d.resolvedAt);
+  sendNotif((d.label || d.alertType) + (d.subject ? ' — ' + d.subject : ''),
+            d.detail || 'Resolved', d.alertType + '-' + (d.subject || ''));
+});
+socket.on('alert:acked', function(a){
+  if(a) ackAlerts([a.id], a.acknowledgedAt, a.acknowledgedBy);
+});
+socket.on('alerts:acked-all', function(d){
+  if(d) ackAlerts(d.ids, d.acknowledgedAt, d.acknowledgedBy);
+});
 
 // Sync the bell icon to the current notification permission state on load,
 // so it is never stuck showing the hardcoded HTML default from index.html.
@@ -3122,12 +3083,55 @@ sendNotif = function(title, body, tag){
     }
   });
 
+  // "Clear all" now acknowledges on the SERVER rather than emptying a local
+  // array. Previously this was cosmetic: the list came back on the next event
+  // and the database still held the open rows.
   var clearBtn = $('notifClearBtn');
-  if(clearBtn) clearBtn.addEventListener('click', function(){
-    _notifHistory = [];
-    renderNotifPanel();
-    if(dot) dot.style.display = 'none';
-  });
+  if(clearBtn){
+    // Say so when it does not work. Swallowing the error made a 403 (a user
+    // restricted to another router) look exactly like success: the panel just
+    // sat there, which is indistinguishable from the button being broken.
+    var _clearFail = function(msg){
+      var was = clearBtn.textContent;
+      clearBtn.textContent = msg;
+      setTimeout(function(){ clearBtn.textContent = was; }, 2000);
+    };
+    clearBtn.addEventListener('click', function(){
+      var rid = window._activeRouterId;
+      if(!rid) return _clearFail('No router');
+      clearBtn.disabled = true;
+      fetch('/api/alerts/ack-all', {
+        method:'POST', credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ routerId: rid }),
+      })
+        .then(function(r){ return r.json().then(function(j){ return { ok: r.ok && j && j.ok }; }); })
+        .then(function(res){
+          if(!res.ok) return _clearFail('Failed');
+          // Do not wait for the alerts:acked-all broadcast to empty the panel.
+          // The server only emits when it actually acknowledged something, so a
+          // second click — or a click when everything is already acknowledged —
+          // would otherwise leave the list exactly as it was.
+          ackAlerts(_alerts.map(function(a){ return a.id; }));
+        })
+        .catch(function(){ _clearFail('Failed'); })
+        .then(function(){ clearBtn.disabled = false; });
+    });
+  }
+
+  // Per-row acknowledge. Delegated, because rows are re-rendered on every event.
+  var listEl = $('notifList');
+  if(listEl){
+    listEl.addEventListener('click', function(e){
+      var btn = e.target.closest && e.target.closest('.notif-ack-btn');
+      if(!btn) return;
+      e.stopPropagation();
+      var id = parseInt(btn.getAttribute('data-ack'), 10);
+      if(!id) return;
+      fetch('/api/alerts/' + id + '/ack', { method:'POST', credentials:'same-origin' })
+        .catch(function(){});
+    });
+  }
 })();
 
 // ── World Map (Connections page) ───────────────────────────────────────────
@@ -4387,6 +4391,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollWireless',  label:'Wireless',           min:10000, max:600000, step:10000, unit:'ms' },
     { key:'pollIfaces',    label:'Interface Status',   min:10000, max:600000, step:10000, unit:'ms' },
     { key:'pollDhcp',           label:'DHCP Networks',    min:10000, max:600000, step:10000, unit:'ms' },
+    { key:'pollTopology',       label:'Network Topology', min:10000, max:300000, step:10000, unit:'ms' },
   ];
 
   var POLL_PROFILES = {
@@ -4487,27 +4492,749 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
   }
 
+  // ── Sites (issue #78) ─────────────────────────────────────────────────────
+  // A site groups routers by location. Organisational only for now — nothing
+  // authorises against sites yet. Kept next to the user management code because
+  // both are Settings cards fed by their own REST endpoints.
+  //
+  // The cache is shared with the router modal and the router table via
+  // window._sitesById, so neither has to re-fetch to turn an id into a name.
+  var _sitesCache = [];
+  window._sitesById = {};
+
+  function _cacheSites(list) {
+    _sitesCache = Array.isArray(list) ? list : [];
+    window._sitesById = {};
+    _sitesCache.forEach(function (s) { window._sitesById[s.id] = s; });
+  }
+
+  // Router-per-site counts come from the router list the page already holds
+  // rather than a join on the server — the numbers are small, and this keeps
+  // GET /api/sites a plain table read.
+  function _siteRouterCounts() {
+    var counts = {};
+    (window._allRouters || []).forEach(function (r) {
+      if (r.siteId) counts[r.siteId] = (counts[r.siteId] || 0) + 1;
+    });
+    return counts;
+  }
+
+  function loadSites() {
+    return fetch('/api/sites', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) throw new Error('load failed');
+        _cacheSites(d.sites);
+        _renderSiteTable();
+        _populateSiteSelect();
+        return _sitesCache;
+      })
+      .catch(function () {
+        var tb = $('siteTbody');
+        if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Could not load sites.</td></tr>';
+      });
+  }
+
+  function _renderSiteTable() {
+    var tb = $('siteTbody'); if (!tb) return;
+    if (!_sitesCache.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">No sites yet. Add one to group your routers.</td></tr>';
+      return;
+    }
+    var counts = _siteRouterCounts();
+    tb.innerHTML = _sitesCache.map(function (s) { return _renderSiteRow(s, counts[s.id] || 0); }).join('');
+  }
+
+  function _renderSiteRow(s, routerCount) {
+    var td = 'padding:.4rem .5rem;border-bottom:1px solid var(--border)';
+    return '<tr>' +
+      '<td style="' + td + ';font-weight:600">' + esc(s.name) + '</td>' +
+      '<td style="' + td + ';color:var(--text-muted)">' + (s.description ? esc(s.description) : '—') + '</td>' +
+      '<td style="' + td + ';font-family:var(--font-mono);font-size:.72rem">' + routerCount + '</td>' +
+      '<td style="' + td + ';text-align:right;white-space:nowrap">' +
+        '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="edit" data-site-id="' + esc(s.id) + '">Edit</button> ' +
+        '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="delete" data-site-id="' + esc(s.id) + '">Delete</button>' +
+      '</td></tr>';
+  }
+
+  function _siteFormError(msg) {
+    var el = $('sf_error'); if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? 'block' : 'none';
+  }
+
+  function showSiteForm(site) {
+    var wrap = $('siteFormWrap'); if (!wrap) return;
+    $('sf_id').value          = site ? site.id : '';
+    $('sf_name').value        = site ? site.name : '';
+    $('sf_description').value = site && site.description ? site.description : '';
+    _siteFormError('');
+
+    // Router assignment, from this side rather than one router at a time. Each
+    // row says where a router currently sits, so moving one out of another site
+    // is a visible act rather than a surprise.
+    var box = $('sf_routers');
+    var routers = window._allRouters || [];
+    box.innerHTML = routers.length
+      ? routers.map(function (r) {
+          var here  = site && r.siteId === site.id;
+          var other = (!here && r.siteId && window._sitesById[r.siteId])
+            ? ' <span style="color:var(--text-muted)">— currently in ' + esc(window._sitesById[r.siteId].name) + '</span>'
+            : '';
+          return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
+            '<input type="checkbox" data-site-router="' + esc(r.id) + '"' + (here ? ' checked' : '') + '>' +
+            '<span>' + esc(r.label || r.host) + other + '</span></label>';
+        }).join('')
+      : '<span style="color:var(--text-muted)">No routers configured yet.</span>';
+
+    $('sf_title').textContent = site ? 'Edit Site' : 'Add Site';
+    wrap.classList.add('open');
+    $('sf_name').focus();
+  }
+
+  function hideSiteForm() {
+    var wrap = $('siteFormWrap'); if (wrap) wrap.classList.remove('open');
+  }
+
+  function saveSite() {
+    var id   = $('sf_id').value;
+    var body = {
+      name:        $('sf_name').value.trim(),
+      description: $('sf_description').value.trim(),
+    };
+    if (!body.name) return _siteFormError('Name is required');
+
+    var routerIds = Array.prototype.slice.call(
+      $('sf_routers').querySelectorAll('[data-site-router]:checked')
+    ).map(function (el) { return el.getAttribute('data-site-router'); });
+
+    fetch(id ? '/api/sites/' + encodeURIComponent(id) : '/api/sites', {
+      method: id ? 'PUT' : 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok && j && j.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { _siteFormError((res.j && res.j.error) || 'Could not save the site'); return null; }
+        // The assignment goes second because a new site has no id until the
+        // save returns one.
+        var siteId = id || (res.j.site && res.j.site.id);
+        if (!siteId) return null;
+        return fetch('/api/sites/' + encodeURIComponent(siteId) + '/routers', {
+          method: 'PUT', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ routerIds: routerIds }),
+        });
+      })
+      .then(function (r) {
+        if (r === null) return;
+        hideSiteForm();
+        loadSites();
+      })
+      .catch(function () { _siteFormError('Could not save the site'); });
+  }
+
+  function deleteSite(id, name, routerCount) {
+    var warn = routerCount
+      ? '\n\n' + routerCount + ' router(s) will be left without a site. They are not deleted.'
+      : '';
+    if (!confirm('Delete site "' + name + '"?' + warn)) return;
+    fetch('/api/sites/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function () { loadSites(); })
+      .catch(function () {});
+  }
+
+  // Fills the router modal's site picker. Called on every site load so the
+  // options cannot go stale behind an open modal.
+  function _populateSiteSelect() {
+    var sel = $('rtrModalSite'); if (!sel) return;
+    var keep = sel.value;
+    sel.innerHTML = '<option value="">— No site —</option>';
+    _sitesCache.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = s.id; o.textContent = s.name;   // textContent, so no escaping needed
+      sel.appendChild(o);
+    });
+    // Preserve the selection unless the site it named has since been deleted.
+    sel.value = window._sitesById[keep] ? keep : '';
+  }
+
+  // Delegated: the table is rebuilt on every load.
+  var _siteTbody = $('siteTbody');
+  if (_siteTbody) _siteTbody.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('[data-site-action]') : null;
+    if (!btn) return;
+    var id   = btn.getAttribute('data-site-id');
+    var site = window._sitesById[id];
+    if (!site) return;
+    if (btn.getAttribute('data-site-action') === 'edit') showSiteForm(site);
+    else deleteSite(id, site.name, _siteRouterCounts()[id] || 0);
+  });
+
+  var _addSiteBtn = $('addSiteBtn');
+  if (_addSiteBtn) _addSiteBtn.addEventListener('click', function () { showSiteForm(null); });
+  var _sfSave   = $('sf_save');   if (_sfSave)   _sfSave.addEventListener('click', saveSite);
+  var _sfCancel = $('sf_cancel'); if (_sfCancel) _sfCancel.addEventListener('click', hideSiteForm);
+
+  // Another admin adding or removing a site should not leave this tab stale.
+  socket.on('sites:update', function (list) {
+    _cacheSites(list);
+    _renderSiteTable();
+    _populateSiteSelect();
+  });
+
+  // ── Principal dialogs ─────────────────────────────────────────────────────
+  // The four add/edit forms are centre-screen dialogs rather than panels that
+  // pushed the table down. Close on the ✕, on a backdrop click and on Escape —
+  // all three delegated, because the dialogs live inside a card that starts
+  // hidden. Clicking inside must not close, hence the e.target === bg test.
+  var _PRINCIPAL_MODALS = ['userFormWrap', 'groupFormWrap', 'siteFormWrap', 'roleFormWrap'];
+
+  function _closePrincipalModals() {
+    _PRINCIPAL_MODALS.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.remove('open');
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var closer = e.target.closest && e.target.closest('[data-modal-close]');
+    if (closer) {
+      e.preventDefault();
+      var el = document.getElementById(closer.getAttribute('data-modal-close'));
+      if (el) el.classList.remove('open');
+      return;
+    }
+    if (e.target.classList && e.target.classList.contains('rtr-modal-bg') &&
+        _PRINCIPAL_MODALS.indexOf(e.target.id) !== -1) {
+      e.target.classList.remove('open');
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') _closePrincipalModals();
+  });
+
+  // ── Principals card height ────────────────────────────────────────────────
+  // Runs to the bottom of the viewport and scrolls its own body. Measured from
+  // the card's real top rather than a CSS calc(), which would have to hardcode
+  // the topbar, tab strip, Authentication card and save bar — and be wrong the
+  // moment any of them changes size.
+  function _sizePrincipalsCard() {
+    var card = document.getElementById('principalsCard');
+    if (!card || card.style.display === 'none' || !card.offsetParent) return;
+    var actions = document.getElementById('settingsActions');
+    var reserve = (actions && actions.offsetParent ? actions.getBoundingClientRect().height + 12 : 0) + 24;
+    var top = card.getBoundingClientRect().top;
+    // A floor, so a short viewport gives a usable card that scrolls rather than
+    // one collapsed to nothing.
+    card.style.height = Math.max(320, window.innerHeight - top - reserve) + 'px';
+  }
+  window._sizePrincipalsCard = _sizePrincipalsCard;
+  window.addEventListener('resize', _sizePrincipalsCard);
+  document.addEventListener('mikrodash:pagechange', function () { setTimeout(_sizePrincipalsCard, 60); });
+
+  // ── Principal tabs (Users / Groups / Sites / Roles) ───────────────────────
+  // Delegated, because the tab strip is inside a card that starts hidden and is
+  // shown by applyCaps() after the auth fetch resolves.
+  document.addEventListener('click', function (e) {
+    var tab = e.target.closest && e.target.closest('.ptab');
+    if (!tab) return;
+    e.preventDefault();
+    var want = tab.getAttribute('data-ptab');
+    document.querySelectorAll('.ptab').forEach(function (t) {
+      var on = t === tab;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('.ptab-panel').forEach(function (p) {
+      p.classList.toggle('active', p.id === 'ptab-' + want);
+    });
+    // Panels differ in height, and the card is sized from its own top offset —
+    // which does not move, but re-measuring keeps it right if the Authentication
+    // card above has grown (the open-access warning appearing, say).
+    if (window._sizePrincipalsCard) window._sizePrincipalsCard();
+  });
+
+  // ── Roles (issue #108) ────────────────────────────────────────────────────
+  // A role is a matrix of page → none/read/write. The segmented control below
+  // is deliberately three-way rather than two checkboxes: two checkboxes can
+  // express write-without-read, which the single `access` column cannot store
+  // and which means nothing anyway.
+  //
+  // window._allRoles is published for the grant editor's role picker, which
+  // used to hardcode viewer/operator/admin as three <option>s.
+  var _rolesMeta = { pages: [], writeCapable: [] };
+  window._allRoles = [];
+
+  function _roleFormError(msg) {
+    var el = $('rf_error');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? '' : 'none';
+  }
+
+  function loadRoles() {
+    return fetch('/api/roles', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) throw new Error('roles');
+        window._allRoles        = d.roles || [];
+        _rolesMeta.pages        = d.pages || [];
+        _rolesMeta.writeCapable = d.writeCapablePages || [];
+        _renderRoleTable();
+        return window._allRoles;
+      })
+      .catch(function () {
+        var tb = $('roleTbody');
+        // Only an administrator ever sees this card, so a failure here is a real
+        // error rather than an expected 403.
+        if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted)">Could not load roles.</td></tr>';
+      });
+  }
+
+  /** "12 read, 2 write" — enough to compare roles at a glance without opening each. */
+  function _pageSummary(role) {
+    if (role.builtin) return 'every page';
+    if (!role.pages.length) return '<span style="color:var(--text-muted)">no pages</span>';
+    var reads  = role.pages.filter(function (p) { return p.access === 'read'; }).length;
+    var writes = role.pages.length - reads;
+    var bits = [];
+    if (reads)  bits.push(reads + ' read');
+    if (writes) bits.push(writes + ' write');
+    return bits.join(', ');
+  }
+
+  function _renderRoleTable() {
+    var tb = $('roleTbody');
+    if (!tb) return;
+    if (!window._allRoles.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted)">No roles yet.</td></tr>';
+      return;
+    }
+    tb.innerHTML = window._allRoles.map(function (r) {
+      // The builtin row shows a lock and no actions: its reach is structural,
+      // so editing it would either do nothing or narrow every admin at once.
+      var actions = r.builtin
+        ? '<span style="color:var(--text-muted);font-size:.7rem">built in</span>'
+        : '<button class="sbtn sbtn-outline" data-role-edit="' + esc(r.id) + '" style="padding:.15rem .5rem;font-size:.7rem">Edit</button>' +
+          ' <button class="sbtn sbtn-outline" data-role-del="' + esc(r.id) + '" style="padding:.15rem .5rem;font-size:.7rem;color:#f87171;border-color:rgba(248,113,113,.35)">Delete</button>';
+      return '<tr style="border-bottom:1px solid var(--border)">' +
+        '<td style="padding:.4rem .5rem">' + esc(r.name) +
+          (r.description ? '<div style="color:var(--text-muted);font-size:.7rem">' + esc(r.description) + '</div>' : '') + '</td>' +
+        '<td style="padding:.4rem .5rem">' + _pageSummary(r) + '</td>' +
+        '<td style="padding:.4rem .5rem">' + (r.grants ? r.grants + ' grant' + (r.grants === 1 ? '' : 's') : '<span style="color:var(--text-muted)">—</span>') + '</td>' +
+        '<td style="padding:.4rem .5rem;text-align:right;white-space:nowrap">' + actions + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  /** One matrix row: page name + a none/read/write segmented control. */
+  function _rolePageRow(page, access) {
+    // A page whose Write confers nothing yet (#97 will fill these in) shows the
+    // segment disabled rather than hidden, so the matrix keeps its shape and the
+    // reason is visible. The list comes from the server's projection table.
+    var writable = _rolesMeta.writeCapable.indexOf(page.key) !== -1;
+    var seg = ['none', 'read', 'write'].map(function (level) {
+      var on   = (level === 'none' && !access) || level === access;
+      var dead = level === 'write' && !writable;
+      return '<button type="button" class="sbtn ' + (on ? 'sbtn-primary' : 'sbtn-outline') + '"' +
+        ' data-page-set="' + esc(page.key) + '" data-level="' + level + '"' +
+        (dead ? ' disabled title="No write actions on this page yet"' : '') +
+        ' style="padding:.1rem .5rem;font-size:.68rem' + (dead ? ';opacity:.4;cursor:not-allowed' : '') + '">' +
+        level.charAt(0).toUpperCase() + level.slice(1) + '</button>';
+    }).join('');
+    return '<div data-page-row="' + esc(page.key) + '" style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.25rem .4rem;border-bottom:1px solid var(--border)">' +
+      '<span>' + esc(page.title) + '</span>' +
+      '<span style="display:flex;gap:.2rem;flex-shrink:0">' + seg + '</span>' +
+    '</div>';
+  }
+
+  function _renderRoleMatrix(access) {
+    var box = $('rf_pages');
+    if (!box) return;
+    box.innerHTML = _rolesMeta.pages.map(function (p) { return _rolePageRow(p, access[p.key]); }).join('');
+  }
+
+  /** Read the matrix back out of the DOM — the segmented control is the state. */
+  function _collectRolePages() {
+    var out = [];
+    document.querySelectorAll('#rf_pages [data-page-row]').forEach(function (row) {
+      var on = row.querySelector('.sbtn-primary[data-page-set]');
+      var level = on ? on.getAttribute('data-level') : 'none';
+      if (level === 'read' || level === 'write') {
+        out.push({ page: row.getAttribute('data-page-row'), access: level });
+      }
+    });
+    return out;
+  }
+
+  function showRoleForm(role) {
+    _roleFormError('');
+    $('rf_id').value          = role ? role.id : '';
+    $('rf_name').value        = role ? role.name : '';
+    $('rf_description').value = role && role.description ? role.description : '';
+    var access = {};
+    if (role) role.pages.forEach(function (p) { access[p.page] = p.access; });
+    _renderRoleMatrix(access);
+    $('rf_title').textContent = role ? 'Edit Role' : 'Add Role';
+    $('roleFormWrap').classList.add('open');
+  }
+
+  function hideRoleForm() {
+    $('roleFormWrap').classList.remove('open');
+    _roleFormError('');
+  }
+
+  function saveRole() {
+    var id   = $('rf_id').value;
+    var body = {
+      name:        $('rf_name').value.trim(),
+      description: $('rf_description').value.trim(),
+      pages:       _collectRolePages(),
+    };
+    if (!body.name) return _roleFormError('Name is required');
+
+    fetch('/api/roles' + (id ? '/' + encodeURIComponent(id) : ''), {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) return _roleFormError((d && d.error) || 'Could not save the role');
+        hideRoleForm();
+        loadRoles();
+      })
+      .catch(function () { _roleFormError('Could not save the role'); });
+  }
+
+  function deleteRole(id) {
+    var role = window._allRoles.find(function (r) { return r.id === id; });
+    if (!confirm('Delete the role "' + (role ? role.name : id) + '"?')) return;
+    fetch('/api/roles/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        // A role still assigned is refused with a count, which is more useful
+        // than a constraint error — surface it rather than failing silently.
+        if (!d || !d.ok) return alert((d && d.error) || 'Could not delete the role');
+        loadRoles();
+      })
+      .catch(function () { alert('Could not delete the role'); });
+  }
+
+  document.addEventListener('click', function (e) {
+    var set = e.target.closest && e.target.closest('[data-page-set]');
+    if (set && !set.disabled) {
+      e.preventDefault();
+      var row = set.closest('[data-page-row]');
+      row.querySelectorAll('[data-page-set]').forEach(function (b) {
+        b.classList.toggle('sbtn-primary', b === set);
+        b.classList.toggle('sbtn-outline', b !== set);
+      });
+      return;
+    }
+    var bulk = e.target.closest && e.target.closest('.rf-bulk');
+    if (bulk) {
+      e.preventDefault();
+      var level = bulk.getAttribute('data-bulk');
+      document.querySelectorAll('#rf_pages [data-page-row]').forEach(function (row) {
+        var want = row.querySelector('[data-level="' + level + '"]');
+        // A disabled Write segment stays unset rather than silently landing on
+        // read — "all write" cannot invent a write that does not exist.
+        if (!want || want.disabled) return;
+        row.querySelectorAll('[data-page-set]').forEach(function (b) {
+          b.classList.toggle('sbtn-primary', b === want);
+          b.classList.toggle('sbtn-outline', b !== want);
+        });
+      });
+      return;
+    }
+    var ed = e.target.closest && e.target.closest('[data-role-edit]');
+    if (ed) {
+      var r = window._allRoles.find(function (x) { return x.id === ed.getAttribute('data-role-edit'); });
+      if (r) showRoleForm(r);
+      return;
+    }
+    var del = e.target.closest && e.target.closest('[data-role-del]');
+    if (del) deleteRole(del.getAttribute('data-role-del'));
+  });
+
+  if ($('addRoleBtn')) $('addRoleBtn').addEventListener('click', function () { showRoleForm(null); });
+  if ($('rf_cancel'))  $('rf_cancel').addEventListener('click', hideRoleForm);
+  if ($('rf_save'))    $('rf_save').addEventListener('click', saveRole);
+
+  // ── Groups (issue #78) ────────────────────────────────────────────────────
+  // A group collects users so a role can be granted to all of them at once.
+  // Membership lives on the group, which is also how the server stores it — the
+  // dominant question here is "who is in this group", not the inverse.
+  var _groupsCache = [];
+
+  // A grant row carries role_id; the legacy `role` string is only a downgrade
+  // mirror and must never be what a human reads — a custom role would show as
+  // "viewer" through it.
+  function _roleName(g) {
+    var r = (window._allRoles || []).find(function (x) { return x.id === g.role_id; });
+    return r ? r.name : 'unknown role';
+  }
+
+  function _scopeLabel(g) {
+    if (g.scope_type === 'global') return 'all routers';
+    if (g.scope_type === 'site') {
+      var s = window._sitesById && window._sitesById[g.scope_id];
+      return 'site: ' + (s ? s.name : 'unknown');
+    }
+    var r = (window._allRouters || []).find(function (x) { return x.id === g.scope_id; });
+    return 'router: ' + (r ? (r.label || r.host) : 'unknown');
+  }
+
+  function loadGroups() {
+    return fetch('/api/groups', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) throw new Error('load failed');
+        _groupsCache = d.groups || [];
+        _renderGroupTable();
+      })
+      .catch(function () {
+        var tb = $('groupTbody');
+        // A non-admin never sees this card, so a failure here is a real error
+        // rather than an expected 403.
+        if (tb) tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Could not load groups.</td></tr>';
+      });
+  }
+
+  function _renderGroupTable() {
+    var tb = $('groupTbody'); if (!tb) return;
+    if (!_groupsCache.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">No groups yet. Add one to grant a role to several people at once.</td></tr>';
+      return;
+    }
+    var td = 'padding:.4rem .5rem;border-bottom:1px solid var(--border)';
+    tb.innerHTML = _groupsCache.map(function (g) {
+      var access = (g.grants || []).length
+        ? g.grants.map(function (x) { return esc(_roleName(x) + ' — ' + _scopeLabel(x)); }).join('<br>')
+        : '<span style="color:var(--text-muted)">no access granted</span>';
+      return '<tr>' +
+        '<td style="' + td + ';font-weight:600">' + esc(g.name) +
+          (g.description ? '<div style="font-weight:400;font-size:.7rem;color:var(--text-muted)">' + esc(g.description) + '</div>' : '') + '</td>' +
+        '<td style="' + td + ';font-family:var(--font-mono);font-size:.72rem">' + (g.memberUserIds || []).length + '</td>' +
+        '<td style="' + td + ';font-size:.72rem">' + access + '</td>' +
+        '<td style="' + td + ';text-align:right;white-space:nowrap">' +
+          '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="edit" data-group-id="' + esc(g.id) + '">Edit</button> ' +
+          '<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-group-action="delete" data-group-id="' + esc(g.id) + '">Delete</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+
+  function _groupFormError(msg) {
+    var el = $('gf_error'); if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? 'block' : 'none';
+  }
+
+  /**
+   * The grant editor, shared by the Groups and Users forms so the two cannot
+   * drift into describing access differently.
+   *
+   * Genuinely parameterised (issue #108): it used to hardcode loadGroups() and
+   * _groupFormError(), and reach for the global ids gf_newRole / gf_newScope /
+   * gf_addGrant — so two editors on the page would have collided on duplicate
+   * ids and the user form would have refreshed the group table. Element lookups
+   * are now scoped to the container and both callbacks are injected.
+   *
+   * @param opts.reload   () => Promise, refetches the principal list
+   * @param opts.grantsOf (id) => grants, reads the refreshed grants back out
+   * @param opts.onError  (msg) => void
+   * @param opts.unsaved  message shown when the principal has no id yet
+   */
+  function _renderGrantEditor(container, principalType, principalId, grants, opts) {
+    if (!container) return;
+    opts = opts || {};
+    var fail = opts.onError || function () {};
+
+    var rows = (grants || []).map(function (g) {
+      return '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">' +
+        '<span style="flex:1">' + esc(_roleName(g)) + ' — ' + esc(_scopeLabel(g)) + '</span>' +
+        '<button class="sbtn sbtn-ghost" style="padding:.1rem .45rem;font-size:.65rem" data-grant-del="' + esc(g.id) + '">Remove</button>' +
+        '</div>';
+    }).join('');
+
+    var siteOpts = (window._sitesById ? Object.keys(window._sitesById) : []).map(function (id) {
+      return '<option value="site:' + esc(id) + '">Site: ' + esc(window._sitesById[id].name) + '</option>';
+    }).join('');
+    var rtrOpts = (window._allRouters || []).map(function (r) {
+      return '<option value="router:' + esc(r.id) + '">Router: ' + esc(r.label || r.host) + '</option>';
+    }).join('');
+
+    container.innerHTML = (rows || '<div style="color:var(--text-muted);margin-bottom:.3rem">No access granted yet.</div>') +
+      '<div style="display:flex;gap:.4rem;margin-top:.5rem">' +
+        // Roles are data now, so the picker is built from /api/roles rather than
+        // three hardcoded options that could not name a custom role at all.
+        '<select class="sform-input" data-grant-role style="flex:0 0 9rem">' +
+          (window._allRoles || []).map(function (r) {
+            return '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>';
+          }).join('') +
+        '</select>' +
+        '<select class="sform-input" data-grant-scope style="flex:1">' +
+          '<option value="global:">All routers</option>' + siteOpts + rtrOpts +
+        '</select>' +
+        '<button class="sbtn sbtn-outline" data-grant-add style="flex:0 0 auto">Add</button>' +
+      '</div>';
+
+    function refresh() {
+      return Promise.resolve(opts.reload ? opts.reload() : null).then(function () {
+        var fresh = opts.grantsOf ? opts.grantsOf(principalId) : null;
+        _renderGrantEditor(container, principalType, principalId, fresh, opts);
+      });
+    }
+
+    container.onclick = function (e) {
+      var del = e.target.closest && e.target.closest('[data-grant-del]');
+      if (del) {
+        fetch('/api/grants/' + encodeURIComponent(del.getAttribute('data-grant-del')), {
+          method: 'DELETE', credentials: 'same-origin',
+        }).then(function (r) { return r.json(); })
+          .then(function (j) { if (!j.ok) fail(j.error || 'Could not remove access'); return refresh(); })
+          .catch(function () { fail('Could not remove access'); });
+        return;
+      }
+      if (e.target.closest && e.target.closest('[data-grant-add]')) {
+        if (!principalId) return fail(opts.unsaved || 'Save this first, then grant it access');
+        var parts = (container.querySelector('[data-grant-scope]').value || 'global:').split(':');
+        fetch('/api/grants', {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ principalType: principalType, principalId: principalId,
+                                 roleId: container.querySelector('[data-grant-role]').value,
+                                 scopeType: parts[0], scopeId: parts[1] || '' }),
+        }).then(function (r) { return r.json(); })
+          .then(function (j) { if (!j.ok) fail(j.error || 'Could not grant access'); return refresh(); })
+          .catch(function () { fail('Could not grant access'); });
+      }
+    };
+  }
+
+  function showGroupForm(group) {
+    var wrap = $('groupFormWrap'); if (!wrap) return;
+    $('gf_id').value          = group ? group.id : '';
+    $('gf_name').value        = group ? group.name : '';
+    $('gf_description').value = group && group.description ? group.description : '';
+    _groupFormError('');
+
+    // Member checkboxes, from the user list the Users card already loaded.
+    var members = (group && group.memberUserIds) || [];
+    var box = $('gf_members');
+    var users = window._allUsers || [];
+    box.innerHTML = users.length
+      ? users.map(function (u) {
+          return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
+            '<input type="checkbox" data-member="' + esc(u.id) + '"' + (members.indexOf(u.id) !== -1 ? ' checked' : '') + '>' +
+            '<span>' + esc(u.username) + '</span></label>';
+        }).join('')
+      : '<span style="color:var(--text-muted)">No users yet.</span>';
+
+    _renderGrantEditor($('gf_grants'), 'group', group ? group.id : '', group && group.grants, {
+      reload:   loadGroups,
+      grantsOf: function (id) { var g = _groupsCache.find(function (x) { return x.id === id; }); return g && g.grants; },
+      onError:  _groupFormError,
+      unsaved:  'Save the group first, then grant it access',
+    });
+    $('gf_title').textContent = group ? 'Edit Group' : 'Add Group';
+    wrap.classList.add('open');
+    $('gf_name').focus();
+  }
+
+  function saveGroup() {
+    var id = $('gf_id').value;
+    var members = Array.prototype.slice.call($('gf_members').querySelectorAll('[data-member]:checked'))
+      .map(function (el) { return el.getAttribute('data-member'); });
+    var body = {
+      name: $('gf_name').value.trim(),
+      description: $('gf_description').value.trim(),
+      memberUserIds: members,
+    };
+    if (!body.name) return _groupFormError('Name is required');
+    fetch(id ? '/api/groups/' + encodeURIComponent(id) : '/api/groups', {
+      method: id ? 'PUT' : 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok && j.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) return _groupFormError((res.j && res.j.error) || 'Could not save the group');
+        $('groupFormWrap').classList.remove('open');
+        loadGroups();
+      })
+      .catch(function () { _groupFormError('Could not save the group'); });
+  }
+
+  var _groupTbody = $('groupTbody');
+  if (_groupTbody) _groupTbody.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('[data-group-action]') : null;
+    if (!btn) return;
+    var id = btn.getAttribute('data-group-id');
+    var group = _groupsCache.find(function (g) { return g.id === id; });
+    if (!group) return;
+    if (btn.getAttribute('data-group-action') === 'edit') return showGroupForm(group);
+    if (!confirm('Delete group "' + group.name + '"?\n\nIts members keep any access granted to them directly.')) return;
+    fetch('/api/groups/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (!j.ok) alert(j.error || 'Could not delete the group'); loadGroups(); })
+      .catch(function () {});
+  });
+
+  var _addGroupBtn = $('addGroupBtn'); if (_addGroupBtn) _addGroupBtn.addEventListener('click', function () { showGroupForm(null); });
+  var _gfSave = $('gf_save');   if (_gfSave)   _gfSave.addEventListener('click', saveGroup);
+  var _gfCancel = $('gf_cancel'); if (_gfCancel) _gfCancel.addEventListener('click', function () { $('groupFormWrap').classList.remove('open'); });
+
+  // The routers IIFE calls this when the router list changes, so the Routers
+  // column reflects a reassignment without a manual refresh.
+  window._refreshSiteCounts = _renderSiteTable;
+
+  loadSites();
+
   // Router name map shared by user list and form; populated by loadUsers()
-  var _currentRouterMap = {};
+
 
   function _applyAuthModeVisibility(mode) {
     var noneWarn    = document.getElementById('authNoneWarn');
     var modernFields = document.getElementById('modernAuthFields');
-    var userCard    = document.getElementById('userMgmtCard');
+    // Users, Groups, Sites and Roles now share one tabbed card, so auth mode
+    // gates the Users TAB rather than a card of its own — the other three stay
+    // usable in 'none' mode, where there are no accounts but sites and roles
+    // still describe the fleet.
+    var usersTabBtn = document.getElementById('ptabBtn-users');
+    var usersPanel  = document.getElementById('ptab-users');
+    var userCard    = document.getElementById('principalsCard');
     if (noneWarn)     noneWarn.style.display     = (mode === 'none')   ? '' : 'none';
     if (modernFields) modernFields.style.display = (mode === 'modern') ? '' : 'none';
-    if (userCard)     userCard.style.display     = (mode === 'modern') ? '' : 'none';
-    if (mode === 'modern') loadUsers();
-  }
+    // Auth mode alone is not enough any more: an operator is in modern mode and
+    // must still not see user management. applyCaps() also writes this element's
+    // display and runs from a separate fetch, so whichever resolves last would
+    // otherwise win — including the ordering that leaves the card on screen.
+    // Unknown caps count as "no", so the flash is absence rather than exposure.
+    var mayManage = !!(window._caps && window._caps.managePrincipals);
+    if (userCard) userCard.style.display = mayManage ? '' : 'none';
+    // Size it once it is actually on screen — offsetParent is null while hidden.
+    if (mayManage && window._sizePrincipalsCard) setTimeout(window._sizePrincipalsCard, 0);
 
-  function _routerPillsHtml(allowedRouterIds) {
-    if (!allowedRouterIds || !allowedRouterIds.length) {
-      return '<span style="padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(52,211,153,.1);color:#4ade80;border:1px solid rgba(52,211,153,.2)">All Routers</span>';
+    // Hide the Users tab outside modern mode, and move off it if it was
+    // selected — an empty tab that cannot be populated reads as a bug.
+    var usersUsable = (mode === 'modern' && mayManage);
+    if (usersTabBtn) usersTabBtn.style.display = usersUsable ? '' : 'none';
+    if (!usersUsable && usersPanel && usersPanel.classList.contains('active')) {
+      var first = document.querySelector('.ptab:not([style*="display: none"])');
+      if (first) first.click();
     }
-    return allowedRouterIds.map(function(id) {
-      var name = _currentRouterMap[id] || id;
-      return '<span style="padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.2);margin-right:.2rem">' + esc(name) + '</span>';
-    }).join('');
+
+    // Roles must load before Users and Groups: both render grant rows through
+    // _roleName(), which reads window._allRoles. Loading them out of order
+    // shows "unknown role" until the next refresh.
+    if (mayManage) loadRoles().then(function () { if (usersUsable) loadUsers(); });
   }
 
   function loadUsers() {
@@ -4519,24 +5246,35 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ]).then(function(results) {
       var d = results[0], rd = results[1];
       var routers = Array.isArray(rd.routers) ? rd.routers : (Array.isArray(rd) ? rd : []);
-      _currentRouterMap = {};
-      routers.forEach(function(rtr) { _currentRouterMap[rtr.id] = rtr.label || rtr.host || rtr.id; });
       if (!d.ok) { tbody.innerHTML = '<tr><td colspan="4" style="padding:.5rem;color:var(--text-muted)">Failed to load users</td></tr>'; return; }
       if (!d.users || !d.users.length) { tbody.innerHTML = '<tr><td colspan="4" style="padding:.5rem;color:var(--text-muted)">No users yet</td></tr>'; return; }
       tbody.innerHTML = '';
       d.users.forEach(function(u) { tbody.appendChild(renderUserRow(u)); });
+      // Published for the Groups card's member picker, which lives in the same
+      // IIFE but is populated from this fetch rather than making its own.
+      window._allUsers = d.users;
+      loadGroups();
     }).catch(function() { tbody.innerHTML = '<tr><td colspan="4" style="padding:.5rem;color:#f87171">Request failed</td></tr>'; });
+  }
+
+  /** "Operator — site: Berlin" per grant, or an explicit no-access note. */
+  function _accessSummary(u) {
+    if (!u.grants || !u.grants.length) {
+      return '<span style="padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(148,163,190,.1);color:var(--text-muted);border:1px solid rgba(148,163,190,.15)">No access</span>';
+    }
+    return u.grants.map(function (g) {
+      return '<div style="font-size:.72rem">' + esc(_roleName(g)) + ' <span style="color:var(--text-muted)">— ' + esc(_scopeLabel(g)) + '</span></div>';
+    }).join('');
   }
 
   function renderUserRow(u) {
     var tr = document.createElement('tr');
-    var roleBadge = u.role === 'admin'
-      ? '<span style="padding:.1rem .45rem;border-radius:4px;font-size:.7rem;background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.2)">Admin</span>'
-      : '<span style="padding:.1rem .45rem;border-radius:4px;font-size:.7rem;background:rgba(148,163,190,.1);color:var(--text-muted);border:1px solid rgba(148,163,190,.15)">Viewer</span>';
+    // One Access column built from grants, replacing the Role badge and router
+    // pills — those read the legacy role/allowedRouterIds mirror, which cannot
+    // express a custom role or a grant held at two different sites (#108).
     tr.innerHTML =
       '<td style="padding:.45rem .5rem;font-size:.82rem">' + esc(u.username) + '</td>' +
-      '<td style="padding:.45rem .5rem">' + roleBadge + '</td>' +
-      '<td style="padding:.45rem .5rem">' + _routerPillsHtml(u.allowedRouterIds) + '</td>' +
+      '<td style="padding:.45rem .5rem" colspan="2">' + _accessSummary(u) + '</td>' +
       '<td style="padding:.45rem .5rem;text-align:right;white-space:nowrap">' +
         '<button class="sbtn sbtn-ghost" style="font-size:.72rem;padding:.2rem .55rem;margin-right:.3rem" data-action="edit">Edit</button>' +
         '<button class="sbtn sbtn-danger" style="font-size:.72rem;padding:.2rem .55rem" data-action="del">Delete</button>' +
@@ -4546,128 +5284,76 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     return tr;
   }
 
+  function _userFormError(msg) {
+    var el = document.getElementById('uf_error');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? '' : 'none';
+  }
+
+  /** The grant editor wired to the Users card. */
+  function _renderUserGrants(user) {
+    _renderGrantEditor(document.getElementById('uf_grants'), 'user', user ? user.id : '', user && user.grants, {
+      reload:   loadUsers,
+      grantsOf: function (id) {
+        var u = (window._allUsers || []).find(function (x) { return x.id === id; });
+        return u && u.grants;
+      },
+      onError:  _userFormError,
+      unsaved:  'Save the user first, then grant them access',
+    });
+  }
+
   function showUserForm(user, prefillUsername) {
     var wrap   = document.getElementById('userFormWrap');
     var ufId   = document.getElementById('uf_id');
     var ufUser = document.getElementById('uf_username');
     var ufPass = document.getElementById('uf_password');
-    var ufRole = document.getElementById('uf_role');
-    var ufErr  = document.getElementById('uf_error');
     if (!wrap) return;
     if (ufId)   ufId.value   = user ? user.id : '';
     if (ufUser) ufUser.value = user ? user.username : (prefillUsername || '');
     if (ufPass) { ufPass.value = ''; ufPass.placeholder = user ? 'leave blank to keep current' : 'password'; }
-    if (ufRole) ufRole.value = user ? (user.role || 'viewer') : 'viewer';
-    if (ufErr)  { ufErr.textContent = ''; ufErr.style.display = 'none'; }
-    _populateRouterFilter(user);
-    wrap.style.display = '';
+    _userFormError('');
+    _renderUserGrants(user);
+    document.getElementById('uf_title').textContent = user ? 'Edit User' : 'Add User';
+    wrap.classList.add('open');
     if (ufUser) ufUser.focus();
-  }
-
-  function _populateRouterFilter(user) {
-    var sel  = document.getElementById('uf_routerFilter');
-    var list = document.getElementById('uf_routerList');
-    if (!sel || !list) return;
-
-    // Mutable list of selected router IDs; stored on element so _collectAllowedRouterIds can read it
-    sel._selectedIds = (user && user.allowedRouterIds && user.allowedRouterIds.length)
-      ? user.allowedRouterIds.slice() : [];
-
-    // Build dropdown: first option = "All Routers" (resets); rest = individual routers
-    sel.innerHTML = '';
-    var allOpt = document.createElement('option'); allOpt.value = ''; allOpt.textContent = 'All Routers';
-    sel.appendChild(allOpt);
-    Object.keys(_currentRouterMap).forEach(function(id) {
-      var opt = document.createElement('option'); opt.value = id; opt.textContent = _currentRouterMap[id];
-      sel.appendChild(opt);
-    });
-    sel.value = '';
-    list.style.display = '';
-
-    function refreshPills() {
-      list.innerHTML = '';
-      if (!sel._selectedIds.length) {
-        var pill = document.createElement('span');
-        pill.style.cssText = 'display:inline-flex;align-items:center;padding:.15rem .6rem;border-radius:20px;font-size:.76rem;background:rgba(52,211,153,.1);color:#4ade80;border:1px solid rgba(52,211,153,.2);margin:.15rem .15rem .15rem 0';
-        pill.textContent = 'All Routers';
-        list.appendChild(pill);
-      } else {
-        sel._selectedIds.forEach(function(id) {
-          var name = _currentRouterMap[id] || id;
-          var pill = document.createElement('span');
-          pill.style.cssText = 'display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .5rem .15rem .6rem;border-radius:20px;font-size:.76rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);margin:.15rem .15rem .15rem 0';
-          var nameSpan = document.createElement('span'); nameSpan.textContent = name;
-          var xBtn = document.createElement('span');
-          xBtn.textContent = '×';
-          xBtn.title = 'Remove';
-          xBtn.style.cssText = 'cursor:pointer;font-size:1rem;line-height:1;opacity:.75;margin-left:.1rem';
-          xBtn.addEventListener('click', (function(rid) { return function() {
-            var i = sel._selectedIds.indexOf(rid);
-            if (i !== -1) sel._selectedIds.splice(i, 1);
-            refreshPills(); updateOpts();
-          }; })(id));
-          pill.appendChild(nameSpan); pill.appendChild(xBtn);
-          list.appendChild(pill);
-        });
-      }
-    }
-
-    function updateOpts() {
-      // Disable already-added routers in the dropdown; update first-option label
-      allOpt.textContent = sel._selectedIds.length ? '— Add another router —' : 'All Routers';
-      Array.from(sel.options).forEach(function(opt) {
-        if (!opt.value) return;
-        opt.disabled = sel._selectedIds.indexOf(opt.value) !== -1;
-      });
-    }
-
-    sel.onchange = function() {
-      var val = sel.value;
-      sel.value = ''; // always reset after pick
-      if (!val) {
-        sel._selectedIds.length = 0; // "All Routers" selected → clear restriction
-      } else if (sel._selectedIds.indexOf(val) === -1) {
-        sel._selectedIds.push(val);
-      }
-      refreshPills(); updateOpts();
-    };
-
-    refreshPills(); updateOpts();
-  }
-
-  function _collectAllowedRouterIds() {
-    var sel = document.getElementById('uf_routerFilter');
-    return (sel && sel._selectedIds) ? sel._selectedIds.slice() : [];
   }
 
   function saveUser() {
     var ufId   = document.getElementById('uf_id');
     var ufUser = document.getElementById('uf_username');
     var ufPass = document.getElementById('uf_password');
-    var ufRole = document.getElementById('uf_role');
-    var ufErr  = document.getElementById('uf_error');
-    var id       = ufId   ? ufId.value.trim()  : '';
+    var id       = ufId   ? ufId.value.trim()   : '';
     var username = ufUser ? ufUser.value.trim() : '';
     var password = ufPass ? ufPass.value        : '';
-    var role     = ufRole ? ufRole.value        : 'viewer';
-    if (ufErr) { ufErr.textContent = ''; ufErr.style.display = 'none'; }
-    if (!username) { if (ufErr) { ufErr.textContent = 'Username required'; ufErr.style.display = ''; } return; }
-    var body = { username: username, role: role, allowedRouterIds: _collectAllowedRouterIds() };
+    _userFormError('');
+    if (!username) return _userFormError('Username required');
+
+    // No role or allowedRouterIds: access is grants now, edited below.
+    var body = { username: username };
     if (password) body.password = password;
-    var method = id ? 'PUT' : 'POST';
-    var url    = id ? '/api/users/' + id : '/api/users';
-    fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+    fetch(id ? '/api/users/' + id : '/api/users',
+          { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function(r) { return r.json(); })
       .then(function(d) {
-        if (d.ok) {
+        if (!d.ok) return _userFormError(d.error || 'Save failed');
+        return Promise.resolve(loadUsers()).then(function () {
+          // A new user has no id until now, so the grant editor had nothing to
+          // attach to. Rather than making them reopen the form, switch it to
+          // edit mode on the returned record and render the editor in place.
+          if (!id && d.user) {
+            if (ufId) ufId.value = d.user.id;
+            _renderUserGrants(d.user);
+            if (ufPass) ufPass.placeholder = 'leave blank to keep current';
+            return;
+          }
           var wrap = document.getElementById('userFormWrap');
-          if (wrap) wrap.style.display = 'none';
-          loadUsers();
-        } else {
-          if (ufErr) { ufErr.textContent = d.error || 'Save failed'; ufErr.style.display = ''; }
-        }
+          if (wrap) wrap.classList.remove('open');
+        });
       })
-      .catch(function() { if (ufErr) { ufErr.textContent = 'Request failed'; ufErr.style.display = ''; } });
+      .catch(function() { _userFormError('Request failed'); });
   }
 
   function deleteUser(id, username) {
@@ -4689,10 +5375,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // Passwords — show placeholder only, never pre-fill with mask
     var rp = $('s_routerPass'); if (rp) { rp.value = ''; rp.placeholder = data.routerPass ? 'leave blank to keep current' : 'not set'; }
     // Auth mode + session timeout
-    var authModeEl = $('s_authMode');
-    if (authModeEl) {
-      authModeEl.value = data.authMode || 'modern';
-      _applyAuthModeVisibility(data.authMode || 'modern');
+    // A toggle, not a mode picker: the stored value is still 'modern' | 'none',
+    // because that is what the server, the socket gate and every guard read.
+    // Anything that is not the literal 'none' counts as on, matching _authMode()
+    // on the server — a stored value of '' or a legacy 'basic' must not read as
+    // "authentication disabled".
+    var authOnEl = $('s_authEnabled');
+    if (authOnEl) {
+      var mode = (data.authMode === 'none') ? 'none' : 'modern';
+      authOnEl.checked = (mode !== 'none');
+      _applyAuthModeVisibility(mode);
     }
     var stEl = $('s_sessionTimeoutMs');
     if (stEl && data.sessionTimeoutMs != null) stEl.value = String(data.sessionTimeoutMs);
@@ -4701,7 +5393,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
     // Page visibility + dashboard widget toggles
-    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) pingEnabledEl.checked = data.pingEnabled !== false;
@@ -4736,6 +5428,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       { field: 'notifNetwatch',      obj: _alertTypes,     key: 'netwatch'      },
       { field: 'notifRouterStatus',  obj: _alertTypes,     key: 'routerStatus'  },
       { field: 'notifRouterUpdate',  obj: _alertTypes,     key: 'routerUpdate'  },
+      { field: 'notifBgp',           obj: _alertTypes,     key: 'bgp'           },
       { field: 'notifIfaceEther',    obj: _alertIfaceTypes, key: 'ether'        },
       { field: 'notifIfaceWlan',   obj: _alertIfaceTypes, key: 'wlan'       },
       { field: 'notifIfaceBridge', obj: _alertIfaceTypes, key: 'bridge'     },
@@ -4806,14 +5499,14 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // Passwords — only send if user typed something
     var rpEl = $('s_routerPass'); if (rpEl && rpEl.value) out.routerPass = rpEl.value;
     // Auth mode + session timeout
-    var amEl2 = $('s_authMode');
-    if (amEl2) out.authMode = amEl2.value;
+    var amEl2 = $('s_authEnabled');
+    if (amEl2) out.authMode = amEl2.checked ? 'modern' : 'none';
     var stEl2 = $('s_sessionTimeoutMs'); if (stEl2) out.sessionTimeoutMs = parseInt(stEl2.value, 10);
     // Booleans
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
-    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
@@ -4824,7 +5517,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var pingEl = $('s_alertPingLoss');     if (pingEl) out.alertPingLoss      = parseInt(pingEl.value, 10);
     // Alert type + iface type toggles
     ['notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
-     'notifRouterUpdate',
+     'notifRouterUpdate','notifBgp',
      'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
@@ -5000,12 +5693,23 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   _testNotifBtn('btn-test-smtp',       'test-smtp-result',       'smtp');
   _testNotifBtn('btn-test-ntfy',       'test-ntfy-result',       'ntfy');
 
-  // Auth mode change listener
-  var authModeSelect = $('s_authMode');
-  if (authModeSelect) {
-    authModeSelect.addEventListener('change', function() {
-      _applyAuthModeVisibility(this.value, _loaded);
-      if (this.value === 'modern') loadUsers();
+  // Auth toggle listener
+  var authEnabledToggle = $('s_authEnabled');
+  if (authEnabledToggle) {
+    authEnabledToggle.addEventListener('change', function() {
+      // Picking "None (open access)" from a dropdown was a deliberate act; a
+      // checkbox is one stray click, and the consequence is that every visitor
+      // becomes an implicit admin. Ask, and put it back if they decline.
+      if (!this.checked && !confirm(
+            'Turn authentication off?\n\n' +
+            'Anyone who can reach this page will have full control, with no ' +
+            'login and no per-user permissions. Only do this on a trusted network.')) {
+        this.checked = true;
+        return;
+      }
+      var mode = this.checked ? 'modern' : 'none';
+      _applyAuthModeVisibility(mode, _loaded);
+      if (mode === 'modern') loadUsers();
     });
   }
 
@@ -5016,7 +5720,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   if (ufSaveBtn) ufSaveBtn.addEventListener('click', saveUser);
   var ufCancelBtn = $('uf_cancel');
   if (ufCancelBtn) ufCancelBtn.addEventListener('click', function() {
-    var wrap = document.getElementById('userFormWrap'); if (wrap) wrap.style.display = 'none';
+    var wrap = document.getElementById('userFormWrap'); if (wrap) wrap.classList.remove('open');
   });
 
   // Load settings when page becomes active
@@ -5192,6 +5896,15 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     var actions = $('settingsActions');
     if (actions) actions.style.display = NO_SAVE_TABS.indexOf(tabName) !== -1 ? 'none' : 'flex';
+    // The principals card is sized from its own top offset, which can only be
+    // measured once its panel is on screen. Settings always opens on Routers, so
+    // every earlier attempt (caps applied, page change) found the Authentication
+    // panel still display:none and returned early — leaving the card at content
+    // height until an inner tab click happened to re-run the sizer.
+    //
+    // Called after the actions bar visibility above, because the card reserves
+    // room for it.
+    if (window._sizePrincipalsCard) window._sizePrincipalsCard();
     if (tabName === 'about' && !_aboutFetched) {
       _aboutFetched = true;
       fetch('/healthz').then(function(r){ return r.json(); }).then(function(d){
@@ -5909,59 +6622,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
 })();
 
-// ── BGP Notifications ───────────────────────────────────────────────────────
-(function(){
-  var _bgpPrevState   = {};  // key -> state string
-  var _bgpPrevPfx     = {};  // key -> prefix count
-  var _bgpFlapAlerted = {};  // key -> ts
-  var BGP_PFX_THRESH  = 0.2; // 20% prefix change triggers alert
-  var BGP_COOLDOWN    = 120000; // 2 min between repeat alerts
-
-  socket.on('routing:update', function(data) {
-    var now = Date.now();
-    (data.peers || []).forEach(function(p) {
-      var key   = p.key;
-      var state = p.state;
-      var prev  = _bgpPrevState[key];
-
-      // Peer down / up
-      if (prev === 'established' && state !== 'established') {
-        sendNotif('BGP Peer Down', p.name + ' (' + p.remoteAddr + ') → ' + state, 'bgp-down-' + key);
-      } else if (prev !== undefined && prev !== 'established' && state === 'established') {
-        sendNotif('BGP Peer Up', p.name + ' (' + p.remoteAddr + ') is established', 'bgp-up-' + key);
-      }
-      _bgpPrevState[key] = state;
-
-      // Prefix count change beyond threshold (only when established)
-      if (state === 'established' && _bgpPrevPfx[key] !== undefined) {
-        var old = _bgpPrevPfx[key];
-        if (old > 0) {
-          var change = Math.abs(p.prefixes - old) / old;
-          if (change >= BGP_PFX_THRESH && (now - (_bgpFlapAlerted['pfx-' + key] || 0)) > BGP_COOLDOWN) {
-            var dir = p.prefixes > old ? '+' : '-';
-            sendNotif('BGP Prefix Change', p.name + ': ' + dir + Math.abs(p.prefixes - old) + ' prefixes (' + old + ' → ' + p.prefixes + ')', 'bgp-pfx-' + key);
-            _bgpFlapAlerted['pfx-' + key] = now;
-          }
-        }
-      }
-      if (state === 'established') _bgpPrevPfx[key] = p.prefixes;
-
-      // Session flapping
-      if (p.flapping && (now - (_bgpFlapAlerted['flap-' + key] || 0)) > BGP_COOLDOWN) {
-        sendNotif('BGP Session Flapping', p.name + ' (' + p.remoteAddr + ') is flapping', 'bgp-flap-' + key);
-        _bgpFlapAlerted['flap-' + key] = now;
-      }
-
-      // Hold timer / keepalive issues — flag when hold-time is very short or keepalive is 0
-      if (state === 'established' && p.holdTime > 0 && p.holdTime < 9 && p.keepalive === 0) {
-        if ((now - (_bgpFlapAlerted['hold-' + key] || 0)) > BGP_COOLDOWN) {
-          sendNotif('BGP Hold Timer Warning', p.name + ': hold-time=' + p.holdTime + 's, keepalive=0', 'bgp-hold-' + key);
-          _bgpFlapAlerted['hold-' + key] = now;
-        }
-      }
-    });
-  });
-})();
+// BGP alerts moved to src/alerter.js. They used to fire straight at the browser
+// Notification API from here, so they never reached the Reports tab or the bell,
+// never honoured per-router Alert Monitoring, and used a private 2-minute
+// cooldown instead of notifCooldownSec. The three level conditions (prefix
+// swing, flapping, hold timer) are now edge-triggered rather than cooldown-gated
+// — the hold-timer warning in particular repeated every 2 minutes forever,
+// because a misconfigured hold timer never stops being true.
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5983,6 +6650,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var modalTitle= $('rtrModalTitle');
   var modalId   = $('rtrModalId');
   var modalLabel= $('rtrModalLabel');
+  var modalSite = $('rtrModalSite');
   var modalHost = $('rtrModalHost');
   var modalPort = $('rtrModalPort');
   var modalUser = $('rtrModalUser');
@@ -6088,12 +6756,43 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var navSel = $('navRouterSelect');
     if (navSel) {
       navSel.innerHTML = '';
-      _routers.filter(function(r) { return !r.disabled; }).forEach(function(r) {
+      var enabled = _routers.filter(function(r) { return !r.disabled; });
+      var sitesById = window._sitesById || {};
+      var anyGrouped = enabled.some(function(r) { return r.siteId && sitesById[r.siteId]; });
+
+      function _addOpt(parent, r) {
         var opt = document.createElement('option');
         opt.value = r.id;
         opt.text  = _rtrLabel(r);
-        navSel.appendChild(opt);
-      });
+        parent.appendChild(opt);
+      }
+
+      if (!anyGrouped) {
+        // No sites in use — a single "Ungrouped" heading would be pure noise.
+        enabled.forEach(function(r) { _addOpt(navSel, r); });
+      } else {
+        var bySite = {}, loose = [];
+        enabled.forEach(function(r) {
+          if (r.siteId && sitesById[r.siteId]) (bySite[r.siteId] = bySite[r.siteId] || []).push(r);
+          else loose.push(r);
+        });
+        Object.keys(bySite)
+          .sort(function(a, b) { return sitesById[a].name.localeCompare(sitesById[b].name); })
+          .forEach(function(sid) {
+            var g = document.createElement('optgroup');
+            g.label = sitesById[sid].name;   // .label is text, not markup
+            bySite[sid].forEach(function(r) { _addOpt(g, r); });
+            navSel.appendChild(g);
+          });
+        // Site-less routers go last, under their own heading, so they stay
+        // reachable rather than being hidden by the grouping.
+        if (loose.length) {
+          var g2 = document.createElement('optgroup');
+          g2.label = 'No site';
+          loose.forEach(function(r) { _addOpt(g2, r); });
+          navSel.appendChild(g2);
+        }
+      }
       navSel.value = _activeRouterId || (navSel.options[0] && navSel.options[0].value) || '';
     }
     if (ddWrap) ddWrap.style.display = 'flex';
@@ -6203,11 +6902,19 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // stats feed, so these stay populated while a router is offline or disabled.
     // A router that has never connected has nothing to show yet.
     var unknown     = '<span style="color:var(--text-muted)">—</span>';
+    // Site membership, shown under the label rather than as its own column so
+    // the table keeps its eight columns and the empty-state colspan stays right.
+    // Nothing renders for a site-less router — an explicit "no site" chip on
+    // every row would be noise for the installs that never create one.
+    var _site = (r.siteId && window._sitesById) ? window._sitesById[r.siteId] : null;
+    var siteChip = _site
+      ? '<div style="margin-top:.15rem"><span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(99,130,190,.12);color:var(--text-muted);border:1px solid var(--border)">'+esc(_site.name)+'</span></div>'
+      : '';
     var modelCell   = r.model     ? esc(r.model) : unknown;
     var serialCell  = r.serial    ? '<span class="rtr-host">'+esc(r.serial)+'</span>'    : unknown;
     var versionCell = r.osVersion ? '<span class="rtr-ver-pill">'+esc(r.osVersion)+'</span>' : unknown;
     return '<tr'+(r.disabled?' style="opacity:.55"':'')+'>'+
-      '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + '</td>' +
+      '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + siteChip + '</td>' +
       '<td>'+statusCell+'</td>' +
       '<td><span class="rtr-host">'+esc(r.host)+'</span></td>' +
       '<td>'+modelCell+'</td>' +
@@ -6237,6 +6944,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   socket.on('routers:update', function(list) {
     _routers = list || [];
     window._activeRouterId = _activeRouterId;
+    // Published for the Sites card, which lives in another IIFE and counts
+    // routers per site from this list rather than making the server join.
+    window._allRouters = _routers;
+    if (typeof window._refreshSiteCounts === 'function') window._refreshSiteCounts();
     rebuildSelect();
     renderTable();
   });
@@ -6340,6 +7051,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     modalTitle.textContent = isEdit ? 'Edit Router' : 'Add Router';
     modalId.value    = router ? router.id        : '';
     modalLabel.value = router ? router.label     : '';
+    // A site that has since been deleted falls back to "— No site —" rather
+    // than leaving the picker showing whatever happened to be selected before.
+    if (modalSite) modalSite.value = (router && router.siteId && window._sitesById && window._sitesById[router.siteId]) ? router.siteId : '';
     modalHost.value  = router ? router.host      : '';
     modalPort.value  = router ? router.port      : '8729';
     modalUser.value  = router ? router.username  : 'admin';
@@ -6424,6 +7138,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     return {
       id:          modalId  ? modalId.value.trim()   : '',
       label:       modalLabel? modalLabel.value.trim(): '',
+      // '' is the "— No site —" option; the server maps it to null.
+      siteId:      modalSite ? modalSite.value        : '',
       host:        modalHost ? modalHost.value.trim() : '',
       port:        modalPort ? parseInt(modalPort.value, 10) : 8729,
       username:    modalUser ? modalUser.value.trim() : 'admin',
@@ -7376,6 +8092,52 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var addRtrBtn   = document.getElementById('rtrAddBtn');
   var saveSettBtn = document.getElementById('settingsSaveBtn');
 
+  // Capability-driven, not role-driven. With three roles and per-router scope,
+  // "is this person a viewer?" stopped answering "may they press this button" —
+  // an operator would have passed the old viewer check and then collected 403s.
+  //
+  // Declarative on purpose: mark an element data-cap="manageSettings" and it is
+  // governed here forever. Adding a capability means adding an attribute, not
+  // editing this function. Same shape as applyPageVisibility().
+  function applyCaps(caps) {
+    window._caps = caps || {};
+    var c = window._caps;
+    // Page access is half of the nav decision (the install toggles are the
+    // other half), so hand it over and re-run. Without this the nav showed
+    // every page regardless of role — the server denied them, but a Read Only
+    // user still saw Reports and Settings in the sidebar.
+    if (c.pages) {
+      _pageAccess = c.pages;
+      applyPageVisibility();
+    }
+    // Hide rather than disable where the whole surface is off-limits; disable
+    // where the control sits inside a page they can still legitimately read.
+    document.querySelectorAll('[data-cap]').forEach(function (el) {
+      var allowed = !!c[el.getAttribute('data-cap')];
+      if (el.hasAttribute('data-cap-disable')) {
+        el.disabled = !allowed;
+        if (!allowed) el.title = 'You do not have permission for this';
+      } else {
+        el.style.display = allowed ? '' : 'none';
+      }
+    });
+    // Pre-existing controls that have no data-cap attribute of their own.
+    if (addRtrBtn)   addRtrBtn.style.display = c.createRouters ? '' : 'none';
+    if (saveSettBtn) {
+      saveSettBtn.disabled = !c.manageSettings;
+      if (!c.manageSettings) saveSettBtn.title = 'Administrator access required';
+    }
+    var settingsNav = document.getElementById('settingsNavItem');
+    // Operators still have a reason to open Settings (their own preferences and
+    // the read-only view); only hide it from someone who can change nothing.
+    if (settingsNav) settingsNav.style.display = (c.manageSettings || c.managePrincipals) ? '' : 'none';
+  }
+
+  // Hoisted so the perms:changed handler and the 403 interceptor can re-run it.
+  // It is idempotent: every [data-cap] element is set from the caps it is given,
+  // never toggled relative to its current state.
+  window._applyCaps = applyCaps;
+
   fetch('/api/auth/status')
     .then(function(r) { return r.json(); })
     .then(function(d) {
@@ -7384,15 +8146,24 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (d.session) {
         if (nameEl) nameEl.textContent = d.session.username;
         if (chip)   chip.style.display = '';
-        if (d.session.role === 'viewer') {
-          if (addRtrBtn)   addRtrBtn.style.display   = 'none';
-          if (saveSettBtn) { saveSettBtn.disabled = true; saveSettBtn.title = 'Admin access required'; }
-          var settingsNav = document.getElementById('settingsNavItem');
-          if (settingsNav) settingsNav.style.display = 'none';
-        }
+        applyCaps(d.session.caps);
       }
     })
     .catch(function() {}); // non-critical — chip stays hidden on failure
+
+  // Permissions can change while a browser is open — an administrator edits a
+  // role, or revokes a grant. Before this, nothing refreshed caps at runtime and
+  // the session kept its old UI until reload, which reads as the feature not
+  // working. The server sends only a nudge, never the caps themselves: re-asking
+  // re-resolves server-side, so a forged payload could not widen anything.
+  function _refreshCaps() {
+    return fetch('/api/auth/permissions', { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d && d.ok) applyCaps(d.caps); })
+      .catch(function () {});
+  }
+  window._refreshCaps = _refreshCaps;
+  socket.on('perms:changed', _refreshCaps);
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', function(e) {
@@ -7994,24 +8765,58 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       ? sorted.map(function(r) {
           var res = r.resolved_at ? esc(fmtTs(r.resolved_at)) : '<span style="color:var(--accent-warn)">Open</span>';
           var dt  = r.resolved_at ? fmtDuration(r.resolved_at - r.fired_at) : '—';
+          // Acknowledging is how an operator says "seen, being handled" about an
+          // alert that is still open — which is most of what the bell's "Clear
+          // all" used to mean, except it now survives a refresh and records who.
+          var ack = r.acknowledged_at
+            ? esc(fmtTs(r.acknowledged_at)) + (r.acknowledged_by ? ' · ' + esc(r.acknowledged_by) : '')
+            : (r.resolved_at ? '—'
+               : '<button class="sbtn sbtn-ghost" style="padding:.15rem .5rem;font-size:.65rem"' +
+                 ' data-ack-id="' + esc(String(r.id)) + '">Acknowledge</button>');
           return '<tr>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(fmtTs(r.fired_at))+'</td>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem">'+esc(r.alert_type||'')+'</td>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(r.subject||'—')+'</td>'+
             '<td style="font-size:.71rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.detail||'—')+'</td>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem">'+res+'</td>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+ack+'</td>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem;text-align:right">'+esc(dt)+'</td></tr>';
         }).join('')
-      : '<tr><td colspan="6" class="rpt-empty">No alerts for this range.</td></tr>';
+      : '<tr><td colspan="7" class="rpt-empty">No alerts for this range.</td></tr>';
     _renderSortHeader('rptAlertThead', [
       { key: 'fired_at',    label: 'Fired At',    style: '' },
       { key: 'alert_type',  label: 'Type',        style: '' },
       { key: 'subject',     label: 'Subject',     style: '' },
       { key: 'detail',      label: 'Detail',      style: '' },
       { key: 'resolved_at', label: 'Resolved At', style: '' },
+      { key: 'acknowledged_at', label: 'Acknowledged', style: '' },
       { key: 'downtime_ms', label: 'Down Time',   style: 'text-align:right' },
     ], _alertSort, _applyAlertSort);
   }
+
+  // Delegated, because _applyAlertSort replaces the whole tbody on every sort.
+  if (rptAlertTbody) rptAlertTbody.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('[data-ack-id]') : null;
+    if (!btn) return;
+    var id = btn.getAttribute('data-ack-id');
+    btn.disabled = true;
+    fetch('/api/alerts/' + encodeURIComponent(id) + '/ack', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) throw new Error('ack failed');
+        // Patch the row in place rather than reloading the report — the range
+        // and sort the user set are worth more than a round trip.
+        var a = j.alert || {};
+        _alertRawRows.forEach(function (row) {
+          if (String(row.id) === String(id)) {
+            row.acknowledged_at = a.acknowledgedAt || Date.now();
+            row.acknowledged_by = a.acknowledgedBy || '';
+          }
+        });
+        _applyAlertSort();
+      })
+      .catch(function () { btn.disabled = false; });
+  });
 
   // ── Render: Connectivity ────────────────────────────────────────────
   function renderConn(rows, routerId, from, to) {

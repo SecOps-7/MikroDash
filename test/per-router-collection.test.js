@@ -31,7 +31,7 @@ test('registry covers every collector the session builds, exactly once', () => {
   // Mirrors the session object returned by buildSession() in src/index.js.
   const sessionProps = ['dhcpLeases','dhcpNetworks','arp','traffic','conns','talkers','logs',
                         'system','wireless','vpn','firewall','ifStatus','ping','bandwidth',
-                        'routing','netwatch'];
+                        'routing','netwatch','topology'];
   assert.deepEqual(COLLECTORS.map(c => c.sessionProp).sort(), [...sessionProps].sort());
 });
 
@@ -40,7 +40,7 @@ test('protected collectors are the ones other collectors read unguarded', () => 
   // arp/dhcpLeases/dhcpNetworks are read without a null guard by connections.js;
   // traffic feeds stored history; system feeds identity, the update check and CPU alerts.
   assert.deepEqual(protectedKeys, ['arp','dhcpLeases','dhcpNetworks','system','traffic']);
-  assert.equal(DISABLEABLE.length, 11);
+  assert.equal(DISABLEABLE.length, 12);
 });
 
 // ── Defaults and inheritance ─────────────────────────────────────────────────
@@ -909,64 +909,114 @@ test('restarting a poll loop does not re-poll inside its own interval', async ()
   loop.stop();
 });
 
-// ─── Bell notifications must respect per-router Alert Monitoring ─────────────
+// ─── The server is the only alert detector ──────────────────────────────────
 
-test('every browser-side alert detector honours per-router Alert Monitoring', () => {
-  // The server alerter re-checks alertsEnabled before firing (alerter.js), but the
-  // browser has its OWN detectors that call sendNotif directly, and they never
-  // consulted the flag. That is why a hAP ac2 with Alert Monitoring switched off
-  // still produced "Router Online" and interface up/down entries in the bell.
+test('the browser re-derives no alerts of its own', () => {
+  // This test used to assert the OPPOSITE: that each browser-side detector
+  // consulted per-router Alert Monitoring before calling sendNotif. Those
+  // detectors are gone. They were a second implementation of rules alerter.js
+  // already owned, and the drift between the two produced browser defaults that
+  // disagreed with the server, a hardcoded cooldown that ignored
+  // notifCooldownSec, and alert types that existed on only one side.
+  //
+  // The invariant now is the absence of that duplication, so this test pins it:
+  // no per-event detector comes back without someone deciding to.
   const src = require('fs').readFileSync(
     require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
 
-  assert.ok(/function _alertsAllowedFor\(/.test(src), 'the gate helper must exist');
-  assert.ok(/_notifRouterAlerts\[r\.id\] = r\.alertsEnabled !== false/.test(src),
-    'routers:update must record each router\'s alertsEnabled');
-
-  // app.js registers several handlers per event (rendering, charts, notifications).
-  // Anchor on the check* CALL SITE and scan back to the socket.on that encloses
-  // it — a fixed window from the first handler of that event name overlaps
-  // neighbouring code and silently passes, which this test did at first.
-  for (const [ev, fn] of [['ifstatus:update', 'checkIfaceNotifs'],
-                          ['vpn:update',      'checkVpnNotifs'],
-                          ['system:update',   'checkCpuNotif'],
-                          ['ping:update',     'checkPingNotif'],
-                          ['netwatch:update', 'checkNetwatchNotifs']]) {
-    // The call inside a handler, not the function declaration itself.
+  for (const fn of ['checkIfaceNotifs', 'checkVpnNotifs', 'checkCpuNotif',
+                    'checkPingNotif', 'checkNetwatchNotifs', 'checkRouterStatusNotif']) {
+    // A call site is `fn(` not preceded by `function `. A surviving definition is
+    // merely dead code; a surviving CALL means the duplication is back.
     let call = -1;
     for (let k = src.indexOf(fn + '('); k !== -1; k = src.indexOf(fn + '(', k + 1)) {
       if (!/function\s*$/.test(src.slice(Math.max(0, k - 12), k))) { call = k; break; }
     }
-    assert.ok(call > 0, 'no call site found for ' + fn);
-    const open = src.lastIndexOf('socket.on(', call);
-    assert.ok(open > 0, 'no enclosing socket.on for ' + fn);
-    const handler = src.slice(open, call);
-    assert.ok(handler.includes("'" + ev + "'"),
-      fn + ' is not inside a ' + ev + ' handler (found: ' + handler.slice(0, 40) + ')');
-    assert.ok(handler.includes('_alertsAllowedFor'),
-      ev + ' can raise a bell notification without checking Alert Monitoring');
+    assert.equal(call, -1,
+      fn + ' is being called again — alert detection belongs in src/alerter.js, not the browser');
   }
 
-  // Router Online/Offline keys on the router the status is ABOUT.
-  const rs = src.indexOf('function checkRouterStatusNotif');
-  assert.ok(src.slice(rs, rs + 400).includes('_alertsAllowedFor(d.routerId)'),
-    'router status alerts must use the subject router\'s flag, not the viewed one');
+  // The bell must be fed by the server, not by anything it works out locally.
+  for (const ev of ['alerts:open', 'alert:fired', 'alert:resolved']) {
+    assert.ok(src.includes("socket.on('" + ev + "'"),
+      'the bell must consume ' + ev + ' from the server');
+  }
+
+  // Acknowledgment has to reach the server; a local-only clear is the cosmetic
+  // behaviour this replaced.
+  assert.ok(/\/api\/alerts\/ack-all/.test(src),
+    '"Clear all" must acknowledge on the server, not just empty a local array');
 });
 
-test('interface alerts ignore a payload from a router we are not viewing', () => {
-  // Session teardown is asynchronous, so a final in-flight ifstatus:update from
-  // the OUTGOING router can arrive after router:switching cleared the baseline.
-  // Compared by interface name alone, router A's ether2..5 then read as router
-  // B's going down — and back up on the return trip. That is the reported
-  // "Interface Down ether2..5" then "Interface Up ether2..5" burst.
+test('"Clear all" actually clears the bell', () => {
+  // The first cut of this acknowledged on the server and stopped there. The
+  // panel still rendered acknowledged alerts, so the list sat unchanged apart
+  // from a slight dim — the button looked broken. Two things have to hold.
   const src = require('fs').readFileSync(
     require('path').join(__dirname, '..', 'public', 'app.js'), 'utf8');
-  const i = src.indexOf("socket.on('ifstatus:update', function");
-  const body = src.slice(i, i + 700);
-  assert.ok(/data\.routerId !== window\._activeRouterId/.test(body),
-    'the client must reject an interface payload stamped with another router id');
+  const panel = src.slice(src.indexOf('function renderNotifPanel'));
+  const body  = panel.slice(0, panel.indexOf('\n}\n'));
 
-  // ...which only works if the server actually stamps it.
+  // 1. Acknowledging is what removes an alert from the bell.
+  assert.ok(/filter\(function\(a\)\{ return !a\.acknowledgedAt; \}\)/.test(body),
+    'renderNotifPanel must not render acknowledged alerts');
+
+  // 2. The panel cannot wait on alerts:acked-all to empty itself. The server
+  //    only broadcasts when it acknowledged something, so a click with nothing
+  //    left to acknowledge would leave the list exactly as it was.
+  const clear = src.slice(src.indexOf("$('notifClearBtn')"));
+  assert.ok(/ackAlerts\(/.test(clear.slice(0, 1400)),
+    '"Clear all" must update the local view itself, not rely on the broadcast');
+});
+
+test('a socket falls back to the configured active router, not the lowest id', () => {
+  // Regression. The RBAC rewrite replaced allowedRouterIds with
+  // effectiveRouterIds, which returns a SORTED list, and returned allowed[0] for
+  // everyone. The old code only did that for restricted users and otherwise fell
+  // through to cfg.activeRouterId. The result: an unrestricted admin with no
+  // personal preference landed on whichever router had the lowest UUID rather
+  // than the one configured as active — and because sessions are in-memory, any
+  // restart made that the normal path. It presented as "the dashboard is empty",
+  // because the arbitrary router was a quiet AP rather than the main gateway.
+  const src = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const i = src.indexOf('function _resolveRouterId');
+  assert.ok(i !== -1, '_resolveRouterId must exist');
+  const body = src.slice(i, i + 1600);
+
+  assert.ok(/authSession\.activeRouterId/.test(body),
+    'a personal router preference must win when still readable');
+  assert.ok(/cfg\.activeRouterId && allowed\.includes\(cfg\.activeRouterId\)/.test(body),
+    'the configured active router must be preferred over an arbitrary readable one');
+  // Ordering matters as much as presence: the cfg fallback has to sit before the
+  // allowed[0] catch-all, or it can never be reached.
+  assert.ok(body.indexOf('cfg.activeRouterId && allowed.includes') < body.indexOf('return allowed[0]'),
+    'the cfg fallback must come before the first-readable catch-all');
+});
+
+test('interface alerts cannot be attributed to the wrong router', () => {
+  // The reported bug was an "Interface Down ether2..5" then "Interface Up
+  // ether2..5" burst on switching routers: session teardown is asynchronous, so
+  // a final in-flight ifstatus:update from the OUTGOING router arrived after
+  // router:switching had cleared the browser's baseline, and because the
+  // comparison was by interface name alone, router A's ether2..5 read as router
+  // B's going down and back up.
+  //
+  // The browser used to guard this by rejecting payloads stamped with another
+  // router id. It no longer needs to: it holds no interface baseline to corrupt.
+  // Each router's evaluator is its own closure on the server, so the comparison
+  // can only ever be against that router's own previous state, and the alert is
+  // emitted into that router's room. This test pins the two things that
+  // property rests on.
+  const alerter = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'src', 'alerter.js'), 'utf8');
+  assert.ok(/_io\.to\('router-' \+ routerId\)/.test(alerter),
+    'alerts must be emitted into the room of the router they describe');
+  assert.ok(/function createEvaluator\([^)]*\)\s*\{[\s\S]{0,600}?const prevIfState\s*=\s*new Map\(\)/.test(alerter),
+    'each router must get its own interface-state map, not a shared one');
+
+  // The payload still has to be stamped — the Reports tab and the bell both key
+  // off routerId.
   const coll = require('fs').readFileSync(
     require('path').join(__dirname, '..', 'src', 'collectors', 'interfaceStatus.js'), 'utf8');
   assert.ok(/lastPayload = \{ ts: now, routerId: this\.rid, interfaces \}/.test(coll),
@@ -983,7 +1033,12 @@ test('the ifStatus payload actually carries the router id', () => {
   const emitted = [];
   const c = new InterfaceStatusCollector({
     ros: pollRos(async () => []),
-    io: { engine: { clientsCount: 1 }, emit: (ev, d) => emitted.push({ ev, d }), on() {} },
+    // The full payload is room-scoped since issue #108, so the fake has to
+    // follow the chain to observe it.
+    io: (() => {
+      const _c = { to: () => _c, emit: (ev, d) => emitted.push({ ev, d }) };
+      return { engine: { clientsCount: 1 }, emit: (ev, d) => emitted.push({ ev, d }), to: () => _c, on() {} };
+    })(),
     pollMs: 1000, metaPollMs: 60000, state: {}, streamMode: false, rid: 'router-abc',
   });
   c._ifaces.set('ether2', { name: 'ether2', disabled: 'false', running: 'true' });

@@ -97,7 +97,7 @@ class PingCollector {
         const point = { ts: Date.now(), rtt: null, loss: null, permissionDenied: true };
         this.history.push(point);
         this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
-        this.io.emit('ping:update', this.lastPayload);
+        this.io.to('page-dashboard').emit('ping:update', this.lastPayload);
         this.state.lastPingTs = Date.now();
       } else {
         console.error('%s', this._lbl + `stream error (target=${this.target}):`, msg);
@@ -154,7 +154,7 @@ class PingCollector {
         const point = { ts: Date.now(), rtt: null, loss: null, permissionDenied: true };
         this.history.push(point);
         this.lastPayload = { target: this.target, rtt: null, loss: null, permissionDenied: true, ts: point.ts, pollMs: this.pollMs };
-        this.io.emit('ping:update', this.lastPayload);
+        this.io.to('page-dashboard').emit('ping:update', this.lastPayload);
         this.state.lastPingTs = Date.now();
       } else {
         this.state.lastPingErr = msg;
@@ -203,7 +203,7 @@ class PingCollector {
 
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.emit('ping:update', this.lastPayload);
+      this.io.to('page-dashboard').emit('ping:update', this.lastPayload);
     }
   }
 

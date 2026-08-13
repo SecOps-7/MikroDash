@@ -42,7 +42,7 @@ class NetwatchCollector {
     this.lastPayload = payload;
     this.state.lastNetwatchTs  = Date.now();
     this.state.lastNetwatchErr = null;
-    this.io.emit('netwatch:update', payload);
+    this.io.to('page-dashboard').emit('netwatch:update', payload);
   }
 
   async _loadInitial() {
@@ -116,7 +116,7 @@ class NetwatchCollector {
       // Idle gate: state changes still reach the alerter via the /listen stream;
       // this re-emit only serves browser stale-timers.
       if (this.io.engine.clientsCount === 0) return;
-      this.io.emit('netwatch:update', { ...this.lastPayload, ts: Date.now() });
+      this.io.to('page-dashboard').emit('netwatch:update', { ...this.lastPayload, ts: Date.now() });
     }, 60000);
   }
 

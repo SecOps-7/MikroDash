@@ -110,7 +110,7 @@ class TopTalkersCollector {
         console.warn('%s', this._lbl + ' Kid Control not available on this router — disabling');
         const payload = { ts: now, devices: [], pollMs: this.pollMs };
         this.lastPayload = payload;
-        this.io.emit('talkers:update', payload);
+        this.io.to('page-dashboard').emit('talkers:update', payload);
         this.state.lastTalkersTs  = now;
         this.state.lastTalkersErr = null;
       } else if (msg.includes('timeout')) {
@@ -176,7 +176,7 @@ class TopTalkersCollector {
     this.lastPayload = { ts: now, devices, pollMs: this.pollMs };
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.emit('talkers:update', this.lastPayload);
+      this.io.to('page-dashboard').emit('talkers:update', this.lastPayload);
     }
     this.state.lastTalkersTs  = now;
     this.state.lastTalkersErr = null;
@@ -216,7 +216,7 @@ class TopTalkersCollector {
           const now = Date.now();
           const payload = { ts: now, devices: [], pollMs: this.pollMs };
           this.lastPayload = payload;
-          this.io.emit('talkers:update', payload);
+          this.io.to('page-dashboard').emit('talkers:update', payload);
           this.state.lastTalkersTs  = now;
           this.state.lastTalkersErr = null;
         }

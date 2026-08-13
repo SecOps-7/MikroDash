@@ -4,6 +4,29 @@ const Routers  = require('./routers');
 const db       = require('./db');
 
 let _settings = null;
+let _io       = null;
+
+/**
+ * Push an alert to the browsers watching this router.
+ *
+ * Module-level rather than per-evaluator so BOTH alert paths reach it: the main
+ * pool sessions and the background sessions in alertSessions.js, which build
+ * their own evaluators around a stub io that discards everything it is given.
+ * Routing through the real server here is what lets an alert on a router nobody
+ * is looking at still reach the bell.
+ *
+ * Room-scoped: a socket only ever joins its own router's room, and the router
+ * list it holds is already filtered by allowedRouterIds, so this cannot leak a
+ * restricted router's alerts.
+ */
+function _emit(routerId, event, payload) {
+  if (!_io || !routerId) return;
+  try {
+    _io.to('router-' + routerId).emit(event, payload);
+  } catch (e) {
+    console.warn('[alerter] emit failed:', e.message);
+  }
+}
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -84,6 +107,11 @@ function createEvaluator(getNameFn, getRouterFn) {
   // on the version gives one alert per release, and a later release still
   // notifies instead of being swallowed as "already alerting".
   let   prevUpdateVersion = null;
+  const prevBgpState      = new Map();  // peer key → last state string
+  const prevBgpPfx        = new Map();  // peer key → prefix count at last established reading
+  const prevBgpFlap       = new Map();  // peer key → boolean, a flap alert is open
+  const prevBgpHold       = new Map();  // peer key → boolean, a hold-timer alert is open
+  const prevBgpPfxAlert   = new Map();  // peer key → boolean, a prefix-swing alert is open
 
   // The cooldown map is capped against churn from ephemeral interface names,
   // but the prev-state maps are populated from that same churning source and
@@ -91,6 +119,9 @@ function createEvaluator(getNameFn, getRouterFn) {
   // lifetime of the evaluator. Same bound, same reasoning.
   const STATE_MAX = 500;
   function _capMap(m) { if (m.size > STATE_MAX) m.clear(); }
+
+  // Fraction the advertised prefix count must move to be worth an alert.
+  const BGP_PFX_THRESH = 0.2;
 
   function fire(key, vars, isUp) {
     // Persist alert to DB unconditionally — the Reports tab must reflect every
@@ -101,11 +132,33 @@ function createEvaluator(getNameFn, getRouterFn) {
       // For up (recovery) events, resolveType holds the matching down alert_type so the
       // WHERE clause in resolveAlertEvent finds the correct open row.
       const alertType = (vars.alertType || key).toLowerCase().replace(/\s+/g, '_');
-      const subject   = vars.ifaceName || vars.vpnPeer || vars.netwatchName || vars.pingTarget || null;
+      const subject   = vars.ifaceName || vars.vpnPeer || vars.netwatchName || vars.pingTarget ||
+                        vars.bgpPeer || null;
+      // The browser emit belongs HERE, beside the unconditional DB write, not
+      // below with the push. Everything past this block is gated on a delivery
+      // channel being configured — put the emit there and the notification bell
+      // goes silent for anyone without Telegram/ntfy/SMTP set up, which is the
+      // common case. The bell is a view of what was recorded, so it follows the
+      // recording, not the sending.
       if (isUp) {
-        db.resolveAlertEvent(router.id, vars.resolveType || alertType, subject);
+        const ids = db.resolveAlertEvent(router.id, vars.resolveType || alertType, subject);
+        if (ids && ids.length) {
+          _emit(router.id, 'alert:resolved', {
+            ids, routerId: router.id, routerName: getNameFn(),
+            alertType: vars.resolveType || alertType, subject,
+            label: vars.alertType || key, detail: vars.detail || null,
+            resolvedAt: Date.now(),
+          });
+        }
       } else {
-        db.insertAlertEvent(router.id, alertType, subject, vars.detail || null);
+        const id = db.insertAlertEvent(router.id, alertType, subject, vars.detail || null);
+        _emit(router.id, 'alert:fired', {
+          id, routerId: router.id, routerName: getNameFn(),
+          alertType, subject,
+          label: vars.alertType || key, detail: vars.detail || null,
+          firedAt: Date.now(), resolvedAt: null,
+          acknowledgedAt: null, acknowledgedBy: null,
+        });
       }
     }
 
@@ -280,6 +333,108 @@ function createEvaluator(getNameFn, getRouterFn) {
         prevNetwatchState.set(host.id, host.status);
       }
     }
+
+    // BGP. These used to live in public/app.js and fired straight at the browser
+    // Notification API, so they never reached the Reports tab, never honoured
+    // alertsEnabled, and used their own 2-minute cooldown instead of
+    // notifCooldownSec.
+    //
+    // Every rule below is EDGE-triggered — fire on entering the condition,
+    // resolve on leaving it. The browser versions gated the three level
+    // conditions (prefix swing, flapping, hold timer) on a cooldown alone, which
+    // meant a peer with hold-time=3s/keepalive=0 re-alerted every 2 minutes
+    // forever: the condition is static configuration, so it never stopped being
+    // true. A cooldown cannot express "tell me once until it changes"; an edge
+    // can, and it is also what gives the bell something to resolve.
+    if (event === 'routing:update' && _settings.notifBgp && Array.isArray(data.peers)) {
+      for (const p of data.peers) {
+        const key   = p.key;
+        if (!key) continue;
+        const peer  = p.name || p.remoteAddr || key;
+        const where = p.remoteAddr ? peer + ' (' + p.remoteAddr + ')' : peer;
+        const isEst = p.state === 'established';
+        const prev  = prevBgpState.get(key);
+
+        if (prev !== undefined && prev !== isEst) {
+          if (!isEst) {
+            fire('bgp:' + key + ':down', {
+              alertType: 'BGP Peer Down', bgpPeer: peer,
+              detail: 'BGP peer ' + where + ' left established (' + (p.state || 'unknown') + ')',
+            }, false);
+          } else {
+            fire('bgp:' + key + ':up', {
+              alertType: 'BGP Peer Up', resolveType: 'bgp_peer_down', bgpPeer: peer,
+              detail: 'BGP peer ' + where + ' is established',
+            }, true);
+          }
+        }
+        _capMap(prevBgpState);
+        prevBgpState.set(key, isEst);
+
+        // Prefix swing. Compared against the previous ESTABLISHED reading, so a
+        // session bounce does not read as a 100% drop — the peer-down alert
+        // already covers that, and counting it twice is noise.
+        const oldPfx = prevBgpPfx.get(key);
+        if (isEst && typeof p.prefixes === 'number') {
+          if (oldPfx !== undefined && oldPfx > 0) {
+            const swung = Math.abs(p.prefixes - oldPfx) / oldPfx >= BGP_PFX_THRESH;
+            if (swung && !prevBgpPfxAlert.get(key)) {
+              const dir = p.prefixes > oldPfx ? '+' : '-';
+              fire('bgp-pfx:' + key + ':down', {
+                alertType: 'BGP Prefix Change', bgpPeer: peer,
+                detail: peer + ': ' + dir + Math.abs(p.prefixes - oldPfx) + ' prefixes (' +
+                        oldPfx + ' → ' + p.prefixes + ')',
+              }, false);
+              prevBgpPfxAlert.set(key, true);
+            } else if (!swung && prevBgpPfxAlert.get(key)) {
+              // The count held steady for a reading, so the table has settled.
+              fire('bgp-pfx:' + key + ':up', {
+                alertType: 'BGP Prefixes Settled', resolveType: 'bgp_prefix_change',
+                bgpPeer: peer, detail: peer + ': prefix count steady at ' + p.prefixes,
+              }, true);
+              prevBgpPfxAlert.set(key, false);
+            }
+          }
+          _capMap(prevBgpPfx);
+          prevBgpPfx.set(key, p.prefixes);
+        }
+
+        const flapping = !!p.flapping;
+        if (flapping !== !!prevBgpFlap.get(key)) {
+          if (flapping) {
+            fire('bgp-flap:' + key + ':down', {
+              alertType: 'BGP Session Flapping', bgpPeer: peer,
+              detail: 'BGP session ' + where + ' is flapping',
+            }, false);
+          } else if (prevBgpFlap.has(key)) {
+            fire('bgp-flap:' + key + ':up', {
+              alertType: 'BGP Session Stable', resolveType: 'bgp_session_flapping',
+              bgpPeer: peer, detail: 'BGP session ' + where + ' has stopped flapping',
+            }, true);
+          }
+          _capMap(prevBgpFlap);
+          prevBgpFlap.set(key, flapping);
+        }
+
+        // Hold timer / keepalive misconfiguration.
+        const badHold = isEst && p.holdTime > 0 && p.holdTime < 9 && p.keepalive === 0;
+        if (badHold !== !!prevBgpHold.get(key)) {
+          if (badHold) {
+            fire('bgp-hold:' + key + ':down', {
+              alertType: 'BGP Hold Timer Warning', bgpPeer: peer,
+              detail: peer + ': hold-time=' + p.holdTime + 's, keepalive=0',
+            }, false);
+          } else if (prevBgpHold.has(key)) {
+            fire('bgp-hold:' + key + ':up', {
+              alertType: 'BGP Hold Timer OK', resolveType: 'bgp_hold_timer_warning',
+              bgpPeer: peer, detail: peer + ': hold timer no longer misconfigured',
+            }, true);
+          }
+          _capMap(prevBgpHold);
+          prevBgpHold.set(key, badHold);
+        }
+      }
+    }
   }
 
   return { evaluate };
@@ -295,11 +450,35 @@ function fireConnectivityAlert(routerId, routerLabel, connected) {
 
   // Persist connectivity transition to DB unconditionally so the Reports tab
   // stays complete even when router-status notifications are disabled.
+  // Router up/down is the one alert that is inherently fleet-wide: the router it
+  // concerns is by definition not the one you are looking at when it matters.
+  // Broadcast rather than room-scoped, mirroring how `router:status` already
+  // reaches every browser — so this adds no exposure the client did not have.
+  // The browser shows it only for routers in its own (RBAC-filtered) list.
+  const _bcast = (event, payload) => {
+    if (!_io) return;
+    try { _io.emit(event, payload); } catch (e) { console.warn('[alerter] emit failed:', e.message); }
+  };
+
   if (connected) {
-    db.resolveAlertEvent(routerId, 'connectivity', null);
+    const ids = db.resolveAlertEvent(routerId, 'connectivity', null);
+    if (ids && ids.length) {
+      _bcast('alert:resolved', {
+        ids, routerId, routerName: routerLabel, alertType: 'connectivity',
+        subject: null, label: 'Router Online',
+        detail: routerLabel + ' is now reachable', resolvedAt: Date.now(),
+      });
+    }
   } else {
-    db.insertAlertEvent(routerId, 'connectivity', null,
+    const id = db.insertAlertEvent(routerId, 'connectivity', null,
       routerLabel + ' is unreachable');
+    _bcast('alert:fired', {
+      id, routerId, routerName: routerLabel, alertType: 'connectivity',
+      subject: null, label: 'Router Offline',
+      detail: routerLabel + ' is unreachable',
+      firedAt: Date.now(), resolvedAt: null,
+      acknowledgedAt: null, acknowledgedBy: null,
+    });
   }
 
   // Send push only when the router-status toggle is on AND a channel exists.
@@ -350,6 +529,9 @@ function _evaluatorFor(routerId) {
 
 function init(io, settings) {
   _settings = settings;
+  // Previously discarded. The alerter is now the single detector for the whole
+  // app, so it needs a way to tell the browser what it found.
+  _io = io || null;
 }
 
 // Called from buildRouterIo.emit for every event emitted by a pool-session

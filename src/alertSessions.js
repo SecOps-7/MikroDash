@@ -70,7 +70,14 @@ function _buildSession(router) {
     },
     // Collectors that emit via io.to(room).emit (e.g. vpn) must still reach the
     // evaluator here — without to() they would throw and VPN alerts never fire.
-    to() { return { emit: (e, d) => stubIo.emit(e, d), to: () => ({ emit: (e, d) => stubIo.emit(e, d) }) }; },
+    // Recursively chainable: a collector reaching three rooms (ifstatus, #108)
+    // threw "to is not a function" here with the old two-level shim, killing the
+    // alert pool. Depth is irrelevant to this shim — every emit is forwarded to
+    // the evaluator regardless of room — so it must not care how deep it goes.
+    to() {
+      const _c = { to: () => _c, emit: (e, d) => stubIo.emit(e, d) };
+      return _c;
+    },
     on() {},
     sockets: { adapter: { rooms: { get() { return undefined; } } } },
   };
