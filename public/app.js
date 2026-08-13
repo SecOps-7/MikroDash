@@ -2568,6 +2568,32 @@ function clearDashboardData() {
 
 socket.on('router:switching', function () { clearDashboardData(); });
 
+// Room memberships are per-socket AND per-router — they are named
+// router-<id>-page-<name> and router-<id>-dash-card-<key>. A switch moves this
+// socket into the new router's BASE room only, so every page- and card-scoped
+// collector went on emitting into rooms it had just left: Connections
+// (page-connections, dash-card-connections) and Top Talkers (page-dashboard)
+// showed the old router's rows and then went stale, while the sidebar counts —
+// which ride the base room — kept updating.
+//
+// router:active is the one signal every path shares: sendInitialState emits it
+// on connect, on the per-user switch and on the global hot-swap alike. Reacting
+// to a CHANGE of id re-joins through the ordinary page:focus / dashcard:focus
+// handlers, so the role gate is re-applied against the new router rather than
+// carried over from the old one.
+var _roomsRouterId = '';
+socket.on('router:active', function (data) {
+  var id = (data && data.activeId) || '';
+  if (!id || id === _roomsRouterId) return;
+  var first = !_roomsRouterId;
+  _roomsRouterId = id;
+  // On a fresh connect the connect handler has already joined these rooms.
+  if (first) return;
+  socket.emit('page:focus', _currentPage);
+  // dashboard-grid.js listens for this and re-joins every visible card's room.
+  document.dispatchEvent(new CustomEvent('socket:reconnect'));
+});
+
 var _collectionOff = {};      // cardId -> true when its collector is off here
 function _collectionOffCard(cardId){ return !!_collectionOff[cardId]; }
 
