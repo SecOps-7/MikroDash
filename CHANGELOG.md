@@ -2,6 +2,28 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.6] — Switching routers keeps the dashboard live
+
+Switching from one router to another left the browser subscribed to nothing. Connections and Top
+Talkers kept showing the router you had just left, and then went stale — while their sidebar badges
+carried on ticking, which is exactly what made it look like the connection was healthy.
+
+Nothing to do on upgrade; no settings or data change.
+
+### Fixed
+- **Connections and Top Talkers now follow a router switch.** Room names are per-router, and a
+  switch moved the browser into the new router's base room only — so the two collectors that emit
+  *only* into page and card rooms went on delivering into rooms the browser had just left. The
+  lightweight counts behind the nav badges ride the base room, which is why they kept updating while
+  the cards did not. The browser now re-joins its page and dashboard-card rooms whenever the active
+  router changes, through the ordinary focus handlers, so a role is re-evaluated against the new
+  router rather than carried over from the old one.
+- **A switch under the default (modern) auth mode now resets the dashboard.** Every browser-side
+  reset hung off an event only the legacy `authMode: 'none'` path ever emitted, so on a normal
+  install none of them fired: cleared card rows, the connections map's country counts, and the
+  traffic and bandwidth charts all kept the previous router's state. Both switch paths now announce
+  themselves, and the reset is sent before the new router's first payload so it cannot wipe it.
+
 ## [0.7.5] — Custom, page-scoped roles
 
 A role used to be one of three names compiled into the source: `viewer`, `operator`, `admin`. That
