@@ -3666,6 +3666,14 @@ io.on('connection', (socket) => {
     const oldRid = socket.routerId;
     if (oldRid === newRouterId) return;
 
+    // Reset this socket's UI before it starts receiving the new router's data.
+    // Only the global (authMode 'none') hot-swap used to emit this, so under
+    // modern auth — where a switch comes through here instead — none of the
+    // browser's reset handlers ever fired and every card kept the previous
+    // router's rendered rows. Emitted before the replay below, so the reset
+    // cannot land on top of the new router's first payload.
+    socket.emit('router:switching', { routerId: newRouterId, label: router.label });
+
     // Detach from the old session's traffic collector — otherwise it keeps this
     // socket's interface in its monitor-traffic stream until disconnect.
     const oldEntry = oldRid ? _routerSessions.get(oldRid) : null;

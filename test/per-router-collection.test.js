@@ -1092,3 +1092,50 @@ test('every dashboard card that renders rows is cleared on a router switch', () 
   assert.ok(/socket\.on\('router:switching', function \(\) \{ clearDashboardData\(\); \}\)/.test(app),
     'clearDashboardData() is never called on router:switching');
 });
+
+test('the per-user router switch announces itself to the browser', () => {
+  // Every browser-side reset on a switch hangs off router:switching, but only
+  // the global (authMode 'none') hot-swap ever emitted it. Modern auth switches
+  // through the socket instead, so none of those handlers fired: the cards kept
+  // the previous router's rendered rows indefinitely.
+  const fs   = require('fs');
+  const path = require('path');
+  const idx  = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+
+  const i = idx.indexOf("socket.on('router:switch'");
+  assert.ok(i > 0, 'the router:switch handler is gone');
+  const body = idx.slice(i, idx.indexOf("socket.on('", i + 30));
+
+  assert.ok(/socket\.emit\('router:switching'/.test(body),
+    'router:switch must emit router:switching so the browser resets its cards');
+  // Order matters: the reset has to reach the browser before the replay it is
+  // meant to precede, or it wipes the new router's first payload instead.
+  assert.ok(body.indexOf("socket.emit('router:switching'") < body.indexOf('sendInitialState'),
+    'router:switching must be emitted before sendInitialState replays the new router');
+});
+
+test("a router switch re-joins the new router's page and dash-card rooms", () => {
+  // Room names are per-router (router-<id>-page-*, router-<id>-dash-card-*).
+  // A switch moves the socket to the new base room only, so page- and
+  // card-scoped collectors — Connections and Top Talkers among them — went on
+  // emitting into rooms the socket had just left. The card kept the old
+  // router's data and then went stale.
+  const fs   = require('fs');
+  const path = require('path');
+  const app  = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const idx  = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+
+  // The signal: sendInitialState stamps every replay with the router it is for,
+  // on every path (connect, personal switch, global hot-swap).
+  assert.ok(/socket\.emit\('router:active', \{ activeId: s\.routerId \}\)/.test(idx),
+    'sendInitialState must tell the socket which router it is now watching');
+
+  const i = app.indexOf("socket.on('router:active', function (data)");
+  assert.ok(i > 0, 'app.js has no router:active room-resync handler');
+  const body = app.slice(i, i + 900);
+
+  assert.ok(/socket\.emit\('page:focus', _currentPage\)/.test(body),
+    'the current page room must be re-joined under the new router prefix');
+  assert.ok(/CustomEvent\('socket:reconnect'\)/.test(body),
+    'dashboard-grid.js re-joins the dash-card rooms off socket:reconnect');
+});
