@@ -2,6 +2,73 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.5] — Custom, page-scoped roles
+
+A role used to be one of three names compiled into the source: `viewer`, `operator`, `admin`. That
+can say *who* and *where* but not *what* — a viewer saw every page of every router they could reach,
+and the only way to hide a page was a per-install toggle that applied to everyone equally. Roles are
+rows now, and a role is a matrix of **page → read/write**, granted to a user or a group over
+everything, one site, or a single router.
+
+**Upgrading is automatic and changes nobody's access.** Migrations v7 and v8 run at startup, each in
+its own transaction. Existing grants are mapped onto three seeded roles that reproduce today's
+behaviour exactly — **Read Only** deliberately has no Reports page, because a viewer holds
+`router:read` and nothing else, and granting Reports would have handed every existing viewer
+historical data and CSV exports they never had. **Administrator** is built in, carries no page rows
+at all, and stays that way so a permission added in a future release is covered without another
+migration. Read Only and Operator are ordinary roles you can edit.
+
+**Back up `/data` before upgrading.** The `grants` table is rebuilt. Each migration is atomic, so a
+failure rolls back rather than leaving a half-migrated table, but the usual advice applies. Rolling
+back to 0.7.0 keeps working: the legacy `role` column survives as a write-only mirror, and v8 gives
+`role_id` a least-privilege default so an older binary can still write grants instead of failing on
+a NOT NULL constraint.
+
+### Added
+- **Roles** — Settings → Authentication → Access Management → Roles. A 14-row page matrix with a
+  three-way None/Read/Write control per page. Write toggles are disabled on pages that have no write
+  action yet, rather than hidden, so the matrix keeps its shape for issue #97.
+- **Access Management** — Users, Groups, Sites and Roles now share one tabbed card that fills the
+  viewport and scrolls internally. Add and edit open centre-screen dialogs instead of pushing the
+  table down.
+- Users are granted access the same way groups already were: rows of *role over scope*, so one
+  person can hold different roles at different sites. The old single-role dropdown and
+  all-or-listed-routers picker are gone.
+- Permission changes reach open browsers live — editing a role no longer needs a reload.
+
+### Changed
+- Page visibility is now the conjunction of the install-wide toggle and the session's role. A page
+  shows only if both allow it.
+- Collectors deliver page-scoped payloads. Seven collectors were split so global chrome (sidebar
+  counts, the traffic interface picker, WAN IP) still reaches every session while the page detail
+  reaches only those permitted — a denied page no longer streams its data to the browser at all.
+- `Users.adminCount()` was removed rather than left unused: a count of user records cannot see an
+  administrator whose grant is held through a group. `Rbac.wouldOrphanGlobalAdmin()` answers instead.
+
+### Fixed
+- The Topology page visibility toggle never worked — the setting existed and the client read it, but
+  the server neither persisted nor broadcast it.
+- `.sbtn-outline` was referenced in a dozen places and never defined, so those buttons fell back to
+  the browser's default grey instead of the theme.
+- `/api/topology-layout` took a `routerId` with no authorization check, making it a cross-router
+  probe for any signed-in session.
+- `buildRouterIo`, `alertSessions` and `overviewSessions` each capped Socket.IO room chaining at two
+  levels, throwing as soon as a collector needed three.
+
+### Security
+- System administration — users, groups, roles, sites — is reachable only by an Administrator at
+  global scope. This is enforced in the resolver, which strips those permissions from any role
+  however its page matrix is configured, so a site-scoped grant can never reach them.
+- `POST /api/settings` now strips `authMode`, session timeout, credentials and `_reset` unless the
+  caller can manage principals — otherwise a role holding Settings:write could disable authentication.
+- Deleting the last administrator is refused across every path that can cause it, including removing
+  the last member from a group that holds the grant.
+
+### Known limitation
+- Page permissions govern what the browser is sent, not what the router collects: collectors are
+  shared per router across every viewer. Data for a denied page is not delivered, but a router a user
+  can read is still collected in full.
+
 ## [0.7.0] — Per-router collection settings, and the poll path made real
 
 Stream-vs-poll and collector enablement used to live once in `settings.json` and apply to every

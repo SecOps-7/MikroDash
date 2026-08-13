@@ -104,6 +104,7 @@ const DEFAULTS = {
   pollPing:          parseInt(process.env.PING_POLL_MS      || '5000',  10),
   pollArp:           parseInt(process.env.ARP_POLL_MS       || '30000', 10),
   pollDhcp:          parseInt(process.env.DHCP_POLL_MS      || '600000', 10),
+  pollTopology:      parseInt(process.env.TOPOLOGY_POLL_MS  || '30000', 10),
 
   // Custom poll profile — JSON string of {pollSystem:N,...} saved by user; empty = not configured
   customPollProfile: '',
@@ -152,6 +153,10 @@ const DEFAULTS = {
   // Off by default deliberately: switching a new alert type on for existing
   // installs would fire on upgrade for every router already behind a release.
   notifRouterUpdate: false,
+  // BGP peer state, prefix swings, flapping and hold-timer misconfiguration.
+  // On by default: these used to fire unconditionally from the browser with no
+  // toggle at all, so defaulting off would silently remove alerts people have.
+  notifBgp:          true,
 
   // Interface type filter for up/down alerts
   notifIfaceEther:   true,
@@ -183,6 +188,7 @@ const DEFAULTS = {
   pageFirewall:    true,
   pageLogs:        true,
   pageBandwidth:   true,
+  pageTopology:    true,
 
   // Set once by the #105 migration, then never read again.
   collectionMigrated: false,
@@ -228,6 +234,7 @@ const ENV_MAP = {
   pollPing:          ['PING_POLL_MS',         v => parseInt(v, 10)],
   pollArp:           ['ARP_POLL_MS',          v => parseInt(v, 10)],
   pollDhcp:          ['DHCP_POLL_MS',         v => parseInt(v, 10)],
+  pollTopology:      ['TOPOLOGY_POLL_MS',     v => parseInt(v, 10)],
   topN:              ['TOP_N',                v => parseInt(v, 10)],
   topTalkersN:       ['TOP_TALKERS_N',        v => parseInt(v, 10)],
   firewallTopN:      ['FIREWALL_TOP_N',       v => parseInt(v, 10)],
@@ -259,7 +266,7 @@ const POLL_BOUNDS = Object.freeze({
   pollRouting:[500,300000], pollSystem:[1000,60000], pollWireless:[10000,600000],
   pollVpn:[1000,30000], pollFirewall:[1000,30000], pollIfstatus:[1000,60000],
   pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
-  pollDhcp:[10000,600000],
+  pollDhcp:[10000,600000], pollTopology:[10000,300000],
 });
 
 /**
@@ -387,7 +394,7 @@ const VIEWER_FIELDS = [
   'alertCpuThreshold', 'alertPingLoss',
   'activeRouterId',
   'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
-  'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting',
+  'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting', 'pageTopology',
   'displayTimezone',
 ];
 

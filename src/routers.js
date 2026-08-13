@@ -24,6 +24,13 @@
  *   bwDownMbps:  number,   // WAN download capacity in Mbps (default 1000 = 1 Gbps)
  *   bwUpMbps:    number,   // WAN upload capacity in Mbps   (default 1000 = 1 Gbps)
  *   addedAt:     number,   // epoch ms
+ *   alertsEnabled:        boolean,  // per-router alert monitoring
+ *   connDownThresholdSec: number,   // 0-300, debounce before declaring offline
+ *   disabled:    boolean,  // set via PUT; the session is torn down while true
+ *   siteId:      string|null,  // site membership (#78); null = no site.
+ *                              // Sites live in SQLite — only the membership is
+ *                              // here, so there is no foreign key, and deleting
+ *                              // a site must call clearSite() to detach routers.
  *   model/serial/osVersion: string,  // learned from RouterOS, see updateIdentity()
  *   collection:  {         // optional, per-router collection settings (#105)
  *     mode:      'stream'|'poll',        // delivery; absent = stream
@@ -278,6 +285,32 @@ function getById(id) {
  * password, defaultIf, pingTarget, label (optional).
  * Returns the saved router object (with generated id, decrypted password).
  */
+// Site ids come from the browser, so they are validated rather than trusted.
+// Empty string, null and undefined all mean "no site" — the picker's
+// "— No site —" option submits '', and an old record has the field absent.
+const _SITE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+function _cleanSiteId(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v).trim();
+  return _SITE_ID_RE.test(s) ? s : null;
+}
+
+/**
+ * Detach every router from a site. Called when the site is deleted: sites live
+ * in SQLite and routers in JSON, so there is no foreign key to cascade through.
+ * Returns how many routers were changed.
+ */
+function clearSite(siteId) {
+  if (!siteId) return 0;
+  const routers = loadAll();
+  let changed = 0;
+  for (const r of routers) {
+    if (r.siteId === siteId) { r.siteId = null; changed++; }
+  }
+  if (changed) { _cache = routers; _writeFile(routers); }
+  return changed;
+}
+
 function add(data) {
   _validateHostPort(data.host, data.port !== undefined ? data.port : 8729);
   const routers = loadAll();
@@ -299,6 +332,11 @@ function add(data) {
     alertsEnabled:       !!(data.alertsEnabled),
     connDownThresholdSec:(function(){ var n = parseInt(data.connDownThresholdSec, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     collection:          _normalizeCollection(data.collection, null),
+    // Site membership (issue #78). Exactly one site, or none. Sites themselves
+    // live in SQLite; only the membership is here, next to the rest of the
+    // router's configuration. An absent field reads as site-less, so existing
+    // records need no migration.
+    siteId:              _cleanSiteId(data.siteId),
     disabled:            false,
     addedAt:             Date.now(),
   };
@@ -342,6 +380,7 @@ function update(id, data) {
     alertsEnabled:       data.alertsEnabled       !== undefined ? !!(data.alertsEnabled)           : !!(existing.alertsEnabled),
     connDownThresholdSec:(function(){ var raw = data.connDownThresholdSec !== undefined ? data.connDownThresholdSec : (existing.connDownThresholdSec !== undefined ? existing.connDownThresholdSec : 30); var n = parseInt(raw, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     collection:          _normalizeCollection(data.collection, existing),
+    siteId:              data.siteId !== undefined ? _cleanSiteId(data.siteId) : (existing.siteId || null),
     disabled:            data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),
   };
 
@@ -429,4 +468,4 @@ function getPublic() {
 /** Invalidate the in-memory cache (used after external settings changes). */
 function invalidateCache() { _cache = null; }
 
-module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, remove, getPublic, invalidateCache };
+module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, remove, getPublic, invalidateCache, clearSite };

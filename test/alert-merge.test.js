@@ -1,0 +1,183 @@
+// Tests for the merge of the notification bell into the server alerting system.
+//
+// The bell used to be an independent, browser-only, in-memory detector; the
+// server had a second one driving push channels. They disagreed. The server is
+// now the only detector and the bell is a view of what it recorded. What is
+// tested here is the seam that makes that true — the emit alongside the DB
+// write — plus the BGP rules that moved across, because they changed shape on
+// the way (cooldown-gated → edge-triggered).
+
+const { test } = require('node:test');
+const assert   = require('node:assert');
+const path     = require('node:path');
+const Module   = require('node:module');
+
+// ── db and routers stubs ────────────────────────────────────────────────────
+// alerter.js requires both directly. Seeding require.cache before it loads is
+// what lets these tests assert on the recorded rows without a real SQLite file.
+const inserted = [];
+const resolved = [];
+let   nextId   = 1;
+let   resolveIds = null;   // what resolveAlertEvent should claim it closed
+
+const dbStub = {
+  insertAlertEvent(routerId, alertType, subject, detail) {
+    const id = nextId++;
+    inserted.push({ id, routerId, alertType, subject, detail });
+    return id;
+  },
+  resolveAlertEvent(routerId, alertType, subject) {
+    resolved.push({ routerId, alertType, subject });
+    // Default: pretend one row was open, since that is the ordinary case.
+    return resolveIds === null ? [nextId++] : resolveIds;
+  },
+  insertConnectivityEvent() {},
+};
+
+const routersStub = { getById: () => ({ id: 'r1', alertsEnabled: true }) };
+
+function stub(relPath, exports) {
+  const abs = require.resolve(path.join(__dirname, '..', 'src', relPath));
+  require.cache[abs] = new Module(abs, null);
+  require.cache[abs].filename = abs;
+  require.cache[abs].loaded   = true;
+  require.cache[abs].exports  = exports;
+}
+stub('db.js', dbStub);
+stub('routers.js', routersStub);
+
+const alerter = require('../src/alerter');
+
+// No channel is enabled anywhere in here. That is the point: the common case is
+// a user who has never configured Telegram, and the bell must still work.
+const SETTINGS = {
+  notifCpu: true, notifBgp: true, notifCooldownSec: 60,
+  alertCpuThreshold: 80,
+};
+
+function harness(settings) {
+  const emits = [];
+  const io = {
+    to(room) { return { emit: (ev, payload) => emits.push({ room, ev, payload }) }; },
+    emit(ev, payload) { emits.push({ room: null, ev, payload }); },
+  };
+  inserted.length = 0; resolved.length = 0; nextId = 1; resolveIds = null;
+  alerter.init(io, Object.assign({}, SETTINGS, settings || {}));
+  const ev = alerter.createEvaluator(() => 'Home', () => ({ id: 'r1', alertsEnabled: true }));
+  return { emits, ev };
+}
+
+const peer = (over) => Object.assign({
+  key: 'p1', name: 'upstream', remoteAddr: '10.0.0.1',
+  state: 'established', prefixes: 100, flapping: false, holdTime: 180, keepalive: 60,
+}, over);
+
+// ── the seam ────────────────────────────────────────────────────────────────
+
+test('an alert reaches the bell with no push channel configured', () => {
+  // The regression this guards: putting the emit below the _noChannelsActive()
+  // return in fire() silences the bell for everyone without Telegram/ntfy/SMTP,
+  // which is most people. The emit belongs with the unconditional DB write.
+  const { emits, ev } = harness();
+  ev.evaluate('system:update', { cpuLoad: 95 });
+
+  const fired = emits.filter(e => e.ev === 'alert:fired');
+  assert.equal(fired.length, 1, 'the bell must be told even with no channel enabled');
+  assert.equal(fired[0].room, 'router-r1', 'the alert belongs to its router, not the fleet');
+  assert.equal(fired[0].payload.alertType, 'high_cpu');
+  assert.equal(fired[0].payload.routerName, 'Home');
+  assert.equal(typeof fired[0].payload.id, 'number', 'the bell needs the row id to acknowledge it');
+  assert.equal(fired[0].payload.resolvedAt, null);
+  assert.equal(inserted.length, 1, 'and it must be recorded, not only broadcast');
+});
+
+test('a resolve names only the rows it actually closed', () => {
+  // resolveAlertEvent returns the ids it updated. Emitting a resolve when it
+  // closed nothing would tell the bell to strike through an alert that is still
+  // open — the two systems disagreeing again, in a new place.
+  const h = harness();
+  h.ev.evaluate('system:update', { cpuLoad: 95 });
+  resolveIds = [];
+  h.ev.evaluate('system:update', { cpuLoad: 10 });
+  assert.equal(h.emits.filter(e => e.ev === 'alert:resolved').length, 0,
+    'nothing was open, so nothing may be announced as resolved');
+
+  const h2 = harness();
+  h2.ev.evaluate('system:update', { cpuLoad: 95 });
+  resolveIds = [41, 42];
+  h2.ev.evaluate('system:update', { cpuLoad: 10 });
+  const done = h2.emits.filter(e => e.ev === 'alert:resolved');
+  assert.equal(done.length, 1);
+  assert.deepEqual(done[0].payload.ids, [41, 42]);
+  assert.equal(done[0].payload.alertType, 'high_cpu',
+    'the resolve must carry the DOWN alert type so the bell can match the open row');
+});
+
+// ── BGP rules ported from the browser ───────────────────────────────────────
+
+test('a misconfigured BGP hold timer alerts once, not on every update', () => {
+  // This is the bug the port fixes. In the browser this was gated on a 2-minute
+  // cooldown, but hold-time=3s/keepalive=0 is static configuration — it never
+  // stops being true, so the alert repeated every 2 minutes indefinitely.
+  const { emits, ev } = harness();
+  const bad = peer({ holdTime: 3, keepalive: 0 });
+  for (let i = 0; i < 6; i++) ev.evaluate('routing:update', { peers: [bad] });
+
+  const hold = inserted.filter(r => r.alertType === 'bgp_hold_timer_warning');
+  assert.equal(hold.length, 1, 'a standing misconfiguration is worth exactly one alert');
+  assert.equal(hold[0].subject, 'upstream', 'the peer name must land in subject');
+
+  // ...and it clears when the configuration is fixed.
+  ev.evaluate('routing:update', { peers: [peer()] });
+  assert.equal(resolved.filter(r => r.alertType === 'bgp_hold_timer_warning').length, 1);
+  assert.ok(emits.some(e => e.ev === 'alert:resolved' &&
+                            e.payload.alertType === 'bgp_hold_timer_warning'));
+});
+
+test('BGP peer down and up are edge-triggered', () => {
+  const { ev } = harness();
+  ev.evaluate('routing:update', { peers: [peer()] });                    // baseline, silent
+  assert.equal(inserted.length, 0, 'the first sighting is a baseline, not a transition');
+
+  ev.evaluate('routing:update', { peers: [peer({ state: 'idle' })] });
+  ev.evaluate('routing:update', { peers: [peer({ state: 'idle' })] });   // still down
+  assert.equal(inserted.filter(r => r.alertType === 'bgp_peer_down').length, 1,
+    'a peer that stays down is one alert, not one per poll');
+
+  ev.evaluate('routing:update', { peers: [peer()] });
+  assert.equal(resolved.filter(r => r.alertType === 'bgp_peer_down').length, 1);
+});
+
+test('a BGP prefix swing resolves once the count settles', () => {
+  const { ev } = harness();
+  ev.evaluate('routing:update', { peers: [peer({ prefixes: 100 })] });
+  ev.evaluate('routing:update', { peers: [peer({ prefixes: 500 })] });   // +400%, fires
+  assert.equal(inserted.filter(r => r.alertType === 'bgp_prefix_change').length, 1);
+
+  ev.evaluate('routing:update', { peers: [peer({ prefixes: 505 })] });   // steady, resolves
+  assert.equal(resolved.filter(r => r.alertType === 'bgp_prefix_change').length, 1);
+
+  // A swing smaller than the threshold is not an alert at all.
+  const h2 = harness();
+  h2.ev.evaluate('routing:update', { peers: [peer({ prefixes: 100 })] });
+  h2.ev.evaluate('routing:update', { peers: [peer({ prefixes: 110 })] });
+  assert.equal(inserted.filter(r => r.alertType === 'bgp_prefix_change').length, 0);
+});
+
+test('a session bounce is not also counted as a prefix collapse', () => {
+  // Prefixes are compared against the last ESTABLISHED reading. Comparing
+  // against the last reading of any kind would make every peer-down alert drag
+  // a bogus "-100% prefixes" alert along behind it.
+  const { ev } = harness();
+  ev.evaluate('routing:update', { peers: [peer({ prefixes: 100 })] });
+  ev.evaluate('routing:update', { peers: [peer({ state: 'idle', prefixes: 0 })] });
+  ev.evaluate('routing:update', { peers: [peer({ prefixes: 100 })] });
+  assert.equal(inserted.filter(r => r.alertType === 'bgp_prefix_change').length, 0);
+});
+
+test('BGP alerts respect the notifBgp toggle', () => {
+  const { ev } = harness({ notifBgp: false });
+  ev.evaluate('routing:update', { peers: [peer()] });
+  ev.evaluate('routing:update', { peers: [peer({ state: 'idle' })] });
+  assert.equal(inserted.length, 0);
+});

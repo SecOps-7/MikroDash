@@ -573,7 +573,23 @@ class InterfaceStatusCollector {
     if (fp === this._lastFp && now - this._lastEmitTs < 60000) return;
     this._lastFp = fp;
     this._lastEmitTs = now;
-    this.io.emit('ifstatus:update', this.lastPayload);
+    // Split delivery (issue #108). The full payload carries per-interface
+    // rates, IP addresses and MACs, so it goes only to the pages that render
+    // them: Interfaces, Topology (link rates — see public/js/topology.js) and
+    // the dashboard ports card.
+    //
+    // The router-wide half carries names and up/down only. That is exactly what
+    // the traffic chart's interface picker and the sidebar badge need, and it
+    // is chrome on every page — so it must not be withheld, and it must not
+    // disclose anything a denied page would have shown.
+    const ifs = this.lastPayload.interfaces || [];
+    this.io.to('page-interfaces').to('page-topology').to('dash-card-physports')
+      .emit('ifstatus:update', this.lastPayload);
+    this.io.emit('ifstatus:names', {
+      ts: this.lastPayload.ts,
+      total: ifs.length,
+      interfaces: ifs.map(i => ({ name: i.name, running: !!i.running, disabled: !!i.disabled })),
+    });
   }
 
   _stopRatesPoll() {

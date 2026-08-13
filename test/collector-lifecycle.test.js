@@ -487,7 +487,7 @@ test('traffic collector rejects control characters and oversized names', () => {
 test('wireless collector detects wifi API mode and locks in', () => {
   const ros = mockROS();
   ros.stream = () => { const s = { stop() {} }; s.on = () => s; return s; };
-  const io = { emit() {} };
+  const io = { to() { return io; }, emit() {} };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
@@ -506,7 +506,7 @@ test('wireless collector falls back to legacy API when wifi returns empty batch'
     if (words[0].includes('/interface/wireless/')) wirelessStarted = true;
     const s = { stop() {} }; s.on = () => s; return s;
   };
-  const io = { emit() {} };
+  const io = { to() { return io; }, emit() {} };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
@@ -521,7 +521,7 @@ test('wireless collector falls back to legacy API when wifi returns empty batch'
 test('wireless collector resets mode on reconnect and does not auto-start streams', () => {
   const ros = mockROS();
   ros.stream = () => { const s = { stop() {} }; s.on = () => s; return s; };
-  const io = { emit() {} };
+  const io = { to() { return io; }, emit() {} };
   const collector = new WirelessCollector({
     ros, io, pollMs: 5000, state: {},
     dhcpLeases: { getNameByMAC: () => null },
@@ -575,7 +575,7 @@ test('dhcp networks collector deduplicates LAN CIDRs', async () => {
     if (cmd.includes('address')) return [];
     return [];
   });
-  const io = { emit() {} };
+  const io = { to() { return io; }, emit() {} };
   const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] }, state: {} });
   await collector._fetchOnce();
 
@@ -1233,7 +1233,7 @@ test('PingCollector stop() clears stream', () => {
     fakeStream.stop = () => Promise.resolve();
     const ros = mockROS(async () => []);
     ros.stream = () => fakeStream;
-    const io = { emit() {}, on() {} };
+    const io = { to() { return io; }, emit() {}, on() {} };
     const collector = new PingCollector({ ros, io, pollMs: 10000, state: {}, target: '1.1.1.1' });
     collector.start();
     assert.ok(collector._stream, 'stream set after start');

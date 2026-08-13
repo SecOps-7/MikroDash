@@ -347,3 +347,78 @@ describe('routers _validateHostPort (via add())', () => {
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Area N — Topology layout persistence (src/topologyLayout.js)
+//
+// This is the only endpoint where caller-supplied strings become OBJECT KEYS in
+// a file written to disk, so the validator is tested directly rather than only
+// through a running server.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('topology layout validation', () => {
+  const { isValidRouterId, cleanPositions, MAX_NODES, COORD_LIMIT } =
+    require('../src/topologyLayout');
+
+  test('accepts a well-formed positions map and rounds coordinates', () => {
+    const out = cleanPositions({ '48:A9:8A:E5:CE:34': { x: 320.4567, y: -180.5123 } });
+    assert.deepEqual(out['48:A9:8A:E5:CE:34'], { x: 320.5, y: -180.5 });
+  });
+
+  test('accepts the id: fallback key used when a neighbour has no MAC', () => {
+    assert.ok(cleanPositions({ 'id:3': { x: 1, y: 2 } }));
+  });
+
+  test('rejects prototype-pollution keys outright', () => {
+    for (const k of ['__proto__', 'constructor', 'prototype']) {
+      const raw = {};
+      Object.defineProperty(raw, k, { value: { x: 1, y: 1 }, enumerable: true, configurable: true });
+      assert.equal(cleanPositions(raw), null, k + ' must be rejected');
+    }
+    assert.equal(Object.prototype.polluted, undefined);
+  });
+
+  test('rejects path traversal and separators in keys', () => {
+    for (const k of ['../../etc/passwd', 'a/b', 'a\\b', 'a b', 'k'.repeat(65), '']) {
+      assert.equal(cleanPositions({ [k]: { x: 1, y: 1 } }), null, JSON.stringify(k));
+    }
+  });
+
+  test('rejects non-finite, missing and non-numeric coordinates', () => {
+    for (const v of [{ x: NaN, y: 0 }, { x: 0, y: Infinity }, { x: 'a', y: 1 }, { x: 1 }, {}, null, [1, 2], 'x']) {
+      assert.equal(cleanPositions({ 'AA:BB': v }), null, JSON.stringify(v));
+    }
+  });
+
+  test('clamps coordinates rather than trusting them', () => {
+    const out = cleanPositions({ 'AA:BB': { x: 1e9, y: -1e9 } });
+    assert.equal(out['AA:BB'].x, COORD_LIMIT);
+    assert.equal(out['AA:BB'].y, -COORD_LIMIT);
+  });
+
+  test('rejects an oversized map', () => {
+    const raw = {};
+    for (let i = 0; i <= MAX_NODES; i++) raw['AA:BB:CC:00:00:' + i] = { x: 0, y: 0 };
+    assert.equal(cleanPositions(raw), null);
+  });
+
+  test('rejects arrays and non-objects', () => {
+    for (const v of [null, undefined, [], 'x', 42, true]) assert.equal(cleanPositions(v), null);
+  });
+
+  test('an empty map is valid — it is how Re-layout resets a router', () => {
+    assert.deepEqual(Object.keys(cleanPositions({})), []);
+  });
+
+  test('the result has a null prototype, so a later key write cannot pollute', () => {
+    assert.equal(Object.getPrototypeOf(cleanPositions({ 'AA:BB': { x: 0, y: 0 } })), null);
+  });
+
+  test('router ids are constrained to a safe filename-ish charset', () => {
+    assert.ok(isValidRouterId('dc1c5d9c-6df4-411b-a741-0245c66a2ad7'));
+    assert.ok(isValidRouterId('r1'));
+    for (const bad of ['../etc', 'a/b', 'a b', '', 'x'.repeat(65), 'a.b', null, 42]) {
+      assert.equal(isValidRouterId(bad), false, JSON.stringify(bad));
+    }
+  });
+});

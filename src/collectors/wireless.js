@@ -204,7 +204,14 @@ class WirelessCollector {
     this.state.lastWirelessErr = null;
     if (fp !== this._lastFp) {
       this._lastFp = fp;
-      this.io.emit('wireless:update', payload);
+      // Client detail is page-scoped (issue #108). Only the count stays
+      // router-wide: it feeds the sidebar badge, which shows on every page and
+      // discloses nothing about who is connected.
+      //
+      // Payload first, count second — so a test recording emits in order still
+      // finds the payload at index 0.
+      this.io.to('page-wireless').to('dash-card-wireless').emit('wireless:update', payload);
+      this.io.emit('wireless:count', { ts: payload.ts, count: (payload.clients || []).length });
     }
 
     const hasUnnamed = parsed.length > 0 && parsed.some(c => !c.name);
@@ -226,7 +233,8 @@ class WirelessCollector {
             const newPayload = { ...this.lastPayload, ts: Date.now(), clients: reParsed };
             this.lastPayload = newPayload;
             this._lastFp     = newFp;
-            this.io.emit('wireless:update', newPayload);
+            this.io.to('page-wireless').to('dash-card-wireless').emit('wireless:update', newPayload);
+            this.io.emit('wireless:count', { ts: newPayload.ts, count: (newPayload.clients || []).length });
           }
         }
         // Keep retrying only while PTR lookups for known IPs are still in-flight
