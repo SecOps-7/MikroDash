@@ -131,3 +131,77 @@ test('every nav item and page container matches a registry page', () => {
     assert.ok(HTML.includes('id="page-' + k + '"'), 'missing #page-' + k + ' container');
   }
 });
+
+test('the signed-in user chip is not navigation, and cannot be swept away', () => {
+  // History, because the fix looks like nothing: the chip used to carry
+  // data-page="settings". That made it a match for the nav sweep, which hid it
+  // for every role without Settings access — everyone but Administrator —
+  // taking the username and the sign-out button with it and leaving no way to
+  // log out at all. It was then exempted by name inside the sweep.
+  //
+  // The exemption is gone because it is no longer needed: the chip carries no
+  // data-page at all, so the sweep's selector cannot match it in the first
+  // place. That is the stronger guarantee, and it is what this pins. Who you
+  // are signed in as, and the ability to stop being signed in, are not
+  // permissions.
+  assert.ok(/id="authUserChip"/.test(HTML), 'the user chip is gone');
+
+  const chipAt = HTML.indexOf('id="authUserChip"');
+  const chip   = HTML.slice(chipAt, chipAt + 900);
+  assert.ok(/class="nav-item"/.test(chip), 'the chip still wears .nav-item for the sidebar styling');
+  assert.ok(!/data-page=/.test(chip.slice(0, chip.indexOf('</div>'))),
+    'the chip must carry no data-page — that attribute is what made the sweep able to hide it');
+
+  // …and because it has no data-page, the generic nav click loop must skip it,
+  // or clicking it would call showPage(undefined) and blank the page.
+  // Anchored on the navigation itself: several loops iterate .nav-item (showPage
+  // clears the active class with one), and only the one that navigates matters.
+  const navAt = APP_JS.indexOf('showPage(item.dataset.page)');
+  assert.ok(navAt > -1, 'the nav click loop moved');
+  const loopAt = APP_JS.lastIndexOf("document.querySelectorAll('.nav-item').forEach", navAt);
+  const loop   = APP_JS.slice(loopAt, navAt);
+  assert.ok(/closest\('#authUserChip'\)/.test(loop),
+    'the nav click loop must skip the chip before it navigates; the chip opens the account modal instead');
+});
+
+test('the account modal replaced the My Alerts settings tab', () => {
+  assert.ok(!/id="stabMyAlerts"/.test(HTML),  'the My Alerts tab button should be gone');
+  assert.ok(!/id="stab-mynotify"/.test(HTML), 'the My Alerts tab panel should be gone');
+  assert.ok(/id="accountModal"/.test(HTML),   'the account modal is missing');
+  assert.ok(/id="acctMyAlerts"/.test(HTML),   'the modal has no My Alerts section');
+
+  // Relocated, not deleted — the per-user fields and their JS must still pair up.
+  for (const id of ['un_telegramBotToken', 'un_emailTo', 'saveUserNotifyBtn', 'btn-un-test-ntfy']) {
+    assert.ok(HTML.includes('id="' + id + '"'), id + ' was lost in the move');
+  }
+  // A user picks where their alerts go, never which alerts exist, and never how
+  // mail is sent. Both would be a second answer to a question the install owns.
+  for (const id of ['un_notifCpu', 'un_notifIfaceWlan', 'un_smtpHost', 'un_smtpPass']) {
+    assert.ok(!HTML.includes('id="' + id + '"'), id + ' must not be a per-user field');
+  }
+  const at = APP_JS.indexOf('function _applyMyAlertsTab');
+  assert.ok(at > -1, '_applyMyAlertsTab is gone');
+  assert.ok(/acctMyAlerts/.test(APP_JS.slice(at, at + 700)),
+    '_applyMyAlertsTab must gate the modal section, not the removed tab');
+
+  // Escape and backdrop-click come from the shared principal-modal handlers.
+  assert.ok(/_PRINCIPAL_MODALS = \[[^\]]*'accountModal'/.test(APP_JS),
+    'accountModal must join _PRINCIPAL_MODALS or it cannot be closed with Escape');
+});
+
+test('the Settings page is closed to non-admins, not merely hidden', () => {
+  // showPage() had no permission check at all, so hiding the nav link was
+  // cosmetic — showPage('settings') from the console rendered the whole admin
+  // page. The server refused every write, but the page had no business drawing.
+  const at   = APP_JS.indexOf('function showPage(');
+  const body = APP_JS.slice(at, at + 500);
+  assert.ok(/_settingsAllowed\(\)/.test(body), 'showPage must consult _settingsAllowed()');
+
+  const pred = APP_JS.slice(APP_JS.indexOf('function _settingsAllowed'), APP_JS.indexOf('function showPage('));
+  assert.ok(/manageSettings/.test(pred) && /managePrincipals/.test(pred),
+    'the predicate must match the condition that shows #settingsNavItem, or nav and page disagree');
+  // Unknown caps must permit: they arrive after first paint, and denying during
+  // that gap would bounce a genuine administrator out of Settings.
+  assert.ok(/if \(!window\._caps\) return true/.test(pred),
+    'unknown caps must permit — otherwise an admin is locked out during the async gap');
+});

@@ -74,6 +74,49 @@ function pruneExpiredSessions() {
 }
 
 /**
+ * Every live session belonging to one user, so somebody can see where they are
+ * signed in.
+ *
+ * A flat scan, like pruneExpiredSessions above. A secondary userId→tokens index
+ * would have to be kept correct on every create, delete and prune, and this map
+ * holds one entry per signed-in browser on a self-hosted dashboard — the index
+ * would cost more correctness than it buys speed.
+ *
+ * NOTE the token is included: callers need it to identify the current session,
+ * and it must be projected away before any of this reaches a browser.
+ */
+function listSessionsForUser(userId) {
+  const out = [];
+  if (!userId) return out;
+  for (const [token, session] of _sessions) {
+    if (session.userId === userId && !_isExpired(session)) {
+      out.push({ token, createdAt: session.createdAt, expiresAt: session.expiresAt });
+    }
+  }
+  return out;
+}
+
+/**
+ * Sign this user out everywhere except the session making the request.
+ *
+ * Returns the removed tokens so the caller can report a count. Nothing else is
+ * needed to complete the sign-out: getSession() returns null for a deleted
+ * token, so the session sweep in index.js disconnects those sockets on its next
+ * pass, and any HTTP request from them is already rejected immediately.
+ */
+function deleteSessionsForUser(userId, exceptToken) {
+  const removed = [];
+  if (!userId) return removed;
+  for (const [token, session] of _sessions) {
+    if (session.userId === userId && token !== exceptToken) {
+      _sessions.delete(token);
+      removed.push(token);
+    }
+  }
+  return removed;
+}
+
+/**
  * Parse a raw Cookie header string and return an object of name→value pairs.
  * Only splits on the first '=' so values containing '=' are handled correctly.
  */
@@ -129,6 +172,7 @@ function shutdown() {
 
 module.exports = {
   createSession, getSession, updateSession, deleteSession,
+  listSessionsForUser, deleteSessionsForUser,
   pruneExpiredSessions, parseCookieHeader,
   buildCookieHeader, clearCookieHeader,
   getSessionCount, startPruneInterval, shutdown,

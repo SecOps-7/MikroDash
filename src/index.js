@@ -84,6 +84,7 @@ const db                    = require('./db');
 const Rbac                  = require('./rbac');
 const Pages                 = require('./pages');
 const dbWriter              = require('./db-writer');
+const userNotify            = require('./userNotify');
 
 const compression = require('compression');
 const app = express();
@@ -1336,11 +1337,103 @@ app.delete('/api/users/:id', Rbac.requireGlobalAdmin, async (req, res) => {
     // The JSON files had no cleanup path at all, so every deleted user left
     // their dashboard and topology layouts on disk indefinitely.
     db.deleteLayouts(id);
+    // Same reasoning, and it matters more here: the row holds encrypted channel
+    // credentials, and a reused id would otherwise inherit them.
+    db.deleteUserNotifyConfig(id);
     Rbac.bump(); _broadcastPermsChanged();
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
   }
+});
+
+// ── Account API (self-service) ────────────────────────────────────────────────
+// Everything in the Users block above is administration: one person changing
+// another. This is the opposite — a signed-in user acting on themselves — so it
+// is gated on identity, not on `system:principals`. Copying
+// Rbac.requireGlobalAdmin down here would lock the feature to the one audience
+// that does not need it, which is the most likely way to get this wrong.
+//
+// Every handler reads the user id from the session and never from a path
+// parameter, so there is no id for a caller to tamper with: acting on someone
+// else is not a permission that is refused here, it is a request that cannot be
+// expressed.
+//
+// Renaming is deliberately absent. A username is the identity an admin manages,
+// and alert_events.acknowledged_by stores it as raw text, so a self-service
+// rename would quietly orphan historical acknowledgements.
+function _requireAccount(req, res, next) {
+  // authMode 'none' never populates authSession — there is no person to own an
+  // account, so this is "not applicable" rather than "forbidden".
+  if (!req.authSession || !req.authSession.userId) {
+    return res.status(400).json({ ok: false, error: 'Account settings require user accounts' });
+  }
+  next();
+}
+
+const _accountLimiter         = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
+const _accountPasswordLimiter = rateLimit({ windowMs: 60_000, max: 5,  standardHeaders: true, legacyHeaders: false });
+const _accountSessionLimiter  = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
+
+// What this user may reach, by name — answers "why can't I see router X?"
+// without an admin having to explain it.
+app.get('/api/account/access', _accountLimiter, _requireAccount, (req, res) => {
+  res.json({ ok: true, access: Rbac.accessSummaryFor(req.authSession.userId) });
+});
+
+// Where this user is signed in. The session token identifies the current row and
+// is stripped before responding — it is the credential itself, and it has no
+// business in a browser beyond the cookie it already lives in.
+app.get('/api/account/sessions', _accountLimiter, _requireAccount, (req, res) => {
+  const token = SessionStore.parseCookieHeader(req.headers.cookie || '')['mikrodash_sid'];
+  const sessions = SessionStore.listSessionsForUser(req.authSession.userId)
+    .map(s => ({
+      createdAt: s.createdAt,
+      expiresAt: s.expiresAt === Infinity ? null : s.expiresAt,
+      current:   s.token === token,
+    }))
+    .sort((a, b) => b.createdAt - a.createdAt);
+  res.json({ ok: true, sessions });
+});
+
+app.post('/api/account/password', _accountPasswordLimiter, _requireAccount, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ ok: false, error: 'Current and new password are required' });
+    }
+    // Same floor as POST /api/users. PUT /api/users/:id skips this check, which
+    // is a gap on that route — not one to inherit here.
+    if (String(newPassword).length < 4) {
+      return res.status(400).json({ ok: false, error: 'Password too short' });
+    }
+    // The raw record, because verifyPassword needs the hash and salt.
+    const user = await Users.getUser(req.authSession.userId);
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+    if (!await Users.verifyPassword(user, currentPassword)) {
+      return res.status(401).json({ ok: false, error: 'Current password is incorrect' });
+    }
+    await Users.updateUser(req.authSession.userId, { password: newPassword });
+
+    // A password change is often a response to a suspected compromise, so the
+    // other sessions go with it. The caller's own session is spared, or they
+    // would be signed out by their own security action.
+    const token   = SessionStore.parseCookieHeader(req.headers.cookie || '')['mikrodash_sid'];
+    const revoked = SessionStore.deleteSessionsForUser(req.authSession.userId, token);
+    console.log('%s', `[account] password changed — user="${_logSafe(req.authSession.username)}" ` +
+                      `ip=${_clientIp(req)} othersRevoked=${revoked.length}`);
+    res.json({ ok: true, revokedOtherSessions: revoked.length });
+  } catch (e) {
+    console.error('[account] password change failed:', e.message);
+    res.status(500).json({ ok: false, error: sanitizeErr(e) });
+  }
+});
+
+app.post('/api/account/sessions/revoke-others', _accountSessionLimiter, _requireAccount, (req, res) => {
+  const token   = SessionStore.parseCookieHeader(req.headers.cookie || '')['mikrodash_sid'];
+  const revoked = SessionStore.deleteSessionsForUser(req.authSession.userId, token);
+  console.log('%s', `[account] sessions revoked — user="${_logSafe(req.authSession.username)}" count=${revoked.length}`);
+  res.json({ ok: true, revoked: revoked.length });
 });
 
 // ── Dashboard layout API ──────────────────────────────────────────────────────
@@ -1464,6 +1557,9 @@ const _PAGE_SETTING_KEYS = [
   ...Pages.SETTING_KEYS,
   'alertCpuThreshold', 'alertPingLoss', 'vpnDashTopN', 'pingEnabled',
   'displayTimezone',
+  // Not caught by the /^notif/ filter below, and the browser needs it to decide
+  // whether to offer the My Alerts tab at all.
+  'userNotifyEnabled',
   ...Object.keys(Settings.DEFAULTS)
     .filter(k => /^notif/.test(k) && typeof Settings.DEFAULTS[k] === 'boolean'),
 ];
@@ -1506,7 +1602,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       if (!isNaN(v) && (v === 0 || (v >= 3600000 && v <= 86400000))) updates.sessionTimeoutMs = v;
     }
     const boolFields = [...Pages.SETTING_KEYS,
-                        'pingEnabled','rosDebug',
+                        'pingEnabled','rosDebug','userNotifyEnabled',
                         'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure','ntfyEnabled',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
                         'notifRouterUpdate','notifBgp',
@@ -1698,6 +1794,101 @@ app.post('/api/settings/test-notification', Rbac.requireGlobalAdmin, _testNotifL
     res.json({ ok: true });
   } catch (e) {
     console.error('[test-notification]', e.message);
+    res.status(500).json({ ok: false, error: sanitizeErr(e) });
+  }
+});
+
+// ── Per-user notification channels (issue #109) ───────────────────────────────
+// Deliberately NOT behind Rbac.requireGlobalAdmin, unlike every route above:
+// these manage the caller's own delivery preferences, and gating them on
+// administrator access would leave the feature reachable by exactly the people
+// who least need it. A copy-paste of the guard from /api/settings is the most
+// likely way to break this, which is why it is called out here and pinned by a
+// test.
+//
+// There is no permission check on the router set either, and that is the point:
+// authorization happens in userNotify.recipientsFor(), per router, at send time.
+// Deciding here which routers a user may be alerted about would be a second,
+// staler answer to a question Rbac.can already owns.
+const _userNotifyLimiter     = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
+const _userNotifyTestLimiter = rateLimit({ windowMs: 60_000, max: 10, standardHeaders: true, legacyHeaders: false });
+
+function _requireUserNotify(req, res, next) {
+  // The install-wide switch ships off: per-user ntfy and SMTP let the *user*
+  // choose a destination host, so enabling this widens what an ordinary account
+  // can make the server connect to.
+  if (!Settings.load().userNotifyEnabled) {
+    return res.status(403).json({ ok: false, error: 'Per-user notification channels are disabled for this install' });
+  }
+  // authMode 'none' never populates authSession — there is no person to own a
+  // personal channel, so there is nothing to serve rather than an error state.
+  if (!req.authSession || !req.authSession.userId) {
+    return res.status(400).json({ ok: false, error: 'Per-user notification channels require user accounts' });
+  }
+  next();
+}
+
+app.get('/api/user-notify', _userNotifyLimiter, _requireUserNotify, (req, res) => {
+  res.json(userNotify.getPublic(req.authSession.userId));
+});
+
+app.post('/api/user-notify', _userNotifyLimiter, _requireUserNotify, (req, res) => {
+  try {
+    res.json({ ok: true, config: userNotify.save(req.authSession.userId, req.body || {}) });
+  } catch (e) {
+    // save() rejects a malformed address. That is the caller's mistake to fix,
+    // not a server fault, so it must not read as one.
+    console.error('[user-notify]', e.message);
+    res.status(400).json({ ok: false, error: sanitizeErr(e) });
+  }
+});
+
+app.post('/api/user-notify/test-notification', _userNotifyTestLimiter, _requireUserNotify, async (req, res) => {
+  try {
+    const body = req.body || {};
+    if (!body.channel) return res.status(400).json({ ok: false, error: 'channel is required' });
+    // Same "test before save" affordance the install-wide route has: merge what
+    // is typed into the form over what is stored, so somebody can verify their
+    // own token without committing it first. Masked values mean "use the stored
+    // one" and must never be sent as the literal bullets.
+    const typed = {};
+    for (const f of userNotify.CREDENTIAL_FIELDS) {
+      if (body[f] && !Settings.isMasked(body[f])) typed[f] = String(body[f]).slice(0, 512);
+    }
+    for (const f of userNotify.STR_FIELDS) {
+      if (body[f] && !Settings.isMasked(body[f])) typed[f] = String(body[f]).slice(0, 256);
+    }
+    // The channel has to be treated as enabled for the test, or testing before
+    // ticking the box would report "not configured" rather than the truth.
+    const enableKey = { telegram: 'telegramEnabled', pushbullet: 'pushbulletEnabled',
+                        ntfy: 'ntfyEnabled', email: 'emailEnabled' }[body.channel];
+    if (!enableKey) return res.status(400).json({ ok: false, error: 'Unknown channel' });
+
+    const stored   = userNotify.load(req.authSession.userId);
+    const settings = { ...stored, ...typed };
+    settings[enableKey] = true;
+
+    // Email is the install's mail server plus this user's address, so a test has
+    // to compose the same thing delivery would — including an address typed but
+    // not yet saved. notifier still calls the channel 'smtp'; 'email' is what it
+    // is called to a user, who never sees a mail server.
+    if (body.channel === 'email') {
+      const inst = Settings.load();
+      if (!inst.smtpHost || !inst.smtpFrom) {
+        return res.status(400).json({ ok: false, error: 'No mail server is configured for this install' });
+      }
+      const to = typed.emailTo || stored.emailTo;
+      if (!to) return res.status(400).json({ ok: false, error: 'Enter an email address first' });
+      Object.assign(settings, {
+        smtpEnabled: true, smtpHost: inst.smtpHost, smtpPort: inst.smtpPort,
+        smtpSecure: inst.smtpSecure, smtpUser: inst.smtpUser, smtpPass: inst.smtpPass,
+        smtpFrom: inst.smtpFrom, smtpTo: to,
+      });
+    }
+    await notifier.testChannel(settings, body.channel === 'email' ? 'smtp' : body.channel);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[user-notify test]', e.message);
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
   }
 });
@@ -3156,6 +3347,9 @@ function _buildRoutersStats(socket) {
   const allRouters  = Routers.loadAll();
   const bgSummaries = overviewSessions.getSummaries();
   const cfg         = Settings.load();
+  // Resolved once for the whole payload, not per router: this runs on a 2s timer
+  // while anyone has the Routers page open.
+  const openAlerts  = db.countOpenAlertsByRouter();
 
   // Same RBAC boundary as _routersForSocket: a restricted user only ever sees
   // stats (host/serial/version/cpu…) for routers in their allowed set.
@@ -3187,6 +3381,9 @@ function _buildRoutersStats(socket) {
       isActive:  !!s,
       connected,
       lastError,
+      // Unresolved alerts on this router. Independent of `connected` — a router
+      // can be reachable and still have something wrong on it.
+      openAlerts: openAlerts[r.id] || 0,
       cpu:       sysPay ? sysPay.cpuLoad   : null,
       uptime:    sysPay ? sysPay.uptimeRaw : null,
       memPct:    sysPay ? sysPay.memPct    : null,
@@ -3316,9 +3513,6 @@ async function sendInitialState(socket, entry) {
   if (s.traffic && s.traffic.lastWanStatus) socket.emit('wan:status', s.traffic.lastWanStatus);
   if (s.system.lastPayload)    socket.emit('system:update',    s.system.lastPayload);
   if (s.wireless.lastPayload  && _mayReplay(socket, 'wireless'))  socket.emit('wireless:update',  s.wireless.lastPayload);
-  if (s.wireless.lastPayload) {
-    socket.emit('wireless:count', { ts: s.wireless.lastPayload.ts, count: (s.wireless.lastPayload.clients || []).length });
-  }
   if (s.vpn.lastPayload       && _mayReplay(socket, 'vpn'))       socket.emit('vpn:update',       s.vpn.lastPayload);
   if (s.ifStatus.lastPayload  && _mayReplay(socket, 'ifStatus'))  socket.emit('ifstatus:update',  s.ifStatus.lastPayload);
   if (s.ifStatus.lastPayload) {
@@ -3332,11 +3526,6 @@ async function sendInitialState(socket, entry) {
     });
   }
   if (s.firewall.lastPayload  && _mayReplay(socket, 'firewall'))  socket.emit('firewall:update',  s.firewall.lastPayload);
-  // The sidebar count is chrome, so it is replayed unconditionally — otherwise
-  // the badge sits blank until the collector's next tick.
-  if (s.conns.lastPayload) {
-    socket.emit('conn:count', { ts: s.conns.lastPayload.ts, total: s.conns.lastPayload.total });
-  }
   if (s.conns.lastPayload     && _mayReplay(socket, 'conns')) {
     socket.emit('conn:update', s.conns.lastPayload);
     if (s.conns.lastPayload.sourceDests)

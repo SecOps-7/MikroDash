@@ -1148,7 +1148,10 @@ test('idle-gated collector resumes when a client connects', async () => {
   const io = {
     engine: { clientsCount: 0 },
     emit(ev, d) { emitted.push({ ev, d }); },
-    to() { return { emit() {} }; },
+    // The connections payload is page-scoped, so it arrives through
+    // to(...).to(...).emit(...). A to() that discards would count zero emits
+    // and read as the collector having gone silent.
+    to() { const c = { to: () => c, emit: (ev, d) => emitted.push({ ev, d }) }; return c; },
     sockets: { adapter: { rooms: new Map() } },
   };
   const collector = new ConnectionsCollector({
@@ -1173,7 +1176,10 @@ test('dirty-check suppresses emit when connections data is unchanged', async () 
   const io = {
     engine: { clientsCount: 1 },
     emit(ev, d) { emitted.push({ ev, d }); },
-    to() { return { emit() {} }; },
+    // The connections payload is page-scoped, so it arrives through
+    // to(...).to(...).emit(...). A to() that discards would count zero emits
+    // and read as the collector having gone silent.
+    to() { const c = { to: () => c, emit: (ev, d) => emitted.push({ ev, d }) }; return c; },
     sockets: { adapter: { rooms: new Map() } },
   };
   const collector = new ConnectionsCollector({
@@ -1205,7 +1211,10 @@ test('dirty-check emits when connections data changes', async () => {
   const io = {
     engine: { clientsCount: 1 },
     emit(ev, d) { emitted.push({ ev, d }); },
-    to() { return { emit() {} }; },
+    // The connections payload is page-scoped, so it arrives through
+    // to(...).to(...).emit(...). A to() that discards would count zero emits
+    // and read as the collector having gone silent.
+    to() { const c = { to: () => c, emit: (ev, d) => emitted.push({ ev, d }) }; return c; },
     sockets: { adapter: { rooms: new Map() } },
   };
   const collector = new ConnectionsCollector({

@@ -2,6 +2,73 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.7] — Personal alert channels, a My Account page, and a Routers overview
+
+Alerting had one destination for the whole install. Since roles arrived that stopped
+matching reality: two people can be scoped to different sites and still share one inbox.
+Each user can now add their own Telegram, Pushbullet, ntfy or email destination, delivered
+in addition to the install-wide channels — and is only ever notified about routers their
+role lets them read.
+
+**The rule that matters:** a user is never told about a router they cannot see. That is
+checked at the moment the alert is sent, not when the channel is saved, so revoking
+someone's access stops their notifications immediately with nothing to invalidate.
+
+**Off by default.** A personal ntfy topic or SMTP recipient is an address the *user*
+chooses, so enabling this widens what an ordinary account can make the server connect to.
+Turn it on with **Allow personal channels** in Settings → Notifications. Nothing changes
+for an install that leaves it alone.
+
+### Added
+- **My Account**, reached from your name in the sidebar. Change your own password — the
+  first self-service credential change in MikroDash, and it signs out your other sessions —
+  review the roles and scopes you hold, see and revoke your active sessions, and manage
+  your own notification channels. Previously the only way to change a password was to ask
+  an administrator.
+- **Per-user notification channels** — Telegram, Pushbullet and ntfy with your own
+  credentials; email as an opt-in plus an address, sent through the install's mail server.
+  Which alert types fire stays an administrator's decision; you choose only where yours go.
+- **Routers page summary** — Total Devices, Online, Offline and Alerting. Alerting counts
+  routers with an unresolved alert, so it overlaps the online/offline split rather than
+  partitioning it: a reachable router can still have something wrong on it.
+- **Routers page views** — Comfortable and Compact card grids, and a List view: a sortable
+  table of status, name, host, model, RouterOS, alerts, CPU/RAM/Disk, clients, WAN Rx/Tx
+  and uptime. One search box narrows either view by name, host, model or version, and
+  understands `online`, `offline` and `alerting`. The choice is remembered between visits.
+
+### Fixed
+- **The Interface Alert Filter stopped filtering the notification bell.** Unticking
+  Wireless silenced the push and still rang the bell on every wlan flap. The install-wide
+  alert-type toggles are authoritative again: a type switched off is not detected,
+  recorded, belled or sent, for anyone.
+- **The username and sign-out button vanished for every non-admin role.** The sidebar chip
+  shares its markup with a nav item, so the role-based nav sweep hid it for everyone
+  without Settings access — leaving no way to sign out at all short of clearing the cookie.
+  Present since 0.7.5.
+- **Cards showed stale after navigating away and back.** Leaving a page drops its data
+  subscriptions, but the stale timers kept counting, so Connections and Top Talkers were
+  marked stale on return and healed a few seconds later. The elapsed time was measuring how
+  long the browser was not listening, not the collector.
+- **The Settings page is now closed to non-admins**, not merely hidden from the nav. It had
+  no permission check at all, so it could be opened from the browser console with every
+  field editable. Every write was already refused by the server; the page had no business
+  drawing.
+- **Two dialogs that reported success on failure** — "Reset to defaults" and the alert-type
+  toggles both claimed a change had landed without checking whether the server accepted it.
+
+### Changed
+- Per-user alert-type and interface-type filters were removed. Which alerts exist is one
+  decision, made once by an administrator; a per-user copy let an end user widen their own
+  alerting.
+- The sidebar count pills are gone, along with the two socket events that fed them. The
+  same counts remain on the pages they describe.
+- The Routers page header ("Live overview of all configured routers") is replaced by a
+  toolbar holding the search box and view selector.
+
+### Upgrading
+Automatic. Migration v9 adds one table for per-user channel settings and runs at startup
+inside a transaction. No configuration changes, and the feature stays off until enabled.
+
 ## [0.7.6] — Switching routers keeps the dashboard live
 
 Switching from one router to another left the browser subscribed to nothing. Connections and Top

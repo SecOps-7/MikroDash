@@ -197,15 +197,14 @@ test('connections collector emits processed count and processingCapped when trun
 
   await collector.tick();
 
-  // Two emits since issue #108 split delivery: a router-wide count for the
-  // sidebar badge, and the full payload scoped to the Connections page and its
-  // dashboard card. Assert on the event by name rather than by position.
-  const count = emitted.find(e => e.event === 'conn:count');
-  const full  = emitted.find(e => e.event === 'conn:update');
-
-  assert.ok(count, 'the sidebar count must stay router-wide');
-  assert.equal(count.payload.total, 3);
-  assert.ok(!('topSources' in count.payload), 'the count carries no page detail');
+  // One emit: the full payload, scoped to the Connections page and its dashboard
+  // card. Issue #108 also sent a router-wide conn:count for the sidebar badge;
+  // the badge was removed, and the count went with it — nothing consumed it, and
+  // the Connections page reads its own total from this payload.
+  // Asserted on the event by name rather than by position.
+  const full = emitted.find(e => e.event === 'conn:update');
+  assert.ok(!emitted.some(e => e.event === 'conn:count'),
+    'conn:count has no consumer — it must not be emitted on every tick');
 
   assert.ok(full, 'the full payload must still be emitted');
   assert.equal(full.payload.total, 3);

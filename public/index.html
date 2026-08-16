@@ -94,9 +94,6 @@
     .nav-label{font-family:var(--font-mono);font-size:.73rem;font-weight:600;letter-spacing:.04em;opacity:0;transition:opacity .15s .08s}
     #sidenav:hover .nav-label{opacity:1}
     #sidenav.mobile-open .nav-label{opacity:1}
-    #sidenav.mobile-open .nav-badge{opacity:1}
-    .nav-badge{font-family:var(--font-mono);font-size:.6rem;font-weight:600;background:rgba(56,189,248,.15);color:var(--accent-rx);border-radius:8px;padding:1px 5px;margin-left:auto;opacity:0;transition:opacity .15s .08s;white-space:nowrap}
-    #sidenav:hover .nav-badge{opacity:1}
     /* main */
     #main{margin-left:var(--nav-w);flex:1;min-width:0;display:flex;flex-direction:column}
     /* topbar */
@@ -268,6 +265,54 @@
        viewports. These forms have no columns — their fields go straight into the
        body — so that grid would slice the form in half. */
     .rtr-modal.pmodal>.rtr-modal-body{display:block}
+    /* The account modal is not a form like the four above — it holds five
+       unrelated sections, and stacking them made a tall narrow ribbon that had
+       to be scrolled past to reach anything. It takes the width instead and
+       lays the sections out two-up, so the whole thing is visible at once.
+       Everything below is scoped to .acct-modal; the principal forms keep the
+       single narrow column that suits them. */
+    /* Wide enough for two comfortable columns, no wider. It was 1400px when the
+       sections included two toggle grids and a full SMTP form; with those gone
+       the extra width was just margin inside the fields. */
+    .rtr-modal.acct-modal{width:min(950px,88vw)}
+    /* Cards stretch to their row rather than sitting at their natural height,
+       so the two in a row share a baseline and an edge. Ragged card bottoms are
+       what makes a two-column layout read as accidental. */
+    .rtr-modal.acct-modal>.rtr-modal-body{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:1rem;align-items:stretch;
+    }
+    /* Cards space themselves with margin when stacked; in a grid the gap does
+       it, and the margin would only make the rows uneven. */
+    .rtr-modal.acct-modal>.rtr-modal-body>.scard,
+    .rtr-modal.acct-modal #acctMyAlerts>.scard{margin-bottom:0}
+    /* My Alerts is a section of sections: channels across the full width, then
+       the two toggle grids side by side beneath them. */
+    .rtr-modal.acct-modal #acctMyAlerts{
+      grid-column:1/-1;
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:1rem;align-items:stretch;
+    }
+    .rtr-modal.acct-modal #acctMyAlerts>.scard--wide{grid-column:1/-1}
+    /* The four channels as an even 2x2. display:contents lifts the existing
+       Pushbullet/ntfy pair out of its wrapper so all four are siblings of the
+       same grid, which avoids restructuring markup that Settings also uses. */
+    /* Four channels, each asking for a toggle and one or two fields, so an even
+       2x2. Email used to be a seven-field SMTP form that had to take a row of
+       its own; it is an opt-in and an address now, the same size as the rest. */
+    .rtr-modal.acct-modal #acctMyAlerts .scard--wide>.scard-body{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:.9rem;align-items:stretch;
+    }
+    .rtr-modal.acct-modal #acctMyAlerts .scard--wide>.scard-body>p{grid-column:1/-1;margin-bottom:0}
+    .rtr-modal.acct-modal #acctMyAlerts .nchan-pair{display:contents}
+    /* One column on anything narrow: two columns of password fields on a phone
+       would be worse than the ribbon this replaces. */
+    @media(max-width:900px){
+      .rtr-modal.acct-modal>.rtr-modal-body,
+      .rtr-modal.acct-modal #acctMyAlerts,
+      .rtr-modal.acct-modal #acctMyAlerts .scard--wide>.scard-body{grid-template-columns:1fr}
+    }
     /* Data Cleanup card (Settings) */
     .dbc-stats{display:flex;gap:.5rem;flex-wrap:wrap}
     .dbc-stat{flex:1 1 120px;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.5rem .6rem}
@@ -505,6 +550,42 @@
     /* .iface-grid sets display:grid, which outranks the user-agent [hidden]
        rule, so the attribute needs an explicit counterpart to take effect. */
     .iface-grid[hidden],.iface-list-wrap[hidden]{display:none}
+    /* Routers list view. Same table idiom as the Interfaces list — monospace,
+       tabular numerals, click-to-sort headers — with a filter row beneath the
+       headers so each control sits under the column it narrows. */
+    /* NOT .rtr-list — that class already belongs to #rtrTable, the router
+       admin table on the Settings page. Reusing it silently restyled that
+       table and made a document-order accident decide which thead the sort
+       handler bound to. */
+    .routers-list{font-family:var(--font-mono);font-size:.72rem;margin-bottom:0;white-space:nowrap}
+    /* `thead th`, not a bare `th`: Tabler styles headers via `.table thead th`,
+       which carries one more element than `.routers-list th` and so wins the
+       cascade. That rule paints a flat #1f2937 band and a neutral grey text —
+       neither belongs on a translucent card in a blue-tinted palette. Matching
+       its shape lets source order decide, and this sheet loads after Tabler. */
+    .routers-list thead th{font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.3rem .5rem;background:transparent}
+    .routers-list td{padding:.3rem .5rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle}
+    .routers-list th[data-sort]{cursor:pointer;user-select:none}
+    .routers-list th[data-sort]:hover{color:var(--text-main)}
+    .rtl-num{text-align:right;font-variant-numeric:tabular-nums}
+    /* An offline router keeps its identity legible and lets its metrics recede —
+       they are all em dashes anyway. */
+    .routers-list tr.rtl-offline td{opacity:.62}
+    .routers-list tr.rtl-row{cursor:pointer}
+    .routers-list tr.rtl-row:hover td{background:rgba(56,189,248,.06)}
+    /* The page's own header bar. Sits above both views because the search
+       narrows both — a control that did nothing in card view would be worse
+       than no control. */
+    .routers-toolbar{padding:.3rem .6rem}
+    /* .sform-input is sized for a settings form, which made it 9px taller than
+       the select beside it and set the height of the whole bar. Matched to the
+       select's metrics so the bar is only as tall as its controls. */
+    .routers-toolbar .sform-input{flex:1 1 auto;min-width:0;padding:.25rem .55rem;font-size:.72rem}
+    .rtl-dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+    /* A tiny inline bar, so a busy router is visible without reading the number.
+       Same thresholds the cards use. */
+    .rtl-bar{display:inline-block;width:34px;height:4px;border-radius:2px;background:rgba(99,130,190,.18);vertical-align:middle;margin-right:.35rem;overflow:hidden}
+    .rtl-bar>i{display:block;height:100%;border-radius:2px}
     .iface-list-wrap{overflow-x:auto}
     .iface-list{font-family:var(--font-mono);font-size:.7rem;margin-bottom:0;white-space:nowrap}
     .iface-list th{font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.3rem .5rem}
@@ -1200,37 +1281,30 @@
     <a class="nav-item" data-page="topology" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.6"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><line x1="10.2" y1="10.4" x2="5.5" y2="6.4"/><line x1="13.8" y1="10.4" x2="18.5" y2="6.4"/><line x1="10.2" y1="13.6" x2="5.5" y2="17.6"/><line x1="13.8" y1="13.6" x2="18.5" y2="17.6"/></svg></span>
       <span class="nav-label">Topology</span>
-      <span class="nav-badge" id="topologyNavBadge"></span>
     </a>
     <a class="nav-item" data-page="wireless" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
       <span class="nav-label">Wireless</span>
-      <span class="nav-badge" id="wirelessNavBadge">0</span>
     </a>
     <a class="nav-item" data-page="interfaces" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="5" rx="1"/><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="16" y="3" width="6" height="5" rx="1"/><rect x="5" y="16" width="6" height="5" rx="1"/><rect x="13" y="16" width="6" height="5" rx="1"/><line x1="5" y1="8" x2="5" y2="13"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="19" y1="8" x2="19" y2="13"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="13" x2="8" y2="16"/><line x1="16" y1="13" x2="16" y2="16"/></svg></span>
       <span class="nav-label">Interfaces</span>
-      <span class="nav-badge" id="ifacesNavBadge"></span>
     </a>
     <a class="nav-item" data-page="dhcp" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
       <span class="nav-label">DHCP</span>
-      <span class="nav-badge" id="dhcpNavBadge">0</span>
     </a>
     <a class="nav-item" data-page="vpn" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h8"/><path d="M16 10v4"/><path d="M19 9v6"/></svg></span>
       <span class="nav-label">VPN</span>
-      <span class="nav-badge" id="vpnNavBadge">0</span>
     </a>
     <a class="nav-item" data-page="connections" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
       <span class="nav-label">Connections</span>
-      <span class="nav-badge" id="connNavBadge">0</span>
     </a>
     <a class="nav-item" data-page="routing" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></span>
       <span class="nav-label">Routing</span>
-      <span class="nav-badge" id="routingNavBadge"></span>
     </a>
     <a class="nav-item" data-page="bandwidth" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
@@ -1259,7 +1333,11 @@
     <div style="flex:1;min-height:8px"></div>
     <div style="margin:0 14px 4px;border-top:1px solid var(--border);opacity:.25"></div>
     <div id="authUserChip" style="display:none">
-      <div class="nav-item" data-page="settings" style="height:44px">
+      <!-- Identity chrome, not navigation. It keeps .nav-item purely for the
+           sidebar styling; the click opens the account modal, wired in app.js.
+           It deliberately carries no data-page — it used to say "settings",
+           which is how an ordinary user ended up on the admin page. -->
+      <div class="nav-item" id="authUserChipBtn" style="height:44px">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
         <span class="nav-label" style="display:flex;align-items:center;justify-content:space-between;flex:1;min-width:0;gap:.4rem">
           <span id="authUsername" style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0"></span>
@@ -2644,16 +2722,82 @@
 
   <div class="page-view" id="page-routers">
     <div class="container-xl">
-      <div class="page-header">
-        <div class="row align-items-center">
-          <div class="col">
-            <h2 class="page-title">Routers</h2>
-            <div class="text-muted mt-1">Live overview of all configured routers</div>
-          </div>
+      <!-- Fleet summary. Online + Offline account for every device; Alerting
+           overlaps both, since a reachable router can still have something
+           wrong on it. -->
+      <div class="row row-cards mt-3" id="routersSummary">
+        <div class="col-6 col-sm-3">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Total Devices</div>
+            <div class="h1 m-0 mt-1" id="rsTotal">—</div>
+          </div></div>
+        </div>
+        <div class="col-6 col-sm-3">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Online</div>
+            <div class="h1 m-0 mt-1" id="rsOnline" style="color:var(--accent-green,#34d399)">—</div>
+          </div></div>
+        </div>
+        <div class="col-6 col-sm-3">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Offline</div>
+            <div class="h1 m-0 mt-1" id="rsOffline">—</div>
+          </div></div>
+        </div>
+        <div class="col-6 col-sm-3">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Alerting</div>
+            <div class="h1 m-0 mt-1" id="rsAlerting">—</div>
+          </div></div>
         </div>
       </div>
+
+      <!-- Header bar: view on the left, one search on the right. Per-column
+           filter boxes lived in the table head and cost a row of chrome for
+           something one box answers. -->
+      <div class="card mt-3 routers-toolbar d-flex flex-row align-items-center gap-2">
+        <input id="routersSearch" type="search" class="sform-input"
+               placeholder="Search routers…"
+               title="Matches name, host, model and RouterOS version. Also understands online, offline and alerting."
+               autocomplete="off" style="max-width:22rem">
+        <span class="text-muted" id="routersShown" style="font-size:.75rem"></span>
+        <select id="routersView" class="conn-src-filter ms-auto" title="View — Compact fits more cards per row; List adds sortable columns" style="min-width:140px">
+          <option value="comfortable">Comfortable</option>
+          <option value="compact">Compact</option>
+          <option value="list">List</option>
+        </select>
+      </div>
+
       <div class="row row-cards mt-3" id="routers-grid">
         <div class="col-12 text-muted text-center py-4">Loading…</div>
+      </div>
+
+      <!-- List view. Every column sorts; the row under the headers filters.
+           Filters live in the header rather than a toolbar so it is obvious
+           which column each one narrows. -->
+      <div class="card mt-3 routers-list-wrap" id="routersListWrap" hidden>
+        <div class="table-responsive">
+          <table class="table table-sm routers-list">
+            <thead>
+              <tr>
+                <th data-sort="connected" style="min-width:5.5rem">Status</th>
+                <th data-sort="label">Router</th>
+                <th data-sort="host">Host</th>
+                <th data-sort="boardName">Model</th>
+                <th data-sort="version">RouterOS</th>
+                <th class="rtl-num" data-sort="openAlerts" title="Unresolved alerts on this router">Alerts</th>
+                <th class="rtl-num" data-sort="cpu">CPU</th>
+                <th class="rtl-num" data-sort="memPct">RAM</th>
+                <th class="rtl-num" data-sort="hddPct">Disk</th>
+                <th class="rtl-num" data-sort="clients" title="DHCP leases">Clients</th>
+                <th class="rtl-num" data-sort="rxMbps">WAN Rx</th>
+                <th class="rtl-num" data-sort="txMbps">WAN Tx</th>
+                <th data-sort="uptime">Uptime</th>
+              </tr>
+            </thead>
+            <tbody id="routersListBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -3030,6 +3174,25 @@
           </div>
           <div class="scard-body">
             <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:1rem">Configure push notification services. Save settings before using the test button.</p>
+
+            <!-- Per-user channels (#109). Off by default and deliberately an
+                 explicit choice: a personal ntfy topic or SMTP host is a
+                 destination the user picks, so this widens what an ordinary
+                 account can make the server connect to. -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-bottom:.9rem;background:var(--bg-alt)">
+              <label class="stoggle" style="margin:0">
+                <span class="stoggle-label">
+                  Allow personal channels
+                  <span style="display:block;font-weight:400;font-size:.72rem;color:var(--text-muted);margin-top:.15rem;max-width:52ch">
+                    Lets each user add their own Telegram, Pushbullet, ntfy or email destination under
+                    <strong>My Alerts</strong>, in addition to the channels here. Users are only ever notified
+                    about routers they have access to. Because ntfy and SMTP let a user choose the destination
+                    host, enabling this allows any account to make this server send to an address it picks.
+                  </span>
+                </span>
+                <span class="stoggle-switch"><input type="checkbox" id="s_userNotifyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+              </label>
+            </div>
 
             <!-- Telegram -->
             <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-bottom:.9rem">
@@ -3986,6 +4149,225 @@
 <div id="kbdHint"><kbd>1</kbd>&#8211;<kbd>9</kbd> pages &nbsp;&#183;&nbsp; <kbd>/</kbd> log search</div>
 
   <!-- ── Router Add/Edit Modal ────────────────────────────────────── -->
+  <!-- ── Account modal ────────────────────────────────────────────────────────
+       Everything a signed-in user may change about themselves, reachable from
+       every page via the sidebar chip. Kept out of #page-settings on purpose:
+       that container is display:none unless the Settings page is active, so a
+       modal nested inside it could never be shown. -->
+  <div class="rtr-modal-bg" id="accountModal">
+    <div class="rtr-modal acct-modal">
+      <div class="rtr-modal-hdr">
+        <span class="rtr-modal-title">My Account</span>
+        <button class="rtr-modal-close" data-modal-close="accountModal" aria-label="Close">&#10005;</button>
+      </div>
+      <div class="rtr-modal-body">
+
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="scard-title">Account</span>
+          </div>
+          <div class="scard-body">
+            <label class="sform-label">Signed in as</label>
+            <div id="acct_username" style="font-size:.9rem;font-weight:600;padding:.25rem 0"></div>
+            <p style="font-size:.72rem;color:var(--text-muted);margin:.35rem 0 0">
+              Your username is managed by an administrator.
+            </p>
+          </div>
+        </div>
+
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="scard-title">Change Password</span>
+          </div>
+          <div class="scard-body">
+            <!-- Collapsed by default. Changing a password is a rare, deliberate
+                 act, and three empty password boxes sitting open every time the
+                 modal is opened read as something that needs doing. -->
+            <div style="display:flex;align-items:center;gap:.7rem" id="acct_pwPrompt">
+              <button id="acct_pwToggleBtn" class="sbtn sbtn-ghost" type="button">Change Password</button>
+              <span style="font-size:.72rem;color:var(--text-muted)">You will need your current password.</span>
+            </div>
+
+            <div id="acct_pwForm" style="display:none">
+              <div class="sform-group" style="margin-bottom:.55rem">
+                <label class="sform-label">Current Password</label>
+                <input type="password" id="acct_currentPassword" class="sform-input" autocomplete="current-password">
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">New Password</label>
+                  <input type="password" id="acct_newPassword" class="sform-input" autocomplete="new-password">
+                </div>
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Confirm New Password</label>
+                  <input type="password" id="acct_confirmPassword" class="sform-input" autocomplete="new-password">
+                </div>
+              </div>
+              <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 .6rem">
+                Changing your password signs you out everywhere else. This device stays signed in.
+              </p>
+              <div style="display:flex;align-items:center;gap:.7rem">
+                <button id="acct_pwSaveBtn" class="sbtn sbtn-primary" type="button">Update Password</button>
+                <button id="acct_pwCancelBtn" class="sbtn sbtn-ghost" type="button">Cancel</button>
+                <span id="acct_pwResult" style="font-size:.75rem"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span class="scard-title">My Access</span>
+          </div>
+          <div class="scard-body" id="acct_accessBody">
+            <span style="color:var(--text-muted);font-size:.78rem">Loading…</span>
+          </div>
+        </div>
+
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+            <span class="scard-title">Active Sessions</span>
+          </div>
+          <div class="scard-body">
+            <div id="acct_sessionsBody"><span style="color:var(--text-muted);font-size:.78rem">Loading…</span></div>
+            <div style="display:flex;align-items:center;gap:.7rem;margin-top:.7rem">
+              <button id="acct_signOutOthersBtn" class="sbtn sbtn-ghost" type="button">Sign Out Everywhere Else</button>
+              <span id="acct_sessionsResult" style="font-size:.75rem"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-user notification channels (#109), moved here from Settings so
+             an ordinary user never needs the admin page. -->
+        <div id="acctMyAlerts" style="display:none">
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="scard-title">My Notification Channels</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:1rem">
+              Your own delivery, in addition to the install-wide channels. You are only ever notified
+              about routers you have access to, checked at the moment the alert is sent.
+            </p>
+
+            <!-- Telegram -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                <div style="display:flex;align-items:center;gap:.55rem">
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.555l-2.95-.924c-.64-.204-.657-.64.136-.954l11.57-4.46c.532-.194 1 .13.966.004z"/></svg>
+                  <strong style="font-size:.82rem">Telegram</strong>
+                </div>
+                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_telegramEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Bot Token</label>
+                  <input type="password" id="un_telegramBotToken" class="sform-input" placeholder="paste token here" autocomplete="off">
+                </div>
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Chat ID</label>
+                  <input type="text" id="un_telegramChatId" class="sform-input" placeholder="e.g. -100123456789" autocomplete="off">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                <button id="btn-un-test-telegram" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                <span id="un-test-telegram-result" style="font-size:.75rem"></span>
+              </div>
+            </div>
+
+            <div class="nchan-pair">
+              <!-- Pushbullet -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.5 18h-3v-2h3v2zm0-4h-3V6h3v8z"/></svg>
+                    <strong style="font-size:.82rem">Pushbullet</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_pushbulletEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                </div>
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">API Key</label>
+                    <input type="password" id="un_pushbulletApiKey" class="sform-input" placeholder="paste key here" autocomplete="off">
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-un-test-pushbullet" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                  <span id="un-test-pushbullet-result" style="font-size:.75rem"></span>
+                </div>
+              </div>
+
+              <!-- ntfy -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <strong style="font-size:.82rem">ntfy</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_ntfyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                </div>
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">Topic URL</label>
+                    <input type="text" id="un_ntfyUrl" class="sform-input" placeholder="https://ntfy.sh/your-topic" autocomplete="off">
+                  </div>
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">Access Token <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                    <input type="password" id="un_ntfyToken" class="sform-input" placeholder="paste token here" autocomplete="off">
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-un-test-ntfy" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                  <span id="un-test-ntfy-result" style="font-size:.75rem"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Email — opt in only. The mail server belongs to the install; the
+                   only part that is this user's is where to send it. -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+                    <strong style="font-size:.82rem">Email</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_emailEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                </div>
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Send To</label>
+                  <input type="text" id="un_emailTo" class="sform-input" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <p style="font-size:.7rem;color:var(--text-muted);margin:0 0 .5rem">Sent using the server's mail settings.</p>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-un-test-email" class="sbtn sbtn-ghost" type="button">Send Test</button>
+                  <span id="un-test-email-result" style="font-size:.75rem"></span>
+                </div>
+              </div>
+          </div>
+        </div>
+
+                <div class="scard scard--wide">
+          <div class="scard-body" style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">
+            <button id="saveUserNotifyBtn" class="sbtn sbtn-primary" type="button">Save My Channels</button>
+            <span id="userNotifySaveResult" style="font-size:.75rem"></span>
+            <span style="font-size:.72rem;color:var(--text-muted);margin-left:auto">Which alerts are sent is set by an administrator.</span>
+          </div>
+        </div>
+      </div>
+
+      </div>
+      <div class="rtr-modal-footer">
+        <span id="acct_version" style="font-size:.72rem;color:var(--text-muted);margin-right:auto"></span>
+        <button id="acct_signOutBtn" class="sbtn sbtn-outline" type="button">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
   <div class="rtr-modal-bg" id="rtrModalBg">
     <div class="rtr-modal">
       <div class="rtr-modal-hdr">
