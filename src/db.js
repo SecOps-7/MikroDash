@@ -362,6 +362,34 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    // Per-user notification channels (issue #109).
+    //
+    // Channel credentials cannot live in users.json: that file must stay a bare
+    // JSON array, because _readFile() returns [] for anything else and a
+    // rolled-back binary reading zero users re-opens the unauthenticated setup
+    // route. So this follows user_layouts instead — one row per user, opaque
+    // JSON, no foreign key (users are not in SQLite to point at).
+    //
+    // `data` holds the same field names src/settings.js uses for channels, so
+    // notifier.send() and notifier.hasConfiguredChannel() consume a row with no
+    // changes; both are stateless and work off any object carrying those keys.
+    // Credential sub-fields inside it are ciphertext from Settings.encrypt.
+    //
+    // Deliberately unreachable from purge() and deleteRouterData(), for the same
+    // reason sites, groups, grants and layouts are: a retention sweep must never
+    // be able to delete what a user configured. Cleanup is by user deletion only.
+    version: 9,
+    up(db) {
+      db.exec(`
+        CREATE TABLE user_notify_config (
+          user_id    TEXT PRIMARY KEY,
+          data       TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 function _runMigrations(db) {
@@ -481,6 +509,27 @@ function queryOpenAlerts(routerId, limit) {
     WHERE  router_id = ? AND resolved_at IS NULL
     ORDER  BY fired_at DESC LIMIT ?
   `).all(routerId, limit || 200);
+}
+
+/**
+ * How many alerts are still open, per router — `{ routerId: count }`.
+ *
+ * One grouped query rather than queryOpenAlerts() per router: the Routers page
+ * refreshes every two seconds and asks about every router a session can see, so
+ * the per-router form would be N statements on a timer. Routers with nothing
+ * open are absent rather than zero, so the caller decides what "no alerts"
+ * looks like. Uses the existing (router_id, fired_at) index.
+ */
+function countOpenAlertsByRouter() {
+  if (!_db) return {};
+  const out = {};
+  for (const row of _prep(`
+    SELECT router_id, COUNT(*) AS n
+    FROM   alert_events
+    WHERE  resolved_at IS NULL
+    GROUP  BY router_id
+  `).all()) out[row.router_id] = row.n;
+  return out;
 }
 
 /** Recently resolved rows, so the bell can show what just happened as well as
@@ -1001,6 +1050,48 @@ function layoutCount() {
   return _prep('SELECT COUNT(*) c FROM user_layouts').get().c;
 }
 
+// ── Per-user notification channels (issue #109) ──────────────────────────────
+// Same idiom as the layouts above: opaque JSON keyed by user id. Unlike layouts
+// there is no `kind` dimension, so the user id alone is the primary key. No
+// SHARED_LAYOUT_USER fallback either — a personal channel needs a person, and
+// authMode 'none' has none, so callers pass a real user id or get nothing.
+
+function getUserNotifyConfig(userId) {
+  if (!_db || !userId) return null;
+  const row = _prep('SELECT data FROM user_notify_config WHERE user_id = ?').get(userId);
+  if (!row) return null;
+  // A corrupt blob reads as "not configured" rather than throwing inside the
+  // alert path, where it would take down delivery for every other recipient too.
+  try { return JSON.parse(row.data); } catch (_) { return null; }
+}
+
+function setUserNotifyConfig(userId, data) {
+  if (!_db || !userId) return false;
+  _prep(`INSERT INTO user_notify_config (user_id, data, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT (user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`)
+    .run(userId, JSON.stringify(data), Date.now());
+  return true;
+}
+
+/** Called when a user is deleted, alongside deleteLayouts. */
+function deleteUserNotifyConfig(userId) {
+  if (!_db || !userId) return 0;
+  return _prep('DELETE FROM user_notify_config WHERE user_id = ?').run(userId).changes;
+}
+
+/** Every saved config, for the alerter's per-alert recipient resolution.
+ *  Returns rows rather than users: someone who never opened the panel has no
+ *  row, so on most installs this is empty and the fan-out costs nothing. */
+function listUserNotifyConfigs() {
+  if (!_db) return [];
+  const rows = _prep('SELECT user_id, data FROM user_notify_config').all();
+  const out = [];
+  for (const r of rows) {
+    try { out.push({ userId: r.user_id, config: JSON.parse(r.data) }); } catch (_) { /* skip corrupt */ }
+  }
+  return out;
+}
+
 // ── Groups and grants (issue #78) ────────────────────────────────────────────
 // Persistence only; the policy that interprets these rows lives in src/rbac.js.
 
@@ -1260,6 +1351,7 @@ module.exports = {
   open, close,
   listSites, getSite, createSite, updateSite, deleteSite,
   getLayout, setLayout, deleteLayouts, layoutCount, SHARED_LAYOUT_USER,
+  getUserNotifyConfig, setUserNotifyConfig, deleteUserNotifyConfig, listUserNotifyConfigs,
   listGroups, getGroup, createGroup, updateGroup, deleteGroup,
   getGroupMembers, setGroupMembers, groupIdsForUser,
   listRoles, getRole, createRole, updateRole, deleteRole,
@@ -1268,7 +1360,7 @@ module.exports = {
   grantsForUser, globalAdminUserIds, sweepOrphanGrants,
   insertPingSample, insertTrafficSample, insertBandwidthSample,
   insertAlertEvent, resolveAlertEvent, insertConnectivityEvent,
-  queryOpenAlerts, queryRecentAlerts, acknowledgeAlert, acknowledgeAllAlerts, getAlertRouterId,
+  queryOpenAlerts, countOpenAlertsByRouter, queryRecentAlerts, acknowledgeAlert, acknowledgeAllAlerts, getAlertRouterId,
   queryPingSamples, queryPingSamplesAgg,
   queryTrafficSamples, queryTrafficSamplesAgg, queryTrafficInterfaces,
   queryBandwidthSamples, queryBandwidthSamplesAgg, queryBandwidthInterfaces,

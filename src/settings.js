@@ -173,6 +173,13 @@ const DEFAULTS = {
   // Minimum seconds between repeated alerts for the same subject
   notifCooldownSec:  60,
 
+  // Per-user notification channels (issue #109). Off by default: a personal
+  // ntfy topic or SMTP host is a destination the *user* chooses, so switching
+  // this on lets any account that can log in make the server issue outbound
+  // requests to an address it picks. That is a deliberate widening of an
+  // install's posture, so it is opted into rather than inherited on upgrade.
+  userNotifyEnabled: false,
+
   // Diagnostics
   rosDebug:          (process.env.ROS_DEBUG || 'false').toLowerCase() === 'true',
 
@@ -396,6 +403,11 @@ const VIEWER_FIELDS = [
   'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
   'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting', 'pageTopology',
   'displayTimezone',
+  // Whether the My Alerts tab exists at all. A non-admin is the whole audience
+  // for that tab and only ever sees this subset, so leaving it out would hide
+  // the feature from exactly the people it is for. It is a feature flag, not
+  // configuration — it discloses nothing.
+  'userNotifyEnabled',
 ];
 
 /** Returns the viewer-safe subset of settings (no credentials, no admin-only config). */
@@ -406,4 +418,9 @@ function getViewerPublic() {
   return out;
 }
 
-module.exports = { load, save, getPublic, getViewerPublic, isMasked, readRetired, DEFAULTS, POLL_BOUNDS };
+// encrypt/decrypt are exported for src/userNotify.js, which stores per-user
+// channel credentials in SQLite. It deliberately shares this key derivation
+// rather than carrying a second copy of the AES-GCM logic: one DATA_SECRET, one
+// scrypt path, so backup, restore and key rotation behave the same for every
+// credential the install holds, wherever it is stored.
+module.exports = { load, save, getPublic, getViewerPublic, isMasked, readRetired, encrypt, decrypt, DEFAULTS, POLL_BOUNDS };

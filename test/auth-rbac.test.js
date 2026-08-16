@@ -485,4 +485,70 @@ describe('sessionStore.getSessionCount', () => {
     SessionStore.deleteSession(token);
     assert.equal(SessionStore.getSessionCount(), before, 'count must decrease after deleteSession');
   });
+
+  // ── Per-user session listing and revocation ────────────────────────────────
+  // Sessions are a Map keyed only by token, so "where am I signed in?" and "sign
+  // me out everywhere else" were both impossible to answer before these.
+
+  test('listSessionsForUser returns only that user, and only live sessions', () => {
+    const a = SessionStore.createSession('u_list', 'alice', 'viewer', 3600_000).token;
+    const b = SessionStore.createSession('u_list', 'alice', 'viewer', 3600_000).token;
+    const other = SessionStore.createSession('u_other', 'bob', 'viewer', 3600_000).token;
+
+    const mine = SessionStore.listSessionsForUser('u_list');
+    assert.equal(mine.length, 2, "both of this user's sessions");
+    assert.ok(mine.every(s => s.token && s.createdAt), 'each row carries the token and when it started');
+    assert.equal(SessionStore.listSessionsForUser('u_other').length, 1, 'another user is not included');
+    assert.deepEqual(SessionStore.listSessionsForUser('nobody'), [], 'unknown user is empty, not everything');
+    assert.deepEqual(SessionStore.listSessionsForUser(''), [], 'a falsy id must not match every session');
+
+    [a, b, other].forEach(t => SessionStore.deleteSession(t));
+  });
+
+  test('listSessionsForUser omits an expired session', () => {
+    const live = SessionStore.createSession('u_exp', 'x', 'viewer', 3600_000).token;
+    const dead = SessionStore.createSession('u_exp', 'x', 'viewer', 1).token;
+    const until = Date.now() + 5;
+    while (Date.now() < until) { /* let the 1ms session lapse */ }
+
+    const rows = SessionStore.listSessionsForUser('u_exp');
+    assert.equal(rows.length, 1, 'a lapsed session must not be reported as somewhere you are signed in');
+    assert.equal(rows[0].token, live);
+
+    [live, dead].forEach(t => SessionStore.deleteSession(t));
+  });
+
+  test('deleteSessionsForUser spares the caller and leaves other users alone', () => {
+    const mine   = SessionStore.createSession('u_rev', 'alice', 'viewer', 3600_000).token;
+    const laptop = SessionStore.createSession('u_rev', 'alice', 'viewer', 3600_000).token;
+    const phone  = SessionStore.createSession('u_rev', 'alice', 'viewer', 3600_000).token;
+    const bob    = SessionStore.createSession('u_bob', 'bob',   'viewer', 3600_000).token;
+
+    const removed = SessionStore.deleteSessionsForUser('u_rev', mine);
+    assert.equal(removed.length, 2, 'both other sessions are returned');
+    assert.deepEqual(removed.sort(), [laptop, phone].sort());
+
+    assert.ok(SessionStore.getSession(mine), 'the session making the request must survive — ' +
+      'otherwise a password change signs you out of your own browser');
+    assert.equal(SessionStore.getSession(laptop), null);
+    assert.equal(SessionStore.getSession(phone), null);
+    assert.ok(SessionStore.getSession(bob), 'another user must be untouched');
+
+    [mine, bob].forEach(t => SessionStore.deleteSession(t));
+  });
+
+  test("deleteSessionsForUser with no exception clears all of that user's sessions", () => {
+    const a = SessionStore.createSession('u_all', 'x', 'viewer', 3600_000).token;
+    const b = SessionStore.createSession('u_all', 'x', 'viewer', 3600_000).token;
+    assert.equal(SessionStore.deleteSessionsForUser('u_all').length, 2);
+    assert.equal(SessionStore.getSession(a), null);
+    assert.equal(SessionStore.getSession(b), null);
+  });
+
+  test('a falsy user id revokes nothing', () => {
+    const t = SessionStore.createSession('u_safe', 'x', 'viewer', 3600_000).token;
+    assert.deepEqual(SessionStore.deleteSessionsForUser(''), [], 'must not be read as "everyone"');
+    assert.ok(SessionStore.getSession(t), 'the session survives');
+    SessionStore.deleteSession(t);
+  });
 });

@@ -422,13 +422,11 @@ class ConnectionsCollector {
       delete emitPayload.countryPorts;
       delete emitPayload.sourceDests;
       delete emitPayload.sourcePorts;
-      // Split delivery (issue #108). The full payload — per-protocol counts,
-      // top sources/destinations/countries — is what the Connections page and
-      // its dashboard card render, and it must not reach a session whose role
-      // denies that page. The connection COUNT is different: it feeds the
-      // sidebar badge, which is chrome on every page, so it stays router-wide
-      // and carries nothing a denied page could disclose.
-      this.io.emit('conn:count', { ts: emitPayload.ts, total: emitPayload.total });
+      // Page-scoped (issue #108): per-protocol counts and top
+      // sources/destinations/countries are what the Connections page and its
+      // dashboard card render, and must not reach a session whose role denies
+      // that page. A router-wide conn:count rode alongside this to feed the
+      // sidebar badge; the badge is gone, and it was the only consumer.
       this.io.to('page-connections').to('dash-card-connections').emit('conn:update', emitPayload);
     }
     // Connections page gets per-country and per-source indexes only when they change.

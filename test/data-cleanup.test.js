@@ -135,7 +135,42 @@ test('vacuum shrinks the file after a large delete', () => {
   assert.ok(db.stats().bytes < grown, 'file is smaller than it was when full');
 });
 
+// ── Open-alert counts for the Routers page summary ──────────────────────────
+// One grouped query feeds the "Alerting" card, refreshed every two seconds for
+// every router a session can see. The thing worth pinning is that it counts only
+// what is still open: a resolved alert must stop being reported, or the card
+// would climb all day and never come back down.
+
+test('countOpenAlertsByRouter counts only unresolved alerts, grouped by router', () => {
+  for (const row of db.queryOpenAlerts(R1, 500)) db.resolveAlertEvent(R1, row.alert_type, row.subject);
+  for (const row of db.queryOpenAlerts(R2, 500)) db.resolveAlertEvent(R2, row.alert_type, row.subject);
+  assert.deepEqual(db.countOpenAlertsByRouter(), {}, 'nothing open to begin with');
+
+  db.insertAlertEvent(R1, 'interface_down', 'ether1', 'ether1 went down');
+  db.insertAlertEvent(R1, 'high_cpu', null, 'CPU at 95%');
+  db.insertAlertEvent(R2, 'ping_loss', '1.1.1.1', 'loss 100%');
+
+  assert.deepEqual(db.countOpenAlertsByRouter(), { [R1]: 2, [R2]: 1 });
+
+  // Resolving one must decrement, not merely stop growing.
+  db.resolveAlertEvent(R1, 'interface_down', 'ether1');
+  assert.deepEqual(db.countOpenAlertsByRouter(), { [R1]: 1, [R2]: 1 });
+
+  // A router with nothing open drops out entirely rather than reporting 0, so
+  // the caller decides what "no alerts" looks like.
+  db.resolveAlertEvent(R2, 'ping_loss', '1.1.1.1');
+  const counts = db.countOpenAlertsByRouter();
+  assert.equal(counts[R2], undefined, 'a router with nothing open is absent');
+  assert.equal(counts[R1], 1);
+});
+
 test('teardown: close db', () => {
   db.close();
   fs.rmSync(TMP, { recursive: true, force: true });
+});
+
+test('countOpenAlertsByRouter fails soft with no database open', () => {
+  // Same convention as every other accessor: an empty shape, never a throw. The
+  // Routers page must still render if the database could not be opened.
+  assert.deepEqual(db.countOpenAlertsByRouter(), {});
 });

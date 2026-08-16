@@ -87,6 +87,45 @@ describe('alerter createEvaluator', () => {
     assert.equal(notifierStub.calls.length, 0, 'no notification when alertsEnabled is false');
   });
 
+  test('an alert-type toggle suppresses the push it names, and only that', async () => {
+    // The push half of the gate that moved out of evaluate() in #109. The
+    // detection half — that the event is still recorded and still reaches the
+    // bell — is pinned in alert-merge.test.js, the file that stubs the
+    // database. Both halves matter: this one alone would still pass if the
+    // toggle went back to wrapping the whole rule.
+    notifierStub.calls = [];
+    alerter.updateSettings(makeSettings({ telegramEnabled: true, notifCpu: false }));
+    const { evaluate } = alerter.createEvaluator(() => 'TestRouter', () => makeRouter());
+
+    evaluate('system:update', { cpuLoad: 95 });
+    await new Promise(r => setImmediate(r));
+    assert.equal(notifierStub.calls.length, 0, 'notifCpu:false must silence the CPU push');
+
+    // A different type carried on the same event is unaffected — the keys are
+    // checked per rule, not per event.
+    notifierStub.calls = [];
+    alerter.updateSettings(makeSettings({ telegramEnabled: true, notifCpu: false, notifRouterUpdate: true }));
+    const ev2 = alerter.createEvaluator(() => 'TestRouter', () => makeRouter()).evaluate;
+    ev2('system:update', { cpuLoad: 95, updateAvailable: true, latestVersion: '7.99', version: '7.23' });
+    await new Promise(r => setImmediate(r));
+    assert.equal(notifierStub.calls.length, 1, 'the RouterOS-update push still goes out');
+    assert.match(notifierStub.calls[0].body, /RouterOS Update/);
+  });
+
+  test('the install destination is just another recipient, and is not duplicated', async () => {
+    // #109 turned a single send into a fan-out. The install-wide destination
+    // became a recipient with a reserved id, so what is worth pinning is that
+    // it still behaves exactly as it did: one send, its own toggles applied.
+    notifierStub.calls = [];
+    alerter.updateSettings(makeSettings({ telegramEnabled: true, notifCpu: true }));
+    const { evaluate } = alerter.createEvaluator(() => 'TestRouter', () => makeRouter());
+
+    evaluate('system:update', { cpuLoad: 95 });
+    await new Promise(r => setImmediate(r));
+    assert.equal(notifierStub.calls.length, 1,
+      'exactly one send with no per-user configs — the fan-out must not duplicate the install');
+  });
+
   test('CPU threshold alert fires when load exceeds threshold', async () => {
     notifierStub.calls = [];
     alerter.updateSettings(makeSettings({ telegramEnabled: true, alertCpuThreshold: 80 }));

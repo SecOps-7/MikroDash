@@ -391,6 +391,46 @@ function wouldOrphanGlobalAdmin(mutate) {
  * grant graph is deliberately NOT sent — it would disclose other principals'
  * access to anyone who opened devtools.
  */
+/**
+ * This user's own access, resolved to names, for showing them what they hold.
+ *
+ * capsFor() below deliberately ships booleans and id lists and never names,
+ * because it must not disclose how anyone ELSE's access is composed. This is a
+ * different question with a different answer: it is viewFor(userId) — already
+ * scoped to exactly one person — projected onto the names of the roles, sites
+ * and routers that person holds. Nothing here is reachable for another user, so
+ * it discloses nothing capsFor() was protecting.
+ *
+ * Roles held through a group appear automatically: grantsForUser already unions
+ * group grants, which is the whole reason the legacy allowedRouterIds field
+ * cannot answer this.
+ */
+function accessSummaryFor(userId) {
+  const empty = { global: [], sites: [], routers: [] };
+  if (!userId) return empty;
+  const view = viewFor(userId);
+
+  // A role, site or router can be deleted while a stale grant row survives until
+  // the next sweep, so every lookup can miss. Drop those rather than rendering
+  // "null" at somebody.
+  const roleNames = (ids) => [...ids]
+    .map(id => { const r = db.getRole(id); return r ? r.name : null; })
+    .filter(Boolean)
+    .sort();
+
+  return {
+    global: roleNames(view.global),
+    sites: [...view.bySite].map(([siteId, roles]) => {
+      const s = db.getSite(siteId);
+      return { siteId, siteName: s ? s.name : null, roles: roleNames(roles) };
+    }).filter(x => x.siteName),
+    routers: [...view.byRouter].map(([routerId, roles]) => {
+      const r = Routers.getById(routerId);
+      return { routerId, routerLabel: r ? (r.label || r.host) : null, roles: roleNames(roles) };
+    }).filter(x => x.routerLabel),
+  };
+}
+
 function capsFor(session) {
   return {
     managePrincipals: can(session, 'system:principals'),
@@ -519,7 +559,7 @@ module.exports = {
   init, can, viewFor, bump,
   effectiveRouterIds, visibleSiteIds,
   requireGlobalAdmin, requirePerm, fromQuery, fromParam, fromBody,
-  wouldOrphanGlobalAdmin, capsFor, migrateFromLegacy, syncUserGrants,
+  wouldOrphanGlobalAdmin, capsFor, accessSummaryFor, migrateFromLegacy, syncUserGrants,
   canPage, requirePage, canPageAnywhere,
   PERMISSIONS, GLOBAL_ONLY, SCOPED, READ_CONFERS, WRITE_CONFERS,
 };

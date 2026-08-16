@@ -205,7 +205,6 @@ var uptimeDisplay    = $('uptimeDisplay');
 var uptimeChip       = $('uptimeChip');
 var wirelessTable    = $('wirelessTable');
 var wirelessTabBadge = $('wirelessTabBadge');
-var wirelessNavBadge = $('wirelessNavBadge');
 var vpnTable         = $('vpnTable');
 var firewallTable    = $('firewallTable');
 var pageTitle        = $('pageTitle');
@@ -216,7 +215,6 @@ var ifaceTypeFilter  = $('ifaceTypeFilter');
 var vpnPageCount     = $('vpnPageCount');
 var dhcpTable        = $('dhcpTable');
 var dhcpTotalBadge   = $('dhcpTotalBadge');
-var dhcpNavBadge     = $('dhcpNavBadge');
 var dhcpSearch       = $('dhcpSearch');
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -521,7 +519,29 @@ var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections
 var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','routing','bandwidth','firewall','logs'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
+/**
+ * May this session open the Settings page at all?
+ *
+ * Deliberately the same condition applyCaps uses to show #settingsNavItem, so
+ * the nav and the page can never disagree about who Settings is for.
+ *
+ * Unknown caps PERMIT. window._caps is filled from /api/auth/status, which
+ * lands after the first paint — treating "not yet known" as "no" would bounce a
+ * genuine administrator out of Settings during that gap. This mirrors the
+ * _pageAccess = null rule above: unknown must not mean hidden. applyCaps
+ * re-checks once the answer is actually known.
+ */
+function _settingsAllowed() {
+  if (!window._caps) return true;
+  return !!(window._caps.manageSettings || window._caps.managePrincipals);
+}
+
 function showPage(name){
+  // Hiding the nav link was never a block — showPage('settings') from the
+  // console opened the whole admin page for anyone. The server refused every
+  // write, but the page had no business rendering. This is defence in depth,
+  // not the boundary.
+  if (name === 'settings' && !_settingsAllowed()) name = 'dashboard';
   var prev = _currentPage;
   _currentPage = name;
   document.querySelectorAll('.page-view').forEach(function(p){p.classList.remove('active');});
@@ -540,6 +560,11 @@ function showPage(name){
   socket.emit('page:focus', name);
 }
 document.querySelectorAll('.nav-item').forEach(function(item){
+  // The user chip wears .nav-item for the sidebar styling but navigates nowhere
+  // — it opens the account modal instead (wired in the auth-chip block below).
+  // Without this skip it would call showPage(undefined) and blank the page,
+  // since it deliberately no longer carries a data-page.
+  if (item.closest('#authUserChip')) return;
   item.addEventListener('click', function(e){e.preventDefault();showPage(item.dataset.page);});
 });
 
@@ -956,12 +981,6 @@ function _flushConnUpdate(){
     }else{topDests.innerHTML='<div class="empty-state">\u2014</div>';}
   }
 }
-// The connection count is chrome — the sidebar badge is on every page — so it
-// arrives router-wide while the full payload is page-scoped (issue #108).
-socket.on('conn:count',function(data){
-  var connNavBadge=$("connNavBadge"); if(connNavBadge) connNavBadge.textContent=data.total;
-});
-
 socket.on('conn:update',function(data){
   connTotal.textContent=data.total;
   connHistory.push({ts:data.ts,total:data.total});
@@ -1189,7 +1208,6 @@ function renderIfaceList(ifaces) {
 socket.on('ifstatus:names',function(data){
   var ifaces=data.interfaces||[];
   _rebuildIfaceSelect(ifaces.filter(function(i){return i.running&&!i.disabled;}).map(function(i){return i.name;}));
-  var nb=$('ifacesNavBadge');if(nb){nb.textContent=(data.total||ifaces.length)||'';}
 });
 
 socket.on('ifstatus:update',function(data){
@@ -1648,12 +1666,6 @@ function portSvg(sz) {
     wirelessTable.innerHTML=rows;
   }
 
-  // The client count is chrome — the sidebar badge shows on every page — so it
-  // arrives router-wide while the client list itself is page-scoped (#108).
-  socket.on('wireless:count',function(data){
-    if(wirelessNavBadge) wirelessNavBadge.textContent=data.count;
-  });
-
   socket.on('wireless:update',function(data){
     _wlClients=data.clients||[];
     var ndWC=$('ndWirelessCount'); if(ndWC) ndWC.textContent=_wlClients.length;
@@ -1745,7 +1757,6 @@ socket.on('vpn:update',function(data){
 
   // ── Dashboard nav badges ──────────────────────────────────────────────────
   if (vpnPageCount) { vpnPageCount.textContent = wgPeers.length; vpnPageCount.className = 'card-badge' + (wgPeers.length > 0 ? ' active-blue' : ''); }
-  var nb = $('vpnNavBadge'); if (nb) nb.textContent = connected.length;
 
   // ── Dashboard mini card ───────────────────────────────────────────────────
   connected.sort(function(a,b){ return parseDurationSec(a.lastHandshake) - parseDurationSec(b.lastHandshake); });
@@ -1923,7 +1934,6 @@ function renderDhcp(leases){
     dhcpTotalBadge.textContent = count;
     dhcpTotalBadge.className = 'card-badge' + (count > 0 ? ' active-blue' : '');
   }
-  if(dhcpNavBadge) dhcpNavBadge.textContent = count;
   if(!filtered.length){dhcpTable.innerHTML='<tr><td colspan="4" class="empty-state">No leases'+((leaseFilter||leaseServerFilter)?' matching filter':'')+'…</td></tr>';return;}
   filtered = _sortLeases(filtered);
   dhcpTable.innerHTML=filtered.map(function(l){
@@ -2388,9 +2398,36 @@ var _alertPingLoss     = 100;
 var _vpnDashTopN       = 5;
 var _displayTimezone   = '';
 
+/**
+ * Show or hide the My Alerts section of the account modal (#109).
+ *
+ * It lived as a Settings tab until the account modal took it over. Settings is
+ * install-wide administration; a personal delivery channel is not, and an
+ * ordinary user should never need the admin page to reach one.
+ *
+ * The authMode test is `!== 'none'` rather than `=== 'modern'` on purpose:
+ * _authMode is assigned from the /api/auth/status response, which lands after
+ * the first settings:pages, so an equality test reads undefined and hides the
+ * section permanently. Excluding only the mode that cannot use it is correct at
+ * both points in time — 'none' has no user for the channels to belong to.
+ */
+function _applyMyAlertsTab(enabled) {
+  var section = document.getElementById('acctMyAlerts');
+  if (!section) return;
+  var show = enabled === true && window._authMode !== 'none';
+  section.style.display = show ? '' : 'none';
+  // Load once, lazily — nobody should pay a request for a panel they never open.
+  if (show && !section.dataset.loaded && window._loadUserNotify) {
+    section.dataset.loaded = '1';
+    window._loadUserNotify();
+  }
+}
+
 function applyPageVisibility(pages) {
   if (pages) _pageInstall = pages;
   pages = _pageInstall;
+
+  _applyMyAlertsTab(pages.userNotifyEnabled);
 
   // A page shows only if the install allows it AND the role grants it. The role
   // half is skipped until caps have arrived (_pageAccess null), so the nav is
@@ -2408,6 +2445,9 @@ function applyPageVisibility(pages) {
     var byRole    = !_pageAccess || !!_pageAccess[pageName];
     var visible   = byInstall && byRole;
 
+    // The user chip is no longer a match here: it carries no data-page at all
+    // since the account modal replaced its navigation, so the sweep cannot
+    // reach it and no exemption is needed.
     document.querySelectorAll('.nav-item[data-page="' + pageName + '"]').forEach(function (navEl) {
       navEl.style.display = visible ? '' : 'none';
     });
@@ -2468,14 +2508,7 @@ socket.on('connect',function(){
   // during the gap before collectors deliver their first post-reconnect payload.
   // Cards where the server has no lastPayload (e.g. fresh session after a restart)
   // would otherwise expire against a stale timer set in the previous session.
-  staleConfig.forEach(function(cfg){
-    // A card whose collector is switched off for this router must not be
-    // re-armed: the sweep guards on last>0, so 0 keeps it quiet (#105).
-    staleTimers[cfg.cardId]=_collectionOffCard(cfg.cardId)?0:Date.now();
-    var card=$(cfg.cardId);if(card)card.classList.remove('is-stale');
-  });
-  staleTimers['trafficCard']=Date.now();
-  var _tc=$('trafficCard');if(_tc)_tc.classList.remove('is-stale');
+  _resetStaleTimers();
   // On reconnect in modern auth, verify the session is still valid.
   // _authMode is only set after the first auth/status fetch, so this guard
   // ensures the check fires on reconnects but not the very first connect.
@@ -2643,6 +2676,34 @@ var staleConfig=[
   {cardId:'topologyCard',      event:'topology:update',  threshold:90000},  // streamed — heartbeat every 60s
 ];
 var staleTimers={};
+
+/**
+ * Give every card a fresh window before it may be called stale.
+ *
+ * Staleness means "this data stopped arriving", and it is measured from the last
+ * payload. But payloads only arrive while the socket is in the card's room, and
+ * rooms are left whenever the connection drops or the page changes. So after
+ * either, the elapsed time says nothing about the collector — it is just how
+ * long we were not listening. Restarting the clock is what makes the measurement
+ * mean what it claims.
+ *
+ * A card whose collector is switched off for this router is not re-armed: the
+ * sweep guards on last>0, so 0 keeps it quiet (#105).
+ */
+function _resetStaleTimers() {
+  staleConfig.forEach(function(cfg){
+    staleTimers[cfg.cardId] = _collectionOffCard(cfg.cardId) ? 0 : Date.now();
+    var card = $(cfg.cardId); if (card) card.classList.remove('is-stale');
+  });
+  staleTimers['trafficCard'] = Date.now();
+  var tc = $('trafficCard'); if (tc) tc.classList.remove('is-stale');
+}
+
+// Navigating away leaves the page and dash-card rooms, so nothing arrives while
+// you are gone and the timers keep counting. Coming back to a wall of stale
+// cards that heal a few seconds later is that arithmetic, not a real stall.
+document.addEventListener('mikrodash:pagechange', function(){ _resetStaleTimers(); });
+
 staleConfig.forEach(function(cfg){
   staleTimers[cfg.cardId]=0;
   socket.on(cfg.event,function(data){
@@ -2918,7 +2979,20 @@ loadAlertFilters();
       if (m.field === 'ifaceUpDown') updateFilterCard();
       // Persist to server immediately so push alerts respect the toggle without a Save click.
       var update = {}; update[m.key] = el.checked;
-      fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(update) }).catch(function(){});
+      var wanted = el.checked;
+      fetch('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(update) })
+        .then(function(r){ return r.json().catch(function(){ return { ok: r.ok }; }); })
+        .then(function(d){
+          // A rejected save used to be swallowed, leaving the box ticked and the
+          // toggle only appearing to have taken effect. Put it back and say so.
+          if (d && d.ok) return;
+          el.checked = !wanted;
+          m.obj[m.field] = el.checked;
+          saveAlertFilters();
+          if (m.field === 'ifaceUpDown') updateFilterCard();
+          if (window.showBanner) window.showBanner('err', 'Could not save that alert toggle: ' + ((d && d.error) || 'not permitted'));
+        })
+        .catch(function(){});
     });
   });
 
@@ -4481,6 +4555,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     banner.textContent = msg;
     if (type !== 'err') setTimeout(function(){ banner.className='sbanner'; }, 4000);
   }
+  // Hoisted for the alert-type toggles, which live in their own IIFE and need to
+  // report a rejected save — same idiom as window._applyCaps below.
+  window.showBanner = showBanner;
 
   function buildSliders(data) {
     var wrap = $('pollSlidersWrap'); if (!wrap) return;
@@ -4716,7 +4793,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // pushed the table down. Close on the ✕, on a backdrop click and on Escape —
   // all three delegated, because the dialogs live inside a card that starts
   // hidden. Clicking inside must not close, hence the e.target === bg test.
-  var _PRINCIPAL_MODALS = ['userFormWrap', 'groupFormWrap', 'siteFormWrap', 'roleFormWrap'];
+  // accountModal rides along for Escape-to-close and backdrop-click-to-close.
+  var _PRINCIPAL_MODALS = ['userFormWrap', 'groupFormWrap', 'siteFormWrap', 'roleFormWrap', 'accountModal'];
 
   function _closePrincipalModals() {
     _PRINCIPAL_MODALS.forEach(function (id) {
@@ -5424,6 +5502,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) pingEnabledEl.checked = data.pingEnabled !== false;
     var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) rosDebugEl.checked = !!data.rosDebug;
+    var unEnabledEl = $('s_userNotifyEnabled'); if (unEnabledEl) unEnabledEl.checked = !!data.userNotifyEnabled;
     var tzEl = $('s_displayTimezone'); if (tzEl) tzEl.value = data.displayTimezone || '';
     // Alert thresholds
     var uchLoad = $('s_updateCheckHours');
@@ -5537,6 +5616,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
     var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) out.rosDebug = rosDebugEl.checked;
+    var unEnabledEl = $('s_userNotifyEnabled'); if (unEnabledEl) out.userNotifyEnabled = unEnabledEl.checked;
     var tzEl2 = $('s_displayTimezone'); if (tzEl2) out.displayTimezone = tzEl2.value;
     // Alert thresholds
     var cpuEl = $('s_alertCpuThreshold');  if (cpuEl)  out.alertCpuThreshold  = parseInt(cpuEl.value,  10);
@@ -5663,7 +5743,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       body: JSON.stringify({ _reset: true }),
     })
     .then(function(r){ return r.json(); })
-    .then(function(){ showBanner('ok', '✓ Reset to defaults'); loadSettings(); })
+    // Checking data.ok is not decoration: this reported "✓ Reset to defaults"
+    // on a 403 too, so the one thing it must never do — claim a destructive
+    // change happened when it did not — is exactly what it did.
+    .then(function(d){
+      if (d && d.ok) { showBanner('ok', '✓ Reset to defaults'); loadSettings(); }
+      else           { showBanner('err', 'Reset failed: ' + ((d && d.error) || 'not permitted')); }
+    })
     .catch(function(e){ showBanner('err', 'Reset failed: '+e); });
   });
 
@@ -5718,6 +5804,113 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   _testNotifBtn('btn-test-pushbullet', 'test-pushbullet-result', 'pushbullet');
   _testNotifBtn('btn-test-smtp',       'test-smtp-result',       'smtp');
   _testNotifBtn('btn-test-ntfy',       'test-ntfy-result',       'ntfy');
+
+  /* ── My Alerts: per-user notification channels (#109) ────────────────────
+     Everything above this point edits install-wide settings and is gated on
+     administrator access. This section edits the signed-in user's own delivery
+     and is deliberately not, so it posts to its own endpoint with its own save
+     button rather than riding the Settings save. Field ids are un_* so they
+     cannot collide with the s_* ids above.                                   */
+  var UN_CREDS  = ['telegramBotToken','pushbulletApiKey','smtpUser','smtpPass','ntfyToken'];
+  // Channels only. Which alerts exist is the install's decision, so there are no
+  // per-user alert-type or interface-type fields to carry. Email is an opt-in
+  // plus an address — the mail server itself stays admin-only.
+  var UN_STRS   = ['telegramChatId','ntfyUrl','emailTo'];
+  var UN_BOOLS  = ['telegramEnabled','pushbulletEnabled','ntfyEnabled','emailEnabled'];
+
+  function populateUserNotify(data) {
+    if (!data) return;
+    UN_BOOLS.forEach(function(k){ var el = $('un_' + k); if (el) el.checked = !!data[k]; });
+    UN_STRS.forEach(function(k){ var el = $('un_' + k); if (el) el.value = data[k] || ''; });
+    // A stored credential arrives masked. It goes in the placeholder, never the
+    // value — otherwise the user would have to clear the bullets before typing,
+    // and an unedited form would post them back as a literal password.
+    UN_CREDS.forEach(function(k){
+      var el = $('un_' + k);
+      if (el) { el.value = ''; el.placeholder = data[k] ? 'leave blank to keep current' : 'not set'; }
+    });
+  }
+
+  function collectUserNotifyForm() {
+    var out = {};
+    UN_BOOLS.forEach(function(k){ var el = $('un_' + k); if (el) out[k] = el.checked; });
+    UN_STRS.forEach(function(k){ var el = $('un_' + k); if (el) out[k] = el.value.trim(); });
+    // Only credentials the user actually typed. Key absence means "keep what is
+    // stored", which is what lets an unrelated edit leave a token untouched.
+    UN_CREDS.forEach(function(k){ var el = $('un_' + k); if (el && el.value) out[k] = el.value; });
+    return out;
+  }
+
+  function loadUserNotify() {
+    fetch('/api/user-notify')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d) populateUserNotify(d); })
+      .catch(function(){ /* tab is hidden unless the feature is on; ignore */ });
+  }
+  window._loadUserNotify = loadUserNotify;
+
+  var unSaveBtn = $('saveUserNotifyBtn'), unSaveResult = $('userNotifySaveResult');
+  if (unSaveBtn) unSaveBtn.addEventListener('click', function() {
+    unSaveBtn.disabled = true;
+    if (unSaveResult) { unSaveResult.textContent = 'Saving…'; unSaveResult.style.color = 'var(--text-muted)'; }
+    fetch('/api/user-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(collectUserNotifyForm()),
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      unSaveBtn.disabled = false;
+      if (unSaveResult) {
+        unSaveResult.textContent = data.ok ? '✓ Saved' : '✗ ' + (data.error || 'failed');
+        unSaveResult.style.color = data.ok ? 'var(--accent-green, #4ade80)' : 'var(--accent-red, #f87171)';
+        setTimeout(function(){ unSaveResult.textContent = ''; }, 4000);
+      }
+      if (data.ok && data.config) populateUserNotify(data.config);
+    })
+    .catch(function(e){
+      unSaveBtn.disabled = false;
+      if (unSaveResult) { unSaveResult.textContent = '✗ ' + e; unSaveResult.style.color = 'var(--accent-red, #f87171)'; }
+    });
+  });
+
+  function _testUserNotifyBtn(btnId, resultId, channel) {
+    var btn = $(btnId), result = $(resultId);
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      btn.disabled = true;
+      if (result) { result.textContent = 'Sending…'; result.style.color = 'var(--text-muted)'; }
+      // Send whatever is currently typed so Test works before Save, same
+      // affordance the install-wide channels have. Field names go over as-is
+      // here; the route merges them over the stored config.
+      var payload = { channel: channel };
+      UN_STRS.concat(UN_CREDS).forEach(function(k){
+        var el = $('un_' + k); if (el && el.value) payload[k] = el.value;
+      });
+      fetch('/api/user-notify/test-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        btn.disabled = false;
+        if (result) {
+          result.textContent = data.ok ? '✓ Sent!' : '✗ ' + (data.error || 'failed');
+          result.style.color = data.ok ? 'var(--accent-green, #4ade80)' : 'var(--accent-red, #f87171)';
+          setTimeout(function(){ result.textContent = ''; }, 5000);
+        }
+      })
+      .catch(function(e){
+        btn.disabled = false;
+        if (result) { result.textContent = '✗ ' + e; result.style.color = 'var(--accent-red, #f87171)'; }
+      });
+    });
+  }
+  _testUserNotifyBtn('btn-un-test-telegram',   'un-test-telegram-result',   'telegram');
+  _testUserNotifyBtn('btn-un-test-pushbullet', 'un-test-pushbullet-result', 'pushbullet');
+  _testUserNotifyBtn('btn-un-test-email',      'un-test-email-result',      'email');
+  _testUserNotifyBtn('btn-un-test-ntfy',       'un-test-ntfy-result',       'ntfy');
 
   // Auth toggle listener
   var authEnabledToggle = $('s_authEnabled');
@@ -6293,7 +6486,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var selState = $('rtSelState');
   var selType  = $('rtSelType');
   var selIpver = $('rtSelIpver');
-  var nb       = $('routingNavBadge');
 
   var _rtData  = null; // last routing:update payload
   var _sortKey = 'state';
@@ -6455,7 +6647,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     set('rtBgpTotal', sm.total);
     set('rtBgpEstab', sm.established);
     set('rtBgpDown',  sm.down);
-    if (nb) { var tot = (data.routeCounts||{}).total; nb.textContent = tot > 0 ? tot : ''; }
     updateDonut(rc);
   }
 
@@ -8157,6 +8348,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // Operators still have a reason to open Settings (their own preferences and
     // the read-only view); only hide it from someone who can change nothing.
     if (settingsNav) settingsNav.style.display = (c.manageSettings || c.managePrincipals) ? '' : 'none';
+
+    // Caps arrive after the first paint, so someone may already be standing on
+    // Settings by the time we learn they may not be. _settingsAllowed() permits
+    // while caps are unknown precisely so an administrator is not bounced during
+    // that gap; this is the other half of that bargain.
+    if (_currentPage === 'settings' && !_settingsAllowed()) showPage('dashboard');
   }
 
   // Hoisted so the perms:changed handler and the 403 interceptor can re-run it.
@@ -8168,6 +8365,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     .then(function(r) { return r.json(); })
     .then(function(d) {
       window._authMode = d.authMode || 'modern';
+      // Now that the mode is known for certain, re-run the parts of the chrome
+      // that depend on it. My Alerts is the one that does (#109): it needs a
+      // signed-in user to own the channels.
+      applyPageVisibility();
       if (d.authMode !== 'modern') return;
       if (d.session) {
         if (nameEl) nameEl.textContent = d.session.username;
@@ -8176,6 +8377,169 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       }
     })
     .catch(function() {}); // non-critical — chip stays hidden on failure
+
+  /* ── Account modal ──────────────────────────────────────────────────────
+     The chip used to navigate to Settings, which is how an ordinary user ended
+     up looking at install configuration. It opens this instead: the things a
+     person may change about themselves, and nothing they may not.            */
+  var acctModal = $('accountModal');
+
+  function _acctSay(el, ok, msg) {
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = ok ? 'var(--accent-green, #4ade80)' : 'var(--accent-red, #f87171)';
+    if (ok) setTimeout(function(){ if (el.textContent === msg) el.textContent = ''; }, 5000);
+  }
+
+  function _renderAccess(a) {
+    var body = $('acct_accessBody');
+    if (!body) return;
+    var rows = [];
+    if (a.global && a.global.length) {
+      rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Everything</strong>' +
+                '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(a.global.join(', ')) + '</div></div>');
+    }
+    (a.sites || []).forEach(function (s) {
+      rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Site: ' + esc(s.siteName) + '</strong>' +
+                '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(s.roles.join(', ')) + '</div></div>');
+    });
+    (a.routers || []).forEach(function (r) {
+      rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Router: ' + esc(r.routerLabel) + '</strong>' +
+                '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(r.roles.join(', ')) + '</div></div>');
+    });
+    body.innerHTML = rows.length ? rows.join('')
+      : '<span style="color:var(--text-muted);font-size:.78rem">No access granted yet — ask an administrator.</span>';
+  }
+
+  function _renderSessions(list) {
+    var body = $('acct_sessionsBody');
+    if (!body) return;
+    if (!list || !list.length) {
+      body.innerHTML = '<span style="color:var(--text-muted);font-size:.78rem">No active sessions.</span>';
+      return;
+    }
+    body.innerHTML = list.map(function (s) {
+      var when = new Date(s.createdAt).toLocaleString();
+      var exp  = s.expiresAt ? new Date(s.expiresAt).toLocaleString() : 'never';
+      return '<div style="display:flex;justify-content:space-between;gap:.7rem;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.75rem">' +
+             '<span>Signed in ' + esc(when) + (s.current ? ' <strong>(this device)</strong>' : '') + '</span>' +
+             '<span style="color:var(--text-muted)">expires ' + esc(exp) + '</span></div>';
+    }).join('');
+  }
+
+  function _loadAccount() {
+    if (nameEl) { var u = $('acct_username'); if (u) u.textContent = nameEl.textContent; }
+    // Ask for the install switch rather than waiting for settings:pages to have
+    // arrived. That broadcast fires on connect and on save, so whether it has
+    // landed by the time somebody opens this is a matter of timing — and for a
+    // non-admin it is the only signal, with the Settings page now out of reach.
+    // /api/settings answers every role: a viewer gets the allowlisted subset,
+    // which carries this flag and no credentials.
+    fetch('/api/settings').then(function(r){ return r.json(); })
+      .then(function(d){ if (d) _applyMyAlertsTab(d.userNotifyEnabled === true); })
+      .catch(function(){});
+    fetch('/api/account/access').then(function(r){ return r.json(); })
+      .then(function(d){ if (d && d.ok) _renderAccess(d.access); })
+      .catch(function(){});
+    fetch('/api/account/sessions').then(function(r){ return r.json(); })
+      .then(function(d){ if (d && d.ok) _renderSessions(d.sessions); })
+      .catch(function(){});
+    // Same source the About tab uses. Non-admins can no longer reach that tab,
+    // so this is where they find out what they are running.
+    var v = $('acct_version');
+    if (v && !v.textContent) {
+      fetch('/healthz').then(function(r){ return r.json(); })
+        .then(function(d){ if (d && d.version) v.textContent = 'MikroDash v' + d.version; })
+        .catch(function(){});
+    }
+  }
+
+  /**
+   * Show or hide the change-password form.
+   *
+   * Collapsed unless asked for: opening the modal to check which routers you can
+   * see should not present three empty password boxes. Clearing on close is not
+   * cosmetic — a half-typed current password left in a field survives until the
+   * page is reloaded otherwise.
+   */
+  function _setPwFormOpen(open) {
+    var form = $('acct_pwForm'), prompt = $('acct_pwPrompt');
+    if (!form || !prompt) return;
+    form.style.display   = open ? '' : 'none';
+    prompt.style.display = open ? 'none' : 'flex';
+    if (!open) {
+      ['acct_currentPassword','acct_newPassword','acct_confirmPassword'].forEach(function(id){
+        var el = $(id); if (el) el.value = '';
+      });
+      var r = $('acct_pwResult'); if (r) r.textContent = '';
+    } else {
+      var first = $('acct_currentPassword'); if (first) first.focus();
+    }
+  }
+
+  function openAccountModal() {
+    if (!acctModal) return;
+    _setPwFormOpen(false);
+    acctModal.classList.add('open');
+    _loadAccount();
+  }
+  window._openAccountModal = openAccountModal;
+
+  if (chip) chip.addEventListener('click', function(){ openAccountModal(); });
+
+  var pwToggle = $('acct_pwToggleBtn');
+  if (pwToggle) pwToggle.addEventListener('click', function(){ _setPwFormOpen(true); });
+  var pwCancel = $('acct_pwCancelBtn');
+  if (pwCancel) pwCancel.addEventListener('click', function(){ _setPwFormOpen(false); });
+
+  var pwBtn = $('acct_pwSaveBtn');
+  if (pwBtn) pwBtn.addEventListener('click', function () {
+    var cur = $('acct_currentPassword'), nw = $('acct_newPassword'), cf = $('acct_confirmPassword');
+    var out = $('acct_pwResult');
+    if (!cur.value || !nw.value) return _acctSay(out, false, 'Both passwords are required');
+    // Checked here as well as server-side: catching a typo before it is
+    // submitted is kinder than changing a password to something unintended.
+    if (nw.value !== cf.value)   return _acctSay(out, false, 'New passwords do not match');
+    pwBtn.disabled = true;
+    _acctSay(out, true, 'Saving…');
+    fetch('/api/account/password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword: cur.value, newPassword: nw.value }),
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      pwBtn.disabled = false;
+      if (!d.ok) return _acctSay(out, false, d.error || 'Failed');
+      cur.value = nw.value = cf.value = '';
+      _acctSay(out, true, d.revokedOtherSessions
+        ? '✓ Password changed — signed out of ' + d.revokedOtherSessions + ' other session(s)'
+        : '✓ Password changed');
+      _loadAccount();
+    })
+    .catch(function(e){ pwBtn.disabled = false; _acctSay(out, false, String(e)); });
+  });
+
+  var revokeBtn = $('acct_signOutOthersBtn');
+  if (revokeBtn) revokeBtn.addEventListener('click', function () {
+    var out = $('acct_sessionsResult');
+    revokeBtn.disabled = true;
+    fetch('/api/account/sessions/revoke-others', { method: 'POST' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        revokeBtn.disabled = false;
+        if (!d.ok) return _acctSay(out, false, d.error || 'Failed');
+        _acctSay(out, true, '✓ Signed out ' + d.revoked + ' other session(s)');
+        _loadAccount();
+      })
+      .catch(function(e){ revokeBtn.disabled = false; _acctSay(out, false, String(e)); });
+  });
+
+  var acctSignOut = $('acct_signOutBtn');
+  if (acctSignOut) acctSignOut.addEventListener('click', function () {
+    fetch('/api/auth/logout')
+      .then(function(){ window.location.href = '/login'; })
+      .catch(function(){ window.location.href = '/login'; });
+  });
 
   // Permissions can change while a browser is open — an administrator edits a
   // role, or revokes a grant. Before this, nothing refreshed caps at runtime and
@@ -9041,11 +9405,221 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 }());
 
+/**
+ * The four fleet totals above the router grid.
+ *
+ * Counted from the same rows the cards below are drawn from, so the summary can
+ * never disagree with what is on screen — and it inherits the RBAC filter the
+ * server already applied, rather than claiming a fleet size the viewer cannot
+ * see. Alerting is not part of the online/offline split: it counts routers with
+ * an unresolved alert, which a reachable router can perfectly well have.
+ */
+function _renderRoutersSummary(rows) {
+  var el = { total: $('rsTotal'), online: $('rsOnline'), offline: $('rsOffline'), alerting: $('rsAlerting') };
+  if (!el.total) return;
+  var total = rows ? rows.length : 0;
+  var online = 0, alerting = 0;
+  (rows || []).forEach(function (r) {
+    if (r.connected) online++;
+    if (r.openAlerts > 0) alerting++;
+  });
+  el.total.textContent    = total;
+  el.online.textContent   = online;
+  el.offline.textContent  = total - online;
+  el.alerting.textContent = alerting;
+  // Colour only when there is something to say: a red zero reads as a problem.
+  el.offline.style.color  = (total - online) > 0 ? 'var(--accent-red, #f87171)'  : '';
+  el.alerting.style.color = alerting > 0         ? 'var(--accent-amber, #f59f00)' : '';
+}
+
+// ── Routers list view ───────────────────────────────────────────────────────
+// The card grid answers "how is this router doing"; the list answers "which of
+// my routers is X". Every column sorts, and the row under the headers filters —
+// in the header rather than a toolbar, so it is obvious which column each
+// control narrows.
+
+var _rtrView  = 'comfortable';
+var _lastRtrRows = [];
+var _rtlSort  = { key: 'label', dir: 1 };
+
+// str: compared as text. Everything else sorts numerically, with null last
+// however the column is pointing — an unreachable router has no CPU reading,
+// and burying those at the bottom is more useful than treating them as zero.
+var RTL_COLS = {
+  connected: {}, label: { str: true }, host: { str: true },
+  boardName: { str: true }, version: { str: true },
+  openAlerts: {}, cpu: {}, memPct: {}, hddPct: {}, clients: {},
+  rxMbps: {}, txMbps: {}, uptime: { str: true },
+};
+
+/**
+ * One search box over the fields the per-column filters used to cover.
+ *
+ * Those filters cost a whole row of the table head to answer a question one box
+ * answers, and only worked in list view. This runs before either view renders,
+ * so searching narrows the cards too.
+ *
+ * "online", "offline" and "alerting" are matched as words as well, because
+ * status and alert state each had a filter of their own and dropping the
+ * capability with the boxes would have been a quiet loss. They are checked
+ * against whole words so a router called "Online-1" is still findable by name.
+ */
+function _rtrMatches(r, q) {
+  if (!q) return true;
+  var hay = [r.label, r.host, r.boardName, r.version].join(' ').toLowerCase();
+  return q.split(/\s+/).every(function (term) {
+    if (term === 'online')   return !!r.connected;
+    if (term === 'offline')  return !r.connected;
+    if (term === 'alerting') return r.openAlerts > 0;
+    return hay.indexOf(term) !== -1;
+  });
+}
+
+function _rtrQuery() {
+  var el = $('routersSearch');
+  return el ? el.value.trim().toLowerCase() : '';
+}
+
+function _rtlRefreshHeaders() {
+  document.querySelectorAll('.routers-list th[data-sort]').forEach(function (th) {
+    th.className = th.className.replace(/\s*sort-(asc|desc)/g, '');
+    if (th.dataset.sort === _rtlSort.key) th.className += (_rtlSort.dir === 1 ? ' sort-asc' : ' sort-desc');
+  });
+}
+
+function _rtlSetSort(key) {
+  if (!RTL_COLS[key]) return;
+  if (_rtlSort.key === key) _rtlSort.dir *= -1;
+  // Text starts ascending (A first); numbers start descending, since the
+  // interesting router is the one with the most of something.
+  else _rtlSort = { key: key, dir: RTL_COLS[key].str ? 1 : -1 };
+  _renderRoutersList(_lastRtrRows);
+}
+
+function _rtlBar(pct, color) {
+  if (pct == null) return '<span class="text-muted">—</span>';
+  return '<span class="rtl-bar"><i style="width:' + Math.max(0, Math.min(100, pct)) + '%;background:' + color + '"></i></span>' + pct + '%';
+}
+
+function _renderRoutersList(rows) {
+  var body = $('routersListBody');
+  if (!body) return;
+  // Already filtered by the caller; sorting is all that is left to do here.
+  var list = (rows || []).slice();
+
+  var col = RTL_COLS[_rtlSort.key] || {};
+  list.sort(function (a, b) {
+    var av = a[_rtlSort.key], bv = b[_rtlSort.key];
+    if (col.str) return String(av == null ? '' : av)
+      .localeCompare(String(bv == null ? '' : bv), undefined, { numeric: true, sensitivity: 'base' }) * _rtlSort.dir;
+    // Null last regardless of direction: "no reading" is not a low reading.
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    return (av - bv) * _rtlSort.dir;
+  });
+
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="13" class="text-muted text-center py-3">'
+      + (_rtrQuery() ? 'No routers match that search.' : 'No routers configured.') + '</td></tr>';
+    _rtlRefreshHeaders();
+    return;
+  }
+
+  var dash = '<span class="text-muted">—</span>';
+  body.innerHTML = list.map(function (r) {
+    var cpuC = r.cpu    > 90 ? '#f87171' : r.cpu    > 75 ? '#f59f00' : '#38bdf8';
+    var memC = r.memPct > 90 ? '#f87171' : r.memPct > 75 ? '#f59f00' : '#34d399';
+    var hddC = r.hddPct > 90 ? '#f87171' : r.hddPct > 75 ? '#f59f00' : '#fb923c';
+    var up   = r.uptime ? (r.uptime.match(/\d+[wdhm]/g) || []).join(' ') || r.uptime : null;
+    var alerts = r.openAlerts > 0
+      ? '<span style="color:var(--accent-amber,#f59f00);font-weight:600">' + r.openAlerts + '</span>' : dash;
+    return '<tr class="rtl-row' + (r.connected ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
+      + '<td><span class="rtl-dot" style="background:' + (r.connected ? '#34d399' : '#f87171') + '" title="'
+        + (r.connected ? 'Online' : 'Offline') + '"></span></td>'
+      + '<td>' + esc(r.label) + (r.isActive ? ' <span class="badge badge-outline text-blue">active</span>' : '') + '</td>'
+      + '<td class="text-muted">' + esc(r.host || '') + '</td>'
+      + '<td>' + (r.boardName ? esc(r.boardName) : dash) + '</td>'
+      + '<td>' + (r.version ? esc(r.version) : dash) + '</td>'
+      + '<td class="rtl-num">' + alerts + '</td>'
+      + '<td class="rtl-num">' + _rtlBar(r.cpu, cpuC) + '</td>'
+      + '<td class="rtl-num">' + _rtlBar(r.memPct, memC) + '</td>'
+      + '<td class="rtl-num">' + _rtlBar(r.hddPct, hddC) + '</td>'
+      + '<td class="rtl-num">' + (r.clients != null ? r.clients : dash) + '</td>'
+      + '<td class="rtl-num">' + (r.rxMbps != null ? r.rxMbps.toFixed(2) : dash) + '</td>'
+      + '<td class="rtl-num">' + (r.txMbps != null ? r.txMbps.toFixed(2) : dash) + '</td>'
+      + '<td class="text-muted">' + (up ? esc(up) : dash) + '</td>'
+      + '</tr>';
+  }).join('');
+  _rtlRefreshHeaders();
+}
+
+(function () {
+  var VIEW_KEY = 'mikrodash_routers_view';
+  var sel = $('routersView');
+
+  function apply(v) {
+    _rtrView = v;
+    var isList = v === 'list';
+    var grid = $('routers-grid'), wrap = $('routersListWrap');
+    if (grid) grid.hidden = isList;
+    if (wrap) wrap.hidden = !isList;
+    if (sel) sel.value = v;
+    // Re-render from the rows already held, so switching view is instant rather
+    // than waiting out the two-second refresh.
+    _renderRoutersStats(_lastRtrRows);
+  }
+
+  var saved = 'comfortable';
+  try { saved = localStorage.getItem(VIEW_KEY) || 'comfortable'; } catch (e) {}
+  apply(saved);
+
+  if (sel) sel.addEventListener('change', function () {
+    apply(sel.value);
+    try { localStorage.setItem(VIEW_KEY, sel.value); } catch (e) {}
+  });
+
+  // Delegated: the tbody is rebuilt on every refresh, the headers are not.
+  // Scoped by the routers-specific class: .rtr-list belongs to the Settings
+  // router table, and querySelector would hand back whichever came first.
+  var head = document.querySelector('.routers-list thead');
+  if (head) {
+    head.addEventListener('click', function (e) {
+      var th = e.target.closest ? e.target.closest('th[data-sort]') : null;
+      if (th) _rtlSetSort(th.dataset.sort);
+    });
+  }
+
+  // Searching re-renders from the rows already in hand — no round trip, and the
+  // two-second refresh cannot wipe what was typed.
+  var search = $('routersSearch');
+  if (search) search.addEventListener('input', function () { _renderRoutersStats(_lastRtrRows); });
+}());
+
 function _renderRoutersStats(rows) {
+  if (rows) _lastRtrRows = rows;
+  var all = rows || [];
+
+  // The summary counts the fleet, not the search. Totals that moved as you
+  // typed would stop answering "how many routers do I have".
+  _renderRoutersSummary(all);
+
+  var q = _rtrQuery();
+  var visible = q ? all.filter(function (r) { return _rtrMatches(r, q); }) : all;
+
+  var shown = $('routersShown');
+  if (shown) {
+    shown.textContent = (visible.length === all.length) ? '' : visible.length + ' of ' + all.length + ' shown';
+  }
+
+  // The rest of this function draws whatever survived the search.
+  rows = visible;
+  if (_rtrView === 'list') { _renderRoutersList(rows); return; }
   var grid = $('routers-grid');
   if (!grid) return;
-  if (!rows || !rows.length) {
-    grid.innerHTML = '<div class="col-12 text-muted text-center py-4">No routers configured.</div>';
+  if (!rows.length) {
+    grid.innerHTML = '<div class="col-12 text-muted text-center py-4">'
+      + (q ? 'No routers match that search.' : 'No routers configured.') + '</div>';
     return;
   }
   var html = '';
@@ -9092,7 +9666,9 @@ function _renderRoutersStats(rows) {
         + 'border:1px solid rgba(214,57,57,.22);border-radius:6px;padding:.35rem .55rem;margin-bottom:.75rem">'
         + esc(r.lastError) + '</div>'
       : '';
-    html += '<div class="col-md-6 col-xl-4">'
+    // Compact fits four across where Comfortable fits three — the same cards,
+    // more of them in view.
+    html += (_rtrView === 'compact' ? '<div class="col-md-4 col-xl-3">' : '<div class="col-md-6 col-xl-4">')
       // h-100 so cards in a row match height. Without it the card is only as
       // tall as its content, and a router whose identity pills wrap to a second
       // row (longer label, serial or extra licence pill) sat visibly taller

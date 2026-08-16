@@ -175,9 +175,52 @@ test('a session bounce is not also counted as a prefix collapse', () => {
   assert.equal(inserted.filter(r => r.alertType === 'bgp_prefix_change').length, 0);
 });
 
-test('BGP alerts respect the notifBgp toggle', () => {
-  const { ev } = harness({ notifBgp: false });
+test('an install-wide alert-type toggle suppresses the event entirely', () => {
+  // The install setting is authoritative: a type switched off is not recorded,
+  // does not reach the bell, and is sent to nobody.
+  //
+  // #109 briefly made these gate delivery only, so a user could opt in to a type
+  // the install had disabled. The cost showed up immediately in the Interface
+  // Alert Filter: turning Wireless off silenced the push but still rang the bell
+  // on every wlan flap, because the bell follows the DB write and the DB write
+  // had stopped being gated. Per-user toggles narrow within what the install
+  // allows; they cannot widen past it.
+  const { ev, emits } = harness({ notifBgp: false });
   ev.evaluate('routing:update', { peers: [peer()] });
   ev.evaluate('routing:update', { peers: [peer({ state: 'idle' })] });
-  assert.equal(inserted.length, 0);
+  assert.equal(inserted.length, 0, 'nothing may be recorded while the type is switched off');
+  assert.equal(emits.filter(e => e.ev === 'alert:fired').length, 0,
+    'and nothing may reach the bell — a filter that does not filter what you see is not a filter');
+});
+
+test('the interface-type filter applies install-wide, not only to push', () => {
+  // The reported bug: Wireless unticked in the Interface Alert Filter, wlan
+  // alerts still arriving in the notification bell.
+  const { ev, emits } = harness({ notifIfaceUpDown: true, notifIfaceWlan: false, notifIfaceEther: true });
+  const ifaces = (wlanRunning) => ({ interfaces: [
+    { name: 'wlan1',  type: 'wlan',  running: wlanRunning, disabled: false },
+    { name: 'ether1', type: 'ether', running: true,        disabled: false },
+  ] });
+
+  ev.evaluate('ifstatus:update', ifaces(true));   // seed previous state
+  ev.evaluate('ifstatus:update', ifaces(false));  // wlan1 goes down
+
+  assert.equal(inserted.filter(r => r.subject === 'wlan1').length, 0,
+    'a filtered-out interface type must not be recorded');
+  assert.equal(emits.filter(e => e.ev === 'alert:fired').length, 0,
+    'nor reach the bell');
+});
+
+test('an interface type that is still enabled continues to alert', () => {
+  // The other half: the filter must narrow, not silence everything.
+  const { ev } = harness({ notifIfaceUpDown: true, notifIfaceWlan: false, notifIfaceEther: true });
+  const ifaces = (etherRunning) => ({ interfaces: [
+    { name: 'ether1', type: 'ether', running: etherRunning, disabled: false },
+  ] });
+
+  ev.evaluate('ifstatus:update', ifaces(true));
+  ev.evaluate('ifstatus:update', ifaces(false));
+
+  assert.equal(inserted.filter(r => r.subject === 'ether1').length, 1,
+    'ethernet is still ticked, so it must still alert');
 });
