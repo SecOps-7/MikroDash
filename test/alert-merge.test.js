@@ -20,14 +20,25 @@ const resolved = [];
 let   nextId   = 1;
 let   resolveIds = null;   // what resolveAlertEvent should claim it closed
 
+// Tracks which alerts are open, rather than only recording that a call
+// happened. The real table enforces one open row per (router, type, subject),
+// and a stub that always says "recorded" cannot show a duplicate being filed.
+const openKeys = new Set();
+const _key = (r, t, s) => r + '|' + t + '|' + (s || '');
+
 const dbStub = {
+  hasOpenAlert(routerId, alertType, subject) {
+    return openKeys.has(_key(routerId, alertType, subject));
+  },
   insertAlertEvent(routerId, alertType, subject, detail) {
     const id = nextId++;
+    openKeys.add(_key(routerId, alertType, subject));
     inserted.push({ id, routerId, alertType, subject, detail });
     return id;
   },
   resolveAlertEvent(routerId, alertType, subject) {
     resolved.push({ routerId, alertType, subject });
+    openKeys.delete(_key(routerId, alertType, subject));
     // Default: pretend one row was open, since that is the ordinary case.
     return resolveIds === null ? [nextId++] : resolveIds;
   },

@@ -164,6 +164,63 @@ test('countOpenAlertsByRouter counts only unresolved alerts, grouped by router',
   assert.equal(counts[R1], 1);
 });
 
+// ── One open alert per (router, type, subject) ───────────────────────────────
+//
+// The bell kept showing new "update available" entries for a router whose alert
+// had already been acknowledged. The evaluator keeps edge-detection state in
+// memory, and dropEvaluator() wipes it on a router switch, a session rebuild
+// and — most often — an idle teardown, when nobody has had the router's page
+// open for a while. The rebuilt evaluator has no memory of having reported the
+// condition, so it reports it again.
+//
+// hasOpenAlert() moves that memory into the database, where it survives all
+// three, and covers every alert type rather than the one that was noticed.
+
+test('an alert already open is reported as open', () => {
+  assert.equal(db.hasOpenAlert('r-dup', 'routeros_update', null), false,
+    'nothing open to begin with');
+  db.insertAlertEvent('r-dup', 'routeros_update', null, 'RouterOS 7.24 is available');
+  assert.equal(db.hasOpenAlert('r-dup', 'routeros_update', null), true);
+});
+
+test('acknowledging does not reopen the door', () => {
+  // "Dismiss" in the bell acknowledges; it does not resolve. An acknowledged but
+  // unresolved alert must still count as open, or dismissing it achieves nothing
+  // — which was exactly the reported symptom.
+  const id = db.insertAlertEvent('r-ack', 'routeros_update', null, 'update');
+  db.acknowledgeAlert(id, 'someone');
+  assert.equal(db.hasOpenAlert('r-ack', 'routeros_update', null), true,
+    'acknowledged is not resolved');
+});
+
+test('once resolved it is no longer open, and may fire again', () => {
+  // The rule is about duplicates, not about never alerting twice: a router that
+  // updates and later has another update available must alert again.
+  db.insertAlertEvent('r-cycle', 'routeros_update', null, 'update');
+  db.resolveAlertEvent('r-cycle', 'routeros_update', null);
+  assert.equal(db.hasOpenAlert('r-cycle', 'routeros_update', null), false);
+});
+
+test('the same type on different subjects and routers stays separate', () => {
+  // ether5 being down says nothing about ether6, and one router says nothing
+  // about another. Matching on type alone would swallow real alerts.
+  db.insertAlertEvent('r-a', 'interface_down', 'ether5', 'down');
+  assert.equal(db.hasOpenAlert('r-a', 'interface_down', 'ether5'), true);
+  assert.equal(db.hasOpenAlert('r-a', 'interface_down', 'ether6'), false,
+    'a different subject is a different alert');
+  assert.equal(db.hasOpenAlert('r-b', 'interface_down', 'ether5'), false,
+    'a different router is a different alert');
+});
+
+test('with no database open the answer is "not open", not a throw', () => {
+  // Callers then behave as they did before: say something rather than nothing.
+  // Suppressing alerts because the database is unavailable would be the worst
+  // possible failure mode for an alerting system.
+  db.close();
+  assert.equal(db.hasOpenAlert('r-a', 'interface_down', 'ether5'), false);
+  db.open();
+});
+
 test('teardown: close db', () => {
   db.close();
   fs.rmSync(TMP, { recursive: true, force: true });
@@ -174,3 +231,4 @@ test('countOpenAlertsByRouter fails soft with no database open', () => {
   // Routers page must still render if the database could not be opened.
   assert.deepEqual(db.countOpenAlertsByRouter(), {});
 });
+

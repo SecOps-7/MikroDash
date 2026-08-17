@@ -498,6 +498,42 @@ function insertBandwidthSample(routerId, iface, rxMb, txMb, ts) {
   _stmtInsertBandwidth.run(routerId, iface, rxMb, txMb, ts || Date.now());
 }
 
+/**
+ * Is this alert already open?
+ *
+ * A separate question rather than a special return from insertAlertEvent: that
+ * conflated "already knew" with "no database", and a caller reading `== null`
+ * then swallowed a real notification whenever the database was unavailable. Two
+ * meanings on one return value is how that happens.
+ *
+ * The rule it encodes is "at most one unresolved row per (router, type,
+ * subject)". resolveAlertEvent has always closed *every* matching open row
+ * rather than one, which was the tell that duplicates were being created.
+ *
+ * They were: the evaluator keeps edge-detection state in memory, and
+ * dropEvaluator() wipes it on a router switch, a session rebuild and — most
+ * often — an idle teardown, when nobody has had the router's page open for a
+ * while. The rebuilt evaluator has no memory of having reported the thing, so it
+ * reports it again. For a condition that persists, like an available RouterOS
+ * update, that meant a fresh unacknowledged row every time somebody came back to
+ * the page, and acknowledging one did nothing about the next.
+ *
+ * Asking the database rather than the evaluator makes the answer survive
+ * evaluator drops, process restarts and router switches, and covers every alert
+ * type at once. Unknown when there is no database — callers then behave as they
+ * did before, which is to say something rather than nothing.
+ */
+function hasOpenAlert(routerId, alertType, subject) {
+  if (!_db) return false;
+  // `IS` rather than `=`: subject is NULL for router-wide alerts, and `= NULL`
+  // never matches. The same comparison resolveAlertEvent uses.
+  return !!_prep(`
+    SELECT 1 FROM alert_events
+    WHERE router_id = ? AND alert_type = ? AND subject IS ? AND resolved_at IS NULL
+    LIMIT 1
+  `).get(routerId, alertType, subject || null);
+}
+
 function insertAlertEvent(routerId, alertType, subject, detail) {
   if (!_db) return;
   return _stmtInsertAlert.run(routerId, alertType, subject || null, detail || null, Date.now()).lastInsertRowid;
@@ -1397,7 +1433,7 @@ module.exports = {
   grantsForUser, globalAdminUserIds, sweepOrphanGrants,
   insertPingSample, insertTrafficSample, insertBandwidthSample,
   insertAlertEvent, resolveAlertEvent, insertConnectivityEvent,
-  queryOpenAlerts, countOpenAlertsByRouter, queryRecentAlerts, acknowledgeAlert, acknowledgeAllAlerts, getAlertRouterId,
+  hasOpenAlert, queryOpenAlerts, countOpenAlertsByRouter, queryRecentAlerts, acknowledgeAlert, acknowledgeAllAlerts, getAlertRouterId,
   queryPingSamples, queryPingSamplesAgg,
   queryTrafficSamples, queryTrafficSamplesAgg, queryTrafficInterfaces,
   queryBandwidthSamples, queryBandwidthSamplesAgg, queryBandwidthInterfaces,
