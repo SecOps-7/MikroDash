@@ -2039,6 +2039,88 @@ function makeRoutingRos({ printRows = [], sessionRows = [], peerCfgRows = [] } =
   };
 }
 
+// ── BGP-only mode, for the headless alert pool ───────────────────────────────
+//
+// BGP alerts used to fire only for the router whose Routing page someone had
+// open, because the alert pool (src/alertSessions.js) built System, Ping,
+// InterfaceStatus, Vpn and Netwatch but no routing collector. Every other
+// router produced no BGP alerts at all — an alert type that reads as enabled in
+// Settings and silently does nothing for most of the fleet.
+//
+// The pool only needs peers: the evaluator reads data.peers and nothing else.
+// Running the collector as configured would open /ip/route/listen and
+// /ipv6/route/listen on every alert-enabled router and pull full route tables
+// for a payload nobody renders, which is exactly the load this avoids.
+
+// Like makeRoutingRos, but records what was asked for.
+function makeRecordingRoutingRos({ printRows = [], sessionRows = [], peerCfgRows = [] } = {}) {
+  const writes = [];
+  const streams = [];
+  return {
+    writes, streams,
+    connected: true,
+    on() {},
+    write: async (cmd) => {
+      writes.push(String(cmd));
+      if (String(cmd).includes('/routing/bgp/session')) return sessionRows;
+      if (String(cmd).includes('/routing/bgp/peer'))    return peerCfgRows;
+      if (String(cmd).includes('/ip/route'))            return printRows;
+      return [];
+    },
+    stream: (words) => { streams.push(String(words)); return { stop() {} }; },
+  };
+}
+
+const _bgpOnlyRos = () => makeRecordingRoutingRos({
+  printRows:   [{ '.id': '*1', 'dst-address': '0.0.0.0/0', gateway: '10.0.0.1', distance: '1', '.flags': 'AS' }],
+  sessionRows: [{ name: 'peer1', 'remote.address': '10.0.0.1', 'remote.as': '65001',
+                  state: 'established', uptime: '1h', 'prefix-count': '100' }],
+});
+
+test('bgpOnly never reads the route table, but still reads BGP sessions', async () => {
+  const ros = _bgpOnlyRos();
+  const io  = { to() { return { emit() {} }; } };
+  const c = new RoutingCollector({ ros, io, pollMs: 10000, state: {}, streamMode: false, bgpOnly: true });
+
+  await c.resume();
+
+  assert.ok(!ros.writes.some(w => w.includes('/ip/route')),
+    'no route query: ' + JSON.stringify(ros.writes));
+  assert.ok(ros.writes.some(w => w.includes('/routing/bgp/session')),
+    'BGP sessions are still read — they are the whole point');
+  assert.strictEqual(c.lastPayload.peers.length, 1, 'peers reach the payload the evaluator reads');
+  assert.strictEqual(c.lastPayload.peers[0].state, 'established');
+  c.stop();
+});
+
+test('bgpOnly opens the BGP stream and neither route stream', async () => {
+  // Guarded independently of poll mode. The pool uses polling, but a flag that
+  // only works in one delivery mode is a trap for whoever wires the next caller.
+  const ros = _bgpOnlyRos();
+  const io  = { to() { return { emit() {} }; } };
+  const c = new RoutingCollector({ ros, io, pollMs: 10000, state: {}, bgpOnly: true });
+
+  await c.resume();
+
+  assert.ok(!ros.streams.some(s => s.includes('/ip/route/listen')),   'no IPv4 route stream');
+  assert.ok(!ros.streams.some(s => s.includes('/ipv6/route/listen')), 'no IPv6 route stream');
+  assert.ok(ros.streams.some(s => s.includes('/routing/bgp/session/listen')), 'BGP stream still opens');
+  c.stop();
+});
+
+test('without bgpOnly the route table is still loaded', async () => {
+  // The flag defaults off, and the Routing page depends on it staying that way.
+  const ros = _bgpOnlyRos();
+  const io  = { to() { return { emit() {} }; } };
+  const c = new RoutingCollector({ ros, io, pollMs: 10000, state: {}, streamMode: false });
+
+  await c.resume();
+
+  assert.ok(ros.writes.some(w => w.includes('/ip/route')), 'routes are read as normal');
+  assert.ok(c.lastPayload.routeCounts.total > 0, 'and counted');
+  c.stop();
+});
+
 // ── start() happy path ───────────────────────────────────────────────────────
 
 test('routing collector start() emits correct payload with routes and BGP sessions', async () => {

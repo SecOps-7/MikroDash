@@ -9,6 +9,7 @@ const PingCollector            = require('./collectors/ping');
 const InterfaceStatusCollector = require('./collectors/interfaceStatus');
 const VpnCollector             = require('./collectors/vpn');
 const NetwatchCollector        = require('./collectors/netwatch');
+const RoutingCollector         = require('./collectors/routing');
 
 let _mainIo = null;
 let _identityHook = null;     // (routerId, {model, serial, osVersion}) → void
@@ -102,6 +103,16 @@ function _buildSession(router) {
     new InterfaceStatusCollector({ ros, io: stubIo, pollMs: cfg.pollIfstatus || 5000,  metaPollMs: cfg.pollIfaces || 60000, state }),
     new VpnCollector            ({ ros, io: stubIo, pollMs: cfg.pollVpn      || 10000, state }),
     new NetwatchCollector       ({ ros, io: stubIo, state }),
+    // BGP alerts used to fire only for the router whose Routing page was open,
+    // because this pool had no routing collector — so an alert type that reads
+    // as enabled in Settings did nothing for every other router.
+    //
+    // bgpOnly + streamMode:false is deliberate on both counts. The evaluator
+    // reads data.peers and nothing else, so the route table would be load for a
+    // payload nobody renders; and streaming would hold three more open channels
+    // per alert-enabled router on the small hardware #105 exists for.
+    new RoutingCollector        ({ ros, io: stubIo, pollMs: cfg.pollRouting  || 10000, state,
+                                   streamMode: false, bgpOnly: true }),
   ] : [];
 
   const routerId = router.id;
@@ -132,7 +143,24 @@ function _buildSession(router) {
       _declaredOffline = false;
     }
     _prevConnected = true;
-    for (const c of collectors) if (typeof c.start === 'function') c.start();
+    for (const c of collectors) {
+      // Routing is page-gated in the app: start() only primes lastPayload once,
+      // and resume() is what opens the running loop, called when the Routing
+      // page becomes visible. Nothing opens a page in this pool, so resume() is
+      // what makes it collect at all — start() alone would evaluate BGP once
+      // per reconnect and then go quiet, which looks like working and is not.
+      // Calling both would simply repeat the same loads.
+      if (c instanceof RoutingCollector) {
+        // resume() has no catch of its own, and an unhandled rejection here
+        // would take down the process on a router that merely went away
+        // mid-load.
+        Promise.resolve(c.resume()).catch((e) => {
+          console.error('[alertSessions] routing resume failed: %s', e && e.message ? e.message : e);
+        });
+        continue;
+      }
+      if (typeof c.start === 'function') c.start();
+    }
   });
 
   function _onDisconnect() {

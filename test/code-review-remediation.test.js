@@ -509,6 +509,44 @@ test('client _alertTypes defaults match src/settings.js DEFAULTS', () => {
   check('_alertIfaceTypes', IFACE, '_alertIfaceTypes');
 });
 
+// --- BGP alerts must fire for every alert-enabled router, not just the open one ---
+//
+// The pool built System, Ping, InterfaceStatus, Vpn and Netwatch but no routing
+// collector, so BGP alerts only ever evaluated for whichever router had its
+// Routing page open. Asserted against the source for the same reason as the
+// test below: _buildSession is closure-scoped and not exported.
+
+test('alertSessions.js: the pool builds a routing collector, in BGP-only poll mode', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'alertSessions.js'), 'utf8');
+
+  assert.match(src, /require\(['"]\.\/collectors\/routing['"]\)/,
+    'the routing collector is imported');
+
+  // Matched across the whole call, not one line: the options wrap, and a
+  // line-oriented assertion fails the moment somebody reformats it.
+  const call = src.match(/new RoutingCollector\s*\(([\s\S]*?)\}\)/);
+  assert.ok(call, 'a RoutingCollector is constructed in the collectors array');
+  const opts = call[1];
+
+  assert.match(opts, /bgpOnly:\s*true/,
+    'BGP-only: the evaluator reads only data.peers, and pulling full route tables ' +
+    'from every alert-enabled router is load for a payload nobody renders');
+  assert.match(opts, /streamMode:\s*false/,
+    'polling: streaming would hold three more open channels per router on hardware ' +
+    'that #105 exists because it cannot cope with them');
+});
+
+test('alertSessions.js: the routing collector is resumed, not merely started', () => {
+  // Its start() is a one-shot that primes lastPayload; the running loop is
+  // opened by resume(), which in the app is called when the Routing page
+  // becomes visible. Nothing opens a page in this pool, so starting without
+  // resuming would evaluate BGP once per reconnect and then go quiet — which
+  // looks like working and is not.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'alertSessions.js'), 'utf8');
+  assert.match(src, /\.resume\(\)/,
+    'something in the pool calls resume(), or the routing collector never polls again');
+});
+
 // --- connectivity alerts must be resolvable at every threshold (issue #79) ---
 
 for (const file of ['index.js', 'alertSessions.js']) {

@@ -27,11 +27,19 @@ const safeInt = (v) => parseInt(v || '0', 10) || 0;
 const { stopStreamSafe, createPollLoop } = require('./util');
 
 class RoutingCollector {
-  constructor({ ros, io, pollMs, state, _restartDelayMs, streamMode }) {
+  constructor({ ros, io, pollMs, state, _restartDelayMs, streamMode, bgpOnly }) {
     // Delivery per router (#105). The three /listen streams maintain _routes
     // incrementally, so poll mode instead re-runs the same full loads resume()
     // already performs and emits through the same path.
     this.streamMode = streamMode !== false;
+    // Skip the route table entirely and collect only BGP. For the headless
+    // alert pool (src/alertSessions.js), which evaluates alerts for every
+    // alert-enabled router: the evaluator reads data.peers and nothing else, so
+    // pulling a full route table from each of them — potentially hundreds of
+    // thousands of rows — would be load for a payload nobody renders.
+    // routeCounts then reports zeros, so this must never be set on a session
+    // that feeds a browser.
+    this.bgpOnly = !!bgpOnly;
     this._poll = createPollLoop(() => this._pollOnce(), () => this.pollMs);
     this.ros    = ros;
     this.io     = io;
@@ -541,7 +549,7 @@ class RoutingCollector {
     // Routing page becomes visible (_updateRoutingStreams() calls resume()).
     if (!this.ros.connected) return;
     try {
-      await this._loadRoutes();
+      if (!this.bgpOnly) await this._loadRoutes();
       await this._loadBgpSessions();
       await this._loadPeerCfg();
       this._emit(this._buildPeers());
@@ -565,7 +573,7 @@ class RoutingCollector {
   async _pollOnce() {
     if (!this.ros.connected) return;
     try {
-      await this._loadRoutes();
+      if (!this.bgpOnly) await this._loadRoutes();
       await this._loadBgpSessions();
       await this._loadPeerCfg();
       this._emit(this._buildPeers());
@@ -581,14 +589,18 @@ class RoutingCollector {
     if (!this.ros.connected) return;
     this._resuming = true;
     try {
-      await this._loadRoutes();
+      if (!this.bgpOnly) await this._loadRoutes();
       await this._loadBgpSessions();
       await this._loadPeerCfg();
       if (!this._resuming) return; // suspend() was called during the load
       this._emit(this._buildPeers());
       if (this.streamMode) {
-        this._startRouteStream();
-        this._startIPv6Stream();
+        // Guarded here as well as in poll mode: a flag that only works in one
+        // delivery mode is a trap for whoever wires the next caller.
+        if (!this.bgpOnly) {
+          this._startRouteStream();
+          this._startIPv6Stream();
+        }
         this._startBgpStream();
       } else {
         this._poll.start();
