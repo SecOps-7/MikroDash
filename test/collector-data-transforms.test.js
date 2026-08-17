@@ -2695,3 +2695,113 @@ test('system collector logs a %s-bearing router label literally and keeps the er
   assert.ok(line.includes('[%s pwned][system]'), 'label rendered literally, got: ' + line);
   assert.ok(line.includes('ECONNREFUSED'), 'error reason survived the format, got: ' + line);
 });
+
+// ── Wireless: the SSID list (WiFi SSIDs card) ────────────────────────────────
+//
+// Read from the interface table rather than from connected clients, because an
+// SSID with nobody on it is still being broadcast — and that is precisely the
+// one somebody is looking at the card to explain.
+//
+// The rows these come from also carry `security.passphrase` in clear text. The
+// payload goes to every browser on the Wireless page, so what is NOT copied out
+// matters as much as what is.
+
+const _wlCollector = () => new WirelessCollector({
+  ros: { connected: true, on() {}, write: async () => [] },
+  io: { emit() {}, to() { return this; } },
+  pollMs: 5000, state: {},
+  dhcpLeases: { getNameByMAC: () => null },
+  arp: { getByMAC: () => null },
+});
+
+test('SSIDs come from the interface list, and the same SSID on two radios is one entry', () => {
+  const c = _wlCollector();
+  const { ssids } = c._parseSsids([
+    { name: '2.4GHz WiFi', 'configuration.ssid': 'SkyNet', running: 'true', disabled: 'false' },
+    { name: '5GHz WiFi',   'configuration.ssid': 'SkyNet', running: 'true', disabled: 'false' },
+    { name: 'Guest 2.4',   'configuration.ssid': 'Guests', running: 'true', disabled: 'false' },
+  ]);
+  assert.strictEqual(ssids.length, 2, 'one row per network, not per radio');
+  const sky = ssids.find(s => s.ssid === 'SkyNet');
+  assert.deepStrictEqual(sky.ifaces, ['2.4GHz WiFi', '5GHz WiFi']);
+});
+
+test('a passphrase never leaves the collector', () => {
+  // The one assertion in this file that is about a leak rather than a value.
+  const c = _wlCollector();
+  const { ssids } = c._parseSsids([{
+    name: 'wifi1', 'configuration.ssid': 'SkyNet', running: 'true', disabled: 'false',
+    'security.passphrase': 'hunter2', 'security.authentication-types': 'wpa2-psk',
+  }]);
+  const blob = JSON.stringify(ssids);
+  assert.ok(!blob.includes('hunter2'), 'the passphrase is not in the payload');
+  assert.ok(!blob.includes('security'), 'no security field is copied through at all');
+});
+
+test('the legacy wireless stack uses a plain ssid field', () => {
+  // /interface/wireless predates the flattened configuration.* keys.
+  const c = _wlCollector();
+  const { ssids } = c._parseSsids([
+    { name: 'wlan1', ssid: 'OldSkool', running: 'true', disabled: 'false' },
+  ]);
+  assert.strictEqual(ssids[0].ssid, 'OldSkool');
+});
+
+test('an SSID is only off when every radio carrying it is', () => {
+  // One radio up is enough to be on the air; reporting it as disabled because
+  // its partner is down would send somebody debugging a working network.
+  const c = _wlCollector();
+  const { ssids } = c._parseSsids([
+    { name: 'a', 'configuration.ssid': 'Split', running: 'false', disabled: 'true' },
+    { name: 'b', 'configuration.ssid': 'Split', running: 'true',  disabled: 'false' },
+  ]);
+  assert.strictEqual(ssids[0].disabled, false);
+  assert.strictEqual(ssids[0].running, true);
+
+  const both = c._parseSsids([
+    { name: 'a', 'configuration.ssid': 'Dead', running: 'false', disabled: 'true' },
+    { name: 'b', 'configuration.ssid': 'Dead', running: 'false', disabled: 'true' },
+  ]).ssids[0];
+  assert.strictEqual(both.disabled, true);
+  assert.strictEqual(both.running, false);
+});
+
+test('a CAPsMAN-managed radio is counted, not silently dropped', () => {
+  // A CAP takes its configuration from the manager and genuinely has no local
+  // SSID. Counting these lets the card explain an empty list instead of looking
+  // like a router with no wireless.
+  const c = _wlCollector();
+  const r = c._parseSsids([
+    { name: 'wifi1', 'configuration.manager': 'capsman', running: 'true', disabled: 'false' },
+    { name: 'wifi2', 'configuration.manager': 'capsman', running: 'true', disabled: 'false' },
+  ]);
+  assert.deepStrictEqual(r.ssids, []);
+  assert.strictEqual(r.managedElsewhere, 2);
+});
+
+test('rows with no SSID at all are skipped rather than listed blank', () => {
+  const c = _wlCollector();
+  const { ssids } = c._parseSsids([
+    { name: 'wifi9', running: 'true', disabled: 'false' },
+    { name: 'wifi8', 'configuration.ssid': '   ', running: 'true', disabled: 'false' },
+  ]);
+  assert.deepStrictEqual(ssids, []);
+});
+
+test('bands and client counts come from the registration table', () => {
+  // The interface table does not say which band is in use; the clients do. An
+  // SSID with nobody on it reports no band rather than guessing from a name.
+  const c = _wlCollector();
+  c._knownClients.set('AA', { mac: 'AA', ssid: 'SkyNet', band: '5GHz', signal: -50 });
+  c._knownClients.set('BB', { mac: 'BB', ssid: 'SkyNet', band: '2.4GHz', signal: -60 });
+  const { ssids } = c._parseSsids([
+    { name: 'w1', 'configuration.ssid': 'SkyNet', running: 'true', disabled: 'false' },
+    { name: 'w2', 'configuration.ssid': 'Quiet',  running: 'true', disabled: 'false' },
+  ]);
+  const sky = ssids.find(s => s.ssid === 'SkyNet');
+  assert.strictEqual(sky.clients, 2);
+  assert.deepStrictEqual(sky.bands, ['2.4GHz', '5GHz']);
+  const quiet = ssids.find(s => s.ssid === 'Quiet');
+  assert.strictEqual(quiet.clients, 0);
+  assert.deepStrictEqual(quiet.bands, []);
+});
