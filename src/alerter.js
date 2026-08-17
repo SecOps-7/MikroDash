@@ -159,6 +159,38 @@ function _ifaceTypeKey(type) {
 // Returns an isolated { evaluate(event, data) } with its own cooldown and state maps.
 // getNameFn() is called at fire-time to get the router label for {{routerName}}.
 
+/**
+ * Human name for a stored alert type (issue: update alerts read as raw types).
+ *
+ * `alert_type` in the database is minted by lowercasing and underscoring the
+ * alertType a fire() call passed, which makes it a good key and a poor label —
+ * an alert loaded from the database rendered as "routeros_update".
+ *
+ * Deriving the label here rather than storing it keeps one source of truth: the
+ * live socket path and the historical database path both come through this
+ * function, so what you see when an alert arrives and what you see after a
+ * reload cannot disagree. It also means renaming an alert does not need a data
+ * migration — the stored key stays put and only the presentation moves.
+ */
+const ALERT_LABELS = {
+  routeros_update:  'Update Available',
+  routeros_updated: 'Up To Date',
+  connectivity:     'Router Connectivity',
+};
+// Words the mechanical title-caser would otherwise mangle into "Bgp" and "Ok".
+const _LABEL_ACRONYMS = { bgp: 'BGP', vpn: 'VPN', cpu: 'CPU', ok: 'OK', os: 'OS' };
+
+function labelFor(alertType) {
+  if (!alertType) return 'Alert';
+  const key = String(alertType).toLowerCase();
+  if (ALERT_LABELS[key]) return ALERT_LABELS[key];
+  // Anything unmapped still reads as words rather than as a database column, so
+  // a future alert type degrades gracefully instead of leaking its key.
+  return key.split('_').filter(Boolean)
+    .map(w => _LABEL_ACRONYMS[w] || (w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
 function createEvaluator(getNameFn, getRouterFn) {
   const cooldown          = new Map();
   const prevIfState       = new Map();
@@ -204,10 +236,12 @@ function createEvaluator(getNameFn, getRouterFn) {
     // event regardless of whether a notification channel is configured. The
     // cooldown gates only the push notification, not persistence (see below).
     const router = typeof getRouterFn === 'function' ? getRouterFn() : null;
+    // Declared out here, not inside the block below: the notification render also
+    // needs it, and an install with no router record still sends notifications.
+    // For up (recovery) events, resolveType holds the matching down alert_type so
+    // the WHERE clause in resolveAlertEvent finds the correct open row.
+    const alertType = (vars.alertType || key).toLowerCase().replace(/\s+/g, '_');
     if (router && router.id) {
-      // For up (recovery) events, resolveType holds the matching down alert_type so the
-      // WHERE clause in resolveAlertEvent finds the correct open row.
-      const alertType = (vars.alertType || key).toLowerCase().replace(/\s+/g, '_');
       const subject   = vars.ifaceName || vars.vpnPeer || vars.netwatchName || vars.pingTarget ||
                         vars.bgpPeer || null;
       // The browser emit belongs HERE, beside the unconditional DB write, not
@@ -222,7 +256,7 @@ function createEvaluator(getNameFn, getRouterFn) {
           _emit(router.id, 'alert:resolved', {
             ids, routerId: router.id, routerName: getNameFn(),
             alertType: vars.resolveType || alertType, subject,
-            label: vars.alertType || key, detail: vars.detail || null,
+            label: labelFor(alertType), detail: vars.detail || null,
             resolvedAt: Date.now(),
           });
         }
@@ -231,7 +265,7 @@ function createEvaluator(getNameFn, getRouterFn) {
         _emit(router.id, 'alert:fired', {
           id, routerId: router.id, routerName: getNameFn(),
           alertType, subject,
-          label: vars.alertType || key, detail: vars.detail || null,
+          label: labelFor(alertType), detail: vars.detail || null,
           firedAt: Date.now(), resolvedAt: null,
           acknowledgedAt: null, acknowledgedBy: null,
         });
@@ -244,7 +278,11 @@ function createEvaluator(getNameFn, getRouterFn) {
     //
     // No per-recipient type check: which alerts exist is the install's decision,
     // settled at the top of fire(). A user chooses only where theirs go.
-    const allVars = { routerName: getNameFn(), timestamp: _ts(), ...vars };
+    // alertType is overridden AFTER the spread so the rendered notification uses
+    // the same human name as the bell — otherwise a push would say "RouterOS
+    // Update" while the alert list said "Update Available".
+    const allVars = { routerName: getNameFn(), timestamp: _ts(), ...vars,
+                      alertType: labelFor(alertType) };
     const title   = _render(_settings.notifTitle   || 'MikroDash Alert', allVars);
     const bodyTpl = isUp
       ? (_settings.notifBodyUp  || _settings.notifBody || '✅ {{alertType}} on {{routerName}}: {{detail}}')
@@ -546,6 +584,7 @@ function fireConnectivityAlert(routerId, routerLabel, connected) {
     if (ids && ids.length) {
       _bcast('alert:resolved', {
         ids, routerId, routerName: routerLabel, alertType: 'connectivity',
+        label: labelFor('connectivity'),
         subject: null, label: 'Router Online',
         detail: routerLabel + ' is now reachable', resolvedAt: Date.now(),
       });
@@ -555,6 +594,7 @@ function fireConnectivityAlert(routerId, routerLabel, connected) {
       routerLabel + ' is unreachable');
     _bcast('alert:fired', {
       id, routerId, routerName: routerLabel, alertType: 'connectivity',
+      label: labelFor('connectivity'),
       subject: null, label: 'Router Offline',
       detail: routerLabel + ' is unreachable',
       firedAt: Date.now(), resolvedAt: null,
@@ -640,4 +680,4 @@ function updateSettings(settings) {
   _settings = settings;
 }
 
-module.exports = { init, updateSettings, createEvaluator, evaluateForRouter, dropEvaluator, fireConnectivityAlert };
+module.exports = { init, updateSettings, createEvaluator, evaluateForRouter, dropEvaluator, fireConnectivityAlert, labelFor };

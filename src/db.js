@@ -390,6 +390,31 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    // A site's location, as a picked place rather than typed coordinates (#96).
+    //
+    // Migration 4 already reserved sites.lat/lon for this issue, and they keep
+    // their meaning — they are still what gets plotted. What changes is where
+    // they come from: nobody types a coordinate any more, they choose a town, so
+    // these three columns record which town it was. Without them the map can
+    // draw a marker but cannot say what it is standing on, and reopening the
+    // site form would show an empty picker over a set location.
+    //
+    // Its own migration rather than an edit to v4: v4 has already run on every
+    // install tracking this branch, and editing it in place would leave their
+    // schema quietly different from a fresh install's.
+    //
+    // Nullable, because a site with no location is the common case and must not
+    // read as coordinates 0,0.
+    version: 10,
+    up(db) {
+      db.exec(`
+        ALTER TABLE sites ADD COLUMN place_name   TEXT;
+        ALTER TABLE sites ADD COLUMN place_region TEXT;
+        ALTER TABLE sites ADD COLUMN place_cc     TEXT;
+      `);
+    },
+  },
 ];
 
 function _runMigrations(db) {
@@ -976,19 +1001,28 @@ function deleteRouterData(routerId) {
 
 function listSites() {
   if (!_db) return [];
-  return _prep('SELECT id, name, description, lat, lon, created_at FROM sites ORDER BY name COLLATE NOCASE').all();
+  return _prep(`SELECT id, name, description, lat, lon,
+                       place_name, place_region, place_cc, created_at
+                FROM sites ORDER BY name COLLATE NOCASE`).all();
 }
 
 function getSite(id) {
   if (!_db) return null;
-  return _prep('SELECT id, name, description, lat, lon, created_at FROM sites WHERE id = ?').get(id) || null;
+  return _prep(`SELECT id, name, description, lat, lon,
+                       place_name, place_region, place_cc, created_at
+                FROM sites WHERE id = ?`).get(id) || null;
 }
 
-function createSite({ name, description = null, lat = null, lon = null }) {
+function createSite({
+  name, description = null, lat = null, lon = null,
+  place_name = null, place_region = null, place_cc = null,
+}) {
   if (!_db) return null;
   const id = crypto.randomUUID();
-  _prep(`INSERT INTO sites (id, name, description, lat, lon, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`).run(id, name, description, lat, lon, Date.now());
+  _prep(`INSERT INTO sites (id, name, description, lat, lon,
+                            place_name, place_region, place_cc, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(id, name, description, lat, lon, place_name, place_region, place_cc, Date.now());
   return getSite(id);
 }
 
@@ -997,7 +1031,10 @@ function createSite({ name, description = null, lat = null, lon = null }) {
 function updateSite(id, fields) {
   if (!_db) return null;
   const sets = [], params = [];
-  for (const col of ['name', 'description', 'lat', 'lon']) {
+  // The five location columns are written as one unit by the route layer, so a
+  // half-set location — lat without lon — is not reachable from here.
+  for (const col of ['name', 'description', 'lat', 'lon',
+                     'place_name', 'place_region', 'place_cc']) {
     if (fields[col] !== undefined) { sets.push(`${col} = ?`); params.push(fields[col]); }
   }
   if (!sets.length) return getSite(id);
