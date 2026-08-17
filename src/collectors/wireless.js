@@ -41,6 +41,11 @@ const SSID_ENDPOINTS = {
   wireless: '/interface/wireless/print',
 };
 
+// How often to repeat the "no ARP entry for any client" warning (#93). This is
+// usually a permanent property of the deployment rather than a fault to watch,
+// so it is a reminder for whoever reads the log later, not a live signal.
+const NO_ARP_LOG_MS = 15 * 60_000;
+
 class WirelessCollector {
   constructor({ ros, io, pollMs, state, dhcpLeases, arp, streamMode }) {
     // Delivery per router (#105). Poll re-reads the same registration table the
@@ -65,6 +70,9 @@ class WirelessCollector {
     this._nameCache    = new Map();
     this._ptrCache     = new Map(); // ip → { name: string, ts: number }
     this._retryTimer   = null;
+    // When the "no ARP entry for anyone" warning was last logged (#93). Zero
+    // means not currently in that state, so recovery re-arms it.
+    this._noArpSince   = 0;
     this._capsmanAvailable = false;
     // SSID list: configuration, refreshed on a slow cadence of its own.
     // undefined = not probed yet, null = no wireless stack answered.
@@ -328,9 +336,50 @@ class WirelessCollector {
     }
   }
 
+  /**
+   * Say so when hostname resolution cannot work here (#93, from #88).
+   *
+   * Names come from the DHCP lease table (by MAC) or from a reverse lookup of
+   * the client's IP, and that IP comes only from the router's ARP table. A
+   * router that bridges wireless clients at layer 2 — a CAP whose gateway and
+   * DHCP live on another device — never holds an ARP entry for them, so no IP
+   * is known and resolveName() returns before attempting anything.
+   *
+   * That is correct behaviour with no error to report, which is exactly why it
+   * needs saying out loud. The reporter in #88 had working reverse DNS the
+   * whole time and no lookup was ever tried; the page showed bare MACs, and
+   * nothing distinguished "your DNS is misconfigured" from "this router cannot
+   * know". One line, not one per client, and throttled: a layer 2 AP is
+   * permanently in this state, so repeating it every poll would bury the log
+   * this exists to make readable.
+   */
+  _checkArpAvailability(clients) {
+    const total = clients.length;
+    const noIp  = clients.filter(c => !c.ip).length;
+    // Only when it is every client. A handful without an ARP entry is ordinary
+    // — one that just associated has not spoken IP yet — and warning on that
+    // would cry wolf on every healthy router.
+    if (!(total > 0 && noIp === total)) {
+      this._noArpSince = 0;   // reset, so a recurrence is reported promptly
+      return;
+    }
+    const now = Date.now();
+    if (this._noArpSince && now - this._noArpSince < NO_ARP_LOG_MS) return;
+    this._noArpSince = now;
+
+    const named = clients.filter(c => c.name).length;
+    console.log('%s', this._lbl +
+      ` hostname resolution unavailable: ${noIp}/${total} clients have no ARP entry` +
+      (named ? ` (${named} still named from DHCP leases)` : '') +
+      '. This router needs an IP interface on the client subnet, or to be their' +
+      ' DHCP server, before wireless clients can be named.');
+  }
+
   _emitClients() {
     const parsed = Array.from(this._knownClients.values())
       .sort((a, b) => b.signal - a.signal);
+
+    this._checkArpAvailability(parsed);
 
     // Bands and counts are recomputed here rather than read off the cached
     // list, because that list is only rebuilt every five minutes while this
