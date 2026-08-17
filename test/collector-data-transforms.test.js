@@ -2779,6 +2779,134 @@ test('a CAPsMAN-managed radio is counted, not silently dropped', () => {
   assert.strictEqual(r.managedElsewhere, 2);
 });
 
+// ── Bands and counts are live, the SSID list is not ──────────────────────────
+//
+// Reported as "the SSIDs show up, but the band labels are not showing and the
+// client counts are empty".
+//
+// Two cadences meet in one payload. The SSID list is configuration, refreshed
+// every 5 minutes. Bands and client counts come from the registration table,
+// which streams. Folding the second into the first at refresh time froze them
+// at whatever the client table held during that refresh — and at startup the
+// refresh runs before the first client batch has arrived, so every SSID was
+// published with no bands and a count of zero, and stayed that way for the rest
+// of the 5-minute cycle.
+
+test('client counts follow the registration table, not the 5-minute SSID refresh', () => {
+  const c = _wlCollector();
+  // The startup ordering: the list is fetched while nobody is associated.
+  c._ssids = c._parseSsids([
+    { name: 'wifi1', 'configuration.ssid': 'SkyNet', running: 'true', disabled: 'false' },
+  ]).ssids;
+  assert.strictEqual(c._ssids[0].clients, 0, 'precondition: nobody was connected yet');
+
+  // A client associates. This arrives on the stream, not on the SSID timer.
+  c._knownClients.set('AA', { mac: 'AA', iface: 'wifi1', ssid: 'SkyNet', band: '5GHz', signal: -50 });
+  c._emitClients();
+
+  const out = c.lastPayload.ssids[0];
+  assert.strictEqual(out.clients, 1, 'the emitted count reflects who is connected now');
+  assert.deepStrictEqual(out.bands, ['5GHz'], 'and so does the band');
+});
+
+test('a client is matched to its SSID by interface, not only by name', () => {
+  // The interface is the one field the registration table is guaranteed to
+  // carry — it is what the association is keyed on. Relying on a per-client
+  // `ssid` field means that if the running RouterOS build does not report one,
+  // every count silently reads zero, which is indistinguishable from an idle
+  // network.
+  const c = _wlCollector();
+  c._ssids = c._parseSsids([
+    { name: 'wifi1', 'configuration.ssid': 'SkyNet', running: 'true', disabled: 'false' },
+    { name: 'wifi2', 'configuration.ssid': 'Guests', running: 'true', disabled: 'false' },
+  ]).ssids;
+
+  c._knownClients.set('AA', { mac: 'AA', iface: 'wifi1', ssid: '', band: '5GHz',   signal: -50 });
+  c._knownClients.set('BB', { mac: 'BB', iface: 'wifi2', ssid: '', band: '2.4GHz', signal: -70 });
+  c._emitClients();
+
+  const byName = Object.fromEntries(c.lastPayload.ssids.map(s => [s.ssid, s]));
+  assert.strictEqual(byName.SkyNet.clients, 1);
+  assert.deepStrictEqual(byName.SkyNet.bands, ['5GHz']);
+  assert.strictEqual(byName.Guests.clients, 1);
+  assert.deepStrictEqual(byName.Guests.bands, ['2.4GHz']);
+});
+
+test('recomputing counts does not corrupt the stored SSID list', () => {
+  // The cached list is configuration truth and gets reused every emit. Counting
+  // into it in place would accumulate: two emits, two clients, one connection.
+  const c = _wlCollector();
+  c._ssids = c._parseSsids([
+    { name: 'wifi1', 'configuration.ssid': 'SkyNet', running: 'true', disabled: 'false' },
+  ]).ssids;
+  c._knownClients.set('AA', { mac: 'AA', iface: 'wifi1', ssid: 'SkyNet', band: '5GHz', signal: -50 });
+
+  c._emitClients();
+  c._emitClients();
+
+  assert.strictEqual(c.lastPayload.ssids[0].clients, 1, 'still one client after two emits');
+  assert.deepStrictEqual(c.lastPayload.ssids[0].bands, ['5GHz'], 'and one band, not two');
+});
+
+// ── The CAPsMAN probe must not touch SSID state ──────────────────────────────
+//
+// Reported as "the WiFi SSIDs card takes some time to populate". The cause was
+// five constructor lines duplicated into _probeCAPsMAN's catch block, so on any
+// router where /caps-man does not exist — every router running only the wifi
+// package — the probe's failure path reset the SSID list and the refresh timer.
+//
+// It survived because the initial start happens to be ordered safely: start()
+// awaits the probe and only then calls _startSsidRefresh(). Reconnect is not:
+// there the probe is fired without await, so it lands after the refresh and
+// wipes what the refresh just fetched. The card then waits out the 5-minute
+// cadence, which is exactly the reported symptom.
+
+const _wlNoCapsman = () => new WirelessCollector({
+  ros: {
+    connected: true, on() {},
+    async write(path) {
+      if (String(path).includes('caps-man')) throw new Error('no such command or directory');
+      return [{ name: 'wifi1', 'configuration.ssid': 'SkyNet', running: 'true', disabled: 'false' }];
+    },
+  },
+  io: { emit() {}, to() { return this; } },
+  pollMs: 5000, state: {},
+  dhcpLeases: { getNameByMAC: () => null },
+  arp: { getByMAC: () => null },
+});
+
+test('a failed CAPsMAN probe leaves the SSID list alone', async () => {
+  const c = _wlNoCapsman();
+  await c._refreshSsids();
+  assert.strictEqual(c._ssids.length, 1, 'precondition: the list was fetched');
+
+  await c._probeCAPsMAN();
+
+  assert.strictEqual(c._capsmanAvailable, false, 'the probe still latches CAPsMAN off');
+  assert.strictEqual(c._ssids.length, 1, 'but it must not clear the SSIDs it never owned');
+  assert.strictEqual(c._ssidEndpoint, '/interface/wifi/print',
+    'nor un-latch the endpoint, which would re-probe both stacks every cycle');
+});
+
+test('a failed CAPsMAN probe does not orphan the SSID refresh timer', async () => {
+  // Nulling the handle without clearing the interval is worse than it looks:
+  // stop() can then never cancel it, and the next _startSsidRefresh() sees a
+  // null handle and starts a second one. One reconnect, one leaked timer, each
+  // still querying the router every five minutes.
+  const c = _wlNoCapsman();
+  c._startSsidRefresh();
+  const first = c._ssidTimer;
+  assert.ok(first, 'precondition: the refresh timer is running');
+
+  await c._probeCAPsMAN();
+  assert.strictEqual(c._ssidTimer, first, 'the probe must not drop the timer handle');
+
+  c._startSsidRefresh();
+  assert.strictEqual(c._ssidTimer, first, 'and a second call must still be a no-op');
+  c.stop();
+  assert.strictEqual(c._ssidTimer, null, 'stop() can still cancel it');
+});
+
 test('rows with no SSID at all are skipped rather than listed blank', () => {
   const c = _wlCollector();
   const { ssids } = c._parseSsids([

@@ -248,21 +248,51 @@ class WirelessCollector {
       if (running)   e.running  = true;
     }
 
-    // Bands and client counts come from the registration table, which is the
-    // only place that knows them. An SSID with no clients simply reports none
-    // rather than guessing a band from an interface name.
+    return {
+      ssids: this._withClientStats([...byName.values()])
+        .sort((a, b) => a.ssid.localeCompare(b.ssid)),
+      managedElsewhere,
+    };
+  }
+
+  /**
+   * Fill in bands and client counts from the live registration table.
+   *
+   * Kept apart from _parseSsids because the two run on different clocks. The
+   * SSID list is configuration, re-read every five minutes; who is connected
+   * changes constantly. Folding the second into the first froze bands and
+   * counts at whatever the client table held during that refresh — and at
+   * startup the refresh completes before the first client batch arrives, so
+   * every SSID was published with no bands and a count of zero and stayed that
+   * way for the rest of the cycle.
+   *
+   * Returns copies. The cached list is configuration truth and is reused on
+   * every emit, so counting into it in place would accumulate.
+   */
+  _withClientStats(ssids) {
+    const out     = (ssids || []).map(s => ({ ...s, bands: [], clients: 0 }));
+    const byIface = new Map();
+    const bySsid  = new Map();
+    for (const e of out) {
+      bySsid.set(e.ssid, e);
+      for (const i of e.ifaces || []) byIface.set(i, e);
+    }
+
     for (const c of this._knownClients.values()) {
-      const e = byName.get(c.ssid);
+      // Interface first: that is what the association is keyed on, and it is
+      // the one field the registration table is certain to carry. Matching on
+      // the client's own ssid field alone means that if a RouterOS build does
+      // not report one, every count reads zero — indistinguishable from an idle
+      // network. The name match stays as the fallback, for the legacy stack and
+      // for CAPsMAN rows naming an interface this router does not own.
+      const e = byIface.get(c.iface) || bySsid.get(c.ssid);
       if (!e) continue;
       e.clients++;
       if (c.band && e.bands.indexOf(c.band) === -1) e.bands.push(c.band);
     }
 
-    for (const e of byName.values()) e.bands.sort();
-    return {
-      ssids: [...byName.values()].sort((a, b) => a.ssid.localeCompare(b.ssid)),
-      managedElsewhere,
-    };
+    for (const e of out) e.bands.sort();
+    return out;
   }
 
   /**
@@ -302,6 +332,11 @@ class WirelessCollector {
     const parsed = Array.from(this._knownClients.values())
       .sort((a, b) => b.signal - a.signal);
 
+    // Bands and counts are recomputed here rather than read off the cached
+    // list, because that list is only rebuilt every five minutes while this
+    // runs on every client batch. See _withClientStats.
+    const ssids = this._withClientStats(this._ssids);
+
     const fp = JSON.stringify({
       c: parsed.map(x => ({
         mac: x.mac, signal: x.signal, iface: x.iface, band: x.band, name: x.name,
@@ -309,12 +344,12 @@ class WirelessCollector {
       // Included so an SSID being added, renamed or disabled reaches the page.
       // Without it the emit is gated purely on client churn, and on a quiet
       // network the card would not update until somebody roamed.
-      s: this._ssids, m: this._ssidsManagedElsewhere,
+      s: ssids, m: this._ssidsManagedElsewhere,
     });
     const payload = {
       ts: Date.now(), clients: parsed, mode: this.mode || 'none',
       pollMs: this.pollMs, capsmanAvailable: this._capsmanAvailable,
-      ssids: this._ssids,
+      ssids,
       // How many radios take their SSID from a CAPsMAN manager instead of from
       // local configuration, so an empty list can explain itself.
       ssidsManagedElsewhere: this._ssidsManagedElsewhere,
@@ -560,12 +595,10 @@ class WirelessCollector {
       const msg = String(e && e.message ? e.message : e);
       if (msg.includes('unknown command') || msg.includes('no such')) {
         this._capsmanAvailable = false;
-    // SSID list: configuration, refreshed on a slow cadence of its own.
-    // undefined = not probed yet, null = no wireless stack answered.
-    this._ssidEndpoint = undefined;
-    this._ssids = [];
-    this._ssidsManagedElsewhere = 0;
-    this._ssidTimer = null;
+        // Nothing else is reset here. This probe owns _capsmanAvailable and
+        // nothing more: the SSID list comes from a different endpoint on its own
+        // cadence, and clearing it from this catch blanked the card on every
+        // router with no /caps-man menu.
         if (this._debug) console.log('%s', this._lbl + ' capsman probe: not available on this router');
       }
       // transient errors leave _capsmanAvailable = false and re-probe on reconnect

@@ -620,15 +620,39 @@ function acknowledgeAlert(id, username) {
   `).get(id) || null;
 }
 
-/** Acknowledge every unacknowledged row for a router. Returns the affected ids
- *  so the change can be pushed to other connected browsers. */
-function acknowledgeAllAlerts(routerId, username) {
+/**
+ * Clear a router's alert list: resolve every row still open, and acknowledge
+ * them on the way past. Returns the affected ids so the change can be pushed to
+ * other connected browsers.
+ *
+ * Resolving is what the Routers page counts (see countOpenAlertsByRouter), so
+ * acknowledging alone — which is all this used to do — emptied the bell while
+ * leaving the router reading "Alerting" forever. That gap is the whole reason
+ * this exists: an alert whose condition went away without the evaluator ever
+ * seeing it clear has no other route out of the open set.
+ *
+ * Rows are kept, not deleted, so Reports and the CSV export still show what
+ * happened. Deleting them is a separate, deliberate act and stays where it
+ * already is, in Settings -> Database.
+ */
+function resolveAllAlerts(routerId, username) {
   if (!_db) return [];
-  const ids = _prep('SELECT id FROM alert_events WHERE router_id = ? AND acknowledged_at IS NULL')
+  const ids = _prep('SELECT id FROM alert_events WHERE router_id = ? AND resolved_at IS NULL')
     .all(routerId).map(r => r.id);
   if (!ids.length) return [];
-  _prep('UPDATE alert_events SET acknowledged_at = ?, acknowledged_by = ? WHERE router_id = ? AND acknowledged_at IS NULL')
-    .run(Date.now(), username || null, routerId);
+  const now = Date.now();
+  _db.transaction(() => {
+    // Acknowledge as well, and only where nobody has yet: whoever clears the
+    // list is the one who saw it, but a row someone else already acknowledged
+    // keeps their name. Skipping this would leave rows resolved by a person and
+    // attributed to nobody, which reads in Reports exactly like the evaluator
+    // having resolved them on its own.
+    _prep(`UPDATE alert_events SET acknowledged_at = ?, acknowledged_by = ?
+           WHERE router_id = ? AND resolved_at IS NULL AND acknowledged_at IS NULL`)
+      .run(now, username || null, routerId);
+    _prep('UPDATE alert_events SET resolved_at = ? WHERE router_id = ? AND resolved_at IS NULL')
+      .run(now, routerId);
+  })();
   return ids;
 }
 
@@ -1433,7 +1457,7 @@ module.exports = {
   grantsForUser, globalAdminUserIds, sweepOrphanGrants,
   insertPingSample, insertTrafficSample, insertBandwidthSample,
   insertAlertEvent, resolveAlertEvent, insertConnectivityEvent,
-  hasOpenAlert, queryOpenAlerts, countOpenAlertsByRouter, queryRecentAlerts, acknowledgeAlert, acknowledgeAllAlerts, getAlertRouterId,
+  hasOpenAlert, queryOpenAlerts, countOpenAlertsByRouter, queryRecentAlerts, acknowledgeAlert, resolveAllAlerts, getAlertRouterId,
   queryPingSamples, queryPingSamplesAgg,
   queryTrafficSamples, queryTrafficSamplesAgg, queryTrafficInterfaces,
   queryBandwidthSamples, queryBandwidthSamplesAgg, queryBandwidthInterfaces,

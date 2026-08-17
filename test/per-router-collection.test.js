@@ -942,10 +942,10 @@ test('the browser re-derives no alerts of its own', () => {
       'the bell must consume ' + ev + ' from the server');
   }
 
-  // Acknowledgment has to reach the server; a local-only clear is the cosmetic
+  // Clearing has to reach the server; a local-only clear is the cosmetic
   // behaviour this replaced.
-  assert.ok(/\/api\/alerts\/ack-all/.test(src),
-    '"Clear all" must acknowledge on the server, not just empty a local array');
+  assert.ok(/\/api\/alerts\/clear-all/.test(src),
+    '"Clear all" must clear on the server, not just empty a local array');
 });
 
 test('"Clear all" actually clears the bell', () => {
@@ -961,12 +961,20 @@ test('"Clear all" actually clears the bell', () => {
   assert.ok(/filter\(function\(a\)\{ return !a\.acknowledgedAt; \}\)/.test(body),
     'renderNotifPanel must not render acknowledged alerts');
 
-  // 2. The panel cannot wait on alerts:acked-all to empty itself. The server
-  //    only broadcasts when it acknowledged something, so a click with nothing
-  //    left to acknowledge would leave the list exactly as it was.
+  // 2. The panel cannot wait on alerts:cleared-all to empty itself. The server
+  //    only broadcasts when it cleared something, so a click with nothing left
+  //    open would leave the list exactly as it was.
   const clear = src.slice(src.indexOf("$('notifClearBtn')"));
-  assert.ok(/ackAlerts\(/.test(clear.slice(0, 1400)),
+  assert.ok(/ackAlerts\(/.test(clear.slice(0, 1600)),
     '"Clear all" must update the local view itself, not rely on the broadcast');
+
+  // 3. It must resolve locally too, not only acknowledge. Acknowledging empties
+  //    the bell, which is what makes the button look like it worked; only
+  //    resolving takes the router out of the Routers page "Alerting" count. A
+  //    button that does the first and not the second is the bug being fixed
+  //    here, and it is invisible from the bell alone.
+  assert.ok(/resolveAlerts\(/.test(clear.slice(0, 1600)),
+    '"Clear all" must resolve as well as acknowledge, or the router stays Alerting');
 });
 
 test('a socket falls back to the configured active router, not the lowest id', () => {

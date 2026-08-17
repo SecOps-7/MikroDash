@@ -1125,7 +1125,14 @@
     .wl-ssid-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem}
     .wl-ssid-off .wl-ssid-name{color:var(--text-muted);text-decoration:line-through}
     .wl-ssid-row .wl-band{flex:0 0 auto}
-    .wl-ssid-clients{font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap}
+    /* The count is a fixed-width right-aligned column, not free-flowing text.
+       It is the last item in the row, so its width sets where everything before
+       it ends: a two-digit count pushed the band pills a character to the left
+       and they stopped lining up down the list. 2ch covers 0-99 in the mono
+       face; a router with 100+ clients on one SSID widens the column and the
+       pills shift once, which is the right trade against padding every row for
+       a case nobody has. */
+    .wl-ssid-clients{flex:0 0 auto;min-width:2ch;margin-left:.3rem;text-align:right;font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap}
     .wl-ssid-empty{font-size:.72rem;color:var(--text-muted);padding:.3rem .25rem}
     .wl-summary-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
     .wl-summary-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
@@ -1215,6 +1222,12 @@
     html[data-theme="light"] #dhcpSearch{background:rgba(255,255,255,.9)}
     /* ── Routing page ──────────────────────────────────────────────────────── */
     .rt-summary-row{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem}
+    /* Routing protocol tabs. The bar reuses .stab-bar/.stab from Settings, as the
+       Reports tabs already do, so only the panel rule is new. A distinct panel
+       class matters: the Reports switcher queries .rtab-panel document-wide. */
+    #rtTabBar{margin-bottom:.85rem}
+    .rttab-panel{display:none}
+    .rttab-panel.active{display:block}
     @media(max-width:600px){.rt-summary-row{grid-template-columns:1fr}}
     /* DHCP summary row */
     .dhcp-summary-row{display:grid;grid-template-columns:10fr 3fr;gap:.75rem;margin-bottom:.85rem;min-height:165px}
@@ -2189,7 +2202,7 @@
       <!-- Summary row: WiFi SSIDs + Signal Health + Band Split, equal thirds -->
       <div class="wl-summary-row">
         <div class="wl-summary-card">
-          <div class="wl-summary-title">WiFi SSIDs <span id="wlSsidCount" class="card-badge">0</span></div>
+          <div class="wl-summary-title">WiFi SSIDs</div>
           <div class="wl-ssid-list" id="wlSsidList">
             <div class="wl-ssid-empty">Loading…</div>
           </div>
@@ -4095,23 +4108,34 @@
           <div class="rt-card-title">BGP Peers</div>
           <div class="rt-bgp-stats-wrap"><div class="rt-bgp-stats">
             <div class="rt-bgp-stat">
-              <span class="rt-bgp-num total" id="rtBgpTotal">—</span>
+              <span class="rt-bgp-num total" id="rtBgpTotal">&#8212;</span>
               <span class="rt-bgp-lbl">Total</span>
             </div>
             <div class="rt-bgp-divider"></div>
             <div class="rt-bgp-stat">
-              <span class="rt-bgp-num established" id="rtBgpEstab">—</span>
+              <span class="rt-bgp-num established" id="rtBgpEstab">&#8212;</span>
               <span class="rt-bgp-lbl">Established</span>
             </div>
             <div class="rt-bgp-divider"></div>
             <div class="rt-bgp-stat">
-              <span class="rt-bgp-num down" id="rtBgpDown">—</span>
+              <span class="rt-bgp-num down" id="rtBgpDown">&#8212;</span>
               <span class="rt-bgp-lbl">Down</span>
             </div>
           </div></div>
         </div>
 
       </div><!-- /rt-summary-row -->
+
+      <!-- Protocol tabs. Routes is the default and primary tab. Another protocol
+           is one button plus one panel, and nothing else. -->
+      <div class="stab-bar" id="rtTabBar" role="tablist" aria-label="Routing protocol">
+        <button class="stab active" data-rttab="routes" role="tab" aria-selected="true"
+                aria-controls="rttab-routes" id="rtTabBtn-routes">Routes</button>
+        <button class="stab" data-rttab="bgp" role="tab" aria-selected="false"
+                aria-controls="rttab-bgp" id="rtTabBtn-bgp">BGP</button>
+      </div>
+
+      <div class="rttab-panel active" id="rttab-routes" role="tabpanel" aria-labelledby="rtTabBtn-routes">
 
       <!-- Static + Dynamic Routes table -->
       <div id="routingRoutesCard" style="margin-bottom:.85rem">
@@ -4159,6 +4183,10 @@
           </table>
         </div>
       </div><!-- /routingRoutesCard -->
+
+      </div><!-- /rttab-routes -->
+
+      <div class="rttab-panel" id="rttab-bgp" role="tabpanel" aria-labelledby="rtTabBtn-bgp">
 
       <!-- BGP Peers table -->
       <div id="routingPeersCard">
@@ -4220,6 +4248,8 @@
           </table>
         </div>
       </div><!-- /routingPeersCard -->
+
+      </div><!-- /rttab-bgp -->
 
     </div><!-- /container -->
   </div><!-- /page-routing -->
