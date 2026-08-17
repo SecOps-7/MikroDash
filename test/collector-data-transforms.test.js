@@ -2930,6 +2930,94 @@ test('recomputing counts does not corrupt the stored SSID list', () => {
   assert.deepStrictEqual(c.lastPayload.ssids[0].bands, ['5GHz'], 'and one band, not two');
 });
 
+// ── Saying so when hostname resolution cannot work (issue #93, from #88) ─────
+//
+// Wireless names come from the DHCP lease table (by MAC) or from a reverse
+// lookup of the client's IP, and that IP comes only from the router's ARP
+// table. A router that bridges wireless clients at layer 2 — a CAP whose
+// gateway and DHCP live on another device — never holds an ARP entry for them,
+// so no IP is known and no lookup is ever attempted.
+//
+// That is correct behaviour with no error to report, which is exactly why it
+// has to be said out loud. The reporter in #88 had working reverse DNS the
+// whole time and no lookup was ever tried; the page showed bare MACs and
+// nothing distinguished "your DNS is wrong" from "this router cannot know".
+
+function _wlLogCapture(fn) {
+  const util = require('node:util');
+  const orig = console.log;
+  const lines = [];
+  console.log = (...a) => lines.push(util.format(...a));
+  try { fn(); } finally { console.log = orig; }
+  return lines.filter(l => /hostname resolution/.test(l));
+}
+
+function _wlWithClients(clients) {
+  const c = _wlCollector();
+  clients.forEach((cl, i) => c._knownClients.set('M' + i, cl));
+  return c;
+}
+
+const _noIp = (n) => Array.from({ length: n }, (_, i) => ({
+  mac: 'AA:BB:CC:00:00:0' + i, iface: 'wifi1', ssid: 'SkyNet',
+  band: '5GHz', signal: -50, ip: '', name: '',
+}));
+
+test('a router with no ARP entry for any client says so, once', () => {
+  const c = _wlWithClients(_noIp(52));
+  const lines = _wlLogCapture(() => c._emitClients());
+
+  assert.strictEqual(lines.length, 1, 'one line, not one per client');
+  assert.match(lines[0], /52\/52/, 'reports the ratio, so the scale is obvious');
+  assert.match(lines[0], /ARP/, 'names the actual cause');
+  c.stop();
+});
+
+test('the warning is throttled while the condition persists', () => {
+  // A layer 2 AP is permanently in this state. Repeating every poll would bury
+  // the log it is meant to make readable.
+  const c = _wlWithClients(_noIp(3));
+  const first  = _wlLogCapture(() => c._emitClients());
+  const second = _wlLogCapture(() => { c._emitClients(); c._emitClients(); });
+
+  assert.strictEqual(first.length, 1);
+  assert.strictEqual(second.length, 0, 'silent while inside the throttle window');
+  c.stop();
+});
+
+test('a client that does have an IP means nothing is wrong', () => {
+  // Partial absence is ordinary: a client that just associated has not spoken
+  // IP yet. Warning on that would cry wolf on every healthy router.
+  const c = _wlWithClients([
+    ..._noIp(2),
+    { mac: 'AA:BB:CC:00:00:09', iface: 'wifi1', ssid: 'SkyNet', band: '5GHz', signal: -40, ip: '192.168.88.10', name: 'laptop' },
+  ]);
+  assert.deepStrictEqual(_wlLogCapture(() => c._emitClients()), []);
+  c.stop();
+});
+
+test('an access point with nobody connected is not reported as broken', () => {
+  const c = _wlWithClients([]);
+  assert.deepStrictEqual(_wlLogCapture(() => c._emitClients()), []);
+  c.stop();
+});
+
+test('the warning returns promptly after the condition clears and recurs', () => {
+  // Reset on recovery rather than riding out the throttle, so somebody who
+  // fixes the router and breaks it again is told the second time too.
+  const c = _wlWithClients(_noIp(2));
+  assert.strictEqual(_wlLogCapture(() => c._emitClients()).length, 1);
+
+  c._knownClients.set('M0', { mac: 'AA', iface: 'wifi1', ip: '192.168.88.5', name: 'pc', signal: -50, band: '5GHz' });
+  c._knownClients.set('M1', { mac: 'BB', iface: 'wifi1', ip: '192.168.88.6', name: 'tv', signal: -50, band: '5GHz' });
+  assert.deepStrictEqual(_wlLogCapture(() => c._emitClients()), [], 'healthy again, nothing logged');
+
+  c._knownClients.set('M0', { mac: 'AA', iface: 'wifi1', ip: '', name: '', signal: -50, band: '5GHz' });
+  c._knownClients.set('M1', { mac: 'BB', iface: 'wifi1', ip: '', name: '', signal: -50, band: '5GHz' });
+  assert.strictEqual(_wlLogCapture(() => c._emitClients()).length, 1, 'reported again on recurrence');
+  c.stop();
+});
+
 // ── The CAPsMAN probe must not touch SSID state ──────────────────────────────
 //
 // Reported as "the WiFi SSIDs card takes some time to populate". The cause was
