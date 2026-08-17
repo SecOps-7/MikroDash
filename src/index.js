@@ -49,6 +49,8 @@ try {
 }
 
 const geo = require('./geo');
+const cityIndex = require('./cityIndex');
+const GeoPlace  = require('./geoPlace');
 
 const ROS                  = require('./routeros/client');
 
@@ -920,9 +922,20 @@ function _resolveRouterId(socket) {
 // The router list a specific socket may see, resolved through grants.
 function _routersForSocket(socket) {
   const all = Routers.getPublic();
+  // geo.auto.ip is a WAN address, and /api/localcc deliberately withholds that
+  // from anyone without system:settings. getPublic() masks the password but does
+  // not know about this, so the strip happens here — otherwise adding a location
+  // would quietly undo an existing disclosure rule. _buildRoutersStats does the
+  // same for the stats payload.
+  const strip = (r) => {
+    if (!r.geo || !r.geo.auto || r.geo.auto.ip === undefined) return r;
+    const { ip, ...auto } = r.geo.auto;
+    return { ...r, geo: { ...r.geo, auto } };
+  };
   if (!_isModern()) return all;
+  const maySeeWanIp = _socketCan(socket, 'system:settings');
   const visible = new Set(_visibleRouterIds(socket));
-  return all.filter(r => visible.has(r.id));
+  return all.filter(r => visible.has(r.id)).map(r => (maySeeWanIp ? r : strip(r)));
 }
 
 // Persist model/serial/version learned from RouterOS against the router entry,
@@ -2162,6 +2175,47 @@ app.get('/api/localcc', (req, res) => {
   res.json({ cc, wanIp: Rbac.can(req.authSession, 'system:settings') ? wanIp : '' });
 });
 
+/**
+ * City/town search for the location picker (issue #96).
+ *
+ * This guard is about resources, not confidentiality: place names are public
+ * geographic data, and the gazetteer is derived from a database already shipped
+ * in the image. What it protects is the *build* — the first search costs a few
+ * hundred milliseconds and tens of megabytes, so an arbitrary viewer should not
+ * be able to trigger it. Anyone who can edit something that carries a location
+ * may search: a site (system:principals) or at least one router.
+ *
+ * Do not "fix" this into a confidentiality guard; there is nothing here to leak.
+ */
+function _requireLocationEditor(req, res, next) {
+  if (Rbac.can(req.authSession, 'system:principals')) return next();
+  if (Rbac.effectiveRouterIds(req.authSession, 'router:manage').length) return next();
+  return res.status(403).json({ ok: false, error: 'Not permitted' });
+}
+
+// A type-ahead is chatty by nature — the widget debounces, so a fast typist
+// produces well under this. Same shape as _testConnLimiter.
+const _citySearchLimiter = rateLimit({
+  windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false,
+});
+
+app.get('/api/cities', _requireLocationEditor, _citySearchLimiter, (req, res) => {
+  try {
+    if (!cityIndex.available()) {
+      // Not an error. An install whose geoip data cannot be read still works; it
+      // simply cannot offer the picker, and the widget renders that as a message
+      // rather than as a failure. Automatic geolocation is unaffected — it goes
+      // through geo.lookup(), which is a supported API.
+      return res.json({
+        ok: true, cities: [], unavailable: true, reason: cityIndex.unavailableReason(),
+      });
+    }
+    res.json({ ok: true, cities: cityIndex.search(req.query.q, req.query.limit) });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: sanitizeErr(e) });
+  }
+});
+
 function sanitizeErr(e) {
   if (!e) return null;
   const msg = (e && e.message) ? e.message : String(e);
@@ -2199,17 +2253,26 @@ function _parseSiteBody(body, { partial } = {}) {
     if (d.length > 256) return { error: 'Description must be 256 characters or fewer' };
     out.description = d || null;
   }
-  for (const [key, limit] of [['lat', 90], ['lon', 180]]) {
-    if (b[key] === undefined) continue;
-    if (b[key] === null || b[key] === '') { out[key] = null; continue; }
-    const n = parseFloat(b[key]);
-    // Number.isFinite rejects NaN and Infinity; the range check rejects a
-    // longitude pasted into the latitude box.
-    if (!Number.isFinite(n) || n < -limit || n > limit) {
-      return { error: key === 'lat' ? 'Latitude must be between -90 and 90'
-                                    : 'Longitude must be between -180 and 180' };
+  // A site's location is a picked place, not typed coordinates (#96). lat/lon
+  // survive as the plotted values — they are simply derived from the choice
+  // rather than entered, which is why all five columns move together and a
+  // half-set location is unreachable.
+  //
+  //   undefined  the caller did not touch the location -> leave it alone, so a
+  //              rename cannot blank it
+  //   null       explicit "no location"
+  if (b.place !== undefined) {
+    if (b.place === null) {
+      out.lat = null; out.lon = null;
+      out.place_name = null; out.place_region = null; out.place_cc = null;
+    } else {
+      // Validated by the same function the router store uses, so a site and a
+      // router cannot disagree about what a well-formed place is.
+      const p = GeoPlace.normalizePlace(b.place);
+      if (!p) return { error: 'Pick a town from the list, or clear the location' };
+      out.lat = p.lat; out.lon = p.lon;
+      out.place_name = p.name; out.place_region = p.region; out.place_cc = p.cc;
     }
-    out[key] = n;
   }
   return { value: out };
 }
@@ -3118,11 +3181,29 @@ const ackLimiter = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true
 
 /** DB row -> the shape the browser gets, matching the alert:fired payload so the
  *  bell never has to care whether an entry arrived live or via replay. */
-function _alertRow(r) {
+/**
+ * Shape a stored alert row for the browser.
+ *
+ * The live socket path (alerter.fire) sends `label` and `routerName` alongside
+ * the raw type; this one did not, so every alert already open when a page loaded
+ * rendered with a blank device and a database key for a title — "routeros_update"
+ * with nothing to say which of three routers it came from.
+ *
+ * `names` is an optional routerId -> label map. Callers rendering a list build it
+ * once rather than making this reach for the router store per row.
+ */
+function _alertRow(r, names) {
+  const rid = r.router_id || null;
   return {
     id: r.id,
-    routerId: r.router_id || null,
+    routerId: rid,
     alertType: r.alert_type,
+    // Derived, never stored: see alerter.labelFor. Keeping the key in the
+    // database and the name in code means renaming an alert is not a migration.
+    label: alerter.labelFor(r.alert_type),
+    // Without this an alert cannot say which router it belongs to, which is the
+    // whole difficulty with three identical update alerts.
+    routerName: (names && rid && names.get(rid)) || null,
     subject: r.subject || null,
     detail: r.detail || null,
     firedAt: r.fired_at,
@@ -3153,8 +3234,11 @@ app.post('/api/alerts/:id/ack', ackLimiter, (req, res) => {
     if (!row) return res.status(404).json({ ok: false });
     // Tell every browser on that router, so two people looking at the same
     // alert do not each have to acknowledge it.
-    io.to('router-' + row.router_id).emit('alert:acked', _alertRow(row));
-    res.json({ ok: true, alert: _alertRow(row) });
+    const _one = new Map();
+    const _r = Routers.getById(row.router_id);
+    if (_r) _one.set(row.router_id, _r.label || _r.host);
+    io.to('router-' + row.router_id).emit('alert:acked', _alertRow(row, _one));
+    res.json({ ok: true, alert: _alertRow(row, _one) });
   } catch (e) {
     console.error('[alerts] ack failed:', sanitizeErr(e));
     res.status(500).json({ ok: false });
@@ -3185,7 +3269,12 @@ app.post('/api/alerts/ack-all', ackLimiter, (req, res) => {
 app.get('/api/reports/alerts', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
-  res.json({ ok: true, rows: db.queryAlertEvents(routerId, from, to) });
+  // alert_label rides alongside the raw key rather than replacing it: sorting,
+  // filtering and the CSV export all key off alert_type, and only the display
+  // wants a human name. Derived server-side so the report and the notification
+  // bell cannot end up calling the same alert two different things.
+  res.json({ ok: true, rows: db.queryAlertEvents(routerId, from, to).map(r => (
+    { ...r, alert_label: alerter.labelFor(r.alert_type) })) });
 });
 
 // GET /api/reports/alerts/export
@@ -3342,9 +3431,69 @@ app.post('/api/db/purge', Rbac.requireGlobalAdmin, (req, res) => {
   }
 });
 
+/**
+ * Which address a router faces the internet with (issue #96).
+ *
+ * Two sources, because the two session pools know different things:
+ *
+ *   state.lastWanIp   only the main pool has it — dhcpNetworks resolves it, and
+ *                     overviewSessions does not run that collector.
+ *   ifStatus `ips`    both pools have it: interface status streams
+ *                     /ip/address/print, so a background router still reports
+ *                     the addresses on its WAN interface.
+ *
+ * Both are CIDR strings ('10.0.0.2/24'), so the mask is stripped — the same thing
+ * /api/localcc does. Frequently an RFC1918 address, which geoip cannot place at
+ * all; that is a real answer, not a failure, and the caller treats it as such.
+ */
+function _wanIpFor(session, bg, wanIf) {
+  const live = session && session.state ? session.state.lastWanIp : '';
+  if (live) return String(live).split('/')[0];
+  const ips = wanIf && Array.isArray(wanIf.ips) ? wanIf.ips : [];
+  return ips.length ? String(ips[0]).split('/')[0] : '';
+}
+
+// routerId -> the WAN IP we last attempted a lookup for.
+//
+// _buildRoutersStats runs on a 2s timer *per socket with the Routers page open*,
+// so two administrators means two passes a second. This makes the repeat case a
+// Map hit rather than a loadAll() plus a deep compare, and it means an
+// unresolvable private address is looked up once per process rather than forever.
+const _autoGeoSeen = new Map();
+
+/**
+ * Refresh a router's cached location if its WAN IP has changed.
+ *
+ * Returns true when something was written, so the caller knows to re-read the
+ * store before building the payload — otherwise the router just located would
+ * still carry the stale record.
+ *
+ * Persisting the fix rather than resolving it live is what lets an OFFLINE router
+ * still appear on the map at its last known position, which is the whole point of
+ * the view: a live-only lookup would drop exactly the routers you most want to
+ * see.
+ */
+function _refreshAutoGeo(router, wanIp) {
+  const decision = GeoPlace.autoGeoAction(wanIp, wanIp ? geo.lookup(wanIp) : null, Date.now());
+  if (decision.action === 'keep') return false;
+
+  // Cheap repeat guard, ahead of the store read. _buildRoutersStats runs on a 2s
+  // timer *per socket with the Routers page open*, so two administrators means
+  // two passes a second; and an address geoip cannot place is looked up once per
+  // process rather than forever.
+  if (_autoGeoSeen.get(router.id) === wanIp) return false;
+  _autoGeoSeen.set(router.id, wanIp);
+
+  // Survives a restart, so a reboot costs one lookup per router, not one write.
+  if (router.geo && router.geo.auto && router.geo.auto.ip === wanIp) return false;
+
+  if (decision.action === 'clear') return !!Routers.updateGeoAuto(router.id, null);
+  return !!Routers.updateGeoAuto(router.id, decision.auto);
+}
+
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
 function _buildRoutersStats(socket) {
-  const allRouters  = Routers.loadAll();
+  let allRouters    = Routers.loadAll();
   const bgSummaries = overviewSessions.getSummaries();
   const cfg         = Settings.load();
   // Resolved once for the whole payload, not per router: this runs on a 2s timer
@@ -3358,6 +3507,33 @@ function _buildRoutersStats(socket) {
     const readable = new Set(_visibleRouterIds(socket));
     visible = visible.filter(r => readable.has(r.id));
   }
+
+  // Refresh cached locations before building rows, so a router that just
+  // resolved is not rendered from the record it had a moment ago. Almost always
+  // a no-op — see _refreshAutoGeo's two guards.
+  let geoWritten = false;
+  for (const r of visible) {
+    const mainEntry = _routerSessions.get(r.id);
+    const s         = mainEntry && mainEntry.session;
+    const bg        = bgSummaries.find(x => x.routerId === r.id);
+    const ifPay     = s ? s.ifStatus.lastPayload : (bg ? bg.ifStatusPayload : null);
+    const dIf       = r.defaultIf || cfg.defaultIf || 'ether1';
+    const wIf       = ifPay ? (ifPay.interfaces || []).find(i => i.name === dIf) : null;
+    if (_refreshAutoGeo(r, _wanIpFor(s, bg, wIf))) geoWritten = true;
+  }
+  if (geoWritten) {
+    allRouters = Routers.loadAll();
+    const byId = new Map(allRouters.map(r => [r.id, r]));
+    visible = visible.map(r => byId.get(r.id) || r);
+    _broadcastRoutersList();     // getPublic() now carries a different geo block
+  }
+
+  // Sites are the last fallback tier, resolved once for the whole payload rather
+  // than per router — same reasoning as openAlerts above.
+  const sitesById = new Map(db.listSites().map(s => [s.id, s]));
+  // The WAN address is withheld from anyone without system:settings, matching
+  // /api/localcc. Resolved once per build, not per row.
+  const maySeeWanIp = _socketCan(socket, 'system:settings');
 
   return visible.map(r => {
     const mainEntry = _routerSessions.get(r.id);
@@ -3398,6 +3574,18 @@ function _buildRoutersStats(socket) {
       clients:   (() => {
         const lp = s ? s.dhcpLeases.lastPayload : (bg ? bg.dhcpLeasesPayload : null);
         return lp ? lp.leases.length : null;
+      })(),
+      siteId:    r.siteId || null,
+      siteName:  (r.siteId && sitesById.get(r.siteId)) ? sitesById.get(r.siteId).name : null,
+      // Where to draw it, and how confident to look (#96). Resolved server-side
+      // so the browser holds one answer per router rather than reimplementing
+      // the priority order — a second implementation is one that can disagree.
+      // null means unlocated: the map's tray, never a marker at 0,0.
+      geo: (() => {
+        const loc = GeoPlace.resolveLocation(r, r.siteId ? sitesById.get(r.siteId) : null);
+        if (!loc) return null;
+        if (loc.wanIp !== undefined && !maySeeWanIp) delete loc.wanIp;
+        return loc;
       })(),
     };
   });
@@ -3543,10 +3731,13 @@ async function sendInitialState(socket, entry) {
   // Recently-resolved rows ride along so the panel shows what just happened as
   // well as what is still wrong.
   try {
+    // Built once for up to 250 rows rather than per row.
+    const _alertNames = new Map(Routers.loadAll().map(r => [r.id, r.label || r.host]));
     socket.emit('alerts:open', {
       routerId: s.routerId,
-      open:     db.queryOpenAlerts(s.routerId, 200).map(_alertRow),
-      recent:   db.queryRecentAlerts(s.routerId, Date.now() - 24 * 3600 * 1000, 50).map(_alertRow),
+      open:     db.queryOpenAlerts(s.routerId, 200).map(r => _alertRow(r, _alertNames)),
+      recent:   db.queryRecentAlerts(s.routerId, Date.now() - 24 * 3600 * 1000, 50)
+                  .map(r => _alertRow(r, _alertNames)),
     });
   } catch (e) {
     console.warn('[alerts] initial state failed:', sanitizeErr(e));

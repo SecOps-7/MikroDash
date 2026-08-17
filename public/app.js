@@ -3111,7 +3111,8 @@ function renderNotifPanel(){
       '<div class="notif-item-title">' + esc(a.label || a.alertType) +
         (a.subject ? ' — ' + esc(a.subject) : '') + '</div>' +
       '<div class="notif-item-body">' + esc(a.detail || '') + '</div>' +
-      '<div class="notif-item-time">' + esc(a.routerName || '') + ' · ' +
+      '<div class="notif-item-time">' +
+        (a.routerName ? '<span class="notif-item-router">' + esc(a.routerName) + '</span> · ' : '') +
         _alertAgeStr(when) + '</div>' +
       (_alertIsOpen(a)
         ? '<button class="notif-ack-btn" data-ack="' + a.id + '">Acknowledge</button>' : '') +
@@ -4666,11 +4667,30 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     el.style.display = msg ? 'block' : 'none';
   }
 
+  var _sitePicker = null;
+  function _sitePickerEnsure() {
+    if (_sitePicker) return _sitePicker;
+    var input = $('sf_place'), list = $('sf_placeList');
+    if (!input || !list) return null;
+    _sitePicker = _mountCityPicker(input, list, { clearEl: $('sf_placeClear') });
+    return _sitePicker;
+  }
+
   function showSiteForm(site) {
     var wrap = $('siteFormWrap'); if (!wrap) return;
     $('sf_id').value          = site ? site.id : '';
     $('sf_name').value        = site ? site.name : '';
     $('sf_description').value = site && site.description ? site.description : '';
+    // Seeded from the three place columns rather than lat/lon: a row written
+    // before there was a picker has coordinates but no name, and showing an
+    // empty box over a set location would invite somebody to overwrite it.
+    _sitePickerEnsure();
+    if (_sitePicker) {
+      _sitePicker.set(site && site.place_name
+        ? { name: site.place_name, region: site.place_region || '', cc: site.place_cc || '',
+            lat: site.lat, lon: site.lon }
+        : null);
+    }
     _siteFormError('');
 
     // Router assignment, from this side rather than one router at a time. Each
@@ -4704,6 +4724,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var body = {
       name:        $('sf_name').value.trim(),
       description: $('sf_description').value.trim(),
+      // The server derives lat/lon from this; coordinates are never sent as
+      // their own fields. null clears the location.
+      place:       _sitePicker ? _sitePicker.get() : null,
     };
     if (!body.name) return _siteFormError('Name is required');
 
@@ -7262,6 +7285,58 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   });
 
   // ── Modal helpers ──────────────────────────────────────────────────────────
+  /* Lazily mounted, because the modal markup is present from the start but the
+     picker should not fetch anything until somebody actually opens it. */
+  var _geoPicker = null;
+  function _geoPickerEnsure() {
+    if (_geoPicker) return _geoPicker;
+    var input = $('rtrModalGeo'), list = $('rtrModalGeoList');
+    if (!input || !list) return null;
+    _geoPicker = _mountCityPicker(input, list, { clearEl: $('rtrModalGeoClear') });
+    return _geoPicker;
+  }
+
+  /* Seed the picker, and say what clearing it would fall back to.
+     The hint is the only place the priority order is visible while editing, and
+     it is where somebody discovers that a private WAN address is why their
+     router has no position. */
+  function _seedGeoPicker(router) {
+    var p = _geoPickerEnsure();
+    if (!p) return;
+    var geo  = (router && router.geo) || {};
+    var site = (router && router.siteId && window._sitesById) ? window._sitesById[router.siteId] : null;
+
+    if (geo.place) {
+      p.set(geo.place);                       // an override the user set earlier
+    } else if (geo.auto) {
+      // Show what the server worked out, rather than an empty box next to a
+      // router that is already on the map. Editable, and only becomes an
+      // override once something else is picked.
+      p.preview(geo.auto);
+    } else if (site && site.place_name) {
+      p.preview({ name: site.place_name, region: site.place_region || '',
+                  cc: site.place_cc || '', lat: site.lat, lon: site.lon });
+    } else {
+      p.set(null);
+    }
+
+    var hint = $('rtrModalGeoHint');
+    if (!hint) return;
+    if (geo.place) {
+      hint.innerHTML = 'Set here. <span class="text-muted">Clear it to go back to the automatic location.</span>';
+    } else if (geo.auto) {
+      hint.innerHTML = '<span class="text-muted">Found automatically'
+        + (geo.auto.ip ? ' from ' + esc(geo.auto.ip) : '')
+        + '. Pick a different town to override it.</span>';
+    } else if (site && site.place_name) {
+      hint.innerHTML = '<span class="text-muted">From this router’s site, '
+        + esc(site.place_name) + '. Pick a town to override it.</span>';
+    } else {
+      hint.innerHTML = '<span class="text-muted">No location yet. A private or CGNAT WAN '
+        + 'address cannot be geolocated — pick a town instead.</span>';
+    }
+  }
+
   function openModal(router) {
     if (!modalBg) return;
     var isEdit = !!router;
@@ -7271,6 +7346,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // A site that has since been deleted falls back to "— No site —" rather
     // than leaving the picker showing whatever happened to be selected before.
     if (modalSite) modalSite.value = (router && router.siteId && window._sitesById && window._sitesById[router.siteId]) ? router.siteId : '';
+    _seedGeoPicker(router);
     modalHost.value  = router ? router.host      : '';
     modalPort.value  = router ? router.port      : '8729';
     modalUser.value  = router ? router.username  : 'admin';
@@ -7357,6 +7433,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       label:       modalLabel? modalLabel.value.trim(): '',
       // '' is the "— No site —" option; the server maps it to null.
       siteId:      modalSite ? modalSite.value        : '',
+      // Only ever `place`. Never `auto`: the store reads an absent `auto` as
+      // "keep what you learned", so sending one here would let a save race the
+      // background refresh and discard it.
+      geo:         { place: _geoPicker ? _geoPicker.get() : null },
       host:        modalHost ? modalHost.value.trim() : '',
       port:        modalPort ? parseInt(modalPort.value, 10) : 8729,
       username:    modalUser ? modalUser.value.trim() : 'admin',
@@ -7574,6 +7654,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (switchOvl) switchOvl.classList.remove('open');
     }
   });
+
+  /* The map's popover and its no-location tray both need a way into a router's
+     settings, and the modal lives in this closure. Exported rather than
+     duplicated so there is one Edit Router dialog, not two that can drift.
+     Opening a dialog is all it does — it never activates the router, which would
+     tear down and rebuild a collector session from a single click on a map. */
+  window._rtrOpenModal = function (id) {
+    var r = _routers.find(function (x) { return x.id === id; });
+    if (r) openModal(r);
+  };
 
 })();
 
@@ -9165,7 +9255,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
                  ' data-ack-id="' + esc(String(r.id)) + '">Acknowledge</button>');
           return '<tr>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(fmtTs(r.fired_at))+'</td>'+
-            '<td style="font-family:var(--font-mono);font-size:.71rem">'+esc(r.alert_type||'')+'</td>'+
+            '<td style="font-size:.71rem">'+esc(r.alert_label||r.alert_type||'')+'</td>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(r.subject||'—')+'</td>'+
             '<td style="font-size:.71rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.detail||'—')+'</td>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem">'+res+'</td>'+
@@ -9560,10 +9650,13 @@ function _renderRoutersList(rows) {
 
   function apply(v) {
     _rtrView = v;
-    var isList = v === 'list';
-    var grid = $('routers-grid'), wrap = $('routersListWrap');
-    if (grid) grid.hidden = isList;
+    var isList = v === 'list', isMap = v === 'map';
+    var grid = $('routers-grid'), wrap = $('routersListWrap'), mapw = $('routersMapWrap');
+    // An unknown stored value still falls through to the card grid, so a
+    // downgrade that no longer knows 'map' degrades rather than showing nothing.
+    if (grid) grid.hidden = isList || isMap;
     if (wrap) wrap.hidden = !isList;
+    if (mapw) mapw.hidden = !isMap;
     if (sel) sel.value = v;
     // Re-render from the rows already held, so switching view is instant rather
     // than waiting out the two-second refresh.
@@ -9615,6 +9708,10 @@ function _renderRoutersStats(rows) {
   // The rest of this function draws whatever survived the search.
   rows = visible;
   if (_rtrView === 'list') { _renderRoutersList(rows); return; }
+  // The map gets the same filtered rows as the cards, so `online`, `alerting`
+  // and a name fragment narrow it identically — a search that worked in one view
+  // and not another would be worse than no search.
+  if (_rtrView === 'map')  { _renderRoutersMap(rows); return; }
   var grid = $('routers-grid');
   if (!grid) return;
   if (!rows.length) {
@@ -9699,3 +9796,711 @@ function _renderRoutersStats(rows) {
   });
   grid.innerHTML = html;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   City / town picker (issue #96)
+
+   Locations are never typed as coordinates — they are chosen from the gazetteer,
+   so what the user edits is a *search box*, not the value. The chosen place lives
+   in a closure, and the input is switched to readonly once something is picked;
+   that is what makes "typed text is never a location" structurally true rather
+   than a convention somebody has to remember.
+
+   One implementation, mounted twice: the router modal and the site form.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Client-side mirror of GeoPlace.formatPlace. A numeric region is dropped —
+   geoip stores Hiroshima's as '34', and "Motomachi, 34, JP" reads as a typo. */
+function _fmtPlace(p) {
+  if (!p) return '';
+  var parts = [];
+  if (p.name) parts.push(p.name);
+  if (p.name && p.region && /^[A-Za-z]/.test(p.region)) parts.push(p.region);
+  if (p.cc) parts.push(p.cc);
+  return parts.join(', ');
+}
+
+/**
+ * Mount a picker.
+ *
+ *   inputEl  the search box
+ *   listEl   the results container
+ *   opts     { clearEl, hintEl, onChange }
+ *
+ * Returns { get, set, clear }. `get()` is the value to submit: a place object or
+ * null, never the raw text.
+ */
+function _mountCityPicker(inputEl, listEl, opts) {
+  opts = opts || {};
+  var chosen = null;        // the place shown in the box
+  /* Whether `chosen` is the user's own choice or merely the automatic location
+     shown for reference. get() returns null while it is only a preview, so
+     opening a router, changing its label and saving does NOT silently convert an
+     automatic location into a manual override — which would freeze it and stop
+     it following the WAN address, with nothing on screen to say so. */
+  var previewOnly = false;
+  var results = [];         // parallel to the rendered rows
+  var active = -1;
+  var timer = null;
+  var seq = 0;              // discards a slow 'ber' landing after a fast 'berlin'
+  var unavailable = false;
+
+  function closeList() {
+    listEl.hidden = true;
+    listEl.innerHTML = '';
+    results = [];
+    active = -1;
+    inputEl.setAttribute('aria-expanded', 'false');
+  }
+
+  function commit(place) {
+    chosen = place || null;
+    previewOnly = false;                 // a commit is always the user's own
+    inputEl.value = chosen ? _fmtPlace(chosen) : '';
+    closeList();
+    if (opts.onChange) opts.onChange(chosen);
+  }
+
+  /* Put the box back to whatever is actually committed.
+   *
+   * This is what guarantees typed text never becomes a location, and it replaces
+   * an earlier attempt at the same guarantee that made the field readonly once
+   * something was picked. That version enforced the rule by making the field a
+   * dead end: with a town already set you could not type to choose a different
+   * one, and the only way out was a button labelled "Use automatic" — not where
+   * anyone looks for "change the town".
+   *
+   * Deliberately not commit(): restoring is not a choice, so it must leave
+   * previewOnly alone or a previewed automatic location would silently become a
+   * manual override just because someone clicked into the box and out again. */
+  function restoreText() {
+    inputEl.value = chosen ? _fmtPlace(chosen) : '';
+  }
+
+  function renderList() {
+    if (!results.length) {
+      listEl.innerHTML = '<div class="cpick-empty">'
+        + (unavailable ? 'City search is unavailable on this install.' : 'No matching town.')
+        + '</div>';
+      listEl.hidden = false;
+      inputEl.setAttribute('aria-expanded', 'true');
+      return;
+    }
+    listEl.innerHTML = results.map(function (p, i) {
+      // Place names come from a local database rather than a user, but they are
+      // still being put into innerHTML, and the esc() rule has no exceptions.
+      return '<div class="cpick-opt' + (i === active ? ' is-active' : '') + '" role="option"'
+        + ' data-i="' + i + '">' + esc(p.name)
+        + '<span class="cpick-cc">' + esc([p.region, p.cc].filter(Boolean).join(' ')) + '</span></div>';
+    }).join('');
+    listEl.hidden = false;
+    inputEl.setAttribute('aria-expanded', 'true');
+  }
+
+  function search(q) {
+    var mine = ++seq;
+    fetch('/api/cities?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (mine !== seq) return;                 // a newer keystroke already won
+        unavailable = !!(j && j.unavailable);
+        results = (j && j.cities) || [];
+        active = results.length ? 0 : -1;
+        renderList();
+      })
+      .catch(function () { if (mine === seq) closeList(); });
+  }
+
+  inputEl.addEventListener('input', function () {
+    var q = inputEl.value.trim();
+    if (timer) clearTimeout(timer);
+    if (q.length < 2) { closeList(); return; }
+    timer = setTimeout(function () { search(q); }, 250);
+  });
+
+  inputEl.addEventListener('focus', function () {
+    // Select what is there so the first keystroke replaces it — the common case
+    // is "this is wrong, let me pick another", not "let me edit these letters".
+    if (inputEl.value) inputEl.select();
+  });
+
+  inputEl.addEventListener('keydown', function (e) {
+    if (listEl.hidden || !results.length) {
+      if (e.key === 'Escape') { restoreText(); inputEl.blur(); }
+      return;
+    }
+    if (e.key === 'ArrowDown')      { e.preventDefault(); active = (active + 1) % results.length; renderList(); }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); active = (active - 1 + results.length) % results.length; renderList(); }
+    else if (e.key === 'Enter')     { e.preventDefault(); if (results[active]) commit(results[active]); }
+    else if (e.key === 'Escape')    { e.preventDefault(); closeList(); restoreText(); }
+    else if (e.key === 'Tab')       { closeList(); }   // a half-typed name is never a place
+  });
+
+  listEl.addEventListener('mousedown', function (e) {
+    // mousedown, not click: blur would close the list first and eat the click.
+    var opt = e.target.closest('.cpick-opt');
+    if (!opt) return;
+    e.preventDefault();
+    commit(results[parseInt(opt.getAttribute('data-i'), 10)]);
+  });
+
+  inputEl.addEventListener('blur', function () {
+    // Delayed, because a click on an option fires blur before the option's
+    // handler runs. Whatever half-typed string is in the box goes back to the
+    // committed place — leaving it would show a town that was never chosen.
+    setTimeout(function () {
+      if (!listEl.hidden) closeList();
+      restoreText();
+    }, 150);
+  });
+
+  if (opts.clearEl) {
+    opts.clearEl.addEventListener('click', function () {
+      commit(null);
+      inputEl.focus();
+    });
+  }
+
+  return {
+    // The value to submit. Null while the box is only previewing an automatic
+    // location, so an untouched field means "no override".
+    get: function () { return previewOnly ? null : chosen; },
+    set: function (place) { commit(place || null); },
+    /* Show a location the server worked out, editable but not yet an override.
+       Typing over it or picking from the list turns it into one. */
+    preview: function (place) {
+      commit(place || null);
+      previewOnly = !!place;                 // a suggestion, not a commitment
+    },
+    clear: function () { commit(null); },
+    isPreview: function () { return previewOnly; },
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Routers page — Map view (issue #96)
+
+   No tile server: the CSP allows nothing but 'self', and a map that phoned an
+   external host would leak where every site is. Instead this reuses the country
+   geometry the Connections page already builds and publishes as
+   window._worldMapPathDs, making this its third consumer after dc-worldMap.
+
+   Everything the payload cannot change — the zoom transform, a pinned popover —
+   is deliberately kept out of the data path, because rows arrive every two
+   seconds and a view that reset itself twice a second would be unusable.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function _renderRoutersMap(rows) {
+  if (window._rtrMapApply) window._rtrMapApply(rows);
+}
+
+(function () {
+  var svg = $('routersMap');
+  if (!svg) return;
+
+  var NS = 'http://www.w3.org/2000/svg';
+  var W = 1000, H = 500;
+  var MIN_SCALE = 1, MAX_SCALE = 8;
+  var BASE_R = 5;        // marker radius in screen px, held constant by /scale
+  var GRID = 6;          // co-location bucket size, ~2 marker diameters at 1x
+
+  var markerLayer = null, badgeLayer = null;
+  var ready = false, pending = null;
+  var scale = 1, tx = 0, ty = 0;
+  var els = {};          // groupKey -> { g, ripple, dot, count }
+  var pinned = null;     // groupKey whose popover is held open
+  var lastById = {};     // routerId -> row, for the popover's contents
+  var lastGroups = {};   // groupKey -> group
+
+  var pop = $('rtrMapPop');
+  var tray = $('rtrMapTray');
+  var viewport = $('rtrMapViewport');
+
+  /* Plain equirectangular, identical to the Connections map's — the country
+     paths are already projected this way, so markers must use the same one. */
+  function project(lon, lat) {
+    return [(lon + 180) * (W / 360), (90 - lat) * (H / 180)];
+  }
+
+  function el(name, attrs) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) if (attrs.hasOwnProperty(k)) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // ── Build the backdrop once ────────────────────────────────────────────────
+  function init() {
+    if (ready || !window._worldMapPathDs) return;
+    var countryLayer = el('g', {});
+    var frag = document.createDocumentFragment();
+    Object.keys(window._worldMapPathDs).forEach(function (cc) {
+      frag.appendChild(el('path', { d: window._worldMapPathDs[cc], class: 'map-country' }));
+    });
+    countryLayer.appendChild(frag);
+    markerLayer = el('g', {});
+    badgeLayer  = el('g', {});
+    svg.appendChild(countryLayer);
+
+    svg.appendChild(markerLayer);
+    svg.appendChild(badgeLayer);
+    ready = true;
+    if (pending) { var p = pending; pending = null; apply(p); }
+  }
+  // Both lines, because the atlas fetch may land either side of this script —
+  // the same pattern dc-worldMap uses.
+  document.addEventListener('worldmap:ready', init);
+  init();
+
+  // ── Zoom and pan ──────────────────────────────────────────────────────────
+  function clampTranslate(s, x, y) {
+    var w = svg.clientWidth || 1000, h = svg.clientHeight || 500;
+    var maxX = (s - 1) * w, maxY = (s - 1) * h;
+    return [Math.min(0, Math.max(-maxX, x)), Math.min(0, Math.max(-maxY, y))];
+  }
+
+  function applyTransform() {
+    svg.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+    resize();
+    positionPop();
+  }
+
+
+  function setScale(next, cx, cy) {
+    var s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next));
+    if (s === scale) return;
+    var rect = svg.getBoundingClientRect();
+    var ox = cx === undefined ? rect.width / 2 : cx - rect.left;
+    var oy = cy === undefined ? rect.height / 2 : cy - rect.top;
+    // Keep the point under the cursor fixed while the scale changes.
+    tx = ox - ((ox - tx) / scale) * s;
+    ty = oy - ((oy - ty) / scale) * s;
+    scale = s;
+    var c = clampTranslate(scale, tx, ty); tx = c[0]; ty = c[1];
+    applyTransform();
+  }
+
+  svg.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    userMovedView();
+    setScale(scale * (e.deltaY < 0 ? 1.2 : 1 / 1.2), e.clientX, e.clientY);
+  }, { passive: false });
+
+  var dragging = false, sx = 0, sy = 0, stx = 0, sty = 0, moved = false;
+  svg.addEventListener('pointerdown', function (e) {
+    dragging = true; moved = false;
+    sx = e.clientX; sy = e.clientY; stx = tx; sty = ty;
+    svg.classList.add('is-dragging');
+    svg.setPointerCapture(e.pointerId);
+  });
+  svg.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) { if (!moved) userMovedView(); moved = true; }
+    var c = clampTranslate(scale, stx + dx, sty + dy);
+    tx = c[0]; ty = c[1];
+    applyTransform();
+  });
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    svg.classList.remove('is-dragging');
+    try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
+  }
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+
+  /* Frame the fleet rather than the planet.
+     A world view is the right answer for routers on three continents and the
+     wrong one for the far commoner case of a fleet inside a single country,
+     where every marker lands in a few pixels and the user has to pan and zoom
+     before the view says anything. Fitting happens once, on the first render
+     that has markers, so it never fights a viewport the user has since moved. */
+  /* Off unless it has been switched on. The map opens on the world rather than
+     snapping to fit, and the frame button (↺) does it on demand. */
+  var AF_KEY = 'mikrodash_map_autoframe';
+  var autoFrame = false;
+  try { autoFrame = localStorage.getItem(AF_KEY) === '1'; } catch (e) {}
+  var lastPlaced = [];
+
+  /* `persist` separates a deliberate press of the button from an implicit
+     release caused by panning. Only the former is remembered: otherwise one
+     accidental drag turns a default-on feature off forever, and the next time
+     you open the map it silently no longer frames anything. */
+  function setAutoFrame(on, persist) {
+    autoFrame = !!on;
+    if (persist) { try { localStorage.setItem(AF_KEY, autoFrame ? '1' : '0'); } catch (e) {} }
+    var b = $('rtrMapAutoFrame');
+    if (b) {
+      b.classList.toggle('is-on', autoFrame);
+      b.setAttribute('aria-pressed', autoFrame ? 'true' : 'false');
+    }
+    if (autoFrame) fitToMarkers(lastPlaced);
+  }
+
+  /* Panning or zooming by hand is an explicit statement about what you want to
+     look at, so it switches Auto Frame off. Leaving it on would snap the view
+     back on the next two-second tick, which reads as the map fighting you. */
+  function userMovedView() { if (autoFrame) setAutoFrame(false, false); }
+
+  function fitToMarkers(pts) {
+    if (!pts.length) return;
+    var w = svg.clientWidth || 1000, h = svg.clientHeight || 500;
+    var ux = w / W, uy = h / H;                    // px per map unit
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    pts.forEach(function (p) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    });
+    var pad = 45;                                  // map units, so one marker is not filling the card
+    minX -= pad; maxX += pad; minY -= pad; maxY += pad;
+    var s = Math.min(MAX_SCALE, Math.max(MIN_SCALE,
+      Math.min(w / ((maxX - minX) * ux), h / ((maxY - minY) * uy))));
+    scale = s;
+    tx = w / 2 - ((minX + maxX) / 2) * ux * s;
+    ty = h / 2 - ((minY + maxY) / 2) * uy * s;
+    var c = clampTranslate(scale, tx, ty); tx = c[0]; ty = c[1];
+    applyTransform();
+  }
+
+  if (viewport) {
+    viewport.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-map-zoom]');
+      if (!btn) return;
+      var what = btn.getAttribute('data-map-zoom');
+      if (what === 'in')  { userMovedView(); setScale(scale * 1.4); }
+      if (what === 'out') { userMovedView(); setScale(scale / 1.4); }
+      /* Reset returns to the starting view: the whole world, no pan.
+       *
+       * It has to release Auto Frame as well. Otherwise, with AF on, the next
+       * payload re-frames immediately and the button looks broken — which is
+       * exactly how it looked when reset was wired to "frame all routers" and
+       * the view was already framed. Framing is the AF button's job; this one
+       * zooms out. */
+      if (what === 'reset') {
+        setAutoFrame(false, false);
+        scale = 1; tx = 0; ty = 0;
+        applyTransform();
+      }
+      if (what === 'autoframe') setAutoFrame(!autoFrame, true);
+    });
+  }
+
+  // The markup ships in the off state, so a stored "on" has to be reflected on
+  // load — otherwise the button reads as off while the map is still framing.
+  if (autoFrame) setAutoFrame(true, false);
+
+  /* Markers keep a constant screen size, so zooming separates a cluster instead
+     of magnifying it. The accuracy ring is deliberately excluded — it represents
+     real distance on the ground and should scale with the map. */
+  function resize() {
+    /* Marker radius depends on how many routers are in the group, so the data
+       path owns it; re-deriving it here would need the group sizes and the two
+       could disagree. Re-applying the last payload keeps every marker a constant
+       size on screen as the zoom changes. */
+    if (window._lastRtrRows) apply(window._lastRtrRows);
+  }
+
+  // ── Popover ───────────────────────────────────────────────────────────────
+  function popHtml(r) {
+    var g = r.geo || {};
+    var up = r.uptime ? String(r.uptime) : '—';
+    // Where the position came from, stated plainly and without alarm. The map
+    // itself no longer distinguishes them.
+    var from = g.source === 'manual' ? 'set here'
+             : g.source === 'site'   ? 'from its site'
+             : (g.wanIp ? 'from ' + esc(g.wanIp) : 'from its WAN address');
+    var loc = esc(g.label || 'Unknown')
+      + ' <span class="text-muted">(' + from + ')</span>';
+    var canManage = !!(window._caps && window._caps.routers
+      && (window._caps.routers.manageable || []).indexOf(r.id) !== -1);
+    return '<div class="rmp-name"><span class="rtl-dot" style="background:'
+      + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
+      + '"></span>' + esc(r.label) + '</div>'
+      + '<div class="rmp-grid">'
+      + '<span>Host</span><b>' + esc(r.host) + '</b>'
+      + '<span>CPU</span><b>' + (r.cpu == null ? '—' : r.cpu + '%') + '</b>'
+      + '<span>Uptime</span><b>' + esc(up) + '</b>'
+      + '<span>WAN</span><b>&#8595;' + (r.rxMbps == null ? '—' : r.rxMbps)
+      + ' &#8593;' + (r.txMbps == null ? '—' : r.txMbps) + ' Mbps</b>'
+      + (r.openAlerts ? '<span>Alerts</span><b style="color:var(--accent-amber,#f59f00)">' + r.openAlerts + '</b>' : '')
+      + '</div>'
+      + '<div class="rmp-loc">' + loc + '</div>'
+      + (canManage ? '<button type="button" data-open-router="' + esc(r.id) + '">Open settings</button>' : '');
+  }
+
+  var hovered = null;
+
+  /* A group of one shows the router. A group of several shows what is in it —
+     the count on the marker says how many, and this says which, with a way into
+     each one's settings. Without it a cluster would be a dead end. */
+  function groupPopHtml(g) {
+    if (g.routers.length === 1) return popHtml(g.routers[0]);
+    var place = (g.routers[0].geo && g.routers[0].geo.label) || 'this location';
+    var down = g.routers.filter(function (r) { return !r.connected; }).length;
+    return '<div class="rmp-name">' + g.routers.length + ' routers</div>'
+      + '<div class="rmp-loc" style="margin-top:.2rem;padding-top:0;border-top:0">'
+      + esc(place)
+      + (down ? ' <span style="color:var(--accent-err,#f87171)">— ' + down + ' offline</span>' : '')
+      + '</div>'
+      + '<div class="rmp-list">' + g.routers.map(function (r) {
+          var can = !!(window._caps && window._caps.routers
+            && (window._caps.routers.manageable || []).indexOf(r.id) !== -1);
+          return '<div class="rmp-row"' + (can ? ' data-open-router="' + esc(r.id) + '"' : '')
+            + '><span class="rtl-dot" style="background:'
+            + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
+            + '"></span><span class="rmp-rl">' + esc(r.label) + '</span>'
+            + '<span class="rmp-rh">' + esc(r.host) + '</span></div>';
+        }).join('') + '</div>';
+  }
+
+  function showPop(key, isPin) {
+    var g = lastGroups[key];
+    if (!g || !pop) return;
+    pop.innerHTML = groupPopHtml(g);
+    pop.hidden = false;
+    pop.classList.toggle('is-pinned', !!isPin);
+    positionPop();
+  }
+  function hidePop() {
+    if (!pop || pinned) return;
+    pop.hidden = true;
+  }
+  function positionPop() {
+    var key = pinned || hovered;
+    if (!pop || pop.hidden || !key || !els[key] || !viewport) return;
+    var mr = els[key].dot.getBoundingClientRect();
+    var vr = viewport.getBoundingClientRect();
+    var left = mr.left - vr.left + mr.width / 2 + 12;
+    var top  = mr.top - vr.top - 8;
+    // Keep it inside the card rather than letting it spill off the right edge.
+    left = Math.min(left, vr.width - pop.offsetWidth - 8);
+    top  = Math.min(Math.max(top, 4), vr.height - pop.offsetHeight - 4);
+    pop.style.left = Math.max(4, left) + 'px';
+    pop.style.top  = Math.max(4, top) + 'px';
+  }
+
+  if (pop) {
+    pop.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-open-router]');
+      if (!b) return;
+      if (window._rtrOpenModal) window._rtrOpenModal(b.getAttribute('data-open-router'));
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && pinned) { pinned = null; hovered = null; if (pop) pop.hidden = true; }
+  });
+
+  // ── Fan-out ───────────────────────────────────────────────────────────────
+  /* Several routers behind one WAN IP geolocate to the identical point. Spread
+     them onto a small ring so each stays individually hoverable, with a count so
+     the pile is legible before you zoom into it. Members are ordered by id, so a
+     marker never swaps places between ticks. */
+  /* Group routers that resolve to the same place.
+   *
+   * Several routers behind one WAN address share a coordinate exactly, and an
+   * earlier version fanned them onto a small ring so each stayed clickable. On a
+   * real fleet that read as three separate sites rather than one place with
+   * three routers in it — the opposite of the truth. They now collapse into a
+   * single marker carrying the count, and the popover lists what is inside.
+   */
+  function layout(located) {
+    var buckets = {};
+    located.forEach(function (r) {
+      var p = project(r.geo.lon, r.geo.lat);
+      var k = Math.round(p[0] / GRID) + ':' + Math.round(p[1] / GRID);
+      if (!buckets[k]) buckets[k] = { key: k, x: 0, y: 0, routers: [] };
+      buckets[k].routers.push(r);
+      buckets[k].x += p[0];
+      buckets[k].y += p[1];
+    });
+    return Object.keys(buckets).map(function (k) {
+      var b = buckets[k];
+      b.x /= b.routers.length;
+      b.y /= b.routers.length;
+      // Stable order, so a popover list does not reshuffle every two seconds.
+      b.routers.sort(function (a, c) { return (a.label || '') < (c.label || '') ? -1 : 1; });
+      return b;
+    });
+  }
+
+  // ── The data path ─────────────────────────────────────────────────────────
+  function apply(rows) {
+    if (!ready) { pending = rows; return; }
+    rows = rows || [];
+    lastById = {};
+    rows.forEach(function (r) { lastById[r.id] = r; });
+
+    var located = rows.filter(function (r) { return r.geo && r.geo.lat != null && r.geo.lon != null; });
+    var groups  = layout(located);
+    lastGroups = {};
+    groups.forEach(function (g) { lastGroups[g.key] = g; });
+    var seen = {};
+
+    /* One label per place. Keyed on the group, so three routers at one address
+       write their town once — writing it three times would be exactly the noise
+       the general city layer was removed for. */
+    var labelled = groups.map(function (g) {
+      return { text: (g.routers[0].geo && g.routers[0].geo.label) || '', x: g.x, y: g.y };
+    }).filter(function (L) { return !!L.text; });
+
+    /* Drop labels that would land on top of each other.
+       At world zoom a European fleet writes several place names into the same
+       centimetre and none of them is readable. Comparing anchor points is not
+       enough — "Berlin, BE, DE" is many times wider than the gap between two
+       capitals — so this compares the boxes the text will actually occupy.
+       Everything is in map units divided by scale, i.e. fixed on screen, so
+       zooming in separates the boxes and the hidden names return one by one. */
+    (function () {
+      var fsz = 8 / scale;
+      var kept = [];
+      labelled.forEach(function (L) {
+        // 0.55em per character is a good enough advance width for a monospace
+        // face; being slightly generous errs toward hiding, which is the safe
+        // way to be wrong here.
+        L.hw = (L.text.length * fsz * 0.55) / 2;
+        L.hh = fsz * 0.75;
+        L.ly = L.y + 11 / scale;              // just under the marker
+        for (var i = 0; i < kept.length; i++) {
+          var k = kept[i];
+          if (Math.abs(k.x - L.x) < (k.hw + L.hw) && Math.abs(k.ly - L.ly) < (k.hh + L.hh)) return;
+        }
+        kept.push(L);
+      });
+      labelled = kept;
+    }());
+
+    groups.forEach(function (g) {
+      var key = g.key;
+      seen[key] = 1;
+      var e = els[key];
+      if (!e) {
+        // Created once and then mutated. Rebuilding the SVG every two seconds
+        // would drop hover state and fight the pointer.
+        e = els[key] = {
+          g: el('g', { class: 'rtrmap-marker' }),
+          ripple: el('circle', { class: 'rtrmap-ripple' }),
+          dot: el('circle', {}),
+          count: el('text', { class: 'rtrmap-clustern' }),
+        };
+        /* Stagger the start so a fleet does not strobe in unison — a rack of
+           routers all pulsing on the same beat reads as a warning rather than as
+           a heartbeat. Derived from the key so it is stable across re-renders
+           instead of jumping every two seconds. */
+        var phase = 0;
+        for (var ci = 0; ci < key.length; ci++) phase = (phase * 31 + key.charCodeAt(ci)) % 2600;
+        e.ripple.style.animationDelay = '-' + phase + 'ms';
+        e.g.appendChild(e.ripple);
+        e.g.appendChild(e.dot);
+        e.g.appendChild(e.count);
+        markerLayer.appendChild(e.g);
+        e.g.addEventListener('mouseenter', function () { hovered = key; showPop(key, false); });
+        e.g.addEventListener('mouseleave', function () { hovered = null; hidePop(); });
+        e.g.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (moved) return;                 // a drag that ended on a marker is not a click
+          pinned = (pinned === key) ? null : key;
+          if (pinned) showPop(key, true); else { pop.hidden = true; }
+        });
+      }
+
+      /* Colour by the worst state in the group. A site with one router down is a
+         site with a problem, and a green dot hiding a red one would defeat the
+         only thing the map is really for. */
+      var anyDown = g.routers.some(function (r) { return !r.connected; });
+      var colour = anyDown ? 'var(--accent-red,#f87171)' : 'var(--accent-green,#2fb344)';
+      var n = g.routers.length;
+      /* Size carries the count as well as the number does: a place with twenty
+         routers should look weightier than one with two, before you read
+         anything. Square-root growth rather than linear, because area is what
+         the eye judges — and capped, so one big site cannot swallow the map. */
+      var rad = Math.min(16, BASE_R + 3.2 * Math.sqrt(Math.max(0, n - 1))) / scale;
+
+      e.dot.setAttribute('cx', g.x);
+      e.dot.setAttribute('cy', g.y);
+      e.dot.setAttribute('r', rad);
+      e.dot.setAttribute('stroke-width', 1.5 / scale);
+      e.dot.setAttribute('fill', colour);
+      e.dot.setAttribute('stroke', 'rgba(0,0,0,.45)');
+      e.ripple.setAttribute('cx', g.x);
+      e.ripple.setAttribute('cy', g.y);
+      e.ripple.setAttribute('r', rad);
+      e.ripple.setAttribute('fill', colour);
+
+      if (n > 1) {
+        e.count.setAttribute('x', g.x);
+        e.count.setAttribute('y', g.y);
+        // Shrink the glyphs as the number gets longer so "128" still fits the
+        // circle it is written in.
+        var digits = String(n).length;
+        e.count.setAttribute('font-size',
+          rad * (digits === 1 ? 1.15 : digits === 2 ? 0.95 : 0.72));
+        e.count.textContent = String(n);
+        e.count.style.display = '';
+      } else {
+        e.count.style.display = 'none';
+      }
+    });
+
+    // Groups that left the payload — filtered out by the search, or no longer
+    // visible to this session.
+    Object.keys(els).forEach(function (key) {
+      if (seen[key]) return;
+      els[key].g.remove();
+      delete els[key];
+      if (pinned === key) { pinned = null; if (pop) pop.hidden = true; }
+    });
+
+    // Place names, sized against the zoom: in map units they would grow with the
+    // transform until a town name spanned a continent.
+    badgeLayer.innerHTML = '';
+    labelled.forEach(function (L) {
+      var t = el('text', { class: 'rtrmap-place', x: L.x, y: L.ly,
+                           'font-size': 8 / scale, 'stroke-width': 2.5 / scale });
+      t.textContent = L.text;
+      badgeLayer.appendChild(t);
+    });
+
+    lastPlaced = groups;
+    // While Auto Frame is on this runs on every payload, so adding a router or
+    // narrowing the search re-frames to what is actually shown.
+    if (autoFrame && groups.length) fitToMarkers(groups);
+
+    // A pinned popover follows the data rather than the other way round: its
+    // contents refresh so CPU and uptime stay live, but it never closes itself.
+    if (pinned && lastGroups[pinned]) showPop(pinned, true);
+
+    renderTray(rows.filter(function (r) { return !r.geo; }));
+  }
+
+  function renderTray(unlocated) {
+    if (!tray) return;
+    if (!unlocated.length) { tray.hidden = true; tray.innerHTML = ''; return; }
+    tray.hidden = false;
+    tray.innerHTML = '<span class="rmt-label">No location ('
+      + unlocated.length + '):</span>'
+      + unlocated.map(function (r) {
+        return '<span class="rmt-pill" data-open-router="' + esc(r.id) + '" title="'
+          + esc(r.host) + '"><span class="rtl-dot" style="background:'
+          + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
+          + '"></span>' + esc(r.label) + '</span>';
+      }).join('')
+      + '<span class="rmt-label" style="flex-basis:100%;margin-top:.25rem">'
+      + 'Their WAN address is private or unroutable, so it cannot be geolocated. '
+      + 'Set a town in the router’s settings, or give its site one.</span>';
+  }
+
+  if (tray) {
+    tray.addEventListener('click', function (e) {
+      var p = e.target.closest('[data-open-router]');
+      if (p && window._rtrOpenModal) window._rtrOpenModal(p.getAttribute('data-open-router'));
+    });
+  }
+
+  // Clicking empty map releases a pinned popover.
+  svg.addEventListener('click', function () {
+    if (moved) return;
+    if (pinned) { pinned = null; if (pop) pop.hidden = true; }
+  });
+
+  window._rtrMapApply = apply;
+}());

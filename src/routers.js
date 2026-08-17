@@ -37,6 +37,11 @@
  *     off:       string[],               // collector keys turned off
  *     overrides: { pollX:number, streamX:boolean },
  *   },
+ *   geo:         {         // optional, where the router is (#96)
+ *     place:     { name, region, cc, lat, lon },   // picked from the gazetteer
+ *     auto:      { name, region, cc, lat, lon,     // derived from the WAN IP
+ *                  ip, accuracyKm, ts },           //   ip = which address, ts = when
+ *   },                     // absent entirely when nothing locates the router
  * }
  */
 
@@ -46,6 +51,7 @@ const path   = require('path');
 const crypto = require('crypto');
 const { isValidIp } = require('./util/ip');
 const { MODES, DISABLEABLE, POLL_KEYS, STREAM_KEYS, clampPollValue } = require('./collection');
+const GeoPlace = require('./geoPlace');
 
 const DATA_DIR     = process.env.DATA_DIR || '/data';
 const ROUTERS_FILE = path.join(DATA_DIR, 'routers.json');
@@ -175,6 +181,63 @@ function _normalizeCollection(input, existing) {
   // 'stream' is the default, so a block saying only that carries no information.
   const hasInfo = (out.mode && out.mode !== 'stream') || out.off || out.overrides;
   return hasInfo ? out : undefined;
+}
+
+/**
+ * Normalize the per-router `geo` block (issue #96).
+ *
+ * Same three-way contract as _normalizeCollection, for the same reason:
+ *
+ *   undefined  the caller omitted the field entirely -> keep what is stored.
+ *              update() rebuilds records field by field, so without this an
+ *              unrelated edit would silently wipe the block.
+ *   null       explicit reset to "no location of its own".
+ *
+ * The same rule then applies INDEPENDENTLY to each of `place` and `auto`, and
+ * that second layer is the one that is easy to get wrong. The router modal sends
+ * `{ place: <picked>|null }` and never sends `auto`, so `auto === undefined`
+ * MUST mean "keep the fix the server learned in the background". Collapse the two
+ * halves into a single all-or-nothing rule and every save from the modal quietly
+ * erases the automatic location.
+ *
+ *   place  the manual pick — the only half a browser may set
+ *   auto   the cached fix from the WAN IP — written by updateGeoAuto()
+ */
+function _normalizeGeo(input, existing) {
+  const prev = existing ? existing.geo : undefined;
+  if (input === undefined) return prev;
+  if (input === null) return undefined;
+  if (typeof input !== 'object' || Array.isArray(input)) return prev;
+
+  const out = {};
+
+  if (input.place === undefined) {
+    if (prev && prev.place) out.place = prev.place;
+  } else if (input.place !== null) {
+    const p = GeoPlace.normalizePlace(input.place);
+    if (p) out.place = p;                    // malformed input is dropped, not stored
+  }
+
+  if (input.auto === undefined) {
+    if (prev && prev.auto) out.auto = prev.auto;
+  } else if (input.auto !== null) {
+    const a = GeoPlace.normalizePlace(input.auto);
+    if (a) {
+      out.auto = a;
+      // Provenance, kept beside the place so the popover can say where the guess
+      // came from and so the refresh can tell whether the WAN IP has moved.
+      const ip = typeof input.auto.ip === 'string' ? input.auto.ip.trim().slice(0, 45) : '';
+      if (ip) out.auto.ip = ip;
+      const km = Number(input.auto.accuracyKm);
+      if (Number.isFinite(km) && km > 0) out.auto.accuracyKm = km;
+      const ts = Number(input.auto.ts);
+      if (Number.isFinite(ts) && ts > 0) out.auto.ts = ts;
+    }
+  }
+
+  // A block with neither half carries no information. Returning undefined keeps
+  // routers.json byte-identical for every router nobody has located.
+  return (out.place || out.auto) ? out : undefined;
 }
 
 const VALID_HOST = /^[a-zA-Z0-9.\-]{1,253}$/;
@@ -332,6 +395,7 @@ function add(data) {
     alertsEnabled:       !!(data.alertsEnabled),
     connDownThresholdSec:(function(){ var n = parseInt(data.connDownThresholdSec, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     collection:          _normalizeCollection(data.collection, null),
+    geo:                 _normalizeGeo(data.geo, null),
     // Site membership (issue #78). Exactly one site, or none. Sites themselves
     // live in SQLite; only the membership is here, next to the rest of the
     // router's configuration. An absent field reads as site-less, so existing
@@ -380,6 +444,7 @@ function update(id, data) {
     alertsEnabled:       data.alertsEnabled       !== undefined ? !!(data.alertsEnabled)           : !!(existing.alertsEnabled),
     connDownThresholdSec:(function(){ var raw = data.connDownThresholdSec !== undefined ? data.connDownThresholdSec : (existing.connDownThresholdSec !== undefined ? existing.connDownThresholdSec : 30); var n = parseInt(raw, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     collection:          _normalizeCollection(data.collection, existing),
+    geo:                 _normalizeGeo(data.geo, existing),
     siteId:              data.siteId !== undefined ? _cleanSiteId(data.siteId) : (existing.siteId || null),
     disabled:            data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),
   };
@@ -447,6 +512,51 @@ function updateIdentity(id, identity) {
   return routers[idx];
 }
 
+/**
+ * Persist the automatic location learned from a router's WAN IP (issue #96).
+ *
+ * Deliberately NOT routed through update(): that re-validates host and port,
+ * recomputes the unique label, and its HTTP callers go on to bump RBAC and
+ * broadcast a permissions change. A background geo refresh must do none of those.
+ * Same reasoning, and same shape, as updateIdentity() directly above.
+ *
+ * Returns null when nothing changed, which callers rely on to skip both the file
+ * write and the broadcast. That matters more here than for identity: the Routers
+ * page rebuilds its stats every two seconds *per viewing socket*, so without this
+ * guard two administrators with the page open would rewrite routers.json — a file
+ * holding encrypted credentials — several times a second, forever.
+ *
+ * Pass null to clear a stale fix, which is what happens when a router moves to a
+ * private WAN address that cannot be geolocated at all.
+ */
+function updateGeoAuto(id, auto) {
+  const routers = loadAll();
+  const idx     = routers.findIndex(r => r.id === id);
+  if (idx === -1) return null;
+
+  const current  = routers[idx];
+  const prevGeo  = current.geo || undefined;
+  const prevAuto = prevGeo ? prevGeo.auto : undefined;
+  // Reuse the same validation the HTTP path uses, so a fix can never be stored in
+  // a shape the reader would reject.
+  const nextAuto = (auto === null || auto === undefined)
+    ? undefined
+    : (_normalizeGeo({ auto }, undefined) || {}).auto;
+
+  // Both sides are produced by _normalizeGeo, so key order is stable and a string
+  // compare is a sound deep-equality check here.
+  if (JSON.stringify(prevAuto) === JSON.stringify(nextAuto)) return null;
+
+  const geo = {};
+  if (prevGeo && prevGeo.place) geo.place = prevGeo.place;   // never touch the manual pick
+  if (nextAuto) geo.auto = nextAuto;
+
+  routers[idx] = { ...current, geo: (geo.place || geo.auto) ? geo : undefined };
+  _cache = routers;
+  _writeFile(routers);
+  return routers[idx];
+}
+
 /** Delete a router by id. Returns true if deleted, false if not found. */
 function remove(id) {
   const routers = loadAll();
@@ -468,4 +578,4 @@ function getPublic() {
 /** Invalidate the in-memory cache (used after external settings changes). */
 function invalidateCache() { _cache = null; }
 
-module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, remove, getPublic, invalidateCache, clearSite };
+module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, updateGeoAuto, remove, getPublic, invalidateCache, clearSite };

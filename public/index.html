@@ -586,6 +586,88 @@
        Same thresholds the cards use. */
     .rtl-bar{display:inline-block;width:34px;height:4px;border-radius:2px;background:rgba(99,130,190,.18);vertical-align:middle;margin-right:.35rem;overflow:hidden}
     .rtl-bar>i{display:block;height:100%;border-radius:2px}
+
+    /* ── Map view (issue #96) ────────────────────────────────────────────────
+       The SVG carries the pan/zoom transform; the popover and the controls sit
+       outside it so they stay legible and clickable at every zoom level. */
+    .rtrmap-viewport{position:relative;overflow:hidden;background:rgba(99,130,190,.04);border-radius:6px}
+    #routersMap{display:block;width:100%;height:auto;transform-origin:0 0;cursor:grab;touch-action:none}
+    #routersMap.is-dragging{cursor:grabbing}
+    #routersMap .map-country{fill:rgba(99,130,190,.10);stroke:rgba(148,163,184,.55);stroke-width:.9;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+    /* Markers are sized in script against the zoom scale so they stay a constant
+       size on screen; the accuracy ring is deliberately NOT, because it is real
+       geography and should grow with the map. */
+    .rtrmap-marker{cursor:pointer}
+    .rtrmap-marker circle{transition:opacity .12s}
+    /* The only place names drawn are the ones a router stands on, so they can
+       afford full contrast — --text-main is near-white in dark themes and
+       near-black in light ones, and tracks all nine palettes rather than
+       hardcoding two colours that would be wrong in seven of them. The halo is
+       the page background, painted under the glyphs so a name stays readable
+       over a border line or a coast. */
+    .rtrmap-place{fill:var(--text-main);font-family:var(--font-mono);font-weight:600;text-anchor:middle;dominant-baseline:middle;pointer-events:none;paint-order:stroke;stroke:var(--bg-deep);stroke-linejoin:round}
+
+    /* Router pulse. The ripple is a sibling circle scaled by transform rather
+       than by an animated radius: the SVG already carries the zoom transform, so
+       a scale-based ripple stays correct at every zoom for free, while animating
+       `r` would need the keyframes rewritten on every zoom step. */
+    @keyframes rtrmap-ripple{
+      0%   { transform: scale(1);   opacity: .45 }
+      70%  { opacity: 0 }
+      100% { transform: scale(3.6); opacity: 0 }
+    }
+    .rtrmap-ripple{transform-box:fill-box;transform-origin:center;pointer-events:none;
+                   animation:rtrmap-ripple 2.6s cubic-bezier(.2,.6,.35,1) infinite}
+    /* A dashboard people leave open all day should not animate at someone who
+       has asked the system for less motion. */
+    @media (prefers-reduced-motion: reduce){
+      .rtrmap-ripple{animation:none;opacity:0}
+    }
+    /* The count sits inside its marker, so it is painted against the marker's own
+       fill rather than the map — white reads on both the green and the red. */
+    .rtrmap-clustern{fill:#fff;font-family:var(--font-mono);font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+    .rtrmap-pop{position:absolute;z-index:5;min-width:12rem;max-width:17rem;padding:.5rem .6rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.35);font-size:.72rem;pointer-events:none}
+    .rtrmap-pop.is-pinned{pointer-events:auto}
+    .rtrmap-pop .rmp-name{font-weight:600;font-size:.78rem;display:flex;align-items:center;gap:.35rem}
+    .rtrmap-pop .rmp-grid{display:grid;grid-template-columns:auto 1fr;gap:.1rem .55rem;margin-top:.35rem;color:var(--text-muted)}
+    .rtrmap-pop .rmp-grid b{color:var(--text-main);font-weight:600;font-family:var(--font-mono)}
+    .rtrmap-pop .rmp-loc{margin-top:.4rem;padding-top:.35rem;border-top:1px solid var(--border);color:var(--text-muted)}
+    .rtrmap-pop .rmp-list{margin-top:.45rem;border-top:1px solid var(--border);padding-top:.35rem;max-height:11rem;overflow-y:auto}
+    .rtrmap-pop .rmp-row{display:flex;align-items:center;gap:.35rem;padding:.18rem .25rem;border-radius:4px}
+    .rtrmap-pop .rmp-row[data-open-router]{cursor:pointer}
+    .rtrmap-pop .rmp-row[data-open-router]:hover{background:rgba(56,189,248,.12)}
+    .rtrmap-pop .rmp-rl{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rtrmap-pop .rmp-rh{color:var(--text-muted);font-family:var(--font-mono);font-size:.66rem}
+    .rtrmap-pop button{margin-top:.5rem;width:100%;font-size:.7rem;padding:.25rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-main);cursor:pointer}
+    .rtrmap-pop button:hover{background:rgba(56,189,248,.1)}
+    .rtrmap-zoom{position:absolute;right:.5rem;top:.5rem;display:flex;flex-direction:column;gap:.25rem}
+    .rtrmap-zoom button{width:1.6rem;height:1.6rem;line-height:1;font-size:.85rem;border-radius:5px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-muted);cursor:pointer}
+    .rtrmap-zoom button:hover{color:var(--text-main);background:rgba(56,189,248,.1)}
+    /* Auto Frame: a toggle, lit when on, so its state is readable at a glance
+       rather than only discoverable by panning and seeing what happens. */
+    .rtrmap-af{font-size:.6rem!important;font-weight:700;letter-spacing:.03em}
+    .rtrmap-af.is-on{color:var(--accent-green,#2fb344);border-color:var(--accent-green,#2fb344)}
+    /* The "no location" tray. Required by the issue: an unlocated router has to
+       stay reachable, and this is also where somebody discovers they need to set
+       a town. */
+    .rtrmap-tray{border-top:1px solid var(--border);padding:.5rem .6rem;display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+    .rtrmap-tray .rmt-label{font-size:.68rem;color:var(--text-muted);margin-right:.2rem}
+    .rtrmap-tray .rmt-pill{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .45rem;border:1px solid var(--border);border-radius:999px;font-size:.7rem;cursor:pointer}
+    .rtrmap-tray .rmt-pill:hover{background:rgba(56,189,248,.1)}
+
+    /* ── City/town picker, shared by the router modal and the site form ────── */
+    .cpick{position:relative}
+    .cpick-list{position:absolute;z-index:30;left:0;right:0;top:100%;margin-top:2px;max-height:11rem;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+    .cpick-list[hidden]{display:none}
+    .cpick-opt{padding:.3rem .55rem;font-size:.74rem;cursor:pointer}
+    .cpick-opt:hover,.cpick-opt.is-active{background:rgba(56,189,248,.12)}
+    .cpick-opt .cpick-cc{color:var(--text-muted);font-size:.68rem;margin-left:.3rem}
+    .cpick-empty{padding:.35rem .55rem;font-size:.72rem;color:var(--text-muted)}
+    .cpick-row{display:flex;gap:.35rem;align-items:center}
+    .cpick-row .sform-input{flex:1 1 auto;min-width:0}
+    .cpick-clear{flex:0 0 auto;padding:.2rem .5rem;font-size:.72rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer}
+    .cpick-clear:hover{color:var(--text-main);background:rgba(56,189,248,.1)}
+    .cpick-hint{font-size:.68rem;color:var(--text-muted);margin-top:.3rem}
     .iface-list-wrap{overflow-x:auto}
     .iface-list{font-family:var(--font-mono);font-size:.7rem;margin-bottom:0;white-space:nowrap}
     .iface-list th{font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.3rem .5rem}
@@ -1008,6 +1090,10 @@
     .notif-item-title{font-weight:700;color:var(--text-main);margin-bottom:.1rem}
     .notif-item-body{color:var(--text-muted)}
     .notif-item-time{font-size:.6rem;color:rgba(148,163,190,.35);margin-top:.1rem}
+    /* Which router an alert came from. Three update alerts are otherwise
+       identical, so the device is the only thing that tells them apart and it
+       should not read as part of the timestamp. */
+    .notif-item-router{color:var(--text-main);font-weight:600}
     /* An open alert is still happening; a resolved one is history. The bell now
        shows both, so they have to be tellable apart at a glance — the left bar
        carries that, not colour alone, which the dot already spends. */
@@ -2765,6 +2851,7 @@
           <option value="comfortable">Comfortable</option>
           <option value="compact">Compact</option>
           <option value="list">List</option>
+          <option value="map">Map</option>
         </select>
       </div>
 
@@ -2798,6 +2885,27 @@
             <tbody id="routersListBody"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Map view (issue #96). Reuses the country geometry the Connections page
+           already builds — no tile server, which the CSP would block anyway.
+           The tray below the map is not optional: a router with no resolvable
+           location must stay discoverable rather than silently vanish. -->
+      <div class="card mt-3" id="routersMapWrap" hidden>
+        <div class="rtrmap-viewport" id="rtrMapViewport">
+          <svg id="routersMap" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet"
+               role="img" aria-label="Map of configured routers"></svg>
+          <div class="rtrmap-pop" id="rtrMapPop" hidden></div>
+          <div class="rtrmap-zoom">
+            <button type="button" data-map-zoom="in"    title="Zoom in">+</button>
+            <button type="button" data-map-zoom="out"   title="Zoom out">&#8722;</button>
+            <button type="button" data-map-zoom="reset" title="Reset view — zoom right out to the whole world">&#8634;</button>
+            <button type="button" data-map-zoom="autoframe" id="rtrMapAutoFrame"
+                    class="rtrmap-af" aria-pressed="false"
+                    title="Auto Frame — keep every router in view. Panning or zooming turns it off.">AF</button>
+          </div>
+        </div>
+        <div class="rtrmap-tray" id="rtrMapTray" hidden></div>
       </div>
     </div>
   </div>
@@ -3652,6 +3760,21 @@
                   <input class="sform-input" id="sf_description" type="text" placeholder="Main building, ground floor" autocomplete="off" maxlength="256">
                 </div>
               </div>
+              <!-- A site's location, picked the same way a router's is (#96). It
+                   is the fallback for every router here that has no location of
+                   its own, so one choice can place a whole site. -->
+              <div class="sform-group cpick" id="sf_placeWrap" style="margin-top:.6rem">
+                <label class="sform-label" for="sf_place">Location <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                <div class="cpick-row">
+                  <input class="sform-input" id="sf_place" type="text" role="combobox"
+                         aria-expanded="false" aria-autocomplete="list" aria-controls="sf_placeList"
+                         placeholder="Search for a town or city…" autocomplete="off" maxlength="64">
+                  <button type="button" class="cpick-clear" id="sf_placeClear" title="Clear this site's location">Clear</button>
+                </div>
+                <div class="cpick-list" id="sf_placeList" role="listbox" hidden></div>
+                <div class="cpick-hint">Routers here with no location of their own are shown at this place on the map.</div>
+              </div>
+
               <div style="margin-top:.6rem">
                 <label class="sform-label">Routers at this site</label>
                 <div id="sf_routers" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:12rem;overflow-y:auto"></div>
@@ -4386,6 +4509,22 @@
           <select class="sform-input" id="rtrModalSite" aria-label="Site this router belongs to">
             <option value="">— No site —</option>
           </select>
+        </div>
+        <!-- Location (issue #96). Deliberately a search, not two number boxes:
+             coordinates are derived from the town, never typed. Left blank the
+             router is placed from its WAN IP, and the hint below says what that
+             currently resolves to. -->
+        <div class="sform-group cpick" id="rtrModalGeoWrap">
+          <label class="sform-label" for="rtrModalGeo">Location</label>
+          <div class="cpick-row">
+            <input class="sform-input" id="rtrModalGeo" type="text" role="combobox"
+                   aria-expanded="false" aria-autocomplete="list" aria-controls="rtrModalGeoList"
+                   placeholder="Search for a town or city…" autocomplete="off" maxlength="64">
+            <button type="button" class="cpick-clear" id="rtrModalGeoClear"
+                    title="Clear this override and use the automatic location">Use automatic</button>
+          </div>
+          <div class="cpick-list" id="rtrModalGeoList" role="listbox" hidden></div>
+          <div class="cpick-hint" id="rtrModalGeoHint"></div>
         </div>
         <div class="sform-row sform-group">
           <div>

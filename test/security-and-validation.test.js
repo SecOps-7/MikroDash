@@ -109,7 +109,35 @@ describe('alerter createEvaluator', () => {
     ev2('system:update', { cpuLoad: 95, updateAvailable: true, latestVersion: '7.99', version: '7.23' });
     await new Promise(r => setImmediate(r));
     assert.equal(notifierStub.calls.length, 1, 'the RouterOS-update push still goes out');
-    assert.match(notifierStub.calls[0].body, /RouterOS Update/);
+    // Identify the alert by its substance, not its wording — the previous
+    // assertion pinned the display name and broke when the alert was renamed,
+    // which is a test failing for a reason nobody cares about.
+    assert.match(notifierStub.calls[0].body, /7\.99 is available/);
+    // That it is *named*, from the one place names are decided. Renaming an
+    // alert should not mean editing this test.
+    assert.match(notifierStub.calls[0].body,
+      new RegExp(alerter.labelFor('routeros_update')));
+  });
+
+  test('an alert type reads as a name, never as a database key', () => {
+    // alert_type is minted by lowercasing and underscoring, which makes a good
+    // key and a poor label. Alerts loaded from the database used to render as
+    // "routeros_update" with no indication of which router they came from.
+    assert.equal(alerter.labelFor('routeros_update'), 'Update Available');
+    assert.equal(alerter.labelFor('routeros_updated'), 'Up To Date');
+    assert.equal(alerter.labelFor('connectivity'), 'Router Connectivity');
+  });
+
+  test('acronyms survive the title-caser, and unknown types still read as words', () => {
+    // A mechanical title-case would render these "Bgp Peer Up" and "Ok".
+    assert.equal(alerter.labelFor('bgp_peer_up'), 'BGP Peer Up');
+    assert.equal(alerter.labelFor('bgp_hold_timer_ok'), 'BGP Hold Timer OK');
+    assert.equal(alerter.labelFor('vpn_disconnected'), 'VPN Disconnected');
+    assert.equal(alerter.labelFor('high_cpu'), 'High CPU');
+    // An alert type added later must degrade to words rather than leak its key.
+    assert.equal(alerter.labelFor('some_future_alert'), 'Some Future Alert');
+    assert.equal(alerter.labelFor(''), 'Alert');
+    assert.equal(alerter.labelFor(null), 'Alert');
   });
 
   test('the install destination is just another recipient, and is not duplicated', async () => {
