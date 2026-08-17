@@ -1445,3 +1445,78 @@ test('poll mode honours idle gating and stops cleanly', async () => {
   c.stop();
   assert.equal(c._pollTimer, null, 'stop() clears the poll timer');
 });
+
+// ── Connections: the stream must survive resume() arriving before start() ────
+//
+// Found from a live "Connections card is stale" report. Every other collector on
+// the router was streaming; connections was not, and neither the stream nor the
+// watchdog had logged anything.
+//
+// Connections is the only collector whose start() deliberately does not open its
+// stream — resume() is the sole thing that opens it. buildSession registers the
+// ros 'connected' handler (which calls resume()) BEFORE the one that runs
+// startCollectors() -> start(), so resume() can land while _started is still
+// false. It then clears _suspended and returns without opening anything, and
+// start() in stream mode only armed the watchdog. The watchdog's first guard is
+// `if (... this._suspended ...) return`, so it recovers a dead stream but not one
+// that was never opened while suspended — and returns silently, which is why the
+// log was empty rather than noisy.
+//
+// The poll branch of start() already re-asserts for exactly this reason. This
+// pins the same guarantee for stream mode.
+
+test('connections opens its stream when resume() arrived before start()', () => {
+  const { ros, dhcpLeases, arp, dhcpNetworks, io, state } = makeConnsDeps();
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
+    streamMode: true,
+  });
+  let opened = 0;
+  ros.stream = () => {
+    opened++;
+    const st = { stop() {} };
+    st.on = () => st;
+    return st;
+  };
+
+  try {
+    // The real ordering: 'connected' fires, resume() runs while _started is
+    // still false, and bails after clearing _suspended.
+    collector.resume();
+    assert.equal(collector._suspended, false, 'resume cleared the suspend flag');
+    assert.equal(opened, 0, 'and opened nothing, because start() has not run');
+
+    collector.start();
+    assert.equal(opened, 1, 'start() must open the stream a viewer is waiting on');
+  } finally {
+    collector.stop();
+  }
+});
+
+test('connections does not open a stream for a router nobody is watching', () => {
+  // The other half of the same rule: start() re-asserting must not defeat the
+  // idle gate, or every configured router would hold a connection-table stream
+  // open whether or not anyone had the page in front of them.
+  const { ros, dhcpLeases, arp, dhcpNetworks, io, state } = makeConnsDeps();
+  io.engine.clientsCount = 0;
+  const collector = new ConnectionsCollector({
+    ros, io, pollMs: 30000, topN: 5, dhcpNetworks, dhcpLeases, arp, state,
+    streamMode: true,
+  });
+  let opened = 0;
+  ros.stream = () => {
+    opened++;
+    const st = { stop() {} };
+    st.on = () => st;
+    return st;
+  };
+
+  try {
+    collector.resume();                       // bails: no viewers
+    assert.equal(collector._suspended, true, 'stays suspended with no viewers');
+    collector.start();
+    assert.equal(opened, 0, 'no stream for an unwatched router');
+  } finally {
+    collector.stop();
+  }
+});

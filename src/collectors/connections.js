@@ -680,7 +680,20 @@ class ConnectionsCollector {
     try { this._debug = !!(settings.load().rosDebug); } catch (_) { this._debug = false; }
     // The watchdog exists to resurrect a dead stream; in poll mode there is no
     // stream, so #106 degraded reporting correctly does not apply here.
-    if (this.streamMode) { this._startWatchdog(); return; }
+    if (this.streamMode) {
+      this._startWatchdog();
+      /* Same race the poll branch below describes, and it bites harder here.
+         resume() may already have run — buildSession's ros 'connected' handler
+         fires before startCollectors() — found _started still false, cleared
+         _suspended and returned without opening anything. Arming the watchdog is
+         not enough to recover from that: its first guard returns while
+         _suspended is true, and once _suspended is false it does recover a
+         missing stream, but only on its next tick and only if it is reached at
+         all. Re-asserting here opens the stream the viewer is already waiting
+         on, immediately. _startStream() is guarded against double-opening. */
+      if (!this._suspended && this.ros.connected) this._startStream();
+      return;
+    }
 
     // Poll mode has no watchdog, so it cannot paper over the startup race the way
     // stream mode does. buildSession registers its ros 'connected' handler (which

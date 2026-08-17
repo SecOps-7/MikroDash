@@ -655,9 +655,24 @@ async function startCollectors(session, entry) {
       entry.routerIo.emit('collection:config', _collectionPayload(session.routerId, session));
     }
 
-    // If no sockets are in this router's room, suspend high-frequency streams.
+    /* Match the collectors to who is actually watching, now that startupReady
+       is true.
+     *
+     * The suspend half was always here; the resume half was missing, and its
+     * absence is what left the Connections card stale. _idleResume() is
+     * otherwise only triggered by the first socket joining the router's room,
+     * which is a one-shot: a browser that reconnects while the session is still
+     * building — the ordinary case after a restart, since the session takes
+     * seconds to bring up sixteen collectors — hits `!entry.startupReady` and is
+     * dropped, and nothing retries it.
+     *
+     * Every other collector survived that because it opens its own stream in
+     * start(). Connections is the one that does not: resume() is the only thing
+     * that opens it, so a dropped resume left it suspended indefinitely, with
+     * its watchdog returning silently on the same flag. */
     const routerRoom = io.sockets.adapter.rooms.get('router-' + session.routerId);
     if (!routerRoom || routerRoom.size === 0) _idleSuspend(session, entry);
+    else _idleResume(session, entry);
 
     // Broadcast initial state to sockets watching this router.
     // On first startup there are none yet, so this is a no-op.
