@@ -14,13 +14,24 @@ const dbPath = require.resolve('../src/db');
 // Records every db.insert* call so we can assert on flush behavior.
 const dbStub = {
   pings: [], traffic: [], bandwidth: [], conn: [], alerts: [], resolves: [],
-  reset() { this.pings = []; this.traffic = []; this.bandwidth = []; this.conn = []; this.alerts = []; this.resolves = []; },
+  reset() { this.pings = []; this.traffic = []; this.bandwidth = []; this.conn = []; this.alerts = []; this.resolves = []; this._open = new Set(); },
   insertPingSample(rid, target, rtt, loss, ts) { this.pings.push({ rid, target, rtt, loss, ts }); },
   insertTrafficSample(rid, iface, rx, tx, ts) { this.traffic.push({ rid, iface, rx, tx, ts }); },
   insertBandwidthSample(rid, iface, rx, tx, ts) { this.bandwidth.push({ rid, iface, rx, tx, ts }); },
   insertConnectivityEvent(rid, c) { this.conn.push({ rid, c }); },
-  insertAlertEvent(rid, type, subj, detail) { this.alerts.push({ rid, type, subj, detail }); },
-  resolveAlertEvent(rid, type, subj) { this.resolves.push({ rid, type, subj }); },
+  // Open-alert tracking, so the stub models the one-open-row-per-subject rule
+  // the real table enforces rather than accepting every insert.
+  _open: new Set(),
+  _k(rid, type, subj) { return rid + '|' + type + '|' + (subj || ''); },
+  hasOpenAlert(rid, type, subj) { return this._open.has(this._k(rid, type, subj)); },
+  insertAlertEvent(rid, type, subj, detail) {
+    this._open.add(this._k(rid, type, subj));
+    this.alerts.push({ rid, type, subj, detail });
+  },
+  resolveAlertEvent(rid, type, subj) {
+    this._open.delete(this._k(rid, type, subj));
+    this.resolves.push({ rid, type, subj });
+  },
 };
 
 const origDb = require.cache[dbPath];

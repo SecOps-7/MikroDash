@@ -261,6 +261,12 @@ function createEvaluator(getNameFn, getRouterFn) {
           });
         }
       } else {
+        // Already open and unresolved: nothing new has happened, so nothing new
+        // is recorded, shown or sent. Without this a condition that simply
+        // persists — an available update, most visibly — rings the bell again
+        // every time the evaluator is rebuilt, and acknowledging it achieves
+        // nothing because the next rebuild files a fresh one.
+        if (db.hasOpenAlert(router.id, alertType, subject)) return;
         const id = db.insertAlertEvent(router.id, alertType, subject, vars.detail || null);
         _emit(router.id, 'alert:fired', {
           id, routerId: router.id, routerName: getNameFn(),
@@ -584,17 +590,17 @@ function fireConnectivityAlert(routerId, routerLabel, connected) {
     if (ids && ids.length) {
       _bcast('alert:resolved', {
         ids, routerId, routerName: routerLabel, alertType: 'connectivity',
-        label: labelFor('connectivity'),
         subject: null, label: 'Router Online',
         detail: routerLabel + ' is now reachable', resolvedAt: Date.now(),
       });
     }
   } else {
+    // Already recorded as unreachable — say nothing rather than ring again.
+    if (db.hasOpenAlert(routerId, 'connectivity', null)) return;
     const id = db.insertAlertEvent(routerId, 'connectivity', null,
       routerLabel + ' is unreachable');
     _bcast('alert:fired', {
       id, routerId, routerName: routerLabel, alertType: 'connectivity',
-      label: labelFor('connectivity'),
       subject: null, label: 'Router Offline',
       detail: routerLabel + ' is unreachable',
       firedAt: Date.now(), resolvedAt: null,
