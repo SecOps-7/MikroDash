@@ -1748,10 +1748,9 @@ function portSvg(sz) {
   }
 
   function renderSsids(data){
-    var list=$('wlSsidList'), badge=$('wlSsidCount');
+    var list=$('wlSsidList');
     if(!list) return;
     var ssids=(data&&data.ssids)||[];
-    if(badge){ badge.textContent=ssids.length; badge.className='card-badge'+(ssids.length?' active-blue':''); }
     if(!ssids.length){
       // Say why it is empty. A CAP takes its configuration from the manager, so
       // it has no SSID of its own to report — that is not the same as a router
@@ -3221,8 +3220,14 @@ socket.on('alert:resolved', function(d){
 socket.on('alert:acked', function(a){
   if(a) ackAlerts([a.id], a.acknowledgedAt, a.acknowledgedBy);
 });
-socket.on('alerts:acked-all', function(d){
-  if(d) ackAlerts(d.ids, d.acknowledgedAt, d.acknowledgedBy);
+socket.on('alerts:cleared-all', function(d){
+  if(!d) return;
+  // Both, and in this order: resolving is what clears the Routers page count,
+  // acknowledging is what empties the bell. Deliberately no sendNotif — a
+  // desktop notification per row is exactly what the person clicking the button
+  // was trying to get rid of.
+  resolveAlerts(d.ids, d.clearedAt);
+  ackAlerts(d.ids, d.clearedAt, d.clearedBy);
 });
 
 // Sync the bell icon to the current notification permission state on load,
@@ -3259,9 +3264,11 @@ socket.on('alerts:acked-all', function(d){
     }
   });
 
-  // "Clear all" now acknowledges on the SERVER rather than emptying a local
-  // array. Previously this was cosmetic: the list came back on the next event
-  // and the database still held the open rows.
+  // "Clear all" resolves on the SERVER rather than emptying a local array.
+  // Previously this was cosmetic: the list came back on the next event and the
+  // database still held the open rows. Then it acknowledged, which emptied the
+  // bell but left every cleared router reading "Alerting" on the Routers page,
+  // because that count asks how many are unresolved. It now does both.
   var clearBtn = $('notifClearBtn');
   if(clearBtn){
     // Say so when it does not work. Swallowing the error made a 403 (a user
@@ -3276,7 +3283,7 @@ socket.on('alerts:acked-all', function(d){
       var rid = window._activeRouterId;
       if(!rid) return _clearFail('No router');
       clearBtn.disabled = true;
-      fetch('/api/alerts/ack-all', {
+      fetch('/api/alerts/clear-all', {
         method:'POST', credentials:'same-origin',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ routerId: rid }),
@@ -3284,11 +3291,13 @@ socket.on('alerts:acked-all', function(d){
         .then(function(r){ return r.json().then(function(j){ return { ok: r.ok && j && j.ok }; }); })
         .then(function(res){
           if(!res.ok) return _clearFail('Failed');
-          // Do not wait for the alerts:acked-all broadcast to empty the panel.
-          // The server only emits when it actually acknowledged something, so a
-          // second click — or a click when everything is already acknowledged —
-          // would otherwise leave the list exactly as it was.
-          ackAlerts(_alerts.map(function(a){ return a.id; }));
+          // Do not wait for the alerts:cleared-all broadcast to empty the
+          // panel. The server only emits when it actually cleared something, so
+          // a second click — or a click when nothing is left open — would
+          // otherwise leave the list exactly as it was.
+          var _ids = _alerts.map(function(a){ return a.id; });
+          resolveAlerts(_ids, Date.now());
+          ackAlerts(_ids);
         })
         .catch(function(){ _clearFail('Failed'); })
         .then(function(){ clearBtn.disabled = false; });
@@ -6923,16 +6932,77 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if (el) el.addEventListener('input', renderRoutes);
   });
 
+  /* ── Protocol tabs ─────────────────────────────────────────────────────────
+     One entry per protocol. Adding a fourth is a line here plus a button and a
+     panel in the markup, which is the whole point of the strip. */
+  var RT_TABS = { routes: renderRoutes, bgp: render };
+  var _rtTab  = 'routes';
+
+  /* Render whichever panel is on screen.
+     Rendering only the visible one matters in both directions: a payload that
+     arrives while a panel is hidden must not be dropped, or the panel sits on
+     "Waiting for data…" the first time you open it; and there is no point
+     building rows nobody can see. */
+  function renderActiveTab() {
+    var fn = RT_TABS[_rtTab];
+    if (fn) fn();
+  }
+
+  function setRtTab(key) {
+    if (!RT_TABS[key]) key = 'routes';
+    _rtTab = key;
+    var bar = $('rtTabBar');
+    if (bar) {
+      // Scoped to this bar and this page. The Reports switcher this is modelled
+      // on queries document-wide, which is safe only while exactly one such
+      // strip exists.
+      bar.querySelectorAll('.stab').forEach(function (b) {
+        var on = b.getAttribute('data-rttab') === key;
+        b.classList.toggle('active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+    var page = $('page-routing');
+    if (page) {
+      page.querySelectorAll('.rttab-panel').forEach(function (p) {
+        p.classList.toggle('active', p.id === 'rttab-' + key);
+      });
+    }
+    renderActiveTab();
+  }
+
+  (function () {
+    var bar = $('rtTabBar');
+    if (!bar) return;
+    bar.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('[data-rttab]') : null;
+      if (btn) setRtTab(btn.getAttribute('data-rttab'));
+    });
+    // Arrow-key movement along the strip, per the ARIA tablist pattern.
+    bar.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      var btns = [].slice.call(bar.querySelectorAll('[data-rttab]'));
+      var i = btns.findIndex(function (b) { return b.getAttribute('data-rttab') === _rtTab; });
+      if (i === -1) return;
+      e.preventDefault();
+      var next = btns[(i + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length];
+      setRtTab(next.getAttribute('data-rttab'));
+      next.focus();
+    });
+  }());
+
   // ── Socket handler ─────────────────────────────────────────────────────────
 
   socket.on('routing:update', function(data) {
     _rtData = data;
     updateSummary(data);
-    if (pageVisible('routing')) { render(); renderRoutes(); }
+    if (pageVisible('routing')) renderActiveTab();
   });
 
   document.addEventListener('mikrodash:pagechange', function(e) {
-    if (e.detail === 'routing') { render(); renderRoutes(); }
+    // Always back to Routes, the primary tab, rather than wherever you were
+    // last. Matches how the Settings and Reports strips behave.
+    if (e.detail === 'routing') setRtTab('routes');
   });
 
 })();

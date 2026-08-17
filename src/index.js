@@ -3260,7 +3260,12 @@ app.post('/api/alerts/:id/ack', ackLimiter, (req, res) => {
   }
 });
 
-app.post('/api/alerts/ack-all', ackLimiter, (req, res) => {
+// "Clear all" in the bell. Named for what it does rather than for how it used
+// to do it: this resolved nothing until now, so a router whose alert condition
+// had quietly gone away stayed on the Routers page as Alerting with no way to
+// clear it. Still gated on router:ack — clearing the list is the same operator
+// act as acknowledging one row, and it destroys nothing.
+app.post('/api/alerts/clear-all', ackLimiter, (req, res) => {
   try {
     const rid = String((req.body && req.body.routerId) || '');
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(rid)) return res.status(400).json({ ok: false });
@@ -3268,15 +3273,15 @@ app.post('/api/alerts/ack-all', ackLimiter, (req, res) => {
       return res.status(403).json({ ok: false, error: 'Not permitted' });
     }
     const who = req.authSession?.username || null;
-    const ids = db.acknowledgeAllAlerts(rid, who);
+    const ids = db.resolveAllAlerts(rid, who);
     if (ids.length) {
-      io.to('router-' + rid).emit('alerts:acked-all', {
-        routerId: rid, ids, acknowledgedAt: Date.now(), acknowledgedBy: who,
+      io.to('router-' + rid).emit('alerts:cleared-all', {
+        routerId: rid, ids, clearedAt: Date.now(), clearedBy: who,
       });
     }
     res.json({ ok: true, count: ids.length });
   } catch (e) {
-    console.error('[alerts] ack-all failed:', sanitizeErr(e));
+    console.error('[alerts] clear-all failed:', sanitizeErr(e));
     res.status(500).json({ ok: false });
   }
 });

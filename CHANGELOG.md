@@ -2,6 +2,69 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.8] — A map of your fleet, WiFi SSIDs, and alerts that clear
+
+The Routers page gains a **Map** view plotting each router where it actually is, and the
+Wireless page gains a **WiFi SSIDs** card listing every network a router broadcasts. The
+rest of this release is fixes, several of them to things that looked like they worked.
+
+**Locations resolve themselves.** A router's position comes from its WAN IP, using the
+geo-IP data already bundled in the image — nothing is sent anywhere to resolve it, and the
+strict CSP would block an outbound lookup regardless. Pick a city or town by hand on any
+router or site to override it. Accuracy is city-level at best, so the map answers "which
+site is dark" rather than "which building".
+
+### Added
+- **Routers → Map view.** Each router as a dot coloured by connection state, clustered when
+  several share a location and sized by how many, with a tray for routers whose location is
+  not known so they are never silently dropped. Pan, zoom, Auto Frame to fit every router,
+  and reset. Country borders only: place names appear only where a router sits, because
+  labelling everything buried the thing you came to look at.
+- **Router and site locations.** A city/town picker in router settings and when creating a
+  site. Routers fall back to their site's location, so giving a whole location one position
+  is enough. Set nothing and the WAN IP still answers.
+- **Wireless → WiFi SSIDs card.** Every network the router broadcasts, with its bands and
+  live client count. Read from the interface table rather than from connected clients, so a
+  network with nobody on it is still listed — usually the one you opened the card to
+  explain. A CAP whose configuration comes from a manager says so instead of reporting
+  nothing. Passphrases are never read, let alone sent.
+- **Routing page tabs.** The route and BGP tables are now tabbed, opening on Routes. The
+  protocol doughnut and BGP session summary stay above the tabs, since they describe the
+  page rather than one protocol.
+- **Alerts carry the device name** and read as names rather than database keys —
+  "Update Available" instead of `routeros_update`.
+
+### Fixed
+- **"Clear all" in the notification bell never cleared anything.** It acknowledged alerts,
+  which empties the bell, but the Routers page counts alerts that are *unresolved* — so a
+  router stayed marked **Alerting** no matter how many times you clicked. It now resolves as
+  well, and records who did it. History is kept: nothing is deleted, and Reports still shows
+  what happened. This is the only way to clear an alert whose cause disappeared without
+  MikroDash ever seeing it recover.
+- **The same alert fired over and over.** The evaluator kept "already reported" in memory,
+  and that memory is wiped whenever a router's session is rebuilt — most often when nobody
+  has looked at it for a while. Each rebuild re-reported every still-true condition, so a
+  pending RouterOS update rang the bell repeatedly. At most one unresolved alert per router,
+  type and subject now, enforced in the database so it survives restarts and router
+  switches.
+- **The Connections card could come up stale after a restart and stay that way.** A browser
+  reconnecting while the router session was still being built hit a guard that dropped the
+  resume, and nothing retried it. Connections was the only card affected, because it is the
+  only one that opens its stream on resume rather than on start.
+- **The WiFi SSIDs card was slow to populate and showed no bands or counts.** Two separate
+  faults, both introduced with the card: a CAPsMAN probe was clearing the SSID list on every
+  router without a `/caps-man` menu, and bands and client counts were frozen at the
+  five-minute configuration refresh instead of following the live client table.
+
+### Changed
+- Site locations are set with the same city/town picker as routers, replacing raw latitude
+  and longitude fields.
+
+### Upgrading
+Automatic. Migration v10 adds three columns to the sites table and runs at startup inside a
+transaction. Existing site coordinates are preserved and keep working; re-pick a site's
+location only if you want it to show a place name. No configuration changes.
+
 ## [0.7.7] — Personal alert channels, a My Account page, and a Routers overview
 
 Alerting had one destination for the whole install. Since roles arrived that stopped

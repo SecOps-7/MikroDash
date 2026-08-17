@@ -221,6 +221,96 @@ test('with no database open the answer is "not open", not a throw', () => {
   db.open();
 });
 
+// ── Clearing a router's alerts ───────────────────────────────────────────────
+//
+// The Routers page counts alerts that are unresolved. An alert whose condition
+// went away without the evaluator ever seeing it clear — the router was removed
+// and re-added, the threshold was changed, the collector was not running at the
+// moment it recovered — stays unresolved forever, and the router reads
+// "Alerting" with nothing wrong. "Clear all" in the bell is the way out.
+//
+// It used to only acknowledge, which empties the bell and changes the count not
+// at all. That is why these tests assert on countOpenAlertsByRouter rather than
+// on the bell: the bell was never the thing that was broken.
+
+test('clearing resolves every open alert for the router', () => {
+  db.insertAlertEvent('r-clr', 'routeros_update', null, 'RouterOS 7.24 is available');
+  db.insertAlertEvent('r-clr', 'interface_down', 'ether1', 'ether1 went down');
+  assert.equal(db.countOpenAlertsByRouter()['r-clr'], 2);
+
+  const ids = db.resolveAllAlerts('r-clr', 'operator');
+  assert.equal(ids.length, 2, 'returns the affected ids, so the change can be broadcast');
+  assert.equal(db.countOpenAlertsByRouter()['r-clr'], undefined,
+    'the router drops out of the Alerting count entirely');
+});
+
+test('clearing keeps the history rather than deleting it', () => {
+  // The whole reason this resolves instead of deleting. Reports and the CSV
+  // export must still show that the alert happened.
+  db.insertAlertEvent('r-hist', 'high_cpu', null, 'CPU at 95%');
+  db.resolveAllAlerts('r-hist', 'operator');
+
+  const rows = db.queryRecentAlerts('r-hist', 0, 50);
+  assert.equal(rows.length, 1, 'the row survives');
+  assert.equal(rows[0].detail, 'CPU at 95%');
+  assert.ok(rows[0].resolved_at > 0, 'and is stamped resolved');
+});
+
+test('clearing records who did it', () => {
+  // Otherwise a person clearing the list is indistinguishable in Reports from
+  // the evaluator having resolved it on its own.
+  db.insertAlertEvent('r-who', 'ping_loss', '1.1.1.1', 'loss 100%');
+  db.resolveAllAlerts('r-who', 'operator-1');
+  assert.equal(db.queryRecentAlerts('r-who', 0, 50)[0].acknowledged_by, 'operator-1');
+});
+
+test('clearing does not steal an acknowledgement someone else made', () => {
+  const id = db.insertAlertEvent('r-ack2', 'interface_down', 'ether3', 'down');
+  db.acknowledgeAlert(id, 'first-responder');
+  db.resolveAllAlerts('r-ack2', 'someone-else');
+  const row = db.queryRecentAlerts('r-ack2', 0, 50)[0];
+  assert.equal(row.acknowledged_by, 'first-responder', 'the original name stands');
+  assert.ok(row.resolved_at > 0, 'but it is still resolved');
+});
+
+test('clearing one router leaves every other router alone', () => {
+  // The button is scoped to the active router. Clearing the fleet by accident
+  // would destroy exactly the signal the Routers page exists to show.
+  db.insertAlertEvent('r-mine',  'high_cpu', null, 'CPU at 95%');
+  db.insertAlertEvent('r-yours', 'high_cpu', null, 'CPU at 95%');
+  db.resolveAllAlerts('r-mine', 'operator');
+  const counts = db.countOpenAlertsByRouter();
+  assert.equal(counts['r-mine'], undefined);
+  assert.equal(counts['r-yours'], 1, 'the other router still reports its alert');
+});
+
+test('clearing does not re-stamp alerts that were already resolved', () => {
+  // Re-stamping would move an outage that ended last week to today, which is
+  // the one thing that would make the history actively misleading.
+  db.insertAlertEvent('r-twice', 'ping_loss', '8.8.8.8', 'loss 100%');
+  db.resolveAllAlerts('r-twice', 'operator');
+  const firstAt = db.queryRecentAlerts('r-twice', 0, 50)[0].resolved_at;
+
+  db.insertAlertEvent('r-twice', 'high_cpu', null, 'CPU at 95%');
+  db.resolveAllAlerts('r-twice', 'operator');
+
+  const ping = db.queryRecentAlerts('r-twice', 0, 50)
+    .find(r => r.alert_type === 'ping_loss');
+  assert.equal(ping.resolved_at, firstAt, 'the earlier resolution time is untouched');
+});
+
+test('clearing with nothing open reports nothing cleared', () => {
+  // The endpoint only broadcasts when ids come back, so an empty array is what
+  // stops a second click from telling every other browser something happened.
+  assert.deepEqual(db.resolveAllAlerts('r-empty', 'operator'), []);
+});
+
+test('clearing with no database open returns nothing rather than throwing', () => {
+  db.close();
+  assert.deepEqual(db.resolveAllAlerts('r-clr', 'operator'), []);
+  db.open();
+});
+
 test('teardown: close db', () => {
   db.close();
   fs.rmSync(TMP, { recursive: true, force: true });
