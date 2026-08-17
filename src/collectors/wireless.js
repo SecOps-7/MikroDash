@@ -30,6 +30,17 @@ const WL_ENDPOINTS = {
   capsman:  '/caps-man/registration-table/print',
 };
 
+/* Where the configured SSIDs live, newest stack first.
+ *
+ * Probed against a real fleet: on RouterOS 7.2x every board answered
+ * /interface/wifi, including one still on 802.11ac — /interface/wireless is the
+ * older stack and is absent there, so this is a fallback rather than a parallel
+ * source. The first endpoint that answers wins. */
+const SSID_ENDPOINTS = {
+  wifi:     '/interface/wifi/print',
+  wireless: '/interface/wireless/print',
+};
+
 class WirelessCollector {
   constructor({ ros, io, pollMs, state, dhcpLeases, arp, streamMode }) {
     // Delivery per router (#105). Poll re-reads the same registration table the
@@ -55,6 +66,12 @@ class WirelessCollector {
     this._ptrCache     = new Map(); // ip → { name: string, ts: number }
     this._retryTimer   = null;
     this._capsmanAvailable = false;
+    // SSID list: configuration, refreshed on a slow cadence of its own.
+    // undefined = not probed yet, null = no wireless stack answered.
+    this._ssidEndpoint = undefined;
+    this._ssids = [];
+    this._ssidsManagedElsewhere = 0;
+    this._ssidTimer = null;
     this._lbl = ros.routerLabel ? `[${ros.routerLabel}][wireless]` : '[wireless]';
 
     // Latest complete batches from each source
@@ -188,16 +205,119 @@ class WirelessCollector {
     }
   }
 
+  /**
+   * The SSIDs this router broadcasts.
+   *
+   * Read from the interface list rather than from connected clients: an SSID
+   * with nobody on it is still an SSID, and the client table only knows about
+   * networks somebody happens to be using.
+   *
+   * Only name, SSID and state keys are read. The same rows carry
+   * `security.passphrase` in clear text, and none of it has any business
+   * leaving this function — the payload goes to every browser on the Wireless
+   * page.
+   */
+  _parseSsids(rows) {
+    const byName = new Map();     // ssid -> aggregate row
+    let managedElsewhere = 0;
+
+    for (const r of rows || []) {
+      // A CAP takes its configuration from the manager, so it genuinely has no
+      // local SSID to report. Counting these lets the card say so rather than
+      // rendering an empty list that looks like a failure.
+      if (r['configuration.manager']) { managedElsewhere++; continue; }
+
+      const ssid = String(r['configuration.ssid'] || r.ssid || '').trim();
+      if (!ssid) continue;
+
+      const iface    = String(r.name || '').trim();
+      const disabled = r.disabled === 'true' || r.disabled === true;
+      // `running` is the honest answer to "is this on the air right now" — an
+      // interface can be enabled and still not running.
+      const running  = r.running === 'true' || r.running === true;
+
+      let e = byName.get(ssid);
+      if (!e) {
+        e = { ssid, ifaces: [], bands: [], disabled: true, running: false, clients: 0 };
+        byName.set(ssid, e);
+      }
+      if (iface && e.ifaces.indexOf(iface) === -1) e.ifaces.push(iface);
+      // One radio broadcasting it is enough for the SSID to be up; it is only
+      // "disabled" when every interface carrying it is.
+      if (!disabled) e.disabled = false;
+      if (running)   e.running  = true;
+    }
+
+    // Bands and client counts come from the registration table, which is the
+    // only place that knows them. An SSID with no clients simply reports none
+    // rather than guessing a band from an interface name.
+    for (const c of this._knownClients.values()) {
+      const e = byName.get(c.ssid);
+      if (!e) continue;
+      e.clients++;
+      if (c.band && e.bands.indexOf(c.band) === -1) e.bands.push(c.band);
+    }
+
+    for (const e of byName.values()) e.bands.sort();
+    return {
+      ssids: [...byName.values()].sort((a, b) => a.ssid.localeCompare(b.ssid)),
+      managedElsewhere,
+    };
+  }
+
+  /**
+   * Refresh the SSID list.
+   *
+   * Deliberately infrequent: this is configuration, not telemetry — it changes
+   * when somebody edits the router, not every second. Failure is silent and
+   * leaves the previous list in place, because a card that empties itself on one
+   * bad poll is worse than a card that is briefly stale.
+   */
+  async _refreshSsids() {
+    if (this._ssidEndpoint === null) return;          // no stack answered; stop asking
+    const order = this._ssidEndpoint
+      ? [this._ssidEndpoint]
+      : [SSID_ENDPOINTS.wifi, SSID_ENDPOINTS.wireless];
+
+    for (const endpoint of order) {
+      try {
+        const rows = (await this.ros.write(endpoint, [])) || [];
+        this._ssidEndpoint = endpoint;                // latch the one that works
+        const { ssids, managedElsewhere } = this._parseSsids(rows);
+        this._ssids = ssids;
+        this._ssidsManagedElsewhere = managedElsewhere;
+        return;
+      } catch (e) {
+        // Try the next stack. Only when every one has failed do we give up, and
+        // only for this cycle unless nothing has ever worked.
+      }
+    }
+    if (!this._ssidEndpoint) {
+      this._ssidEndpoint = null;                      // neither stack exists here
+      this._ssids = [];
+    }
+  }
+
   _emitClients() {
     const parsed = Array.from(this._knownClients.values())
       .sort((a, b) => b.signal - a.signal);
 
-    const fp = JSON.stringify(parsed.map(c => ({
-      mac: c.mac, signal: c.signal, iface: c.iface, band: c.band, name: c.name,
-    })));
+    const fp = JSON.stringify({
+      c: parsed.map(x => ({
+        mac: x.mac, signal: x.signal, iface: x.iface, band: x.band, name: x.name,
+      })),
+      // Included so an SSID being added, renamed or disabled reaches the page.
+      // Without it the emit is gated purely on client churn, and on a quiet
+      // network the card would not update until somebody roamed.
+      s: this._ssids, m: this._ssidsManagedElsewhere,
+    });
     const payload = {
       ts: Date.now(), clients: parsed, mode: this.mode || 'none',
       pollMs: this.pollMs, capsmanAvailable: this._capsmanAvailable,
+      ssids: this._ssids,
+      // How many radios take their SSID from a CAPsMAN manager instead of from
+      // local configuration, so an empty list can explain itself.
+      ssidsManagedElsewhere: this._ssidsManagedElsewhere,
     };
     this.lastPayload           = payload;
     this.state.lastWirelessTs  = Date.now();
@@ -411,6 +531,12 @@ class WirelessCollector {
     this.mode              = null;
     this._lastFp           = '';
     this._capsmanAvailable = false;
+    // SSID list: configuration, refreshed on a slow cadence of its own.
+    // undefined = not probed yet, null = no wireless stack answered.
+    this._ssidEndpoint = undefined;
+    this._ssids = [];
+    this._ssidsManagedElsewhere = 0;
+    this._ssidTimer = null;
     this._lastWifiBatch    = [];
     this._lastCapsmanBatch = [];
     this._nameCache.clear();
@@ -434,6 +560,12 @@ class WirelessCollector {
       const msg = String(e && e.message ? e.message : e);
       if (msg.includes('unknown command') || msg.includes('no such')) {
         this._capsmanAvailable = false;
+    // SSID list: configuration, refreshed on a slow cadence of its own.
+    // undefined = not probed yet, null = no wireless stack answered.
+    this._ssidEndpoint = undefined;
+    this._ssids = [];
+    this._ssidsManagedElsewhere = 0;
+    this._ssidTimer = null;
         if (this._debug) console.log('%s', this._lbl + ' capsman probe: not available on this router');
       }
       // transient errors leave _capsmanAvailable = false and re-probe on reconnect
@@ -464,12 +596,26 @@ class WirelessCollector {
     this._stopStream('wireless');
     this._stopStream('capsman');
     if (this._retryTimer) { clearTimeout(this._retryTimer); this._retryTimer = null; }
+    if (this._ssidTimer) { clearInterval(this._ssidTimer); this._ssidTimer = null; }
+  }
+
+  /* SSIDs are configuration, so they get their own slow cadence rather than
+     riding the client poll — five minutes, and once immediately so the card is
+     populated on the first paint rather than after the first interval. */
+  _startSsidRefresh() {
+    if (this._ssidTimer) return;
+    const tick = () => this._refreshSsids().then(() => this._emitClients()).catch(() => {});
+    tick();
+    this._ssidTimer = setInterval(tick, 5 * 60_000);
+    // Never hold the process open for a list of network names.
+    if (this._ssidTimer.unref) this._ssidTimer.unref();
   }
 
   start() {
     this._debug = require('../settings').load().rosDebug;
     const doStart = async () => {
       await this._probeCAPsMAN();
+      this._startSsidRefresh();
       this.resume();
     };
     doStart(); // initial start: probe then resume (page may already have viewers)
@@ -480,6 +626,9 @@ class WirelessCollector {
       // Probe CAPsMAN to refresh availability; resume() is called externally
       // by _updateWirelessStreams() once this reconnect event propagates to index.js.
       this._probeCAPsMAN().catch(() => {});
+      // A reconnect may be a different box, or the same one reconfigured.
+      this._ssidEndpoint = undefined;
+      this._startSsidRefresh();
     });
   }
 }

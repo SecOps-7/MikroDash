@@ -1702,8 +1702,83 @@ function portSvg(sz) {
     setSig('wlSigBarF','wlSigCntF',cntF);
     setSig('wlSigBarP','wlSigCntP',cntP);
 
+    renderSsids(data);
     renderWireless();
   });
+
+  /* WiFi SSIDs card.
+     Driven by the interface list, not by connected clients: an SSID with nobody
+     on it is still being broadcast, and a card that only showed networks in use
+     would hide exactly the one you are trying to work out why nobody is on. */
+  /* A colour per network name.
+     Picked from the SSID itself rather than from its position in the list, so a
+     network keeps its colour when another is added above it, when one is
+     disabled, and across routers — the alternative is colours that reshuffle
+     every time the list changes, which is worse than no colour at all. */
+  var SSID_COLOURS = [
+    'var(--accent-rx)',            /* blue   */
+    'rgba(52,211,153,.95)',        /* green  */
+    'rgba(167,139,250,.95)',       /* purple */
+    'rgba(251,191,36,.95)',        /* amber  */
+    'rgba(244,114,182,.95)',       /* pink   */
+    'rgba(45,212,191,.95)',        /* teal   */
+    'rgba(251,146,60,.95)',        /* orange */
+  ];
+  /* Assign every network in the list a colour, all of them different.
+     The preferred slot comes from a hash of the name so a network keeps its
+     colour as the list changes around it; where two names want the same slot,
+     the second takes the next free one. Hashing alone is stable but collides,
+     and index-in-list alone is distinct but reshuffles every colour whenever an
+     SSID is added — this keeps the useful half of each. */
+  function ssidColours(names){
+    var taken = {}, out = {};
+    names.forEach(function(name){
+      var h = 0;
+      for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+      var start = h % SSID_COLOURS.length, slot = start;
+      // Past SSID_COLOURS.length networks the palette is exhausted and colours
+      // necessarily repeat; probing simply wraps back to the preferred slot.
+      for (var n = 0; n < SSID_COLOURS.length && taken[slot]; n++) {
+        slot = (slot + 1) % SSID_COLOURS.length;
+      }
+      taken[slot] = true;
+      out[name] = SSID_COLOURS[slot];
+    });
+    return out;
+  }
+
+  function renderSsids(data){
+    var list=$('wlSsidList'), badge=$('wlSsidCount');
+    if(!list) return;
+    var ssids=(data&&data.ssids)||[];
+    if(badge){ badge.textContent=ssids.length; badge.className='card-badge'+(ssids.length?' active-blue':''); }
+    if(!ssids.length){
+      // Say why it is empty. A CAP takes its configuration from the manager, so
+      // it has no SSID of its own to report — that is not the same as a router
+      // with no wireless, and reading as "none" would send someone hunting.
+      var managed=(data&&data.ssidsManagedElsewhere)||0;
+      list.innerHTML='<div class="wl-ssid-empty">'+
+        (managed ? managed+' radio'+(managed===1?'':'s')+' managed by CAPsMAN — SSIDs are set on the manager.'
+                 : 'No SSIDs configured on this router.')+'</div>';
+      return;
+    }
+    var colours=ssidColours(ssids.map(function(sd){ return sd.ssid; }));
+    list.innerHTML=ssids.map(function(sd){
+      var off=sd.disabled||!sd.running;
+      // A disabled network keeps the muted treatment rather than its colour —
+      // colouring it would say "this one is special" when it means "this one is
+      // off".
+      var style = off ? '' : ' style="color:'+colours[sd.ssid]+'"';
+      return '<div class="wl-ssid-row'+(off?' wl-ssid-off':'')+'" title="'+
+          esc(sd.ifaces.join(', '))+'">'+
+        '<span class="wl-ssid-name"'+style+'>'+esc(sd.ssid)+'</span>'+
+        // The same badge the clients table uses, so a band means the same
+        // colour wherever it appears on the page.
+        (sd.bands||[]).map(function(b){ return bandBadge(b); }).join('')+
+        '<span class="wl-ssid-clients">'+(sd.clients||0)+'</span>'+
+      '</div>';
+    }).join('');
+  }
 
   // Sort buttons
   var sortBtns=$('wifiSortBtns');
