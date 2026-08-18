@@ -75,6 +75,16 @@ const COLLECTORS = Object.freeze([
     streamKey: 'streamNetwatch', pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: ['netwatchCard'] },
   { key: 'topology', label: 'Network Topology', sessionProp: 'topology', pollKey: 'pollTopology', defaultPollMs: 30000,
     streamKey: 'streamTopology', pollable: true,  disableable: true,  requires: [], page: 'topology', cards: ['topologyCard'] },
+  // requires: [] on purpose for vlans. It reads live rates out of ifStatus and
+  // client counts out of dhcpLeases, but declaring those here would cascade into
+  // a hard disable — turning off Interface Rates would blank the whole VLANs
+  // page, when membership, trunk ports and client counts are all still there.
+  // Degrade the rates, not the page.
+  { key: 'vlans', label: 'VLANs',        sessionProp: 'vlans',        pollKey: 'pollVlans',    defaultPollMs: 5000,
+    streamKey: 'streamVlans',    pollable: true,  disableable: true,  requires: [], page: 'vlans', cards: [] },
+  { key: 'ppp',   label: 'PPP',          sessionProp: 'ppp',          pollKey: 'pollPpp',      defaultPollMs: 5000,
+    streamKey: 'streamPpp',      pollable: true,  disableable: true,  requires: [], page: 'ppp',   cards: [] },
+  // vlans borrows rates from ifStatus, and declares no `requires` for the same
   // logs stays streamed even in poll mode: /log/listen pushes new entries, and
   // polling /log/print would drop lines between polls. Correctness, not fidelity.
   { key: 'logs', label: 'Logs',         sessionProp: 'logs',         pollKey: null,           defaultPollMs: 0,

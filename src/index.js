@@ -76,6 +76,8 @@ const BandwidthCollector    = require('./collectors/bandwidth');
 const RoutingCollector      = require('./collectors/routing');
 const NetwatchCollector     = require('./collectors/netwatch');
 const TopologyCollector     = require('./collectors/topology');
+const VlansCollector        = require('./collectors/vlans');
+const PppCollector          = require('./collectors/ppp');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
@@ -349,6 +351,8 @@ function _freshState() {
     lastBandwidthTs:0, lastBandwidthErr:null,
     lastNetwatchTs:0, lastNetwatchErr:null,
     lastTopologyTs:0, lastTopologyErr:null,
+    lastVlansTs:0, lastVlansErr:null,
+    lastPppTs:0, lastPppErr:null,
   };
 }
 
@@ -658,6 +662,10 @@ async function startCollectors(session, entry) {
     await session.netwatch.start();
     await _delay(300);
     await session.topology.start();
+    await _delay(300);
+    await session.vlans.start();
+    await _delay(300);
+    await session.ppp.start();
 
     entry.startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -1630,6 +1638,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       updateCheckHours:[1,168],
       smtpPort:[1,65535],
       dbRetentionDays:[1,3650], dbAlertRetentionDays:[1,3650],
+      pollTopology:[5000,300000], pollVlans:[2000,60000], pollPpp:[2000,60000],
     };
     const strFields  = ['pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo', 'ntfyUrl'];
     // authMode: whitelist only valid values
@@ -2714,6 +2723,8 @@ app.get('/healthz', (req, res) => {
       ping:     { ts:st.lastPingTs,     err:sanitizeErr(st.lastPingErr)     },
       netwatch: { ts:st.lastNetwatchTs, err:sanitizeErr(st.lastNetwatchErr) },
       topology: { ts:st.lastTopologyTs, err:sanitizeErr(st.lastTopologyErr) },
+      vlans: { ts:st.lastVlansTs, err:sanitizeErr(st.lastVlansErr) },
+      ppp: { ts:st.lastPppTs, err:sanitizeErr(st.lastPppErr) },
     },
   };
   res.status(statusCode).json(body);
@@ -3778,6 +3789,8 @@ async function sendInitialState(socket, entry) {
     console.warn('[alerts] initial state failed:', sanitizeErr(e));
   }
   if (s.topology.lastPayload && _mayReplay(socket, 'topology')) socket.emit('topology:update', s.topology.lastPayload);
+  if (s.vlans.lastPayload && _mayReplay(socket, 'vlans')) socket.emit('vlans:update', s.vlans.lastPayload);
+  if (s.ppp.lastPayload   && _mayReplay(socket, 'ppp'))   socket.emit('ppp:update',   s.ppp.lastPayload);
 
   socket.emit('settings:pages', _pageSettings(_ps));
 
@@ -3805,6 +3818,8 @@ function _idleSuspend(session, entry) {
   session.firewall.suspend();
   session.routing.suspend();
   session.topology.suspend();
+  session.vlans.suspend();
+  session.ppp.suspend();
   session.ping.suspend();
   session.talkers.suspend();
   session.dhcpNetworks.suspend();
@@ -3816,6 +3831,10 @@ function _idleResume(session, entry) {
   session.ifStatus.resume();
   session.system.resume();
   _updateAllPageStreams(session, entry);
+  // Explicit: these two have no streamRooms, so _updateAllPageStreams does not
+  // reach them. They are suspended above by name and must be resumed by name.
+  session.vlans.resume();
+  session.ppp.resume();
   session.ping.resume();
   session.talkers.resume();
   session.dhcpNetworks.resume();
@@ -3856,6 +3875,11 @@ function _emitDiagnostics(session, rid, socket) {
     { name: 'ifStatus',     streams: (s.ifStatus._ifStream?1:0)+(s.ifStatus._addrStream?1:0)+(s.ifStatus._monitorStream?1:0) },
     { name: 'routing',      streams: (s.routing._routeStream?1:0)+(s.routing._ipv6Stream?1:0)+(s.routing._bgpStream?1:0) },
     { name: 'topology',     streams: s.topology._stream      ? 1 : 0 },
+    // These four hold one /listen channel each in stream mode and none in poll
+    // mode, so the count has to be read rather than assumed — a hardcoded 0 was
+    // exactly what made the old poll-only shape invisible here.
+    { name: 'vlans',        streams: s.vlans._listen   && s.vlans._listen.open   ? 1 : 0 },
+    { name: 'ppp',          streams: s.ppp._listen     && s.ppp._listen.open     ? 1 : 0 },
   ];
   const total = collectors.reduce((sum, c) => sum + c.streams, 0);
   // Geo availability rides along here so a failed geoip-lite load is visible in

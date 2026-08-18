@@ -31,7 +31,12 @@ const PAGES = Object.freeze([
   { key: 'wireless',    title: 'Wireless',         settingsKey: 'pageWireless',    streamRooms: ['page-wireless'] },
   { key: 'interfaces',  title: 'Interfaces',       settingsKey: 'pageInterfaces',  streamRooms: [] },
   { key: 'dhcp',        title: 'DHCP',             settingsKey: 'pageDhcp',        streamRooms: [] },
+  { key: 'vlans',       title: 'VLANs',            settingsKey: 'pageVlans',       streamRooms: [] },
   { key: 'vpn',         title: 'VPN',              settingsKey: 'pageVpn',         streamRooms: ['page-vpn', 'dash-card-vpn'] },
+  // none of those collectors holds a /listen, and this list means "pages with a
+  // suspendable counter stream". They are suspended by the idle gate instead,
+  // and page:focus replays them explicitly.
+  { key: 'ppp',         title: 'PPP',              settingsKey: 'pagePpp',         streamRooms: [] },
   { key: 'connections', title: 'Connections',      settingsKey: 'pageConnections', streamRooms: [] },
   { key: 'routing',     title: 'Routing',          settingsKey: 'pageRouting',     streamRooms: ['page-routing'] },
   { key: 'bandwidth',   title: 'Bandwidth',        settingsKey: 'pageBandwidth',   streamRooms: [] },

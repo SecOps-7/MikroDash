@@ -2455,6 +2455,7 @@ var PAGE_NAV_MAP = {
   pageWireless:'wireless', pageInterfaces:'interfaces', pageDhcp:'dhcp',
   pageVpn:'vpn', pageConnections:'connections', pageFirewall:'firewall', pageLogs:'logs',
   pageBandwidth:'bandwidth', pageRouting:'routing', pageTopology:'topology',
+  pageVlans:'vlans', pagePpp:'ppp',
 };
 // Every page the nav can show. Kept in step with src/pages.js — the drift check
 // lives in test/page-registry.test.js.
@@ -2748,6 +2749,8 @@ var staleConfig=[
   {cardId:'routingPeersCard',  event:'routing:update',   threshold:90000},
   {cardId:'routingRoutesCard', event:'routing:update',   threshold:90000},
   {cardId:'topologyCard',      event:'topology:update',  threshold:90000},  // streamed — heartbeat every 60s
+  {cardId:'vlansCard',         event:'vlans:update',     threshold:30000},  // polled — threshold follows data.pollMs
+  {cardId:'pppCard',           event:'ppp:update',       threshold:30000},  // polled — threshold follows data.pollMs
 ];
 var staleTimers={};
 
@@ -4577,8 +4580,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollIfaces',    label:'Interface Status',   min:10000, max:600000, step:10000, unit:'ms' },
     { key:'pollDhcp',           label:'DHCP Networks',    min:10000, max:600000, step:10000, unit:'ms' },
     { key:'pollTopology',       label:'Network Topology', min:10000, max:300000, step:10000, unit:'ms' },
+    { key:'pollVlans',          label:'VLANs',            min:2000,  max:60000,  step:1000,  unit:'ms' },
+    { key:'pollPpp',            label:'PPP',              min:2000,  max:60000,  step:1000,  unit:'ms' },
   ];
 
+  // EVERY non-streamed slider must appear in EVERY profile. A missing key sets
+  // the slider to undefined and renders "NaNms" — which is what pollTopology,
+  // pollVlans and pollPpp did until this was noticed. A drift guard in
   var POLL_PROFILES = {
     fast:     { pollSystem:1000,  pollConns:1000,  pollTalkers:1000,  pollIfstatus:1000,  pollBandwidth:1000,  pollVpn:1000,  pollFirewall:1000,  pollPing:1000,  pollWireless:10000,  pollIfaces:10000,  pollDhcp:10000  },
     faster:   { pollSystem:5000,  pollConns:5000,  pollTalkers:5000,  pollIfstatus:5000,  pollBandwidth:5000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:60000,  pollIfaces:60000,  pollDhcp:60000  },
@@ -11061,4 +11069,318 @@ function _renderRoutersMap(rows) {
   document.addEventListener('mikrodash:pagechange', function (e) {
     if (e.detail === 'wireless') socket.emit('wifiscan:interfaces');
   });
+}());
+
+/* ── VLANs page (issue #32) ───────────────────────────────────────────────────
+   Rates arrive already joined server-side from interfaceStatus, so this file
+   never sees an interface object — only VLAN-shaped rows. See src/collectors/
+   vlans.js for why that join does not happen in the browser. */
+(function () {
+  var tbody = $('vlansTable'), theadRow = $('vlansThead');
+  if (!tbody || !theadRow) return;
+
+  var _data = null;
+  var _sort = { col: 'vlanId', dir: 1 };
+  var _showDynamic = false;
+
+  var COLS = [
+    { key:'vlanId',   label:'VLAN' },
+    { key:'name',     label:'Interface' },
+    { key:'parent',   label:'Parent' },
+    { key:'mtu',      label:'MTU' },
+    { key:'tagged',   label:'Tagged Ports' },
+    { key:'untagged', label:'Untagged Ports' },
+    { key:'clients',  label:'Clients' },
+    { key:'rate',     label:'RX / TX' },
+  ];
+
+  function sortVal(v, key) {
+    if (key === 'vlanId')  return v.vlanId;
+    if (key === 'clients') return v.clients || 0;
+    if (key === 'mtu')     return (v.interfaces[0] && v.interfaces[0].mtu) || 0;
+    if (key === 'rate')    return (v.rxMbps || 0) + (v.txMbps || 0);
+    if (key === 'name')    return (v.name || '').toLowerCase();
+    if (key === 'parent')  return ((v.interfaces[0] && v.interfaces[0].parent) || '').toLowerCase();
+    if (key === 'tagged')  return v.tagged.length;
+    return v.untagged.length;
+  }
+
+  function ports(list) {
+    if (!list.length) return '<span style="color:var(--text-muted)">&mdash;</span>';
+    return list.map(function (n) { return '<span class="wl-band wl-band-5">' + esc(n) + '</span>'; }).join(' ');
+  }
+
+  // Per-VLAN rate history for the sparklines, kept here rather than server-side:
+  // it is presentation state, and the collector already ships every sample the
+  // line needs. Pushed once per update, never on re-render, or sorting or typing
+  // in the search box would forge samples the router never sent.
+  var _hist = {};           // vlanId -> { rx:[], tx:[] }
+  var HIST_MAX = 40;
+
+  function pushHistory(d) {
+    var live = {};
+    d.vlans.forEach(function (v) {
+      live[v.vlanId] = true;
+      var h = _hist[v.vlanId] || (_hist[v.vlanId] = { rx: [], tx: [] });
+      // A null rate is "not reported", so the line holds its last value rather
+      // than dropping to zero and drawing a cliff that never happened.
+      if (v.rxMbps !== null) h.rx.push(v.rxMbps);
+      if (v.txMbps !== null) h.tx.push(v.txMbps);
+      if (h.rx.length > HIST_MAX) h.rx.splice(0, h.rx.length - HIST_MAX);
+      if (h.tx.length > HIST_MAX) h.tx.splice(0, h.tx.length - HIST_MAX);
+    });
+    // Drop VLANs that no longer exist, so a deleted-and-recreated VLAN does not
+    // inherit the old one's trend line.
+    Object.keys(_hist).forEach(function (k) { if (!live[k]) delete _hist[k]; });
+  }
+
+  // Stroked with currentColor and coloured by class, so the line cannot drift
+  // from the value above it: --accent-tx is green in this theme, and a
+  // hardcoded stroke was already wrong.
+  function spark(history, dir) {
+    if (!history || history.length < 2) return '<span class="vlan-spark-slot"></span>';
+    var w = 56, h = 14, pad = 1.5;
+    var max = Math.max.apply(null, history) || 1;   // baseline always zero, so
+    var pts = history.map(function (v, i) {         // a rise reads as a rise
+      var x = pad + (i / (history.length - 1)) * (w - pad * 2);
+      var y = h - pad - (v / max) * (h - pad * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    return '<svg class="vlan-spark ' + dir + '" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="currentColor"' +
+      ' stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  }
+
+  function rateLine(dir, mbps, history) {
+    var cls = (mbps ? dir : 'zero');
+    return '<div class="vlan-rate-line">' +
+      '<span class="vlan-rate-arrow ' + cls + '">' + (dir === 'rx' ? '\u2193' : '\u2191') + '</span>' +
+      '<span class="vlan-rate-val ' + cls + '">' + fmtMbps(mbps || 0) + '</span>' +
+      // The line keeps its direction colour even at zero: it is showing the
+      // trend that got here, not the current reading.
+      spark(history, dir) +
+    '</div>';
+  }
+
+  // null is "the router did not report a rate", which is not the same as idle.
+  function rate(v) {
+    if (v.rxMbps === null && v.txMbps === null) {
+      return '<span style="color:var(--text-muted)" title="Interface rates are unavailable">&mdash;</span>';
+    }
+    var h = _hist[v.vlanId] || { rx: [], tx: [] };
+    return '<div class="vlan-rate">' +
+      rateLine('rx', v.rxMbps, h.rx) +
+      rateLine('tx', v.txMbps, h.tx) +
+    '</div>';
+  }
+
+  function render() {
+    if (!_data) return;
+    var q = ($('vlansSearch') && $('vlansSearch').value || '').toLowerCase().trim();
+    var rows = _data.vlans.filter(function (v) {
+      if (!q) return true;
+      return String(v.vlanId).indexOf(q) === 0 || (v.name || '').toLowerCase().indexOf(q) !== -1 ||
+             v.tagged.concat(v.untagged).some(function (p) { return p.toLowerCase().indexOf(q) !== -1; });
+    });
+    rows = rows.slice().sort(function (a, b) {
+      var av = sortVal(a, _sort.col), bv = sortVal(b, _sort.col);
+      if (typeof av === 'string') return _sort.dir * av.localeCompare(bv);
+      return _sort.dir * (av - bv);
+    });
+
+    _renderSortHeader('vlansThead', COLS, _sort, function (key) {
+      _sort.dir = _sort.col === key ? -_sort.dir : 1;
+      _sort.col = key; render();
+    });
+
+    $('vlansBadge').textContent = _data.vlans.length;
+    $('vlansBadge').className = 'card-badge' + (_data.vlans.length ? ' active-blue' : '');
+
+    tbody.innerHTML = rows.length ? rows.map(function (v) {
+      var i0 = v.interfaces[0];
+      return '<tr>' +
+        '<td><span class="wl-band wl-band-24">' + v.vlanId + '</span></td>' +
+        '<td>' + (v.name ? esc(v.name) : '<span style="color:var(--text-muted)">no L3 interface</span>') + '</td>' +
+        '<td>' + esc(i0 ? i0.parent : '') + '</td>' +
+        '<td>' + (i0 && i0.mtu ? i0.mtu : '&mdash;') + '</td>' +
+        '<td>' + ports(v.tagged) + '</td>' +
+        '<td>' + ports(v.untagged) + '</td>' +
+        '<td>' + (v.clients || 0) + '</td>' +
+        '<td>' + rate(v) + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="8" class="empty-state">No VLANs configured on this router.</td></tr>';
+
+    renderBridge();
+  }
+
+  function renderBridge() {
+    var tb = $('vlansBridgeTable'); if (!tb || !_data) return;
+    // Dynamic rows are filtered HERE, at render. They are kept in the join
+    // because on a real router most VLAN membership comes from them — filtering
+    // them earlier would show every VLAN with no tagged ports.
+    var rows = _data.bridgeVlans.filter(function (r) { return _showDynamic || !r.dynamic; });
+    $('vlansBridgeBadge').textContent = rows.length;
+    $('vlansDynChip').textContent = _data.dynamicCount;
+    tb.innerHTML = rows.length ? rows.map(function (r) {
+      // Dynamic rows carry the same weight as static ones: the "dynamic" pill
+      // already says which is which, and dimming them made real membership
+      // harder to read for no added information.
+      return '<tr>' +
+        '<td>' + esc(r.bridge) + '</td>' +
+        '<td><span class="wl-band wl-band-24">' + esc(r.raw) + '</span></td>' +
+        '<td>' + ports(r.tagged) + '</td>' +
+        '<td>' + ports(r.untagged) + '</td>' +
+        '<td>' + (r.dynamic ? '<span class="wl-band wl-band-6">dynamic</span>'
+                            : '<span class="wl-band wl-band-5">static</span>') + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="5" class="empty-state">No bridge VLAN entries.</td></tr>';
+  }
+
+  function renderSummary() {
+    if (!_data) return;
+    var tagged = new Set(), untagged = new Set();
+    var rx = 0, tx = 0, any = false;
+    _data.vlans.forEach(function (v) {
+      v.tagged.forEach(function (p) { tagged.add(p); });
+      v.untagged.forEach(function (p) { untagged.add(p); });
+      if (v.rxMbps !== null) { rx += v.rxMbps; any = true; }
+      if (v.txMbps !== null) { tx += v.txMbps; any = true; }
+    });
+    $('vlSumCount').textContent    = _data.vlans.length;
+    $('vlSumTagged').textContent   = tagged.size;
+    $('vlSumUntagged').textContent = untagged.size;
+    $('vlSumRate').innerHTML = any ? fmtMbps(rx + tx) : '&mdash;';
+  }
+
+  socket.on('vlans:update', function (d) {
+    if (!d) return;
+    _data = d;
+    pushHistory(d);
+    renderSummary();
+    if (pageVisible('vlans')) render();
+  });
+
+  document.addEventListener('mikrodash:pagechange', function (e) {
+    if (e.detail === 'vlans' && _data) render();
+  });
+
+  var se = $('vlansSearch');
+  if (se) se.addEventListener('input', _debounce(render, 150));
+  var dyn = $('vlansShowDynamic');
+  if (dyn) dyn.addEventListener('change', function () { _showDynamic = dyn.checked; renderBridge(); });
+}());
+
+/* ── PPP page (issue #32) ─────────────────────────────────────────────────────
+   Rates are derived server-side from byte deltas; RouterOS reports cumulative
+   bytes only. A null rate means "no measurement window yet", not idle. */
+(function () {
+  var tbody = $('pppTable'), theadRow = $('pppThead');
+  if (!tbody || !theadRow) return;
+
+  var _data = null;
+  var _sort = { col: 'name', dir: 1 };
+
+  var COLS = [
+    { key:'name',     label:'User' },
+    { key:'service',  label:'Service' },
+    { key:'address',  label:'Address' },
+    { key:'callerId', label:'Caller ID' },
+    { key:'uptime',   label:'Uptime' },
+    { key:'rate',     label:'RX / TX' },
+    { key:'total',    label:'Total In / Out' },
+  ];
+
+  function sortVal(s, key) {
+    if (key === 'rate')  return (s.rxRate || 0) + (s.txRate || 0);
+    if (key === 'total') return s.rx + s.tx;
+    if (key === 'uptime') return parseUptime ? parseUptime(s.uptime) : 0;
+    return String(s[key] || '').toLowerCase();
+  }
+
+  function render() {
+    if (!_data) return;
+    var q = ($('pppSearch') && $('pppSearch').value || '').toLowerCase().trim();
+    var rows = _data.sessions.filter(function (s) {
+      if (!q) return true;
+      return (s.name + ' ' + s.address + ' ' + s.callerId).toLowerCase().indexOf(q) !== -1;
+    }).slice().sort(function (a, b) {
+      var av = sortVal(a, _sort.col), bv = sortVal(b, _sort.col);
+      if (typeof av === 'string') return _sort.dir * av.localeCompare(bv);
+      return _sort.dir * (av - bv);
+    });
+
+    _renderSortHeader('pppThead', COLS, _sort, function (key) {
+      _sort.dir = _sort.col === key ? -_sort.dir : 1;
+      _sort.col = key; render();
+    });
+
+    $('pppBadge').textContent = _data.sessions.length;
+    $('pppBadge').className = 'card-badge' + (_data.sessions.length ? ' active-blue' : '');
+
+    var empty = _data.available
+      ? 'No active PPP sessions. They appear here when a PPPoE, L2TP, SSTP or PPTP client connects.'
+      : 'This router has no PPP service configured.';
+
+    tbody.innerHTML = rows.length ? rows.map(function (s) {
+      var r = s.rxRate === null
+        ? '<span style="color:var(--text-muted)" title="No measurement window yet">&mdash;</span>'
+        : '<span style="color:var(--accent-rx)">' + fmtMbps((s.rxRate * 8) / 1e6) + '</span> / ' +
+          '<span style="color:var(--accent-tx,#f59f00)">' + fmtMbps((s.txRate * 8) / 1e6) + '</span>';
+      return '<tr>' +
+        '<td>' + esc(s.name) + '</td>' +
+        '<td><span class="vpn-proto-pill">' + esc(s.service || 'PPP') + '</span></td>' +
+        '<td>' + esc(s.address) + '</td>' +
+        '<td>' + esc(s.callerId) + '</td>' +
+        '<td>' + esc(s.uptime) + '</td>' +
+        '<td>' + r + '</td>' +
+        '<td>' + fmtBytes(s.rx) + ' / ' + fmtBytes(s.tx) + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="7" class="empty-state">' + esc(empty) + '</td></tr>';
+
+    renderConfig();
+  }
+
+  function renderConfig() {
+    var tb = $('pppServerTable'); if (!tb || !_data) return;
+    var rows = [];
+    (_data.servers || []).forEach(function (s) {
+      rows.push(['Server', s.serviceName || '(unnamed)', s.interface,
+                 s.maxSessions ? ('max ' + s.maxSessions) : '',
+                 s.disabled ? 'disabled' : 'enabled']);
+    });
+    (_data.profiles || []).forEach(function (p) {
+      rows.push(['Profile', p.name, p.localAddress, p.rateLimit || p.remoteAddress || '', p.onlyOne || '']);
+    });
+    tb.innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr><td><span class="wl-band wl-band-24">' + esc(r[0]) + '</span></td>' +
+             r.slice(1).map(function (c) { return '<td>' + (c ? esc(String(c)) : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>'; }).join('') +
+             '</tr>';
+    }).join('') : '<tr><td colspan="5" class="empty-state">No PPP servers or profiles.</td></tr>';
+  }
+
+  function renderSummary() {
+    if (!_data) return;
+    $('pppSumCount').textContent = _data.sessions.length;
+    var svc = Object.keys(_data.byService || {}).sort();
+    $('pppSumServices').textContent = svc.length
+      ? svc.map(function (k) { return k + ' ' + _data.byService[k]; }).join('  ') : '—';
+    var toMbps = function (v) { return v === null ? null : (v * 8) / 1e6; };
+    var rx = toMbps(_data.totalRxRate), tx = toMbps(_data.totalTxRate);
+    $('pppSumRx').innerHTML = rx === null ? '&mdash;' : fmtMbps(rx);
+    $('pppSumTx').innerHTML = tx === null ? '&mdash;' : fmtMbps(tx);
+  }
+
+  socket.on('ppp:update', function (d) {
+    if (!d) return;
+    _data = d;
+    renderSummary();
+    if (pageVisible('ppp')) render();
+  });
+
+  document.addEventListener('mikrodash:pagechange', function (e) {
+    if (e.detail === 'ppp' && _data) render();
+  });
+
+  var se = $('pppSearch');
+  if (se) se.addEventListener('input', _debounce(render, 150));
 }());
