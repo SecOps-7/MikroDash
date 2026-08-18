@@ -1,7 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const TrafficCollector = require('../src/collectors/traffic');
+// Stops every collector these tests construct once the file finishes; without
+// it their timers keep the test process alive. See the helper for why that
+// made the reported test count unstable.
+const { track } = require('./helpers/collector-cleanup');
+const TrafficCollector = track(require('../src/collectors/traffic'));
 
 test('traffic collector emits normalized socket and WAN payloads from a poll cycle', () => {
   const socketEmits = [];
@@ -106,7 +110,7 @@ test('traffic collector treats missing or zero traffic fields as zero Mbps', () 
 });
 
 // --- System Collector ---
-const SystemCollector = require('../src/collectors/system');
+const SystemCollector = track(require('../src/collectors/system'));
 
 test('system collector parses CPU, memory, and HDD percentages', () => {
   const emitted = [];
@@ -226,7 +230,7 @@ test('system collector includes arch, serial, and license level in payload', () 
 });
 
 // --- Connections Collector ---
-const ConnectionsCollector = require('../src/collectors/connections');
+const ConnectionsCollector = track(require('../src/collectors/connections'));
 
 test('connections collector counts protocols correctly including case-insensitive icmp', async () => {
   const emitted = [];
@@ -489,7 +493,7 @@ test('connections collector caps work honestly by excluding truncated destinatio
 });
 
 // --- Firewall Collector ---
-const FirewallCollector = require('../src/collectors/firewall');
+const FirewallCollector = track(require('../src/collectors/firewall'));
 
 test('firewall collector calculates delta packets between polls', async () => {
   const emitted = [];
@@ -669,7 +673,7 @@ test('firewall collector includes raw table in payload and counter poll', async 
 });
 
 // --- Ping Collector ---
-const PingCollector = require('../src/collectors/ping');
+const PingCollector = track(require('../src/collectors/ping'));
 
 test('ping collector processes reply packets and tracks RTT and loss', () => {
   const emitted = [];
@@ -744,7 +748,7 @@ test('ping collector maintains bounded history', () => {
 });
 
 // --- Top Talkers Collector ---
-const TopTalkersCollector = require('../src/collectors/talkers');
+const TopTalkersCollector = track(require('../src/collectors/talkers'));
 
 test('talkers collector calculates throughput rate between polls', () => {
   // The stream delivers rate-up/rate-down (bits/second) per device directly.
@@ -871,7 +875,7 @@ test('talkers poll timeout is transient — logs error and keeps scheduling', as
 });
 
 // --- VPN Collector ---
-const VpnCollector = require('../src/collectors/vpn');
+const VpnCollector = track(require('../src/collectors/vpn'));
 
 test('vpn collector resolves peer name with fallback chain', async () => {
   const emitted = [];
@@ -1034,7 +1038,7 @@ test('vpn collector: _prev.ts not advanced on handshake-only update; rates decay
 });
 
 // --- Wireless Collector ---
-const WirelessCollector = require('../src/collectors/wireless');
+const WirelessCollector = track(require('../src/collectors/wireless'));
 // Since issue #108 a wireless tick emits twice: the client list to the page and
 // dash-card rooms, and a bare count router-wide for the sidebar badge. Tests
 // that count emits mean the payload, so they count that one.
@@ -1263,7 +1267,7 @@ test('wireless collector filters out Ethernet interface rows with no wireless-sp
 });
 
 // --- Logs Collector ---
-const LogsCollector = require('../src/collectors/logs');
+const LogsCollector = track(require('../src/collectors/logs'));
 
 test('logs collector emits severity-classified entries from stream callbacks and drops empty messages', () => {
   const emitted = [];
@@ -1333,7 +1337,7 @@ test('logs collector _loadInitial() seeds ring buffer from /log/print response',
 });
 
 // --- DHCP Leases Collector ---
-const DhcpLeasesCollector = require('../src/collectors/dhcpLeases');
+const DhcpLeasesCollector = track(require('../src/collectors/dhcpLeases'));
 
 test('dhcp leases collector resolves name with comment > hostname > empty fallback', async () => {
   let streamHandler;
@@ -1386,7 +1390,7 @@ test('dhcp leases collector filters active leases after initial load and streame
 });
 
 // --- Interface Status Collector ---
-const InterfaceStatusCollector = require('../src/collectors/interfaceStatus');
+const InterfaceStatusCollector = track(require('../src/collectors/interfaceStatus'));
 
 test('interface status collector normalizes booleans and computes Mbps', () => {
   // The collector no longer uses _loadInitial(). Data flows from three persistent
@@ -1785,7 +1789,7 @@ test('interface status fingerprint reacts to error movement but not to byte tota
 });
 
 // --- ARP Collector ---
-const ArpCollector = require('../src/collectors/arp');
+const ArpCollector = track(require('../src/collectors/arp'));
 
 test('arp collector builds bidirectional lookup maps and skips incomplete entries', async () => {
   const ros = {
@@ -1949,7 +1953,7 @@ test('leases still load when the server/VLAN lookup fails', async () => {
 });
 
 // --- DHCP Networks Collector ---
-const DhcpNetworksCollector = require('../src/collectors/dhcpNetworks');
+const DhcpNetworksCollector = track(require('../src/collectors/dhcpNetworks'));
 
 test('dhcp networks collector counts leases per CIDR and extracts WAN IP', async () => {
   const emitted = [];
@@ -2024,7 +2028,7 @@ test('dhcp networks collector clears WAN IP when the configured WAN interface is
 // ═══════════════════════════════════════════════════════════════════════════
 // --- Routing Collector ---
 // ═══════════════════════════════════════════════════════════════════════════
-const RoutingCollector = require('../src/collectors/routing');
+const RoutingCollector = track(require('../src/collectors/routing'));
 function makeRoutingRos({ printRows = [], sessionRows = [], peerCfgRows = [] } = {}) {
   return {
     connected: true,

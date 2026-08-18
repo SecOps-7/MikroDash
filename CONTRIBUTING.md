@@ -36,7 +36,10 @@ npm test
 
 The tests use stubs throughout — no router, no network, no database setup. The suite takes a few seconds.
 
-> If you run `node --test` directly, add `--test-force-exit`. Without it the runner reports every test and then hangs instead of exiting.
+> `node --test` exits on its own. It used to need `--test-force-exit` because unstopped collectors
+> kept the runner alive; that flag also truncated the tail of the largest file at random, so runs
+> silently reported fewer tests than exist. Do not reintroduce it — if the suite hangs again, a
+> test is leaking a timer and `test/helpers/collector-cleanup.js` is the place to look.
 
 ## Project Conventions
 

@@ -186,23 +186,36 @@ class SystemCollector {
     }
     slot.inflight = true;
     slot.lastFetch = now;
+    // Declared out here, cleared in the finally below. Attaching .finally() to
+    // the race is not enough: this.ros.write can throw SYNCHRONOUSLY, in which
+    // case the throw escapes before any handler is attached and the timer —
+    // already created by the Promise executor — is left running for its full
+    // 15s. That is exactly what stalled the test suite.
+    let checkT = null, printT = null;
     try {
       // Explicitly trigger a check with the update server (blocks until done or times out).
       // Without this, print returns cached/transient "finding out latest version..." state.
-      const checkTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('check-for-updates timed out')), 15000));
+      // The loser of a Promise.race keeps running, so these timers must be
+      // cleared explicitly. Left dangling they hold the event loop open for up
+      // to 15s after the work is done — harmless in a server that runs forever,
+      // but it stalled the test suite by that long and was part of why the
+      // documented test command needed --test-force-exit.
+      const checkTimeout = new Promise((_, reject) => {
+        checkT = setTimeout(() => reject(new Error('check-for-updates timed out')), 15000);
+      });
       let checkErr = null;
       await Promise.race([
         this.ros.write('/system/package/update/check-for-updates'),
         checkTimeout,
-      ]).catch(e => { checkErr = e; });
+      ]).catch(e => { checkErr = e; }).finally(() => clearTimeout(checkT));
 
-      const printTimeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('update check timed out')), 5000));
+      const printTimeout = new Promise((_, reject) => {
+        printT = setTimeout(() => reject(new Error('update check timed out')), 5000);
+      });
       const result = await Promise.race([
         this.ros.write('/system/package/update/print'),
         printTimeout,
-      ]);
+      ]).finally(() => clearTimeout(printT));
       const u = result && result[0] ? result[0] : {};
       if (!this._loggedUpdateFields) {
         console.log('%s', this._lbl + ' package/update fields:', JSON.stringify(u));
@@ -255,6 +268,8 @@ class SystemCollector {
       console.error('%s update check failed: %s', this._lbl, msg);
       this._applyUpdateRow({ status: 'Update check unavailable' });
     } finally {
+      clearTimeout(checkT);
+      clearTimeout(printT);
       slot.inflight = false;
     }
   }

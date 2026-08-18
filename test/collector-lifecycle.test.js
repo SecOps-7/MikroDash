@@ -2,14 +2,18 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const EventEmitter = require('events');
 
-const SystemCollector = require('../src/collectors/system');
-const TrafficCollector = require('../src/collectors/traffic');
-const LogsCollector = require('../src/collectors/logs');
-const DhcpLeasesCollector = require('../src/collectors/dhcpLeases');
-const WirelessCollector = require('../src/collectors/wireless');
-const DhcpNetworksCollector = require('../src/collectors/dhcpNetworks');
-const ConnectionsCollector = require('../src/collectors/connections');
-const BandwidthCollector = require('../src/collectors/bandwidth');
+// Stops every collector these tests construct once the file finishes; without
+// it their timers keep the test process alive. See the helper for why that
+// made the reported test count unstable.
+const { track } = require('./helpers/collector-cleanup');
+const SystemCollector = track(require('../src/collectors/system'));
+const TrafficCollector = track(require('../src/collectors/traffic'));
+const LogsCollector = track(require('../src/collectors/logs'));
+const DhcpLeasesCollector = track(require('../src/collectors/dhcpLeases'));
+const WirelessCollector = track(require('../src/collectors/wireless'));
+const DhcpNetworksCollector = track(require('../src/collectors/dhcpNetworks'));
+const ConnectionsCollector = track(require('../src/collectors/connections'));
+const BandwidthCollector = track(require('../src/collectors/bandwidth'));
 const ROS = require('../src/routeros/client');
 
 // Helper: create a mock ROS that is an EventEmitter (for on/emit lifecycle)
@@ -585,7 +589,7 @@ test('dhcp networks collector deduplicates LAN CIDRs', async () => {
 // ═══════════════════════════════════════════════════════════════════════════
 // --- Routing Collector lifecycle ---
 // ═══════════════════════════════════════════════════════════════════════════
-const RoutingCollector = require('../src/collectors/routing');
+const RoutingCollector = track(require('../src/collectors/routing'));
 
 // Helper: minimal io mock that supports the to(room).emit() pattern used by routing.
 function routingIo(collector) {
