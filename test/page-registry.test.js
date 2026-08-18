@@ -33,11 +33,13 @@ test('page keys are unique and non-empty', () => {
   for (const k of Pages.KEYS) assert.match(k, /^[a-z]{2,20}$/, k + ' must match the page:focus guard');
 });
 
-test('the four role-only pages are the ones with no install toggle', () => {
+test('the three role-only pages are the ones with no install toggle', () => {
   // These have no Settings switch, so a role is the only thing that can hide
   // them. If this list changes, applyPageVisibility's conjunction changes too.
   const noToggle = Pages.PAGES.filter(p => !p.settingsKey).map(p => p.key).sort();
-  assert.deepStrictEqual(noToggle, ['dashboard', 'reports', 'routers', 'settings']);
+  // Routers left this list when the view presets landed: it is Advanced-only,
+  // which needs a real toggle for the preset to switch.
+  assert.deepStrictEqual(noToggle, ['dashboard', 'reports', 'settings']);
 });
 
 test('every collector names a real page, or none at all', () => {
@@ -204,4 +206,79 @@ test('the Settings page is closed to non-admins, not merely hidden', () => {
   // that gap would bounce a genuine administrator out of Settings.
   assert.ok(/if \(!window\._caps\) return true/.test(pred),
     'unknown caps must permit — otherwise an admin is locked out during the async gap');
+});
+
+// ── Canned view presets ──────────────────────────────────────────────────────
+//
+// Home / Standard / Advanced are bulk-editors for the Visible Pages toggles and
+// for a role's page matrix. They decide nothing on their own — RBAC is still the
+// ceiling — but a preset that names a page which cannot be toggled, or that
+// skips a tier, is wrong in a way nothing else would notice.
+
+test('every preset names only pages that have an install toggle', () => {
+  // A preset naming `dashboard` or `settings` would look right in the list and
+  // do nothing: those pages have no switch to set.
+  for (const [tier, pages] of Object.entries(Pages.VIEW_PRESETS)) {
+    for (const key of pages) {
+      const def = Pages.BY_KEY[key];
+      assert.ok(def, tier + ' names an unknown page: ' + key);
+      assert.ok(def.settingsKey, tier + ' names ' + key + ', which has no install toggle');
+    }
+    assert.strictEqual(new Set(pages).size, pages.length, tier + ' has no duplicates');
+  }
+});
+
+test('the presets nest, and Advanced is every toggleable page', () => {
+  const { home, standard, advanced } = Pages.VIEW_PRESETS;
+  // Nesting is the whole meaning of the tiers. Without it a page could land in
+  // Home but not Standard, and "step up a level" would take something away.
+  for (const k of home)     assert.ok(standard.includes(k), 'standard must include home\'s ' + k);
+  for (const k of standard) assert.ok(advanced.includes(k), 'advanced must include standard\'s ' + k);
+  assert.deepStrictEqual([...advanced].sort(),
+    Pages.PAGES.filter(p => p.settingsKey).map(p => p.key).sort(),
+    'advanced is every toggleable page — derived, so a new page joins it by existing');
+  assert.ok(home.length < standard.length && standard.length < advanced.length,
+    'the tiers must actually differ');
+});
+
+test('Routers is Advanced-only', () => {
+  // The reason that page gained a toggle at all: fleet management is a pro
+  // feature, so it must not appear in the two lower tiers.
+  assert.ok(!Pages.VIEW_PRESETS.home.includes('routers'));
+  assert.ok(!Pages.VIEW_PRESETS.standard.includes('routers'));
+  assert.ok(Pages.VIEW_PRESETS.advanced.includes('routers'));
+  assert.strictEqual(Pages.BY_KEY.routers.settingsKey, 'pageRouters');
+});
+
+test('app.js mirrors the preset definition in src/pages.js', () => {
+  // Same drift guard as ALL_NAV_PAGES: the browser needs its own copy, and two
+  // copies of a list is exactly how pageTopology went missing for a release.
+  const m = APP_JS.match(/var VIEW_PRESETS = \{([\s\S]*?)\n  \};/);
+  assert.ok(m, 'found VIEW_PRESETS in app.js');
+  const read = (tier) => {
+    const at = m[1].indexOf(tier + ':');
+    assert.ok(at !== -1, 'app.js VIEW_PRESETS has a ' + tier + ' tier');
+    const chunk = m[1].slice(at, m[1].indexOf('\n', m[1].indexOf(']', at)) + 1);
+    return [...chunk.matchAll(/'([a-z]+)'/g)].map(x => x[1]).sort();
+  };
+  assert.deepStrictEqual(read('home'),     [...Pages.VIEW_PRESETS.home].sort());
+  assert.deepStrictEqual(read('standard'), [...Pages.VIEW_PRESETS.standard].sort());
+  // advanced is derived on both sides rather than listed, so there is nothing to
+  // compare beyond it being derived — assert that, so nobody hand-writes it.
+  assert.ok(/advanced:\s*null/.test(m[1]) && /VIEW_PRESETS\.advanced = /.test(APP_JS),
+    'advanced must be derived in app.js, not typed out');
+});
+
+test('a preset cannot widen what a role allows', () => {
+  // The security claim of the whole feature. Presets write install toggles;
+  // _pageAllowed() ANDs the role, so turning everything on grants nothing.
+  const src  = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const at   = src.indexOf('function _pageAllowed(');
+  const body = src.slice(at, at + 700);
+  assert.ok(/Rbac\.canPage\(/.test(body), '_pageAllowed must still consult the role');
+  assert.ok(/settingsKey\] === false\) return false;/.test(body),
+    'the install toggle must only be able to subtract');
+  // And the preset UI must never write role state.
+  const presetJs = APP_JS.slice(APP_JS.indexOf('function _applyViewPreset'), APP_JS.indexOf('function _applyViewPreset') + 800);
+  assert.ok(!/fetch\(/.test(presetJs), 'applying a preset must not call the server by itself');
 });

@@ -211,6 +211,10 @@ const DEFAULTS = {
   pageDns:         true,
   pageCapsman:     true,
   pagePackages:    true,
+  // Advanced-only in the view presets, but the toggle still defaults visible:
+  // page-registry.test.js pins every page toggle to true so a fresh install
+  // shows everything, and the preset is what narrows it.
+  pageRouters:     true,
 
   // Set once by the #105 migration, then never read again.
   collectionMigrated: false,

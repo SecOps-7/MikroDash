@@ -1488,6 +1488,11 @@
     @media(max-width:600px){.rpt-bar{gap:.4rem}.rpt-stat-row{grid-template-columns:repeat(2,1fr)}}
     .poll-profile-btn{background:transparent;border:1px solid var(--border);border-radius:4px;padding:.22rem .65rem;font-size:.72rem;font-family:var(--font-ui);color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
     .poll-profile-btn.active{background:var(--accent-rx);border-color:var(--accent-rx);color:#fff}
+    /* View presets. A separate class from .poll-profile-btn on purpose: that one
+       is shared with the router modal's Stream/Poll picker, and its handler only
+       survives the collision by testing dataset.profile. */
+    .view-preset-btn{background:transparent;border:1px solid var(--border);border-radius:4px;padding:.22rem .65rem;font-size:.72rem;font-family:var(--font-ui);color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+    .view-preset-btn.active{background:var(--accent-rx);border-color:var(--accent-rx);color:#fff}
     /* API Diagnostics card */
     .diag-total-wrap{text-align:center;margin-bottom:.75rem}
     .diag-total-count{font-size:2rem;font-weight:700;color:var(--accent)}
@@ -4235,7 +4240,13 @@
             </select>
             <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
             <label class="sform-label">Visible Pages</label>
-            <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings are always visible.</p>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings are always visible. A preset ticks a whole set at once; each user still only sees pages their role allows.</p>
+            <div id="viewPresetWrap" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.75rem">
+              <button type="button" class="view-preset-btn" data-view-preset="home" title="Wireless, Interfaces, DHCP, Connections and Bandwidth">Home</button>
+              <button type="button" class="view-preset-btn" data-view-preset="standard" title="Home plus Topology, DNS, VLANs, VPN, Firewall and Logs">Standard</button>
+              <button type="button" class="view-preset-btn" data-view-preset="advanced" title="Every page, including Routers">Advanced</button>
+              <button type="button" class="view-preset-btn" data-view-preset="custom" title="Your own selection">Custom</button>
+            </div>
             <div class="stoggle-grid">
               <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
@@ -4247,6 +4258,7 @@
               <label class="stoggle"><span class="stoggle-label">Bridges</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBridges"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">DNS</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDns"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Packages</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePackages"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Routers</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouters"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
@@ -4496,6 +4508,13 @@
                     <button class="sbtn sbtn-outline rf-bulk" data-bulk="read"  style="padding:.15rem .5rem;font-size:.68rem">All read</button>
                     <button class="sbtn sbtn-outline rf-bulk" data-bulk="write" style="padding:.15rem .5rem;font-size:.68rem">All write</button>
                   </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.4rem">
+                  <span style="font-size:.68rem;color:var(--text-muted)">Preset</span>
+                  <button type="button" class="sbtn sbtn-outline rf-preset" data-role-preset="home"     style="padding:.15rem .5rem;font-size:.68rem">Home</button>
+                  <button type="button" class="sbtn sbtn-outline rf-preset" data-role-preset="standard" style="padding:.15rem .5rem;font-size:.68rem">Standard</button>
+                  <button type="button" class="sbtn sbtn-outline rf-preset" data-role-preset="advanced" style="padding:.15rem .5rem;font-size:.68rem">Advanced</button>
+                  <span style="font-size:.66rem;color:var(--text-muted)">sets read on that tier and clears the rest</span>
                 </div>
                 <div id="rf_pages" style="margin-top:.4rem;padding:.35rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:22rem;overflow-y:auto"></div>
               </div>

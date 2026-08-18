@@ -2467,6 +2467,10 @@ var ALL_NAV_PAGES = ['dashboard','topology','wireless','interfaces','dhcp','vpn'
 // install allows, and what this session's role allows. Both must say yes.
 var _pageInstall = {};
 var _pageAccess  = null;   // null until caps arrive — unknown must not mean hidden
+// Routers is hidden on a single-router install. Starts true so the nav is not
+// blanked before the router list has loaded, matching how _pageAccess treats
+// "not known yet" as "allow".
+var _routersMultiple = true;
 
 // Alert thresholds — updated live from settings:pages broadcasts
 var _alertCpuThreshold = 90;
@@ -2519,7 +2523,10 @@ function applyPageVisibility(pages) {
     var sKey     = settingKeyFor[pageName];
     var byInstall = !sKey || pages[sKey] !== false;
     var byRole    = !_pageAccess || !!_pageAccess[pageName];
-    var visible   = byInstall && byRole;
+    // Routers is meaningless with one router, and that rule composes with the
+    // other two rather than overriding them.
+    var byCount   = pageName !== 'routers' || _routersMultiple;
+    var visible   = byInstall && byRole && byCount;
 
     // The user chip is no longer a match here: it carries no data-page at all
     // since the account modal replaced its navigation, so the sweep cannot
@@ -4596,6 +4603,79 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // EVERY non-streamed slider must appear in EVERY profile. A missing key sets
   // the slider to undefined and renders "NaNms" — which is what pollTopology,
   // pollVlans and pollPpp did until this was noticed. A drift guard in
+  // test/per-router-collection.test.js now fails if a slider is added without
+  // its profile values.
+  /* Canned view presets. Mirrors VIEW_PRESETS in src/pages.js; a drift test
+     compares the two, the same way ALL_NAV_PAGES is kept in step with the page
+     registry. Page KEYS, not settings keys: the role editor matrix below is
+     keyed on the page, and only the Visible Pages grid needs the translation.
+
+     Only the ON set is listed. Everything else is turned OFF, derived from the
+     grid itself — the polling profiles listed both halves and quietly stopped
+     covering seven sliders as pages were added. */
+  var VIEW_PRESETS = {
+    home:     ['wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth'],
+    standard: ['wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth',
+               'topology', 'dns', 'vlans', 'vpn', 'firewall', 'logs'],
+    advanced: null,   // filled below: every page that has a toggle
+  };
+  // Derived, so a page added to the nav joins Advanced by existing.
+  VIEW_PRESETS.advanced = Object.keys(PAGE_NAV_MAP).map(function (k) { return PAGE_NAV_MAP[k]; });
+  window._VIEW_PRESETS = VIEW_PRESETS;   // the role editor lives in another IIFE
+
+  var VIEW_PRESET_KEY = 'mkd_view_preset';
+
+  /** page key -> settings key, inverted from PAGE_NAV_MAP. */
+  function _settingKeyFor(pageKey) {
+    for (var k in PAGE_NAV_MAP) if (PAGE_NAV_MAP[k] === pageKey) return k;
+    return null;
+  }
+
+  /** Which preset the current checkbox state equals, or 'custom'. */
+  function _detectViewPreset() {
+    var names = ['home', 'standard', 'advanced'];
+    for (var i = 0; i < names.length; i++) {
+      var on = {}, match = true;
+      VIEW_PRESETS[names[i]].forEach(function (pg) { on[pg] = true; });
+      for (var sKey in PAGE_NAV_MAP) {
+        var el = $('s_' + sKey);
+        if (!el) continue;
+        if (el.checked !== !!on[PAGE_NAV_MAP[sKey]]) { match = false; break; }
+      }
+      if (match) return names[i];
+    }
+    return 'custom';
+  }
+
+  function _setViewPresetUI(name) {
+    document.querySelectorAll('.view-preset-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.viewPreset === name);
+    });
+    try { localStorage.setItem(VIEW_PRESET_KEY, name); } catch (e) {}
+  }
+
+  /* Ticks the boxes; it does NOT save. The page's own Save button carries them,
+     exactly as the poll sliders do. Nothing here can widen what a user sees:
+     these are install toggles, and the server still ANDs the role. */
+  function _applyViewPreset(name) {
+    var pages = VIEW_PRESETS[name];
+    if (pages) {
+      var on = {};
+      pages.forEach(function (pg) { on[pg] = true; });
+      for (var sKey in PAGE_NAV_MAP) {
+        var el = $('s_' + sKey);
+        if (el) el.checked = !!on[PAGE_NAV_MAP[sKey]];
+      }
+    }
+    _setViewPresetUI(name);
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.view-preset-btn') : null;
+    if (!btn || !btn.dataset.viewPreset) return;
+    _applyViewPreset(btn.dataset.viewPreset);
+  });
+
   var POLL_PROFILES = {
     fast:     { pollSystem:1000,  pollConns:1000,  pollTalkers:1000,  pollIfstatus:1000,  pollBandwidth:1000,  pollVpn:1000,  pollFirewall:1000,  pollPing:1000,  pollWireless:10000,  pollIfaces:10000,  pollDhcp:10000,
                 pollTopology:10000,  pollVlans:2000,  pollPpp:2000,  pollBridges:2000,  pollDns:5000,  pollCapsman:5000,  pollPackages:30000  },
@@ -5193,6 +5273,25 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       });
       return;
     }
+    /* View presets, the same three tiers offered in Settings → Visible Pages.
+       Sets READ on the tier's pages plus dashboard and clears everything else,
+       then leaves it to the admin — nothing is written until Save.
+
+       `settings` is deliberately never set, Advanced included: write on that
+       page confers system:settings, and a bulk-editor must not hand out system
+       administration as a side effect of clicking "Advanced". `reports` rides
+       with Standard and Advanced, being a history view rather than a status one. */
+    var preset = e.target.closest && e.target.closest('.rf-preset');
+    if (preset) {
+      e.preventDefault();
+      var tier  = preset.getAttribute('data-role-preset');
+      var pages = (window._VIEW_PRESETS || {})[tier] || [];
+      var want  = { dashboard: 'read' };
+      pages.forEach(function (pg) { want[pg] = 'read'; });
+      if (tier !== 'home') want.reports = 'read';
+      _renderRoleMatrix(want);
+      return;
+    }
     var ed = e.target.closest && e.target.closest('[data-role-edit]');
     if (ed) {
       var r = window._allRoles.find(function (x) { return x.id === ed.getAttribute('data-role-edit'); });
@@ -5636,6 +5735,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
+    // After the boxes are filled, not before: detection reads the DOM so the
+    // preset shown always matches what is actually ticked.
+    _setViewPresetUI(_detectViewPreset());
+    // Ticking a box by hand means the selection is no longer a named preset.
+    for (var _pk in PAGE_NAV_MAP) {
+      var _el = $('s_' + _pk);
+      if (_el && !_el._viewPresetBound) {
+        _el._viewPresetBound = true;
+        _el.addEventListener('change', function () { _setViewPresetUI(_detectViewPreset()); });
+      }
+    }
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) pingEnabledEl.checked = data.pingEnabled !== false;
     var rosDebugEl = $('s_rosDebug'); if (rosDebugEl) rosDebugEl.checked = !!data.rosDebug;
     var unEnabledEl = $('s_userNotifyEnabled'); if (unEnabledEl) unEnabledEl.checked = !!data.userNotifyEnabled;
@@ -7222,8 +7332,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       navSel.value = _activeRouterId || (navSel.options[0] && navSel.options[0].value) || '';
     }
     if (ddWrap) ddWrap.style.display = 'flex';
-    var navRouters = $('nav-routers');
-    if (navRouters) navRouters.style.display = _routers.length > 1 ? '' : 'none';
+    // The router count is a third input to page visibility, not a second writer
+    // of the same style property: applyPageVisibility() also sets display on
+    // this element, so writing it here directly meant whichever ran last won —
+    // the Visible Pages toggle and the single-router rule fighting each other.
+    _routersMultiple = _routers.length > 1;
+    applyPageVisibility();
     updateDropdownLabel();
     if (_ddOpen) renderDropdown();
   }
