@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test --test-force-exit",
+    "test": "node --test",
     "lint": "eslint src/ public/app.js"
   },
   "overrides": {

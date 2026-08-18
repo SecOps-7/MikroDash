@@ -38,7 +38,7 @@ jobs:
         run: |
           docker run --rm --entrypoint node \
             -v "$PWD/test:/app/test:ro" \
-            mikrodash:ci --test --test-force-exit '/app/test/*.test.js'
+            mikrodash:ci --test '/app/test/*.test.js'
 
       # Catches startup-only failures the suite cannot see: src/index.js is not
       # covered by any test, so a bad config value or a dependency behaviour

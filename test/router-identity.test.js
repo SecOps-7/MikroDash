@@ -9,6 +9,10 @@
 
 const test   = require('node:test');
 const assert = require('node:assert');
+// Stops every collector these tests construct once the file finishes; without
+// it their timers keep the test process alive. See the helper for why that
+// made the reported test count unstable.
+const { track } = require('./helpers/collector-cleanup');
 const fs     = require('fs');
 const os     = require('os');
 const path   = require('path');
@@ -135,7 +139,7 @@ test('getPublic exposes identity to the browser but still masks the password', (
 
 // ── Collector reporting ──────────────────────────────────────────────────────
 
-const SystemCollector = require('../src/collectors/system');
+const SystemCollector = track(require('../src/collectors/system'));
 
 function makeSystemCollector() {
   const chain = { emit() {} }; chain.to = () => chain;
