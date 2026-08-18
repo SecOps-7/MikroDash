@@ -6965,6 +6965,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
      One entry per protocol. Adding a fourth is a line here plus a button and a
      panel in the markup, which is the whole point of the strip. */
   var RT_TABS = { routes: renderRoutes, bgp: render };
+  // The card is shared, so its title and its filter group belong to whichever
+  // tab is showing.
+  var RT_TAB_META = {
+    routes: { title: 'Static & Dynamic Routes', filters: 'rtRoutesFilters' },
+    bgp:    { title: 'BGP Peers',               filters: 'rtPeersFilters'  },
+  };
   var _rtTab  = 'routes';
 
   /* Render whichever panel is on screen.
@@ -6997,6 +7003,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         p.classList.toggle('active', p.id === 'rttab-' + key);
       });
     }
+    var title = $('rtCardTitle');
+    if (title && RT_TAB_META[key]) title.textContent = RT_TAB_META[key].title;
+    Object.keys(RT_TAB_META).forEach(function (k) {
+      var f = $(RT_TAB_META[k].filters);
+      if (f) f.hidden = k !== key;
+    });
     renderActiveTab();
   }
 
