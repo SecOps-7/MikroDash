@@ -37,6 +37,7 @@ const PAGES = Object.freeze([
   { key: 'bridges',     title: 'Bridges',          settingsKey: 'pageBridges',     streamRooms: [] },
   { key: 'vpn',         title: 'VPN',              settingsKey: 'pageVpn',         streamRooms: ['page-vpn', 'dash-card-vpn'] },
   // streamRooms is empty for ppp, vlans, capsman, bridges, dns, packages and
+  // rosusers:
   // none of those collectors holds a /listen, and this list means "pages with a
   // suspendable counter stream". They are suspended by the idle gate instead,
   // and page:focus replays them explicitly.
@@ -47,6 +48,7 @@ const PAGES = Object.freeze([
   { key: 'firewall',    title: 'Firewall',         settingsKey: 'pageFirewall',    streamRooms: ['page-firewall', 'dash-card-firewall'] },
   { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [] },
   { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: [] },
+  { key: 'rosusers',    title: 'Router Users',     settingsKey: 'pageRosusers',    streamRooms: [] },
   // Audit sits next to Reports because both are history, but it is not one of
   // its tabs: Reports is per-router telemetry gated on router:history, and half
   // the audit rows have no router at all. Its rows are filtered per row instead.

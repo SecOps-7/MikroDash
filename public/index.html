@@ -1592,6 +1592,8 @@
     <a class="nav-item" data-page="packages" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7.5 12 12.5l8.7-5"/><path d="M12 12.5V21"/></svg></span>
       <span class="nav-label">Packages</span>
+    </a>
+    <a class="nav-item" data-page="rosusers" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-1.5-1.5"/></svg></span>
       <span class="nav-label">Router Users</span>
     </a>
@@ -3212,9 +3214,175 @@
           <div id="pkgFwBody" class="kv-grid"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
             <div class="data-scroll" style="max-height:calc(100vh - 440px);overflow-y:auto">
             <div class="data-scroll" style="max-height:calc(100vh - 440px);overflow-y:auto">
+        </div>
+       </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="page-view" id="page-rosusers">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Users</div><div class="fa-stat-val" id="ruSumUsers" style="color:var(--accent-blue)">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Groups</div><div class="fa-stat-val" id="ruSumGroups">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Active Sessions</div><div class="fa-stat-val" id="ruSumSessions">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">MikroDash Connects As</div><div class="fa-stat-val" id="ruSumSelf" style="font-size:1.1rem">&mdash;</div></div>
+      </div>
+
+      <!-- A banner, not a silent empty table. The documented monitoring group
+           denies `policy`, and RouterOS gates /user behind it, so "this router
+           will not tell us" is the common case and needs to say so. -->
+      <div class="card" id="ruNoticeCard" style="display:none">
+        <div class="card-body" id="ruNotice" style="font-size:.82rem"></div>
+      </div>
+
+      <div class="card" id="rosusersCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="stab-bar brtab-bar" id="ruTabBar" role="tablist" aria-label="Router user tables">
+            <button class="stab active" data-rutab="users" role="tab" aria-selected="true"
+                    aria-controls="rutab-users" id="ruTabBtn-users">Users
+              <span id="ruUserBadge" class="card-badge">0</span></button>
+            <button class="stab" data-rutab="groups" role="tab" aria-selected="false"
+                    aria-controls="rutab-groups" id="ruTabBtn-groups">Groups
+              <span id="ruGroupBadge" class="card-badge">0</span></button>
+            <button class="stab" data-rutab="sessions" role="tab" aria-selected="false"
+                    aria-controls="rutab-sessions" id="ruTabBtn-sessions">Sessions
+              <span id="ruSessionBadge" class="card-badge">0</span></button>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span id="ruActionNote" class="muted-note"></span>
+            <input id="ruSearch" class="form-control form-control-sm"
+                   placeholder="Search&hellip;" style="flex:0 1 220px;width:220px"/>
+            <button class="sbtn sbtn-primary" id="ruAddBtn" style="padding:.32rem .7rem;font-size:.72rem">Add User</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+
+          <div class="brtab-panel active" id="rutab-users" role="tabpanel" aria-labelledby="ruTabBtn-users">
             <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:900px">
+                <colgroup><col style="width:20%"><col style="width:15%"><col style="width:15%">
+                          <col style="width:17%"><col style="width:13%"><col style="width:20%"></colgroup>
+                <thead><tr id="ruUserThead"></tr></thead>
+                <tbody id="ruUserTable">
+                  <tr><td colspan="6" class="empty-state">Waiting for user data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="brtab-panel" id="rutab-groups" role="tabpanel" aria-labelledby="ruTabBtn-groups">
             <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:900px">
+                <colgroup><col style="width:18%"><col style="width:44%"><col style="width:9%"><col style="width:29%"></colgroup>
+                <thead><tr id="ruGroupThead"></tr></thead>
+                <tbody id="ruGroupTable">
+                  <tr><td colspan="4" class="empty-state">Waiting for group data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="brtab-panel" id="rutab-sessions" role="tabpanel" aria-labelledby="ruTabBtn-sessions">
             <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
+                <colgroup><col style="width:20%"><col style="width:20%"><col style="width:13%">
+                          <col style="width:16%"><col style="width:16%"><col style="width:15%"></colgroup>
+                <thead><tr id="ruSessionThead"></tr></thead>
+                <tbody id="ruSessionTable">
+                  <tr><td colspan="6" class="empty-state">Waiting for session data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Add / edit a router user ──────────────────────────────────── -->
+      <div class="rtr-modal-bg" id="ruUserFormWrap">
+       <div class="rtr-modal pmodal">
+        <div class="rtr-modal-hdr">
+          <span class="rtr-modal-title" id="ruf_title">Add Router User</span>
+          <button class="rtr-modal-close" data-modal-close="ruUserFormWrap" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="rtr-modal-body">
+          <input type="hidden" id="ruf_id">
+          <input type="hidden" id="ruf_expectedName">
+          <div class="sform-row">
+            <div>
+              <label class="sform-label">Username</label>
+              <input class="sform-input" id="ruf_name" type="text" placeholder="username" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">Group</label>
+              <select class="sform-input" id="ruf_group"></select>
+            </div>
+          </div>
+          <div class="sform-row" style="margin-top:.6rem">
+            <div>
+              <label class="sform-label">Password <span id="ruf_passHint" style="font-weight:400;text-transform:none;letter-spacing:0">(leave blank to keep)</span></label>
+              <input class="sform-input" id="ruf_password" type="password" placeholder="Password" autocomplete="new-password">
+            </div>
+            <div>
+              <!-- The router treats an empty value as "from anywhere". Saying so
+                   beats an empty box that looks like a field somebody forgot. -->
+              <label class="sform-label">Allowed From <span style="font-weight:400;text-transform:none;letter-spacing:0">(blank = anywhere)</span></label>
+              <input class="sform-input" id="ruf_address" type="text" placeholder="10.0.0.0/24" autocomplete="off">
+            </div>
+          </div>
+          <div style="margin-top:.6rem">
+            <label class="sform-label">Comment</label>
+            <input class="sform-input" id="ruf_comment" type="text" placeholder="Optional" autocomplete="off">
+          </div>
+          <label class="stoggle" style="margin-top:.7rem">
+            <span class="stoggle-label">Disabled</span>
+            <span class="stoggle-switch"><input type="checkbox" id="ruf_disabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+          <div class="login-error" id="ruf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+        </div>
+        <div class="rtr-modal-footer">
+          <button class="sbtn sbtn-outline" data-modal-close="ruUserFormWrap">Cancel</button>
+          <button class="sbtn sbtn-primary" id="ruf_save">Save User</button>
+        </div>
+       </div>
+      </div>
+
+      <!-- ── Add / edit a group ────────────────────────────────────────── -->
+      <div class="rtr-modal-bg" id="ruGroupFormWrap">
+       <div class="rtr-modal pmodal">
+        <div class="rtr-modal-hdr">
+          <span class="rtr-modal-title" id="rgf_title">Add Group</span>
+          <button class="rtr-modal-close" data-modal-close="ruGroupFormWrap" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="rtr-modal-body">
+          <input type="hidden" id="rgf_id">
+          <input type="hidden" id="rgf_expectedName">
+          <div class="sform-row">
+            <div>
+              <label class="sform-label">Group name</label>
+              <input class="sform-input" id="rgf_name" type="text" placeholder="group-name" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">Comment</label>
+              <input class="sform-input" id="rgf_comment" type="text" placeholder="Optional" autocomplete="off">
+            </div>
+          </div>
+          <div style="margin-top:.7rem">
+            <!-- Rendered from the payload's policy list, not a copy in app.js: a
+                 policy the page does not know about is one an operator cannot
+                 see they are removing. -->
+            <label class="sform-label">Permissions</label>
+            <div id="rgf_policies" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.35rem .6rem;padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem"></div>
+          </div>
+          <div class="login-error" id="rgf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+        </div>
+        <div class="rtr-modal-footer">
+          <button class="sbtn sbtn-outline" data-modal-close="ruGroupFormWrap">Cancel</button>
+          <button class="sbtn sbtn-primary" id="rgf_save">Save Group</button>
         </div>
        </div>
       </div>
@@ -4310,6 +4478,7 @@
               <label class="stoggle"><span class="stoggle-label">DNS</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDns"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Packages</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePackages"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Routers</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouters"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Router Users</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRosusers"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Audit</span><span class="stoggle-switch"><input type="checkbox" id="s_pageAudit"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

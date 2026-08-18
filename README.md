@@ -258,6 +258,24 @@ Two pages change router configuration, and each needs more than `read`:
 | Page | Needs | What it can do |
 |---|---|---|
 | **Packages** | `write` | Schedule a package enable/disable/uninstall, and reboot to apply |
+> `/ip/firewall/filter`.
+
+Grant them only if you want those pages, and understand the trade: **`policy` is the permission that
+governs user management, so an account holding it can create router users.** That is a real increase
+in what a compromised MikroDash could do. It is your call to make deliberately, not a default.
+
+```
+/user group set [find name=mikrodash] policy=read,write,policy,api,test,!local,!telnet,!ssh,!ftp,!reboot,!winbox,!web,!sniff,!sensitive,!romon,!rest-api
+```
+
+Without them nothing breaks: both pages detect the refusal, drop to read-only and show the command
+above rather than failing silently. Each page also has an install-wide toggle under
+**Settings → Visible Pages**, and per-user access is controlled by roles.
+
+MikroDash will not let you edit the account it signs in with, or that account's group, from the
+Router Users page — that is the one change that could lock the dashboard out of the router with no
+way back. Use WinBox for those.
+
 ### Enabling TLS (API-SSL)
 
 MikroDash supports encrypted connections to the RouterOS API over `api-ssl` (default port 8729). You can use a self-signed certificate — no external CA or purchased certificate is required.
