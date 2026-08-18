@@ -2457,6 +2457,7 @@ var PAGE_NAV_MAP = {
   pageBandwidth:'bandwidth', pageRouting:'routing', pageTopology:'topology',
   pageVlans:'vlans', pagePpp:'ppp',
   pageCapsman:'capsman', pageBridges:'bridges', pageDns:'dns', pagePackages:'packages',
+  pageRouters:'routers', pageAudit:'audit',
 };
 // Every page the nav can show. Kept in step with src/pages.js — the drift check
 // lives in test/page-registry.test.js.
@@ -12269,5 +12270,189 @@ function _renderRoutersMap(rows) {
       'Type the router name to confirm: ' + name);
     if (typed === null) return;
     socket.emit('packages:apply', { confirm: typed });
+  });
+}());
+
+/* ── Audit page ───────────────────────────────────────────────────────────────
+   Rows are filtered server-side, per row: app-scope events need system
+   administration, router events need history on that router. The page shows
+   whatever came back and says so when that is nothing — an empty audit log for
+   a reader who may not see it is a legitimate answer, not an error. */
+(function () {
+  var tbody = $('auditTable'), theadRow = $('auditThead');
+  if (!tbody || !theadRow) return;
+
+  /* The Reports page has a fmtTs, but it lives inside that IIFE. Rather than
+     hoist a function this page is the only other user of, this formats locally
+     from the same _displayTimezone global the topbar clock reads. */
+  function fmtTs(ts) {
+    if (!ts) return '—';
+    var d = new Date(ts);
+    if (_displayTimezone) {
+      return new Intl.DateTimeFormat('sv-SE', {
+        timeZone: _displayTimezone, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+      }).format(d).replace(' ', ' ');
+    }
+    var p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
+           p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  var _rows = [], _total = 0, _offset = 0, _facets = { actors: [], actions: [] };
+  var PAGE = 200;
+  var _sort = { col: 'ts', dir: -1 };
+
+  var COLS = [
+    { key:'ts',      label:'When' },
+    { key:'actor',   label:'Who' },
+    { key:'ip',      label:'From' },
+    { key:'action',  label:'Action' },
+    { key:'target',  label:'Target' },
+    { key:'outcome', label:'Result' },
+    { key:'detail',  label:'Detail' },
+  ];
+
+  function outcomeCell(o) {
+    if (o === 'denied') return '<span class="wl-band wl-band-24">refused</span>';
+    if (o === 'failed') return '<span class="wl-band wl-band-24">failed</span>';
+    return '<span class="wl-band wl-band-6">ok</span>';
+  }
+
+  /* The stored detail is JSON. Rendered as "field: from → to" so a settings
+     change reads as a change, not as a blob — and a redacted credential shows
+     the marker the server wrote, never a value. */
+  function detailCell(raw) {
+    if (!raw) return '<span style="color:var(--text-muted)">&mdash;</span>';
+    var d;
+    try { d = JSON.parse(raw); } catch (e) { return esc(String(raw).slice(0, 120)); }
+    var bits = [];
+    (d.changes || []).slice(0, 4).forEach(function (c) {
+      bits.push('<span style="color:var(--text-muted)">' + esc(c.field) + '</span> ' +
+                esc(_short(c.from)) + ' &rarr; ' + esc(_short(c.to)));
+    });
+    if ((d.changes || []).length > 4) bits.push('+' + (d.changes.length - 4) + ' more');
+    Object.keys(d).forEach(function (k) {
+      if (k === 'changes' || k === 'note') return;
+      bits.push('<span style="color:var(--text-muted)">' + esc(k) + '</span> ' + esc(_short(d[k])));
+    });
+    if (d.note) bits.push('<span style="color:var(--text-muted)">' + esc(d.note) + '</span>');
+    return bits.join(' &middot; ') || '<span style="color:var(--text-muted)">&mdash;</span>';
+  }
+  function _short(v) {
+    if (v === null || v === undefined) return '—';
+    var s = typeof v === 'string' ? v : JSON.stringify(v);
+    return s.length > 40 ? s.slice(0, 40) + '…' : s;
+  }
+
+  function flat(r) {
+    return {
+      ts: r.ts, actor: r.actor_name || '', ip: r.actor_ip || '',
+      action: r.action || '', target: r.target_name || r.target_id || '',
+      outcome: r.outcome || '', detail: r.detail || '', router_id: r.router_id || '',
+    };
+  }
+
+  function render() {
+    _renderSortHeader('auditThead', COLS, _sort, function (key) {
+      _sort.dir = _sort.col === key ? -_sort.dir : 1;
+      _sort.col = key; render();
+    });
+
+    var rows = _rows.map(flat).sort(function (a, b) {
+      var av = a[_sort.col], bv = b[_sort.col];
+      if (typeof av === 'string') return _sort.dir * av.localeCompare(bv);
+      return _sort.dir * ((av || 0) - (bv || 0));
+    });
+
+    $('auditBadge').textContent = _total;
+    $('auditBadge').className = 'card-badge' + (_total ? ' active-blue' : '');
+
+    tbody.innerHTML = rows.length ? rows.map(function (r) {
+      return '<tr>' +
+        '<td>' + esc(fmtTs(r.ts)) + '</td>' +
+        '<td>' + (r.actor === 'system'
+                   ? '<span style="color:var(--text-muted)">system</span>' : esc(r.actor)) + '</td>' +
+        '<td class="mono" style="color:var(--text-muted)">' + esc(r.ip || '—') + '</td>' +
+        '<td>' + esc(r.action) + '</td>' +
+        '<td>' + (r.target ? esc(r.target) : '<span style="color:var(--text-muted)">&mdash;</span>') +
+          (r.router_id ? ' <span class="wl-band wl-band-5">router</span>' : '') + '</td>' +
+        '<td>' + outcomeCell(r.outcome) + '</td>' +
+        '<td>' + detailCell(r.detail) + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="7" class="empty-state">' +
+      (_offset ? 'No more events.' : 'No audit events visible to you yet.') + '</td></tr>';
+
+    var lbl = $('auPageLbl');
+    if (lbl) {
+      var first = _total ? _offset + 1 : 0;
+      lbl.textContent = _total ? (first + '–' + Math.min(_offset + PAGE, _total) + ' of ' + _total) : '';
+    }
+    $('auPrev').disabled = _offset <= 0;
+    $('auNext').disabled = _offset + PAGE >= _total;
+  }
+
+  function renderSummary() {
+    $('auSumTotal').textContent  = _total;
+    $('auSumDenied').textContent = _rows.filter(function (r) { return r.outcome === 'denied'; }).length;
+    $('auSumActors').textContent = _facets.actors.length;
+    $('auSumNewest').textContent = _rows.length ? fmtTs(_rows[0].ts) : '—';
+  }
+
+  function query() {
+    var p = new URLSearchParams();
+    if ($('auActor').value)   p.set('actor',   $('auActor').value);
+    if ($('auAction').value)  p.set('action',  $('auAction').value);
+    if ($('auOutcome').value) p.set('outcome', $('auOutcome').value);
+    if ($('auSearch').value)  p.set('search',  $('auSearch').value.trim());
+    p.set('limit', PAGE); p.set('offset', _offset);
+    return p;
+  }
+
+  function load() {
+    var p = query();
+    fetch('/api/audit?' + p.toString(), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) return;
+        _rows = d.rows || []; _total = d.total || 0;
+        if (d.facets) { _facets = d.facets; fillFacets(); }
+        var note = $('auditNote');
+        // Say plainly that the view is partial rather than letting a filtered
+        // list look like the whole trail.
+        if (note) note.textContent = _total > PAGE ? 'showing ' + PAGE + ' at a time' : '';
+        renderSummary();
+        render();
+        var ex = new URLSearchParams(query()); ex.delete('limit'); ex.delete('offset');
+        $('auCsvLink').href = '/api/audit/export?format=csv&' + ex.toString();
+        $('auPdfLink').href = '/api/audit/export?format=pdf&' + ex.toString();
+      })
+      .catch(function () {});
+  }
+
+  function fillFacets() {
+    [['auActor', _facets.actors, 'All actors'], ['auAction', _facets.actions, 'All actions']]
+      .forEach(function (spec) {
+        var el = $(spec[0]); if (!el) return;
+        var keep = el.value;
+        el.innerHTML = '<option value="">' + spec[2] + '</option>' +
+          spec[1].map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('');
+        el.value = keep;
+      });
+  }
+
+  ['auActor', 'auAction', 'auOutcome'].forEach(function (id) {
+    var el = $(id);
+    if (el) el.addEventListener('change', function () { _offset = 0; load(); });
+  });
+  var se = $('auSearch');
+  if (se) se.addEventListener('input', _debounce(function () { _offset = 0; load(); }, 250));
+  $('auPrev').addEventListener('click', function () { _offset = Math.max(0, _offset - PAGE); load(); });
+  $('auNext').addEventListener('click', function () { _offset = _offset + PAGE; load(); });
+
+  // Fetched on entry rather than streamed: the trail is history, and a page that
+  // reloads itself while being read is worse than one that does not.
+  document.addEventListener('mikrodash:pagechange', function (e) {
+    if (e.detail === 'audit') { _offset = 0; load(); }
   });
 }());

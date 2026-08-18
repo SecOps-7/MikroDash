@@ -1592,6 +1592,13 @@
     <a class="nav-item" data-page="packages" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7.5 12 12.5l8.7-5"/><path d="M12 12.5V21"/></svg></span>
       <span class="nav-label">Packages</span>
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-1.5-1.5"/></svg></span>
+      <span class="nav-label">Router Users</span>
+    </a>
+    <a class="nav-item" data-page="audit" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8 12h5"/><path d="M8 16h8"/></svg></span>
+      <span class="nav-label">Audit</span>
+    </a>
     <a class="nav-item" data-page="reports" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
       <span class="nav-label">Reports</span>
@@ -3208,6 +3215,29 @@
             <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
             <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
             <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+        </div>
+       </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="page-view" id="page-audit">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Events</div><div class="fa-stat-val" id="auSumTotal">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Refused</div><div class="fa-stat-val" id="auSumDenied">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Actors</div><div class="fa-stat-val" id="auSumActors">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Newest</div><div class="fa-stat-val" id="auSumNewest">&mdash;</div></div>
+      </div>
+
+      <div class="card" id="auditCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Audit Trail</h3>
+            <span id="auditBadge" class="card-badge">0</span>
+            <span id="auditNote" class="muted-note"></span>
           </div>
           <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
             <select class="form-select form-select-sm" id="auActor" style="width:150px;flex:0 0 auto;font-size:.74rem" aria-label="Actor filter">
@@ -3229,6 +3259,27 @@
         </div>
         <div class="card-body p-0">
           <div class="data-scroll" style="max-height:calc(100vh - 330px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:960px">
+              <colgroup><col style="width:13%"><col style="width:11%"><col style="width:11%"><col style="width:15%">
+                        <col style="width:16%"><col style="width:9%"><col style="width:25%"></colgroup>
+              <thead><tr id="auditThead"></tr></thead>
+              <tbody id="auditTable">
+                <tr><td colspan="7" class="empty-state">Waiting for audit data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-2" style="margin-top:.6rem">
+        <button id="auPrev" class="btn btn-sm btn-outline-secondary">&larr; Newer</button>
+        <span id="auPageLbl" class="muted-note"></span>
+        <button id="auNext" class="btn btn-sm btn-outline-secondary">Older &rarr;</button>
+      </div>
+
+    </div>
+  </div>
+
   <div class="page-view" id="page-reports">
     <div>
 
@@ -4259,6 +4310,7 @@
               <label class="stoggle"><span class="stoggle-label">DNS</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDns"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Packages</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePackages"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Routers</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouters"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Audit</span><span class="stoggle-switch"><input type="checkbox" id="s_pageAudit"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
