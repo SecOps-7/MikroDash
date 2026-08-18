@@ -39,12 +39,63 @@ test('registry covers every collector the session builds, exactly once', () => {
   assert.deepEqual(COLLECTORS.map(c => c.sessionProp).sort(), [...sessionProps].sort());
 });
 
+test('every polling profile covers every slider it can move', () => {
+  // The bug this exists for: POLL_PROFILES carried 11 keys while POLL_SLIDERS
+  // had grown to 18, so picking a preset wrote `undefined` into seven sliders
+  // and rendered "NaNms". Nothing failed — the page just quietly lied.
+  const fs   = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  const sliders = [...src.matchAll(/\{ key:'(poll[A-Za-z]+)',[^}]*\}/g)].map(m => m[1]);
+  assert.ok(sliders.length >= 18, 'found the slider list (' + sliders.length + ')');
+
+  const profBlock = src.match(/var POLL_PROFILES = \{([\s\S]*?)\n  \};/);
+  assert.ok(profBlock, 'found POLL_PROFILES');
+  const profiles = [...profBlock[1].matchAll(/(\w+):\s*\{([\s\S]*?)\},/g)];
+  assert.strictEqual(profiles.length, 5, 'five canned profiles');
+
+  for (const [, name, body] of profiles) {
+    const keys = new Set([...body.matchAll(/(poll[A-Za-z]+):/g)].map(m => m[1]));
+    const missing = sliders.filter(k => !keys.has(k));
+    assert.deepStrictEqual(missing, [], 'profile "' + name + '" is missing ' + missing.join(', '));
+  }
+});
+
+test('every poll slider is a real, saveable setting', () => {
+  // The other half of the same class of bug: a slider whose key is not in
+  // POLL_BOUNDS, or not in the /api/settings intFields map, moves and saves
+  // nothing. pollTopology, pollVlans and pollPpp were all in that state.
+  const fs   = require('fs');
+  const path = require('path');
+  const src  = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const idx  = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const Settings = require('../src/settings');
+
+  const sliders = [...src.matchAll(/\{ key:'(poll[A-Za-z]+)',[^}]*\}/g)].map(m => m[1]);
+  const intFields = idx.match(/const intFields = \{([\s\S]*?)\n    \};/);
+  assert.ok(intFields, 'found intFields');
+  const pollMap = idx.match(/const pollMap = \{([\s\S]*?)\};/);
+  assert.ok(pollMap, 'found pollMap');
+
+  for (const key of sliders) {
+    assert.ok(Settings.DEFAULTS[key] !== undefined, key + ' has a default');
+    assert.ok(Settings.POLL_BOUNDS[key], key + ' has bounds');
+    assert.ok(intFields[1].includes(key + ':'), key + ' is accepted by POST /api/settings');
+    // Either through pollMap (which sets collector.pollMs) or through a
+    // dedicated branch — pollIfaces sets ifStatus.metaPollMs, so it cannot use
+    // pollMap and has its own. What matters is that SOMETHING applies it.
+    const applied = pollMap[1].includes(key + ':') || idx.includes("'" + key + "' in updates");
+    assert.ok(applied, key + ' is applied to a live collector');
+  }
+});
+
 test('protected collectors are the ones other collectors read unguarded', () => {
   const protectedKeys = COLLECTORS.filter(c => !c.disableable).map(c => c.key).sort();
   // arp/dhcpLeases/dhcpNetworks are read without a null guard by connections.js;
   // traffic feeds stored history; system feeds identity, the update check and CPU alerts.
   assert.deepEqual(protectedKeys, ['arp','dhcpLeases','dhcpNetworks','system','traffic']);
-  assert.equal(DISABLEABLE.length, 12);
+  assert.equal(DISABLEABLE.length, 20);
 });
 
 // ── Defaults and inheritance ─────────────────────────────────────────────────

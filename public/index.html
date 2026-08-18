@@ -547,6 +547,27 @@
     .iface-tile{position:relative}
     .iface-spark{position:absolute;top:.35rem;right:.4rem;pointer-events:none;opacity:.75;
                  width:calc(var(--if-spark-w) * var(--if-scale));height:calc(18px * var(--if-scale))}
+
+    /* ── VLANs: stacked RX/TX cell ──────────────────────────────── */
+
+    .vlan-rate{display:flex;flex-direction:column;gap:.12rem}
+    .vlan-rate-line{display:flex;align-items:center;gap:.35rem;line-height:1.15}
+    /* The arrow carries the same colour as the value it points at, so direction
+       and rate read as one thing rather than two. */
+    .vlan-rate-arrow{width:.6rem;flex-shrink:0;font-size:.7rem}
+    .vlan-rate-arrow.rx{color:var(--accent-rx)}
+    .vlan-rate-arrow.tx{color:var(--accent-tx,#f59f00)}
+    .vlan-rate-arrow.zero{color:var(--text-muted)}
+    .vlan-rate-val{min-width:5.4rem;text-align:right;white-space:nowrap;font-size:.72rem}
+    .vlan-rate-val.rx{color:var(--accent-rx)}
+    .vlan-rate-val.tx{color:var(--accent-tx,#f59f00)}
+    .vlan-rate-val.zero{color:var(--text-muted)}
+    .vlan-spark{flex-shrink:0;opacity:.8}
+    .vlan-spark.rx{color:var(--accent-rx)}
+    .vlan-spark.tx{color:var(--accent-tx,#f59f00)}
+    /* Holds the row height steady before enough samples exist to draw a line,
+       so rows do not jump as the first sparklines appear. */
+    .vlan-spark-slot{width:56px;height:14px;flex-shrink:0}
     /* ── Interfaces: list view ─────────────────────────────────── */
     /* Wide table, so it scrolls inside its own container rather than pushing
        the page sideways. */
@@ -1160,6 +1181,8 @@
     /* These two are read as a pair — where you are, and where to move to — so
        they carry the same blue and green as the chart marks them with. */
     #faCurChan{color:var(--accent-rx)}
+    /* Each page's key metric carries the accent the same way the current channel
+       does above: VLAN count on the VLANs page, session count on PPP. */
     #faBestChan{color:rgba(74,222,128,.95)}
     .fa-stat-unit{font-size:.62rem;color:var(--text-muted);margin-left:.15rem;font-weight:400}
     .fa-section-title{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0 0 .5rem}
@@ -1449,9 +1472,19 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
       <span class="nav-label">DHCP</span>
     </a>
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 2.5 15.3 0 18"/><path d="M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg></span>
+      <span class="nav-label">DNS</span>
+    </a>
+    <a class="nav-item" data-page="vlans" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="15" width="18" height="5" rx="1"/><path d="M7 9v6"/><path d="M17 9v6"/></svg></span>
+      <span class="nav-label">VLANs</span>
     <a class="nav-item" data-page="vpn" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h8"/><path d="M16 10v4"/><path d="M19 9v6"/></svg></span>
       <span class="nav-label">VPN</span>
+    </a>
+    <a class="nav-item" data-page="ppp" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 7h10a4 4 0 0 1 0 8H8"/><path d="M11 12l-3 3 3 3"/><circle cx="19" cy="7" r="2"/></svg></span>
+      <span class="nav-label">PPP</span>
     </a>
     <a class="nav-item" data-page="connections" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
@@ -2381,6 +2414,103 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+                <tr><td colspan="5" class="empty-state">Waiting for static entries&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="page-view" id="page-vlans">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">VLANs</div>
+          <div class="fa-stat-val" id="vlSumCount">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Tagged Ports</div>
+          <div class="fa-stat-val" id="vlSumTagged">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Untagged Ports</div>
+          <div class="fa-stat-val" id="vlSumUntagged">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Total Throughput</div>
+          <div class="fa-stat-val" id="vlSumRate">&mdash;</div>
+        </div>
+      </div>
+
+      <div class="card" id="vlansCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">VLANs</h3>
+            <span id="vlansBadge" class="card-badge">0</span>
+          </div>
+          <input id="vlansSearch" class="form-control form-control-sm"
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
+              <colgroup><col style="width:6%"><col style="width:13%"><col style="width:9%"><col style="width:6%">
+                        <col style="width:18%"><col style="width:19%"><col style="width:7%"><col style="width:22%"></colgroup>
+              <thead><tr id="vlansThead"></tr></thead>
+              <tbody id="vlansTable">
+                <tr><td colspan="8" class="empty-state">Waiting for VLAN data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="vlansBridgeCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Bridge VLAN Table</h3>
+            <span id="vlansBridgeBadge" class="card-badge">0</span>
+          </div>
+          <label class="d-flex align-items-center gap-2" style="font-size:.7rem;color:var(--text-muted);cursor:pointer">
+            <input type="checkbox" id="vlansShowDynamic"> Show dynamic rows
+            <span id="vlansDynChip" class="card-badge">0</span>
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:700px">
+              <colgroup><col style="width:14%"><col style="width:16%"><col style="width:28%"><col style="width:28%"><col style="width:14%"></colgroup>
+              <thead><tr><th>Bridge</th><th>VLAN IDs</th><th>Tagged</th><th>Untagged</th><th>Type</th></tr></thead>
+              <tbody id="vlansBridgeTable">
+                <tr><td colspan="5" class="empty-state">Waiting for bridge VLAN data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PPP -->
+  <div class="page-view" id="page-ppp">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
+              <colgroup><col style="width:16%"><col style="width:10%"><col style="width:14%"><col style="width:15%">
+                        <col style="width:11%"><col style="width:17%"><col style="width:17%"></colgroup>
+              <thead><tr id="pppThead"></tr></thead>
+              <tbody id="pppTable">
+                <tr><td colspan="7" class="empty-state">Waiting for PPP data&hellip;</td></tr>
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:640px">
+              <colgroup><col style="width:14%"><col style="width:22%"><col style="width:22%"><col style="width:22%"><col style="width:20%"></colgroup>
+              <thead><tr><th>Kind</th><th>Name</th><th>Interface / Local</th><th>Detail</th><th>State</th></tr></thead>
+              <tbody id="pppServerTable">
+                <tr><td colspan="5" class="empty-state">Waiting for PPP configuration&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -3719,6 +3849,8 @@
               <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">DHCP</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDhcp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">VPN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">VLANs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVlans"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">PPP</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePpp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

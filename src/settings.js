@@ -105,6 +105,10 @@ const DEFAULTS = {
   pollArp:           parseInt(process.env.ARP_POLL_MS       || '30000', 10),
   pollDhcp:          parseInt(process.env.DHCP_POLL_MS      || '600000', 10),
   pollTopology:      parseInt(process.env.TOPOLOGY_POLL_MS  || '30000', 10),
+  // VLAN and PPP config is near-static; what moves is the rate/session half,
+  // and that costs no router I/O (VLAN rates are read from ifStatus in memory).
+  pollVlans:         parseInt(process.env.VLANS_POLL_MS     || '5000', 10),
+  pollPpp:           parseInt(process.env.PPP_POLL_MS       || '5000', 10),
 
   // Custom poll profile — JSON string of {pollSystem:N,...} saved by user; empty = not configured
   customPollProfile: '',
@@ -196,6 +200,8 @@ const DEFAULTS = {
   pageLogs:        true,
   pageBandwidth:   true,
   pageTopology:    true,
+  pageVlans:       true,
+  pagePpp:         true,
 
   // Set once by the #105 migration, then never read again.
   collectionMigrated: false,
@@ -242,6 +248,8 @@ const ENV_MAP = {
   pollArp:           ['ARP_POLL_MS',          v => parseInt(v, 10)],
   pollDhcp:          ['DHCP_POLL_MS',         v => parseInt(v, 10)],
   pollTopology:      ['TOPOLOGY_POLL_MS',     v => parseInt(v, 10)],
+  pollVlans:         ['VLANS_POLL_MS',        v => parseInt(v, 10)],
+  pollPpp:           ['PPP_POLL_MS',          v => parseInt(v, 10)],
   topN:              ['TOP_N',                v => parseInt(v, 10)],
   topTalkersN:       ['TOP_TALKERS_N',        v => parseInt(v, 10)],
   firewallTopN:      ['FIREWALL_TOP_N',       v => parseInt(v, 10)],
@@ -274,6 +282,7 @@ const POLL_BOUNDS = Object.freeze({
   pollVpn:[1000,30000], pollFirewall:[1000,30000], pollIfstatus:[1000,60000],
   pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
   pollDhcp:[10000,600000], pollTopology:[10000,300000],
+  pollVlans:[2000,60000], pollPpp:[2000,60000],
 });
 
 /**
