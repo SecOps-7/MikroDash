@@ -84,7 +84,33 @@ const COLLECTORS = Object.freeze([
     streamKey: 'streamVlans',    pollable: true,  disableable: true,  requires: [], page: 'vlans', cards: [] },
   { key: 'ppp',   label: 'PPP',          sessionProp: 'ppp',          pollKey: 'pollPpp',      defaultPollMs: 5000,
     streamKey: 'streamPpp',      pollable: true,  disableable: true,  requires: [], page: 'ppp',   cards: [] },
+  // bridges borrows rates from ifStatus the way vlans does, and for the same
+  // reason declares no requires: without Interface Rates a bridge still has
+  // ports, STP roles and a host table worth showing.
+  { key: 'bridges', label: 'Bridges',    sessionProp: 'bridges',      pollKey: 'pollBridges',  defaultPollMs: 5000,
+    streamKey: 'streamBridges',  pollable: true,  disableable: true,  requires: [], page: 'bridges', cards: [] },
+  { key: 'capsman', label: 'CAPsMAN',    sessionProp: 'capsman',      pollKey: 'pollCapsman',  defaultPollMs: 10000,
+    streamKey: 'streamCapsman',  pollable: true,  disableable: true,  requires: [], page: 'capsman', cards: [] },
+  // only entries in this registry that are. RouterOS would accept /listen on both menus, so this
+  // is a choice rather than a limitation:
+  //
+  //   dns       the settings row is one record and the static table is single
+  //             digits, so there is nothing a channel would save. The expensive
+  //             part is the cache, which is already opt-in and fetched only
+  //             while somebody has the browser open — an open channel would
+  //             hold a resource for a table nobody is looking at.
+  //   packages  an inventory changes on a reboot, not on a tick. It polls every
+  //             60 s and the page forces a refresh after an action, which is
+  //             strictly better than a channel held open for weeks.
+  //
+  // Both still honour the router's poll interval, so the Poll/Stream switch has
+  // nothing to change for them.
+  { key: 'dns',   label: 'DNS',          sessionProp: 'dns',          pollKey: 'pollDns',      defaultPollMs: 10000,
+    streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'dns',   cards: [] },
+  { key: 'packages', label: 'Packages',  sessionProp: 'packages',     pollKey: 'pollPackages', defaultPollMs: 60000,
+    streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'packages', cards: [] },
   // vlans borrows rates from ifStatus, and declares no `requires` for the same
+  // packages rather than dns: a router's user list changes when an operator
   // logs stays streamed even in poll mode: /log/listen pushes new entries, and
   // polling /log/print would drop lines between polls. Correctness, not fidelity.
   { key: 'logs', label: 'Logs',         sessionProp: 'logs',         pollKey: null,           defaultPollMs: 0,

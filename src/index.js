@@ -65,7 +65,7 @@ const TopTalkersCollector  = require('./collectors/talkers');
 const LogsCollector        = require('./collectors/logs');
 const SystemCollector      = require('./collectors/system');
 const { resolveCollection, collectionFingerprint, planMigration,
-        LEGACY_STREAM_KEYS } = require('./collection');
+        LEGACY_STREAM_KEYS, COLLECTORS: _COLLECTOR_DEFS } = require('./collection');
 const { makeNullCollector } = require('./collectors/nullCollector');
 const WirelessCollector    = require('./collectors/wireless');
 const VpnCollector         = require('./collectors/vpn');
@@ -78,6 +78,10 @@ const NetwatchCollector     = require('./collectors/netwatch');
 const TopologyCollector     = require('./collectors/topology');
 const VlansCollector        = require('./collectors/vlans');
 const PppCollector          = require('./collectors/ppp');
+const BridgesCollector      = require('./collectors/bridges');
+const DnsCollector          = require('./collectors/dns');
+const CapsmanCollector      = require('./collectors/capsman');
+const PackagesCollector     = require('./collectors/packages');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
@@ -353,6 +357,10 @@ function _freshState() {
     lastTopologyTs:0, lastTopologyErr:null,
     lastVlansTs:0, lastVlansErr:null,
     lastPppTs:0, lastPppErr:null,
+    lastBridgesTs:0, lastBridgesErr:null,
+    lastDnsTs:0, lastDnsErr:null,
+    lastCapsmanTs:0, lastCapsmanErr:null,
+    lastPackagesTs:0, lastPackagesErr:null,
   };
 }
 
@@ -666,6 +674,14 @@ async function startCollectors(session, entry) {
     await session.vlans.start();
     await _delay(300);
     await session.ppp.start();
+    await _delay(300);
+    await session.bridges.start();
+    await _delay(300);
+    await session.dns.start();
+    await _delay(300);
+    await session.capsman.start();
+    await _delay(300);
+    await session.packages.start();
 
     entry.startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -1639,6 +1655,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       smtpPort:[1,65535],
       dbRetentionDays:[1,3650], dbAlertRetentionDays:[1,3650],
       pollTopology:[5000,300000], pollVlans:[2000,60000], pollPpp:[2000,60000],
+      pollBridges:[2000,60000], pollDns:[2000,60000], pollCapsman:[2000,60000],
     };
     const strFields  = ['pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo', 'ntfyUrl'];
     // authMode: whitelist only valid values
@@ -2725,6 +2742,10 @@ app.get('/healthz', (req, res) => {
       topology: { ts:st.lastTopologyTs, err:sanitizeErr(st.lastTopologyErr) },
       vlans: { ts:st.lastVlansTs, err:sanitizeErr(st.lastVlansErr) },
       ppp: { ts:st.lastPppTs, err:sanitizeErr(st.lastPppErr) },
+      bridges: { ts:st.lastBridgesTs, err:sanitizeErr(st.lastBridgesErr) },
+      dns: { ts:st.lastDnsTs, err:sanitizeErr(st.lastDnsErr) },
+      capsman: { ts:st.lastCapsmanTs, err:sanitizeErr(st.lastCapsmanErr) },
+      packages: { ts:st.lastPackagesTs, err:sanitizeErr(st.lastPackagesErr) },
     },
   };
   res.status(statusCode).json(body);
@@ -3791,6 +3812,10 @@ async function sendInitialState(socket, entry) {
   if (s.topology.lastPayload && _mayReplay(socket, 'topology')) socket.emit('topology:update', s.topology.lastPayload);
   if (s.vlans.lastPayload && _mayReplay(socket, 'vlans')) socket.emit('vlans:update', s.vlans.lastPayload);
   if (s.ppp.lastPayload   && _mayReplay(socket, 'ppp'))   socket.emit('ppp:update',   s.ppp.lastPayload);
+  if (s.bridges.lastPayload  && _mayReplay(socket, 'bridges'))  socket.emit('bridges:update',  s.bridges.lastPayload);
+  if (s.dns.lastPayload      && _mayReplay(socket, 'dns'))      socket.emit('dns:update',      s.dns.lastPayload);
+  if (s.capsman.lastPayload  && _mayReplay(socket, 'capsman'))  socket.emit('capsman:update',  s.capsman.lastPayload);
+  if (s.packages.lastPayload && _mayReplay(socket, 'packages')) socket.emit('packages:update', s.packages.lastPayload);
 
   socket.emit('settings:pages', _pageSettings(_ps));
 
@@ -3820,6 +3845,10 @@ function _idleSuspend(session, entry) {
   session.topology.suspend();
   session.vlans.suspend();
   session.ppp.suspend();
+  session.bridges.suspend();
+  session.dns.suspend();
+  session.capsman.suspend();
+  session.packages.suspend();
   session.ping.suspend();
   session.talkers.suspend();
   session.dhcpNetworks.suspend();
@@ -3835,6 +3864,10 @@ function _idleResume(session, entry) {
   // reach them. They are suspended above by name and must be resumed by name.
   session.vlans.resume();
   session.ppp.resume();
+  session.bridges.resume();
+  session.dns.resume();
+  session.capsman.resume();
+  session.packages.resume();
   session.ping.resume();
   session.talkers.resume();
   session.dhcpNetworks.resume();
@@ -3844,6 +3877,26 @@ function _idleResume(session, entry) {
 // streaming only while at least one socket is in one of its rooms. The keys
 // double as the session property and page name (session.firewall ↔ 'firewall').
 const _PAGE_STREAM_ROOMS = Pages.STREAM_ROOMS;
+
+const _routerWriteChains = new Map();
+function _routerWriteQueue(rid, fn) {
+  if (!rid) return Promise.resolve();
+  const prev = _routerWriteChains.get(rid) || Promise.resolve();
+  // Errors are already handled inside the handlers; catch here so one rejection
+  // cannot poison the chain for every later request on this router.
+  const next = prev.then(() => fn(rid)).catch((e) => {
+    console.error('%s', '[router-write] action failed:', (e && e.message) || e);
+  });
+  _routerWriteChains.set(rid, next);
+  next.finally(() => { if (_routerWriteChains.get(rid) === next) _routerWriteChains.delete(rid); });
+  return next;
+}
+
+const _NO_FOCUS_REPLAY = new Set(['logs']);
+const _REPLAY_ON_FOCUS = new Set(
+  Pages.KEYS.filter(k => !_NO_FOCUS_REPLAY.has(k)
+                      && !(_PAGE_STREAM_ROOMS[k] && _PAGE_STREAM_ROOMS[k].length)
+                      && _COLLECTOR_DEFS.some(c => c.page === k && c.sessionProp === k)));
 
 function _updatePageStream(session, entry, which) {
   if (!session || !entry.startupReady) return;
@@ -3880,6 +3933,10 @@ function _emitDiagnostics(session, rid, socket) {
     // exactly what made the old poll-only shape invisible here.
     { name: 'vlans',        streams: s.vlans._listen   && s.vlans._listen.open   ? 1 : 0 },
     { name: 'ppp',          streams: s.ppp._listen     && s.ppp._listen.open     ? 1 : 0 },
+    { name: 'bridges',      streams: s.bridges._listen && s.bridges._listen.open ? 1 : 0 },
+    { name: 'capsman',      streams: s.capsman._listen && s.capsman._listen.open ? 1 : 0 },
+    { name: 'dns',          streams: 0 },
+    { name: 'packages',     streams: 0 },
   ];
   const total = collectors.reduce((sum, c) => sum + c.streams, 0);
   // Geo availability rides along here so a failed geoip-lite load is visible in
@@ -3994,6 +4051,14 @@ io.on('connection', (socket) => {
       socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
     if (name === 'logs' && s.logs)
       socket.emit('logs:history', { entries: s.logs.getHistory() });
+    // Poll-only pages have no streamRooms, so the generic replay above — gated
+    // on _PAGE_STREAM_ROOMS[name] — never fires for them, and each would sit
+    // blank for a whole poll interval on every visit. Derived from the registry
+    // rather than listed by hand: the hand-written version was two pages out of
+    // date within one release. This also covers bandwidth, whose identical
+    // hand-written replay it replaced.
+    if (_REPLAY_ON_FOCUS.has(name) && s[name] && s[name].lastPayload)
+      socket.emit(name + ':update', { ...s[name].lastPayload, ts: Date.now() });
     // Interfaces and Topology both render the full interface payload, and
     // neither has a suspendable stream to replay through _PAGE_STREAM_ROOMS —
     // so without this, opening either shows nothing until the next tick now
@@ -4087,6 +4152,67 @@ io.on('connection', (socket) => {
     if (e && e.session && e.session.firewall) e.session.firewall.setActiveTable(table);
   });
 
+  // ── Packages ──────────────────────────────────────────────────────────────
+  //
+  // The first router-CONFIG writes in the app. router:write has sat in the
+  // permission vocabulary since #108 with no call sites; these are them.
+  //
+  // enable/disable/uninstall DO NOT ACT — they schedule, `unschedule` reverses
+  // them, and nothing happens until apply-changes reboots the router. Verified
+  // on the live fleet. So the per-package verbs are cheap and reversible, and
+  // the reboot is the single dangerous button, gated separately below.
+
+  const _PKG_SCHEDULE = Object.freeze({
+    enable:     '/system/package/enable',
+    disable:    '/system/package/disable',
+    uninstall:  '/system/package/uninstall',
+    unschedule: '/system/package/unschedule',
+  });
+
+  const _pkgSession = () => {
+    const rid = socket.routerId;
+    const e   = rid ? _routerSessions.get(rid) : null;
+    const session = e && e.session;
+    // A collector switched off for this router (#105) has no inventory, so there
+    // is nothing to target and nothing to show afterwards. The writes go through
+    // session.ros rather than the collector precisely because the collector may
+    // be a null stub — but without its payload the actions have no subject.
+    const off = !session || !session.packages || session.packages.disabled;
+    return { rid, entry: e, session, off };
+  };
+  const _pkgErr = (code, extra) =>
+    socket.emit('packages:error', Object.assign({ code }, extra || {}));
+
+  // A permission trap on a write reads nothing like a missing menu, and the
+  // difference matters to whoever is looking at the button: one is "you cannot",
+  // the other is "the RouterOS user cannot". system.js:229 draws the same line
+  // for the update check.
+  const _rosWriteFail = (e) => {
+    const msg = String((e && e.message) || e).toLowerCase();
+    if (msg.includes('not enough permissions') || msg.includes('permission denied') ||
+        msg.includes('no permissions')) return 'router-write-policy';
+    if (msg.includes('no such') || msg.includes('unknown command')) return 'unsupported';
+    return 'failed';
+  };
+
+  // The page draws its action buttons from this, not from the payload: whether
+  // somebody may act is a property of the socket, and the collector payload is
+  // shared by every viewer of the router.
+  socket.on('packages:caps', () => {
+    const { rid, session, off } = _pkgSession();
+    if (!rid || !session || off) return _pkgErr('unavailable');
+    if (!_pageAllowed(socket, 'packages', 'read')) return _pkgErr('denied');
+    socket.emit('packages:caps', {
+      permitted: _socketCan(socket, 'router:write', rid) && _pageAllowed(socket, 'packages', 'write'),
+      routerName: (Routers.getById(rid) || {}).label || '',
+    });
+  });
+  // explains each one; the rules below are about how it is CALLED.
+  //
+  // Three properties every handler here has, and the Packages handlers above do
+  // not need:
+  //
+  //  1. IT RE-READS FROM THE ROUTER. Packages resolves its target from the
   // ── WiFi frequency analyzer ───────────────────────────────────────────────
   //
   // The only disruptive action in the app: it takes the radio off the air and

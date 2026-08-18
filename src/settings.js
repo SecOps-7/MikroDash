@@ -109,6 +109,11 @@ const DEFAULTS = {
   // and that costs no router I/O (VLAN rates are read from ifStatus in memory).
   pollVlans:         parseInt(process.env.VLANS_POLL_MS     || '5000', 10),
   pollPpp:           parseInt(process.env.PPP_POLL_MS       || '5000', 10),
+  pollBridges:       parseInt(process.env.BRIDGES_POLL_MS   || '5000', 10),
+  pollDns:           parseInt(process.env.DNS_POLL_MS       || '10000', 10),
+  pollCapsman:       parseInt(process.env.CAPSMAN_POLL_MS   || '10000', 10),
+  // Slow by design: a package inventory changes on a reboot, not on a tick.
+  pollPackages:      parseInt(process.env.PACKAGES_POLL_MS  || '60000', 10),
 
   // Custom poll profile — JSON string of {pollSystem:N,...} saved by user; empty = not configured
   customPollProfile: '',
@@ -202,6 +207,10 @@ const DEFAULTS = {
   pageTopology:    true,
   pageVlans:       true,
   pagePpp:         true,
+  pageBridges:     true,
+  pageDns:         true,
+  pageCapsman:     true,
+  pagePackages:    true,
 
   // Set once by the #105 migration, then never read again.
   collectionMigrated: false,
@@ -250,6 +259,10 @@ const ENV_MAP = {
   pollTopology:      ['TOPOLOGY_POLL_MS',     v => parseInt(v, 10)],
   pollVlans:         ['VLANS_POLL_MS',        v => parseInt(v, 10)],
   pollPpp:           ['PPP_POLL_MS',          v => parseInt(v, 10)],
+  pollBridges:       ['BRIDGES_POLL_MS',      v => parseInt(v, 10)],
+  pollDns:           ['DNS_POLL_MS',          v => parseInt(v, 10)],
+  pollCapsman:       ['CAPSMAN_POLL_MS',      v => parseInt(v, 10)],
+  pollPackages:      ['PACKAGES_POLL_MS',     v => parseInt(v, 10)],
   topN:              ['TOP_N',                v => parseInt(v, 10)],
   topTalkersN:       ['TOP_TALKERS_N',        v => parseInt(v, 10)],
   firewallTopN:      ['FIREWALL_TOP_N',       v => parseInt(v, 10)],
@@ -283,6 +296,7 @@ const POLL_BOUNDS = Object.freeze({
   pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
   pollDhcp:[10000,600000], pollTopology:[10000,300000],
   pollVlans:[2000,60000], pollPpp:[2000,60000],
+  pollBridges:[2000,60000], pollDns:[2000,60000], pollCapsman:[2000,60000],
 });
 
 /**
@@ -411,6 +425,7 @@ const VIEWER_FIELDS = [
   'activeRouterId',
   'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
   'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting', 'pageTopology',
+  'pageVlans', 'pagePpp', 'pageBridges', 'pageDns', 'pageCapsman', 'pagePackages',
   'displayTimezone',
   // Whether the My Alerts tab exists at all. A non-admin is the whole audience
   // for that tab and only ever sees this subset, so leaving it out would hide

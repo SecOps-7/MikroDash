@@ -29,10 +29,14 @@ const PAGES = Object.freeze([
   { key: 'dashboard',   title: 'Dashboard',        settingsKey: null,              streamRooms: [] },
   { key: 'topology',    title: 'Network Topology', settingsKey: 'pageTopology',    streamRooms: ['page-topology'] },
   { key: 'wireless',    title: 'Wireless',         settingsKey: 'pageWireless',    streamRooms: ['page-wireless'] },
+  { key: 'capsman',     title: 'CAPsMAN',          settingsKey: 'pageCapsman',     streamRooms: [] },
   { key: 'interfaces',  title: 'Interfaces',       settingsKey: 'pageInterfaces',  streamRooms: [] },
   { key: 'dhcp',        title: 'DHCP',             settingsKey: 'pageDhcp',        streamRooms: [] },
+  { key: 'dns',         title: 'DNS',              settingsKey: 'pageDns',         streamRooms: [] },
   { key: 'vlans',       title: 'VLANs',            settingsKey: 'pageVlans',       streamRooms: [] },
+  { key: 'bridges',     title: 'Bridges',          settingsKey: 'pageBridges',     streamRooms: [] },
   { key: 'vpn',         title: 'VPN',              settingsKey: 'pageVpn',         streamRooms: ['page-vpn', 'dash-card-vpn'] },
+  // streamRooms is empty for ppp, vlans, capsman, bridges, dns, packages and
   // none of those collectors holds a /listen, and this list means "pages with a
   // suspendable counter stream". They are suspended by the idle gate instead,
   // and page:focus replays them explicitly.
@@ -42,6 +46,7 @@ const PAGES = Object.freeze([
   { key: 'bandwidth',   title: 'Bandwidth',        settingsKey: 'pageBandwidth',   streamRooms: [] },
   { key: 'firewall',    title: 'Firewall',         settingsKey: 'pageFirewall',    streamRooms: ['page-firewall', 'dash-card-firewall'] },
   { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [] },
+  { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: [] },
   { key: 'reports',     title: 'Reports',          settingsKey: null,              streamRooms: [] },
   { key: 'routers',     title: 'Routers',          settingsKey: null,              streamRooms: [] },
   { key: 'settings',    title: 'Settings',         settingsKey: null,              streamRooms: [] },
