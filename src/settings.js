@@ -114,6 +114,7 @@ const DEFAULTS = {
   pollCapsman:       parseInt(process.env.CAPSMAN_POLL_MS   || '10000', 10),
   // Slow by design: a package inventory changes on a reboot, not on a tick.
   pollPackages:      parseInt(process.env.PACKAGES_POLL_MS  || '60000', 10),
+  pollRosusers:      parseInt(process.env.ROSUSERS_POLL_MS  || '60000', 10),
 
   // Custom poll profile — JSON string of {pollSystem:N,...} saved by user; empty = not configured
   customPollProfile: '',
@@ -211,6 +212,7 @@ const DEFAULTS = {
   pageDns:         true,
   pageCapsman:     true,
   pagePackages:    true,
+  pageRosusers:    true,
   // Advanced-only in the view presets, but the toggle still defaults visible:
   // page-registry.test.js pins every page toggle to true so a fresh install
   // shows everything, and the preset is what narrows it.
@@ -272,6 +274,7 @@ const ENV_MAP = {
   pollDns:           ['DNS_POLL_MS',          v => parseInt(v, 10)],
   pollCapsman:       ['CAPSMAN_POLL_MS',      v => parseInt(v, 10)],
   pollPackages:      ['PACKAGES_POLL_MS',     v => parseInt(v, 10)],
+  pollRosusers:      ['ROSUSERS_POLL_MS',     v => parseInt(v, 10)],
   topN:              ['TOP_N',                v => parseInt(v, 10)],
   topTalkersN:       ['TOP_TALKERS_N',        v => parseInt(v, 10)],
   firewallTopN:      ['FIREWALL_TOP_N',       v => parseInt(v, 10)],

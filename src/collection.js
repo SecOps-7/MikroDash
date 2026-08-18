@@ -91,6 +91,7 @@ const COLLECTORS = Object.freeze([
     streamKey: 'streamBridges',  pollable: true,  disableable: true,  requires: [], page: 'bridges', cards: [] },
   { key: 'capsman', label: 'CAPsMAN',    sessionProp: 'capsman',      pollKey: 'pollCapsman',  defaultPollMs: 10000,
     streamKey: 'streamCapsman',  pollable: true,  disableable: true,  requires: [], page: 'capsman', cards: [] },
+  // dns, packages and rosusers are streamKey: null ON PURPOSE, and they are the
   // only entries in this registry that are. RouterOS would accept /listen on both menus, so this
   // is a choice rather than a limitation:
   //
@@ -110,7 +111,13 @@ const COLLECTORS = Object.freeze([
   { key: 'packages', label: 'Packages',  sessionProp: 'packages',     pollKey: 'pollPackages', defaultPollMs: 60000,
     streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'packages', cards: [] },
   // vlans borrows rates from ifStatus, and declares no `requires` for the same
+  // rosusers is the third streamKey: null entry, for the same reason as
   // packages rather than dns: a router's user list changes when an operator
+  // edits it, which is a human-timescale event. It polls slowly and the page
+  // forces a re-read after every action, so a channel held open for weeks would
+  // buy nothing.
+  { key: 'rosusers', label: 'Router Users', sessionProp: 'rosusers',  pollKey: 'pollRosusers', defaultPollMs: 60000,
+    streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'rosusers', cards: [] },
   // logs stays streamed even in poll mode: /log/listen pushes new entries, and
   // polling /log/print would drop lines between polls. Correctness, not fidelity.
   { key: 'logs', label: 'Logs',         sessionProp: 'logs',         pollKey: null,           defaultPollMs: 0,

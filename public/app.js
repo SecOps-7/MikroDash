@@ -2457,6 +2457,7 @@ var PAGE_NAV_MAP = {
   pageBandwidth:'bandwidth', pageRouting:'routing', pageTopology:'topology',
   pageVlans:'vlans', pagePpp:'ppp',
   pageCapsman:'capsman', pageBridges:'bridges', pageDns:'dns', pagePackages:'packages',
+  pageRosusers:'rosusers', pageQueues:'queues',
   pageRouters:'routers', pageAudit:'audit',
 };
 // Every page the nav can show. Kept in step with src/pages.js — the drift check
@@ -5011,7 +5012,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // all three delegated, because the dialogs live inside a card that starts
   // hidden. Clicking inside must not close, hence the e.target === bg test.
   // accountModal rides along for Escape-to-close and backdrop-click-to-close.
-  var _PRINCIPAL_MODALS = ['userFormWrap', 'groupFormWrap', 'siteFormWrap', 'roleFormWrap', 'accountModal', 'faModal'];
+  var _PRINCIPAL_MODALS = ['userFormWrap', 'groupFormWrap', 'siteFormWrap', 'roleFormWrap', 'accountModal', 'faModal',
+    // The Router Users dialogs are on their own page rather than in Settings,
+    // but Escape and backdrop-click are handled here for every dialog in the app.
+    'ruUserFormWrap', 'ruGroupFormWrap', 'qFormWrap'];
 
   function _closePrincipalModals() {
     _PRINCIPAL_MODALS.forEach(function (id) {
@@ -12271,6 +12275,402 @@ function _renderRoutersMap(rows) {
     if (typed === null) return;
     socket.emit('packages:apply', { confirm: typed });
   });
+}());
+
+/* ── Router Users page ────────────────────────────────────────────────────────
+   RouterOS accounts, not MikroDash accounts — the two are unrelated, which is
+   why this page is called Router Users and lives outside Settings.
+
+   Three tabs over one card: who may log in, what each group may do, and who is
+   logged in right now.
+
+   THE PADLOCK. MikroDash logs into this router as one of these users, so
+   editing that account or its group is how somebody locks the dashboard out of
+   the device it manages. Those rows show a padlock and no buttons. That is a
+   COURTESY — every refusal is enforced server-side in src/routeros/selfGuard.js,
+   which re-reads from the router rather than trusting anything on this page. */
+(function () {
+  var userTb = $('ruUserTable'), groupTb = $('ruGroupTable'), sessTb = $('ruSessionTable');
+  if (!userTb || !groupTb || !sessTb) return;
+
+  var _data = null;
+  var _caps = { permitted: false, routerName: '' };
+  var _tab  = 'users';
+  var _busy = '';          // id of the row with an action in flight
+
+  // A keyless column is not sortable — see _renderSortHeader. The action column
+  // is the only one here that must never be.
+  var USER_COLS = [{key:'name',label:'User'},{key:'group',label:'Group'},{key:'address',label:'Allowed From'},
+                   {key:'lastLogin',label:'Last Login'},{key:'disabled',label:'Status'},{key:'',label:''}];
+  var GROUP_COLS = [{key:'name',label:'Group'},{key:'granted',label:'Permissions'},
+                    {key:'members',label:'Users'},{key:'',label:''}];
+  var SESS_COLS = [{key:'name',label:'User'},{key:'address',label:'From'},{key:'via',label:'Via'},
+                   {key:'group',label:'Group'},{key:'when',label:'Since'},{key:'',label:''}];
+
+  // Sessions default to newest first; the other two to name, which is how an
+  // operator looks for an account they already have in mind.
+  var _sort = { users:    { col: 'name', dir: 'asc' },
+                groups:   { col: 'name', dir: 'asc' },
+                sessions: { col: 'when', dir: 'desc' } };
+
+  function sortRows(rows, st) {
+    var mul = st.dir === 'desc' ? -1 : 1;
+    return rows.slice().sort(function (a, b) {
+      var x = a[st.col], y = b[st.col];
+      if (Array.isArray(x)) { x = x.length; y = y.length; }
+      if (typeof x === 'boolean') { x = x ? 1 : 0; y = y ? 1 : 0; }
+      if (typeof x === 'number' && typeof y === 'number') return (x - y) * mul;
+      return String(x == null ? '' : x).localeCompare(String(y == null ? '' : y)) * mul;
+    });
+  }
+
+  /** Clicking a header toggles direction on the same column, else selects it. */
+  function onSort(which) {
+    return function (key) {
+      var st = _sort[which];
+      if (st.col === key) st.dir = st.dir === 'asc' ? 'desc' : 'asc';
+      else { st.col = key; st.dir = 'asc'; }
+      render();
+    };
+  }
+
+  function q() { var e = $('ruSearch'); return (e && e.value || '').toLowerCase().trim(); }
+  function dash() { return '<span style="color:var(--text-muted)">&mdash;</span>'; }
+
+  /** The padlock cell. Says which of the two reasons applies, because "you
+      cannot edit this" without a why reads as a bug. */
+  function lockCell(what) {
+    return '<span class="muted-note" title="MikroDash signs in to this router with this ' + what +
+           '. Editing it here could lock the dashboard out, so it is managed in WinBox.">' +
+           '&#128274; in use by MikroDash</span>';
+  }
+
+  function btn(act, id, name, label, cls) {
+    return '<button class="ru-act' + (cls ? ' ' + cls : '') + '" data-act="' + act +
+           '" data-id="' + esc(id) + '" data-name="' + esc(name) + '"' +
+           (_busy === id ? ' disabled' : '') + '>' + label + '</button>';
+  }
+
+  function renderUsers() {
+    var term = q();
+    var rows = (_data && _data.users || []).filter(function (u) {
+      return !term || (u.name + ' ' + u.group + ' ' + u.comment).toLowerCase().indexOf(term) !== -1;
+    });
+    rows = sortRows(rows, _sort.users);
+    _renderSortHeader('ruUserThead', USER_COLS, _sort.users, onSort('users'));
+    $('ruUserBadge').textContent = (_data && _data.users || []).length;
+
+    userTb.innerHTML = rows.length ? rows.map(function (u) {
+      var status = u.disabled ? '<span class="wl-band wl-band-24">disabled</span>'
+                 : u.expired  ? '<span style="color:var(--text-muted)">expired</span>'
+                              : '<span class="wl-band wl-band-6">enabled</span>';
+      return '<tr>' +
+        '<td>' + esc(u.name) + (u.comment ? '<div class="muted-note">' + esc(u.comment) + '</div>' : '') + '</td>' +
+        '<td>' + esc(u.group) + '</td>' +
+        '<td>' + (u.address ? esc(u.address) : dash()) + '</td>' +
+        '<td style="color:var(--text-muted)">' + (u.lastLogin ? esc(u.lastLogin) : dash()) + '</td>' +
+        '<td>' + status + '</td>' +
+        '<td>' + (u.protected ? lockCell('account')
+                : !_caps.permitted ? ''
+                : btn('user-edit', u.id, u.name, 'Edit') + ' ' +
+                  btn('user-toggle', u.id, u.name, u.disabled ? 'Enable' : 'Disable') + ' ' +
+                  btn('user-remove', u.id, u.name, 'Remove', 'danger')) + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="6" class="empty-state">' +
+      (term ? 'No users match that search.' : 'Waiting for user data&hellip;') + '</td></tr>';
+  }
+
+  function renderGroups() {
+    var term = q();
+    var rows = (_data && _data.groups || []).filter(function (g) {
+      return !term || (g.name + ' ' + g.granted.join(' ')).toLowerCase().indexOf(term) !== -1;
+    });
+    rows = sortRows(rows, _sort.groups);
+    _renderSortHeader('ruGroupThead', GROUP_COLS, _sort.groups, onSort('groups'));
+    $('ruGroupBadge').textContent = (_data && _data.groups || []).length;
+
+    groupTb.innerHTML = rows.length ? rows.map(function (g) {
+      // Only what is granted. The denied half is every other policy, and listing
+      // seventeen names per row would bury the four that matter.
+      var pol = g.granted.length
+        ? g.granted.map(function (p) { return '<span class="wl-band wl-band-5" style="margin:0 .15rem .15rem 0">' + esc(p) + '</span>'; }).join('')
+        : '<span class="muted-note">no permissions</span>';
+      return '<tr>' +
+        '<td>' + esc(g.name) + (g.comment ? '<div class="muted-note">' + esc(g.comment) + '</div>' : '') + '</td>' +
+        '<td>' + pol + '</td>' +
+        '<td>' + g.members + '</td>' +
+        '<td>' + (g.protected ? lockCell('group')
+                : !_caps.permitted ? ''
+                : btn('group-edit', g.id, g.name, 'Edit') + ' ' +
+                  btn('group-remove', g.id, g.name, 'Remove', 'danger')) + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="4" class="empty-state">' +
+      (term ? 'No groups match that search.' : 'Waiting for group data&hellip;') + '</td></tr>';
+  }
+
+  function renderSessions() {
+    var term = q();
+    var rows = (_data && _data.sessions || []).filter(function (x) {
+      return !term || (x.name + ' ' + x.address + ' ' + x.via).toLowerCase().indexOf(term) !== -1;
+    });
+    rows = sortRows(rows, _sort.sessions);
+    _renderSortHeader('ruSessionThead', SESS_COLS, _sort.sessions, onSort('sessions'));
+    $('ruSessionBadge').textContent = (_data && _data.sessions || []).length;
+
+    sessTb.innerHTML = rows.length ? rows.map(function (x) {
+      return '<tr>' +
+        '<td>' + esc(x.name) + '</td>' +
+        '<td>' + (x.address ? esc(x.address) : dash()) + '</td>' +
+        '<td>' + esc(x.via || '—') + '</td>' +
+        '<td>' + esc(x.group || '—') + '</td>' +
+        '<td style="color:var(--text-muted)">' + (x.when ? esc(x.when) : dash()) + '</td>' +
+        '<td>' + (x.protected ? lockCell('session')
+                : !_caps.permitted ? ''
+                : btn('session-remove', x.id, x.name, 'End Session', 'danger')) + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="6" class="empty-state">' +
+      (term ? 'No sessions match that search.' : 'Nobody is logged in.') + '</td></tr>';
+  }
+
+  function renderNotice() {
+    var card = $('ruNoticeCard'), body = $('ruNotice');
+    if (!card || !body) return;
+    var msg = '';
+    if (_data && _data.denied) {
+      // The recommended monitoring group denies `policy`, and RouterOS gates
+      // /user behind it. Show the fix rather than an empty table.
+      msg = 'This router\'s MikroDash account cannot read <code>/user</code>. RouterOS requires the ' +
+            '<code>policy</code> permission for user management. To enable this page for this router: ' +
+            '<code>/user group set [find name=&lt;group&gt;] policy=read,write,policy,api,test</code>';
+    } else if (_data && _data.self && !_data.self.resolved) {
+      // Fail-closed, and the page must say so rather than showing buttons that
+      // will be refused one by one.
+      msg = 'MikroDash cannot identify its own account on this router, so every change here is refused. ' +
+            'This is expected when the dashboard authenticates through RADIUS.';
+    }
+    card.style.display = msg ? '' : 'none';
+    body.innerHTML = msg;
+  }
+
+  function render() {
+    if (_tab === 'users') renderUsers();
+    else if (_tab === 'groups') renderGroups();
+    else renderSessions();
+    // The other two tabs still carry counts in their badges, so all three render.
+    if (_tab !== 'users') renderUsers();
+    if (_tab !== 'groups') renderGroups();
+    if (_tab !== 'sessions') renderSessions();
+
+    var add = $('ruAddBtn');
+    if (add) {
+      add.textContent = _tab === 'groups' ? 'Add Group' : 'Add User';
+      add.style.display = (_caps.permitted && _tab !== 'sessions') ? '' : 'none';
+    }
+    var note = $('ruActionNote');
+    if (note) note.textContent = _caps.permitted ? '' : 'read-only — you do not have write access to this router';
+    renderNotice();
+    renderSummary();
+  }
+
+  function renderSummary() {
+    var d = _data || {};
+    $('ruSumUsers').textContent    = (d.users || []).length || '—';
+    $('ruSumGroups').textContent   = (d.groups || []).length || '—';
+    $('ruSumSessions').textContent = (d.sessions || []).length || '—';
+    $('ruSumSelf').textContent     = (d.self && d.self.names && d.self.names[0]) || '—';
+  }
+
+  // ── Dialogs ───────────────────────────────────────────────────────────────
+
+  function openUserForm(u) {
+    $('ruf_title').textContent  = u ? 'Edit Router User' : 'Add Router User';
+    $('ruf_id').value           = u ? u.id : '';
+    $('ruf_expectedName').value = u ? u.name : '';
+    $('ruf_name').value    = u ? u.name : '';
+    $('ruf_address').value = u ? u.address : '';
+    $('ruf_comment').value = u ? u.comment : '';
+    $('ruf_disabled').checked = u ? !!u.disabled : false;
+    $('ruf_password').value = '';
+    var pol = (_data && _data.passwordPolicy) || {};
+    $('ruf_passHint').textContent = u
+      ? '(leave blank to keep)'
+      : (pol.minLength ? '(at least ' + pol.minLength + ' characters)' : '(required)');
+    // Groups the guard would refuse are not offered. The server refuses them
+    // anyway; leaving them in the list only invites the refusal.
+    var sel = $('ruf_group');
+    sel.innerHTML = (_data && _data.groups || []).filter(function (g) { return !g.protected; })
+      .map(function (g) {
+        return '<option value="' + esc(g.name) + '"' + (u && u.group === g.name ? ' selected' : '') + '>' +
+               esc(g.name) + '</option>';
+      }).join('');
+    $('ruf_error').style.display = 'none';
+    $('ruUserFormWrap').classList.add('open');
+  }
+
+  function openGroupForm(g) {
+    $('rgf_title').textContent  = g ? 'Edit Group' : 'Add Group';
+    $('rgf_id').value           = g ? g.id : '';
+    $('rgf_expectedName').value = g ? g.name : '';
+    $('rgf_name').value    = g ? g.name : '';
+    $('rgf_comment').value = g ? g.comment : '';
+    var granted = g ? g.granted : [];
+    // From the payload, so a RouterOS that grows an eighteenth policy shows it
+    // here without a frontend release.
+    $('rgf_policies').innerHTML = ((_data && _data.policies) || []).map(function (p) {
+      return '<label style="display:flex;align-items:center;gap:.35rem;cursor:pointer">' +
+             '<input type="checkbox" class="rgf-pol" value="' + esc(p) + '"' +
+             (granted.indexOf(p) !== -1 ? ' checked' : '') + '>' + esc(p) + '</label>';
+    }).join('');
+    $('rgf_error').style.display = 'none';
+    $('ruGroupFormWrap').classList.add('open');
+  }
+
+  function formError(id, msg) {
+    var el = $(id);
+    el.textContent = msg;
+    el.style.display = '';
+  }
+
+  // ── Wiring ────────────────────────────────────────────────────────────────
+
+  Array.prototype.forEach.call(document.querySelectorAll('#ruTabBar .stab'), function (b) {
+    b.addEventListener('click', function () {
+      _tab = b.getAttribute('data-rutab');
+      Array.prototype.forEach.call(document.querySelectorAll('#ruTabBar .stab'), function (o) {
+        var on = o === b;
+        o.classList.toggle('active', on);
+        o.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('#rosusersCard .brtab-panel'), function (pnl) {
+        pnl.classList.toggle('active', pnl.id === 'rutab-' + _tab);
+      });
+      render();
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('.ru-act');
+    if (!b) return;
+    var act = b.getAttribute('data-act'), id = b.getAttribute('data-id'), name = b.getAttribute('data-name');
+    if (act === 'user-edit')  return openUserForm((_data.users || []).find(function (u) { return u.id === id; }));
+    if (act === 'group-edit') return openGroupForm((_data.groups || []).find(function (g) { return g.id === id; }));
+
+    if (act === 'user-toggle') {
+      var u = (_data.users || []).find(function (x) { return x.id === id; });
+      if (!u) return;
+      _busy = id; render();
+      // A full save, not a disable-only action: one write path is one place for
+      // the guard to be called from.
+      return socket.emit('rosuser:save', { id: u.id, expectedName: u.name, name: u.name, group: u.group,
+                                           address: u.address, comment: u.comment, disabled: !u.disabled });
+    }
+    var prompts = {
+      'user-remove':    'Remove the router user "' + name + '"?\n\nThey will no longer be able to log in to this router.',
+      'group-remove':   'Remove the group "' + name + '"?\n\nRouterOS refuses this if any user is still in it.',
+      'session-remove': 'End "' + name + '"’s session?\n\nThey will be disconnected from the router immediately.',
+    };
+    if (!prompts[act]) return;
+    if (!window.confirm(prompts[act])) return;
+    _busy = id; render();
+    var ev = act === 'user-remove' ? 'rosuser:remove'
+           : act === 'group-remove' ? 'rosgroup:remove' : 'rossession:remove';
+    socket.emit(ev, { id: id, expectedName: name });
+  });
+
+  var add = $('ruAddBtn');
+  if (add) add.addEventListener('click', function () {
+    if (!_caps.permitted) return;
+    if (_tab === 'groups') openGroupForm(null); else openUserForm(null);
+  });
+
+  $('ruf_save').addEventListener('click', function () {
+    var name = $('ruf_name').value.trim(), group = $('ruf_group').value;
+    if (!name)  return formError('ruf_error', 'A username is required');
+    if (!group) return formError('ruf_error', 'Pick a group');
+    _busy = $('ruf_id').value;
+    socket.emit('rosuser:save', {
+      id: $('ruf_id').value || undefined,
+      expectedName: $('ruf_expectedName').value || undefined,
+      name: name, group: group,
+      address: $('ruf_address').value.trim(),
+      comment: $('ruf_comment').value.trim(),
+      disabled: $('ruf_disabled').checked,
+      password: $('ruf_password').value || undefined,
+    });
+  });
+
+  $('rgf_save').addEventListener('click', function () {
+    var name = $('rgf_name').value.trim();
+    if (!name) return formError('rgf_error', 'A group name is required');
+    var policy = Array.prototype.map.call(
+      document.querySelectorAll('#rgf_policies .rgf-pol:checked'), function (c) { return c.value; });
+    _busy = $('rgf_id').value;
+    socket.emit('rosgroup:save', {
+      id: $('rgf_id').value || undefined,
+      expectedName: $('rgf_expectedName').value || undefined,
+      name: name, comment: $('rgf_comment').value.trim(), policy: policy,
+    });
+  });
+
+  socket.on('rosusers:update', function (d) {
+    if (!d) return;
+    _data = d;
+    _busy = '';
+    renderSummary();
+    if (pageVisible('rosusers')) render();
+  });
+  socket.on('rosusers:caps', function (d) {
+    if (!d) return;
+    _caps = d;
+    if (pageVisible('rosusers')) render();
+  });
+  socket.on('rosusers:ok', function (d) {
+    _busy = '';
+    $('ruUserFormWrap').classList.remove('open');
+    $('ruGroupFormWrap').classList.remove('open');
+    var what = {
+      create: 'Created ', update: 'Updated ', 'delete': 'Removed ',
+      'group-create': 'Created group ', 'group-update': 'Updated group ', 'group-delete': 'Removed group ',
+      'session-remove': 'Ended the session for ',
+    }[d && d.action] || 'Done: ';
+    setStatus(what + ((d && d.name) || ''));
+  });
+  socket.on('rosusers:error', function (d) {
+    _busy = '';
+    var code = d && d.code;
+    var msg = {
+      denied:       'You do not have write access to this router',
+      unavailable:  'Router user collection is not running for this router',
+      'bad-request':'Invalid request',
+      'stale-row':  'That row changed on the router — the page has been refreshed',
+      'no-such-group': 'That group no longer exists on the router',
+      'group-in-use':  'That group still has users in it — move them first',
+      'weak-password': 'The router requires a password of at least ' + ((d && d.minLength) || 8) + ' characters',
+      'protected-account':    'That is the account MikroDash signs in with — manage it in WinBox',
+      'protected-group':      'That is the group MikroDash signs in with — manage it in WinBox',
+      'protected-name-value': 'That name belongs to the account MikroDash signs in with',
+      'protected-group-value':'Users cannot be placed in the group MikroDash signs in with',
+      'self-unresolved':      'MikroDash cannot identify its own account on this router, so changes are refused',
+      'router-write-policy':  'The RouterOS user needs the "policy" permission for this',
+      unsupported:  'This router does not support that command',
+    }[code] || ((d && d.message) || 'Action failed');
+    // Refusals belong in the dialog that caused them; everything else is a
+    // row action and belongs in the status line.
+    var open = $('ruUserFormWrap').classList.contains('open') ? 'ruf_error'
+             : $('ruGroupFormWrap').classList.contains('open') ? 'rgf_error' : '';
+    if (open) formError(open, msg); else setStatus(msg);
+    if (pageVisible('rosusers')) render();
+  });
+
+  document.addEventListener('mikrodash:pagechange', function (e) {
+    if (e.detail !== 'rosusers') return;
+    // Permission is a property of this socket, not of the shared payload.
+    socket.emit('rosusers:caps');
+    if (_data) render();
+  });
+
+  var se = $('ruSearch');
+  if (se) se.addEventListener('input', _debounce(render, 150));
 }());
 
 /* ── Audit page ───────────────────────────────────────────────────────────────

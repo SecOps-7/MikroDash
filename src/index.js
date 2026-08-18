@@ -40,6 +40,7 @@ const { buildHelmetOptions } = require('./security/helmetOptions');
 const { computeHealthStatus } = require('./health');
 const { verifyRouterOSPatchMarkers } = require('./routeros/patchVerification');
 const { classifyRosError } = require('./routeros/classifyError');
+const selfGuard            = require('./routeros/selfGuard');
 const { scheduleForcedShutdownTimer } = require('./shutdown');
 
 try {
@@ -83,6 +84,7 @@ const BridgesCollector      = require('./collectors/bridges');
 const DnsCollector          = require('./collectors/dns');
 const CapsmanCollector      = require('./collectors/capsman');
 const PackagesCollector     = require('./collectors/packages');
+const RosUsersCollector     = require('./collectors/rosusers');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
@@ -362,6 +364,7 @@ function _freshState() {
     lastDnsTs:0, lastDnsErr:null,
     lastCapsmanTs:0, lastCapsmanErr:null,
     lastPackagesTs:0, lastPackagesErr:null,
+    lastRosusersTs:0, lastRosusersErr:null,
   };
 }
 
@@ -685,6 +688,8 @@ async function startCollectors(session, entry) {
     await session.capsman.start();
     await _delay(300);
     await session.packages.start();
+    await _delay(300);
+    await session.rosusers.start();
 
     entry.startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -1759,7 +1764,15 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
     const collectorMap = { conns:s.conns, talkers:s.talkers, system:s.system, wireless:s.wireless, vpn:s.vpn, firewall:s.firewall, ifStatus:s.ifStatus, ping:s.ping, arp:s.arp, dhcpNetworks:s.dhcpNetworks, bandwidth:s.bandwidth, routing:s.routing };
     const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
-      pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks', pollRouting:'routing' };
+      pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks', pollRouting:'routing',
+      // These five were missing, and pollTopology/pollVlans/pollPpp with them:
+      // the sliders existed and the bounds existed, but with no entry here (and
+      // none in intFields below) the value was dropped on save and never
+      // reached the collector. Adding four more poll keys to that hole would
+      // have made it four times worse.
+      pollTopology:'topology', pollVlans:'vlans', pollPpp:'ppp',
+      pollBridges:'bridges', pollDns:'dns', pollCapsman:'capsman', pollPackages:'packages',
+      pollRosusers:'rosusers', pollQueues:'queues' };
     for (const [key, name] of Object.entries(pollMap)) {
       if (key in updates && !_pinned(key)) {
         const col = collectorMap[name];
@@ -2862,6 +2875,7 @@ app.get('/healthz', (req, res) => {
       dns: { ts:st.lastDnsTs, err:sanitizeErr(st.lastDnsErr) },
       capsman: { ts:st.lastCapsmanTs, err:sanitizeErr(st.lastCapsmanErr) },
       packages: { ts:st.lastPackagesTs, err:sanitizeErr(st.lastPackagesErr) },
+      rosusers: { ts:st.lastRosusersTs, err:sanitizeErr(st.lastRosusersErr) },
     },
   };
   res.status(statusCode).json(body);
@@ -4028,6 +4042,7 @@ async function sendInitialState(socket, entry) {
   if (s.dns.lastPayload      && _mayReplay(socket, 'dns'))      socket.emit('dns:update',      s.dns.lastPayload);
   if (s.capsman.lastPayload  && _mayReplay(socket, 'capsman'))  socket.emit('capsman:update',  s.capsman.lastPayload);
   if (s.packages.lastPayload && _mayReplay(socket, 'packages')) socket.emit('packages:update', s.packages.lastPayload);
+  if (s.rosusers.lastPayload && _mayReplay(socket, 'rosusers')) socket.emit('rosusers:update', s.rosusers.lastPayload);
 
   socket.emit('settings:pages', _pageSettings(_ps));
 
@@ -4061,6 +4076,7 @@ function _idleSuspend(session, entry) {
   session.dns.suspend();
   session.capsman.suspend();
   session.packages.suspend();
+  session.rosusers.suspend();
   session.ping.suspend();
   session.talkers.suspend();
   session.dhcpNetworks.suspend();
@@ -4080,6 +4096,7 @@ function _idleResume(session, entry) {
   session.dns.resume();
   session.capsman.resume();
   session.packages.resume();
+  session.rosusers.resume();
   session.ping.resume();
   session.talkers.resume();
   session.dhcpNetworks.resume();
@@ -4147,8 +4164,10 @@ function _emitDiagnostics(session, rid, socket) {
     { name: 'ppp',          streams: s.ppp._listen     && s.ppp._listen.open     ? 1 : 0 },
     { name: 'bridges',      streams: s.bridges._listen && s.bridges._listen.open ? 1 : 0 },
     { name: 'capsman',      streams: s.capsman._listen && s.capsman._listen.open ? 1 : 0 },
+    // dns, packages and rosusers hold no channel by design — see src/collection.js.
     { name: 'dns',          streams: 0 },
     { name: 'packages',     streams: 0 },
+    { name: 'rosusers',     streams: 0 },
   ];
   const total = collectors.reduce((sum, c) => sum + c.streams, 0);
   // Geo availability rides along here so a failed geoip-lite load is visible in
@@ -4525,12 +4544,82 @@ io.on('connection', (socket) => {
       else _pkgErr(code, { message: sanitizeErr(e) });
     }
   });
+
+
+  // ── Router Users (RouterOS /user) ─────────────────────────────────────────
+  //
+  // The only write surface in this app that can lock MikroDash out of the
+  // router it manages, and unrecoverably: once the login is broken the fix is
+  // WinBox, not this page. src/routeros/selfGuard.js holds every refusal and
   // explains each one; the rules below are about how it is CALLED.
   //
   // Three properties every handler here has, and the Packages handlers above do
   // not need:
   //
   //  1. IT RE-READS FROM THE ROUTER. Packages resolves its target from the
+  // have moved the socket, and the write must land on the router the operator
+  // was looking at when they pressed the button.
+  const _ruSession = (rid) => {
+    const e   = rid ? _routerSessions.get(rid) : null;
+    const session = e && e.session;
+    // Writes go through session.ros, not the collector, so they work even for a
+    // null-collector stub (#105) — but without the collector there is nothing to
+    // refresh afterwards and no page to show it on.
+    const off = !session || !session.rosusers || session.rosusers.disabled;
+    return { rid, session, off };
+  };
+  const _ruErr = (code, extra) =>
+    socket.emit('rosusers:error', Object.assign({ code }, extra || {}));
+
+  /** Both gates. _pageAllowed is the install toggle AND the role; router:write is conferred by write on any page, so the page gate is what scopes this feature. */
+  const _ruMayWrite = (rid) =>
+    _pageAllowed(socket, 'rosusers', 'write') && _socketCan(socket, 'router:write', rid);
+
+  /**
+   * Read the three tables and resolve who we are, in one place.
+   *
+   * Deliberately not proplist-filtered the way the collector is: the guard
+   * compares names and groups, and a field the guard does not read cannot
+   * change its answer, but a field the ROUTER renamed could. Cheapest possible
+   * correctness on a table of single-digit length.
+   */
+  const _ruRead = async (session, rid) => {
+    const [users, groups, active] = await Promise.all([
+      session.ros.write('/user/print', []),
+      session.ros.write('/user/group/print', []),
+      session.ros.write('/user/active/print', []),
+    ]);
+    const clean = (rows) => (rows || []).filter(r => r && r.name);
+    const cfg   = Routers.getById(rid) || {};
+    const self  = selfGuard.resolveSelf(clean(users), clean(active),
+                                        [(session.ros.cfg || {}).username, cfg.username]);
+    return { users: clean(users), groups: clean(groups), active: clean(active), self };
+  };
+
+  /**
+   * Find a row by id and confirm it still carries the name the operator saw.
+   *
+   * Returns null for both "gone" and "renamed underneath you", which the caller
+   * reports as `stale-row`: from the operator's side those are the same event —
+   * the screen they acted on no longer describes the router.
+   */
+  const _ruRow = (rows, id, expectedName) => {
+    const row = (rows || []).find(r => r['.id'] === id);
+    if (!row) return null;
+    if (expectedName && String(row.name) !== String(expectedName)) return null;
+    return row;
+  };
+
+  socket.on('rosusers:caps', () => {
+    const rid = socket.routerId;
+    const { session, off } = _ruSession(rid);
+    if (!rid || !session || off) return _ruErr('unavailable');
+    if (!_pageAllowed(socket, 'rosusers', 'read')) return _ruErr('denied');
+    socket.emit('rosusers:caps', {
+      permitted: _ruMayWrite(rid),
+      routerName: (Routers.getById(rid) || {}).label || '',
+    });
+  });
 
   /**
    * Create or edit a user.
@@ -4539,6 +4628,244 @@ io.on('connection', (socket) => {
    * explicit reset, is never echoed back, and never reaches the audit trail:
    * audit.js redacts by field name and a test asserts it for this action.
    */
+  socket.on('rosuser:save', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _ruSession(rid);
+    if (!rid || !session || off) return _ruErr('unavailable');
+    const r = req || {};
+    const editing = !!r.id;
+    if (!_ruMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: editing ? 'rosuser.update' : 'rosuser.create',
+        targetType: 'rosuser', routerId: rid, targetName: r.name ? String(r.name) : null });
+      return _ruErr('denied');
+    }
+
+    const name  = typeof r.name  === 'string' ? r.name.trim()  : '';
+    const group = typeof r.group === 'string' ? r.group.trim() : '';
+    if (!name || !group) return _ruErr('bad-request');
+
+    try {
+      const { users, groups, self } = await _ruRead(session, rid);
+      if (!groups.some(g => String(g.name) === group)) return _ruErr('no-such-group', { name: group });
+
+      const target = editing ? _ruRow(users, r.id, r.expectedName) : null;
+      if (editing && !target) return _ruErr('stale-row', { name });
+
+      const verdict = selfGuard.checkUser(self, {
+        verb: editing ? 'set' : 'add',
+        target: target ? { name: target.name, group: target.group } : null,
+        values: { name, group },
+      });
+      if (!verdict.ok) {
+        audit.fromSocket(socket).denied({ action: editing ? 'rosuser.update' : 'rosuser.create',
+          targetType: 'rosuser', routerId: rid, targetName: name, note: verdict.code });
+        return _ruErr(verdict.code, { name: verdict.detail || name });
+      }
+
+      // The router enforces its own minimum, but it answers with a bare
+      // failure. Checking here is what turns that into a sentence the operator
+      // can act on — the router stays the authority either way.
+      const pw = typeof r.password === 'string' ? r.password : '';
+      // The plaintext is never mentioned again below this line — the audit call
+      // reads this flag instead, so there is no expression anywhere in it that
+      // could serialise the password even by accident.
+      const passwordSet = !!pw;
+      const minLen = ((session.rosusers.lastPayload || {}).passwordPolicy || {}).minLength || 0;
+      if (pw && minLen && pw.length < minLen) return _ruErr('weak-password', { minLength: minLen });
+      if (!editing && !pw && minLen) return _ruErr('weak-password', { minLength: minLen });
+
+      const args = ['=name=' + name, '=group=' + group,
+                    '=address=' + (typeof r.address === 'string' ? r.address.trim() : ''),
+                    '=comment=' + (typeof r.comment === 'string' ? r.comment.trim() : ''),
+                    '=disabled=' + (r.disabled ? 'yes' : 'no')];
+      if (pw) args.push('=password=' + pw);
+
+      const before = target ? { name: target.name, group: target.group, address: target.address || '',
+                                comment: target.comment || '', disabled: target.disabled === 'true' } : {};
+      const after  = { name, group, address: (r.address || '').trim(),
+                       comment: (r.comment || '').trim(), disabled: !!r.disabled };
+
+      if (editing) await session.ros.write('/user/set', ['=.id=' + r.id].concat(args));
+      else         await session.ros.write('/user/add', args);
+
+      audit.fromSocket(socket).record({ action: editing ? 'rosuser.update' : 'rosuser.create',
+        targetType: 'rosuser', targetId: editing ? r.id : null, targetName: name,
+        routerId: rid, before, after,
+        // A flag, not a diff field. /user/print never returns a password, so
+        // `before` cannot know whether one was set — recording «unset» →
+        // «changed» would be a claim the trail cannot support. This says only
+        // what is actually known, and keeps the plaintext out of audit.js
+        // entirely rather than relying on its redaction.
+        extra: passwordSet ? { passwordSet: true } : undefined });
+      await session.rosusers.refreshNow();
+      socket.emit('rosusers:ok', { action: editing ? 'update' : 'create', name });
+    } catch (e) {
+      _ruErr(_rosWriteFail(e), { name, message: sanitizeErr(e) });
+    }
+  }));
+
+  socket.on('rosuser:remove', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _ruSession(rid);
+    if (!rid || !session || off) return _ruErr('unavailable');
+    const r = req || {};
+    if (!_ruMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'rosuser.delete', targetType: 'rosuser',
+        routerId: rid, targetName: r.expectedName ? String(r.expectedName) : null });
+      return _ruErr('denied');
+    }
+    if (!r.id) return _ruErr('bad-request');
+
+    try {
+      const { users, self } = await _ruRead(session, rid);
+      const target = _ruRow(users, r.id, r.expectedName);
+      if (!target) return _ruErr('stale-row');
+
+      const verdict = selfGuard.checkUser(self, { verb: 'remove', target: { name: target.name, group: target.group } });
+      if (!verdict.ok) {
+        audit.fromSocket(socket).denied({ action: 'rosuser.delete', targetType: 'rosuser',
+          routerId: rid, targetId: r.id, targetName: target.name, note: verdict.code });
+        return _ruErr(verdict.code, { name: verdict.detail || target.name });
+      }
+
+      await session.ros.write('/user/remove', ['=.id=' + r.id]);
+      audit.fromSocket(socket).record({ action: 'rosuser.delete', targetType: 'rosuser',
+        targetId: r.id, targetName: target.name, routerId: rid,
+        extra: { group: target.group || '' } });
+      await session.rosusers.refreshNow();
+      socket.emit('rosusers:ok', { action: 'delete', name: target.name });
+    } catch (e) {
+      _ruErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  }));
+
+  /**
+   * Create or edit a group.
+   *
+   * `policy` arrives as the list of GRANTED names. RouterOS normalises whatever
+   * it is sent — send `read,api` and it stores all 17 with the rest negated —
+   * so there is no point sending negations, and buildPolicy filters to the
+   * vocabulary the UI actually showed rather than passing strings through.
+   */
+  socket.on('rosgroup:save', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _ruSession(rid);
+    if (!rid || !session || off) return _ruErr('unavailable');
+    const r = req || {};
+    const editing = !!r.id;
+    if (!_ruMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: editing ? 'rosgroup.update' : 'rosgroup.create',
+        targetType: 'rosgroup', routerId: rid, targetName: r.name ? String(r.name) : null });
+      return _ruErr('denied');
+    }
+
+    const name = typeof r.name === 'string' ? r.name.trim() : '';
+    if (!name || !Array.isArray(r.policy)) return _ruErr('bad-request');
+    const policy = RosUsersCollector.buildPolicy(r.policy);
+
+    try {
+      const { groups, self } = await _ruRead(session, rid);
+      const target = editing ? _ruRow(groups, r.id, r.expectedName) : null;
+      if (editing && !target) return _ruErr('stale-row', { name });
+
+      const verdict = selfGuard.checkGroup(self, {
+        verb: editing ? 'set' : 'add',
+        target: target ? { name: target.name } : null,
+        values: { name },
+      });
+      if (!verdict.ok) {
+        audit.fromSocket(socket).denied({ action: editing ? 'rosgroup.update' : 'rosgroup.create',
+          targetType: 'rosgroup', routerId: rid, targetName: name, note: verdict.code });
+        return _ruErr(verdict.code, { name: verdict.detail || name });
+      }
+
+      const args = ['=name=' + name, '=policy=' + policy,
+                    '=comment=' + (typeof r.comment === 'string' ? r.comment.trim() : '')];
+      if (editing) await session.ros.write('/user/group/set', ['=.id=' + r.id].concat(args));
+      else         await session.ros.write('/user/group/add', args);
+
+      audit.fromSocket(socket).record({ action: editing ? 'rosgroup.update' : 'rosgroup.create',
+        targetType: 'rosgroup', targetId: editing ? r.id : null, targetName: name, routerId: rid,
+        before: target ? { name: target.name, policy: target.policy || '' } : {},
+        after:  { name, policy } });
+      await session.rosusers.refreshNow();
+      socket.emit('rosusers:ok', { action: editing ? 'group-update' : 'group-create', name });
+    } catch (e) {
+      _ruErr(_rosWriteFail(e), { name, message: sanitizeErr(e) });
+    }
+  }));
+
+  socket.on('rosgroup:remove', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _ruSession(rid);
+    if (!rid || !session || off) return _ruErr('unavailable');
+    const r = req || {};
+    if (!_ruMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'rosgroup.delete', targetType: 'rosgroup',
+        routerId: rid, targetName: r.expectedName ? String(r.expectedName) : null });
+      return _ruErr('denied');
+    }
+    if (!r.id) return _ruErr('bad-request');
+
+    try {
+      const { groups, self } = await _ruRead(session, rid);
+      const target = _ruRow(groups, r.id, r.expectedName);
+      if (!target) return _ruErr('stale-row');
+
+      const verdict = selfGuard.checkGroup(self, { verb: 'remove', target: { name: target.name } });
+      if (!verdict.ok) {
+        audit.fromSocket(socket).denied({ action: 'rosgroup.delete', targetType: 'rosgroup',
+          routerId: rid, targetId: r.id, targetName: target.name, note: verdict.code });
+        return _ruErr(verdict.code, { name: verdict.detail || target.name });
+      }
+
+      // Not pre-checked against the member count. The router refuses with
+      // "group has some users" and it is the authority — a count read a moment
+      // earlier could be wrong in either direction.
+      await session.ros.write('/user/group/remove', ['=.id=' + r.id]);
+      audit.fromSocket(socket).record({ action: 'rosgroup.delete', targetType: 'rosgroup',
+        targetId: r.id, targetName: target.name, routerId: rid,
+        extra: { policy: target.policy || '' } });
+      await session.rosusers.refreshNow();
+      socket.emit('rosusers:ok', { action: 'group-delete', name: target.name });
+    } catch (e) {
+      const msg = String((e && e.message) || e).toLowerCase();
+      if (msg.includes('has some users')) return _ruErr('group-in-use');
+      _ruErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  }));
+
+  socket.on('rossession:remove', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _ruSession(rid);
+    if (!rid || !session || off) return _ruErr('unavailable');
+    const r = req || {};
+    if (!_ruMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'rossession.remove', targetType: 'rossession',
+        routerId: rid, targetName: r.expectedName ? String(r.expectedName) : null });
+      return _ruErr('denied');
+    }
+    if (!r.id) return _ruErr('bad-request');
+
+    try {
+      const { active, self } = await _ruRead(session, rid);
+      const target = _ruRow(active, r.id, r.expectedName);
+      if (!target) return _ruErr('stale-row');
+
+      const verdict = selfGuard.checkSession(self, { target: { name: target.name } });
+      if (!verdict.ok) {
+        audit.fromSocket(socket).denied({ action: 'rossession.remove', targetType: 'rossession',
+          routerId: rid, targetId: r.id, targetName: target.name, note: verdict.code });
+        return _ruErr(verdict.code, { name: verdict.detail || target.name });
+      }
+
+      await session.ros.write('/user/active/remove', ['=.id=' + r.id]);
+      audit.fromSocket(socket).record({ action: 'rossession.remove', targetType: 'rossession',
+        targetId: r.id, targetName: target.name, routerId: rid,
+        extra: { via: target.via || '', from: target.address || '' },
+        note: 'ended an active RouterOS session' });
+      await session.rosusers.refreshNow();
+      socket.emit('rosusers:ok', { action: 'session-remove', name: target.name });
+    } catch (e) {
+      _ruErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  }));
+  // assuming selfGuard's rules apply: it warns rather than refuses, and it fails
   // ── WiFi frequency analyzer ───────────────────────────────────────────────
   //
   // The only disruptive action in the app: it takes the radio off the air and

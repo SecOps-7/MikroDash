@@ -222,6 +222,7 @@ Change only the `"version"` field. Nothing else.
 | `routing.js` | **Stream** | `/ip/route/listen` + `/routing/bgp/session/listen` | BGP keepalives fingerprint-suppressed |
 | `netwatch.js` | **Stream** | `/tool/netwatch/listen` | Initial `/print` on connect; 60 s heartbeat re-emit; drives NetWatch host-down alerts |
 | `logs.js` | **Stream** | `/log/listen` | Bounded history buffer (500 entries) |
+| `rosusers.js` | Poll | `/user/print`, `/user/group/print`, `/user/active/print`, `/user/settings/print` | Poll-only by design (`streamKey: null`), like `packages.js`: a router's user list changes when an operator edits it, so a channel held open for weeks buys nothing. Slow default (60 s) with `refreshNow()` after every action. **Reads only** — every write lives in the socket handlers, enforced by a source guard |
 
 **Rule:** always prefer streaming. Use `/listen` for event-driven data; use `=interval=N` on print commands that lack a `/listen` variant. Fall back to `setInterval` polling only when the RouterOS command genuinely cannot push (rare — check both mechanisms first).
 
@@ -236,6 +237,24 @@ RouterOS v7 on some firmware builds omits the `.flags` field for routes in their
 ### `=.proplist=` on registration-table calls — can filter rows
 
 On RouterOS v7 new wifi package, including unknown or absent field names in `=.proplist=` for `/interface/wifi/registration-table/print` can cause RouterOS to **filter rows** rather than simply omitting those fields per row. For example, requesting `'signal'` (which is `'signal-strength'` in the new API) may return only clients where that field is non-empty — resulting in only 1 of N clients being returned. **Do not use `=.proplist=` on wireless registration-table calls.** The table is small enough that the optimisation is not worth the risk.
+
+  is unaffected.
+
+### `/user/group/set` — a positive policy list is ADDITIVE
+
+On `add`, RouterOS fills in the negations itself: send `=policy=read,api` and it stores all 17
+policies with every unnamed one negated. On **`set` it does not**. A positive-only list only adds,
+and a policy is removed only when it is explicitly named with a `!`:
+
+```
+group holds read,test,api
+/user/group/set =policy=read                      -> read,test,api   (silently unchanged)
+/user/group/set =policy=!local,...,read,...,!api  -> read
+```
+
+This is a quiet failure, not an error: a permissions editor built on the `add` behaviour appears to
+work while never removing anything. `RosUsersCollector.buildPolicy()` therefore always emits the
+full vocabulary with explicit negations, which is correct for both verbs. Verified on RouterOS 7.24.
 
 ### `!empty` reply — RouterOS 7.18+
 
@@ -499,7 +518,7 @@ therefore means:
 
 ## Shared infrastructure in index.js
 
-**`buildSession(routerCfg)`** — creates a fresh ROS instance + all 16 collectors + connTableCache wired to the given router config. Called on startup and on every hot-swap.
+**`buildSession(routerCfg)`** — creates a fresh ROS instance + all 25 collectors + connTableCache wired to the given router config. Called on startup and on every hot-swap.
 
 **`teardownSession(session)`** — stops all collectors (timers + streams), stops the ROS connection, waits 150 ms for in-flight callbacks to settle.
 
