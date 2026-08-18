@@ -67,7 +67,7 @@
        and density stay per-table, because those genuinely differ. */
     th.sort-asc::after{content:' \2191'}
     th.sort-desc::after{content:' \2193'}
-    .table tbody tr:hover td,.bw-table tr:hover td,.rt-table tr:hover td,
+    .table tbody tr:hover td,.bw-table tr:hover td,
     .iface-list tbody tr:hover td{background:rgba(99,130,190,.05)}
     :focus-visible{outline:2px solid var(--accent-rx) !important;outline-offset:2px;border-radius:3px}
     /* Fallback for engines without :focus-visible support. */
@@ -901,6 +901,24 @@
     html[data-theme="light"] #fwSearch{background:rgba(255,255,255,.9)}
     /* scroll */
     .data-scroll{scrollbar-width:thin;scrollbar-color:rgba(99,130,190,.2) transparent}
+    /* Pin the header row inside any scrolling table body. Without this the
+       column names leave the screen the moment the table is longer than the
+       viewport, which on a 500-row host table means scrolling back up to
+       remember which column is which.
+       The background is opaque on purpose: sticky cells paint over the rows
+       passing beneath them, and a translucent header lets the text show
+       through. z-index keeps it above the row borders. */
+    /* --bg-card is translucent in every palette and --bg-deep is solid, so the
+       header is painted as the card tint OVER the page colour: the same
+       composite the row shows when it is not pinned, but opaque, so the rows
+       sliding under it do not ghost through. */
+    /* Position only. The header already has an opaque background of its own —
+       tabler.min.css sets `.table thead th{background:var(--tblr-bg-surface-tertiary)}`,
+       which resolves to #1f2937 — so it hides the rows passing beneath it
+       without any help. An earlier version of this rule set its own background
+       and silently replaced that colour on EVERY table in a scroll wrapper,
+       including pages this change never touched. Do not paint here. */
+    .data-scroll thead th{position:sticky;top:0;z-index:3}
     .data-scroll::-webkit-scrollbar{width:4px}
     .data-scroll::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
     /* dhcp */
@@ -1327,10 +1345,31 @@
     .rt-summary-row{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem}
     /* Routing protocol tabs. The bar reuses .stab-bar/.stab from Settings, as the
        Reports tabs already do, so only the panel rule is new. A distinct panel
-       class matters: the Reports switcher queries .rtab-panel document-wide. */
-    #rtTabBar{margin-bottom:.85rem}
+       class matters: the Reports switcher queries .rtab-panel document-wide.
+       The #rtTabBar{margin-bottom:.85rem} that used to sit here separated the bar
+       from the card below it. Inside a card header there is nothing to separate
+       from, and being an id it outranked .rttab-bar — leaving a phantom 13.6px
+       under the tabs that pushed their centre above the title beside them. */
     .rttab-panel{display:none}
     .rttab-panel.active{display:block}
+    /* The strip lives inside the card header, so it drops the standalone bar's
+       rule and margin. */
+    .rttab-bar{margin-bottom:0;border-bottom:none;padding-bottom:0;align-items:center}
+    /* Tabler's .d-flex is display:flex!important, so it beats both the [hidden]
+       user-agent rule and an ordinary override. Same trap as .iface-grid[hidden]
+       above, one step worse because the utility class carries !important. */
+    #rtRoutesFilters[hidden],#rtPeersFilters[hidden]{display:none!important}
+    /* The standalone strip hangs its buttons 1px below the bar so they sit on
+       the rule. There is no rule in a card header, so that nudge only pushes the
+       tabs out of line with the title beside them. */
+    .rttab-bar .stab{padding:.3rem .75rem;font-size:.74rem;margin-bottom:0}
+    /* Clear of the tabs, and centred against them rather than sitting low. */
+    #rtCardTitle{margin-left:.85rem;line-height:1;align-self:center}
+    /* routingRoutesCard and routingPeersCard stay .card so the stale and
+       collector-off overlays keep working unchanged — staleConfig names them —
+       but nested inside the outer frame they must not draw a second one. */
+    #routingTablesCard .rttab-panel > .card{border:none;background:transparent;
+      border-radius:0;margin:0;box-shadow:none}
     @media(max-width:600px){.rt-summary-row{grid-template-columns:1fr}}
     /* DHCP summary row */
     .dhcp-summary-row{display:grid;grid-template-columns:10fr 3fr;gap:.75rem;margin-bottom:.85rem;min-height:165px}
@@ -1372,8 +1411,8 @@
     .rt-proto-count.rt-ospf{color:rgba(251,113,133,.9)}
     .rt-bgp-card{display:flex;flex-direction:column}
     .rt-bgp-stats-wrap{flex:1;display:flex;align-items:center;justify-content:center}
-    .rt-proto-card,.rt-bgp-card,.rt-table-wrap{transition:opacity .3s}
-    .rt-proto-card.is-stale,.rt-bgp-card.is-stale,.rt-table-wrap.is-stale{opacity:.45;border-color:rgba(99,130,190,.2)}
+    .rt-proto-card,.rt-bgp-card{transition:opacity .3s}
+    .rt-proto-card.is-stale,.rt-bgp-card.is-stale{opacity:.45;border-color:rgba(99,130,190,.2)}
     .rt-bgp-stats{display:flex;gap:1.2rem;align-items:center;justify-content:center}
     .rt-bgp-stat{display:flex;flex-direction:column;align-items:center;gap:.1rem}
     .rt-bgp-num{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);line-height:1}
@@ -1383,12 +1422,6 @@
     .rt-bgp-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
     .rt-bgp-divider{width:1px;height:2.5rem;background:var(--border)}
     /* peers table */
-    .rt-table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-    .rt-table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
-    .rt-table th{padding:.45rem .7rem;text-align:left;font-size:.66rem;font-weight:400;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:1px solid var(--border);background:rgba(99,130,190,.04);white-space:nowrap;cursor:pointer;user-select:none;font-family:var(--font-ui)}
-    .rt-table th:hover{color:var(--text-main)}
-    .rt-table td{padding:.4rem .7rem;border-bottom:1px solid rgba(99,130,190,.08);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0}
-    .rt-table tr:last-child td{border-bottom:none}
     /* state badges */
     .bgp-state{display:inline-block;padding:.1rem .4rem;border-radius:4px;font-size:.65rem;font-weight:600;font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.04em}
     .bgp-state.established{background:rgba(52,211,153,.15);color:rgba(52,211,153,.95);border:1px solid rgba(52,211,153,.25)}
@@ -1410,23 +1443,23 @@
     /* sparkline cell */
     .rt-spark{display:block}
     /* mobile */
+    /* Mobile column widths, retargeted from the old .rt-table onto the cards the
+       two routing tables now live in. The percentage colgroups above collapse to
+       unreadable on a phone, so both tables scroll at fixed widths instead. */
     @media(max-width:700px){
-      .rt-table{min-width:860px;width:860px}
-      .rt-table{min-width:960px;width:960px}
-      .rt-table colgroup col:nth-child(1){width:140px}
-      .rt-table colgroup col:nth-child(2){width:110px}
-      .rt-table colgroup col:nth-child(3){width:65px}
-      .rt-table colgroup col:nth-child(4){width:90px}
-      .rt-table colgroup col:nth-child(5){width:65px}
-      .rt-table colgroup col:nth-child(6){width:60px}
-      .rt-table colgroup col:nth-child(7){width:60px}
-      .rt-table colgroup col:nth-child(8){width:60px}
-      .rt-table colgroup col:nth-child(9){width:130px}
-      .rt-table colgroup col:nth-child(10){width:180px}
-    }
-    @media(max-width:700px){
-      #rtRoutesTbody td,.rt-table#rtRoutesTable th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
-      .rt-table#rtRoutesTable{min-width:600px;width:600px}
+      #routingPeersCard .table{min-width:960px;width:960px}
+      #routingPeersCard colgroup col:nth-child(1){width:140px}
+      #routingPeersCard colgroup col:nth-child(2){width:110px}
+      #routingPeersCard colgroup col:nth-child(3){width:65px}
+      #routingPeersCard colgroup col:nth-child(4){width:90px}
+      #routingPeersCard colgroup col:nth-child(5){width:65px}
+      #routingPeersCard colgroup col:nth-child(6){width:60px}
+      #routingPeersCard colgroup col:nth-child(7){width:60px}
+      #routingPeersCard colgroup col:nth-child(8){width:60px}
+      #routingPeersCard colgroup col:nth-child(9){width:130px}
+      #routingPeersCard colgroup col:nth-child(10){width:180px}
+      #rtRoutesTbody td,#rtRoutesTable th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
+      #rtRoutesTable{min-width:600px;width:600px}
     }
     /* ── Reports page ─────────────────────────────────────────────────────── */
     .rpt-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
@@ -2493,6 +2526,10 @@
             <span id="dnsStaticBadge" class="card-badge">0</span>
           </div>
           <input id="dnsStaticSearch" class="form-control form-control-sm"
+                 placeholder="Search name or address&hellip;" style="flex:0 1 260px;width:260px"/>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:360px;overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:720px">
               <colgroup><col style="width:34%"><col style="width:26%"><col style="width:10%"><col style="width:10%"><col style="width:20%"></colgroup>
               <thead><tr id="dnsStaticThead"></tr></thead>
@@ -2537,6 +2574,10 @@
             <span id="vlansBadge" class="card-badge">0</span>
           </div>
           <input id="vlansSearch" class="form-control form-control-sm"
+                 placeholder="Search id, name or port…" style="flex:0 1 260px;width:260px"/>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 340px);overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
               <colgroup><col style="width:6%"><col style="width:13%"><col style="width:9%"><col style="width:6%">
                         <col style="width:18%"><col style="width:19%"><col style="width:7%"><col style="width:22%"></colgroup>
@@ -2558,6 +2599,10 @@
           <label class="d-flex align-items-center gap-2" style="font-size:.7rem;color:var(--text-muted);cursor:pointer">
             <input type="checkbox" id="vlansShowDynamic"> Show dynamic rows
             <span id="vlansDynChip" class="card-badge">0</span>
+          </label>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:320px;overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:700px">
               <colgroup><col style="width:14%"><col style="width:16%"><col style="width:28%"><col style="width:28%"><col style="width:14%"></colgroup>
               <thead><tr><th>Bridge</th><th>VLAN IDs</th><th>Tagged</th><th>Untagged</th><th>Type</th></tr></thead>
@@ -2574,12 +2619,57 @@
 
   <!-- PPP -->
   <div class="page-view" id="page-ppp">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Active Sessions</div>
+          <div class="fa-stat-val" id="pppSumCount">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Services</div>
+          <div class="fa-stat-val" id="pppSumServices" style="font-size:.8rem">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Download</div>
+          <div class="fa-stat-val" id="pppSumRx">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Upload</div>
+          <div class="fa-stat-val" id="pppSumTx">&mdash;</div>
+        </div>
+      </div>
+
+      <div class="card" id="pppCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Active Sessions</h3>
+            <span id="pppBadge" class="card-badge">0</span>
+          </div>
+          <input id="pppSearch" class="form-control form-control-sm"
+                 placeholder="Search user, address or caller id…" style="flex:0 1 280px;width:280px"/>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 380px);overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
               <colgroup><col style="width:16%"><col style="width:10%"><col style="width:14%"><col style="width:15%">
                         <col style="width:11%"><col style="width:17%"><col style="width:17%"></colgroup>
               <thead><tr id="pppThead"></tr></thead>
               <tbody id="pppTable">
                 <tr><td colspan="7" class="empty-state">Waiting for PPP data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="pppServerCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center gap-2">
+          <h3 class="card-title mb-0">Servers &amp; Profiles</h3>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:300px;overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:640px">
               <colgroup><col style="width:14%"><col style="width:22%"><col style="width:22%"><col style="width:22%"><col style="width:20%"></colgroup>
               <thead><tr><th>Kind</th><th>Name</th><th>Interface / Local</th><th>Detail</th><th>State</th></tr></thead>
@@ -2689,6 +2779,9 @@
         <div class="card-header d-flex align-items-center gap-2">
           <h3 class="card-title mb-0">Bridges</h3>
           <span id="bridgesBadge" class="card-badge">0</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:320px;overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:900px">
               <colgroup><col style="width:16%"><col style="width:10%"><col style="width:10%"><col style="width:9%">
                         <col style="width:15%"><col style="width:8%"><col style="width:8%"><col style="width:24%"></colgroup>
@@ -2723,6 +2816,7 @@
         <div class="card-body p-0">
 
           <div class="brtab-panel active" id="brtab-ports" role="tabpanel" aria-labelledby="brTabBtn-ports">
+            <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
               <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
                 <colgroup><col style="width:20%"><col style="width:14%"><col style="width:8%"><col style="width:20%">
                           <col style="width:10%"><col style="width:14%"><col style="width:14%"></colgroup>
@@ -2735,6 +2829,7 @@
           </div>
 
           <div class="brtab-panel" id="brtab-hosts" role="tabpanel" aria-labelledby="brTabBtn-hosts">
+            <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
               <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:720px">
                 <colgroup><col style="width:26%"><col style="width:24%"><col style="width:16%"><col style="width:12%"><col style="width:22%"></colgroup>
                 <thead><tr id="bridgesHostThead"></tr></thead>
@@ -2865,6 +2960,10 @@
             <span id="capsmanBadge" class="card-badge">0</span>
           </div>
           <input id="capsmanSearch" class="form-control form-control-sm"
+                 placeholder="Search identity, board or serial&hellip;" style="flex:0 1 260px;width:260px"/>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 380px);overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:900px">
               <colgroup><col style="width:15%"><col style="width:19%"><col style="width:9%"><col style="width:15%">
                         <col style="width:10%"><col style="width:12%"><col style="width:10%"><col style="width:10%"></colgroup>
@@ -2881,6 +2980,9 @@
         <div class="card-header d-flex align-items-center gap-2">
           <h3 class="card-title mb-0">Provisioning</h3>
           <span id="capsmanProvBadge" class="card-badge">0</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:340px;overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
               <colgroup><col style="width:22%"><col style="width:18%"><col style="width:20%"><col style="width:25%"><col style="width:15%"></colgroup>
               <thead><tr><th>Bands</th><th>Action</th><th>Master Config</th><th>Slave Configs</th><th>Name Format</th></tr></thead>
@@ -3075,6 +3177,11 @@
           <div class="d-flex align-items-center gap-2">
             <button id="pkgCheckBtn" class="btn btn-sm btn-outline-secondary" type="button">Check for updates</button>
             <input id="packagesSearch" class="form-control form-control-sm"
+                   placeholder="Search package&hellip;" style="flex:0 1 220px;width:220px"/>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
               <colgroup><col style="width:22%"><col style="width:12%"><col style="width:11%"><col style="width:18%">
                         <col style="width:17%"><col style="width:20%"></colgroup>
@@ -3091,6 +3198,32 @@
         <div class="card-header"><h3 class="card-title mb-0">Firmware &amp; Update</h3></div>
         <div class="card-body">
           <div id="pkgFwBody" class="kv-grid"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
+            <div class="data-scroll" style="max-height:calc(100vh - 440px);overflow-y:auto">
+            <div class="data-scroll" style="max-height:calc(100vh - 440px);overflow-y:auto">
+            <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+            <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+            <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <select class="form-select form-select-sm" id="auActor" style="width:150px;flex:0 0 auto;font-size:.74rem" aria-label="Actor filter">
+              <option value="">All actors</option>
+            </select>
+            <select class="form-select form-select-sm" id="auAction" style="width:170px;flex:0 0 auto;font-size:.74rem" aria-label="Action filter">
+              <option value="">All actions</option>
+            </select>
+            <select class="form-select form-select-sm" id="auOutcome" style="width:130px;flex:0 0 auto;font-size:.74rem" aria-label="Outcome filter">
+              <option value="">All outcomes</option>
+              <option value="ok">Succeeded</option>
+              <option value="denied">Refused</option>
+              <option value="failed">Failed</option>
+            </select>
+            <input id="auSearch" class="form-control form-control-sm" placeholder="Search target or detail&hellip;" style="flex:0 1 220px;width:220px"/>
+            <a id="auCsvLink" class="btn btn-sm btn-outline-secondary" href="#">CSV</a>
+            <a id="auPdfLink" class="btn btn-sm btn-outline-secondary" href="#">PDF</a>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 330px);overflow-y:auto">
   <div class="page-view" id="page-reports">
     <div>
 
@@ -4569,130 +4702,141 @@
 
       </div><!-- /rt-summary-row -->
 
-      <!-- Protocol tabs. Routes is the default and primary tab. Another protocol
-           is one button plus one panel, and nothing else. -->
-      <div class="stab-bar" id="rtTabBar" role="tablist" aria-label="Routing protocol">
-        <button class="stab active" data-rttab="routes" role="tab" aria-selected="true"
-                aria-controls="rttab-routes" id="rtTabBtn-routes">Routes</button>
-        <button class="stab" data-rttab="bgp" role="tab" aria-selected="false"
-                aria-controls="rttab-bgp" id="rtTabBtn-bgp">BGP</button>
+      <!-- One card frame for both protocol views: the tab strip sits inside the
+           header at top left with the table's name beside it, and each tab
+           brings its own filters. Another protocol is a button, a panel and a
+           title, and nothing else. -->
+      <div class="card" id="routingTablesCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <div class="stab-bar rttab-bar" id="rtTabBar" role="tablist" aria-label="Routing protocol">
+              <button class="stab active" data-rttab="routes" role="tab" aria-selected="true"
+                      aria-controls="rttab-routes" id="rtTabBtn-routes">Routes</button>
+              <button class="stab" data-rttab="bgp" role="tab" aria-selected="false"
+                      aria-controls="rttab-bgp" id="rtTabBtn-bgp">BGP</button>
+            </div>
+            <h3 class="card-title mb-0" id="rtCardTitle">Static &amp; Dynamic Routes</h3>
+          </div>
+          <div id="rtRoutesFilters" class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <input type="text" class="form-control form-control-sm" id="rtRouteSearch"
+                   placeholder="Search destination or gateway&hellip;" style="flex:0 1 240px;width:240px">
+            <select class="form-select form-select-sm" id="rtRouteSelType" style="width:168px;flex:0 0 auto;font-size:.74rem" aria-label="Route type filter">
+              <option value="">Static + Dynamic</option>
+              <option value="static">Static only</option>
+              <option value="dynamic">Dynamic only</option>
+            </select>
+            <select class="form-select form-select-sm" id="rtRouteSelFamily" style="width:130px;flex:0 0 auto;font-size:.74rem" aria-label="Address family filter">
+              <option value="">IPv4 + IPv6</option>
+              <option value="ipv4">IPv4 only</option>
+              <option value="ipv6">IPv6 only</option>
+            </select>
+            <select class="form-select form-select-sm" id="rtRouteSelActive" style="width:120px;flex:0 0 auto;font-size:.74rem" aria-label="Active routes filter">
+              <option value="">All routes</option>
+              <option value="active">Active only</option>
+            </select>
+          </div>
+          <div id="rtPeersFilters" class="d-flex align-items-center gap-2 flex-wrap justify-content-end" hidden>
+            <input type="text" class="form-control form-control-sm" id="rtSearch"
+                   placeholder="Search peer name, IP or ASN&hellip;" style="flex:0 1 230px;width:230px">
+            <select class="form-select form-select-sm" id="rtSelState" style="width:135px;flex:0 0 auto;font-size:.74rem" aria-label="BGP session state filter">
+              <option value="">All states</option>
+              <option value="established">Established</option>
+              <option value="idle">Idle</option>
+              <option value="active">Active</option>
+              <option value="connect">Connect</option>
+              <option value="opensent">OpenSent</option>
+              <option value="openconfirm">OpenConfirm</option>
+            </select>
+            <select class="form-select form-select-sm" id="rtSelType" style="width:150px;flex:0 0 auto;font-size:.74rem" aria-label="BGP peer type filter">
+              <option value="">All types</option>
+              <option value="upstream">Upstream</option>
+              <option value="ix">IX / Route Server</option>
+              <option value="private">Private / Internal</option>
+            </select>
+            <select class="form-select form-select-sm" id="rtSelIpver" style="width:130px;flex:0 0 auto;font-size:.74rem" aria-label="BGP address family filter">
+              <option value="">IPv4 + IPv6</option>
+              <option value="4">IPv4 only</option>
+              <option value="6">IPv6 only</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body p-0">
+
+          <div class="rttab-panel active" id="rttab-routes" role="tabpanel" aria-labelledby="rtTabBtn-routes">
+            <div class="card" id="routingRoutesCard">
+              <div class="stale-overlay">&#9679; stale</div>
+              <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" id="rtRoutesTable" style="table-layout:fixed;width:100%;min-width:860px">
+              <colgroup>
+                <col style="width:28%">
+                <col style="width:25%">
+                <col style="width:10%">
+                <col style="width:9%">
+                <col style="width:12%">
+                <col style="width:16%">
+              </colgroup>
+              <thead>
+                <tr>
+                  <!-- The sort helpers assign className outright, so the pointer
+                       cursor has to be inline or it is wiped on the first sort. -->
+                  <th id="rtRThDst" style="cursor:pointer;user-select:none">Destination</th>
+                  <th id="rtRThGw" style="cursor:pointer;user-select:none">Gateway</th>
+                  <th id="rtRThDist" style="cursor:pointer;user-select:none">Distance</th>
+                  <th id="rtRThActive" style="cursor:pointer;user-select:none">Active</th>
+                  <th id="rtRThType" style="cursor:pointer;user-select:none">Type</th>
+                  <th id="rtRThComment">Comment</th>
+                </tr>
+              </thead>
+              <tbody id="rtRoutesTbody">
+                <tr><td colspan="6" class="empty-state">Waiting for route data&hellip;</td></tr>
+              </tbody>
+            </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="rttab-panel" id="rttab-bgp" role="tabpanel" aria-labelledby="rtTabBtn-bgp">
+            <div class="card" id="routingPeersCard">
+              <div class="stale-overlay">&#9679; stale</div>
+              <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:1000px">
+              <colgroup>
+                <col style="width:14%">
+                <col style="width:11%">
+                <col style="width:7%">
+                <col style="width:9%">
+                <col style="width:7%">
+                <col style="width:6%">
+                <col style="width:6%">
+                <col style="width:6%">
+                <col style="width:14%">
+                <col style="width:20%">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th id="rtThName" style="cursor:pointer;user-select:none">Peer</th>
+                  <th id="rtThAddr" style="cursor:pointer;user-select:none">Address</th>
+                  <th id="rtThAs" style="cursor:pointer;user-select:none">ASN</th>
+                  <th id="rtThState" style="cursor:pointer;user-select:none">State</th>
+                  <th id="rtThUptime" style="cursor:pointer;user-select:none">Uptime</th>
+                  <th id="rtThPfx" style="cursor:pointer;user-select:none">Prefixes</th>
+                  <th id="rtThSent" style="cursor:pointer;user-select:none">Upd Out</th>
+                  <th id="rtThRecv" style="cursor:pointer;user-select:none">Upd In</th>
+                  <th id="rtThErr">Last Error</th>
+                  <th id="rtThSpark">Prefix Trend</th>
+                </tr>
+              </thead>
+              <tbody id="rtTbody">
+                <tr><td colspan="10" class="empty-state">Waiting for BGP data&hellip;</td></tr>
+              </tbody>
+            </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
 
-      <div class="rttab-panel active" id="rttab-routes" role="tabpanel" aria-labelledby="rtTabBtn-routes">
-
-      <!-- Static + Dynamic Routes table -->
-      <div id="routingRoutesCard" style="margin-bottom:.85rem">
-        <div class="rt-toolbar">
-          <span class="rt-card-title" style="margin-bottom:0;flex-shrink:0">Static &amp; Dynamic Routes</span>
-          <input type="text" class="rt-search" id="rtRouteSearch" placeholder="Search destination or gateway…">
-          <select class="rt-sel" id="rtRouteSelType" aria-label="Route type filter">
-            <option value="">Static + Dynamic</option>
-            <option value="static">Static only</option>
-            <option value="dynamic">Dynamic only</option>
-          </select>
-          <select class="rt-sel" id="rtRouteSelFamily" aria-label="Address family filter">
-            <option value="">IPv4 + IPv6</option>
-            <option value="ipv4">IPv4 only</option>
-            <option value="ipv6">IPv6 only</option>
-          </select>
-          <select class="rt-sel" id="rtRouteSelActive" aria-label="Active routes filter">
-            <option value="">All routes</option>
-            <option value="active">Active only</option>
-          </select>
-        </div>
-        <div class="rt-table-wrap">
-          <table class="rt-table" id="rtRoutesTable" style="table-layout:fixed">
-            <colgroup>
-              <col style="width:28%">
-              <col style="width:25%">
-              <col style="width:10%">
-              <col style="width:9%">
-              <col style="width:12%">
-              <col style="width:16%">
-            </colgroup>
-            <thead>
-              <tr>
-                <th id="rtRThDst">Destination</th>
-                <th id="rtRThGw">Gateway</th>
-                <th id="rtRThDist">Distance</th>
-                <th id="rtRThActive">Active</th>
-                <th id="rtRThType">Type</th>
-                <th id="rtRThComment">Comment</th>
-              </tr>
-            </thead>
-            <tbody id="rtRoutesTbody">
-              <tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">Waiting for data…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div><!-- /routingRoutesCard -->
-
-      </div><!-- /rttab-routes -->
-
-      <div class="rttab-panel" id="rttab-bgp" role="tabpanel" aria-labelledby="rtTabBtn-bgp">
-
-      <!-- BGP Peers table -->
-      <div id="routingPeersCard">
-        <div class="rt-toolbar">
-          <span class="rt-card-title" style="flex-shrink:0">BGP Peers</span>
-          <input type="text" class="rt-search" id="rtSearch" placeholder="Search peer name, IP or ASN…">
-          <select class="rt-sel" id="rtSelState" aria-label="BGP session state filter">
-            <option value="">All states</option>
-            <option value="established">Established</option>
-            <option value="idle">Idle</option>
-            <option value="active">Active</option>
-            <option value="connect">Connect</option>
-            <option value="opensent">OpenSent</option>
-            <option value="openconfirm">OpenConfirm</option>
-          </select>
-          <select class="rt-sel" id="rtSelType" aria-label="BGP peer type filter">
-            <option value="">All types</option>
-            <option value="upstream">Upstream</option>
-            <option value="ix">IX / Route Server</option>
-            <option value="private">Private / Internal</option>
-          </select>
-          <select class="rt-sel" id="rtSelIpver" aria-label="BGP address family filter">
-            <option value="">IPv4 + IPv6</option>
-            <option value="4">IPv4 only</option>
-            <option value="6">IPv6 only</option>
-          </select>
-        </div>
-        <div class="rt-table-wrap">
-          <table class="rt-table">
-            <colgroup>
-              <col style="width:14%">
-              <col style="width:11%">
-              <col style="width:7%">
-              <col style="width:9%">
-              <col style="width:7%">
-              <col style="width:6%">
-              <col style="width:6%">
-              <col style="width:6%">
-              <col style="width:14%">
-              <col style="width:20%">
-            </colgroup>
-            <thead>
-              <tr>
-                <th id="rtThName">Peer</th>
-                <th id="rtThAddr">Address</th>
-                <th id="rtThAs">ASN</th>
-                <th id="rtThState">State</th>
-                <th id="rtThUptime">Uptime</th>
-                <th id="rtThPfx">Prefixes</th>
-                <th id="rtThSent">Upd Out</th>
-                <th id="rtThRecv">Upd In</th>
-                <th id="rtThErr">Last Error</th>
-                <th id="rtThSpark">Prefix Trend</th>
-              </tr>
-            </thead>
-            <tbody id="rtTbody">
-              <tr><td colspan="10" style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.75rem">Waiting for data…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div><!-- /routingPeersCard -->
-
-      </div><!-- /rttab-bgp -->
 
     </div><!-- /container -->
   </div><!-- /page-routing -->
