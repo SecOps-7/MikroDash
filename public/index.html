@@ -556,6 +556,30 @@
     .brtab-bar .stab{padding:.3rem .75rem;font-size:.74rem}
 
     /* ── VLANs: stacked RX/TX cell ──────────────────────────────── */
+    /* Two lines rather than one "rx / tx" string: the rates are read far more
+       often than they are compared, and stacking leaves room for a sparkline
+       per direction without widening the column. */
+    /* Queues: the same rate-cell shape as the VLANs page, with its own class
+       names. Copied rather than shared because generalising the VLAN classes
+       would mean editing a working page for no functional gain. */
+    .q-rate{display:flex;flex-direction:column;gap:.12rem}
+    .q-rate-line{display:flex;align-items:center;gap:.35rem;line-height:1.15}
+    .q-rate-arrow{width:.6rem;flex-shrink:0;font-size:.7rem}
+    .q-rate-arrow.rx{color:var(--accent-rx)}
+    .q-rate-arrow.tx{color:var(--accent-tx,#f59f00)}
+    .q-rate-arrow.zero{color:var(--text-muted)}
+    .q-rate-val{min-width:5.4rem;text-align:right;white-space:nowrap;font-size:.72rem}
+    .q-rate-val.rx{color:var(--accent-rx)}
+    .q-rate-val.tx{color:var(--accent-tx,#f59f00)}
+    .q-rate-val.zero{color:var(--text-muted)}
+    .q-spark-slot{display:inline-block;width:56px;height:14px}
+    /* The FastTrack banner is a warning, not an error: the queues are valid, the
+       router is just not consulting them. */
+    .q-ftbanner{border:1px solid rgba(245,159,0,.3);background:rgba(245,159,0,.08);
+                border-radius:6px;padding:.55rem .7rem;font-size:.78rem;color:var(--text)}
+    .q-ftbanner code{font-size:.72rem}
+    .q-ftbanner.q-ft-unknown{border-color:var(--border);background:transparent;color:var(--text-muted)}
+    .q-order{font-family:var(--font-mono);font-size:.65rem;color:var(--text-muted)}
 
     .vlan-rate{display:flex;flex-direction:column;gap:.12rem}
     .vlan-rate-line{display:flex;align-items:center;gap:.35rem;line-height:1.15}
@@ -1592,6 +1616,10 @@
     <a class="nav-item" data-page="packages" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7.5 12 12.5l8.7-5"/><path d="M12 12.5V21"/></svg></span>
       <span class="nav-label">Packages</span>
+    </a>
+    <a class="nav-item" data-page="queues" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M3 12h12"/><path d="M3 18h6"/><path d="M19 15l3 3-3 3"/></svg></span>
+      <span class="nav-label">Queues</span>
     </a>
     <a class="nav-item" data-page="rosusers" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-1.5-1.5"/></svg></span>
@@ -3212,8 +3240,141 @@
         <div class="card-header"><h3 class="card-title mb-0">Firmware &amp; Update</h3></div>
         <div class="card-body">
           <div id="pkgFwBody" class="kv-grid"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="page-view" id="page-queues">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Simple Queues</div><div class="fa-stat-val" id="qSumSimple" style="color:var(--accent-blue)">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Tree Queues</div><div class="fa-stat-val" id="qSumTree">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Shaping Now</div><div class="fa-stat-val" id="qSumActive">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Total Shaped</div><div class="fa-stat-val" id="qSumBytes" style="font-size:1.1rem">&mdash;</div></div>
+      </div>
+
+      <!-- FastTrack swallows the traffic simple queues are meant to shape, so a
+           queue can look configured and do nothing. Rendered only when at least
+           one enabled queue is actually affected. -->
+      <div id="qFtCard" style="display:none;margin-bottom:.85rem"><div class="q-ftbanner" id="qFtBanner"></div></div>
+      <div id="qNoticeCard" style="display:none;margin-bottom:.85rem"><div class="q-ftbanner q-ft-unknown" id="qNotice"></div></div>
+
+      <div class="card" id="queuesCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="stab-bar brtab-bar" id="qTabBar" role="tablist" aria-label="Queue tables">
+            <button class="stab active" data-qtab="simple" role="tab" aria-selected="true"
+                    aria-controls="qtab-simple" id="qTabBtn-simple">Simple
+              <span id="qSimpleBadge" class="card-badge">0</span></button>
+            <button class="stab" data-qtab="tree" role="tab" aria-selected="false"
+                    aria-controls="qtab-tree" id="qTabBtn-tree">Tree
+              <span id="qTreeBadge" class="card-badge">0</span></button>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span id="qActionNote" class="muted-note"></span>
+            <input id="qSearch" class="form-control form-control-sm"
+                   placeholder="Search&hellip;" style="flex:0 1 200px;width:200px"/>
+            <button class="sbtn sbtn-primary" id="qAddBtn" style="padding:.32rem .7rem;font-size:.72rem">Add Queue</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+
+          <div class="brtab-panel active" id="qtab-simple" role="tabpanel" aria-labelledby="qTabBtn-simple">
             <div class="data-scroll" style="max-height:calc(100vh - 440px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:1000px">
+                <colgroup><col style="width:4%"><col style="width:17%"><col style="width:15%"><col style="width:16%">
+                          <col style="width:22%"><col style="width:26%"></colgroup>
+                <thead><tr id="qSimpleThead"></tr></thead>
+                <tbody id="qSimpleTable">
+                  <tr><td colspan="6" class="empty-state">Waiting for queue data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="brtab-panel" id="qtab-tree" role="tabpanel" aria-labelledby="qTabBtn-tree">
             <div class="data-scroll" style="max-height:calc(100vh - 440px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:940px">
+                <colgroup><col style="width:18%"><col style="width:14%"><col style="width:16%"><col style="width:14%">
+                          <col style="width:18%"><col style="width:20%"></colgroup>
+                <thead><tr id="qTreeThead"></tr></thead>
+                <tbody id="qTreeTable">
+                  <tr><td colspan="6" class="empty-state">Waiting for queue data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Add / edit a queue ────────────────────────────────────────── -->
+      <div class="rtr-modal-bg" id="qFormWrap">
+       <div class="rtr-modal pmodal">
+        <div class="rtr-modal-hdr">
+          <span class="rtr-modal-title" id="qf_title">Add Queue</span>
+          <button class="rtr-modal-close" data-modal-close="qFormWrap" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="rtr-modal-body">
+          <input type="hidden" id="qf_id">
+          <input type="hidden" id="qf_menu">
+          <input type="hidden" id="qf_expectedName">
+          <input type="hidden" id="qf_ack">
+          <div class="sform-row">
+            <div>
+              <label class="sform-label">Name</label>
+              <input class="sform-input" id="qf_name" type="text" placeholder="queue name" autocomplete="off">
+            </div>
+            <div id="qf_targetWrap">
+              <label class="sform-label">Target</label>
+              <input class="sform-input" id="qf_target" type="text" placeholder="10.0.0.5/32 or an interface" autocomplete="off">
+            </div>
+            <div id="qf_parentWrap" style="display:none">
+              <label class="sform-label">Parent</label>
+              <input class="sform-input" id="qf_parent" type="text" placeholder="global, or an interface" autocomplete="off">
+            </div>
+          </div>
+          <div class="sform-row" style="margin-top:.6rem">
+            <div>
+              <!-- Suffixes are what the router accepts and what people type; it
+                   answers in raw bps, which the page converts back for display. -->
+              <label class="sform-label">Max Limit <span style="font-weight:400;text-transform:none;letter-spacing:0" id="qf_maxHint">(up/down, e.g. 15M/20M)</span></label>
+              <input class="sform-input" id="qf_maxLimit" type="text" placeholder="15M/20M" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">Limit At <span style="font-weight:400;text-transform:none;letter-spacing:0">(guaranteed, optional)</span></label>
+              <input class="sform-input" id="qf_limitAt" type="text" placeholder="5M/5M" autocomplete="off">
+            </div>
+          </div>
+          <div class="sform-row" style="margin-top:.6rem">
+            <div id="qf_markWrap">
+              <label class="sform-label" id="qf_markLabel">Packet Marks</label>
+              <input class="sform-input" id="qf_packetMark" type="text" placeholder="Optional" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">Priority <span style="font-weight:400;text-transform:none;letter-spacing:0">(1 highest, 8 lowest)</span></label>
+              <input class="sform-input" id="qf_priority" type="text" placeholder="8" autocomplete="off">
+            </div>
+          </div>
+          <div style="margin-top:.6rem">
+            <label class="sform-label">Comment</label>
+            <input class="sform-input" id="qf_comment" type="text" placeholder="Optional" autocomplete="off">
+          </div>
+          <label class="stoggle" style="margin-top:.7rem">
+            <span class="stoggle-label">Disabled</span>
+            <span class="stoggle-switch"><input type="checkbox" id="qf_disabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+          <div class="login-error" id="qf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+          <!-- The self-throttle prompt lives inside the dialog rather than in a
+               window.confirm, so it can name the address, the CIDR and the cap. -->
+          <div id="qf_warn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.3);border-radius:6px;color:var(--text);font-size:.78rem;padding:.55rem .7rem;margin-top:.6rem"></div>
+        </div>
+        <div class="rtr-modal-footer">
+          <button class="sbtn sbtn-outline" data-modal-close="qFormWrap">Cancel</button>
+          <button class="sbtn sbtn-primary" id="qf_save">Save Queue</button>
         </div>
        </div>
       </div>
@@ -4478,6 +4639,7 @@
               <label class="stoggle"><span class="stoggle-label">DNS</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDns"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Packages</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePackages"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Routers</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouters"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Queues</span><span class="stoggle-switch"><input type="checkbox" id="s_pageQueues"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Router Users</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRosusers"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Audit</span><span class="stoggle-switch"><input type="checkbox" id="s_pageAudit"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

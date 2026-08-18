@@ -110,7 +110,12 @@ const COLLECTORS = Object.freeze([
     streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'dns',   cards: [] },
   { key: 'packages', label: 'Packages',  sessionProp: 'packages',     pollKey: 'pollPackages', defaultPollMs: 60000,
     streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'packages', cards: [] },
+  // queues borrows the FastTrack summary from the firewall collector the way
   // vlans borrows rates from ifStatus, and declares no `requires` for the same
+  // reason: a hard dependency would blank the whole Queues page when somebody
+  // switched Firewall collection off. Degrade the banner, not the page.
+  { key: 'queues', label: 'Queues',   sessionProp: 'queues',       pollKey: 'pollQueues',   defaultPollMs: 5000,
+    streamKey: 'streamQueues',   pollable: true,  disableable: true,  requires: [], page: 'queues', cards: [] },
   // rosusers is the third streamKey: null entry, for the same reason as
   // packages rather than dns: a router's user list changes when an operator
   // edits it, which is a human-timescale event. It polls slowly and the page

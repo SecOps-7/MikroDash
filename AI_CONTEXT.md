@@ -222,6 +222,7 @@ Change only the `"version"` field. Nothing else.
 | `routing.js` | **Stream** | `/ip/route/listen` + `/routing/bgp/session/listen` | BGP keepalives fingerprint-suppressed |
 | `netwatch.js` | **Stream** | `/tool/netwatch/listen` | Initial `/print` on connect; 60 s heartbeat re-emit; drives NetWatch host-down alerts |
 | `logs.js` | **Stream** | `/log/listen` | Bounded history buffer (500 entries) |
+| `queues.js` | **Stream** (`/listen` ×2) + Poll | `/queue/simple/print`, `/queue/tree/print` | Two listen channels (one per menu) carrying no data — they mark the tables stale and the ordinary tick reads them. The tick runs on its own rather than waiting for stream data: a router with no queues would never fire a listen, and the page would sit on "waiting for data" forever. Rates are derived from the byte counter over our own poll window (ppp.js idiom), seeded on the first tick only from the router's `rate`. Borrows the FastTrack summary from `firewall.js` by reference, `requires: []` |
 | `rosusers.js` | Poll | `/user/print`, `/user/group/print`, `/user/active/print`, `/user/settings/print` | Poll-only by design (`streamKey: null`), like `packages.js`: a router's user list changes when an operator edits it, so a channel held open for weeks buys nothing. Slow default (60 s) with `refreshNow()` after every action. **Reads only** — every write lives in the socket handlers, enforced by a source guard |
 
 **Rule:** always prefer streaming. Use `/listen` for event-driven data; use `=interval=N` on print commands that lack a `/listen` variant. Fall back to `setInterval` polling only when the RouterOS command genuinely cannot push (rare — check both mechanisms first).
@@ -238,6 +239,26 @@ RouterOS v7 on some firmware builds omits the `.flags` field for routes in their
 
 On RouterOS v7 new wifi package, including unknown or absent field names in `=.proplist=` for `/interface/wifi/registration-table/print` can cause RouterOS to **filter rows** rather than simply omitting those fields per row. For example, requesting `'signal'` (which is `'signal-strength'` in the new API) may return only clients where that field is non-empty — resulting in only 1 of N clients being returned. **Do not use `=.proplist=` on wireless registration-table calls.** The table is small enough that the optimisation is not worth the risk.
 
+### `/queue/*` — units, unlimited, and where the statistics come from
+
+Settled against a live router while building the Queues page:
+
+- **Statistics need no flag.** `rate`, `packet-rate`, `bytes`, `packets`, `dropped` and the
+  `queued-*` fields all come back on a plain `/queue/simple/print`. The CLI's `print stats` has no
+  API equivalent to pass.
+- **The API answers in raw bps.** `max-limit=15M/20M` on input reads back as `"15000000/20000000"`.
+  Suffixes are accepted on the way in and never returned on the way out.
+- **Unlimited is `0`, not absent.** An unlimited queue reads back as `"0/0"`, so `0` means
+  "explicitly unlimited" and a missing field means "the router said nothing". Collapsing the two
+  reports a deliberate choice as an unknown.
+- **`max-limit` must be ≥ `limit-at`**, refused as `failure: download-max-limit less than
+  download-limit`. The pair has to move together, so a form that edits only one half fails.
+- **The two menus are different shapes.** Simple uses pairs and `packet-marks` (plural) and has a
+  `dynamic` flag; tree uses single values and `packet-mark` (singular) and has **no `dynamic` field
+  at all**.
+- **FastTrack does not disable a queue, it diverts connections.** Measured: a fresh queue on the LAN
+  still counted several megabits within seconds while the default `fasttrack-connection` rule was
+  active. It bypasses simple queues and queue trees with `parent=global` — an interface-parented tree
   is unaffected.
 
 ### `/user/group/set` — a positive policy list is ADDITIVE

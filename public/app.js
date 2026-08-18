@@ -515,8 +515,8 @@ function applyFontSize(sizeId) {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers'};
-var PAGE_KEYS   = ['dashboard','wireless','interfaces','dhcp','vpn','connections','routing','bandwidth','firewall','logs'];
+var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit'};
+var PAGE_KEYS   = ['dashboard','wireless','capsman','interfaces','dhcp','dns','vlans','bridges','vpn','ppp','connections','routing','bandwidth','firewall','logs','packages','queues','rosusers','audit'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
 /**
@@ -2462,9 +2462,9 @@ var PAGE_NAV_MAP = {
 };
 // Every page the nav can show. Kept in step with src/pages.js — the drift check
 // lives in test/page-registry.test.js.
-var ALL_NAV_PAGES = ['dashboard','topology','wireless','interfaces','dhcp','vpn',
-                     'connections','routing','bandwidth','firewall','logs',
-                     'reports','routers','settings'];
+var ALL_NAV_PAGES = ['dashboard','topology','wireless','capsman','interfaces','dhcp','dns',
+                     'vlans','bridges','vpn','ppp','connections','routing','bandwidth',
+                     'firewall','logs','packages','queues','rosusers','audit','reports','routers','settings'];
 // The two inputs to page visibility, merged by applyPageVisibility(): what the
 // install allows, and what this session's role allows. Both must say yes.
 var _pageInstall = {};
@@ -5737,7 +5737,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
     // Page visibility + dashboard widget toggles
-    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageRosusers','pageRouters','pageAudit'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     // After the boxes are filled, not before: detection reads the DOM so the
@@ -5862,7 +5862,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
-    ['pageWireless','pageInterfaces','pageDhcp','pageVpn','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageRosusers','pageRouters','pageAudit'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
@@ -12275,6 +12275,475 @@ function _renderRoutersMap(rows) {
     if (typed === null) return;
     socket.emit('packages:apply', { confirm: typed });
   });
+}());
+
+/* ── Queues page ──────────────────────────────────────────────────────────────
+   RouterOS traffic shaping: /queue/simple (per-target limits, ORDERED) and
+   /queue/tree (mangle-driven HTB).
+
+   Two things here are not decoration:
+
+   ORDER. Simple queues are walked in list order and the first match wins, so a
+   queue's position changes what it does. The table therefore defaults to router
+   order and offers move up/down — sorting alphabetically by default would
+   misrepresent the router.
+
+   FASTTRACK. A fasttracked connection bypasses simple queues and any tree
+   parented to `global` — so a queue can look perfectly configured and do
+   nothing at all. The banner says so, and only when a queue is actually
+   affected. */
+(function () {
+  var simpleTb = $('qSimpleTable'), treeTb = $('qTreeTable');
+  if (!simpleTb || !treeTb) return;
+
+  var _data = null;
+  var _caps = { permitted: false, routerName: '' };
+  var _tab  = 'simple';
+  var _busy = '';
+
+  // Order first, and it is not cosmetic — see the header.
+  var SIMPLE_COLS = [{key:'',label:'#'},{key:'name',label:'Name'},{key:'target',label:'Target'},
+                     {key:'',label:'Limits'},{key:'',label:'Rate'},{key:'',label:''}];
+  var TREE_COLS   = [{key:'name',label:'Name'},{key:'parent',label:'Parent'},{key:'packetMark',label:'Packet Mark'},
+                     {key:'',label:'Max Limit'},{key:'',label:'Rate'},{key:'',label:''}];
+
+  function q() { var e = $('qSearch'); return (e && e.value || '').toLowerCase().trim(); }
+  function dash(t) { return '<span style="color:var(--text-muted)"' + (t ? ' title="' + t + '"' : '') + '>&mdash;</span>'; }
+
+  /** bits/sec to something readable. 0 is a real reading; null is not. */
+  function fmtBps(bps) {
+    if (bps === null || bps === undefined) return null;
+    if (bps >= 1e9) return (bps / 1e9).toFixed(2) + ' Gb/s';
+    if (bps >= 1e6) return (bps / 1e6).toFixed(2) + ' Mb/s';
+    if (bps >= 1e3) return (bps / 1e3).toFixed(0) + ' kb/s';
+    return Math.round(bps) + ' b/s';
+  }
+  /** A configured limit. 0 means explicitly unlimited, which is not "unset". */
+  function fmtLimit(bps) {
+    if (bps === null || bps === undefined) return '&mdash;';
+    if (bps === 0) return '<span style="color:var(--text-muted)">unlimited</span>';
+    return esc(fmtBps(bps));
+  }
+
+  // Rate history for the sparklines, client-side for the reason the VLANs page
+  // gives: it is presentation state, and pushing on re-render would forge
+  // samples the router never sent.
+  var _hist = {};
+  var HIST_MAX = 40;
+
+  function pushHistory(d) {
+    var live = {};
+    (d.simple || []).forEach(function (x) {
+      live['s' + x.id] = true;
+      var h = _hist['s' + x.id] || (_hist['s' + x.id] = { up: [], down: [] });
+      if (x.rateBps && x.rateBps.up   !== null) h.up.push(x.rateBps.up);
+      if (x.rateBps && x.rateBps.down !== null) h.down.push(x.rateBps.down);
+      if (h.up.length   > HIST_MAX) h.up.splice(0, h.up.length - HIST_MAX);
+      if (h.down.length > HIST_MAX) h.down.splice(0, h.down.length - HIST_MAX);
+    });
+    (d.tree || []).forEach(function (x) {
+      live['t' + x.id] = true;
+      var h = _hist['t' + x.id] || (_hist['t' + x.id] = { up: [], down: [] });
+      if (x.rateBps !== null) h.up.push(x.rateBps);
+      if (h.up.length > HIST_MAX) h.up.splice(0, h.up.length - HIST_MAX);
+    });
+    // A removed queue must not leave its trend behind for a recreated one.
+    Object.keys(_hist).forEach(function (k) { if (!live[k]) delete _hist[k]; });
+  }
+
+  // Stroked with currentColor and coloured by class, so the line cannot drift
+  // from the value printed beside it.
+  function spark(history, dir) {
+    if (!history || history.length < 2) return '<span class="q-spark-slot"></span>';
+    var w = 56, h = 14, pad = 1.5;
+    var max = Math.max.apply(null, history) || 1;
+    var pts = history.map(function (v, i) {
+      var x = pad + (i / (history.length - 1)) * (w - pad * 2);
+      var y = h - pad - (v / max) * (h - pad * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    });
+    return '<svg class="q-spark ' + dir + '" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="currentColor"' +
+      ' stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  }
+
+  function rateLine(dir, bps, history) {
+    var cls = bps ? dir : 'zero';
+    return '<div class="q-rate-line">' +
+      '<span class="q-rate-arrow ' + cls + '">' + (dir === 'rx' ? '↓' : '↑') + '</span>' +
+      '<span class="q-rate-val ' + cls + '">' + esc(fmtBps(bps || 0)) + '</span>' +
+      spark(history, dir) +
+    '</div>';
+  }
+
+  /**
+   * The rate cell.
+   *
+   * null is "the router did not report this", which is not "idle" — the
+   * distinction the collector goes to some trouble to preserve, so the page must
+   * not throw it away at the last step. The title says how the number was
+   * arrived at, including the measurement window.
+   */
+  function rateCell(key, up, down, source, windowMs) {
+    if (up === null && down === null) {
+      return dash(source === null ? 'No measurement yet' : 'The router reported no rate for this queue');
+    }
+    var h = _hist[key] || { up: [], down: [] };
+    var title = source === 'router'
+      ? 'Router-reported average (bytes/sec), shown until a window is measured'
+      : 'Measured over ' + ((windowMs || 0) / 1000).toFixed(1) + ' s';
+    return '<div class="q-rate" title="' + esc(title) + '">' +
+      rateLine('tx', up, h.up) +
+      (down === null ? '' : rateLine('rx', down, h.down)) + '</div>';
+  }
+
+  function actions(row, menu) {
+    if (row.dynamic) {
+      return '<span class="muted-note" title="Created automatically by another RouterOS feature — Kid Control, a DHCP lease, or a PPP profile. Change the feature that creates it.">&#128274; dynamic</span>';
+    }
+    if (!_caps.permitted) return '';
+    var b = function (act, label, cls, extra) {
+      return '<button class="ru-act' + (cls ? ' ' + cls : '') + '" data-qact="' + act +
+             '" data-id="' + esc(row.id) + '" data-menu="' + menu + '" data-name="' + esc(row.name) + '"' +
+             (extra || '') + (_busy === row.id ? ' disabled' : '') + '>' + label + '</button>';
+    };
+    var out = b('edit', 'Edit') + ' ' + b('toggle', row.disabled ? 'Enable' : 'Disable');
+    if (menu === 'simple') {
+      out += ' ' + b('up', '&uarr;', '', ' title="Move earlier — the first matching queue wins"') +
+             b('down', '&darr;', '', ' title="Move later"');
+    }
+    out += ' ' + b('reset', 'Reset') + ' ' + b('remove', 'Remove', 'danger');
+    return out;
+  }
+
+  function renderSimple() {
+    var term = q();
+    var rows = (_data && _data.simple || []).filter(function (x) {
+      return !term || (x.name + ' ' + x.target + ' ' + x.comment).toLowerCase().indexOf(term) !== -1;
+    });
+    _renderSortHeader('qSimpleThead', SIMPLE_COLS, { col: '', dir: 'asc' }, function () {});
+    $('qSimpleBadge').textContent = (_data && _data.simple || []).length;
+
+    simpleTb.innerHTML = rows.length ? rows.map(function (x) {
+      var flags = (x.disabled ? '<span class="wl-band wl-band-24">disabled</span> ' : '') +
+                  (x.invalid  ? '<span class="wl-band wl-band-24">invalid</span> '  : '');
+      return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + '>' +
+        '<td class="q-order">' + (x.order + 1) + '</td>' +
+        '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
+        '<td>' + (x.target ? esc(x.target) : dash()) + '</td>' +
+        '<td><div style="font-size:.72rem">&uarr; ' + fmtLimit(x.maxLimit.up) + '<br>&darr; ' + fmtLimit(x.maxLimit.down) + '</div></td>' +
+        '<td>' + rateCell('s' + x.id, x.rateBps.up, x.rateBps.down, x.rateSource, x.rateWindowMs) + '</td>' +
+        '<td>' + actions(x, 'simple') + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="6" class="empty-state">' + emptyState(term, 'simple') + '</td></tr>';
+  }
+
+  function renderTree() {
+    var term = q();
+    var rows = (_data && _data.tree || []).filter(function (x) {
+      return !term || (x.name + ' ' + x.parent + ' ' + x.packetMark).toLowerCase().indexOf(term) !== -1;
+    });
+    _renderSortHeader('qTreeThead', TREE_COLS, { col: '', dir: 'asc' }, function () {});
+    $('qTreeBadge').textContent = (_data && _data.tree || []).length;
+
+    var ftActive = _data && _data.fasttrack && _data.fasttrack.state === 'active';
+    treeTb.innerHTML = rows.length ? rows.map(function (x) {
+      var flags = (x.disabled ? '<span class="wl-band wl-band-24">disabled</span> ' : '') +
+                  (x.invalid  ? '<span class="wl-band wl-band-24">invalid</span> '  : '');
+      // Only a global-parented tree is bypassed by FastTrack; one parented to an
+      // interface still works, so the chip is per row rather than per table.
+      var ft = (ftActive && x.fasttrackBypassable && !x.disabled)
+        ? ' <span class="wl-band wl-band-24" title="FastTrack bypasses queue trees parented to global">bypassed</span>' : '';
+      return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + '>' +
+        '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
+        '<td>' + esc(x.parent || '—') + ft + '</td>' +
+        '<td>' + (x.packetMark ? esc(x.packetMark) : dash()) + '</td>' +
+        '<td style="font-size:.72rem">' + fmtLimit(x.maxLimit) + '</td>' +
+        '<td>' + rateCell('t' + x.id, x.rateBps, null, x.rateSource, x.rateWindowMs) + '</td>' +
+        '<td>' + actions(x, 'tree') + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="6" class="empty-state">' + emptyState(term, 'tree') + '</td></tr>';
+  }
+
+  /**
+   * The empty state does real work here.
+   *
+   * A fresh install has no queues on any router, so this — not a populated table
+   * — is what most people see first. Saying "Waiting for data…" forever would be
+   * both wrong and unhelpful, so it explains what the tab is for.
+   */
+  function emptyState(term, menu) {
+    if (term) return 'No queues match that search.';
+    if (!_data) return 'Waiting for queue data&hellip;';
+    if (_data.denied) return 'This router\'s MikroDash account cannot read queues.';
+    return menu === 'simple'
+      ? 'No simple queues on this router. A simple queue caps the bandwidth of one target &mdash; an address, a subnet, or an interface.' +
+        (_caps.permitted ? ' Use <strong>Add Queue</strong> to create one.' : '')
+      : 'No queue trees on this router. A tree shapes traffic that firewall mangle rules have marked, which makes it the tool for shaping by protocol or application rather than by address.';
+  }
+
+  function renderFasttrack() {
+    var card = $('qFtCard'), banner = $('qFtBanner');
+    var nCard = $('qNoticeCard'), notice = $('qNotice');
+    if (!card || !banner) return;
+    var ft = (_data && _data.fasttrack) || { state: 'unknown' };
+
+    if (ft.state === 'unknown') {
+      card.style.display = 'none';
+      // A footnote, not an alarm: we cannot check, which is not the same as bad.
+      nCard.style.display = '';
+      notice.innerHTML = 'Cannot check for a FastTrack rule &mdash; Firewall collection is switched off for this router.';
+      return;
+    }
+    nCard.style.display = 'none';
+
+    // Only warn when something is actually affected. On a router with no queues
+    // — which is every router until somebody makes one — this stays hidden.
+    var affected = (_data.simple || []).some(function (x) { return !x.disabled && !x.dynamic; }) ||
+                   (_data.tree   || []).some(function (x) { return !x.disabled && x.fasttrackBypassable; });
+    if (ft.state !== 'active' || !affected) { card.style.display = 'none'; return; }
+
+    card.style.display = '';
+    // Measured against a live router rather than assumed: with the default
+    // FastTrack rule active, a fresh queue on the LAN still counted several
+    // megabits within seconds. FastTrack diverts the connections it matches, not
+    // all traffic, so the honest claim is "some of it bypasses these queues" —
+    // saying they do nothing would be wrong, and would be disproved by the rate
+    // column right underneath.
+    banner.innerHTML = '<strong>FastTrack is active on this router.</strong> ' +
+      'FastTracked connections bypass simple queues and any queue tree parented to <code>global</code>, so a queue here ' +
+      'only shapes the traffic FastTrack did not take' +
+      (ft.scoped ? ' — and this rule is narrowed, so it takes only part of it.' : ', which can be a small fraction of the total.') +
+      ' If a limit looks like it is having no effect, this is usually why. ' +
+      'To shape that traffic too, disable the FastTrack rule in <em>IP &rarr; Firewall &rarr; Filter</em>, or exclude the traffic from it.';
+  }
+
+  function renderSummary() {
+    var d = _data || {};
+    $('qSumSimple').textContent = (d.simple || []).length || '—';
+    $('qSumTree').textContent   = (d.tree   || []).length || '—';
+    var live = (d.simple || []).filter(function (x) { return x.rateBps && (x.rateBps.up || x.rateBps.down); }).length +
+               (d.tree   || []).filter(function (x) { return x.rateBps; }).length;
+    $('qSumActive').textContent = (d.simple || d.tree) ? live : '—';
+    var total = 0, any = false;
+    (d.simple || []).forEach(function (x) { if (x.bytes.up !== null) { total += x.bytes.up + x.bytes.down; any = true; } });
+    (d.tree   || []).forEach(function (x) { if (x.bytes !== null) { total += x.bytes; any = true; } });
+    $('qSumBytes').textContent = any ? fmtBytes(total) : '—';
+  }
+
+  function render() {
+    renderSimple(); renderTree(); renderFasttrack(); renderSummary();
+    var add = $('qAddBtn');
+    if (add) {
+      add.textContent = _tab === 'tree' ? 'Add Tree Queue' : 'Add Simple Queue';
+      add.style.display = _caps.permitted ? '' : 'none';
+    }
+    var note = $('qActionNote');
+    if (note) {
+      note.textContent = !_caps.permitted ? 'read-only — you do not have write access to this router'
+                       : (_data && _data.stats === 'none') ? 'this router reports no queue statistics' : '';
+    }
+  }
+
+  // ── Dialog ────────────────────────────────────────────────────────────────
+
+  function openForm(menu, row) {
+    $('qf_title').textContent = (row ? 'Edit ' : 'Add ') + (menu === 'tree' ? 'Tree Queue' : 'Simple Queue');
+    $('qf_menu').value  = menu;
+    $('qf_id').value    = row ? row.id : '';
+    $('qf_expectedName').value = row ? row.name : '';
+    $('qf_ack').value   = '';
+    $('qf_name').value  = row ? row.name : '';
+    $('qf_comment').value  = row ? row.comment : '';
+    $('qf_priority').value = row ? row.priority : '';
+    $('qf_disabled').checked = row ? !!row.disabled : false;
+
+    var simple = menu === 'simple';
+    $('qf_targetWrap').style.display = simple ? '' : 'none';
+    $('qf_parentWrap').style.display = simple ? 'none' : '';
+    $('qf_markLabel').textContent = simple ? 'Packet Marks' : 'Packet Mark';
+    $('qf_maxHint').textContent = simple ? '(up/down, e.g. 15M/20M)' : '(e.g. 10M)';
+    $('qf_target').value = (simple && row) ? row.target : '';
+    $('qf_parent').value = (!simple && row) ? row.parent : (simple ? '' : 'global');
+    $('qf_packetMark').value = row ? (simple ? row.packetMarks : row.packetMark) : '';
+
+    // The router answers in raw bps; the form shows the same suffixed form the
+    // operator would have typed.
+    var lim = function (v) { return v === null || v === undefined ? '' : bpsToShort(v); };
+    $('qf_maxLimit').value = row ? (simple ? lim(row.maxLimit.up) + '/' + lim(row.maxLimit.down) : lim(row.maxLimit)) : '';
+    $('qf_limitAt').value  = row ? (simple ? lim(row.limitAt.up)  + '/' + lim(row.limitAt.down)  : lim(row.limitAt))  : '';
+
+    $('qf_error').style.display = 'none';
+    $('qf_warn').style.display = 'none';
+    $('qFormWrap').classList.add('open');
+  }
+
+  /** Raw bps back to the suffixed form, so an edit round-trips what was typed. */
+  function bpsToShort(bps) {
+    if (bps === null || bps === undefined) return '';
+    if (bps === 0) return '0';
+    if (bps % 1e9 === 0) return (bps / 1e9) + 'G';
+    if (bps % 1e6 === 0) return (bps / 1e6) + 'M';
+    if (bps % 1e3 === 0) return (bps / 1e3) + 'k';
+    return String(bps);
+  }
+
+  function formError(msg) { var el = $('qf_error'); el.textContent = msg; el.style.display = ''; }
+
+  function submit(ack) {
+    var menu = $('qf_menu').value;
+    var name = $('qf_name').value.trim();
+    if (!name) return formError('A queue name is required');
+    var payload = {
+      menu: menu,
+      id: $('qf_id').value || undefined,
+      expectedName: $('qf_expectedName').value || undefined,
+      name: name,
+      maxLimit: $('qf_maxLimit').value.trim(),
+      limitAt:  $('qf_limitAt').value.trim(),
+      priority: $('qf_priority').value.trim(),
+      comment:  $('qf_comment').value.trim(),
+      disabled: $('qf_disabled').checked,
+      ack: ack || undefined,
+    };
+    if (menu === 'simple') {
+      payload.target = $('qf_target').value.trim();
+      payload.packetMarks = $('qf_packetMark').value.trim();
+      if (!payload.target) return formError('A target is required — an address, a subnet, or an interface');
+    } else {
+      payload.parent = $('qf_parent').value.trim();
+      payload.packetMark = $('qf_packetMark').value.trim();
+      if (!payload.parent) return formError('A parent is required — "global", or an interface name');
+    }
+    _busy = payload.id || '';
+    socket.emit('queue:save', payload);
+  }
+
+  // ── Wiring ────────────────────────────────────────────────────────────────
+
+  Array.prototype.forEach.call(document.querySelectorAll('#qTabBar .stab'), function (b) {
+    b.addEventListener('click', function () {
+      _tab = b.getAttribute('data-qtab');
+      Array.prototype.forEach.call(document.querySelectorAll('#qTabBar .stab'), function (o) {
+        var on = o === b;
+        o.classList.toggle('active', on);
+        o.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('#queuesCard .brtab-panel'), function (pnl) {
+        pnl.classList.toggle('active', pnl.id === 'qtab-' + _tab);
+      });
+      render();
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-qact]');
+    if (!b) return;
+    var act = b.getAttribute('data-qact'), id = b.getAttribute('data-id');
+    var menu = b.getAttribute('data-menu'), name = b.getAttribute('data-name');
+    var list = (menu === 'tree' ? _data.tree : _data.simple) || [];
+    var row = list.find(function (x) { return x.id === id; });
+    if (!row) return;
+
+    if (act === 'edit') return openForm(menu, row);
+    if (act === 'up' || act === 'down') {
+      _busy = id; render();
+      return socket.emit('queue:move', { id: id, expectedName: name, direction: act });
+    }
+    if (act === 'toggle') {
+      _busy = id; render();
+      return socket.emit('queue:toggle', { id: id, expectedName: name, menu: menu });
+    }
+    if (act === 'reset') {
+      _busy = id; render();
+      return socket.emit('queue:resetCounters', { id: id, expectedName: name, menu: menu });
+    }
+    if (act === 'remove') {
+      if (!window.confirm('Remove the queue "' + name + '"?\n\nTraffic it was limiting will no longer be shaped.')) return;
+      _busy = id; render();
+      return socket.emit('queue:remove', { id: id, expectedName: name, menu: menu });
+    }
+  });
+
+  var add = $('qAddBtn');
+  if (add) add.addEventListener('click', function () {
+    if (!_caps.permitted) return;
+    openForm(_tab === 'tree' ? 'tree' : 'simple', null);
+  });
+
+  $('qf_save').addEventListener('click', function () { submit($('qf_ack').value || undefined); });
+
+  socket.on('queues:update', function (d) {
+    if (!d) return;
+    _data = d;
+    _busy = '';
+    pushHistory(d);
+    renderSummary();
+    if (pageVisible('queues')) render();
+  });
+  socket.on('queues:caps', function (d) {
+    if (!d) return;
+    _caps = d;
+    if (pageVisible('queues')) render();
+  });
+  socket.on('queues:ok', function (d) {
+    _busy = '';
+    $('qFormWrap').classList.remove('open');
+    var what = { create:'Created ', update:'Updated ', 'delete':'Removed ', enable:'Enabled ',
+                 disable:'Disabled ', reset:'Reset counters for ', move:'Reordered ' }[d && d.action] || 'Done: ';
+    setStatus(what + ((d && d.name) || ''));
+  });
+  socket.on('queues:error', function (d) {
+    _busy = '';
+    var code = d && d.code;
+
+    // The self-throttle prompt is not an error — it is a question, asked once,
+    // and answered by re-submitting with the fingerprint the server issued.
+    if (code === 'self-throttle' || code === 'stale-warning') {
+      var w = (d && d.warning) || {};
+      var cap = w.maxLimit || {};
+      var el = $('qf_warn');
+      el.innerHTML = '<strong>This queue covers MikroDash\'s own connection to this router.</strong><br>' +
+        'MikroDash reaches ' + esc(_caps.routerName || 'this router') + ' from <code>' + esc(w.address || '') + '</code>, ' +
+        'which is inside <code>' + esc(w.target || '') + '</code>, and this queue caps traffic at <code>' +
+        esc(bpsToShort(cap.up) + '/' + bpsToShort(cap.down)) + '</code>.<br>' +
+        'The dashboard\'s own polling will be throttled and this page may become slow. ' +
+        'You will still be able to edit or remove the queue from its row.' +
+        (code === 'stale-warning' ? '<br><em>The values changed since you confirmed, so please confirm again.</em>' : '') +
+        '<div style="margin-top:.5rem;display:flex;gap:.5rem;justify-content:flex-end">' +
+        '<button class="sbtn sbtn-outline" id="qf_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
+        '<button class="sbtn sbtn-danger" id="qf_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Create anyway</button></div>';
+      el.style.display = '';
+      $('qf_ack').value = (d && d.fingerprint) || '';
+      $('qf_warnCancel').addEventListener('click', function () { el.style.display = 'none'; $('qf_ack').value = ''; });
+      $('qf_warnGo').addEventListener('click', function () { el.style.display = 'none'; submit($('qf_ack').value); });
+      // A toggle that trips the warning has no dialog open, so open one.
+      if (!$('qFormWrap').classList.contains('open')) $('qFormWrap').classList.add('open');
+      return;
+    }
+
+    var msg = {
+      denied:        'You do not have write access to this router',
+      unavailable:   'Queue collection is not running for this router',
+      'bad-request': 'Invalid request',
+      'stale-row':   'That queue changed on the router — the page has been refreshed',
+      'dynamic-row': 'That queue is created automatically by another RouterOS feature (Kid Control, a DHCP lease, or a PPP profile) and cannot be edited here',
+      'limit-above-max': 'Max Limit must be at least as large as Limit At — the router refuses otherwise',
+      'router-write-policy': 'The RouterOS user needs write permission for this',
+      unsupported:   'This router does not support that command',
+    }[code] || ((d && d.message) || 'Action failed');
+    if ($('qFormWrap').classList.contains('open')) formError(msg); else setStatus(msg);
+    if (pageVisible('queues')) render();
+  });
+
+  document.addEventListener('mikrodash:pagechange', function (e) {
+    if (e.detail !== 'queues') return;
+    socket.emit('queues:caps');
+    if (_data) render();
+  });
+
+  var se = $('qSearch');
+  if (se) se.addEventListener('input', _debounce(render, 150));
 }());
 
 /* ── Router Users page ────────────────────────────────────────────────────────

@@ -58,6 +58,10 @@ function makeNullCollector(key) {
     _stream: null, _allStream: null, _counterStream: null, _tableStream: null,
     _ifStream: null, _addrStream: null, _monitorStream: null,
     _routeStream: null, _ipv6Stream: null, _bgpStream: null,
+    // The /listen refresh handle on the collectors that ship both delivery
+    // paths; diagnostics reads .open off it to count live channels. Queues holds
+    // one per menu, so it has a plural.
+    _listen: null, _listens: [],
     _streams: {},
 
     // ── Tunables index.js reads or writes ────────────────────────────────────
@@ -73,6 +77,10 @@ function makeNullCollector(key) {
     getByIP: () => null,
     setActiveTable: noop,
     // packages.refreshNow is called from the socket actions, which have no idea
+    // whether the collector is switched off. queues.forgetRates is the same:
+    // called after a write that may have zeroed a counter.
+    refreshNow: noop,
+    forgetRates: noop,
     setAvailableInterfaces: noop,
     bindSocket: noop,
     unbindSocket: noop,

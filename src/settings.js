@@ -115,6 +115,7 @@ const DEFAULTS = {
   // Slow by design: a package inventory changes on a reboot, not on a tick.
   pollPackages:      parseInt(process.env.PACKAGES_POLL_MS  || '60000', 10),
   pollRosusers:      parseInt(process.env.ROSUSERS_POLL_MS  || '60000', 10),
+  pollQueues:        parseInt(process.env.QUEUES_POLL_MS    || '5000', 10),
 
   // Custom poll profile — JSON string of {pollSystem:N,...} saved by user; empty = not configured
   customPollProfile: '',
@@ -212,6 +213,7 @@ const DEFAULTS = {
   pageDns:         true,
   pageCapsman:     true,
   pagePackages:    true,
+  pageQueues:      true,
   pageRosusers:    true,
   // Advanced-only in the view presets, but the toggle still defaults visible:
   // page-registry.test.js pins every page toggle to true so a fresh install
@@ -275,6 +277,7 @@ const ENV_MAP = {
   pollCapsman:       ['CAPSMAN_POLL_MS',      v => parseInt(v, 10)],
   pollPackages:      ['PACKAGES_POLL_MS',     v => parseInt(v, 10)],
   pollRosusers:      ['ROSUSERS_POLL_MS',     v => parseInt(v, 10)],
+  pollQueues:        ['QUEUES_POLL_MS',       v => parseInt(v, 10)],
   topN:              ['TOP_N',                v => parseInt(v, 10)],
   topTalkersN:       ['TOP_TALKERS_N',        v => parseInt(v, 10)],
   firewallTopN:      ['FIREWALL_TOP_N',       v => parseInt(v, 10)],
@@ -309,6 +312,7 @@ const POLL_BOUNDS = Object.freeze({
   pollDhcp:[10000,600000], pollTopology:[10000,300000],
   pollVlans:[2000,60000], pollPpp:[2000,60000],
   pollBridges:[2000,60000], pollDns:[2000,60000], pollCapsman:[2000,60000],
+  pollPackages:[5000,300000], pollRosusers:[5000,300000], pollQueues:[2000,60000],
 });
 
 /**
@@ -438,6 +442,7 @@ const VIEWER_FIELDS = [
   'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
   'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting', 'pageTopology',
   'pageVlans', 'pagePpp', 'pageBridges', 'pageDns', 'pageCapsman', 'pagePackages',
+  'pageRosusers', 'pageQueues', 'pageRouters', 'pageAudit',
   'displayTimezone',
   // Whether the My Alerts tab exists at all. A non-admin is the whole audience
   // for that tab and only ever sees this subset, so leaving it out would hide
