@@ -64,6 +64,7 @@ Create a dedicated read-only API user and only allow the `R5S` host to reach the
 /user add name=mikrodash group=mikrodash password=change-me
 ```
 
+Read-only is the right default here. If you want the Packages page add `write`; if you also want the
 Restrict API access to the `R5S` management IP:
 
 ```routeros

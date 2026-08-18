@@ -72,6 +72,7 @@ function makeNullCollector(key) {
     getNameByMAC: () => null,
     getByIP: () => null,
     setActiveTable: noop,
+    // packages.refreshNow is called from the socket actions, which have no idea
     setAvailableInterfaces: noop,
     bindSocket: noop,
     unbindSocket: noop,

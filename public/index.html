@@ -547,6 +547,13 @@
     .iface-tile{position:relative}
     .iface-spark{position:absolute;top:.35rem;right:.4rem;pointer-events:none;opacity:.75;
                  width:calc(var(--if-spark-w) * var(--if-scale));height:calc(18px * var(--if-scale))}
+    /* ── Bridges: tabbed Ports / Host Table ─────────────────────── */
+    .brtab-panel{display:none}
+    .brtab-panel.active{display:block}
+    /* The strip lives inside a card header rather than above the card, so it
+       drops the bottom rule and the margin the standalone version carries. */
+    .brtab-bar{margin-bottom:0;border-bottom:none;padding-bottom:0}
+    .brtab-bar .stab{padding:.3rem .75rem;font-size:.74rem}
 
     /* ── VLANs: stacked RX/TX cell ──────────────────────────────── */
 
@@ -568,6 +575,33 @@
     /* Holds the row height steady before enough samples exist to draw a line,
        so rows do not jump as the first sparklines appear. */
     .vlan-spark-slot{width:56px;height:14px;flex-shrink:0}
+
+    /* ── Shared: key/value panel used by DNS and Packages ───────── */
+    .kv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.5rem .9rem}
+    .kv-item{min-width:0}
+    .kv-key{font-family:var(--font-ui);font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;
+            color:var(--text-muted);margin-bottom:.1rem}
+    .kv-val{font-family:var(--font-mono);font-size:.78rem;word-break:break-all}
+    .kv-val.on{color:var(--accent-ok,#34d399)}
+    .kv-val.off{color:var(--text-muted)}
+    .kv-val.warn{color:var(--accent-tx,#f59f00)}
+    .muted-note{font-size:.68rem;color:var(--text-muted)}
+    /* ── Packages: pending changes ──────────────────────────────── */
+    /* Amber, not red: a scheduled change has done nothing yet and is one click
+       from being undone. Red is reserved for the apply button, which reboots. */
+    .pkg-pending{border-color:rgba(245,159,0,.5)}
+    .pkg-pending-title{font-family:var(--font-ui);font-weight:600;font-size:.75rem;color:var(--accent-tx,#f59f00)}
+    .pkg-pending-body{font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);margin-top:.2rem}
+    /* Shared by the Packages and Router Users row actions — the same control in
+       two tables, so one rule rather than a second one that drifts. */
+    .pkg-act,.ru-act{font-family:var(--font-mono);font-size:.62rem;padding:1px 6px;border-radius:3px;
+             border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}
+    .pkg-act:hover,.ru-act:hover{border-color:var(--accent-rx)}
+    .pkg-act[disabled],.ru-act[disabled]{opacity:.35;cursor:not-allowed}
+    .pkg-act.undo{border-color:rgba(245,159,0,.5);color:var(--accent-tx,#f59f00)}
+    .ru-act.danger{border-color:rgba(248,113,113,.4);color:rgba(248,113,113,.9)}
+    .ru-act.danger:hover{border-color:rgba(248,113,113,.7)}
+
     /* ── Interfaces: list view ─────────────────────────────────── */
     /* Wide table, so it scrolls inside its own container rather than pushing
        the page sideways. */
@@ -1183,6 +1217,7 @@
     #faCurChan{color:var(--accent-rx)}
     /* Each page's key metric carries the accent the same way the current channel
        does above: VLAN count on the VLANs page, session count on PPP. */
+    #vlSumCount,#pppSumCount,#capSumCaps,#brSumCount,#dnsSumCache,#pkgSumInstalled{color:var(--accent-rx)}
     #faBestChan{color:rgba(74,222,128,.95)}
     .fa-stat-unit{font-size:.62rem;color:var(--text-muted);margin-left:.15rem;font-weight:400}
     .fa-section-title{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0 0 .5rem}
@@ -1464,6 +1499,10 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
       <span class="nav-label">Wireless</span>
     </a>
+    <a class="nav-item" data-page="capsman" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="2"/><path d="M8.5 13.5a5 5 0 0 1 7 0"/><path d="M5.5 10.5a9 9 0 0 1 13 0"/><rect x="10" y="3" width="4" height="4" rx="1"/></svg></span>
+      <span class="nav-label">CAPsMAN</span>
+    </a>
     <a class="nav-item" data-page="interfaces" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="5" rx="1"/><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="16" y="3" width="6" height="5" rx="1"/><rect x="5" y="16" width="6" height="5" rx="1"/><rect x="13" y="16" width="6" height="5" rx="1"/><line x1="5" y1="8" x2="5" y2="13"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="19" y1="8" x2="19" y2="13"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="13" x2="8" y2="16"/><line x1="16" y1="13" x2="16" y2="16"/></svg></span>
       <span class="nav-label">Interfaces</span>
@@ -1472,12 +1511,18 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
       <span class="nav-label">DHCP</span>
     </a>
+    <a class="nav-item" data-page="dns" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 2.5 15.3 0 18"/><path d="M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg></span>
       <span class="nav-label">DNS</span>
     </a>
     <a class="nav-item" data-page="vlans" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="15" width="18" height="5" rx="1"/><path d="M7 9v6"/><path d="M17 9v6"/></svg></span>
       <span class="nav-label">VLANs</span>
+    </a>
+    <a class="nav-item" data-page="bridges" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 17V9"/><path d="M21 17V9"/><path d="M3 12h18"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/></svg></span>
+      <span class="nav-label">Bridges</span>
+    </a>
     <a class="nav-item" data-page="vpn" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h8"/><path d="M16 10v4"/><path d="M19 9v6"/></svg></span>
       <span class="nav-label">VPN</span>
@@ -1506,6 +1551,9 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
       <span class="nav-label">Logs</span>
     </a>
+    <a class="nav-item" data-page="packages" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7.5 12 12.5l8.7-5"/><path d="M12 12.5V21"/></svg></span>
+      <span class="nav-label">Packages</span>
     <a class="nav-item" data-page="reports" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
       <span class="nav-label">Reports</span>
@@ -2417,6 +2465,38 @@
     </div>
   </div>
 
+  <!-- VLANS -->
+  <div class="page-view" id="page-dns">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Cache Used</div><div class="fa-stat-val" id="dnsSumCache">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Static Entries</div><div class="fa-stat-val" id="dnsSumStatic">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Resolver</div><div class="fa-stat-val" id="dnsSumServers">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Remote Requests</div><div class="fa-stat-val" id="dnsSumRemote">&mdash;</div></div>
+      </div>
+
+      <div class="card" id="dnsCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center gap-2">
+          <h3 class="card-title mb-0">Resolver</h3>
+        </div>
+        <div class="card-body">
+          <div id="dnsSettingsBody" class="kv-grid"><span class="empty-state">Waiting for DNS data&hellip;</span></div>
+        </div>
+      </div>
+
+      <div class="card" id="dnsStaticCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Static Entries</h3>
+            <span id="dnsStaticBadge" class="card-badge">0</span>
+          </div>
+          <input id="dnsStaticSearch" class="form-control form-control-sm"
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:720px">
+              <colgroup><col style="width:34%"><col style="width:26%"><col style="width:10%"><col style="width:10%"><col style="width:20%"></colgroup>
+              <thead><tr id="dnsStaticThead"></tr></thead>
+              <tbody id="dnsStaticTable">
                 <tr><td colspan="5" class="empty-state">Waiting for static entries&hellip;</td></tr>
               </tbody>
             </table>
@@ -2594,6 +2674,83 @@
   </div>
 
   <!-- VPN -->
+  <div class="page-view" id="page-bridges">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Bridges</div><div class="fa-stat-val" id="brSumCount">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Ports</div><div class="fa-stat-val" id="brSumPorts">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Learned Hosts</div><div class="fa-stat-val" id="brSumHosts">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Spanning Tree</div><div class="fa-stat-val" id="brSumStp">&mdash;</div></div>
+      </div>
+
+      <div class="card" id="bridgesCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center gap-2">
+          <h3 class="card-title mb-0">Bridges</h3>
+          <span id="bridgesBadge" class="card-badge">0</span>
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:900px">
+              <colgroup><col style="width:16%"><col style="width:10%"><col style="width:10%"><col style="width:9%">
+                        <col style="width:15%"><col style="width:8%"><col style="width:8%"><col style="width:24%"></colgroup>
+              <thead><tr id="bridgesThead"></tr></thead>
+              <tbody id="bridgesTable">
+                <tr><td colspan="8" class="empty-state">Waiting for bridge data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ports and the host table are two views of the same bridge, so they
+           share one card and a tab strip. The search box belongs to the host
+           view and hides with it. -->
+      <div class="card" id="bridgesTablesCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="stab-bar brtab-bar" id="brTabBar" role="tablist" aria-label="Bridge tables">
+            <button class="stab active" data-brtab="ports" role="tab" aria-selected="true"
+                    aria-controls="brtab-ports" id="brTabBtn-ports">Ports
+              <span id="bridgesPortBadge" class="card-badge">0</span></button>
+            <button class="stab" data-brtab="hosts" role="tab" aria-selected="false"
+                    aria-controls="brtab-hosts" id="brTabBtn-hosts">Host Table
+              <span id="bridgesHostBadge" class="card-badge">0</span></button>
+          </div>
+          <div class="d-flex align-items-center gap-2" id="bridgesHostTools" hidden>
+            <span id="bridgesHostNote" class="muted-note"></span>
+            <input id="bridgesHostSearch" class="form-control form-control-sm"
+                   placeholder="Search MAC, port or VLAN&hellip;" style="flex:0 1 260px;width:260px"/>
+          </div>
+        </div>
+        <div class="card-body p-0">
+
+          <div class="brtab-panel active" id="brtab-ports" role="tabpanel" aria-labelledby="brTabBtn-ports">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
+                <colgroup><col style="width:20%"><col style="width:14%"><col style="width:8%"><col style="width:20%">
+                          <col style="width:10%"><col style="width:14%"><col style="width:14%"></colgroup>
+                <thead><tr id="bridgesPortThead"></tr></thead>
+                <tbody id="bridgesPortTable">
+                  <tr><td colspan="7" class="empty-state">Waiting for port data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="brtab-panel" id="brtab-hosts" role="tabpanel" aria-labelledby="brTabBtn-hosts">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:720px">
+                <colgroup><col style="width:26%"><col style="width:24%"><col style="width:16%"><col style="width:12%"><col style="width:22%"></colgroup>
+                <thead><tr id="bridgesHostThead"></tr></thead>
+                <tbody id="bridgesHostTable">
+                  <tr><td colspan="5" class="empty-state">Waiting for host data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <div class="page-view" id="page-vpn">
     <div class="container-fluid px-0" style="width:100%">
       <!-- VPN summary row -->
@@ -2686,6 +2843,58 @@
   </div>
 
   <!-- INTERFACES -->
+  <div class="page-view" id="page-capsman">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Mode</div><div class="fa-stat-val" id="capSumMode">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">CAPs</div><div class="fa-stat-val" id="capSumCaps">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Radios</div><div class="fa-stat-val" id="capSumRadios">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Clients</div><div class="fa-stat-val" id="capSumClients">&mdash;</div></div>
+      </div>
+
+      <div class="card" id="capsmanRolePanel" style="margin-bottom:.85rem;display:none">
+        <div class="card-body" id="capsmanRoleBody"></div>
+      </div>
+
+      <div class="card" id="capsmanCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Remote CAPs</h3>
+            <span id="capsmanBadge" class="card-badge">0</span>
+          </div>
+          <input id="capsmanSearch" class="form-control form-control-sm"
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:900px">
+              <colgroup><col style="width:15%"><col style="width:19%"><col style="width:9%"><col style="width:15%">
+                        <col style="width:10%"><col style="width:12%"><col style="width:10%"><col style="width:10%"></colgroup>
+              <thead><tr id="capsmanThead"></tr></thead>
+              <tbody id="capsmanTable">
+                <tr><td colspan="8" class="empty-state">Waiting for CAPsMAN data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="capsmanProvCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center gap-2">
+          <h3 class="card-title mb-0">Provisioning</h3>
+          <span id="capsmanProvBadge" class="card-badge">0</span>
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
+              <colgroup><col style="width:22%"><col style="width:18%"><col style="width:20%"><col style="width:25%"><col style="width:15%"></colgroup>
+              <thead><tr><th>Bands</th><th>Action</th><th>Master Config</th><th>Slave Configs</th><th>Name Format</th></tr></thead>
+              <tbody id="capsmanProvTable">
+                <tr><td colspan="5" class="empty-state">No provisioning rules.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <div class="page-view" id="page-interfaces">
     <div class="container-fluid px-0" style="width:100%">
       <!-- Summary row: Interface Types (left) + Ports panel (right) -->
@@ -2832,6 +3041,56 @@
 
   <!-- ── Settings ─────────────────────────────────────────────────────────── -->
   <!-- REPORTS -->
+  <div class="page-view" id="page-packages">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Installed</div><div class="fa-stat-val" id="pkgSumInstalled">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Available</div><div class="fa-stat-val" id="pkgSumAvailable">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Disabled</div><div class="fa-stat-val" id="pkgSumDisabled">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">RouterOS</div><div class="fa-stat-val" id="pkgSumUpdate">&mdash;</div></div>
+      </div>
+
+      <div class="card pkg-pending" id="pkgPendingCard" style="margin-bottom:.85rem;display:none">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+              <div class="pkg-pending-title">Changes waiting for a reboot</div>
+              <div class="pkg-pending-body" id="pkgPendingList"></div>
+            </div>
+            <button id="pkgApplyBtn" class="btn btn-sm btn-danger" type="button">Apply changes &amp; reboot&hellip;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="packagesCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Packages</h3>
+            <span id="packagesBadge" class="card-badge">0</span>
+            <span id="pkgActionNote" class="muted-note"></span>
+            <span id="pkgStatus" class="muted-note"></span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button id="pkgCheckBtn" class="btn btn-sm btn-outline-secondary" type="button">Check for updates</button>
+            <input id="packagesSearch" class="form-control form-control-sm"
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
+              <colgroup><col style="width:22%"><col style="width:12%"><col style="width:11%"><col style="width:18%">
+                        <col style="width:17%"><col style="width:20%"></colgroup>
+              <thead><tr id="packagesThead"></tr></thead>
+              <tbody id="packagesTable">
+                <tr><td colspan="6" class="empty-state">Waiting for package data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="packagesFwCard" style="margin-top:.85rem">
+        <div class="card-header"><h3 class="card-title mb-0">Firmware &amp; Update</h3></div>
+        <div class="card-body">
+          <div id="pkgFwBody" class="kv-grid"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
   <div class="page-view" id="page-reports">
     <div>
 
@@ -3851,6 +4110,10 @@
               <label class="stoggle"><span class="stoggle-label">VPN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">VLANs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVlans"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">PPP</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePpp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">CAPsMAN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageCapsman"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Bridges</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBridges"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">DNS</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDns"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Packages</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePackages"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

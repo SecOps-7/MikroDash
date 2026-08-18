@@ -146,4 +146,65 @@ function createPollLoop(run, getDelayMs) {
   };
 }
 
-module.exports = { clampPoll, stopStreamSafe, parseBps, bpsToMbps, createStreamHealth, createPollLoop };
+/**
+ * A /listen channel that says "something changed", nothing more.
+ *
+ * Written for the collectors that read SEVERAL tables per tick, where the
+ * netwatch shape — one /listen whose rows ARE the state — does not fit. Here the
+ * stream carries no data into the payload at all: an event marks the cached
+ * tables stale and asks for a refresh, and the existing tick does the reading.
+ * One parsing path, two delivery mechanisms, exactly as poll mode.
+ *
+ * What each mode actually buys, since it is easy to assume wrongly:
+ *   stream  an open channel, and changes appear the moment the router makes
+ *           them instead of up to one interval later
+ *   poll    no channel at all — which is the point of #105, because concurrent
+ *           channels, not data volume, are what strain a small router
+ *
+ *   ros, cmd   the /listen command, e.g. '/interface/bridge/port/listen'
+ *   label      log prefix, already router-scoped by the caller
+ *   onEvent()  called on every change; also called once on a stream restart, so
+ *              a caller that missed events while the channel was down recovers
+ */
+function createListenRefresh({ ros, cmd, label, onEvent, retryMs = 3000 }) {
+  let stream = null, restartTimer = null, restarting = false, stopped = true;
+
+  const stop = () => {
+    stopped = true;
+    if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+    restarting = false;
+    if (stream) { stopStreamSafe(stream); stream = null; }
+  };
+
+  const start = () => {
+    stopped = false;
+    if (stream || !ros.connected) return;
+    try {
+      stream = ros.stream([cmd], (err) => {
+        if (err) {
+          // A dead channel silently stops delivering, which looks exactly like
+          // "nothing has changed". Restart it, and refresh on the way back up.
+          if (stream) { stopStreamSafe(stream); stream = null; }
+          if (stopped || restarting || !ros.connected) return;
+          restarting = true;
+          restartTimer = setTimeout(() => {
+            restarting = false; restartTimer = null;
+            if (stopped || !ros.connected) return;
+            start();
+            try { onEvent(); } catch (_) { /* caller reports */ }
+          }, retryMs);
+          return;
+        }
+        try { onEvent(); } catch (_) { /* caller reports */ }
+      });
+      console.log('%s', label + ' streaming ' + cmd);
+    } catch (e) {
+      console.error('%s', label + ' listen failed:', (e && e.message) || e);
+    }
+  };
+
+  return { start, stop, get open() { return !!stream; } };
+}
+
+module.exports = { clampPoll, stopStreamSafe, parseBps, bpsToMbps, createStreamHealth,
+                   createPollLoop, createListenRefresh };

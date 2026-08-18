@@ -83,10 +83,12 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Page | Description |
 |---|---|
 | Wireless | WiFi SSIDs, Signal Health and Band Split summary cards; clients grouped by interface with signal quality, band pill (2.4 / 5 / 6 GHz), IP, TX/RX rates, and sortable columns. The SSIDs card lists every network the router broadcasts, read from the interface table rather than from connected clients, so a network with nobody on it is still listed, with its bands and live client count. **Client names** are resolved from the DHCP lease table by MAC, falling back to a reverse DNS lookup of the client's IP. That IP comes only from the router's ARP table, so a router that bridges wireless clients at layer 2 — a CAP or access point whose gateway and DHCP live on another device — shows MAC addresses rather than names, however well reverse DNS is configured. The router needs an IP interface on the client subnet, or to be their DHCP server. It says so in the container log when this applies |
+| CAPsMAN | Manager status, the remote CAP table (identity, board, serial, RouterOS version, state, connected time) and the provisioning rules that configure them. Each CAP lists its own radios and client count, and expands to the clients on it with signal, SSID and uptime. Attribution comes from the `cap` field the router reports on each radio and interface, with virtual APs resolved up to their master, so a guest-SSID client is counted against the access point serving it rather than against the manager. On a router that is itself a CAP, a panel names its manager and discovery interfaces instead. New-stack (`wifi`) CAPsMAN only |
 | Interfaces | Physical Ports card (RJ-45 port visualiser, colour-coded by state) and Interface Types card (count by type); all interfaces as tiles with status, IP, live rates and a traffic trend sparkline, in three card sizes, plus a List view adding cumulative RX/TX totals, error and drop counters, link flap count and time since last link-up |
 | DHCP | Subnet utilisation card with per-network lease counts, pool sizes, and colour-coded progress bars; IP Utilisation gauge driven live from the lease stream; active lease table with hostname, IP, MAC, and status; sortable columns; filter by DHCP server with its interface and VLAN shown as context (e.g. `IoT DHCP · IoT · VLAN 10`), composable with the text search |
 | DNS | Resolver panel showing DNS over HTTPS with its certificate-verification state, servers, mDNS repeat interfaces, cache limits and query timeouts; a cache-usage gauge; and the static entry table, including regexp entries. The cache **contents** are deliberately not read — the used/size figures come from the resolver's own settings row, while the cache itself is a record of everywhere the network has been |
 | VLANs | Summary cards (VLAN count, tagged ports, untagged ports, total throughput) and a VLAN table joining three router tables into one view: the L3 VLAN interfaces, the bridge VLAN table's tagged and untagged ports, and each bridge port's `pvid`. Shows id, interface, parent, MTU, tagged and untagged ports, DHCP client count and live RX/TX per VLAN. A VLAN that exists only at layer 2, with no `/interface/vlan` entry, still appears. Below it the bridge VLAN table, with the rows RouterOS adds automatically folded behind a count so what an operator actually configured leads. Rates and client counts are reused from the interface and DHCP streams, so the page costs no extra router queries |
+| Bridges | Bridge list with STP mode, VLAN filtering, IGMP snooping, MAC, MTU and live throughput, then one tabbed card holding the port table (STP role, PVID, edge, horizon, state) and the learned MAC/host table with search, capped with its true total reported. A port on a bridge running no spanning tree says "no STP" rather than showing an invented role. VLAN membership lives on the VLANs page rather than being duplicated here |
 | VPN | Summary stats bar (Total / Active / Stale / Never Connected / Throughput); all WireGuard peers as tiles sorted active-first, with colour-coded handshake age badge, live RX/TX rates, allowed IPs, and endpoint; plus PPP sessions (session uptime, caller address) and IPsec peers (negotiated ciphers), each shown only when the router has them |
 | PPP | Summary cards (active sessions, count by service, aggregate throughput) and a session table of everyone connected — user, service (PPPoE / L2TP / PPTP / SSTP / OVPN), assigned address, caller id, uptime, live RX/TX rate and cumulative totals. Per-user rates are derived from byte counters between polls, since RouterOS reports only totals; a session's first reading shows no rate rather than a made-up one. PPPoE servers and PPP profiles in a second card. Account credentials are never read — the page shows sessions, not secrets. A router with no PPP says so |
 | Connections | World map with animated arcs to destination countries; per-country protocol breakdown and org breakdown; sparklines; top ports panel; click-to-filter by country or by individual LAN client |
@@ -94,6 +96,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Bandwidth | Live per-connection bandwidth table with RX, TX, and Total Mbps; sortable columns; WAN traffic chart; ASN/Org colour-coded badges; interface and protocol filters |
 | Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre) and a BGP session summary, both above the tabs since they describe the page rather than one protocol. Tabbed tables, opening on **Routes**: static and dynamic routes (event-driven via `/ip/route/listen`), and **BGP** — peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with historical log import on connect, severity filter and text search |
+| Packages | The package inventory — installed, disabled, and the extras MikroTik offers but that are not on the router — with versions, sizes and build dates, plus a firmware panel (current, upgrade, minimum) and the RouterOS update channel and status. With write access on the page it can also **schedule** changes: install, enable, disable or uninstall. RouterOS does not act on these immediately, it records them and applies them on the next reboot, so the page leads with a pending-changes banner, offers Undo on every scheduled row, and keeps "Apply changes & reboot" as a separate action that requires the router's name typed back. Account credentials and configuration are never touched |
 | Reports | Historical data viewer with configurable date range and aggregation. Five tabs: **Ping** (RTT chart + sortable table), **Traffic** (per-interface RX/TX chart + table), **Bandwidth** (usage chart + table), **Alerts** (alert event history), **Connectivity** (router up/down event history). CSV and PDF export on every tab. Requires read on the Reports page |
 | Routers | Fleet summary cards — Total Devices, Online, Offline, Alerting (routers with an unresolved alert). Four views, remembered between visits: **Comfortable** and **Compact** card grids, **List** — a sortable table of status, name, host, model, RouterOS, alerts, CPU/RAM/Disk, clients, WAN Rx/Tx and uptime — and **Map**, plotting each router on a world map by its location, with co-located routers clustered into one dot and routers with no location kept in a tray rather than dropped. One search box narrows any view by name, host, model or version, and understands `online`, `offline` and `alerting`. Cards show connection status (WiFi icon), CPU / RAM / Disk usage bars, Uptime, DHCP client count, and live WAN RX/TX rates; board name, RouterOS version, architecture, serial number, and license level pills. Background sessions pre-load data at startup so cards are populated instantly on first visit. Hidden for single-router setups |
 | Settings | Persistent UI configuration — see below |
@@ -245,6 +248,16 @@ Create a read-only API user (recommended):
 /user add name=mikrodash group=mikrodash password=your-secure-password
 ```
 
+That group is read-only, which is the right default: every dashboard, chart and alert works with it,
+and a compromised MikroDash cannot change your router.
+
+#### Optional: the write features
+
+Two pages change router configuration, and each needs more than `read`:
+
+| Page | Needs | What it can do |
+|---|---|---|
+| **Packages** | `write` | Schedule a package enable/disable/uninstall, and reboot to apply |
 ### Enabling TLS (API-SSL)
 
 MikroDash supports encrypted connections to the RouterOS API over `api-ssl` (default port 8729). You can use a self-signed certificate — no external CA or purchased certificate is required.
@@ -328,6 +341,11 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 | BGP session state changes | `/routing/bgp/session/listen` |
 
 ### Polled (concurrent via tagged API multiplexing)
+
+Bridges, VLANs, CAPsMAN and PPP additionally hold one `/listen` channel each in Stream mode, so a
+change appears the moment the router makes it; the interval below governs how often the volatile
+tables are re-read. Setting a router to Poll closes those channels. DNS and Packages are poll-only
+by design — see `src/collection.js` for why.
 | Collector | Default interval | Data |
 |---|---|---|
 | Bandwidth | 3 s | Per-connection live RX/TX/Total Mbps (reads from the shared connection-table cache populated by the Connections stream) |
@@ -336,6 +354,10 @@ Copy `.env.example` to `.env`, uncomment lines you need, and add `env_file: .env
 | Wireless | 30 s | Wireless client list |
 | VLANs | 5 s | VLAN interfaces, bridge VLAN table and bridge port PVIDs (the configuration tables are re-read every 12th tick; rates and client counts are reused from the interface and DHCP streams at no router cost) |
 | PPP | 5 s | Active PPP sessions, PPPoE servers and PPP profiles; per-session rates derived from the byte counters |
+| Bridges | 5 s | Bridges, ports with STP roles and the learned host table (capped); rates reused from the interface stream |
+| CAPsMAN | 10 s | Manager and CAP state, remote CAPs, provisioning rules, radios and per-CAP client counts |
+| DNS | 10 s | Resolver settings and cache usage; static entries on a slower cadence. The cache contents are never enumerated |
+| Packages | 60 s | Package inventory, firmware versions and update status. Slow by design — an inventory changes on a reboot, not on a tick |
 | DHCP Networks | ~5 min | LAN subnets, pool sizes, WAN IP, internet-facing interfaces |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.
