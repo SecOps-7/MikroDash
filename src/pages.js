@@ -48,7 +48,7 @@ const PAGES = Object.freeze([
   { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [] },
   { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: [] },
   { key: 'reports',     title: 'Reports',          settingsKey: null,              streamRooms: [] },
-  { key: 'routers',     title: 'Routers',          settingsKey: null,              streamRooms: [] },
+  { key: 'routers',     title: 'Routers',          settingsKey: 'pageRouters',     streamRooms: [] },
   { key: 'settings',    title: 'Settings',         settingsKey: null,              streamRooms: [] },
 ]);
 
@@ -57,6 +57,32 @@ const KEYS   = Object.freeze(PAGES.map(p => p.key));
 
 /** The install-wide visibility toggles, for the settings allow-list and broadcast. */
 const SETTING_KEYS = Object.freeze(PAGES.map(p => p.settingsKey).filter(Boolean));
+
+/**
+ * Canned view presets — the Home / Standard / Advanced tiers.
+ *
+ * Lists of PAGE KEYS, not settings keys, because both consumers work in page
+ * keys: the Visible Pages grid maps them through the settings key, and the role
+ * editor's matrix is keyed on the page itself.
+ *
+ * Only the ON set is listed. Whatever a preset does not name is turned OFF,
+ * derived from SETTING_KEYS at apply time rather than written out here — the
+ * polling profiles listed both halves by hand and silently stopped covering
+ * seven sliders as pages were added (public/app.js:4595). A list that can only
+ * be incomplete in one direction cannot drift the same way.
+ *
+ * `dashboard` is in every tier implicitly: it has no toggle and is always
+ * visible. `routers` is Advanced-only on purpose — fleet management is a
+ * professional feature, and it is why that page gained a toggle at all.
+ */
+const VIEW_PRESETS = Object.freeze({
+  home:     Object.freeze(['wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth']),
+  standard: Object.freeze(['wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth',
+                           'topology', 'dns', 'vlans', 'vpn', 'firewall', 'logs']),
+  // Everything with a toggle. Derived so a new page joins Advanced by existing,
+  // which is the tier a new page belongs in until somebody decides otherwise.
+  advanced: Object.freeze(PAGES.filter(p => p.settingsKey).map(p => p.key)),
+});
 
 /**
  * page → rooms whose occupancy drives stream suspend/resume. Only the pages that
@@ -78,4 +104,5 @@ function pageForCollector(collectorKey) {
   return c ? c.page : null;
 }
 
-module.exports = { PAGES, BY_KEY, KEYS, SETTING_KEYS, STREAM_ROOMS, collectorsFor, pageForCollector };
+module.exports = {
+  VIEW_PRESETS, PAGES, BY_KEY, KEYS, SETTING_KEYS, STREAM_ROOMS, collectorsFor, pageForCollector };
