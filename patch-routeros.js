@@ -56,21 +56,93 @@ function patch(filePath, description, replacements) {
 // ── Patch 1: Channel.js — !empty reply ──────────────────────────────────────
 // RouterOS 7.18+ sends !empty when a command returns zero results.
 // The library throws RosException('UNKNOWNREPLY') on any unknown reply type.
-// Fix: treat !empty as an empty done (resolve with []).
+//
+// Fix depends on WHICH KIND OF CHANNEL it arrives on, because !empty means two
+// different things:
+//
+//   write()  — one-shot. !empty is the whole answer: the result set is empty.
+//              Emit done immediately. On RouterOS 7.23 no !done follows, so
+//              waiting for one hangs until the write timeout, and losing that
+//              race closes the connection every collector shares.
+//
+//   stream() — long-running. !empty means "nothing YET". /interface/wifi/
+//              frequency-scan sends it within ~6 ms and delivers the real rows
+//              about ten seconds later. Closing on it ended the channel before
+//              any data arrived; the rows then landed on a tag nobody was
+//              listening for and Patch 2 below discarded them silently. The
+//              symptom was a scan reporting success with zero results while the
+//              identical scan worked in WinBox.
+//
+// Both halves were verified against a live 7.23.3 hAP AX3: swallowing it for
+// write() hangs an empty print for the full timeout and kills the connection;
+// closing on it for stream() loses every frequency-scan row.
 patch(
   path.join(BASE, 'Channel.js'),
   'EMPTY_REPLY',
   [
     {
       find: `throw new RosException_1.RosException('UNKNOWNREPLY', { reply: reply });`,
-      replace: `if (reply === '!empty') { this.emit('done', []); return; }
+      replace: `if (reply === '!empty') { if (this.streaming) return; this.emit('done', []); return; }
         throw new RosException_1.RosException('UNKNOWNREPLY', { reply: reply });`,
     },
     {
       // alternate double-quote form in some builds
       find: `throw new RosException_1.RosException("UNKNOWNREPLY", { reply: reply });`,
-      replace: `if (reply === '!empty') { this.emit('done', []); return; }
+      replace: `if (reply === '!empty') { if (this.streaming) return; this.emit('done', []); return; }
         throw new RosException_1.RosException("UNKNOWNREPLY", { reply: reply });`,
+    },
+  ]
+);
+
+// ── Patch 1b: Channel.js — do not CLOSE the channel on !empty ───────────────
+// Patch 1 above puts the !empty handling in onUnknown(), which is a listener.
+// It never worked for streams, because processPacket does this:
+//
+//     default:
+//         this.emit('unknown', reply);
+//         this.close();          // <- runs whatever the listener decided
+//         break;
+//
+// The close happens regardless, so a long-running command that opens with
+// !empty ("nothing yet") had its channel torn down within ~10 ms. Traced on a
+// live 7.23.3 hAP AX3: /interface/wifi/frequency-scan sends !empty at 12 ms and
+// its real results about ten seconds later, by which time the tag was gone and
+// Patch 2 below discarded them without a word.
+//
+// Handle !empty in the default branch itself, and branch on channel kind:
+//   streaming  -> swallow, keep the channel open, results are still coming
+//   one-shot   -> emit done([]) and close, exactly as before (an empty print
+//                 gets no trailing !done on this build, so waiting for one
+//                 hangs until the write timeout and kills the shared connection)
+patch(
+  path.join(BASE, 'Channel.js'),
+  'EMPTY_NO_CLOSE',
+  [
+    {
+      find: `            default:\n                this.emit('unknown', reply);\n                this.close();\n                break;`,
+      replace: `    default:
+                if (reply === '!empty') {
+                    if (this.streaming) break;
+                    this.emit('done', this.data);
+                    this.close();
+                    break;
+                }
+                this.emit('unknown', reply);
+                this.close();
+                break;`,
+    },
+    {
+      find: `            default:\n                this.emit("unknown", reply);\n                this.close();\n                break;`,
+      replace: `    default:
+                if (reply === '!empty') {
+                    if (this.streaming) break;
+                    this.emit('done', this.data);
+                    this.close();
+                    break;
+                }
+                this.emit("unknown", reply);
+                this.close();
+                break;`,
     },
   ]
 );
