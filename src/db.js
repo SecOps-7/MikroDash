@@ -16,6 +16,7 @@ let _stmtInsertBandwidth   = null;
 let _stmtInsertAlert       = null;
 let _stmtInsertConn        = null;
 let _stmtResolveAlert      = null;
+let _stmtInsertAudit       = null;
 let _pruneTimer            = null;
 
 // ── Migrations ────────────────────────────────────────────────────────────────
@@ -415,6 +416,55 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    // The audit trail (write actions, router actions, authentication).
+    //
+    // Modelled on alert_events — autoincrement id, epoch-ms timestamp, a type
+    // discriminator, a nullable target, free-text payload — with three
+    // differences that matter:
+    //
+    //   scope        'app' or 'router', and it is what lets ONE query serve two
+    //                audiences: app rows (a user created, a role edited) need
+    //                system:principals, router rows are filtered to the routers
+    //                the reader may see. Without this column the read endpoint
+    //                would have to infer audience from router_id being null,
+    //                which is the same thing said less clearly.
+    //   target_name  denormalised on purpose. "deleted role Ops" is useless if
+    //                reading it requires the role to still exist.
+    //   outcome      ok | denied | failed. A refused write is exactly what an
+    //                audit log exists to show, so it is a first-class value
+    //                rather than an absent row.
+    //
+    // DELIBERATELY UNREACHABLE FROM purge() AND deleteRouterData(), the way
+    // sites, groups, grants and layouts already are — and here the reason is
+    // sharper than "a sweep must not delete config": an administrator clicking
+    // Purge must not be able to erase the record of doing it, and "who deleted
+    // router X" has to outlive router X. Retention is handled separately in
+    // prune(), which is age-based and cannot be aimed at a single event.
+    version: 11,
+    up(db) {
+      db.exec(`
+        CREATE TABLE audit_events (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          ts          INTEGER NOT NULL,
+          actor_id    TEXT,
+          actor_name  TEXT NOT NULL,
+          actor_ip    TEXT,
+          action      TEXT NOT NULL,
+          scope       TEXT NOT NULL CHECK (scope IN ('app','router')),
+          router_id   TEXT,
+          target_type TEXT,
+          target_id   TEXT,
+          target_name TEXT,
+          outcome     TEXT NOT NULL CHECK (outcome IN ('ok','denied','failed')),
+          detail      TEXT
+        );
+        CREATE INDEX idx_audit_ts        ON audit_events(ts);
+        CREATE INDEX idx_audit_router_ts ON audit_events(router_id, ts);
+        CREATE INDEX idx_audit_actor_ts  ON audit_events(actor_name, ts);
+      `);
+    },
+  },
 ];
 
 function _runMigrations(db) {
@@ -458,6 +508,13 @@ function _prepareStatements() {
   _stmtInsertBandwidth = _db.prepare('INSERT INTO bandwidth_usage  (router_id, interface, rx_mb,   tx_mb,   ts) VALUES (?, ?, ?, ?, ?)');
   _stmtInsertAlert     = _db.prepare('INSERT INTO alert_events    (router_id, alert_type, subject, detail, fired_at) VALUES (?, ?, ?, ?, ?)');
   _stmtInsertConn    = _db.prepare('INSERT INTO connectivity_events (router_id, connected, ts) VALUES (?, ?, ?)');
+  _stmtInsertAudit   = _db.prepare(`
+    INSERT INTO audit_events
+      (ts, actor_id, actor_name, actor_ip, action, scope, router_id,
+       target_type, target_id, target_name, outcome, detail)
+    VALUES (@ts, @actorId, @actorName, @actorIp, @action, @scope, @routerId,
+            @targetType, @targetId, @targetName, @outcome, @detail)
+  `);
   _stmtResolveAlert  = _db.prepare(`
     UPDATE alert_events SET resolved_at = ?
     WHERE router_id = ? AND alert_type = ? AND subject IS ? AND resolved_at IS NULL
@@ -871,6 +928,108 @@ function getAlertRouterId(id) {
   return row ? row.router_id : null;
 }
 
+// ── Audit trail ───────────────────────────────────────────────────────────────
+
+/**
+ * Append one audit row. Never throws: an audit failure must not break the action
+ * it describes, so a caller can record without a try/catch and without deciding
+ * what to do when the disk is full. A dropped row is logged and the action
+ * proceeds — the alternative is a write path that fails because its own
+ * bookkeeping did.
+ */
+function insertAuditEvent(ev) {
+  if (!_db) return false;
+  try {
+    _stmtInsertAudit.run({
+      ts:         ev.ts || Date.now(),
+      actorId:    ev.actorId    || null,
+      actorName:  ev.actorName  || 'system',
+      actorIp:    ev.actorIp    || null,
+      action:     ev.action,
+      scope:      ev.scope === 'router' ? 'router' : 'app',
+      routerId:   ev.routerId   || null,
+      targetType: ev.targetType || null,
+      targetId:   ev.targetId   || null,
+      targetName: ev.targetName || null,
+      outcome:    ev.outcome    || 'ok',
+      detail:     ev.detail == null ? null
+                : (typeof ev.detail === 'string' ? ev.detail : JSON.stringify(ev.detail)),
+    });
+    return true;
+  } catch (e) {
+    console.error('%s', '[db] audit insert failed:', (e && e.message) || e);
+    return false;
+  }
+}
+
+/**
+ * Read the trail, filtered and paged.
+ *
+ * `routerIds` is the concrete list of routers the caller may see (from
+ * Rbac.effectiveRouterIds) and `includeApp` says whether app-scope rows are
+ * permitted. Both are decided by the caller — this function does not know about
+ * sessions — but note the shape: passing an empty routerIds array with
+ * includeApp false yields NOTHING rather than everything. The old
+ * "empty means unrestricted" bug class is exactly what that avoids.
+ *
+ * Real paging, unlike queryAlertEvents' silent 10 000-row cap: a truncated audit
+ * log is worse than a slow one, so the total is returned alongside the page.
+ */
+function queryAuditEvents(opts) {
+  if (!_db) return { rows: [], total: 0 };
+  const o = opts || {};
+  const where = [];
+  const args  = [];
+
+  // Visibility first, so no later filter can widen it.
+  const ids = Array.isArray(o.routerIds) ? o.routerIds : [];
+  if (o.includeApp && ids.length) {
+    where.push(`(scope = 'app' OR router_id IN (${ids.map(() => '?').join(',')}))`);
+    args.push(...ids);
+  } else if (o.includeApp) {
+    where.push(`scope = 'app'`);
+  } else if (ids.length) {
+    where.push(`(scope = 'router' AND router_id IN (${ids.map(() => '?').join(',')}))`);
+    args.push(...ids);
+  } else {
+    return { rows: [], total: 0 };
+  }
+
+  if (o.from)     { where.push('ts >= ?'); args.push(o.from); }
+  if (o.to)       { where.push('ts <= ?'); args.push(o.to); }
+  if (o.routerId) { where.push('router_id = ?'); args.push(o.routerId); }
+  if (o.actor)    { where.push('actor_name = ?'); args.push(o.actor); }
+  if (o.outcome)  { where.push('outcome = ?'); args.push(o.outcome); }
+  // Prefix match so 'router' selects router.create/update/delete without the
+  // caller needing to know the verb list.
+  if (o.action)   { where.push('action LIKE ?'); args.push(o.action + '%'); }
+  if (o.search) {
+    where.push('(action LIKE ? OR target_name LIKE ? OR detail LIKE ? OR actor_name LIKE ?)');
+    const q = '%' + o.search + '%';
+    args.push(q, q, q, q);
+  }
+
+  const sql   = 'FROM audit_events WHERE ' + where.join(' AND ');
+  const total = _prep('SELECT COUNT(*) AS n ' + sql).get(...args).n;
+  const limit  = Math.min(Math.max(parseInt(o.limit, 10) || 200, 1), 1000);
+  const offset = Math.max(parseInt(o.offset, 10) || 0, 0);
+  const rows = _prep(
+    'SELECT id, ts, actor_id, actor_name, actor_ip, action, scope, router_id, ' +
+    'target_type, target_id, target_name, outcome, detail ' + sql +
+    ' ORDER BY ts DESC, id DESC LIMIT ? OFFSET ?'
+  ).all(...args, limit, offset);
+  return { rows, total, limit, offset };
+}
+
+/** Distinct actors and actions, for the filter dropdowns. */
+function auditFacets() {
+  if (!_db) return { actors: [], actions: [] };
+  return {
+    actors:  _prep('SELECT DISTINCT actor_name FROM audit_events ORDER BY actor_name').all().map(r => r.actor_name),
+    actions: _prep('SELECT DISTINCT action     FROM audit_events ORDER BY action').all().map(r => r.action),
+  };
+}
+
 function queryAlertEvents(routerId, fromTs, toTs, limit) {
   if (!_db) return [];
   return _prep(`
@@ -893,24 +1052,38 @@ function queryConnectivityEvents(routerId, fromTs, toTs, limit) {
 
 // ── Retention / pruning ───────────────────────────────────────────────────────
 
-function prune(retentionDays, alertRetentionDays) {
+function prune(retentionDays, alertRetentionDays, auditRetentionDays) {
   if (!_db) return;
   const metricCutoff = Date.now() - (retentionDays      || 90)  * 86400000;
   const alertCutoff  = Date.now() - (alertRetentionDays || 365) * 86400000;
+  // Audit rows age out on their own setting, and only here. They are absent
+  // from PURGE_TABLES and from deleteRouterData() on purpose, so age is the
+  // ONLY thing that can remove one — nobody can aim a delete at a single event.
+  const auditCutoff  = Date.now() - (auditRetentionDays || 365) * 86400000;
   const r1 = _prep('DELETE FROM ping_samples        WHERE ts < ?').run(metricCutoff);
   const r2 = _prep('DELETE FROM traffic_samples     WHERE ts < ?').run(metricCutoff);
   const r3 = _prep('DELETE FROM bandwidth_usage     WHERE ts < ?').run(metricCutoff);
   const r4 = _prep('DELETE FROM alert_events        WHERE fired_at < ?').run(alertCutoff);
   const r5 = _prep('DELETE FROM connectivity_events WHERE ts < ?').run(alertCutoff);
-  const total = r1.changes + r2.changes + r3.changes + r4.changes + r5.changes;
-  if (total > 0) console.log('%s', `[db] pruned ${total} rows (metrics: ${retentionDays}d, events: ${alertRetentionDays}d)`);
+  const r6 = _prep('DELETE FROM audit_events        WHERE ts < ?').run(auditCutoff);
+  const total = r1.changes + r2.changes + r3.changes + r4.changes + r5.changes + r6.changes;
+  if (total > 0) {
+    console.log('%s', `[db] pruned ${total} rows (metrics: ${retentionDays}d, events: ${alertRetentionDays}d)`);
+    // Recorded so a shrinking history has an explanation. Required lazily: db.js
+    // must not depend on audit.js, which depends on db.js.
+    try {
+      require('./audit').system().record({ action: 'db.prune', targetType: 'database',
+        extra: { deleted: total, metricsDays: retentionDays, eventsDays: alertRetentionDays,
+                 auditDays: auditRetentionDays } });
+    } catch (_) { /* never let bookkeeping break the sweep */ }
+  }
 }
 
 function startPruneInterval(getSettings) {
   if (_pruneTimer) return;
   const run = () => {
     const s = getSettings();
-    prune(s.dbRetentionDays || 90, s.dbAlertRetentionDays || 365);
+    prune(s.dbRetentionDays || 90, s.dbAlertRetentionDays || 365, s.dbAuditRetentionDays || 365);
   };
   run();
   _pruneTimer = setInterval(run, 24 * 3600 * 1000);
@@ -1463,6 +1636,7 @@ module.exports = {
   queryBandwidthSamples, queryBandwidthSamplesAgg, queryBandwidthInterfaces,
   queryTrafficSummary, queryBandwidthSummary,
   queryAlertEvents, queryConnectivityEvents, queryConnectivityEventsAgg,
+  insertAuditEvent, queryAuditEvents, auditFacets,
   prune, startPruneInterval, deleteRouterData,
   purge, countPurge, vacuum, stats, PURGE_TYPES,
 };

@@ -215,6 +215,7 @@ const DEFAULTS = {
   // page-registry.test.js pins every page toggle to true so a fresh install
   // shows everything, and the preset is what narrows it.
   pageRouters:     true,
+  pageAudit:       true,
 
   // Set once by the #105 migration, then never read again.
   collectionMigrated: false,
@@ -223,6 +224,10 @@ const DEFAULTS = {
   // Database retention
   dbRetentionDays:      90,  // days to keep ping + traffic samples
   dbAlertRetentionDays: 365, // days to keep alert + connectivity events
+  // The audit trail ages out on its own setting and nothing else can remove a
+  // row — audit_events is absent from PURGE_TABLES and deleteRouterData() so
+  // that neither a purge click nor deleting a router can erase the record of it.
+  dbAuditRetentionDays: 365,
 
   // Display timezone — IANA name (e.g. 'Europe/London'). Empty = server/browser local.
   displayTimezone: '',
@@ -451,4 +456,5 @@ function getViewerPublic() {
 // rather than carrying a second copy of the AES-GCM logic: one DATA_SECRET, one
 // scrypt path, so backup, restore and key rotation behave the same for every
 // credential the install holds, wherever it is stored.
-module.exports = { load, save, getPublic, getViewerPublic, isMasked, readRetired, encrypt, decrypt, DEFAULTS, POLL_BOUNDS };
+module.exports = { load, save, getPublic, getViewerPublic, isMasked, readRetired, encrypt, decrypt,
+                   DEFAULTS, POLL_BOUNDS, CREDENTIAL_FIELDS };

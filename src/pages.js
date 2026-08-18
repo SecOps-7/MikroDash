@@ -47,6 +47,10 @@ const PAGES = Object.freeze([
   { key: 'firewall',    title: 'Firewall',         settingsKey: 'pageFirewall',    streamRooms: ['page-firewall', 'dash-card-firewall'] },
   { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [] },
   { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: [] },
+  // Audit sits next to Reports because both are history, but it is not one of
+  // its tabs: Reports is per-router telemetry gated on router:history, and half
+  // the audit rows have no router at all. Its rows are filtered per row instead.
+  { key: 'audit',       title: 'Audit',            settingsKey: 'pageAudit',       streamRooms: [] },
   { key: 'reports',     title: 'Reports',          settingsKey: null,              streamRooms: [] },
   { key: 'routers',     title: 'Routers',          settingsKey: 'pageRouters',     streamRooms: [] },
   { key: 'settings',    title: 'Settings',         settingsKey: null,              streamRooms: [] },

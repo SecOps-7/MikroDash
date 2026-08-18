@@ -26,6 +26,7 @@ require('dotenv').config();
 
 const Settings = require('./settings');
 const Routers  = require('./routers');
+const audit    = require('./audit');
 
 const fs   = require('fs');
 const path = require('path');
@@ -650,6 +651,8 @@ async function startCollectors(session, entry) {
       const router = Routers.getById(session.routerId);
       if (router && (router.label === 'My Router' || router.label === router.host)) {
         Routers.updateLabel(session.routerId, boardName);
+        audit.system().record({ action: 'router.autoname', targetType: 'router',
+          targetId: session.routerId, targetName: boardName, routerId: session.routerId });
         // Broadcast updated router list to all clients
         _broadcastRoutersList();
       }
@@ -994,7 +997,11 @@ function _routersForSocket(socket) {
 function _persistRouterIdentity(routerId, identity) {
   if (!routerId) return;
   try {
-    if (Routers.updateIdentity(routerId, identity)) _broadcastRoutersList();
+    if (Routers.updateIdentity(routerId, identity)) {
+      audit.system().record({ action: 'router.identity', targetType: 'router',
+        targetId: routerId, routerId, after: identity });
+      _broadcastRoutersList();
+    }
   } catch (e) {
     console.warn('[MikroDash] could not persist router identity:', sanitizeErr(e));
   }
@@ -1220,12 +1227,17 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const ok = await Users.verifyPassword(user, password);
     if (!ok) {
       console.warn('%s', `[auth] login failed — user="${_logSafe(username)}" ip=${_clientIp(req)}`);
+      // The claimed name, not a resolved one: a failed login may name a user
+      // that does not exist, and that is worth seeing.
+      audit.forLogin(req, username).denied({ action: 'auth.login', targetType: 'user', targetName: username });
       return res.status(401).json({ ok: false, error: 'Invalid username or password' });
     }
     const timeoutMs   = _sessionTimeoutMs();
     const { token, expiresAt } = SessionStore.createSession(user.id, user.username, user.role, timeoutMs, user.allowedRouterIds);
     res.setHeader('Set-Cookie', SessionStore.buildCookieHeader(token, expiresAt));
     console.log('%s', `[auth] login — user="${user.username}" role=${user.role} ip=${_clientIp(req)}`);
+    audit.forLogin(req, user.username).record({ action: 'auth.login', targetType: 'user',
+      targetId: user.id, targetName: user.username });
     res.json({ ok: true, role: user.role, username: user.username });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
@@ -1238,7 +1250,11 @@ app.get('/api/auth/logout', (req, res) => {
   const session = token ? SessionStore.getSession(token) : null;
   if (token) SessionStore.deleteSession(token);
   res.setHeader('Set-Cookie', SessionStore.clearCookieHeader());
-  if (session) console.log('%s', `[auth] logout — user="${session.username}" ip=${_clientIp(req)}`);
+  if (session) {
+    console.log('%s', `[auth] logout — user="${session.username}" ip=${_clientIp(req)}`);
+    audit.forLogin(req, session.username).record({ action: 'auth.logout', targetType: 'user',
+      targetId: session.userId, targetName: session.username });
+  }
   res.json({ ok: true });
 });
 
@@ -1256,6 +1272,8 @@ app.put('/api/auth/me/active-router', (req, res) => {
     return res.status(403).json({ ok: false, error: 'Not permitted' });
   }
   SessionStore.updateSession(token, { activeRouterId: routerId });
+  audit.fromReq(req).record({ action: 'account.active-router', targetType: 'router',
+    targetId: routerId, targetName: router.label || router.host, routerId });
   res.json({ ok: true });
 });
 
@@ -1282,6 +1300,10 @@ app.post('/api/users/setup', setupLimiter, async (req, res) => {
       // grants, and every guard refuses them — locked out of their own instance
       // the moment setup completes.
       Rbac.syncUserGrants(user);
+      // A public route that mints an administrator. It is the single most
+      // consequential write in the app and had no record of any kind.
+      audit.forLogin(req, user.username).record({ action: 'auth.setup', targetType: 'user',
+        targetId: user.id, targetName: user.username, note: 'initial administrator created' });
       res.json({ ok: true, user });
     } catch (e) {
       _setupClaimed = false; // creation failed — let setup be retried
@@ -1321,6 +1343,8 @@ app.post('/api/users', Rbac.requireGlobalAdmin, async (req, res) => {
     // new user starts with none and is granted explicitly — projecting a
     // default 'viewer' here would hand every new account read of every router.
     if (role !== undefined || allowedRouterIds !== undefined) Rbac.syncUserGrants(user);
+    audit.fromReq(req).record({ action: 'user.create', targetType: 'user',
+      targetId: user.id, targetName: user.username });
     res.json({ ok: true, user });
   } catch (e) {
     res.status(500).json({ ok: false, error: sanitizeErr(e) });
@@ -1345,8 +1369,12 @@ app.put('/api/users/:id', Rbac.requireGlobalAdmin, async (req, res) => {
     if (updates.role !== undefined && !Users.ROLES.includes(updates.role)) {
       return res.status(400).json({ ok: false, error: 'Invalid role' });
     }
+    const _before = Users.getUserSync(id);
     const updated = await Users.updateUser(id, updates);
     if (!updated) return res.status(404).json({ ok: false, error: 'User not found' });
+    // `updates` may carry a password; audit.js redacts it by field name.
+    audit.fromReq(req).record({ action: 'user.update', targetType: 'user', targetId: id,
+      targetName: updated.username || id, before: _before, after: updates });
     // Re-project onto grants ONLY if this request actually carried the legacy
     // fields. syncUserGrants() deletes every grant the principal holds and
     // rebuilds them from role + allowedRouterIds — so running it
@@ -1390,8 +1418,12 @@ app.delete('/api/users/:id', Rbac.requireGlobalAdmin, async (req, res) => {
     if (Rbac.wouldOrphanGlobalAdmin(() => db.deleteGrantsForPrincipal('user', id))) {
       return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
     }
+    const _before = Users.getUserSync(id);
     const deleted = await Users.deleteUser(id);
     if (!deleted) return res.status(404).json({ ok: false, error: 'User not found' });
+    audit.fromReq(req).record({ action: 'user.delete', targetType: 'user', targetId: id,
+      targetName: _before && _before.username ? _before.username : id,
+      note: 'grants, layouts and notification config removed with the account' });
     // Users live in JSON, so their grants and memberships have no foreign key to
     // cascade through — clear them here rather than leaving rows pointing at an
     // id that could later be reused.
@@ -1484,6 +1516,9 @@ app.post('/api/account/password', _accountPasswordLimiter, _requireAccount, asyn
     const revoked = SessionStore.deleteSessionsForUser(req.authSession.userId, token);
     console.log('%s', `[account] password changed — user="${_logSafe(req.authSession.username)}" ` +
                       `ip=${_clientIp(req)} othersRevoked=${revoked.length}`);
+    audit.fromReq(req).record({ action: 'account.password', targetType: 'user',
+      targetId: req.authSession.userId, targetName: req.authSession.username,
+      extra: { otherSessionsRevoked: revoked.length } });
     res.json({ ok: true, revokedOtherSessions: revoked.length });
   } catch (e) {
     console.error('[account] password change failed:', e.message);
@@ -1495,6 +1530,9 @@ app.post('/api/account/sessions/revoke-others', _accountSessionLimiter, _require
   const token   = SessionStore.parseCookieHeader(req.headers.cookie || '')['mikrodash_sid'];
   const revoked = SessionStore.deleteSessionsForUser(req.authSession.userId, token);
   console.log('%s', `[account] sessions revoked — user="${_logSafe(req.authSession.username)}" count=${revoked.length}`);
+  audit.fromReq(req).record({ action: 'account.sessions.revoke', targetType: 'user',
+    targetId: req.authSession.userId, targetName: req.authSession.username,
+    extra: { revoked: revoked.length } });
   res.json({ ok: true, revoked: revoked.length });
 });
 
@@ -1533,6 +1571,8 @@ app.post('/api/dashboard-layout', layoutLimiter, _requireDashboard, (req, res) =
     const body = req.body || {};
     if (!Array.isArray(body.cards)) return res.status(400).json({ ok: false });
     db.setLayout(_layoutUser(req), 'dashboard', { cards: body.cards });
+    audit.fromReq(req).record({ action: 'layout.update', targetType: 'layout',
+      targetName: 'dashboard' });
     res.json({ ok: true });
   } catch (e) {
     console.error('[dashboard-layout] save failed:', sanitizeErr(e));
@@ -1581,6 +1621,8 @@ app.post('/api/topology-layout', layoutLimiter,
     if (Object.keys(positions).length) all[rid] = positions;
     else delete all[rid];                       // Re-layout posts {} to reset
     db.setLayout(_layoutUser(req), 'topology', all);
+    audit.fromReq(req).record({ action: 'layout.update', targetType: 'layout',
+      targetName: 'topology', routerId: body.routerId || null });
     res.json({ ok: true });
   } catch (e) {
     console.error('[topology-layout] save failed:', sanitizeErr(e));
@@ -1637,6 +1679,11 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
     const body = req.body || {};
     if (body._reset) {
       const { DEFAULTS } = require('./settings');
+      // Recorded here, not after the normal save below: this branch returns
+      // early, so a single hook at the end of the handler would miss the one
+      // settings write that replaces the entire file.
+      audit.fromReq(req).record({ action: 'settings.reset', targetType: 'settings',
+        note: 'all settings restored to defaults' });
       Settings.save(DEFAULTS);
       io.emit('settings:pages', _pageSettings(DEFAULTS));
       return res.json({ ok:true, requiresRestart:false });
@@ -1691,7 +1738,11 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       else { try { new Intl.DateTimeFormat(undefined, { timeZone: tz }); updates.displayTimezone = tz; } catch (_) {} }
     }
 
-    const saved = Settings.save(updates);
+    // Captured before the write, or "before" is just "after" again.
+    const _prev  = Settings.load();
+    const saved  = Settings.save(updates);
+    audit.fromReq(req).record({ action: 'settings.update', targetType: 'settings',
+      before: _prev, after: updates });
     alerter.updateSettings(saved);
 
     // Apply poll interval changes live to the global-default session
@@ -1898,7 +1949,13 @@ app.get('/api/user-notify', _userNotifyLimiter, _requireUserNotify, (req, res) =
 
 app.post('/api/user-notify', _userNotifyLimiter, _requireUserNotify, (req, res) => {
   try {
-    res.json({ ok: true, config: userNotify.save(req.authSession.userId, req.body || {}) });
+    const _cfg = userNotify.save(req.authSession.userId, req.body || {});
+    // The body carries channel credentials; audit.js redacts them by field name,
+    // so only the fact that a destination changed is recorded.
+    audit.fromReq(req).record({ action: 'account.notify', targetType: 'user',
+      targetId: req.authSession.userId, targetName: req.authSession.username,
+      note: 'personal notification channels updated' });
+    res.json({ ok: true, config: _cfg });
   } catch (e) {
     // save() rejects a malformed address. That is the caller's mistake to fix,
     // not a server fault, so it must not read as one.
@@ -1982,6 +2039,8 @@ app.post('/api/routers', Rbac.requireGlobalAdmin, (req, res) => {
       return res.status(400).json({ ok:false, error:'host is required' });
     }
     const router = Routers.add(body);
+    audit.fromReq(req).record({ action: 'router.create', targetType: 'router',
+      targetId: router.id, targetName: router.label || router.host, routerId: router.id });
     Rbac.bump(); _broadcastPermsChanged();
     _broadcastRoutersList();
     _syncAlertSessions();
@@ -2022,7 +2081,11 @@ app.put('/api/routers/:id', Rbac.requirePerm('router:manage', Rbac.fromParam('id
 
     // A siteId change alters who can reach this router, so every cached
     // authorization view is stale. Easy to miss: it reads as router config.
+    const _before = Routers.getById(req.params.id);
     const router = Routers.update(req.params.id, body);
+    audit.fromReq(req).record({ action: 'router.update', targetType: 'router',
+      targetId: req.params.id, targetName: router ? (router.label || router.host) : req.params.id,
+      routerId: req.params.id, before: _before, after: body });
     Rbac.bump(); _broadcastPermsChanged();
     if (!router) return res.status(404).json({ ok:false, error:'Router not found' });
     _broadcastRoutersList();
@@ -2069,7 +2132,12 @@ app.delete('/api/routers/:id', Rbac.requirePerm('router:manage', Rbac.fromParam(
     const _cfg       = Settings.load();
     const wasActive  = deletedId === _cfg.activeRouterId;
 
+    const _before = Routers.getById(deletedId);
     const deleted = Routers.remove(deletedId);
+    audit.fromReq(req).record({ action: 'router.delete', targetType: 'router',
+      targetId: deletedId, targetName: _before ? (_before.label || _before.host) : deletedId,
+      routerId: deletedId,
+      note: 'router-scoped grants and all stored history for this router were deleted with it' });
     if (!deleted) return res.status(404).json({ ok:false, error:'Router not found' });
     db.deleteGrantsForScope('router', deletedId);
     Rbac.bump(); _broadcastPermsChanged();
@@ -2133,6 +2201,8 @@ app.post('/api/routers/:id/activate', Rbac.requireGlobalAdmin, async (req, res) 
   }
   res.json({ ok:true, switching:true }); // respond before the async switch
   const result = await switchRouter(req.params.id);
+  audit.fromReq(req).record({ action: 'router.activate', targetType: 'router',
+    targetId: req.params.id, routerId: req.params.id });
   if (!result.ok) {
     console.error('[MikroDash] Router switch failed:', result.error);
     io.emit('router:switch-error', { error: result.error });
@@ -2362,6 +2432,8 @@ app.post('/api/groups', Rbac.requireGlobalAdmin, (req, res) => {
     const parsed = _parseName(req.body, { partial: false });
     if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
     const group = db.createGroup(parsed.value);
+    audit.fromReq(req).record({ action: 'group.create', targetType: 'group',
+      targetId: group.id, targetName: group.name });
     if (Array.isArray(req.body.memberUserIds)) db.setGroupMembers(group.id, req.body.memberUserIds);
     Rbac.bump(); _broadcastPermsChanged();
     res.json({ ok: true, group });
@@ -2386,7 +2458,11 @@ app.put('/api/groups/:id', Rbac.requireGlobalAdmin, (req, res) => {
         Rbac.wouldOrphanGlobalAdmin(() => db.setGroupMembers(req.params.id, req.body.memberUserIds))) {
       return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
     }
+    const _before = db.getGroup(req.params.id);
     const group = db.updateGroup(req.params.id, parsed.value);
+    audit.fromReq(req).record({ action: 'group.update', targetType: 'group',
+      targetId: req.params.id, targetName: group ? group.name : req.params.id,
+      before: _before, after: parsed.value });
     if (Array.isArray(req.body.memberUserIds)) db.setGroupMembers(req.params.id, req.body.memberUserIds);
     Rbac.bump(); _broadcastPermsChanged();
     res.json({ ok: true, group });
@@ -2405,7 +2481,10 @@ app.delete('/api/groups/:id', Rbac.requireGlobalAdmin, (req, res) => {
     if (Rbac.wouldOrphanGlobalAdmin(() => db.deleteGroup(req.params.id))) {
       return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
     }
+    const _before = db.getGroup(req.params.id);
     db.deleteGroup(req.params.id);
+    audit.fromReq(req).record({ action: 'group.delete', targetType: 'group',
+      targetId: req.params.id, targetName: _before ? _before.name : req.params.id });
     Rbac.bump(); _broadcastPermsChanged();
     res.json({ ok: true });
   } catch (e) {
@@ -2443,6 +2522,11 @@ app.post('/api/grants', Rbac.requireGlobalAdmin, (req, res) => {
       createdBy: req.authSession ? req.authSession.userId : null,
     });
     Rbac.bump(); _broadcastPermsChanged();
+    audit.fromReq(req).record({ action: 'grant.create', targetType: 'grant', targetId: grant.id,
+      targetName: `${b.principalType}:${b.principalId} → ${roleId} @ ${b.scopeType}${scopeId ? ':' + scopeId : ''}`,
+      // Router-scoped grants are recorded against that router, so whoever
+      // administers it can see access to it being handed out.
+      routerId: b.scopeType === 'router' ? scopeId : null });
     res.json({ ok: true, grant });
   } catch (e) {
     console.error('[grants] create failed:', sanitizeErr(e));
@@ -2456,6 +2540,7 @@ app.delete('/api/grants/:id', Rbac.requireGlobalAdmin, (req, res) => {
       return res.status(400).json({ ok: false, error: 'That would leave nobody with administrator access' });
     }
     if (!db.deleteGrant(req.params.id)) return res.status(404).json({ ok: false, error: 'No such grant' });
+    audit.fromReq(req).record({ action: 'grant.delete', targetType: 'grant', targetId: req.params.id });
     Rbac.bump(); _broadcastPermsChanged();
     res.json({ ok: true });
   } catch (e) {
@@ -2514,6 +2599,8 @@ app.post('/api/roles', Rbac.requireGlobalAdmin, (req, res) => {
     if (pages.error) return res.status(400).json({ ok: false, error: pages.error });
 
     const role = db.createRole(parsed.value);
+    audit.fromReq(req).record({ action: 'role.create', targetType: 'role',
+      targetId: role.id, targetName: role.name });
     if (pages.value) db.setRolePages(role.id, pages.value);
     Rbac.bump(); _broadcastPermsChanged();
     res.json({ ok: true, role: _roleView(role) });
@@ -2540,7 +2627,14 @@ app.put('/api/roles/:id', Rbac.requireGlobalAdmin, (req, res) => {
     const pages = _parseRolePages(req.body);
     if (pages.error) return res.status(400).json({ ok: false, error: pages.error });
 
+    const _before = db.getRole(req.params.id);
+    const _beforePages = db.rolePages(req.params.id);
     const role = db.updateRole(req.params.id, parsed.value);
+    audit.fromReq(req).record({ action: 'role.update', targetType: 'role',
+      targetId: req.params.id, targetName: role ? role.name : req.params.id,
+      before: { name: _before && _before.name, pages: _beforePages },
+      after:  { name: parsed.value.name, pages: parsed.value.pages },
+      note: 'a role edit changes the answer for every principal holding it' });
     if (pages.value) db.setRolePages(req.params.id, pages.value);
     // Editing a role changes the answer for every principal holding it, at any
     // scope — the easiest bump to forget, and silent when missed.
@@ -2571,7 +2665,10 @@ app.delete('/api/roles/:id', Rbac.requireGlobalAdmin, (req, res) => {
         error: `That role is still assigned by ${used} grant${used === 1 ? '' : 's'}`,
       });
     }
+    const _before = db.getRole(req.params.id);
     db.deleteRole(req.params.id);
+    audit.fromReq(req).record({ action: 'role.delete', targetType: 'role',
+      targetId: req.params.id, targetName: _before ? _before.name : req.params.id });
     Rbac.bump(); _broadcastPermsChanged();
     res.json({ ok: true });
   } catch (e) {
@@ -2603,6 +2700,8 @@ app.post('/api/sites', Rbac.requireGlobalAdmin, (req, res) => {
     const parsed = _parseSiteBody(req.body, { partial: false });
     if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
     const site = db.createSite(parsed.value);
+    audit.fromReq(req).record({ action: 'site.create', targetType: 'site',
+      targetId: site.id, targetName: site.name });
     io.emit('sites:update', db.listSites());
     res.json({ ok: true, site });
   } catch (e) {
@@ -2622,7 +2721,11 @@ app.put('/api/sites/:id', Rbac.requireGlobalAdmin, (req, res) => {
     if (!db.getSite(req.params.id)) return res.status(404).json({ ok: false, error: 'No such site' });
     const parsed = _parseSiteBody(req.body, { partial: true });
     if (parsed.error) return res.status(400).json({ ok: false, error: parsed.error });
+    const _before = db.getSite(req.params.id);
     const site = db.updateSite(req.params.id, parsed.value);
+    audit.fromReq(req).record({ action: 'site.update', targetType: 'site',
+      targetId: req.params.id, targetName: site ? site.name : req.params.id,
+      before: _before, after: parsed.value });
     io.emit('sites:update', db.listSites());
     res.json({ ok: true, site });
   } catch (e) {
@@ -2653,8 +2756,17 @@ app.put('/api/sites/:id/routers', Rbac.requireGlobalAdmin, (req, res) => {
     for (const r of all) {
       const shouldBeHere = wanted.includes(r.id);
       const isHere       = r.siteId === req.params.id;
-      if (shouldBeHere && !isHere)      { Routers.update(r.id, { siteId: req.params.id }); changed++; }
-      else if (!shouldBeHere && isHere) { Routers.update(r.id, { siteId: '' });            changed++; }
+      if (shouldBeHere && !isHere) {
+        Routers.update(r.id, { siteId: req.params.id }); changed++;
+        audit.fromReq(req).record({ action: 'router.site', targetType: 'router', targetId: r.id,
+          targetName: r.label || r.host, routerId: r.id,
+          before: { siteId: r.siteId || '' }, after: { siteId: req.params.id } });
+      } else if (!shouldBeHere && isHere) {
+        Routers.update(r.id, { siteId: '' }); changed++;
+        audit.fromReq(req).record({ action: 'router.site', targetType: 'router', targetId: r.id,
+          targetName: r.label || r.host, routerId: r.id,
+          before: { siteId: r.siteId || '' }, after: { siteId: '' } });
+      }
     }
     if (changed) {
       // A router's site determines who can reach it through a site-scoped grant.
@@ -2675,7 +2787,11 @@ app.delete('/api/sites/:id', Rbac.requireGlobalAdmin, (req, res) => {
     // first: a router pointing at a site that no longer exists would render a
     // blank chip and, once Phase 3 lands, be unreachable to a site-scoped grant.
     const detached = Routers.clearSite(req.params.id);
+    const _before = db.getSite(req.params.id);
     db.deleteSite(req.params.id);
+    audit.fromReq(req).record({ action: 'site.delete', targetType: 'site',
+      targetId: req.params.id, targetName: _before ? _before.name : req.params.id,
+      note: 'routers detached and site-scoped grants removed' });
     // Site-scoped grants would otherwise outlive the site they name.
     db.deleteGrantsForScope('site', req.params.id);
     // Detaching routers changes who can reach them, so every cached view is stale.
@@ -3293,6 +3409,8 @@ app.post('/api/alerts/:id/ack', ackLimiter, (req, res) => {
     }
     const who = req.authSession?.username || null;
     const row = db.acknowledgeAlert(id, who);
+    audit.fromReq(req).record({ action: 'alert.ack', targetType: 'alert', targetId: String(id),
+      routerId: owner });
     if (!row) return res.status(404).json({ ok: false });
     // Tell every browser on that router, so two people looking at the same
     // alert do not each have to acknowledge it.
@@ -3321,6 +3439,8 @@ app.post('/api/alerts/clear-all', ackLimiter, (req, res) => {
     }
     const who = req.authSession?.username || null;
     const ids = db.resolveAllAlerts(rid, who);
+    audit.fromReq(req).record({ action: 'alert.clear', targetType: 'alert', routerId: rid,
+      extra: { cleared: ids.length } });
     if (ids.length) {
       io.to('router-' + rid).emit('alerts:cleared-all', {
         routerId: rid, ids, clearedAt: Date.now(), clearedBy: who,
@@ -3463,6 +3583,84 @@ function _purgeOpts(req) {
   return { routerId: scope.routerId, types, olderThanMs: days * 86400000 };
 }
 
+// ── Audit trail ───────────────────────────────────────────────────────────────
+//
+// Deliberately not under /api/reports/*. Those are all
+// requirePerm('router:history', fromQuery('routerId')) and answer 400 without a
+// router; half the audit rows have no router at all. The gate here is per-ROW
+// instead of per-request:
+//
+//   scope='app'     a user, role, grant or settings change — system:principals
+//   scope='router'  filtered to the routers this session may see
+//
+// Both halves are resolved from the session and passed to the query, which
+// returns nothing when neither applies. /api/db/stats mixes a global gate with a
+// per-router filter the same way.
+function _auditScope(req) {
+  // Auth disabled means one local operator with full reach; matching what
+  // Rbac.can() already does rather than inventing a second answer.
+  if (!_isModern()) return { includeApp: true, routerIds: Routers.loadAll().map(r => r.id) };
+  return {
+    includeApp: Rbac.can(req.authSession, 'system:principals'),
+    routerIds:  Rbac.effectiveRouterIds(req.authSession, 'router:history'),
+  };
+}
+
+function _auditQuery(req) {
+  const q = req.query || {};
+  const scope = _auditScope(req);
+  return {
+    includeApp: scope.includeApp,
+    // A routerId filter narrows the permitted set; it can never widen it.
+    routerIds:  q.routerId && scope.routerIds.includes(String(q.routerId))
+                  ? [String(q.routerId)] : scope.routerIds,
+    from:    parseInt(q.from, 10) || 0,
+    to:      parseInt(q.to, 10)   || Date.now(),
+    actor:   q.actor   ? String(q.actor).slice(0, 100)   : '',
+    action:  q.action  ? String(q.action).slice(0, 60)   : '',
+    outcome: ['ok', 'denied', 'failed'].includes(q.outcome) ? q.outcome : '',
+    search:  q.search  ? String(q.search).slice(0, 100)  : '',
+    limit:   q.limit, offset: q.offset,
+  };
+}
+
+// Any signed-in user may reach the page; what they SEE is decided per row, and a
+// session with neither global administration nor router history gets an empty
+// list rather than a 403 — the page is legitimately empty for them.
+app.get('/api/audit', (req, res) => {
+  try {
+    const out = db.queryAuditEvents(_auditQuery(req));
+    res.json({ ok: true, ...out, facets: db.auditFacets() });
+  } catch (e) {
+    console.error('[audit] query failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.get('/api/audit/export', (req, res) => {
+  try {
+    const q = _auditQuery(req);
+    // Export is a snapshot of the filtered view, not the page — but still
+    // bounded, because a PDF has no row cap of its own.
+    const { rows } = db.queryAuditEvents({ ...q, limit: 1000, offset: 0 });
+    const flat = rows.map(r => ({
+      ts: _tsFmt(r.ts), actor: r.actor_name, ip: r.actor_ip || '', action: r.action,
+      target: r.target_name || r.target_id || '', router: r.router_id || '',
+      outcome: r.outcome, detail: r.detail || '',
+    }));
+    const cols = ['ts', 'actor', 'ip', 'action', 'target', 'router', 'outcome', 'detail'];
+    if (String(req.query.format) === 'pdf') {
+      return _toPdf('Audit Trail', cols, flat, res, { meta: `${flat.length} events` });
+    }
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="mikrodash-audit.csv"');
+    res.send(_toCsv(flat, cols));
+  } catch (e) {
+    console.error('[audit] export failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
 app.get('/api/db/stats', Rbac.requireGlobalAdmin, (req, res) => {
   try {
     const s = db.stats();
@@ -3488,6 +3686,12 @@ app.post('/api/db/purge', Rbac.requireGlobalAdmin, (req, res) => {
     }
     const before = db.stats().bytes;
     const result = db.purge(opts);
+    // audit_events is absent from PURGE_TABLES, so this row survives the very
+    // purge it describes — which is the point of keeping it out.
+    audit.fromReq(req).record({ action: 'db.purge', targetType: 'database',
+      routerId: opts.routerId || null,
+      extra: { deleted: result.deleted, types: opts.types || 'all',
+               olderThanDays: req.body && req.body.olderThanDays } });
     // Without this the rows go but the file on disk never shrinks, which reads
     // as the cleanup having done nothing.
     const vac    = result.deleted > 0 ? db.vacuum() : { before, after: before };
@@ -3554,8 +3758,16 @@ function _refreshAutoGeo(router, wanIp) {
   // Survives a restart, so a reboot costs one lookup per router, not one write.
   if (router.geo && router.geo.auto && router.geo.auto.ip === wanIp) return false;
 
-  if (decision.action === 'clear') return !!Routers.updateGeoAuto(router.id, null);
-  return !!Routers.updateGeoAuto(router.id, decision.auto);
+  if (decision.action === 'clear') {
+    const done = !!Routers.updateGeoAuto(router.id, null);
+    if (done) audit.system().record({ action: 'router.geo', targetType: 'router',
+      targetId: router.id, routerId: router.id, note: 'auto location cleared' });
+    return done;
+  }
+  const done = !!Routers.updateGeoAuto(router.id, decision.auto);
+  if (done) audit.system().record({ action: 'router.geo', targetType: 'router',
+    targetId: router.id, routerId: router.id, after: decision.auto });
+  return done;
 }
 
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
@@ -3959,6 +4171,14 @@ function _emitDiagnostics(session, rid, socket) {
 const _routersPageSockets = new Set();
 
 io.on('connection', (socket) => {
+  // `trust proxy` is Express middleware and a socket's request never passes
+  // through it, so req.ip is not available here. Resolve the address once at
+  // connect for the audit trail: behind a trusted proxy the forwarded header is
+  // the real client, otherwise the socket's own address is.
+  {
+    const fwd = TRUSTED_PROXY ? String(socket.handshake.headers['x-forwarded-for'] || '').split(',')[0].trim() : '';
+    socket._clientIp = (fwd || socket.handshake.address || '').replace(/^::ffff:/, '') || null;
+  }
   if (io.engine.clientsCount > MAX_SOCKETS) {
     console.warn('[MikroDash] connection rejected — max sockets reached:', MAX_SOCKETS);
     socket.disconnect(true);
@@ -4047,8 +4267,6 @@ io.on('connection', (socket) => {
       if (s[name] && s[name].lastPayload)
         socket.emit(name + ':update', { ...s[name].lastPayload, ts: Date.now() });
     }
-    if (name === 'bandwidth' && s.bandwidth && s.bandwidth.lastPayload)
-      socket.emit('bandwidth:update', { ...s.bandwidth.lastPayload, ts: Date.now() });
     if (name === 'logs' && s.logs)
       socket.emit('logs:history', { entries: s.logs.getHistory() });
     // Poll-only pages have no streamRooms, so the generic replay above — gated
@@ -4207,12 +4425,120 @@ io.on('connection', (socket) => {
       routerName: (Routers.getById(rid) || {}).label || '',
     });
   });
+
+  socket.on('packages:schedule', async (req) => {
+    const { rid, session, off } = _pkgSession();
+    if (!rid || !session || off) return _pkgErr('unavailable');
+    // Both gates, the way wifiscan does it: _pageAllowed carries the install-wide
+    // page toggle, and _socketCan keeps router:write the named, greppable one.
+    if (!_pageAllowed(socket, 'packages', 'write') || !_socketCan(socket, 'router:write', rid)) {
+      audit.fromSocket(socket).denied({ action: 'package.schedule', targetType: 'package',
+        routerId: rid, targetName: req && req.name ? String(req.name) : null });
+      return _pkgErr('denied');
+    }
+
+    const action = req && typeof req.action === 'string' ? req.action : '';
+    const name   = req && typeof req.name === 'string' ? req.name : '';
+    const cmd    = _PKG_SCHEDULE[action];
+    if (!cmd || !name) return _pkgErr('bad-request');
+
+    // Resolved against what the collector last read rather than trusting the id
+    // the browser sent, so a stale or crafted page cannot address a row that was
+    // never on screen.
+    const pkg = ((session.packages.lastPayload || {}).packages || [])
+      .find(x => x.name === name);
+    if (!pkg || !pkg.id) return _pkgErr('no-such-package', { name });
+
+    try {
+      await session.ros.write(cmd, ['=.id=' + pkg.id]);
+      audit.fromSocket(socket).record({ action: 'package.' + action, targetType: 'package',
+        targetId: pkg.id, targetName: pkg.name, routerId: rid,
+        note: action === 'unschedule' ? 'scheduled change cancelled'
+                                      : 'scheduled; inert until apply-changes reboots the router' });
+      // Re-read rather than assuming: the banner must show what the router did,
+      // not what the browser hoped it did.
+      await session.packages.refreshNow();
+      socket.emit('packages:ok', { action, name });
+    } catch (e) {
+      _pkgErr(_rosWriteFail(e), { name, message: sanitizeErr(e) });
+    }
+  });
+
+  socket.on('packages:check', async () => {
+    const { rid, session, off } = _pkgSession();
+    if (!rid || !session || off) return _pkgErr('unavailable');
+    if (!_pageAllowed(socket, 'packages', 'write') || !_socketCan(socket, 'router:write', rid)) {
+      audit.fromSocket(socket).denied({ action: 'package.check', routerId: rid });
+      return _pkgErr('denied');
+    }
+    try {
+      // Reaches MikroTik's servers, so it is a button rather than a poll. The
+      // 12-hourly background check in system.js is unaffected.
+      await session.ros.write('/system/package/update/check-for-updates', []);
+      audit.fromSocket(socket).record({ action: 'package.check', targetType: 'package',
+        routerId: rid, note: 'contacted MikroTik update servers' });
+      await session.packages.refreshNow();
+      socket.emit('packages:ok', { action: 'check' });
+    } catch (e) {
+      _pkgErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  });
+
+  socket.on('packages:apply', async (req) => {
+    const { rid, session, off } = _pkgSession();
+    if (!rid || !session || off) return _pkgErr('unavailable');
+    if (!_pageAllowed(socket, 'packages', 'write') || !_socketCan(socket, 'router:write', rid)) {
+      audit.fromSocket(socket).denied({ action: 'package.apply', routerId: rid });
+      return _pkgErr('denied');
+    }
+
+    // Second gate, and the only one of its kind in the app: this reboots a
+    // production router. The browser must send back the router's own name, so a
+    // misclick — or a click on the wrong router — cannot reach it.
+    const routerName = (Routers.getById(rid) || {}).label || '';
+    const confirm    = req && typeof req.confirm === 'string' ? req.confirm.trim() : '';
+    if (!routerName || confirm.toLowerCase() !== routerName.toLowerCase())
+      return _pkgErr('confirm-mismatch', { routerName });
+
+    const pending = ((session.packages.lastPayload || {}).packages || [])
+      .filter(x => x.scheduled);
+    if (!pending.length) return _pkgErr('nothing-scheduled');
+
+    console.log('%s', `[packages] apply-changes on ${routerName} — ${pending.length} scheduled change(s), router will reboot`);
+    socket.emit('packages:applying', { routerName, count: pending.length });
+    try {
+      // The router reboots as it answers, so a lost connection here is the
+      // expected outcome, not a failure. Anything the write throws after the
+      // command is away would be reported as an error the user should ignore.
+      // Recorded BEFORE the call: this reboots the router, so the connection is
+      // expected to drop while the command is in flight. Writing the row
+      // afterwards would lose the record of the most consequential action here.
+      audit.fromSocket(socket).record({ action: 'package.apply', targetType: 'router',
+        targetId: rid, targetName: routerName, routerId: rid,
+        extra: { scheduled: pending.map(p => p.name + ':' + (p.scheduledAction || 'change')) },
+        note: 'applied scheduled package changes and rebooted the router' });
+      await session.ros.write('/system/package/apply-changes', []);
+      socket.emit('packages:ok', { action: 'apply', routerName });
+    } catch (e) {
+      const code = _rosWriteFail(e);
+      if (code === 'failed') socket.emit('packages:ok', { action: 'apply', routerName, rebooting: true });
+      else _pkgErr(code, { message: sanitizeErr(e) });
+    }
+  });
   // explains each one; the rules below are about how it is CALLED.
   //
   // Three properties every handler here has, and the Packages handlers above do
   // not need:
   //
   //  1. IT RE-READS FROM THE ROUTER. Packages resolves its target from the
+
+  /**
+   * Create or edit a user.
+   *
+   * `id` present means edit. A password is accepted on create and on an
+   * explicit reset, is never echoed back, and never reaches the audit trail:
+   * audit.js redacts by field name and a test asserts it for this action.
+   */
   // ── WiFi frequency analyzer ───────────────────────────────────────────────
   //
   // The only disruptive action in the app: it takes the radio off the air and
@@ -4250,8 +4576,11 @@ io.on('connection', (socket) => {
     // Both gates, deliberately. _pageAllowed carries the install-wide Wireless
     // toggle — a deployment that turned the page off must not have a scan
     // endpoint — and _socketCan keeps router:scan the named, greppable gate.
-    if (!_pageAllowed(socket, 'wireless', 'write')) return _scanDenied('denied');
-    if (!_socketCan(socket, 'router:scan', rid))    return _scanDenied('denied');
+    if (!_pageAllowed(socket, 'wireless', 'write') || !_socketCan(socket, 'router:scan', rid)) {
+      audit.fromSocket(socket).denied({ action: 'wifi.scan', routerId: rid,
+        targetName: req && req.iface ? String(req.iface) : null });
+      return _scanDenied('denied');
+    }
 
     const iface       = req && typeof req.iface === 'string' ? req.iface : '';
     const durationSec = req && Number(req.durationSec);
@@ -4271,6 +4600,9 @@ io.on('connection', (socket) => {
       if (Number.isFinite(n)) currentChannelMhz = n;
     } catch (_) { /* advisory only — a scan without it is still useful */ }
 
+    audit.fromSocket(socket).record({ action: 'wifi.scan', targetType: 'interface',
+      targetName: iface, routerId: rid,
+      note: 'takes the radio off the air; connected clients are disconnected for the scan' });
     const res = wifiScans.start({
       routerId: rid, ros: session.ros, iface, durationSec,
       socketId: socket.id, currentChannelMhz, interfaces,
