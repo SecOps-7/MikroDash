@@ -258,6 +258,13 @@ Two pages change router configuration, and each needs more than `read`:
 | Page | Needs | What it can do |
 |---|---|---|
 | **Packages** | `write` | Schedule a package enable/disable/uninstall, and reboot to apply |
+| **Queues** | `write` | Create, edit and remove simple queues and queue trees |
+| **Router Users** | `write` **and** `policy` | Create, edit and remove RouterOS users, groups and sessions |
+
+> **If a queue seems to do nothing, check FastTrack first.** RouterOS's default configuration includes
+> a `fasttrack-connection` firewall rule, and FastTracked connections bypass simple queues and any
+> queue tree parented to `global`. A queue only shapes the traffic FastTrack did not take. The Queues
+> page detects this and says so. To shape that traffic too, disable or narrow the FastTrack rule in
 > `/ip/firewall/filter`.
 
 Grant them only if you want those pages, and understand the trade: **`policy` is the permission that

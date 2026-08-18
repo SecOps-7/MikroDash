@@ -47,6 +47,7 @@ const PAGES = Object.freeze([
   { key: 'bandwidth',   title: 'Bandwidth',        settingsKey: 'pageBandwidth',   streamRooms: [] },
   { key: 'firewall',    title: 'Firewall',         settingsKey: 'pageFirewall',    streamRooms: ['page-firewall', 'dash-card-firewall'] },
   { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [] },
+  { key: 'queues',      title: 'Queues',           settingsKey: 'pageQueues',      streamRooms: [] },
   { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: [] },
   { key: 'rosusers',    title: 'Router Users',     settingsKey: 'pageRosusers',    streamRooms: [] },
   // Audit sits next to Reports because both are history, but it is not one of

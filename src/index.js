@@ -41,6 +41,7 @@ const { computeHealthStatus } = require('./health');
 const { verifyRouterOSPatchMarkers } = require('./routeros/patchVerification');
 const { classifyRosError } = require('./routeros/classifyError');
 const selfGuard            = require('./routeros/selfGuard');
+const queueGuard           = require('./routeros/queueGuard');
 const { scheduleForcedShutdownTimer } = require('./shutdown');
 
 try {
@@ -85,6 +86,7 @@ const DnsCollector          = require('./collectors/dns');
 const CapsmanCollector      = require('./collectors/capsman');
 const PackagesCollector     = require('./collectors/packages');
 const RosUsersCollector     = require('./collectors/rosusers');
+const QueuesCollector       = require('./collectors/queues');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
@@ -365,6 +367,7 @@ function _freshState() {
     lastCapsmanTs:0, lastCapsmanErr:null,
     lastPackagesTs:0, lastPackagesErr:null,
     lastRosusersTs:0, lastRosusersErr:null,
+    lastQueuesTs:0, lastQueuesErr:null,
   };
 }
 
@@ -459,11 +462,34 @@ function buildSession(routerCfg, routerIo) {
   // re-fetching what they already hold, so it must come after all three.
   const topology     = _on('topology', () => new TopologyCollector    ({ros, io:routerIo, pollMs:eff.poll.topology,  state, streamMode:eff.stream.topology, rid:routerCfg.id, arp, ifStatus, system, dhcpLeases}));
 
-  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology];
+  // vlans is constructed after ifStatus and dhcpLeases: it reads their
+  // lastPayload by reference, so they must exist first. Both are DISABLEABLE,
+  // so it guards for a null-collector stub rather than assuming a payload.
+  const vlans        = _on('vlans',    () => new VlansCollector       ({ros, io:routerIo, pollMs:eff.poll.vlans, state, ifStatus, dhcpLeases, streamMode:eff.stream.vlans}));
+  const ppp          = _on('ppp',      () => new PppCollector         ({ros, io:routerIo, pollMs:eff.poll.ppp,   state, streamMode:eff.stream.ppp}));
+  // bridges borrows rates from ifStatus by reference, so it is constructed after
+  // it for the same reason vlans is.
+  const bridges      = _on('bridges',  () => new BridgesCollector     ({ros, io:routerIo, pollMs:eff.poll.bridges,  state, ifStatus, streamMode:eff.stream.bridges}));
+  const dns          = _on('dns',      () => new DnsCollector         ({ros, io:routerIo, pollMs:eff.poll.dns,      state}));
+  const capsman      = _on('capsman',  () => new CapsmanCollector     ({ros, io:routerIo, pollMs:eff.poll.capsman,  state, streamMode:eff.stream.capsman}));
+  const packages     = _on('packages', () => new PackagesCollector    ({ros, io:routerIo, pollMs:eff.poll.packages, state}));
+  // Both usernames, deliberately: the fingerprint in collection.js does not
+  // cover credentials, so a username edit does not rebuild the session and the
+  // live login can differ from routers.json indefinitely. selfGuard protects
+  // whichever is which. See src/routeros/selfGuard.js.
+  const rosusers     = _on('rosusers', () => new RosUsersCollector    ({ros, io:routerIo, pollMs:eff.poll.rosusers, state,
+                                                                        usernames:[(ros.cfg||{}).username, routerCfg.username]}));
+  // queues borrows the firewall collector BY REFERENCE for its FastTrack
+  // summary, so it is constructed after it — the same ordering reason vlans and
+  // bridges are constructed after ifStatus. Only a summary leaves the queues
+  // payload; see the collector header.
+  const queues       = _on('queues',   () => new QueuesCollector      ({ros, io:routerIo, pollMs:eff.poll.queues,   state, streamMode:eff.stream.queues, firewall}));
+  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology, vlans, ppp, bridges, dns, capsman, packages, rosusers, queues];
 
   return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES, collection: eff,
            dhcpLeases, dhcpNetworks, arp, traffic, conns, talkers, logs, system,
-           wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology, allCollectors,
+           wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology,
+           vlans, ppp, bridges, dns, capsman, packages, rosusers, queues, allCollectors,
            routerId: routerCfg.id, cachedInterfaces: null };
 }
 
@@ -690,6 +716,8 @@ async function startCollectors(session, entry) {
     await session.packages.start();
     await _delay(300);
     await session.rosusers.start();
+    await _delay(300);
+    await session.queues.start();
 
     entry.startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -1708,6 +1736,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       dbRetentionDays:[1,3650], dbAlertRetentionDays:[1,3650],
       pollTopology:[5000,300000], pollVlans:[2000,60000], pollPpp:[2000,60000],
       pollBridges:[2000,60000], pollDns:[2000,60000], pollCapsman:[2000,60000],
+      pollPackages:[5000,300000], pollRosusers:[5000,300000], pollQueues:[2000,60000],
     };
     const strFields  = ['pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo', 'ntfyUrl'];
     // authMode: whitelist only valid values
@@ -1761,7 +1790,8 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
     const _ovr    = (s.collection && s.collection.overrides) || {};
     const _pinned = (key) => _ovr[key] !== undefined;
 
-    const collectorMap = { conns:s.conns, talkers:s.talkers, system:s.system, wireless:s.wireless, vpn:s.vpn, firewall:s.firewall, ifStatus:s.ifStatus, ping:s.ping, arp:s.arp, dhcpNetworks:s.dhcpNetworks, bandwidth:s.bandwidth, routing:s.routing };
+    const collectorMap = { conns:s.conns, talkers:s.talkers, system:s.system, wireless:s.wireless, vpn:s.vpn, firewall:s.firewall, ifStatus:s.ifStatus, ping:s.ping, arp:s.arp, dhcpNetworks:s.dhcpNetworks, bandwidth:s.bandwidth, routing:s.routing, vlans:s.vlans, ppp:s.ppp,
+      topology:s.topology, bridges:s.bridges, dns:s.dns, capsman:s.capsman, packages:s.packages, rosusers:s.rosusers, queues:s.queues };
     const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks', pollRouting:'routing',
@@ -2876,6 +2906,7 @@ app.get('/healthz', (req, res) => {
       capsman: { ts:st.lastCapsmanTs, err:sanitizeErr(st.lastCapsmanErr) },
       packages: { ts:st.lastPackagesTs, err:sanitizeErr(st.lastPackagesErr) },
       rosusers: { ts:st.lastRosusersTs, err:sanitizeErr(st.lastRosusersErr) },
+      queues: { ts:st.lastQueuesTs, err:sanitizeErr(st.lastQueuesErr) },
     },
   };
   res.status(statusCode).json(body);
@@ -4043,6 +4074,7 @@ async function sendInitialState(socket, entry) {
   if (s.capsman.lastPayload  && _mayReplay(socket, 'capsman'))  socket.emit('capsman:update',  s.capsman.lastPayload);
   if (s.packages.lastPayload && _mayReplay(socket, 'packages')) socket.emit('packages:update', s.packages.lastPayload);
   if (s.rosusers.lastPayload && _mayReplay(socket, 'rosusers')) socket.emit('rosusers:update', s.rosusers.lastPayload);
+  if (s.queues.lastPayload   && _mayReplay(socket, 'queues'))   socket.emit('queues:update',   s.queues.lastPayload);
 
   socket.emit('settings:pages', _pageSettings(_ps));
 
@@ -4077,6 +4109,7 @@ function _idleSuspend(session, entry) {
   session.capsman.suspend();
   session.packages.suspend();
   session.rosusers.suspend();
+  session.queues.suspend();
   session.ping.suspend();
   session.talkers.suspend();
   session.dhcpNetworks.suspend();
@@ -4097,6 +4130,7 @@ function _idleResume(session, entry) {
   session.capsman.resume();
   session.packages.resume();
   session.rosusers.resume();
+  session.queues.resume();
   session.ping.resume();
   session.talkers.resume();
   session.dhcpNetworks.resume();
@@ -4107,6 +4141,29 @@ function _idleResume(session, entry) {
 // double as the session property and page name (session.firewall ↔ 'firewall').
 const _PAGE_STREAM_ROOMS = Pages.STREAM_ROOMS;
 
+// Pages whose collector holds no stream, so page:focus has to replay the last
+// payload explicitly. Derived from the registry — a page belongs here precisely
+// when it has a collector but no stream rooms — rather than listed by hand,
+// because the hand-written version was already two pages out of date once.
+// logs is excluded deliberately: its replay is a DIFFERENT event
+// (logs:history, from a ring buffer), and emitting logs:update at the page
+// would append the last batch a second time on every visit.
+/**
+ * Serialise router writes per router.
+ *
+ * Every write feature here reads the router's tables, checks them, and then
+ * writes — and RouterOS offers no compare-and-swap, so two operators acting at
+ * once could otherwise interleave an edit between another request's read and its
+ * write, letting a write land on a row the check cleared under different values.
+ * A promise chain per router makes the fresh read mean something.
+ *
+ * Shared by Router Users and Queues. One chain per router is strictly safer than
+ * one per feature, since the hazard is concurrent writes to the same device.
+ *
+ * Keyed by router id rather than by socket, because the hazard is two people on
+ * one router, not one person twice. Entries are dropped when the chain drains,
+ * so a removed router leaves nothing behind.
+ */
 const _routerWriteChains = new Map();
 function _routerWriteQueue(rid, fn) {
   if (!rid) return Promise.resolve();
@@ -4168,6 +4225,9 @@ function _emitDiagnostics(session, rid, socket) {
     { name: 'dns',          streams: 0 },
     { name: 'packages',     streams: 0 },
     { name: 'rosusers',     streams: 0 },
+    // Two channels when streaming: one per queue menu. Neither carries data —
+    // they mark the tables stale and the tick reads them.
+    { name: 'queues',       streams: (s.queues._listens || []).filter(l => l && l.open).length },
   ];
   const total = collectors.reduce((sum, c) => sum + c.streams, 0);
   // Geo availability rides along here so a failed geoip-lite load is visible in
@@ -4557,6 +4617,27 @@ io.on('connection', (socket) => {
   // not need:
   //
   //  1. IT RE-READS FROM THE ROUTER. Packages resolves its target from the
+  //     collector's last payload, which is safer than trusting the browser.
+  //     Here the payload is the thing that goes stale in the dangerous
+  //     direction — a row renamed to `MikroDash` after the last tick would read
+  //     as unprotected — so the guard runs against a read taken in the same
+  //     tick as the write. `lastPayload` appears in none of these handlers, and
+  //     a test asserts it.
+  //
+  //  2. IT ROUND-TRIPS THE NAME. The browser sends the `.id` AND the name it
+  //     displayed. A `.id` is stable across renames, which makes it the right
+  //     key to address a row with and the wrong one to identify it by. If the
+  //     freshly-read row no longer carries the name the operator was looking
+  //     at, the action is refused as `stale-row` rather than applied to
+  //     whatever is there now.
+  //
+  //  3. IT IS SERIALISED PER ROUTER. read → check → write runs under a
+  //     per-router promise chain, so two operators cannot interleave a rename
+  //     with an edit. RouterOS has no compare-and-swap, so this is what makes
+  //     the fresh read mean anything.
+
+  // Takes the router id rather than reading socket.routerId, because these
+  // handlers run from a queue: by the time one executes, a router:switch may
   // have moved the socket, and the write must land on the router the operator
   // was looking at when they pressed the button.
   const _ruSession = (rid) => {
@@ -4865,7 +4946,342 @@ io.on('connection', (socket) => {
       _ruErr(_rosWriteFail(e), { message: sanitizeErr(e) });
     }
   }));
+
+
+  // ── Queues (RouterOS traffic shaping) ─────────────────────────────────────
+  //
+  // The third router-write feature. Unlike Router Users it cannot lock MikroDash
+  // out — but a simple queue CAN throttle the dashboard's own traffic, so
+  // src/routeros/queueGuard.js warns about that. Read its header before
   // assuming selfGuard's rules apply: it warns rather than refuses, and it fails
+  // open rather than closed. Both are deliberate.
+  //
+  // The same three properties as the Router Users handlers: a fresh read in the
+  // same tick as the write, a round-tripped name so a `.id` addresses a row
+  // without identifying it, and per-router serialisation.
+
+  const _QUEUE_MENUS = Object.freeze({ simple: '/queue/simple', tree: '/queue/tree' });
+
+  const _qSession = (rid) => {
+    const e = rid ? _routerSessions.get(rid) : null;
+    const session = e && e.session;
+    const off = !session || !session.queues || session.queues.disabled;
+    return { session, off };
+  };
+  const _qErr = (code, extra) =>
+    socket.emit('queues:error', Object.assign({ code }, extra || {}));
+
+  const _qMayWrite = (rid) =>
+    _pageAllowed(socket, 'queues', 'write') && _socketCan(socket, 'router:write', rid);
+
+  /**
+   * Read one queue menu, plus the active sessions the throttle warning needs.
+   *
+   * /user/active is read for its `address` column — the source address the
+   * ROUTER sees us from, which is what makes the warning possible at all. A
+   * router that denies it simply yields no addresses, and the guard fails open.
+   */
+  const _qRead = async (session, rid, menu) => {
+    const rows = (await session.ros.write(_QUEUE_MENUS[menu] + '/print', []) || [])
+      .filter(r => r && r['.id']);
+    let active = [];
+    try { active = (await session.ros.write('/user/active/print', []) || []).filter(r => r && r.name); }
+    catch (_) { /* denied or unsupported — the guard fails open, by design */ }
+    const cfg = Routers.getById(rid) || {};
+    const self = queueGuard.resolveSelfAddresses(active,
+      [(session.ros.cfg || {}).username, cfg.username]);
+    return { rows, self };
+  };
+
+  /** Address by id, identify by name — a `.id` survives a rename, a name does not. */
+  const _qRow = (rows, id, expectedName) => {
+    const row = (rows || []).find(r => r['.id'] === id);
+    if (!row) return null;
+    if (expectedName && String(row.name) !== String(expectedName)) return null;
+    return row;
+  };
+
+  /**
+   * RouterOS refuses max-limit below limit-at with "download-max-limit less than
+   * download-limit". Checking here turns that into a sentence naming both
+   * fields; the router stays the authority either way.
+   */
+  const _qLimitsOk = (maxLimit, limitAt) => {
+    const m = queueGuard.parsePair(maxLimit), l = queueGuard.parsePair(limitAt);
+    const bad = (mx, lo) => typeof mx === 'number' && mx > 0 && typeof lo === 'number' && lo > mx;
+    return !(bad(m.up, l.up) || bad(m.down, l.down));
+  };
+
+  socket.on('queues:caps', () => {
+    const rid = socket.routerId;
+    const { session, off } = _qSession(rid);
+    if (!rid || !session || off) return _qErr('unavailable');
+    if (!_pageAllowed(socket, 'queues', 'read')) return _qErr('denied');
+    socket.emit('queues:caps', {
+      permitted: _qMayWrite(rid),
+      routerName: (Routers.getById(rid) || {}).label || '',
+    });
+  });
+
+  socket.on('queue:save', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _qSession(rid);
+    if (!rid || !session || off) return _qErr('unavailable');
+    const r = req || {};
+    const menu = r.menu === 'tree' ? 'tree' : 'simple';
+    const editing = !!r.id;
+    const action = 'queue.' + (editing ? 'update' : 'create');
+    if (!_qMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action, targetType: 'queue', routerId: rid,
+        targetName: r.name ? String(r.name) : null, extra: { menu } });
+      return _qErr('denied');
+    }
+
+    const name = typeof r.name === 'string' ? r.name.trim() : '';
+    if (!name) return _qErr('bad-request');
+    if (menu === 'simple' && !editing && !r.target) return _qErr('bad-request');
+    if (!_qLimitsOk(r.maxLimit, r.limitAt)) return _qErr('limit-above-max');
+
+    try {
+      const { rows, self } = await _qRead(session, rid, menu);
+      const target = editing ? _qRow(rows, r.id, r.expectedName) : null;
+      if (editing && !target) return _qErr('stale-row', { name });
+      // Checked on the freshly-read row, never the browser's claim. Only simple
+      // queues can be dynamic — a tree has no such field.
+      if (target && (target.dynamic === 'true' || target.dynamic === true)) {
+        audit.fromSocket(socket).denied({ action, targetType: 'queue', routerId: rid,
+          targetId: r.id, targetName: name, note: 'dynamic-row' });
+        return _qErr('dynamic-row', { name });
+      }
+
+      // Only simple queues carry a target, so only they can be aimed at us.
+      if (menu === 'simple') {
+        const verdict = queueGuard.checkSimpleQueue({
+          selfAddresses: self,
+          values: { target: r.target, maxLimit: r.maxLimit, disabled: !!r.disabled },
+          before: target ? { target: target.target, maxLimit: target['max-limit'],
+                             disabled: target.disabled === 'true' } : null,
+        });
+        if (verdict.level === 'warn') {
+          if (!r.ack) {
+            // Nothing is written and nothing is audited — this is a prompt, not
+            // a refusal, and a denial row here would make the trail lie about
+            // what was attempted.
+            return _qErr('self-throttle', { warning: verdict.detail, fingerprint: verdict.fingerprint, name });
+          }
+          if (r.ack !== verdict.fingerprint) {
+            // An acknowledgement taken against different values, or against a
+            // different self-address. Reported separately from the first prompt
+            // so an ack cannot be carried from a mild queue to a harsher one, or
+            // replayed against another write.
+            return _qErr('stale-warning', { warning: verdict.detail, fingerprint: verdict.fingerprint, name });
+          }
+        }
+        // verdict.level === 'none' with an ack present is harmless: the warning
+        // simply no longer applies to what is being written.
+      }
+
+      const args = ['=name=' + name, '=comment=' + (typeof r.comment === 'string' ? r.comment.trim() : ''),
+                    '=disabled=' + (r.disabled ? 'yes' : 'no')];
+      const put = (k, v) => { if (v !== undefined && v !== null && v !== '') args.push('=' + k + '=' + String(v).trim()); };
+      put('max-limit', r.maxLimit);
+      put('limit-at',  r.limitAt);
+      put('priority',  r.priority);
+      if (menu === 'simple') {
+        put('target',       r.target);
+        put('packet-marks', r.packetMarks);
+      } else {
+        put('parent',      r.parent);
+        put('packet-mark', r.packetMark);
+      }
+
+      if (editing) await session.ros.write(_QUEUE_MENUS[menu] + '/set', ['=.id=' + r.id].concat(args));
+      else         await session.ros.write(_QUEUE_MENUS[menu] + '/add', args);
+
+      audit.fromSocket(socket).record({ action, targetType: 'queue',
+        targetId: editing ? r.id : null, targetName: name, routerId: rid,
+        before: target ? { name: target.name, target: target.target || '', parent: target.parent || '',
+                           maxLimit: target['max-limit'] || '', limitAt: target['limit-at'] || '',
+                           disabled: target.disabled === 'true' } : {},
+        after: { name, target: r.target || '', parent: r.parent || '',
+                 maxLimit: r.maxLimit || '', limitAt: r.limitAt || '', disabled: !!r.disabled },
+        // The acknowledgement is the interesting fact in the trail, not the queue.
+        extra: Object.assign({ menu }, r.ack ? { selfThrottleAcknowledged: true } : null) });
+      // A set can zero a counter, and the next window would otherwise be
+      // measured against a baseline the router no longer agrees with.
+      session.queues.forgetRates();
+      await session.queues.refreshNow();
+      socket.emit('queues:ok', { action: editing ? 'update' : 'create', name, menu });
+    } catch (e) {
+      const msg = String((e && e.message) || e).toLowerCase();
+      if (msg.includes('less than')) return _qErr('limit-above-max', { name });
+      _qErr(_rosWriteFail(e), { name, message: sanitizeErr(e) });
+    }
+  }));
+
+  socket.on('queue:remove', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _qSession(rid);
+    if (!rid || !session || off) return _qErr('unavailable');
+    const r = req || {};
+    const menu = r.menu === 'tree' ? 'tree' : 'simple';
+    if (!_qMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'queue.delete', targetType: 'queue', routerId: rid,
+        targetName: r.expectedName ? String(r.expectedName) : null, extra: { menu } });
+      return _qErr('denied');
+    }
+    if (!r.id) return _qErr('bad-request');
+
+    try {
+      const { rows } = await _qRead(session, rid, menu);
+      const target = _qRow(rows, r.id, r.expectedName);
+      if (!target) return _qErr('stale-row');
+      if (target.dynamic === 'true' || target.dynamic === true) {
+        audit.fromSocket(socket).denied({ action: 'queue.delete', targetType: 'queue', routerId: rid,
+          targetId: r.id, targetName: target.name, note: 'dynamic-row' });
+        return _qErr('dynamic-row', { name: target.name });
+      }
+
+      await session.ros.write(_QUEUE_MENUS[menu] + '/remove', ['=.id=' + r.id]);
+      audit.fromSocket(socket).record({ action: 'queue.delete', targetType: 'queue',
+        targetId: r.id, targetName: target.name, routerId: rid,
+        extra: { menu, target: target.target || target.parent || '', maxLimit: target['max-limit'] || '' } });
+      session.queues.forgetRates();
+      await session.queues.refreshNow();
+      socket.emit('queues:ok', { action: 'delete', name: target.name, menu });
+    } catch (e) {
+      _qErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  }));
+
+  socket.on('queue:toggle', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _qSession(rid);
+    if (!rid || !session || off) return _qErr('unavailable');
+    const r = req || {};
+    const menu = r.menu === 'tree' ? 'tree' : 'simple';
+    if (!_qMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'queue.toggle', targetType: 'queue', routerId: rid,
+        targetName: r.expectedName ? String(r.expectedName) : null, extra: { menu } });
+      return _qErr('denied');
+    }
+    if (!r.id) return _qErr('bad-request');
+
+    try {
+      const { rows, self } = await _qRead(session, rid, menu);
+      const target = _qRow(rows, r.id, r.expectedName);
+      if (!target) return _qErr('stale-row');
+      if (target.dynamic === 'true' || target.dynamic === true) {
+        audit.fromSocket(socket).denied({ action: 'queue.toggle', targetType: 'queue', routerId: rid,
+          targetId: r.id, targetName: target.name, note: 'dynamic-row' });
+        return _qErr('dynamic-row', { name: target.name });
+      }
+
+      const wasDisabled = target.disabled === 'true';
+      // Enabling is the moment a throttle takes effect, and the easy one to
+      // miss: the values were checked when the queue was created, but it may
+      // have sat disabled ever since.
+      if (menu === 'simple' && wasDisabled) {
+        const verdict = queueGuard.checkSimpleQueue({
+          selfAddresses: self,
+          values: { target: target.target, maxLimit: target['max-limit'], disabled: false },
+          before: null,
+        });
+        if (verdict.level === 'warn' && r.ack !== verdict.fingerprint) {
+          return _qErr('self-throttle', { warning: verdict.detail, fingerprint: verdict.fingerprint,
+                                          name: target.name });
+        }
+      }
+
+      await session.ros.write(_QUEUE_MENUS[menu] + '/set',
+        ['=.id=' + r.id, '=disabled=' + (wasDisabled ? 'no' : 'yes')]);
+      audit.fromSocket(socket).record({ action: 'queue.toggle', targetType: 'queue',
+        targetId: r.id, targetName: target.name, routerId: rid,
+        before: { disabled: wasDisabled }, after: { disabled: !wasDisabled },
+        extra: Object.assign({ menu }, r.ack ? { selfThrottleAcknowledged: true } : null) });
+      await session.queues.refreshNow();
+      socket.emit('queues:ok', { action: wasDisabled ? 'enable' : 'disable', name: target.name, menu });
+    } catch (e) {
+      _qErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  }));
+
+  socket.on('queue:resetCounters', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _qSession(rid);
+    if (!rid || !session || off) return _qErr('unavailable');
+    const r = req || {};
+    const menu = r.menu === 'tree' ? 'tree' : 'simple';
+    if (!_qMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'queue.reset', targetType: 'queue', routerId: rid,
+        targetName: r.expectedName ? String(r.expectedName) : null, extra: { menu } });
+      return _qErr('denied');
+    }
+    if (!r.id) return _qErr('bad-request');
+
+    try {
+      const { rows } = await _qRead(session, rid, menu);
+      const target = _qRow(rows, r.id, r.expectedName);
+      if (!target) return _qErr('stale-row');
+
+      await session.ros.write(_QUEUE_MENUS[menu] + '/reset-counters', ['=.id=' + r.id]);
+      audit.fromSocket(socket).record({ action: 'queue.reset', targetType: 'queue',
+        targetId: r.id, targetName: target.name, routerId: rid, extra: { menu },
+        note: 'zeroed the queue statistics' });
+      // Mandatory here, not merely tidy: the counter just went to zero and the
+      // next delta would be measured against the pre-reset baseline.
+      session.queues.forgetRates();
+      await session.queues.refreshNow();
+      socket.emit('queues:ok', { action: 'reset', name: target.name, menu });
+    } catch (e) {
+      _qErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  }));
+
+  /**
+   * Reorder a simple queue.
+   *
+   * Only simple queues have meaningful order — each packet walks the list until
+   * one matches, so position changes behaviour. Trees are unordered and offer no
+   * move.
+   */
+  socket.on('queue:move', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const { session, off } = _qSession(rid);
+    if (!rid || !session || off) return _qErr('unavailable');
+    const r = req || {};
+    if (!_qMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'queue.move', targetType: 'queue', routerId: rid,
+        targetName: r.expectedName ? String(r.expectedName) : null });
+      return _qErr('denied');
+    }
+    if (!r.id || (r.direction !== 'up' && r.direction !== 'down')) return _qErr('bad-request');
+
+    try {
+      const { rows } = await _qRead(session, rid, 'simple');
+      const idx = rows.findIndex(x => x['.id'] === r.id);
+      if (idx < 0) return _qErr('stale-row');
+      const target = _qRow(rows, r.id, r.expectedName);
+      if (!target) return _qErr('stale-row');
+
+      // RouterOS moves a row to sit BEFORE `destination`. Moving down therefore
+      // means "before the row after the next one", and moving the last row down
+      // or the first row up is a no-op rather than an error.
+      const destIdx = r.direction === 'up' ? idx - 1 : idx + 2;
+      if (destIdx < 0 || idx === rows.length - 1 && r.direction === 'down') {
+        return socket.emit('queues:ok', { action: 'move', name: target.name, menu: 'simple' });
+      }
+      const args = ['=.id=' + r.id];
+      if (destIdx < rows.length) args.push('=destination=' + rows[destIdx]['.id']);
+      await session.ros.write('/queue/simple/move', args);
+
+      audit.fromSocket(socket).record({ action: 'queue.move', targetType: 'queue',
+        targetId: r.id, targetName: target.name, routerId: rid,
+        before: { position: idx }, after: { position: r.direction === 'up' ? idx - 1 : idx + 1 },
+        extra: { menu: 'simple' },
+        note: 'simple queue order decides which queue a packet matches first' });
+      await session.queues.refreshNow();
+      socket.emit('queues:ok', { action: 'move', name: target.name, menu: 'simple' });
+    } catch (e) {
+      _qErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  }));
+
   // ── WiFi frequency analyzer ───────────────────────────────────────────────
   //
   // The only disruptive action in the app: it takes the radio off the air and

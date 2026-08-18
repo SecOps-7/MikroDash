@@ -35,7 +35,8 @@ test('registry covers every collector the session builds, exactly once', () => {
   // Mirrors the session object returned by buildSession() in src/index.js.
   const sessionProps = ['dhcpLeases','dhcpNetworks','arp','traffic','conns','talkers','logs',
                         'system','wireless','vpn','firewall','ifStatus','ping','bandwidth',
-                        'routing','netwatch','topology'];
+                        'routing','netwatch','topology','vlans','ppp',
+                        'bridges','dns','capsman','packages','rosusers','queues'];
   assert.deepEqual(COLLECTORS.map(c => c.sessionProp).sort(), [...sessionProps].sort());
 });
 

@@ -51,13 +51,13 @@ function userWith(pages) {
 
 // ── The conjunction: install toggle AND role ─────────────────────────────────
 
-test('a role can grant every page, and only 10 of them have an install toggle', () => {
+test('a role can grant every page, and only 20 of them have an install toggle', () => {
   const u = userWith(Pages.KEYS.map(page => ({ page, access: 'write' })));
   for (const p of Pages.PAGES) {
     assert.strictEqual(rbac.canPage(sess(u), p.key, 'read', rtr.id), true, p.key + ' by role');
   }
   const toggleable = Pages.PAGES.filter(p => p.settingsKey).map(p => p.key);
-  assert.strictEqual(toggleable.length, 10);
+  assert.strictEqual(toggleable.length, 20);
   assert.ok(!toggleable.includes('dashboard') && !toggleable.includes('settings'));
 });
 
