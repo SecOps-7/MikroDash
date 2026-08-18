@@ -59,6 +59,7 @@ const Backups              = require('./backups');
 const BackupStore          = require('./backups/store');
 const BackupDiff           = require('./backups/diff');
 const { scheduleForcedShutdownTimer } = require('./shutdown');
+const { isPublicI18nPath } = require('./i18nAssets');
 
 try {
   verifyRouterOSPatchMarkers({ readFileSync: fs.readFileSync });
@@ -272,7 +273,7 @@ function _authMiddleware(req, res, next) {
 }
 
 function _modernAuthMiddleware(req, res, next) {
-  if (_isPublicPath(req.path) || req.path.startsWith('/vendor/')) return next();
+  if (_isPublicPath(req.path) || isPublicI18nPath(req.path) || req.path.startsWith('/vendor/')) return next();
   const session = _sessionFromReq(req);
   if (session) { req.authSession = session; return next(); }
   if (req.path.startsWith('/api/')) return res.status(401).json({ ok: false, error: 'Not authenticated' });

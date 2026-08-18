@@ -1869,7 +1869,7 @@ function portSvg(sz) {
         rows+='<tr class="wl-group-row"><td colspan="6">'+
           '<span class="wl-group-label">'+esc(g.iface)+'</span>'+
           (isCapsman?'<span class="badge badge-outline-azure ms-1" style="font-size:.6rem">CAP</span>':'')+
-          (g.ssid?'<span class="wl-group-sub">'+esc(g.ssid)+'</span>':'')+
+          (g.ssid?'<span class="wl-group-sub" data-i18n-user-data>'+esc(g.ssid)+'</span>':'')+
           '<span class="wl-group-sub">'+g.clients.length+' client'+(g.clients.length!==1?'s':'')+'</span>'+
         '</td></tr>';
       }
@@ -1881,7 +1881,7 @@ function portSvg(sz) {
         var macStr='<div style="font-size:.6rem;color:var(--text-muted)">'+esc(c.mac)+'</div>';
         rows+='<tr'+(idle?' class="wl-idle"':'')+'>'+
           '<td>'+
-            '<div style="font-weight:600;font-size:.78rem">'+esc(c.name||c.mac)+
+            '<div style="font-weight:600;font-size:.78rem" data-i18n-user-data>'+esc(c.name||c.mac)+
               (idle?'<span class="wl-idle-tag">idle</span>':'')+
             '</div>'+
             ipStr+macStr+
@@ -2008,7 +2008,7 @@ function portSvg(sz) {
       var style = off ? '' : ' style="color:'+colours[sd.ssid]+'"';
       return '<div class="wl-ssid-row'+(off?' wl-ssid-off':'')+'" title="'+
           esc(sd.ifaces.join(', '))+'">'+
-        '<span class="wl-ssid-name"'+style+'>'+esc(sd.ssid)+'</span>'+
+        '<span class="wl-ssid-name" data-i18n-user-data'+style+'>'+esc(sd.ssid)+'</span>'+
         // The same badge the clients table uses, so a band means the same
         // colour wherever it appears on the page.
         (sd.bands||[]).map(function(b){ return bandBadge(b); }).join('')+
@@ -2649,7 +2649,7 @@ function updateLogCounts(){
 function topicClass(t){t=String(t).toLowerCase();if(t.includes('firewall')||t.includes('forward'))return'log-firewall';if(t.includes('dhcp'))return'log-dhcp';if(t.includes('wireless')||t.includes('wifi')||t.includes('wlan'))return'log-wireless';if(t.includes('system'))return'log-system';return'log-topic';}
 updateLogCounts(); // initialise badge labels to "0 …" immediately
 function sevClass(s){return s==='error'?'log-error':s==='warning'?'log-warning':s==='debug'?'log-debug':'log-info';}
-function buildLogHtml(l){return'<div class="log-line"><span class="log-time">'+esc(l.time)+'</span> <span class="'+topicClass(l.topics)+'">['+esc(l.topics)+']</span> <span class="'+sevClass(l.severity)+'">'+esc(l.message)+'</span></div>';}
+function buildLogHtml(l){return'<div class="log-line" data-i18n-user-data><span class="log-time">'+esc(l.time)+'</span> <span class="'+topicClass(l.topics)+'">['+esc(l.topics)+']</span> <span class="'+sevClass(l.severity)+'">'+esc(l.message)+'</span></div>';}
 function flushLogs(){
   var f=logBuffer.filter(function(e){if(logLevel&&e.severity!==logLevel)return false;if(logFilter&&e.text.indexOf(logFilter)===-1)return false;return true;});
   logsEl.innerHTML=f.map(function(e){return e.html;}).join('');
@@ -6066,7 +6066,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       ? users.map(function (u) {
           return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
             '<input type="checkbox" data-member="' + esc(u.id) + '"' + (members.indexOf(u.id) !== -1 ? ' checked' : '') + '>' +
-            '<span>' + esc(u.username) + '</span></label>';
+            '<span data-i18n-user-data>' + esc(u.username) + '</span></label>';
         }).join('')
       : '<span style="color:var(--text-muted)">No users yet.</span>';
 
@@ -6206,7 +6206,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // pills — those read the legacy role/allowedRouterIds mirror, which cannot
     // express a custom role or a grant held at two different sites (#108).
     tr.innerHTML =
-      '<td style="padding:.45rem .5rem;font-size:.82rem">' + esc(u.username) + '</td>' +
+      '<td style="padding:.45rem .5rem;font-size:.82rem" data-i18n-user-data>' + esc(u.username) + '</td>' +
       '<td style="padding:.45rem .5rem" colspan="2">' + _accessSummary(u) + '</td>' +
       '<td style="padding:.45rem .5rem;text-align:right;white-space:nowrap">' +
         '<button class="sbtn sbtn-ghost" style="font-size:.72rem;padding:.2rem .55rem;margin-right:.3rem" data-action="edit">Edit</button>' +

@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test",
-    "lint": "eslint src/ public/app.js"
+    "lint": "eslint src/ public/app.js public/i18n.js",
+    "i18n:audit": "node scripts/i18n-audit.js"
   },
   "overrides": {
     "ip-address@10.1.0": "10.1.1"
@@ -30,6 +31,7 @@
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
-    "eslint": "^8.57.1"
+    "eslint": "^8.57.1",
+    "jsdom": "^26.1.0"
   }
 }

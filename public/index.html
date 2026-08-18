@@ -5163,6 +5163,12 @@
             <span class="scard-title">Appearance</span>
           </div>
           <div class="scard-body">
+            <label class="sform-label">Interface Language</label>
+            <select class="sform-input" data-language-select style="margin-bottom:.85rem">
+              <option value="en-US">English</option>
+              <option value="zh-CN">简体中文</option>
+            </select>
+            <p style="font-size:.7rem;color:var(--text-muted);margin:-.45rem 0 .85rem">Saved in this browser and applied immediately.</p>
             <label class="sform-label" style="margin-bottom:.5rem">Theme</label>
             <div class="theme-swatch-grid" id="themeSwatches">
               <div class="theme-swatch" data-palette="default" data-mode="dark" title="Default Dark">
@@ -6719,6 +6725,9 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script src="/vendor/chart.umd.min.js"></script>
+<script src="/locales/en-US.js"></script>
+<script src="/locales/zh-CN.js"></script>
+<script src="/i18n.js"></script>
 <script src="/app.js"></script>
 <script src="/js/dashboard-grid.js"></script>
 <script src="/js/topology.js"></script>
