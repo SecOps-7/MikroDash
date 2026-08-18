@@ -4901,7 +4901,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // all three delegated, because the dialogs live inside a card that starts
   // hidden. Clicking inside must not close, hence the e.target === bg test.
   // accountModal rides along for Escape-to-close and backdrop-click-to-close.
-  var _PRINCIPAL_MODALS = ['userFormWrap', 'groupFormWrap', 'siteFormWrap', 'roleFormWrap', 'accountModal'];
+  var _PRINCIPAL_MODALS = ['userFormWrap', 'groupFormWrap', 'siteFormWrap', 'roleFormWrap', 'accountModal', 'faModal'];
 
   function _closePrincipalModals() {
     _PRINCIPAL_MODALS.forEach(function (id) {
@@ -10648,4 +10648,417 @@ function _renderRoutersMap(rows) {
   });
 
   window._rtrMapApply = apply;
+}());
+
+/* ── Frequency Analyzer ───────────────────────────────────────────────────────
+   The only place the dashboard drives a disruptive action: a frequency scan
+   takes the chosen radio off the air and drops every client on it. The server
+   bounds that (src/wifiScan.js); this side is responsible for saying so plainly
+   before the button is pressed, and for never leaving the modal claiming to be
+   scanning when it is not. */
+(function () {
+  var modal   = $('faModal');
+  var openBtn = $('faOpenBtn');
+  if (!modal || !openBtn) return;
+
+  var ifaceSel = $('faIface'), durSel = $('faDuration');
+  var scanBtn  = $('faScanBtn'), stopBtn = $('faStopBtn'), statusEl = $('faStatus');
+  var gridEl   = $('faChanGrid'), emptyEl = $('faEmpty'), spinEl = $('faSpin');
+
+  var FA_FLOOR_DBM = -100;  // bar base and y-axis minimum
+  var _chart = null;        // built on open — a canvas sized while display:none is 0x0
+  var _rows  = [];
+  var _state = { scanning: false, scanId: null, currentChannelMhz: null, endsAt: 0 };
+  var _tick  = null;
+  var _ifaceList = [];
+
+  // Green (open) through red (congested). Same shape as pingColor(): a small
+  // ladder of thresholds rather than a gradient, so two channels a percent apart
+  // do not read as meaningfully different.
+  function congestionColour(load, alpha) {
+    var a = alpha === undefined ? 0.85 : alpha;
+    if (load == null)  return 'rgba(148,163,190,' + (a * 0.45) + ')';
+    if (load < 20)     return 'rgba(74,222,128,' + a + ')';
+    if (load < 40)     return 'rgba(163,230,53,' + a + ')';
+    if (load < 60)     return 'rgba(251,191,36,' + a + ')';
+    if (load < 80)     return 'rgba(251,146,60,' + a + ')';
+    return 'rgba(248,113,113,' + a + ')';
+  }
+
+  function setStatus(text, scanning) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle('is-scanning', !!scanning);
+  }
+
+  function setScanning(on) {
+    _state.scanning = on;
+    scanBtn.style.display = on ? 'none' : '';
+    stopBtn.style.display = on ? '' : 'none';
+    if (spinEl) spinEl.classList.toggle('on', on);
+    ifaceSel.disabled = on;
+    durSel.disabled = on;
+    if (_tick) { clearInterval(_tick); _tick = null; }
+    if (on) {
+      _tick = setInterval(function () {
+        var left = Math.max(0, Math.ceil((_state.endsAt - Date.now()) / 1000));
+        // Past zero the router owes us a result; say we are waiting rather than
+        // counting into negative numbers.
+        setStatus(left > 0 ? ('Scanning… ' + left + 's — clients disconnected') : 'Finishing…', true);
+      }, 250);
+    }
+  }
+
+  /* Best channel: lowest load, tie-broken by fewest networks.
+     Note for 2.4GHz: channels there overlap, so the lowest-load channel can sit
+     between two busy ones. Restricting the pick to 1/6/11 would avoid that; it
+     is not done here because the metric shown is exactly what the router
+     measured, with nothing inferred on top. */
+  function bestChannel(rows) {
+    var scored = rows.filter(function (r) { return r.load != null; });
+    if (!scored.length) return null;
+    return scored.slice().sort(function (a, b) {
+      if (a.load !== b.load) return a.load - b.load;
+      return (a.nets || 0) - (b.nets || 0);
+    })[0];
+  }
+
+  function renderStats() {
+    var cur = _rows.filter(function (r) { return r.ch === _state.currentChannelMhz; })[0];
+    var best = bestChannel(_rows);
+    var nf = _rows.map(function (r) { return r.nf; }).filter(function (v) { return v != null; });
+    var nets = _rows.reduce(function (n, r) { return n + (r.nets || 0); }, 0);
+
+    var unit = function (u) { return '<span class="fa-stat-unit">' + u + '</span>'; };
+    $('faCurChan').innerHTML   = (_state.currentChannelMhz || '&mdash;') + unit('MHz');
+    $('faNetworks').innerHTML  = _rows.length ? String(nets) : '&mdash;';
+    $('faCongestion').innerHTML = (cur && cur.load != null ? cur.load : '&mdash;') + unit('%');
+    $('faBestChan').innerHTML  = (best ? best.ch : '&mdash;') + unit('MHz');
+    // Median, not mean: one spurious bin should not move the reported floor.
+    var median = nf.length ? nf.slice().sort(function (a, b) { return a - b; })[Math.floor(nf.length / 2)] : null;
+    $('faNoise').innerHTML     = (median == null ? '&mdash;' : median) + unit('dBm');
+
+    if (cur && cur.load != null) {
+      $('faCongestion').style.color = congestionColour(cur.load, 1);
+    } else {
+      $('faCongestion').style.color = '';
+    }
+  }
+
+  function renderGrid() {
+    if (!_rows.length) { gridEl.innerHTML = ''; return; }
+    gridEl.innerHTML = _rows.map(function (r) {
+      var isCur = r.ch === _state.currentChannelMhz;
+      var load  = r.load == null ? null : r.load;
+      return '<div class="fa-chan' + (isCur ? ' is-current' : '') + '"' +
+             ' style="background:' + congestionColour(load, 0.22) +
+             ';border-color:' + congestionColour(load, 0.5) + '"' +
+             ' title="' + esc(String(r.chRaw || r.ch)) + (r.nets != null ? (' · ' + r.nets + ' networks') : '') + '">' +
+        '<div class="fa-chan-num">' + (r.chNum == null ? '&mdash;' : ('ch ' + r.chNum)) + '</div>' +
+        '<div class="fa-chan-freq">' + r.ch + '</div>' +
+        '<div class="fa-chan-load" style="color:' + congestionColour(load, 1) + '">' +
+          (load == null ? '&mdash;' : (load + '%')) + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  /* A vertical band marking the radio's own channel, drawn UNDER the bars so it
+     locates you without hiding the reading. This replaces colouring that bar
+     blue, which marked the channel at the cost of the one congestion colour you
+     most want to see — your own. */
+  var faChannelBand = {
+    id: 'faChannelBand',
+    beforeDatasetsDraw: function (chart) {
+      if (_state.currentChannelMhz == null) return;
+      var idx = chart.data.labels.indexOf(_state.currentChannelMhz);
+      if (idx < 0) return;
+      // Take the width from the bar itself so the band lines up exactly, rather
+      // than from the category spacing — Chart.js insets bars within their
+      // category, so a category-wide band would sit visibly proud of them.
+      var el = (chart.getDatasetMeta(0).data || [])[idx];
+      var xs = chart.scales.x;
+      if (!el && !xs) return;
+      var x = el ? el.x : xs.getPixelForValue(idx);
+      var w = (el && el.width) ? el.width
+        : Math.max(10, Math.min(chart.data.labels.length > 1
+            ? Math.abs(xs.getPixelForValue(1) - xs.getPixelForValue(0)) : 18, 44));
+      var a = chart.chartArea, ctx = chart.ctx;
+      ctx.save();
+      ctx.fillStyle = 'rgba(56,189,248,.20)';
+      ctx.fillRect(x - w / 2, a.top, w, a.bottom - a.top);
+      ctx.strokeStyle = 'rgba(56,189,248,.85)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x - w / 2, a.top, w, a.bottom - a.top);
+      ctx.restore();
+    },
+  };
+
+  function makeChart() {
+    if (_chart) { _chart.destroy(); _chart = null; }
+    var ctx = $('faSpectrum');
+    if (!ctx || typeof Chart === 'undefined') return;
+    _chart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: [], datasets: [
+        // Signal power as bars, each coloured by that channel's congestion, so
+        // one glance answers both "is anything there" and "how busy is it".
+        // Congestion stays on the chart as the bar colour, and is readable as a
+        // number in the tooltip and the grid above — it does not need a line of
+        // its own competing with the signal trace.
+        { label: 'Signal power', data: [], yAxisID: 'y', order: 3,
+          backgroundColor: [], borderRadius: 2, borderSkipped: false },
+        // The reference the signal is measured against.
+        { label: 'Noise floor', type: 'line', data: [], yAxisID: 'y', order: 2,
+          borderColor: 'rgba(148,163,190,.75)', borderDash: [4, 3],
+          borderWidth: 1.5, pointRadius: 0, tension: 0.25, fill: false, spanGaps: true },
+        // Airtime load on its own axis. It used to be encoded only as bar
+        // colour, so a channel read as orange without reading as 44%. Stepped
+        // because load is measured per channel; interpolating between them
+        // would draw values the router never reported.
+      ] },
+      plugins: [faChannelBand],
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            labels: {
+              color: 'rgba(148,163,190,.8)', boxWidth: 10, font: { size: 10 }, usePointStyle: true,
+              // The current-channel band is drawn by a plugin, so it has no
+              // dataset for the legend to pick up. Append it by hand, or the
+              // one mark people ask about is the one nothing explains.
+              generateLabels: function (chart) {
+                var items = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                items.push({
+                  text: 'Active Channel',
+                  fillStyle: 'rgba(56,189,248,.35)',
+                  strokeStyle: 'rgba(56,189,248,.85)',
+                  lineWidth: 1.5, pointStyle: 'rect', hidden: false,
+                });
+                return items;
+              },
+            },
+            // That appended item has no datasetIndex; the default handler would
+            // throw trying to toggle a dataset that does not exist.
+            onClick: function (e, item, legend) {
+              if (item.datasetIndex === undefined) return;
+              Chart.defaults.plugins.legend.onClick.call(this, e, item, legend);
+            },
+          },
+          tooltip: {
+            // Every column the scan measured. It used to show the frequency and
+            // nothing else, throwing away five values per channel.
+            callbacks: {
+              title: function (c) {
+                var r = _rows[c[0].dataIndex];
+                return r ? (r.ch + ' MHz' + (r.chNum != null ? '  (ch ' + r.chNum + ')' : '')) : '';
+              },
+              label: function () { return null; },
+              afterBody: function (c) {
+                var r = _rows[c[0].dataIndex];
+                if (!r) return [];
+                var out = [];
+                if (r.load   != null) out.push('Load        ' + r.load + '%');
+                if (r.nets   != null) out.push('Networks    ' + r.nets);
+                if (r.nf     != null) out.push('Noise floor ' + r.nf + ' dBm');
+                if (r.maxSig != null) out.push('Max signal  ' + r.maxSig + ' dBm');
+                if (r.minSig != null) out.push('Min signal  ' + r.minSig + ' dBm');
+                if (r.ch === _state.currentChannelMhz) out.push('— this radio —');
+                return out;
+              },
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { color: 'rgba(148,163,190,.5)', font: { size: 9 }, maxRotation: 0, autoSkipPadding: 12 },
+               grid: { display: false } },
+          y: { position: 'left', min: FA_FLOOR_DBM, max: -20,
+               title: { display: true, text: 'dBm', color: 'rgba(148,163,190,.5)', font: { size: 9 } },
+               grid: { color: 'rgba(99,130,190,.08)' },
+               ticks: { color: 'rgba(148,163,190,.5)', font: { size: 9 } } },
+        },
+      },
+    });
+  }
+
+  function renderChart() {
+    if (!_chart) return;
+    _chart.data.labels = _rows.map(function (r) { return r.ch; });
+    // Bar height is signal strength; its colour carries congestion, so one
+    // glance answers both "is anything there" and "how busy is it".
+    // Floating bars [base, top]. Signal is negative dBm, so a plain value would
+    // hang down from the 0 line; anchoring each bar at the chart floor makes it
+    // rise out of the noise the way a spectrum display should. A channel where
+    // nothing was detected gets no bar rather than a fabricated one.
+    _chart.data.datasets[0].data = _rows.map(function (r) {
+      return r.maxSig == null ? null : [FA_FLOOR_DBM, r.maxSig];
+    });
+    _chart.data.datasets[0].backgroundColor = _rows.map(function (r) {
+      return congestionColour(r.load);
+    });
+    _chart.data.datasets[1].data = _rows.map(function (r) { return r.nf; });
+    _chart.update('none');
+  }
+
+  function render() {
+    emptyEl.style.display = _rows.length ? 'none' : '';
+    renderStats(); renderGrid(); renderChart();
+  }
+
+  function open() {
+    modal.classList.add('open');
+    _rows = []; _state.scanId = null;
+    render();
+    makeChart();               // only now is the canvas measurable
+    setStatus('Idle', false);
+    socket.emit('wifiscan:interfaces');
+  }
+
+  function close() {
+    modal.classList.remove('open');
+    // Best effort only. The server's wall-clock stop is what actually bounds the
+    // outage; this just avoids leaving a radio down because somebody wandered off.
+    if (_state.scanning) socket.emit('wifiscan:stop', { scanId: _state.scanId });
+    setScanning(false);
+    if (_chart) { _chart.destroy(); _chart = null; }
+  }
+
+  /* Measured, not assumed: scanning a radio with clients on it dropped all 15
+     within 2 seconds, held them at zero for the full 30, and they took over 15
+     seconds to start returning. Scanning an idle radio dropped nothing. So the
+     warning states which of the two you are about to do. */
+  function updateWarning() {
+    var el = $('faWarnText');
+    if (!el) return;
+    var rec = _ifaceList.filter(function (i) { return i.name === ifaceSel.value; })[0];
+    var n = rec ? (rec.clients || 0) : 0;
+    if (!rec) {
+      el.innerHTML = 'Scanning takes the selected radio off the air.';
+      return;
+    }
+    if (n === 0) {
+      el.innerHTML = 'This radio has <b>no clients connected</b>, so scanning it should ' +
+        'interrupt nobody. Other radios on this router are unaffected.';
+    } else {
+      el.innerHTML = 'Scanning takes this radio off the air. Its <b>' + n + ' connected ' +
+        (n === 1 ? 'client' : 'clients') + ' will be disconnected</b> for the duration of the ' +
+        'scan, including any on its other SSIDs, and may take some seconds to return afterwards. ' +
+        'Other radios on this router are unaffected.';
+    }
+  }
+  ifaceSel.addEventListener('change', updateWarning);
+
+  openBtn.addEventListener('click', open);
+  modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+  var closeX = modal.querySelector('[data-modal-close]');
+  if (closeX) closeX.addEventListener('click', close);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal.classList.contains('open')) close();
+  });
+
+  scanBtn.addEventListener('click', function () {
+    if (!ifaceSel.value) return;
+    socket.emit('wifiscan:start', { iface: ifaceSel.value, durationSec: parseInt(durSel.value, 10) });
+  });
+  stopBtn.addEventListener('click', function () {
+    socket.emit('wifiscan:stop', { scanId: _state.scanId });
+  });
+
+  socket.on('wifiscan:interfaces', function (d) {
+    if (!d) return;
+    // The button exists only for someone who may actually scan.
+    openBtn.style.display = (d.permitted && (d.interfaces || []).length) ? '' : 'none';
+    _ifaceList = d.interfaces || [];
+    var list = _ifaceList;
+    var keep = ifaceSel.value;
+    // The count is the whole radio's, virtual APs included. Without it the
+    // picker gives no clue which radio is idle and which carries the network:
+    // measured on a live fleet, the two obvious-looking radios had zero clients
+    // and the other two had every one of them.
+    ifaceSel.innerHTML = list.map(function (i) {
+      var n = i.clients || 0;
+      return '<option value="' + esc(i.name) + '">' + esc(i.name) +
+             ' · ' + (n ? (n + (n === 1 ? ' client' : ' clients')) : 'no clients') + '</option>';
+    }).join('');
+    if (keep && list.some(function (i) { return i.name === keep; })) ifaceSel.value = keep;
+    if (!list.length) {
+      ifaceSel.innerHTML = '<option disabled selected>No scannable radio</option>';
+      scanBtn.disabled = true;
+      emptyEl.textContent = 'This router reports no radio that can be scanned. ' +
+        'Virtual APs, CAPsMAN-managed radios and the legacy wireless package are not supported.';
+    } else {
+      scanBtn.disabled = false;
+    }
+    updateWarning();
+  });
+
+  socket.on('wifiscan:state', function (d) {
+    if (!d) return;
+    _state.scanId = d.scanId;
+    _state.currentChannelMhz = d.currentChannelMhz;
+    _state.endsAt = d.endsAt;
+    _rows = d.rows || [];
+    setScanning(!!d.scanning);
+    render();
+  });
+
+  socket.on('wifiscan:rows', function (d) {
+    if (!d || d.scanId !== _state.scanId) return;
+    _rows = d.rows || [];
+    render();
+  });
+
+  socket.on('wifiscan:done', function (d) {
+    if (!d) return;
+    _rows = d.rows || _rows;
+    setScanning(false);
+    render();
+    // A dashboard-enforced stop still produced valid readings. Reporting it as
+    // an error would teach people to distrust correct data.
+    var msg = {
+      complete:        'Scan complete',
+      timeout:         'Scan complete',
+      aborted:         'Scan stopped',
+      disconnected:    'Router went away mid-scan',
+      'session-restart': 'Scan interrupted by a router session restart',
+      error:           'Scan failed',
+    }[d.reason] || 'Scan ended';
+    if (!d.rows || !d.rows.length) {
+      // Distinguish "the scan ran and the band is empty" — which cannot happen,
+      // every band has a noise floor — from "the router returned nothing". The
+      // second is the real case, and calling it success sends people hunting
+      // for a quiet channel that was never measured.
+      emptyEl.textContent = 'The router accepted the scan but returned no data. ' +
+        'Some RouterOS builds do not emit frequency-scan results over the API, ' +
+        'even though the same scan works in WinBox.';
+      setStatus('No data returned by the router', false);
+      return;
+    }
+    setStatus(msg + (d.truncated ? ' (truncated)' : ''), false);
+  });
+
+  socket.on('wifiscan:error', function (d) {
+    if (!d) return;
+    setScanning(false);
+    var msg = {
+      busy:               'Another scan is already running on this router' + (d.iface ? (' (' + d.iface + ')') : ''),
+      'fleet-busy':       'Too many scans running at once — try again shortly',
+      cooldown:           'Please wait a few seconds before scanning again',
+      denied:             'You do not have permission to scan this router',
+      'bad-request':      'Invalid scan request',
+      'no-such-interface': 'That interface no longer exists',
+      'capsman-managed':  'This radio is managed by CAPsMAN — scan it from its manager',
+      'not-a-radio':      'That is a virtual AP, not a radio',
+      unavailable:        'Wireless collection is not running for this router',
+      'router-offline':   'The router is not connected',
+      'permission-denied': 'The RouterOS user needs the "test" policy to run a scan',
+      'unsupported-stack': 'This router uses the legacy wireless package, which is not supported',
+    }[d.code] || (d.message || 'Scan failed');
+    setStatus(msg, false);
+  });
+
+  // Ask again on page entry so the button reflects the current router.
+  document.addEventListener('mikrodash:pagechange', function (e) {
+    if (e.detail === 'wireless') socket.emit('wifiscan:interfaces');
+  });
 }());

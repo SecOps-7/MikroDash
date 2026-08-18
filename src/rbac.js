@@ -34,6 +34,7 @@ const SCOPED = new Set([
   'router:ack',       // acknowledge alerts
   'router:history',   // historical reports and exports
   'router:diagnose',  // connection test, ping, firewall table selection
+  'router:scan',      // wireless frequency scan — takes the radio off the air
   'router:write',     // RouterOS writes — reserved for issue #97, no call sites yet
   'router:manage',    // edit or delete a router, change its site
   'router:purge',     // purge that router's history
@@ -64,6 +65,7 @@ const READ_CONFERS = Object.freeze({
 const WRITE_CONFERS = Object.freeze({
   dashboard: ['router:ack'],                        // acknowledge alerts
   firewall:  ['router:diagnose'],                   // switch the shared firewall table
+  wireless:  ['router:scan'],                       // frequency scan — disconnects every client on the radio
   routers:   ['router:manage'],                     // edit/delete a router, change its site
   settings:  ['system:settings', 'router:purge'],   // app settings; purge one router's history
 });
@@ -460,6 +462,7 @@ function capsFor(session) {
       history:     effectiveRouterIds(session, 'router:history'),
       ackable:     effectiveRouterIds(session, 'router:ack'),
       diagnosable: effectiveRouterIds(session, 'router:diagnose'),
+      scannable:   effectiveRouterIds(session, 'router:scan'),
     },
   };
 }

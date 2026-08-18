@@ -79,6 +79,7 @@ const TopologyCollector     = require('./collectors/topology');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
+const wifiScanLib           = require('./wifiScan');
 const overviewSessions      = require('./overviewSessions');
 const SessionStore          = require('./auth/sessionStore');
 const Users                 = require('./users');
@@ -132,6 +133,11 @@ function buildRouterIo(routerId) {
     if (event === 'ping:update' && data && typeof data.loss === 'number') {
       dbWriter.recordPing(routerId, data.target, data.rtt != null ? data.rtt : null, data.loss, data.ts);
     }
+    // A frequency scan takes the radio off the air, so the client list collapses
+    // to zero for its duration. That is the operator's own doing, not an
+    // outage — evaluating alerts on it would page somebody about a button they
+    // just pressed. The emit still goes out, so the page shows the truth.
+    if (event === 'wireless:update' && wifiScans.isScanning(routerId)) return;
     alerter.evaluateForRouter(routerId, event, data);
   };
   return {
@@ -449,6 +455,10 @@ function buildSession(routerCfg, routerIo) {
 // Stop all collectors and the ROS connection. `entry` is the _routerSessions entry.
 async function teardownSession(session, entry) {
   if (!session) return;
+  // The scan holds a reference to this session's ros. Letting the registry entry
+  // outlive the session means finish() would later dereference a dead
+  // connection, and the router would keep scanning with nothing tracking it.
+  if (session.routerId) wifiScans.abortAllForRouter(session.routerId, 'session-restart');
   const _tearLabel = (session.ros && session.ros.routerLabel) || 'router';
   console.log('%s', `[${_tearLabel}] ── session torn down`);
   if (entry) { entry.startupReady = false; entry.collectorsStarted = false; }
@@ -3228,6 +3238,11 @@ function _alertRow(r, names) {
   };
 }
 
+// Frequency-scan registry. Not a collector: src/collection.js models long-lived
+// things with a poll interval and a session property, and this is a one-off
+// action that takes a radio off the air for at most 35 seconds.
+const wifiScans = wifiScanLib.createRegistry({ sanitize: sanitizeErr });
+
 app.post('/api/alerts/:id/ack', ackLimiter, (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -3904,6 +3919,10 @@ io.on('connection', (socket) => {
   let _routersTimer = null;
 
   socket.on('disconnect', () => {
+    // Before any early return: the person who started the scan is gone, so stop
+    // disrupting the radio. The registry's own wall-clock stop is the backstop,
+    // never the only guard.
+    wifiScans.abortByOwner(socket.id);
     if (_routersTimer) { clearInterval(_routersTimer); _routersTimer = null; }
     if (_routersPageSockets.delete(socket.id) && _routersPageSockets.size === 0) overviewSessions.suspend();
     const rid = socket.routerId;
@@ -4042,6 +4061,87 @@ io.on('connection', (socket) => {
     if (!_pageAllowed(socket, 'firewall', 'write')) return;
     const e = rid ? _routerSessions.get(rid) : null;
     if (e && e.session && e.session.firewall) e.session.firewall.setActiveTable(table);
+  });
+
+  // ── WiFi frequency analyzer ───────────────────────────────────────────────
+  //
+  // The only disruptive action in the app: it takes the radio off the air and
+  // drops every client on it. Gated on BOTH the page toggle and the action
+  // permission, and answers rather than going silent — unlike firewall:tab this
+  // is a button somebody pressed, and silence is a support ticket.
+
+  const _scanSession = () => {
+    const rid = socket.routerId;
+    const e   = rid ? _routerSessions.get(rid) : null;
+    return { rid, entry: e, session: e && e.session };
+  };
+
+  const _scanDenied = (code, extra) =>
+    socket.emit('wifiscan:error', Object.assign({ scanId: null, code }, extra || {}));
+
+  socket.on('wifiscan:interfaces', () => {
+    const { rid, session } = _scanSession();
+    if (!rid || !session) return _scanDenied('unavailable');
+    if (!_pageAllowed(socket, 'wireless', 'read')) return _scanDenied('denied');
+    const wl = session.wireless;
+    socket.emit('wifiscan:interfaces', {
+      // May scan at all — the button is drawn from this, not from the list.
+      permitted: _socketCan(socket, 'router:scan', rid) && _pageAllowed(socket, 'wireless', 'write'),
+      interfaces: (wl && typeof wl.listScannableInterfaces === 'function')
+        ? wl.listScannableInterfaces().map(i => ({ name: i.name, running: i.running, clients: i.clients }))
+        : [],
+      scanning: wifiScans.isScanning(rid),
+    });
+  });
+
+  socket.on('wifiscan:start', async (req) => {
+    const { rid, session } = _scanSession();
+    if (!rid || !session) return _scanDenied('unavailable');
+    // Both gates, deliberately. _pageAllowed carries the install-wide Wireless
+    // toggle — a deployment that turned the page off must not have a scan
+    // endpoint — and _socketCan keeps router:scan the named, greppable gate.
+    if (!_pageAllowed(socket, 'wireless', 'write')) return _scanDenied('denied');
+    if (!_socketCan(socket, 'router:scan', rid))    return _scanDenied('denied');
+
+    const iface       = req && typeof req.iface === 'string' ? req.iface : '';
+    const durationSec = req && Number(req.durationSec);
+    const wl          = session.wireless;
+    const interfaces  = (wl && typeof wl.listScannableInterfaces === 'function')
+      ? wl.listScannableInterfaces() : null;
+
+    // Read the operating channel BEFORE the scan: during one the radio is off
+    // its channel, and the interface's own channel.frequency is a configured
+    // RANGE ("5180-5730"), not where it actually is. This is a fast =once= read,
+    // unlike the scan itself which must never go through write().
+    let currentChannelMhz = null;
+    try {
+      const mon = await session.ros.write('/interface/wifi/monitor', ['=numbers=' + iface, '=once=']);
+      const raw = mon && mon[0] && mon[0].channel;
+      const n   = parseInt(String(raw || '').split('/')[0], 10);
+      if (Number.isFinite(n)) currentChannelMhz = n;
+    } catch (_) { /* advisory only — a scan without it is still useful */ }
+
+    const res = wifiScans.start({
+      routerId: rid, ros: session.ros, iface, durationSec,
+      socketId: socket.id, currentChannelMhz, interfaces,
+      emit: (ev, d) => socket.emit(ev, d),
+    });
+    if (!res.ok) {
+      const { code, ...rest } = res;
+      return _scanDenied(code, rest);
+    }
+    socket.emit('wifiscan:state', {
+      scanning: true, scanId: res.scanId, iface, durationSec,
+      startedAt: res.startedAt, endsAt: res.endsAt, currentChannelMhz, rows: [],
+    });
+    console.log('%s', `[${(session.ros && session.ros.routerLabel) || rid}][wifiscan] ${iface} for ${durationSec}s — clients on that radio will drop`);
+  });
+
+  socket.on('wifiscan:stop', (req) => {
+    const { rid } = _scanSession();
+    if (!rid) return;
+    if (!_socketCan(socket, 'router:scan', rid)) return _scanDenied('denied');
+    wifiScans.abort(rid, req && req.scanId);
   });
 
   // Per-user router switching (modern auth only).

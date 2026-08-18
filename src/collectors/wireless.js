@@ -79,6 +79,7 @@ class WirelessCollector {
     this._ssidEndpoint = undefined;
     this._ssids = [];
     this._ssidsManagedElsewhere = 0;
+    this._scanIfaces = [];   // radios a frequency scan may target (src/wifiScan.js)
     this._ssidTimer = null;
     this._lbl = ros.routerLabel ? `[${ros.routerLabel}][wireless]` : '[wireless]';
 
@@ -324,6 +325,7 @@ class WirelessCollector {
         const { ssids, managedElsewhere } = this._parseSsids(rows);
         this._ssids = ssids;
         this._ssidsManagedElsewhere = managedElsewhere;
+        this._scanIfaces = this._parseScanIfaces(rows, endpoint);
         return;
       } catch (e) {
         // Try the next stack. Only when every one has failed do we give up, and
@@ -333,7 +335,73 @@ class WirelessCollector {
     if (!this._ssidEndpoint) {
       this._ssidEndpoint = null;                      // neither stack exists here
       this._ssids = [];
+      this._scanIfaces = [];
     }
+  }
+
+  /**
+   * The radios a frequency scan may be run against.
+   *
+   * Built from rows _refreshSsids has ALREADY fetched, so it costs no extra
+   * RouterOS traffic — which is the point. Validating a scan request with a
+   * fresh write() would put the scan path behind the 30s write timeout, and
+   * losing that race closes the connection shared by every collector on this
+   * router (routeros/client.js:174-180).
+   *
+   * `master` is what separates a radio from a virtual AP: the live fleet reports
+   * twelve /interface/wifi rows of which only four have a radio of their own.
+   * Offering the other eight would be offering scans that cannot happen.
+   *
+   * Only five fields are copied, by name. These rows also carry
+   * security.passphrase in clear text, and this list reaches a browser.
+   */
+  _parseScanIfaces(rows, endpoint) {
+    // Legacy /interface/wireless is out of scope: its scan command differs and
+    // there is no device here to verify it against. Report none rather than
+    // offering a picker that cannot work.
+    if (endpoint !== SSID_ENDPOINTS.wifi) return [];
+    return (rows || [])
+      .filter(r => r && String(r.name || '').trim())
+      .map(r => ({
+        name:           String(r.name).trim(),
+        // The scan command is addressed by RouterOS .id, not by name.
+        id:             r['.id'] || null,
+        master:         r.master === 'true' || r.master === true,
+        // Which radio a virtual AP rides on. Needed because taking a radio off
+        // the air takes every SSID on it down too, and the clients are almost
+        // never on the radio's own interface.
+        masterInterface: r['master-interface'] || null,
+        capsmanManaged: !!r['configuration.manager'],
+        disabled:       r.disabled === 'true' || r.disabled === true,
+        running:        r.running === 'true' || r.running === true,
+      }));
+  }
+
+  /**
+   * The scan-eligible subset, for the picker and for server-side validation,
+   * each carrying the number of clients a scan would actually disconnect.
+   *
+   * That count is the whole radio's, not the interface's. Measured on the live
+   * fleet: scanning a radio dropped all 15 clients within 2 seconds and they
+   * took over 15 seconds to start returning — and not one of them was
+   * associated to the radio's own interface. They were all on its virtual APs.
+   * Showing the interface's own count would have read "0 clients" right before
+   * knocking fifteen devices off the network.
+   */
+  listScannableInterfaces() {
+    const all = this._scanIfaces || [];
+    const perIface = new Map();
+    for (const c of this._knownClients.values()) {
+      if (!c || !c.iface) continue;
+      perIface.set(c.iface, (perIface.get(c.iface) || 0) + 1);
+    }
+    return all.filter(i => i.master && !i.capsmanManaged && !i.disabled).map((radio) => {
+      let clients = perIface.get(radio.name) || 0;
+      for (const v of all) {
+        if (v.masterInterface === radio.name) clients += perIface.get(v.name) || 0;
+      }
+      return { ...radio, clients };
+    });
   }
 
   /**
@@ -620,6 +688,7 @@ class WirelessCollector {
     this._ssidEndpoint = undefined;
     this._ssids = [];
     this._ssidsManagedElsewhere = 0;
+    this._scanIfaces = [];   // radios a frequency scan may target (src/wifiScan.js)
     this._ssidTimer = null;
     this._lastWifiBatch    = [];
     this._lastCapsmanBatch = [];

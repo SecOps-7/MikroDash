@@ -36,6 +36,12 @@ const OLD_ROLE_PERMS = {
   admin: new Set([
     'router:read', 'router:ack', 'router:history', 'router:diagnose', 'router:write',
     'router:manage', 'router:purge', 'router:secrets',
+    // Added after #108. Administrator is builtin=1, so its reach is structural
+    // rather than a stored matrix — every permission added later lands here with
+    // no data migration, which is the whole point of seeding it that way. A new
+    // permission appearing in this set is therefore expected; one appearing in
+    // viewer or operator below would be the bug.
+    'router:scan',
     ...GLOBAL_ONLY_PERMS,
   ]),
 };
