@@ -147,6 +147,30 @@ test('firewall:tab is a write action on the firewall page', () => {
   assert.strictEqual(rbac.can(sess(reader), 'router:diagnose', rtr.id), false);
 });
 
+test('the frequency scan is a write action on the wireless page', () => {
+  // The first deliberately disruptive action in MikroDash: it takes the radio
+  // off the air and drops every client on it. router:diagnose was the obvious
+  // reuse, but it is conferred only by firewall write, which would have meant a
+  // firewall operator could disrupt a radio while a wireless operator could not.
+  const writer = userWith([{ page: 'wireless', access: 'write' }]);
+  assert.strictEqual(rbac.can(sess(writer), 'router:scan', rtr.id), true);
+
+  // Reading the Wireless page is not licence to take it down.
+  const reader = userWith([{ page: 'wireless', access: 'read' }]);
+  assert.strictEqual(rbac.can(sess(reader), 'router:scan', rtr.id), false);
+
+  // Nor does write elsewhere leak it. This is the distinction that adding a
+  // permission bought over reusing router:diagnose.
+  const fw = userWith([{ page: 'firewall', access: 'write' }]);
+  assert.strictEqual(rbac.can(sess(fw), 'router:scan', rtr.id), false);
+  assert.strictEqual(rbac.can(sess(writer), 'router:diagnose', rtr.id), false,
+    'and wireless write does not confer the firewall action either');
+
+  // Scoped, so it fails closed with no target — a socket with no active router
+  // must not be able to scan anything.
+  assert.strictEqual(rbac.can(sess(writer), 'router:scan', null), false);
+});
+
 // ── REST ─────────────────────────────────────────────────────────────────────
 
 test('the topology layout routes are scoped to the topology page', () => {

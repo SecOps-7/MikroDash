@@ -3018,6 +3018,99 @@ test('the warning returns promptly after the condition clears and recurs', () =>
   c.stop();
 });
 
+// ── The scannable-radio catalogue (frequency analyzer) ───────────────────────
+//
+// Built from rows _refreshSsids already fetches, so the scan can validate a
+// request without a write() — whose 30s timeout closes the connection every
+// collector on the router shares.
+
+test('only real radios are scannable, not virtual APs', () => {
+  // The live fleet reports twelve /interface/wifi rows of which only four have a
+  // radio of their own. Offering the other eight would offer scans that cannot
+  // happen, and `master` is the only field that separates them.
+  const c = _wlCollector();
+  c._scanIfaces = c._parseScanIfaces([
+    { name: '2.4GHz WiFi',  master: 'true',  disabled: 'false', running: 'true' },
+    { name: '2.4GHz WiFi2', master: 'false', disabled: 'false', running: 'true' },
+    { name: '5GHz WiFi',    master: 'true',  disabled: 'false', running: 'true' },
+  ], '/interface/wifi/print');
+
+  assert.deepStrictEqual(c.listScannableInterfaces().map(i => i.name),
+    ['2.4GHz WiFi', '5GHz WiFi']);
+});
+
+test('a radio reports the clients a scan would actually disconnect', () => {
+  // Measured on the live fleet, and the reason this exists: scanning a radio
+  // dropped all 15 of its clients within 2 seconds and they took over 15 seconds
+  // to start returning — and not one was associated to the radio's OWN
+  // interface. Every one was on a virtual AP riding the same radio. Counting
+  // only the interface would have shown "no clients" immediately before
+  // knocking fifteen devices off the network.
+  const c = _wlCollector();
+  c._scanIfaces = c._parseScanIfaces([
+    { name: 'radioA', '.id': '*45', master: 'true',  disabled: 'false' },
+    { name: 'radioA-guest', '.id': '*46', master: 'false', 'master-interface': 'radioA', disabled: 'false' },
+    { name: 'radioB', '.id': '*49', master: 'true',  disabled: 'false' },
+    { name: 'radioB-guest', '.id': '*4A', master: 'false', 'master-interface': 'radioB', disabled: 'false' },
+  ], '/interface/wifi/print');
+
+  c._knownClients.set('1', { mac: '1', iface: 'radioA' });
+  c._knownClients.set('2', { mac: '2', iface: 'radioA-guest' });
+  c._knownClients.set('3', { mac: '3', iface: 'radioA-guest' });
+  c._knownClients.set('4', { mac: '4', iface: 'radioB-guest' });
+
+  const byName = Object.fromEntries(c.listScannableInterfaces().map(i => [i.name, i.clients]));
+  assert.strictEqual(byName.radioA, 3, 'its own client plus both on its virtual AP');
+  assert.strictEqual(byName.radioB, 1, 'a radio with clients only on its virtual AP is not idle');
+});
+
+test('an idle radio reports no clients', () => {
+  // The other half: a radio that really is idle must say so, or the warning
+  // cries wolf and stops being read.
+  const c = _wlCollector();
+  c._scanIfaces = c._parseScanIfaces([
+    { name: 'idle', '.id': '*45', master: 'true', disabled: 'false' },
+    { name: 'busy', '.id': '*49', master: 'true', disabled: 'false' },
+  ], '/interface/wifi/print');
+  c._knownClients.set('1', { mac: '1', iface: 'busy' });
+
+  const byName = Object.fromEntries(c.listScannableInterfaces().map(i => [i.name, i.clients]));
+  assert.strictEqual(byName.idle, 0);
+  assert.strictEqual(byName.busy, 1);
+});
+
+test('a CAPsMAN-managed radio and a disabled one are not offered', () => {
+  // A managed CAP's radio is not this box's to take off the air.
+  const c = _wlCollector();
+  c._scanIfaces = c._parseScanIfaces([
+    { name: 'managed',  master: 'true', 'configuration.manager': 'capsman', disabled: 'false' },
+    { name: 'disabled', master: 'true', disabled: 'true' },
+    { name: 'good',     master: 'true', disabled: 'false' },
+  ], '/interface/wifi/print');
+
+  assert.deepStrictEqual(c.listScannableInterfaces().map(i => i.name), ['good']);
+});
+
+test('the catalogue copies no security field', () => {
+  // Same hazard as the SSID list: these rows carry security.passphrase in clear
+  // text and this list reaches a browser.
+  const c = _wlCollector();
+  const blob = JSON.stringify(c._parseScanIfaces([{
+    name: 'wifi1', master: 'true', disabled: 'false',
+    'security.passphrase': 'hunter2', 'security.authentication-types': 'wpa2-psk',
+  }], '/interface/wifi/print'));
+  assert.ok(!blob.includes('hunter2'));
+  assert.ok(!blob.includes('security'));
+});
+
+test('the legacy wireless stack reports no scannable radios', () => {
+  // Its scan command differs and there is no device here to verify it against.
+  // An empty list disables the button; guessing would ship an untestable path.
+  const c = _wlCollector();
+  assert.deepStrictEqual(
+    c._parseScanIfaces([{ name: 'wlan1', master: 'true' }], '/interface/wireless/print'), []);
+});
+
 // ── The CAPsMAN probe must not touch SSID state ──────────────────────────────
 //
 // Reported as "the WiFi SSIDs card takes some time to populate". The cause was

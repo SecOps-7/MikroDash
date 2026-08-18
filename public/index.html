@@ -265,6 +265,9 @@
        viewports. These forms have no columns — their fields go straight into the
        body — so that grid would slice the form in half. */
     .rtr-modal.pmodal>.rtr-modal-body{display:block}
+    /* Same opt-out as pmodal: the base .rtr-modal-body is a two-column grid
+       for the router form, and the analyzer stacks full-width sections. */
+    .rtr-modal.fa-modal>.rtr-modal-body{display:block}
     /* The account modal is not a form like the four above — it holds five
        unrelated sections, and stacking them made a tall narrow ribbon that had
        to be scrolled past to reach anything. It takes the width instead and
@@ -1134,6 +1137,48 @@
        a case nobody has. */
     .wl-ssid-clients{flex:0 0 auto;min-width:2ch;margin-left:.3rem;text-align:right;font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap}
     .wl-ssid-empty{font-size:.72rem;color:var(--text-muted);padding:.3rem .25rem}
+    /* ── Frequency Analyzer ─────────────────────────────────────────────────
+       The one place in the app that drives a disruptive action, so the warning
+       is styled to be read rather than dismissed. */
+    .fa-open-btn{white-space:nowrap}
+    .rtr-modal.fa-modal{width:min(1080px,95vw)}
+    .fa-warn{display:flex;gap:.6rem;align-items:flex-start;background:rgba(251,146,60,.10);border:1px solid rgba(251,146,60,.30);border-radius:6px;padding:.6rem .75rem;margin-bottom:.85rem}
+    .fa-warn-icon{color:var(--accent-amber,#f59f00);font-size:1rem;line-height:1.1;flex:0 0 auto}
+    .fa-warn-text{font-size:.74rem;color:var(--text-main);line-height:1.45}
+    .fa-warn-text b{color:var(--accent-amber,#f59f00)}
+    .fa-controls{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.85rem}
+    .fa-controls label{font-size:.7rem;color:var(--text-muted);white-space:nowrap}
+    .fa-status{font-size:.72rem;color:var(--text-muted);font-family:var(--font-mono);margin-left:auto}
+    .fa-status.is-scanning{color:var(--accent-amber,#f59f00)}
+    /* Five equal cards; drops to a readable grid before it squashes. */
+    .fa-stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-bottom:.9rem}
+    @media(max-width:900px){.fa-stat-row{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:560px){.fa-stat-row{grid-template-columns:repeat(2,1fr)}}
+    .fa-stat{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;min-width:0}
+    .fa-stat-label{font-family:var(--font-ui);font-weight:600;font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fa-stat-val{font-family:var(--font-mono);font-size:1.15rem;font-weight:700;line-height:1.1}
+    /* These two are read as a pair — where you are, and where to move to — so
+       they carry the same blue and green as the chart marks them with. */
+    #faCurChan{color:var(--accent-rx)}
+    #faBestChan{color:rgba(74,222,128,.95)}
+    .fa-stat-unit{font-size:.62rem;color:var(--text-muted);margin-left:.15rem;font-weight:400}
+    .fa-section-title{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0 0 .5rem}
+    /* Congestion tiles: auto-fill so a 2.4GHz scan (13 channels) and a 5GHz one
+       (25+) both fill the row instead of one leaving a ragged gap. */
+    .fa-chan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:.35rem;margin-bottom:1rem}
+    .fa-chan{border:1px solid var(--border);border-radius:5px;padding:.3rem .35rem;text-align:center;font-family:var(--font-mono);line-height:1.25}
+    .fa-chan.is-current{outline:2px solid var(--accent-rx);outline-offset:1px}
+    .fa-chan-num{font-size:.72rem;font-weight:700;color:var(--text-main)}
+    .fa-chan-freq{font-size:.58rem;color:var(--text-muted)}
+    .fa-chan-load{font-size:.66rem;font-weight:700}
+    /* Busy indicator. A scan can run 30s with long gaps between frames, so the
+       button alone cannot show the difference between working and wedged. */
+    .fa-spin{display:none;width:14px;height:14px;flex:0 0 auto;border:2px solid rgba(148,163,190,.25);border-top-color:var(--accent-rx);border-radius:50%;animation:fa-spin .7s linear infinite}
+    .fa-spin.on{display:inline-block}
+    @keyframes fa-spin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){.fa-spin{animation-duration:2.4s}}
+    .fa-chart-wrap{position:relative;height:220px;width:100%}
+    .fa-empty{font-size:.75rem;color:var(--text-muted);padding:1.4rem;text-align:center}
     .wl-summary-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
     .wl-summary-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
     /* Signal health bars */
@@ -2248,6 +2293,9 @@
               <button class="wl-sort-btn" data-sort="uptime">Uptime</button>
               <button class="wl-sort-btn" data-sort="name">Name</button>
             </div>
+            <button class="wl-sort-btn fa-open-btn" id="faOpenBtn" type="button"
+                    title="Scan the RF environment — interrupts clients on the chosen radio"
+                    style="display:none">&#9678; Frequency Analyzer</button>
           </div>
         </div>
         <div class="card-body p-0" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
@@ -4324,6 +4372,73 @@
        every page via the sidebar chip. Kept out of #page-settings on purpose:
        that container is display:none unless the Settings page is active, so a
        modal nested inside it could never be shown. -->
+  <!-- Frequency Analyzer. Body-level for the same reason as the account modal
+       below: a modal nested inside #page-wireless is display:none whenever that
+       page is not the active one, and could never be shown. -->
+  <div class="rtr-modal-bg" id="faModal">
+    <div class="rtr-modal fa-modal">
+      <div class="rtr-modal-hdr">
+        <span class="rtr-modal-title">Frequency Analyzer</span>
+        <button class="rtr-modal-close" data-modal-close="faModal" aria-label="Close">&#10005;</button>
+      </div>
+      <div class="rtr-modal-body">
+
+        <div class="fa-warn">
+          <span class="fa-warn-icon">&#9888;</span>
+          <span class="fa-warn-text" id="faWarnText">
+            Scanning takes the selected radio off the air.
+          </span>
+        </div>
+
+        <div class="fa-controls">
+          <label for="faIface">Interface</label>
+          <select id="faIface" class="conn-src-filter" style="min-width:150px"></select>
+          <label for="faDuration">Duration</label>
+          <select id="faDuration" class="conn-src-filter" style="min-width:80px">
+            <option value="30" selected>30 s</option>
+            <option value="60">1 min</option>
+            <option value="120">2 min</option>
+          </select>
+          <button class="sbtn sbtn-primary" id="faScanBtn" type="button">Scan</button>
+          <button class="sbtn sbtn-outline" id="faStopBtn" type="button" style="display:none">Stop</button>
+          <span class="fa-spin" id="faSpin" role="status" aria-label="Scanning"></span>
+          <span class="fa-status" id="faStatus">Idle</span>
+        </div>
+
+        <div class="fa-stat-row">
+          <div class="fa-stat">
+            <div class="fa-stat-label">Current Channel</div>
+            <div class="fa-stat-val" id="faCurChan">&mdash;<span class="fa-stat-unit">MHz</span></div>
+          </div>
+          <div class="fa-stat">
+            <div class="fa-stat-label">Networks</div>
+            <div class="fa-stat-val" id="faNetworks">&mdash;</div>
+          </div>
+          <div class="fa-stat">
+            <div class="fa-stat-label">Congestion</div>
+            <div class="fa-stat-val" id="faCongestion">&mdash;<span class="fa-stat-unit">%</span></div>
+          </div>
+          <div class="fa-stat">
+            <div class="fa-stat-label">Best Channel</div>
+            <div class="fa-stat-val" id="faBestChan">&mdash;<span class="fa-stat-unit">MHz</span></div>
+          </div>
+          <div class="fa-stat">
+            <div class="fa-stat-label">Noise Floor</div>
+            <div class="fa-stat-val" id="faNoise">&mdash;<span class="fa-stat-unit">dBm</span></div>
+          </div>
+        </div>
+
+        <div class="fa-section-title">Channel congestion</div>
+        <div class="fa-chan-grid" id="faChanGrid"></div>
+
+        <div class="fa-section-title">Spectrum</div>
+        <div class="fa-chart-wrap"><canvas id="faSpectrum"></canvas></div>
+
+        <div class="fa-empty" id="faEmpty">Choose a radio and press Scan.</div>
+      </div>
+    </div>
+  </div>
+
   <div class="rtr-modal-bg" id="accountModal">
     <div class="rtr-modal acct-modal">
       <div class="rtr-modal-hdr">
