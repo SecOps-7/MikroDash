@@ -36,7 +36,7 @@ test('registry covers every collector the session builds, exactly once', () => {
   const sessionProps = ['dhcpLeases','dhcpNetworks','arp','traffic','conns','talkers','logs',
                         'system','wireless','vpn','firewall','ifStatus','ping','bandwidth',
                         'routing','netwatch','topology','vlans','ppp',
-                        'bridges','dns','capsman','packages','rosusers','queues'];
+                        'bridges','dns','capsman','packages','rosusers','queues','wan'];
   assert.deepEqual(COLLECTORS.map(c => c.sessionProp).sort(), [...sessionProps].sort());
 });
 
@@ -96,7 +96,7 @@ test('protected collectors are the ones other collectors read unguarded', () => 
   // arp/dhcpLeases/dhcpNetworks are read without a null guard by connections.js;
   // traffic feeds stored history; system feeds identity, the update check and CPU alerts.
   assert.deepEqual(protectedKeys, ['arp','dhcpLeases','dhcpNetworks','system','traffic']);
-  assert.equal(DISABLEABLE.length, 20);
+  assert.equal(DISABLEABLE.length, 21);
 });
 
 // ── Defaults and inheritance ─────────────────────────────────────────────────

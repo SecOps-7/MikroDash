@@ -110,6 +110,11 @@ const COLLECTORS = Object.freeze([
     streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'dns',   cards: [] },
   { key: 'packages', label: 'Packages',  sessionProp: 'packages',     pollKey: 'pollPackages', defaultPollMs: 60000,
     streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'packages', cards: [] },
+  // wan borrows rates from ifStatus the way vlans and bridges do, and declares
+  // no requires for the same reason: switching Interface Rates off should cost
+  // the rate column, not the page.
+  { key: 'wan',   label: 'WAN',        sessionProp: 'wan',          pollKey: 'pollWan',      defaultPollMs: 10000,
+    streamKey: 'streamWan',      pollable: true,  disableable: true,  requires: [], page: 'wan', cards: [] },
   // queues borrows the FastTrack summary from the firewall collector the way
   // vlans borrows rates from ifStatus, and declares no `requires` for the same
   // reason: a hard dependency would blank the whole Queues page when somebody
