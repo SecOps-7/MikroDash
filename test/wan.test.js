@@ -349,6 +349,6 @@ test('the poll interval is settable and bounded', () => {
   assert.strictEqual(typeof Settings.DEFAULTS.pollWan, 'number');
   assert.strictEqual(Settings.DEFAULTS.pageWan, true);
   const src = SRC('index.js');
-  assert.ok(src.includes('pollWan:[2000,60000]'), 'bounded in intFields');
+  assert.ok(src.includes('pollWan:[1000,60000]'), 'bounded in intFields');
   assert.ok(src.includes("pollWan:'wan'"), 'reaches the live collector on save');
 });

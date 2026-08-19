@@ -4731,27 +4731,44 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 // Settings Page
 // ═══════════════════════════════════════════════════════════════════════════
 (function(){
+  // Two ranges, and only two. They had drifted to five — 1-30s, 2-60s, 5s-5m,
+  // 10s-5m and 10s-10m — which made "how fast can this go" a per-slider
+  // surprise. Which range a collector gets is the whole decision:
+  //
+  //   LIVE  1s - 30s    data somebody watches change: rates, sessions, uplinks
+  //   SLOW  10s - 10m   data that changes when somebody edits the router
+  //
+  // A new slider picks one. It does not invent a third.
+  //
+  // Written out as literals rather than built by a helper: the drift guard in
+  // test/per-router-collection.test.js finds these by scanning the source for
+  // `{ key:'pollX'`, and a helper call made the whole list invisible to it —
+  // it found zero sliders and every profile trivially "covered" them.
   var POLL_SLIDERS = [
-    // Polled — user-configurable interval
+    // ── Live data: 1s – 30s ────────────────────────────────────────────────
     { key:'pollSystem',    label:'System / Gauges',  min:1000,  max:30000,  step:1000,  unit:'ms' },
     { key:'pollConns',     label:'Connections',      min:1000,  max:30000,  step:1000,  unit:'ms' },
     { key:'pollTalkers',   label:'Top Talkers',      min:1000,  max:30000,  step:1000,  unit:'ms' },
     { key:'pollIfstatus',  label:'Interface Rates',  min:1000,  max:30000,  step:1000,  unit:'ms' },
     { key:'pollBandwidth', label:'Bandwidth',        min:1000,  max:30000,  step:1000,  unit:'ms' },
-    { key:'pollVpn',       label:'VPN / WireGuard', min:1000,  max:30000,  step:1000,  unit:'ms' },
-    { key:'pollFirewall',  label:'Firewall',        min:1000,  max:30000,  step:1000,  unit:'ms' },
-    { key:'pollPing',      label:'Ping',            min:1000,  max:30000,  step:1000,  unit:'ms' },
-    { key:'pollWireless',  label:'Wireless',           min:10000, max:600000, step:10000, unit:'ms' },
-    { key:'pollIfaces',    label:'Interface Status',   min:10000, max:600000, step:10000, unit:'ms' },
-    { key:'pollDhcp',           label:'DHCP Networks',    min:10000, max:600000, step:10000, unit:'ms' },
-    { key:'pollTopology',       label:'Network Topology', min:10000, max:300000, step:10000, unit:'ms' },
-    { key:'pollVlans',          label:'VLANs',            min:2000,  max:60000,  step:1000,  unit:'ms' },
-    { key:'pollBridges',        label:'Bridges',          min:2000,  max:60000,  step:1000,  unit:'ms' },
-    { key:'pollDns',            label:'DNS',              min:2000,  max:60000,  step:1000,  unit:'ms' },
-    { key:'pollCapsman',        label:'CAPsMAN',          min:2000,  max:60000,  step:1000,  unit:'ms' },
-    { key:'pollPackages',       label:'Packages',         min:5000,  max:300000, step:5000,  unit:'ms' },
-    { key:'pollPpp',            label:'PPP',              min:2000,  max:60000,  step:1000,  unit:'ms' },
-    { key:'pollWan',            label:'WAN',              min:2000,  max:60000,  step:1000,  unit:'ms' },
+    { key:'pollVpn',       label:'VPN / WireGuard',  min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollFirewall',  label:'Firewall',         min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollPing',      label:'Ping',             min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollVlans',     label:'VLANs',            min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollBridges',   label:'Bridges',          min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollPpp',       label:'PPP',              min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollWan',       label:'WAN',              min:1000,  max:30000,  step:1000,  unit:'ms' },
+    { key:'pollCapsman',   label:'CAPsMAN',          min:1000,  max:30000,  step:1000,  unit:'ms' },
+    // DNS is here rather than below because the settings row carries cache-used,
+    // which is a live gauge; the static table is the part that rarely moves.
+    { key:'pollDns',       label:'DNS',              min:1000,  max:30000,  step:1000,  unit:'ms' },
+
+    // ── Slow-changing data: 10s – 10m ──────────────────────────────────────
+    { key:'pollWireless',  label:'Wireless',         min:10000, max:600000, step:10000, unit:'ms' },
+    { key:'pollIfaces',    label:'Interface Status', min:10000, max:600000, step:10000, unit:'ms' },
+    { key:'pollDhcp',      label:'DHCP Networks',    min:10000, max:600000, step:10000, unit:'ms' },
+    { key:'pollTopology',  label:'Network Topology', min:10000, max:600000, step:10000, unit:'ms' },
+    { key:'pollPackages',  label:'Packages',         min:10000, max:600000, step:10000, unit:'ms' },
   ];
 
   // EVERY non-streamed slider must appear in EVERY profile. A missing key sets
@@ -4844,7 +4861,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     slow:     { pollSystem:10000, pollConns:10000, pollTalkers:10000, pollIfstatus:10000, pollBandwidth:10000, pollVpn:10000, pollFirewall:10000, pollPing:10000, pollWireless:300000, pollIfaces:300000, pollDhcp:300000,
                 pollTopology:120000, pollVlans:20000, pollPpp:20000, pollBridges:20000, pollDns:30000, pollCapsman:30000, pollPackages:180000, pollWan:30000  },
     slower:   { pollSystem:30000, pollConns:30000, pollTalkers:30000, pollIfstatus:30000, pollBandwidth:30000, pollVpn:30000, pollFirewall:30000, pollPing:30000, pollWireless:600000, pollIfaces:600000, pollDhcp:600000,
-                pollTopology:300000, pollVlans:60000, pollPpp:60000, pollBridges:60000, pollDns:60000, pollCapsman:60000, pollPackages:300000, pollWan:60000  },
+                pollTopology:300000, pollVlans:30000, pollPpp:30000, pollBridges:30000, pollDns:30000, pollCapsman:30000, pollPackages:300000, pollWan:30000  },
   };
   var POLL_PROFILE_KEY = 'mkd_poll_profile';
 
@@ -4910,7 +4927,20 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function buildSliders(data) {
     var wrap = $('pollSlidersWrap'); if (!wrap) return;
     wrap.innerHTML = '';
+    // A heading before each range, spanning both columns, so a reader can see
+    // which sliders share a ceiling rather than inferring it from the numbers.
+    var _lastRange = null;
     POLL_SLIDERS.forEach(function(cfg) {
+      var range = cfg.max === 30000 ? 'live' : 'slow';
+      if (range !== _lastRange) {
+        _lastRange = range;
+        var hdr = document.createElement('div');
+        hdr.className = 'poll-group-hdr';
+        hdr.textContent = range === 'live'
+          ? 'Live data — 1s to 30s'
+          : 'Slow-changing data — 10s to 10m';
+        wrap.appendChild(hdr);
+      }
       var row = document.createElement('div');
       row.style.cssText = 'margin-bottom:.7rem';
       if (cfg.streamed) {

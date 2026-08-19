@@ -412,6 +412,13 @@
     .sbanner-err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:rgba(248,113,113,.9)}
     .srange-wrap{display:flex;align-items:center;gap:.6rem}
     .srange-wrap input[type=range]{flex:1;accent-color:var(--accent-rx)}
+    #pollSlidersWrap{display:grid;grid-template-columns:1fr 1fr;gap:0 1.4rem;align-items:start}
+    /* The group heading spans both columns so the split reads as two lists of
+       one kind each, not one list wrapped arbitrarily. */
+    #pollSlidersWrap .poll-group-hdr{grid-column:1/-1;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--text-muted);margin:.2rem 0 .5rem;padding-top:.35rem;border-top:1px solid var(--border)}
+    #pollSlidersWrap .poll-group-hdr:first-child{border-top:none;padding-top:0}
+    @media(max-width:900px){#pollSlidersWrap{grid-template-columns:1fr}}
     .srange-val{font-size:.75rem;font-family:var(--font-mono);color:var(--accent-rx);min-width:52px;text-align:right}
     .stab-bar{display:flex;gap:.15rem;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:0;overflow-x:auto;scrollbar-width:none}
     .stab-bar::-webkit-scrollbar{display:none}
@@ -4239,6 +4246,9 @@
             </div>
             <details id="pollAdvanced">
               <summary style="font-size:.74rem;color:var(--text-muted);cursor:pointer;margin-bottom:.7rem;user-select:none">Advanced</summary>
+              <!-- Two columns: nineteen sliders in one column made the Advanced
+                   section taller than the viewport. Collapses to one below
+                   900px, where two columns would be narrower than the labels. -->
               <div id="pollSlidersWrap"></div>
               <div style="margin-top:.7rem;display:flex;align-items:center;gap:.6rem">
                 <button id="pollCustomSaveBtn" style="font-size:.72rem;font-family:var(--font-ui);padding:.28rem .8rem;border-radius:4px;border:1px solid var(--accent-rx);background:transparent;color:var(--accent-rx);cursor:pointer">Save Custom Profile</button>
