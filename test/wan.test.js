@@ -328,7 +328,7 @@ test('the page and collector are registered and page-scoped', () => {
   assert.ok(page, 'wan is a registered page');
   assert.strictEqual(page.settingsKey, 'pageWan');
   assert.strictEqual(page.category, 'network');
-  assert.deepStrictEqual(page.streamRooms, []);
+  assert.deepStrictEqual(page.streamRooms, ['page-wan'], 'suspends when nobody is on the page');
   const col = BY_KEY.wan;
   assert.strictEqual(col.page, 'wan');
   assert.strictEqual(col.sessionProp, 'wan', 'must equal the page key or page:focus never replays it');

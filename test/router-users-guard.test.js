@@ -430,7 +430,7 @@ test('the page and collector are registered and page-scoped', () => {
   const page = Pages.BY_KEY.rosusers;
   assert.ok(page, 'rosusers is a registered page');
   assert.strictEqual(page.settingsKey, 'pageRosusers');
-  assert.deepStrictEqual(page.streamRooms, [], 'no suspendable counter stream');
+  assert.deepStrictEqual(page.streamRooms, ['page-rosusers'], 'suspends when nobody is on the page');
   const col = BY_KEY.rosusers;
   assert.strictEqual(col.page, 'rosusers');
   assert.strictEqual(col.streamKey, null, 'poll-only by design, like packages');

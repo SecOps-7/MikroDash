@@ -56,41 +56,49 @@ const PAGES = Object.freeze([
 
   // First in Network because it answers the question people open the sidebar to
   // ask — is the uplink up, and which one is carrying traffic.
-  { key: 'wan',         title: 'WAN',              settingsKey: 'pageWan',         streamRooms: [],                                  category: 'network' },
+  { key: 'wan',         title: 'WAN',              settingsKey: 'pageWan',         streamRooms: ['page-wan'],                                  category: 'network' },
   { key: 'interfaces',  title: 'Interfaces',       settingsKey: 'pageInterfaces',  streamRooms: [],                                  category: 'network' },
-  { key: 'vlans',       title: 'VLANs',            settingsKey: 'pageVlans',       streamRooms: [],                                  category: 'network' },
-  { key: 'bridges',     title: 'Bridges',          settingsKey: 'pageBridges',     streamRooms: [],                                  category: 'network' },
+  { key: 'vlans',       title: 'VLANs',            settingsKey: 'pageVlans',       streamRooms: ['page-vlans'],                                  category: 'network' },
+  { key: 'bridges',     title: 'Bridges',          settingsKey: 'pageBridges',     streamRooms: ['page-bridges'],                                  category: 'network' },
   // Topology maps what is connected, not what is flowing, which is why it sits
   // with the interfaces rather than with Traffic.
   { key: 'topology',    title: 'Network Topology', settingsKey: 'pageTopology',    streamRooms: ['page-topology'],                    category: 'network' },
 
   { key: 'wireless',    title: 'Wireless',         settingsKey: 'pageWireless',    streamRooms: ['page-wireless'],                    category: 'wireless' },
-  { key: 'capsman',     title: 'CAPsMAN',          settingsKey: 'pageCapsman',     streamRooms: [],                                  category: 'wireless' },
+  { key: 'capsman',     title: 'CAPsMAN',          settingsKey: 'pageCapsman',     streamRooms: ['page-capsman'],                                  category: 'wireless' },
 
   { key: 'dhcp',        title: 'DHCP',             settingsKey: 'pageDhcp',        streamRooms: [],                                  category: 'ipsvc' },
-  { key: 'dns',         title: 'DNS',              settingsKey: 'pageDns',         streamRooms: [],                                  category: 'ipsvc' },
+  { key: 'dns',         title: 'DNS',              settingsKey: 'pageDns',         streamRooms: ['page-dns'],                                  category: 'ipsvc' },
   { key: 'routing',     title: 'Routing',          settingsKey: 'pageRouting',     streamRooms: ['page-routing'],                     category: 'ipsvc' },
 
-  // streamRooms is empty for ppp, vlans, capsman, bridges, dns, packages,
-  // rosusers and queues: none of those collectors holds a /listen whose channel
-  // a page can suspend, and this list means "pages with a suspendable counter
-  // stream". They are suspended by the idle gate instead, and page:focus
-  // replays them explicitly.
-  { key: 'ppp',         title: 'PPP',              settingsKey: 'pagePpp',         streamRooms: [],                                  category: 'tunnels' },
+  // streamRooms means "suspend this collector when nobody occupies these rooms".
+  //
+  // It once held only the five pages with an =interval=N counter stream, and
+  // every page added afterwards declared []. That was fair while those
+  // collectors were a slow poll and nothing else — but they grew /listen
+  // channels and 5-second ticks, and the result was four collectors polling
+  // every 5s and six idle /listen channels held open against the router while
+  // somebody sat on the Dashboard. AI_CONTEXT is explicit that concurrent open
+  // channels, not data volume, are what overwhelm small hardware.
+  //
+  // So a page-scoped collector names its own room. The idle gate still stops
+  // everything when the last viewer of the router disconnects; this is the finer
+  // gate for when somebody is here but looking at another page.
+  { key: 'ppp',         title: 'PPP',              settingsKey: 'pagePpp',         streamRooms: ['page-ppp'],                                  category: 'tunnels' },
   { key: 'vpn',         title: 'VPN',              settingsKey: 'pageVpn',         streamRooms: ['page-vpn', 'dash-card-vpn'],        category: 'tunnels' },
 
   { key: 'bandwidth',   title: 'Bandwidth',        settingsKey: 'pageBandwidth',   streamRooms: [],                                  category: 'traffic' },
-  { key: 'queues',      title: 'Queues',           settingsKey: 'pageQueues',      streamRooms: [],                                  category: 'traffic' },
+  { key: 'queues',      title: 'Queues',           settingsKey: 'pageQueues',      streamRooms: ['page-queues'],                                  category: 'traffic' },
   { key: 'connections', title: 'Connections',      settingsKey: 'pageConnections', streamRooms: [],                                  category: 'traffic' },
 
   // Firewall and Router Users are both access control — one for traffic, one for
   // people — which is a more useful neighbourhood than filing them under IP and
   // System respectively.
   { key: 'firewall',    title: 'Firewall',         settingsKey: 'pageFirewall',    streamRooms: ['page-firewall', 'dash-card-firewall'], category: 'security' },
-  { key: 'rosusers',    title: 'Router Users',     settingsKey: 'pageRosusers',    streamRooms: [],                                  category: 'security' },
+  { key: 'rosusers',    title: 'Router Users',     settingsKey: 'pageRosusers',    streamRooms: ['page-rosusers'],                                  category: 'security' },
 
   { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [],                                  category: 'system' },
-  { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: [],                                  category: 'system' },
+  { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: ['page-packages'],                                  category: 'system' },
 
   // The last four stay at the top level whatever else moves. Audit and Reports
   // are both history but answer different questions — Reports is per-router

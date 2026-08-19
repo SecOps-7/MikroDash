@@ -89,12 +89,36 @@ test('index.js derives both page allow-lists rather than restating them', () => 
 
 test('the stream-room map is derived and covers only suspendable pages', () => {
   assert.match(INDEX_JS, /const _PAGE_STREAM_ROOMS = Pages\.STREAM_ROOMS;/);
-  // Suspend/resume is an efficiency mechanism, not a security boundary, and it
-  // only exists for the five collectors that hold an open counter stream.
+  // Suspend/resume is an efficiency mechanism, not a security boundary.
+  //
+  // Pinned as a LIST rather than a count, because the failure it guards against
+  // is a page-scoped collector quietly declaring [] and polling the router from
+  // the Dashboard forever — which is what nine of them did. A page whose
+  // collector reads the router on a timer belongs here; the exceptions are the
+  // ones with no page of their own.
   assert.deepStrictEqual(Object.keys(Pages.STREAM_ROOMS).sort(),
-    ['firewall', 'routing', 'topology', 'vpn', 'wireless']);
+    ['bridges', 'capsman', 'dns', 'firewall', 'packages', 'ppp', 'queues',
+     'rosusers', 'routing', 'topology', 'vlans', 'vpn', 'wan', 'wireless']);
   for (const [page, rooms] of Object.entries(Pages.STREAM_ROOMS)) {
     assert.ok(rooms.includes('page-' + page), page + ' must watch its own page room');
+  }
+
+  // Every page-scoped collector must be reachable by the room-driven sweep,
+  // which indexes the session by the page key.
+  const { COLLECTORS } = require('../src/collection');
+  for (const page of Object.keys(Pages.STREAM_ROOMS)) {
+    const col = COLLECTORS.find(c => c.page === page && c.sessionProp === page);
+    assert.ok(col, page + ' declares stream rooms but has no collector at session.' + page);
+  }
+
+  // And _idleResume must not resume any of them by name, which would defeat the
+  // gate: a collector resumed unconditionally polls whether or not its page is
+  // being viewed. Only the three page-less collectors may appear there.
+  const at = INDEX_JS.indexOf('function _idleResume');
+  const body = INDEX_JS.slice(at, INDEX_JS.indexOf('\n}', at));
+  for (const page of Object.keys(Pages.STREAM_ROOMS)) {
+    assert.ok(!body.includes('session.' + page + '.resume()'),
+      '_idleResume resumes ' + page + ' by name, defeating its page gate');
   }
 });
 
