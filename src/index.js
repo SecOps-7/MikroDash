@@ -4170,18 +4170,15 @@ function _idleResume(session, entry) {
   session.conns.resume();
   session.ifStatus.resume();
   session.system.resume();
+  // Every page-scoped collector is resumed HERE and only here, from room
+  // occupancy — so a collector whose page nobody is looking at stays suspended
+  // even though a browser is connected. Resuming vlans/ppp/bridges/dns/capsman/
+  // packages/rosusers/queues/wan by name used to happen below this line, which
+  // is exactly what kept them polling the router from the Dashboard.
   _updateAllPageStreams(session, entry);
-  // Explicit: these two have no streamRooms, so _updateAllPageStreams does not
-  // reach them. They are suspended above by name and must be resumed by name.
-  session.vlans.resume();
-  session.ppp.resume();
-  session.bridges.resume();
-  session.dns.resume();
-  session.capsman.resume();
-  session.packages.resume();
-  session.rosusers.resume();
-  session.queues.resume();
-  session.wan.resume();
+  // These three genuinely have no page of their own: ping feeds the dashboard
+  // gauge and the alerter, talkers and dhcpNetworks feed dashboard cards. They
+  // are suspended by name above and must be resumed by name.
   session.ping.resume();
   session.talkers.resume();
   session.dhcpNetworks.resume();

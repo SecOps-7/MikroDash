@@ -357,7 +357,10 @@ test('all four pages are registered and page-scoped', () => {
     // streamRooms is about a SUSPENDABLE counter stream that page focus toggles,
     // which is a different thing from the collector's delivery mode. None of
     // these has one; the listen channel follows the collector, not the page.
-    assert.deepStrictEqual(page.streamRooms, [], key + ' has no page-scoped stream room');
+    // Each watches its own page room, so the collector suspends when nobody is
+    // looking at it — these used to declare [] and poll the router from the
+    // Dashboard forever.
+    assert.deepStrictEqual(page.streamRooms, ['page-' + key], key + ' must watch its own page room');
     const col = COLLECTORS.find(c => c.key === key);
     assert.ok(col, key + ' has a collector');
     assert.strictEqual(col.page, key);

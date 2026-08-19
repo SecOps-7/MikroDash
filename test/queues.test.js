@@ -472,7 +472,7 @@ test('the page and collector are registered and page-scoped', () => {
   const page = Pages.BY_KEY.queues;
   assert.ok(page, 'queues is a registered page');
   assert.strictEqual(page.settingsKey, 'pageQueues');
-  assert.deepStrictEqual(page.streamRooms, []);
+  assert.deepStrictEqual(page.streamRooms, ['page-queues'], 'suspends when nobody is on the page');
   const col = BY_KEY.queues;
   assert.strictEqual(col.page, 'queues');
   assert.strictEqual(col.streamKey, 'streamQueues', 'ships both delivery paths');
