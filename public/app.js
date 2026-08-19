@@ -548,6 +548,14 @@ function showPage(name){
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   var page = $('page-'+name); if(page) page.classList.add('active');
   var nav  = document.querySelector('.nav-item[data-page="'+name+'"]'); if(nav) nav.classList.add('active');
+  // Auto-expand the category holding this page, and DELIBERATELY DO NOT SAVE it.
+  // Persisting it would mean visiting one page in each category leaves every
+  // category open forever, which is grouping that undoes itself. The rendered
+  // open set is the saved set plus this one; collapsing the group you are
+  // standing in is allowed and holds until you navigate again.
+  document.querySelectorAll('.nav-group').forEach(function(g){ g.classList.remove('has-active'); });
+  var navGrp = nav && nav.closest ? nav.closest('.nav-group') : null;
+  if (navGrp) { navGrp.classList.add('has-active'); _navRender(navGrp.dataset.cat); }
   if(pageTitle) pageTitle.textContent = PAGE_TITLES[name]||name;
   if(pageTitleIcon){
     pageTitleIcon.innerHTML = '';
@@ -567,6 +575,106 @@ document.querySelectorAll('.nav-item').forEach(function(item){
   if (item.closest('#authUserChip')) return;
   item.addEventListener('click', function(e){e.preventDefault();showPage(item.dataset.page);});
 });
+
+// ── Nav grouping ─────────────────────────────────────────────────────────────
+// The sidebar collapses 23 pages into 7 categories. Two things are remembered
+// per user, server-side: whether grouping is on at all, and which categories are
+// open. localStorage is only a cache, read by preflight.js before the nav paints
+// so the sidebar never renders in one shape and then rearranges.
+var NAV_KEY = 'mkd_nav_prefs';
+var _navGrouped  = true;
+var _navExpanded = [];        // the SAVED set; the rendered set adds the active category
+var _navSaveTimer = null;
+
+try {
+  var _navCached = JSON.parse(localStorage.getItem(NAV_KEY) || 'null');
+  if (_navCached) {
+    _navGrouped  = _navCached.grouped !== false;
+    _navExpanded = Array.isArray(_navCached.expanded) ? _navCached.expanded.slice() : [];
+  }
+} catch (e) {}
+
+/**
+ * Paint the nav from _navGrouped + _navExpanded (+ the active category).
+ *
+ * Takes over from preflight.js's #navBoot stylesheet, which exists only because
+ * the elements it needed to class did not exist yet when it ran.
+ */
+function _navRender(activeCat) {
+  var boot = document.getElementById('navBoot');
+  if (boot && boot.parentNode) boot.parentNode.removeChild(boot);
+
+  document.documentElement.setAttribute('data-nav', _navGrouped ? 'grouped' : 'flat');
+  document.querySelectorAll('.nav-group').forEach(function (g) {
+    var cat  = g.dataset.cat;
+    var open = _navExpanded.indexOf(cat) !== -1 || (activeCat && cat === activeCat);
+    g.classList.toggle('is-open', !!open);
+    var hdr = g.querySelector('.nav-group-hdr');
+    // Set next to the class toggle, the way the router dropdown does it — it is
+    // the whole disclosure contract for a screen reader, where the 52px/190px
+    // distinction does not exist.
+    if (hdr) hdr.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.querySelectorAll('.nav-grouped-input').forEach(function (cb) { cb.checked = _navGrouped; });
+}
+
+/** Cache locally now, tell the server shortly. */
+function _navSave() {
+  var payload = { grouped: _navGrouped, expanded: _navExpanded.slice().sort() };
+  try { localStorage.setItem(NAV_KEY, JSON.stringify(payload)); } catch (e) {}
+  if (_navSaveTimer) clearTimeout(_navSaveTimer);
+  _navSaveTimer = setTimeout(function () {
+    fetch('/api/nav-prefs', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(function () {
+      // Fire and forget, and the UI does NOT revert. A sidebar that snaps shut
+      // because a request failed is worse than a preference that did not sync;
+      // localStorage already has it, and the next save will carry it.
+    });
+  }, 400);
+}
+
+// A separate loop from the .nav-item one above, because a header is not a nav
+// item: it carries no data-page, and it must not join the mobile drawer-closing
+// loop either, or expanding a category would slam the drawer shut.
+document.querySelectorAll('.nav-group-hdr').forEach(function (hdr) {
+  hdr.addEventListener('click', function () {
+    var cat = hdr.parentNode && hdr.parentNode.dataset.cat;
+    if (!cat) return;
+    var at = _navExpanded.indexOf(cat);
+    if (at === -1) _navExpanded.push(cat); else _navExpanded.splice(at, 1);
+    var activeGrp = document.querySelector('.nav-group.has-active');
+    _navRender(activeGrp ? activeGrp.dataset.cat : null);
+    _navSave();
+  });
+});
+
+document.querySelectorAll('.nav-grouped-input').forEach(function (cb) {
+  cb.addEventListener('change', function () {
+    _navGrouped = cb.checked;
+    var activeGrp = document.querySelector('.nav-group.has-active');
+    _navRender(activeGrp ? activeGrp.dataset.cat : null);
+    _navSave();
+  });
+});
+
+// The server is the source of truth; the cache above only bought us a flash-free
+// first paint. A failure here keeps whatever the cache said.
+fetch('/api/nav-prefs', { credentials: 'same-origin' })
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (d) {
+    if (!d) return;
+    _navGrouped  = d.grouped !== false;
+    _navExpanded = Array.isArray(d.expanded) ? d.expanded.slice() : [];
+    try { localStorage.setItem(NAV_KEY, JSON.stringify({ grouped: _navGrouped, expanded: _navExpanded })); } catch (e) {}
+    var activeGrp = document.querySelector('.nav-group.has-active');
+    _navRender(activeGrp ? activeGrp.dataset.cat : null);
+  })
+  .catch(function () {});
+
+_navRender(null);
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 var kbdHint = $('kbdHint');
@@ -2462,9 +2570,18 @@ var PAGE_NAV_MAP = {
 };
 // Every page the nav can show. Kept in step with src/pages.js — the drift check
 // lives in test/page-registry.test.js.
-var ALL_NAV_PAGES = ['dashboard','topology','wireless','capsman','interfaces','dhcp','dns',
-                     'vlans','bridges','vpn','ppp','connections','routing','bandwidth',
-                     'firewall','logs','packages','queues','rosusers','audit','reports','routers','settings'];
+// Grouped order, matching src/pages.js and the sidebar markup. dashboard stays
+// first because this array's order decides `firstVisible` — the page a user is
+// moved to when the one they are on becomes hidden.
+var ALL_NAV_PAGES = ['dashboard',
+                     'interfaces','vlans','bridges','topology',
+                     'wireless','capsman',
+                     'dhcp','dns','routing',
+                     'ppp','vpn',
+                     'bandwidth','queues','connections',
+                     'firewall','rosusers',
+                     'logs','packages',
+                     'routers','reports','audit','settings'];
 // The two inputs to page visibility, merged by applyPageVisibility(): what the
 // install allows, and what this session's role allows. Both must say yes.
 var _pageInstall = {};
@@ -2543,6 +2660,23 @@ function applyPageVisibility(pages) {
       showPage(firstVisible || 'dashboard');
     }
   }
+
+  // A category with every child hidden is chrome, not navigation. Asked of the
+  // DOM rather than recomputed from PAGE_NAV_MAP: the loop above has just
+  // written every child's display, so the group already holds the answer, and a
+  // second computation is one that can disagree with the first.
+  //
+  // This cannot make a page unreachable — it only ever hides a wrapper whose
+  // children were already hidden — so firstVisible and the fallback above are
+  // untouched.
+  document.querySelectorAll('.nav-group').forEach(function (g) {
+    var any = false;
+    g.querySelectorAll('.nav-item[data-page]').forEach(function (el) {
+      if (el.style.display !== 'none') any = true;
+    });
+    g.style.display = any ? '' : 'none';
+  });
+
   if (pages.alertCpuThreshold != null) _alertCpuThreshold = pages.alertCpuThreshold;
   if (pages.alertPingLoss     != null) _alertPingLoss     = pages.alertPingLoss;
   if (pages.vpnDashTopN       != null) _vpnDashTopN       = pages.vpnDashTopN;

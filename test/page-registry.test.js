@@ -25,6 +25,7 @@ const root     = path.join(__dirname, '..');
 const INDEX_JS = fs.readFileSync(path.join(root, 'src', 'index.js'), 'utf8');
 const APP_JS   = fs.readFileSync(path.join(root, 'public', 'app.js'), 'utf8');
 const HTML     = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
+const PREFLIGHT = fs.readFileSync(path.join(root, 'public', 'preflight.js'), 'utf8');
 
 // ── Registry integrity ───────────────────────────────────────────────────────
 
@@ -281,4 +282,122 @@ test('a preset cannot widen what a role allows', () => {
   // And the preset UI must never write role state.
   const presetJs = APP_JS.slice(APP_JS.indexOf('function _applyViewPreset'), APP_JS.indexOf('function _applyViewPreset') + 800);
   assert.ok(!/fetch\(/.test(presetJs), 'applying a preset must not call the server by itself');
+});
+
+// ── Nav categories ───────────────────────────────────────────────────────────
+// The sidebar groups 23 pages into 7 collapsible categories. src/pages.js owns
+// the taxonomy; the markup, the CSS and the route all mirror it, and these are
+// what stop those mirrors drifting.
+
+test('every page declares a nav category from the registry vocabulary', () => {
+  for (const p of Pages.PAGES) {
+    assert.ok('category' in p, p.key + ' is missing the category field');
+    if (p.category !== null) {
+      assert.ok(Pages.CATEGORY_KEYS.includes(p.category),
+        p.key + ' names unknown category ' + p.category);
+    }
+  }
+  // The five at top level are a decision, not an accident — a new page landing
+  // here silently means somebody forgot to file it.
+  const top = Pages.PAGES.filter(p => p.category === null).map(p => p.key).sort();
+  assert.deepStrictEqual(top, ['audit', 'dashboard', 'reports', 'routers', 'settings']);
+  // An empty category is a header the visibility sweep has to hide and nobody
+  // meant to write.
+  for (const c of Pages.CATEGORY_KEYS) {
+    assert.ok(Pages.PAGES.some(p => p.category === c), 'category ' + c + ' has no pages');
+  }
+});
+
+test('the registry is ordered as the nav renders it', () => {
+  // The docblock has always claimed this. Grouping makes it checkable: pages of
+  // one category must be contiguous, and the categories must appear in
+  // CATEGORIES order, or reading the registry no longer tells you what the
+  // sidebar looks like.
+  const seen = [];
+  for (const p of Pages.PAGES) {
+    if (p.category === null) continue;
+    if (seen[seen.length - 1] !== p.category) {
+      assert.ok(!seen.includes(p.category), p.category + ' is split into two runs');
+      seen.push(p.category);
+    }
+  }
+  assert.deepStrictEqual(seen, [...Pages.CATEGORY_KEYS]);
+});
+
+test('the nav markup groups pages exactly as the registry says', () => {
+  // Order- and nesting-independent: the category is on the LEAF, so this cannot
+  // be fooled by where a </div> happens to close a group.
+  const nav = [...HTML.matchAll(/class="nav-item[^"]*"\s+data-page="([a-z]+)"(?:\s+data-cat="([a-z]+)")?/g)];
+  const fromMarkup   = Object.fromEntries(nav.map(m => [m[1], m[2] || null]));
+  const fromRegistry = Object.fromEntries(Pages.PAGES.map(p => [p.key, p.category]));
+  assert.deepStrictEqual(fromMarkup, fromRegistry,
+    'nav markup and src/pages.js disagree about which category a page is in');
+
+  const wrappers = [...HTML.matchAll(/class="nav-group" data-cat="([a-z]+)"/g)].map(m => m[1]);
+  assert.deepStrictEqual(wrappers, [...Pages.CATEGORY_KEYS],
+    'group wrappers must match the registry categories, in order');
+  for (const c of Pages.CATEGORIES) {
+    assert.ok(HTML.includes('<span class="nav-label">' + c.title + '</span>'),
+      c.key + ' header does not carry its registry title "' + c.title + '"');
+  }
+});
+
+test('a category header is chrome, not a page', () => {
+  // Three separate mechanisms key on .nav-item[data-page]: the drift regex
+  // above, applyPageVisibility's sweep, and the mobile drawer-closing loop. A
+  // header wearing that class would be hidden by the sweep and would slam the
+  // drawer shut every time somebody expanded a category — the same failure the
+  // signed-in user chip had, for the same reason.
+  assert.ok(/class="nav-group-hdr"/.test(HTML), 'no group headers found');
+  assert.ok(!/class="[^"]*\bnav-item\b[^"]*\bnav-group-hdr\b|class="[^"]*\bnav-group-hdr\b[^"]*\bnav-item\b/.test(HTML),
+    'a header must not also be a .nav-item');
+  assert.ok(!/class="nav-group-hdr"[^>]*data-page=/.test(HTML), 'a header must carry no data-page');
+  // aria-expanded is the disclosure contract, and with a screen reader the
+  // 52px/190px rail distinction does not exist — it is the only affordance there.
+  const n = (HTML.match(/class="nav-group-hdr"[^>]*aria-expanded=/g) || []).length;
+  assert.strictEqual(n, Pages.CATEGORY_KEYS.length, 'every header needs aria-expanded');
+});
+
+test('the header click loop is separate from the nav-item loop', () => {
+  // Kept apart deliberately: headers navigate nowhere, and folding them into the
+  // .nav-item loop would call showPage(undefined).
+  assert.ok(APP_JS.includes("document.querySelectorAll('.nav-group-hdr').forEach"),
+    'the header click loop is gone');
+  const at = APP_JS.indexOf("document.querySelectorAll('.nav-group-hdr').forEach");
+  const body = APP_JS.slice(at, at + 700);
+  assert.ok(!/showPage\(/.test(body), 'expanding a category must not navigate');
+});
+
+test('preflight paints the cached nav state without holding a category list', () => {
+  // preflight.js runs before the nav parses and is the only thing that can stop
+  // the sidebar painting in one shape and rearranging. It must stay
+  // vocabulary-free: a copy of the taxonomy in a file with no module system is
+  // one nothing could keep honest.
+  assert.match(PREFLIGHT, /data-nav/, 'preflight must set the grouped/flat attribute');
+  assert.match(PREFLIGHT, /navBoot/, 'preflight must paint the open categories');
+  for (const c of Pages.CATEGORY_KEYS) {
+    assert.ok(!PREFLIGHT.includes("'" + c + "'") && !PREFLIGHT.includes('"' + c + '"'),
+      'preflight.js names the category ' + c + ' — it must pass tokens through, not know them');
+  }
+});
+
+test('the nav-prefs route validates categories and inherits no page guard', () => {
+  const at = INDEX_JS.indexOf("app.post('/api/nav-prefs'");
+  assert.ok(at > -1, 'the /api/nav-prefs POST is gone');
+  const body = INDEX_JS.slice(at, at + 1400);
+  assert.match(body, /Pages\.CATEGORY_KEYS/,
+    'the expanded list must be filtered through the registry, not persisted as sent');
+  // Unlike /api/dashboard-layout this must NOT require a page: every signed-in
+  // user has a sidebar, including one whose role grants a single page.
+  assert.ok(!/canPageAnywhere|requirePage|requireGlobalAdmin/.test(body),
+    'a personal nav preference must not inherit a page guard');
+});
+
+test('both copies of the grouping toggle share one handler', () => {
+  // Settings is unreachable without manageSettings/managePrincipals, so the
+  // account-modal copy is what lets a Read Only user turn grouping off at all.
+  const inputs = (HTML.match(/class="nav-grouped-input"/g) || []).length;
+  assert.strictEqual(inputs, 2, 'expected the Settings and account-modal toggles');
+  assert.ok(APP_JS.includes("document.querySelectorAll('.nav-grouped-input')"),
+    'the toggle handler must bind by class, so both copies stay in step');
 });

@@ -1613,6 +1613,45 @@ app.post('/api/dashboard-layout', layoutLimiter, _requireDashboard, (req, res) =
   }
 });
 
+// ── Nav preferences API ───────────────────────────────────────────────────────
+// Whether the sidebar is grouped into categories, and which categories are open.
+// Same storage as the layouts above — one opaque blob per user, keyed by kind —
+// so the '_shared' identity for authMode 'none' and the delete-user cascade come
+// for free.
+//
+// RATE LIMIT ONLY, NO PERMISSION CHECK, and that is deliberate rather than an
+// omission. _modernAuthMiddleware has already 401'd anyone unauthenticated, and
+// this preference discloses nothing: not a router, not page data, not even which
+// pages exist. Copying _requireDashboard's canPageAnywhere here would lock a
+// Read Only user out of their own sidebar — the one thing every signed-in user
+// has, whatever their role.
+app.get('/api/nav-prefs', layoutLimiter, (req, res) => {
+  try { res.json(db.getLayout(_layoutUser(req), 'nav')); } catch (_) { res.json(null); }
+});
+
+app.post('/api/nav-prefs', layoutLimiter, (req, res) => {
+  try {
+    const body = req.body || {};
+    if (typeof body.grouped !== 'boolean') return res.status(400).json({ ok: false });
+    if (!Array.isArray(body.expanded))     return res.status(400).json({ ok: false });
+    // Filtered through the registry rather than stored as sent. An unbounded
+    // list of arbitrary strings inside a blob that later gets rendered is how a
+    // preference becomes a stored-XSS vector; there are only ever a handful of
+    // category keys, and they are all known here.
+    const expanded = [...new Set(body.expanded.map(String))]
+      .filter(k => Pages.CATEGORY_KEYS.includes(k))
+      .sort();
+    db.setLayout(_layoutUser(req), 'nav', { grouped: body.grouped, expanded });
+    // No audit row, unlike the dashboard layout above. Expanding a nav category
+    // is up to 60 events a minute per user, and a trail that records sidebar
+    // clicks is one nobody will read the important rows in.
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[nav-prefs] save failed:', sanitizeErr(e));
+    res.status(500).json({ ok: false });
+  }
+});
+
 // ── Topology layout API ───────────────────────────────────────────────────────
 // Saved node positions for the Topology map, one row per user holding every
 // router, so the row count stays bounded as the fleet grows.

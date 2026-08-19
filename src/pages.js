@@ -14,49 +14,89 @@
  *   key:         string,        // 'wireless' — matches data-page, #page-<key>, and the room suffix
  *   title:       string,        // display name, mirrored by PAGE_TITLES in app.js
  *   settingsKey: string|null,   // 'pageWireless' — the install-wide visibility toggle.
- *                               // null for the four pages that have no toggle and are
- *                               // governed by role alone: dashboard, reports, routers, settings.
+ *                               // null for the three pages that have no toggle and are
+ *                               // governed by role alone: dashboard, reports, settings.
  *   streamRooms: string[],      // rooms whose occupancy suspends/resumes this page's
  *                               // counter stream. Empty for pages with no suspendable stream.
+ *   category:    string|null,   // nav category key, or null to sit at the top level
  * }
  *
- * Ordered as the nav renders them, so a reader can check this against the UI.
+ * Ordered as the nav renders them — grouped, category by category — so a reader
+ * can check this against the sidebar. test/page-registry.test.js enforces that.
  */
 
 const { COLLECTORS } = require('./collection');
 
+/**
+ * Nav categories, in render order.
+ *
+ * The sidebar is a 52px icon rail that widens on hover, and at 23 pages it ran
+ * out of vertical room and clipped. Grouping is what buys that room back: 12
+ * rows collapsed instead of 23.
+ *
+ * Loosely WinBox's own menu, deliberately not exactly it — MikroDash has pages
+ * WinBox has no equivalent for (Audit, Reports, Routers), and WinBox has whole
+ * menus MikroDash does not.
+ */
+const CATEGORIES = Object.freeze([
+  { key: 'network',  title: 'Network'     },
+  { key: 'wireless', title: 'Wireless'    },
+  { key: 'ipsvc',    title: 'IP Services' },
+  { key: 'tunnels',  title: 'Tunnels'     },
+  { key: 'traffic',  title: 'Traffic'     },
+  { key: 'security', title: 'Security'    },
+  { key: 'system',   title: 'System'      },
+]);
+
+const CATEGORY_KEYS = Object.freeze(CATEGORIES.map(c => c.key));
+
 const PAGES = Object.freeze([
-  { key: 'dashboard',   title: 'Dashboard',        settingsKey: null,              streamRooms: [] },
-  { key: 'topology',    title: 'Network Topology', settingsKey: 'pageTopology',    streamRooms: ['page-topology'] },
-  { key: 'wireless',    title: 'Wireless',         settingsKey: 'pageWireless',    streamRooms: ['page-wireless'] },
-  { key: 'capsman',     title: 'CAPsMAN',          settingsKey: 'pageCapsman',     streamRooms: [] },
-  { key: 'interfaces',  title: 'Interfaces',       settingsKey: 'pageInterfaces',  streamRooms: [] },
-  { key: 'dhcp',        title: 'DHCP',             settingsKey: 'pageDhcp',        streamRooms: [] },
-  { key: 'dns',         title: 'DNS',              settingsKey: 'pageDns',         streamRooms: [] },
-  { key: 'vlans',       title: 'VLANs',            settingsKey: 'pageVlans',       streamRooms: [] },
-  { key: 'bridges',     title: 'Bridges',          settingsKey: 'pageBridges',     streamRooms: [] },
-  { key: 'vpn',         title: 'VPN',              settingsKey: 'pageVpn',         streamRooms: ['page-vpn', 'dash-card-vpn'] },
-  // streamRooms is empty for ppp, vlans, capsman, bridges, dns, packages and
-  // rosusers:
-  // none of those collectors holds a /listen, and this list means "pages with a
-  // suspendable counter stream". They are suspended by the idle gate instead,
-  // and page:focus replays them explicitly.
-  { key: 'ppp',         title: 'PPP',              settingsKey: 'pagePpp',         streamRooms: [] },
-  { key: 'connections', title: 'Connections',      settingsKey: 'pageConnections', streamRooms: [] },
-  { key: 'routing',     title: 'Routing',          settingsKey: 'pageRouting',     streamRooms: ['page-routing'] },
-  { key: 'bandwidth',   title: 'Bandwidth',        settingsKey: 'pageBandwidth',   streamRooms: [] },
-  { key: 'firewall',    title: 'Firewall',         settingsKey: 'pageFirewall',    streamRooms: ['page-firewall', 'dash-card-firewall'] },
-  { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [] },
-  { key: 'queues',      title: 'Queues',           settingsKey: 'pageQueues',      streamRooms: [] },
-  { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: [] },
-  { key: 'rosusers',    title: 'Router Users',     settingsKey: 'pageRosusers',    streamRooms: [] },
-  // Audit sits next to Reports because both are history, but it is not one of
-  // its tabs: Reports is per-router telemetry gated on router:history, and half
-  // the audit rows have no router at all. Its rows are filtered per row instead.
-  { key: 'audit',       title: 'Audit',            settingsKey: 'pageAudit',       streamRooms: [] },
-  { key: 'reports',     title: 'Reports',          settingsKey: null,              streamRooms: [] },
-  { key: 'routers',     title: 'Routers',          settingsKey: 'pageRouters',     streamRooms: [] },
-  { key: 'settings',    title: 'Settings',         settingsKey: null,              streamRooms: [] },
+  // Top level, and deliberately so: the one page everything starts from.
+  { key: 'dashboard',   title: 'Dashboard',        settingsKey: null,              streamRooms: [],                                  category: null },
+
+  { key: 'interfaces',  title: 'Interfaces',       settingsKey: 'pageInterfaces',  streamRooms: [],                                  category: 'network' },
+  { key: 'vlans',       title: 'VLANs',            settingsKey: 'pageVlans',       streamRooms: [],                                  category: 'network' },
+  { key: 'bridges',     title: 'Bridges',          settingsKey: 'pageBridges',     streamRooms: [],                                  category: 'network' },
+  // Topology maps what is connected, not what is flowing, which is why it sits
+  // with the interfaces rather than with Traffic.
+  { key: 'topology',    title: 'Network Topology', settingsKey: 'pageTopology',    streamRooms: ['page-topology'],                    category: 'network' },
+
+  { key: 'wireless',    title: 'Wireless',         settingsKey: 'pageWireless',    streamRooms: ['page-wireless'],                    category: 'wireless' },
+  { key: 'capsman',     title: 'CAPsMAN',          settingsKey: 'pageCapsman',     streamRooms: [],                                  category: 'wireless' },
+
+  { key: 'dhcp',        title: 'DHCP',             settingsKey: 'pageDhcp',        streamRooms: [],                                  category: 'ipsvc' },
+  { key: 'dns',         title: 'DNS',              settingsKey: 'pageDns',         streamRooms: [],                                  category: 'ipsvc' },
+  { key: 'routing',     title: 'Routing',          settingsKey: 'pageRouting',     streamRooms: ['page-routing'],                     category: 'ipsvc' },
+
+  // streamRooms is empty for ppp, vlans, capsman, bridges, dns, packages,
+  // rosusers and queues: none of those collectors holds a /listen whose channel
+  // a page can suspend, and this list means "pages with a suspendable counter
+  // stream". They are suspended by the idle gate instead, and page:focus
+  // replays them explicitly.
+  { key: 'ppp',         title: 'PPP',              settingsKey: 'pagePpp',         streamRooms: [],                                  category: 'tunnels' },
+  { key: 'vpn',         title: 'VPN',              settingsKey: 'pageVpn',         streamRooms: ['page-vpn', 'dash-card-vpn'],        category: 'tunnels' },
+
+  { key: 'bandwidth',   title: 'Bandwidth',        settingsKey: 'pageBandwidth',   streamRooms: [],                                  category: 'traffic' },
+  { key: 'queues',      title: 'Queues',           settingsKey: 'pageQueues',      streamRooms: [],                                  category: 'traffic' },
+  { key: 'connections', title: 'Connections',      settingsKey: 'pageConnections', streamRooms: [],                                  category: 'traffic' },
+
+  // Firewall and Router Users are both access control — one for traffic, one for
+  // people — which is a more useful neighbourhood than filing them under IP and
+  // System respectively.
+  { key: 'firewall',    title: 'Firewall',         settingsKey: 'pageFirewall',    streamRooms: ['page-firewall', 'dash-card-firewall'], category: 'security' },
+  { key: 'rosusers',    title: 'Router Users',     settingsKey: 'pageRosusers',    streamRooms: [],                                  category: 'security' },
+
+  { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [],                                  category: 'system' },
+  { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: [],                                  category: 'system' },
+
+  // The last four stay at the top level whatever else moves. Audit and Reports
+  // are both history but answer different questions — Reports is per-router
+  // telemetry gated on router:history, and half the audit rows have no router at
+  // all — so neither belongs inside the other, nor under System.
+  { key: 'routers',     title: 'Routers',          settingsKey: 'pageRouters',     streamRooms: [],                                  category: null },
+  { key: 'reports',     title: 'Reports',          settingsKey: null,              streamRooms: [],                                  category: null },
+  { key: 'audit',       title: 'Audit',            settingsKey: 'pageAudit',       streamRooms: [],                                  category: null },
+  { key: 'settings',    title: 'Settings',         settingsKey: null,              streamRooms: [],                                  category: null },
 ]);
 
 const BY_KEY = Object.freeze(Object.fromEntries(PAGES.map(p => [p.key, p])));
@@ -112,4 +152,5 @@ function pageForCollector(collectorKey) {
 }
 
 module.exports = {
-  VIEW_PRESETS, PAGES, BY_KEY, KEYS, SETTING_KEYS, STREAM_ROOMS, collectorsFor, pageForCollector };
+  VIEW_PRESETS, PAGES, BY_KEY, KEYS, SETTING_KEYS, STREAM_ROOMS, collectorsFor, pageForCollector,
+  CATEGORIES, CATEGORY_KEYS };
