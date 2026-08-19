@@ -168,9 +168,19 @@ test('every mutating route records to the trail', () => {
     '/api/user-notify/test-notification',
   ]);
 
+  // A separate list on purpose: these DO store something, so filing them above
+  // would make the comment there untrue. They are personal UI preferences whose
+  // volume would drown the trail — the nav one can fire 60 times a minute from
+  // one user clicking categories open and shut — and whose loss costs nobody
+  // anything. Anything that changes what a user can DO belongs in EXEMPT's
+  // sibling: the trail, not here.
+  const EXEMPT_UI_PREFERENCE = new Set([
+    '/api/nav-prefs',                     // sidebar grouping and open categories
+  ]);
+
   const missing = [];
   for (let i = 0; i < routes.length; i++) {
-    if (EXEMPT.has(routes[i].path)) continue;
+    if (EXEMPT.has(routes[i].path) || EXEMPT_UI_PREFERENCE.has(routes[i].path)) continue;
     const end  = i + 1 < routes.length ? routes[i + 1].at : INDEX_JS.length;
     const body = INDEX_JS.slice(routes[i].at, end);
     if (!/audit\.(fromReq|fromSocket|forLogin|system)\(/.test(body)) {

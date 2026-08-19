@@ -465,6 +465,36 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    // Widen user_layouts.kind to admit the nav preference (grouped sidebar).
+    //
+    // SQLite cannot drop a CHECK, so the table is rebuilt — the same shape as
+    // the grants rebuild in v7. The nav preference belongs in this table rather
+    // than one of its own precisely because this one already solves the parts
+    // that are easy to forget: the '_shared' identity for authMode 'none', and
+    // the deleteLayouts() cascade when a user is removed.
+    //
+    // A DOWNGRADE IS SURVIVABLE, which is the part worth stating: the widened
+    // CHECK lives in the database rather than the binary, and an older binary
+    // never selects kind='nav', so a nav row it does not understand sits there
+    // inert instead of failing a query.
+    version: 12,
+    up(db) {
+      db.exec(`
+        CREATE TABLE user_layouts_v12 (
+          user_id    TEXT NOT NULL,
+          kind       TEXT NOT NULL CHECK (kind IN ('dashboard','topology','nav')),
+          data       TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (user_id, kind)
+        );
+        INSERT INTO user_layouts_v12 (user_id, kind, data, updated_at)
+          SELECT user_id, kind, data, updated_at FROM user_layouts;
+        DROP TABLE user_layouts;
+        ALTER TABLE user_layouts_v12 RENAME TO user_layouts;
+      `);
+    },
+  },
 ];
 
 function _runMigrations(db) {
