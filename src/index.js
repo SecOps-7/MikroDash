@@ -1781,9 +1781,9 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       updateCheckHours:[1,168],
       smtpPort:[1,65535],
       dbRetentionDays:[1,3650], dbAlertRetentionDays:[1,3650],
-      pollTopology:[5000,300000], pollVlans:[2000,60000], pollPpp:[2000,60000],
-      pollBridges:[2000,60000], pollDns:[2000,60000], pollCapsman:[2000,60000],
-      pollPackages:[5000,300000], pollRosusers:[5000,300000], pollQueues:[2000,60000], pollWan:[2000,60000],
+      pollTopology:[5000,600000], pollVlans:[1000,60000], pollPpp:[1000,60000],
+      pollBridges:[1000,60000], pollDns:[1000,60000], pollCapsman:[1000,60000],
+      pollPackages:[5000,600000], pollRosusers:[5000,300000], pollQueues:[2000,60000], pollWan:[1000,60000],
     };
     const strFields  = ['pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo', 'ntfyUrl'];
     // authMode: whitelist only valid values

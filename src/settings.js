@@ -312,10 +312,10 @@ const POLL_BOUNDS = Object.freeze({
   pollRouting:[500,300000], pollSystem:[1000,60000], pollWireless:[10000,600000],
   pollVpn:[1000,30000], pollFirewall:[1000,30000], pollIfstatus:[1000,60000],
   pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
-  pollDhcp:[10000,600000], pollTopology:[10000,300000],
-  pollVlans:[2000,60000], pollPpp:[2000,60000],
-  pollBridges:[2000,60000], pollDns:[2000,60000], pollCapsman:[2000,60000],
-  pollPackages:[5000,300000], pollRosusers:[5000,300000], pollQueues:[2000,60000], pollWan:[2000,60000],
+  pollDhcp:[10000,600000], pollTopology:[10000,600000],
+  pollVlans:[1000,60000], pollPpp:[1000,60000],
+  pollBridges:[1000,60000], pollDns:[1000,60000], pollCapsman:[1000,60000],
+  pollPackages:[5000,600000], pollRosusers:[5000,300000], pollQueues:[2000,60000], pollWan:[1000,60000],
 });
 
 /**
