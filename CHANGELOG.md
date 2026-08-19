@@ -2,6 +2,88 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.25] — Nine new pages, a grouped sidebar, and a full audit trail
+
+The biggest release so far. MikroDash gains **nine pages** — VLANs, PPP, Bridges, DNS, CAPsMAN,
+Packages, Queues, Router Users and WAN — and with two dozen pages the flat sidebar had run out of
+room, so it now **collapses into categories**. Every write action MikroDash performs, on itself or on a
+router, is recorded in a new **Audit** trail.
+
+**Three pages can now change router configuration**, which is new territory for a dashboard that
+until recently only read. Each one is built around the specific way it could go wrong. Packages
+schedules changes rather than applying them, and keeps the reboot behind a typed confirmation.
+Queues warns before writing a limit that would throttle the dashboard's own traffic. Router Users
+structurally refuses to touch the account MikroDash signs in with, or its group, because that is the
+one edit that could lock the dashboard out of the router with no way back. WAN warns before a lease
+action that would interrupt the very path a router is being managed through.
+
+**None of it is on by default.** Every router-write page needs the RouterOS user to hold `write`
+(and `policy` for Router Users), which the recommended read-only group deliberately denies. The
+README documents the opt-in tier and what granting it means.
+
+### Added
+- **WAN page.** The uplinks RouterOS reports as internet-connected, in detail: which one is carrying
+  traffic, default-route distance and failover order, public versus private addressing, live rates,
+  and DHCP lease status with the countdown to renewal. Renew and Release with write access.
+- **Queues page.** Simple queues and queue trees, kept in the router's own order because simple
+  queues are first-match-wins and sorting would misrepresent them. Create, edit, reorder, enable,
+  disable, reset counters and remove. A **FastTrack banner** explains the usual reason a queue looks
+  configured and does nothing: FastTracked connections bypass simple queues entirely.
+- **Router Users page.** RouterOS's own users, groups with the full 17-permission matrix, and the
+  sessions logged in right now.
+- **Audit page.** Every write action in one searchable trail — actor, source address, what changed,
+  and whether it was allowed. Refusals are recorded as well as successes. Credential values never
+  are; the field name and the fact it changed do. CSV export.
+- **CAPsMAN, Bridges, DNS and Packages pages**, and **VLANs** and **PPP** pages.
+- **Collapsible sidebar categories.** Twenty-three pages fold into seven groups — Network, Wireless,
+  IP Services, Tunnels, Traffic, Security, System — with Dashboard, Routers, Reports, Audit and
+  Settings always at the top level. Which groups are open is remembered against your account, not
+  your browser. Turn it off in Settings → Appearance, or in the account dialog if your role has no
+  Settings access.
+- **Canned view presets** — Home, Standard and Advanced — as a bulk editor for Visible Pages and for
+  a role's page matrix. A preset can only narrow what an install shows, never widen what a role
+  permits.
+- **WiFi Frequency Analyzer** on the Wireless page: RouterOS's own frequency scan, with a per-channel
+  congestion grid and spectrum chart. The one deliberately disruptive thing MikroDash does, so it is
+  gated, time-boxed and stopped when the person who started it leaves.
+
+### Fixed
+- **VLANs and PPP never started.** `buildSession()` returned every collector except those two, so
+  startup threw partway through and silently abandoned every collector after them. A drift guard now
+  reads the source and fails if the session omits one.
+- **BGP alerts only evaluated for the router you had open.** The headless alert pool built no routing
+  collector, so every other router produced none — a feature that reads as enabled in Settings and
+  does nothing.
+- **`!empty` closed streaming channels.** RouterOS 7 answers a command with no results yet with a
+  bare `!empty`, which closed the channel rather than yielding an empty batch.
+- **Polling profiles wrote `undefined` into seven sliders**, rendering `NaNms`. Nothing failed; the
+  page quietly lied.
+- **Page-scoped collectors kept polling from the Dashboard** — four every 5 s, plus six idle
+  `/listen` channels held open for pages nobody was viewing. They now suspend when you are not on
+  their page and refresh the moment you return.
+- **Wireless hostname resolution** now says when it cannot work, instead of showing blanks: a router
+  that bridges its clients at layer 2 holds no ARP entry to resolve them from.
+- The test suite reported a different number of tests on every run — four suites never stopped the
+  collectors they created, so the process was killed before it finished reporting.
+
+### Changed
+- **Poll Intervals** sliders now sit on exactly two scales, 1s–30s for live data and 10s–10m for
+  things that change when somebody edits the router, laid out in two columns. They had drifted to
+  five different ranges, which made "how fast can this go" a per-slider surprise.
+- **Routing page** adopts the card look, with its tabs inside the card frame and pinned table
+  headers.
+- Server-side interval bounds were widened where a slider needed it and **never narrowed**, so a
+  per-router override you already saved is not silently reduced.
+
+### Upgrading
+Nothing to do. A database migration widens the per-user preference table to hold the sidebar state;
+it copies every existing row and is safe to roll back, since an older build simply never reads the
+new kind.
+
+To use the write features, grant the RouterOS user `write` (and `policy` for Router Users) — see
+**RouterOS Setup** in the README. Without it, those pages degrade to read-only and show the exact
+command to run rather than failing silently.
+
 ## [0.7.8] — A map of your fleet, WiFi SSIDs, and alerts that clear
 
 The Routers page gains a **Map** view plotting each router where it actually is, and the
