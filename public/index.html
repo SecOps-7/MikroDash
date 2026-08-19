@@ -12,8 +12,8 @@
   <link rel="stylesheet" href="/css/topology.css"/>
   <link rel="icon" type="image/png" href="/logo.png"/>
   <style>
-    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--accent-alt:#a78bfa;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
-    html[data-theme="light"]{--bg-deep:#e8eaee;--bg-card:rgba(255,255,255,.92);--border:#b1bbcf;--accent-rx:#247ba1;--accent-tx:#20835f;--accent-alt:#6a3fb0;--text-muted:#5f7196;--text-main:#1a2030;--nav-bg:rgba(232,234,239,.95);--topbar-bg:rgba(232,234,239,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
+    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--accent-alt:#a78bfa;--accent-pink:#f472b6;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
+    html[data-theme="light"]{--bg-deep:#e8eaee;--bg-card:rgba(255,255,255,.92);--border:#b1bbcf;--accent-rx:#247ba1;--accent-tx:#20835f;--accent-alt:#6a3fb0;--accent-pink:#c2185b;--text-muted:#5f7196;--text-main:#1a2030;--nav-bg:rgba(232,234,239,.95);--topbar-bg:rgba(232,234,239,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
     html[data-palette="nord"]{--bg-deep:#1e2430;--bg-card:rgba(46,52,64,.9);--border:rgba(76,86,106,.4);--accent-rx:#88c0d0;--accent-tx:#a3be8c;--text-muted:rgba(216,222,233,.5);--text-main:rgba(236,239,244,.9);--nav-bg:rgba(25,30,40,.95);--topbar-bg:rgba(25,30,40,.8)}
     html[data-palette="nord"][data-theme="light"]{--bg-deep:#d8dce3;--bg-card:rgba(236,239,244,.95);--border:#a9afba;--accent-rx:#5e81ac;--accent-tx:#4b7a55;--text-muted:#626876;--text-main:rgba(46,52,64,.9);--nav-bg:rgba(204,210,220,.97);--topbar-bg:rgba(204,210,220,.9)}
     html[data-palette="catppuccin"]{--bg-deep:#11111b;--bg-card:rgba(30,30,46,.9);--border:rgba(69,71,90,.4);--accent-rx:#89b4fa;--accent-tx:#a6e3a1;--text-muted:rgba(166,173,200,.55);--text-main:rgba(205,214,244,.9);--nav-bg:rgba(17,17,27,.95);--topbar-bg:rgba(17,17,27,.8)}
@@ -1308,7 +1308,13 @@
     #faCurChan{color:var(--accent-rx)}
     /* Each page's key metric carries the accent the same way the current channel
        does above: VLAN count on the VLANs page, session count on PPP. */
-    #vlSumCount,#pppSumCount,#capSumCaps,#brSumCount,#dnsSumCache,#pkgSumInstalled{color:var(--accent-rx)}
+    #vlSumCount,#pppSumCount,#capSumCaps,#brSumCount,#dnsSumCache,#pkgSumInstalled,
+    #wanSumCount,#qSumSimple,#ruSumUsers{color:var(--accent-rx)}
+    /* WAN summary: each figure answers a different question, so each gets its
+       own colour rather than a wall of one accent. Throughput is coloured per
+       direction inside the value, matching the rate cells in the table. */
+    #wanSumActive{color:var(--accent-warn)}
+    #wanSumPublic{color:var(--accent-pink)}
     #faBestChan{color:rgba(74,222,128,.95)}
     .fa-stat-unit{font-size:.62rem;color:var(--text-muted);margin-left:.15rem;font-weight:400}
     .fa-section-title{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0 0 .5rem}
@@ -1610,6 +1616,10 @@
         <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
       </button>
       <div class="nav-group-body" id="navgrp-network" role="group" aria-label="Network">
+        <a class="nav-item" data-page="wan" data-cat="network" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg></span>
+          <span class="nav-label">WAN</span>
+        </a>
         <a class="nav-item" data-page="interfaces" data-cat="network" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="5" rx="1"/><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="16" y="3" width="6" height="5" rx="1"/><rect x="5" y="16" width="6" height="5" rx="1"/><rect x="13" y="16" width="6" height="5" rx="1"/><line x1="5" y1="8" x2="5" y2="13"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="19" y1="8" x2="19" y2="13"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="13" x2="8" y2="16"/><line x1="16" y1="13" x2="16" y2="16"/></svg></span>
           <span class="nav-label">Interfaces</span>
@@ -3366,11 +3376,74 @@
     </div>
   </div>
 
+  <div class="page-view" id="page-wan">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Uplinks</div><div class="fa-stat-val" id="wanSumCount">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Carrying Traffic</div><div class="fa-stat-val" id="wanSumActive" style="font-size:1.1rem">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Public Address</div><div class="fa-stat-val" id="wanSumPublic" style="font-size:1.1rem">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Throughput</div><div class="fa-stat-val" id="wanSumRate" style="font-size:1.1rem">&mdash;</div></div>
+      </div>
+
+      <!-- detect-interface-list defaults to none, so a router nobody has
+           configured reports nothing. That is a different thing from being
+           offline, and the page says which. -->
+      <div id="wanNoticeCard" style="display:none;margin-bottom:.85rem"><div class="q-ftbanner q-ft-unknown" id="wanNotice"></div></div>
+
+      <div class="card" id="wanCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Internet Uplinks</h3>
+            <span id="wanBadge" class="card-badge">0</span>
+          </div>
+          <span id="wanActionNote" class="muted-note"></span>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 400px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:1040px">
+              <colgroup><col style="width:15%"><col style="width:16%"><col style="width:15%"><col style="width:11%">
+                        <col style="width:17%"><col style="width:14%"><col style="width:12%"></colgroup>
+              <thead><tr id="wanThead"></tr></thead>
+              <tbody id="wanTable">
+                <tr><td colspan="7" class="empty-state">Waiting for WAN data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- The self-cutoff prompt. A dialog rather than a confirm() so it can
+           name the address, the uplink and what will happen. -->
+      <div class="rtr-modal-bg" id="wanWarnWrap">
+       <div class="rtr-modal pmodal">
+        <div class="rtr-modal-hdr">
+          <span class="rtr-modal-title" id="wanWarnTitle">This will interrupt your own connection</span>
+          <button class="rtr-modal-close" data-modal-close="wanWarnWrap" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="rtr-modal-body">
+          <input type="hidden" id="wanWarnId">
+          <input type="hidden" id="wanWarnName">
+          <input type="hidden" id="wanWarnVerb">
+          <input type="hidden" id="wanWarnAck">
+          <div id="wanWarnBody" style="font-size:.8rem;line-height:1.5"></div>
+        </div>
+        <div class="rtr-modal-footer">
+          <button class="sbtn sbtn-outline" data-modal-close="wanWarnWrap">Cancel</button>
+          <button class="sbtn sbtn-danger" id="wanWarnGo">Do it anyway</button>
+        </div>
+       </div>
+      </div>
+
+    </div>
+  </div>
+
   <div class="page-view" id="page-queues">
     <div class="container-fluid px-0" style="width:100%">
 
       <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
-        <div class="wl-summary-card"><div class="wl-summary-title">Simple Queues</div><div class="fa-stat-val" id="qSumSimple" style="color:var(--accent-blue)">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Simple Queues</div><div class="fa-stat-val" id="qSumSimple">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Tree Queues</div><div class="fa-stat-val" id="qSumTree">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Shaping Now</div><div class="fa-stat-val" id="qSumActive">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Total Shaped</div><div class="fa-stat-val" id="qSumBytes" style="font-size:1.1rem">&mdash;</div></div>
@@ -3506,7 +3579,7 @@
     <div class="container-fluid px-0" style="width:100%">
 
       <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
-        <div class="wl-summary-card"><div class="wl-summary-title">Users</div><div class="fa-stat-val" id="ruSumUsers" style="color:var(--accent-blue)">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Users</div><div class="fa-stat-val" id="ruSumUsers">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Groups</div><div class="fa-stat-val" id="ruSumGroups">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Active Sessions</div><div class="fa-stat-val" id="ruSumSessions">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">MikroDash Connects As</div><div class="fa-stat-val" id="ruSumSelf" style="font-size:1.1rem">&mdash;</div></div>
@@ -4763,6 +4836,7 @@
             </div>
             <div class="stoggle-grid">
               <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">WAN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">DHCP</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDhcp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">VPN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

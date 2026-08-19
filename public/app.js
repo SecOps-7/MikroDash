@@ -515,8 +515,8 @@ function applyFontSize(sizeId) {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit'};
-var PAGE_KEYS   = ['dashboard','wireless','capsman','interfaces','dhcp','dns','vlans','bridges','vpn','ppp','connections','routing','bandwidth','firewall','logs','packages','queues','rosusers','audit'];
+var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit'};
+var PAGE_KEYS   = ['dashboard','wan','wireless','capsman','interfaces','dhcp','dns','vlans','bridges','vpn','ppp','connections','routing','bandwidth','firewall','logs','packages','queues','rosusers','audit'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
 /**
@@ -2582,7 +2582,7 @@ var PAGE_NAV_MAP = {
   pageBandwidth:'bandwidth', pageRouting:'routing', pageTopology:'topology',
   pageVlans:'vlans', pagePpp:'ppp',
   pageCapsman:'capsman', pageBridges:'bridges', pageDns:'dns', pagePackages:'packages',
-  pageRosusers:'rosusers', pageQueues:'queues',
+  pageRosusers:'rosusers', pageQueues:'queues', pageWan:'wan',
   pageRouters:'routers', pageAudit:'audit',
 };
 // Every page the nav can show. Kept in step with src/pages.js — the drift check
@@ -2591,7 +2591,7 @@ var PAGE_NAV_MAP = {
 // first because this array's order decides `firstVisible` — the page a user is
 // moved to when the one they are on becomes hidden.
 var ALL_NAV_PAGES = ['dashboard',
-                     'interfaces','vlans','bridges','topology',
+                     'wan','interfaces','vlans','bridges','topology',
                      'wireless','capsman',
                      'dhcp','dns','routing',
                      'ppp','vpn',
@@ -4751,6 +4751,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     { key:'pollCapsman',        label:'CAPsMAN',          min:2000,  max:60000,  step:1000,  unit:'ms' },
     { key:'pollPackages',       label:'Packages',         min:5000,  max:300000, step:5000,  unit:'ms' },
     { key:'pollPpp',            label:'PPP',              min:2000,  max:60000,  step:1000,  unit:'ms' },
+    { key:'pollWan',            label:'WAN',              min:2000,  max:60000,  step:1000,  unit:'ms' },
   ];
 
   // EVERY non-streamed slider must appear in EVERY profile. A missing key sets
@@ -4831,19 +4832,19 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   var POLL_PROFILES = {
     fast:     { pollSystem:1000,  pollConns:1000,  pollTalkers:1000,  pollIfstatus:1000,  pollBandwidth:1000,  pollVpn:1000,  pollFirewall:1000,  pollPing:1000,  pollWireless:10000,  pollIfaces:10000,  pollDhcp:10000,
-                pollTopology:10000,  pollVlans:2000,  pollPpp:2000,  pollBridges:2000,  pollDns:5000,  pollCapsman:5000,  pollPackages:30000  },
+                pollTopology:10000,  pollVlans:2000,  pollPpp:2000,  pollBridges:2000,  pollDns:5000,  pollCapsman:5000,  pollPackages:30000, pollWan:2000   },
     faster:   { pollSystem:5000,  pollConns:5000,  pollTalkers:5000,  pollIfstatus:5000,  pollBandwidth:5000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:60000,  pollIfaces:60000,  pollDhcp:60000,
-                pollTopology:60000,  pollVlans:10000, pollPpp:10000, pollBridges:10000, pollDns:20000, pollCapsman:20000, pollPackages:120000 },
+                pollTopology:60000,  pollVlans:10000, pollPpp:10000, pollBridges:10000, pollDns:20000, pollCapsman:20000, pollPackages:120000, pollWan:5000  },
     // The seven keys added here mirror Settings.DEFAULTS exactly. The older half
     // of this row does not (conns, ifstatus, bandwidth, vpn and dhcp have always
     // differed), which is why a fresh install detects "Custom" rather than
     // "Standard" — pre-existing, and left alone.
     standard: { pollSystem:2000,  pollConns:3000,  pollTalkers:3000,  pollIfstatus:1000,  pollBandwidth:3000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:30000,  pollIfaces:60000,  pollDhcp:290000,
-                pollTopology:30000,  pollVlans:5000,  pollPpp:5000,  pollBridges:5000,  pollDns:10000, pollCapsman:10000, pollPackages:60000  },
+                pollTopology:30000,  pollVlans:5000,  pollPpp:5000,  pollBridges:5000,  pollDns:10000, pollCapsman:10000, pollPackages:60000, pollWan:10000   },
     slow:     { pollSystem:10000, pollConns:10000, pollTalkers:10000, pollIfstatus:10000, pollBandwidth:10000, pollVpn:10000, pollFirewall:10000, pollPing:10000, pollWireless:300000, pollIfaces:300000, pollDhcp:300000,
-                pollTopology:120000, pollVlans:20000, pollPpp:20000, pollBridges:20000, pollDns:30000, pollCapsman:30000, pollPackages:180000 },
+                pollTopology:120000, pollVlans:20000, pollPpp:20000, pollBridges:20000, pollDns:30000, pollCapsman:30000, pollPackages:180000, pollWan:30000  },
     slower:   { pollSystem:30000, pollConns:30000, pollTalkers:30000, pollIfstatus:30000, pollBandwidth:30000, pollVpn:30000, pollFirewall:30000, pollPing:30000, pollWireless:600000, pollIfaces:600000, pollDhcp:600000,
-                pollTopology:300000, pollVlans:60000, pollPpp:60000, pollBridges:60000, pollDns:60000, pollCapsman:60000, pollPackages:300000 },
+                pollTopology:300000, pollVlans:60000, pollPpp:60000, pollBridges:60000, pollDns:60000, pollCapsman:60000, pollPackages:300000, pollWan:60000  },
   };
   var POLL_PROFILE_KEY = 'mkd_poll_profile';
 
@@ -5166,7 +5167,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var _PRINCIPAL_MODALS = ['userFormWrap', 'groupFormWrap', 'siteFormWrap', 'roleFormWrap', 'accountModal', 'faModal',
     // The Router Users dialogs are on their own page rather than in Settings,
     // but Escape and backdrop-click are handled here for every dialog in the app.
-    'ruUserFormWrap', 'ruGroupFormWrap', 'qFormWrap'];
+    'ruUserFormWrap', 'ruGroupFormWrap', 'qFormWrap', 'wanWarnWrap'];
 
   function _closePrincipalModals() {
     _PRINCIPAL_MODALS.forEach(function (id) {
@@ -5888,7 +5889,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
     // Page visibility + dashboard widget toggles
-    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageRosusers','pageRouters','pageAudit'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     // After the boxes are filled, not before: detection reads the DOM so the
@@ -6013,7 +6014,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
-    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageRosusers','pageRouters','pageAudit'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
@@ -12425,6 +12426,234 @@ function _renderRoutersMap(rows) {
       'Type the router name to confirm: ' + name);
     if (typed === null) return;
     socket.emit('packages:apply', { confirm: typed });
+  });
+}());
+
+/* ── WAN page ─────────────────────────────────────────────────────────────────
+   The uplinks RouterOS reports as state=internet — the same set the Dashboard
+   Network card shows, in detail.
+
+   Two things carry most of the meaning. WHICH UPLINK IS ACTIVE: a router can
+   hold several default routes, and only the active one is moving traffic; the
+   rest are standby, in distance order. And THE LEASE: for a DHCP uplink, status
+   and countdown are what tell you whether the ISP side is healthy.
+
+   Renew and release both interrupt the uplink. When that would cut the path
+   MikroDash manages this router through, the server says so before writing and
+   the dialog below names the specifics. */
+(function () {
+  var tb = $('wanTable');
+  if (!tb) return;
+
+  var _data = null;
+  var _caps = { permitted: false, routerName: '' };
+  var _busy = '';
+
+  var COLS = [{key:'',label:'Uplink'},{key:'',label:'Address'},{key:'',label:'Gateway'},
+              {key:'',label:'Route'},{key:'',label:'Lease'},{key:'',label:'Rate'},{key:'',label:''}];
+
+  function dash(t) { return '<span style="color:var(--text-muted)"' + (t ? ' title="' + t + '"' : '') + '>&mdash;</span>'; }
+  function fmtMb(v) { return v >= 1000 ? (v/1000).toFixed(2) + ' Gb/s' : v >= 1 ? v.toFixed(1) + ' Mb/s' : (v*1000).toFixed(0) + ' kb/s'; }
+
+  /** The router's own timestamp, as an age. Its clock, not ours. */
+  function since(ts) {
+    if (!ts) return '';
+    var t = Date.parse(ts.replace(' ', 'T'));
+    if (!isFinite(t)) return '';
+    var s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (s < 90) return s + 's';
+    if (s < 5400) return Math.round(s/60) + 'm';
+    if (s < 172800) return Math.round(s/3600) + 'h';
+    return Math.round(s/86400) + 'd';
+  }
+
+  function rateCell(w) {
+    if (w.rxMbps === null && w.txMbps === null) {
+      // null is "Interface Rates is not collecting", which is not "idle".
+      return dash('Interface Rates collection is off for this router');
+    }
+    return '<div class="q-rate">' +
+      '<div class="q-rate-line"><span class="q-rate-arrow ' + (w.rxMbps ? 'rx' : 'zero') + '">&#8595;</span>' +
+        '<span class="q-rate-val ' + (w.rxMbps ? 'rx' : 'zero') + '">' + esc(fmtMb(w.rxMbps || 0)) + '</span></div>' +
+      '<div class="q-rate-line"><span class="q-rate-arrow ' + (w.txMbps ? 'tx' : 'zero') + '">&#8593;</span>' +
+        '<span class="q-rate-val ' + (w.txMbps ? 'tx' : 'zero') + '">' + esc(fmtMb(w.txMbps || 0)) + '</span></div>' +
+    '</div>';
+  }
+
+  function leaseCell(w) {
+    // "no DHCP client", not "static": a tunnel's address is configured rather
+    // than leased, and calling that static invites reading it as a static WAN.
+    if (!w.dhcp) return '<span class="muted-note">no DHCP client</span>';
+    var d = w.dhcp;
+    var ok = d.status === 'bound';
+    return '<div><span class="wl-band ' + (ok ? 'wl-band-6' : 'wl-band-24') + '">' + esc(d.status || '?') + '</span>' +
+      (d.expiresAfter ? '<div class="muted-note">expires in ' + esc(d.expiresAfter) + '</div>' : '') +
+      (d.invalid ? '<div class="muted-note" style="color:rgba(248,113,113,.9)">invalid</div>' : '') + '</div>';
+  }
+
+  function actions(w) {
+    if (!w.dhcp) return '';                    // nothing to renew on a static uplink
+    if (!_caps.permitted) return '';
+    var b = function (verb, label, cls) {
+      return '<button class="ru-act' + (cls ? ' ' + cls : '') + '" data-wanact="' + verb +
+             '" data-id="' + esc(w.dhcp.id) + '" data-name="' + esc(w.name) + '"' +
+             (_busy === w.dhcp.id ? ' disabled' : '') + '>' + label + '</button>';
+    };
+    return b('renew', 'Renew') + ' ' + b('release', 'Release', 'danger');
+  }
+
+  function render() {
+    var wans = (_data && _data.wans) || [];
+    _renderSortHeader('wanThead', COLS, { col: '', dir: 'asc' }, function () {});
+    $('wanBadge').textContent = wans.length;
+
+    tb.innerHTML = wans.length ? wans.map(function (w) {
+      var age = since(w.since);
+      return '<tr' + (w.running === false ? ' style="opacity:.62"' : '') + '>' +
+        '<td>' + esc(w.name) +
+          '<div class="muted-note">' + esc(w.isTunnel ? 'tunnel · ' + w.type : w.type || 'interface') +
+          (age ? ' · up ' + esc(age) : '') + '</div></td>' +
+        '<td>' + (w.address ? esc(w.address) : dash()) +
+          (w.isPublic === true ? '<div class="muted-note" style="color:var(--accent-rx)">public</div>' :
+           w.isPublic === false ? '<div class="muted-note">private</div>' : '') + '</td>' +
+        '<td>' + (w.gateway ? esc(w.gateway) : dash()) + '</td>' +
+        '<td>' + (w.hasDefaultRoute
+            ? (w.routeActive
+                ? '<span class="wl-band wl-band-6">active</span>'
+                : '<span class="wl-band wl-band-24">standby</span>') +
+              '<div class="muted-note">distance ' + esc(w.routeDistance || '?') + '</div>'
+            : dash('No default route via this uplink')) + '</td>' +
+        '<td>' + leaseCell(w) + '</td>' +
+        '<td>' + rateCell(w) + '</td>' +
+        '<td>' + actions(w) + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="7" class="empty-state">' + emptyState() + '</td></tr>';
+
+    var note = $('wanActionNote');
+    if (note) note.textContent = _caps.permitted ? '' : 'read-only — you do not have write access to this router';
+    renderNotice();
+    renderSummary();
+  }
+
+  function emptyState() {
+    if (!_data) return 'Waiting for WAN data&hellip;';
+    if (_data.denied) return 'This router\'s MikroDash account cannot read the internet-detection state.';
+    if (!_data.detectionEnabled) return 'Internet detection is not enabled on this router.';
+    return 'No uplink currently reports an internet connection.';
+  }
+
+  function renderNotice() {
+    var card = $('wanNoticeCard'), body = $('wanNotice');
+    if (!card || !body) return;
+    if (!_data || _data.detectionEnabled || _data.denied) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    // The default is detect-interface-list=none, so this is the common case
+    // rather than a fault. Say what to run.
+    body.innerHTML = '<strong>Internet detection is switched off on this router.</strong> ' +
+      'RouterOS decides which interfaces reach the internet, and it is not looking. ' +
+      'This page shows what it reports, so it has nothing to show until detection is on. Enable it with ' +
+      '<code>/interface detect-internet set detect-interface-list=all</code> — it is read-only and adds no traffic ' +
+      'beyond an occasional probe.';
+  }
+
+  function renderSummary() {
+    var d = _data || {}, wans = d.wans || [];
+    $('wanSumCount').textContent  = wans.length || '—';
+    $('wanSumActive').textContent = d.activeDefaultWan || (wans.length ? 'none active' : '—');
+    $('wanSumPublic').textContent = (d.publicIp || '').split('/')[0] || '—';
+    var any = wans.some(function (w) { return w.rxMbps !== null || w.txMbps !== null; });
+    if (!any) { $('wanSumRate').innerHTML = '&mdash;'; return; }
+    var rx = 0, tx = 0;
+    wans.forEach(function (w) { rx += w.rxMbps || 0; tx += w.txMbps || 0; });
+    // Coloured per direction rather than as one figure, so the summary reads the
+    // same way as the rate cells in the table below it.
+    $('wanSumRate').innerHTML =
+      '<span style="color:var(--accent-rx)">&#8595; ' + esc(fmtMb(rx)) + '</span> ' +
+      '<span style="color:var(--accent-tx)">&#8593; ' + esc(fmtMb(tx)) + '</span>';
+  }
+
+  function send(verb, id, name, ack) {
+    _busy = id; render();
+    socket.emit('wan:' + verb, { id: id, expectedName: name, ack: ack || undefined });
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-wanact]');
+    if (!b) return;
+    var verb = b.getAttribute('data-wanact'), id = b.getAttribute('data-id'), name = b.getAttribute('data-name');
+    var msg = verb === 'release'
+      ? 'Release the DHCP lease on "' + name + '"?\n\nThe uplink goes down until the client rebinds — usually seconds, but it is a real outage.'
+      : 'Renew the DHCP lease on "' + name + '"?\n\nThe uplink blips briefly while the lease is renewed.';
+    if (!window.confirm(msg)) return;
+    send(verb, id, name);
+  });
+
+  $('wanWarnGo').addEventListener('click', function () {
+    $('wanWarnWrap').classList.remove('open');
+    send($('wanWarnVerb').value, $('wanWarnId').value, $('wanWarnName').value, $('wanWarnAck').value);
+  });
+
+  socket.on('wan:update', function (d) {
+    if (!d) return;
+    _data = d; _busy = '';
+    renderSummary();
+    if (pageVisible('wan')) render();
+  });
+  socket.on('wan:caps', function (d) {
+    if (!d) return;
+    _caps = d;
+    if (pageVisible('wan')) render();
+  });
+  socket.on('wan:ok', function (d) {
+    _busy = '';
+    // "Requested", not "renewed": the lease settles over the next second or two
+    // and the next tick is what reports the outcome.
+    setStatus((d && d.action === 'release' ? 'Released the lease on ' : 'Requested a renewal on ') + ((d && d.name) || ''));
+  });
+  socket.on('wan:error', function (d) {
+    _busy = '';
+    var code = d && d.code;
+
+    if (code === 'self-cutoff' || code === 'stale-warning') {
+      var w = (d && d.warning) || {};
+      $('wanWarnId').value   = '';   // filled from the row that triggered it
+      $('wanWarnName').value = (d && d.name) || '';
+      $('wanWarnVerb').value = (d && d.verb) || 'renew';
+      $('wanWarnAck').value  = (d && d.fingerprint) || '';
+      var row = ((_data && _data.wans) || []).find(function (x) { return x.name === (d && d.name); });
+      $('wanWarnId').value = (row && row.dhcp && row.dhcp.id) || '';
+      $('wanWarnBody').innerHTML =
+        '<p>MikroDash reaches ' + esc(_caps.routerName || 'this router') + ' from <code>' + esc(w.address || '') + '</code>, ' +
+        'which is not on any of its connected subnets — so that traffic arrives over a WAN.</p>' +
+        (w.certain
+          ? '<p><strong>' + esc(w.wan || '') + ' is the uplink carrying the active default route</strong>, which means it is carrying this session.</p>'
+          : '<p>This router has more than one active default route, so which uplink carries this session cannot be determined — ' +
+            '<strong>' + esc(w.wan || '') + ' may be the one.</strong></p>') +
+        '<p>' + ($('wanWarnVerb').value === 'release'
+          ? 'Releasing the lease takes the uplink down until the client rebinds.'
+          : 'Renewing blips the uplink briefly.') +
+        ' The dashboard will lose this router until it comes back. It should return on its own.</p>' +
+        (code === 'stale-warning' ? '<p><em>The situation changed since you confirmed, so please confirm again.</em></p>' : '');
+      $('wanWarnWrap').classList.add('open');
+      return;
+    }
+
+    var msg = {
+      denied:       'You do not have write access to this router',
+      unavailable:  'WAN collection is not running for this router',
+      'bad-request':'Invalid request',
+      'stale-row':  'That uplink changed on the router — the page has been refreshed',
+      'router-write-policy': 'The RouterOS user needs write permission for this',
+      unsupported:  'This router does not support that command',
+    }[code] || ((d && d.message) || 'Action failed');
+    setStatus(msg);
+    if (pageVisible('wan')) render();
+  });
+
+  document.addEventListener('mikrodash:pagechange', function (e) {
+    if (e.detail !== 'wan') return;
+    socket.emit('wan:caps');
+    if (_data) render();
   });
 }());
 

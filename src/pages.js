@@ -54,6 +54,9 @@ const PAGES = Object.freeze([
   // Top level, and deliberately so: the one page everything starts from.
   { key: 'dashboard',   title: 'Dashboard',        settingsKey: null,              streamRooms: [],                                  category: null },
 
+  // First in Network because it answers the question people open the sidebar to
+  // ask — is the uplink up, and which one is carrying traffic.
+  { key: 'wan',         title: 'WAN',              settingsKey: 'pageWan',         streamRooms: [],                                  category: 'network' },
   { key: 'interfaces',  title: 'Interfaces',       settingsKey: 'pageInterfaces',  streamRooms: [],                                  category: 'network' },
   { key: 'vlans',       title: 'VLANs',            settingsKey: 'pageVlans',       streamRooms: [],                                  category: 'network' },
   { key: 'bridges',     title: 'Bridges',          settingsKey: 'pageBridges',     streamRooms: [],                                  category: 'network' },

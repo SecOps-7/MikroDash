@@ -43,6 +43,11 @@
 /** Below this, a queue covering our own address is worth mentioning. */
 const SELF_THROTTLE_FLOOR_BPS = 1000000;
 
+// Moved out when wanGuard became a second caller: two guards need to know where
+// the router sees us from, and neither owns the other. Re-exported below so
+// existing callers and tests are unaffected.
+const { resolveSelfAddresses } = require('./selfAddress');
+
 /**
  * Parse a RouterOS rate to bits per second.
  *
@@ -125,30 +130,6 @@ function cidrContains(cidr, ip) {
   if (bits === 0) return true;                       // 0.0.0.0/0 contains everything
   const mask = (0xFFFFFFFF << (32 - bits)) >>> 0;
   return ((net & mask) >>> 0) === ((addr & mask) >>> 0);
-}
-
-/**
- * The addresses this router sees MikroDash connecting from.
- *
- * `/user/active` carries the source address per session, which is the router's
- * own view — past any NAT, and past the container bridge. That is why this check
- * is possible at all where selfGuard concluded the same address was unknowable:
- * selfGuard needed it in contexts where there was no session to ask about.
- *
- * MikroDash holds several logins per router at once (dashboard, alerts, routers
- * overview) and they need not share a source address, so every one is collected.
- */
-function resolveSelfAddresses(activeRows, usernames) {
-  const names = new Set(
-    (usernames || []).map(n => String(n == null ? '' : n).trim().toLowerCase()).filter(Boolean));
-  const addresses = [];
-  for (const r of activeRows || []) {
-    if (!r || !r.name || !r.address) continue;
-    if (!names.has(String(r.name).trim().toLowerCase())) continue;
-    const a = String(r.address).trim();
-    if (a && addresses.indexOf(a) === -1) addresses.push(a);
-  }
-  return { addresses, resolved: addresses.length > 0 };
 }
 
 /**

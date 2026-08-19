@@ -42,6 +42,7 @@ const { verifyRouterOSPatchMarkers } = require('./routeros/patchVerification');
 const { classifyRosError } = require('./routeros/classifyError');
 const selfGuard            = require('./routeros/selfGuard');
 const queueGuard           = require('./routeros/queueGuard');
+const wanGuard             = require('./routeros/wanGuard');
 const { scheduleForcedShutdownTimer } = require('./shutdown');
 
 try {
@@ -87,6 +88,7 @@ const CapsmanCollector      = require('./collectors/capsman');
 const PackagesCollector     = require('./collectors/packages');
 const RosUsersCollector     = require('./collectors/rosusers');
 const QueuesCollector       = require('./collectors/queues');
+const WanCollector          = require('./collectors/wan');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
@@ -368,6 +370,7 @@ function _freshState() {
     lastPackagesTs:0, lastPackagesErr:null,
     lastRosusersTs:0, lastRosusersErr:null,
     lastQueuesTs:0, lastQueuesErr:null,
+    lastWanTs:0, lastWanErr:null,
   };
 }
 
@@ -484,12 +487,15 @@ function buildSession(routerCfg, routerIo) {
   // bridges are constructed after ifStatus. Only a summary leaves the queues
   // payload; see the collector header.
   const queues       = _on('queues',   () => new QueuesCollector      ({ros, io:routerIo, pollMs:eff.poll.queues,   state, streamMode:eff.stream.queues, firewall}));
-  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology, vlans, ppp, bridges, dns, capsman, packages, rosusers, queues];
+  // wan borrows rates from ifStatus by reference, so it is constructed after it
+  // for the same reason vlans and bridges are.
+  const wan          = _on('wan',      () => new WanCollector         ({ros, io:routerIo, pollMs:eff.poll.wan,      state, streamMode:eff.stream.wan, ifStatus}));
+  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology, vlans, ppp, bridges, dns, capsman, packages, rosusers, queues, wan];
 
   return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES, collection: eff,
            dhcpLeases, dhcpNetworks, arp, traffic, conns, talkers, logs, system,
            wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology,
-           vlans, ppp, bridges, dns, capsman, packages, rosusers, queues, allCollectors,
+           vlans, ppp, bridges, dns, capsman, packages, rosusers, queues, wan, allCollectors,
            routerId: routerCfg.id, cachedInterfaces: null };
 }
 
@@ -718,6 +724,8 @@ async function startCollectors(session, entry) {
     await session.rosusers.start();
     await _delay(300);
     await session.queues.start();
+    await _delay(300);
+    await session.wan.start();
 
     entry.startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -1775,7 +1783,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       dbRetentionDays:[1,3650], dbAlertRetentionDays:[1,3650],
       pollTopology:[5000,300000], pollVlans:[2000,60000], pollPpp:[2000,60000],
       pollBridges:[2000,60000], pollDns:[2000,60000], pollCapsman:[2000,60000],
-      pollPackages:[5000,300000], pollRosusers:[5000,300000], pollQueues:[2000,60000],
+      pollPackages:[5000,300000], pollRosusers:[5000,300000], pollQueues:[2000,60000], pollWan:[2000,60000],
     };
     const strFields  = ['pingTarget', 'telegramChatId', 'notifTitle', 'smtpHost', 'smtpFrom', 'smtpTo', 'ntfyUrl'];
     // authMode: whitelist only valid values
@@ -1830,7 +1838,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
     const _pinned = (key) => _ovr[key] !== undefined;
 
     const collectorMap = { conns:s.conns, talkers:s.talkers, system:s.system, wireless:s.wireless, vpn:s.vpn, firewall:s.firewall, ifStatus:s.ifStatus, ping:s.ping, arp:s.arp, dhcpNetworks:s.dhcpNetworks, bandwidth:s.bandwidth, routing:s.routing, vlans:s.vlans, ppp:s.ppp,
-      topology:s.topology, bridges:s.bridges, dns:s.dns, capsman:s.capsman, packages:s.packages, rosusers:s.rosusers, queues:s.queues };
+      topology:s.topology, bridges:s.bridges, dns:s.dns, capsman:s.capsman, packages:s.packages, rosusers:s.rosusers, queues:s.queues, wan:s.wan };
     const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks', pollRouting:'routing',
@@ -1841,7 +1849,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       // have made it four times worse.
       pollTopology:'topology', pollVlans:'vlans', pollPpp:'ppp',
       pollBridges:'bridges', pollDns:'dns', pollCapsman:'capsman', pollPackages:'packages',
-      pollRosusers:'rosusers', pollQueues:'queues' };
+      pollRosusers:'rosusers', pollQueues:'queues', pollWan:'wan' };
     for (const [key, name] of Object.entries(pollMap)) {
       if (key in updates && !_pinned(key)) {
         const col = collectorMap[name];
@@ -2946,6 +2954,7 @@ app.get('/healthz', (req, res) => {
       packages: { ts:st.lastPackagesTs, err:sanitizeErr(st.lastPackagesErr) },
       rosusers: { ts:st.lastRosusersTs, err:sanitizeErr(st.lastRosusersErr) },
       queues: { ts:st.lastQueuesTs, err:sanitizeErr(st.lastQueuesErr) },
+      wan: { ts:st.lastWanTs, err:sanitizeErr(st.lastWanErr) },
     },
   };
   res.status(statusCode).json(body);
@@ -4114,6 +4123,7 @@ async function sendInitialState(socket, entry) {
   if (s.packages.lastPayload && _mayReplay(socket, 'packages')) socket.emit('packages:update', s.packages.lastPayload);
   if (s.rosusers.lastPayload && _mayReplay(socket, 'rosusers')) socket.emit('rosusers:update', s.rosusers.lastPayload);
   if (s.queues.lastPayload   && _mayReplay(socket, 'queues'))   socket.emit('queues:update',   s.queues.lastPayload);
+  if (s.wan.lastPayload      && _mayReplay(socket, 'wan'))      socket.emit('wan:update',      s.wan.lastPayload);
 
   socket.emit('settings:pages', _pageSettings(_ps));
 
@@ -4149,6 +4159,7 @@ function _idleSuspend(session, entry) {
   session.packages.suspend();
   session.rosusers.suspend();
   session.queues.suspend();
+  session.wan.suspend();
   session.ping.suspend();
   session.talkers.suspend();
   session.dhcpNetworks.suspend();
@@ -4170,6 +4181,7 @@ function _idleResume(session, entry) {
   session.packages.resume();
   session.rosusers.resume();
   session.queues.resume();
+  session.wan.resume();
   session.ping.resume();
   session.talkers.resume();
   session.dhcpNetworks.resume();
@@ -4267,6 +4279,7 @@ function _emitDiagnostics(session, rid, socket) {
     // Two channels when streaming: one per queue menu. Neither carries data —
     // they mark the tables stale and the tick reads them.
     { name: 'queues',       streams: (s.queues._listens || []).filter(l => l && l.open).length },
+    { name: 'wan',          streams: s.wan._listen && s.wan._listen.open ? 1 : 0 },
   ];
   const total = collectors.reduce((sum, c) => sum + c.streams, 0);
   // Geo availability rides along here so a failed geoip-lite load is visible in
@@ -5320,6 +5333,152 @@ io.on('connection', (socket) => {
       _qErr(_rosWriteFail(e), { message: sanitizeErr(e) });
     }
   }));
+
+
+  // ── WAN (DHCP lease actions) ──────────────────────────────────────────────
+  //
+  // Renew and release both drop the uplink for a few seconds. On a router
+  // managed over its LAN that is harmless; on one managed THROUGH the WAN it
+  // drops the dashboard, and unlike a bad queue you cannot undo it from the row
+  // that caused it. src/routeros/wanGuard.js decides which case applies and
+  // warns — it never refuses, and it fails open. Read its header before
+  // assuming otherwise.
+  //
+  // Renew and release are treated identically: both interrupt the uplink, so
+  // there is no quieter path to the riskier one.
+
+  const _wanSession = (rid) => {
+    const e = rid ? _routerSessions.get(rid) : null;
+    const session = e && e.session;
+    const off = !session || !session.wan || session.wan.disabled;
+    return { session, off };
+  };
+  const _wanErr = (code, extra) =>
+    socket.emit('wan:error', Object.assign({ code }, extra || {}));
+
+  const _wanMayWrite = (rid) =>
+    _pageAllowed(socket, 'wan', 'write') && _socketCan(socket, 'router:write', rid);
+
+  /**
+   * Read what the guard and the write both need, in one tick.
+   *
+   * The connected subnets come from /ip/address rather than from the collector
+   * payload: this is the input that decides whether we are about to cut our own
+   * management path, and it must not be a cached answer.
+   */
+  const _wanRead = async (session, rid) => {
+    const [clients, addrs, active, routes] = await Promise.all([
+      session.ros.write('/ip/dhcp-client/print', []),
+      session.ros.write('/ip/address/print', ['=.proplist=address,interface,disabled']),
+      session.ros.write('/user/active/print', []).catch(() => []),
+      session.ros.write('/ip/route/print', ['=.proplist=dst-address,gateway,distance,active']),
+    ]);
+    const rows = (clients || []).filter(r => r && r['.id']);
+    const connectedCidrs = (addrs || [])
+      .filter(a => a && a.address && a.disabled !== 'true').map(a => a.address);
+    const cfg  = Routers.getById(rid) || {};
+    const self = queueGuard.resolveSelfAddresses((active || []).filter(r => r && r.name),
+      [(session.ros.cfg || {}).username, cfg.username]);
+    const path = wanGuard.resolveManagementPath({ selfAddresses: self, connectedCidrs });
+    // Which uplink is carrying our return traffic.
+    //
+    // ONLY WHEN THERE IS EXACTLY ONE. Verified on a live router: four default
+    // routes can be active at distance 1 at the same time, and picking the first
+    // would name an uplink our packets may not use — warning about the wrong one
+    // while staying silent on the right one. Ambiguity is reported as unknown,
+    // which makes the guard warn for any WAN rather than guess.
+    const activeDefaults = (routes || []).filter(r => r && r['dst-address'] === '0.0.0.0/0' && r.active === 'true');
+    let activeDefaultWan = '';
+    if (activeDefaults.length === 1 && activeDefaults[0].gateway) {
+      const gw = activeDefaults[0].gateway;
+      const byName  = rows.find(c => c.interface === gw);
+      const byLease = rows.find(c => c.gateway === gw);
+      activeDefaultWan = (byName && byName.interface) || (byLease && byLease.interface) || gw;
+    }
+    return { rows, path, activeDefaultWan };
+  };
+
+  /** Address by id, identify by interface name — an id survives a rename. */
+  const _wanRow = (rows, id, expectedName) => {
+    const row = (rows || []).find(r => r['.id'] === id);
+    if (!row) return null;
+    if (expectedName && String(row.interface) !== String(expectedName)) return null;
+    return row;
+  };
+
+  socket.on('wan:caps', () => {
+    const rid = socket.routerId;
+    const { session, off } = _wanSession(rid);
+    if (!rid || !session || off) return _wanErr('unavailable');
+    if (!_pageAllowed(socket, 'wan', 'read')) return _wanErr('denied');
+    socket.emit('wan:caps', {
+      permitted: _wanMayWrite(rid),
+      routerName: (Routers.getById(rid) || {}).label || '',
+    });
+  });
+
+  const _WAN_VERBS = Object.freeze({ renew: '/ip/dhcp-client/renew', release: '/ip/dhcp-client/release' });
+
+  /**
+   * Renew or release one lease.
+   *
+   * One body, two registrations below rather than a loop: every drift test in
+   * this repo greps for a literal `socket.on('wan:renew'`, and so will the next
+   * person looking for where this is handled.
+   */
+  const _wanLeaseAction = async (verb, req, rid) => {
+    const { session, off } = _wanSession(rid);
+    if (!rid || !session || off) return _wanErr('unavailable');
+    const r = req || {};
+    const action = 'wan.' + verb;
+    if (!_wanMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action, targetType: 'wan', routerId: rid,
+        targetName: r.expectedName ? String(r.expectedName) : null });
+      return _wanErr('denied');
+    }
+    if (!r.id) return _wanErr('bad-request');
+
+    try {
+      const { rows, path, activeDefaultWan } = await _wanRead(session, rid);
+      const target = _wanRow(rows, r.id, r.expectedName);
+      if (!target) return _wanErr('stale-row');
+
+      const verdict = wanGuard.checkLeaseAction({ path, targetWan: target.interface, activeDefaultWan });
+      if (verdict.level === 'warn') {
+        if (!r.ack) {
+          // Nothing written, nothing audited — a prompt is not a refusal, and a
+          // denied row here would misrepresent what was attempted.
+          return _wanErr('self-cutoff', { warning: verdict.detail, fingerprint: verdict.fingerprint,
+                                          name: target.interface, verb });
+        }
+        if (r.ack !== verdict.fingerprint) {
+          // Acknowledged against different values, or our own path moved between
+          // the prompt and the retry.
+          return _wanErr('stale-warning', { warning: verdict.detail, fingerprint: verdict.fingerprint,
+                                            name: target.interface, verb });
+        }
+      }
+
+      await session.ros.write(_WAN_VERBS[verb], ['=.id=' + r.id]);
+      audit.fromSocket(socket).record({ action, targetType: 'wan',
+        targetId: r.id, targetName: target.interface, routerId: rid,
+        extra: Object.assign({ status: target.status || '' },
+                             r.ack ? { selfCutoffAcknowledged: true } : null),
+        note: verb === 'release'
+          ? 'released the DHCP lease; the uplink is down until the client rebinds'
+          : 'requested a DHCP lease renewal' });
+      // The lease state settles over the next second or two, so this re-read may
+      // still show the old value. The page says "requested" rather than claiming
+      // the new state, and the next tick tells the truth.
+      await session.wan.refreshNow();
+      socket.emit('wan:ok', { action: verb, name: target.interface });
+    } catch (e) {
+      _wanErr(_rosWriteFail(e), { message: sanitizeErr(e) });
+    }
+  };
+
+  socket.on('wan:renew',   (req) => _routerWriteQueue(socket.routerId, (rid) => _wanLeaseAction('renew', req, rid)));
+  socket.on('wan:release', (req) => _routerWriteQueue(socket.routerId, (rid) => _wanLeaseAction('release', req, rid)));
 
   // ── WiFi frequency analyzer ───────────────────────────────────────────────
   //
