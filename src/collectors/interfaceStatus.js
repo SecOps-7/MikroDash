@@ -242,6 +242,20 @@ class InterfaceStatusCollector {
     this._startMetaStreams();
   }
 
+  /**
+   * Re-read now, after a write, so the page shows what the router did.
+   *
+   * The interface list arrives on an `=interval=N` push rather than a /listen,
+   * so a newly created VETH would otherwise not appear until the next meta
+   * tick — a minute on the default interval, which reads as a failed save.
+   * Restarting the streams re-issues the print immediately, and is this
+   * collector's own idiom for "read the metadata again".
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    this._restartMetaStreams();
+  }
+
   _startIfStream() {
     if (this._ifStream || !this.ros.connected) return;
     const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));

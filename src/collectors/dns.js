@@ -68,6 +68,10 @@ function parseStaticEntries(rows) {
   for (const r of rows || []) {
     if (!r || (!r.name && !r.regexp)) continue;    // also drops {undefined:''}
     out.push({
+      // The row id, so the page can open an entry in the edit form. It
+      // addresses a row, it does not authorise one — every write re-reads and
+      // re-checks before touching it.
+      id:       r['.id'] || '',
       name:     r.name || '',
       regexp:   r.regexp || '',
       address:  r.address || r.cname || r['forward-to'] || '',
@@ -114,6 +118,20 @@ class DnsCollector {
       else this.state.lastDnsErr = e && e.message ? e.message : String(e);
       return [];
     }
+  }
+
+  /**
+   * Re-read now, after a write, so the page shows what the router did.
+   *
+   * The tick counter is reset rather than the read being called directly:
+   * static entries are only re-read every CONFIG_EVERY ticks, and a save that
+   * left the table showing the old row until the next config sweep — up to ten
+   * minutes on the default interval — would read as a failed save.
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    this._ticks = 0;
+    await this._tick();
   }
 
   async _tick() {
