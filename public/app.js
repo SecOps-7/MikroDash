@@ -98,6 +98,26 @@ if (sessionStorage.getItem('justLoggedIn')) {
 // ── Utilities ──────────────────────────────────────────────────────────────
 var DOT = '\u00b7';
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+
+/**
+ * The attributes that make a rendered row editable by the resource engine at
+ * the foot of this file.
+ *
+ * `id` addresses the RouterOS row; `identity` is round-tripped so the server can
+ * refuse the write if the row no longer carries it — a `.id` survives a rename,
+ * which makes it the right key to address a row with and the wrong one to
+ * identify it by. `resource` is only needed where one table holds two menus,
+ * which today is the Routes table and its two address families.
+ *
+ * No `style` here on purpose: several of these rows already carry one, and a
+ * second style attribute is invalid. The pointer cursor is a CSS rule on
+ * `[data-res-rows] [data-id]` instead.
+ */
+function resRow(id, identity, resource){
+  if(!id) return '';
+  return ' data-id="'+esc(id)+'" data-identity="'+esc(identity==null?'':identity)+'"'+
+         (resource?' data-res="'+esc(resource)+'"':'');
+}
 function fmtMbps(v){var n=+v||0;if(n>=1000)return(n/1000).toFixed(2)+' Gbps';if(n>=1)return n.toFixed(2)+' Mbps';return(n*1000).toFixed(1)+' Kbps';}
 // TB tier added for interface lifetime counters, which pass 1 TB on any
 // long-running WAN port and would otherwise render as a four-digit GB figure.
@@ -907,7 +927,15 @@ function _flushSysUpdate() {
     var ur='';
     if(d.updateAvailable&&d.latestVersion){
       var installedBase=(d.version||'').replace(/\s*\(.*\)/,'').trim();
-      ur='<div class="ros-update-row warn"><span class="ros-update-dot"></span>&#11014; '+esc(installedBase)+' &rarr; <strong>'+esc(d.latestVersion)+'</strong> available</div>';
+      // The Update button lands in #sysUpdateAction, filled by the upgrade
+      // module at the end of this file once it knows whether the viewer may
+      // reboot this router. Empty for everyone else, so the row is unchanged
+      // for a viewer who cannot act on it.
+      ur='<div class="ros-update-row warn"><span class="ros-update-dot"></span>&#11014; '+esc(installedBase)+' &rarr; <strong>'+esc(d.latestVersion)+'</strong> available<span id="sysUpdateAction"></span></div>';
+      // Published rather than read back off the DOM: the versions are already
+      // parsed here, and the upgrade dialog should show what this row showed.
+      document.dispatchEvent(new CustomEvent('mikrodash:updateavailable',
+        { detail: { installed: installedBase, latest: d.latestVersion, channel: d.updateChannel || '' } }));
     }else if(d.latestVersion){
       ur='<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; RouterOS <strong>'+esc(d.latestVersion)+'</strong> &mdash; Up to date</div>';
     }else if(d.updateStatus){
@@ -2042,7 +2070,9 @@ socket.on('vpn:update',function(data){
         var totStr = '<span style="color:var(--text-muted)">↓ ' + fmtBytes(parseInt(t.rx, 10) || 0) + ' ↑ ' + fmtBytes(parseInt(t.tx, 10) || 0) + '</span>';
         var dotCls  = isConn ? 'up' : 'dis';
         var tileCls = 'vpn-tile ' + (isConn ? 'up' : 'idle');
-        return '<div class="' + tileCls + '">' +
+        // A tile, not a row — the engine looks for the nearest ancestor with a
+        // data-id, so the two work the same. Identity is the public key.
+        return '<div class="' + tileCls + '"' + resRow(t.id, t.publicKey) + '>' +
           '<div class="vpn-tile-name"><span class="iface-dot ' + dotCls + '"></span><span class="vpn-tile-name-text">' + esc(t.name || t.interface || '—') + '</span></div>' +
           (t.interface ? '<div class="vpn-tile-iface">' + esc(t.interface) + (t.allowedIp ? ' · ' + esc(t.allowedIp) : '') + '</div>' : '') +
           (t.endpoint ? '<div class="vpn-tile-ip">' + esc(t.endpoint) + '</div>' : '') +
@@ -2138,7 +2168,7 @@ function renderDhcp(leases){
   dhcpTable.innerHTML=filtered.map(function(l){
     var st=(l.status||'').toLowerCase();
     var pillCls=st==='bound'?'bound':st==='waiting'||st==='offered'?'waiting':'expired';
-    return'<tr>'+
+    return'<tr'+resRow(l.id,l.mac)+'>'+
       '<td style="font-weight:600">'+esc(l.name||l.hostName||'—')+'</td>'+
       '<td style="color:var(--accent-rx)">'+esc(l.ip)+'</td>'+
       '<td style="font-size:.7rem;color:var(--text-muted)">'+esc(l.mac||'—')+'</td>'+
@@ -7218,7 +7248,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var familyBadge = r.family === 'ipv6'
         ? '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:3px;background:rgba(167,139,250,.12);color:rgba(167,139,250,.8);margin-right:.3rem">IPv6</span>'
         : '';
-      return '<tr>' +
+      // The family picks the RouterOS menu, so a v6 row overrides the table's
+      // default resource on itself.
+      return '<tr' + resRow(r.id, r.dst, r.family === 'ipv6' ? 'route6' : null) + '>' +
         '<td style="font-family:var(--font-mono);font-size:.72rem">' + familyBadge + esc(r.dst || '—') + '</td>' +
         '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(r.gateway || '—') + '</td>' +
         '<td style="font-family:var(--font-mono);text-align:right">' + r.distance + '</td>' +
@@ -11532,7 +11564,10 @@ function _renderRoutersMap(rows) {
 
     tbody.innerHTML = rows.length ? rows.map(function (v) {
       var i0 = v.interfaces[0];
-      return '<tr>' +
+      // A VLAN that exists only at layer 2 — membership via a bridge port's
+      // pvid, with no /interface/vlan row — has nothing to edit, so it gets no
+      // data-id and is simply not clickable.
+      return '<tr' + resRow(i0 && i0.id, i0 && i0.name) + '>' +
         '<td><span class="wl-band wl-band-24">' + v.vlanId + '</span></td>' +
         '<td>' + (v.name ? esc(v.name) : '<span style="color:var(--text-muted)">no L3 interface</span>') + '</td>' +
         '<td>' + esc(i0 ? i0.parent : '') + '</td>' +
@@ -11973,7 +12008,7 @@ function _renderRoutersMap(rows) {
     $('bridgesBadge').textContent = bridges.length;
     $('bridgesBadge').className = 'card-badge' + (bridges.length ? ' active-blue' : '');
     tbody.innerHTML = bridges.length ? bridges.map(function (b) {
-      return '<tr' + (b.disabled ? ' style="opacity:.55"' : '') + '>' +
+      return '<tr' + (b.disabled ? ' style="opacity:.55"' : '') + resRow(b.id, b.name) + '>' +
         '<td>' + esc(b.name) + (b.running ? '' : ' <span class="wl-band wl-band-24">down</span>') + '</td>' +
         '<td>' + (b.protocolMode ? '<span class="wl-band wl-band-5">' + esc(b.protocolMode) + '</span>'
                                  : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
@@ -12000,7 +12035,7 @@ function _renderRoutersMap(rows) {
       var state = p.disabled ? '<span class="wl-band wl-band-24">disabled</span>'
                 : p.inactive ? '<span style="color:var(--text-muted)">inactive</span>'
                 : '<span class="wl-band wl-band-6">active</span>';
-      return '<tr>' +
+      return '<tr' + resRow(p.id, p.interface) + '>' +
         '<td>' + esc(p.interface) + (p.dynamic ? ' <span class="wl-band wl-band-6">dyn</span>' : '') + '</td>' +
         '<td>' + esc(p.bridge) + '</td>' +
         '<td>' + (p.pvid === null ? '&mdash;' : '<span class="wl-band wl-band-24">' + p.pvid + '</span>') + '</td>' +
@@ -12184,7 +12219,7 @@ function _renderRoutersMap(rows) {
     });
     $('dnsStaticBadge').textContent = rows.length;
     $('dnsStaticTable').innerHTML = list.length ? sorted(list, _sortS).map(function (e) {
-      return '<tr' + (e.disabled ? ' style="opacity:.55"' : '') + '>' +
+      return '<tr' + (e.disabled ? ' style="opacity:.55"' : '') + resRow(e.id, e.name) + '>' +
         '<td>' + esc(e.name || e.regexp) +
           (e.regexp ? ' <span class="wl-band wl-band-24">regexp</span>' : '') + '</td>' +
         '<td class="mono">' + esc(e.address) + '</td>' +
@@ -12945,7 +12980,7 @@ function _renderRoutersMap(rows) {
     renderSimple(); renderTree(); renderFasttrack(); renderSummary();
     var add = $('qAddBtn');
     if (add) {
-      add.textContent = _tab === 'tree' ? 'Add Tree Queue' : 'Add Simple Queue';
+      add.textContent = _tab === 'tree' ? '+ Add Tree Queue' : '+ Add Simple Queue';
       add.style.display = _caps.permitted ? '' : 'none';
     }
     var note = $('qActionNote');
@@ -13342,7 +13377,7 @@ function _renderRoutersMap(rows) {
 
     var add = $('ruAddBtn');
     if (add) {
-      add.textContent = _tab === 'groups' ? 'Add Group' : 'Add User';
+      add.textContent = _tab === 'groups' ? '+ Add Group' : '+ Add User';
       add.style.display = (_caps.permitted && _tab !== 'sessions') ? '' : 'none';
     }
     var note = $('ruActionNote');
@@ -13733,5 +13768,485 @@ function _renderRoutersMap(rows) {
   // reloads itself while being read is worse than one that does not.
   document.addEventListener('mikrodash:pagechange', function (e) {
     if (e.detail === 'audit') { _offset = 0; load(); }
+  });
+}());
+
+
+// ── Resource write engine (issue #97) ────────────────────────────────────────
+//
+// ONE add/edit dialog for every resource in src/routeros/resources.js. The form
+// is built from the schema the SERVER sends, not from a field list here: this
+// file already carries five hand-maintained mirrors of server-side lists, and
+// eight more would be eight more things to drift.
+//
+// A card opts in with two attributes in index.html and nothing else:
+//
+//   <span data-res-add="route"></span>     where the + Add button goes
+//   <tbody data-res-rows="route">          rows here open the edit form
+//
+// A row needs data-id and data-identity. The identity is round-tripped to the
+// server, which refuses the write if the row no longer carries it — a `.id`
+// survives a rename, so it addresses a row without identifying it.
+//
+// Nothing here decides anything. `permitted` only draws a button; every gate,
+// every readOnlyWhen and every guard is re-evaluated server-side against a read
+// taken in the same tick as the write.
+(function () {
+  'use strict';
+
+  var _schema  = {};   // resource key -> schema from the server
+  var _waiting = {};   // resource key -> callbacks queued while it loads
+  var _cur     = null; // { key, id, identity, ack } for the open dialog
+
+  function el(id) { return document.getElementById(id); }
+
+  /** Ask for a schema once, then serve it from memory. */
+  function need(key, cb) {
+    if (_schema[key]) { if (cb) cb(_schema[key]); return; }
+    if (cb) (_waiting[key] = _waiting[key] || []).push(cb);
+    socket.emit('res:schema', { resource: key });
+  }
+
+  /**
+   * Draw the + Add buttons, or take them away.
+   *
+   * Permission is a property of the socket; the collector payload is shared by
+   * every viewer of the router, so it can never answer this.
+   *
+   * A slot may name SEVERAL resources — `data-res-add="route,route6"` — and
+   * they all render into that one slot. One slot means one flex item, which is
+   * what keeps the buttons together: as two items in a wrapping header they
+   * ended up on separate lines, right-aligned but stacked.
+   *
+   * Every slot is redrawn whenever any schema arrives, because a slot's content
+   * can depend on a schema that has not landed yet.
+   */
+  function addButton(attr, label) {
+    return '<button class="sbtn sbtn-primary" ' + attr +
+           ' style="padding:.28rem .65rem;font-size:.72rem">' + esc(label) + '</button>';
+  }
+
+  function mountAdds() {
+    var slots = document.querySelectorAll('[data-res-add]');
+    Array.prototype.forEach.call(slots, function (slot) {
+      var keys  = slot.getAttribute('data-res-add').split(',').map(function (k) { return k.trim(); });
+      var ready = keys.filter(function (k) { return _schema[k] && _schema[k].permitted; });
+      slot.innerHTML = ready.map(function (k) {
+        return addButton('data-res-addbtn="' + esc(k) + '"', '+ Add ' + _schema[k].label);
+      }).join('');
+      // An empty slot is laid out away entirely by CSS, so a viewer who may not
+      // write gets back exactly the header they had before, right corner
+      // included.
+    });
+  }
+
+  // ── The form ───────────────────────────────────────────────────────────────
+
+  /**
+   * Options the ROUTER supplied for this field, if any.
+   *
+   * A picker beats a text box for anything the router already knows — which
+   * DHCP server, which bridge, which WireGuard interface. The current value is
+   * kept in the list even when the router no longer offers it, so opening an
+   * edit form cannot quietly drop a value nobody meant to change.
+   */
+  function selectHtml(f, id, value, choices) {
+    var cur = (value === undefined || value === null) ? '' : String(value);
+    var opts = choices.slice();
+    if (cur && opts.indexOf(cur) === -1) opts.unshift(cur);
+    // One choice for a field that must have one is not a question worth asking.
+    var blank = !(f.required && opts.length === 1);
+    return '<select class="sform-input" id="' + id + '">' +
+      (blank ? '<option value=""></option>' : '') +
+      opts.map(function (o) {
+        return '<option value="' + esc(o) + '"' + (cur === o ? ' selected' : '') + '>' + esc(o) + '</option>';
+      }).join('') + '</select>';
+  }
+
+  function fieldHtml(f, value, choices) {
+    var id = 'resf_' + f.name;
+
+    if (f.input === 'checkbox') {
+      // No <label for> on a toggle: the .stoggle markup wraps its own input.
+      return '<label class="stoggle" style="margin-top:.7rem" data-res-field="' + esc(f.name) + '">' +
+             '<span class="stoggle-label">' + esc(f.label) + '</span>' +
+             '<span class="stoggle-switch"><input type="checkbox" id="' + id + '"' +
+             (value ? ' checked' : '') + '><span class="stoggle-track"></span>' +
+             '<span class="stoggle-thumb"></span></span></label>';
+    }
+
+    var lbl = '<label class="sform-label" for="' + id + '">' + esc(f.label) +
+              (f.required ? ' <span style="color:var(--accent-err)">*</span>' : '') + '</label>';
+    var help = f.help ? '<div style="font-size:.66rem;color:var(--text-muted);margin-top:.15rem">' +
+                        esc(f.help) + '</div>' : '';
+    var body;
+
+    if (choices && choices.length) {
+      // The router told us what this field may be, so offer that rather than a
+      // blank box — even for a field whose declared type is free text.
+      body = selectHtml(f, id, value, choices);
+    } else if (f.input === 'select') {
+      body = '<select class="sform-input" id="' + id + '">' +
+             (f.required ? '' : '<option value=""></option>') +
+             (f.options || []).map(function (o) {
+               return '<option value="' + esc(o) + '"' +
+                      (String(value) === o ? ' selected' : '') + '>' + esc(o) + '</option>';
+             }).join('') + '</select>';
+    } else {
+      var attrs = ' type="' + esc(f.input) + '"';
+      if (f.min !== null && f.min !== undefined) attrs += ' min="' + esc(f.min) + '"';
+      if (f.max !== null && f.max !== undefined && f.input === 'number') attrs += ' max="' + esc(f.max) + '"';
+      // A secret is never filled in: an empty box means "leave it unchanged".
+      var v = f.type === 'secret' ? '' : (value === undefined || value === null ? '' : value);
+      body = '<input class="sform-input" id="' + id + '"' + attrs +
+             ' value="' + esc(v) + '" placeholder="' + esc(f.placeholder || '') + '"' +
+             ' autocomplete="off">';
+    }
+
+    return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' + lbl + body + help + '</div>';
+  }
+
+  function buildForm(schema, values, options) {
+    var opts = options || {};
+    el('res_fields').innerHTML = schema.fields.map(function (f) {
+      return fieldHtml(f, values ? values[f.name] : undefined, opts[f.name]);
+    }).join('');
+    applyShowIf(schema);
+    // A field that controls another's visibility redraws it as it changes — the
+    // DNS type picker is the only one today, but the rule is general.
+    schema.fields.forEach(function (f) {
+      if (!f.showIf) return;
+      var ctl = el('resf_' + f.showIf.field);
+      if (ctl && !ctl._resWired) {
+        ctl._resWired = true;
+        ctl.addEventListener('change', function () { applyShowIf(schema); });
+      }
+    });
+  }
+
+  function applyShowIf(schema) {
+    schema.fields.forEach(function (f) {
+      if (!f.showIf) return;
+      var ctl  = el('resf_' + f.showIf.field);
+      var wrap = el('res_fields').querySelector('[data-res-field="' + f.name + '"]');
+      if (!ctl || !wrap) return;
+      wrap.style.display = (f.showIf.in || []).indexOf(String(ctl.value)) !== -1 ? '' : 'none';
+    });
+  }
+
+  function readValues(schema) {
+    var out = {};
+    schema.fields.forEach(function (f) {
+      var node = el('resf_' + f.name);
+      if (!node) return;
+      out[f.name] = (f.input === 'checkbox') ? node.checked : node.value;
+    });
+    return out;
+  }
+
+  /**
+   * `actions` are the verbs a read-only row still offers.
+   *
+   * A dynamic DHCP lease is the case this exists for: it cannot be edited,
+   * because it belongs to the server rather than to us, and the only useful
+   * thing to do with it is make it static. Refusing to open it at all would
+   * make that verb unreachable.
+   */
+  function actionBar(schema, avail) {
+    var host = el('res_actions');
+    if (!host) return;
+    host.innerHTML = (avail || []).map(function (k) {
+      var a = (schema.actions || []).find(function (x) { return x.key === k; });
+      return a ? '<button class="sbtn sbtn-primary" data-res-actionbtn="' + esc(a.key) + '" ' +
+                 'style="padding:.3rem .7rem;font-size:.72rem">' + esc(a.label) + '</button>' : '';
+    }).join(' ');
+  }
+
+  function open(key, row, values, opts) {
+    var schema = _schema[key];
+    var ro = !!(opts && opts.readOnly);
+    _cur = { key: key, id: row ? row.id : null, identity: row ? row.identity : null, ack: null };
+    el('res_title').textContent = (ro ? '' : row ? 'Edit ' : 'Add ') + schema.title;
+    buildForm(schema, values, opts && opts.options);
+    if (ro) {
+      // Shown, not hidden: the operator clicked the row to see it, and the
+      // values are the answer to that even when they cannot be changed.
+      Array.prototype.forEach.call(el('res_fields').querySelectorAll('input,select'),
+        function (n) { n.disabled = true; });
+    }
+    actionBar(schema, (opts && opts.actions) || []);
+    el('res_error').style.display   = 'none';
+    el('res_warn').style.display    = 'none';
+    el('res_preview').style.display = 'none';
+    el('res_delete').style.display  = (row && !ro) ? '' : 'none';
+    el('res_save').style.display    = ro ? 'none' : '';
+    el('res_previewBtn').style.display = ro ? 'none' : '';
+    el('res_save').textContent = row ? 'Save' : 'Add ' + schema.label;
+    el('resModal').classList.add('open');
+  }
+
+  function fail(msg) { var e = el('res_error'); e.textContent = msg; e.style.display = ''; }
+
+  function submit(ack) {
+    if (!_cur) return;
+    _cur.pendingRemove = false;
+    el('res_error').style.display = 'none';
+    socket.emit('res:save', {
+      resource: _cur.key,
+      id: _cur.id || undefined,
+      expectedIdentity: _cur.identity || undefined,
+      values: readValues(_schema[_cur.key]),
+      ack: ack || undefined,
+    });
+  }
+
+  function doRemove(ack) {
+    if (!_cur) return;
+    socket.emit('res:remove', {
+      resource: _cur.key, id: _cur.id,
+      expectedIdentity: _cur.identity || undefined, ack: ack || undefined,
+    });
+  }
+
+  // ── Socket ─────────────────────────────────────────────────────────────────
+
+  socket.on('res:schema', function (d) {
+    if (!d || !d.key) return;
+    _schema[d.key] = d;
+    mountAdds();
+    var q = _waiting[d.key] || [];
+    _waiting[d.key] = [];
+    q.forEach(function (cb) { cb(d); });
+  });
+
+  socket.on('res:row', function (d) {
+    if (!d || !_schema[d.resource]) return;
+    // readOnly and actions are both decided server-side against a fresh read;
+    // the page only reports them.
+    open(d.resource, { id: d.id, identity: d.identity }, d.values,
+         { readOnly: d.readOnly, actions: d.actions || [], options: d.options });
+  });
+
+  // A blank Add form, once the router has told us what its pickers may offer.
+  socket.on('res:new', function (d) {
+    if (!d || !_schema[d.resource]) return;
+    open(d.resource, null, null, { options: d.options });
+  });
+
+  socket.on('res:preview', function (d) {
+    if (!d || !_cur || d.resource !== _cur.key) return;
+    var p = el('res_preview');
+    p.textContent = d.command;
+    p.style.display = '';
+  });
+
+  socket.on('res:ok', function () {
+    el('resModal').classList.remove('open');
+    _cur = null;
+  });
+
+  var MSG = {
+    denied:               'You do not have write access to this router.',
+    unavailable:          'This router is not connected.',
+    'stale-row':          'That row changed on the router while the form was open. Close it and try again.',
+    'read-only-row':      'This row is managed by the router and cannot be edited here.',
+    'not-applicable':     'That action no longer applies to this row.',
+    'bad-request':        'Something was missing from the request.',
+    'unknown-resource':   'This page does not support editing.',
+    'router-write-policy':'The RouterOS user MikroDash connects with lacks the write policy.',
+    unsupported:          'This RouterOS version does not have that menu.',
+    failed:               'The router refused the change.',
+  };
+
+  socket.on('res:error', function (d) {
+    if (!d) return;
+
+    if (d.code === 'invalid') {
+      fail((d.errors || []).map(function (x) { return x.message; }).join('; ') || 'Check the form.');
+      return;
+    }
+
+    // The self-cutoff prompt. Nothing was written — this is a question, and the
+    // fingerprint binds the answer to the exact values it was asked about.
+    if (d.code === 'self-cutoff' || d.code === 'stale-warning') {
+      var w = d.warning || {};
+      var box = el('res_warn');
+      box.innerHTML =
+        '<strong>This may cut MikroDash off from this router.</strong><br>' +
+        'The router sees MikroDash at <code>' + esc(w.address || '?') + '</code>, which arrives on <code>' +
+        esc(w.interface || '?') + '</code> — the interface this change ' +
+        (w.action === 'delete' ? 'removes' : 'alters') + '.' +
+        (d.code === 'stale-warning'
+          ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
+        '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
+        '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
+        '<button class="sbtn sbtn-danger" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Do it anyway</button></div>';
+      box.style.display = '';
+      if (_cur) _cur.ack = d.fingerprint || '';
+      el('res_warnCancel').addEventListener('click', function () {
+        box.style.display = 'none';
+        if (_cur) { _cur.ack = null; _cur.pendingRemove = false; }
+      });
+      el('res_warnGo').addEventListener('click', function () {
+        box.style.display = 'none';
+        if (_cur && _cur.pendingRemove) doRemove(_cur.ack);
+        else submit(_cur && _cur.ack);
+      });
+      return;
+    }
+
+    fail(MSG[d.code] || (d.message ? String(d.message) : 'That did not work.'));
+  });
+
+  // ── Wiring ─────────────────────────────────────────────────────────────────
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+
+    var add = e.target.closest('[data-res-addbtn]');
+    if (add) {
+      var k = add.getAttribute('data-res-addbtn');
+      // The pickers are read when the form opens rather than cached with the
+      // schema: a bridge added a minute ago should be in the list.
+      need(k, function () { socket.emit('res:new', { resource: k }); });
+      return;
+    }
+
+    var act = e.target.closest('[data-res-actionbtn]');
+    if (act && _cur) {
+      socket.emit('res:action', {
+        resource: _cur.key, action: act.getAttribute('data-res-actionbtn'),
+        id: _cur.id, expectedIdentity: _cur.identity || undefined,
+      });
+      return;
+    }
+
+    var host = e.target.closest('[data-res-rows]');
+    if (host) {
+      var row = e.target.closest('[data-id]');
+      // A row-level data-res wins: the Routes table holds both families, and
+      // the family is what decides which RouterOS menu the edit goes to.
+      if (row && host.contains(row)) {
+        var key = row.getAttribute('data-res') || host.getAttribute('data-res-rows');
+        var schema = _schema[key];
+        // No dialog for a viewer who cannot write — the server would refuse it,
+        // and a form that always fails is worse than no form.
+        if (!schema || !schema.permitted) return;
+        socket.emit('res:row', {
+          resource: key, id: row.getAttribute('data-id'),
+          expectedIdentity: row.getAttribute('data-identity') || undefined,
+        });
+      }
+    }
+  });
+
+  var saveBtn = el('res_save');
+  if (saveBtn) saveBtn.addEventListener('click', function () { submit(_cur && _cur.ack); });
+
+  var delBtn = el('res_delete');
+  if (delBtn) delBtn.addEventListener('click', function () {
+    if (!_cur || !_cur.id) return;
+    if (!confirm('Delete ' + _schema[_cur.key].label.toLowerCase() + ' "' + (_cur.identity || '') + '"?')) return;
+    _cur.pendingRemove = true;
+    doRemove(_cur.ack);
+  });
+
+  var prevBtn = el('res_previewBtn');
+  if (prevBtn) prevBtn.addEventListener('click', function () {
+    if (!_cur) return;
+    socket.emit('res:preview', {
+      resource: _cur.key, id: _cur.id || undefined, values: readValues(_schema[_cur.key]),
+    });
+  });
+
+  // Schemas are per-router: switching routers can change whether the viewer may
+  // write, so they are dropped and re-asked rather than carried across.
+  function refreshAll() {
+    _schema = {}; _waiting = {};
+    mountAdds();                                   // clear last router's buttons
+    var slots = document.querySelectorAll('[data-res-add]');
+    Array.prototype.forEach.call(slots, function (s) {
+      s.getAttribute('data-res-add').split(',').forEach(function (k) { need(k.trim()); });
+    });
+  }
+
+  socket.on('connect', refreshAll);
+  // router:switched, not router:switching — the permissions that matter are the
+  // ones for the router we have arrived at, and asking during the switch would
+  // answer for the one we are leaving.
+  socket.on('router:switched', refreshAll);
+  if (socket.connected) refreshAll();
+}());
+
+
+// ── Upgrade RouterOS — the Dashboard System card's Update button ─────────────
+//
+// Separate from the resource engine above: this is not a row in a menu, it is
+// one verb that reboots the router. It reuses the Packages permission because
+// that is the authority that can already reboot this router from the Packages
+// page — a second permission for the same power would be a second answer to one
+// question.
+(function () {
+  'use strict';
+
+  var _caps = { permitted: false, routerName: '' };
+  var _upd  = { installed: '', latest: '', channel: '' };
+
+  function el(id) { return document.getElementById(id); }
+
+  function draw() {
+    var slot = el('sysUpdateAction');
+    if (!slot) return;
+    slot.innerHTML = (_caps.permitted && _upd.latest)
+      ? '<button class="sbtn sbtn-primary" id="sysUpdateBtn" style="padding:.1rem .45rem;font-size:.64rem;margin-left:.45rem">Update</button>'
+      : '';
+  }
+
+  socket.on('packages:caps', function (d) {
+    _caps = d || { permitted: false, routerName: '' };
+    draw();
+  });
+
+  // The System card publishes what it drew, so this module never re-reads the
+  // gauge payload or guesses at the version strings already on screen.
+  document.addEventListener('mikrodash:updateavailable', function (e) {
+    _upd = e.detail || _upd;
+    draw();
+    socket.emit('packages:caps');
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('#sysUpdateBtn')) {
+      el('upd_from').textContent    = _upd.installed || '—';
+      el('upd_to').textContent      = _upd.latest || '—';
+      el('upd_channel').textContent = _upd.channel ? 'channel: ' + _upd.channel : '';
+      el('upd_confirm').value       = '';
+      el('upd_confirm').placeholder = _caps.routerName || '';
+      el('upd_error').style.display = 'none';
+      el('updModal').classList.add('open');
+      return;
+    }
+    if (e.target.closest('#upd_go')) {
+      el('upd_error').style.display = 'none';
+      socket.emit('packages:upgrade', { confirm: el('upd_confirm').value });
+    }
+  });
+
+  socket.on('packages:error', function (d) {
+    var modal = el('updModal');
+    if (!d || !modal || !modal.classList.contains('open')) return;
+    var box = el('upd_error');
+    box.textContent =
+      d.code === 'confirm-mismatch'    ? 'That is not this router’s name. Type "' + (d.routerName || '') + '".' :
+      d.code === 'nothing-to-update'   ? 'This router is already on the newest version it knows about.' :
+      d.code === 'denied'              ? 'You do not have permission to update this router.' :
+      d.code === 'router-write-policy' ? 'The RouterOS user MikroDash connects with lacks the write policy.' :
+      'The router refused the upgrade.';
+    box.style.display = '';
+  });
+
+  socket.on('packages:ok', function (d) {
+    if (d && d.action === 'upgrade') el('updModal').classList.remove('open');
   });
 }());

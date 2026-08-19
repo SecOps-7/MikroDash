@@ -43,6 +43,8 @@ const { classifyRosError } = require('./routeros/classifyError');
 const selfGuard            = require('./routeros/selfGuard');
 const queueGuard           = require('./routeros/queueGuard');
 const wanGuard             = require('./routeros/wanGuard');
+const selfPath             = require('./routeros/selfPath');
+const Resources            = require('./routeros/resources');
 const { scheduleForcedShutdownTimer } = require('./shutdown');
 
 try {
@@ -4655,6 +4657,77 @@ io.on('connection', (socket) => {
   });
 
 
+  /**
+   * Upgrade RouterOS — the Update button on the Dashboard's System card.
+   *
+   * `/system/package/update/install` downloads the new packages AND reboots, in
+   * one command. It is the single most consequential thing this app can do to a
+   * router, so it carries the same second gate apply-changes does: the browser
+   * must send back the router's own name. A misclick cannot reach it, and
+   * neither can a click on the router you thought you were looking at.
+   *
+   * Gated on the PACKAGES page rather than the dashboard. The button lives on
+   * the dashboard, but the authority it needs is the one that can already
+   * reboot this router from the Packages page — inventing a second permission
+   * for the same power would mean two answers to one question.
+   *
+   * Queued and rid-captured, unlike its three siblings above: they were written
+   * before _routerWriteQueue existed. A reboot landing on the wrong router
+   * because of a router:switch mid-flight is exactly what the capture prevents.
+   */
+  socket.on('packages:upgrade', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const entry   = rid ? _routerSessions.get(rid) : null;
+    const session = entry && entry.session;
+    // Deliberately not gated on the collector being enabled: the write goes
+    // through session.ros, so an install works on a router whose Packages
+    // collector is switched off (#105). Only the refresh afterwards needs it,
+    // and the router is rebooting anyway.
+    if (!rid || !session) return _pkgErr('unavailable');
+
+    if (!_pageAllowed(socket, 'packages', 'write') || !_socketCan(socket, 'router:write', rid)) {
+      audit.fromSocket(socket).denied({ action: 'package.upgrade', targetType: 'router',
+        targetId: rid, routerId: rid });
+      return _pkgErr('denied');
+    }
+
+    const routerName = (Routers.getById(rid) || {}).label || '';
+    const confirm    = req && typeof req.confirm === 'string' ? req.confirm.trim() : '';
+    if (!routerName || confirm.toLowerCase() !== routerName.toLowerCase())
+      return _pkgErr('confirm-mismatch', { routerName });
+
+    try {
+      // Read fresh rather than trusting the payload the button was drawn from:
+      // an update that has already been installed by somebody else must not
+      // reboot the router a second time for nothing.
+      const row = ((await session.ros.write('/system/package/update/print', []) || [])[0]) || {};
+      const installed = row['installed-version'] || '';
+      const latest    = row['latest-version'] || '';
+      if (!latest || (installed && latest === installed))
+        return _pkgErr('nothing-to-update', { installed, latest });
+
+      console.log('%s', `[packages] upgrade on ${routerName} — ${installed || '?'} to ${latest}, router will reboot`);
+      socket.emit('packages:applying', { routerName, count: 1, upgrade: true });
+
+      // Recorded BEFORE the call, as apply-changes is: the router reboots while
+      // the command is in flight, so writing the row afterwards would lose the
+      // record of the most consequential action in the app.
+      audit.fromSocket(socket).record({ action: 'package.upgrade', targetType: 'router',
+        targetId: rid, targetName: routerName, routerId: rid,
+        extra: { from: installed, to: latest, channel: row.channel || '' },
+        note: 'downloaded the RouterOS update and rebooted the router' });
+
+      await session.ros.write('/system/package/update/install', []);
+      socket.emit('packages:ok', { action: 'upgrade', routerName, latest });
+    } catch (e) {
+      // A lost connection here is the expected outcome, not a failure — the
+      // router is rebooting as it answers.
+      const code = _rosWriteFail(e);
+      if (code === 'failed') socket.emit('packages:ok', { action: 'upgrade', routerName, rebooting: true });
+      else _pkgErr(code, { message: sanitizeErr(e) });
+    }
+  }));
+
+
   // ── Router Users (RouterOS /user) ─────────────────────────────────────────
   //
   // The only write surface in this app that can lock MikroDash out of the
@@ -5476,6 +5549,458 @@ io.on('connection', (socket) => {
 
   socket.on('wan:renew',   (req) => _routerWriteQueue(socket.routerId, (rid) => _wanLeaseAction('renew', req, rid)));
   socket.on('wan:release', (req) => _routerWriteQueue(socket.routerId, (rid) => _wanLeaseAction('release', req, rid)));
+
+  // ── Generic resource writes (issue #97) ───────────────────────────────────
+  //
+  // One set of handlers for every resource in src/routeros/resources.js. The
+  // three write features above are hand-written because they came first and
+  // each has something genuinely its own — Router Users can lock us out, Queues
+  // can throttle us, WAN can cut the uplink. Everything after them is the same
+  // seven steps with different field names, so the seven steps live here once
+  // and the field names live in the registry.
+  //
+  // Every property the Router Users block documents at length applies here, and
+  // for the same reasons:
+  //
+  //  1. A FRESH READ in the same tick as the write. `lastPayload` appears
+  //     nowhere below, and a test asserts it — the payload is exactly what goes
+  //     stale in the dangerous direction.
+  //  2. THE NAME IS ROUND-TRIPPED. The browser sends the `.id` and the identity
+  //     value it displayed. A `.id` survives a rename, which makes it the right
+  //     key to address a row with and the wrong one to identify it by.
+  //  3. SERIALISED PER ROUTER, with `rid` captured at enqueue so a router:switch
+  //     mid-flight cannot land the write on the router the operator is now
+  //     looking at rather than the one they pressed the button on.
+  //
+  // Both gates on every path: the install-wide page toggle and the role, via
+  // _pageAllowed, and `router:write` via _socketCan. Named separately so
+  // `router:write` stays greppable.
+
+  const _resErr = (code, extra) =>
+    socket.emit('res:error', Object.assign({ code }, extra || {}));
+
+  /**
+   * The session, and the collector that owns this resource's view.
+   *
+   * The write goes through `session.ros`, never the collector, so it works on a
+   * router whose collector is switched off (#105) — there is simply nothing to
+   * refresh afterwards, which is a missing page rather than a missing
+   * capability.
+   */
+  const _resSession = (rid, resource) => {
+    const e = rid ? _routerSessions.get(rid) : null;
+    const session = e && e.session;
+    const def = _COLLECTOR_DEFS.find(c => c.key === resource.collector);
+    const coll = (session && def) ? session[def.sessionProp] : null;
+    return { session, coll: (coll && !coll.disabled) ? coll : null };
+  };
+
+  const _resMayWrite = (rid, resource) =>
+    _pageAllowed(socket, resource.page, 'write') && _socketCan(socket, 'router:write', rid);
+
+  /** Every row in the menu, read now. No proplist: the guards and readOnlyWhen
+   *  need fields no page asked for, and this runs once per write, not per tick. */
+  const _resRead = async (session, resource) =>
+    (await session.ros.write(resource.menu + '/print', []) || []).filter(r => r && r['.id']);
+
+  /** Address by id, identify by the resource's own identity field. */
+  const _resFind = (rows, resource, id, expected) => {
+    const row = (rows || []).find(r => r['.id'] === id);
+    if (!row) return null;
+    if (expected !== undefined && expected !== null && expected !== '' &&
+        Resources.identityOf(resource, row) !== String(expected)) return null;
+    return row;
+  };
+
+  /**
+   * Where the router sees us from, and on which interface — for selfPath.
+   *
+   * Both reads are allowed to fail: `/user/active` is denied to the read-only
+   * API user the README recommends, and that is the common case. The guard
+   * fails open, so a denied read means no warning rather than no write.
+   */
+  const _resSelfPath = async (session, rid) => {
+    let active = [], addrs = [];
+    try { active = (await session.ros.write('/user/active/print', []) || []).filter(r => r && r.name); }
+    catch (_) { /* denied or unsupported — fails open, by design */ }
+    try { addrs = (await session.ros.write('/ip/address/print', []) || []); }
+    catch (_) { /* same */ }
+    const cfg = Routers.getById(rid) || {};
+    return selfPath.resolveManagementInterfaces({
+      activeRows: active,
+      usernames: [(session.ros.cfg || {}).username, cfg.username],
+      addressRows: addrs,
+    });
+  };
+
+  /**
+   * The interface names a write is about — or none, when the edit is harmless.
+   *
+   * A comment or an MTU change on the bridge we are reachable through is not
+   * worth a warning, and warning about it is how a warning becomes furniture
+   * (queueGuard.js says the same thing at more length). So an update only
+   * counts when it disables the row or changes one of the interface fields
+   * themselves. A delete always counts.
+   */
+  const _resGuardTargets = (resource, action, values, before) => {
+    const names = resource.guardInterfaceFields || [];
+    const of = (row, name) => {
+      const f = resource.fields.find(x => x.name === name);
+      return (f && row) ? String(row[f.ros] == null ? '' : row[f.ros]) : '';
+    };
+    const after = names.map(n => String(values[n] == null ? '' : values[n])).filter(Boolean);
+    if (action === 'delete') return names.map(n => of(before, n)).filter(Boolean);
+    if (!before) return [];                                   // a create cuts nothing that exists
+    const wasEnabled = before.disabled !== 'true';
+    const nowDisabled = values.disabled === 'yes' || values.disabled === true;
+    const renamed = names.some(n => of(before, n) !== String(values[n] == null ? '' : values[n]));
+    if (!renamed && !(wasEnabled && nowDisabled)) return [];
+    return after.concat(names.map(n => of(before, n))).filter(Boolean);
+  };
+
+  /**
+   * The values as the audit trail should see them.
+   *
+   * A `secret` field's VALUE never reaches a row. audit.js masks on field NAME
+   * and `presharedKey` does not match its pattern, so relying on that would put
+   * a pre-shared key in the one table that is deliberately hard to delete.
+   * Keying on the declared type instead means a future secret field is covered
+   * the moment it is declared.
+   */
+  const _resAuditValues = (resource, values) => {
+    const out = {};
+    for (const f of resource.fields) {
+      if (!Object.prototype.hasOwnProperty.call(values, f.name)) continue;
+      out[f.name] = f.type === 'secret'
+        ? (values[f.name] ? audit.SET : audit.UNSET)
+        : values[f.name];
+    }
+    return out;
+  };
+
+  /**
+   * The choices a form's pickers offer, read from the router now.
+   *
+   * "Which DHCP server?" has a right answer the router already knows, and
+   * making somebody type it from memory is how you get a typo in a
+   * reservation. Each menu is read once per form open and cached across the
+   * fields that share it — /interface backs both the VLAN parent and the bridge
+   * port, and reading it twice would be silly.
+   *
+   * EVERY READ FAILS SOFT. A menu the API user cannot see, or that does not
+   * exist on this RouterOS version (/routing/table is not on every build), just
+   * yields no options, and the field renders as the text box it always was. A
+   * picker is a convenience; it must never be the thing that stops a write.
+   */
+  const _resOptions = async (session, resource) => {
+    const out = {};
+    const menus = new Map();
+    for (const src of Resources.optionSources(resource)) {
+      if (!menus.has(src.menu)) {
+        try { menus.set(src.menu, (await session.ros.write(src.menu + '/print', [])) || []); }
+        catch (_) { menus.set(src.menu, null); }
+      }
+      const rows = menus.get(src.menu);
+      if (!rows) continue;
+      const vals = [];
+      for (const r of rows) {
+        const v = String((r && r[src.value]) || '').trim();
+        if (v && vals.indexOf(v) === -1) vals.push(v);
+      }
+      if (vals.length) out[src.field] = vals.sort();
+    }
+    return out;
+  };
+
+  /** Resolve the resource named on the wire, or answer why not. */
+  const _resolve = (req) => {
+    const r = req || {};
+    const resource = Resources.byKey(typeof r.resource === 'string' ? r.resource : '');
+    if (!resource) { _resErr('unknown-resource'); return null; }
+    return resource;
+  };
+
+  socket.on('res:schema', async (req) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    const rid = socket.routerId;
+    const { session } = _resSession(rid, resource);
+    if (!rid) return _resErr('unavailable', { resource: resource.key });
+    // Read access to see the page at all; write access is reported separately,
+    // because the page draws its Add button from `permitted` rather than from
+    // the payload, which every viewer of this router shares.
+    if (!_pageAllowed(socket, resource.page, 'read')) return _resErr('denied', { resource: resource.key });
+
+    // A resource whose menu ships with an optional package — VETH comes with
+    // containers — is only offered where the menu answers. Reading it is the
+    // only way to know: the package list would say the package is installed
+    // without saying the menu is reachable by THIS API user. One read, once
+    // per connect, for the one resource that asks for it.
+    let unsupported = false;
+    if (resource.requiresMenu && session) {
+      try { await session.ros.write(resource.requiresMenu + '/print', ['=.proplist=.id']); }
+      catch (_) { unsupported = true; }
+    }
+
+    socket.emit('res:schema', Object.assign(Resources.describe(resource), {
+      permitted: !unsupported && _resMayWrite(rid, resource),
+      unsupported,
+    }));
+  });
+
+  /**
+   * Opening a blank Add form.
+   *
+   * Its only job is the pickers: they are read when a form opens rather than
+   * shipped with the schema, because the schema is requested for all eight
+   * resources on every connect and that would be eight bursts of router reads
+   * nobody asked for.
+   */
+  socket.on('res:new', async (req) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    const rid = socket.routerId;
+    const { session } = _resSession(rid, resource);
+    if (!rid || !session) return _resErr('unavailable', { resource: resource.key });
+    if (!_resMayWrite(rid, resource)) return _resErr('denied', { resource: resource.key });
+    let options = {};
+    try { options = await _resOptions(session, resource); }
+    catch (_) { /* fails soft — every field falls back to a text box */ }
+    socket.emit('res:new', { resource: resource.key, options });
+  });
+
+  /**
+   * The current values of one row, read fresh, for the edit form.
+   *
+   * Not taken from the collector payload: payload rows carry collector-shaped
+   * field names and are as stale as the last tick, and a form filled from stale
+   * values would write them back. Gated on write because opening the edit form
+   * is the first half of an edit.
+   */
+  socket.on('res:row', async (req) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    const rid = socket.routerId;
+    const { session } = _resSession(rid, resource);
+    if (!rid || !session) return _resErr('unavailable', { resource: resource.key });
+    if (!_resMayWrite(rid, resource)) return _resErr('denied', { resource: resource.key });
+    const id = (req || {}).id;
+    if (!id) return _resErr('bad-request', { resource: resource.key });
+    try {
+      const rows = await _resRead(session, resource);
+      const row  = _resFind(rows, resource, id, (req || {}).expectedIdentity);
+      if (!row) return _resErr('stale-row', { resource: resource.key });
+      let options = {};
+      try { options = await _resOptions(session, resource); }
+      catch (_) { /* fails soft — every field falls back to a text box */ }
+      socket.emit('res:row', {
+        resource: resource.key, id,
+        identity: Resources.identityOf(resource, row),
+        readOnly: !!(resource.readOnlyWhen && resource.readOnlyWhen(row)),
+        actions: (resource.actions || []).filter(a => a.when(row)).map(a => a.key),
+        values: Resources.rowValues(resource, row),
+        options,
+      });
+    } catch (e) {
+      _resErr(_rosWriteFail(e), { resource: resource.key, message: sanitizeErr(e) });
+    }
+  });
+
+  /**
+   * The exact sentence a save would send, without sending it (#97 asks for a
+   * preview before apply). Not queued, because it writes nothing.
+   */
+  socket.on('res:preview', (req) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    const rid = socket.routerId;
+    if (!rid) return _resErr('unavailable', { resource: resource.key });
+    if (!_resMayWrite(rid, resource)) return _resErr('denied', { resource: resource.key });
+    const r = req || {};
+    const validated = Resources.validate(resource, r.values, { editing: !!r.id });
+    if (!validated.ok) return _resErr('invalid', { resource: resource.key, errors: validated.errors });
+    socket.emit('res:preview', {
+      resource: resource.key,
+      command: Resources.previewCommand(resource, validated, r.id || null),
+    });
+  });
+
+  socket.on('res:save', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    const { session, coll } = _resSession(rid, resource);
+    if (!rid || !session) return _resErr('unavailable', { resource: resource.key });
+    const r = req || {};
+    const editing = !!r.id;
+    const action  = resource.key + (editing ? '.update' : '.create');
+
+    if (!_resMayWrite(rid, resource)) {
+      audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid,
+        targetId: editing ? String(r.id) : null,
+        targetName: r.expectedIdentity ? String(r.expectedIdentity) : null });
+      return _resErr('denied', { resource: resource.key });
+    }
+
+    const validated = Resources.validate(resource, r.values, { editing });
+    if (!validated.ok) return _resErr('invalid', { resource: resource.key, errors: validated.errors });
+    const name = String(validated.values[resource.identity] || r.expectedIdentity || '');
+
+    try {
+      const rows   = await _resRead(session, resource);
+      const before = editing ? _resFind(rows, resource, r.id, r.expectedIdentity) : null;
+      if (editing && !before) return _resErr('stale-row', { resource: resource.key, name });
+
+      // Checked on the freshly-read row, never on the browser's claim about it.
+      if (before && resource.readOnlyWhen && resource.readOnlyWhen(before)) {
+        audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid,
+          targetId: String(r.id), targetName: name, note: 'read-only-row' });
+        return _resErr('read-only-row', { resource: resource.key, name });
+      }
+
+      if (resource.guard === 'selfPath') {
+        const targets = _resGuardTargets(resource, editing ? 'update' : 'create', validated.values, before);
+        if (targets.length) {
+          const path    = await _resSelfPath(session, rid);
+          const verdict = selfPath.checkInterfaceEdit({ path, targets, action: 'update' });
+          if (verdict.level === 'warn') {
+            // Nothing is written and nothing is audited — this is a prompt, not
+            // a refusal, and a denial row here would make the trail lie about
+            // what was attempted.
+            if (!r.ack)
+              return _resErr('self-cutoff', { resource: resource.key, name,
+                warning: verdict.detail, fingerprint: verdict.fingerprint });
+            // An acknowledgement taken against different values, or a different
+            // self-address. Reported separately so an ack cannot be carried
+            // from one row to another or replayed against a later write.
+            if (r.ack !== verdict.fingerprint)
+              return _resErr('stale-warning', { resource: resource.key, name,
+                warning: verdict.detail, fingerprint: verdict.fingerprint });
+          }
+        }
+      }
+
+      const args = Resources.buildArgs(resource, validated);
+      if (editing) await session.ros.write(resource.menu + '/set', ['=.id=' + r.id].concat(args));
+      else         await session.ros.write(resource.menu + '/add', args);
+
+      audit.fromSocket(socket).record({ action, targetType: resource.key,
+        targetId: editing ? String(r.id) : null, targetName: name, routerId: rid,
+        before: before ? _resAuditValues(resource, Resources.rowValues(resource, before)) : {},
+        after:  _resAuditValues(resource, validated.values),
+        extra:  r.ack ? { selfCutoffAcknowledged: true } : undefined });
+
+      if (coll && typeof coll.refreshNow === 'function') await coll.refreshNow();
+      socket.emit('res:ok', { resource: resource.key, action: editing ? 'update' : 'create', name });
+    } catch (e) {
+      _resErr(_rosWriteFail(e), { resource: resource.key, name, message: sanitizeErr(e) });
+    }
+  }));
+
+  socket.on('res:remove', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    const { session, coll } = _resSession(rid, resource);
+    if (!rid || !session) return _resErr('unavailable', { resource: resource.key });
+    const r = req || {};
+    const action = resource.key + '.delete';
+
+    if (!_resMayWrite(rid, resource)) {
+      audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid,
+        targetId: r.id ? String(r.id) : null,
+        targetName: r.expectedIdentity ? String(r.expectedIdentity) : null });
+      return _resErr('denied', { resource: resource.key });
+    }
+    if (!r.id) return _resErr('bad-request', { resource: resource.key });
+
+    try {
+      const rows   = await _resRead(session, resource);
+      const before = _resFind(rows, resource, r.id, r.expectedIdentity);
+      if (!before) return _resErr('stale-row', { resource: resource.key });
+      const name = Resources.identityOf(resource, before);
+
+      if (resource.readOnlyWhen && resource.readOnlyWhen(before)) {
+        audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid,
+          targetId: String(r.id), targetName: name, note: 'read-only-row' });
+        return _resErr('read-only-row', { resource: resource.key, name });
+      }
+
+      if (resource.guard === 'selfPath') {
+        const targets = _resGuardTargets(resource, 'delete', {}, before);
+        if (targets.length) {
+          const path    = await _resSelfPath(session, rid);
+          const verdict = selfPath.checkInterfaceEdit({ path, targets, action: 'delete' });
+          if (verdict.level === 'warn') {
+            if (!r.ack)
+              return _resErr('self-cutoff', { resource: resource.key, name,
+                warning: verdict.detail, fingerprint: verdict.fingerprint });
+            if (r.ack !== verdict.fingerprint)
+              return _resErr('stale-warning', { resource: resource.key, name,
+                warning: verdict.detail, fingerprint: verdict.fingerprint });
+          }
+        }
+      }
+
+      await session.ros.write(resource.menu + '/remove', ['=.id=' + r.id]);
+      audit.fromSocket(socket).record({ action, targetType: resource.key,
+        targetId: String(r.id), targetName: name, routerId: rid,
+        before: _resAuditValues(resource, Resources.rowValues(resource, before)), after: {},
+        extra: r.ack ? { selfCutoffAcknowledged: true } : undefined });
+
+      if (coll && typeof coll.refreshNow === 'function') await coll.refreshNow();
+      socket.emit('res:ok', { resource: resource.key, action: 'delete', name });
+    } catch (e) {
+      _resErr(_rosWriteFail(e), { resource: resource.key, message: sanitizeErr(e) });
+    }
+  }));
+
+  /**
+   * A named verb a resource declares — make-static on a DHCP lease today.
+   *
+   * Kept separate from save because it is not a form: it takes no fields, and
+   * its `when` decides which rows may receive it. That `when` is evaluated
+   * against the fresh read, so the browser offering the button is a hint, never
+   * a permission.
+   */
+  socket.on('res:action', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    const { session, coll } = _resSession(rid, resource);
+    if (!rid || !session) return _resErr('unavailable', { resource: resource.key });
+    const r   = req || {};
+    const def = (resource.actions || []).find(a => a.key === r.action);
+    if (!def) return _resErr('bad-request', { resource: resource.key });
+    const action = resource.key + '.' + def.key;
+
+    if (!_resMayWrite(rid, resource)) {
+      audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid,
+        targetId: r.id ? String(r.id) : null,
+        targetName: r.expectedIdentity ? String(r.expectedIdentity) : null });
+      return _resErr('denied', { resource: resource.key });
+    }
+    if (!r.id) return _resErr('bad-request', { resource: resource.key });
+
+    try {
+      const rows = await _resRead(session, resource);
+      const row  = _resFind(rows, resource, r.id, r.expectedIdentity);
+      if (!row) return _resErr('stale-row', { resource: resource.key });
+      const name = Resources.identityOf(resource, row);
+      if (!def.when(row)) {
+        audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid,
+          targetId: String(r.id), targetName: name, note: 'not-applicable' });
+        return _resErr('not-applicable', { resource: resource.key, name });
+      }
+
+      await session.ros.write(resource.menu + '/' + def.verb, ['=.id=' + r.id]);
+      audit.fromSocket(socket).record({ action, targetType: resource.key,
+        targetId: String(r.id), targetName: name, routerId: rid, note: def.note });
+
+      if (coll && typeof coll.refreshNow === 'function') await coll.refreshNow();
+      socket.emit('res:ok', { resource: resource.key, action: def.key, name });
+    } catch (e) {
+      _resErr(_rosWriteFail(e), { resource: resource.key, message: sanitizeErr(e) });
+    }
+  }));
+
 
   // ── WiFi frequency analyzer ───────────────────────────────────────────────
   //
