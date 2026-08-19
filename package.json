@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test",
-    "lint": "eslint src/ public/app.js public/i18n.js",
+    "lint": "eslint src/ public/app.js public/i18n.js scripts/*.js",
     "i18n:audit": "node scripts/i18n-audit.js"
   },
   "overrides": {
@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "eslint": "^8.57.1",
+    "espree": "^9.6.1",
     "jsdom": "^26.1.0"
   }
 }
