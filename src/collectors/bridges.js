@@ -69,6 +69,8 @@ function buildBridgeRows(bridgeRows, portRows, hostRows, ifPayload) {
   for (const r of portRows || []) {
     if (!r || !r.interface) continue;              // also drops {undefined:''}
     ports.push({
+      // The row id, so the page can open a port in the edit form.
+      id:         r['.id'] || '',
       bridge:     r.bridge || '',
       interface:  String(r.interface),
       pvid:       _num(r.pvid),
@@ -97,6 +99,8 @@ function buildBridgeRows(bridgeRows, portRows, hostRows, ifPayload) {
     if (!r || !r.name) continue;
     const live = rates.get(r.name);
     bridges.push({
+      // The row id, so the page can open a bridge in the edit form.
+      id:            r['.id'] || '',
       name:          String(r.name),
       protocolMode:  r['protocol-mode'] || '',
       vlanFiltering: _bool(r['vlan-filtering']),
@@ -198,6 +202,19 @@ class BridgesCollector {
       else this.state.lastBridgesErr = e && e.message ? e.message : String(e);
       return [];
     }
+  }
+
+  /**
+   * Re-read now, after a write, so the page shows what the router did.
+   *
+   * Sets `_dirty` rather than reaching past _tick(): that flag already means
+   * "config changed, read it on this tick", which is exactly the situation a
+   * write creates.
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    this._dirty = true;
+    await this._tick();
   }
 
   async _tick() {

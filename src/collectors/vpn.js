@@ -117,6 +117,15 @@ class VpnCollector {
         this._prev.set(key, { rx: rxBytes, tx: txBytes, ts: now });
       }
       tunnels.push({
+        // `id` addresses the peer for an edit; `publicKey` identifies it, and
+        // is the field the write round-trips to prove the row is still the one
+        // the operator was looking at. A public key is public by construction.
+        //
+        // `preshared-key` is NOT here and must never be. It is the secret half,
+        // the form's `secret` type never reads one back, and audit.js masks it
+        // on name alone. Adding it to this payload would put it on the wire to
+        // every viewer of the VPN page.
+        id: p['.id'] || '', publicKey: p['public-key'] || '',
         type: 'WireGuard', name, state,
         // Named for what it actually is. WireGuard is stateless — there is no
         // session and therefore no uptime; this field has always held the time
@@ -249,6 +258,18 @@ class VpnCollector {
   }
 
   // ── initial load ──────────────────────────────────────────────────────────
+
+  /**
+   * Re-read now, after a write, so the page shows what the router did.
+   *
+   * _loadInitial() rebuilds the peer map from scratch and emits, which is what
+   * a peer that has just been added or removed needs — the counter stream only
+   * ever updates peers already in the map.
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    await this._loadInitial();
+  }
 
   async _loadInitial() {
     try {

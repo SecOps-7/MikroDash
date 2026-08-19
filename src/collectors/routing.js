@@ -295,7 +295,12 @@ class RoutingCollector {
     const routes = allRoutes
       .filter(r => r.type === 'static' || r.type === 'dynamic')
       .slice(0, 800)
-      .map(({ _id, _raw, _flags, ...r }) => r);
+      // `id` crosses the wire so the page can open a route in the edit form;
+      // `_raw` and `_flags` deliberately do not — `_raw` is the whole RouterOS
+      // row, and the Routing page is not entitled to fields nobody asked for.
+      // A `.id` is safe to expose: it addresses a row, it does not authorise
+      // one, and every write re-reads and re-checks before touching it.
+      .map(({ _id, _raw, _flags, ...r }) => ({ ...r, id: _id }));
 
     const routeCounts = {
       total:   allRoutes.length,
@@ -568,6 +573,20 @@ class RoutingCollector {
     this._sessionsFp = '';
     this._peerCfg.clear();
     if (this.timer) { clearInterval(this.timer); this.timer = null; }
+  }
+
+  /**
+   * Re-read now, after a write, so the page shows what the router did.
+   *
+   * Routes normally arrive on /ip/route/listen, and an add or a remove does
+   * raise an event — but the event and the write race, and a save whose row
+   * appears a beat later reads as a failed save. Re-reading is cheap and
+   * removes the question.
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    if (!this.bgpOnly) await this._loadRoutes();
+    this._emit(this._buildPeers());
   }
 
   async _pollOnce() {

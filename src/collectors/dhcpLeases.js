@@ -91,8 +91,12 @@ class DhcpLeasesCollector {
     const server = l.server || '';
     const meta   = this.serverMeta.get(server) || {};
 
+    // `id` lets the page open a lease in the edit form; `dynamic` is what tells
+    // a reservation from a lease the server handed out, which is the difference
+    // between an editable row and one that only offers "make static".
     if (ip)  this.byIP.set(ip,   { name, mac, hostName: l['host-name'] || '', comment: l.comment || '', status,
-                                   server, iface: meta.iface || '', vlanId: meta.vlanId || '' });
+                                   server, iface: meta.iface || '', vlanId: meta.vlanId || '',
+                                   id: l['.id'] || '', dynamic: l.dynamic === 'true' || l.dynamic === true });
     if (mac) this.byMAC.set(mac, { name, ip });
 
     if (mac && ip && !this.seenMACs.has(mac)) {
@@ -135,13 +139,25 @@ class DhcpLeasesCollector {
     }
   }
 
+  /**
+   * Re-read now, after a write, so the page shows what the router did.
+   *
+   * _loadInitial() is the whole read and already ends in _emitLeases(), so
+   * there is nothing to add — but it also rebuilds the server map, which is
+   * what a newly created reservation on a server we had not seen needs.
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    await this._loadInitial();
+  }
+
   async _loadInitial() {
     try {
       // Must precede the lease load so the first _applyLease can already resolve
       // each lease's interface and VLAN.
       await this._loadServerMap();
       const leases = await this.ros.write('/ip/dhcp-server/lease/print',
-        ['=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server']);
+        ['=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server,dynamic']);
       for (const l of (leases || [])) this._applyLease(l);
       this.state.lastLeasesTs = Date.now();
       this._emitLeases();
@@ -155,7 +171,7 @@ class DhcpLeasesCollector {
     if (!this.ros.connected) return;
     try {
       this.stream = this.ros.stream(
-        ['/ip/dhcp-server/lease/listen', '=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server'],
+        ['/ip/dhcp-server/lease/listen', '=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server,dynamic'],
         (err, data) => {
         if (err) {
           console.error('%s', this._lbl + ' stream error:', err && err.message ? err.message : err);

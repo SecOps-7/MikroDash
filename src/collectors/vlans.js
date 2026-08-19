@@ -117,6 +117,8 @@ function buildVlanRows(vlanRows, bridgeVlanRows, bridgePortRows, ifPayload, leas
     const e = vlan(id);
     const live = rates.get(r.name);
     e.interfaces.push({
+      // The row id, so the page can open a VLAN in the edit form.
+      id:       r['.id'] || '',
       name:     String(r.name),
       parent:   r.interface || '',
       mtu:      r.mtu ? Number(r.mtu) : null,
@@ -286,6 +288,19 @@ class VlansCollector {
     if (fp === this._lastFp) return;
     this._lastFp = fp;
     this.io.to('page-vlans').emit('vlans:update', payload);
+  }
+
+  /**
+   * Re-read now, after a write, so the page shows what the router did.
+   *
+   * Sets `_dirty` rather than calling _loadConfig() directly: that flag already
+   * means "the config changed, read it on this tick", and reusing it keeps one
+   * path into the read instead of two.
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    this._dirty = true;
+    await this._tick();
   }
 
   async _tick() {
