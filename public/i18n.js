@@ -4,7 +4,9 @@
   var STORAGE_KEY = 'mikrodash-language';
   var DEFAULT_LANGUAGE = 'en-US';
   var SUPPORTED = ['en-US', 'zh-CN'];
-  var TRANSLATABLE_ATTRIBUTES = ['placeholder', 'title', 'aria-label'];
+  var TRANSLATABLE_ATTRIBUTES = [
+    'placeholder', 'title', 'alt', 'aria-label', 'aria-description', 'aria-valuetext'
+  ];
   var SKIP_SELECTOR = 'script,style,code,pre,textarea,[data-i18n-skip],[data-i18n-user-data]';
   var textState = new WeakMap();
   var attrState = new WeakMap();

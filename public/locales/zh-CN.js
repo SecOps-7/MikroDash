@@ -620,8 +620,8 @@
     'down': '断开', 'expired': '已过期', 'expires': '到期', 'leases': '租约',
     'no access granted': '未授予访问权限', 'rows': '行', 'rows from': '行，来源',
     'up': '上线', 'waiting': '等待中', '— currently in': '— 当前位于',
-    ' · up': ' · 上线', ' · down': ' · 断开', ' · disabled': ' · 已禁用',
-    ' · waiting': ' · 等待中', ' · unavailable': ' · 不可用',
+    '· up': '· 上线', '· down': '· 断开', '· disabled': '· 已禁用',
+    '· waiting': '· 等待中', '· unavailable': '· 不可用',
     '● collection disabled': '● 采集已禁用', '✓ Active': '✓ 活动',
     '✗ Request failed — check browser console': '✗ 请求失败——请检查浏览器控制台'
   });

@@ -57,12 +57,17 @@ function dynamicCandidates(file) {
       if (!definitions.has(node.id.name)) definitions.set(node.id.name, []);
       definitions.get(node.id.name).push(node.init);
     }
+    if (node.type === 'AssignmentExpression' && node.operator === '=' &&
+        node.left.type === 'Identifier' && node.right) {
+      if (!definitions.has(node.left.name)) definitions.set(node.left.name, []);
+      definitions.get(node.left.name).push(node.right);
+    }
   });
 
   const candidates = new Set();
   const addLiteral = (value) => {
     if (typeof value !== 'string' || !/[A-Za-z]{2}/.test(value)) return;
-    if (/^(?:dis$|[.#"]|rgba\(|(?:bw-proto|diag-count|hs-|ifl-|wl-band))|(?:class|style|viewBox|width)="|cursor:|px">/.test(value)) return;
+    if (/^(?:dis$|dashboard$|routes$|padding:|[.#"]|rgba\(|(?:bw-proto|diag-count|hs-|ifl-|wl-band))|(?:class|style|viewBox|width)="|cursor:|px">/.test(value)) return;
     if (!value.includes('<')) {
       const text = normalise(value);
       if (/[A-Za-z]{2}/.test(text)) candidates.add(text);
@@ -115,7 +120,7 @@ function dynamicCandidates(file) {
     if (node.type === 'Identifier' && definitions.has(node.name) && !resolving.has(node.name)) {
       const next = new Set(resolving).add(node.name);
       const simpleChoices = definitions.get(node.name).filter((definition) =>
-        definition.type === 'ConditionalExpression' || definition.type === 'LogicalExpression');
+        definition.type === 'Literal' || definition.type === 'ConditionalExpression' || definition.type === 'LogicalExpression');
       const rendered = simpleChoices.map((definition) => renderExpression(definition, next)).filter(Boolean);
       return rendered.length ? rendered.flat().slice(0, 64) : null;
     }

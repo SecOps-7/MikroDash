@@ -21,7 +21,7 @@ function loadLocale(name) {
 }
 
 function createDom(language = 'en-US') {
-  const dom = new JSDOM('<!doctype html><html><body><select data-language-select><option value="en-US">English</option><option value="zh-CN">简体中文</option></select><p id="label">Dashboard</p><input id="search" placeholder="Search"></body></html>', {
+  const dom = new JSDOM('<!doctype html><html><body><select data-language-select><option value="en-US">English</option><option value="zh-CN">简体中文</option></select><p id="label">Dashboard</p><input id="search" placeholder="Search"><img id="visual" alt="Dashboard" aria-description="Settings" aria-valuetext="Interfaces"></body></html>', {
     url: 'http://127.0.0.1/', runScripts: 'dangerously', pretendToBeVisual: true,
   });
   Object.defineProperty(dom.window.navigator, 'language', { configurable: true, value: language });
@@ -75,9 +75,15 @@ test('language round-trip restores original text and attributes', async () => {
   MikroDashI18n.setLanguage('zh-CN');
   assert.equal(document.querySelector('#label').textContent, '仪表盘');
   assert.equal(document.querySelector('#search').placeholder, '搜索');
+  assert.equal(document.querySelector('#visual').alt, '仪表盘');
+  assert.equal(document.querySelector('#visual').getAttribute('aria-description'), '设置');
+  assert.equal(document.querySelector('#visual').getAttribute('aria-valuetext'), '接口');
   MikroDashI18n.setLanguage('en-US');
   assert.equal(document.querySelector('#label').textContent, 'Dashboard');
   assert.equal(document.querySelector('#search').placeholder, 'Search');
+  assert.equal(document.querySelector('#visual').alt, 'Dashboard');
+  assert.equal(document.querySelector('#visual').getAttribute('aria-description'), 'Settings');
+  assert.equal(document.querySelector('#visual').getAttribute('aria-valuetext'), 'Interfaces');
   await settle();
   dom.window.close();
 });
@@ -89,10 +95,12 @@ test('observer translates dynamic nodes and attributes without recursive corrupt
   const button = document.createElement('button');
   button.textContent = 'Save';
   button.title = 'Refresh';
+  button.setAttribute('aria-description', 'Dashboard');
   document.body.appendChild(button);
   await settle();
   assert.equal(button.textContent, '保存');
   assert.equal(button.title, '刷新');
+  assert.equal(button.getAttribute('aria-description'), '仪表盘');
   button.title = 'Search';
   await settle();
   assert.equal(button.title, '搜索');
