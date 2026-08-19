@@ -223,7 +223,16 @@ Change only the `"version"` field. Nothing else.
 | `netwatch.js` | **Stream** | `/tool/netwatch/listen` | Initial `/print` on connect; 60 s heartbeat re-emit; drives NetWatch host-down alerts |
 | `logs.js` | **Stream** | `/log/listen` | Bounded history buffer (500 entries) |
 | `queues.js` | **Stream** (`/listen` ×2) + Poll | `/queue/simple/print`, `/queue/tree/print` | Two listen channels (one per menu) carrying no data — they mark the tables stale and the ordinary tick reads them. The tick runs on its own rather than waiting for stream data: a router with no queues would never fire a listen, and the page would sit on "waiting for data" forever. Rates are derived from the byte counter over our own poll window (ppp.js idiom), seeded on the first tick only from the router's `rate`. Borrows the FastTrack summary from `firewall.js` by reference, `requires: []` |
+| `wan.js` | **Stream** (`/listen`) + Poll | `/interface/detect-internet/state`, `/ip/dhcp-client`, `/ip/route`, `/ip/address`, `/interface` | The uplink set is RouterOS's (`state=internet`), matching the Dashboard Network card; it does NOT infer uplinks from default routes. `/ip/route/listen` because a default route going inactive IS a failover. Rates borrowed from `ifStatus` by reference, projected by name; `requires: []`. `detectionEnabled` distinguishes "detection is off" — the common case, since `detect-interface-list` defaults to `none` — from "no uplinks" |
 | `rosusers.js` | Poll | `/user/print`, `/user/group/print`, `/user/active/print`, `/user/settings/print` | Poll-only by design (`streamKey: null`), like `packages.js`: a router's user list changes when an operator edits it, so a channel held open for weeks buys nothing. Slow default (60 s) with `refreshNow()` after every action. **Reads only** — every write lives in the socket handlers, enforced by a source guard |
+
+**Page gating — a new page must opt in.** `streamRooms` in `src/pages.js` means "suspend this
+collector when nobody occupies these rooms". It once held only the five collectors with an
+`=interval=N` counter stream, so every page added afterwards declared `[]` and kept polling the
+router from the Dashboard — four collectors at 5 s and six idle `/listen` channels, for pages nobody
+was viewing. A page whose collector reads the router on a timer names its own `page-<key>` room. Two
+consequences to keep in step: the collector must live at `session.<page>` for the room sweep to find
+it, and `_idleResume()` must NOT resume it by name, which is what defeated the gate the first time.
 
 **Rule:** always prefer streaming. Use `/listen` for event-driven data; use `=interval=N` on print commands that lack a `/listen` variant. Fall back to `setInterval` polling only when the RouterOS command genuinely cannot push (rare — check both mechanisms first).
 
@@ -295,7 +304,7 @@ switched to Poll mode, may have individual collectors disabled, and may override
 resolved by `resolveCollection()` in `src/collection.js` and applied in `buildSession()`. A collector
 marked `pollable` in the registry **must** implement both paths, and both must produce the identical
 `lastPayload` for the same rows. A disabled collector is replaced by `makeNullCollector(key)` rather
-than merely left unstarted, because 11 of the 16 open their streams from a `ros.on('connected')`
+than merely left unstarted, because most of them open their streams from a `ros.on('connected')`
 handler in the constructor. See the constraint table above. Use the polling pattern only when no stream is available.
 
 ### Streaming collector pattern (preferred)
@@ -539,7 +548,7 @@ therefore means:
 
 ## Shared infrastructure in index.js
 
-**`buildSession(routerCfg)`** — creates a fresh ROS instance + all 25 collectors + connTableCache wired to the given router config. Called on startup and on every hot-swap.
+**`buildSession(routerCfg)`** — creates a fresh ROS instance + all 26 collectors + connTableCache wired to the given router config. Called on startup and on every hot-swap.
 
 **`teardownSession(session)`** — stops all collectors (timers + streams), stops the ROS connection, waits 150 ms for in-flight callbacks to settle.
 
