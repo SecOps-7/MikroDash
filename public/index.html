@@ -1322,6 +1322,37 @@
        direction inside the value, matching the rate cells in the table. */
     #wanSumActive{color:var(--accent-warn)}
     #wanSumPublic{color:var(--accent-pink)}
+    /* Rows the resource engine can open. The cursor is a rule rather than an
+       inline style because several of these rows already carry one, and a row
+       cannot have two style attributes. Rows with nothing to edit carry no
+       data-id and so keep the default cursor. */
+    [data-res-rows] [data-id]{cursor:pointer}
+    [data-res-rows] tr[data-id]:hover{background:rgba(127,127,127,.06)}
+
+    /* The + Add button is pinned to the top right corner of its card. The auto
+       margin absorbs the free space before justify-content can distribute it,
+       so whatever else is in the header packs to the left and the button sits
+       hard against the right edge — the same place on every card. */
+    /* gap, because a slot may hold more than one button — the Routes card has
+       two, one per address family, and they read as one control without it. */
+    .card-header [data-res-add]{margin-left:auto;display:flex;align-items:center;gap:.45rem}
+    /* The right-hand end of a card header: whatever already lived there, plus
+       the Add button, as ONE group. The auto margin belongs to the group, not
+       to the button — on the button it swallowed all the free space and shoved
+       the search boxes over to the title. Inside the group the button's own
+       auto margin has nothing left to absorb, so it is a harmless no-op.
+       NOT named `card-actions`: Tabler already defines that class with
+       `margin:-8px`, and inheriting it pulled the group into the header's
+       padding. */
+    .card-header .hdr-actions{margin-left:auto;display:flex;align-items:center;
+      gap:.5rem;flex-wrap:wrap;justify-content:flex-end}
+    /* A viewer who may not write gets an EMPTY span, and an empty span must not
+       be a flex item at all: as a third item in a space-between header it would
+       strand the filters in the middle. Removing it from the layout entirely
+       gives the read-only view back exactly the header it had before, right
+       corner included. Higher specificity than the rule above, so order is not
+       load-bearing. */
+    .card-header [data-res-add]:empty{display:none}
     #faBestChan{color:rgba(74,222,128,.95)}
     .fa-stat-unit{font-size:.62rem;color:var(--text-muted);margin-left:.15rem;font-weight:400}
     .fa-section-title{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0 0 .5rem}
@@ -2652,6 +2683,7 @@
             <select id="dhcpServerFilter" class="form-select form-select-sm" style="flex:0 1 240px;width:240px" title="Filter leases by DHCP server">
               <option value="">All leases</option>
             </select>
+            <span data-res-add="dhcpLease"></span>
           </div>
         </div>
         <div class="card-body p-0">
@@ -2669,7 +2701,7 @@
           <div class="data-scroll" id="dhcpScrollWrap" style="max-height:calc(100vh - 200px);overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%">
               <colgroup><col style="width:30%"><col style="width:20%"><col style="width:25%"><col style="width:25%"></colgroup>
-              <tbody id="dhcpTable"><tr><td colspan="4" class="empty-state">Waiting for lease data&#8230;</td></tr></tbody>
+              <tbody id="dhcpTable" data-res-rows="dhcpLease"><tr><td colspan="4" class="empty-state">Waiting for lease data&#8230;</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -2704,15 +2736,18 @@
             <h3 class="card-title mb-0">Static Entries</h3>
             <span id="dnsStaticBadge" class="card-badge">0</span>
           </div>
-          <input id="dnsStaticSearch" class="form-control form-control-sm"
-                 placeholder="Search name or address&hellip;" style="flex:0 1 260px;width:260px"/>
+          <div class="hdr-actions">
+            <input id="dnsStaticSearch" class="form-control form-control-sm"
+                   placeholder="Search name or address&hellip;" style="flex:0 1 260px;width:260px"/>
+            <span data-res-add="dnsStatic"></span>
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="data-scroll" style="max-height:360px;overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:720px">
               <colgroup><col style="width:34%"><col style="width:26%"><col style="width:10%"><col style="width:10%"><col style="width:20%"></colgroup>
               <thead><tr id="dnsStaticThead"></tr></thead>
-              <tbody id="dnsStaticTable">
+              <tbody id="dnsStaticTable" data-res-rows="dnsStatic">
                 <tr><td colspan="5" class="empty-state">Waiting for static entries&hellip;</td></tr>
               </tbody>
             </table>
@@ -2752,8 +2787,11 @@
             <h3 class="card-title mb-0">VLANs</h3>
             <span id="vlansBadge" class="card-badge">0</span>
           </div>
-          <input id="vlansSearch" class="form-control form-control-sm"
-                 placeholder="Search id, name or port…" style="flex:0 1 260px;width:260px"/>
+          <div class="hdr-actions">
+            <input id="vlansSearch" class="form-control form-control-sm"
+                   placeholder="Search id, name or port…" style="flex:0 1 260px;width:260px"/>
+            <span data-res-add="vlan"></span>
+          </div>
         </div>
         <div class="card-body p-0">
           <div class="data-scroll" style="max-height:calc(100vh - 340px);overflow-y:auto">
@@ -2761,7 +2799,7 @@
               <colgroup><col style="width:6%"><col style="width:13%"><col style="width:9%"><col style="width:6%">
                         <col style="width:18%"><col style="width:19%"><col style="width:7%"><col style="width:22%"></colgroup>
               <thead><tr id="vlansThead"></tr></thead>
-              <tbody id="vlansTable">
+              <tbody id="vlansTable" data-res-rows="vlan">
                 <tr><td colspan="8" class="empty-state">Waiting for VLAN data&hellip;</td></tr>
               </tbody>
             </table>
@@ -2958,6 +2996,7 @@
         <div class="card-header d-flex align-items-center gap-2">
           <h3 class="card-title mb-0">Bridges</h3>
           <span id="bridgesBadge" class="card-badge">0</span>
+          <span data-res-add="bridge"></span>
         </div>
         <div class="card-body p-0">
           <div class="data-scroll" style="max-height:320px;overflow-y:auto">
@@ -2965,7 +3004,7 @@
               <colgroup><col style="width:16%"><col style="width:10%"><col style="width:10%"><col style="width:9%">
                         <col style="width:15%"><col style="width:8%"><col style="width:8%"><col style="width:24%"></colgroup>
               <thead><tr id="bridgesThead"></tr></thead>
-              <tbody id="bridgesTable">
+              <tbody id="bridgesTable" data-res-rows="bridge">
                 <tr><td colspan="8" class="empty-state">Waiting for bridge data&hellip;</td></tr>
               </tbody>
             </table>
@@ -2986,10 +3025,15 @@
                     aria-controls="brtab-hosts" id="brTabBtn-hosts">Host Table
               <span id="bridgesHostBadge" class="card-badge">0</span></button>
           </div>
-          <div class="d-flex align-items-center gap-2" id="bridgesHostTools" hidden>
-            <span id="bridgesHostNote" class="muted-note"></span>
-            <input id="bridgesHostSearch" class="form-control form-control-sm"
-                   placeholder="Search MAC, port or VLAN&hellip;" style="flex:0 1 260px;width:260px"/>
+          <div class="hdr-actions">
+            <div class="d-flex align-items-center gap-2" id="bridgesHostTools" hidden>
+              <span id="bridgesHostNote" class="muted-note"></span>
+              <input id="bridgesHostSearch" class="form-control form-control-sm"
+                     placeholder="Search MAC, port or VLAN&hellip;" style="flex:0 1 260px;width:260px"/>
+            </div>
+            <!-- Last in the group, so it keeps the corner on the Host Table tab
+                 where the search box appears beside it. -->
+            <span data-res-add="bridgePort"></span>
           </div>
         </div>
         <div class="card-body p-0">
@@ -3000,7 +3044,7 @@
                 <colgroup><col style="width:20%"><col style="width:14%"><col style="width:8%"><col style="width:20%">
                           <col style="width:10%"><col style="width:14%"><col style="width:14%"></colgroup>
                 <thead><tr id="bridgesPortThead"></tr></thead>
-                <tbody id="bridgesPortTable">
+                <tbody id="bridgesPortTable" data-res-rows="bridgePort">
                   <tr><td colspan="7" class="empty-state">Waiting for port data&hellip;</td></tr>
                 </tbody>
               </table>
@@ -3053,9 +3097,11 @@
 
       <!-- All peer tiles -->
       <div class="card">
-        <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">WireGuard Peers</h3><span id="vpnPageCount" class="card-badge">0</span></div>
+        <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">WireGuard Peers</h3><span id="vpnPageCount" class="card-badge">0</span><span data-res-add="wgPeer"></span></div>
         <div class="card-body" style="padding:.65rem .75rem">
-          <div class="vpn-tile-grid" id="vpnPageGrid">
+          <!-- Tiles, not rows — the delegation looks for the nearest ancestor
+               carrying data-id, so a grid works the same as a tbody. -->
+          <div class="vpn-tile-grid" id="vpnPageGrid" data-res-rows="wgPeer">
             <div class="empty-state">No peers configured</div>
           </div>
         </div>
@@ -3213,6 +3259,10 @@
             <option value="lg">Large</option>
             <option value="list">List</option>
           </select>
+          <!-- VETH and nothing else. A VLAN belongs on the VLANs page and a
+               bridge on the Bridges page; the thing this card is missing is the
+               one virtual interface with no page of its own. -->
+          <span data-res-add="veth"></span>
         </div>
         <div class="card-body" style="padding:.65rem .75rem">
           <div class="iface-grid" id="ifaceGrid"><div class="empty-state">Waiting&#8230;</div></div>
@@ -3477,7 +3527,7 @@
             <span id="qActionNote" class="muted-note"></span>
             <input id="qSearch" class="form-control form-control-sm"
                    placeholder="Search&hellip;" style="flex:0 1 200px;width:200px"/>
-            <button class="sbtn sbtn-primary" id="qAddBtn" style="padding:.32rem .7rem;font-size:.72rem">Add Queue</button>
+            <button class="sbtn sbtn-primary" id="qAddBtn" style="padding:.32rem .7rem;font-size:.72rem">+ Add Queue</button>
           </div>
         </div>
         <div class="card-body p-0">
@@ -3617,7 +3667,7 @@
             <span id="ruActionNote" class="muted-note"></span>
             <input id="ruSearch" class="form-control form-control-sm"
                    placeholder="Search&hellip;" style="flex:0 1 220px;width:220px"/>
-            <button class="sbtn sbtn-primary" id="ruAddBtn" style="padding:.32rem .7rem;font-size:.72rem">Add User</button>
+            <button class="sbtn sbtn-primary" id="ruAddBtn" style="padding:.32rem .7rem;font-size:.72rem">+ Add User</button>
           </div>
         </div>
         <div class="card-body p-0">
@@ -5338,22 +5388,32 @@
             <h3 class="card-title mb-0" id="rtCardTitle">Static &amp; Dynamic Routes</h3>
           </div>
           <div id="rtRoutesFilters" class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <!-- Trimmed to leave room for the two Add buttons in the corner.
+                 The selects are sized to their own longest option, not padded. -->
             <input type="text" class="form-control form-control-sm" id="rtRouteSearch"
-                   placeholder="Search destination or gateway&hellip;" style="flex:0 1 240px;width:240px">
-            <select class="form-select form-select-sm" id="rtRouteSelType" style="width:168px;flex:0 0 auto;font-size:.74rem" aria-label="Route type filter">
+                   placeholder="Search destination or gateway&hellip;" style="flex:0 1 170px;width:170px">
+            <select class="form-select form-select-sm" id="rtRouteSelType" style="width:142px;flex:0 0 auto;font-size:.74rem" aria-label="Route type filter">
               <option value="">Static + Dynamic</option>
               <option value="static">Static only</option>
               <option value="dynamic">Dynamic only</option>
             </select>
-            <select class="form-select form-select-sm" id="rtRouteSelFamily" style="width:130px;flex:0 0 auto;font-size:.74rem" aria-label="Address family filter">
+            <select class="form-select form-select-sm" id="rtRouteSelFamily" style="width:118px;flex:0 0 auto;font-size:.74rem" aria-label="Address family filter">
               <option value="">IPv4 + IPv6</option>
               <option value="ipv4">IPv4 only</option>
               <option value="ipv6">IPv6 only</option>
             </select>
-            <select class="form-select form-select-sm" id="rtRouteSelActive" style="width:120px;flex:0 0 auto;font-size:.74rem" aria-label="Active routes filter">
+            <select class="form-select form-select-sm" id="rtRouteSelActive" style="width:108px;flex:0 0 auto;font-size:.74rem" aria-label="Active routes filter">
               <option value="">All routes</option>
               <option value="active">Active only</option>
             </select>
+            <!-- Inside the Routes filter group, so the buttons sit with the
+                 controls at the right rather than pushing them to the title —
+                 and so they hide with the group when the BGP tab is showing,
+                 where adding a route is not what anyone is there to do.
+                 Two buttons, because the two address families are two RouterOS
+                 menus and one form cannot be both; ONE slot, because two slots
+                 are two flex items and they wrapped onto separate lines. -->
+            <span data-res-add="route,route6"></span>
           </div>
           <div id="rtPeersFilters" class="d-flex align-items-center gap-2 flex-wrap justify-content-end" hidden>
             <input type="text" class="form-control form-control-sm" id="rtSearch"
@@ -5407,7 +5467,9 @@
                   <th id="rtRThComment">Comment</th>
                 </tr>
               </thead>
-              <tbody id="rtRoutesTbody">
+              <!-- A row carries data-id and data-identity; a v6 row overrides
+                   data-res on itself, because the family decides the menu. -->
+              <tbody id="rtRoutesTbody" data-res-rows="route">
                 <tr><td colspan="6" class="empty-state">Waiting for route data&hellip;</td></tr>
               </tbody>
             </table>
@@ -6050,6 +6112,75 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ── Add / edit any RouterOS resource ──────────────────────────────
+       ONE dialog for every resource in src/routeros/resources.js. The fields
+       are built at runtime from the schema the server sends, which is why
+       there is nothing between the header and the footer: a field list here
+       would be a second copy of the registry, and copies drift. -->
+  <div class="rtr-modal-bg" id="resModal">
+   <div class="rtr-modal pmodal">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="res_title">Add</span>
+      <button class="rtr-modal-close" data-modal-close="resModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div id="res_fields"></div>
+      <div class="login-error" id="res_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+      <!-- The self-cutoff prompt lives inside the dialog rather than in a
+           window.confirm, so it can name the interface and the address the
+           router sees us from. -->
+      <div id="res_warn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.3);border-radius:6px;color:var(--text-main);font-size:.78rem;padding:.55rem .7rem;margin-top:.6rem"></div>
+      <!-- #97 asks for a preview before apply. Collapsed by default: it is
+           reassurance for the cautious, not a step everyone must read. -->
+      <div style="margin-top:.7rem">
+        <button class="sbtn sbtn-ghost" id="res_previewBtn" type="button" style="padding:.25rem .6rem;font-size:.7rem">Show command</button>
+        <pre id="res_preview" style="display:none;margin:.5rem 0 0;padding:.5rem .6rem;background:rgba(127,127,127,.09);border-radius:6px;font-size:.7rem;white-space:pre-wrap;word-break:break-all;color:var(--text-muted)"></pre>
+      </div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-danger" id="res_delete" style="margin-right:auto;display:none">Delete</button>
+      <!-- Verbs a row still offers when it cannot be edited — "make static" on
+           a dynamic DHCP lease is the case this exists for. Filled from the
+           action list the server sends, which it re-checks against a fresh
+           read before acting on any of them. -->
+      <span id="res_actions"></span>
+      <button class="sbtn sbtn-outline" data-modal-close="resModal">Cancel</button>
+      <button class="sbtn sbtn-primary" id="res_save">Save</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── Upgrade RouterOS ──────────────────────────────────────────────
+       Reached from the update row on the Dashboard's System card. The name
+       confirmation is the same second gate apply-changes uses: this one
+       downloads and reboots in a single command. -->
+  <div class="rtr-modal-bg" id="updModal">
+   <div class="rtr-modal pmodal" style="max-width:26rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title">Update RouterOS</span>
+      <button class="rtr-modal-close" data-modal-close="updModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div style="display:flex;align-items:center;justify-content:center;gap:.6rem;font-size:1.05rem;margin:.2rem 0 .1rem">
+        <span id="upd_from" style="color:var(--text-muted)">&mdash;</span>
+        <span style="color:var(--text-muted)">&rarr;</span>
+        <strong id="upd_to" style="color:var(--accent-warn)">&mdash;</strong>
+      </div>
+      <div style="text-align:center;font-size:.72rem;color:var(--text-muted);margin-bottom:.8rem" id="upd_channel"></div>
+      <div style="background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.3);border-radius:6px;font-size:.78rem;padding:.55rem .7rem;margin-bottom:.8rem;color:var(--text-main)">
+        The router downloads the packages and <strong>reboots immediately</strong>. Every connection through it drops for the duration.
+      </div>
+      <label class="sform-label">Type the router name to confirm</label>
+      <input class="sform-input" id="upd_confirm" type="text" autocomplete="off" placeholder="">
+      <div class="login-error" id="upd_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" data-modal-close="updModal">Cancel</button>
+      <button class="sbtn sbtn-primary" id="upd_go">Update &amp; Reboot</button>
+    </div>
+   </div>
   </div>
 
   <!-- ── Router Switching Overlay ──────────────────────────────────── -->

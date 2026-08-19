@@ -296,6 +296,87 @@ When RouterOS sends a packet for a tag that `node-routeros` has already cleaned 
 
 ---
 
+## Writing to RouterOS — the resource engine
+
+Issue #97. Four write surfaces were built by hand (Queues, Router Users, WAN lease actions,
+Packages) and each carries its own copy of the same seven steps: check both gates, read fresh, match
+the row, validate, build the sentence, write, audit, refresh. **Anything after those four is a
+registry entry, not a handler.**
+
+- `src/routeros/resources.js` — the registry. A resource is a *description*: `page`, `collector`,
+  `menu`, `identity`, `readOnlyWhen`, optional `actions` and `guard`, and a list of fields.
+- `src/index.js` — six generic handlers (`res:schema`, `res:row`, `res:save`, `res:remove`,
+  `res:action`, `res:preview`) that execute every resource.
+- `public/app.js` — one dialog, built from the schema the server sends.
+
+**A field's `type` does three jobs from one declaration:** it picks the server-side validator, it
+picks the browser's input widget, and it is the allow-list — `buildArgs()` can only ever emit
+`=<field.ros>=`, so a key the registry does not name cannot reach a RouterOS sentence. Be precise
+about what that does and does not buy: the binary API length-prefixes every word, so a `=` inside a
+*value* cannot forge a second argument the way it could on a CLI. What the allow-list stops is an
+unnamed *key* being set.
+
+**Rules for a new resource:**
+
+- **The browser gets `describe()`, never a copy of the fields.** app.js already carries five
+  hand-maintained mirrors of server-side lists; a sixth would be a sixth thing to drift. Nothing in
+  app.js knows a field name.
+- **`identity` names the field that is round-tripped.** A `.id` survives a rename, which makes it the
+  right key to *address* a row with and the wrong one to *identify* it by. If the freshly-read row no
+  longer carries the identity the operator was looking at, the write is refused as `stale-row`.
+- **`readOnlyWhen` is evaluated against the fresh read, never the browser's claim** — same for an
+  action's `when()`. The browser offering a button is a hint, never a permission.
+- **The collector a resource names must feed the page it names.** A test enforces it: otherwise a
+  save refreshes a view nobody is looking at, and the page in front of the operator keeps the old
+  row. That collector needs a `refreshNow()`.
+- **A secret field must declare `type: 'secret'`.** It is never read back into the form, never sent
+  to the browser, skipped rather than cleared when blank, and masked in the audit trail by
+  `_resAuditValues()` — which keys on the declared **type**, not on the field name, because
+  `audit.js`'s `CRED_PATTERN` does not match `presharedKey`.
+- **A card opts in with two attributes in `index.html` and nothing else:** `data-res-add="<key>"`
+  for the + Add button, `data-res-rows="<key>"` for the rows that open the edit form. Rows carry
+  `data-id` and `data-identity` via `resRow()`. A row with nothing to edit carries no `data-id` and
+  is simply not clickable.
+
+### Guards — four of them now, and they do not agree on purpose
+
+|  | verdict | on failure | question |
+|---|---|---|---|
+| `selfGuard` | **refuses** | fails **closed** | may this `/user` row be touched |
+| `queueGuard` | warns | fails open | would this queue throttle us |
+| `wanGuard` | warns | fails open | is the management path local or remote |
+| `selfPath` | warns | fails open | which **interface** are we reachable on |
+
+Only `selfGuard` refuses, because breaking the login is unrecoverable from inside the app — the fix
+is WinBox. The other three warn: their mistakes are recoverable from the very row that caused them.
+All three fail **open** because `/user/active` is denied to the read-only API user the README
+recommends, so an unreadable answer is the common case, not an edge one.
+
+A guard's verdict shape is `{ level, code, detail, fingerprint }` everywhere, so the acknowledgement
+dance is shared: the server describes the consequence and writes nothing, the browser confirms, the
+retry carries the fingerprint, a mismatch is `stale-warning`. Recomputing the fingerprint from a
+fresh read is what stops an ack being carried from one row to another or replayed against a later
+write.
+
+**Do not make a warning fire on the innocent case.** `selfPath` skips an update that only changes a
+comment or an MTU, and a VLAN names only itself rather than its parent — an address on `bridge` would
+otherwise make every VLAN riding that bridge warn. Every false alarm trains the operator to click
+through the one that mattered.
+
+### Declined from #97, deliberately
+
+- **A per-router "management enabled" toggle.** RBAC is the gate, consistent with the four write
+  surfaces already shipped.
+- **A backup before each write.** `/system/backup/save` writes to router flash, and a hAP ac2 has
+  ~16 MB.
+- **Safe mode.** Not reachable over the API at all — it is a console/WinBox session feature, there is
+  no `/system/safe-mode` node anywhere in the tracked command tree (7.9 to 7.24rc2), and
+  `/system/history` exposes only find/get/print, so there is no undo verb either.
+- **Firewall rules.** Rule *order* decides behaviour and reordering is not a field on a form, and a
+  bad input-chain rule locks MikroDash out. That needs a guard of its own.
+
+---
+
 ## Collector pattern
 
 **Streaming-first, with a per-router opt-out:** always prefer a `/listen` stream over a poll interval
