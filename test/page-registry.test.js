@@ -401,3 +401,36 @@ test('both copies of the grouping toggle share one handler', () => {
   assert.ok(APP_JS.includes("document.querySelectorAll('.nav-grouped-input')"),
     'the toggle handler must bind by class, so both copies stay in step');
 });
+
+test('a category can be collapsed even while it holds the current page', () => {
+  // Two ways this broke, both silently:
+  //
+  //  1. _navRender derived the open category from the active page on every
+  //     render, so a collapse was undone by the very next render.
+  //  2. The click keyed on membership of _navExpanded. An auto-expanded category
+  //     is open WITHOUT being in that array, so the first click pushed it —
+  //     expanding an already-open group and taking two clicks to shut.
+  //
+  // Both are invisible to a source scan unless it looks for the specific shape
+  // that fixes them: a module-level _navAutoCat that the toggle consults and
+  // clears.
+  assert.match(APP_JS, /var _navAutoCat = null;/, '_navAutoCat must be state, not re-derived');
+  assert.match(APP_JS, /function _navRender\(\)/,
+    '_navRender must read _navAutoCat rather than take the active category as an argument');
+
+  const at   = APP_JS.indexOf("document.querySelectorAll('.nav-group-hdr').forEach");
+  const body = APP_JS.slice(at, at + 1200);
+  assert.match(body, /if \(at !== -1 \|\| _navAutoCat === cat\)/,
+    'the toggle must key on what is rendered — saved OR auto-expanded — not on membership alone');
+  assert.match(body, /if \(_navAutoCat === cat\) _navAutoCat = null;/,
+    'collapsing must clear the auto-expand, or the next render puts it back');
+});
+
+test('auto-expanding a category is never saved', () => {
+  // Otherwise visiting one page in each category leaves every category open for
+  // good, which is grouping that undoes itself.
+  const at   = APP_JS.indexOf('function showPage(');
+  const body = APP_JS.slice(at, APP_JS.indexOf('\n}', at));
+  assert.match(body, /_navAutoCat = navGrp\.dataset\.cat/, 'navigation sets the auto-expand');
+  assert.ok(!/_navSave\(/.test(body), 'navigation must not persist the auto-expand');
+});

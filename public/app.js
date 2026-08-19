@@ -555,7 +555,7 @@ function showPage(name){
   // standing in is allowed and holds until you navigate again.
   document.querySelectorAll('.nav-group').forEach(function(g){ g.classList.remove('has-active'); });
   var navGrp = nav && nav.closest ? nav.closest('.nav-group') : null;
-  if (navGrp) { navGrp.classList.add('has-active'); _navRender(navGrp.dataset.cat); }
+  if (navGrp) { navGrp.classList.add('has-active'); _navAutoCat = navGrp.dataset.cat; _navRender(); }
   if(pageTitle) pageTitle.textContent = PAGE_TITLES[name]||name;
   if(pageTitleIcon){
     pageTitleIcon.innerHTML = '';
@@ -583,8 +583,16 @@ document.querySelectorAll('.nav-item').forEach(function(item){
 // so the sidebar never renders in one shape and then rearranges.
 var NAV_KEY = 'mkd_nav_prefs';
 var _navGrouped  = true;
-var _navExpanded = [];        // the SAVED set; the rendered set adds the active category
+var _navExpanded = [];        // the SAVED set; the rendered set may add _navAutoCat
 var _navSaveTimer = null;
+// The category opened by navigating into it, which is NOT saved — otherwise
+// visiting one page per category would leave every category open forever.
+//
+// It has to be state rather than something re-derived at render time, because a
+// deliberate collapse must be able to clear it. Deriving it from the active page
+// on every render is what made collapsing the group you are standing in a no-op:
+// the click removed it from _navExpanded and the very next render put it back.
+var _navAutoCat = null;
 
 try {
   var _navCached = JSON.parse(localStorage.getItem(NAV_KEY) || 'null');
@@ -600,14 +608,14 @@ try {
  * Takes over from preflight.js's #navBoot stylesheet, which exists only because
  * the elements it needed to class did not exist yet when it ran.
  */
-function _navRender(activeCat) {
+function _navRender() {
   var boot = document.getElementById('navBoot');
   if (boot && boot.parentNode) boot.parentNode.removeChild(boot);
 
   document.documentElement.setAttribute('data-nav', _navGrouped ? 'grouped' : 'flat');
   document.querySelectorAll('.nav-group').forEach(function (g) {
     var cat  = g.dataset.cat;
-    var open = _navExpanded.indexOf(cat) !== -1 || (activeCat && cat === activeCat);
+    var open = _navExpanded.indexOf(cat) !== -1 || (_navAutoCat && cat === _navAutoCat);
     g.classList.toggle('is-open', !!open);
     var hdr = g.querySelector('.nav-group-hdr');
     // Set next to the class toggle, the way the router dropdown does it — it is
@@ -643,10 +651,21 @@ document.querySelectorAll('.nav-group-hdr').forEach(function (hdr) {
   hdr.addEventListener('click', function () {
     var cat = hdr.parentNode && hdr.parentNode.dataset.cat;
     if (!cat) return;
+    // Toggle what is ON SCREEN, not what is in the saved set. An auto-expanded
+    // category is open without being in _navExpanded, so keying on membership
+    // made the first click on it PUSH — expanding an already-open group, and
+    // taking two clicks to shut it.
     var at = _navExpanded.indexOf(cat);
-    if (at === -1) _navExpanded.push(cat); else _navExpanded.splice(at, 1);
-    var activeGrp = document.querySelector('.nav-group.has-active');
-    _navRender(activeGrp ? activeGrp.dataset.cat : null);
+    if (at !== -1 || _navAutoCat === cat) {
+      if (at !== -1) _navExpanded.splice(at, 1);
+      // Collapsing the category holding the current page is allowed, and holds
+      // until you navigate into it again. Clearing the auto-expand is what makes
+      // that stick — otherwise the next render puts it straight back.
+      if (_navAutoCat === cat) _navAutoCat = null;
+    } else {
+      _navExpanded.push(cat);
+    }
+    _navRender();
     _navSave();
   });
 });
@@ -654,8 +673,7 @@ document.querySelectorAll('.nav-group-hdr').forEach(function (hdr) {
 document.querySelectorAll('.nav-grouped-input').forEach(function (cb) {
   cb.addEventListener('change', function () {
     _navGrouped = cb.checked;
-    var activeGrp = document.querySelector('.nav-group.has-active');
-    _navRender(activeGrp ? activeGrp.dataset.cat : null);
+    _navRender();
     _navSave();
   });
 });
@@ -669,12 +687,11 @@ fetch('/api/nav-prefs', { credentials: 'same-origin' })
     _navGrouped  = d.grouped !== false;
     _navExpanded = Array.isArray(d.expanded) ? d.expanded.slice() : [];
     try { localStorage.setItem(NAV_KEY, JSON.stringify({ grouped: _navGrouped, expanded: _navExpanded })); } catch (e) {}
-    var activeGrp = document.querySelector('.nav-group.has-active');
-    _navRender(activeGrp ? activeGrp.dataset.cat : null);
+    _navRender();
   })
   .catch(function () {});
 
-_navRender(null);
+_navRender();
 
 // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 var kbdHint = $('kbdHint');
