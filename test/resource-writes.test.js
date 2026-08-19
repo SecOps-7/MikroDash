@@ -77,8 +77,14 @@ test('every resource identifies its rows by one of its own fields', () => {
   // identity naming a field that does not exist would silently compare '' to
   // '' and make every stale row look current.
   for (const r of R.RESOURCES) {
-    assert.ok(r.fields.some(f => f.name === r.identity),
-      `${r.key}: identity "${r.identity}" is not one of its fields`);
+    // A firewall rule has no name and nothing unique, so its identity is a
+    // composite. Either way every field it names has to exist, or identityOf()
+    // would compare '' to '' and make every stale row look current.
+    const names = Array.isArray(r.identity) ? r.identity : [r.identity];
+    assert.ok(names.length, `${r.key} has no identity`);
+    for (const n of names)
+      assert.ok(r.fields.some(f => f.name === n),
+        `${r.key}: identity "${n}" is not one of its fields`);
   }
 });
 
@@ -94,11 +100,15 @@ test('an action declares a verb and a when', () => {
 test('a resource that declares a guard declares what the guard looks at', () => {
   for (const r of R.RESOURCES) {
     if (!r.guard) continue;
-    assert.equal(r.guard, 'selfPath', `${r.key}: unknown guard "${r.guard}"`);
-    assert.ok((r.guardInterfaceFields || []).length,
-      `${r.key} declares a guard but names no interface fields for it to check`);
-    for (const n of r.guardInterfaceFields)
-      assert.ok(r.fields.some(f => f.name === n), `${r.key}: guard field "${n}" is not a field`);
+    assert.ok(['selfPath', 'fwGuard'].includes(r.guard), `${r.key}: unknown guard "${r.guard}"`);
+    // selfPath asks about interfaces, so it needs to be told which fields hold
+    // them. fwGuard reads the rule itself and needs no such hint.
+    if (r.guard === 'selfPath') {
+      assert.ok((r.guardInterfaceFields || []).length,
+        `${r.key} declares selfPath but names no interface fields for it to check`);
+      for (const n of r.guardInterfaceFields)
+        assert.ok(r.fields.some(f => f.name === n), `${r.key}: guard field "${n}" is not a field`);
+    }
   }
 });
 
@@ -538,7 +548,10 @@ const mountedKeys = (html, attr) => {
 test('every resource has somewhere to be added from', () => {
   // A registry entry with no mount point is a feature nobody can reach.
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  const mounted = mountedKeys(html, 'add');
+  // A slot whose resource follows what the page is showing declares its whole
+  // range in data-res-add-dynamic, so a resource reachable only after a tab
+  // change still counts as mounted.
+  const mounted = new Set([...mountedKeys(html, 'add'), ...mountedKeys(html, 'add-dynamic')]);
   for (const r of R.RESOURCES)
     assert.ok(mounted.has(r.key), `${r.key} has no + Add mount in index.html`);
 });
@@ -556,7 +569,7 @@ test('a card header keeps its own controls beside the Add button', () => {
   // all the free space and shoved every search box over to the title. The
   // margin belongs to the group that holds both.
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  assert.ok(/\.card-header \.hdr-actions\{margin-left:auto/.test(html),
+  assert.ok(/\.hdr-actions\{margin-left:auto/.test(html),
     'the right-hand group rule is gone');
   // Every slot that shares its header with another control must be inside a
   // group with it, not a bare sibling of it.

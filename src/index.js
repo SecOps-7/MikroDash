@@ -44,6 +44,8 @@ const selfGuard            = require('./routeros/selfGuard');
 const queueGuard           = require('./routeros/queueGuard');
 const wanGuard             = require('./routeros/wanGuard');
 const selfPath             = require('./routeros/selfPath');
+const fwGuard              = require('./routeros/fwGuard');
+const history              = require('./routeros/history');
 const Resources            = require('./routeros/resources');
 const { scheduleForcedShutdownTimer } = require('./shutdown');
 
@@ -5659,6 +5661,63 @@ io.on('connection', (socket) => {
   };
 
   /**
+   * Run whichever guard the resource declares, for one write.
+   *
+   * `null` when it declares none, or when the guard has nothing to say. The two
+   * guards ask different questions — selfPath asks which interface carries us,
+   * fwGuard asks whether a rule could match us — but they answer in the same
+   * shape, which is what lets the acknowledgement below be written once.
+   *
+   * `before` is the RAW freshly-read row throughout; each guard converts it to
+   * whatever it needs.
+   */
+  const _resVerdict = async (resource, session, rid, what, values, before) => {
+    if (!resource.guard) return null;
+    const path = await _resSelfPath(session, rid);
+
+    if (resource.guard === 'selfPath') {
+      const targets = _resGuardTargets(resource, what, values || {}, before);
+      if (!targets.length) return null;
+      return selfPath.checkInterfaceEdit({
+        path, targets, action: what === 'delete' ? 'delete' : 'update' });
+    }
+
+    if (resource.guard === 'fwGuard') {
+      // The API port is the one this router is actually reached on, not a
+      // guess: a rule that spares 8729 still locks us out of a router we talk
+      // to on 8728.
+      const cfg = Routers.getById(rid) || {};
+      return fwGuard.checkRule({
+        menu: resource.menu, values, what,
+        before: before ? Resources.rowValues(resource, before) : null,
+        ctx: { resolved: path.resolved, addresses: path.addresses || [],
+               interfaces: path.interfaces, apiPort: Number(cfg.port) || 8728 },
+      });
+    }
+    return null;
+  };
+
+  /**
+   * The prompt, and the acknowledgement of it — one implementation for every
+   * guard.
+   *
+   * Nothing is written and nothing is audited on the first pass: this is a
+   * question, not a refusal, and a denial row would make the trail lie about
+   * what was attempted. The retry carries the fingerprint, recomputed here from
+   * a fresh read, so an acknowledgement cannot be carried from one row to
+   * another or replayed against a later write.
+   *
+   * Returns the error payload to send, or null to proceed.
+   */
+  const _resAckGate = (verdict, ack) => {
+    if (!verdict || verdict.level !== 'warn') return null;
+    const detail = { warning: verdict.detail, fingerprint: verdict.fingerprint };
+    if (!ack) return Object.assign({ code: verdict.code }, detail);
+    if (ack !== verdict.fingerprint) return Object.assign({ code: 'stale-warning' }, detail);
+    return null;
+  };
+
+  /**
    * The values as the audit trail should see them.
    *
    * A `secret` field's VALUE never reaches a row. audit.js masks on field NAME
@@ -5693,7 +5752,8 @@ io.on('connection', (socket) => {
    * picker is a convenience; it must never be the thing that stops a write.
    */
   const _resOptions = async (session, resource) => {
-    const out = {};
+    // Fixed vocabularies — firewall chains and actions — need no read at all.
+    const out = Resources.staticOptions(resource);
     const menus = new Map();
     for (const src of Resources.optionSources(resource)) {
       if (!menus.has(src.menu)) {
@@ -5711,6 +5771,197 @@ io.on('connection', (socket) => {
     }
     return out;
   };
+
+  // ── Undo / redo ────────────────────────────────────────────────────────────
+  //
+  // Per socket, per resource, in memory, dying with the connection. "Undo" here
+  // means "undo what I just did", which is what anyone pressing the button
+  // expects — a stack shared between operators would let one silently revert
+  // another's work, and a stack that outlived the session would offer to
+  // reverse something from last week.
+  //
+  // Per RESOURCE, not one global stack: undo on the Firewall card must never
+  // reach into DNS.
+
+  const _HIST_DEPTH = 20;
+
+  const _histFor = (key) => {
+    socket._resHist = socket._resHist || {};
+    socket._resHist[key] = socket._resHist[key] || { undo: [], redo: [] };
+    return socket._resHist[key];
+  };
+
+  const _histEmit = (key) => {
+    const h = _histFor(key);
+    socket.emit('res:history', {
+      resource: key,
+      canUndo: h.undo.length > 0, canRedo: h.redo.length > 0,
+      undoLabel: h.undo.length ? h.undo[h.undo.length - 1].label : '',
+      redoLabel: h.redo.length ? h.redo[h.redo.length - 1].label : '',
+    });
+  };
+
+  const _histPush = (resource, entry) => {
+    if (!entry) return;
+    const h = _histFor(resource.key);
+    h.undo.push(entry);
+    if (h.undo.length > _HIST_DEPTH) h.undo.shift();
+    // A fresh action forks the timeline: what was undone can no longer be
+    // redone on top of something else.
+    h.redo.length = 0;
+    _histEmit(resource.key);
+  };
+
+  /** The history no longer describes this router, so none of it can be trusted. */
+  const _histDrop = (key) => {
+    const h = _histFor(key);
+    h.undo.length = 0; h.redo.length = 0;
+    _histEmit(key);
+  };
+
+  /**
+   * Where a row sits, as the id of the row AFTER it — or null for the end.
+   *
+   * An anchor rather than an index, because an index is wrong the moment
+   * anything else in the table moves, and undo exists precisely because time
+   * has passed.
+   */
+  const _anchorAt = (rows, at) => (rows[at + 1] ? rows[at + 1]['.id'] : null);
+
+  /** Move `id` so it sits immediately before `anchor`; null sends it to the end. */
+  const _resMoveTo = async (session, resource, id, anchor) => {
+    const args = ['=numbers=' + id];
+    if (anchor) args.push('=destination=' + anchor);
+    await session.ros.write(resource.menu + '/move', args);
+  };
+
+  /** What a recorded operation is, in the vocabulary the guards speak. */
+  const _OP_MEANS = Object.freeze({ add: 'create', set: 'update', remove: 'delete',
+                                    move: 'move', enable: 'enable', disable: 'disable' });
+
+  /**
+   * Apply one recorded operation, and answer with the id the row now has.
+   *
+   * An `add` is the awkward one: RouterOS assigns the id, so the row is found
+   * by diffing the table against itself rather than by assuming the new row is
+   * last. It usually is last — but "usually" is not a thing to build an undo on.
+   */
+  const _applyOp = async (session, resource, op) => {
+    if (op.op === 'add') {
+      const validated = Resources.validate(resource, op.values, { editing: false });
+      if (!validated.ok) return { error: 'invalid', errors: validated.errors };
+      const seen = new Set((await _resRead(session, resource)).map(r => r['.id']));
+      await session.ros.write(resource.menu + '/add', Resources.buildArgs(resource, validated));
+      const rows = await _resRead(session, resource);
+      const made = rows.find(r => !seen.has(r['.id']));
+      if (!made) return { error: 'failed' };
+      if (resource.ordered) await _resMoveTo(session, resource, made['.id'], op.anchor || null);
+      return { id: made['.id'] };
+    }
+
+    if (op.op === 'set') {
+      const validated = Resources.validate(resource, op.values, { editing: true });
+      if (!validated.ok) return { error: 'invalid', errors: validated.errors };
+      await session.ros.write(resource.menu + '/set',
+        ['=.id=' + op.id].concat(Resources.buildArgs(resource, validated)));
+      return { id: op.id };
+    }
+
+    if (op.op === 'move') {
+      await _resMoveTo(session, resource, op.id, op.anchor || null);
+      return { id: op.id };
+    }
+
+    // remove, enable, disable — RouterOS has a verb for each.
+    await session.ros.write(resource.menu + '/' + op.op, ['=.id=' + op.id]);
+    return { id: op.op === 'remove' ? null : op.id };
+  };
+
+  /**
+   * Undo or redo the top of a stack.
+   *
+   * Everything the ordinary write handlers do, this does too: both gates, a
+   * fresh read, a staleness check, the guard, an audit row, a refresh. An undo
+   * is a write like any other — undoing the deletion of a `drop` rule puts that
+   * rule back, and it can lock us out exactly as the original did.
+   */
+  const _histRun = (dir) => (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    const { session, coll } = _resSession(rid, resource);
+    if (!rid || !session) return _resErr('unavailable', { resource: resource.key });
+    const action = resource.key + '.' + dir;
+    const r = req || {};
+
+    if (!_resMayWrite(rid, resource)) {
+      audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid });
+      return _resErr('denied', { resource: resource.key });
+    }
+
+    const h = _histFor(resource.key);
+    const stack = dir === 'undo' ? h.undo : h.redo;
+    const entry = stack[stack.length - 1];
+    if (!entry) return _resErr('nothing-to-' + dir, { resource: resource.key });
+    const op = dir === 'undo' ? entry.reverse : entry.forward;
+
+    try {
+      const rows = await _resRead(session, resource);
+
+      // The row this entry is about must still be the row it was about. If it
+      // is not, everything below it on the stack is suspect too, so the whole
+      // history goes rather than leaving a trap for the next click.
+      if (op.op !== 'add') {
+        const row = rows.find(x => x['.id'] === op.id);
+        if (!row || Resources.identityOf(resource, row) !== entry.identity) {
+          _histDrop(resource.key);
+          return _resErr('stale-history', { resource: resource.key });
+        }
+      }
+      // An anchor that has been deleted cannot put anything back where it was.
+      if (op.anchor && !rows.some(x => x['.id'] === op.anchor)) {
+        _histDrop(resource.key);
+        return _resErr('stale-history', { resource: resource.key });
+      }
+
+      const beforeRow = op.op === 'add' ? null : rows.find(x => x['.id'] === op.id);
+      const gate = _resAckGate(
+        await _resVerdict(resource, session, rid, _OP_MEANS[op.op],
+                          op.values || (beforeRow ? Resources.rowValues(resource, beforeRow) : {}),
+                          beforeRow), r.ack);
+      if (gate) return _resErr(gate.code, { resource: resource.key, name: entry.label,
+        warning: gate.warning, fingerprint: gate.fingerprint });
+
+      const out = await _applyOp(session, resource, op);
+      if (out.error) return _resErr(out.error, { resource: resource.key, errors: out.errors });
+
+      // Keep the entry pointing at the row that now exists, and at what it now
+      // looks like, so the opposite direction can check it in turn.
+      history.rebind(entry, out.id);
+      if (out.id) {
+        const nowRow = (await _resRead(session, resource)).find(x => x['.id'] === out.id);
+        if (nowRow) entry.identity = Resources.identityOf(resource, nowRow);
+      }
+
+      stack.pop();
+      (dir === 'undo' ? h.redo : h.undo).push(entry);
+      _histEmit(resource.key);
+
+      audit.fromSocket(socket).record({ action, targetType: resource.key,
+        targetId: out.id ? String(out.id) : null, targetName: entry.identity || null,
+        routerId: rid, note: dir + ': ' + entry.label,
+        extra: Object.assign({ [dir]: true, op: op.op },
+                             r.ack ? { selfLockoutAcknowledged: true } : null) });
+
+      if (coll && typeof coll.refreshNow === 'function') await coll.refreshNow();
+      socket.emit('res:ok', { resource: resource.key, action: dir,
+                              name: entry.identity || '', movedId: out.id || null });
+    } catch (e) {
+      _resErr(_rosWriteFail(e), { resource: resource.key, message: sanitizeErr(e) });
+    }
+  });
+
+  socket.on('res:undo', _histRun('undo'));
+  socket.on('res:redo', _histRun('redo'));
 
   /** Resolve the resource named on the wire, or answer why not. */
   const _resolve = (req) => {
@@ -5745,7 +5996,10 @@ io.on('connection', (socket) => {
     socket.emit('res:schema', Object.assign(Resources.describe(resource), {
       permitted: !unsupported && _resMayWrite(rid, resource),
       unsupported,
+      ordered: !!resource.ordered,
     }));
+    // So the undo and redo buttons start out grey rather than absent.
+    _histEmit(resource.key);
   });
 
   /**
@@ -5857,31 +6111,32 @@ io.on('connection', (socket) => {
         return _resErr('read-only-row', { resource: resource.key, name });
       }
 
-      if (resource.guard === 'selfPath') {
-        const targets = _resGuardTargets(resource, editing ? 'update' : 'create', validated.values, before);
-        if (targets.length) {
-          const path    = await _resSelfPath(session, rid);
-          const verdict = selfPath.checkInterfaceEdit({ path, targets, action: 'update' });
-          if (verdict.level === 'warn') {
-            // Nothing is written and nothing is audited — this is a prompt, not
-            // a refusal, and a denial row here would make the trail lie about
-            // what was attempted.
-            if (!r.ack)
-              return _resErr('self-cutoff', { resource: resource.key, name,
-                warning: verdict.detail, fingerprint: verdict.fingerprint });
-            // An acknowledgement taken against different values, or a different
-            // self-address. Reported separately so an ack cannot be carried
-            // from one row to another or replayed against a later write.
-            if (r.ack !== verdict.fingerprint)
-              return _resErr('stale-warning', { resource: resource.key, name,
-                warning: verdict.detail, fingerprint: verdict.fingerprint });
-          }
-        }
-      }
+      const gate = _resAckGate(
+        await _resVerdict(resource, session, rid, editing ? 'update' : 'create',
+                          validated.values, before), r.ack);
+      if (gate) return _resErr(gate.code, { resource: resource.key, name,
+        warning: gate.warning, fingerprint: gate.fingerprint });
 
       const args = Resources.buildArgs(resource, validated);
       if (editing) await session.ros.write(resource.menu + '/set', ['=.id=' + r.id].concat(args));
       else         await session.ros.write(resource.menu + '/add', args);
+
+      // Recorded for undo. A create needs one extra read: RouterOS assigns the
+      // id, and the row is found by diffing against the read taken before the
+      // write rather than by assuming it landed last.
+      let newId = r.id, anchorAfter;
+      if (!editing) {
+        const seen  = new Set(rows.map(x => x['.id']));
+        const after = await _resRead(session, resource);
+        const made  = after.find(x => !seen.has(x['.id']));
+        newId = made && made['.id'];
+        if (resource.ordered && made) anchorAfter = _anchorAt(after, after.indexOf(made));
+      }
+      if (newId) _histPush(resource, history.buildEntry({
+        resource, what: editing ? 'update' : 'create', id: newId,
+        identity: name,
+        before: before ? Resources.rowValues(resource, before) : null,
+        after: validated.values, anchorAfter }));
 
       audit.fromSocket(socket).record({ action, targetType: resource.key,
         targetId: editing ? String(r.id) : null, targetName: name, routerId: rid,
@@ -5924,23 +6179,21 @@ io.on('connection', (socket) => {
         return _resErr('read-only-row', { resource: resource.key, name });
       }
 
-      if (resource.guard === 'selfPath') {
-        const targets = _resGuardTargets(resource, 'delete', {}, before);
-        if (targets.length) {
-          const path    = await _resSelfPath(session, rid);
-          const verdict = selfPath.checkInterfaceEdit({ path, targets, action: 'delete' });
-          if (verdict.level === 'warn') {
-            if (!r.ack)
-              return _resErr('self-cutoff', { resource: resource.key, name,
-                warning: verdict.detail, fingerprint: verdict.fingerprint });
-            if (r.ack !== verdict.fingerprint)
-              return _resErr('stale-warning', { resource: resource.key, name,
-                warning: verdict.detail, fingerprint: verdict.fingerprint });
-          }
-        }
-      }
+      const gate = _resAckGate(
+        await _resVerdict(resource, session, rid, 'delete', {}, before), r.ack);
+      if (gate) return _resErr(gate.code, { resource: resource.key, name,
+        warning: gate.warning, fingerprint: gate.fingerprint });
+
+      // Where it sat, so undo can put it back rather than append it.
+      const anchorBefore = resource.ordered
+        ? _anchorAt(rows, rows.findIndex(x => x['.id'] === r.id)) : undefined;
 
       await session.ros.write(resource.menu + '/remove', ['=.id=' + r.id]);
+
+      _histPush(resource, history.buildEntry({
+        resource, what: 'delete', id: String(r.id), identity: name,
+        before: Resources.rowValues(resource, before), anchorBefore }));
+
       audit.fromSocket(socket).record({ action, targetType: resource.key,
         targetId: String(r.id), targetName: name, routerId: rid,
         before: _resAuditValues(resource, Resources.rowValues(resource, before)), after: {},
@@ -5990,12 +6243,131 @@ io.on('connection', (socket) => {
         return _resErr('not-applicable', { resource: resource.key, name });
       }
 
+      // A named verb is still a write. Enabling a firewall rule has exactly the
+      // blast radius of creating it, and disabling the accept that lets us in
+      // is how the other half of a lockout happens.
+      const gate = _resAckGate(
+        await _resVerdict(resource, session, rid, def.key,
+                          Resources.rowValues(resource, row), row), r.ack);
+      if (gate) return _resErr(gate.code, { resource: resource.key, name,
+        warning: gate.warning, fingerprint: gate.fingerprint });
+
       await session.ros.write(resource.menu + '/' + def.verb, ['=.id=' + r.id]);
+
+      // enable and disable invert each other, so they are recorded. A verb with
+      // no inverse — make-static, say — yields no entry and buildEntry says so
+      // by returning null.
+      _histPush(resource, history.buildEntry({
+        resource, what: def.key, id: String(r.id), identity: name }));
+
       audit.fromSocket(socket).record({ action, targetType: resource.key,
         targetId: String(r.id), targetName: name, routerId: rid, note: def.note });
 
       if (coll && typeof coll.refreshNow === 'function') await coll.refreshNow();
       socket.emit('res:ok', { resource: resource.key, action: def.key, name });
+    } catch (e) {
+      _resErr(_rosWriteFail(e), { resource: resource.key, message: sanitizeErr(e) });
+    }
+  }));
+
+
+  /**
+   * Reorder a rule in a table where position is meaning.
+   *
+   * Firewall only, today, and `ordered` is what says so. Everywhere else the
+   * router keeps its own order and moving a row would mean nothing.
+   *
+   * THE BROWSER SENDS A DIRECTION, NEVER A POSITION. The neighbour is resolved
+   * here, from a read taken in this same tick, so an operator clicking twice
+   * quickly — or two operators at once — cannot move a rule to an index
+   * computed against a table that has already changed underneath them. It is
+   * the same reasoning as the fresh read everywhere else in this block, applied
+   * to ordering instead of to values.
+   */
+  socket.on('res:move', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    const resource = _resolve(req);
+    if (!resource) return;
+    if (!resource.ordered) return _resErr('bad-request', { resource: resource.key });
+    const { session, coll } = _resSession(rid, resource);
+    if (!rid || !session) return _resErr('unavailable', { resource: resource.key });
+    const r      = req || {};
+    // A drag says WHERE, an arrow says WHICH WAY. Both refuse to name an index:
+    // `anchor` is the id the row should land before (or '' for the end), which
+    // stays correct if the table shifts, and a direction is resolved against a
+    // read taken here.
+    const anchored = Object.prototype.hasOwnProperty.call(r, 'anchor');
+    const up       = r.direction === 'up';
+    const action   = resource.key + '.move';
+
+    if (!_resMayWrite(rid, resource)) {
+      audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid,
+        targetId: r.id ? String(r.id) : null,
+        targetName: r.expectedIdentity ? String(r.expectedIdentity) : null });
+      return _resErr('denied', { resource: resource.key });
+    }
+    if (!r.id || (!anchored && r.direction !== 'up' && r.direction !== 'down'))
+      return _resErr('bad-request', { resource: resource.key });
+
+    try {
+      const rows = await _resRead(session, resource);
+      const at   = rows.findIndex(x => x['.id'] === r.id);
+      if (at === -1) return _resErr('stale-row', { resource: resource.key });
+      const row  = rows[at];
+      const name = Resources.identityOf(resource, row);
+      if (r.expectedIdentity !== undefined && r.expectedIdentity !== null &&
+          r.expectedIdentity !== '' && name !== String(r.expectedIdentity))
+        return _resErr('stale-row', { resource: resource.key });
+      if (anchored) {
+        // The row the drag aimed at must still be there. If it has gone, the
+        // table the operator was looking at is not the table on the router, and
+        // dropping the rule somewhere approximate is worse than saying so.
+        if (r.anchor && !rows.some(x => x['.id'] === r.anchor))
+          return _resErr('stale-row', { resource: resource.key, name });
+        // Dropped exactly where it already was.
+        if (_anchorAt(rows, at) === (r.anchor || null))
+          return _resErr('at-end', { resource: resource.key, name });
+      } else if (up ? at === 0 : at === rows.length - 1) {
+        // Already where it is going. Not an error worth a banner, but the page
+        // should stop drawing an arrow that does nothing.
+        return _resErr('at-end', { resource: resource.key, name });
+      }
+
+      const gate = _resAckGate(
+        await _resVerdict(resource, session, rid, 'move',
+                          Resources.rowValues(resource, row), row), r.ack);
+      if (gate) return _resErr(gate.code, { resource: resource.key, name,
+        warning: gate.warning, fingerprint: gate.fingerprint });
+
+      // RouterOS inserts the moved rule BEFORE `destination`. So moving up
+      // means "before the rule currently above me", and moving down means
+      // "before the rule two below" — with no destination at all when there is
+      // nothing below, which sends it to the end.
+      //
+      // A drag names its destination directly, as the id it should land before
+      // (`anchor`), which is still not an index: an anchor survives the table
+      // shifting underneath it and an ordinal does not.
+      const anchorBefore = _anchorAt(rows, at);
+      const dest = anchored ? r.anchor
+                 : up      ? rows[at - 1]['.id']
+                           : (rows[at + 2] ? rows[at + 2]['.id'] : null);
+      await _resMoveTo(session, resource, r.id, dest);
+
+      const moved = await _resRead(session, resource);
+      const nowAt = moved.findIndex(x => x['.id'] === r.id);
+      _histPush(resource, history.buildEntry({
+        resource, what: 'move', id: String(r.id), identity: name,
+        anchorBefore, anchorAfter: _anchorAt(moved, nowAt) }));
+
+      audit.fromSocket(socket).record({ action, targetType: resource.key,
+        targetId: String(r.id), targetName: name, routerId: rid,
+        before: { position: at }, after: { position: nowAt },
+        extra: Object.assign({ how: anchored ? 'drag' : (up ? 'up' : 'down') },
+                             r.ack ? { selfLockoutAcknowledged: true } : null) });
+
+      if (coll && typeof coll.refreshNow === 'function') await coll.refreshNow();
+      // `movedId` is what the page pulses, so the eye can find the row that
+      // just changed places in a table of thirty near-identical ones.
+      socket.emit('res:ok', { resource: resource.key, action: 'move', name, movedId: String(r.id) });
     } catch (e) {
       _resErr(_rosWriteFail(e), { resource: resource.key, message: sanitizeErr(e) });
     }
@@ -6091,6 +6463,9 @@ io.on('connection', (socket) => {
 
   // Per-user router switching (modern auth only).
   socket.on('router:switch', (newRouterId) => {
+    // Every undo entry names a row on the router being left, so none of it
+    // means anything on the next one. Dropped rather than carried.
+    socket._resHist = {};
     // Re-resolve live role/perms (don't trust the ≤60s-stale cached view) so a
     // just-revoked viewer can't switch into a router they no longer have access to.
     const authSession = socket.request ? _sessionFromReq(socket.request) : null;

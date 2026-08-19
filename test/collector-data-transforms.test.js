@@ -558,7 +558,7 @@ test('firewall collector clamps negative delta to zero on counter reset', async 
   assert.equal(emitted[1].data.filter[0].deltaPackets, 0);
 });
 
-test('firewall collector filters out disabled rules', async () => {
+test('firewall collector carries disabled rules, flagged', async () => {
   const emitted = [];
   const ros = {
     connected: true,
@@ -584,8 +584,14 @@ test('firewall collector filters out disabled rules', async () => {
   const collector = new FirewallCollector({ ros, io, pollMs: 10000, state: {}, topN: 10 });
   await collector._loadInitial();
 
-  assert.equal(emitted[0].data.filter.length, 1);
-  assert.equal(emitted[0].data.filter[0].id, '*2');
+  // These used to be dropped, so the page never showed one and there was no way
+  // to re-enable a rule from MikroDash. They travel now; the page dims them and
+  // the Action Breakdown and Chain Count cards leave them out of their totals.
+  const rules = emitted[0].data.filter;
+  assert.equal(rules.length, 3, 'a disabled rule must still reach the page');
+  assert.deepEqual(rules.map(r => r.id), ['*1', '*2', '*3']);
+  assert.deepEqual(rules.map(r => r.disabled), [true, false, true],
+    'both the string and the boolean form of disabled must be recognised');
 });
 
 test('firewall collector prunes stale entries from prevCounts', async () => {

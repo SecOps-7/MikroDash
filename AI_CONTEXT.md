@@ -338,7 +338,7 @@ unnamed *key* being set.
   `data-id` and `data-identity` via `resRow()`. A row with nothing to edit carries no `data-id` and
   is simply not clickable.
 
-### Guards — four of them now, and they do not agree on purpose
+### Guards — five of them now, and they do not agree on purpose
 
 |  | verdict | on failure | question |
 |---|---|---|---|
@@ -346,6 +346,7 @@ unnamed *key* being set.
 | `queueGuard` | warns | fails open | would this queue throttle us |
 | `wanGuard` | warns | fails open | is the management path local or remote |
 | `selfPath` | warns | fails open | which **interface** are we reachable on |
+| `fwGuard` | warns | fails open | could this **rule** block our session |
 
 Only `selfGuard` refuses, because breaking the login is unrecoverable from inside the app — the fix
 is WinBox. The other three warn: their mistakes are recoverable from the very row that caused them.
@@ -372,8 +373,41 @@ through the one that mattered.
 - **Safe mode.** Not reachable over the API at all — it is a console/WinBox session feature, there is
   no `/system/safe-mode` node anywhere in the tracked command tree (7.9 to 7.24rc2), and
   `/system/history` exposes only find/get/print, so there is no undo verb either.
-- **Firewall rules.** Rule *order* decides behaviour and reordering is not a field on a form, and a
-  bad input-chain rule locks MikroDash out. That needs a guard of its own.
+### Ordering, and the rest of the registry vocabulary
+
+The firewall is the one place where **position is meaning** — a rule below the final drop never runs,
+and the same rule above an accept blocks everything. Four declarations exist for it, and each is
+general rather than firewall-specific:
+
+- **`ordered: true`** puts ↑/↓ on the rows and lets `res:move` address the menu. The browser sends a
+  **direction, never a position**: the server resolves the neighbour from a read taken in the same
+  tick, so two quick clicks cannot land a rule at an index computed against a table that has already
+  changed. RouterOS `move` accepts `.id` for both `=numbers=` and `=destination=` — verified live —
+  and inserts *before* the destination, which is why moving down targets the row two below.
+- **`identity` may be a list of fields.** A firewall rule has no name and nothing unique. The row is
+  *addressed* by `.id` and the composite only has to answer "is this still the rule I clicked" —
+  which matters because **RouterOS reuses `*N` ids after a delete**. `public/app.js` carries the one
+  mirror of this (`fwIdentity`), and a test asserts the two agree field for field.
+- **`optionsFrom: { values: [...] }`** for a fixed vocabulary. The field type stays `text` on purpose:
+  RouterOS has more actions than any list will name, and a `select` validates against its options, so
+  a rule with an exotic action could not be edited at all.
+- **`check(values)`** for a rule spanning two fields. Firewall's is RouterOS's own — *"ports can be
+  specified if proto is tcp,udp,udp-lite,dccp,sctp"* — met during live verification, where the router
+  refuses without naming a field. It runs only after every field passed its own type, so a rejected
+  value does not produce a second complaint about the first.
+- **`requiresMenu`** hides a resource whose menu ships with an optional package (VETH and containers).
+
+**What fwGuard does not model, and must keep saying so:** ORDER. Whether a rule takes effect depends
+on every rule above it, and evaluating that means a firewall simulator whose bugs would be invisible.
+So it asks two narrower questions it can actually answer — *could this rule match our management
+traffic*, and *does the accept being removed currently match it* — and the browser prints "rule order
+is not taken into account" on every prompt. Also unmodelled: address lists, `jump` targets, layer7,
+time windows and negated matches.
+
+Two consequences worth knowing: the firewall collector now emits **disabled rules** (a rule you
+cannot see is a rule you cannot re-enable), and the Action Breakdown and Chain Count cards filter them
+out in `app.js` so they still mean "what is in force" — while Rule Counts keeps them, which is what
+its long-dead "N off" badge was always for.
 
 ---
 
