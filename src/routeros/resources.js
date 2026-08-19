@@ -166,23 +166,36 @@ const _f = (name, ros, label, type, extra) =>
   Object.assign({ name, ros, label, type }, extra || {});
 
 /**
- * `optionsFrom` turns a free-text field into a picker of what the router
- * actually has.
+ * `optionsFrom` turns a free-text field into a picker.
  *
- * `{ menu: '/ip/dhcp-server', value: 'name' }` means "read that menu and offer
- * its `name` column". The field's TYPE stays `text`: the list is a convenience,
- * not a constraint, because RouterOS accepts names this app has no way to
- * enumerate on every version, and a select that refused a legitimate value
- * would be worse than a text box.
+ * Two shapes:
  *
- * The read is allowed to fail. A menu that is denied, or absent on this
- * RouterOS version, simply yields no options and the field renders as the text
- * box it always was.
+ *   { menu: '/ip/dhcp-server', value: 'name' }   read that menu, offer its `name` column
+ *   { values: ['input', 'forward', 'output'] }   a fixed vocabulary, no read needed
+ *
+ * In BOTH cases the field's TYPE stays `text`, and that is the point. A firewall
+ * action is a fixed vocabulary in practice but not in fact — RouterOS has more
+ * actions than any list here will name, and versions add more. A `select` type
+ * validates against its options, so a rule whose action is not in our list could
+ * not be edited at all; a text field with suggestions renders the same widget
+ * and still accepts what the router already holds. `selectHtml()` keeps a
+ * current value that is not among the choices for exactly this reason.
+ *
+ * A menu read is allowed to fail. Denied, or absent on this RouterOS version,
+ * simply yields no options and the field renders as the text box it always was.
  */
 function optionSources(resource) {
   return resource.fields
-    .filter(f => f.optionsFrom)
+    .filter(f => f.optionsFrom && f.optionsFrom.menu)
     .map(f => ({ field: f.name, menu: f.optionsFrom.menu, value: f.optionsFrom.value }));
+}
+
+/** The picker lists that need no router read, ready to ship as they are. */
+function staticOptions(resource) {
+  const out = {};
+  for (const f of resource.fields)
+    if (f.optionsFrom && f.optionsFrom.values) out[f.name] = f.optionsFrom.values.slice();
+  return out;
 }
 
 /** Is this field in play, given what the operator has filled in so far? */
@@ -192,6 +205,87 @@ function fieldApplies(field, values) {
   const v = (values || {})[cond.field];
   return (cond.in || []).indexOf(String(v == null ? '' : v)) !== -1;
 }
+
+// ── Firewall field groups ────────────────────────────────────────────────────
+//
+// The four firewall tables share most of a rule and differ in the interesting
+// parts, so the shared parts are built rather than repeated four times. Three
+// groups, not one, because ORDER is the form's layout: what the rule matches
+// reads better between what it is and what it does about it.
+//
+// Each group returns fresh objects. The registry is frozen, but two tables
+// pointing at one field object would make a later per-table tweak leak sideways.
+
+const _fwHead = (chains, actions) => ([
+  _f('chain',  'chain',  'Chain',  'text', { required: true, optionsFrom: { values: chains } }),
+  _f('action', 'action', 'Action', 'text', { required: true, optionsFrom: { values: actions } }),
+]);
+
+const _fwMatch = () => ([
+  _f('srcAddress', 'src-address', 'Source Address', 'text', { placeholder: '10.0.0.0/24' }),
+  _f('dstAddress', 'dst-address', 'Destination Address', 'text'),
+  _f('protocol', 'protocol', 'Protocol', 'text', {
+    optionsFrom: { values: ['tcp', 'udp', 'icmp', 'ipv6-icmp', 'gre', 'ipsec-esp', 'ipsec-ah'] } }),
+  _f('srcPort', 'src-port', 'Source Port', 'text'),
+  // A port match is a list or a range as often as it is a number, so this is
+  // text: `443`, `80,443` and `1000-2000` are all valid to RouterOS.
+  _f('dstPort', 'dst-port', 'Destination Port', 'text', { placeholder: '443, or 1000-2000' }),
+  _f('inInterface', 'in-interface', 'In Interface', 'text',
+     { optionsFrom: { menu: '/interface', value: 'name' } }),
+  _f('outInterface', 'out-interface', 'Out Interface', 'text',
+     { optionsFrom: { menu: '/interface', value: 'name' } }),
+]);
+
+const _fwTail = () => ([
+  _f('log', 'log', 'Log', 'bool', { clearable: true }),
+  _f('logPrefix', 'log-prefix', 'Log Prefix', 'text'),
+  _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+  _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
+]);
+
+/**
+ * A firewall rule has no name and nothing unique about it, so the stale-row
+ * check is a composite. See identityOf() for why that is enough.
+ */
+const _FW_IDENTITY = ['chain', 'action', 'srcAddress', 'dstAddress', 'comment'];
+
+/**
+ * Enable and disable, as row actions rather than as the `disabled` checkbox.
+ *
+ * The checkbox is still there in the form, but flipping a rule is the single
+ * most common thing anyone does to a firewall and it should not require opening
+ * one. RouterOS has verbs for it, so res:action already knows how to run them.
+ */
+const _FW_ACTIONS = [
+  { key: 'enable',  verb: 'enable',  label: 'Enable',
+    when: (r) => r.disabled === 'true', note: 'enabled a firewall rule' },
+  { key: 'disable', verb: 'disable', label: 'Disable',
+    when: (r) => r.disabled !== 'true', note: 'disabled a firewall rule' },
+];
+
+/** A rule some service added is not ours to edit. */
+const _fwReadOnly = (r) => r.dynamic === 'true';
+
+/**
+ * RouterOS: "ports can be specified if proto is tcp,udp,udp-lite,dccp,sctp".
+ *
+ * A real constraint, and one somebody meets the first time they try to allow a
+ * port — the obvious thing to fill in is the port, and the protocol is easy to
+ * miss. Left to the router it comes back as a bare refusal with no clue which
+ * field to fix, so it is checked here and reported against the field that is
+ * actually missing.
+ */
+const _FW_PORT_PROTOS = ['tcp', 'udp', 'udp-lite', 'dccp', 'sctp'];
+
+const _fwCheck = (clean) => {
+  const ports = ['srcPort', 'dstPort'].filter(n => clean[n]);
+  if (!ports.length) return [];
+  const proto = String(clean.protocol || '').toLowerCase();
+  if (_FW_PORT_PROTOS.includes(proto)) return [];
+  return [{ field: 'protocol',
+            message: 'Protocol must be one of ' + _FW_PORT_PROTOS.join(', ') +
+                     ' before a port can be matched' }];
+};
 
 // ── The registry ─────────────────────────────────────────────────────────────
 //
@@ -375,6 +469,97 @@ const RESOURCES = Object.freeze([
       _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
     ],
   },
+
+  // ── Firewall ──────────────────────────────────────────────────────────────
+  //
+  // The one place in this registry where POSITION is part of the meaning. A
+  // rule below the final drop does nothing; the same rule above an accept
+  // blocks everything. `ordered` says so, and is what puts the move controls on
+  // the page and lets res:move address this menu.
+  //
+  // `guard: 'fwGuard'` is the lockout guard — a filter rule is the one thing
+  // here that can cut MikroDash off from the router it manages.
+
+  {
+    key: 'fwFilter', page: 'firewall', collector: 'firewall', label: 'Filter Rule',
+    title: 'Firewall Filter Rule', menu: '/ip/firewall/filter',
+    identity: _FW_IDENTITY, ordered: true, guard: 'fwGuard',
+    readOnlyWhen: _fwReadOnly, actions: _FW_ACTIONS, check: _fwCheck,
+    fields: [
+      ..._fwHead(['input', 'forward', 'output'],
+                 ['accept', 'drop', 'reject', 'tarpit', 'log', 'passthrough',
+                  'fasttrack-connection', 'jump', 'return',
+                  'add-src-to-address-list', 'add-dst-to-address-list']),
+      ..._fwMatch(),
+      // A comma list, not one value — `established,related` is the single most
+      // common thing written here.
+      _f('connectionState', 'connection-state', 'Connection State', 'text',
+         { placeholder: 'established,related' }),
+      _f('rejectWith', 'reject-with', 'Reject With', 'text',
+         { showIf: { field: 'action', in: ['reject'] },
+           optionsFrom: { values: ['icmp-network-unreachable', 'icmp-host-unreachable',
+                                   'icmp-port-unreachable', 'icmp-admin-prohibited', 'tcp-reset'] } }),
+      ..._fwTail(),
+    ],
+  },
+
+  {
+    key: 'fwNat', page: 'firewall', collector: 'firewall', label: 'NAT Rule',
+    title: 'Firewall NAT Rule', menu: '/ip/firewall/nat',
+    identity: _FW_IDENTITY, ordered: true, guard: 'fwGuard',
+    readOnlyWhen: _fwReadOnly, actions: _FW_ACTIONS, check: _fwCheck,
+    fields: [
+      ..._fwHead(['srcnat', 'dstnat'],
+                 ['accept', 'masquerade', 'dst-nat', 'src-nat', 'redirect', 'netmap', 'same',
+                  'log', 'jump', 'return', 'add-src-to-address-list', 'add-dst-to-address-list']),
+      ..._fwMatch(),
+      _f('toAddresses', 'to-addresses', 'To Addresses', 'text',
+         { showIf: { field: 'action', in: ['dst-nat', 'src-nat', 'netmap', 'same'] } }),
+      _f('toPorts', 'to-ports', 'To Ports', 'text',
+         { showIf: { field: 'action', in: ['dst-nat', 'redirect', 'netmap'] } }),
+      ..._fwTail(),
+    ],
+  },
+
+  {
+    key: 'fwMangle', page: 'firewall', collector: 'firewall', label: 'Mangle Rule',
+    title: 'Firewall Mangle Rule', menu: '/ip/firewall/mangle',
+    identity: _FW_IDENTITY, ordered: true, guard: 'fwGuard',
+    readOnlyWhen: _fwReadOnly, actions: _FW_ACTIONS, check: _fwCheck,
+    fields: [
+      ..._fwHead(['prerouting', 'input', 'forward', 'output', 'postrouting'],
+                 ['accept', 'mark-connection', 'mark-packet', 'mark-routing',
+                  'change-mss', 'change-ttl', 'change-dscp', 'route', 'log',
+                  'passthrough', 'jump', 'return']),
+      ..._fwMatch(),
+      _f('newConnectionMark', 'new-connection-mark', 'New Connection Mark', 'text',
+         { showIf: { field: 'action', in: ['mark-connection'] }, required: true }),
+      _f('newPacketMark', 'new-packet-mark', 'New Packet Mark', 'text',
+         { showIf: { field: 'action', in: ['mark-packet'] }, required: true }),
+      _f('newRoutingMark', 'new-routing-mark', 'New Routing Mark', 'text',
+         { showIf: { field: 'action', in: ['mark-routing'] }, required: true }),
+      // Marking rules default to passthrough=yes, and turning it off is how a
+      // mangle chain stops after the first match.
+      _f('passthrough', 'passthrough', 'Passthrough', 'bool', { clearable: true }),
+      ..._fwTail(),
+    ],
+  },
+
+  {
+    key: 'fwRaw', page: 'firewall', collector: 'firewall', label: 'Raw Rule',
+    title: 'Firewall Raw Rule', menu: '/ip/firewall/raw',
+    identity: _FW_IDENTITY, ordered: true, guard: 'fwGuard',
+    readOnlyWhen: _fwReadOnly, actions: _FW_ACTIONS, check: _fwCheck,
+    fields: [
+      // No connection-state anywhere in raw: it runs before connection
+      // tracking, so there is no state to match on yet.
+      ..._fwHead(['prerouting', 'output'],
+                 ['accept', 'drop', 'notrack', 'log', 'jump', 'return',
+                  'add-src-to-address-list', 'add-dst-to-address-list']),
+      ..._fwMatch(),
+      ..._fwTail(),
+    ],
+  },
 ]);
 
 const BY_KEY = Object.freeze(Object.fromEntries(RESOURCES.map(r => [r.key, r])));
@@ -416,6 +601,12 @@ function validate(resource, values, opts) {
     if (!res.ok) errors.push({ field: f.name, message: f.label + ' ' + res.message });
     else clean[f.name] = res.value;
   }
+
+  // Rules that span more than one field, which the per-field types cannot see.
+  // Checked last, and only on values that already passed their own type — a
+  // cross-check on a rejected value would report a second problem about the
+  // first one.
+  if (resource.check && !errors.length) errors.push(...(resource.check(clean, v) || []));
 
   return { ok: errors.length === 0, errors, values: clean, editing: !!(opts && opts.editing) };
 }
@@ -465,11 +656,25 @@ function previewCommand(resource, validated, id) {
   return [resource.menu + verb].concat(idWord, words).join(' ');
 }
 
-/** The identity value carried by a freshly-read RouterOS row. */
+/**
+ * The identity value carried by a freshly-read RouterOS row.
+ *
+ * `identity` is usually one field — a name, a MAC, a public key. A firewall
+ * rule has none of those: it has no name at all, and nothing about it is
+ * unique. So it may also be a LIST of fields, joined.
+ *
+ * A composite identity is not a primary key and does not need to be. The row is
+ * ADDRESSED by its `.id`; the identity only has to answer "is this still the
+ * rule I was looking at when I clicked". Mutation is what it catches, and a
+ * chain/action/source/destination/comment tuple catches it well.
+ */
 function identityOf(resource, row) {
-  const f = resource.fields.find(x => x.name === resource.identity);
-  if (!f || !row) return '';
-  return String(row[f.ros] == null ? '' : row[f.ros]);
+  if (!row) return '';
+  const names = Array.isArray(resource.identity) ? resource.identity : [resource.identity];
+  return names.map(n => {
+    const f = resource.fields.find(x => x.name === n);
+    return f ? String(row[f.ros] == null ? '' : row[f.ros]) : '';
+  }).join('\u0001');
 }
 
 /**
@@ -518,5 +723,6 @@ function describe(resource) {
 
 module.exports = {
   RESOURCES, TYPES, TYPE_KEYS, byKey, validate, buildArgs,
-  previewCommand, identityOf, rowValues, describe, fieldApplies, optionSources,
+  previewCommand, identityOf, rowValues, describe, fieldApplies,
+  optionSources, staticOptions,
 };

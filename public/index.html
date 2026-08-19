@@ -1335,7 +1335,58 @@
        hard against the right edge — the same place on every card. */
     /* gap, because a slot may hold more than one button — the Routes card has
        two, one per address family, and they read as one control without it. */
-    .card-header [data-res-add]{margin-left:auto;display:flex;align-items:center;gap:.45rem}
+    /* Not scoped to .card-header: the firewall card has none — its tabs and
+       search sit straight in the body — and the button belongs in that card's
+       top right corner like every other. `data-res-add` appears nowhere else,
+       so dropping the ancestor widens nothing in practice. */
+    [data-res-add]{margin-left:auto;display:flex;align-items:center;gap:.45rem}
+    /* Position, and the reorder arrows. Only the firewall has these: it is the
+       one table where where a row SITS is what it does. */
+    .fw-pos{font-family:var(--font-mono);font-size:.66rem;color:var(--text-muted);
+      text-align:right;width:2.2rem;padding-right:.2rem}
+    .fw-movecell{width:2.6rem;white-space:nowrap}
+    /* Tabler pads every cell 12px each side via `.table > :not(caption) > * > *`,
+       which outranks a bare class — so a plain `padding:0` here did nothing and
+       24px of it was most of these columns' width. Matched on td/th to win. */
+    .table td.fw-dragcell,.table th.fw-dragcell{padding-left:.3rem;padding-right:.35rem}
+    .table td.fw-movecell,.table th.fw-movecell{padding-left:.25rem;padding-right:.25rem}
+    /* Bigger glyph, original padding — the size was the ask, the padding was me
+       widening the column on the way past. */
+    .fw-move{background:none;border:none;cursor:pointer;color:var(--text-muted);
+      font-size:.78rem;line-height:1;padding:.12rem .14rem;border-radius:4px}
+    .fw-move:hover:not(:disabled){color:var(--accent-rx);background:rgba(56,189,248,.12)}
+    .fw-move:disabled{opacity:.22;cursor:default}
+    /* A viewer who cannot write has no use for either control, and two empty
+       columns on every row are dead space. app.js sets this on the table when
+       the schema comes back unpermitted. */
+    table.fw-noedit .fw-dragcell,
+    table.fw-noedit .fw-movecell{display:none}
+    /* The drag handle. `grab` rather than `move`, because it is the handle that
+       is grabbed and the row that travels. Sized to be an easy target: a grip
+       you have to aim at is worse than no grip. */
+    .fw-dragcell{width:1.5rem;padding-right:0;text-align:center}
+    .fw-drag{cursor:grab;color:var(--text-muted);font-size:1.15rem;line-height:1;
+      user-select:none;touch-action:none;display:inline-block;padding:0 .1rem;
+      border-radius:4px}
+    .fw-drag:hover{color:var(--accent-rx);background:rgba(56,189,248,.12)}
+    tr.res-dragging{cursor:grabbing;background:rgba(56,189,248,.10);
+      box-shadow:0 0 0 1px rgba(56,189,248,.3) inset}
+    tr.res-dragging .fw-drag{cursor:grabbing}
+    /* While a row is travelling, the pointer would otherwise paint a text
+       selection across everything it crosses. */
+    body.res-dragging-body{user-select:none;cursor:grabbing}
+    /* A reorder moves a row among thirty near-identical ones. Without a cue the
+       eye has no way to follow it — including when the move came from undo. */
+    @keyframes fwPulse{
+      0%{background:rgba(56,189,248,.34)}
+      100%{background:transparent}
+    }
+    tr.fw-pulse td{animation:fwPulse 1.15s ease-out}
+    @media (prefers-reduced-motion:reduce){tr.fw-pulse td{animation:none;background:rgba(56,189,248,.14)}}
+    /* Undo / redo. Grey until there is something to reverse; the disabled state
+       is the whole affordance, so it must not look clickable. */
+    .res-hist{padding:.24rem .5rem;font-size:.78rem;line-height:1;min-width:1.9rem}
+    .res-hist:disabled{opacity:.38;cursor:default;pointer-events:none}
     /* The right-hand end of a card header: whatever already lived there, plus
        the Add button, as ONE group. The auto margin belongs to the group, not
        to the button — on the button it swallowed all the free space and shoved
@@ -1344,7 +1395,7 @@
        NOT named `card-actions`: Tabler already defines that class with
        `margin:-8px`, and inheriting it pulled the group into the header's
        padding. */
-    .card-header .hdr-actions{margin-left:auto;display:flex;align-items:center;
+    .hdr-actions{margin-left:auto;display:flex;align-items:center;
       gap:.5rem;flex-wrap:wrap;justify-content:flex-end}
     /* A viewer who may not write gets an EMPTY span, and an empty span must not
        be a flex item at all: as a third item in a space-between header it would
@@ -2965,14 +3016,21 @@
             <div class="fw-tab" data-fw="nat">NAT</div>
             <div class="fw-tab" data-fw="mangle">Mangle</div>
             <div class="fw-tab" data-fw="raw">Raw</div>
+            <!-- Which resource this means follows the active tab: app.js rewrites
+                 data-res-add and fires mikrodash:resmount. data-res-add-dynamic
+                 declares the whole range it can become, so the mount is
+                 greppable and a resource reachable only after a tab change is
+                 still visibly mounted. -->
+            <span data-res-add="fwFilter"
+                  data-res-add-dynamic="fwFilter,fwNat,fwMangle,fwRaw"></span>
           </div>
           <div class="fw-search-wrap">
             <input id="fwSearch" type="text" placeholder="Search chain, action, address, comment…" autocomplete="off" spellcheck="false">
           </div>
           <div class="table-responsive">
             <table class="table table-vcenter mb-0">
-              <thead><tr><th>Chain</th><th>Action</th><th>Src &#8594; Dst</th><th>Comment</th><th class="text-end">Packets</th><th class="text-end">Bytes</th></tr></thead>
-              <tbody id="firewallTable"><tr><td colspan="6" class="empty-state">Waiting&#8230;</td></tr></tbody>
+              <thead><tr><th class="fw-dragcell"></th><th class="fw-movecell"></th><th class="fw-pos" title="Position in the chain — a rule below the final drop never runs">#</th><th>Chain</th><th>Action</th><th>Src &#8594; Dst</th><th>Comment</th><th class="text-end">Packets</th><th class="text-end">Bytes</th></tr></thead>
+              <tbody id="firewallTable" data-res-rows="fwFilter"><tr><td colspan="9" class="empty-state">Waiting&#8230;</td></tr></tbody>
             </table>
           </div>
         </div>

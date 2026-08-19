@@ -2,12 +2,13 @@
 /**
  * Which interface carries MikroDash's own management traffic — the L2 guard.
  *
- * ── Where this sits among the other three ─────────────────────────────────
+ * ── Where this sits among the other four ──────────────────────────────────
  *
  *   selfGuard    REFUSES, fails CLOSED   protects usernames on /user
  *   queueGuard   warns,   fails OPEN     would this queue throttle us
  *   wanGuard     warns,   fails OPEN     is the management path local or remote
  *   selfPath     warns,   fails OPEN     which INTERFACE are we reachable on
+ *   fwGuard      warns,   fails OPEN     could a firewall rule block our session
  *
  * This one is the L2 question, and it is the one a VLAN or bridge-port edit
  * needs. `wanGuard` can already tell you that you are managing a router from
@@ -54,7 +55,7 @@ const { isInCidrs } = require('../util/ip');
  */
 function resolveManagementInterfaces({ activeRows, usernames, addressRows, selfAddresses }) {
   const self = selfAddresses || resolveSelfAddresses(activeRows, usernames);
-  if (!self.resolved) return { resolved: false, interfaces: [], address: null };
+  if (!self.resolved) return { resolved: false, interfaces: [], address: null, addresses: [] };
 
   const interfaces = [];
   let matched = null;
@@ -75,9 +76,13 @@ function resolveManagementInterfaces({ activeRows, usernames, addressRows, selfA
   // it — so we arrive over a route rather than off a connected subnet, and no
   // single interface here is "the" management interface. That is wanGuard's
   // question, not this one.
-  if (!interfaces.length) return { resolved: false, interfaces: [], address: self.addresses[0] || null };
+  if (!interfaces.length)
+    return { resolved: false, interfaces: [], address: self.addresses[0] || null, addresses: self.addresses };
 
-  return { resolved: true, interfaces, address: matched };
+  // `addresses` is every address the router sees us from, not just the one that
+  // matched a prefix. fwGuard matches a rule against all of them: MikroDash
+  // holds several logins per router and they need not share a source address.
+  return { resolved: true, interfaces, address: matched, addresses: self.addresses };
 }
 
 /**

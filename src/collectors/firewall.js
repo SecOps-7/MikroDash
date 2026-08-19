@@ -54,7 +54,14 @@ class FirewallCollector {
   // ── helpers ──────────────────────────────────────────────────────────────
 
   _processRule(r) {
-    if (r.disabled === 'true' || r.disabled === true) return null;
+    // Disabled rules used to be dropped here, so the page never showed one — and
+    // a rule you cannot see is a rule you cannot re-enable, which left the table
+    // half-editable. They travel now, flagged, and the page dims them.
+    //
+    // The three summary cards still count only what is IN FORCE. That filter
+    // moved to app.js, where those cards are built, rather than quietly
+    // changing what they have always meant.
+    const disabled = r.disabled === 'true' || r.disabled === true;
     const id      = r['.id'] || '';
     const packets = parseInt(r.packets || '0', 10);
     const bytes   = parseInt(r.bytes   || '0', 10);
@@ -65,8 +72,23 @@ class FirewallCollector {
       id, chain: r.chain||'', action: r.action||'?', comment: r.comment||'',
       srcAddress: r['src-address']||'', dstAddress: r['dst-address']||'',
       protocol: r.protocol||'', dstPort: r['dst-port']||'',
-      inInterface: r['in-interface']||'', packets, bytes, deltaPackets, disabled: false,
+      inInterface: r['in-interface']||'', packets, bytes, deltaPackets, disabled,
+      // A rule some service added is not ours to edit; the page marks it and
+      // the write path refuses it independently.
+      dynamic: r.dynamic === 'true' || r.dynamic === true,
     };
+  }
+
+  /**
+   * Re-read now, after a write, so the page shows what the router did.
+   *
+   * A firewall write can change the ORDER as well as the values, and order is
+   * the one thing a counter stream never reports — it only carries .id, packets
+   * and bytes. Only the full load can answer "where is this rule now".
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    await this._loadInitial();
   }
 
   _emit() {
@@ -236,7 +258,7 @@ class FirewallCollector {
       try { const r = await this.ros.write(cmd, params || []); return Array.isArray(r) ? r : []; }
       catch { return []; }
     };
-    const pl = ['=.proplist=.id,disabled,chain,action,comment,src-address,dst-address,protocol,dst-port,in-interface,packets,bytes'];
+    const pl = ['=.proplist=.id,disabled,dynamic,chain,action,comment,src-address,dst-address,protocol,dst-port,in-interface,packets,bytes'];
     const [filter, nat, mangle, raw] = await Promise.all([
       safeGet('/ip/firewall/filter/print', pl),
       safeGet('/ip/firewall/nat/print',    pl),

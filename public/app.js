@@ -735,9 +735,12 @@ document.querySelectorAll('.fw-tab').forEach(function(tab){
     document.querySelectorAll('.fw-tab').forEach(function(t){t.classList.remove('active');});
     tab.classList.add('active'); fwTab = tab.dataset.fw;
     socket.emit('firewall:tab', fwTab);
+    fwSyncAddSlot();
     renderFirewallTab();
   });
 });
+
+
 
 
 // ── Traffic Chart ──────────────────────────────────────────────────────────
@@ -2272,9 +2275,12 @@ function fwUpdateSummary(data){
   setCount('fwCntMangle','fwCntMangleDis',mangle);
   setCount('fwCntRaw','fwCntRawDis',raw);
 
-  // Action breakdown
+  // Action breakdown — what is IN FORCE, so disabled rules are left out. The
+  // Rule Counts card above deliberately keeps them: its "N off" badge is what
+  // they are for, and it sat empty for as long as the collector dropped them.
   var actionCounts={};
   all.forEach(function(r){
+    if(r.disabled) return;
     var a=r.action||'?';
     actionCounts[a]=(actionCounts[a]||0)+1;
   });
@@ -2305,7 +2311,9 @@ function fwUpdateChainCount(data){
   var el=$('fwChainCount'); if(!el) return;
   var all=(data.filter||[]).concat(data.nat||[]).concat(data.mangle||[]).concat(data.raw||[]);
   var counts={};
-  all.forEach(function(r){ if(r.chain) counts[r.chain]=(counts[r.chain]||0)+1; });
+  // Disabled rules are in the payload now, but a chain's weight is about what
+  // actually runs.
+  all.forEach(function(r){ if(r.chain && !r.disabled) counts[r.chain]=(counts[r.chain]||0)+1; });
   var entries=Object.keys(counts).map(function(k){return[k,counts[k]];}).sort(function(a,b){return b[1]-a[1];});
   if(!entries.length){el.innerHTML='<span style="color:var(--text-muted);font-size:.7rem">No rules</span>';return;}
   var max=entries[0][1];
@@ -2329,10 +2337,21 @@ socket.on('firewall:update',function(data){
   var wasEmpty = !fwData.filter;
   fwData=data;
   fwUpdateSummary(data);
+  // A drag is in progress, and these are the very rows being rearranged.
+  // Rebuilding the table underneath the pointer would replace the node being
+  // dragged with a fresh one — leaving the original detached and re-inserted
+  // as a duplicate — and would yank the row out from under the cursor even if
+  // it did not. The payload is kept; the table catches up on release.
+  if(document.body.classList.contains('res-dragging-body')) return;
   // If the table is already rendered with the same tab's rules, update counters
   // in-place rather than re-rendering the entire table — this lets the flash
   // animation be clearly visible and avoids scroll position resets.
-  if(!wasEmpty && fwUpdateCountersInPlace(data)){
+  // A pending pulse forces the full path. The in-place update rewrites counter
+  // cells only, so it would leave the cue queued until some unrelated
+  // structural change flashed the row at the wrong moment — which is what
+  // happens after undoing an EDIT, where nothing moved and the order is
+  // unchanged.
+  if(!wasEmpty && !_fwPulse && fwUpdateCountersInPlace(data)){
     return; // in-place update succeeded
   }
   // Structural change — defer full re-render to next animation frame
@@ -2384,8 +2403,78 @@ if(fwSearchEl) fwSearchEl.addEventListener('input',_debounce(function(){
   renderFirewallTab();
 },200));
 
+// ── Firewall write wiring ──────────────────────────────────────────────────
+//
+// One card serves four RouterOS tables, so which resource the Add button and
+// the row clicks mean depends on the tab.
+var FW_RES={filter:'fwFilter',nat:'fwNat',mangle:'fwMangle',raw:'fwRaw'};
+var _fwWritable={};
+
+/**
+ * The composite identity the server round-trips for a firewall rule.
+ *
+ * This mirrors identityOf() in src/routeros/resources.js — the one mirror in
+ * this file, and it exists because RouterOS REUSES `*N` ids after a delete, so
+ * addressing a rule by id alone is not enough to know it is still the rule that
+ * was on screen. A test asserts the two agree, field for field and separator
+ * for separator.
+ */
+function fwIdentity(r){
+  return [r.chain||'',r.action||'',r.srcAddress||'',r.dstAddress||'',r.comment||''].join('\u0001');
+}
+
+// The page draws its own controls from `permitted`; every gate is re-checked
+// server-side against a fresh read regardless.
+socket.on('res:schema',function(d){
+  if(!d||!d.key) return;
+  _fwWritable[d.key]=!!d.permitted;
+  // The arrows appear and disappear with the answer, so redraw once it lands.
+  if(FW_RES[fwTab]===d.key) renderFirewallTab();
+});
+
+// Which row to pulse once the table redraws. A reorder moves a row among thirty
+// near-identical ones, and without a cue the eye has no way to follow it —
+// including when the move came from undo rather than from the operator's hand.
+var _fwPulse=null;
+socket.on('res:ok',function(d){
+  if(!d||FW_RES[fwTab]!==d.resource) return;
+  if(d.action==='move'||d.action==='undo'||d.action==='redo') _fwPulse=d.movedId||null;
+});
+
+// A drag reorders the table optimistically, before the router has agreed. If the
+// write is refused there is no fresh payload coming to correct it, so the table
+// is redrawn from the last one — which still holds what the router actually has.
+socket.on('res:error',function(d){
+  if(!d||FW_RES[fwTab]!==d.resource) return;
+  renderFirewallTab();
+});
+
+/** Point the Add slot at the table now on screen, and redraw it. */
+function fwSyncAddSlot(){
+  var slot=document.querySelector('[data-res-add^="fw"]');
+  if(!slot) return;
+  slot.setAttribute('data-res-add',FW_RES[fwTab]||'fwFilter');
+  document.dispatchEvent(new CustomEvent('mikrodash:resmount'));
+}
+
 function renderFirewallTab(){
-  var rules=fwTab==='filter'?(fwData.filter||[]):fwTab==='nat'?(fwData.nat||[]):fwTab==='raw'?(fwData.raw||[]):(fwData.mangle||[]);
+  var full=fwTab==='filter'?(fwData.filter||[]):fwTab==='nat'?(fwData.nat||[]):fwTab==='raw'?(fwData.raw||[]):(fwData.mangle||[]);
+  // Position is the rule's place in the REAL table, not in the filtered view —
+  // it is what decides whether the rule ever runs, so a search must not
+  // renumber it.
+  var pos={}; full.forEach(function(r,i){ pos[r.id]=i; });
+  var resKey=FW_RES[fwTab];
+  // Two different questions. A viewer who may not write has no use for the
+  // controls at all, so their COLUMNS go — leaving two empty columns would be
+  // dead space on every row. A search only suppresses the controls: reordering
+  // inside a filtered view would move a rule past rules you cannot see, but the
+  // columns stay so the table does not reflow on every keystroke.
+  var writable=!!_fwWritable[resKey];
+  var canMove=writable&&!_fwSearch;
+  var table=firewallTable.parentElement;
+  if(table) table.classList.toggle('fw-noedit',!writable);
+  var last=full.length-1;
+  var rules=full;
   // Apply search filter
   if(_fwSearch){
     var q=_fwSearch;
@@ -2400,16 +2489,38 @@ function renderFirewallTab(){
     });
   }
   if(!rules.length){
-    firewallTable.innerHTML='<tr><td colspan="6" class="empty-state">'+(
+    firewallTable.innerHTML='<tr><td colspan="9" class="empty-state">'+(
       _fwSearch?'No rules match search':'No rules')+'</td></tr>';
+    _fwPulse=null;
     return;
   }
   firewallTable.innerHTML=rules.map(function(r){
+    var at=pos[r.id];
+    // data-res-move and data-res-drag, not firewall-specific names: the engine
+    // owns both flows, including the guard prompt a reorder can raise, and any
+    // future ordered resource gets the same behaviour for free.
+    var moveCell=canMove
+      ? '<button class="fw-move" data-res-move="up" title="Move up"'+(at===0?' disabled':'')+'>&#9650;</button>'+
+        '<button class="fw-move" data-res-move="down" title="Move down"'+(at===last?' disabled':'')+'>&#9660;</button>'
+      : '';
+    // U+283F, the six-dot braille cell — the conventional grip, and a single
+    // character rather than an SVG repeated down thirty rows.
+    var dragCell=canMove
+      ? '<span class="fw-drag" data-res-drag title="Drag to reorder">&#10303;</span>' : '';
     var sd=[r.srcAddress,r.dstAddress].filter(Boolean).join(' \u2192 ')||(r.inInterface||'');
     if(!sd&&r.dstPort)sd=':'+r.dstPort;
     if(r.protocol)sd+=(sd?' ':'')+'/ '+r.protocol;
     var deltaIndicator=r.deltaPackets>0?'<span class="fw-delta-dot"></span>':'';
-    return'<tr data-rule-id="'+esc(r.id)+'"'+(r.disabled?' style="opacity:.4"':'')+'>'+
+    // `dynamic` rules belong to a service, not to us; the write path refuses
+    // them independently, and here they simply do not offer an edit.
+    var pulse=(_fwPulse&&_fwPulse===r.id)?' fw-pulse':'';
+    return'<tr class="'+pulse.trim()+'" data-rule-id="'+esc(r.id)+'"'+(r.disabled?' style="opacity:.4"':'')+
+      (r.dynamic?'':resRow(r.id,fwIdentity(r),resKey))+'>'+
+      // Handle and arrows together — they do the same job, so they sit as one
+      // group of controls with the position reading beside them.
+      '<td class="fw-dragcell">'+dragCell+'</td>'+
+      '<td class="fw-movecell">'+moveCell+'</td>'+
+      '<td class="fw-pos">'+at+'</td>'+
       '<td style="font-size:.7rem;color:var(--text-muted)">'+esc(r.chain)+'</td>'+
       '<td>'+actionBadge(r.action)+'</td>'+
       '<td style="font-size:.7rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(sd||'\u2014')+'</td>'+
@@ -2418,6 +2529,17 @@ function renderFirewallTab(){
       '<td class="fw-byte text-end" style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted);white-space:nowrap">'+(r.bytes>0?fmtBytes(r.bytes):'\u2014')+'</td>'+
     '</tr>';
   }).join('');
+  // One pulse per move. Cleared after the render that showed it, so a later
+  // redraw for an unrelated counter tick does not flash the row again — and the
+  // class is stripped once the animation has run, so a row does not keep
+  // wearing a state it is no longer in.
+  if(_fwPulse){
+    _fwPulse=null;
+    setTimeout(function(){
+      var lit=firewallTable.querySelectorAll('tr.fw-pulse');
+      Array.prototype.forEach.call(lit,function(tr){ tr.classList.remove('fw-pulse'); });
+    },1250);
+  }
 }
 
 // ── Logs ───────────────────────────────────────────────────────────────────
@@ -8675,9 +8797,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var filter=data.filter||[],nat=data.nat||[],mangle=data.mangle||[],raw=data.raw||[];
     var all=filter.concat(nat,mangle,raw);
 
-    /* Action Breakdown — fw-action-row style */
+    /* Action Breakdown — fw-action-row style. Enabled rules only: the card is
+       about what the firewall is doing, not what it could do if switched on. */
     var actionCounts={};
-    all.forEach(function(r){var a=r.action||'?'; actionCounts[a]=(actionCounts[a]||0)+1;});
+    all.forEach(function(r){if(r.disabled)return; var a=r.action||'?'; actionCounts[a]=(actionCounts[a]||0)+1;});
     var entries=Object.entries(actionCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,7);
     var maxA=entries.length?entries[0][1]:1;
     var ACTION_COLOUR={
@@ -13797,6 +13920,14 @@ function _renderRoutersMap(rows) {
   var _schema  = {};   // resource key -> schema from the server
   var _waiting = {};   // resource key -> callbacks queued while it loads
   var _cur     = null; // { key, id, identity, ack } for the open dialog
+  var _hist    = {};   // resource key -> { canUndo, canRedo, undoLabel, redoLabel }
+
+  // How to re-issue the write once a guard's prompt is acknowledged.
+  //
+  // One closure rather than a flag per kind of write: there are five ways to
+  // reach a prompt now (save, delete, move, undo, redo) and a boolean for each
+  // was already one too many when there were two.
+  var _retry = null;
 
   function el(id) { return document.getElementById(id); }
 
@@ -13826,12 +13957,48 @@ function _renderRoutersMap(rows) {
            ' style="padding:.28rem .65rem;font-size:.72rem">' + esc(label) + '</button>';
   }
 
+  /**
+   * The undo/redo pair for a card.
+   *
+   * Grey and unclickable until there is something to reverse, blue once there
+   * is — the state IS the affordance, so a disabled button that looks live
+   * would be worse than none.
+   */
+  function histButton(kind, key, on, label) {
+    var glyph = kind === 'undo' ? '↶' : '↷';
+    return '<button class="sbtn ' + (on ? 'sbtn-primary' : 'sbtn-ghost') + ' res-hist"' +
+      ' data-res-hist="' + kind + '" data-res-histkey="' + esc(key) + '"' +
+      (on ? '' : ' disabled') +
+      ' title="' + esc(on ? (kind === 'undo' ? 'Undo ' : 'Redo ') + label
+                          : 'Nothing to ' + kind) + '">' + glyph + '</button>';
+  }
+
+  /**
+   * Which resource the pair acts on when a card hosts several.
+   *
+   * The Routes card holds both address families, each with its own stack. The
+   * one with something on it wins; otherwise the first, so the buttons have
+   * somewhere to point while they are still grey.
+   */
+  function histTarget(ready) {
+    for (var i = 0; i < ready.length; i++) {
+      var h = _hist[ready[i]];
+      if (h && (h.canUndo || h.canRedo)) return ready[i];
+    }
+    return ready[0];
+  }
+
   function mountAdds() {
     var slots = document.querySelectorAll('[data-res-add]');
     Array.prototype.forEach.call(slots, function (slot) {
       var keys  = slot.getAttribute('data-res-add').split(',').map(function (k) { return k.trim(); });
       var ready = keys.filter(function (k) { return _schema[k] && _schema[k].permitted; });
-      slot.innerHTML = ready.map(function (k) {
+      var target = ready.length ? histTarget(ready) : null;
+      var h = (target && _hist[target]) || {};
+      slot.innerHTML = (target
+        ? histButton('undo', target, !!h.canUndo, h.undoLabel || '') +
+          histButton('redo', target, !!h.canRedo, h.redoLabel || '')
+        : '') + ready.map(function (k) {
         return addButton('data-res-addbtn="' + esc(k) + '"', '+ Add ' + _schema[k].label);
       }).join('');
       // An empty slot is laid out away entirely by CSS, so a viewer who may not
@@ -13989,7 +14156,7 @@ function _renderRoutersMap(rows) {
 
   function submit(ack) {
     if (!_cur) return;
-    _cur.pendingRemove = false;
+    _retry = submit;
     el('res_error').style.display = 'none';
     socket.emit('res:save', {
       resource: _cur.key,
@@ -14002,10 +14169,46 @@ function _renderRoutersMap(rows) {
 
   function doRemove(ack) {
     if (!_cur) return;
+    _retry = doRemove;
     socket.emit('res:remove', {
       resource: _cur.key, id: _cur.id,
       expectedIdentity: _cur.identity || undefined, ack: ack || undefined,
     });
+  }
+
+  /** Undo or redo the top of a resource's stack. */
+  function doHist(kind, key, ack) {
+    _retry = function (a) { doHist(kind, key, a); };
+    socket.emit('res:' + kind, { resource: key, ack: ack || undefined });
+  }
+
+  /**
+   * Reordering, for a resource where position is meaning.
+   *
+   * A move happens straight from the table with no dialog open, so `_move`
+   * remembers what was asked for: a guard prompt raised by a move has to be
+   * shown somewhere, and the answer has to reach the same request.
+   */
+  var _move = null;
+
+  function doMove(ack) {
+    if (!_move) return;
+    _retry = doMove;
+    socket.emit('res:move', Object.assign({}, _move, { ack: ack || undefined }));
+  }
+
+  /** A bare confirm dialog, for a prompt raised with no form on screen. */
+  function openBareWarning() {
+    _cur = null;
+    el('res_title').textContent = 'Confirm';
+    el('res_fields').innerHTML = '';
+    el('res_error').style.display   = 'none';
+    el('res_preview').style.display = 'none';
+    el('res_delete').style.display  = 'none';
+    el('res_save').style.display    = 'none';
+    el('res_previewBtn').style.display = 'none';
+    if (el('res_actions')) el('res_actions').innerHTML = '';
+    el('resModal').classList.add('open');
   }
 
   // ── Socket ─────────────────────────────────────────────────────────────────
@@ -14033,6 +14236,12 @@ function _renderRoutersMap(rows) {
     open(d.resource, null, null, { options: d.options });
   });
 
+  socket.on('res:history', function (d) {
+    if (!d || !d.resource) return;
+    _hist[d.resource] = d;
+    mountAdds();
+  });
+
   socket.on('res:preview', function (d) {
     if (!d || !_cur || d.resource !== _cur.key) return;
     var p = el('res_preview');
@@ -14043,6 +14252,7 @@ function _renderRoutersMap(rows) {
   socket.on('res:ok', function () {
     el('resModal').classList.remove('open');
     _cur = null;
+    _move = null;
   });
 
   var MSG = {
@@ -14051,6 +14261,9 @@ function _renderRoutersMap(rows) {
     'stale-row':          'That row changed on the router while the form was open. Close it and try again.',
     'read-only-row':      'This row is managed by the router and cannot be edited here.',
     'not-applicable':     'That action no longer applies to this row.',
+    // A move that has nowhere to go. Not really an error, so it says what it is
+    // rather than sounding like a failure.
+    'at-end':             'That rule is already at the end of its table.',
     'bad-request':        'Something was missing from the request.',
     'unknown-resource':   'This page does not support editing.',
     'router-write-policy':'The RouterOS user MikroDash connects with lacks the write policy.',
@@ -14066,32 +14279,65 @@ function _renderRoutersMap(rows) {
       return;
     }
 
-    // The self-cutoff prompt. Nothing was written — this is a question, and the
+    // A guard's prompt. Nothing was written — this is a question, and the
     // fingerprint binds the answer to the exact values it was asked about.
-    if (d.code === 'self-cutoff' || d.code === 'stale-warning') {
-      var w = d.warning || {};
+    //
+    // Keyed on the PRESENCE of a warning rather than on a list of codes: there
+    // are two guards behind this dialog now (selfPath and fwGuard) and a third
+    // would otherwise fall through to "that did not work", which is how a
+    // prompt silently becomes a refusal.
+    if (d.warning) {
+      var w = d.warning;
+      // A move raises its prompt with no form on screen, so give it one.
+      if (!el('resModal').classList.contains('open')) openBareWarning();
       var box = el('res_warn');
+      var why = w.kind === 'block'
+        ? 'This rule sits on the <code>' + esc(w.chain) + '</code> chain and would <code>' +
+          esc(w.action) + '</code> traffic matching the address the router sees MikroDash at — ' +
+          '<code>' + esc(w.address || '?') + '</code> arriving on <code>' + esc(w.interface || '?') +
+          '</code>, port <code>' + esc(w.port) + '</code>.'
+        : w.kind === 'accept-removed'
+        ? 'This is a rule that currently lets MikroDash in. ' +
+          (w.what === 'move' ? 'Moving' : 'Removing') + ' it may leave nothing on the <code>' +
+          esc(w.chain) + '</code> chain accepting <code>' + esc(w.address || '?') + '</code>.'
+        : 'The router sees MikroDash at <code>' + esc(w.address || '?') + '</code>, which arrives on <code>' +
+          esc(w.interface || '?') + '</code> — the interface this change ' +
+          (w.action === 'delete' ? 'removes' : 'alters') + '.';
       box.innerHTML =
-        '<strong>This may cut MikroDash off from this router.</strong><br>' +
-        'The router sees MikroDash at <code>' + esc(w.address || '?') + '</code>, which arrives on <code>' +
-        esc(w.interface || '?') + '</code> — the interface this change ' +
-        (w.action === 'delete' ? 'removes' : 'alters') + '.' +
+        '<strong>This may cut MikroDash off from this router.</strong><br>' + why +
+        // What the guard cannot see, said plainly: it reasons about this rule,
+        // not about the chain around it.
+        (w.kind ? '<br><em>Rule order is not taken into account — check where this sits in the chain.</em>' : '') +
         (d.code === 'stale-warning'
           ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
         '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
         '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
         '<button class="sbtn sbtn-danger" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Do it anyway</button></div>';
       box.style.display = '';
-      if (_cur) _cur.ack = d.fingerprint || '';
+      var ack = d.fingerprint || '';
+      if (_cur) _cur.ack = ack;
+      var fn = _retry;
+      var bare = !_cur;                      // no form behind this prompt
       el('res_warnCancel').addEventListener('click', function () {
         box.style.display = 'none';
-        if (_cur) { _cur.ack = null; _cur.pendingRemove = false; }
+        _retry = null; _move = null;
+        if (_cur) _cur.ack = null;
+        if (bare) el('resModal').classList.remove('open');
       });
       el('res_warnGo').addEventListener('click', function () {
         box.style.display = 'none';
-        if (_cur && _cur.pendingRemove) doRemove(_cur.ack);
-        else submit(_cur && _cur.ack);
+        if (bare) el('resModal').classList.remove('open');
+        if (fn) fn(ack);
       });
+      return;
+    }
+
+    _retry = null;
+    // A move or an undo has no dialog to write into, and a silent failure on a
+    // reorder is how a rule quietly stays where it was.
+    if (!el('resModal').classList.contains('open')) {
+      _move = null;
+      if (d.code !== 'at-end') alert(MSG[d.code] || (d.message ? String(d.message) : 'That did not work.'));
       return;
     }
 
@@ -14121,6 +14367,30 @@ function _renderRoutersMap(rows) {
       return;
     }
 
+    var hb = e.target.closest('[data-res-hist]');
+    if (hb) {
+      if (hb.disabled) return;
+      doHist(hb.getAttribute('data-res-hist'), hb.getAttribute('data-res-histkey'), null);
+      return;
+    }
+
+    // Reordering. Checked before the row click, and it stops there: an arrow is
+    // not a request to open the row.
+    var mv = e.target.closest('[data-res-move]');
+    if (mv) {
+      if (mv.disabled) return;
+      var mrow = e.target.closest('[data-id]');
+      var mhost = e.target.closest('[data-res-rows]');
+      if (!mrow || !mhost) return;
+      var mkey = mrow.getAttribute('data-res') || mhost.getAttribute('data-res-rows');
+      if (!_schema[mkey] || !_schema[mkey].permitted) return;
+      _move = { resource: mkey, id: mrow.getAttribute('data-id'),
+                expectedIdentity: mrow.getAttribute('data-identity') || undefined,
+                direction: mv.getAttribute('data-res-move') };
+      doMove(null);
+      return;
+    }
+
     var host = e.target.closest('[data-res-rows]');
     if (host) {
       var row = e.target.closest('[data-id]');
@@ -14140,6 +14410,114 @@ function _renderRoutersMap(rows) {
     }
   });
 
+  // ── Drag to reorder ────────────────────────────────────────────────────────
+  //
+  // Pointer events, not HTML5 drag-and-drop — the same choice dashboard-grid.js
+  // and topology.js already made, and the one that works on touch.
+  //
+  // The dragged row is moved in the DOM as the pointer travels, so the table
+  // shows the outcome rather than a floating ghost. That also makes the answer
+  // trivial to read off at the end: whatever row now follows it is the anchor.
+  // If the server refuses, the next payload re-renders the truth.
+  var _drag = null;
+
+  /**
+   * Where the pointer is, in one lookup.
+   *
+   * This used to measure every row on every pointermove to find the one under
+   * the cursor. On a table of thirty rules that is thirty getBoundingClientRect
+   * calls per event, each forced to flush a layout the previous insertBefore
+   * had just invalidated — which is what made dragging feel heavy.
+   */
+  function rowUnder(host, x, y) {
+    var el = document.elementFromPoint(x, y);
+    var row = el && el.closest ? el.closest('tr[data-id]') : null;
+    return (row && host.contains(row)) ? row : null;
+  }
+
+  /**
+   * Move the dragged row to wherever the pointer now is.
+   *
+   * It swaps on the FIRST overlap with a neighbouring row rather than waiting
+   * for the pointer to cross that row's midpoint — waiting meant travelling a
+   * whole row-height before anything happened, which reads as lag.
+   *
+   * That cannot oscillate: after the swap the dragged row is under the cursor
+   * again, so the next lookup finds the dragged row and does nothing until the
+   * pointer moves on to the next neighbour.
+   */
+  function dragTo(x, y) {
+    if (!_drag) return;
+    // The row was re-rendered out from under us — a tab switch, a router
+    // switch, anything that rebuilds the table. Re-inserting the detached node
+    // would put a second copy of it in the table beside its replacement, so the
+    // drag ends here instead.
+    if (!_drag.host.contains(_drag.row)) { endDrag(); return; }
+    var over = rowUnder(_drag.host, x, y);
+    if (!over || over === _drag.row) return;
+    var above = _drag.row.compareDocumentPosition(over) & Node.DOCUMENT_POSITION_PRECEDING;
+    _drag.host.insertBefore(_drag.row, above ? over : over.nextSibling);
+  }
+
+  function endDrag() {
+    if (!_drag) return null;
+    var d = _drag; _drag = null;
+    if (d.raf) cancelAnimationFrame(d.raf);
+    d.row.classList.remove('res-dragging');
+    document.body.classList.remove('res-dragging-body');
+    return d;
+  }
+
+  document.addEventListener('pointerdown', function (e) {
+    if (!e.target.closest) return;
+    var h = e.target.closest('[data-res-drag]');
+    if (!h) return;
+    var row  = h.closest('[data-id]');
+    var host = h.closest('[data-res-rows]');
+    if (!row || !host) return;
+    var key = row.getAttribute('data-res') || host.getAttribute('data-res-rows');
+    if (!_schema[key] || !_schema[key].permitted) return;
+
+    e.preventDefault();
+    _drag = { host: host, row: row, key: key, raf: 0, x: e.clientX, y: e.clientY };
+    row.classList.add('res-dragging');
+    // Stops the pointer painting a text selection across the table as it travels.
+    document.body.classList.add('res-dragging-body');
+    try { h.setPointerCapture(e.pointerId); } catch (_) { /* not fatal */ }
+  });
+
+  document.addEventListener('pointermove', function (e) {
+    if (!_drag) return;
+    _drag.x = e.clientX; _drag.y = e.clientY;
+    // Pointer events fire faster than the screen redraws, and every one of them
+    // used to reorder the DOM. Coalesced to one update per frame.
+    if (_drag.raf) return;
+    _drag.raf = requestAnimationFrame(function () {
+      if (!_drag) return;
+      _drag.raf = 0;
+      dragTo(_drag.x, _drag.y);
+    });
+  });
+
+  document.addEventListener('pointercancel', function () { endDrag(); });
+
+  document.addEventListener('pointerup', function () {
+    if (!_drag) return;
+    // One last placement at the exact release point, in case the pointer moved
+    // after the previous frame. It can end the drag, if the row went away.
+    dragTo(_drag.x, _drag.y);
+    var d = endDrag();
+    if (!d || !d.host.contains(d.row)) return;
+    var next = d.row.nextElementSibling;
+    while (next && !next.getAttribute('data-id')) next = next.nextElementSibling;
+    // '' rather than undefined for the end of the table: the server tells the
+    // two apart by whether the key is present at all.
+    _move = { resource: d.key, id: d.row.getAttribute('data-id'),
+              expectedIdentity: d.row.getAttribute('data-identity') || undefined,
+              anchor: next ? next.getAttribute('data-id') : '' };
+    doMove(null);
+  });
+
   var saveBtn = el('res_save');
   if (saveBtn) saveBtn.addEventListener('click', function () { submit(_cur && _cur.ack); });
 
@@ -14147,7 +14525,6 @@ function _renderRoutersMap(rows) {
   if (delBtn) delBtn.addEventListener('click', function () {
     if (!_cur || !_cur.id) return;
     if (!confirm('Delete ' + _schema[_cur.key].label.toLowerCase() + ' "' + (_cur.identity || '') + '"?')) return;
-    _cur.pendingRemove = true;
     doRemove(_cur.ack);
   });
 
@@ -14175,6 +14552,15 @@ function _renderRoutersMap(rows) {
   // ones for the router we have arrived at, and asking during the switch would
   // answer for the one we are leaving.
   socket.on('router:switched', refreshAll);
+  // A slot whose resource depends on what the page is showing — the firewall
+  // card, whose four tables share one header — says so by firing this.
+  document.addEventListener('mikrodash:resmount', function () {
+    var slots = document.querySelectorAll('[data-res-add]');
+    Array.prototype.forEach.call(slots, function (s) {
+      s.getAttribute('data-res-add').split(',').forEach(function (k) { need(k.trim()); });
+    });
+    mountAdds();
+  });
   if (socket.connected) refreshAll();
 }());
 
