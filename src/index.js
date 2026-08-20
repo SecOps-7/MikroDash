@@ -298,10 +298,22 @@ function _startSessionSweep() {
       } else {
         socket.request._authSession = live; // refresh live role/grants
         // Revocation used to take effect only on the next page load, so a
-        // socket kept streaming a router its owner had just lost. Room
-        // membership is the actual data boundary, so leaving the rooms is what
-        // stops the data — the notice is only so the page can explain itself.
+        // socket kept streaming a router its owner had just lost. Leaving the
+        // rooms is what stops most of the data — the notice is only so the page
+        // can explain itself.
+        //
+        // "Most", not all: the traffic collector is the one that does NOT
+        // deliver through a room. It emits `traffic:update` straight to each
+        // subscribed socket, once a second, so a socket that has left every
+        // room keeps receiving samples for its selected interface until it
+        // happens to disconnect. Unbinding is what actually stops it, and it
+        // has to run while `socket.routerId` still names the router whose
+        // session owns the subscription.
         if (socket.routerId && !_socketCan(socket, 'router:read', socket.routerId)) {
+          const revoked = _routerSessions.get(socket.routerId);
+          if (revoked && revoked.session && revoked.session.traffic) {
+            revoked.session.traffic.unbindSocket(socket);
+          }
           for (const room of socket.rooms) {
             if (room.startsWith('router-')) socket.leave(room);
           }
