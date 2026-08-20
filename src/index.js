@@ -47,6 +47,8 @@ const selfPath             = require('./routeros/selfPath');
 const fwGuard              = require('./routeros/fwGuard');
 const history              = require('./routeros/history');
 const Resources            = require('./routeros/resources');
+const Pdf                  = require('./reports/pdf');
+const Format               = require('./reports/format');
 const crypto               = require('node:crypto');
 const Backups              = require('./backups');
 const BackupStore          = require('./backups/store');
@@ -3049,6 +3051,18 @@ app.get('/healthz', (req, res) => {
 
 const _AGG_VALID = new Set(['hour', 'day', 'week', 'month']);
 
+// Moved to src/reports/format.js so the scheduled-report path shares them
+// rather than growing a second copy. Rebound under their original names:
+// the JSON report routes and the audit export still call them, and renaming
+// would touch a dozen call sites for no behaviour change.
+const _toCsv            = Format.toCsv;
+const _tsFmt            = Format.tsFmt;
+const _fmtDuration      = Format.fmtDuration;
+const _fmtDataMB        = Format.fmtDataMB;
+const _bucketNoun       = Format.bucketNoun;
+const _annotateDowntime = Format.annotateDowntime;
+const _maxOf            = Format.maxOf;
+
 function _parseReportParams(query) {
   const routerId  = String(query.routerId || '');
   const from      = parseInt(query.from, 10) || 0;
@@ -3057,266 +3071,12 @@ function _parseReportParams(query) {
   return { routerId, from, to, aggregate };
 }
 
-function _toCsv(rows, columns) {
-  const header = columns.join(',');
-  const body   = rows.map(r => columns.map(c => {
-    const v = r[c];
-    if (v == null) return '';
-    let s = String(v);
-    // Neutralise spreadsheet formula injection: a cell that a router-controlled
-    // string (interface name, ping target, alert subject) could start with
-    // =, +, -, @, tab or CR is executed as a formula by Excel/Sheets. Prefix a
-    // single quote so it's treated as literal text.
-    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-  }).join(',')).join('\n');
-  return header + '\n' + body;
-}
 
-// meta: { router, from, to, stats:[{label,value}], chartData:{lines:[{label,color,pts:[{x,y}]}],yLabel} }
-function _toPdf(title, columns, rows, res, meta) {
-  const PDFDocument = require('pdfkit');
-  const L = 40, R = 40;
-  const doc = new PDFDocument({ margin: L, size: 'A4' });
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${title}.pdf"`);
-  doc.pipe(res);
+// The renderer and its two sinks now live in src/reports/pdf.js, so a
+// scheduled report can get a Buffer instead of an HTTP response. Same
+// positional signature, so every call site below is untouched.
+const _toPdf = Pdf.pipe;
 
-  const PW = doc.page.width;
-  const inner = PW - L - R;
-
-  // ── Header bar ────────────────────────────────────────────────────────
-  const hTop = 30;
-  doc.rect(0, 0, PW, 52).fill('#0f172a');
-  // Logo text
-  doc.font('Helvetica-Bold').fontSize(17).fillColor('#38bdf8')
-     .text('Mikro', L, hTop, { continued: true })
-     .fillColor('#f8fafc')
-     .text('Dash', { lineBreak: false });
-  // Report title centred
-  doc.font('Helvetica-Bold').fontSize(13).fillColor('#f8fafc')
-     .text(title, L, hTop + 1, { width: inner, align: 'center', lineBreak: false });
-  doc.fillColor('#000000'); // reset
-
-  let y = 66;
-
-  // ── Meta info row ─────────────────────────────────────────────────────
-  const fmtTs = ts => ts ? _tsFmt(ts) || '—' : '—';
-  const routerLabel = (meta && meta.router) ? meta.router : '';
-  const dateRange   = (meta && meta.from && meta.to)
-    ? `${fmtTs(meta.from)}  →  ${fmtTs(meta.to)}`
-    : '';
-  if (routerLabel || dateRange) {
-    doc.font('Helvetica').fontSize(8).fillColor('#64748b');
-    if (routerLabel) doc.text(`Router: ${routerLabel}`, L, y, { lineBreak: false });
-    if (dateRange)   doc.text(dateRange, L, y, { width: inner, align: 'right', lineBreak: false });
-    doc.fillColor('#000000');
-    y += 16;
-    doc.moveTo(L, y).lineTo(PW - R, y).lineWidth(0.5).strokeColor('#e2e8f0').stroke();
-    doc.lineWidth(1).strokeColor('#000000');
-    y += 10;
-  }
-
-  // ── Stat boxes ────────────────────────────────────────────────────────
-  if (meta && meta.stats && meta.stats.length) {
-    const n     = meta.stats.length;
-    const boxW  = Math.min(110, Math.floor((inner - (n - 1) * 8) / n));
-    const boxH  = 36;
-    const totalW = n * boxW + (n - 1) * 8;
-    const startX = L + Math.floor((inner - totalW) / 2);
-    meta.stats.forEach((s, i) => {
-      const bx = startX + i * (boxW + 8);
-      doc.roundedRect(bx, y, boxW, boxH, 4).lineWidth(0.75).strokeColor('#cbd5e1').stroke();
-      doc.font('Helvetica-Bold').fontSize(11).fillColor('#0f172a')
-         .text(String(s.value), bx + 4, y + 5, { width: boxW - 8, align: 'center', lineBreak: false });
-      doc.font('Helvetica').fontSize(7).fillColor('#64748b')
-         .text(s.label, bx + 4, y + 20, { width: boxW - 8, align: 'center', lineBreak: false });
-    });
-    doc.fillColor('#000000');
-    y += boxH + 14;
-  }
-
-  // ── Chart ─────────────────────────────────────────────────────────────
-  if (meta && meta.chartData && meta.chartData.lines && meta.chartData.lines.length) {
-    const cd      = meta.chartData;
-    const lines   = cd.lines.filter(l => l.pts && l.pts.length > 1);
-    if (lines.length) {
-      const CH = 110, yAxisW = 38, xAxisH = 16;
-      const cLeft = L + yAxisW, cRight = PW - R;
-      const cW    = cRight - cLeft;
-      const cTop  = y, cBot = y + CH;
-
-      // Compute y-range across all lines
-      let yMin = Infinity, yMax = -Infinity;
-      lines.forEach(l => l.pts.forEach(p => { if (p.y < yMin) yMin = p.y; if (p.y > yMax) yMax = p.y; }));
-      if (yMin === yMax) { yMin = 0; yMax = yMax || 1; }
-      if (yMin > 0) yMin = 0;
-      const yRange = yMax - yMin;
-      const xMin = lines[0].pts[0].x;
-      const xMax = lines[0].pts[lines[0].pts.length - 1].x;
-      const xRange = xMax - xMin || 1;
-
-      const toX = xv => cLeft + ((xv - xMin) / xRange) * cW;
-      const toY = yv => cBot  - ((yv - yMin) / yRange) * CH;
-
-      // Grid lines + Y labels (5 steps)
-      doc.font('Helvetica').fontSize(7).fillColor('#94a3b8');
-      for (let step = 0; step <= 4; step++) {
-        const yv  = yMin + (yRange / 4) * step;
-        const gy  = toY(yv);
-        doc.moveTo(cLeft, gy).lineTo(cRight, gy).lineWidth(0.3).strokeColor('#e2e8f0').stroke();
-        const lbl = yv >= 1000 ? (yv / 1000).toFixed(1) + 'k' : yv.toFixed(1);
-        doc.text(lbl, L, gy - 4, { width: yAxisW - 4, align: 'right', lineBreak: false });
-      }
-      if (cd.yLabel) {
-        doc.text(cd.yLabel, L, y + CH / 2 - 4, { width: yAxisW - 4, align: 'right', lineBreak: false });
-      }
-
-      // X axis time labels (5 ticks) — format adapts to span; respects displayTimezone
-      const _tz      = Settings.load().displayTimezone || '';
-      const HOUR     = 3600000, DAY = 86400000;
-      const spanMs   = xRange;
-      const labelW   = spanMs <= 12 * HOUR ? 28 : spanMs <= 3 * DAY ? 54 : 28;
-      const _pdfTick = ts => {
-        if (_tz) {
-          let opts;
-          if (spanMs <= 12 * HOUR) opts = { timeZone:_tz, hour:'2-digit', minute:'2-digit', hour12:false };
-          else if (spanMs <= 3 * DAY) opts = { timeZone:_tz, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false };
-          else opts = { timeZone:_tz, month:'2-digit', day:'2-digit' };
-          return new Intl.DateTimeFormat('sv-SE', opts).format(new Date(ts));
-        }
-        const d = new Date(ts), p = n => String(n).padStart(2, '0');
-        if (spanMs <= 12 * HOUR)  return `${p(d.getHours())}:${p(d.getMinutes())}`;
-        if (spanMs <= 3  * DAY)   return `${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-        return `${p(d.getMonth()+1)}-${p(d.getDate())}`;
-      };
-      for (let ti = 0; ti <= 4; ti++) {
-        const ts  = xMin + (xRange / 4) * ti;
-        const tx  = toX(ts);
-        const lbl = _pdfTick(ts);
-        doc.text(lbl, tx - labelW / 2, cBot + 3, { width: labelW, align: 'center', lineBreak: false });
-      }
-      doc.fillColor('#000000');
-
-      // Border
-      doc.rect(cLeft, cTop, cW, CH).lineWidth(0.5).strokeColor('#cbd5e1').stroke();
-      doc.lineWidth(1);
-
-      // Lines
-      lines.forEach(line => {
-        const pts = line.pts;
-        doc.save();
-        doc.rect(cLeft, cTop, cW, CH).clip();
-        doc.moveTo(toX(pts[0].x), toY(pts[0].y));
-        for (let i = 1; i < pts.length; i++) doc.lineTo(toX(pts[i].x), toY(pts[i].y));
-        doc.lineWidth(1.2).strokeColor(line.color || '#38bdf8').stroke();
-        doc.restore();
-      });
-
-      // Legend
-      let legX = cLeft;
-      lines.forEach(line => {
-        doc.rect(legX, cBot + xAxisH + 2, 10, 6).fill(line.color || '#38bdf8');
-        doc.font('Helvetica').fontSize(7).fillColor('#334155')
-           .text(line.label, legX + 13, cBot + xAxisH + 1, { lineBreak: false });
-        legX += 13 + doc.widthOfString(line.label) + 16;
-      });
-      doc.fillColor('#000000');
-
-      y = cBot + xAxisH + 18;
-    }
-  }
-
-  // ── Table ─────────────────────────────────────────────────────────────
-  const colW = Math.floor(inner / columns.length);
-  const _drawTableHeader = yh => {
-    doc.rect(L, yh, inner, 14).fill('#f1f5f9');
-    doc.font('Helvetica-Bold').fontSize(8).fillColor('#0f172a');
-    columns.forEach((col, i) => doc.text(col, L + i * colW + 3, yh + 3, { width: colW - 4, lineBreak: false }));
-    doc.fillColor('#000000');
-  };
-  _drawTableHeader(y);
-  y += 14;
-
-  doc.font('Helvetica').fontSize(7.5);
-  let rowIdx = 0;
-  for (const row of rows) {
-    if (y > doc.page.height - 50) {
-      doc.addPage();
-      y = 40;
-      _drawTableHeader(y);
-      doc.font('Helvetica').fontSize(7.5);
-      y += 14; rowIdx = 0;
-    }
-    if (rowIdx % 2 === 1) doc.rect(L, y, inner, 12).fill('#f8fafc').stroke();
-    doc.fillColor('#334155');
-    columns.forEach((col, i) => {
-      const v = row[col] != null ? String(row[col]) : '';
-      doc.text(v, L + i * colW + 3, y + 2, { width: colW - 4, lineBreak: false });
-    });
-    doc.fillColor('#000000');
-    y += 12;
-    rowIdx++;
-  }
-
-  doc.end();
-}
-
-// Math.max(...arr) overflows the call stack above ~65k arguments — report
-// queries default to a 100k row limit, so reduce instead of spreading.
-const _maxOf = (arr) => arr.reduce((m, v) => (v > m ? v : m), -Infinity);
-
-// Format a stored bandwidth_usage MB value for display. Decimal thresholds are
-// deliberate: rx_mb is written as Mbps/8, i.e. 10^6-based, so rendering it
-// against 1024-based thresholds overstated every total by ~4.9%. Decimal is
-// also the right convention here — ISP quotas are quoted decimal.
-// A volume peak is per bucket, so the label has to say which bucket. Without an
-// aggregation the stored granularity is one minute.
-function _bucketNoun(agg) {
-  return agg === 'hour' ? 'Hour' : agg === 'day' ? 'Day'
-       : agg === 'week' ? 'Week' : agg === 'month' ? 'Month' : 'Minute';
-}
-
-function _fmtDataMB(mb) {
-  const n = +mb || 0;
-  if (n >= 1e6)  return (n / 1e6).toFixed(2) + ' TB';
-  if (n >= 1000) return (n / 1000).toFixed(2) + ' GB';
-  if (n >= 1)    return n.toFixed(1) + ' MB';
-  return (n * 1000).toFixed(0) + ' KB';
-}
-
-// Pair each Offline row with the next Online row to compute outage duration.
-// Single backward pass (rows are ts-ASC); null downtime = still offline.
-function _annotateDowntime(rows) {
-  let nextOnlineTs = null;
-  for (let i = rows.length - 1; i >= 0; i--) {
-    if (rows[i].connected) { nextOnlineTs = rows[i].ts; rows[i].downtime_ms = null; }
-    else rows[i].downtime_ms = nextOnlineTs != null ? nextOnlineTs - rows[i].ts : null;
-  }
-  return rows;
-}
-
-function _tsFmt(ts) {
-  if (!ts) return '';
-  const tz = Settings.load().displayTimezone;
-  if (tz) {
-    return new Intl.DateTimeFormat('sv-SE', {
-      timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-    }).format(new Date(ts)).replace('T', ' ');
-  }
-  return new Date(ts).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
-}
-function _fmtDuration(ms) {
-  if (!ms || ms < 0) return '';
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return h + 'h ' + m + 'm';
-  if (m > 0) return m + 'm ' + sec + 's';
-  return sec + 's';
-}
 
 // GET /api/reports/ping
 // ── Restore capability tokens ────────────────────────────────────────────────
