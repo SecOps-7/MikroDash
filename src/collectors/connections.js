@@ -36,6 +36,11 @@ function _cachedCategory(org) {
   return cat;
 }
 
+// How often to re-verify a table we have already confirmed empty. The cheap
+// local restatement above runs far more often; this is only the safety net for
+// a stream that dies while the table happens to be empty.
+const EMPTY_REPROBE_MS = 60000;
+
 class ConnectionsCollector {
   constructor({ ros, io, pollMs, topN, dhcpNetworks, dhcpLeases, arp, state, maxConns, geoLookup, connTableCache, geoOrgCache, streamMode }) {
     this.ros = ros;
@@ -68,6 +73,9 @@ class ConnectionsCollector {
     this._watchdogTimer = null;
     this._pollTimer     = null;
     this._pollInflight  = false;
+    this._silenceProbe   = false;  // one-shot /print in flight
+    this._lastEmptyProbeTs = 0;    // when we last re-verified an empty table
+    this._emptyConfirmed = false;  // log the quiet spell once, not per watchdog tick
     // See traffic.js: a stream that keeps dying must be reported, not just
     // restarted forever behind the user's back. (#106)
     this._health = createStreamHealth();
@@ -490,6 +498,7 @@ class ConnectionsCollector {
     this._stream.on('data', (pkt) => {
       if (!pkt || typeof pkt !== 'object' || Array.isArray(pkt)) return;
       if (!pkt['.id']) return; // skip non-row packets
+      this._emptyConfirmed = false;   // rows again: the quiet spell is over
       this._rowsNext.push(pkt);
       // Reset the 300ms debounce — batch is complete when rows stop arriving
       this._scheduleCommit();
@@ -618,15 +627,87 @@ class ConnectionsCollector {
       }
       // Grace period: don't trigger within one staleMs window of stream start
       if (Date.now() - this._streamStartTs < staleMs) return;
+      // Already established that the table is empty: keep the payload fresh at
+      // THIS cadence rather than waiting for the age gate below to trip again.
+      // checkMs is max(pollMs*2, 10s), which beats the card's own threshold of
+      // pollMs + 20s — driving it off the age gate instead meant an emit every
+      // 20-30s against a 23s deadline, so the card flickered stale. No router
+      // I/O: we know the answer, we are only restating it.
+      if (this._emptyConfirmed) {
+        this._rowsNext = [];
+        this._onBatchComplete();
+        this.state.lastConnsTs = Date.now();
+        // Re-ask now and then anyway, so a table that fills up while the stream
+        // is dead is still noticed rather than reported empty forever.
+        if (Date.now() - this._lastEmptyProbeTs > EMPTY_REPROBE_MS) this._confirmSilence(0);
+        return;
+      }
       const age = Date.now() - this.state.lastConnsTs;
       if (age > staleMs) {
-        console.warn('%s', this._lbl, `watchdog: no data for ${Math.round(age / 1000)}s — restarting stream`);
-        this._reportHealth(this._health.recordRestart());
-        this._restartStream();
+        // Do NOT restart on silence alone — ask the router what it means first.
+        this._confirmSilence(age);
       } else {
         this._reportHealth(this._health.recordHealthy(Date.now() - this._streamStartTs));
       }
     }, checkMs);
+  }
+
+  /**
+   * Silence on an interval stream is ambiguous, so find out which kind it is
+   * before tearing the channel down.
+   *
+   * RouterOS answers an empty result set with `!empty`, and patch-routeros.js
+   * deliberately SWALLOWS that on a streaming channel — on a stream it means
+   * "nothing YET" (/interface/wifi/frequency-scan sends it ~6 ms before
+   * delivering real rows ten seconds later, and closing on it lost every row).
+   * The cost is that a router whose connection table is genuinely empty — an
+   * access point with connection tracking off — is indistinguishable from a
+   * stream that has silently died. On a cAP AX that meant the watchdog restarted
+   * the channel every 20 s forever, reported the stream degraded, and left the
+   * card stale: constant real load on the smallest hardware we support, which is
+   * the exact thing #105 exists to avoid.
+   *
+   * A one-shot /print settles it, because on a NON-streaming channel that same
+   * patch does turn `!empty` into an empty result:
+   *   []    the table really is empty — commit it, leave the stream alone
+   *   rows  the stream is genuinely broken — restart, as before
+   *   error we still cannot tell, so keep the old behaviour
+   */
+  async _confirmSilence(age) {
+    if (this._silenceProbe || !this.ros.connected) return;
+    this._silenceProbe = true;
+    this._lastEmptyProbeTs = Date.now();
+    try {
+      const rows = (await this.ros.write('/ip/firewall/connection/print', [CONN_PROPLIST])) || [];
+      if (rows.length === 0) {
+        // Log once per quiet spell, not every watchdog tick.
+        if (!this._emptyConfirmed) {
+          console.log('%s', this._lbl, 'connection table is empty — stream is quiet, not dead');
+          this._emptyConfirmed = true;
+        }
+        // Route through the one commit path so lastConnsTs moves and the
+        // watchdog stops counting this as a fault.
+        this._rowsNext = [];
+        this._onBatchComplete();
+        this.state.lastConnsTs = Date.now();
+        this._reportHealth(this._health.recordHealthy(Date.now() - this._streamStartTs));
+        return;
+      }
+      console.warn('%s', this._lbl,
+        `watchdog: silent for ${Math.round(age / 1000)}s but /print returned ${rows.length} rows — restarting stream`);
+      this._emptyConfirmed = false;
+      this._reportHealth(this._health.recordRestart());
+      this._restartStream();
+    } catch (e) {
+      const msg = String(e && e.message ? e.message : e);
+      if (!msg.includes('no such item')) this.state.lastConnsErr = msg;
+      console.warn('%s', this._lbl, `watchdog: no data for ${Math.round(age / 1000)}s, probe failed (${msg}) — restarting stream`);
+      this._emptyConfirmed = false;
+      this._reportHealth(this._health.recordRestart());
+      this._restartStream();
+    } finally {
+      this._silenceProbe = false;
+    }
   }
 
   // Emit only on a transition, so a degraded stream does not spam the socket

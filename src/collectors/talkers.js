@@ -49,6 +49,8 @@ class TopTalkersCollector {
     this._pollInflight = false;
     this._heartbeatTimer = null;
     this._heartbeatArmedMs = 0;
+    this._silenceTimer = null;
+    this._sawData      = false;
 
     // Register lifecycle listeners once in the constructor so they never
     // accumulate across multiple start() calls (hot-swap safety).
@@ -60,6 +62,7 @@ class TopTalkersCollector {
       // Stop the re-emit too: replaying a payload from before the disconnect would
       // keep the card looking live while the router is unreachable.
       this._stopHeartbeat();
+      this._stopSilenceTimer();
       if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
     });
     ros.on('connected', () => {
@@ -96,18 +99,18 @@ class TopTalkersCollector {
     );
 
     stream.on('data', (packet) => {
-      // RStream emits [] when the kid-control table is empty this interval —
-      // clear the device list instead of showing the last devices forever.
+      this._sawData = true;
+      // An array packet is an empty section marker. Commit on EVERY one, not only
+      // on the non-empty -> empty edge: guarding on `_devicesNext.size > 0` meant
+      // a table that was already empty committed nothing at all, so lastPayload
+      // froze, no talkers:update reached the browser, and the card went stale on a
+      // router that was answering perfectly well. The commit is cheap and the emit
+      // is still fingerprint-gated, so a steadily empty table costs one no-op tick
+      // per interval and no browser traffic.
       //
-      // Commit on EVERY empty interval, not only on the non-empty -> empty edge.
-      // Guarding on `_devicesNext.size > 0` meant a table that was already empty
-      // committed nothing at all: lastPayload froze, no talkers:update reached the
-      // browser, and the card went stale roughly 20 s later on a router that was
-      // answering perfectly well. It also froze lastPayload.ts, which is what the
-      // dormancy supervisor reads to decide the collector has nothing to report —
-      // so the one collector that most needed to go dormant never could.
-      // The commit is cheap and the emit is still fingerprint-gated, so a steadily
-      // empty table costs one no-op tick per interval and no browser traffic.
+      // Do not rely on this firing, though — see _startSilenceTimer(). On a
+      // streaming channel patch-routeros.js swallows RouterOS's `!empty`, so an
+      // empty result set can produce no packet whatsoever.
       if (Array.isArray(packet)) {
         if (packet.length === 0) { this._devicesNext.clear(); this._scheduleCommit(); }
         return;
@@ -179,6 +182,40 @@ class TopTalkersCollector {
   // the hAP AC2 case: it runs collection mode "poll", so the card still went
   // stale ~30 s in, and only recovered when dormancy fired ~20 s after that.
   get _heartbeatMs() { return this.streamMode ? 60000 : Math.max(5000, this.pollMs); }
+
+  /**
+   * Treat prolonged silence on an open stream as the empty answer.
+   *
+   * RouterOS replies to an empty result set with `!empty`, and patch-routeros.js
+   * deliberately SWALLOWS that on a streaming channel, because there it means
+   * "nothing YET" rather than "nothing" (/interface/wifi/frequency-scan sends it
+   * ~6 ms before delivering real rows ten seconds later). So on a router whose
+   * kid-control table is empty, a stream-mode collector receives no packet at
+   * all — not even the `[]` the data handler above is written for.
+   *
+   * That is why this looked fixed on the hAP AC2 and was not on the cAP AX: the
+   * AC2 runs collection mode "poll", where ros.write() goes down a one-shot
+   * channel and the same patch DOES turn `!empty` into an empty result.
+   *
+   * Silence on an interval print is the answer, so commit it. Unlike connections
+   * this needs no confirming /print: the payload is empty either way, and if the
+   * stream really is dead the existing error/backoff path owns that.
+   */
+  _startSilenceTimer() {
+    if (this._silenceTimer) return;
+    const intervalMs = Math.max(1000, this.pollMs);
+    this._silenceTimer = setInterval(() => {
+      if (!this.streamMode || !this._stream || this._unavailable) return;
+      if (this._sawData) { this._sawData = false; return; }   // rows arrived; nothing to infer
+      if (this._devicesNext.size > 0) return;                 // mid-batch, let the debounce commit
+      this._commitTick();
+    }, intervalMs * 3);
+  }
+
+  _stopSilenceTimer() {
+    if (this._silenceTimer) { clearInterval(this._silenceTimer); this._silenceTimer = null; }
+    this._sawData = false;
+  }
 
   _startHeartbeat() {
     // Re-arm when the cadence changes: the stream-timeout path flips streamMode
@@ -319,6 +356,7 @@ class TopTalkersCollector {
     // Both paths: poll mode is subject to the same idle/page gating, so it needs
     // the re-emit just as much once the device list settles.
     this._startHeartbeat();
+    this._startSilenceTimer();
     if (this.streamMode) {
       this._startStream();
     } else {
@@ -335,6 +373,7 @@ class TopTalkersCollector {
   suspend() {
     this._stopStream();
     this._stopHeartbeat();
+    this._stopSilenceTimer();
     if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
   }
   resume() {
@@ -344,6 +383,7 @@ class TopTalkersCollector {
     // had already answered "unknown command".
     if (this._unavailable) return;
     this._startHeartbeat();
+    this._startSilenceTimer();
     // Same trap as ping: suspend() clears _pollTimer, so a resume that only
     // restarts the stream strands poll mode permanently once the last viewer
     // has ever gone away — which is why the Top Talkers card stayed stale.
@@ -366,6 +406,7 @@ class TopTalkersCollector {
   stop() {
     this._stopStream();
     this._stopHeartbeat();
+    this._stopSilenceTimer();
     if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
   }
 }
