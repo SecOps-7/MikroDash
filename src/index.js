@@ -6293,6 +6293,65 @@ io.on('connection', (socket) => {
    *   - the row is audited BEFORE the call, because the connection drops
    *     mid-flight and there may be no "after".
    */
+  /**
+   * Delete stored restore points — the artefacts, not the record.
+   *
+   * markBackupPruned is the call retention already uses, and deliberately so:
+   * the row is the record that a backup RAN, and deleting one is a statement
+   * about disk, not about history. The row stays and the History table shows it
+   * as pruned, exactly like an aged-out one. Deleting rows instead would let
+   * somebody erase the evidence of a backup having been taken.
+   *
+   * Every id goes through _bkRow, so it must belong to the router this socket is
+   * on — a caller cannot reach another router's backups by guessing ids.
+   */
+  socket.on('backups:delete', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    if (!rid || !_bkMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'backup.delete', targetType: 'backup',
+        routerId: rid });
+      return _bkErr('denied');
+    }
+    const router = _bkRouter(rid);
+    if (!router) return _bkErr('not-found');
+
+    // Bounded and de-duplicated: one message must not be able to ask for
+    // unbounded filesystem work.
+    const raw = (req && Array.isArray(req.ids)) ? req.ids : [];
+    const ids = [...new Set(raw.map(Number).filter(Number.isInteger))].slice(0, 200);
+    if (!ids.length) return _bkErr('not-found');
+
+    const fallbackDir = BackupStore.dirFor(BackupStore.slugFor(router.label));
+    const removed = [];
+    let failed = 0;
+    for (const id of ids) {
+      const row = _bkRow(id, rid);
+      // Silently skip anything already gone or not ours: a partial selection
+      // that raced a retention sweep is not an error worth showing.
+      if (!row || !row.stem || row.pruned_at) continue;
+      try {
+        BackupStore.removePair(row.dir || fallbackDir, row.stem);
+        db.markBackupPruned(row.id, Date.now());
+        removed.push(row.id);
+      } catch (e) {
+        failed++;
+        console.error('%s', '[backups] could not delete ' + row.stem + ':', (e && e.message) || e);
+      }
+    }
+
+    if (removed.length) {
+      audit.fromSocket(socket).record({ action: 'backup.delete', targetType: 'backup',
+        scope: 'router', routerId: rid, targetId: removed.join(','),
+        note: removed.length + ' restore point(s) deleted; the run records remain' });
+    }
+
+    socket.emit('backups:state', _bkPayload(rid));
+    // Everyone else on this router's Backups page re-requests their OWN payload:
+    // _bkPayload carries `permitted`, computed for the calling socket, so
+    // broadcasting it would tell a viewer they may write.
+    socket.to('router-' + rid + '-page-backups').emit('backups:ran', { routerId: rid });
+    if (failed) return _bkErr('failed', { message: 'Some restore points could not be removed.' });
+  }));
+
   socket.on('backups:restore', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
     if (!rid || !_bkMayWrite(rid)) {
       audit.fromSocket(socket).denied({ action: 'backup.restore', targetType: 'backup',

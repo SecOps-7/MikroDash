@@ -15103,10 +15103,20 @@ function _renderRoutersMap(rows) {
     if (st.permitted) el('bkSave').addEventListener('click', saveSettings);
 
     var hist = el('bkHistoryActions');
+    // Restore, Delete, Back Up Now. The two selection-driven actions lead and
+    // Back Up Now anchors the right-hand end, so the button that needs no
+    // selection is the one that never changes state as rows are ticked.
+    var BTN = 'padding:.3125rem .5rem;font-size:.75rem;line-height:1.3333333333';
     hist.innerHTML = st.permitted
-      ? '<button class="sbtn sbtn-primary" style="padding:.3125rem .5rem;font-size:.75rem;line-height:1.3333333333" id="bkRun"' + (_busy ? ' disabled' : '') + '>' +
+      ? '<button class="sbtn sbtn-purple" style="' + BTN + '" id="bkRestore" disabled>Restore</button>' +
+        '<button class="sbtn sbtn-danger" style="' + BTN + '" id="bkDelete" disabled>Delete</button>' +
+        '<button class="sbtn sbtn-primary" style="' + BTN + '" id="bkRun"' + (_busy ? ' disabled' : '') + '>' +
         (_busy ? 'Backing up&hellip;' : '+ Back Up Now') + '</button>' : '';
-    if (st.permitted) el('bkRun').addEventListener('click', runNow);
+    if (st.permitted) {
+      el('bkRun').addEventListener('click', runNow);
+      el('bkDelete').addEventListener('click', deleteSelected);
+      el('bkRestore').addEventListener('click', restoreSelected);
+    }
   }
 
   function renderRows(st) {
@@ -15127,7 +15137,7 @@ function _renderRoutersMap(rows) {
           var q = '?routerId=' + encodeURIComponent(st.routerId);
           actions.push('<a class="sbtn sbtn-ghost" style="padding:.3125rem .5rem;font-size:.75rem;line-height:1.3333333333" href="/api/backups/' + r.id + '/rsc' + q + '">.rsc</a>');
           actions.push('<a class="sbtn sbtn-ghost" style="padding:.3125rem .5rem;font-size:.75rem;line-height:1.3333333333" href="/api/backups/' + r.id + '/backup' + q + '">.backup</a>');
-          actions.push('<button class="sbtn sbtn-danger" style="padding:.3125rem .5rem;font-size:.75rem;line-height:1.3333333333" data-bk-restore="' + r.id + '">Restore</button>');
+          // Restore lives in the header now, driven by the selection column.
         }
       } else if (r.pruned) {
         actions.push('<span class="muted-note">pruned</span>');
@@ -15135,7 +15145,17 @@ function _renderRoutersMap(rows) {
 
       var detail = r.error ? esc(r.error)
                  : (r.stem ? esc(r.stem) : '');
-      return '<tr>' +
+      // Only a row with files still on disk can be deleted or restored, so a
+      // failed run or an already-pruned one gets a disabled box rather than
+      // none: keeping the column occupied stops the rows from jumping about.
+      var pickable = !!(r.stem && !r.pruned && st.permitted);
+      var picked   = pickable && _picked.has(r.id);
+      return '<tr' + (picked ? ' class="bk-row-picked"' : '') + '>' +
+        '<td class="text-center" style="padding-right:0">' +
+          '<input type="checkbox" class="bk-pick" data-bk-pick="' + r.id + '"' +
+          (picked ? ' checked' : '') + (pickable ? '' : ' disabled') +
+          ' aria-label="Select this restore point">' +
+        '</td>' +
         '<td>' + esc(fmtWhen(r.takenAt)) +
           (detail ? '<div class="muted-note" style="font-size:.7rem">' + detail + '</div>' : '') + '</td>' +
         '<td><span class="badge ' + o.cls + '">' + esc(o.label) + '</span></td>' +
@@ -15149,9 +15169,15 @@ function _renderRoutersMap(rows) {
 
   function render() {
     if (!_state) return;
+    // Before the rows, so a selection that retention pruned under us is dropped
+    // rather than left pointing at a row that no longer offers a checkbox.
+    _prunePicked(_state);
     renderSummary(_state);
     renderSettings(_state);
     renderRows(_state);
+    // After renderSettings, which rebuilds the header buttons, and after
+    // renderRows, which rebuilds the boxes the select-all state is derived from.
+    _syncBulk();
   }
 
   function saveSettings() {
@@ -15280,10 +15306,32 @@ function _renderRoutersMap(rows) {
       socket.emit('backups:diff', { id: Number(btn.getAttribute('data-bk-diff')) });
       return;
     }
-    var rst = ev.target.closest && ev.target.closest('[data-bk-restore]');
-    if (rst) {
-      ev.preventDefault();
-      askRestore(Number(rst.getAttribute('data-bk-restore')), false);
+  });
+
+  // Change, not click: a checkbox toggled by keyboard has to count too.
+  document.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (!t) return;
+
+    if (t.id === 'bkPickAll') {
+      var boxes = _pickBoxes();
+      boxes.forEach(function (b) {
+        b.checked = t.checked;
+        var id = Number(b.getAttribute('data-bk-pick'));
+        if (t.checked) _picked.add(id); else _picked.delete(id);
+        var tr = b.closest && b.closest('tr');
+        if (tr) tr.classList.toggle('bk-row-picked', t.checked);
+      });
+      _syncBulk();
+      return;
+    }
+
+    if (t.hasAttribute && t.hasAttribute('data-bk-pick')) {
+      var pid = Number(t.getAttribute('data-bk-pick'));
+      if (t.checked) _picked.add(pid); else _picked.delete(pid);
+      var row = t.closest && t.closest('tr');
+      if (row) row.classList.toggle('bk-row-picked', t.checked);
+      _syncBulk();
     }
   });
 
@@ -15296,6 +15344,72 @@ function _renderRoutersMap(rows) {
    * RouterOS version mismatch, and the answer to that question is what turns
    * the refusal into a go-ahead.
    */
+  // ── Selection ─────────────────────────────────────────────────────────────
+  // Ids rather than row indexes, so a list that re-renders under a scheduled run
+  // does not silently move the selection onto different backups.
+  var _picked = new Set();
+
+  /** Drop ids that are no longer selectable, e.g. pruned by retention mid-view. */
+  function _prunePicked(st) {
+    var live = new Set(((st && st.rows) || [])
+      .filter(function (r) { return r.stem && !r.pruned; })
+      .map(function (r) { return r.id; }));
+    Array.from(_picked).forEach(function (id) { if (!live.has(id)) _picked.delete(id); });
+  }
+
+  /**
+   * Delete needs one or more; Restore needs exactly one, because it replaces a
+   * whole configuration and "which of these three?" has no sensible answer.
+   * Both dim rather than disappear — see the CSS note in index.html.
+   */
+  function _syncBulk() {
+    var n   = _picked.size;
+    var del = el('bkDelete'), rst = el('bkRestore');
+    if (del) {
+      del.disabled = n === 0 || _busy;
+      del.textContent = n > 1 ? 'Delete (' + n + ')' : 'Delete';
+      del.title = n === 0 ? 'Select one or more restore points to delete' : '';
+    }
+    if (rst) {
+      rst.disabled = n !== 1 || _busy;
+      rst.title = n === 0 ? 'Select a restore point to restore from'
+                : n > 1  ? 'Restore takes a single restore point — select just one'
+                : '';
+    }
+    var all = el('bkPickAll');
+    if (all) {
+      var boxes = _pickBoxes();
+      var on    = boxes.filter(function (b) { return b.checked; }).length;
+      all.disabled      = boxes.length === 0;
+      all.checked       = boxes.length > 0 && on === boxes.length;
+      all.indeterminate = on > 0 && on < boxes.length;
+    }
+  }
+
+  function _pickBoxes() {
+    var t = el('bkTable');
+    return t ? Array.prototype.slice.call(t.querySelectorAll('[data-bk-pick]:not([disabled])')) : [];
+  }
+
+  function deleteSelected() {
+    if (!_state || !_picked.size) return;
+    var ids = Array.from(_picked);
+    var msg = ids.length === 1
+      ? 'Delete this restore point?'
+      : 'Delete these ' + ids.length + ' restore points?';
+    // Says what survives, because "delete" reads as if the history goes too.
+    if (!window.confirm(msg + '\n\nThe stored files are removed and cannot be recovered.\n' +
+        'The history rows stay, marked as pruned.')) return;
+    socket.emit('backups:delete', { ids: ids });
+    _picked.clear();
+    _syncBulk();
+  }
+
+  function restoreSelected() {
+    if (_picked.size !== 1) return;
+    askRestore(Array.from(_picked)[0], false);
+  }
+
   function askRestore(id, acceptVersion, versionNote) {
     if (!_state) return;
     var lines = [
@@ -15326,6 +15440,10 @@ function _renderRoutersMap(rows) {
   socket.on('router:switched', function () {
     _state = null;
     _busy = false;
+    // And every selected id belongs to the device we just left. The server
+    // rejects a foreign id anyway (_bkRow is router-scoped), but leaving them
+    // ticked would show Delete armed for rows that are no longer on screen.
+    _picked.clear();
     if (_currentPage === 'backups') socket.emit('backups:list');
   });
 })();
