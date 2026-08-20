@@ -2,10 +2,10 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [0.7.30] — Configuration backups, router writes across the app, and a wire-encoding fix
+## [0.7.30] — Configuration backups, scheduled email reports, and router writes across the app
 
-MikroDash can now **back up and restore router configurations**, and **write configuration** from most
-of the pages that previously only read it.
+MikroDash can now **back up and restore router configurations**, **email reports on a schedule**, and
+**write configuration** from most of the pages that previously only read it.
 
 The **Backups** page keeps a pair per restore point: a gzipped `/export` for diffing and an encrypted
 `.backup` for restoring. A pair is written **only when the configuration actually changed**, so a daily
@@ -21,6 +21,15 @@ just learned to write: outgoing words were still encoded as win1252, so a Cyrill
 the new editors reached the router as `???????`.
 
 ### Added
+- **Scheduled email reports.** A sixth tab on the Reports page schedules a report to be emailed
+  daily, weekly or monthly, to a list of addresses that need no MikroDash account. Each report
+  carries a PDF per section, complete with the same charts and stat boxes the on-screen export
+  produces. Periods are real calendar periods in your timezone, so a monthly report covers *August*
+  rather than a rolling thirty days that shifts every time the container restarts. Recipients go in
+  Bcc, because they are frequently different customers who should not see each other's addresses.
+  Requires the new **Scheduled reports** permission, which a role gets by holding *write* on
+  Reports; anyone who can already export a report can see what is scheduled, because a mail-out
+  nobody can see is the bad case.
 - **Backups page.** Per-router schedule (hourly, daily, weekly, monthly — daily by default), manual
   runs, retention by count and by age, and a full run history including the checks that found nothing
   changed. The newest restore point is never pruned, however old it is: a router whose configuration
@@ -68,7 +77,15 @@ the new editors reached the router as `???????`.
   minute or two.
 
 ### Upgrading
-Nothing to do. Backups are **off by default** and start no process until enabled per router.
+Nothing to do. Backups are **off by default** and start no process until enabled per router, and no
+report is scheduled until you create one.
+
+Two things worth knowing if you use the Reports page today. The PDF export now caps its table at
+5,000 rows, with a note in the document saying so: samples are stored one minute apart, so an
+unaggregated month was a thousand-page document rendered on the same event loop that serves your
+live dashboards. The CSV export is unchanged and still uncapped. Scheduled reports also need SMTP
+configured under Settings → Notifications; the page says so when you create one rather than leaving
+you to find out from a failed run.
 
 Enabling them needs the RouterOS user to hold the **`ftp`** policy, which the recommended read-only
 group denies: `/export file=` and `/system/backup/save` write files, and without it a backup fails
