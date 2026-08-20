@@ -9426,8 +9426,212 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       document.querySelectorAll('.rtab-panel').forEach(function(p){ p.classList.remove('active'); });
       var panel = $('rtab-'+btn.dataset.rtab);
       if (panel) panel.classList.add('active');
+      // The schedule list is not part of loadReports(): it is configuration,
+      // not report data, and it must not be re-fetched every time somebody
+      // presses Load on a date range.
+      if (btn.dataset.rtab === 'scheduled') loadSchedules();
     });
   }
+
+  // ── Scheduled reports (#60) ─────────────────────────────────────────
+  //
+  // The server decides who may create one and says so on the payload as
+  // `permitted`; this only draws. Everything stored is operator-supplied, so
+  // every value goes through esc() on the way into the DOM.
+
+  var _sched = { rows: [], permitted: false, smtpReady: true, sections: [], needsInterface: [], editing: null };
+
+  function schedApi(path, opts) {
+    var rid = rptRouter ? rptRouter.value : '';
+    var sep = path.indexOf('?') === -1 ? '?' : '&';
+    return fetch('/api/reports/schedules' + path + sep + 'routerId=' + encodeURIComponent(rid),
+      opts).then(function(r){ return r.json(); });
+  }
+
+  function loadSchedules() {
+    if (!rptRouter || !rptRouter.value) return;
+    schedApi('', {}).then(function(d) {
+      if (!d || !d.ok) return;
+      _sched.rows = d.schedules || [];
+      _sched.permitted = !!d.permitted;
+      _sched.smtpReady = d.smtpReady !== false;
+      _sched.sections = d.sections || [];
+      _sched.needsInterface = d.needsInterface || [];
+      renderSchedules();
+    }).catch(function(){});
+  }
+
+  function fmtRun(r) {
+    if (!r) return '—';
+    return new Date(r.ran_at).toLocaleString() + ' · ' + r.outcome;
+  }
+
+  function renderSchedules() {
+    var body = $('rptSchedTbody');
+    var actions = $('rptSchedActions');
+    if (!body) return;
+
+    // Said at creation time rather than in a run row a month later.
+    var notice = $('rptSchedNotice');
+    if (notice) {
+      notice.style.display = _sched.smtpReady ? 'none' : '';
+      var nt = $('rptSchedNoticeText');
+      if (nt) nt.textContent = 'SMTP is not configured, so these reports cannot be sent. ' +
+        'Set a mail server under Settings → Notifications.';
+    }
+
+    actions.innerHTML = _sched.permitted
+      ? '<button class="sbtn sbtn-primary" id="rptSchedNew">+ New scheduled report</button>' : '';
+
+    if (!_sched.rows.length) {
+      body.innerHTML = '<tr><td colspan="6" class="rpt-empty">' +
+        (_sched.permitted ? 'No scheduled reports for this router yet.'
+                          : 'No scheduled reports for this router.') + '</td></tr>';
+      return;
+    }
+
+    body.innerHTML = _sched.rows.map(function(r) {
+      var acts = [];
+      if (_sched.permitted) {
+        acts.push('<button class="sbtn sbtn-ghost" data-rs-edit="' + esc(r.id) + '">Edit</button>');
+        acts.push('<button class="sbtn sbtn-ghost" data-rs-run="' + esc(r.id) + '">Send now</button>');
+        acts.push('<button class="sbtn sbtn-ghost" data-rs-del="' + esc(r.id) + '">Remove</button>');
+      }
+      acts.push('<button class="sbtn sbtn-ghost" data-rs-runs="' + esc(r.id) + '">History</button>');
+      var why = r.disabledReason
+        ? '<div class="bw-mac">' + esc(r.disabledReason) + '</div>' : '';
+      return '<tr>' +
+        '<td>' + esc(r.name) + (r.enabled ? '' : ' <span class="bw-proto bw-proto-other">off</span>') + why + '</td>' +
+        '<td>' + esc(r.frequency) + ' at ' + String(r.sendHour).padStart(2,'0') + ':00</td>' +
+        '<td>' + esc(r.sections.join(', ')) + (r.iface ? '<div class="bw-mac">' + esc(r.iface) + '</div>' : '') + '</td>' +
+        '<td>' + esc(String(r.recipients.length)) + '</td>' +
+        '<td class="bw-mac">' + esc(r.lastRun ? fmtRun(r.lastRun) : '—') + '</td>' +
+        '<td class="text-end">' + acts.join(' ') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function openSchedModal(row) {
+    _sched.editing = row || null;
+    $('rptSchedTitle').textContent = row ? 'Edit scheduled report' : 'New scheduled report';
+    $('rs_name').value = row ? row.name : '';
+    $('rs_frequency').value = row ? row.frequency : 'daily';
+    $('rs_iface').value = row ? (row.iface || '') : '';
+    $('rs_recipients').value = row ? row.recipients.join('\n') : '';
+    $('rs_enabled').checked = row ? !!row.enabled : true;
+    $('rs_error').style.display = 'none';
+
+    var hour = $('rs_hour');
+    hour.innerHTML = '';
+    for (var h = 0; h < 24; h++) {
+      hour.insertAdjacentHTML('beforeend',
+        '<option value="' + h + '">' + String(h).padStart(2,'0') + ':00</option>');
+    }
+    hour.value = row ? row.sendHour : 7;
+
+    var chosen = row ? row.sections : ['ping'];
+    $('rs_sections').innerHTML = _sched.sections.map(function(sec) {
+      return '<label class="stoggle"><span class="stoggle-label">' + esc(sec) + '</span>' +
+        '<span class="stoggle-switch"><input type="checkbox" data-rs-sec="' + esc(sec) + '"' +
+        (chosen.indexOf(sec) !== -1 ? ' checked' : '') + '>' +
+        '<span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>';
+    }).join('');
+    syncIfaceVisibility();
+    $('rptSchedModal').classList.add('open');
+  }
+
+  function chosenSections() {
+    return [].slice.call(document.querySelectorAll('[data-rs-sec]'))
+      .filter(function(i){ return i.checked; })
+      .map(function(i){ return i.getAttribute('data-rs-sec'); });
+  }
+
+  function syncIfaceVisibility() {
+    var need = chosenSections().some(function(s){ return _sched.needsInterface.indexOf(s) !== -1; });
+    $('rs_ifaceWrap').style.display = need ? '' : 'none';
+  }
+
+  function saveSchedule() {
+    var payload = {
+      routerId: rptRouter.value,
+      name: $('rs_name').value,
+      frequency: $('rs_frequency').value,
+      sendHour: Number($('rs_hour').value),
+      sections: chosenSections(),
+      iface: $('rs_iface').value,
+      recipients: $('rs_recipients').value.split(/\n+/),
+      enabled: $('rs_enabled').checked,
+    };
+    var editing = _sched.editing;
+    var req = editing
+      ? schedApi('/' + encodeURIComponent(editing.id), { method: 'PUT',
+          headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+      : fetch('/api/reports/schedules', { method: 'POST',
+          headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+          .then(function(r){ return r.json(); });
+
+    req.then(function(d) {
+      if (d && d.ok) { $('rptSchedModal').classList.remove('open'); loadSchedules(); return; }
+      var box = $('rs_error');
+      box.textContent = (d && d.error) || 'Could not save the schedule.';
+      box.style.display = '';
+    }).catch(function() {
+      var box = $('rs_error');
+      box.textContent = 'Could not save the schedule.';
+      box.style.display = '';
+    });
+  }
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('#rptSchedNew')) { openSchedModal(null); return; }
+    if (e.target.closest('#rs_save'))     { saveSchedule(); return; }
+
+    var edit = e.target.closest('[data-rs-edit]');
+    if (edit) {
+      var id = edit.getAttribute('data-rs-edit');
+      openSchedModal(_sched.rows.filter(function(r){ return r.id === id; })[0]);
+      return;
+    }
+    var run = e.target.closest('[data-rs-run]');
+    if (run) {
+      run.disabled = true;
+      run.textContent = 'Sending…';
+      schedApi('/' + encodeURIComponent(run.getAttribute('data-rs-run')) + '/run', { method: 'POST' })
+        .then(function(){ loadSchedules(); })
+        .catch(function(){ loadSchedules(); });
+      return;
+    }
+    var del = e.target.closest('[data-rs-del]');
+    if (del) {
+      var row = _sched.rows.filter(function(r){ return r.id === del.getAttribute('data-rs-del'); })[0];
+      if (!row || !window.confirm('Remove the scheduled report "' + row.name + '"?')) return;
+      schedApi('/' + encodeURIComponent(row.id), { method: 'DELETE' })
+        .then(function(){ loadSchedules(); });
+      return;
+    }
+    var runs = e.target.closest('[data-rs-runs]');
+    if (runs) {
+      schedApi('/' + encodeURIComponent(runs.getAttribute('data-rs-runs')) + '/runs', {})
+        .then(function(d) {
+          var box = $('rptSchedRuns');
+          if (!d || !d.ok || !box) return;
+          box.innerHTML = '<div class="bw-table-wrap"><table class="bw-table">' +
+            '<thead><tr><th>When</th><th>Result</th><th>Recipients</th><th>Size</th><th>Detail</th></tr></thead><tbody>' +
+            (d.runs.length ? d.runs.map(function(r) {
+              return '<tr><td class="bw-mac">' + esc(new Date(r.ran_at).toLocaleString()) + '</td>' +
+                '<td>' + esc(r.outcome) + '</td><td>' + esc(String(r.recipients_n)) + '</td>' +
+                '<td>' + esc(r.bytes ? fmtBytes(r.bytes) : '—') + '</td>' +
+                '<td class="bw-mac">' + esc(r.error || '') + '</td></tr>';
+            }).join('') : '<tr><td colspan="5" class="rpt-empty">No runs yet.</td></tr>') +
+            '</tbody></table></div>';
+        });
+    }
+  });
+
+  document.addEventListener('change', function(e) {
+    if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-rs-sec')) syncIfaceVisibility();
+  });
 
   // ── Router list sync ────────────────────────────────────────────────
   socket.on('routers:update', function(list) {

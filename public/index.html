@@ -4013,6 +4013,7 @@
         <button class="stab" data-rtab="bandwidth">Bandwidth Usage</button>
         <button class="stab" data-rtab="alerts">Alert Events</button>
         <button class="stab" data-rtab="connectivity">Connectivity</button>
+        <button class="stab" data-rtab="scheduled">Scheduled</button>
       </div>
 
       <!-- ── Ping Stability tab ─────────────────────────────────────────── -->
@@ -4126,6 +4127,30 @@
             <tbody id="rptConnTbody"><tr><td colspan="2" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- ── Scheduled reports (#60) ─────────────────────────────────────
+           A tab rather than a card: this page is already tabbed, so a card
+           would sit on all five others. It inherits the router selector and
+           the page's permission gate, and needs no entry in src/pages.js. -->
+      <div id="rtab-scheduled" class="rtab-panel">
+        <div id="rptSchedNotice" class="ros-update-row warn" style="display:none">
+          <span class="ros-update-dot"></span>
+          <span id="rptSchedNoticeText"></span>
+        </div>
+        <div class="rpt-export-row" id="rptSchedActions"></div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr>
+              <th>Name</th><th>Frequency</th><th>Sections</th><th>Recipients</th>
+              <th>Last run</th><th class="text-end">Actions</th>
+            </tr></thead>
+            <tbody id="rptSchedTbody">
+              <tr><td colspan="6" class="rpt-empty">Select a router to see its scheduled reports.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="rptSchedRuns" style="margin-top:.85rem"></div>
       </div>
 
     </div>
@@ -6294,6 +6319,56 @@
        would be a second copy of the registry, and copies drift. -->
   <!-- Configuration diff. Wide and monospaced, because a config diff is only
        readable if the columns line up. -->
+  <!-- Create or edit a scheduled report. -->
+  <div class="rtr-modal-bg" id="rptSchedModal">
+   <div class="rtr-modal pmodal" style="max-width:30rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="rptSchedTitle">Scheduled report</span>
+      <button class="rtr-modal-close" data-modal-close="rptSchedModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div class="sform-group">
+        <label class="sform-label" for="rs_name">Name</label>
+        <input class="sform-input" id="rs_name" type="text" maxlength="80" placeholder="Monthly usage">
+      </div>
+      <div class="sform-row">
+        <div class="sform-group">
+          <label class="sform-label" for="rs_frequency">Frequency</label>
+          <select class="sform-input" id="rs_frequency">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        <div class="sform-group">
+          <label class="sform-label" for="rs_hour">Send at</label>
+          <select class="sform-input" id="rs_hour"></select>
+        </div>
+      </div>
+      <div class="sform-group">
+        <label class="sform-label">Sections</label>
+        <div class="stoggle-grid" id="rs_sections"></div>
+      </div>
+      <div class="sform-group" id="rs_ifaceWrap" style="display:none">
+        <label class="sform-label" for="rs_iface">Interface</label>
+        <input class="sform-input" id="rs_iface" type="text" placeholder="ether1">
+        <div class="form-hint">Traffic and bandwidth reports cover one interface.</div>
+      </div>
+      <div class="sform-group">
+        <label class="sform-label" for="rs_recipients">Recipients</label>
+        <textarea class="sform-input" id="rs_recipients" rows="3" placeholder="ops@example.com&#10;noc@example.com"></textarea>
+        <div class="form-hint">One address per line. Sent as Bcc, so recipients cannot see each other.</div>
+      </div>
+      <label class="stoggle"><span class="stoggle-label">Enabled</span><span class="stoggle-switch"><input type="checkbox" id="rs_enabled" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+      <div class="login-error" id="rs_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" data-modal-close="rptSchedModal">Cancel</button>
+      <button class="sbtn sbtn-primary" id="rs_save">Save</button>
+    </div>
+   </div>
+  </div>
+
   <div class="rtr-modal-bg" id="bkDiffModal">
    <div class="rtr-modal pmodal" style="max-width:1100px;width:96vw">
     <div class="rtr-modal-hdr">
