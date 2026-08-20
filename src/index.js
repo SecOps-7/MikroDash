@@ -49,6 +49,7 @@ const history              = require('./routeros/history');
 const Resources            = require('./routeros/resources');
 const Pdf                  = require('./reports/pdf');
 const Format               = require('./reports/format');
+const Reports              = require('./reports/build');
 const crypto               = require('node:crypto');
 const Backups              = require('./backups');
 const BackupStore          = require('./backups/store');
@@ -3223,41 +3224,14 @@ app.get('/api/reports/ping', Rbac.requirePerm('router:history', Rbac.fromQuery('
 app.get('/api/reports/ping/export', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
-  const rows = aggregate
-    ? db.queryPingSamplesAgg(routerId, from, to, aggregate)
-    : db.queryPingSamples(routerId, from, to);
-  const fmt  = (req.query.format || 'csv').toLowerCase();
-  const cols  = ['ts', 'target', 'rtt_ms', 'loss_pct'];
-  const label = rows.map(r => ({ ...r, ts: _tsFmt(r.ts) }));
+  const fmt = (req.query.format || 'csv').toLowerCase();
+  const built = Reports.build('ping', { routerId, from, to, aggregate });
   if (fmt === 'pdf') {
-    const rtts   = rows.filter(r => r.rtt_ms != null).map(r => r.rtt_ms);
-    const losses = rows.map(r => r.loss_pct);
-    const avgRtt = rtts.length   ? (rtts.reduce((a,b)=>a+b,0)/rtts.length).toFixed(1) : '—';
-    const maxRtt = rtts.length   ? _maxOf(rtts).toFixed(1) : '—';
-    const avgLoss= losses.length ? (losses.reduce((a,b)=>a+b,0)/losses.length).toFixed(1) : '—';
-    const uptime = losses.length ? ((losses.filter(l=>l<1).length/losses.length)*100).toFixed(1)+'%' : '—';
-    const step   = rows.length > 150 ? Math.ceil(rows.length / 150) : 1;
-    const sub    = rows.filter((_,i)=>i%step===0);
-    const rtr    = Routers.getById(routerId);
-    return _toPdf('Ping Stability Report', ['Timestamp', 'Target', 'RTT (ms)', 'Loss (%)'],
-      label.map(r => ({ Timestamp: r.ts, Target: r.target, 'RTT (ms)': r.rtt_ms ?? '', 'Loss (%)': r.loss_pct })), res, {
-        router: rtr ? (rtr.label || rtr.host) : routerId, from, to,
-        stats: [
-          { label: 'Uptime',   value: uptime },
-          { label: 'Avg RTT',  value: avgRtt !== '—' ? avgRtt+' ms' : '—' },
-          { label: 'Max RTT',  value: maxRtt !== '—' ? maxRtt+' ms' : '—' },
-          { label: 'Avg Loss', value: avgLoss !== '—' ? avgLoss+'%' : '—' },
-          { label: 'Samples',  value: rows.length.toLocaleString() },
-        ],
-        chartData: { yLabel: 'ms / %', lines: [
-          { label: 'RTT ms',  color: '#38bdf8', pts: sub.filter(r=>r.rtt_ms!=null).map(r=>({ x:r.ts, y:r.rtt_ms })) },
-          { label: 'Loss %',  color: '#f87171', pts: sub.map(r=>({ x:r.ts, y:r.loss_pct })) },
-        ]},
-      });
+    return _toPdf(built.title, built.pdf.columns, built.pdf.rows, res, built.pdf.meta);
   }
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="ping-report.csv"');
-  res.send(_toCsv(label, cols));
+  res.setHeader('Content-Disposition', `attachment; filename="${built.csvFilename}"`);
+  res.send(_toCsv(built.csv.rows, built.csv.columns));
 });
 
 // GET /api/reports/traffic
@@ -3274,21 +3248,8 @@ app.get('/api/reports/ping/export', Rbac.requirePerm('router:history', Rbac.from
 // Utilisation is deliberately NOT clamped to 100. The live dashboard card does
 // clamp, which is what hides a misconfigured capacity — a link reporting 151%
 // is telling you the configured figure is wrong, and that is worth seeing.
-function _ifaceSummary(routerId, iface, from, to) {
-  const t = db.queryTrafficSummary(routerId, iface, from, to, 95);
-  const b = db.queryBandwidthSummary(routerId, iface, from, to);
-  const r = Routers.getById(routerId);
-  const capDown = Math.max(1, parseInt(r && r.bwDownMbps, 10) || 1000);
-  const capUp   = Math.max(1, parseInt(r && r.bwUpMbps,   10) || 1000);
-  const pct = (v, cap) => (v == null ? null : +((v / cap) * 100).toFixed(1));
-  return {
-    ...t, ...b,
-    capacityDownMbps: capDown,
-    capacityUpMbps:   capUp,
-    rxPeakPct: pct(t.rxMaxMbps, capDown), txPeakPct: pct(t.txMaxMbps, capUp),
-    rxP95Pct:  pct(t.rxP95Mbps, capDown), txP95Pct:  pct(t.txP95Mbps, capUp),
-  };
-}
+// Moved to src/reports/build.js, where the export path needs it too.
+const _ifaceSummary = Reports.ifaceSummary;
 
 app.get('/api/reports/traffic', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
@@ -3309,48 +3270,14 @@ app.get('/api/reports/traffic/export', Rbac.requirePerm('router:history', Rbac.f
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const iface = req.query.interface || '';
   if (!iface) return res.status(400).json({ ok: false, error: 'interface required for export' });
-  const rows  = aggregate
-    ? db.queryTrafficSamplesAgg(routerId, iface, from, to, aggregate)
-    : db.queryTrafficSamples(routerId, iface, from, to);
-  const fmt   = (req.query.format || 'csv').toLowerCase();
-  const cols  = ['ts', 'interface', 'rx_mbps', 'tx_mbps'];
-  const label = rows.map(r => ({ ...r, ts: _tsFmt(r.ts), rx_mbps: +r.rx_mbps.toFixed(1), tx_mbps: +r.tx_mbps.toFixed(1) }));
+  const fmt = (req.query.format || 'csv').toLowerCase();
+  const built = Reports.build('traffic', { routerId, iface, from, to, aggregate });
   if (fmt === 'pdf') {
-    // Shared summary rather than reducing `rows`: those are averages once an
-    // aggregation is selected, so a max over them is a peak of averages, and
-    // they are capped by the query LIMIT.
-    const s     = _ifaceSummary(routerId, iface, from, to);
-    const n1    = (v) => (v == null ? '—' : v.toFixed(1));
-    const avgRx = n1(s.rxAvgMbps);
-    const avgTx = n1(s.txAvgMbps);
-    const peakRx= n1(s.rxMaxMbps);
-    const peakTx= n1(s.txMaxMbps);
-    const step  = rows.length > 150 ? Math.ceil(rows.length / 150) : 1;
-    const sub   = rows.filter((_,i)=>i%step===0);
-    const rtr   = Routers.getById(routerId);
-    return _toPdf('Traffic History Report', ['Timestamp', 'Interface', 'RX (Mbps)', 'TX (Mbps)'],
-      label.map(r => ({ Timestamp: r.ts, Interface: r.interface, 'RX (Mbps)': r.rx_mbps, 'TX (Mbps)': r.tx_mbps })), res, {
-        router: rtr ? (rtr.label || rtr.host) : routerId, from, to,
-        stats: [
-          { label: 'Peak RX',   value: peakRx !== '—' ? peakRx+' Mbps' : '—' },
-          { label: 'Peak TX',   value: peakTx !== '—' ? peakTx+' Mbps' : '—' },
-          { label: 'Avg RX',    value: avgRx  !== '—' ? avgRx +' Mbps' : '—' },
-          { label: 'Avg TX',    value: avgTx  !== '—' ? avgTx +' Mbps' : '—' },
-          { label: '95th RX',   value: n1(s.rxP95Mbps) !== '—' ? n1(s.rxP95Mbps)+' Mbps' : '—' },
-          // Utilisation against the router's configured line capacity, not
-          // clamped at 100 — over-capacity is the signal worth seeing.
-          { label: 'Peak Util', value: s.rxPeakPct == null ? '—'
-                                  : Math.round(s.rxPeakPct)+'% / '+Math.round(s.txPeakPct)+'%' },
-        ],
-        chartData: { yLabel: 'Mbps', lines: [
-          { label: 'RX Mbps', color: '#38bdf8', pts: sub.map(r=>({ x:r.ts, y:r.rx_mbps })) },
-          { label: 'TX Mbps', color: '#4ade80', pts: sub.map(r=>({ x:r.ts, y:r.tx_mbps })) },
-        ]},
-      });
+    return _toPdf(built.title, built.pdf.columns, built.pdf.rows, res, built.pdf.meta);
   }
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="traffic-report.csv"');
-  res.send(_toCsv(label, cols));
+  res.setHeader('Content-Disposition', `attachment; filename="${built.csvFilename}"`);
+  res.send(_toCsv(built.csv.rows, built.csv.columns));
 });
 
 // GET /api/reports/bandwidth
@@ -3373,43 +3300,14 @@ app.get('/api/reports/bandwidth/export', Rbac.requirePerm('router:history', Rbac
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
   const iface = req.query.interface || '';
   if (!iface) return res.status(400).json({ ok: false, error: 'interface required for export' });
-  const rows  = aggregate
-    ? db.queryBandwidthSamplesAgg(routerId, iface, from, to, aggregate)
-    : db.queryBandwidthSamples(routerId, iface, from, to);
-  const fmt   = (req.query.format || 'csv').toLowerCase();
-  const cols  = ['ts', 'interface', 'rx_mb', 'tx_mb'];
-  const label = rows.map(r => ({ ...r, ts: _tsFmt(r.ts), rx_mb: +r.rx_mb.toFixed(1), tx_mb: +r.tx_mb.toFixed(1) }));
+  const fmt = (req.query.format || 'csv').toLowerCase();
+  const built = Reports.build('bandwidth', { routerId, iface, from, to, aggregate });
   if (fmt === 'pdf') {
-    // Same summary the on-screen cards use, so the two cannot disagree. Totals
-    // come from SQL over the whole range rather than from `rows`, which is
-    // capped by the query LIMIT. Volume only here — rates belong to the traffic
-    // report, so that the two reports stay about different things.
-    const s      = _ifaceSummary(routerId, iface, from, to);
-    const step   = rows.length > 150 ? Math.ceil(rows.length / 150) : 1;
-    const sub    = rows.filter((_,i)=>i%step===0);
-    const rtr    = Routers.getById(routerId);
-    return _toPdf('Bandwidth Usage Report', ['Timestamp', 'Interface', 'Download (MB)', 'Upload (MB)'],
-      label.map(r => ({ Timestamp: r.ts, Interface: r.interface, 'Download (MB)': r.rx_mb, 'Upload (MB)': r.tx_mb })), res, {
-        router: rtr ? (rtr.label || rtr.host) : routerId, from, to,
-        // Six boxes maximum — _toPdf renders them with lineBreak:false, so a
-        // seventh starts truncating values rather than wrapping.
-        stats: [
-          { label: 'Total Download', value: _fmtDataMB(s.rxTotalMb) },
-          { label: 'Total Upload',   value: _fmtDataMB(s.txTotalMb) },
-          { label: 'Total',          value: _fmtDataMB((s.rxTotalMb || 0) + (s.txTotalMb || 0)) },
-          { label: 'Busiest ' + _bucketNoun(aggregate) + ' ↓', value: s.rxMaxMb == null ? '—' : _fmtDataMB(s.rxMaxMb) },
-          { label: 'Busiest ' + _bucketNoun(aggregate) + ' ↑', value: s.txMaxMb == null ? '—' : _fmtDataMB(s.txMaxMb) },
-          { label: aggregate ? 'Buckets' : 'Samples', value: s.samples.toLocaleString() },
-        ],
-        chartData: { yLabel: 'MB/min', lines: [
-          { label: 'Download MB', color: '#38bdf8', pts: sub.map(r=>({ x:r.ts, y:r.rx_mb })) },
-          { label: 'Upload MB',   color: '#4ade80', pts: sub.map(r=>({ x:r.ts, y:r.tx_mb })) },
-        ]},
-      });
+    return _toPdf(built.title, built.pdf.columns, built.pdf.rows, res, built.pdf.meta);
   }
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="bandwidth-report.csv"');
-  res.send(_toCsv(label, cols));
+  res.setHeader('Content-Disposition', `attachment; filename="${built.csvFilename}"`);
+  res.send(_toCsv(built.csv.rows, built.csv.columns));
 });
 
 // GET /api/reports/alerts
@@ -3535,38 +3433,16 @@ app.get('/api/reports/alerts', Rbac.requirePerm('router:history', Rbac.fromQuery
 
 // GET /api/reports/alerts/export
 app.get('/api/reports/alerts/export', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
-  const { routerId, from, to } = _parseReportParams(req.query);
+  const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
-  const rows  = db.queryAlertEvents(routerId, from, to);
-  const fmt   = (req.query.format || 'csv').toLowerCase();
-  const cols  = ['fired_at', 'alert_type', 'subject', 'detail', 'resolved_at', 'down_time'];
-  const label = rows.map(r => ({
-    ...r,
-    fired_at:    _tsFmt(r.fired_at),
-    resolved_at: _tsFmt(r.resolved_at),
-    down_time:   r.resolved_at ? _fmtDuration(r.resolved_at - r.fired_at) : '',
-  }));
+  const fmt = (req.query.format || 'csv').toLowerCase();
+  const built = Reports.build('alerts', { routerId, from, to, aggregate });
   if (fmt === 'pdf') {
-    const open     = rows.filter(r => !r.resolved_at).length;
-    const resolved = rows.filter(r =>  r.resolved_at).length;
-    const typeCounts = {};
-    rows.forEach(r => { typeCounts[r.alert_type] = (typeCounts[r.alert_type]||0)+1; });
-    const topEntry = Object.entries(typeCounts).sort((a,b)=>b[1]-a[1])[0];
-    const rtr = Routers.getById(routerId);
-    return _toPdf('Alert Events Report', ['Fired At', 'Type', 'Subject', 'Detail', 'Resolved At', 'Down Time'],
-      label.map(r => ({ 'Fired At': r.fired_at, Type: r.alert_type, Subject: r.subject || '', Detail: r.detail || '', 'Resolved At': r.resolved_at, 'Down Time': r.down_time || '—' })), res, {
-        router: rtr ? (rtr.label || rtr.host) : routerId, from, to,
-        stats: [
-          { label: 'Total',    value: rows.length.toLocaleString() },
-          { label: 'Open',     value: open.toLocaleString() },
-          { label: 'Resolved', value: resolved.toLocaleString() },
-          { label: 'Top Type', value: topEntry ? topEntry[0] : '—' },
-        ],
-      });
+    return _toPdf(built.title, built.pdf.columns, built.pdf.rows, res, built.pdf.meta);
   }
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="alerts-report.csv"');
-  res.send(_toCsv(label, cols));
+  res.setHeader('Content-Disposition', `attachment; filename="${built.csvFilename}"`);
+  res.send(_toCsv(built.csv.rows, built.csv.columns));
 });
 
 // GET /api/reports/connectivity
@@ -3580,38 +3456,16 @@ app.get('/api/reports/connectivity', Rbac.requirePerm('router:history', Rbac.fro
 
 // GET /api/reports/connectivity/export
 app.get('/api/reports/connectivity/export', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
-  const { routerId, from, to } = _parseReportParams(req.query);
+  const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
-  const rows = _annotateDowntime(db.queryConnectivityEvents(routerId, from, to));
-  const fmt  = (req.query.format || 'csv').toLowerCase();
-  const cols = ['ts', 'status', 'down_duration'];
-  const label = rows.map(r => ({
-    ts:           _tsFmt(r.ts),
-    status:       r.connected ? 'Online' : 'Offline',
-    down_duration: (!r.connected && r.downtime_ms != null) ? _fmtDuration(r.downtime_ms)
-                 : (!r.connected)                          ? 'Ongoing'
-                 : '',
-  }));
+  const fmt = (req.query.format || 'csv').toLowerCase();
+  const built = Reports.build('connectivity', { routerId, from, to, aggregate });
   if (fmt === 'pdf') {
-    const offlineRows   = rows.filter(r => !r.connected);
-    const resolvedMs    = offlineRows.filter(r => r.downtime_ms != null).map(r => r.downtime_ms);
-    const totalDownMs   = resolvedMs.reduce((a, b) => a + b, 0);
-    const longestDownMs = resolvedMs.length ? _maxOf(resolvedMs) : null;
-    const rtr = Routers.getById(routerId);
-    return _toPdf('Connectivity Report', ['Timestamp', 'Status', 'Down Duration'],
-      label.map(r => ({ Timestamp: r.ts, Status: r.status, 'Down Duration': r.down_duration || '—' })), res, {
-        router: rtr ? (rtr.label || rtr.host) : routerId, from, to,
-        stats: [
-          { label: 'Total Events',   value: rows.length.toLocaleString() },
-          { label: 'Offline Events', value: offlineRows.length.toLocaleString() },
-          { label: 'Total Downtime', value: totalDownMs ? _fmtDuration(totalDownMs) : '—' },
-          { label: 'Longest Outage', value: longestDownMs != null ? _fmtDuration(longestDownMs) : '—' },
-        ],
-      });
+    return _toPdf(built.title, built.pdf.columns, built.pdf.rows, res, built.pdf.meta);
   }
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="connectivity-report.csv"');
-  res.send(_toCsv(label, cols));
+  res.setHeader('Content-Disposition', `attachment; filename="${built.csvFilename}"`);
+  res.send(_toCsv(built.csv.rows, built.csv.columns));
 });
 
 // ── Historical data cleanup ───────────────────────────────────────────────────
