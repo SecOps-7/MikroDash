@@ -31,7 +31,24 @@ const { POLL_BOUNDS } = require('./settings');
  *   disableable   whether the user may turn it off
  *   requires      collectors whose data it cannot work without
  *   cards         dashboard card ids, so the client can mark them
+ *   emptyKey      payload list(s) whose emptiness means "nothing to report here"
  */
+// `emptyKey` is what makes a collector eligible for dormancy: when every list it
+// names comes back empty for three consecutive payloads, the supervisor stops
+// holding the channel open and the card says so, instead of rendering a blank
+// table that reads as a failure. An array means "empty only if ALL are empty".
+//
+// Absent means the collector never sleeps on an empty result, and that is a
+// judgement about the payload, not about the collector's importance: ping and
+// system report scalars with no list to be empty, dns leads with a settings row
+// that is always present, conns reports an aggregate count rather than rows, and
+// logs assigns no lastPayload at all. A field that cannot distinguish "nothing
+// configured" from "working normally" would only produce false positives.
+//
+// Unsupported is separate and needs no registry entry: a payload carrying
+// `available: false` — the convention ppp, bridges, capsman, dns, packages, wan,
+// queues, rosusers and talkers already follow — sleeps immediately, because a
+// command error is durable in a way an empty table is not.
 // `page` is the page whose view this collector feeds — the single source for the
 // collector↔page edge (issue #108). null means the collector belongs to no one
 // page: traffic and system drive the header gauges on every page, and arp emits
@@ -55,42 +72,55 @@ const COLLECTORS = Object.freeze([
   { key: 'conns', label: 'Connections',        sessionProp: 'conns',        pollKey: 'pollConns',    defaultPollMs: 5000,
     streamKey: 'streamConns',    pollable: true,  disableable: true,  requires: [], page: 'connections', cards: ['connCard'] },
   { key: 'bandwidth', label: 'Bandwidth',    sessionProp: 'bandwidth',    pollKey: 'pollBandwidth', defaultPollMs: 5000,
-    streamKey: null,             pollable: true,  disableable: true,  requires: ['conns'], page: 'bandwidth', cards: ['bandwidthCard'] },
+    streamKey: null,             pollable: true,  disableable: true,  requires: ['conns'], page: 'bandwidth', cards: ['bandwidthCard'],
+    emptyKey: 'devices' },
   { key: 'talkers', label: 'Top Talkers',      sessionProp: 'talkers',      pollKey: 'pollTalkers',  defaultPollMs: 3000,
-    streamKey: 'streamTalkers',  pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: ['talkersCard'] },
+    streamKey: 'streamTalkers',  pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: ['talkersCard'],
+    emptyKey: 'devices' },
   { key: 'ifStatus', label: 'Interface Rates',     sessionProp: 'ifStatus',     pollKey: 'pollIfstatus', defaultPollMs: 5000,
-    streamKey: 'streamIfrates',  pollable: true,  disableable: true,  requires: [], page: 'interfaces', cards: ['ifStatusCard'] },
+    streamKey: 'streamIfrates',  pollable: true,  disableable: true,  requires: [], page: 'interfaces', cards: ['ifStatusCard'],
+    emptyKey: 'interfaces' },
   { key: 'ping', label: 'Ping',         sessionProp: 'ping',         pollKey: 'pollPing',     defaultPollMs: 5000,
     streamKey: 'streamPing',     pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: [] },
   { key: 'wireless', label: 'Wireless',     sessionProp: 'wireless',     pollKey: 'pollWireless', defaultPollMs: 30000,
-    streamKey: 'streamWireless', pollable: true,  disableable: true,  requires: [], page: 'wireless', cards: ['wirelessCard'] },
+    streamKey: 'streamWireless', pollable: true,  disableable: true,  requires: [], page: 'wireless', cards: ['wirelessCard'],
+    emptyKey: ['clients', 'ssids'] },
   { key: 'vpn', label: 'VPN',          sessionProp: 'vpn',          pollKey: 'pollVpn',      defaultPollMs: 10000,
-    streamKey: 'streamVpn',      pollable: true,  disableable: true,  requires: [], page: 'vpn', cards: ['vpnCard'] },
+    streamKey: 'streamVpn',      pollable: true,  disableable: true,  requires: [], page: 'vpn', cards: ['vpnCard'],
+    emptyKey: ['tunnels', 'ppp', 'ipsec'] },
   { key: 'firewall', label: 'Firewall',     sessionProp: 'firewall',     pollKey: 'pollFirewall', defaultPollMs: 5000,
-    streamKey: 'streamFirewall', pollable: true,  disableable: true,  requires: [], page: 'firewall', cards: ['firewallCard'] },
+    streamKey: 'streamFirewall', pollable: true,  disableable: true,  requires: [], page: 'firewall', cards: ['firewallCard'],
+    emptyKey: ['filter', 'nat', 'mangle', 'raw'] },
   { key: 'routing', label: 'Routing',      sessionProp: 'routing',      pollKey: 'pollRouting',  defaultPollMs: 10000,
     streamKey: 'streamRouting',  pollable: true,  disableable: true,  requires: [], page: 'routing',
-    cards: ['routingProtoCard', 'routingBgpCard', 'routingPeersCard', 'routingRoutesCard'] },
+    cards: ['routingProtoCard', 'routingBgpCard', 'routingPeersCard', 'routingRoutesCard'],
+    emptyKey: ['peers', 'routes'] },
   { key: 'netwatch', label: 'NetWatch',     sessionProp: 'netwatch',     pollKey: null,           defaultPollMs: 30000,
-    streamKey: 'streamNetwatch', pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: ['netwatchCard'] },
+    streamKey: 'streamNetwatch', pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: ['netwatchCard'],
+    emptyKey: 'hosts' },
   { key: 'topology', label: 'Network Topology', sessionProp: 'topology', pollKey: 'pollTopology', defaultPollMs: 30000,
-    streamKey: 'streamTopology', pollable: true,  disableable: true,  requires: [], page: 'topology', cards: ['topologyCard'] },
+    streamKey: 'streamTopology', pollable: true,  disableable: true,  requires: [], page: 'topology', cards: ['topologyCard'],
+    emptyKey: 'nodes' },
   // requires: [] on purpose for vlans. It reads live rates out of ifStatus and
   // client counts out of dhcpLeases, but declaring those here would cascade into
   // a hard disable — turning off Interface Rates would blank the whole VLANs
   // page, when membership, trunk ports and client counts are all still there.
   // Degrade the rates, not the page.
   { key: 'vlans', label: 'VLANs',        sessionProp: 'vlans',        pollKey: 'pollVlans',    defaultPollMs: 5000,
-    streamKey: 'streamVlans',    pollable: true,  disableable: true,  requires: [], page: 'vlans', cards: [] },
+    streamKey: 'streamVlans',    pollable: true,  disableable: true,  requires: [], page: 'vlans', cards: [],
+    emptyKey: 'vlans' },
   { key: 'ppp',   label: 'PPP',          sessionProp: 'ppp',          pollKey: 'pollPpp',      defaultPollMs: 5000,
-    streamKey: 'streamPpp',      pollable: true,  disableable: true,  requires: [], page: 'ppp',   cards: [] },
+    streamKey: 'streamPpp',      pollable: true,  disableable: true,  requires: [], page: 'ppp',   cards: [],
+    emptyKey: ['sessions', 'servers', 'profiles'] },
   // bridges borrows rates from ifStatus the way vlans does, and for the same
   // reason declares no requires: without Interface Rates a bridge still has
   // ports, STP roles and a host table worth showing.
   { key: 'bridges', label: 'Bridges',    sessionProp: 'bridges',      pollKey: 'pollBridges',  defaultPollMs: 5000,
-    streamKey: 'streamBridges',  pollable: true,  disableable: true,  requires: [], page: 'bridges', cards: [] },
+    streamKey: 'streamBridges',  pollable: true,  disableable: true,  requires: [], page: 'bridges', cards: [],
+    emptyKey: 'bridges' },
   { key: 'capsman', label: 'CAPsMAN',    sessionProp: 'capsman',      pollKey: 'pollCapsman',  defaultPollMs: 10000,
-    streamKey: 'streamCapsman',  pollable: true,  disableable: true,  requires: [], page: 'capsman', cards: [] },
+    streamKey: 'streamCapsman',  pollable: true,  disableable: true,  requires: [], page: 'capsman', cards: [],
+    emptyKey: ['caps', 'localRadios'] },
   // dns, packages and rosusers are streamKey: null ON PURPOSE, and they are the
   // only entries in this registry that are. RouterOS would accept /listen on both menus, so this
   // is a choice rather than a limitation:
@@ -109,25 +139,29 @@ const COLLECTORS = Object.freeze([
   { key: 'dns',   label: 'DNS',          sessionProp: 'dns',          pollKey: 'pollDns',      defaultPollMs: 10000,
     streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'dns',   cards: [] },
   { key: 'packages', label: 'Packages',  sessionProp: 'packages',     pollKey: 'pollPackages', defaultPollMs: 60000,
-    streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'packages', cards: [] },
+    streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'packages', cards: [],
+    emptyKey: 'packages' },
   // wan borrows rates from ifStatus the way vlans and bridges do, and declares
   // no requires for the same reason: switching Interface Rates off should cost
   // the rate column, not the page.
   { key: 'wan',   label: 'WAN',        sessionProp: 'wan',          pollKey: 'pollWan',      defaultPollMs: 10000,
-    streamKey: 'streamWan',      pollable: true,  disableable: true,  requires: [], page: 'wan', cards: [] },
+    streamKey: 'streamWan',      pollable: true,  disableable: true,  requires: [], page: 'wan', cards: [],
+    emptyKey: 'wans' },
   // queues borrows the FastTrack summary from the firewall collector the way
   // vlans borrows rates from ifStatus, and declares no `requires` for the same
   // reason: a hard dependency would blank the whole Queues page when somebody
   // switched Firewall collection off. Degrade the banner, not the page.
   { key: 'queues', label: 'Queues',   sessionProp: 'queues',       pollKey: 'pollQueues',   defaultPollMs: 5000,
-    streamKey: 'streamQueues',   pollable: true,  disableable: true,  requires: [], page: 'queues', cards: [] },
+    streamKey: 'streamQueues',   pollable: true,  disableable: true,  requires: [], page: 'queues', cards: [],
+    emptyKey: ['simple', 'tree'] },
   // rosusers is the third streamKey: null entry, for the same reason as
   // packages rather than dns: a router's user list changes when an operator
   // edits it, which is a human-timescale event. It polls slowly and the page
   // forces a re-read after every action, so a channel held open for weeks would
   // buy nothing.
   { key: 'rosusers', label: 'Router Users', sessionProp: 'rosusers',  pollKey: 'pollRosusers', defaultPollMs: 60000,
-    streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'rosusers', cards: [] },
+    streamKey: null,             pollable: true,  disableable: true,  requires: [], page: 'rosusers', cards: [],
+    emptyKey: 'users' },
   // logs stays streamed even in poll mode: /log/listen pushes new entries, and
   // polling /log/print would drop lines between polls. Correctness, not fidelity.
   { key: 'logs', label: 'Logs',         sessionProp: 'logs',         pollKey: null,           defaultPollMs: 0,
@@ -138,6 +172,12 @@ const BY_KEY      = Object.freeze(Object.fromEntries(COLLECTORS.map(c => [c.key,
 const DISABLEABLE = Object.freeze(COLLECTORS.filter(c => c.disableable).map(c => c.key));
 const POLL_KEYS   = Object.freeze([...new Set(COLLECTORS.map(c => c.pollKey).filter(Boolean))]);
 const STREAM_KEYS = Object.freeze(COLLECTORS.map(c => c.streamKey).filter(Boolean));
+// Collectors the dormancy supervisor may put to sleep on an empty result. Every
+// entry is disableable by construction — a protected collector feeds stored
+// history or another collector's name resolution, so nobody is watching is not
+// a reason to stop reading it.
+const DORMANCY_ELIGIBLE = Object.freeze(
+  COLLECTORS.filter(c => c.emptyKey && c.disableable).map(c => c.key));
 
 const DEFAULT_MODE = 'stream';
 const MODES = Object.freeze(['stream', 'poll']);
@@ -289,6 +329,6 @@ function collectionFingerprint(settings, routerRecord) {
 }
 
 module.exports = {
-  COLLECTORS, BY_KEY, DISABLEABLE, POLL_KEYS, STREAM_KEYS, MODES, DEFAULT_MODE,
+  COLLECTORS, BY_KEY, DISABLEABLE, POLL_KEYS, STREAM_KEYS, MODES, DEFAULT_MODE, DORMANCY_ELIGIBLE,
   clampPollValue, resolveCollection, collectionFingerprint, planMigration, LEGACY_STREAM_KEYS,
 };

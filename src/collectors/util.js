@@ -206,5 +206,141 @@ function createListenRefresh({ ros, cmd, label, onEvent, retryMs = 3000 }) {
   return { start, stop, get open() { return !!stream; } };
 }
 
+/**
+ * Decides when a collector with nothing to report should stop holding a channel
+ * open, and when to look again.
+ *
+ * The distinction that matters is between "this router cannot do it" and "this
+ * router has nothing configured". The first is a command error — durable, only
+ * changed by a RouterOS upgrade or a package install — so it sleeps straight to
+ * the long delay. The second is ordinary and transient: a router with no
+ * netwatch hosts today may have three tomorrow, so it sleeps only after
+ * `emptyThreshold` consecutive empties and re-probes on a doubling delay.
+ *
+ * Two subtleties, both learned the hard way in talkers.js:
+ *
+ *   A streak counts distinct PAYLOADS, not ticks. The supervisor polls every
+ *   15 s while dhcpNetworks emits every 10 minutes, so counting ticks would
+ *   condemn a slow collector on the strength of one observation. `ts` is the
+ *   discriminator, which is why every collector stamps it.
+ *
+ *   A probe can produce nothing at all — a collector that suppresses an
+ *   unchanged emit never advances `ts`, and waiting for a verdict that cannot
+ *   arrive would strand it re-probing forever. `probeTimeoutMs` settles that
+ *   case as "still asleep" rather than leaving it undecided.
+ *
+ * observe() returns 'sleep' | 'wake' | null, so the caller emits only on a
+ * transition rather than on every tick.
+ */
+/**
+ * Is every list this collector declares empty?
+ *
+ * `emptyKey` is a payload field name, or several — several meaning "empty only
+ * if ALL are empty", because a VPN with no WireGuard peers but three IPsec SAs
+ * has plenty to show.
+ *
+ * Returns false when the payload carries none of the named lists, which is NOT
+ * the same as empty: a collector mid-construction, or one whose payload shape
+ * moved under the registry, must not be condemned on a payload we cannot read.
+ */
+function payloadEmpty(payload, emptyKey) {
+  if (!payload || !emptyKey) return false;
+  const keys = Array.isArray(emptyKey) ? emptyKey : [emptyKey];
+  let readable = false;
+  for (const k of keys) {
+    const v = payload[k];
+    if (!Array.isArray(v)) continue;
+    readable = true;
+    if (v.length > 0) return false;
+  }
+  return readable;
+}
+
+function createDormancyState({
+  emptyThreshold = 3,
+  backoffMs      = 60000,
+  maxBackoffMs   = 600000,
+  probeTimeoutMs = 30000,
+  restampMs      = 45000,
+} = {}) {
+  let streak = 0, dormant = false, probing = false;
+  let lastTs = 0, wakeAt = 0, probeDeadline = 0, lastCountedAt = 0;
+  let delay = backoffMs;
+
+  const sleepFor = (ms, now) => { dormant = true; streak = 0; delay = ms; wakeAt = now + ms; };
+  const backOff  = (now) => { probing = false; delay = Math.min(delay * 2, maxBackoffMs); wakeAt = now + delay; };
+
+  return {
+    /**
+     * Judge one observation: { ts, empty, unsupported }. A repeated `ts` means
+     * the collector has produced nothing new and is not evidence either way.
+     */
+    observe(obs, now = Date.now()) {
+      if (!obs || !obs.ts) return null;
+      const bad = obs.unsupported === true || obs.empty === true;
+
+      // A payload that has STOPPED advancing is not "no information" when it is
+      // empty. Five collectors — netwatch, vpn, firewall, routing, topology —
+      // heartbeat by emitting `{ ...lastPayload, ts: Date.now() }` to the browser
+      // and never reassign lastPayload, so their ts freezes the moment the data
+      // settles. Requiring a fresh ts meant dormancy could never fire for any of
+      // them: it worked for the 9 poll-loop collectors and silently skipped the
+      // rest.
+      //
+      // Still rate-limited rather than counted every tick, which is what the
+      // distinct-ts rule was protecting: a 10-minute collector must not be
+      // condemned by a supervisor ticking every 15 s. One observation held empty
+      // for restampMs is the evidence, not the tick that noticed it.
+      const fresh = obs.ts !== lastTs;
+      if (!fresh) {
+        if (!bad || dormant) return null;
+        if (!lastCountedAt || (now - lastCountedAt) < restampMs) return null;
+      }
+      lastTs = obs.ts;
+      lastCountedAt = now;
+
+      if (!obs.unsupported && !obs.empty) {
+        streak = 0; delay = backoffMs; probing = false;
+        if (!dormant) return null;
+        dormant = false; wakeAt = 0;
+        return 'wake';
+      }
+      // Still nothing to report. If we were already asleep this is a probe that
+      // came back empty, so lengthen the delay rather than re-announcing sleep.
+      if (dormant) { backOff(now); return null; }
+      if (obs.unsupported) { sleepFor(maxBackoffMs, now); return 'sleep'; }
+      if (++streak < emptyThreshold) return null;
+      sleepFor(backoffMs, now);
+      return 'sleep';
+    },
+
+    /** Is it time to look again? Also settles a probe that never reported back. */
+    dueForProbe(now = Date.now()) {
+      if (!dormant) return false;
+      if (probing) {
+        if (now < probeDeadline) return false;
+        backOff(now);            // probe produced no fresh payload — still asleep
+        return false;
+      }
+      return now >= wakeAt;
+    },
+
+    /** Caller has just re-probed; hold off until it reports or times out. */
+    markProbed(now = Date.now()) { probing = true; probeDeadline = now + probeTimeoutMs; },
+
+    /** Router reconnected or the session was rebuilt — forget everything. */
+    reset() {
+      streak = 0; dormant = false; probing = false;
+      lastTs = 0; wakeAt = 0; probeDeadline = 0; lastCountedAt = 0; delay = backoffMs;
+    },
+
+    get dormant() { return dormant; },
+    get probing() { return probing; },
+    get streak()  { return streak; },
+    get delayMs() { return delay; },
+    get wakeAt()  { return wakeAt; },
+  };
+}
+
 module.exports = { clampPoll, stopStreamSafe, parseBps, bpsToMbps, createStreamHealth,
-                   createPollLoop, createListenRefresh };
+                   createPollLoop, createListenRefresh, createDormancyState, payloadEmpty };
