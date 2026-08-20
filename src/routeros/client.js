@@ -77,6 +77,43 @@ class ROS extends EventEmitter {
     return new RouterOSAPI(opts);
   }
 
+  /**
+   * Ask this connection — and only this one — for bytes rather than text.
+   *
+   * The receiver decodes every API word as UTF-8, which is right for every
+   * collector and wrong for `/file/read`: that returns raw file bytes, and a
+   * UTF-8 decode replaces each invalid one with U+FFFD. It fails silently,
+   * because one replacement character per bad byte leaves the reassembled
+   * length matching the file size exactly. Verified against a live AX3: a
+   * known blob read back with a different sha256 and 177 of its 256 distinct
+   * byte values surviving.
+   *
+   * With `rawBytes`, Patch 3 in patch-routeros.js decodes as latin1 instead —
+   * one code unit per byte, so `Buffer.from(str, 'latin1')` recovers the file
+   * exactly. Only the backup transport sets it, on its own short-lived
+   * connection, so no collector sees a different string than it does today.
+   *
+   * The receiver is rebuilt on every reconnect, which is why this runs inside
+   * connectLoop rather than once at construction.
+   */
+  _applyRawBytes() {
+    if (!this.cfg.rawBytes) return;
+    const receiver = this.conn && this.conn.connector && this.conn.connector.receiver;
+    if (!receiver) {
+      throw new Error('rawBytes requested but the connection exposes no receiver');
+    }
+    // The PATCH is what reads the flag, and patch-routeros.js only warns when a
+    // library update moves its target — so an unpatched receiver would accept
+    // `rawBytes = true`, ignore it, and hand back a file that is the right
+    // length and the wrong bytes. Refuse instead: a backup that cannot be
+    // restored is worse than one that was never taken.
+    if (!/rawBytes/.test(String(receiver.processRawData))) {
+      throw new Error('rawBytes requested but Receiver.js is unpatched — ' +
+                      'see Patch 3 in patch-routeros.js');
+    }
+    receiver.rawBytes = true;
+  }
+
   // emit() runs listeners synchronously — one throwing listener would otherwise
   // escape connectLoop's catch and permanently end the reconnect loop (or, from
   // a conn callback, crash the process). Contain it here.
@@ -114,6 +151,7 @@ class ROS extends EventEmitter {
         });
 
         await this.conn.connect();
+        this._applyRawBytes();
         this.connected = true;
         this.backoffMs = 2000;
         // Success is logged by wireRosEvents connected handler
