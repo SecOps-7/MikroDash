@@ -175,32 +175,59 @@ patch(
   ]
 );
 
-// ── Patch 3: Receiver.js — UTF-8 string decoding ────────────────────────────
+// ── Patch 3: Receiver.js — string decoding, per connection ───────────────
 // node-routeros hardcodes win1252 when it converts raw TCP bytes to JS strings.
-// RouterOS sends UTF-8 strings (confirmed in 6.x and 7.x), so win1252 mangles
-// any non-Latin characters (Cyrillic, Greek, etc.) into garbage sequences.
-// Switching to utf8 fixes device names, DHCP comments, interface labels, etc.
+// RouterOS sends UTF-8, so win1252 mangles Cyrillic, Greek and the rest into
+// garbage. Decoding as UTF-8 fixes device names, DHCP comments and labels —
+// and is what every collector wants.
+//
+// It is not what a caller reading a FILE wants. `/file/read` returns raw bytes
+// in its `data` word, and a UTF-8 decode replaces every invalid byte with
+// U+FFFD. That is silent: one replacement character per bad byte, so the
+// reassembled length still matches the file size exactly and the result looks
+// fine. A known blob pushed to a live AX3 and read back came home with a
+// different sha256 and 177 of its 256 distinct byte values intact.
+//
+// So the encoding becomes a property of the CONNECTION. `this` here is the
+// Receiver, one per connection; `rawBytes` is set by src/routeros/client.js
+// after connect. latin1 maps each byte to one code unit and is therefore
+// lossless — Buffer.from(str, 'latin1') recovers the file exactly.
+//
+// Nothing sets the flag except the backup transport, which opens its own
+// short-lived connection. No collector's data path changes.
 patch(
   path.join(BASE, 'connector', 'Receiver.js'),
-  'UTF8_ENCODING',
+  'RAW_BYTES',
   [
+    // Fresh install: the pristine win1252 form.
     {
       find: `this.currentLine += iconv.decode(data, 'win1252');`,
-      replace: `this.currentLine += iconv.decode(data, 'utf8');`,
+      replace: `this.currentLine += iconv.decode(data, this.rawBytes ? 'latin1' : 'utf8');`,
     },
     {
       find: `this.currentLine += iconv.decode(data, "win1252");`,
-      replace: `this.currentLine += iconv.decode(data, "utf8");`,
+      replace: `this.currentLine += iconv.decode(data, this.rawBytes ? 'latin1' : 'utf8');`,
     },
     {
       // second decode call — handles the case where the buffer contains more
       // data than the current token length requires (sliced into tmpBuffer)
       find: `const tmpStr = iconv.decode(tmpBuffer, 'win1252');`,
-      replace: `const tmpStr = iconv.decode(tmpBuffer, 'utf8');`,
+      replace: `const tmpStr = iconv.decode(tmpBuffer, this.rawBytes ? 'latin1' : 'utf8');`,
     },
     {
       find: `const tmpStr = iconv.decode(tmpBuffer, "win1252");`,
-      replace: `const tmpStr = iconv.decode(tmpBuffer, "utf8");`,
+      replace: `const tmpStr = iconv.decode(tmpBuffer, this.rawBytes ? 'latin1' : 'utf8');`,
+    },
+    // A tree already carrying the older UTF8_ENCODING patch — a working copy
+    // that has not been reinstalled. Without these it would find nothing and
+    // warn, leaving the connection unable to read a file.
+    {
+      find: `this.currentLine += iconv.decode(data, 'utf8');`,
+      replace: `this.currentLine += iconv.decode(data, this.rawBytes ? 'latin1' : 'utf8');`,
+    },
+    {
+      find: `const tmpStr = iconv.decode(tmpBuffer, 'utf8');`,
+      replace: `const tmpStr = iconv.decode(tmpBuffer, this.rawBytes ? 'latin1' : 'utf8');`,
     },
   ]
 );
@@ -264,5 +291,34 @@ patch(
   fs.writeFileSync(channelPath, src.replace(find, replace), 'utf8');
   console.log('[patch] MULTI_BLOCK_V2 — applied');
 })();
+
+// ── Patch 6: Transmitter.js — UTF-8 string encoding ─────────────────────────
+// The mirror of Patch 3, and it was missed when that one landed: node-routeros
+// still ENCODES outgoing words as win1252. Anything outside that set has no
+// representation, so iconv substitutes '?' — silently, before the word reaches
+// the router.
+//
+// Reading was fixed and writing was not, which stopped mattering only because
+// MikroDash could not write. It can now: a Cyrillic comment typed into the
+// resource engine was stored on a live AX3 as '???????'. Verified there, not
+// inferred.
+//
+// RouterOS speaks UTF-8 in both directions (WinBox sends it too), and the
+// length descriptor is computed from `encoded.length` — a byte count — so
+// multi-byte characters are framed correctly with no further change.
+patch(
+  path.join(BASE, 'connector', 'Transmitter.js'),
+  'UTF8_ENCODE',
+  [
+    {
+      find: `const encoded = iconv.encode(str, 'win1252');`,
+      replace: `const encoded = iconv.encode(str, 'utf8');`,
+    },
+    {
+      find: `const encoded = iconv.encode(str, "win1252");`,
+      replace: `const encoded = iconv.encode(str, 'utf8');`,
+    },
+  ]
+);
 
 console.log('[patch] Done.');
