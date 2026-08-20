@@ -401,8 +401,29 @@ test('a retention sweep can never delete a restore point', () => {
 test('pruning clears the artefact, never the run', () => {
   assert.ok(DB_SRC.includes('UPDATE config_backups SET pruned_at'),
     'the history of when a router was checked outlives its files');
-  assert.ok(!/DELETE FROM config_backups/.test(DB_SRC),
-    'nothing may delete a backup row');
+});
+
+test('the only way to delete a backup row is one id at a time', () => {
+  // This used to be a blanket ban on DELETE FROM config_backups. An operator
+  // pressing Delete now removes the row as well as the files — a tombstone
+  // reading "pruned" is retention's answer, not the answer to somebody saying
+  // "I do not want this listed". What must NOT come back is a sweep, so the
+  // guard is now about the SHAPE of the delete rather than its existence.
+  const deletes = DB_SRC.match(/DELETE FROM config_backups[^']*/g) || [];
+  assert.equal(deletes.length, 1, 'exactly one delete statement, no more');
+  assert.match(deletes[0], /WHERE id = \?$/,
+    'scoped to a single row by id — never by router, by age, or unscoped');
+});
+
+test('retention and router removal still never delete a row', () => {
+  // The two paths that run without anybody asking. A backup row outliving its
+  // router is the point: it is the last record of that device's configuration.
+  const prune = SRC('backups/index.js');
+  assert.ok(/markBackupPruned/.test(prune) && !/deleteBackup/.test(prune),
+    'retention marks pruned and must not start deleting');
+  const start = DB_SRC.indexOf('function deleteRouterData');
+  const del = DB_SRC.slice(start, DB_SRC.indexOf('}', DB_SRC.indexOf('console.log', start)));
+  assert.ok(!/config_backups/.test(del), 'and removing a router leaves the rows alone');
 });
 
 test('the backup password never reaches a browser', () => {
