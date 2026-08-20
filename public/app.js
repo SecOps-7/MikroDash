@@ -13735,7 +13735,11 @@ function _renderRoutersMap(rows) {
       return new Intl.DateTimeFormat('sv-SE', {
         timeZone: _displayTimezone, year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
-      }).format(d).replace(' ', ' ');
+      // 'T', not ' '. Some ICU builds render sv-SE date-time with an ISO
+      // separator (2026-08-20T10:37:07), which the Reports page normalises the
+      // same way. This was a miscopy of that line and replaced a space with
+      // itself, so the Audit page kept the T wherever the runtime emits one.
+      }).format(d).replace('T', ' ');
     }
     var p = function (n) { return String(n).padStart(2, '0'); };
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' +
