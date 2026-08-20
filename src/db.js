@@ -1449,7 +1449,27 @@ function storedBackups(routerId) {
                 ORDER BY taken_at DESC`).all(routerId);
 }
 
-/** The artefacts are gone; the record of the run is not. */
+/**
+ * Remove a backup row outright — a deliberate operator delete, not retention.
+ *
+ * The two are different acts and get different treatment. Retention aging a pair
+ * out is something MikroDash did on its own, so markBackupPruned keeps the row
+ * and the History table explains the disappearance. Pressing Delete is somebody
+ * saying "I do not want this listed", and leaving a tombstone behind answers a
+ * question they did not ask.
+ *
+ * The trail is not lost: audit_events independently records the backup.run that
+ * created it and the backup.delete that removed it, and the audit table is the
+ * one place deliberately hard to erase. The caller resolves the id router-first,
+ * so this can only ever be aimed at a row it was already allowed to see.
+ */
+function deleteBackup(id) {
+  if (!_db) return false;
+  const info = _prep('DELETE FROM config_backups WHERE id = ?').run(Number(id));
+  return info.changes > 0;
+}
+
+/** The artefacts are gone; the record of the run is not. Retention's half. */
 function markBackupPruned(id, ts) {
   if (!_db) return false;
   const info = _prep('UPDATE config_backups SET pruned_at = ? WHERE id = ?')
@@ -2030,7 +2050,7 @@ module.exports = {
   insertAuditEvent, queryAuditEvents, auditFacets,
   prune, startPruneInterval, deleteRouterData,
   recordBackup, listBackups, getBackup, latestFingerprint, lastBackupRun,
-  storedBackups, markBackupPruned, backupSummary,
+  storedBackups, markBackupPruned, deleteBackup, backupSummary,
   listReportSchedules, listReportSchedulesFor, getReportSchedule, upsertReportSchedule,
   setReportScheduleEnabled, deleteReportSchedule, deleteReportSchedulesForRouter,
   recordReportRun, reportRunHistory, listReportRuns, REPORT_RUN_KEEP,

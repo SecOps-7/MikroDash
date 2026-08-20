@@ -35,14 +35,38 @@ function fnBody(src, decl) {
 
 // ── The delete handler ──────────────────────────────────────────────────────
 
-test('deleting a backup clears the artefact, never the run record', () => {
-  // The row is the record that a backup HAPPENED. Removing rows would let
-  // somebody erase the evidence of one having been taken, so a manual delete
-  // goes down the same path retention already uses.
+test('deleting a backup removes the files AND the row that listed them', () => {
+  // Pressing Delete means "I do not want this listed". A row left behind reading
+  // "pruned" is retention's answer to a question the operator did not ask here.
   const h = handlerFor('backups:delete');
-  assert.ok(/markBackupPruned/.test(h), 'the row is marked pruned');
-  assert.ok(!/deleteBackup|DELETE FROM config_backups/.test(h), 'and never deleted');
-  assert.ok(/removePair/.test(h), 'the files on disk do go');
+  assert.ok(/db\.deleteBackup\(/.test(h), 'the row goes');
+  assert.ok(/removePair/.test(h), 'and so do the files');
+  assert.ok(!/markBackupPruned/.test(h),
+    'markBackupPruned is retention\'s half — a manual delete leaves no tombstone');
+});
+
+test('files are removed before the row', () => {
+  // The row is the only thing pointing at the pair. Dropping it first and then
+  // failing to unlink would orphan several MB on disk with nothing to find it by.
+  const h = handlerFor('backups:delete');
+  assert.ok(h.indexOf('removePair') < h.indexOf('db.deleteBackup('),
+    'unlink first, then forget where it was');
+});
+
+test('retention still keeps its rows', () => {
+  // Different act, different treatment: an aged-out pair is something MikroDash
+  // did on its own, so the History table has to be able to explain it.
+  const prune = fs.readFileSync(path.join(__dirname, '..', 'src', 'backups', 'index.js'), 'utf8');
+  assert.ok(/markBackupPruned/.test(prune), 'retention marks rather than deletes');
+  assert.ok(!/deleteBackup/.test(prune), 'and must not start deleting');
+});
+
+test('the audit entry is the surviving record', () => {
+  // Removing the row is fine precisely because audit_events holds both the
+  // backup.run that created it and the backup.delete that removed it.
+  const h = handlerFor('backups:delete');
+  assert.ok(/action: 'backup\.delete'/.test(h));
+  assert.ok(/targetId: removed\.join/.test(h), 'naming which ids went');
 });
 
 test('a delete may only reach the router the socket is on', () => {
@@ -109,8 +133,16 @@ test('both bulk buttons start disabled and dim rather than vanish', () => {
 test('Restore needs exactly one selection, Delete needs at least one', () => {
   const body = fnBody(APP_SRC, 'function _syncBulk');
   assert.ok(/del\.disabled = n === 0/.test(body), 'Delete is available for one OR many');
-  assert.ok(/rst\.disabled = n !== 1/.test(body),
+  assert.ok(/n === 1/.test(body) && /rst\.disabled = !canRestore/.test(body),
     'Restore replaces a whole configuration, so several is not an answer it can act on');
+});
+
+test('Restore also needs the selected row to still have files', () => {
+  // Delete now works on any row, so "one selected" no longer implies "one that
+  // can be restored from" — an unchanged run has a row and no backup behind it.
+  const body = fnBody(APP_SRC, 'function _syncBulk');
+  assert.ok(/_restorable\.has\(only\)/.test(body), 'the single selection must be restorable');
+  assert.ok(/no stored backup to restore from/.test(body), 'and say so when it is not');
 });
 
 test('a viewer gets no bulk buttons at all', () => {
@@ -135,11 +167,16 @@ test('the selection survives a re-render but not a router switch', () => {
     'every selected id belongs to the device we just left');
 });
 
-test('only a row with files on disk is selectable', () => {
-  assert.ok(/var pickable = !!\(r\.stem && !r\.pruned && st\.permitted\)/.test(APP_SRC),
-    'a failed or already-pruned run has nothing to delete or restore');
+test('every row is selectable, because Delete now clears the row itself', () => {
+  // A run that stored nothing, or one whose pair retention already took, has no
+  // files — but the row is still the operator's to remove. Refusing those would
+  // leave rows in the History table that nothing can ever clear.
+  assert.ok(/var pickable   = !!st\.permitted;/.test(APP_SRC),
+    'selectability is about permission, not about files');
+  assert.ok(/var restorable = !!\(r\.stem && !r\.pruned\)/.test(APP_SRC),
+    'the files question moved to where it still matters: Restore');
   assert.ok(/pickable \? '' : ' disabled'/.test(APP_SRC),
-    'and gets a disabled box rather than none, so the rows do not jump about');
+    'a viewer still gets a disabled box rather than none, so rows do not jump about');
 });
 
 test('the select-all box reflects a partial selection', () => {
@@ -154,18 +191,34 @@ test('selection is driven by change, not click', () => {
   assert.ok(/addEventListener\('change', function \(ev\) \{[\s\S]{0,400}bkPickAll/.test(APP_SRC));
 });
 
-test('the table gained a column to put the boxes in', () => {
+test('the table gained columns for the boxes and the id', () => {
+  // table-layout is fixed, so a colgroup out of step with the header row silently
+  // misaligns every column after the mismatch rather than failing visibly.
   const at = HTML_SRC.indexOf('id="bkHistoryCard"');
   const card = HTML_SRC.slice(at, HTML_SRC.indexOf('</table>', at));
   const cols = (card.match(/<col /g) || []).length;
   const ths  = (card.match(/<th[ >]/g) || []).length;
   assert.equal(cols, ths, 'colgroup and header row must stay the same width');
-  assert.equal(cols, 7, 'six data columns plus the selection column');
+  assert.equal(cols, 8, 'six data columns, plus selection and ID');
 });
 
-test('deleting says what survives', () => {
-  // "Delete" reads as if the history goes too, and it does not.
+test('the id is shown as its own pill, immediately after the checkbox', () => {
+  const at = HTML_SRC.indexOf('id="bkHistoryCard"');
+  const card = HTML_SRC.slice(at, HTML_SRC.indexOf('</table>', at));
+  assert.ok(/bkPickAll[\s\S]{0,200}<th>ID<\/th>/.test(card),
+    'the ID header sits directly right of the select-all box');
+  assert.ok(/\.bk-id-pill\{/.test(HTML_SRC), 'and has its own pill style');
+  // Distinct from the Result column's Tabler badges, or it reads as a status.
+  assert.ok(!/bk-id-pill[^}]*bg-\w+-lt/.test(HTML_SRC));
+  assert.ok(/<td><span class="bk-id-pill">' \+ esc\(String\(r\.id\)\)/.test(APP_SRC),
+    'rendered from the row id, escaped like everything else');
+});
+
+test('deleting says what goes, and where the record survives', () => {
   const body = fnBody(APP_SRC, 'function deleteSelected');
   assert.ok(/window\.confirm/.test(body), 'destructive and irreversible, so it asks');
-  assert.ok(/pruned/.test(body), 'and says the history rows stay');
+  assert.ok(/history rows are removed/.test(body), 'the row goes too, so say so');
+  assert.ok(/Audit/.test(body),
+    'and point at what IS kept, rather than implying nothing is');
+  assert.ok(!/marked as pruned/.test(body), 'the old promise no longer holds');
 });

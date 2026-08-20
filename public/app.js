@@ -15145,17 +15145,23 @@ function _renderRoutersMap(rows) {
 
       var detail = r.error ? esc(r.error)
                  : (r.stem ? esc(r.stem) : '');
-      // Only a row with files still on disk can be deleted or restored, so a
-      // failed run or an already-pruned one gets a disabled box rather than
-      // none: keeping the column occupied stops the rows from jumping about.
-      var pickable = !!(r.stem && !r.pruned && st.permitted);
-      var picked   = pickable && _picked.has(r.id);
+      // Every row is selectable, because Delete now clears the row itself and a
+      // row with no files — an unchanged run, or one retention already took — is
+      // still the operator's to remove. Restore is the narrower action, so it is
+      // gated on _restorable below rather than on the checkbox.
+      var pickable   = !!st.permitted;
+      var restorable = !!(r.stem && !r.pruned);
+      if (restorable) _restorable.add(r.id);
+      var picked = pickable && _picked.has(r.id);
       return '<tr' + (picked ? ' class="bk-row-picked"' : '') + '>' +
         '<td class="text-center" style="padding-right:0">' +
           '<input type="checkbox" class="bk-pick" data-bk-pick="' + r.id + '"' +
           (picked ? ' checked' : '') + (pickable ? '' : ' disabled') +
           ' aria-label="Select this restore point">' +
         '</td>' +
+        // The row id, which is what an audit entry names and what a support
+        // question quotes — so it needs to be readable, not dug out of the DOM.
+        '<td><span class="bk-id-pill">' + esc(String(r.id)) + '</span></td>' +
         '<td>' + esc(fmtWhen(r.takenAt)) +
           (detail ? '<div class="muted-note" style="font-size:.7rem">' + detail + '</div>' : '') + '</td>' +
         '<td><span class="badge ' + o.cls + '">' + esc(o.label) + '</span></td>' +
@@ -15348,13 +15354,16 @@ function _renderRoutersMap(rows) {
   // Ids rather than row indexes, so a list that re-renders under a scheduled run
   // does not silently move the selection onto different backups.
   var _picked = new Set();
+  // Which of the selected rows Restore could actually act on. Delete works on
+  // any row; Restore needs one whose files are still on disk, so the two cannot
+  // share a single "is it selected" answer.
+  var _restorable = new Set();
 
-  /** Drop ids that are no longer selectable, e.g. pruned by retention mid-view. */
+  /** Drop ids that have left the table entirely — deleted, or a router switch. */
   function _prunePicked(st) {
-    var live = new Set(((st && st.rows) || [])
-      .filter(function (r) { return r.stem && !r.pruned; })
-      .map(function (r) { return r.id; }));
+    var live = new Set(((st && st.rows) || []).map(function (r) { return r.id; }));
     Array.from(_picked).forEach(function (id) { if (!live.has(id)) _picked.delete(id); });
+    _restorable.clear();   // rebuilt as renderRows walks the rows
   }
 
   /**
@@ -15371,9 +15380,15 @@ function _renderRoutersMap(rows) {
       del.title = n === 0 ? 'Select one or more restore points to delete' : '';
     }
     if (rst) {
-      rst.disabled = n !== 1 || _busy;
+      // Exactly one, AND that one has files. Selecting a row whose backup is
+      // gone — an unchanged run, or one retention took — leaves nothing to
+      // restore from, so the button stays dim and says which it is.
+      var only = n === 1 ? Array.from(_picked)[0] : null;
+      var canRestore = only !== null && _restorable.has(only);
+      rst.disabled = !canRestore || _busy;
       rst.title = n === 0 ? 'Select a restore point to restore from'
                 : n > 1  ? 'Restore takes a single restore point — select just one'
+                : !canRestore ? 'That row has no stored backup to restore from'
                 : '';
     }
     var all = el('bkPickAll');
@@ -15397,9 +15412,10 @@ function _renderRoutersMap(rows) {
     var msg = ids.length === 1
       ? 'Delete this restore point?'
       : 'Delete these ' + ids.length + ' restore points?';
-    // Says what survives, because "delete" reads as if the history goes too.
-    if (!window.confirm(msg + '\n\nThe stored files are removed and cannot be recovered.\n' +
-        'The history rows stay, marked as pruned.')) return;
+    // Both halves go — the files and the row listing them — so say so, and say
+    // where the record does survive rather than implying nothing is kept.
+    if (!window.confirm(msg + '\n\nThe stored files and their history rows are removed,\n' +
+        'and cannot be recovered. The Audit page keeps the record.')) return;
     socket.emit('backups:delete', { ids: ids });
     _picked.clear();
     _syncBulk();

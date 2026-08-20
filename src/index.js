@@ -6294,13 +6294,18 @@ io.on('connection', (socket) => {
    *     mid-flight and there may be no "after".
    */
   /**
-   * Delete stored restore points — the artefacts, not the record.
+   * Delete stored restore points: the files, and the row that listed them.
    *
-   * markBackupPruned is the call retention already uses, and deliberately so:
-   * the row is the record that a backup RAN, and deleting one is a statement
-   * about disk, not about history. The row stays and the History table shows it
-   * as pruned, exactly like an aged-out one. Deleting rows instead would let
-   * somebody erase the evidence of a backup having been taken.
+   * Deliberately NOT markBackupPruned, which is retention's half. The two are
+   * different acts: retention aging a pair out is something MikroDash did on its
+   * own, so a row left behind reading "pruned" explains where the backup went.
+   * Pressing Delete is somebody saying "I do not want this listed", and a
+   * tombstone answers a question they did not ask.
+   *
+   * The evidence is not erased with it. audit_events independently holds the
+   * backup.run that created each one and the backup.delete below, and the audit
+   * table is the one place deliberately hard to clear — so the record of a backup
+   * having been taken outlives its row.
    *
    * Every id goes through _bkRow, so it must belong to the router this socket is
    * on — a caller cannot reach another router's backups by guessing ids.
@@ -6325,12 +6330,19 @@ io.on('connection', (socket) => {
     let failed = 0;
     for (const id of ids) {
       const row = _bkRow(id, rid);
-      // Silently skip anything already gone or not ours: a partial selection
-      // that raced a retention sweep is not an error worth showing.
-      if (!row || !row.stem || row.pruned_at) continue;
+      // Not ours, or already gone: skip silently. A selection that raced a
+      // retention sweep is not an error worth showing.
+      if (!row) continue;
       try {
-        BackupStore.removePair(row.dir || fallbackDir, row.stem);
-        db.markBackupPruned(row.id, Date.now());
+        // A row with no files is still the operator's to remove — a run that
+        // stored nothing because the configuration was unchanged, or one whose
+        // pair retention already took. Now that Delete clears the row, the
+        // History table is a list somebody curates rather than an append-only
+        // log, and refusing those would leave rows nothing can ever clear.
+        // Files first: drop the row first and fail the unlink, and several MB
+        // are orphaned on disk with nothing left pointing at them.
+        if (row.stem && !row.pruned_at) BackupStore.removePair(row.dir || fallbackDir, row.stem);
+        db.deleteBackup(row.id);
         removed.push(row.id);
       } catch (e) {
         failed++;
@@ -6341,7 +6353,8 @@ io.on('connection', (socket) => {
     if (removed.length) {
       audit.fromSocket(socket).record({ action: 'backup.delete', targetType: 'backup',
         scope: 'router', routerId: rid, targetId: removed.join(','),
-        note: removed.length + ' restore point(s) deleted; the run records remain' });
+        note: removed.length + ' restore point(s) deleted, rows removed; '
+            + 'this audit entry is the surviving record' });
     }
 
     socket.emit('backups:state', _bkPayload(rid));

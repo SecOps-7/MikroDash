@@ -284,6 +284,14 @@
     .sbtn-danger:disabled:hover{background:rgba(248,113,113,.12)}
     /* Selection column. Sized and coloured to match .stoggle rather than left as
        browser chrome, which is the reason the rest of this page was reworked. */
+    /* The row's database id. Mono and cyan rather than a Tabler bg-*-lt badge,
+       because the Result column two along already uses those and a second
+       badge in the same language would read as a second status. One colour for
+       every id on purpose: tinting them per-row would imply a grouping that
+       does not exist. */
+    .bk-id-pill{display:inline-block;font-family:var(--font-mono);font-size:.68rem;font-weight:600;
+      padding:.1rem .45rem;border-radius:4px;background:rgba(56,189,248,.13);
+      color:var(--accent-rx);border:1px solid rgba(56,189,248,.28);line-height:1.5;white-space:nowrap}
     .bk-pick{width:15px;height:15px;margin:0;cursor:pointer;accent-color:var(--accent-rx);vertical-align:middle}
     .bk-pick:disabled{opacity:.35;cursor:not-allowed}
     tr.bk-row-picked{background:rgba(56,189,248,.07)}
@@ -4352,11 +4360,12 @@
         <div class="card-body p-0">
           <div class="data-scroll" style="max-height:520px;overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
-              <colgroup><col style="width:2.6rem"><col style="width:20%"><col style="width:14%"><col style="width:12%"><col style="width:14%"><col style="width:14%"><col style="width:22%"></colgroup>
+              <colgroup><col style="width:2.6rem"><col style="width:4.5rem"><col style="width:18%"><col style="width:13%"><col style="width:12%"><col style="width:13%"><col style="width:13%"><col style="width:21%"></colgroup>
               <thead><tr>
                 <th class="text-center" style="padding-right:0">
                   <input type="checkbox" class="bk-pick" id="bkPickAll" title="Select all restore points" aria-label="Select all restore points">
                 </th>
+                <th>ID</th>
                 <th>When</th><th>Result</th><th>Trigger</th><th>RouterOS</th><th>Size</th><th class="text-end">Actions</th>
               </tr></thead>
               <tbody id="bkTable"></tbody>
