@@ -270,6 +270,23 @@
     .sbtn-warn:hover{background:rgba(245,159,0,.30)}
     .sbtn-danger{background:rgba(248,113,113,.12);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
     .sbtn-danger:hover{background:rgba(248,113,113,.22)}
+    /* Restore. Purple because it is neither an ordinary action nor a deletion:
+       it replaces the entire configuration and reboots the router, so it should
+       not share the danger red that Delete uses two buttons along. Built to the
+       same fill/border recipe as the variants above rather than a new palette. */
+    .sbtn-purple{background:rgba(167,139,250,.15);color:rgba(196,181,253,.95);border:1px solid rgba(167,139,250,.35)}
+    .sbtn-purple:hover{background:rgba(167,139,250,.26)}
+    /* Bulk actions dim rather than vanish when nothing is selected: a button that
+       disappears makes the header jump, and the operator loses the affordance
+       telling them selection is what unlocks it. */
+    .sbtn-purple:disabled,.sbtn-danger:disabled{opacity:.45;cursor:not-allowed}
+    .sbtn-purple:disabled:hover{background:rgba(167,139,250,.15)}
+    .sbtn-danger:disabled:hover{background:rgba(248,113,113,.12)}
+    /* Selection column. Sized and coloured to match .stoggle rather than left as
+       browser chrome, which is the reason the rest of this page was reworked. */
+    .bk-pick{width:15px;height:15px;margin:0;cursor:pointer;accent-color:var(--accent-rx);vertical-align:middle}
+    .bk-pick:disabled{opacity:.35;cursor:not-allowed}
+    tr.bk-row-picked{background:rgba(56,189,248,.07)}
     /* .sbtn-outline shares the ghost treatment. It was referenced in a dozen
        places but never defined, so those buttons fell through to the bare .sbtn
        — which sets border:none and no background — and picked up the browser's
@@ -4335,8 +4352,11 @@
         <div class="card-body p-0">
           <div class="data-scroll" style="max-height:520px;overflow-y:auto">
             <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
-              <colgroup><col style="width:20%"><col style="width:14%"><col style="width:12%"><col style="width:14%"><col style="width:14%"><col style="width:26%"></colgroup>
+              <colgroup><col style="width:2.6rem"><col style="width:20%"><col style="width:14%"><col style="width:12%"><col style="width:14%"><col style="width:14%"><col style="width:22%"></colgroup>
               <thead><tr>
+                <th class="text-center" style="padding-right:0">
+                  <input type="checkbox" class="bk-pick" id="bkPickAll" title="Select all restore points" aria-label="Select all restore points">
+                </th>
                 <th>When</th><th>Result</th><th>Trigger</th><th>RouterOS</th><th>Size</th><th class="text-end">Actions</th>
               </tr></thead>
               <tbody id="bkTable"></tbody>
