@@ -14590,7 +14590,7 @@ function _renderRoutersMap(rows) {
     var slot = el('sysUpdateAction');
     if (!slot) return;
     slot.innerHTML = (_caps.permitted && _upd.latest)
-      ? '<button class="sbtn sbtn-primary" id="sysUpdateBtn" style="padding:.1rem .45rem;font-size:.64rem;margin-left:.45rem">Update</button>'
+      ? '<button class="sbtn sbtn-warn" id="sysUpdateBtn" style="padding:.1rem .45rem;font-size:.64rem">Update</button>'
       : '';
   }
 
@@ -14607,6 +14607,52 @@ function _renderRoutersMap(rows) {
     socket.emit('packages:caps');
   });
 
+  /**
+   * What the dialog looks like at each point in the upgrade.
+   *
+   *   idle       nothing sent yet, the operator can still type and confirm
+   *   issuing    the command is on its way to the router
+   *   rebooting  the router accepted it and is going down
+   *
+   * The spinner runs through the last two because the interesting wait is the
+   * reboot, not the round trip: the router acknowledges in milliseconds and is
+   * then unreachable for a minute or two, and without this the dialog simply
+   * vanished and left nothing to explain the silence.
+   */
+  function updState(state) {
+    var go = el('upd_go');
+    var cancel = el('upd_cancel');
+    var pending = el('upd_pending');
+    var confirm = el('upd_confirm');
+    if (!go) return;
+
+    if (state === 'idle') {
+      go.disabled = false;
+      go.textContent = 'Update & Reboot';
+      if (cancel) cancel.textContent = 'Cancel';
+      if (pending) { pending.style.display = 'none'; pending.textContent = ''; }
+      if (confirm) { confirm.disabled = false; confirm.style.display = ''; }
+      return;
+    }
+
+    go.disabled = true;
+    go.innerHTML = '<span class="sbtn-spin"></span>' +
+                   (state === 'rebooting' ? 'Rebooting&hellip;' : 'Issuing&hellip;');
+    // Once the command is out there is nothing left to confirm, and "Cancel"
+    // would imply the upgrade could still be called off. It cannot.
+    if (confirm) confirm.disabled = true;
+    if (state === 'rebooting') {
+      if (cancel) cancel.textContent = 'Close';
+      if (confirm) confirm.style.display = 'none';
+      if (pending) {
+        pending.textContent = 'The router is downloading the packages and restarting. ' +
+                              'It will be unreachable for a minute or two, and MikroDash ' +
+                              'reconnects on its own.';
+        pending.style.display = '';
+      }
+    }
+  }
+
   document.addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('#sysUpdateBtn')) {
@@ -14616,11 +14662,14 @@ function _renderRoutersMap(rows) {
       el('upd_confirm').value       = '';
       el('upd_confirm').placeholder = _caps.routerName || '';
       el('upd_error').style.display = 'none';
+      updState('idle');
       el('updModal').classList.add('open');
       return;
     }
     if (e.target.closest('#upd_go')) {
+      if (el('upd_go').disabled) return;   // one command per dialog, not one per click
       el('upd_error').style.display = 'none';
+      updState('issuing');
       socket.emit('packages:upgrade', { confirm: el('upd_confirm').value });
     }
   });
@@ -14636,10 +14685,16 @@ function _renderRoutersMap(rows) {
       d.code === 'router-write-policy' ? 'The RouterOS user MikroDash connects with lacks the write policy.' :
       'The router refused the upgrade.';
     box.style.display = '';
+    // Nothing was issued, so the operator can correct the name and try again.
+    updState('idle');
   });
 
   socket.on('packages:ok', function (d) {
-    if (d && d.action === 'upgrade') el('updModal').classList.remove('open');
+    if (!d || d.action !== 'upgrade') return;
+    // Deliberately NOT closed here. The command has been accepted and the
+    // router is about to disappear; closing on success threw away the only
+    // moment we could say so. The operator closes it when they are ready.
+    updState('rebooting');
   });
 }());
 

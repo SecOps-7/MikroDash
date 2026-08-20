@@ -256,6 +256,18 @@
     .sbtn:active{transform:scale(.97)}
     .sbtn-primary{background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.3)}
     .sbtn-primary:hover{background:rgba(56,189,248,.25)}
+    /* For a button sitting ON a warn surface — the RouterOS update banner.
+       Its background is rgba(245,159,0,.10), so this is deliberately a step
+       stronger in both fill and border, or the button dissolves into the
+       banner it is standing on. */
+    /* Sized for a button and drawn in currentColor, so it matches whichever
+       .sbtn variant it lands in rather than pinning one accent. */
+    .sbtn-spin{width:12px;height:12px;flex:0 0 auto;border:2px solid currentColor;
+      border-top-color:transparent;border-radius:50%;opacity:.85;animation:spin .7s linear infinite}
+    .sbtn:disabled{opacity:.75;cursor:default}
+    .sbtn:disabled:active{transform:none}
+    .sbtn-warn{background:rgba(245,159,0,.18);color:var(--accent-warn);border:1px solid rgba(245,159,0,.45)}
+    .sbtn-warn:hover{background:rgba(245,159,0,.30)}
     .sbtn-danger{background:rgba(248,113,113,.12);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
     .sbtn-danger:hover{background:rgba(248,113,113,.22)}
     /* .sbtn-outline shares the ghost treatment. It was referenced in a dozen
@@ -1040,6 +1052,11 @@
     html[data-theme="light"] .log-time{color:rgba(80,100,140,.45)}
     /* update */
     .ros-update-row{display:flex;align-items:center;gap:.5rem;margin-top:.7rem;padding:.45rem .6rem;border-radius:6px;font-family:var(--font-mono);font-size:.72rem}
+    /* The Update button is the last flex item in the row; auto pushes it to
+       the right edge rather than leaving it tucked against the version text.
+       Harmless when the span is empty, which it is for anyone who may not
+       reboot the router. */
+    .ros-update-row #sysUpdateAction{margin-left:auto;display:inline-flex;align-items:center}
     .ros-update-row.ok{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.18);color:var(--accent-ok)}
     .ros-update-row.warn{background:rgba(245,159,0,.10);border:1px solid rgba(245,159,0,.3);color:var(--accent-warn)}
     .ros-update-row.pending{background:rgba(99,130,190,.06);border:1px solid var(--border);color:var(--text-muted)}
@@ -6345,10 +6362,11 @@
       </div>
       <label class="sform-label">Type the router name to confirm</label>
       <input class="sform-input" id="upd_confirm" type="text" autocomplete="off" placeholder="">
+      <div id="upd_pending" style="display:none;text-align:center;font-size:.76rem;color:var(--text-muted);margin-top:.7rem;line-height:1.5"></div>
       <div class="login-error" id="upd_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
     </div>
     <div class="rtr-modal-footer">
-      <button class="sbtn sbtn-outline" data-modal-close="updModal">Cancel</button>
+      <button class="sbtn sbtn-outline" id="upd_cancel" data-modal-close="updModal">Cancel</button>
       <button class="sbtn sbtn-primary" id="upd_go">Update &amp; Reboot</button>
     </div>
    </div>
