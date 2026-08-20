@@ -459,3 +459,57 @@ test('auto-expanding a category is never saved', () => {
   assert.match(body, /_navAutoCat = navGrp\.dataset\.cat/, 'navigation sets the auto-expand');
   assert.ok(!/_navSave\(/.test(body), 'navigation must not persist the auto-expand');
 });
+
+// ── Page titles: three copies, one source ───────────────────────────────────
+
+test('every page title reaches the nav and the topbar unchanged', () => {
+  // src/pages.js holds the title, but two hand-written mirrors render it: the
+  // nav-label in index.html and PAGE_TITLES in app.js. Category titles were
+  // already guarded above; page titles were not, so the three could drift with
+  // nothing failing. Renaming Wireless -> Wireless Clients touched all three.
+  const titles = Object.fromEntries(
+    (APP_JS.match(/var PAGE_TITLES = \{([^}]*)\}/) || [, ''])[1]
+      .split(',')
+      .map(pair => pair.split(':'))
+      .filter(kv => kv.length === 2)
+      .map(([k, v]) => [k.trim().replace(/^'|'$/g, ''), v.trim().replace(/^'|'$/g, '')]));
+
+  for (const page of Pages.PAGES) {
+    assert.equal(titles[page.key], page.title,
+      'PAGE_TITLES.' + page.key + ' disagrees with src/pages.js');
+  }
+});
+
+test('no nav item is labelled the same as the category holding it', () => {
+  // The Wireless PAGE sat inside the Wireless CATEGORY with both labelled
+  // "Wireless", so the two read as one destination a single indent apart.
+  //
+  // Deliberately NOT "the nav label equals the registry title": Topology is
+  // titled "Network Topology" and labelled "Topology" in the sidebar, which is
+  // right — the category already supplies the "Network". Shortening a label
+  // under its category is good; colliding with it is the bug.
+  const catTitle = Object.fromEntries(Pages.CATEGORIES.map(c => [c.key, c.title]));
+  for (const page of Pages.PAGES) {
+    if (!page.category) continue;
+    const at = HTML.indexOf('data-page="' + page.key + '"');
+    if (at === -1) continue;   // pages without a nav entry are covered elsewhere
+    const item = HTML.slice(at, at + 700);
+    const label = (item.match(/<span class="nav-label">([^<]*)<\/span>/) || [])[1];
+    assert.ok(label, page.key + ' has no nav label');
+    assert.notEqual(label, catTitle[page.category],
+      page.key + ' is labelled "' + label + '" inside a category of the same name');
+  }
+});
+
+test('the wireless category and its client page do not share an icon', () => {
+  // The section means "wireless, generally" and the page lists per-client signal
+  // strength; giving them the same glyph made the sidebar ambiguous.
+  const grp  = HTML.indexOf('class="nav-group" data-cat="wireless"');
+  const item = HTML.indexOf('data-page="wireless"');
+  const svgOf = (from) => (HTML.slice(from, from + 700)
+    .match(/<span class="nav-icon">(<svg[\s\S]*?<\/svg>)<\/span>/) || [])[1];
+  const catSvg  = svgOf(grp);
+  const pageSvg = svgOf(item);
+  assert.ok(catSvg && pageSvg, 'both need an icon');
+  assert.notEqual(catSvg, pageSvg, 'category and page must be distinguishable');
+});

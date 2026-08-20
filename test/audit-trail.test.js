@@ -259,3 +259,54 @@ test('a refusal in RBAC middleware is recorded, not just one inside a handler', 
   const helper = RBAC_JS.slice(RBAC_JS.indexOf('function _auditDenied'), RBAC_JS.indexOf('function requireGlobalAdmin'));
   assert.ok(/POST\|PUT\|PATCH\|DELETE/.test(helper), 'reads must not be recorded as refusals');
 });
+
+// ── The Target column names the router ──────────────────────────────────────
+//
+// The pill read the literal word "router" — a scope marker that told the reader
+// nothing the Action column had not already said — while the export's router
+// column carried a bare uuid, which told them less.
+
+const APP_JS = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+test('the audit API resolves router ids to names', () => {
+  const at = INDEX_JS.indexOf('function _auditRouterNames');
+  assert.ok(at > -1, 'the resolver is gone');
+  const body = INDEX_JS.slice(at, INDEX_JS.indexOf('\n}', at));
+  assert.ok(/Routers\.getById\(id\)/.test(body));
+  assert.ok(/router\.label \|\| router\.host/.test(body), 'a router with no label still has a host');
+  // One lookup per distinct router, not one per row: a page is 200 events and
+  // most of them name the same handful of devices.
+  assert.ok(/names\.has\(id\)/.test(body), 'ids are resolved once each');
+});
+
+test('resolving names discloses nothing the row did not already carry', () => {
+  // Rows reaching here have passed _auditQuery's permission scope, and each one
+  // already holds the router id. This turns a uuid into the name of the same
+  // device; it must not become a way to widen the set.
+  const at = INDEX_JS.indexOf("app.get('/api/audit'");
+  // '\n});' and not '});': the route body contains `offset: 0 });` and
+  // `}));`, either of which truncates the slice before the lines under test.
+  const body = INDEX_JS.slice(at, INDEX_JS.indexOf('\n});', at));
+  assert.ok(/_auditQuery\(req\)/.test(body), 'the scope still decides which rows exist');
+  assert.ok(/_auditRouterNames\(out\.rows/.test(body),
+    'names are added to those rows, not fetched separately');
+});
+
+test('a deleted router degrades differently in the table and the export', () => {
+  // The table keeps the old generic marker, because a bare uuid in a pill is
+  // noise. The export keeps the id, because a dangling reference still has to be
+  // followable — that is what an export is for.
+  assert.ok(/esc\(r\.router_name \|\| 'router'\)/.test(APP_JS),
+    'the pill falls back to the generic marker');
+  const at = INDEX_JS.indexOf("app.get('/api/audit/export'");
+  const body = INDEX_JS.slice(at, INDEX_JS.indexOf('\n});', at));
+  assert.ok(/names\.get\(r\.router_id\) \|\| r\.router_id/.test(body),
+    'the export falls back to the id');
+});
+
+test('the pill no longer hardcodes the word router', () => {
+  assert.ok(!/wl-band-5">router<\/span>/.test(APP_JS),
+    'the literal marker is gone from the Target cell');
+  assert.ok(/router_name: r\.router_name \|\| ''/.test(APP_JS),
+    'and the row carries the name through to the renderer');
+});

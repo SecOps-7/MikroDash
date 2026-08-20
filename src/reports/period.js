@@ -59,7 +59,9 @@ function civil(ts, tz) {
   const d = new Date(ts + offsetAt(ts, tz));
   return {
     year: d.getUTCFullYear(), month: d.getUTCMonth(), day: d.getUTCDate(),
-    hour: d.getUTCHours(), weekday: d.getUTCDay(),
+    // `minute` is here for schedules that fire at a time of day rather than on a
+    // period boundary — a backup picks an HH:MM. Reports never read it.
+    hour: d.getUTCHours(), minute: d.getUTCMinutes(), weekday: d.getUTCDay(),
   };
 }
 
@@ -72,8 +74,10 @@ function civil(ts, tz) {
  * the zone actually maps it to rather than throwing, which is the behaviour a
  * schedule wants — the report still goes out that day.
  */
-function instantOf({ year, month, day, hour = 0 }, tz) {
-  const wall = Date.UTC(year, month, day, hour, 0, 0);
+function instantOf({ year, month, day, hour = 0, minute = 0 }, tz) {
+  // `minute` defaults to 0, so every existing caller — all of which pass a period
+  // boundary with no minute — lands on exactly the instant it always did.
+  const wall = Date.UTC(year, month, day, hour, minute, 0);
   let guess = wall;
   for (let i = 0; i < 3; i++) {
     const next = wall - offsetAt(guess, tz);

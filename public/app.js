@@ -535,7 +535,7 @@ function applyFontSize(sizeId) {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit',backups:'Backups'};
+var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless Clients',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit',backups:'Backups'};
 var PAGE_KEYS   = ['dashboard','wan','wireless','capsman','interfaces','dhcp','dns','vlans','bridges','vpn','ppp','connections','routing','bandwidth','firewall','logs','packages','queues','rosusers','audit'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
@@ -14139,6 +14139,7 @@ function _renderRoutersMap(rows) {
       ts: r.ts, actor: r.actor_name || '', ip: r.actor_ip || '',
       action: r.action || '', target: r.target_name || r.target_id || '',
       outcome: r.outcome || '', detail: r.detail || '', router_id: r.router_id || '',
+      router_name: r.router_name || '',
     };
   }
 
@@ -14165,7 +14166,14 @@ function _renderRoutersMap(rows) {
         '<td class="mono" style="color:var(--text-muted)">' + esc(r.ip || '—') + '</td>' +
         '<td>' + esc(r.action) + '</td>' +
         '<td>' + (r.target ? esc(r.target) : '<span style="color:var(--text-muted)">&mdash;</span>') +
-          (r.router_id ? ' <span class="wl-band wl-band-5">router</span>' : '') + '</td>' +
+          // The pill names the device. It used to read the literal word
+          // "router" — a scope marker that told the reader nothing they could
+          // not already see from the Action column. A router deleted since the
+          // event was recorded has no name left to show, so it falls back to
+          // the old generic marker rather than to a bare uuid.
+          (r.router_id
+            ? ' <span class="wl-band wl-band-5">' + esc(r.router_name || 'router') + '</span>'
+            : '') + '</td>' +
         '<td>' + outcomeCell(r.outcome) + '</td>' +
         '<td>' + detailCell(r.detail) + '</td>' +
       '</tr>';
@@ -14783,8 +14791,33 @@ function _renderRoutersMap(rows) {
    */
   function rowUnder(host, x, y) {
     var el = document.elementFromPoint(x, y);
-    var row = el && el.closest ? el.closest('tr[data-id]') : null;
+    // The origin gap counts as a target too, or hovering it would be a dead spot
+    // and putting a rule back exactly where it came from would mean aiming at its
+    // neighbours instead.
+    var row = el && el.closest ? el.closest('tr[data-id], tr.res-drag-origin') : null;
     return (row && host.contains(row)) ? row : null;
+  }
+
+  /**
+   * A stand-in for the row, left in the slot it is leaving.
+   *
+   * Created on the FIRST move rather than at pointerdown: inserting it up front
+   * would push everything below down a row before the drag had gone anywhere.
+   * Made on the first move, the row vacates its slot as the marker fills it, so
+   * nothing jumps.
+   *
+   * The height is measured off the row itself instead of guessed in CSS, because
+   * rules wrap to different heights and a gap that is not the size of the hole
+   * shifts every row beneath it.
+   */
+  function makeOriginMarker(row) {
+    var tr = document.createElement('tr');
+    tr.className = 'res-drag-origin';
+    var td = document.createElement('td');
+    td.colSpan = row.children.length || 1;
+    td.style.height = row.getBoundingClientRect().height + 'px';
+    tr.appendChild(td);
+    return tr;
   }
 
   /**
@@ -14807,14 +14840,50 @@ function _renderRoutersMap(rows) {
     if (!_drag.host.contains(_drag.row)) { endDrag(); return; }
     var over = rowUnder(_drag.host, x, y);
     if (!over || over === _drag.row) return;
-    var above = _drag.row.compareDocumentPosition(over) & Node.DOCUMENT_POSITION_PRECEDING;
-    _drag.host.insertBefore(_drag.row, above ? over : over.nextSibling);
+
+    // Mark the slot being left, once, before the row actually moves out of it.
+    // Created home (hidden), so nothing shifts until the row genuinely leaves.
+    if (!_drag.marker) {
+      _drag.marker = makeOriginMarker(_drag.row);
+      _drag.row.parentNode.insertBefore(_drag.marker, _drag.row);
+    }
+
+    if (over === _drag.marker) {
+      // Back over the gap: put the row immediately after it, which IS its
+      // original slot once the gap collapses. Settles rather than oscillating —
+      // once home the marker hides, so the next lookup finds the row itself.
+      _drag.host.insertBefore(_drag.row, _drag.marker.nextSibling);
+    } else {
+      var above = _drag.row.compareDocumentPosition(over) & Node.DOCUMENT_POSITION_PRECEDING;
+      _drag.host.insertBefore(_drag.row, above ? over : over.nextSibling);
+    }
+    syncOriginMarker();
+  }
+
+  /**
+   * Show the gap only while the row is actually elsewhere.
+   *
+   * A row cannot be moved INSIDE its own marker — the DOM only offers before and
+   * after — so dragging back left the rule sitting beside the gap with the slot
+   * still looking empty, and it never read as "dropped back where it was".
+   * Collapsing the marker whenever the row is immediately after it makes the
+   * table look exactly as it did before the drag started.
+   */
+  function syncOriginMarker() {
+    if (!_drag || !_drag.marker) return;
+    var home = _drag.marker.nextElementSibling === _drag.row;
+    _drag.marker.classList.toggle('is-home', home);
   }
 
   function endDrag() {
     if (!_drag) return null;
     var d = _drag; _drag = null;
     if (d.raf) cancelAnimationFrame(d.raf);
+    // The gap closes however the drag ended — dropped elsewhere, dropped back
+    // where it started, or cancelled. Removed BEFORE the caller walks siblings
+    // for the move anchor, so it can never be mistaken for a neighbour.
+    if (d.marker && d.marker.parentNode) d.marker.parentNode.removeChild(d.marker);
+    d.marker = null;
     d.row.classList.remove('res-dragging');
     document.body.classList.remove('res-dragging-body');
     return d;
@@ -15088,12 +15157,14 @@ function _renderRoutersMap(rows) {
   function renderSettings(st) {
     el('bkEnabled').checked   = !!st.settings.enabled;
     el('bkSchedule').value    = st.settings.schedule;
+    el('bkTime').value        = st.settings.time || '';
     el('bkKeepCount').value   = st.settings.keepCount;
     el('bkKeepDays').value    = st.settings.keepDays;
 
-    ['bkEnabled', 'bkSchedule', 'bkKeepCount', 'bkKeepDays'].forEach(function (id) {
+    ['bkEnabled', 'bkSchedule', 'bkTime', 'bkKeepCount', 'bkKeepDays'].forEach(function (id) {
       el(id).disabled = !st.permitted;
     });
+    _syncBkTime(st);
 
     // A viewer gets no buttons at all rather than disabled ones: there is
     // nothing for them to try, so offering it and refusing is just noise.
@@ -15117,6 +15188,25 @@ function _renderRoutersMap(rows) {
       el('bkDelete').addEventListener('click', deleteSelected);
       el('bkRestore').addEventListener('click', restoreSelected);
     }
+  }
+
+  /**
+   * An hourly backup that waits for 02:00 is a daily backup, so the time is not
+   * offered for that frequency — greyed with the reason, rather than silently
+   * accepted and then ignored by the scheduler.
+   *
+   * The hint names the clock, because "02:00" is meaningless until you know
+   * whose 02:00. Empty timezone is the server's own.
+   */
+  function _syncBkTime(st) {
+    var input = el('bkTime'), hint = el('bkTimeHint');
+    if (!input || !hint) return;
+    var hourly = el('bkSchedule').value === 'hourly';
+    input.disabled = hourly || !(st && st.permitted);
+    if (hourly) { hint.textContent = 'not used for hourly'; return; }
+    if (!input.value) { hint.textContent = 'any time'; return; }
+    var tz = st && st.settings && st.settings.timezone;
+    hint.textContent = tz ? (tz + ' time') : 'server time';
   }
 
   function renderRows(st) {
@@ -15190,10 +15280,20 @@ function _renderRoutersMap(rows) {
     socket.emit('backups:settings', {
       enabled:   el('bkEnabled').checked,
       schedule:  el('bkSchedule').value,
+      // Sent even when hourly disabled the field: a chosen time should survive
+      // a trip through Hourly and back rather than being silently discarded.
+      time:      el('bkTime').value,
       keepCount: el('bkKeepCount').value,
       keepDays:  el('bkKeepDays').value,
     });
   }
+
+  // Frequency drives whether the time applies at all, so re-evaluate as it changes
+  // rather than only on the next payload from the server.
+  document.addEventListener('change', function (ev) {
+    if (!ev.target) return;
+    if (ev.target.id === 'bkSchedule' || ev.target.id === 'bkTime') _syncBkTime(_state);
+  });
 
   function runNow() {
     _busy = true;
