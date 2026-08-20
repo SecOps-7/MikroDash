@@ -50,6 +50,8 @@ const Resources            = require('./routeros/resources');
 const Pdf                  = require('./reports/pdf');
 const Format               = require('./reports/format');
 const Reports              = require('./reports/build');
+const ReportSchedules      = require('./reports/schedules');
+const ReportScheduler      = require('./reports/scheduler');
 const crypto               = require('node:crypto');
 const Backups              = require('./backups');
 const BackupStore          = require('./backups/store');
@@ -1206,6 +1208,29 @@ Backups.start({
     });
   },
 });
+
+// Scheduled email reports (#60). Same injected shape as the backup scheduler,
+// so the whole thing is drivable in a test with no database, mail server or
+// clock — see test/report-schedules.test.js.
+ReportScheduler.start({
+  db,
+  settings: () => Settings.load(),
+  isModern: () => _isModern(),
+  getRouter: (rid) => Routers.getById(rid),
+  buildReport: (section, opts) => Reports.build(section, opts),
+  // Re-asked at send time, never trusted from creation time: a report must not
+  // keep emailing a router's history after its creator loses access to it.
+  canRead: (userId, routerId) => Rbac.can({ userId }, 'router:history', routerId),
+  mail: (settings, message) => notifier.sendMail(settings, message),
+  // Deliberately the multi-channel send(), not sendMail(): telling someone over
+  // SMTP that SMTP is broken reaches nobody.
+  notifyFailure: (title, body) => {
+    const cfg = Settings.load();
+    if (cfg.notifReportFail === false) return;
+    notifier.send(cfg, title, body).catch(() => {});
+  },
+  log: (msg) => console.log('%s', msg),
+});
 alerter.init(io, Settings.load());
 alertSessions.init(io);
 
@@ -1885,7 +1910,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
                         'pingEnabled','rosDebug','userNotifyEnabled',
                         'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure','ntfyEnabled',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
-                        'notifRouterUpdate','notifBgp','notifBackupDrift','notifBackupFail',
+                        'notifRouterUpdate','notifBgp','notifBackupDrift','notifBackupFail','notifReportFail',
                         'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'];
     const credFields = ['telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 
@@ -2318,6 +2343,10 @@ app.delete('/api/routers/:id', Rbac.requirePerm('router:manage', Rbac.fromParam(
       note: 'router-scoped grants and all stored history for this router were deleted with it' });
     if (!deleted) return res.status(404).json({ ok:false, error:'Router not found' });
     db.deleteGrantsForScope('router', deletedId);
+    // A schedule for a router that no longer exists cannot run, and left
+    // behind it is a live outbound email loop. Removed here, where it is
+    // visible, rather than as a side effect of a retention sweep.
+    db.deleteReportSchedulesForRouter(deletedId);
     Rbac.bump(); _broadcastPermsChanged();
 
     // Tear down any live pool session for the deleted router.
@@ -3210,6 +3239,121 @@ app.get('/api/backups/:id/rsc',
 app.get('/api/backups/:id/backup',
   Rbac.requirePerm('router:write', Rbac.fromQuery('routerId')),
   (req, res) => _sendBackupPart(req, res, 'backup'));
+
+// ── Scheduled report schedules (#60) ─────────────────────────────────────────
+//
+// Reading the list is router:history: anyone who can already export a report
+// may see what is scheduled, and visibility is itself a control — a mail-out
+// nobody can see is the bad case.
+//
+// Creating one is router:schedule, a write-level grant, because a schedule
+// mails router history to arbitrary third-party addresses indefinitely without
+// anyone signing in again. Not router:write, which WRITE_CONFERS_ALWAYS would
+// leak in from any write page at all.
+//
+// Every route that names a schedule reads its router from the ROW and 404s if
+// it does not match the query, the pattern _sendBackupPart establishes: naming
+// a router you may write must never reach a record belonging to another.
+
+const _scheduleLimiter = rateLimit({ windowMs: 60_000, max: 30, standardHeaders: true, legacyHeaders: false });
+const _sendNowLimiter  = rateLimit({ windowMs: 60_000, max: 5,  standardHeaders: true, legacyHeaders: false });
+
+function _scheduleRow(req, res) {
+  const row = db.getReportSchedule(req.params.id);
+  if (!row || row.router_id !== String(req.query.routerId || '')) {
+    res.status(404).json({ ok: false, error: 'not found' });
+    return null;
+  }
+  return row;
+}
+
+app.get('/api/reports/schedules',
+  Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
+    const routerId = String(req.query.routerId || '');
+    if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
+    const cfg = Settings.load();
+    res.json({
+      ok: true,
+      schedules: db.listReportSchedulesFor(routerId).map(ReportSchedules.toPublic),
+      // So the page can say "this will never send" at creation time rather than
+      // in a run row a month later.
+      smtpReady: !!(cfg.smtpHost && cfg.smtpFrom),
+      permitted: Rbac.can(req.authSession, 'router:schedule', routerId),
+      sections: Reports.SECTIONS,
+      needsInterface: Reports.NEEDS_INTERFACE,
+    });
+  });
+
+app.post('/api/reports/schedules', _scheduleLimiter,
+  Rbac.requirePerm('router:schedule', Rbac.fromBody('routerId')), (req, res) => {
+    const routerId = String((req.body && req.body.routerId) || '');
+    if (!Routers.getById(routerId)) return res.status(404).json({ ok: false, error: 'not found' });
+    try {
+      const row = ReportSchedules.validate(req.body, {
+        id: crypto.randomUUID(),
+        routerId,
+        createdBy: req.authSession ? req.authSession.userId : null,
+      });
+      const saved = db.upsertReportSchedule(row);
+      audit.fromReq(req).record({ action: 'report.schedule.create', targetType: 'report-schedule',
+        scope: 'router', routerId, targetId: row.id, targetName: row.name,
+        extra: { frequency: row.frequency, sections: row.sections, recipients: row.recipients } });
+      res.json({ ok: true, schedule: ReportSchedules.toPublic(saved) });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: sanitizeErr(e) });
+    }
+  });
+
+app.put('/api/reports/schedules/:id', _scheduleLimiter,
+  Rbac.requirePerm('router:schedule', Rbac.fromQuery('routerId')), (req, res) => {
+    const row = _scheduleRow(req, res);
+    if (!row) return undefined;
+    try {
+      const next = ReportSchedules.validate(req.body, {
+        id: row.id, routerId: row.router_id,
+        createdBy: row.created_by, createdAt: row.created_at,
+      });
+      const saved = db.upsertReportSchedule(next);
+      audit.fromReq(req).record({ action: 'report.schedule.update', targetType: 'report-schedule',
+        scope: 'router', routerId: row.router_id, targetId: row.id, targetName: next.name,
+        extra: { frequency: next.frequency, sections: next.sections, recipients: next.recipients,
+                 enabled: next.enabled } });
+      res.json({ ok: true, schedule: ReportSchedules.toPublic(saved) });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: sanitizeErr(e) });
+    }
+  });
+
+app.delete('/api/reports/schedules/:id', _scheduleLimiter,
+  Rbac.requirePerm('router:schedule', Rbac.fromQuery('routerId')), (req, res) => {
+    const row = _scheduleRow(req, res);
+    if (!row) return undefined;
+    db.deleteReportSchedule(row.id);
+    audit.fromReq(req).record({ action: 'report.schedule.delete', targetType: 'report-schedule',
+      scope: 'router', routerId: row.router_id, targetId: row.id, targetName: row.name });
+    res.json({ ok: true });
+  });
+
+app.post('/api/reports/schedules/:id/run', _sendNowLimiter,
+  Rbac.requirePerm('router:schedule', Rbac.fromQuery('routerId')), async (req, res) => {
+    const row = _scheduleRow(req, res);
+    if (!row) return undefined;
+    const actor = req.authSession ? req.authSession.username : null;
+    const result = await ReportScheduler.runNow(row, { actor });
+    audit.fromReq(req).record({ action: 'report.schedule.send', targetType: 'report-schedule',
+      scope: 'router', routerId: row.router_id, targetId: row.id, targetName: row.name,
+      outcome: result.outcome === 'sent' ? 'ok' : 'error',
+      extra: { outcome: result.outcome, bytes: result.bytes, sections: result.sections } });
+    res.json({ ok: result.outcome === 'sent', outcome: result.outcome,
+               error: result.error || null });
+  });
+
+app.get('/api/reports/schedules/:id/runs',
+  Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
+    const row = _scheduleRow(req, res);
+    if (!row) return undefined;
+    res.json({ ok: true, runs: db.listReportRuns(row.id, 20) });
+  });
 
 app.get('/api/reports/ping', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);

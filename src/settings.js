@@ -168,6 +168,10 @@ const DEFAULTS = {
   // channel that cries wolf daily is one people mute for the other two as well.
   notifBackupDrift:  true,
   notifBackupFail:   true,
+  // A scheduled report that silently stops arriving is the worst outcome:
+  // nobody notices an absence. Delivered over the multi-channel send(), so a
+  // broken SMTP host still reaches Telegram or ntfy.
+  notifReportFail:   true,
   // Where the ROUTER should fetch a backup from during a restore. Normally
   // derived from the address the router already sees us at (/user/active), so
   // this is only needed behind a reverse proxy or NAT, where what the router

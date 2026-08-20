@@ -35,6 +35,7 @@ const SCOPED = new Set([
   'router:history',   // historical reports and exports
   'router:diagnose',  // connection test, ping, firewall table selection
   'router:scan',      // wireless frequency scan — takes the radio off the air
+  'router:schedule',  // create a scheduled report — mails router history to arbitrary addresses
   'router:write',     // RouterOS writes — reserved for issue #97, no call sites yet
   'router:manage',    // edit or delete a router, change its site
   'router:purge',     // purge that router's history
@@ -66,6 +67,13 @@ const WRITE_CONFERS = Object.freeze({
   dashboard: ['router:ack'],                        // acknowledge alerts
   firewall:  ['router:diagnose'],                   // switch the shared firewall table
   wireless:  ['router:scan'],                       // frequency scan — disconnects every client on the radio
+  // Reading a report is router:history, which READ_CONFERS already grants. A
+  // SCHEDULE is a different thing: it mails that history to arbitrary
+  // third-party addresses, indefinitely, without anyone signing in again. That
+  // is a persistent exfiltration channel, so it takes a write-level grant.
+  // Deliberately not router:write, which WRITE_CONFERS_ALWAYS would leak in
+  // from any write page at all.
+  reports:   ['router:schedule'],                   // schedule a report to be emailed out
   routers:   ['router:manage'],                     // edit/delete a router, change its site
   settings:  ['system:settings', 'router:purge'],   // app settings; purge one router's history
 });
