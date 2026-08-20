@@ -502,6 +502,14 @@
     .card.is-collector-off{opacity:.5}
     .card.is-collector-off .stale-overlay{opacity:1;pointer-events:auto;
       background:rgba(7,9,15,.62);color:rgba(148,163,190,.75)}
+    /* Dormant deliberately has NO visual treatment. The card already says what it
+       needs to from inside its own body — "No devices", "No active peers" — and a
+       scrim on top made an otherwise ordinary empty card stand out against its
+       neighbours, which reads as a fault rather than as "there is nothing here".
+       .is-dormant is therefore a state marker for the stale sweep and for QA, not
+       a style hook. Contrast is-collector-off, which keeps its scrim: that one IS
+       worth announcing, because the operator switched it off and would otherwise
+       have no way to tell a disabled card from an empty one. */
     /* traffic */
     .chart-wrap{position:relative;height:200px;width:100%}
     .chart-legend{display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
@@ -6217,19 +6225,10 @@
           </p>
 
           <label class="sform-label">Collectors</label>
-          <div class="stoggle-grid" id="rtrModalCollectors">
-            <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_conns" data-coll="conns" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle" data-requires="conns"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_bandwidth" data-coll="bandwidth" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Top Talkers</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_talkers" data-coll="talkers" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Interface Rates</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_ifStatus" data-coll="ifStatus" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Ping</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_ping" data-coll="ping" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_wireless" data-coll="wireless" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">VPN</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_vpn" data-coll="vpn" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_firewall" data-coll="firewall" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Routing</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_routing" data-coll="routing" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">NetWatch</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_netwatch" data-coll="netwatch" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-            <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="rtrColl_logs" data-coll="logs" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-          </div>
+          <!-- Built from GET /api/collectors, not written by hand. The hand-written
+               version drifted to 11 toggles against 21 disableable collectors, so ten
+               of them could only be turned off by editing routers.json directly. -->
+          <div class="stoggle-grid" id="rtrModalCollectors"></div>
           <p style="font-size:.68rem;color:var(--text-muted);margin:.35rem 0 0">
             Turn off what a router has no data for. Bandwidth needs Connections and follows it.
             Turning off Interface Rates also stops interface up/down alerts; turning off Ping also

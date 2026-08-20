@@ -10,7 +10,10 @@
  *
  * Error classification:
  *   "unknown command" / "no such" → feature not present on this router;
- *     disable permanently (no retries, empty payload, silent card).
+ *     latch _unavailable, emit { devices: [], available: false } once, and stop.
+ *     The latch is cleared ONLY by a deliberate re-probe — ros 'connected' or
+ *     probe() — never by a later successful tick, and _startStream()/resume()
+ *     both honour it, so an idle wake-up cannot quietly reopen the channel.
  *   "timeout" in stream mode → CHR/VM thread starvation; auto-downgrade to
  *     poll mode and restart. If poll also fails it goes through the poll
  *     handler below.
@@ -37,24 +40,34 @@ class TopTalkersCollector {
     this._commitTimer = null;
     this._backoffTimer = null;
     this._backoffUntil = 0;
-    this._backoffMs    = 60000;
+    this._baseBackoffMs = 60000;
+    this._maxBackoffMs  = 600000;              // 10-minute cap
+    this._backoffMs    = this._baseBackoffMs;  // doubles on each failure
     this._unavailable  = false;
     this._lastFp       = '';
     this._pollTimer    = null;
     this._pollInflight = false;
+    this._heartbeatTimer = null;
+    this._heartbeatArmedMs = 0;
 
     // Register lifecycle listeners once in the constructor so they never
     // accumulate across multiple start() calls (hot-swap safety).
     io.on('connection', () => {
-      if (this.streamMode && !this._stream) this._startStream();
+      if (this.streamMode && !this._stream && !this._unavailable) this._startStream();
     });
     ros.on('close', () => {
       this._stopStream();
+      // Stop the re-emit too: replaying a payload from before the disconnect would
+      // keep the card looking live while the router is unreachable.
+      this._stopHeartbeat();
       if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
     });
     ros.on('connected', () => {
       this._backoffUntil = 0;
-      this._backoffMs    = 60000;
+      this._backoffMs    = this._baseBackoffMs;
+      // A reconnect is a deliberate re-probe: the router may have been upgraded
+      // or had the kid-control package added, so the latch is cleared here — and
+      // only here, plus the dormancy probe. Never on an ordinary successful tick.
       this._unavailable  = false;
       this._lastFp       = '';
       clearTimeout(this._backoffTimer);
@@ -67,6 +80,7 @@ class TopTalkersCollector {
   _startStream() {
     if (this._stream) return;
     if (!this.ros.connected) return;
+    if (this._unavailable) return;
     if (Date.now() < this._backoffUntil) return;
 
     const intervalSec = Math.max(1, Math.round(this.pollMs / 1000));
@@ -84,8 +98,18 @@ class TopTalkersCollector {
     stream.on('data', (packet) => {
       // RStream emits [] when the kid-control table is empty this interval —
       // clear the device list instead of showing the last devices forever.
+      //
+      // Commit on EVERY empty interval, not only on the non-empty -> empty edge.
+      // Guarding on `_devicesNext.size > 0` meant a table that was already empty
+      // committed nothing at all: lastPayload froze, no talkers:update reached the
+      // browser, and the card went stale roughly 20 s later on a router that was
+      // answering perfectly well. It also froze lastPayload.ts, which is what the
+      // dormancy supervisor reads to decide the collector has nothing to report —
+      // so the one collector that most needed to go dormant never could.
+      // The commit is cheap and the emit is still fingerprint-gated, so a steadily
+      // empty table costs one no-op tick per interval and no browser traffic.
       if (Array.isArray(packet)) {
-        if (packet.length === 0 && this._devicesNext.size > 0) { this._devicesNext.clear(); this._scheduleCommit(); }
+        if (packet.length === 0) { this._devicesNext.clear(); this._scheduleCommit(); }
         return;
       }
       if (!packet || typeof packet !== 'object') return;
@@ -108,7 +132,7 @@ class TopTalkersCollector {
         this._unavailable = true;
         const now = Date.now();
         console.warn('%s', this._lbl + ' Kid Control not available on this router — disabling');
-        const payload = { ts: now, devices: [], pollMs: this.pollMs };
+        const payload = { ts: now, devices: [], pollMs: this._reportedPollMs, available: false };
         this.lastPayload = payload;
         this.io.to('page-dashboard').emit('talkers:update', payload);
         this.state.lastTalkersTs  = now;
@@ -123,11 +147,58 @@ class TopTalkersCollector {
         console.error('%s', this._lbl + ' stream error:', msg);
         this.state.lastTalkersErr = msg;
         clearTimeout(this._backoffTimer);
-        this._backoffTimer = setTimeout(() => { this._backoffTimer = null; this._startStream(); }, this._backoffMs);
+        const delay = this._backoffMs;
+        this._backoffMs = Math.min(this._backoffMs * 2, this._maxBackoffMs);
+        this._backoffTimer = setTimeout(() => { this._backoffTimer = null; this._startStream(); }, delay);
       }
     });
 
     this._stream = stream;
+  }
+
+  // Every other streamed collector re-emits its last payload every 60 s so the
+  // browser's stale timer never fires on a healthy but quiet router. Talkers was
+  // the one that did not, while still advertising a poll interval — so the client
+  // held it to a 23 s threshold that nothing was ever going to meet once the
+  // device list stopped changing.
+  // What the CLIENT is told, not what we schedule on. A streamed collector reports
+  // 0 so the browser keeps its fixed stale threshold and lets the heartbeat set the
+  // cadence; advertising a 3 s interval while streaming is what held this card to a
+  // 23 s deadline nothing was going to meet. (queues/wan idiom.)
+  //
+  // A getter, not a field: the stream-timeout path flips streamMode at runtime, and
+  // a value captured in the constructor would then describe the wrong delivery mode
+  // for the rest of the session.
+  get _reportedPollMs() { return this.streamMode ? 0 : this.pollMs; }
+
+  // The heartbeat only does its job if it beats faster than the deadline this
+  // collector itself advertises. The client sets its threshold to
+  // `pollMs + STALE_GRACE(20 s)` for a polled collector, and keeps a fixed 90 s
+  // for a streamed one (pollMs 0) — so a hardcoded 60 s is right for streaming
+  // and useless for polling, where a 3 s interval means a 23 s deadline. That is
+  // the hAP AC2 case: it runs collection mode "poll", so the card still went
+  // stale ~30 s in, and only recovered when dormancy fired ~20 s after that.
+  get _heartbeatMs() { return this.streamMode ? 60000 : Math.max(5000, this.pollMs); }
+
+  _startHeartbeat() {
+    // Re-arm when the cadence changes: the stream-timeout path flips streamMode
+    // and calls _startTalkers() again, which would otherwise hit the early return
+    // below and leave a 60 s beat guarding a 23 s deadline.
+    if (this._heartbeatTimer && this._heartbeatArmedMs !== this._heartbeatMs) this._stopHeartbeat();
+    if (this._heartbeatTimer) return;
+    this._heartbeatArmedMs = this._heartbeatMs;
+    this._heartbeatTimer = setInterval(() => {
+      if (!this.lastPayload) return;
+      // Idle gate, as netwatch does: this re-emit exists only for browser stale
+      // timers, so it has nothing to do when nobody is watching.
+      if (this.io.engine.clientsCount === 0) return;
+      this.io.to('page-dashboard').emit('talkers:update', { ...this.lastPayload, ts: Date.now() });
+    }, this._heartbeatMs);
+  }
+
+  _stopHeartbeat() {
+    if (this._heartbeatTimer) { clearInterval(this._heartbeatTimer); this._heartbeatTimer = null; }
+    this._heartbeatArmedMs = 0;
   }
 
   _stopStream() {
@@ -151,8 +222,11 @@ class TopTalkersCollector {
 
   _commitTick() {
     this._commitTimer  = null;
-    this._backoffMs    = 60000;
-    this._unavailable  = false;
+    // Reset the retry backoff on success, but NOT the _unavailable latch: a
+    // successful tick means the stream recovered, never that a router which
+    // answered "unknown command" has grown a kid-control menu. Clearing it here
+    // un-latched the feature probe almost immediately.
+    this._backoffMs    = this._baseBackoffMs;
     const now = Date.now();
 
     if (this.io.engine.clientsCount === 0) {
@@ -173,7 +247,7 @@ class TopTalkersCollector {
     devices = devices.slice(0, this.topN);
 
     const fp = JSON.stringify(devices.map(d => ({ mac: d.mac, tx: d.tx_mbps, rx: d.rx_mbps })));
-    this.lastPayload = { ts: now, devices, pollMs: this.pollMs };
+    this.lastPayload = { ts: now, devices, pollMs: this._reportedPollMs, available: true };
     if (fp !== this._lastFp) {
       this._lastFp = fp;
       this.io.to('page-dashboard').emit('talkers:update', this.lastPayload);
@@ -214,7 +288,7 @@ class TopTalkersCollector {
           this._unavailable = true;
           console.warn('%s', this._lbl + ' poll: Kid Control not available — disabling');
           const now = Date.now();
-          const payload = { ts: now, devices: [], pollMs: this.pollMs };
+          const payload = { ts: now, devices: [], pollMs: this._reportedPollMs, available: false };
           this.lastPayload = payload;
           this.io.to('page-dashboard').emit('talkers:update', payload);
           this.state.lastTalkersTs  = now;
@@ -242,6 +316,9 @@ class TopTalkersCollector {
   }
 
   _startTalkers() {
+    // Both paths: poll mode is subject to the same idle/page gating, so it needs
+    // the re-emit just as much once the device list settles.
+    this._startHeartbeat();
     if (this.streamMode) {
       this._startStream();
     } else {
@@ -257,10 +334,16 @@ class TopTalkersCollector {
 
   suspend() {
     this._stopStream();
+    this._stopHeartbeat();
     if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
   }
   resume() {
     if (!this.ros.connected) return;
+    // Latched off: resume() is an idle/page-gate wake-up, not a feature re-probe.
+    // Without this, every socket reconnect re-opened the stream on a router that
+    // had already answered "unknown command".
+    if (this._unavailable) return;
+    this._startHeartbeat();
     // Same trap as ping: suspend() clears _pollTimer, so a resume that only
     // restarts the stream strands poll mode permanently once the last viewer
     // has ever gone away — which is why the Top Talkers card stayed stale.
@@ -269,8 +352,20 @@ class TopTalkersCollector {
     this._scheduleTalkersNext();
   }
 
+  // Deliberate feature re-probe, as opposed to resume()'s idle wake-up: clears
+  // the unsupported latch and the retry backoff, then reopens the channel. The
+  // dormancy supervisor calls this on backoff expiry and on page focus.
+  probe() {
+    this._unavailable  = false;
+    this._backoffUntil = 0;
+    this._backoffMs    = this._baseBackoffMs;
+    this._lastFp       = '';
+    this.resume();
+  }
+
   stop() {
     this._stopStream();
+    this._stopHeartbeat();
     if (this._pollTimer) { clearTimeout(this._pollTimer); this._pollTimer = null; }
   }
 }

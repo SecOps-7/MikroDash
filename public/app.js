@@ -993,7 +993,10 @@ socket.on('lan:overview',function(data){
   var ndGateway=$('ndGateway'); if(ndGateway)ndGateway.textContent=nets.length&&nets[0].gateway?nets[0].gateway:'\u2014';
 
   var nets=(data&&data.networks)?data.networks:[];
-  if(!nets.length){if(lastLanData)return;lanOverview.innerHTML='<div class="empty-state">No DHCP networks</div>';return;}
+  // Same bug as Top Talkers: an empty payload left the last render in place, so
+  // the card kept showing networks the router no longer reports — and, after a
+  // router switch, the previous router's.
+  if(!nets.length){lastLanData=null;lanOverview.innerHTML='<div class="empty-state">No DHCP networks</div>';return;}
   lastLanData=data;
   lanOverview.innerHTML=nets.map(function(n){
     return'<div class="lan-net"><div class="lan-cidr"><span style="color:var(--text-muted);font-size:.65rem;margin-right:.3rem">LAN:</span>'+esc(n.cidr)+'</div>'+
@@ -1152,7 +1155,21 @@ socket.on('conn:update',function(data){
 // ── Top Talkers ────────────────────────────────────────────────────────────
 socket.on('talkers:update',function(data){
   var devices=data.devices||[];
-  if(!devices.length){if(lastTalkers)return;talkersTable.innerHTML='<tr><td colspan="4" class="empty-state">No devices</td></tr>';return;}
+  // An empty payload is news, not silence. `if(lastTalkers)return` treated it as
+  // "nothing changed" and left the previous rows up indefinitely — invisible to
+  // the stale timer, which had just been re-armed by that very payload — so the
+  // card kept showing devices the router had stopped reporting, and kept showing
+  // the PREVIOUS router's devices after a switch.
+  if(!devices.length){
+    lastTalkers=null;
+    // available===false means the router has no kid-control menu at all. The
+    // card-level dormant scrim says so; this keeps the table from claiming the
+    // narrower "there are no devices", which would be a guess.
+    talkersTable.innerHTML='<tr><td colspan="4" class="empty-state">'+
+      (data.available===false?'Kid Control is not available on this router':'No devices')+
+      '</td></tr>';
+    return;
+  }
   lastTalkers=devices;
   talkersTable.innerHTML=devices.map(function(d){
     return'<tr><td>'+esc(d.name||'\u2014')+'</td><td style="color:var(--text-muted)">'+esc(d.mac||'\u2014')+'</td>'+
@@ -3018,6 +3035,55 @@ socket.on('router:active', function (data) {
 var _collectionOff = {};      // cardId -> true when its collector is off here
 function _collectionOffCard(cardId){ return !!_collectionOff[cardId]; }
 
+// cardId -> true when the SERVER put this collector to sleep, as opposed to the
+// user switching it off. Kept separate from _collectionOff because only one of
+// them is worth announcing: a card the operator disabled needs to say so, since
+// nothing else distinguishes it from a card that is merely empty. A sleeping
+// collector needs no announcement — the card body already carries the message.
+var _collectionDormant = {};
+function _collectionDormantCard(cardId){ return !!_collectionDormant[cardId]; }
+
+// A dormant collector covers both "this router has no such menu" and "nothing is
+// configured yet". The server distinguishes them — a command error sleeps
+// immediately and for longer than an empty table does — but the card does not:
+// from here both mean the same thing, and the collector wakes by itself either
+// way, on a re-probe or the moment its page is opened.
+socket.on('collection:status', function (st) {
+  if (!st || !Array.isArray(st.dormant)) return;
+  _collectionDormant = {};
+  st.dormant.forEach(function (key) {
+    (COLLECTOR_CARDS[key] || []).forEach(function (cardId) { _collectionDormant[cardId] = true; });
+  });
+  Object.keys(COLLECTOR_CARDS).forEach(function (key) {
+    COLLECTOR_CARDS[key].forEach(function (cardId) {
+      var card = $(cardId);
+      if (!card) return;
+      // A collector the user disabled outranks dormancy. The server does not
+      // even judge a disabled collector, so this is belt and braces against an
+      // ordering surprise between the two events on first load.
+      if (_collectionOffCard(cardId)) return;
+      var isDormant = _collectionDormantCard(cardId);
+      // Marker only — no scrim, no dimming, no overlay text. The card body already
+      // says "No devices" / "No active peers", and that is the whole message; a
+      // treatment on top made an ordinary empty card stand out from its
+      // neighbours and read as a fault.
+      card.classList.toggle('is-dormant', isDormant);
+      if (isDormant) {
+        // The one thing dormancy still does here: stop the countdown. A sleeping
+        // collector is not late, and that countdown is what made an empty card go
+        // stale on a router that was answering perfectly well.
+        staleTimers[cardId] = 0;
+        card.classList.remove('is-stale');
+      } else if (staleTimers[cardId] === 0) {
+        staleTimers[cardId] = Date.now();
+      }
+      // The overlay text is deliberately left alone. It reads "● stale" from the
+      // markup, and it must keep reading that: rewriting it here meant a card that
+      // later went genuinely stale announced itself with the wrong sentence.
+    });
+  });
+});
+
 socket.on('collection:config', function (cfg) {
   if (!cfg || !cfg.enabled) return;
   _collectionOff = {};
@@ -3049,7 +3115,12 @@ var staleConfig=[
   // when the update is for the currently selected interface (currentIf).
   {cardId:'systemCard',   event:'system:update',   threshold:15000},
   {cardId:'connCard',     event:'conn:update',      threshold:20000},
-  {cardId:'talkersCard',  event:'talkers:update',  threshold:20000},
+  // streamed — heartbeat every 60s. It used to sit at 20000 while the collector
+  // advertised a 3 s poll interval and had no heartbeat at all, so an empty device
+  // list went stale ~23 s after the last change on a perfectly healthy router.
+  // In poll mode the collector reports a real pollMs and the adaptive line below
+  // lowers this again.
+  {cardId:'talkersCard',  event:'talkers:update',  threshold:90000},
   {cardId:'wirelessCard', event:'wireless:update', threshold:25000},
   {cardId:'vpnCard',      event:'vpn:update',       threshold:90000},  // streamed — heartbeat every 60s
   {cardId:'netwatchCard', event:'netwatch:update',  threshold:90000},  // streamed — /listen
@@ -3149,6 +3220,16 @@ setInterval(function(){
       return;
     }
     if(card.classList.contains('is-collector-off'))card.classList.remove('is-collector-off');
+    // Same re-assertion for dormancy, and for the same reason: collection:status
+    // arrives once per transition, so a card re-rendered by the dashboard grid
+    // afterwards would lose the class and start counting down to a false stale.
+    if(_collectionDormantCard(cfg.cardId)){
+      card.classList.add('is-dormant');
+      card.classList.remove('is-stale');
+      staleTimers[cfg.cardId]=0;
+      return;
+    }
+    if(card.classList.contains('is-dormant'))card.classList.remove('is-dormant');
     if(last>0&&now-last>cfg.threshold)card.classList.add('is-stale');
   });
 },3000);
@@ -7739,6 +7820,39 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     return modalCollectors ? Array.prototype.slice.call(
       modalCollectors.querySelectorAll('input[data-coll]')) : [];
   }
+
+  // The grid is built from the server's registry rather than written into
+  // index.html. The hand-written version drifted badly — 21 disableable
+  // collectors, 11 toggles — and nothing failed when it did, because no test
+  // asserted a toggle per collector. Deriving it means a collector added to
+  // src/collection.js appears here with no second edit.
+  var _collRegistry = null;
+  function _renderCollToggles() {
+    if (!modalCollectors || !_collRegistry) return;
+    modalCollectors.innerHTML = _collRegistry.map(function (c) {
+      // `requires` drives the dependency locking below, so it has to survive
+      // into the DOM. It was already on the bandwidth row as data-requires and
+      // then ignored, with the conns->bandwidth pair hardcoded in JS instead.
+      var req = (c.requires && c.requires.length) ? ' data-requires="' + esc(c.requires.join(',')) + '"' : '';
+      return '<label class="stoggle"' + req + '>' +
+        '<span class="stoggle-label">' + esc(c.label) + '</span>' +
+        '<span class="stoggle-switch">' +
+          '<input type="checkbox" id="rtrColl_' + esc(c.key) + '" data-coll="' + esc(c.key) + '" checked>' +
+          '<span class="stoggle-track"></span><span class="stoggle-thumb"></span>' +
+        '</span></label>';
+    }).join('');
+  }
+  function _loadCollRegistry() {
+    if (_collRegistry) return Promise.resolve();
+    return fetch('/api/collectors', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !Array.isArray(d.collectors)) return;
+        _collRegistry = d.collectors;
+        _renderCollToggles();
+      })
+      .catch(function () { /* the modal still saves; the grid is simply empty */ });
+  }
   function _setMode(mode) {
     if (modalMode) modalMode.value = (mode === 'poll') ? 'poll' : 'stream';
     if (!modalModeWrap || !modalMode) return;
@@ -7750,15 +7864,25 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // without it. The server enforces this too; mirroring it here stops the form
   // showing a state the server would silently override.
   function _syncCollDeps() {
-    var conns = null, bw = null;
-    _collToggles().forEach(function (t) {
-      if (t.getAttribute('data-coll') === 'conns') conns = t;
-      if (t.getAttribute('data-coll') === 'bandwidth') bw = t;
+    var toggles = _collToggles();
+    if (!toggles.length) return;
+    var byKey = {};
+    toggles.forEach(function (t) { byKey[t.getAttribute('data-coll')] = t; });
+    // Read the dependency from the markup rather than naming conns->bandwidth
+    // here. That pair was the only one when this was written, but `requires` is
+    // a registry field and a second one would have gone unnoticed — the server
+    // cascades it either way, so the form would have silently disagreed.
+    toggles.forEach(function (t) {
+      var lbl = t.closest ? t.closest('.stoggle') : null;
+      var raw = lbl ? lbl.getAttribute('data-requires') : null;
+      if (!raw) return;
+      var unmet = raw.split(',').some(function (k) {
+        var dep = byKey[k.trim()];
+        return dep && !dep.checked;
+      });
+      if (unmet) { t.checked = false; t.disabled = true; if (lbl) lbl.style.opacity = '.5'; }
+      else { t.disabled = false; if (lbl) lbl.style.opacity = ''; }
     });
-    if (!conns || !bw) return;
-    var lbl = bw.closest ? bw.closest('.stoggle') : null;
-    if (!conns.checked) { bw.checked = false; bw.disabled = true; if (lbl) lbl.style.opacity = '.5'; }
-    else { bw.disabled = false; if (lbl) lbl.style.opacity = ''; }
   }
   if (modalModeWrap) modalModeWrap.addEventListener('click', function (e) {
     var b = e.target && e.target.closest ? e.target.closest('[data-mode]') : null;
@@ -8021,10 +8145,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var coll = (router && router.collection) || {};
     _setMode(coll.mode || 'stream');
     var offList = Array.isArray(coll.off) ? coll.off : [];
-    _collToggles().forEach(function (t) {
-      t.checked = offList.indexOf(t.getAttribute('data-coll')) === -1;
-    });
-    _syncCollDeps();
+    // The grid may not exist yet on the first open — it is fetched, not markup.
+    // Applying `off` has to happen after it renders, so it runs in both branches
+    // rather than only synchronously.
+    var _applyOff = function () {
+      _collToggles().forEach(function (t) {
+        t.checked = offList.indexOf(t.getAttribute('data-coll')) === -1;
+      });
+      _syncCollDeps();
+    };
+    if (_collRegistry) _applyOff();
+    else _loadCollRegistry().then(_applyOff);
     hideTestResult();
     setSaveReady(!!router);
     modalBg.classList.add('open');
@@ -8103,8 +8234,15 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       alertsEnabled:       !!(modalAlerts && modalAlerts.checked),
       connDownThresholdSec:(function(){ var n = parseInt(modalDownThresh ? modalDownThresh.value : '30', 10); return (n >= 0 && n <= 300) ? n : 30; }()),
       collection: (function () {
-        var off = _collToggles().filter(function (t) { return !t.checked; })
-                                .map(function (t) { return t.getAttribute('data-coll'); });
+        var toggles = _collToggles();
+        // The grid is fetched, so it can be empty when the modal has only just
+        // opened. An empty grid yields off: [] — which the server would read as
+        // "enable everything" and wipe the router's disabled collectors. Omit
+        // the whole block instead: _normalizeCollection treats undefined as
+        // "keep what is stored", which is exactly what we mean.
+        if (!toggles.length) return undefined;
+        var off = toggles.filter(function (t) { return !t.checked; })
+                         .map(function (t) { return t.getAttribute('data-coll'); });
         // Server normalisation drops a block carrying no information, so sending
         // the defaults is harmless and leaves routers.json unchanged.
         return { mode: modalMode ? modalMode.value : 'stream', off: off };

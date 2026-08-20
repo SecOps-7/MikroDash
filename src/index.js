@@ -84,6 +84,7 @@ const SystemCollector      = require('./collectors/system');
 const { resolveCollection, collectionFingerprint, planMigration,
         LEGACY_STREAM_KEYS, COLLECTORS: _COLLECTOR_DEFS } = require('./collection');
 const { makeNullCollector } = require('./collectors/nullCollector');
+const { createDormancyState, payloadEmpty } = require('./collectors/util');
 const WirelessCollector    = require('./collectors/wireless');
 const VpnCollector         = require('./collectors/vpn');
 const FirewallCollector    = require('./collectors/firewall');
@@ -547,6 +548,10 @@ async function teardownSession(session, entry) {
   console.log('%s', `[${_tearLabel}] ── session torn down`);
   if (entry) { entry.startupReady = false; entry.collectorsStarted = false; }
   if (entry && entry._diagTimer) { clearInterval(entry._diagTimer); entry._diagTimer = null; }
+  if (entry && entry._dormancyTimer) { clearInterval(entry._dormancyTimer); entry._dormancyTimer = null; }
+  // Dormancy is per-session state: a rebuilt session re-probes everything, which
+  // is what makes a router switch or a settings change a clean slate.
+  if (entry) entry._dormancy = null;
   // Detach collector-registered global io listeners so the dead session can be GC'd.
   if (entry && entry.routerIo && typeof entry.routerIo.removeAllHandlers === 'function') {
     entry.routerIo.removeAllHandlers();
@@ -667,7 +672,12 @@ function wireRosEvents(session, entry) {
     // Restore page-aware streams for any pages still open after the reconnect.
     // Collector reconnect handlers (in constructors) fire before this listener
     // and call suspend() to clear state first.
-    session.conns.resume();
+    //
+    // Dormancy is cleared first, and deliberately: a reconnect may follow the
+    // RouterOS upgrade or package install that turns an "unknown command" into a
+    // working menu, so every verdict from before the disconnect is stale.
+    _resetDormancy(session, entry);
+    _resumeCollector(session, entry, 'conns');
     _updateAllPageStreams(session, entry);
   });
   ros.on('close', () => {
@@ -768,6 +778,7 @@ async function startCollectors(session, entry) {
     if (entry.routerIo) {
       entry.routerIo.emit('collection:config', _collectionPayload(session.routerId, session));
     }
+    _startDormancy(entry);
 
     /* Match the collectors to who is actually watching, now that startupReady
        is true.
@@ -2220,6 +2231,26 @@ app.post('/api/user-notify/test-notification', _userNotifyTestLimiter, _requireU
 // ── Routers API ───────────────────────────────────────────────────────────────
 
 // GET /api/routers — list all routers (passwords masked); filtered by allowedRouterIds in modern mode
+// The collector registry, for the Router Settings modal's toggle grid.
+//
+// The grid used to be hand-written markup, and drifted: 21 collectors were
+// disableable and only 11 had a toggle, so ten of them could be turned off only
+// by editing routers.json by hand. Serving the registry makes that structurally
+// impossible — a collector added to src/collection.js appears in the modal with
+// no second edit, which is the same reason PAGE_NAV_MAP is derived rather than
+// listed.
+//
+// No permission gate beyond the app's own: this is static metadata about what
+// MikroDash can collect, identical for every router and every user, and it
+// reveals nothing about any configured device.
+app.get('/api/collectors', (_req, res) => {
+  res.json({
+    collectors: _COLLECTOR_DEFS
+      .filter(c => c.disableable)
+      .map(c => ({ key: c.key, label: c.label, requires: c.requires || [] })),
+  });
+});
+
 app.get('/api/routers', (req, res) => {
   const cfg    = Settings.load();
   const active = cfg.activeRouterId || '';
@@ -3958,6 +3989,7 @@ async function sendInitialState(socket, entry) {
   // Before any replay: a card for a disabled collector must be marked as such
   // before it would otherwise start its stale countdown.
   socket.emit('collection:config', _collectionPayload(entry.session.routerId, entry.session));
+  socket.emit('collection:status', _dormancyPayload(entry));
 
   socket.emit('traffic:history', {
     ifName: s.DEFAULT_IF,
@@ -4122,6 +4154,155 @@ async function sendInitialState(socket, entry) {
   if (logHistory.length && _mayReplay(socket, 'logs')) socket.emit('logs:history', logHistory);
 }
 
+// ── Collector dormancy ────────────────────────────────────────────────────────
+/*
+ * A collector with nothing to report should stop holding a channel open, and the
+ * card should say so rather than render a blank table that reads as a fault.
+ *
+ * One supervisor per session rather than a backoff loop inside each collector:
+ * emptiness is declared once in the registry (`emptyKey`), so the judgement reads
+ * `lastPayload` generically and no collector grows an emptiness hook.
+ *
+ * Three gates now decide whether a collector runs — idle (nobody on this router),
+ * page rooms (nobody on its page) and dormancy. They are layered, not competing:
+ * dormancy is a VETO consulted inside _resumeCollector(), which is the only place
+ * anything is resumed. _idleResume() calling resume() directly is precisely what
+ * would wake a dormant collector on the next socket join.
+ */
+const _DORMANCY_TICK_MS = 15000;
+const _DORMANCY_DEFS    = _COLLECTOR_DEFS.filter(c => c.emptyKey && c.disableable);
+
+function _dormancyState(entry, key) {
+  if (!entry._dormancy) entry._dormancy = new Map();
+  let st = entry._dormancy.get(key);
+  if (!st) { st = createDormancyState(); entry._dormancy.set(key, st); }
+  return st;
+}
+
+function _isDormant(entry, key) {
+  const st = entry && entry._dormancy && entry._dormancy.get(key);
+  return !!(st && st.dormant);
+}
+
+/**
+ * The one place a collector is resumed. Every caller — _idleResume,
+ * _updatePageStream, the reconnect handler — goes through here so a gate that
+ * knows nothing about dormancy cannot undo it.
+ */
+function _resumeCollector(session, entry, key) {
+  const coll = session && session[key];
+  if (!coll || typeof coll.resume !== 'function') return;
+  if (_isDormant(entry, key)) return;
+  coll.resume();
+}
+
+/**
+ * Look again at a collector we put to sleep. probe() where one exists — it clears
+ * a capability latch that resume() deliberately honours — otherwise resume plus
+ * refreshNow() where that exists, so the answer arrives on this tick rather than
+ * one poll interval later.
+ */
+function _probeCollector(coll) {
+  if (!coll) return;
+  if (typeof coll.probe === 'function') { coll.probe(); return; }
+  if (typeof coll.resume === 'function') coll.resume();
+  if (typeof coll.refreshNow === 'function') {
+    Promise.resolve(coll.refreshNow()).catch(() => { /* the collector reports its own errors */ });
+  }
+}
+
+function _dormancyPayload(entry) {
+  const dormant = [];
+  if (entry._dormancy) for (const [k, st] of entry._dormancy) if (st.dormant) dormant.push(k);
+  return { routerId: entry.session.routerId, dormant };
+}
+
+function _emitDormancy(entry) {
+  if (entry.routerIo) entry.routerIo.emit('collection:status', _dormancyPayload(entry));
+}
+
+function _dormancyTick(entry) {
+  const session = entry && entry.session;
+  if (!session || !entry.startupReady || session._destroyed) return;
+  // Judge only while somebody is watching this router. A suspended collector
+  // emits nothing, so an idle session would otherwise read as universally empty
+  // and put the whole set to sleep for a reason that has nothing to do with the
+  // router.
+  const rid = session.routerId;
+  if ((io.sockets.adapter.rooms.get('router-' + rid)?.size || 0) === 0) return;
+
+  const now = Date.now();
+  let changed = false;
+
+  for (const def of _DORMANCY_DEFS) {
+    if (!session.collection.enabled[def.key]) continue;   // the user turned it off
+    const coll = session[def.sessionProp];
+    if (!coll) continue;
+    const st = _dormancyState(entry, def.key);
+    const p  = coll.lastPayload;
+
+    if (p) {
+      const verdict = st.observe({
+        ts:          p.ts,
+        empty:       payloadEmpty(p, def.emptyKey),
+        unsupported: p.available === false,
+      }, now);
+      if (verdict === 'sleep') {
+        changed = true;
+        if (typeof coll.suspend === 'function') coll.suspend();
+        console.log('%s', `[${session.ros.routerLabel}][dormancy] ${def.key} asleep — ` +
+          (p.available === false ? 'not supported on this router' : 'nothing to report'));
+      } else if (verdict === 'wake') {
+        changed = true;
+        console.log('%s', `[${session.ros.routerLabel}][dormancy] ${def.key} awake`);
+        _resumeCollector(session, entry, def.key);
+      }
+    }
+
+    if (st.dueForProbe(now)) { st.markProbed(now); _probeCollector(coll); }
+  }
+
+  if (changed) _emitDormancy(entry);
+}
+
+function _startDormancy(entry) {
+  if (entry._dormancyTimer) return;
+  entry._dormancyTimer = setInterval(() => {
+    try { _dormancyTick(entry); }
+    catch (e) { console.error('%s', '[dormancy] tick failed:', (e && e.message) || e); }
+  }, _DORMANCY_TICK_MS);
+  if (entry._dormancyTimer.unref) entry._dormancyTimer.unref();
+}
+
+/**
+ * Clear every verdict and wake whatever was asleep. A reconnect may follow a
+ * RouterOS upgrade or a package install, which is exactly the event that turns an
+ * "unknown command" into a working menu.
+ */
+function _resetDormancy(session, entry) {
+  if (!entry || !entry._dormancy) return;
+  let had = false;
+  for (const [key, st] of entry._dormancy) {
+    if (st.dormant) { had = true; _probeCollector(session && session[key]); }
+    st.reset();
+  }
+  if (had) _emitDormancy(entry);
+}
+
+/**
+ * Somebody just opened the page this collector feeds. That is the cheapest and
+ * most timely re-probe there is — a user who has just added a netwatch host opens
+ * the NetWatch page next — so it pre-empts the backoff entirely.
+ */
+function _wakeForFocus(session, entry, key) {
+  if (!_isDormant(entry, key)) return false;
+  const st = entry._dormancy.get(key);
+  st.reset();
+  _probeCollector(session && session[key]);
+  _emitDormancy(entry);
+  return true;
+}
+
 function _idleSuspend(session, entry) {
   if (!session || !entry.startupReady) return;
   session.conns.suspend();
@@ -4148,9 +4329,12 @@ function _idleSuspend(session, entry) {
 
 function _idleResume(session, entry) {
   if (!session || !entry.startupReady) return;
-  session.conns.resume();
-  session.ifStatus.resume();
-  session.system.resume();
+  // Every resume goes through _resumeCollector so dormancy can veto it. Calling
+  // resume() directly here is what would wake a collector we had just put to
+  // sleep, on the next socket join, forever.
+  _resumeCollector(session, entry, 'conns');
+  _resumeCollector(session, entry, 'ifStatus');
+  _resumeCollector(session, entry, 'system');
   // Every page-scoped collector is resumed HERE and only here, from room
   // occupancy — so a collector whose page nobody is looking at stays suspended
   // even though a browser is connected. Resuming vlans/ppp/bridges/dns/capsman/
@@ -4160,9 +4344,9 @@ function _idleResume(session, entry) {
   // These three genuinely have no page of their own: ping feeds the dashboard
   // gauge and the alerter, talkers and dhcpNetworks feed dashboard cards. They
   // are suspended by name above and must be resumed by name.
-  session.ping.resume();
-  session.talkers.resume();
-  session.dhcpNetworks.resume();
+  _resumeCollector(session, entry, 'ping');
+  _resumeCollector(session, entry, 'talkers');
+  _resumeCollector(session, entry, 'dhcpNetworks');
 }
 
 // Room-driven suspend/resume for the page-aware collectors: each keeps
@@ -4218,7 +4402,7 @@ function _updatePageStream(session, entry, which) {
   const rid = session.routerId;
   const viewers = _PAGE_STREAM_ROOMS[which].reduce(
     (n, room) => n + (io.sockets.adapter.rooms.get('router-' + rid + '-' + room)?.size || 0), 0);
-  if (viewers > 0) session[which].resume(); else session[which].suspend();
+  if (viewers > 0) _resumeCollector(session, entry, which); else session[which].suspend();
 }
 
 function _updateAllPageStreams(session, entry) {
@@ -4371,6 +4555,12 @@ io.on('connection', (socket) => {
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e || !e.session) return;
     const s = e.session;
+    // Opening a page is the cheapest re-probe available and by far the most
+    // timely: somebody who has just configured a netwatch host opens NetWatch
+    // next. It pre-empts the backoff entirely, which is what lets the backoff be
+    // slow enough to be free. Cleared BEFORE _updatePageStream, or the veto would
+    // still be in place when it tries to resume.
+    for (const ck of Pages.collectorsFor(name)) _wakeForFocus(s, e, ck);
     if (_PAGE_STREAM_ROOMS[name]) {
       _updatePageStream(s, e, name);
       if (s[name] && s[name].lastPayload)
@@ -4429,6 +4619,9 @@ io.on('connection', (socket) => {
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e || !e.session) return;
     const s = e.session;
+    // Same re-probe as page:focus, via the page the card borrows its data from —
+    // a dashboard card is the only view some collectors get.
+    for (const ck of Pages.collectorsFor(src)) _wakeForFocus(s, e, ck);
     if (key === 'firewall' || key === 'vpn') {
       _updatePageStream(s, e, key);
       if (s[key] && s[key].lastPayload)
