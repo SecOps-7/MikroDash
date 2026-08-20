@@ -14961,12 +14961,12 @@ function _renderRoutersMap(rows) {
     // nothing for them to try, so offering it and refusing is just noise.
     var actions = el('bkSettingsActions');
     actions.innerHTML = st.permitted
-      ? '<button class="btn btn-sm btn-primary" id="bkSave">Save</button>' : '';
+      ? '<button class="sbtn sbtn-primary" id="bkSave">Save</button>' : '';
     if (st.permitted) el('bkSave').addEventListener('click', saveSettings);
 
     var hist = el('bkHistoryActions');
     hist.innerHTML = st.permitted
-      ? '<button class="btn btn-sm btn-primary" id="bkRun"' + (_busy ? ' disabled' : '') + '>' +
+      ? '<button class="sbtn sbtn-primary" id="bkRun"' + (_busy ? ' disabled' : '') + '>' +
         (_busy ? 'Backing up&hellip;' : '+ Back Up Now') + '</button>' : '';
     if (st.permitted) el('bkRun').addEventListener('click', runNow);
   }
@@ -14982,14 +14982,14 @@ function _renderRoutersMap(rows) {
       var o = OUTCOME[r.outcome] || { label: r.outcome, cls: '' };
       var actions = [];
       if (r.stem && !r.pruned) {
-        actions.push('<button class="btn btn-sm" data-bk-diff="' + r.id + '">Changes</button>');
+        actions.push('<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-bk-diff="' + r.id + '">Changes</button>');
         if (st.permitted) {
           // Plain links, so the browser saves the file rather than the page
           // having to hold several MB in memory to hand it over.
           var q = '?routerId=' + encodeURIComponent(st.routerId);
-          actions.push('<a class="btn btn-sm" href="/api/backups/' + r.id + '/rsc' + q + '">.rsc</a>');
-          actions.push('<a class="btn btn-sm" href="/api/backups/' + r.id + '/backup' + q + '">.backup</a>');
-          actions.push('<button class="btn btn-sm btn-danger" data-bk-restore="' + r.id + '">Restore</button>');
+          actions.push('<a class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" href="/api/backups/' + r.id + '/rsc' + q + '">.rsc</a>');
+          actions.push('<a class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" href="/api/backups/' + r.id + '/backup' + q + '">.backup</a>');
+          actions.push('<button class="sbtn sbtn-danger" style="padding:.2rem .55rem;font-size:.7rem" data-bk-restore="' + r.id + '">Restore</button>');
         }
       } else if (r.pruned) {
         actions.push('<span class="muted-note">pruned</span>');

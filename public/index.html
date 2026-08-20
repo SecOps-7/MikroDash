@@ -4281,12 +4281,12 @@
         <div class="card-body">
           <div class="row g-3">
             <div class="col-sm-3">
-              <label class="form-label" for="bkEnabled">Automatic backups</label>
+              <label class="sform-label" for="bkEnabled">Automatic backups</label>
               <label class="stoggle"><span class="stoggle-label">Enabled</span><span class="stoggle-switch"><input type="checkbox" id="bkEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             </div>
             <div class="col-sm-3">
-              <label class="form-label" for="bkSchedule">Frequency</label>
-              <select class="form-select form-select-sm" id="bkSchedule">
+              <label class="sform-label" for="bkSchedule">Frequency</label>
+              <select class="sform-input" id="bkSchedule">
                 <option value="hourly">Hourly</option>
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
@@ -4294,13 +4294,13 @@
               </select>
             </div>
             <div class="col-sm-3">
-              <label class="form-label" for="bkKeepCount">Keep at most</label>
-              <input type="number" min="0" max="1000" class="form-control form-control-sm" id="bkKeepCount">
+              <label class="sform-label" for="bkKeepCount">Keep at most</label>
+              <input type="number" min="0" max="1000" class="sform-input" id="bkKeepCount">
               <div class="form-hint">restore points, 0 for no limit</div>
             </div>
             <div class="col-sm-3">
-              <label class="form-label" for="bkKeepDays">Keep for</label>
-              <input type="number" min="0" max="3650" class="form-control form-control-sm" id="bkKeepDays">
+              <label class="sform-label" for="bkKeepDays">Keep for</label>
+              <input type="number" min="0" max="3650" class="sform-input" id="bkKeepDays">
               <div class="form-hint">days, 0 for no limit</div>
             </div>
           </div>
