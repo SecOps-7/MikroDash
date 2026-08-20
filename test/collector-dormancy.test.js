@@ -796,3 +796,117 @@ test('the restamp clock restarts when a genuinely fresh payload arrives', () => 
   d.observe({ ts: 2, empty: true }, T0 + 85001);
   assert.equal(d.dormant, true);
 });
+
+// --- silence IS the empty answer on a streaming channel ---------------------
+//
+// patch-routeros.js deliberately swallows RouterOS's `!empty` on a streaming
+// channel, because there it means "nothing YET" — frequency-scan sends it ~6 ms
+// before delivering real rows. The cost is that a stream-mode collector on a
+// router with an empty table receives no packet at all, not even the [] its data
+// handler is written for. That is why this looked fixed on the hAP AC2 (poll
+// mode, one-shot writes, where the same patch DOES yield an empty result) and
+// was still broken on the cAP AX (stream mode).
+
+test('the patch really does swallow !empty on a stream', () => {
+  // Pinned because the collector fixes below only make sense against it, and a
+  // future patch edit that "helpfully" emitted [] would silently make them dead
+  // code — while breaking the frequency-scan case the swallow exists for.
+  const patch = fs.readFileSync(path.join(__dirname, '..', 'patch-routeros.js'), 'utf8');
+  assert.ok(/if \(reply === '!empty'\) \{ if \(this\.streaming\) return;/.test(patch),
+    'streaming !empty must stay swallowed');
+  assert.ok(/this\.emit\('done', \[\]\); return;/.test(patch),
+    'and a one-shot !empty must still yield an empty result');
+});
+
+test('talkers commits on prolonged stream silence', () => {
+  const h = harness();
+  const c = h.make({ streamMode: true });
+  c._startStream();
+  c._startSilenceTimer();
+  assert.ok(c._silenceTimer, 'stream mode arms a silence timer');
+
+  // No packet has arrived at all — the cAP AX shape.
+  assert.equal(c.lastPayload, null);
+  c._commitTick();                       // what the timer callback does
+  assert.ok(c.lastPayload, 'silence produces the empty payload the supervisor needs');
+  assert.deepEqual(c.lastPayload.devices, []);
+  c.stop();
+});
+
+test('rows arriving suppress the silence inference', () => {
+  const h = harness();
+  const c = h.make({ streamMode: true });
+  c._startStream();
+  h.streamHandlers.data({ 'mac-address': '00:00:5E:00:53:00', name: 'a', 'rate-up': '1', 'rate-down': '2' });
+  assert.equal(c._sawData, true, 'a real packet marks the stream as alive');
+  clearTimeout(c._commitTimer);
+  c.stop();
+});
+
+test('the silence timer is armed and disarmed across the lifecycle', () => {
+  const h = harness();
+  const c = h.make({ streamMode: true });
+  c.start();
+  assert.ok(c._silenceTimer);
+  c.suspend();
+  assert.equal(c._silenceTimer, null, 'suspend must not leave it running');
+  c.resume();
+  assert.ok(c._silenceTimer);
+  c.stop();
+  assert.equal(c._silenceTimer, null, 'stop must not leak the interval');
+});
+
+test('connections asks the router what silence means before restarting', () => {
+  // The watchdog used to restart on silence alone. On an AP with connection
+  // tracking off that is a restart every 20 s forever, plus a "stream degraded"
+  // banner — constant load on the smallest hardware we support.
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'src', 'collectors', 'connections.js'), 'utf8');
+  // Anchor on the DEFINITION, not the constructor's call site — the bare name
+  // matches that first and slices four useless lines.
+  const wd = SRC.slice(SRC.indexOf('_startWatchdog() {'));
+  const body = wd.slice(0, wd.indexOf('\n  }\n') + 4);
+  assert.ok(/_confirmSilence\(age\)/.test(body),
+    'the watchdog must probe, not restart, when the stream has merely gone quiet');
+  assert.ok(!/recordRestart\(\)\);\s*\n\s*this\._restartStream\(\);/.test(body),
+    'the unconditional restart is gone from the silence branch');
+
+  const probe = SRC.slice(SRC.indexOf('async _confirmSilence'));
+  const pbody = probe.slice(0, probe.indexOf('\n  }\n') + 4);
+  assert.ok(/rows\.length === 0/.test(pbody), 'empty means quiet, not dead');
+  assert.ok(/_restartStream\(\)/.test(pbody), 'rows back means the stream really is broken');
+  assert.ok(/_silenceProbe/.test(pbody), 'and only one probe may be in flight');
+});
+
+test('a confirmed-empty connection table is restated faster than the card expires', () => {
+  // The card's threshold is pollMs + STALE_GRACE. Driving the empty restatement
+  // off the watchdog's age gate meant an emit every 20-30 s against a 23 s
+  // deadline, so connCard flickered stale on an AP with tracking off even after
+  // the restart loop was fixed.
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'src', 'collectors', 'connections.js'), 'utf8');
+  const wd = SRC.slice(SRC.indexOf('_startWatchdog() {'));
+  const body = wd.slice(0, wd.indexOf('\n  }\n') + 4);
+
+  const checkMs = body.match(/const checkMs\s*=\s*(.+);/);
+  assert.ok(checkMs, 'watchdog still derives a check interval');
+  assert.ok(/_emptyConfirmed/.test(body), 'the empty restatement runs on the watchdog cadence');
+  const emptyIdx = body.indexOf('this._emptyConfirmed');
+  const ageIdx   = body.indexOf('age > staleMs');
+  assert.ok(emptyIdx > -1 && ageIdx > -1 && emptyIdx < ageIdx,
+    'it must run BEFORE the age gate, or refreshing lastConnsTs stops the gate ever tripping');
+
+  // checkMs = max(pollMs*2, 10s) beats threshold = pollMs + 20s for every
+  // interval the UI actually offers.
+  const STALE_GRACE = 20000;
+  [1000, 3000, 5000, 10000].forEach(function (pollMs) {
+    const check = Math.max(pollMs * 2, 10000);
+    assert.ok(check < pollMs + STALE_GRACE,
+      'pollMs ' + pollMs + ': restatement every ' + check + 'ms must beat ' + (pollMs + STALE_GRACE) + 'ms');
+  });
+});
+
+test('an empty table is still re-verified against the router now and then', () => {
+  const SRC = fs.readFileSync(path.join(__dirname, '..', 'src', 'collectors', 'connections.js'), 'utf8');
+  assert.ok(/const EMPTY_REPROBE_MS = \d+;/.test(SRC));
+  assert.ok(/_lastEmptyProbeTs > EMPTY_REPROBE_MS.*_confirmSilence/.test(SRC),
+    'a table that fills while the stream is dead must not be reported empty forever');
+});
