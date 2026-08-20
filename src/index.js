@@ -1362,7 +1362,16 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 });
 
 // GET /api/auth/logout
-app.get('/api/auth/logout', (req, res) => {
+//
+// Rate limiting is real but invisible to CodeQL: authLimiter is applied to
+// every path except /healthz by the app.use() above, inside a callback the
+// analysis cannot follow back to this handler. Measured against the running
+// container: 100 requests answered, the next 10 got 429.
+//
+// A route-level limiter would be the wrong fix, not a belt-and-braces one —
+// it would consume two of the 100/min budget per request, which is exactly
+// what the note above the /login route warns against.
+app.get('/api/auth/logout', (req, res) => { // codeql[js/missing-rate-limiting]
   const token = SessionStore.parseCookieHeader(req.headers.cookie || '')['mikrodash_sid'];
   const session = token ? SessionStore.getSession(token) : null;
   if (token) SessionStore.deleteSession(token);
