@@ -3274,7 +3274,14 @@ app.get('/api/reports/schedules',
     const cfg = Settings.load();
     res.json({
       ok: true,
-      schedules: db.listReportSchedulesFor(routerId).map(ReportSchedules.toPublic),
+      schedules: db.listReportSchedulesFor(routerId).map((row) => {
+        const pub = ReportSchedules.toPublic(row);
+        // The page shows when each last ran, so the list is useful without
+        // opening the history for every row in turn.
+        const last = db.listReportRuns(row.id, 1)[0];
+        pub.lastRun = last ? { ran_at: last.ran_at, outcome: last.outcome } : null;
+        return pub;
+      }),
       // So the page can say "this will never send" at creation time rather than
       // in a run row a month later.
       smtpReady: !!(cfg.smtpHost && cfg.smtpFrom),
