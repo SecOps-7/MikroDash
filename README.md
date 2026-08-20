@@ -103,6 +103,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Packages | The package inventory — installed, disabled, and the extras MikroTik offers but that are not on the router — with versions, sizes and build dates, plus a firmware panel (current, upgrade, minimum) and the RouterOS update channel and status. With write access on the page it can also **schedule** changes: install, enable, disable or uninstall. RouterOS does not act on these immediately, it records them and applies them on the next reboot, so the page leads with a pending-changes banner, offers Undo on every scheduled row, and keeps "Apply changes & reboot" as a separate action that requires the router's name typed back. Account credentials and configuration are never touched |
 | Reports | Historical data viewer with configurable date range and aggregation. Five tabs: **Ping** (RTT chart + sortable table), **Traffic** (per-interface RX/TX chart + table), **Bandwidth** (usage chart + table), **Alerts** (alert event history), **Connectivity** (router up/down event history). CSV and PDF export on every tab. Requires read on the Reports page |
 | Routers | Fleet summary cards — Total Devices, Online, Offline, Alerting (routers with an unresolved alert). Four views, remembered between visits: **Comfortable** and **Compact** card grids, **List** — a sortable table of status, name, host, model, RouterOS, alerts, CPU/RAM/Disk, clients, WAN Rx/Tx and uptime — and **Map**, plotting each router on a world map by its location, with co-located routers clustered into one dot and routers with no location kept in a tray rather than dropped. One search box narrows any view by name, host, model or version, and understands `online`, `offline` and `alerting`. Cards show connection status (WiFi icon), CPU / RAM / Disk usage bars, Uptime, DHCP client count, and live WAN RX/TX rates; board name, RouterOS version, architecture, serial number, and license level pills. Background sessions pre-load data at startup so cards are populated instantly on first visit. Hidden for single-router setups |
+| Backups | Scheduled configuration backups per router, stored as a pair: a gzipped `/export` for diffing and an encrypted `.backup` for restoring. A backup is kept **only when the configuration actually changed**, so a daily schedule costs a short check rather than disk. Drift is shown as a unified diff naming the exact lines that moved. Retention by count and by age, and the newest restore point is never pruned. Restore pushes the binary back and reboots, gated on a serial match, a typed router name, and a warning if the RouterOS version differs. Needs the `ftp` policy — see RouterOS Setup |
 | Settings | Persistent UI configuration — see below |
 
 ### Notifications
@@ -111,6 +112,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 - **Push notification channels** — Telegram Bot, Pushbullet, SMTP email, and ntfy; all four can be active simultaneously; credentials stored AES-256-GCM encrypted
 - **Per-router alert monitoring** — lightweight background connection to non-active routers so alerts fire for any configured router, not just the one currently displayed; opt-in per router. A router with alerts enabled keeps its alert collectors running even when no browser is watching it
 - **Alert types** — Interface up/down (per interface type: ether/wlan/bridge/vlan), WireGuard peer state, CPU ≥ threshold, ping loss ≥ threshold, NetWatch host reachability, router online/offline, RouterOS update available
+- **Backup notifications** — configuration drift (a router's configuration changed since its last backup) and backup failure. A successful run that changed nothing is deliberately **not** notifiable: on a daily schedule that is a message every day that says nothing
 - **Independent Up/Down templates** — separate `notifBody` (⚠️ alert) and `notifBodyUp` (✅ recovery) templates with `{{alertType}}`, `{{routerName}}`, `{{detail}}`, and more variables
 - Configurable cooldown (10 s – 60 min) prevents duplicate notifications per alert subject
 - **Per-user channels** (optional, off by default) — each user can add their own Telegram, Pushbullet, ntfy or email destination under **My Account**, delivered *in addition to* the install-wide channels. A user is only ever notified about routers their role lets them read, checked at the moment the alert is sent, so revoking access stops delivery immediately. Which alert types fire stays an administrator's decision; a user chooses only where their own alerts go. Email is an opt-in plus an address — the mail server stays admin-only. Enable with **Allow personal channels** in Settings → Notifications
@@ -257,13 +259,20 @@ and a compromised MikroDash cannot change your router.
 
 #### Optional: the write features
 
-Two pages change router configuration, and each needs more than `read`:
+Several pages can change router configuration, and each needs more than `read`:
 
 | Page | Needs | What it can do |
 |---|---|---|
+| **Routing, DNS, DHCP, VLANs, Bridges, Interfaces, VPN** | `write` | Add, edit and remove routes, static DNS entries, leases and networks, VLANs, bridges and bridge ports, VETH interfaces and WireGuard peers |
+| **Firewall** | `write` | Add, edit, remove, enable, disable and **reorder** rules across Filter, NAT, Mangle and Raw, with undo and redo |
 | **Packages** | `write` | Schedule a package enable/disable/uninstall, and reboot to apply |
 | **Queues** | `write` | Create, edit and remove simple queues and queue trees |
 | **Router Users** | `write` **and** `policy` | Create, edit and remove RouterOS users, groups and sessions |
+| **Backups** | `write` **and** `ftp` | Take configuration backups, and restore one (which reboots the router) |
+
+`ftp` is the policy that governs writing and reading files on the router, which is what `/export file=`
+and `/system/backup/save` do. Without it a backup fails with `not enough permissions (9)`. It does not
+enable the FTP *service*; that is `/ip/service` and stays off.
 
 > **If a queue seems to do nothing, check FastTrack first.** RouterOS's default configuration includes
 > a `fasttrack-connection` firewall rule, and FastTracked connections bypass simple queues and any

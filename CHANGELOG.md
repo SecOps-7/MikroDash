@@ -2,6 +2,83 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.30] — Configuration backups, router writes across the app, and a wire-encoding fix
+
+MikroDash can now **back up and restore router configurations**, and **write configuration** from most
+of the pages that previously only read it.
+
+The **Backups** page keeps a pair per restore point: a gzipped `/export` for diffing and an encrypted
+`.backup` for restoring. A pair is written **only when the configuration actually changed**, so a daily
+schedule costs a short check rather than disk, and drift is shown as a diff naming the exact lines that
+moved. Restore pushes the binary back to the router and reboots it, behind a serial match, a typed
+router name and a version-mismatch warning.
+
+Getting there turned up a **silent data-corruption bug in the RouterOS connection**. The receiver
+decoded every API word as UTF-8, which is right for text and destroys a binary: each invalid byte
+became a replacement character, one per byte, so a file came back the *right length* and the wrong
+content. Encoding is now a property of the connection. The mirror bug was worse in an app that has
+just learned to write: outgoing words were still encoded as win1252, so a Cyrillic comment typed into
+the new editors reached the router as `???????`.
+
+### Added
+- **Backups page.** Per-router schedule (hourly, daily, weekly, monthly — daily by default), manual
+  runs, retention by count and by age, and a full run history including the checks that found nothing
+  changed. The newest restore point is never pruned, however old it is: a router whose configuration
+  has been stable would otherwise age out its only backup precisely because nothing went wrong.
+- **Drift diffs.** A unified diff between any stored backup and the one before it, with the volatile
+  export header stripped so an unchanged router never reports as drifted.
+- **Restore.** Pushes the encrypted backup back to the router and loads it. Refused outright if the
+  serial does not match the device the backup came from; warns once if the RouterOS version differs,
+  because that is the restore you most want after a bad upgrade; requires the router's name to be
+  typed; audited before the command is sent, because the reboot takes the answer with it.
+- **Write access across the app** (#97). Add, edit and remove routes, static DNS entries, DHCP leases
+  and networks, VLANs, bridges and bridge ports, VETH interfaces and WireGuard peers, each from the
+  card that already showed them.
+- **Firewall writes**, including **drag-and-drop reordering** with undo and redo. Position is recorded
+  as the rule a row sat before, never an index, so an undo still means something after the table has
+  moved on.
+- **Update button** on the Dashboard's System card when a RouterOS update is available, with a typed
+  confirmation and a progress state that stays on screen while the router reboots.
+- Backup notifications for drift and failure. A run that changed nothing is deliberately not
+  notifiable.
+
+### Fixed
+- **Binary files came back corrupted from RouterOS.** `/file/read` returns raw bytes and the receiver
+  decoded them as UTF-8, replacing each invalid byte with U+FFFD. Because that is one character per
+  byte, the reassembled file matched the reported size exactly and looked correct. Verified against a
+  live hAP AX3: a known blob returned with a different sha256 and 177 of its 256 distinct byte values
+  intact. The decode is now per connection, and only the backup transport asks for raw bytes.
+- **Non-ASCII text was mangled on the way to the router.** Outgoing API words were encoded as win1252,
+  which cannot represent Cyrillic, Greek or CJK, so they were substituted with `?` before leaving the
+  process. This only started to matter when MikroDash learned to write.
+- **Traffic kept flowing to a socket whose router access had been revoked.** The revocation sweep
+  stops data by making the socket leave its rooms, which is correct for every collector except
+  traffic — that one emits straight to each subscriber. A revoked session carried on receiving a
+  sample per second until it happened to disconnect.
+- Backups no longer refuse on small routers. A fixed 8 MB free-space threshold, extrapolated from one
+  busy AX3, refused a hAP ac2 whose entire backup is 46 KB. Backup size tracks configuration, not
+  hardware, so the router is asked instead of guessed at.
+- The Audit page's timestamps could keep an ISO `T` separator that the Reports page stripped.
+
+### Changed
+- The Update button sits on the right edge of the update banner and matches its colour, instead of
+  sitting in the middle of it in blue.
+- The upgrade dialog no longer closes the moment the router accepts the command. That was exactly the
+  moment worth explaining, so it now holds a spinner and says the router will be unreachable for a
+  minute or two.
+
+### Upgrading
+Nothing to do. Backups are **off by default** and start no process until enabled per router.
+
+Enabling them needs the RouterOS user to hold the **`ftp`** policy, which the recommended read-only
+group denies: `/export file=` and `/system/backup/save` write files, and without it a backup fails
+with `not enough permissions (9)`. This does not enable the FTP service. See RouterOS Setup in the
+README.
+
+Backups are stored under `/data/config-backups/<router>/` and are deliberately unreachable from both
+the retention sweep and router deletion. Removing a router is exactly when its last known-good
+configuration matters most.
+
 ## [0.7.25] — Nine new pages, a grouped sidebar, and a full audit trail
 
 The biggest release so far. MikroDash gains **nine pages** — VLANs, PPP, Bridges, DNS, CAPsMAN,
