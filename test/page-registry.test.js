@@ -321,10 +321,11 @@ test('every page declares a nav category from the registry vocabulary', () => {
         p.key + ' names unknown category ' + p.category);
     }
   }
-  // The five at top level are a decision, not an accident — a new page landing
-  // here silently means somebody forgot to file it.
+  // The six at top level are a decision, not an accident — a new page landing
+  // here silently means somebody forgot to file it. Backups sits here because a
+  // restore point is configuration about the router, not telemetry from it.
   const top = Pages.PAGES.filter(p => p.category === null).map(p => p.key).sort();
-  assert.deepStrictEqual(top, ['audit', 'dashboard', 'reports', 'routers', 'settings']);
+  assert.deepStrictEqual(top, ['audit', 'backups', 'dashboard', 'reports', 'routers', 'settings']);
   // An empty category is a header the visibility sweep has to hide and nobody
   // meant to write.
   for (const c of Pages.CATEGORY_KEYS) {

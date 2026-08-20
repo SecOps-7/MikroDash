@@ -184,6 +184,72 @@ function _normalizeCollection(input, existing) {
 }
 
 /**
+ * Schedules a backup may run on, and how often each means in milliseconds.
+ *
+ * Daily is the default. A run that finds nothing changed writes no files at
+ * all — it costs one export read, about two seconds — so the frequency buys
+ * tighter drift detection rather than disk.
+ */
+const BACKUP_SCHEDULES = Object.freeze({
+  hourly:  3600000,
+  daily:   86400000,
+  weekly:  604800000,
+  monthly: 2592000000,
+});
+
+const BACKUP_DEFAULTS = Object.freeze({
+  enabled: false,          // opt in per router; nothing starts backing up on upgrade
+  schedule: 'daily',
+  keepCount: 30,
+  keepDays: 365,
+});
+
+function _clampInt(value, fallback, min, max) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const n = Math.trunc(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+/**
+ * Normalize the per-router `backup` block.
+ *
+ * Same three-way contract as _normalizeCollection, and for the same reason:
+ * update() rebuilds a record field by field, so an edit that does not mention
+ * backups must not erase them.
+ *
+ *   undefined  keep what is stored
+ *   null       reset to no backup configuration at all
+ *
+ * The password is generated here on first enable and never accepted from a
+ * caller: it is the key to an encrypted archive of the whole device, so the
+ * only thing that should ever know it is this process. An existing one is
+ * carried forward, because regenerating it would orphan every stored .backup —
+ * RouterOS can only load one with the password it was written with.
+ */
+function _normalizeBackup(input, existing) {
+  const prev = existing ? existing.backup : undefined;
+  if (input === undefined) return prev;
+  if (input === null) return undefined;
+  if (typeof input !== 'object' || Array.isArray(input)) return prev;
+
+  const out = {
+    enabled:  input.enabled === undefined ? (prev ? !!prev.enabled : BACKUP_DEFAULTS.enabled)
+                                          : (input.enabled === true || input.enabled === 'true'),
+    schedule: BACKUP_SCHEDULES[input.schedule] ? input.schedule
+                                               : ((prev && prev.schedule) || BACKUP_DEFAULTS.schedule),
+    keepCount: _clampInt(input.keepCount, prev ? prev.keepCount : BACKUP_DEFAULTS.keepCount, 0, 1000),
+    keepDays:  _clampInt(input.keepDays,  prev ? prev.keepDays  : BACKUP_DEFAULTS.keepDays,  0, 3650),
+    // Never from the caller. Generated once, then carried forward forever.
+    password: (prev && prev.password) || '',
+  };
+  if (out.enabled && !out.password) {
+    out.password = crypto.randomBytes(24).toString('base64url');
+  }
+  return out;
+}
+
+/**
  * Normalize the per-router `geo` block (issue #96).
  *
  * Same three-way contract as _normalizeCollection, for the same reason:
@@ -275,7 +341,13 @@ function _readFile() {
     return raw.map(r => {
       const plain = _decrypt(r.password || '');
       if (!plain && r.password) _cipherKeep.set(r.id, r.password);
-      return { ...r, password: plain };
+      const out = { ...r, password: plain };
+      // The backup password unlocks an encrypted archive of the entire device,
+      // so it is encrypted at rest exactly as the router credential is.
+      if (r.backup && r.backup.password) {
+        out.backup = { ...r.backup, password: _decrypt(r.backup.password) };
+      }
+      return out;
     });
   } catch (_) {
     return [];
@@ -284,10 +356,16 @@ function _readFile() {
 
 function _writeFile(routers) {
   _ensureDataDir();
-  const toWrite = routers.map(r => ({
-    ...r,
-    password: r.password ? _encrypt(r.password) : (_cipherKeep.get(r.id) || ''),
-  }));
+  const toWrite = routers.map(r => {
+    const out = {
+      ...r,
+      password: r.password ? _encrypt(r.password) : (_cipherKeep.get(r.id) || ''),
+    };
+    if (r.backup && r.backup.password) {
+      out.backup = { ...r.backup, password: _encrypt(r.backup.password) };
+    }
+    return out;
+  });
   const tmp = ROUTERS_FILE + '.tmp';
   // mode 0o600 — file holds encrypted credentials; keep it owner-only.
   fs.writeFileSync(tmp, JSON.stringify(toWrite, null, 2), { encoding: 'utf8', mode: 0o600 });
@@ -396,6 +474,7 @@ function add(data) {
     connDownThresholdSec:(function(){ var n = parseInt(data.connDownThresholdSec, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     collection:          _normalizeCollection(data.collection, null),
     geo:                 _normalizeGeo(data.geo, null),
+    backup:              _normalizeBackup(data.backup, null),
     // Site membership (issue #78). Exactly one site, or none. Sites themselves
     // live in SQLite; only the membership is here, next to the rest of the
     // router's configuration. An absent field reads as site-less, so existing
@@ -445,6 +524,7 @@ function update(id, data) {
     connDownThresholdSec:(function(){ var raw = data.connDownThresholdSec !== undefined ? data.connDownThresholdSec : (existing.connDownThresholdSec !== undefined ? existing.connDownThresholdSec : 30); var n = parseInt(raw, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     collection:          _normalizeCollection(data.collection, existing),
     geo:                 _normalizeGeo(data.geo, existing),
+    backup:              _normalizeBackup(data.backup, existing),
     siteId:              data.siteId !== undefined ? _cleanSiteId(data.siteId) : (existing.siteId || null),
     disabled:            data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),
   };
@@ -572,10 +652,21 @@ function remove(id) {
  * Return routers safe to send to the browser — passwords masked.
  */
 function getPublic() {
-  return loadAll().map(r => ({ ...r, password: r.password ? '••••••••' : '' }));
+  return loadAll().map(r => {
+    const out = { ...r, password: r.password ? '••••••••' : '' };
+    // The backup password is never masked-and-shown, it is REMOVED. Nothing in
+    // the UI edits it, so there is no field for a mask to stand in for, and a
+    // masked secret invites a round trip that could write the mask back.
+    if (r.backup) {
+      const { password, ...rest } = r.backup;
+      out.backup = { ...rest, hasPassword: !!password };
+    }
+    return out;
+  });
 }
 
 /** Invalidate the in-memory cache (used after external settings changes). */
 function invalidateCache() { _cache = null; }
 
-module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, updateGeoAuto, remove, getPublic, invalidateCache, clearSite };
+module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, updateGeoAuto, remove, getPublic, invalidateCache, clearSite,
+  BACKUP_SCHEDULES, BACKUP_DEFAULTS, _normalizeBackup };

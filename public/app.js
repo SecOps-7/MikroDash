@@ -535,7 +535,7 @@ function applyFontSize(sizeId) {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit'};
+var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit',backups:'Backups'};
 var PAGE_KEYS   = ['dashboard','wan','wireless','capsman','interfaces','dhcp','dns','vlans','bridges','vpn','ppp','connections','routing','bandwidth','firewall','logs','packages','queues','rosusers','audit'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
@@ -2735,7 +2735,7 @@ var PAGE_NAV_MAP = {
   pageVlans:'vlans', pagePpp:'ppp',
   pageCapsman:'capsman', pageBridges:'bridges', pageDns:'dns', pagePackages:'packages',
   pageRosusers:'rosusers', pageQueues:'queues', pageWan:'wan',
-  pageRouters:'routers', pageAudit:'audit',
+  pageRouters:'routers', pageAudit:'audit', pageBackups:'backups',
 };
 // Every page the nav can show. Kept in step with src/pages.js — the drift check
 // lives in test/page-registry.test.js.
@@ -2750,7 +2750,7 @@ var ALL_NAV_PAGES = ['dashboard',
                      'bandwidth','queues','connections',
                      'firewall','rosusers',
                      'logs','packages',
-                     'routers','reports','audit','settings'];
+                     'routers','reports','audit','backups','settings'];
 // The two inputs to page visibility, merged by applyPageVisibility(): what the
 // install allows, and what this session's role allows. Both must say yes.
 var _pageInstall = {};
@@ -6071,7 +6071,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
     // Page visibility + dashboard widget toggles
-    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit','pageBackups'].forEach(function(f) {
+      var el = $('s_'+f); if (el) el.checked = data[f] !== false;
+    });
+    ['notifBackupDrift','notifBackupFail'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     // After the boxes are filled, not before: detection reads the DOM so the
@@ -6196,7 +6199,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
-    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit'].forEach(function(f) {
+    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit','pageBackups'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
@@ -6209,6 +6212,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // Alert type + iface type toggles
     ['notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
      'notifRouterUpdate','notifBgp',
+     // Backups notify by push only — they are not alert types, so they drive no
+     // browser notification and are absent from _alertTypes on purpose.
+     'notifBackupDrift','notifBackupFail',
      'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
@@ -14636,3 +14642,289 @@ function _renderRoutersMap(rows) {
     if (d && d.action === 'upgrade') el('updModal').classList.remove('open');
   });
 }());
+
+// ── Backups page ─────────────────────────────────────────────────────────────
+//
+// The page is a thin view over one server payload (`backups:state`): settings,
+// summary and history arrive together, so there is no order in which the parts
+// can disagree with each other.
+//
+// Write permission is carried on that payload as `permitted` rather than
+// inferred from the role here. The server decides; this only draws.
+(function backupsPage() {
+  var _state = null;
+  var _busy = false;
+
+  function el(id) { return document.getElementById(id); }
+
+  function fmtWhen(ts) {
+    if (!ts) return '—';
+    var d = new Date(ts);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Every outcome the runner can record, and what it means to a reader. An
+  // unknown one still renders rather than vanishing.
+  var OUTCOME = {
+    changed:   { label: 'Stored',    cls: 'bg-green-lt'  },
+    unchanged: { label: 'No change', cls: 'bg-azure-lt'  },
+    skipped:   { label: 'Skipped',   cls: 'bg-yellow-lt' },
+    failed:    { label: 'Failed',    cls: 'bg-red-lt'    },
+  };
+
+  function renderSummary(st) {
+    var sum = st.summary || {};
+    el('bkSumLast').textContent     = fmtWhen(sum.lastAt);
+    el('bkSumStored').textContent   = sum.stored || 0;
+    el('bkSumBytes').textContent    = fmtBytes(sum.bytes || 0);
+    el('bkSumSchedule').textContent = st.settings.enabled
+      ? st.settings.schedule.charAt(0).toUpperCase() + st.settings.schedule.slice(1)
+      : 'Off';
+    var name = el('bkRouterName');
+    if (name) name.textContent = st.label || '';
+  }
+
+  function renderSettings(st) {
+    el('bkEnabled').checked   = !!st.settings.enabled;
+    el('bkSchedule').value    = st.settings.schedule;
+    el('bkKeepCount').value   = st.settings.keepCount;
+    el('bkKeepDays').value    = st.settings.keepDays;
+
+    ['bkEnabled', 'bkSchedule', 'bkKeepCount', 'bkKeepDays'].forEach(function (id) {
+      el(id).disabled = !st.permitted;
+    });
+
+    // A viewer gets no buttons at all rather than disabled ones: there is
+    // nothing for them to try, so offering it and refusing is just noise.
+    var actions = el('bkSettingsActions');
+    actions.innerHTML = st.permitted
+      ? '<button class="btn btn-sm btn-primary" id="bkSave">Save</button>' : '';
+    if (st.permitted) el('bkSave').addEventListener('click', saveSettings);
+
+    var hist = el('bkHistoryActions');
+    hist.innerHTML = st.permitted
+      ? '<button class="btn btn-sm btn-primary" id="bkRun"' + (_busy ? ' disabled' : '') + '>' +
+        (_busy ? 'Backing up&hellip;' : '+ Back Up Now') + '</button>' : '';
+    if (st.permitted) el('bkRun').addEventListener('click', runNow);
+  }
+
+  function renderRows(st) {
+    var rows = st.rows || [];
+    el('bkBadge').textContent = rows.length;
+    var note = el('bkNote');
+    note.textContent = rows.length ? '' : 'No backups have been taken yet.';
+    note.style.color = '';
+
+    el('bkTable').innerHTML = rows.map(function (r) {
+      var o = OUTCOME[r.outcome] || { label: r.outcome, cls: '' };
+      var actions = [];
+      if (r.stem && !r.pruned) {
+        actions.push('<button class="btn btn-sm" data-bk-diff="' + r.id + '">Changes</button>');
+        if (st.permitted) {
+          // Plain links, so the browser saves the file rather than the page
+          // having to hold several MB in memory to hand it over.
+          var q = '?routerId=' + encodeURIComponent(st.routerId);
+          actions.push('<a class="btn btn-sm" href="/api/backups/' + r.id + '/rsc' + q + '">.rsc</a>');
+          actions.push('<a class="btn btn-sm" href="/api/backups/' + r.id + '/backup' + q + '">.backup</a>');
+          actions.push('<button class="btn btn-sm btn-danger" data-bk-restore="' + r.id + '">Restore</button>');
+        }
+      } else if (r.pruned) {
+        actions.push('<span class="muted-note">pruned</span>');
+      }
+
+      var detail = r.error ? esc(r.error)
+                 : (r.stem ? esc(r.stem) : '');
+      return '<tr>' +
+        '<td>' + esc(fmtWhen(r.takenAt)) +
+          (detail ? '<div class="muted-note" style="font-size:.7rem">' + detail + '</div>' : '') + '</td>' +
+        '<td><span class="badge ' + o.cls + '">' + esc(o.label) + '</span></td>' +
+        '<td>' + esc(r.source === 'manual' ? ('Manual' + (r.actor ? ' · ' + r.actor : '')) : 'Schedule') + '</td>' +
+        '<td>' + esc(r.osVersion || '—') + '</td>' +
+        '<td>' + (r.bytes ? esc(fmtBytes(r.bytes)) : '—') + '</td>' +
+        '<td class="text-end">' + actions.join(' ') + '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  function render() {
+    if (!_state) return;
+    renderSummary(_state);
+    renderSettings(_state);
+    renderRows(_state);
+  }
+
+  function saveSettings() {
+    socket.emit('backups:settings', {
+      enabled:   el('bkEnabled').checked,
+      schedule:  el('bkSchedule').value,
+      keepCount: el('bkKeepCount').value,
+      keepDays:  el('bkKeepDays').value,
+    });
+  }
+
+  function runNow() {
+    _busy = true;
+    render();
+    socket.emit('backups:run');
+  }
+
+  // ── The diff view ──────────────────────────────────────────────────────────
+
+  function renderDiff(d) {
+    var title = el('bkDiffTitle');
+    var summary = el('bkDiffSummary');
+    var body = el('bkDiffBody');
+
+    if (d.baseline) {
+      title.textContent = 'First backup';
+      summary.textContent = 'This is the earliest stored configuration, so there is nothing to compare it against.';
+      body.innerHTML = '<div class="bk-diff-empty">No earlier backup.</div>';
+    } else if (d.truncated) {
+      title.textContent = 'Changes';
+      summary.textContent = '';
+      body.innerHTML = '<div class="bk-diff-empty">These two configurations differ too widely to show as a line-by-line diff.</div>';
+    } else if (!d.hunks.length) {
+      title.textContent = 'Changes';
+      summary.textContent = '';
+      body.innerHTML = '<div class="bk-diff-empty">No differences.</div>';
+    } else {
+      title.textContent = 'Changes';
+      summary.textContent = d.added + ' added, ' + d.removed + ' removed';
+      body.innerHTML = d.hunks.map(function (h) {
+        var head = '<div class="bk-hunk-hdr">@@ -' + h.aStart + ',' + h.aCount +
+                   ' +' + h.bStart + ',' + h.bCount + ' @@</div>';
+        return head + h.lines.map(function (l) {
+          var cls = l.op === '+' ? 'bk-add' : l.op === '-' ? 'bk-del' : '';
+          var num = l.op === '+' ? l.bLine : l.aLine;
+          return '<div class="bk-line ' + cls + '"><span class="bk-ln">' + (num || '') + '</span>' +
+                 esc(l.op + ' ' + l.text) + '</div>';
+        }).join('');
+      }).join('');
+    }
+    el('bkDiffModal').classList.add('open');
+  }
+
+  // ── Wiring ────────────────────────────────────────────────────────────────
+
+  socket.on('backups:state', function (st) {
+    _state = st;
+    _busy = st.running || false;
+    render();
+  });
+
+  socket.on('backups:running', function () { _busy = true; render(); });
+
+  socket.on('backups:ran', function () {
+    // A scheduled run finished while the page was open.
+    if (_currentPage === 'backups') socket.emit('backups:list');
+  });
+
+  socket.on('backups:diff', renderDiff);
+
+  socket.on('backups:restoring', function () {
+    var n = el('bkNote');
+    if (n) { n.textContent = 'Sending the backup to the router…'; n.style.color = ''; }
+  });
+
+  socket.on('backups:restored', function () {
+    _pendingRestore = null;
+    var n = el('bkNote');
+    if (n) {
+      n.textContent = 'Restore started. The router is rebooting and will be unreachable for a minute or two.';
+      n.style.color = '';
+    }
+  });
+
+  socket.on('backups:error', function (e) {
+    _busy = false;
+    render();
+    if (e && e.code === 'version-mismatch' && _pendingRestore) {
+      // Asked once, then answered by re-submitting. The server refuses the
+      // first attempt precisely so this sentence can name both versions.
+      askRestore(_pendingRestore, true,
+        'WARNING: this backup was taken on RouterOS ' + e.was +
+        ' and the router now runs ' + e.now + '. MikroTik recommend matching versions.');
+      return;
+    }
+    if (e && e.code === 'serial-mismatch') {
+      var n1 = el('bkNote');
+      if (n1) {
+        n1.textContent = 'Refused: this backup was taken from serial ' + e.was +
+                         ', but this router reports ' + e.now + '. A backup belongs to one device.';
+        n1.style.color = 'var(--accent-warn)';
+      }
+      _pendingRestore = null;
+      return;
+    }
+    _pendingRestore = null;
+    var msg = { denied: 'You do not have permission to do that.',
+                'not-configured': 'Enable backups for this router first, so a password can be generated.',
+                'not-found': 'That backup is no longer available.',
+                'confirm-mismatch': 'The name you typed did not match the router name.',
+                'no-route-back': 'The router has no address it can reach MikroDash on. Set a backup base URL in Settings.',
+                unavailable: 'The router is not connected.' }[e && e.code];
+    // The page's own note line is the sink: there is no global toast, and each
+    // page surfaces its errors where the thing that failed is on screen.
+    var note = el('bkNote');
+    if (note) {
+      note.textContent = msg || ((e && e.message) || 'Backup request failed');
+      note.style.color = 'var(--accent-warn)';
+    }
+  });
+
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest && ev.target.closest('[data-bk-diff]');
+    if (btn) {
+      ev.preventDefault();
+      socket.emit('backups:diff', { id: Number(btn.getAttribute('data-bk-diff')) });
+      return;
+    }
+    var rst = ev.target.closest && ev.target.closest('[data-bk-restore]');
+    if (rst) {
+      ev.preventDefault();
+      askRestore(Number(rst.getAttribute('data-bk-restore')), false);
+    }
+  });
+
+  /**
+   * Restoring replaces the whole configuration and reboots, so the prompt says
+   * so in those words and asks the operator to type the router's name — the
+   * same confirmation a package upgrade requires.
+   *
+   * `acceptVersion` carries a second pass: the server refuses once on a
+   * RouterOS version mismatch, and the answer to that question is what turns
+   * the refusal into a go-ahead.
+   */
+  function askRestore(id, acceptVersion, versionNote) {
+    if (!_state) return;
+    var lines = [
+      'Restore ' + _state.label + ' from this backup?',
+      '',
+      'This REPLACES the entire configuration and reboots the router.',
+      'Everything configured since this backup is lost.',
+      '',
+      'The API user MikroDash connects as is part of what gets replaced — if',
+      'that user did not exist when this backup was taken, MikroDash will lose',
+      'access to this router.',
+    ];
+    if (versionNote) lines.push('', versionNote);
+    lines.push('', 'Type the router name to confirm:');
+    var answer = window.prompt(lines.join('\n'), '');
+    if (answer === null) return;
+    socket.emit('backups:restore', { id: id, confirm: answer, acceptVersion: !!acceptVersion });
+    _pendingRestore = id;
+  }
+
+  var _pendingRestore = null;
+
+  document.addEventListener('mikrodash:pagechange', function (ev) {
+    if (ev.detail === 'backups') socket.emit('backups:list');
+  });
+
+  // A router switch makes every row on screen belong to the wrong device.
+  socket.on('router:switched', function () {
+    _state = null;
+    _busy = false;
+    if (_currentPage === 'backups') socket.emit('backups:list');
+  });
+})();

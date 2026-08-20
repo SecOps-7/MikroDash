@@ -162,6 +162,17 @@ const DEFAULTS = {
   notifPing:         true,
   notifNetwatch:     false,
   notifRouterStatus: false,
+  // Backups notify on two things only: a configuration that drifted, and a run
+  // that failed. "Backed up, nothing changed" is deliberately not notifiable —
+  // on a daily schedule that is a message every day that says nothing, and a
+  // channel that cries wolf daily is one people mute for the other two as well.
+  notifBackupDrift:  true,
+  notifBackupFail:   true,
+  // Where the ROUTER should fetch a backup from during a restore. Normally
+  // derived from the address the router already sees us at (/user/active), so
+  // this is only needed behind a reverse proxy or NAT, where what the router
+  // can reach is not what we can observe.
+  backupBaseUrl:     '',
   // Off by default deliberately: switching a new alert type on for existing
   // installs would fire on upgrade for every router already behind a release.
   notifRouterUpdate: false,
@@ -222,6 +233,7 @@ const DEFAULTS = {
   // shows everything, and the preset is what narrows it.
   pageRouters:     true,
   pageAudit:       true,
+  pageBackups:     true,
 
   // Set once by the #105 migration, then never read again.
   collectionMigrated: false,
@@ -445,7 +457,7 @@ const VIEWER_FIELDS = [
   'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
   'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting', 'pageTopology',
   'pageVlans', 'pagePpp', 'pageBridges', 'pageDns', 'pageCapsman', 'pagePackages',
-  'pageRosusers', 'pageQueues', 'pageWan', 'pageRouters', 'pageAudit',
+  'pageRosusers', 'pageQueues', 'pageWan', 'pageRouters', 'pageAudit', 'pageBackups',
   'displayTimezone',
   // Whether the My Alerts tab exists at all. A non-admin is the whole audience
   // for that tab and only ever sees this subset, so leaving it out would hide

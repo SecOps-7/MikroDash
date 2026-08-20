@@ -1395,6 +1395,17 @@
        NOT named `card-actions`: Tabler already defines that class with
        `margin:-8px`, and inheriting it pulled the group into the header's
        padding. */
+    /* A unified diff reads as columns, so the gutter and the text share one
+       monospaced grid and only the background carries the meaning. */
+    .bk-diff{max-height:60vh;overflow:auto;border:1px solid var(--border);border-radius:6px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.74rem;line-height:1.5}
+    .bk-hunk-hdr{background:var(--bg-subtle,rgba(127,127,127,.12));color:var(--text-muted);
+      padding:.2rem .6rem;position:sticky;left:0}
+    .bk-line{display:flex;white-space:pre;padding:0 .6rem}
+    .bk-line .bk-ln{flex:0 0 4.5rem;color:var(--text-muted);opacity:.7;user-select:none;text-align:right;padding-right:.8rem}
+    .bk-add{background:rgba(45,164,78,.14)}
+    .bk-del{background:rgba(248,113,113,.13)}
+    .bk-diff-empty{padding:1rem;color:var(--text-muted);text-align:center}
     .hdr-actions{margin-left:auto;display:flex;align-items:center;
       gap:.5rem;flex-wrap:wrap;justify-content:flex-end}
     /* A viewer who may not write gets an EMPTY span, and an empty span must not
@@ -1855,6 +1866,10 @@
     <a class="nav-item" data-page="audit" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8 12h5"/><path d="M8 16h8"/></svg></span>
       <span class="nav-label">Audit</span>
+    </a>
+    <a class="nav-item" data-page="backups" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></span>
+      <span class="nav-label">Backups</span>
     </a>
     <a class="nav-item" data-page="settings" href="#" id="settingsNavItem">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
@@ -4203,6 +4218,86 @@
     </div>
   </div>
 
+  <div class="page-view" id="page-backups">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Last backup</div><div class="fa-stat-val" id="bkSumLast">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Restore points</div><div class="fa-stat-val" id="bkSumStored">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Disk used</div><div class="fa-stat-val" id="bkSumBytes">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Schedule</div><div class="fa-stat-val" id="bkSumSchedule">&mdash;</div></div>
+      </div>
+
+      <div class="card" id="bkSettingsCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Backup Schedule</h3>
+            <span id="bkRouterName" class="muted-note"></span>
+          </div>
+          <div class="hdr-actions" id="bkSettingsActions"></div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-sm-3">
+              <label class="form-label" for="bkEnabled">Automatic backups</label>
+              <label class="stoggle"><span class="stoggle-label">Enabled</span><span class="stoggle-switch"><input type="checkbox" id="bkEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label" for="bkSchedule">Frequency</label>
+              <select class="form-select form-select-sm" id="bkSchedule">
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label" for="bkKeepCount">Keep at most</label>
+              <input type="number" min="0" max="1000" class="form-control form-control-sm" id="bkKeepCount">
+              <div class="form-hint">restore points, 0 for no limit</div>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label" for="bkKeepDays">Keep for</label>
+              <input type="number" min="0" max="3650" class="form-control form-control-sm" id="bkKeepDays">
+              <div class="form-hint">days, 0 for no limit</div>
+            </div>
+          </div>
+          <div class="form-hint mt-3" id="bkExplain">
+            A backup is stored only when the configuration actually changed, so a
+            frequent schedule costs a short check rather than disk. Each restore point
+            is a pair: an export for the diff, and an encrypted binary for the restore.
+          </div>
+        </div>
+      </div>
+
+      <!-- .card carries a 24px box-shadow and no margin, so stacked cards need
+           this explicitly — the same .85rem the summary row uses below itself.
+           Without it the schedule card's shadow falls across this one. -->
+      <div class="card" id="bkHistoryCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">History</h3>
+            <span id="bkBadge" class="card-badge">0</span>
+            <span id="bkNote" class="muted-note"></span>
+          </div>
+          <div class="hdr-actions" id="bkHistoryActions"></div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:520px;overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
+              <colgroup><col style="width:20%"><col style="width:14%"><col style="width:12%"><col style="width:14%"><col style="width:14%"><col style="width:26%"></colgroup>
+              <thead><tr>
+                <th>When</th><th>Result</th><th>Trigger</th><th>RouterOS</th><th>Size</th><th class="text-end">Actions</th>
+              </tr></thead>
+              <tbody id="bkTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <div class="page-view" id="page-settings">
     <!-- Was max-width:720px;margin:0 auto - a centred column that left most of a
          wide window empty while the page grew ever longer. Now the house
@@ -4501,6 +4596,8 @@
               <label class="stoggle"><span class="stoggle-label">Ping Loss</span><span class="stoggle-switch"><input type="checkbox" id="s_notifPing"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">NetWatch Hosts</span><span class="stoggle-switch"><input type="checkbox" id="s_notifNetwatch"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Router Offline / Online</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterStatus"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Configuration Drift</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBackupDrift"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Backup Failed</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBackupFail"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle" title="Notify once per release when RouterOS has a newer version available"><span class="stoggle-label">RouterOS Update Available</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterUpdate"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle" title="BGP peer up/down, large prefix-count swings, session flapping and hold-timer misconfiguration"><span class="stoggle-label">BGP Peers</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBgp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
             </div>
@@ -4968,6 +5065,7 @@
               <label class="stoggle"><span class="stoggle-label">Queues</span><span class="stoggle-switch"><input type="checkbox" id="s_pageQueues"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Router Users</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRosusers"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Audit</span><span class="stoggle-switch"><input type="checkbox" id="s_pageAudit"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Backups</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBackups"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
@@ -6177,6 +6275,21 @@
        are built at runtime from the schema the server sends, which is why
        there is nothing between the header and the footer: a field list here
        would be a second copy of the registry, and copies drift. -->
+  <!-- Configuration diff. Wide and monospaced, because a config diff is only
+       readable if the columns line up. -->
+  <div class="rtr-modal-bg" id="bkDiffModal">
+   <div class="rtr-modal pmodal" style="max-width:1100px;width:96vw">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="bkDiffTitle">Changes</span>
+      <button class="rtr-modal-close" data-modal-close="bkDiffModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div id="bkDiffSummary" class="muted-note" style="margin-bottom:.5rem"></div>
+      <div id="bkDiffBody" class="bk-diff"></div>
+    </div>
+   </div>
+  </div>
+
   <div class="rtr-modal-bg" id="resModal">
    <div class="rtr-modal pmodal">
     <div class="rtr-modal-hdr">
