@@ -83,8 +83,8 @@ async function sendPushbullet(apiKey, title, body) {
   );
 }
 
-async function sendSmtp(settings, title, body) {
-  const transport = nodemailer.createTransport({
+function _transport(settings) {
+  return nodemailer.createTransport({
     host:   settings.smtpHost,
     port:   settings.smtpPort || 587,
     secure: !!settings.smtpSecure,
@@ -99,16 +99,37 @@ async function sendSmtp(settings, title, body) {
     greetingTimeout:   10000,
     socketTimeout:     15000,
   });
+}
+
+/**
+ * Send one email, with recipients and attachments of its own.
+ *
+ * Deliberately separate from send(). That function fans the same title and body
+ * out to four channels, three of which have no concept of an attachment, so
+ * widening it would be a contract that lies: Telegram, Pushbullet and ntfy
+ * would silently drop whatever was attached. A scheduled report also has its
+ * own fixed recipient list, and must not go to whichever channels the install
+ * happens to have switched on.
+ *
+ * `to` and `bcc` are passed through as given, arrays included. Never build an
+ * address list by joining strings: a newline inside one address would inject
+ * mail headers.
+ */
+async function sendMail(settings, { to, bcc, subject, text, attachments }) {
+  const transport = _transport(settings);
   try {
     await transport.sendMail({
-      from:    settings.smtpFrom,
-      to:      settings.smtpTo,
-      subject: title,
-      text:    body,
+      from: settings.smtpFrom,
+      to, bcc, subject, text,
+      attachments: (attachments && attachments.length) ? attachments : undefined,
     });
   } finally {
     transport.close();
   }
+}
+
+async function sendSmtp(settings, title, body) {
+  return sendMail(settings, { to: settings.smtpTo, subject: title, text: body });
 }
 
 async function send(settings, title, body) {
@@ -206,4 +227,4 @@ async function testChannel(settings, channel) {
   }
 }
 
-module.exports = { send, testChannel, hasConfiguredChannel };
+module.exports = { send, sendMail, testChannel, hasConfiguredChannel };

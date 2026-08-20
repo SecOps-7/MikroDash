@@ -42,6 +42,7 @@ const OLD_ROLE_PERMS = {
     // permission appearing in this set is therefore expected; one appearing in
     // viewer or operator below would be the bug.
     'router:scan',
+    'router:schedule',
     ...GLOBAL_ONLY_PERMS,
   ]),
 };
