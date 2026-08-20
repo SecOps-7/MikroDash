@@ -200,9 +200,40 @@ const BACKUP_SCHEDULES = Object.freeze({
 const BACKUP_DEFAULTS = Object.freeze({
   enabled: false,          // opt in per router; nothing starts backing up on upgrade
   schedule: 'daily',
+  // A router that has never had a time chosen backs up at 08:00. Note the
+  // distinction the scheduler relies on: an ABSENT `time` takes this default,
+  // while an explicitly stored '' means "any time" and keeps the interval-only
+  // behaviour. So clearing the field is a real choice the operator can make, and
+  // one that survives — it is not read back as "unset, use the default".
+  //
+  // The cost, accepted deliberately: a router carrying a backup block written
+  // before this field existed has no `time` key, so it moves to 08:00 on upgrade
+  // rather than staying wherever its interval had drifted to.
+  time: '08:00',
   keepCount: 30,
   keepDays: 365,
 });
+
+/**
+ * 'HH:MM' 24-hour, or '' for no preference.
+ *
+ * Anything else falls back rather than being coerced: half-parsing a time would
+ * schedule the backup at an hour nobody chose, and do it silently.
+ */
+function _normalizeTime(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  const s = String(value).trim();
+  if (s === '') return '';
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(s);
+  if (!m) return fallback;
+  return String(m[1]).padStart(2, '0') + ':' + m[2];
+}
+
+/** Minutes since local midnight, or null when no time is set. */
+function backupTimeMinutes(time) {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(time || ''));
+  return m ? (Number(m[1]) * 60 + Number(m[2])) : null;
+}
 
 function _clampInt(value, fallback, min, max) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -238,6 +269,8 @@ function _normalizeBackup(input, existing) {
                                           : (input.enabled === true || input.enabled === 'true'),
     schedule: BACKUP_SCHEDULES[input.schedule] ? input.schedule
                                                : ((prev && prev.schedule) || BACKUP_DEFAULTS.schedule),
+    time: _normalizeTime(input.time, prev && prev.time !== undefined ? prev.time
+                                                                    : BACKUP_DEFAULTS.time),
     keepCount: _clampInt(input.keepCount, prev ? prev.keepCount : BACKUP_DEFAULTS.keepCount, 0, 1000),
     keepDays:  _clampInt(input.keepDays,  prev ? prev.keepDays  : BACKUP_DEFAULTS.keepDays,  0, 3650),
     // Never from the caller. Generated once, then carried forward forever.
@@ -669,4 +702,4 @@ function getPublic() {
 function invalidateCache() { _cache = null; }
 
 module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, updateGeoAuto, remove, getPublic, invalidateCache, clearSite,
-  BACKUP_SCHEDULES, BACKUP_DEFAULTS, _normalizeBackup };
+  BACKUP_SCHEDULES, BACKUP_DEFAULTS, _normalizeBackup, backupTimeMinutes };

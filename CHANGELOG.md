@@ -2,6 +2,77 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.31] — Collectors that know when to stop, and a Backups page you can work in
+
+A collector with nothing to report now **stops holding a channel open**, and says so on the card
+instead of counting down to a fault it does not have. Concurrent open channels, not data volume, are
+what strain small hardware, so a router with no WireGuard peers and no NetWatch hosts stops paying for
+both. It wakes on its own: the moment you open the page, when the router reconnects, or on a slow
+re-probe that backs off to ten minutes.
+
+Chasing that turned up three real bugs on the smallest hardware, all the same shape. **An empty result
+looked identical to a dead one.** On a streaming channel RouterOS answers an empty table with `!empty`,
+which MikroDash deliberately swallows because on a stream it means "nothing yet" rather than "nothing".
+The cost was that a cAP AX with connection tracking off restarted its Connections stream every 20
+seconds, forever, and reported the stream degraded while doing it.
+
+### Added
+- **Collector dormancy.** A collector whose data is empty, or whose menu the router does not have,
+  suspends itself and the card says "nothing to report" rather than going stale. Unsupported and
+  merely-empty are treated differently: a command error is durable and sleeps for ten times as long as
+  an empty table, which is transient. Nothing is hidden and nothing is dimmed, because an empty card
+  that already reads "No devices" needs no second opinion.
+- **Every collector can be switched off per router.** The Router Settings toggle grid had drifted to
+  11 toggles against 21 disableable collectors, so Topology, VLANs, PPP, Bridges, CAPsMAN, DNS,
+  Packages, WAN, Queues and Router Users could only be turned off by hand-editing `routers.json`. The
+  grid is generated from the collector registry now, so it cannot drift again.
+- **Backup time.** Choose the hour a scheduled backup runs, in your display timezone, instead of
+  whenever the interval happens to elapse. Defaults to 08:00. Clearing the field is a real choice and
+  means "any time", which keeps the old interval behaviour.
+- **Delete restore points.** A selection column on the Backups history, with Delete acting on one or
+  many. Delete removes the files and the row; the Audit page keeps the record of both the backup and
+  its deletion.
+- **The backup ID** is shown in its own column, so the id an audit entry names is readable rather
+  than something to dig out of the page.
+
+### Fixed
+- **Connections restarted its stream forever on a router with an empty connection table.** The
+  watchdog could not tell a quiet stream from a dead one, so an access point with tracking off took a
+  restart every 20 seconds. It now asks the router once, on a one-shot request where an empty answer
+  is unambiguous, before tearing anything down.
+- **Top Talkers went stale on a router with no Kid Control devices.** It only produced a payload when
+  the device list changed, so a table that was empty and stayed empty produced nothing at all. It also
+  had no heartbeat while advertising a poll interval, which held its card to a deadline nothing was
+  going to meet.
+- **A "this router has no Kid Control" verdict never stuck.** Three separate paths cleared it, so the
+  probe reopened on every browser reconnect and every idle wake-up. Its retry backoff was also a flat
+  60 seconds that never grew, despite claiming to be exponential.
+- **The Audit page Target column showed the word "router"** instead of the router's name, and the
+  CSV/PDF export carried a bare uuid in its router column. Both name the device now. A router deleted
+  since the event keeps the generic marker in the table and the id in the export, where a dangling
+  reference still has to be followable.
+- **An empty payload left the previous router's rows on screen.** Top Talkers and the LAN overview
+  both treated "the router reports nothing" as "nothing changed", so after a router switch the card
+  kept showing the other device's data, invisible to the stale timer.
+
+### Changed
+- **The Wireless page is now Wireless Clients**, and no longer shares both its name and its icon with
+  the Wireless section holding it. The section keeps the wifi symbol; the page takes the signal bars,
+  which is what it actually lists. Only labels changed: every key, permission and saved setting is
+  untouched.
+- **Restore moved to the Backups header**, beside Delete and Back Up Now, and is coloured apart from
+  both. It acts on the selection and needs exactly one restore point, since "which of these three?"
+  has no answer.
+- **Dragging a firewall rule leaves its original position open**, tinted, so you can put it back if
+  you change your mind. Dropping onto that gap returns the rule to where it started.
+
+### Upgrading
+Nothing to do. Dormancy is automatic and reversible; a collector wakes as soon as it has data.
+
+Backup time is the one behaviour change worth knowing: a router whose backup schedule predates this
+release has no time recorded, so it moves to **08:00** rather than staying wherever its interval had
+drifted to. Clear the field on the Backups page to keep the old any-time behaviour.
+
 ## [0.7.30] — Configuration backups, scheduled email reports, and router writes across the app
 
 MikroDash can now **back up and restore router configurations**, **email reports on a schedule**, and

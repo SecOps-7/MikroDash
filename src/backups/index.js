@@ -26,6 +26,11 @@
 const Runner = require('./runner');
 const Store = require('./store');
 const Diff = require('./diff');
+const Routers = require('../routers');
+// Borrowed from reports rather than reimplemented: one DST-correct timezone
+// implementation, already tested, and a backup at 02:00 has exactly the same
+// spring-forward problem a report at 02:00 does.
+const Period = require('../reports/period');
 
 /** How often to ask whether anything is due. Cheap: one integer compare per router. */
 const TICK_MS = 5 * 60 * 1000;
@@ -48,12 +53,38 @@ function intervalFor(schedule, schedules) {
  * immediately — the first backup should not wait a day to prove the feature
  * works.
  */
-function isDue(router, lastRun, now, schedules) {
+function isDue(router, lastRun, now, schedules, tz) {
   if (!router || !router.backup || !router.backup.enabled) return false;
   const interval = intervalFor(router.backup.schedule, schedules);
   if (!interval) return false;
   if (!lastRun) return true;
-  return (now - lastRun) >= interval;
+  if ((now - lastRun) < interval) return false;
+
+  // Absent means "never chosen", so it takes the default; an explicitly stored ''
+  // means "any time" and keeps the interval-only behaviour. Collapsing the two
+  // would make clearing the field impossible — it would read back as unset and
+  // the default would reappear on the next tick.
+  const chosen = router.backup.time === undefined ? Routers.BACKUP_DEFAULTS.time
+                                                  : router.backup.time;
+  const at = Routers.backupTimeMinutes(chosen);
+  // 'hourly' is deliberately excluded — an hourly backup that waits for 08:00 is
+  // a daily backup.
+  if (at === null || router.backup.schedule === 'hourly') return true;
+
+  // Anchored to the wall clock rather than to the last run, so a daily backup
+  // set for 02:00 stays at 02:00 instead of drifting by however long each run
+  // took. `lastRun < target` holds it to one run per day; `now >= target` lets a
+  // router that was switched off at 02:00 still catch up when it comes back,
+  // rather than skipping the day altogether.
+  const target = _todayAt(at, now, tz);
+  return now >= target && lastRun < target;
+}
+
+/** The instant of `minutes` past local midnight on the day `now` falls in. */
+function _todayAt(minutes, now, tz) {
+  const c = Period.civil(now, tz);
+  return Period.instantOf({ year: c.year, month: c.month, day: c.day,
+                            hour: Math.floor(minutes / 60), minute: minutes % 60 }, tz);
 }
 
 /**
@@ -159,7 +190,8 @@ function dueRouters(now) {
   const d = _deps;
   return d.getRouters()
     .filter(r => !r.disabled)
-    .filter(r => isDue(r, d.db.lastBackupRun(r.id), now, d.schedules));
+    .filter(r => isDue(r, d.db.lastBackupRun(r.id), now, d.schedules,
+                       d.getTimezone ? d.getTimezone() : ''));
 }
 
 async function tick() {

@@ -718,3 +718,114 @@ test('the page never decides whether a write is allowed', () => {
   assert.ok(!/Rbac|allowedRouterIds|role ===/.test(body),
     'the browser must not reason about roles');
 });
+
+// ── Drag: the slot you are leaving ──────────────────────────────────────────
+//
+// The engine moves the actual <tr> through the DOM, so before this the row's
+// origin vanished the instant you moved and there was no way to change your mind
+// mid-drag. A marker row now holds the slot open until the drag ends.
+
+const APP  = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+const HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+
+// Scope every lookup below to the resource engine. app.js holds a SECOND
+// endDrag (the world map's pan handler) and a second pointerdown listener
+// (topology), both earlier in the file — anchoring on the bare name found the
+// map's and asserted against the wrong function entirely.
+const ENGINE = APP.slice(APP.indexOf('── Resource write engine'));
+
+test('the origin marker is never mistaken for a real row', () => {
+  // Two things key on data-id: the drop-target lookup and the move-anchor walk.
+  // A marker carrying one would be reported to the server as the row to move
+  // beneath — a wrong reorder, not a cosmetic bug.
+  const at = ENGINE.indexOf('function makeOriginMarker');
+  const body = ENGINE.slice(at, ENGINE.indexOf('\n  }', at));
+  assert.ok(/className = 'res-drag-origin'/.test(body));
+  assert.ok(!/data-id/.test(body), 'the marker must carry no data-id');
+  assert.ok(/colSpan/.test(body), 'and must span the table, or the gap collapses');
+});
+
+test('the gap is exactly the size of the hole it fills', () => {
+  // Rules wrap to different heights. A CSS-guessed height would shift every row
+  // beneath the gap by the difference.
+  const at = ENGINE.indexOf('function makeOriginMarker');
+  const body = ENGINE.slice(at, ENGINE.indexOf('\n  }', at));
+  assert.ok(/getBoundingClientRect\(\)\.height/.test(body),
+    'measure the row rather than guessing in CSS');
+});
+
+test('the marker appears on the first move, not on pointerdown', () => {
+  // Inserting it up front would push everything below down a row before the drag
+  // had gone anywhere.
+  const down = ENGINE.slice(ENGINE.indexOf("addEventListener('pointerdown'"));
+  assert.ok(!/makeOriginMarker/.test(down.slice(0, 900)),
+    'pointerdown must not create the marker');
+  const to = ENGINE.slice(ENGINE.indexOf('function dragTo'));
+  assert.ok(/if \(!_drag\.marker\)[\s\S]{0,200}makeOriginMarker/.test(to),
+    'dragTo creates it once, before the row leaves its slot');
+});
+
+test('dropping back onto the gap returns the row to where it started', () => {
+  const to = ENGINE.slice(ENGINE.indexOf('function dragTo'));
+  const body = to.slice(0, to.indexOf('\n  }'));
+  assert.ok(/over === _drag\.marker/.test(body), 'the gap is a drop target');
+  assert.ok(/insertBefore\(_drag\.row, _drag\.marker\.nextSibling\)/.test(body),
+    'and puts the row straight back into it');
+  assert.ok(/tr\.res-drag-origin/.test(ENGINE),
+    'rowUnder must accept the marker, or hovering the gap is a dead spot');
+});
+
+test('the gap collapses while the row is home', () => {
+  // A row cannot be moved INSIDE its own marker — the DOM offers only before and
+  // after — so dragging back left the rule sitting BESIDE the gap with the slot
+  // still looking empty. It never read as "dropped back where it was".
+  const at = ENGINE.indexOf('function syncOriginMarker');
+  const body = ENGINE.slice(at, ENGINE.indexOf('\n  }', at));
+  assert.ok(/nextElementSibling === _drag\.row/.test(body),
+    'home is the row sitting immediately after its own marker');
+  assert.ok(/classList\.toggle\('is-home'/.test(body), 'and toggles, so it comes back');
+  assert.ok(/tr\.res-drag-origin\.is-home\{display:none\}/.test(HTML),
+    'collapsed outright, so the table reads exactly as it did before the drag');
+
+  const to = ENGINE.slice(ENGINE.indexOf('function dragTo'));
+  assert.ok(/syncOriginMarker\(\);/.test(to.slice(0, to.indexOf('\n  }'))),
+    'every placement re-evaluates it, or the gap sticks in the wrong state');
+});
+
+test('the gap closes however the drag ended', () => {
+  const at = ENGINE.indexOf('function endDrag');
+  const body = ENGINE.slice(at, ENGINE.indexOf('\n  }', at));
+  assert.ok(/removeChild\(d\.marker\)/.test(body), 'dropped, cancelled or abandoned');
+  // pointercancel and the re-render bail both route through endDrag, so this one
+  // removal covers every exit.
+  assert.ok(/pointercancel[\s\S]{0,120}endDrag\(\)/.test(ENGINE));
+});
+
+test('the gap does not wear the same colour as the row being dragged', () => {
+  // One is where you are going, the other is what you are leaving; the same tint
+  // for both would say they are the same kind of thing.
+  assert.ok(/tr\.res-drag-origin\{background:rgba\(248,113,113/.test(HTML), 'red for the origin');
+  assert.ok(/tr\.res-dragging\{[^}]*rgba\(56,189,248/.test(HTML), 'cyan for the row in flight');
+});
+
+test('the gap is the same red as the drop pill, carried by colour alone', () => {
+  // Same RED as actionBadge's drop/reject/tarpit pill, so the Firewall page
+  // carries one red rather than two nearly-identical ones.
+  const badge = APP.slice(APP.indexOf('function actionBadge'),
+                          APP.indexOf('function parseTxRate'));
+  assert.ok(/'rgba\(248,113,113,\.9\)'/.test(badge),
+    'the drop pill still starts from this red — if it moves, the gap must follow');
+
+  const fill = (HTML.match(/tr\.res-drag-origin\{background:rgba\(248,113,113,([\d.]+)\)\}/) || [])[1];
+  assert.ok(fill, 'the gap fills with the pill red');
+  assert.ok(parseFloat(fill) <= 0.1,
+    'more translucent than the pill fill (' + fill + '): a pill is a value, this is an absence');
+
+  // No outline at all. The cell keeps the table's ordinary grey rule, so the gap
+  // reads as an empty row rather than a boxed callout — which also means nothing
+  // here has to fight `.table td{border-color:var(--border) !important}`.
+  const cell = (HTML.match(/tr\.res-drag-origin td\{([^}]*)\}/) || [])[1];
+  assert.ok(cell !== undefined, 'the cell rule is gone');
+  assert.ok(!/border/.test(cell), 'colour alone — no border on the gap cell');
+  assert.ok(!/!important/.test(cell), 'and so no !important needed');
+});

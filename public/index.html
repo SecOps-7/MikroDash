@@ -1425,6 +1425,32 @@
     /* While a row is travelling, the pointer would otherwise paint a text
        selection across everything it crosses. */
     body.res-dragging-body{user-select:none;cursor:grabbing}
+    /* Where the dragged row came from. The engine moves the actual <tr> through
+       the DOM, so without this the origin is simply gone the moment you move and
+       there is no way to change your mind. Red rather than the cyan the dragged
+       row wears: the two must not read as the same thing, and this one is the
+       slot you are about to leave. Dashed, because it is a gap and not a row.
+       Its height is set inline from the row it replaced, so the gap is exactly
+       the size of the hole and nothing below it shifts by a stray pixel. */
+    /* Borrowed verbatim from the drop/reject/tarpit pill in the Action column:
+       actionBadge() builds those from rgba(248,113,113,.9), filling at 0.1 and
+       bordering at 0.25. Same red, same translucency, so the gap belongs to the
+       page rather than introducing a second red. Dashed rather than the pill's
+       solid edge is the one deliberate difference — it is a hole, not a chip. */
+    /* Colour alone, no outline: the wash IS the marker. Same red as the
+       drop/reject pill in the Action column — rgb(248,113,113), so the page
+       carries one red — but far more translucent, because this is an absence and
+       the pills are values. The cell keeps the table's ordinary grey rule top and
+       bottom, so the gap reads as an empty row rather than a boxed callout. */
+    tr.res-drag-origin{background:rgba(248,113,113,.09)}
+    tr.res-drag-origin td{padding:0}
+    /* Home again. The engine cannot put the row INSIDE the gap — a row is either
+       above it or below it — so as you dragged back the rule ended up beside its
+       own marker and the slot never looked reoccupied. Collapsing the gap while
+       the row sits home makes the table read exactly as it did before the drag,
+       which is what "drop it back where it was" is supposed to look like. It
+       reappears the moment the row leaves again. */
+    tr.res-drag-origin.is-home{display:none}
     /* A reorder moves a row among thirty near-identical ones. Without a cue the
        eye has no way to follow it — including when the move came from undo. */
     @keyframes fwPulse{
@@ -1791,14 +1817,18 @@
 
     <div class="nav-group" data-cat="wireless">
       <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-wireless">
-        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 20v-4"/><path d="M9 20v-8"/><path d="M14 20v-12"/><path d="M19 20v-16"/></svg></span>
+        <!-- Swapped with the page below. The classic wifi symbol belongs on the
+             SECTION — it is the one that means "wireless, generally" — while the
+             ascending bars mean signal strength, which is what the page under it
+             actually lists, one row per client. -->
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
         <span class="nav-label">Wireless</span>
         <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
       </button>
       <div class="nav-group-body" id="navgrp-wireless" role="group" aria-label="Wireless">
         <a class="nav-item" data-page="wireless" data-cat="wireless" href="#">
-          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
-          <span class="nav-label">Wireless</span>
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 20v-4"/><path d="M9 20v-8"/><path d="M14 20v-12"/><path d="M19 20v-16"/></svg></span>
+          <span class="nav-label">Wireless Clients</span>
         </a>
         <a class="nav-item" data-page="capsman" data-cat="wireless" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="2"/><path d="M8.5 13.5a5 5 0 0 1 7 0"/><path d="M5.5 10.5a9 9 0 0 1 13 0"/><rect x="10" y="3" width="4" height="4" rx="1"/></svg></span>
@@ -4326,12 +4356,17 @@
                 <option value="monthly">Monthly</option>
               </select>
             </div>
-            <div class="col-sm-3">
+            <div class="col-sm-2">
+              <label class="form-label" for="bkTime">Backup time</label>
+              <input type="time" class="form-control form-control-sm" id="bkTime">
+              <div class="form-hint" id="bkTimeHint">any time</div>
+            </div>
+            <div class="col-sm-2">
               <label class="form-label" for="bkKeepCount">Keep at most</label>
               <input type="number" min="0" max="1000" class="form-control form-control-sm" id="bkKeepCount">
               <div class="form-hint">restore points, 0 for no limit</div>
             </div>
-            <div class="col-sm-3">
+            <div class="col-sm-2">
               <label class="form-label" for="bkKeepDays">Keep for</label>
               <input type="number" min="0" max="3650" class="form-control form-control-sm" id="bkKeepDays">
               <div class="form-hint">days, 0 for no limit</div>
@@ -5129,7 +5164,7 @@
               <button type="button" class="view-preset-btn" data-view-preset="custom" title="Your own selection">Custom</button>
             </div>
             <div class="stoggle-grid">
-              <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Wireless Clients</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">WAN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">DHCP</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDhcp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

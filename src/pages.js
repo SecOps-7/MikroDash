@@ -64,7 +64,15 @@ const PAGES = Object.freeze([
   // with the interfaces rather than with Traffic.
   { key: 'topology',    title: 'Network Topology', settingsKey: 'pageTopology',    streamRooms: ['page-topology'],                    category: 'network' },
 
-  { key: 'wireless',    title: 'Wireless',         settingsKey: 'pageWireless',    streamRooms: ['page-wireless'],                    category: 'wireless' },
+  // Titled "Wireless Clients" while the key stays `wireless`. The page sits
+  // inside a category ALSO called Wireless, and two identical labels one indent
+  // apart read as the same destination. The card on the page has said "Wireless
+  // Clients" all along, so this aligns the page with its own contents.
+  //
+  // The key is deliberately untouched: role_pages stores page keys as strings, so
+  // renaming one orphans every role grant naming it — fails closed, but silently
+  // removes access on upgrade — and pageWireless is a persisted setting.
+  { key: 'wireless',    title: 'Wireless Clients', settingsKey: 'pageWireless',    streamRooms: ['page-wireless'],                    category: 'wireless' },
   { key: 'capsman',     title: 'CAPsMAN',          settingsKey: 'pageCapsman',     streamRooms: ['page-capsman'],                                  category: 'wireless' },
 
   { key: 'dhcp',        title: 'DHCP',             settingsKey: 'pageDhcp',        streamRooms: [],                                  category: 'ipsvc' },

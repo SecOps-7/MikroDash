@@ -359,6 +359,97 @@ test('daily is the default schedule, and nothing is enabled by an upgrade', () =
   assert.equal(Routers.BACKUP_DEFAULTS.enabled, false);
 });
 
+// ── Backup time ─────────────────────────────────────────────────────────────
+//
+// Scheduling was purely "has `interval` elapsed since the last run", which drifts
+// by however long each run took and lands wherever the first one happened to.
+// A chosen time anchors it to the wall clock instead.
+
+const TZ = 'Europe/Berlin';                       // +02:00 in August, so 02:00 local is 00:00Z
+const at = (iso) => Date.parse(iso);
+const daily = (time) => ({ backup: { enabled: true, schedule: 'daily', time } });
+
+test('an explicitly cleared time means any time, and keeps interval behaviour', () => {
+  // '' is a real choice the operator can make, distinct from never having chosen.
+  // If the two collapsed, clearing the field would read back as unset and the
+  // default would silently reappear on the next tick.
+  assert.equal(Scheduler.isDue(daily(''), at('2026-08-19T11:00:00Z'), at('2026-08-20T10:00:00Z'),
+    SCHEDULES, TZ), false, '23h is not a day');
+  assert.equal(Scheduler.isDue(daily(''), at('2026-08-19T09:00:00Z'), at('2026-08-20T10:00:00Z'),
+    SCHEDULES, TZ), true, '25h is');
+});
+
+test('a router that never chose a time takes the default', () => {
+  const Routers = require('../src/routers');
+  assert.equal(Routers.BACKUP_DEFAULTS.time, '08:00');
+
+  // No `time` key at all — the shape of a backup block written before the field
+  // existed, which is what an upgraded install looks like.
+  const never = { backup: { enabled: true, schedule: 'daily' } };
+  assert.equal(Scheduler.isDue(never, at('2026-08-19T06:05:00Z'), at('2026-08-20T05:00:00Z'),
+    SCHEDULES, TZ), false, '07:00 local is before the 08:00 default');
+  assert.equal(Scheduler.isDue(never, at('2026-08-19T06:05:00Z'), at('2026-08-20T06:05:00Z'),
+    SCHEDULES, TZ), true, '08:05 local is after it');
+});
+
+test('a daily backup at 02:00 waits for 02:00', () => {
+  assert.equal(Scheduler.isDue(daily('02:00'), at('2026-08-19T00:05:00Z'),
+    at('2026-08-19T23:00:00Z'), SCHEDULES, TZ), false, '01:00 local is before the target');
+  assert.equal(Scheduler.isDue(daily('02:00'), at('2026-08-19T00:05:00Z'),
+    at('2026-08-20T00:05:00Z'), SCHEDULES, TZ), true, '02:05 local is after it');
+});
+
+test('it runs once a day, not once per tick after the target', () => {
+  // The scheduler ticks every five minutes; without the `lastRun < target` half
+  // it would fire on every one of them from 02:00 until midnight.
+  assert.equal(Scheduler.isDue(daily('02:00'), at('2026-08-20T00:05:00Z'),
+    at('2026-08-20T12:00:00Z'), SCHEDULES, TZ), false, 'already ran at 02:05 today');
+});
+
+test('a router that was off at 02:00 catches up rather than skipping the day', () => {
+  assert.equal(Scheduler.isDue(daily('02:00'), at('2026-08-17T00:05:00Z'),
+    at('2026-08-20T13:00:00Z'), SCHEDULES, TZ), true,
+    'three days without a backup must not wait for tomorrow');
+});
+
+test('hourly ignores the time', () => {
+  // An hourly backup that waits for 02:00 is a daily backup.
+  const hourly = { backup: { enabled: true, schedule: 'hourly', time: '02:00' } };
+  assert.equal(Scheduler.isDue(hourly, at('2026-08-20T12:00:00Z'),
+    at('2026-08-20T13:01:00Z'), SCHEDULES, TZ), true);
+});
+
+test('weekly still waits a week, then honours the time', () => {
+  const weekly = (time) => ({ backup: { enabled: true, schedule: 'weekly', time } });
+  assert.equal(Scheduler.isDue(weekly('02:00'), at('2026-08-13T00:05:00Z'),
+    at('2026-08-19T23:10:00Z'), SCHEDULES, TZ), false, 'six days and change is not a week');
+  assert.equal(Scheduler.isDue(weekly('02:00'), at('2026-08-13T00:05:00Z'),
+    at('2026-08-20T00:05:00Z'), SCHEDULES, TZ), true);
+});
+
+test('the time is stored as a real clock time or not at all', () => {
+  const Routers = require('../src/routers');
+  const keep = (v) => Routers._normalizeBackup({ enabled: true, schedule: 'daily', time: v }, null).time;
+  assert.equal(keep('02:00'), '02:00');
+  assert.equal(keep('2:05'), '02:05', 'a single-digit hour is padded, not rejected');
+  assert.equal(keep('23:59'), '23:59');
+  assert.equal(keep(''), '', 'empty is a real choice: any time');
+  // Half-parsing would schedule a backup at an hour nobody chose, silently, so
+  // anything unparseable falls back to the default rather than being coerced.
+  const Def = require('../src/routers').BACKUP_DEFAULTS.time;
+  assert.equal(keep('24:00'), Def, 'there is no 24:00');
+  assert.equal(keep('2:5'), Def, 'not a clock time');
+  assert.equal(keep('nonsense'), Def);
+});
+
+test('the timezone is read per tick, not captured at startup', () => {
+  // The operator can change the display timezone without restarting; a schedule
+  // anchored to the old one would fire an hour out with nothing to explain it.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  assert.ok(/getTimezone: \(\) => Settings\.load\(\)\.displayTimezone/.test(src));
+});
+
+
 test('an edit that does not mention backups leaves them alone', () => {
   const Routers = require('../src/routers');
   const existing = { backup: { enabled: true, schedule: 'weekly', keepCount: 5,

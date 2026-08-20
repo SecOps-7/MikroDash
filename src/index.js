@@ -1202,6 +1202,10 @@ function _backupConnect(router) {
 Backups.start({
   db,
   schedules: Routers.BACKUP_SCHEDULES,
+  // Read per tick rather than captured: the operator can change the display
+  // timezone without restarting, and a schedule anchored to the old one would
+  // then fire an hour out with nothing to explain it.
+  getTimezone: () => Settings.load().displayTimezone || '',
   getRouters: () => Routers.loadAll(),
   connect: _backupConnect,
   queue: (rid, fn) => _routerWriteQueue(rid, fn),
@@ -3732,9 +3736,37 @@ function _auditQuery(req) {
 // Any signed-in user may reach the page; what they SEE is decided per row, and a
 // session with neither global administration nor router history gets an empty
 // list rather than a 403 — the page is legitimately empty for them.
+/**
+ * Router ids on audit rows, resolved to the labels an operator recognises.
+ *
+ * Built once per request rather than per row: a page is 200 events and most of
+ * them name the same handful of routers.
+ *
+ * Discloses nothing new. Every row here has already passed the permission scope
+ * in _auditQuery, and each one already carries the router id — this only turns
+ * an opaque uuid into the name that identifies the same device.
+ *
+ * A deleted router resolves to nothing, and the caller decides what that means:
+ * the table keeps the old generic "router" marker, the export keeps the id,
+ * because an export is the place where a dangling reference still has to be
+ * traceable.
+ */
+function _auditRouterNames(rows) {
+  const names = new Map();
+  for (const r of rows) {
+    const id = r.router_id;
+    if (!id || names.has(id)) continue;
+    const router = Routers.getById(id);
+    names.set(id, router ? (router.label || router.host || '') : '');
+  }
+  return names;
+}
+
 app.get('/api/audit', (req, res) => {
   try {
     const out = db.queryAuditEvents(_auditQuery(req));
+    const names = _auditRouterNames(out.rows || []);
+    out.rows = (out.rows || []).map(r => ({ ...r, router_name: names.get(r.router_id) || '' }));
     res.json({ ok: true, ...out, facets: db.auditFacets() });
   } catch (e) {
     console.error('[audit] query failed:', sanitizeErr(e));
@@ -3748,9 +3780,14 @@ app.get('/api/audit/export', (req, res) => {
     // Export is a snapshot of the filtered view, not the page — but still
     // bounded, because a PDF has no row cap of its own.
     const { rows } = db.queryAuditEvents({ ...q, limit: 1000, offset: 0 });
+    const names = _auditRouterNames(rows);
     const flat = rows.map(r => ({
       ts: _tsFmt(r.ts), actor: r.actor_name, ip: r.actor_ip || '', action: r.action,
-      target: r.target_name || r.target_id || '', router: r.router_id || '',
+      target: r.target_name || r.target_id || '',
+      // The name where the router still exists, the id where it does not — a
+      // bare uuid told the reader nothing, but a dangling reference still has to
+      // be followable, which is exactly what an export is for.
+      router: names.get(r.router_id) || r.router_id || '',
       outcome: r.outcome, detail: r.detail || '',
     }));
     const cols = ['ts', 'actor', 'ip', 'action', 'target', 'router', 'outcome', 'detail'];
@@ -6169,6 +6206,9 @@ io.on('connection', (socket) => {
       settings: {
         enabled: !!backup.enabled,
         schedule: backup.schedule || Routers.BACKUP_DEFAULTS.schedule,
+        time: backup.time === undefined ? Routers.BACKUP_DEFAULTS.time : backup.time,
+        // So the card can say which clock 02:00 means. Empty is the server's own.
+        timezone: Settings.load().displayTimezone || '',
         keepCount: backup.keepCount == null ? Routers.BACKUP_DEFAULTS.keepCount : backup.keepCount,
         keepDays: backup.keepDays == null ? Routers.BACKUP_DEFAULTS.keepDays : backup.keepDays,
       },
@@ -6201,12 +6241,12 @@ io.on('connection', (socket) => {
     const r = req || {};
     try {
       Routers.update(rid, { backup: {
-        enabled: !!r.enabled, schedule: r.schedule,
+        enabled: !!r.enabled, schedule: r.schedule, time: r.time,
         keepCount: r.keepCount, keepDays: r.keepDays,
       } });
       audit.fromSocket(socket).record({ action: 'backup.settings', targetType: 'router',
         scope: 'router', routerId: rid,
-        extra: { enabled: !!r.enabled, schedule: r.schedule } });
+        extra: { enabled: !!r.enabled, schedule: r.schedule, time: r.time || '' } });
       socket.emit('backups:state', _bkPayload(rid));
     } catch (e) {
       _bkErr('failed', { message: sanitizeErr(e) });
