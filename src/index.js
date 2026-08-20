@@ -47,6 +47,10 @@ const selfPath             = require('./routeros/selfPath');
 const fwGuard              = require('./routeros/fwGuard');
 const history              = require('./routeros/history');
 const Resources            = require('./routeros/resources');
+const crypto               = require('node:crypto');
+const Backups              = require('./backups');
+const BackupStore          = require('./backups/store');
+const BackupDiff           = require('./backups/diff');
 const { scheduleForcedShutdownTimer } = require('./shutdown');
 
 try {
@@ -207,6 +211,17 @@ const _MODERN_PUBLIC = new Set([
   '/api/auth/status', '/api/auth/login', '/api/users/setup',
 ]);
 
+/**
+ * Unauthenticated by necessity, not by category: the router fetching its own
+ * backup cannot hold a session cookie. Guarded by a single-use capability token
+ * bound to one backup, one router and one source address — see
+ * _mintRestoreToken. Matched by prefix because the id is in the path.
+ */
+const _MODERN_PUBLIC_PREFIXES = ['/api/backups/'];
+const _isPublicPath = (path) =>
+  _MODERN_PUBLIC.has(path) ||
+  _MODERN_PUBLIC_PREFIXES.some(p => path.startsWith(p) && path.endsWith('/raw'));
+
 // ── Session resolution (single source for all cookie→session lookups) ───────────
 // Resolves the session cookie on a request/socket-request to a *live* auth view:
 // role and allowedRouterIds are re-read from the current user record on every
@@ -245,7 +260,7 @@ function _authMiddleware(req, res, next) {
 }
 
 function _modernAuthMiddleware(req, res, next) {
-  if (_MODERN_PUBLIC.has(req.path) || req.path.startsWith('/vendor/')) return next();
+  if (_isPublicPath(req.path) || req.path.startsWith('/vendor/')) return next();
   const session = _sessionFromReq(req);
   if (session) { req.authSession = session; return next(); }
   if (req.path.startsWith('/api/')) return res.status(401).json({ ok: false, error: 'Not authenticated' });
@@ -1143,6 +1158,51 @@ db.sweepOrphanGrants(
 })();
 
 db.startPruneInterval(() => Settings.load());
+
+/**
+ * A connection dedicated to moving a file off a router.
+ *
+ * `rawBytes` makes the receiver decode losslessly, which is required for the
+ * binary backup and wrong for everything else — so this is deliberately NOT
+ * the session's shared connection. It lives for the length of one backup.
+ */
+function _backupConnect(router) {
+  const ros = new ROS({
+    host: router.host,
+    port: router.port || 8729,
+    tls: router.tls === false ? false : { rejectUnauthorized: !router.tlsInsecure },
+    username: router.username,
+    password: router.password,
+    writeTimeoutMs: 120000,
+    rawBytes: true,
+  });
+  ros.connectLoop();
+  return ros.waitUntilConnected(30000).then(() => ros).catch((e) => {
+    try { ros.stop(); } catch (_) { /* never leave the socket behind */ }
+    throw e;
+  });
+}
+
+Backups.start({
+  db,
+  schedules: Routers.BACKUP_SCHEDULES,
+  getRouters: () => Routers.loadAll(),
+  connect: _backupConnect,
+  queue: (rid, fn) => _routerWriteQueue(rid, fn),
+  log: (msg) => console.log('%s', msg),
+  notify: (kind, title, body) => {
+    const s = Settings.load();
+    const on = kind === 'drift' ? s.notifBackupDrift !== false : s.notifBackupFail !== false;
+    if (!on) return;
+    notifier.send(s, title, body).catch(() => { /* delivery is best effort */ });
+  },
+  onResult: (router, result) => {
+    // Anyone looking at the page sees the run land without reloading.
+    io.to('router-' + router.id + '-page-backups').emit('backups:ran', {
+      routerId: router.id, outcome: result.outcome, error: result.error || null,
+    });
+  },
+});
 alerter.init(io, Settings.load());
 alertSessions.init(io);
 
@@ -1813,7 +1873,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
                         'pingEnabled','rosDebug','userNotifyEnabled',
                         'telegramEnabled','pushbulletEnabled','smtpEnabled','smtpSecure','ntfyEnabled',
                         'notifIfaceUpDown','notifVpn','notifCpu','notifPing','notifNetwatch','notifRouterStatus',
-                        'notifRouterUpdate','notifBgp',
+                        'notifRouterUpdate','notifBgp','notifBackupDrift','notifBackupFail',
                         'notifIfaceEther','notifIfaceWlan','notifIfaceBridge','notifIfaceVlan','notifIfaceOther'];
     const credFields = ['telegramBotToken', 'pushbulletApiKey', 'smtpUser', 'smtpPass', 'ntfyToken'];
 
@@ -3250,6 +3310,137 @@ function _fmtDuration(ms) {
 }
 
 // GET /api/reports/ping
+// ── Restore capability tokens ────────────────────────────────────────────────
+//
+// A restore is the one direction that still needs the ROUTER to reach US:
+// `/tool/fetch upload=yes` refuses anything but [s]ftp, so the file has to be
+// pulled by the router over HTTP. It cannot present a session cookie, so
+// `/api/backups/:id/raw` sits in _MODERN_PUBLIC — the same allow-list that
+// holds /api/users/setup, and CLAUDE.md is explicit about why that one is
+// dangerous.
+//
+// So it is constrained on every axis available. A token is:
+//   - 32 random bytes, minted only by an operator-initiated restore
+//   - bound to ONE backup id and ONE router
+//   - single use: redeemed on first read, whether or not the read succeeds
+//   - valid for 120 seconds
+//   - checked against the router's configured host, so a token that leaks off
+//     the box cannot be redeemed from anywhere else
+//
+// It can only ever READ one specific file. Nothing mints one on a schedule.
+const _RESTORE_TOKEN_TTL_MS = 120000;
+const _restoreTokens = new Map();
+
+function _mintRestoreToken(backupId, router) {
+  const token = crypto.randomBytes(32).toString('hex');
+  _restoreTokens.set(token, {
+    backupId: Number(backupId),
+    routerId: router.id,
+    host: router.host,
+    expires: Date.now() + _RESTORE_TOKEN_TTL_MS,
+  });
+  // Never let a failed restore leave a live token behind.
+  setTimeout(() => _restoreTokens.delete(token), _RESTORE_TOKEN_TTL_MS).unref();
+  return token;
+}
+
+/**
+ * Redeem a token, or explain why not.
+ *
+ * Deleted on the FIRST attempt regardless of outcome: a token that survives a
+ * rejected read is a token an attacker may keep guessing conditions against.
+ */
+function _redeemRestoreToken(token, remoteIp) {
+  const entry = _restoreTokens.get(String(token || ''));
+  if (!entry) return { ok: false, reason: 'unknown-token' };
+  _restoreTokens.delete(String(token));
+  if (Date.now() > entry.expires) return { ok: false, reason: 'expired' };
+  const ip = String(remoteIp || '').replace(/^::ffff:/, '');
+  if (ip !== entry.host) return { ok: false, reason: 'wrong-source' };
+  return { ok: true, entry };
+}
+
+/**
+ * The only unauthenticated backup route, and the only one the router itself
+ * calls. It serves one binary, once, to one address.
+ */
+app.get('/api/backups/:id/raw', (req, res) => {
+  const verdict = _redeemRestoreToken(req.query.t, req.ip || (req.socket && req.socket.remoteAddress));
+  if (!verdict.ok) {
+    audit.system().record({ action: 'backup.raw.denied', targetType: 'backup',
+      targetId: String(req.params.id), outcome: 'denied',
+      extra: { reason: verdict.reason } });
+    return res.status(403).json({ ok: false, error: 'forbidden' });
+  }
+  const row = db.getBackup(Number(req.params.id));
+  if (!row || row.id !== verdict.entry.backupId || row.router_id !== verdict.entry.routerId ||
+      !row.stem || row.pruned_at) {
+    return res.status(404).json({ ok: false, error: 'not found' });
+  }
+  try {
+    const buf = BackupStore.readBackup(row.dir, row.stem);
+    audit.system().record({ action: 'backup.raw', targetType: 'backup', scope: 'router',
+      routerId: row.router_id, targetId: String(row.id), extra: { bytes: buf.length } });
+    res.setHeader('Content-Type', 'application/octet-stream');
+    return res.send(buf);
+  } catch (e) {
+    console.error('%s', '[backup] raw read failed:', (e && e.message) || e);
+    return res.status(500).json({ ok: false, error: sanitizeErr(e) });
+  }
+});
+
+// ── Backup downloads ─────────────────────────────────────────────────────────
+//
+// Both halves need `router:write`, not read. An export describes the entire
+// network, and the binary carries every key on the device — so handing either
+// to a browser is closer to taking a copy of the router than to reading a page.
+//
+// The row is looked up by id and its router is read from the ROW, never from
+// the query: that is what makes Rbac.fromQuery('routerId') meaningful here,
+// because a caller who names a router they may write cannot then be handed a
+// backup belonging to a different one.
+function _sendBackupPart(req, res, part) {
+  const id = Number(req.params.id);
+  const row = db.getBackup(id);
+  if (!row || !row.stem || row.pruned_at) {
+    return res.status(404).json({ ok: false, error: 'not found' });
+  }
+  if (row.router_id !== String(req.query.routerId || '')) {
+    return res.status(404).json({ ok: false, error: 'not found' });
+  }
+  const router = Routers.getById(row.router_id);
+  const name = (router ? BackupStore.slugFor(router.label) : 'router') + '-' + row.stem;
+  try {
+    if (part === 'rsc') {
+      const text = BackupStore.readRsc(row.dir, row.stem);
+      audit.fromReq(req).record({ action: 'backup.download', targetType: 'backup',
+        scope: 'router', routerId: row.router_id, targetId: String(row.id),
+        extra: { part: 'rsc' } });
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + name + '.rsc"');
+      return res.send(text);
+    }
+    const buf = BackupStore.readBackup(row.dir, row.stem);
+    audit.fromReq(req).record({ action: 'backup.download', targetType: 'backup',
+      scope: 'router', routerId: row.router_id, targetId: String(row.id),
+      extra: { part: 'backup' } });
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + name + '.backup"');
+    return res.send(buf);
+  } catch (e) {
+    console.error('%s', '[backup] download failed:', (e && e.message) || e);
+    return res.status(500).json({ ok: false, error: sanitizeErr(e) });
+  }
+}
+
+app.get('/api/backups/:id/rsc',
+  Rbac.requirePerm('router:write', Rbac.fromQuery('routerId')),
+  (req, res) => _sendBackupPart(req, res, 'rsc'));
+
+app.get('/api/backups/:id/backup',
+  Rbac.requirePerm('router:write', Rbac.fromQuery('routerId')),
+  (req, res) => _sendBackupPart(req, res, 'backup'));
+
 app.get('/api/reports/ping', Rbac.requirePerm('router:history', Rbac.fromQuery('routerId')), (req, res) => {
   const { routerId, from, to, aggregate } = _parseReportParams(req.query);
   if (!routerId) return res.status(400).json({ ok: false, error: 'routerId required' });
@@ -5976,6 +6167,248 @@ io.on('connection', (socket) => {
   socket.on('res:redo', _histRun('redo'));
 
   /** Resolve the resource named on the wire, or answer why not. */
+  // ── Configuration backups ────────────────────────────────────────────────
+  //
+  // Read shows the history and the diffs; WRITE is required to take a backup,
+  // change the schedule, or download either half of a pair. Downloading is a
+  // write-level act deliberately: an export describes the whole network, and
+  // the binary carries every key on the device.
+
+  const _bkErr = (code, extra) =>
+    socket.emit('backups:error', Object.assign({ code }, extra || {}));
+
+  const _bkMayRead  = () => _pageAllowed(socket, 'backups', 'read');
+  const _bkMayWrite = (rid) =>
+    _pageAllowed(socket, 'backups', 'write') && _socketCan(socket, 'router:write', rid);
+
+  /** The router this socket is looking at, or null. */
+  const _bkRouter = (rid) => (rid ? Routers.getById(rid) : null);
+
+  /** A row the caller is allowed to touch: it must belong to THIS router. */
+  const _bkRow = (id, rid) => {
+    const row = db.getBackup(id);
+    // Not "not found" for a row on another router — the two are the same answer
+    // from outside, and distinguishing them would confirm the id exists.
+    if (!row || row.router_id !== rid) return null;
+    return row;
+  };
+
+  const _bkPayload = (rid) => {
+    const router = _bkRouter(rid);
+    const backup = (router && router.backup) || {};
+    return {
+      routerId: rid,
+      label: router ? router.label : '',
+      settings: {
+        enabled: !!backup.enabled,
+        schedule: backup.schedule || Routers.BACKUP_DEFAULTS.schedule,
+        keepCount: backup.keepCount == null ? Routers.BACKUP_DEFAULTS.keepCount : backup.keepCount,
+        keepDays: backup.keepDays == null ? Routers.BACKUP_DEFAULTS.keepDays : backup.keepDays,
+      },
+      summary: db.backupSummary(rid),
+      running: Backups._running.has(rid),
+      permitted: _bkMayWrite(rid),
+      rows: db.listBackups(rid, 200).map(r => ({
+        id: r.id, takenAt: r.taken_at, outcome: r.outcome, source: r.source,
+        actor: r.actor, stem: r.stem, pruned: !!r.pruned_at,
+        bytes: (r.rsc_bytes || 0) + (r.backup_bytes || 0),
+        osVersion: r.os_version, model: r.model, serial: r.serial,
+        ms: r.ms, error: r.error,
+      })),
+    };
+  };
+
+  socket.on('backups:list', () => {
+    const rid = socket.routerId;
+    if (!rid || !_bkMayRead()) return _bkErr('denied');
+    socket.emit('backups:state', _bkPayload(rid));
+  });
+
+  socket.on('backups:settings', async (req) => {
+    const rid = socket.routerId;
+    if (!rid || !_bkMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'backup.settings', targetType: 'router',
+        routerId: rid });
+      return _bkErr('denied');
+    }
+    const r = req || {};
+    try {
+      Routers.update(rid, { backup: {
+        enabled: !!r.enabled, schedule: r.schedule,
+        keepCount: r.keepCount, keepDays: r.keepDays,
+      } });
+      audit.fromSocket(socket).record({ action: 'backup.settings', targetType: 'router',
+        scope: 'router', routerId: rid,
+        extra: { enabled: !!r.enabled, schedule: r.schedule } });
+      socket.emit('backups:state', _bkPayload(rid));
+    } catch (e) {
+      _bkErr('failed', { message: sanitizeErr(e) });
+    }
+  });
+
+  socket.on('backups:run', () => _routerWriteQueue(socket.routerId, async (rid) => {
+    if (!rid || !_bkMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'backup.run', targetType: 'router',
+        routerId: rid });
+      return _bkErr('denied');
+    }
+    const router = _bkRouter(rid);
+    if (!router) return _bkErr('unavailable');
+    if (!router.backup || !router.backup.password) {
+      // Enabling generates the password; without one there is nothing to
+      // encrypt the binary with, and an unencrypted backup is not an option.
+      return _bkErr('not-configured');
+    }
+    socket.emit('backups:running', { routerId: rid });
+    try {
+      const result = await Backups.runFor(router,
+        { source: 'manual', actor: socket.request?._authSession?.username || null });
+      audit.fromSocket(socket).record({ action: 'backup.run', targetType: 'router',
+        scope: 'router', routerId: rid, outcome: result.outcome === 'failed' ? 'error' : 'ok',
+        extra: { outcome: result.outcome, changed: !!result.changed } });
+      socket.emit('backups:state', _bkPayload(rid));
+    } catch (e) {
+      _bkErr('failed', { message: sanitizeErr(e) });
+    }
+  }));
+
+  /**
+   * The difference between two stored exports, or between one and the newest.
+   *
+   * Both ids are checked against this router before either file is opened, so
+   * a diff cannot be used to read another router's configuration.
+   */
+  socket.on('backups:diff', (req) => {
+    const rid = socket.routerId;
+    if (!rid || !_bkMayRead()) return _bkErr('denied');
+    const r = req || {};
+    const newer = _bkRow(r.id, rid);
+    if (!newer || !newer.stem || newer.pruned_at) return _bkErr('not-found');
+
+    // Default comparison is against the previous stored pair, which is what
+    // "what changed in this backup" means.
+    let older = null;
+    if (r.against) {
+      older = _bkRow(r.against, rid);
+      if (!older || !older.stem || older.pruned_at) return _bkErr('not-found');
+    } else {
+      older = db.storedBackups(rid).find(x => x.taken_at < newer.taken_at) || null;
+    }
+
+    try {
+      const result = older ? Backups.diffOf(older, newer)
+                           : BackupDiff.diff('', Backups.readExport(newer));
+      socket.emit('backups:diff', {
+        id: newer.id, against: older ? older.id : null,
+        baseline: !older,
+        added: result.added, removed: result.removed,
+        truncated: result.truncated, hunks: result.hunks,
+      });
+    } catch (e) {
+      _bkErr('failed', { message: sanitizeErr(e) });
+    }
+  });
+
+  /**
+   * Restore a stored configuration.
+   *
+   * `/system/backup/load` REPLACES the entire configuration and reboots. Per
+   * MikroTik's own documentation a backup carries the device's MAC addresses
+   * and belongs to one device, so:
+   *
+   *   - the recorded serial must equal the router's serial NOW, or refuse
+   *     outright. A backup from a different device is never right, and this is
+   *     checked before anything is sent.
+   *   - a RouterOS version mismatch WARNS but does not block. MikroTik
+   *     recommend matching versions, and blocking would stop the restore you
+   *     most want after a bad upgrade.
+   *   - the operator types the router's name, as packages:upgrade requires.
+   *   - the row is audited BEFORE the call, because the connection drops
+   *     mid-flight and there may be no "after".
+   */
+  socket.on('backups:restore', (req) => _routerWriteQueue(socket.routerId, async (rid) => {
+    if (!rid || !_bkMayWrite(rid)) {
+      audit.fromSocket(socket).denied({ action: 'backup.restore', targetType: 'backup',
+        routerId: rid });
+      return _bkErr('denied');
+    }
+    const r = req || {};
+    const router = _bkRouter(rid);
+    const row = _bkRow(r.id, rid);
+    if (!router || !row || !row.stem || row.pruned_at) return _bkErr('not-found');
+
+    // Typed confirmation, compared to the label the operator can see.
+    if (String(r.confirm || '').trim() !== String(router.label || '').trim()) {
+      return _bkErr('confirm-mismatch');
+    }
+
+    const entry = _routerSessions.get(rid);
+    const session = entry && entry.session;
+    if (!session || !session.ros || !session.ros.connected) return _bkErr('unavailable');
+
+    // ── Identity, read fresh from the device ────────────────────────────────
+    let serialNow = '', versionNow = '';
+    try {
+      const rb = ((await session.ros.write('/system/routerboard/print',
+        ['=.proplist=serial-number'])) || [])[0] || {};
+      serialNow = rb['serial-number'] || '';
+      const res = ((await session.ros.write('/system/resource/print',
+        ['=.proplist=version'])) || [])[0] || {};
+      versionNow = String(res.version || '').split(' ')[0];
+    } catch (e) {
+      return _bkErr('failed', { message: sanitizeErr(e) });
+    }
+
+    if (row.serial && serialNow && row.serial !== serialNow) {
+      audit.fromSocket(socket).denied({ action: 'backup.restore', targetType: 'backup',
+        scope: 'router', routerId: rid, targetId: String(row.id), note: 'serial-mismatch' });
+      return _bkErr('serial-mismatch', { was: row.serial, now: serialNow });
+    }
+
+    // A version difference is a question, asked once, not a refusal.
+    if (row.os_version && versionNow && row.os_version !== versionNow && !r.acceptVersion) {
+      return _bkErr('version-mismatch', { was: row.os_version, now: versionNow });
+    }
+
+    // ── The address the ROUTER can reach us at ──────────────────────────────
+    let base = String(Settings.load().backupBaseUrl || '').trim().replace(/\/+$/, '');
+    if (!base) {
+      let active = [];
+      try { active = (await session.ros.write('/user/active/print', []) || []).filter(x => x && x.name); }
+      catch (_) { /* falls through to the error below */ }
+      const self = queueGuard.resolveSelfAddresses(active,
+        [(session.ros.cfg || {}).username, router.username]);
+      const addr = (self && (self.address || (self.addresses || [])[0])) || '';
+      if (!addr) return _bkErr('no-route-back');
+      base = 'http://' + addr + ':' + (process.env.PORT || 3081);
+    }
+
+    // Audited BEFORE the call: the reboot may take the answer with it.
+    audit.fromSocket(socket).record({ action: 'backup.restore', targetType: 'backup',
+      scope: 'router', routerId: rid, targetId: String(row.id),
+      targetName: row.stem,
+      extra: { stem: row.stem, serial: row.serial, fromVersion: row.os_version,
+               toVersion: versionNow, acceptedVersionMismatch: !!r.acceptVersion } });
+
+    const token = _mintRestoreToken(row.id, router);
+    const dst = 'mikrodash-restore.backup';
+    try {
+      socket.emit('backups:restoring', { routerId: rid, id: row.id });
+      await session.ros.write('/tool/fetch',
+        ['=url=' + base + '/api/backups/' + row.id + '/raw?t=' + token, '=dst-path=' + dst]);
+
+      // The load reboots, so this call is not expected to answer. A rejection
+      // here is normal and must not be reported as a failed restore.
+      session.ros.write('/system/backup/load',
+        ['=name=' + dst, '=password=' + (router.backup && router.backup.password) || ''])
+        .catch(() => { /* the connection drops as the router reboots */ });
+
+      socket.emit('backups:restored', { routerId: rid, id: row.id });
+    } catch (e) {
+      _bkErr('failed', { message: sanitizeErr(e) });
+    }
+  }));
+
   const _resolve = (req) => {
     const r = req || {};
     const resource = Resources.byKey(typeof r.resource === 'string' ? r.resource : '');

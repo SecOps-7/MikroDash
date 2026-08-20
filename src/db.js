@@ -495,6 +495,48 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 13,
+    up(db) {
+      // Configuration backups. Metadata only — the .rsc.gz / .backup pairs live
+      // on disk under /data/config-backups, because a 3.4 MB binary per restore
+      // point does not belong in a database that is otherwise time-series.
+      //
+      // EVERY run is recorded, including ones that changed nothing: "checked
+      // daily, changed on these three dates" is the useful history, and it is
+      // also how the scheduler knows whether a backup is due after a restart.
+      //
+      // `dir` is stored rather than re-derived from the router's label, so
+      // renaming a router cannot orphan its backups.
+      //
+      // Like audit_events and the RBAC tables, this is deliberately absent from
+      // PURGE_TABLES and from deleteRouterData(). A retention sweep for metrics
+      // must never delete a restore point, and removing a router is exactly
+      // when its last known-good configuration matters most.
+      db.exec(`
+        CREATE TABLE config_backups (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          router_id    TEXT    NOT NULL,
+          taken_at     INTEGER NOT NULL,
+          outcome      TEXT    NOT NULL,
+          source       TEXT    NOT NULL DEFAULT 'schedule',
+          actor        TEXT,
+          stem         TEXT,
+          dir          TEXT,
+          fingerprint  TEXT,
+          rsc_bytes    INTEGER NOT NULL DEFAULT 0,
+          backup_bytes INTEGER NOT NULL DEFAULT 0,
+          model        TEXT,
+          serial       TEXT,
+          os_version   TEXT,
+          ms           INTEGER NOT NULL DEFAULT 0,
+          pruned_at    INTEGER,
+          error        TEXT
+        );
+        CREATE INDEX idx_config_backups_router ON config_backups (router_id, taken_at DESC);
+      `);
+    },
+  },
 ];
 
 function _runMigrations(db) {
@@ -1258,6 +1300,125 @@ function deleteRouterData(routerId) {
   console.log('%s', `[db] deleted all data for router ${routerId}`);
 }
 
+// ── Configuration backups ────────────────────────────────────────────────────
+// Note what is NOT above: config_backups is absent from deleteRouterData() and
+// from PURGE_TABLES, on purpose. Nothing that sweeps time-series data can reach
+// a restore point. Pruning backups is its own thing, bounded by the per-router
+// keepCount/keepDays, and it clears `stem` rather than the row — the history of
+// when a router was checked outlives the artefacts.
+
+function recordBackup(row) {
+  if (!_db) return null;
+  try {
+    const info = _prep(`
+      INSERT INTO config_backups
+        (router_id, taken_at, outcome, source, actor, stem, dir, fingerprint,
+         rsc_bytes, backup_bytes, model, serial, os_version, ms, error)
+      VALUES
+        (@routerId, @takenAt, @outcome, @source, @actor, @stem, @dir, @fingerprint,
+         @rscBytes, @backupBytes, @model, @serial, @osVersion, @ms, @error)
+    `).run({
+      routerId:    row.routerId,
+      takenAt:     row.takenAt || Date.now(),
+      outcome:     row.outcome,
+      source:      row.source || 'schedule',
+      actor:       row.actor || null,
+      stem:        row.stem || null,
+      dir:         row.dir || null,
+      fingerprint: row.fingerprint || null,
+      rscBytes:    row.rscBytes || 0,
+      backupBytes: row.backupBytes || 0,
+      model:       (row.identity && row.identity.model) || null,
+      serial:      (row.identity && row.identity.serial) || null,
+      osVersion:   (row.identity && row.identity.osVersion) || null,
+      ms:          row.ms || 0,
+      error:       row.error || null,
+    });
+    return info.lastInsertRowid;
+  } catch (e) {
+    console.error('%s', '[db] backup record failed:', (e && e.message) || e);
+    return null;
+  }
+}
+
+/** Runs for one router, newest first. */
+function listBackups(routerId, limit) {
+  if (!_db) return [];
+  return _prep(`SELECT * FROM config_backups WHERE router_id = ?
+                ORDER BY taken_at DESC LIMIT ?`).all(routerId, Math.min(Number(limit) || 200, 1000));
+}
+
+function getBackup(id) {
+  if (!_db) return null;
+  return _prep('SELECT * FROM config_backups WHERE id = ?').get(Number(id)) || null;
+}
+
+/**
+ * The configuration this router was last seen with.
+ *
+ * Any run that read an export has a fingerprint, whether or not it stored a
+ * pair — so an unchanged run still moves this forward and a failed one leaves
+ * it alone. That is what stops a transient failure from being reported as
+ * drift on the next successful run.
+ */
+function latestFingerprint(routerId) {
+  if (!_db) return null;
+  const row = _prep(`SELECT fingerprint FROM config_backups
+                     WHERE router_id = ? AND fingerprint IS NOT NULL
+                     ORDER BY taken_at DESC LIMIT 1`).get(routerId);
+  return row ? row.fingerprint : null;
+}
+
+/**
+ * When this router was last attempted, at all.
+ *
+ * Read from the database rather than held in memory, so a restart neither
+ * skips a due backup nor re-runs one taken a minute ago — the failure mode of
+ * a purely in-process timer.
+ */
+function lastBackupRun(routerId) {
+  if (!_db) return 0;
+  const row = _prep(`SELECT taken_at FROM config_backups WHERE router_id = ?
+                     ORDER BY taken_at DESC LIMIT 1`).get(routerId);
+  return row ? row.taken_at : 0;
+}
+
+/** The stored pairs for a router, newest first — rows that still have files. */
+function storedBackups(routerId) {
+  if (!_db) return [];
+  return _prep(`SELECT * FROM config_backups
+                WHERE router_id = ? AND stem IS NOT NULL AND pruned_at IS NULL
+                ORDER BY taken_at DESC`).all(routerId);
+}
+
+/** The artefacts are gone; the record of the run is not. */
+function markBackupPruned(id, ts) {
+  if (!_db) return false;
+  const info = _prep('UPDATE config_backups SET pruned_at = ? WHERE id = ?')
+    .run(ts || Date.now(), Number(id));
+  return info.changes > 0;
+}
+
+/** Counts and bytes for the page header, per router. */
+function backupSummary(routerId) {
+  if (!_db) return { runs: 0, stored: 0, bytes: 0, lastAt: 0, lastOutcome: null };
+  const agg = _prep(`
+    SELECT COUNT(*) AS runs,
+           SUM(CASE WHEN stem IS NOT NULL AND pruned_at IS NULL THEN 1 ELSE 0 END) AS stored,
+           SUM(CASE WHEN stem IS NOT NULL AND pruned_at IS NULL
+                    THEN rsc_bytes + backup_bytes ELSE 0 END) AS bytes
+    FROM config_backups WHERE router_id = ?`).get(routerId) || {};
+  const last = _prep(`SELECT taken_at, outcome FROM config_backups WHERE router_id = ?
+                      ORDER BY taken_at DESC LIMIT 1`).get(routerId);
+  return {
+    runs: agg.runs || 0,
+    stored: agg.stored || 0,
+    bytes: agg.bytes || 0,
+    lastAt: last ? last.taken_at : 0,
+    lastOutcome: last ? last.outcome : null,
+  };
+}
+
 // ── Sites (issue #78) ────────────────────────────────────────────────────────
 // Persistence only. Validation of names, lengths and coordinate ranges lives in
 // the route layer, matching how routers and users are handled.
@@ -1668,5 +1829,7 @@ module.exports = {
   queryAlertEvents, queryConnectivityEvents, queryConnectivityEventsAgg,
   insertAuditEvent, queryAuditEvents, auditFacets,
   prune, startPruneInterval, deleteRouterData,
+  recordBackup, listBackups, getBackup, latestFingerprint, lastBackupRun,
+  storedBackups, markBackupPruned, backupSummary,
   purge, countPurge, vacuum, stats, PURGE_TYPES,
 };

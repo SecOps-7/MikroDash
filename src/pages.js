@@ -107,6 +107,10 @@ const PAGES = Object.freeze([
   { key: 'routers',     title: 'Routers',          settingsKey: 'pageRouters',     streamRooms: [],                                  category: null },
   { key: 'reports',     title: 'Reports',          settingsKey: null,              streamRooms: [],                                  category: null },
   { key: 'audit',       title: 'Audit',            settingsKey: 'pageAudit',       streamRooms: [],                                  category: null },
+  // Immediately before Settings, because that is where someone goes looking
+  // for it: a restore point is configuration about the router, not telemetry
+  // from it.
+  { key: 'backups',     title: 'Backups',          settingsKey: 'pageBackups',     streamRooms: [],                                  category: null },
   { key: 'settings',    title: 'Settings',         settingsKey: null,              streamRooms: [],                                  category: null },
 ]);
 
