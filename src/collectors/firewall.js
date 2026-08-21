@@ -98,11 +98,15 @@ class FirewallCollector {
       if (!seenIds.has(id)) this.prevCounts.delete(id);
     }
 
+    // The whole rule, not just its id and counters. Everything else a rule
+    // carries — chain, action, addresses, comment, disabled — is rendered, and
+    // fingerprinting only the counters meant an edit to any of it reached an
+    // open page solely because traffic happened to move a counter in the same
+    // tick. On a quiet rule it never arrived. Counters stay in, so this is no
+    // less sensitive than before, and array order is now covered too: a write
+    // can reorder rules, and order is what the page shows.
     const fp = JSON.stringify({
-      filter:   this._filter.map(r => ({ id: r.id, packets: r.packets, bytes: r.bytes })),
-      nat:      this._nat.map(r    => ({ id: r.id, packets: r.packets, bytes: r.bytes })),
-      mangle:   this._mangle.map(r => ({ id: r.id, packets: r.packets, bytes: r.bytes })),
-      raw:      this._raw.map(r    => ({ id: r.id, packets: r.packets, bytes: r.bytes })),
+      filter: this._filter, nat: this._nat, mangle: this._mangle, raw: this._raw,
     });
 
     const payload = {
