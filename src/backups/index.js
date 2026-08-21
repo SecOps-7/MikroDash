@@ -58,7 +58,6 @@ function isDue(router, lastRun, now, schedules, tz) {
   const interval = intervalFor(router.backup.schedule, schedules);
   if (!interval) return false;
   if (!lastRun) return true;
-  if ((now - lastRun) < interval) return false;
 
   // Absent means "never chosen", so it takes the default; an explicitly stored ''
   // means "any time" and keeps the interval-only behaviour. Collapsing the two
@@ -69,7 +68,20 @@ function isDue(router, lastRun, now, schedules, tz) {
   const at = Routers.backupTimeMinutes(chosen);
   // 'hourly' is deliberately excluded — an hourly backup that waits for 08:00 is
   // a daily backup.
-  if (at === null || router.backup.schedule === 'hourly') return true;
+  const anchored = at !== null && router.backup.schedule !== 'hourly';
+
+  // A daily backup at a chosen time is anchored by the wall clock alone. The
+  // `now >= target && lastRun < target` pair below already permits exactly one
+  // run per day, so gating on the elapsed interval as well only holds a run back
+  // past its own target: a backup taken at 11:45 left 08:00 undue the next
+  // morning, and once it finally fired at 11:45 it stayed there for good — the
+  // very drift the anchor exists to remove. Longer periods still need the
+  // interval, because `_todayAt` knows an hour and a minute but not a weekday
+  // or a date, and so cannot tell one week or month from the next on its own.
+  if (!(anchored && router.backup.schedule === 'daily')) {
+    if ((now - lastRun) < interval) return false;
+  }
+  if (!anchored) return true;
 
   // Anchored to the wall clock rather than to the last run, so a daily backup
   // set for 02:00 stays at 02:00 instead of drifting by however long each run
