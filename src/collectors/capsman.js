@@ -24,14 +24,20 @@
  * its CAP by what the router says rather than by arithmetic on MAC addresses.
  * The prefix match remains as a fallback for routers that do not report it.
  *
- * WHAT IS DELIBERATELY NOT READ. /interface/wifi/configuration holds
- * `security.passphrase` in clear text — wireless.js:229-265 already refuses to
- * read that row for the same reason. Provisioning references configurations by
- * NAME, which is all this page needs, so the configuration table is never
- * fetched and no passphrase can reach the browser.
+ * WHAT IS READ CAREFULLY. /interface/wifi/configuration and
+ * /interface/wifi/security hold the passphrase in clear text. This collector
+ * used to avoid them entirely; the configuration card needs both, so they are
+ * now read through the proplists in ../routeros/wifiMenus.js, which name no
+ * credential, and projected field by name into `profiles` rather than spread —
+ * so a proplist widened later still cannot push a new field at the browser.
+ * That module's header explains why the list lives in one place.
  */
 
 const { clampPoll, createPollLoop, createListenRefresh } = require('./util');
+// The four profile menus the configuration card edits. Their proplists live in
+// one place because two collectors read them and they are the ones carrying the
+// passphrase — see that file's header.
+const { MENUS, named } = require('../routeros/wifiMenus');
 
 const MANAGER_CMD = ['/interface/wifi/capsman/print', ''];
 const CAP_CMD     = ['/interface/wifi/cap/print', ''];
@@ -233,6 +239,20 @@ function buildCapsmanView(managerRow, capRow, remoteRows, provRows, radioRows, i
   for (const r of provRows || []) {
     if (!r || r.action === undefined) continue;
     provisioning.push({
+      // The row's own id, and an identity built the way resources.js builds a
+      // composite one. A provisioning rule has no name and nothing unique about
+      // it, so the edit dialog ADDRESSES it by `.id` and IDENTIFIES it by this
+      // tuple — an id survives an edit, which makes it the wrong thing to
+      // recognise a row by. Both are needed before a row can carry
+      // data-id / data-identity.
+      id:                  r['.id'] || '',
+      // The separator is U+0001 and the field ORDER is capsProvisioning's
+      // `identity` array — both must match resources.js identityOf() exactly or
+      // every edit is refused as a stale row. Mirrored rather than imported, the
+      // way app.js mirrors fwIdentity() for the firewall, and pinned by a test
+      // that compares the two for the same row.
+      identity:            [r['supported-bands'] || '', r.action || '',
+                            r['master-configuration'] || '', r['name-format'] || ''].join(''),
       supportedBands:      _split(r['supported-bands']),
       action:              r.action || '',
       masterConfiguration: r['master-configuration'] || '',
@@ -282,6 +302,7 @@ class CapsmanCollector {
     this._manager = null;
     this._cap     = null;
     this._prov    = [];
+    this._profiles = { configuration: [], security: [], channel: [], datapath: [] };
     this._ticks   = 0;
     this._lastFp  = '';
     // undefined = unprobed, false = this router has no such menu, stop asking.
@@ -317,14 +338,27 @@ class CapsmanCollector {
     if (!this.ros.connected) return;
 
     if (!this.streamMode || this._dirty || this._ticks % CONFIG_EVERY === 0) {
-      const [mgr, cap, prov] = await Promise.all([
+      const [mgr, cap, prov, cfg, sec, chan, dpath] = await Promise.all([
         this._read(MANAGER_CMD, '_managerAvailable'),
         this._read(CAP_CMD,     '_capAvailable'),
         this._read(PROV_CMD,    '_provAvailable'),
+        // The four profile menus behind the configuration card. Each latches
+        // independently, so a build without one costs a tab rather than a page.
+        this._read(MENUS.configuration, '_configAvailable'),
+        this._read(MENUS.security,      '_securityAvailable'),
+        this._read(MENUS.channel,       '_channelAvailable'),
+        this._read(MENUS.datapath,      '_datapathAvailable'),
       ]);
       this._manager = mgr[0] || null;
       this._cap     = cap[0] || null;
       this._prov    = prov;
+      // named() drops the nameless junk row an empty RouterOS menu answers with.
+      this._profiles = {
+        configuration: named(cfg),
+        security:      named(sec),
+        channel:       named(chan),
+        datapath:      named(dpath),
+      };
       this._dirty   = false;
     }
     this._ticks++;
@@ -338,9 +372,41 @@ class CapsmanCollector {
 
     const built = buildCapsmanView(this._manager, this._cap, remoteRows, this._prov,
                                    radioRows, ifaceRows, regRows);
+    // The rows behind the configuration card's five tabs. Projected by name
+    // rather than spread, so a proplist widened later cannot silently push a new
+    // field — a passphrase included — at every browser on the page.
+    const profiles = {
+      configuration: (this._profiles.configuration || []).map(r => ({
+        id: r['.id'] || '', name: r.name || '', ssid: r.ssid || '', mode: r.mode || '',
+        country: r.country || '', hideSsid: _bool(r['hide-ssid']),
+        security: r.security || '', channel: r.channel || '', datapath: r.datapath || '',
+        manager: r.manager || '', comment: r.comment || '', disabled: _bool(r.disabled),
+      })),
+      security: (this._profiles.security || []).map(r => ({
+        id: r['.id'] || '', name: r.name || '',
+        authTypes: r['authentication-types'] || '', wps: r.wps || '',
+        ft: _bool(r.ft), comment: r.comment || '', disabled: _bool(r.disabled),
+      })),
+      channel: (this._profiles.channel || []).map(r => ({
+        id: r['.id'] || '', name: r.name || '', band: r.band || '',
+        frequency: r.frequency || '', width: r.width || '',
+        secondaryFrequency: r['secondary-frequency'] || '',
+        skipDfsChannels: r['skip-dfs-channels'] || '',
+        comment: r.comment || '', disabled: _bool(r.disabled),
+      })),
+      datapath: (this._profiles.datapath || []).map(r => ({
+        id: r['.id'] || '', name: r.name || '', bridge: r.bridge || '',
+        vlanId: r['vlan-id'] || '', clientIsolation: _bool(r['client-isolation']),
+        localForwarding: _bool(r['local-forwarding']),
+        trafficProcessing: r['traffic-processing'] || '',
+        comment: r.comment || '', disabled: _bool(r.disabled),
+      })),
+    };
+
     const payload = {
       ts: Date.now(), pollMs: this.pollMs,
       ...built,
+      profiles,
       // False on a router running the legacy wireless package, so the page can
       // say so instead of rendering an empty manager panel.
       available: this._managerAvailable !== false || this._capAvailable !== false,
@@ -353,12 +419,36 @@ class CapsmanCollector {
       m: [built.manager.enabled, built.manager.interfaces, built.cap.enabled, built.cap.currentIdentity],
       c: built.caps.map(c => [c.identity, c.state, c.version, c.connectedTime, c.clientCount,
                               c.radios.map(x => x.interface)]),
-      p: built.provisioning.map(p => [p.action, p.masterConfiguration, p.nameFormat, p.disabled]),
+      // EVERY field the configuration card can edit belongs here. A field left
+      // out means a save that lands on the router and never reaches the browser,
+      // which reads as a failed write — `comment` and `slaveConfigurations` were
+      // exactly that before the card existed.
+      p: built.provisioning.map(p => [p.id, p.supportedBands, p.action, p.masterConfiguration,
+                                      p.slaveConfigurations, p.nameFormat, p.radioMac,
+                                      p.identityRegexp, p.comment, p.disabled]),
+      f: [profiles.configuration, profiles.security, profiles.channel, profiles.datapath],
       t: built.totals,
     });
     if (fp === this._lastFp) return;
     this._lastFp = fp;
     this.io.to('page-capsman').emit('capsman:update', payload);
+  }
+
+  /**
+   * Re-read now, after a write, so the card shows what the router did.
+   *
+   * Every res:* handler calls this through resource.collector — but only if it
+   * exists, so its absence was silent: a save landed on the router and the card
+   * sat still until the next config tick, up to two minutes at the default
+   * interval. `_lastFp` is cleared as well as `_dirty` set, because a write that
+   * happens to restore a previous value would otherwise fingerprint identical
+   * and be swallowed.
+   */
+  async refreshNow() {
+    if (!this.ros.connected) return;
+    this._dirty  = true;
+    this._lastFp = '';
+    await this._tick();
   }
 
   _startDelivery() {
@@ -382,9 +472,14 @@ class CapsmanCollector {
       this._dirty  = true;
       this._manager = this._cap = null;
       this._prov = [];
+      this._profiles = { configuration: [], security: [], channel: [], datapath: [] };
       this._managerAvailable = this._capAvailable = this._remoteAvailable = undefined;
       this._provAvailable = this._radioAvailable = undefined;
       this._ifaceAvailable = this._regAvailable = undefined;
+      // A package can be installed and the router rebooted under us, so the four
+      // profile menus are re-probed rather than carried across a reconnect.
+      this._configAvailable = this._securityAvailable = undefined;
+      this._channelAvailable = this._datapathAvailable = undefined;
       await this._tick();
       this._startDelivery();
     });

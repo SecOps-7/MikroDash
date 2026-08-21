@@ -659,6 +659,32 @@ therefore means:
 - `settings.save(updates)` merges updates, re-encrypts, writes to disk, updates in-memory cache
 - Most settings changes take effect immediately without restart. Router connection changes (`routerHost`, `routerPort`, `routerTls`, `routerUser`, `routerPass`) require restart — the API returns `{ requiresRestart: true }`.
 
+### Deferred: renaming the wireless keys (noted 2026-08-20, not done)
+
+The two wireless pages were renamed to **Wifi Clients** and **Wifi Networks**, but only their
+DISPLAY strings changed. The keys still read `wireless`:
+
+| Key | Where it is persisted | Renaming it breaks |
+|---|---|---|
+| `wireless` (page key) | `role_pages.page` rows in SQLite | every role granting the page loses that grant — fails closed, silently, on upgrade |
+| `pageWireless` | `settings.json` | the install-wide visibility toggle resets to default |
+| `pollWireless` / `streamWireless` | `settings.json`, and each router's `collection.overrides` | per-router interval and stream overrides are lost |
+| `wireless` (collector key) | each router's `collection.off` array in `routers.json` | a collector deliberately switched off comes back on |
+| `page-wireless` (room) | nothing persisted — derived | nothing, but it must move with the page key |
+
+A migration is perfectly possible and would need to, in one startup step: rewrite `role_pages.page`
+`'wireless'` → `'wificlients'`; rename the three `settings.json` keys; and rewrite `collection.off`
+and `collection.overrides` in every `routers.json` entry. It must be idempotent and must tolerate a
+half-migrated file, because a rollback to an earlier binary would read the NEW keys and find none of
+them — which for `pageWireless` means the page silently disappears rather than failing loudly.
+
+Whether it is worth doing is a judgement call: the keys are invisible to users, and the only cost of
+leaving them is that a reader has to know `wireless` means Wifi Clients. That is what this note is
+for. `src/pages.js` and `src/collection.js` carry the same warning at the point of use.
+
+Note the asymmetry: **Wifi Networks needs no migration at all.** Its key has been `wifi` since it
+was written, so only its title changed.
+
 ---
 
 ## Shared infrastructure in index.js

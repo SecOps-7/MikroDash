@@ -287,6 +287,332 @@ const _fwCheck = (clean) => {
                      ' before a port can be matched' }];
 };
 
+// ── Wireless ─────────────────────────────────────────────────────────────────
+//
+// Two stacks, two resources, one table. A router has EITHER /interface/wifi
+// (modern: wifi-qcom, wifi-qcom-ac, formerly wifiwave2) or /interface/wireless
+// (legacy), never both, so `requiresMenu` decides which Add button is real and
+// the collector tags each row with the resource that owns it — a per-row
+// `data-res`, the way the Routes table already mixes v4 and v6.
+//
+// Band, width and authentication-type vocabularies differ across drivers, so
+// every one of them is `text` WITH SUGGESTIONS rather than a `select`. A hard
+// select would refuse a value the router itself is perfectly happy with, and
+// the router is the authority here, not this list.
+
+/** Enable and disable as row actions, exactly as the firewall tables do. */
+const _WIFI_ACTIONS = [
+  { key: 'enable',  verb: 'enable',  label: 'Enable',
+    when: (r) => r.disabled === 'true', note: 'enabled a wireless network' },
+  { key: 'disable', verb: 'disable', label: 'Disable',
+    when: (r) => r.disabled !== 'true', note: 'disabled a wireless network' },
+];
+
+/**
+ * A WPA passphrase is 8..63 characters.
+ *
+ * Checked here rather than left to RouterOS because the router answers a short
+ * key with a bare refusal naming no field, and "which box do I fix" is the whole
+ * question at that moment.
+ *
+ * Length only, never presence: a blank passphrase means "leave the current one
+ * alone" (see buildArgs), so requiring one would make every unrelated edit —
+ * renaming an SSID, changing a VLAN — demand the passphrase be retyped.
+ */
+const _pskLength = (field) => (clean) => {
+  const pass = String(clean[field] || '');
+  if (!pass || (pass.length >= 8 && pass.length <= 63)) return [];
+  return [{ field, message: 'Passphrase must be 8 to 63 characters' }];
+};
+
+/**
+ * Only a virtual AP may be removed.
+ *
+ * A master radio is hardware: it can be edited and disabled, but deleting it is
+ * not a thing RouterOS will do. `readOnlyWhen` cannot say this — it would block
+ * the edit as well — so removal has a predicate of its own.
+ */
+const _wifiRemovable = (r) => !!r['master-interface'];
+
+const _WIFI_NET = {
+  key: 'wifiNet', page: 'wifi', collector: 'wifi', label: 'Wifi Network',
+  title: 'Wifi Network', menu: '/interface/wifi', identity: 'name',
+  requiresMenu: '/interface/wifi',
+  // Two guards, two different questions. selfPath asks whether this cuts the
+  // path we reach the router by; wifiInherit asks whether it quietly overrides
+  // a profile more than one radio shares. See _resVerdict in src/index.js.
+  guard: ['selfPath', 'wifiInherit'],
+  guardInterfaceFields: ['name'],
+  // Renaming and disabling are not the only disruptive edits here: changing the
+  // SSID or the passphrase drops every client on the radio, the management path
+  // included. _resGuardTargets counts a change to these as a target too.
+  guardDisruptiveFields: ['ssid', 'passphrase', 'authTypes', 'band'],
+  // A CAP takes its configuration from the manager, so a local edit is a no-op
+  // that would look like a working save. A dynamic interface is not ours at all.
+  readOnlyWhen: (r) => !!r['configuration.manager'] || r.dynamic === 'true',
+  removableWhen: _wifiRemovable,
+  actions: _WIFI_ACTIONS,
+  check: _pskLength('passphrase'),
+  fields: [
+    _f('name', 'name', 'Interface Name', 'text', { required: true, placeholder: 'wifi1-guest' }),
+    // Required, and that is what scopes Add to "another SSID on an existing
+    // radio": with no way to omit it, the form cannot create a stray radio.
+    _f('masterInterface', 'master-interface', 'Radio', 'text', { required: true,
+      optionsFrom: { menu: '/interface/wifi', value: 'name' },
+      help: 'the radio this SSID rides on' }),
+    _f('ssid', 'configuration.ssid', 'SSID', 'text', { required: true, max: 32 }),
+    _f('authTypes', 'security.authentication-types', 'Security', 'text',
+      { optionsFrom: { values: ['', 'wpa2-psk', 'wpa3-psk', 'wpa2-psk,wpa3-psk',
+                                'wpa2-eap', 'wpa3-eap', 'owe'] },
+        help: 'blank is an open network' }),
+    _f('passphrase', 'security.passphrase', 'Passphrase', 'secret',
+      { max: 63, help: 'leave blank to keep the current passphrase' }),
+    _f('hideSsid', 'configuration.hide-ssid', 'Hide SSID', 'bool', { clearable: true }),
+    _f('band', 'channel.band', 'Band', 'text',
+      { optionsFrom: { values: ['2ghz-ax', '2ghz-n', '5ghz-ax', '5ghz-ac', '6ghz-ax'] } }),
+    _f('frequency', 'channel.frequency', 'Frequency', 'text', { placeholder: 'auto, or 5180' }),
+    _f('width', 'channel.width', 'Channel Width', 'text',
+      { optionsFrom: { values: ['20mhz', '20/40mhz', '20/40/80mhz', '20/40/80/160mhz'] } }),
+    _f('country', 'configuration.country', 'Country', 'text'),
+    // NOT clearable, unlike almost every other optional field in this registry.
+    // `clearable` emits `=datapath.vlan-id=` on an edit, and RouterOS answers a
+    // typed integer property given an empty string with "invalid value  for
+    // datapath.vlan-id, an integer required" — so leaving it on made EVERY edit
+    // of a wireless network fail, whether or not it touched the VLAN. Clearing
+    // one needs /interface/wifi/unset, which this engine has no verb for; until
+    // it does, an unset VLAN is one WinBox keeps.
+    _f('vlanId', 'datapath.vlan-id', 'VLAN ID', 'int', { min: 1, max: 4094 }),
+    _f('bridge', 'datapath.bridge', 'Bridge', 'text',
+      { optionsFrom: { menu: '/interface/bridge', value: 'name' } }),
+    _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+    _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
+  ],
+};
+
+const _WL_NET = {
+  key: 'wlNet', page: 'wifi', collector: 'wifi', label: 'Wifi Network',
+  title: 'Wifi Network (legacy)', menu: '/interface/wireless', identity: 'name',
+  requiresMenu: '/interface/wireless',
+  // No wifiInherit here: the legacy stack has no configuration profiles to
+  // inherit from. Security is a reference, not an inherited value, and changing
+  // which profile an interface points at is an ordinary edit.
+  guard: 'selfPath',
+  guardInterfaceFields: ['name'],
+  guardDisruptiveFields: ['ssid', 'securityProfile', 'band'],
+  // A CAPsMAN-provisioned legacy interface arrives dynamic, and editing it
+  // locally is meaningless for the same reason a CAP's is.
+  readOnlyWhen: (r) => r.dynamic === 'true',
+  removableWhen: _wifiRemovable,
+  actions: _WIFI_ACTIONS,
+  fields: [
+    _f('name', 'name', 'Interface Name', 'text', { required: true, placeholder: 'wlan1-guest' }),
+    _f('masterInterface', 'master-interface', 'Radio', 'text', { required: true,
+      optionsFrom: { menu: '/interface/wireless', value: 'name' },
+      help: 'the radio this SSID rides on' }),
+    _f('ssid', 'ssid', 'SSID', 'text', { required: true, max: 32 }),
+    // The passphrase is deliberately NOT here: on this stack it lives on the
+    // profile, which is why wlSecProfile is a resource of its own.
+    _f('securityProfile', 'security-profile', 'Security Profile', 'text',
+      { optionsFrom: { menu: '/interface/wireless/security-profiles', value: 'name' },
+        help: 'the passphrase lives on the profile, not here' }),
+    _f('mode', 'mode', 'Mode', 'select',
+      { options: ['ap-bridge', 'bridge', 'station', 'station-bridge', 'station-pseudobridge'] }),
+    _f('hideSsid', 'hide-ssid', 'Hide SSID', 'bool', { clearable: true }),
+    _f('band', 'band', 'Band', 'text',
+      { optionsFrom: { values: ['2ghz-b/g/n', '2ghz-g/n', '2ghz-onlyn',
+                                '5ghz-a/n/ac', '5ghz-onlyac', '5ghz-a/n'] } }),
+    _f('frequency', 'frequency', 'Frequency', 'text', { placeholder: 'auto, or 5180' }),
+    _f('channelWidth', 'channel-width', 'Channel Width', 'text',
+      { optionsFrom: { values: ['20mhz', '20/40mhz-Ce', '20/40mhz-eC', '20/40/80mhz-Ceee'] } }),
+    // Not clearable, for the reason given on wifiNet.vlanId above.
+    _f('vlanId', 'vlan-id', 'VLAN ID', 'int', { min: 1, max: 4094 }),
+    _f('vlanMode', 'vlan-mode', 'VLAN Mode', 'select',
+      { options: ['no-tag', 'use-service-tag', 'use-tag'] }),
+    _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+    _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
+  ],
+};
+
+const _WL_SEC_PROFILE = {
+  key: 'wlSecProfile', page: 'wifi', collector: 'wifi', label: 'Security Profile',
+  title: 'Wifi Security Profile', menu: '/interface/wireless/security-profiles',
+  identity: 'name', requiresMenu: '/interface/wireless/security-profiles',
+  // Both keys are `secret`, so neither is read back into the form and neither
+  // reaches the audit trail as a value: _resAuditValues keys on the declared
+  // TYPE rather than the field name, which is what covers `wpa2PreSharedKey`
+  // despite it not matching audit.js's credential name pattern.
+  check: _pskLength('wpa2PreSharedKey'),
+  fields: [
+    _f('name', 'name', 'Name', 'text', { required: true, placeholder: 'guest-wpa2' }),
+    _f('mode', 'mode', 'Mode', 'select',
+      { options: ['none', 'static-keys-optional', 'static-keys-required', 'dynamic-keys'] }),
+    _f('authenticationTypes', 'authentication-types', 'Authentication', 'text',
+      { optionsFrom: { values: ['', 'wpa-psk', 'wpa2-psk', 'wpa-psk,wpa2-psk',
+                                'wpa-eap', 'wpa2-eap'] } }),
+    _f('wpa2PreSharedKey', 'wpa2-pre-shared-key', 'WPA2 Passphrase', 'secret',
+      { max: 63, help: 'leave blank to keep the current passphrase' }),
+    _f('wpaPreSharedKey', 'wpa-pre-shared-key', 'WPA Passphrase', 'secret',
+      { max: 63, help: 'leave blank to keep the current passphrase' }),
+    _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+  ],
+};
+
+// ── CAPsMAN ──────────────────────────────────────────────────────────────────
+//
+// The five menus that decide what a CAP gets provisioned with. They are ordinary
+// list menus with `.id` rows, so they need no new machinery — but they differ
+// from everything else here in BLAST RADIUS: a write lands on every CAP in the
+// fleet the moment it is saved, which is what `capsmanPush` warns about.
+//
+// The two SINGLETON menus are deliberately absent. /interface/wifi/capsman and
+// /interface/wifi/cap each answer with one row carrying NO `.id`, so this engine
+// cannot address them at all — it reads rows by id and refuses anything else as
+// a stale row. Enabling or disabling CAPsMAN itself stays in WinBox.
+//
+// PAGE SCOPE IS THE AUTHORISATION BOUNDARY, and the asymmetry is deliberate:
+// these are `page: 'capsman'` while wifiNet is `page: 'wifi'`, so a role holding
+// write on wifi but not capsman can override a value on ONE interface but cannot
+// edit the shared profile every CAP follows. Smaller blast radius for the lesser
+// grant. Do not "simplify" the two pages onto one key.
+
+const _CAPS_ACTIONS = [
+  { key: 'enable',  verb: 'enable',  label: 'Enable',
+    when: (r) => r.disabled === 'true', note: 'enabled a CAPsMAN rule' },
+  { key: 'disable', verb: 'disable', label: 'Disable',
+    when: (r) => r.disabled !== 'true', note: 'disabled a CAPsMAN rule' },
+];
+
+const _CAPS_PROVISIONING = {
+  key: 'capsProvisioning', page: 'capsman', collector: 'capsman', label: 'Provisioning Rule',
+  title: 'CAPsMAN Provisioning Rule', menu: '/interface/wifi/provisioning',
+  requiresMenu: '/interface/wifi/provisioning',
+  // A provisioning rule has no name and nothing unique about it — the same
+  // problem a firewall rule has, and the same answer: a composite identity. The
+  // row is ADDRESSED by `.id`; this only has to answer "is this still the rule I
+  // was looking at". src/collectors/capsman.js mirrors this tuple, in this order.
+  identity: ['supportedBands', 'action', 'masterConfiguration', 'nameFormat'],
+  // ORDER IS MEANING here as it is in the firewall: the first rule whose bands
+  // match a joining radio wins, so a broad rule above a specific one hides it.
+  ordered: true,
+  // NO capsmanPush guard here, unlike the four profile menus. Editing a rule
+  // does not push anything: MikroTik's docs are explicit that "provisioning
+  // itself is not for sending configuration, it is for essentially creating a
+  // new interface" — it acts when a CAP joins. A guard that always returned
+  // "nothing to say" would be noise in the registry.
+  actions: _CAPS_ACTIONS,
+  fields: [
+    _f('supportedBands', 'supported-bands', 'Supported Bands', 'text',
+      { optionsFrom: { values: ['2ghz-ax', '2ghz-n', '2ghz-g', '5ghz-ax', '5ghz-ac', '5ghz-n', '6ghz-ax'] },
+        help: 'a comma list — the rule matches a radio offering any of them' }),
+    _f('action', 'action', 'Action', 'select', { required: true,
+      options: ['create-dynamic-enabled', 'create-enabled', 'create-disabled', 'none'] }),
+    _f('masterConfiguration', 'master-configuration', 'Master Configuration', 'text',
+      { optionsFrom: { menu: '/interface/wifi/configuration', value: 'name' } }),
+    _f('slaveConfigurations', 'slave-configurations', 'Slave Configurations', 'text',
+      { optionsFrom: { menu: '/interface/wifi/configuration', value: 'name' },
+        help: 'a comma list — the extra SSIDs provisioned onto the same radio' }),
+    _f('nameFormat', 'name-format', 'Name Format', 'text', { placeholder: '%I-%N' }),
+    _f('radioMac', 'radio-mac', 'Radio MAC', 'mac',
+      { help: 'match one radio only; leave blank to match any' }),
+    _f('identityRegexp', 'identity-regexp', 'Identity Regexp', 'text'),
+    _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+    _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
+  ],
+};
+
+const _CAPS_CONFIG = {
+  key: 'capsConfig', page: 'capsman', collector: 'capsman', label: 'Configuration Profile',
+  title: 'CAPsMAN Configuration Profile', menu: '/interface/wifi/configuration',
+  identity: 'name', requiresMenu: '/interface/wifi/configuration',
+  guard: 'capsmanPush',
+  fields: [
+    _f('name', 'name', 'Name', 'text', { required: true, placeholder: 'Guest WiFi 5Ghz' }),
+    _f('ssid', 'ssid', 'SSID', 'text', { max: 32 }),
+    _f('country', 'country', 'Country', 'text'),
+    _f('mode', 'mode', 'Mode', 'select', { options: ['ap', 'station', 'station-bridge'] }),
+    _f('hideSsid', 'hide-ssid', 'Hide SSID', 'bool', { clearable: true }),
+    _f('security', 'security', 'Security Profile', 'text',
+      { optionsFrom: { menu: '/interface/wifi/security', value: 'name' } }),
+    _f('channel', 'channel', 'Channel Profile', 'text',
+      { optionsFrom: { menu: '/interface/wifi/channel', value: 'name' } }),
+    _f('datapath', 'datapath', 'Datapath Profile', 'text',
+      { optionsFrom: { menu: '/interface/wifi/datapath', value: 'name' } }),
+    // `manager` is DELIBERATELY not a field. MikroTik's own documentation warns
+    // that configuration.manager belongs on the CAP device itself and must never
+    // be pushed through a provisioned profile. Offering it here is a footgun
+    // with no upside — the collector still reads it so the card can SHOW it.
+    _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+    _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
+  ],
+};
+
+const _CAPS_SECURITY = {
+  key: 'capsSecurity', page: 'capsman', collector: 'capsman', label: 'Security Profile',
+  title: 'CAPsMAN Security Profile', menu: '/interface/wifi/security',
+  identity: 'name', requiresMenu: '/interface/wifi/security',
+  guard: 'capsmanPush',
+  // Length only, never presence: a blank passphrase means "leave the current one
+  // alone" (see buildArgs), so requiring one would make renaming a profile
+  // demand the passphrase be retyped.
+  check: _pskLength('passphrase'),
+  fields: [
+    _f('name', 'name', 'Name', 'text', { required: true, placeholder: 'Guest WiFi' }),
+    _f('authenticationTypes', 'authentication-types', 'Authentication', 'text',
+      { optionsFrom: { values: ['', 'wpa2-psk', 'wpa3-psk', 'wpa2-psk,wpa3-psk',
+                                'wpa2-eap', 'wpa3-eap', 'owe'] },
+        help: 'blank is an open network' }),
+    _f('passphrase', 'passphrase', 'Passphrase', 'secret',
+      { max: 63, help: 'leave blank to keep the current passphrase' }),
+    _f('wps', 'wps', 'WPS', 'select', { options: ['disable', 'push-button'] }),
+    _f('ft', 'ft', '802.11r Fast Roaming', 'bool', { clearable: true }),
+    _f('ftOverDs', 'ft-over-ds', 'FT over DS', 'bool', { clearable: true }),
+    _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+    _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
+  ],
+};
+
+const _CAPS_CHANNEL = {
+  key: 'capsChannel', page: 'capsman', collector: 'capsman', label: 'Channel Profile',
+  title: 'CAPsMAN Channel Profile', menu: '/interface/wifi/channel',
+  identity: 'name', requiresMenu: '/interface/wifi/channel',
+  guard: 'capsmanPush',
+  fields: [
+    _f('name', 'name', 'Name', 'text', { required: true, placeholder: '5Ghz Channels' }),
+    _f('band', 'band', 'Band', 'text',
+      { optionsFrom: { values: ['2ghz-ax', '2ghz-n', '5ghz-ax', '5ghz-ac', '6ghz-ax'] } }),
+    // A list and a range are both valid: `5180,5260,5500` and `5180-5730`.
+    _f('frequency', 'frequency', 'Frequency', 'text', { placeholder: '5180,5260 or 5180-5730' }),
+    _f('width', 'width', 'Channel Width', 'text',
+      { optionsFrom: { values: ['20mhz', '20/40mhz', '20/40/80mhz', '20/40/80/160mhz'] } }),
+    _f('secondaryFrequency', 'secondary-frequency', 'Secondary Frequency', 'text'),
+    _f('skipDfsChannels', 'skip-dfs-channels', 'Skip DFS Channels', 'select',
+      { options: ['disabled', '10min-cac', 'all'] }),
+    _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+    _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
+  ],
+};
+
+const _CAPS_DATAPATH = {
+  key: 'capsDatapath', page: 'capsman', collector: 'capsman', label: 'Datapath Profile',
+  title: 'CAPsMAN Datapath Profile', menu: '/interface/wifi/datapath',
+  identity: 'name', requiresMenu: '/interface/wifi/datapath',
+  guard: 'capsmanPush',
+  fields: [
+    _f('name', 'name', 'Name', 'text', { required: true, placeholder: 'datapath' }),
+    _f('bridge', 'bridge', 'Bridge', 'text',
+      { optionsFrom: { menu: '/interface/bridge', value: 'name' } }),
+    // NOT clearable — see the note on wifiNet.vlanId. RouterOS refuses an empty
+    // value for a typed integer, and `clearable` emits exactly that on an edit.
+    _f('vlanId', 'vlan-id', 'VLAN ID', 'int', { min: 1, max: 4094 }),
+    _f('clientIsolation', 'client-isolation', 'Client Isolation', 'bool', { clearable: true }),
+    _f('localForwarding', 'local-forwarding', 'Local Forwarding', 'bool', { clearable: true }),
+    _f('trafficProcessing', 'traffic-processing', 'Traffic Processing', 'select',
+      { options: ['on-capsman', 'local-forwarding'] }),
+    _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
+    _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
+  ],
+};
+
 // ── The registry ─────────────────────────────────────────────────────────────
 //
 // `identity` names the field that is round-tripped to detect a stale row. A
@@ -469,6 +795,18 @@ const RESOURCES = Object.freeze([
       _f('disabled', 'disabled', 'Disabled', 'bool', { clearable: true }),
     ],
   },
+
+  // Wireless — defined above the registry, alongside the helpers they share.
+  _WIFI_NET,
+  _WL_NET,
+  _WL_SEC_PROFILE,
+
+  // CAPsMAN — likewise. Five menus, one tabbed card, fleet-wide blast radius.
+  _CAPS_PROVISIONING,
+  _CAPS_CONFIG,
+  _CAPS_SECURITY,
+  _CAPS_CHANNEL,
+  _CAPS_DATAPATH,
 
   // ── Firewall ──────────────────────────────────────────────────────────────
   //

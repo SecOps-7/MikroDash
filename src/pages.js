@@ -64,7 +64,12 @@ const PAGES = Object.freeze([
   // with the interfaces rather than with Traffic.
   { key: 'topology',    title: 'Network Topology', settingsKey: 'pageTopology',    streamRooms: ['page-topology'],                    category: 'network' },
 
-  // Titled "Wireless Clients" while the key stays `wireless`. The page sits
+  // Wifi Networks is the configuration page — what this router broadcasts —
+  // and sits above Wifi Clients, which is the observation of who turned up.
+  // Config before consequence reads the way somebody walks into the section.
+  { key: 'wifi',        title: 'Wifi Networks', settingsKey: 'pageWifi',       streamRooms: ['page-wifi'],                       category: 'wireless' },
+
+  // Titled "Wifi Clients" while the key stays `wireless`. The page sits
   // inside a category ALSO called Wireless, and two identical labels one indent
   // apart read as the same destination. The card on the page has said "Wireless
   // Clients" all along, so this aligns the page with its own contents.
@@ -72,7 +77,11 @@ const PAGES = Object.freeze([
   // The key is deliberately untouched: role_pages stores page keys as strings, so
   // renaming one orphans every role grant naming it — fails closed, but silently
   // removes access on upgrade — and pageWireless is a persisted setting.
-  { key: 'wireless',    title: 'Wireless Clients', settingsKey: 'pageWireless',    streamRooms: ['page-wireless'],                    category: 'wireless' },
+  //
+  // Renaming it properly means a migration. What that would have to cover, and
+  // why it has not been done, is written up in AI_CONTEXT.md → "Deferred:
+  // renaming the wireless keys". Do not rename this by hand without reading it.
+  { key: 'wireless',    title: 'Wifi Clients', settingsKey: 'pageWireless',    streamRooms: ['page-wireless'],                    category: 'wireless' },
   { key: 'capsman',     title: 'CAPsMAN',          settingsKey: 'pageCapsman',     streamRooms: ['page-capsman'],                                  category: 'wireless' },
 
   { key: 'dhcp',        title: 'DHCP',             settingsKey: 'pageDhcp',        streamRooms: [],                                  category: 'ipsvc' },
@@ -146,8 +155,11 @@ const SETTING_KEYS = Object.freeze(PAGES.map(p => p.settingsKey).filter(Boolean)
  * professional feature, and it is why that page gained a toggle at all.
  */
 const VIEW_PRESETS = Object.freeze({
-  home:     Object.freeze(['wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth']),
-  standard: Object.freeze(['wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth',
+  // wifi is in Home deliberately: changing the SSID or the passphrase is the one
+  // thing a home user opens a router for, and a tier that hides it would be the
+  // wrong tier for them.
+  home:     Object.freeze(['wifi', 'wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth']),
+  standard: Object.freeze(['wifi', 'wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth',
                            'topology', 'dns', 'vlans', 'vpn', 'firewall', 'logs']),
   // Everything with a toggle. Derived so a new page joins Advanced by existing,
   // which is the tier a new page belongs in until somebody decides otherwise.

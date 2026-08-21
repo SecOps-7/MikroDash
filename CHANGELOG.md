@@ -2,6 +2,68 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.32] — Wireless you can change, not just watch
+
+MikroDash could see wireless in detail and change none of it. Every SSID edit, every passphrase
+rotation, every provisioning tweak still meant opening WinBox. Two new surfaces close that: a **Wifi
+Networks** page for a standalone router, and a **CAPsMAN configuration card** for a fleet.
+
+Both are built on the resource engine that already serves routes, VLANs, bridges and firewall rules,
+so they inherit its stale-row protection, undo, audit trail and permission gates rather than growing
+a second way to write to a router.
+
+**Passphrases are never read back.** `/interface/wifi/print` and the legacy security-profiles menu
+both return the key in clear text, so every read is proplist-scoped and no proplist names a
+credential field. The edit form leaves the box empty, where blank means "leave the current one
+alone", and the audit trail records SET or UNSET rather than a value.
+
+Four bugs surfaced only by running against real hardware, two of them only when a write was actually
+executed against a router. They are listed under Fixed because that is what they were.
+
+### Added
+- **Wifi Networks page.** Every radio and SSID the router broadcasts, one row per interface grouped
+  under the radio carrying it, with colour-coded SSID pills, band, security mode, VLAN and live
+  client count. Works on **both** RouterOS wireless stacks — modern `/interface/wifi` and legacy
+  `/interface/wireless` — and offers exactly the one the router has.
+- **Editing, in place.** Change an SSID, passphrase, band, width, hidden flag or VLAN; enable and
+  disable as one-click row actions; add an extra SSID to an existing radio and remove it again. A
+  physical radio is editable but never removable, because it is hardware.
+- **CAPsMAN configuration card.** Five RouterOS menus behind one tab strip — Provisioning,
+  Configuration, Security, Channel and Datapath — all editable, with provisioning reorderable because
+  the first matching rule wins.
+- **Two new write guards.** Changing an SSID or passphrase on the interface MikroDash is reached
+  through now warns before it drops every client on that radio. Overriding a
+  `/interface/wifi/configuration` profile that more than one radio shares asks first, because the
+  override silently splits two things that had been moving together — and it stays quiet when the
+  profile is used by only one radio, since a warning that fires on the innocent case is one people
+  learn to click through.
+- **A CAPsMAN edit says what it will reach.** Saving a profile a live provisioning rule references
+  warns that it is pushed to every CAP the moment you save, naming the rules and the CAP count. It is
+  silent for a profile nothing enabled references.
+
+### Changed
+- **The Wireless pages are now Wifi Clients and Wifi Networks.** Display names only: every key,
+  permission and saved setting is untouched, so no role grant or per-router override moves. The
+  reasoning, and what a future key rename would have to migrate, is written up in `AI_CONTEXT.md`.
+- **A resource may declare more than one guard.** They answer different questions and one write can
+  trip several; the first warning wins, so a save never raises two dialogs in a row.
+- **CAPsMAN and Wifi Networks reset on a router switch.** The CAPsMAN page had no such handler and
+  could have offered an edit form against another device's rows once it became editable.
+
+### Fixed
+- **A router provisioning its own radios showed twelve uneditable rows and no reason.** RouterOS
+  reports those interfaces as `dynamic` with **no** `configuration.manager`, so keying the badge on
+  the manager alone left every row read-only in silence. Rows now say whether they are CAP-managed or
+  locally provisioned.
+- **Band and channel width were empty on every row.** Both live on the channel *profile* rather than
+  on the interface. They are now resolved profile-first, then inferred from the frequency, then from
+  the interface name.
+- **Every edit of a wireless network failed**, whether or not it touched the VLAN. A field marked
+  clearable emits an empty value on save, and RouterOS refuses an empty value for a typed integer:
+  `invalid value for datapath.vlan-id, an integer required`.
+- **An empty RouterOS menu answers with one nameless junk row**, which would have been read as a
+  profile named `''` — exactly what an interface naming no profile looks up.
+
 ## [0.7.31] — Collectors that know when to stop, and a Backups page you can work in
 
 A collector with nothing to report now **stops holding a channel open**, and says so on the card

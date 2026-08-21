@@ -535,8 +535,8 @@ function applyFontSize(sizeId) {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wireless:'Wireless Clients',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit',backups:'Backups'};
-var PAGE_KEYS   = ['dashboard','wan','wireless','capsman','interfaces','dhcp','dns','vlans','bridges','vpn','ppp','connections','routing','bandwidth','firewall','logs','packages','queues','rosusers','audit'];
+var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wifi:'Wifi Networks',wireless:'Wifi Clients',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit',backups:'Backups'};
+var PAGE_KEYS   = ['dashboard','wan','wifi','wireless','capsman','interfaces','dhcp','dns','vlans','bridges','vpn','ppp','connections','routing','bandwidth','firewall','logs','packages','queues','rosusers','audit'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
 /**
@@ -1964,6 +1964,13 @@ function portSvg(sz) {
     _wlSyncSortBtns();
     renderWireless();
   });
+
+  // Shared with the Wifi Networks page, which lives in another IIFE — the same
+  // arrangement window._VIEW_PRESETS uses. Both pages show bands and SSIDs, and
+  // two copies of the palette would mean one network wearing two colours
+  // depending on which page you were looking at.
+  window._bandBadge   = bandBadge;
+  window._ssidColours = ssidColours;
 })();
 
 // ── WireGuard ──────────────────────────────────────────────────────────────
@@ -2746,7 +2753,7 @@ var _rosCurrentlyDisconnected = false;
 // Install-wide visibility toggles: settings key → page. Only ten pages have one;
 // dashboard, reports, routers and settings are governed by role alone.
 var PAGE_NAV_MAP = {
-  pageWireless:'wireless', pageInterfaces:'interfaces', pageDhcp:'dhcp',
+  pageWifi:'wifi', pageWireless:'wireless', pageInterfaces:'interfaces', pageDhcp:'dhcp',
   pageVpn:'vpn', pageConnections:'connections', pageFirewall:'firewall', pageLogs:'logs',
   pageBandwidth:'bandwidth', pageRouting:'routing', pageTopology:'topology',
   pageVlans:'vlans', pagePpp:'ppp',
@@ -2761,7 +2768,7 @@ var PAGE_NAV_MAP = {
 // moved to when the one they are on becomes hidden.
 var ALL_NAV_PAGES = ['dashboard',
                      'wan','interfaces','vlans','bridges','topology',
-                     'wireless','capsman',
+                     'wifi','wireless','capsman',
                      'dhcp','dns','routing',
                      'ppp','vpn',
                      'bandwidth','queues','connections',
@@ -5018,8 +5025,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
      grid itself — the polling profiles listed both halves and quietly stopped
      covering seven sliders as pages were added. */
   var VIEW_PRESETS = {
-    home:     ['wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth'],
-    standard: ['wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth',
+    home:     ['wifi', 'wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth'],
+    standard: ['wifi', 'wireless', 'interfaces', 'dhcp', 'connections', 'bandwidth',
                'topology', 'dns', 'vlans', 'vpn', 'firewall', 'logs'],
     advanced: null,   // filled below: every page that has a toggle
   };
@@ -5081,19 +5088,19 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   });
 
   var POLL_PROFILES = {
-    fast:     { pollSystem:1000,  pollConns:1000,  pollTalkers:1000,  pollIfstatus:1000,  pollBandwidth:1000,  pollVpn:1000,  pollFirewall:1000,  pollPing:1000,  pollWireless:10000,  pollIfaces:10000,  pollDhcp:10000,
+    fast:     { pollSystem:1000,  pollConns:1000,  pollTalkers:1000,  pollIfstatus:1000,  pollBandwidth:1000,  pollVpn:1000,  pollFirewall:1000,  pollPing:1000,  pollWireless:10000,  pollWifi:10000,  pollIfaces:10000,  pollDhcp:10000,
                 pollTopology:10000,  pollVlans:2000,  pollPpp:2000,  pollBridges:2000,  pollDns:5000,  pollCapsman:5000,  pollPackages:30000, pollWan:2000   },
-    faster:   { pollSystem:5000,  pollConns:5000,  pollTalkers:5000,  pollIfstatus:5000,  pollBandwidth:5000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:60000,  pollIfaces:60000,  pollDhcp:60000,
+    faster:   { pollSystem:5000,  pollConns:5000,  pollTalkers:5000,  pollIfstatus:5000,  pollBandwidth:5000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:60000,  pollWifi:60000,  pollIfaces:60000,  pollDhcp:60000,
                 pollTopology:60000,  pollVlans:10000, pollPpp:10000, pollBridges:10000, pollDns:20000, pollCapsman:20000, pollPackages:120000, pollWan:5000  },
     // The seven keys added here mirror Settings.DEFAULTS exactly. The older half
     // of this row does not (conns, ifstatus, bandwidth, vpn and dhcp have always
     // differed), which is why a fresh install detects "Custom" rather than
     // "Standard" — pre-existing, and left alone.
-    standard: { pollSystem:2000,  pollConns:3000,  pollTalkers:3000,  pollIfstatus:1000,  pollBandwidth:3000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:30000,  pollIfaces:60000,  pollDhcp:290000,
+    standard: { pollSystem:2000,  pollConns:3000,  pollTalkers:3000,  pollIfstatus:1000,  pollBandwidth:3000,  pollVpn:5000,  pollFirewall:5000,  pollPing:5000,  pollWireless:30000,  pollWifi:30000,  pollIfaces:60000,  pollDhcp:290000,
                 pollTopology:30000,  pollVlans:5000,  pollPpp:5000,  pollBridges:5000,  pollDns:10000, pollCapsman:10000, pollPackages:60000, pollWan:10000   },
-    slow:     { pollSystem:10000, pollConns:10000, pollTalkers:10000, pollIfstatus:10000, pollBandwidth:10000, pollVpn:10000, pollFirewall:10000, pollPing:10000, pollWireless:300000, pollIfaces:300000, pollDhcp:300000,
+    slow:     { pollSystem:10000, pollConns:10000, pollTalkers:10000, pollIfstatus:10000, pollBandwidth:10000, pollVpn:10000, pollFirewall:10000, pollPing:10000, pollWireless:300000, pollWifi:300000, pollIfaces:300000, pollDhcp:300000,
                 pollTopology:120000, pollVlans:20000, pollPpp:20000, pollBridges:20000, pollDns:30000, pollCapsman:30000, pollPackages:180000, pollWan:30000  },
-    slower:   { pollSystem:30000, pollConns:30000, pollTalkers:30000, pollIfstatus:30000, pollBandwidth:30000, pollVpn:30000, pollFirewall:30000, pollPing:30000, pollWireless:600000, pollIfaces:600000, pollDhcp:600000,
+    slower:   { pollSystem:30000, pollConns:30000, pollTalkers:30000, pollIfstatus:30000, pollBandwidth:30000, pollVpn:30000, pollFirewall:30000, pollPing:30000, pollWireless:600000, pollWifi:600000, pollIfaces:600000, pollDhcp:600000,
                 pollTopology:300000, pollVlans:30000, pollPpp:30000, pollBridges:30000, pollDns:30000, pollCapsman:30000, pollPackages:300000, pollWan:30000  },
   };
   var POLL_PROFILE_KEY = 'mkd_poll_profile';
@@ -6152,7 +6159,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
     // Page visibility + dashboard widget toggles
-    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit','pageBackups'].forEach(function(f) {
+    ['pageWifi','pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit','pageBackups'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     ['notifBackupDrift','notifBackupFail'].forEach(function(f) {
@@ -6280,7 +6287,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
-    ['pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit','pageBackups'].forEach(function(f) {
+    ['pageWifi','pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit','pageBackups'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
@@ -12326,21 +12333,10 @@ function _renderRoutersMap(rows) {
       });
     }
 
-    var prov = _data.provisioning || [];
-    $('capsmanProvBadge').textContent = prov.length;
-    $('capsmanProvTable').innerHTML = prov.length ? prov.map(function (p) {
-      return '<tr' + (p.disabled ? ' style="opacity:.55"' : '') + '>' +
-        '<td>' + (p.supportedBands.length
-                   ? p.supportedBands.map(function (b) { return '<span class="wl-band wl-band-5">' + esc(b) + '</span>'; }).join(' ')
-                   : '<span style="color:var(--text-muted)">any</span>') + '</td>' +
-        '<td>' + esc(p.action) + '</td>' +
-        '<td>' + esc(p.masterConfiguration || '—') + '</td>' +
-        '<td>' + (p.slaveConfigurations.length ? esc(p.slaveConfigurations.join(', '))
-                                               : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
-        '<td>' + esc(p.nameFormat || '—') + '</td>' +
-      '</tr>';
-    }).join('') : '<tr><td colspan="5" class="empty-state">No provisioning rules.</td></tr>';
-
+    // Provisioning used to be rendered here too, into a read-only card of its
+    // own. The configuration card's Provisioning tab shows the same rules and
+    // can edit them, so the second table was only ever something else to keep in
+    // step. The payload still carries `provisioning`; the card is what went.
     renderRolePanel();
   }
 
@@ -12386,6 +12382,16 @@ function _renderRoutersMap(rows) {
 
   document.addEventListener('mikrodash:pagechange', function (e) {
     if (e.detail === 'capsman' && _data) render();
+  });
+
+  socket.on('router:switched', function () {
+    // The previous router's CAPs are not this one's. Every other page that can
+    // be edited from drops its state here for the same reason; this one could
+    // not be edited from before the configuration card existed.
+    _data = null;
+    _open = {};
+    renderSummary();
+    render();
   });
 
   var se = $('capsmanSearch');
@@ -14626,10 +14632,41 @@ function _renderRoutersMap(rows) {
     'at-end':             'That rule is already at the end of its table.',
     'bad-request':        'Something was missing from the request.',
     'unknown-resource':   'This page does not support editing.',
+    // A radio is hardware. Its SSID and security are editable; the interface
+    // itself only goes away when the hardware does.
+    'not-removable':      'A physical radio cannot be removed — only the extra SSIDs on it can.',
     'router-write-policy':'The RouterOS user MikroDash connects with lacks the write policy.',
     unsupported:          'This RouterOS version does not have that menu.',
     failed:               'The router refused the change.',
   };
+
+  /**
+   * Cancel and confirm, for whichever guard raised the prompt.
+   *
+   * One implementation because the answer is the same shape whatever was asked:
+   * the fingerprint binds the acknowledgement to the exact values it was asked
+   * about, so it cannot be carried to another row or replayed against a later
+   * write. Both prompts render their own copy and their own button labels, and
+   * share nothing else.
+   */
+  function bindWarnButtons(d) {
+    var box  = el('res_warn');
+    var ack  = d.fingerprint || '';
+    var fn   = _retry;
+    var bare = !_cur;                        // no form behind this prompt
+    if (_cur) _cur.ack = ack;
+    el('res_warnCancel').addEventListener('click', function () {
+      box.style.display = 'none';
+      _retry = null; _move = null;
+      if (_cur) _cur.ack = null;
+      if (bare) el('resModal').classList.remove('open');
+    });
+    el('res_warnGo').addEventListener('click', function () {
+      box.style.display = 'none';
+      if (bare) el('resModal').classList.remove('open');
+      if (fn) fn(ack);
+    });
+  }
 
   socket.on('res:error', function (d) {
     if (!d) return;
@@ -14643,14 +14680,58 @@ function _renderRoutersMap(rows) {
     // fingerprint binds the answer to the exact values it was asked about.
     //
     // Keyed on the PRESENCE of a warning rather than on a list of codes: there
-    // are two guards behind this dialog now (selfPath and fwGuard) and a third
-    // would otherwise fall through to "that did not work", which is how a
-    // prompt silently becomes a refusal.
+    // are three guards behind this dialog now (selfPath, fwGuard and
+    // wifiInherit) and a fourth would otherwise fall through to "that did not
+    // work", which is how a prompt silently becomes a refusal.
     if (d.warning) {
       var w = d.warning;
       // A move raises its prompt with no form on screen, so give it one.
       if (!el('resModal').classList.contains('open')) openBareWarning();
       var box = el('res_warn');
+
+      // A CAPsMAN profile edit is not a lockout either — nothing is being cut
+      // off, a change is being pushed to a fleet. Named fields rather than a
+      // count, because "which rule" is the question somebody asks here.
+      if (w.profile && w.ruleCount) {
+        el('res_warn').innerHTML =
+          '<strong>This is pushed to every CAP as soon as you save.</strong><br>' +
+          '<code>' + esc(w.profile) + '</code> is used by ' + esc(String(w.ruleCount)) +
+          (w.ruleCount === 1 ? ' provisioning rule' : ' provisioning rules') +
+          (w.rules && w.rules.length ? ' (' + w.rules.map(esc).join(', ') + ')' : '') +
+          (w.caps ? ', covering ' + esc(String(w.caps)) + (w.caps === 1 ? ' CAP' : ' CAPs') : '') +
+          '. Clients on those networks will reconnect.' +
+          (d.code === 'stale-warning'
+            ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
+          '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
+          '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
+          '<button class="sbtn sbtn-primary" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Push it</button></div>';
+        box.style.display = '';
+        bindWarnButtons(d);
+        return;
+      }
+
+      // Not every guard is a lockout guard. The wireless inherit prompt says
+      // something else entirely — nothing is being cut off, a shared profile is
+      // being overridden on one interface — so it gets its own headline rather
+      // than borrowing a warning about losing the router.
+      if (w.profile) {
+        var flds = (w.fields || []).join(', ');
+        el('res_warn').innerHTML =
+          '<strong>This will override a shared profile.</strong><br>' +
+          '<code>' + esc(w.interface || '?') + '</code> currently takes ' + esc(flds) +
+          ' from the profile <code>' + esc(w.profile) + '</code>, which ' + esc(String(w.sharedBy)) +
+          ' interfaces share. Saving sets the value on this interface only — the others keep ' +
+          'following the profile, and the two stop changing together.' +
+          (d.code === 'stale-warning'
+            ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
+          '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
+          '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
+          '<button class="sbtn sbtn-primary" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Override it</button></div>';
+        box.style.display = '';
+        bindWarnButtons(d);
+        return;
+      }
+
       var why = w.kind === 'block'
         ? 'This rule sits on the <code>' + esc(w.chain) + '</code> chain and would <code>' +
           esc(w.action) + '</code> traffic matching the address the router sees MikroDash at — ' +
@@ -14674,21 +14755,7 @@ function _renderRoutersMap(rows) {
         '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
         '<button class="sbtn sbtn-danger" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Do it anyway</button></div>';
       box.style.display = '';
-      var ack = d.fingerprint || '';
-      if (_cur) _cur.ack = ack;
-      var fn = _retry;
-      var bare = !_cur;                      // no form behind this prompt
-      el('res_warnCancel').addEventListener('click', function () {
-        box.style.display = 'none';
-        _retry = null; _move = null;
-        if (_cur) _cur.ack = null;
-        if (bare) el('resModal').classList.remove('open');
-      });
-      el('res_warnGo').addEventListener('click', function () {
-        box.style.display = 'none';
-        if (bare) el('resModal').classList.remove('open');
-        if (fn) fn(ack);
-      });
+      bindWarnButtons(d);
       return;
     }
 
@@ -15561,5 +15628,459 @@ function _renderRoutersMap(rows) {
     // ticked would show Delete armed for rows that are no longer on screen.
     _picked.clear();
     if (_currentPage === 'backups') socket.emit('backups:list');
+  });
+})();
+
+// ── Wifi Networks ────────────────────────────────────────────────────────
+//
+// The configuration side of wireless: what this router broadcasts. Who is
+// connected to it is the Wifi Clients page, and deliberately a different
+// collector on a different cadence.
+//
+// The table renders ONE ROW PER INTERFACE, grouped under the radio that carries
+// it, because that is RouterOS's own model — a master radio plus a virtual-AP
+// interface for each extra SSID. Merging bands into a single "network" row
+// would read more like a consumer router and make the write target ambiguous,
+// which is the one thing an editable table cannot afford.
+//
+// Editing is the shared resource dialog: this file draws rows and nothing else.
+// Each row carries data-res because the two RouterOS wireless stacks are two
+// different resources sharing one table.
+(function wifiPage() {
+  var _state = null;
+  // SSID -> colour, recomputed per render. Assigned once for the whole table so
+  // the two rows of a dual-band network agree; per-row assignment would give the
+  // same SSID a different colour on each band.
+  var _colours = {};
+
+  function el(id) { return document.getElementById(id); }
+
+  function badge(text, cls) {
+    return '<span class="badge ' + cls + '" style="margin-left:.35rem">' + esc(text) + '</span>';
+  }
+
+  function stateCell(n) {
+    if (n.disabled) return '<span class="badge bg-secondary-lt">Disabled</span>';
+    if (n.running)  return '<span class="badge bg-green-lt">Running</span>';
+    // Enabled but not running is its own answer, and the interesting one: a
+    // radio with no country set, or no supported channel, sits exactly here.
+    return '<span class="badge bg-yellow-lt">Not running</span>';
+  }
+
+  function securityCell(n) {
+    // An open network is the thing worth noticing on this page, so it is the
+    // one value that gets a colour rather than plain text.
+    var cls = n.security === 'Open' ? 'bg-red-lt' : 'bg-azure-lt';
+    return '<span class="badge ' + cls + '">' + esc(n.security || '—') + '</span>';
+  }
+
+  function radioHeader(radio, count) {
+    var bits = [];
+    if (radio.band)         bits.push(radio.band);
+    if (radio.frequency)    bits.push(radio.frequency);
+    if (radio.channelWidth) bits.push(radio.channelWidth);
+    if (radio.country)      bits.push(radio.country);
+    return '<tr class="wn-radio-row">' +
+      '<td colspan="7" style="background:var(--bg-subtle);font-weight:600;font-size:.76rem">' +
+        esc(radio.name) +
+        (bits.length ? '<span class="muted-note" style="margin-left:.5rem;font-weight:400">' +
+                       esc(bits.join(' · ')) + '</span>' : '') +
+        (radio.capsManaged ? badge('CAP', 'bg-purple-lt') : '') +
+        (radio.disabled ? badge('Disabled', 'bg-secondary-lt') : '') +
+        '<span class="muted-note" style="float:right;font-weight:400">' +
+          esc(String(count)) + (count === 1 ? ' network' : ' networks') + '</span>' +
+      '</td></tr>';
+  }
+
+  /**
+   * The SSID, as a colour-coded pill.
+   *
+   * The colour comes from the Wifi Clients page's palette so one network wears
+   * one colour wherever you look at it. A dual-band SSID appears on two rows and
+   * must read as the same network on both, which is the whole reason the palette
+   * hashes the name rather than counting down the list.
+   */
+  function ssidPill(n) {
+    var name = n.ssid || '(no SSID)';
+    var col  = _colours[n.ssid] || 'var(--text-main)';
+    return '<span class="wn-ssid-pill" style="color:' + col + ';border-color:' + col + '">' +
+           esc(name) + '</span>';
+  }
+
+  function bandCell(n) {
+    // The Wifi Clients page's pill, via the shared helper. Both pages spell the
+    // three bands the same way, which is why this needs no translation.
+    if (!n.band) return '<span class="muted-note">&mdash;</span>';
+    return (window._bandBadge ? window._bandBadge(n.band) : esc(n.band));
+  }
+
+  function networkRow(n) {
+    return '<tr data-id="' + esc(n.id) + '" data-identity="' + esc(n.name) + '"' +
+             ' data-res="' + esc(n.resource) + '">' +
+      '<td style="padding-left:1.5rem">' + ssidPill(n) +
+        (n.hidden    ? badge('Hidden', 'bg-secondary-lt') : '') +
+        (n.isVirtual ? badge('Virtual AP', 'bg-azure-lt') : '') +
+        // Says WHY the row will not open, which is the difference between a
+        // read-only table and a broken one.
+        (n.readOnlyReason === 'caps'        ? badge('CAP', 'bg-purple-lt') :
+         n.readOnlyReason === 'provisioned' ? badge('Provisioned', 'bg-purple-lt') : '') +
+        // Saying which profile a value comes from is what makes the override
+        // prompt make sense when it appears.
+        (n.inherits && n.inherits.ssid
+          ? '<div class="muted-note" style="font-size:.7rem;margin-top:.2rem">inherits from ' +
+            esc(n.inherits.ssid) + '</div>' : '') + '</td>' +
+      '<td>' + esc(n.name) + '</td>' +
+      '<td>' + bandCell(n) + '</td>' +
+      '<td>' + securityCell(n) + '</td>' +
+      '<td>' + esc(n.vlanId || '—') + '</td>' +
+      '<td>' + esc(String(n.clients)) + '</td>' +
+      '<td>' + stateCell(n) + '</td>' +
+    '</tr>';
+  }
+
+  function renderTable(st) {
+    var tbody = el('wnTable');
+    if (!tbody) return;
+    var nets = st.networks || [];
+
+    // One colour per UNIQUE SSID, not per row: the same network on 2.4 and 5 GHz
+    // is one network and has to look like it.
+    var unique = [];
+    nets.forEach(function (n) {
+      if (n.ssid && unique.indexOf(n.ssid) === -1) unique.push(n.ssid);
+    });
+    _colours = window._ssidColours ? window._ssidColours(unique) : {};
+
+    el('wnBadge').textContent = nets.length;
+
+    if (!nets.length) {
+      var why = st.stack === 'none'
+        ? 'This router has no wireless interfaces.'
+        : 'No wireless networks are configured.';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">' + esc(why) + '</td></tr>';
+      return;
+    }
+
+    // Group by radio, in the order the collector already sorted them: each
+    // radio's own row first, then its virtual APs.
+    var byRadio = {}, order = [];
+    nets.forEach(function (n) {
+      if (!byRadio[n.radio]) { byRadio[n.radio] = []; order.push(n.radio); }
+      byRadio[n.radio].push(n);
+    });
+    var radios = {};
+    (st.radios || []).forEach(function (r) { radios[r.name] = r; });
+
+    tbody.innerHTML = order.map(function (name) {
+      var rows = byRadio[name];
+      var head = radios[name] || { name: name };
+      return radioHeader(head, rows.length) + rows.map(networkRow).join('');
+    }).join('');
+  }
+
+  function renderSecProfiles(st) {
+    var card = el('wnSecCard');
+    if (!card) return;
+    // Only the legacy stack keeps the passphrase in a menu of its own. On
+    // modern wifi this card would describe nothing.
+    var show = st.stack === 'wireless';
+    card.style.display = show ? '' : 'none';
+    if (!show) return;
+
+    var rows = st.secProfiles || [];
+    el('wnSecBadge').textContent = rows.length;
+    el('wnSecTable').innerHTML = rows.length
+      ? rows.map(function (p) {
+          return '<tr data-id="' + esc(p.id) + '" data-identity="' + esc(p.name) + '"' +
+                   ' data-res="wlSecProfile">' +
+            '<td>' + esc(p.name) + (p.isDefault ? badge('default', 'bg-secondary-lt') : '') + '</td>' +
+            '<td>' + esc(p.mode || '—') + '</td>' +
+            '<td>' + esc(p.authTypes || 'none') + '</td>' +
+          '</tr>';
+        }).join('')
+      : '<tr><td colspan="3" class="empty-state">No security profiles</td></tr>';
+  }
+
+  function renderSummary(st) {
+    var t = st.totals || {};
+    el('wnRadioCount').textContent  = t.radios   == null ? '—' : t.radios;
+    el('wnNetCount').textContent    = t.networks == null ? '—' : t.networks;
+    el('wnClientCount').textContent = t.clients  == null ? '—' : t.clients;
+
+    el('wnStackNote').textContent =
+      st.stack === 'wifi'     ? 'modern (/interface/wifi)' :
+      st.stack === 'wireless' ? 'legacy (/interface/wireless)' : '';
+
+    var virtual = (st.networks || []).filter(function (n) { return n.isVirtual; }).length;
+    el('wnVirtualNote').textContent = virtual
+      ? virtual + (virtual === 1 ? ' virtual AP' : ' virtual APs') : '';
+
+    el('wnCapNote').textContent = (t.capsManaged || 0)
+      ? t.capsManaged + (t.capsManaged === 1 ? ' network is CAP-managed'
+                                             : ' networks are CAP-managed') : '';
+  }
+
+  /**
+   * Why the whole table is read-only, when it is.
+   *
+   * A router that provisions its own radios through CAPsMAN reports every
+   * interface as dynamic, and a table where nothing opens looks broken rather
+   * than deliberate. Saying so once above the rows costs a line and answers the
+   * question before it is asked.
+   */
+  function renderNote(st) {
+    var note = el('wnNote');
+    if (!note) return;
+    var nets = st.networks || [];
+    var ro   = (st.totals && st.totals.readOnly) || 0;
+    note.style.color = '';
+    if (!nets.length || !ro) { note.textContent = ''; return; }
+    note.textContent = ro === nets.length
+      ? 'Every network here is provisioned by CAPsMAN — edit them on the CAPsMAN page, not here.'
+      : ro + ' of these are provisioned by CAPsMAN and cannot be edited here.';
+  }
+
+  function render() {
+    if (!_state) return;
+    renderSummary(_state);
+    renderTable(_state);
+    renderNote(_state);
+    renderSecProfiles(_state);
+    // The Add buttons and the row click handlers belong to the resource dialog;
+    // it re-reads its mounts when told the table changed.
+    document.dispatchEvent(new CustomEvent('mikrodash:resmount'));
+  }
+
+  socket.on('wifi:update', function (d) {
+    _state = d || null;
+    render();
+  });
+
+  document.addEventListener('mikrodash:pagechange', function (ev) {
+    if (ev.detail === 'wifi') render();
+  });
+
+  socket.on('router:switched', function () {
+    // The previous router's radios are not this one's, and leaving them on
+    // screen would offer an edit against rows that no longer exist.
+    _state = null;
+    var tbody = el('wnTable');
+    if (tbody) tbody.innerHTML = '';
+    var card = el('wnSecCard');
+    if (card) card.style.display = 'none';
+  });
+})();
+
+// ── CAPsMAN configuration ────────────────────────────────────────────────────
+//
+// Five RouterOS menus behind one tab strip, all edited through the shared
+// resource dialog. The mechanics are the firewall card's, because it is the only
+// other place where one Add button serves several resources: rewrite
+// data-res-add on the slot when the tab changes, fire mikrodash:resmount, and
+// filter every engine event by the active tab so an ack for a tab you have left
+// is ignored.
+//
+// The tab strip itself is the Bridges one — real buttons with ARIA and per-tab
+// count badges — rather than the firewall's divs.
+(function capsmanConfig() {
+  var bar = document.getElementById('capsCfgTabBar');
+  if (!bar) return;
+
+  var CAPS_RES = {
+    provisioning: 'capsProvisioning',
+    configuration: 'capsConfig',
+    security: 'capsSecurity',
+    channel: 'capsChannel',
+    datapath: 'capsDatapath',
+  };
+  var TBODY = {
+    provisioning: 'capsCfgProvTable',
+    configuration: 'capsCfgConfigTable',
+    security: 'capsCfgSecurityTable',
+    channel: 'capsCfgChannelTable',
+    datapath: 'capsCfgDatapathTable',
+  };
+  var COLSPAN = { provisioning: 6, configuration: 6, security: 4, channel: 5, datapath: 5 };
+
+  var _tab = 'provisioning';
+  var _data = null;
+  var _writable = {};
+
+  function el(id) { return document.getElementById(id); }
+  function dash(v) { return v ? esc(v) : '<span class="muted-note">&mdash;</span>'; }
+  function yesNo(v) { return v ? 'Yes' : '<span class="muted-note">No</span>'; }
+
+  /** Rows for a tab, from the one payload the collector already sends. */
+  function rowsFor(tab) {
+    if (!_data) return [];
+    if (tab === 'provisioning') return _data.provisioning || [];
+    return (_data.profiles && _data.profiles[tab]) || [];
+  }
+
+  // ── Row rendering, one per menu ────────────────────────────────────────────
+
+  function provRow(p, at, last, canMove) {
+    // data-res-move, not a name of this card's own: the engine owns the reorder
+    // flow, including the guard prompt it can raise. Order is meaning here —
+    // the first rule whose bands match a joining radio wins.
+    var move = canMove
+      ? '<button class="fw-move" data-res-move="up" title="Move up"' + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+        '<button class="fw-move" data-res-move="down" title="Move down"' + (at === last ? ' disabled' : '') + '>&#9660;</button>'
+      : '';
+    return '<tr' + resRow(p.id, p.identity, 'capsProvisioning') +
+             (p.disabled ? ' style="opacity:.5"' : '') + '>' +
+      '<td>' + move + '</td>' +
+      '<td>' + ((p.supportedBands || []).map(function (b) {
+        return '<span class="wl-band wl-band-24" style="margin-right:.2rem">' + esc(b) + '</span>';
+      }).join('') || '<span class="muted-note">any</span>') + '</td>' +
+      '<td>' + dash(p.action) + '</td>' +
+      '<td>' + dash(p.masterConfiguration) + '</td>' +
+      '<td>' + ((p.slaveConfigurations || []).map(esc).join(', ') || '<span class="muted-note">&mdash;</span>') + '</td>' +
+      '<td>' + dash(p.nameFormat) + '</td>' +
+    '</tr>';
+  }
+
+  function configRow(c) {
+    return '<tr' + resRow(c.id, c.name, 'capsConfig') + (c.disabled ? ' style="opacity:.5"' : '') + '>' +
+      '<td>' + esc(c.name) +
+        // A profile carrying `manager` is the CAP-side setting MikroTik warns
+        // must never be provisioned onward. Worth flagging where it appears.
+        (c.manager ? '<span class="badge bg-yellow-lt" style="margin-left:.35rem">manager</span>' : '') + '</td>' +
+      '<td>' + dash(c.ssid) + (c.hideSsid ? '<span class="badge bg-secondary-lt" style="margin-left:.35rem">Hidden</span>' : '') + '</td>' +
+      '<td>' + dash(c.country) + '</td>' +
+      '<td>' + dash(c.security) + '</td>' +
+      '<td>' + dash(c.channel) + '</td>' +
+      '<td>' + dash(c.datapath) + '</td>' +
+    '</tr>';
+  }
+
+  function securityRow(s) {
+    // An open profile is the thing worth noticing on this tab, so it is the one
+    // value that gets a colour rather than plain text.
+    var open = !String(s.authTypes || '').trim();
+    return '<tr' + resRow(s.id, s.name, 'capsSecurity') + (s.disabled ? ' style="opacity:.5"' : '') + '>' +
+      '<td>' + esc(s.name) + '</td>' +
+      '<td><span class="badge ' + (open ? 'bg-red-lt' : 'bg-azure-lt') + '">' +
+        esc(open ? 'Open' : s.authTypes) + '</span></td>' +
+      '<td>' + dash(s.wps) + '</td>' +
+      '<td>' + yesNo(s.ft) + '</td>' +
+    '</tr>';
+  }
+
+  function channelRow(c) {
+    return '<tr' + resRow(c.id, c.name, 'capsChannel') + (c.disabled ? ' style="opacity:.5"' : '') + '>' +
+      '<td>' + esc(c.name) + '</td>' +
+      '<td>' + dash(c.band) + '</td>' +
+      '<td>' + dash(c.frequency) + '</td>' +
+      '<td>' + dash(c.width) + '</td>' +
+      '<td>' + dash(c.skipDfsChannels) + '</td>' +
+    '</tr>';
+  }
+
+  function datapathRow(d) {
+    return '<tr' + resRow(d.id, d.name, 'capsDatapath') + (d.disabled ? ' style="opacity:.5"' : '') + '>' +
+      '<td>' + esc(d.name) + '</td>' +
+      '<td>' + dash(d.bridge) + '</td>' +
+      '<td>' + dash(d.vlanId) + '</td>' +
+      '<td>' + yesNo(d.clientIsolation) + '</td>' +
+      '<td>' + dash(d.trafficProcessing) + '</td>' +
+    '</tr>';
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  function renderTab(tab) {
+    var tbody = el(TBODY[tab]);
+    if (!tbody) return;
+    var rows = rowsFor(tab);
+
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="' + COLSPAN[tab] + '" class="empty-state">' +
+        (_data ? 'Nothing configured here yet.' : 'Waiting for CAPsMAN data&hellip;') + '</td></tr>';
+      return;
+    }
+
+    if (tab === 'provisioning') {
+      var canMove = !!_writable.capsProvisioning;
+      var last = rows.length - 1;
+      tbody.innerHTML = rows.map(function (p, i) { return provRow(p, i, last, canMove); }).join('');
+      return;
+    }
+    var fn = tab === 'configuration' ? configRow
+           : tab === 'security'      ? securityRow
+           : tab === 'channel'       ? channelRow : datapathRow;
+    tbody.innerHTML = rows.map(fn).join('');
+  }
+
+  function render() {
+    Object.keys(TBODY).forEach(renderTab);
+    var note = el('capsCfgNote');
+    // A CAP is not a manager, and provisioning it locally does nothing. Say so
+    // rather than showing five empty tables that look like a failure.
+    if (note) {
+      note.textContent = (_data && _data.role === 'cap')
+        ? 'This router is a CAP — these are set on its manager.' : '';
+    }
+  }
+
+  /** Point the Add slot at the table now on screen, and redraw its buttons. */
+  function syncAddSlot() {
+    var slot = el('capsAddSlot');
+    if (!slot) return;
+    slot.setAttribute('data-res-add', CAPS_RES[_tab] || 'capsProvisioning');
+    document.dispatchEvent(new CustomEvent('mikrodash:resmount'));
+  }
+
+  function setTab(tab) {
+    if (!CAPS_RES[tab]) return;
+    _tab = tab;
+    bar.querySelectorAll('.stab').forEach(function (b) {
+      var on = b.dataset.capstab === tab;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    Object.keys(TBODY).forEach(function (t) {
+      var panel = el('capstab-' + t);
+      if (panel) panel.hidden = (t !== tab);
+    });
+    syncAddSlot();
+    renderTab(tab);
+  }
+
+  // ── Wiring ─────────────────────────────────────────────────────────────────
+
+  bar.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-capstab]');
+    if (btn) setTab(btn.dataset.capstab);
+  });
+
+  socket.on('capsman:update', function (d) {
+    _data = d || null;
+    render();
+  });
+
+  // Every engine event is filtered by the active tab, so an acknowledgement for
+  // a tab you have left cannot redraw the one you are on.
+  socket.on('res:schema', function (d) {
+    if (!d || !d.key || !CAPS_RES[_tab]) return;
+    if (!Object.keys(CAPS_RES).some(function (t) { return CAPS_RES[t] === d.key; })) return;
+    _writable[d.key] = !!d.permitted;
+    if (CAPS_RES[_tab] === d.key) renderTab(_tab);
+  });
+
+  socket.on('res:error', function (d) {
+    if (d && CAPS_RES[_tab] === d.resource) renderTab(_tab);
+  });
+
+  document.addEventListener('mikrodash:pagechange', function (ev) {
+    if (ev.detail === 'capsman') { syncAddSlot(); render(); }
+  });
+
+  socket.on('router:switched', function () {
+    // The previous router's profiles are not this one's. Leaving them on screen
+    // would offer an edit against rows that belong to another device.
+    _data = null;
+    _writable = {};
+    render();
   });
 })();

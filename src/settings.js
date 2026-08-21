@@ -96,6 +96,7 @@ const DEFAULTS = {
   // in hours rather than milliseconds and clamped well away from anything that
   // would look like hammering their update servers.
   updateCheckHours:  parseInt(process.env.UPDATE_CHECK_HOURS || '12',    10),
+  pollWifi:          parseInt(process.env.WIFI_POLL_MS      || '30000', 10),
   pollWireless:      parseInt(process.env.WIRELESS_POLL_MS  || '30000', 10),
   pollVpn:           parseInt(process.env.VPN_POLL_MS       || '10000', 10),
   pollFirewall:      parseInt(process.env.FIREWALL_POLL_MS  || '5000',  10),
@@ -214,6 +215,7 @@ const DEFAULTS = {
   activeRouterId:  '',
 
   // Page visibility (true = visible)
+  pageWifi:        true,
   pageWireless:    true,
   pageInterfaces:  true,
   pageDhcp:        true,
@@ -279,6 +281,7 @@ const ENV_MAP = {
   pollRouting:       ['ROUTING_POLL_MS',      v => parseInt(v, 10)],
   pollSystem:        ['SYSTEM_POLL_MS',       v => parseInt(v, 10)],
   updateCheckHours:  ['UPDATE_CHECK_HOURS',   v => parseInt(v, 10)],
+  pollWifi:          ['WIFI_POLL_MS',         v => parseInt(v, 10)],
   pollWireless:      ['WIRELESS_POLL_MS',     v => parseInt(v, 10)],
   pollVpn:           ['VPN_POLL_MS',          v => parseInt(v, 10)],
   pollFirewall:      ['FIREWALL_POLL_MS',     v => parseInt(v, 10)],
@@ -326,6 +329,7 @@ function _ensureDataDir() {
 const POLL_BOUNDS = Object.freeze({
   pollConns:[1000,60000], pollTalkers:[1000,60000], pollBandwidth:[1000,60000],
   pollRouting:[500,300000], pollSystem:[1000,60000], pollWireless:[10000,600000],
+  pollWifi:[10000,600000],
   pollVpn:[1000,30000], pollFirewall:[1000,30000], pollIfstatus:[1000,60000],
   pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
   pollDhcp:[10000,600000], pollTopology:[10000,600000],
@@ -458,7 +462,7 @@ const VIEWER_FIELDS = [
   'topN', 'topTalkersN', 'firewallTopN', 'vpnDashTopN', 'maxConns', 'historyMinutes',
   'alertCpuThreshold', 'alertPingLoss',
   'activeRouterId',
-  'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
+  'pageWifi', 'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
   'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting', 'pageTopology',
   'pageVlans', 'pagePpp', 'pageBridges', 'pageDns', 'pageCapsman', 'pagePackages',
   'pageRosusers', 'pageQueues', 'pageWan', 'pageRouters', 'pageAudit', 'pageBackups',
