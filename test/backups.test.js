@@ -412,6 +412,17 @@ test('a router that was off at 02:00 catches up rather than skipping the day', (
     'three days without a backup must not wait for tomorrow');
 });
 
+test('a chosen time is not held back by the elapsed interval', () => {
+  // The bug: the interval gate ran before the wall-clock anchor, so a run that
+  // happened late in the day pushed the next one past its own target. A manual
+  // backup at 11:45 left "daily at 08:00" undue at 08:00 the next morning —
+  // and once it finally fired at 11:45 it stayed there, which is exactly the
+  // drift the anchor exists to prevent.
+  assert.equal(Scheduler.isDue(daily('08:00'), at('2026-08-20T09:45:00Z'),
+    at('2026-08-21T06:05:00Z'), SCHEDULES, TZ), true,
+    '08:05 local is past the target, and the last run was yesterday');
+});
+
 test('hourly ignores the time', () => {
   // An hourly backup that waits for 02:00 is a daily backup.
   const hourly = { backup: { enabled: true, schedule: 'hourly', time: '02:00' } };
