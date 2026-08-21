@@ -156,10 +156,15 @@ class DnsCollector {
     this.lastPayload = payload;
     this.state.lastDnsTs = payload.ts;
 
-    const fp = JSON.stringify({
-      s: this._settings,
-      t: this._static.map(e => [e.name, e.regexp, e.address, e.type, e.disabled]),
-    });
+    // The whole entry, not a hand-picked tuple. The tuple omitted `comment` and
+    // `ttl`, both of which the page renders and sorts by: a comment-only edit
+    // wrote the router, `refreshNow()` re-read it, and the fingerprint came back
+    // identical, so the open page kept showing the old value until something
+    // unrelated moved. On a busy router `cache-used` moves within a tick or two
+    // and it merely looked slow; on an idle one the update never arrived at all.
+    // Fingerprinting the entry as a whole means a field the page gains cannot
+    // fall out of this list again.
+    const fp = JSON.stringify({ s: this._settings, t: this._static });
     if (fp === this._lastFp) return;
     this._lastFp = fp;
     this.io.to('page-dns').emit('dns:update', payload);

@@ -572,8 +572,12 @@ class InterfaceStatusCollector {
     // the idle-suppression this check exists for. Errors, drops and flap counts
     // are in: they hold steady on a healthy link, so any movement is worth
     // pushing immediately, and the 60 s heartbeat carries the totals along.
+    // type, comment and MAC are in for the opposite reason: they never move on
+    // their own, so they cost nothing here, and leaving them out meant an edit
+    // to one of them never reached an open page — the list renders all three.
     const fp = JSON.stringify(interfaces.map(i => ({
-      n: i.name, r: i.running, d: i.disabled,
+      n: i.name, t: i.type, c: i.comment, m: i.macAddr,
+      r: i.running, d: i.disabled,
       rx: +i.rxMbps.toFixed(2), tx: +i.txMbps.toFixed(2),
       ips: i.ips,
       e: i.errors, dr: i.drops, ld: i.linkDowns,

@@ -345,10 +345,10 @@ class QueuesCollector {
     // dirty check. Rates are included, rounded to kbit, because they are what
     // changes visibly on screen.
     const fp = JSON.stringify({
-      s: built.simple.map(q => [q.id, q.name, q.target, q.disabled, q.dynamic,
+      s: built.simple.map(q => [q.id, q.name, q.target, q.comment, q.disabled, q.dynamic,
                                 q.maxLimit.up, q.maxLimit.down, q.limitAt.up, q.limitAt.down,
                                 Math.round((q.rateBps.up || 0) / 1000), Math.round((q.rateBps.down || 0) / 1000)]),
-      t: built.tree.map(q => [q.id, q.name, q.parent, q.packetMark, q.disabled,
+      t: built.tree.map(q => [q.id, q.name, q.parent, q.packetMark, q.comment, q.disabled,
                               q.maxLimit, Math.round((q.rateBps || 0) / 1000)]),
       f: payload.fasttrack,
       st: payload.stats,
