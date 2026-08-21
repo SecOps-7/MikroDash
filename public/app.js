@@ -181,6 +181,13 @@ function _renderSortHeader(theadId, cols, sortState, onSortFn) {
     });
   });
 }
+// The multiplier for a sort direction. `_renderSortHeader` owns the 'asc'/'desc'
+// convention, so every comparator reading a sortState asks here rather than
+// keeping a +1/-1 of its own — nine tables had drifted onto that second
+// convention, which made the header class (`sort-1`) one no stylesheet defines
+// and, because the helper sets `col` before calling back, silently destroyed
+// the sort on the first click.
+function _sortMul(sortState) { return sortState.dir === 'desc' ? -1 : 1; }
 // Parse RouterOS duration string (e.g. "2h10m5s", "30s", "1d2h") to seconds. Returns Infinity for empty/never.
 function parseDurationSec(s){if(!s||s==='never')return Infinity;var m=0;var r=/(\d+)([wdhms])/g,x;while((x=r.exec(s))!==null){var n=parseInt(x[1],10);if(x[2]==='w')m+=n*604800;else if(x[2]==='d')m+=n*86400;else if(x[2]==='h')m+=n*3600;else if(x[2]==='m')m+=n*60;else m+=n;}return m||Infinity;}
 function signalBars(dbm){var bars=dbm>=-55?4:dbm>=-65?3:dbm>=-75?2:dbm>-85?1:0;var h='<span class="signal-bars">';for(var i=1;i<=4;i++)h+='<span'+(i<=bars?' class="lit"':'')+'>&#8203;</span>';return h+'</span>';}
@@ -11924,7 +11931,7 @@ function _renderRoutersMap(rows) {
   if (!tbody || !theadRow) return;
 
   var _data = null;
-  var _sort = { col: 'vlanId', dir: 1 };
+  var _sort = { col: 'vlanId', dir: 'asc' };
   var _showDynamic = false;
 
   var COLS = [
@@ -12028,14 +12035,11 @@ function _renderRoutersMap(rows) {
     });
     rows = rows.slice().sort(function (a, b) {
       var av = sortVal(a, _sort.col), bv = sortVal(b, _sort.col);
-      if (typeof av === 'string') return _sort.dir * av.localeCompare(bv);
-      return _sort.dir * (av - bv);
+      if (typeof av === 'string') return _sortMul(_sort) * av.localeCompare(bv);
+      return _sortMul(_sort) * (av - bv);
     });
 
-    _renderSortHeader('vlansThead', COLS, _sort, function (key) {
-      _sort.dir = _sort.col === key ? -_sort.dir : 1;
-      _sort.col = key; render();
-    });
+    _renderSortHeader('vlansThead', COLS, _sort, function () { render(); });
 
     $('vlansBadge').textContent = _data.vlans.length;
     $('vlansBadge').className = 'card-badge' + (_data.vlans.length ? ' active-blue' : '');
@@ -12125,7 +12129,7 @@ function _renderRoutersMap(rows) {
   if (!tbody || !theadRow) return;
 
   var _data = null;
-  var _sort = { col: 'name', dir: 1 };
+  var _sort = { col: 'name', dir: 'asc' };
 
   var COLS = [
     { key:'name',     label:'User' },
@@ -12152,14 +12156,11 @@ function _renderRoutersMap(rows) {
       return (s.name + ' ' + s.address + ' ' + s.callerId).toLowerCase().indexOf(q) !== -1;
     }).slice().sort(function (a, b) {
       var av = sortVal(a, _sort.col), bv = sortVal(b, _sort.col);
-      if (typeof av === 'string') return _sort.dir * av.localeCompare(bv);
-      return _sort.dir * (av - bv);
+      if (typeof av === 'string') return _sortMul(_sort) * av.localeCompare(bv);
+      return _sortMul(_sort) * (av - bv);
     });
 
-    _renderSortHeader('pppThead', COLS, _sort, function (key) {
-      _sort.dir = _sort.col === key ? -_sort.dir : 1;
-      _sort.col = key; render();
-    });
+    _renderSortHeader('pppThead', COLS, _sort, function () { render(); });
 
     $('pppBadge').textContent = _data.sessions.length;
     $('pppBadge').className = 'card-badge' + (_data.sessions.length ? ' active-blue' : '');
@@ -12240,7 +12241,7 @@ function _renderRoutersMap(rows) {
   if (!tbody || !theadRow) return;
 
   var _data = null;
-  var _sort = { col: 'identity', dir: 1 };
+  var _sort = { col: 'identity', dir: 'asc' };
   var _open = {};              // identity -> expanded client list
 
   var COLS = [
@@ -12287,14 +12288,11 @@ function _renderRoutersMap(rows) {
     });
     rows = rows.slice().sort(function (a, b) {
       var av = sortVal(a, _sort.col), bv = sortVal(b, _sort.col);
-      if (typeof av === 'string') return _sort.dir * av.localeCompare(bv);
-      return _sort.dir * (av - bv);
+      if (typeof av === 'string') return _sortMul(_sort) * av.localeCompare(bv);
+      return _sortMul(_sort) * (av - bv);
     });
 
-    _renderSortHeader('capsmanThead', COLS, _sort, function (key) {
-      _sort.dir = _sort.col === key ? -_sort.dir : 1;
-      _sort.col = key; render();
-    });
+    _renderSortHeader('capsmanThead', COLS, _sort, function () { render(); });
 
     $('capsmanBadge').textContent = (_data.caps || []).length;
     $('capsmanBadge').className = 'card-badge' + ((_data.caps || []).length ? ' active-blue' : '');
@@ -12410,9 +12408,9 @@ function _renderRoutersMap(rows) {
   if (!tbody || !theadRow) return;
 
   var _data = null;
-  var _sortB = { col: 'name',      dir: 1 };
-  var _sortP = { col: 'interface', dir: 1 };
-  var _sortH = { col: 'mac',       dir: 1 };
+  var _sortB = { col: 'name',      dir: 'asc' };
+  var _sortP = { col: 'interface', dir: 'asc' };
+  var _sortH = { col: 'mac',       dir: 'asc' };
   var _tab   = 'ports';
 
   var COLS_B = [
@@ -12456,15 +12454,12 @@ function _renderRoutersMap(rows) {
   function sorted(rows, sort, valFn) {
     return rows.slice().sort(function (a, b) {
       var av = valFn(a, sort.col), bv = valFn(b, sort.col);
-      if (typeof av === 'string') return sort.dir * av.localeCompare(bv);
-      return sort.dir * (av - bv);
+      if (typeof av === 'string') return _sortMul(sort) * av.localeCompare(bv);
+      return _sortMul(sort) * (av - bv);
     });
   }
   function bind(theadId, cols, sort) {
-    _renderSortHeader(theadId, cols, sort, function (key) {
-      sort.dir = sort.col === key ? -sort.dir : 1;
-      sort.col = key; render();
-    });
+    _renderSortHeader(theadId, cols, sort, function () { render(); });
   }
 
   function render() {
@@ -12638,7 +12633,7 @@ function _renderRoutersMap(rows) {
   if (!settingsBody) return;
 
   var _data = null;
-  var _sortS = { col: 'name', dir: 1 };
+  var _sortS = { col: 'name', dir: 'asc' };
 
   var COLS_S = [
     { key:'name',    label:'Name' },
@@ -12679,7 +12674,7 @@ function _renderRoutersMap(rows) {
     return rows.slice().sort(function (a, b) {
       var av = (a[sort.col] || '').toString().toLowerCase();
       var bv = (b[sort.col] || '').toString().toLowerCase();
-      return sort.dir * av.localeCompare(bv);
+      return _sortMul(sort) * av.localeCompare(bv);
     });
   }
 
@@ -12690,10 +12685,7 @@ function _renderRoutersMap(rows) {
       if (!q) return true;
       return ((e.name || e.regexp) + ' ' + e.address).toLowerCase().indexOf(q) !== -1;
     });
-    _renderSortHeader('dnsStaticThead', COLS_S, _sortS, function (key) {
-      _sortS.dir = _sortS.col === key ? -_sortS.dir : 1;
-      _sortS.col = key; render();
-    });
+    _renderSortHeader('dnsStaticThead', COLS_S, _sortS, function () { render(); });
     $('dnsStaticBadge').textContent = rows.length;
     $('dnsStaticTable').innerHTML = list.length ? sorted(list, _sortS).map(function (e) {
       return '<tr' + (e.disabled ? ' style="opacity:.55"' : '') + resRow(e.id, e.name) + '>' +
@@ -12756,7 +12748,7 @@ function _renderRoutersMap(rows) {
   // Default to state, not name: what is scheduled matters most, then what is
   // actually on the router. Alphabetical order buries both under the packages
   // MikroTik merely offers.
-  var _sort = { col: 'state', dir: 1 };
+  var _sort = { col: 'state', dir: 'asc' };
   var _busy = '';
   var STATE_RANK = { scheduled: 0, installed: 1, disabled: 2, available: 3, unknown: 4 };
 
@@ -12822,14 +12814,11 @@ function _renderRoutersMap(rows) {
         return (p[k] || '').toString().toLowerCase();
       };
       var av = f(a, _sort.col), bv = f(b, _sort.col);
-      if (typeof av === 'string') return _sort.dir * av.localeCompare(bv);
-      return _sort.dir * (av - bv);
+      if (typeof av === 'string') return _sortMul(_sort) * av.localeCompare(bv);
+      return _sortMul(_sort) * (av - bv);
     });
 
-    _renderSortHeader('packagesThead', COLS, _sort, function (key) {
-      _sort.dir = _sort.col === key ? -_sort.dir : 1;
-      _sort.col = key; render();
-    });
+    _renderSortHeader('packagesThead', COLS, _sort, function () { render(); });
 
     $('packagesBadge').textContent = (_data.packages || []).length;
     $('packagesBadge').className = 'card-badge' + ((_data.packages || []).length ? ' active-blue' : '');
@@ -14096,7 +14085,7 @@ function _renderRoutersMap(rows) {
 
   var _rows = [], _total = 0, _offset = 0, _facets = { actors: [], actions: [] };
   var PAGE = 200;
-  var _sort = { col: 'ts', dir: -1 };
+  var _sort = { col: 'ts', dir: 'desc' };
 
   var COLS = [
     { key:'ts',      label:'When' },
@@ -14150,15 +14139,12 @@ function _renderRoutersMap(rows) {
   }
 
   function render() {
-    _renderSortHeader('auditThead', COLS, _sort, function (key) {
-      _sort.dir = _sort.col === key ? -_sort.dir : 1;
-      _sort.col = key; render();
-    });
+    _renderSortHeader('auditThead', COLS, _sort, function () { render(); });
 
     var rows = _rows.map(flat).sort(function (a, b) {
       var av = a[_sort.col], bv = b[_sort.col];
-      if (typeof av === 'string') return _sort.dir * av.localeCompare(bv);
-      return _sort.dir * ((av || 0) - (bv || 0));
+      if (typeof av === 'string') return _sortMul(_sort) * av.localeCompare(bv);
+      return _sortMul(_sort) * ((av || 0) - (bv || 0));
     });
 
     $('auditBadge').textContent = _total;
