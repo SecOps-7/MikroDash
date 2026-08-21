@@ -82,12 +82,22 @@ const COLLECTORS = Object.freeze([
     emptyKey: 'interfaces' },
   { key: 'ping', label: 'Ping',         sessionProp: 'ping',         pollKey: 'pollPing',     defaultPollMs: 5000,
     streamKey: 'streamPing',     pollable: true,  disableable: true,  requires: [], page: 'dashboard', cards: [] },
+  // Configuration, not observation: this one reads what the router is set up to
+  // broadcast. It changes on a human timescale, so it polls slowly and leans on
+  // /listen (where the build has it) plus the explicit refreshNow() every res:*
+  // write calls, rather than on a short interval.
+  { key: 'wifi', label: 'Wifi Networks', sessionProp: 'wifi', pollKey: 'pollWifi', defaultPollMs: 30000,
+    streamKey: 'streamWifi',     pollable: true,  disableable: true,  requires: [], page: 'wifi', cards: [],
+    emptyKey: ['networks', 'radios'] },
   // label follows the page title; `key`, sessionProp, pollKey and streamKey stay
   // as they are. pollWireless/streamWireless are persisted in settings.json and
   // in each router's collection.overrides, and 'wireless' appears in
   // collection.off — renaming any of them would need a migration that buys
   // nothing a display string does not.
-  { key: 'wireless', label: 'Wireless Clients', sessionProp: 'wireless',  pollKey: 'pollWireless', defaultPollMs: 30000,
+  //
+  // If that migration is ever wanted, AI_CONTEXT.md → "Deferred: renaming the
+  // wireless keys" lists every place it would have to reach.
+  { key: 'wireless', label: 'Wifi Clients', sessionProp: 'wireless',  pollKey: 'pollWireless', defaultPollMs: 30000,
     streamKey: 'streamWireless', pollable: true,  disableable: true,  requires: [], page: 'wireless', cards: ['wirelessCard'],
     emptyKey: ['clients', 'ssids'] },
   { key: 'vpn', label: 'VPN',          sessionProp: 'vpn',          pollKey: 'pollVpn',      defaultPollMs: 10000,

@@ -100,10 +100,18 @@ test('an action declares a verb and a when', () => {
 test('a resource that declares a guard declares what the guard looks at', () => {
   for (const r of R.RESOURCES) {
     if (!r.guard) continue;
-    assert.ok(['selfPath', 'fwGuard'].includes(r.guard), `${r.key}: unknown guard "${r.guard}"`);
+    // A resource may declare several guards: they answer different questions
+    // and one write can trip more than one. _resVerdict runs them in order and
+    // returns the first warn.
+    const kinds = Array.isArray(r.guard) ? r.guard : [r.guard];
+    assert.ok(kinds.length, `${r.key}: declares an empty guard list`);
+    for (const g of kinds)
+      assert.ok(['selfPath', 'fwGuard', 'wifiInherit', 'capsmanPush'].includes(g),
+        `${r.key}: unknown guard "${g}"`);
     // selfPath asks about interfaces, so it needs to be told which fields hold
-    // them. fwGuard reads the rule itself and needs no such hint.
-    if (r.guard === 'selfPath') {
+    // them. fwGuard reads the rule itself and needs no such hint, and
+    // wifiInherit is answered from the rows the caller already holds.
+    if (kinds.includes('selfPath')) {
       assert.ok((r.guardInterfaceFields || []).length,
         `${r.key} declares selfPath but names no interface fields for it to check`);
       for (const n of r.guardInterfaceFields)
@@ -714,7 +722,15 @@ test('the page never decides whether a write is allowed', () => {
   const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   const at = app.indexOf('── Resource write engine');
   assert.ok(at > 0, 'the resource engine module is gone');
-  const body = app.slice(at);
+  // Bounded to the engine's own section rather than running to end-of-file.
+  // Everything after it is ordinary page code that happens to be appended later,
+  // and catching that was accidental: the CAPsMAN card says `_data.role === 'cap'`
+  // about the CAPsMAN role — manager / cap / both — which has nothing to do with
+  // an authorization role. The invariant is about the ENGINE, and this still
+  // pins the engine.
+  const end  = app.indexOf('\n// ── ', at + 10);
+  assert.ok(end > at, 'could not find the end of the engine section');
+  const body = app.slice(at, end);
   assert.ok(!/Rbac|allowedRouterIds|role ===/.test(body),
     'the browser must not reason about roles');
 });

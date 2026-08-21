@@ -98,7 +98,7 @@ test('the stream-room map is derived and covers only suspendable pages', () => {
   // ones with no page of their own.
   assert.deepStrictEqual(Object.keys(Pages.STREAM_ROOMS).sort(),
     ['bridges', 'capsman', 'dns', 'firewall', 'packages', 'ppp', 'queues',
-     'rosusers', 'routing', 'topology', 'vlans', 'vpn', 'wan', 'wireless']);
+     'rosusers', 'routing', 'topology', 'vlans', 'vpn', 'wan', 'wifi', 'wireless']);
   for (const [page, rooms] of Object.entries(Pages.STREAM_ROOMS)) {
     assert.ok(rooms.includes('page-' + page), page + ' must watch its own page room');
   }

@@ -1527,6 +1527,17 @@
     .wl-group-row td{background:rgba(56,189,248,.04);border-top:1px solid rgba(56,189,248,.15)!important;padding:.3rem .75rem!important}
     .wl-group-label{font-family:var(--font-mono);font-size:.68rem;font-weight:700;color:var(--accent-rx);letter-spacing:.03em}
     .wl-group-sub{font-size:.62rem;color:var(--text-muted);margin-left:.5rem}
+    /* One panel per CAPsMAN configuration tab. `hidden` does the hiding; this
+       only stops the visible one collapsing when its table is empty. */
+    .capstab-panel[hidden]{display:none}
+    .capstab-panel{min-height:2.5rem}
+    /* The SSID pill on the Wifi Networks page. Deliberately a step up in size
+       from the rest of the row: the SSID is what somebody scans the table for,
+       and everything beside it is detail about it. The colour is set inline,
+       from the same palette the Wifi Clients page uses. */
+    .wn-ssid-pill{display:inline-block;font-family:var(--font-mono);font-size:.82rem;font-weight:600;
+      padding:.1rem .5rem;border-radius:5px;white-space:nowrap;
+      border:1px solid currentColor;background:color-mix(in srgb,currentColor 10%,transparent)}
     .wl-band{display:inline-block;font-family:var(--font-mono);font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap}
     .wl-band-24{background:rgba(167,139,250,.15);color:rgba(167,139,250,.9);border:1px solid rgba(167,139,250,.25)}
     .wl-band-5{background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25)}
@@ -1826,9 +1837,13 @@
         <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
       </button>
       <div class="nav-group-body" id="navgrp-wireless" role="group" aria-label="Wireless">
+        <a class="nav-item" data-page="wifi" data-cat="wireless" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="6.5" r="3"/><path d="M18.5 4.9v3.2M16.9 6.5h3.2"/></svg></span>
+          <span class="nav-label">Wifi Networks</span>
+        </a>
         <a class="nav-item" data-page="wireless" data-cat="wireless" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 20v-4"/><path d="M9 20v-8"/><path d="M14 20v-12"/><path d="M19 20v-16"/></svg></span>
-          <span class="nav-label">Wireless Clients</span>
+          <span class="nav-label">Wifi Clients</span>
         </a>
         <a class="nav-item" data-page="capsman" data-cat="wireless" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="2"/><path d="M8.5 13.5a5 5 0 0 1 7 0"/><path d="M5.5 10.5a9 9 0 0 1 13 0"/><rect x="10" y="3" width="4" height="4" rx="1"/></svg></span>
@@ -2711,6 +2726,83 @@
   </div>
 
   <!-- WIRELESS -->
+  <!-- Wifi Networks — what this router broadcasts. The configuration side of
+       wireless; who is connected to it lives on #page-wireless below. -->
+  <div class="page-view" id="page-wifi">
+    <div class="wl-summary-row">
+      <!-- fa-stat-val, not a class of this page's own: it is what every other
+           summary tile in the app uses, and inventing a second one is how this
+           row ended up rendering at body size while the rest of the app did not. -->
+      <div class="wl-summary-card">
+        <div class="wl-summary-title">Radios</div>
+        <!-- The primary metric of the page, so it carries the accent colour. -->
+        <div class="fa-stat-val" id="wnRadioCount" style="color:var(--accent-rx)">&mdash;</div>
+        <div class="muted-note" id="wnStackNote" style="margin-top:.3rem"></div>
+      </div>
+      <div class="wl-summary-card">
+        <div class="wl-summary-title">Networks</div>
+        <div class="fa-stat-val" id="wnNetCount">&mdash;</div>
+        <div class="muted-note" id="wnVirtualNote" style="margin-top:.3rem"></div>
+      </div>
+      <div class="wl-summary-card">
+        <div class="wl-summary-title">Connected Clients</div>
+        <div class="fa-stat-val" id="wnClientCount">&mdash;</div>
+        <div class="muted-note" id="wnCapNote" style="margin-top:.3rem"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <!-- d-flex + gap-2 is the house header layout. Without it the title, the
+           count and the note butt up against each other. -->
+      <div class="card-header d-flex align-items-center flex-wrap gap-2">
+        <h3 class="card-title mb-0">Wifi Networks</h3>
+        <span class="card-badge" id="wnBadge">0</span>
+        <span class="muted-note" id="wnNote"></span>
+        <!-- Which resource this means follows the stack the router has. Both are
+             named, and res:schema withholds the one whose menu does not answer
+             (requiresMenu), so exactly one Add button ever renders. -->
+        <div class="hdr-actions" id="wnActions">
+          <span data-res-add="wifiNet,wlNet" data-res-add-dynamic="wifiNet,wlNet"></span>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="data-scroll">
+          <table class="table table-vcenter mb-0">
+            <!-- Measured, not guessed. At 1186px the SSID cell needs 339px for a
+                 long name plus its Virtual AP / Provisioned badges but had 285,
+                 so it wrapped; Security, Clients and Band were each carrying
+                 ~100px of slack for a badge, a single digit and a short pill.
+                 SSID takes it, leaving every other column clear of both its
+                 content and its own header text. -->
+            <colgroup><col style="width:36%"><col style="width:12%"><col style="width:9%"><col style="width:14%"><col style="width:7%"><col style="width:8%"><col style="width:14%"></colgroup>
+            <thead><tr><th>SSID</th><th>Interface</th><th>Band</th><th>Security</th><th>VLAN</th><th>Clients</th><th>State</th></tr></thead>
+            <tbody id="wnTable" data-res-rows="wifiNet"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legacy stack only: on /interface/wireless the passphrase lives in a
+         separate menu, so the profile is a first-class row rather than a field. -->
+    <div class="card" id="wnSecCard" style="margin-top:.85rem;display:none">
+      <div class="card-header d-flex align-items-center flex-wrap gap-2">
+        <h3 class="card-title mb-0">Security Profiles</h3>
+        <span class="card-badge" id="wnSecBadge">0</span>
+        <span class="muted-note">Legacy wireless keeps the passphrase here, not on the interface.</span>
+        <div class="hdr-actions" id="wnSecActions"><span data-res-add="wlSecProfile"></span></div>
+      </div>
+      <div class="card-body p-0">
+        <div class="data-scroll">
+          <table class="table table-vcenter mb-0">
+            <colgroup><col style="width:30%"><col style="width:25%"><col style="width:45%"></colgroup>
+            <thead><tr><th>Name</th><th>Mode</th><th>Authentication</th></tr></thead>
+            <tbody id="wnSecTable" data-res-rows="wlSecProfile"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page-view" id="page-wireless">
     <div class="container-fluid px-0" style="width:100%">
 
@@ -2753,7 +2845,7 @@
       <div class="card" id="wirelessCard">
         <div class="stale-overlay">&#9679; stale</div>
         <div class="card-header d-flex align-items-center flex-wrap gap-2">
-          <h3 class="card-title mb-0">Wireless Clients</h3>
+          <h3 class="card-title mb-0">Wifi Clients</h3>
           <span id="wirelessTabBadge" class="card-badge">0</span>
           <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
             <span style="font-size:.7rem;color:var(--text-muted)">Sort:</span>
@@ -3354,21 +3446,91 @@
         </div>
       </div>
 
-      <div class="card" id="capsmanProvCard" style="margin-top:.85rem">
-        <div class="card-header d-flex align-items-center gap-2">
-          <h3 class="card-title mb-0">Provisioning</h3>
-          <span id="capsmanProvBadge" class="card-badge">0</span>
+      <!-- CAPsMAN configuration. Five RouterOS menus behind one tab strip, all
+           editable through the shared resource dialog. The Provisioning tab
+           replaced a separate read-only card showing the same rules: two tables
+           of one thing is one too many once the second one can edit it. -->
+      <div class="card" id="capsCfgCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="stab-bar" id="capsCfgTabBar" role="tablist" aria-label="CAPsMAN configuration">
+            <button class="stab active" data-capstab="provisioning" role="tab" aria-selected="true"
+                    aria-controls="capstab-provisioning" id="capsTabBtn-provisioning">Provisioning</button>
+            <button class="stab" data-capstab="configuration" role="tab" aria-selected="false"
+                    aria-controls="capstab-configuration" id="capsTabBtn-configuration">Configuration</button>
+            <button class="stab" data-capstab="security" role="tab" aria-selected="false"
+                    aria-controls="capstab-security" id="capsTabBtn-security">Security</button>
+            <button class="stab" data-capstab="channel" role="tab" aria-selected="false"
+                    aria-controls="capstab-channel" id="capsTabBtn-channel">Channel</button>
+            <button class="stab" data-capstab="datapath" role="tab" aria-selected="false"
+                    aria-controls="capstab-datapath" id="capsTabBtn-datapath">Datapath</button>
+          </div>
+          <div class="hdr-actions">
+            <span class="muted-note" id="capsCfgNote"></span>
+            <!-- Which resource this means follows the active tab: app.js rewrites
+                 data-res-add and fires mikrodash:resmount. data-res-add-dynamic
+                 declares the whole range it can become, so the mount is greppable
+                 and a resource reachable only after a tab change still counts. -->
+            <span id="capsAddSlot" data-res-add="capsProvisioning"
+                  data-res-add-dynamic="capsProvisioning,capsConfig,capsSecurity,capsChannel,capsDatapath"></span>
+          </div>
         </div>
         <div class="card-body p-0">
-          <div class="data-scroll" style="max-height:340px;overflow-y:auto">
-            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
-              <colgroup><col style="width:22%"><col style="width:18%"><col style="width:20%"><col style="width:25%"><col style="width:15%"></colgroup>
-              <thead><tr><th>Bands</th><th>Action</th><th>Master Config</th><th>Slave Configs</th><th>Name Format</th></tr></thead>
-              <tbody id="capsmanProvTable">
-                <tr><td colspan="5" class="empty-state">No provisioning rules.</td></tr>
-              </tbody>
-            </table>
+
+          <div class="capstab-panel" id="capstab-provisioning" role="tabpanel"
+               aria-labelledby="capsTabBtn-provisioning">
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:820px">
+                <colgroup><col style="width:6%"><col style="width:20%"><col style="width:17%"><col style="width:19%"><col style="width:22%"><col style="width:16%"></colgroup>
+                <thead><tr><th class="fw-movecell"></th><th>Bands</th><th>Action</th><th>Master Config</th><th>Slave Configs</th><th>Name Format</th></tr></thead>
+                <tbody id="capsCfgProvTable" data-res-rows="capsProvisioning"></tbody>
+              </table>
+            </div>
           </div>
+
+          <div class="capstab-panel" id="capstab-configuration" role="tabpanel"
+               aria-labelledby="capsTabBtn-configuration" hidden>
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:820px">
+                <colgroup><col style="width:22%"><col style="width:18%"><col style="width:14%"><col style="width:16%"><col style="width:16%"><col style="width:14%"></colgroup>
+                <thead><tr><th>Name</th><th>SSID</th><th>Country</th><th>Security</th><th>Channel</th><th>Datapath</th></tr></thead>
+                <tbody id="capsCfgConfigTable" data-res-rows="capsConfig"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="capstab-panel" id="capstab-security" role="tabpanel"
+               aria-labelledby="capsTabBtn-security" hidden>
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:620px">
+                <colgroup><col style="width:28%"><col style="width:34%"><col style="width:19%"><col style="width:19%"></colgroup>
+                <thead><tr><th>Name</th><th>Authentication</th><th>WPS</th><th>Fast Roaming</th></tr></thead>
+                <tbody id="capsCfgSecurityTable" data-res-rows="capsSecurity"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="capstab-panel" id="capstab-channel" role="tabpanel"
+               aria-labelledby="capsTabBtn-channel" hidden>
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:660px">
+                <colgroup><col style="width:26%"><col style="width:14%"><col style="width:28%"><col style="width:16%"><col style="width:16%"></colgroup>
+                <thead><tr><th>Name</th><th>Band</th><th>Frequency</th><th>Width</th><th>Skip DFS</th></tr></thead>
+                <tbody id="capsCfgChannelTable" data-res-rows="capsChannel"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="capstab-panel" id="capstab-datapath" role="tabpanel"
+               aria-labelledby="capsTabBtn-datapath" hidden>
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:660px">
+                <colgroup><col style="width:24%"><col style="width:20%"><col style="width:12%"><col style="width:22%"><col style="width:22%"></colgroup>
+                <thead><tr><th>Name</th><th>Bridge</th><th>VLAN</th><th>Client Isolation</th><th>Forwarding</th></tr></thead>
+                <tbody id="capsCfgDatapathTable" data-res-rows="capsDatapath"></tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -5164,7 +5326,8 @@
               <button type="button" class="view-preset-btn" data-view-preset="custom" title="Your own selection">Custom</button>
             </div>
             <div class="stoggle-grid">
-              <label class="stoggle"><span class="stoggle-label">Wireless Clients</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Wifi Networks</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWifi"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Wifi Clients</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">WAN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">DHCP</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDhcp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>

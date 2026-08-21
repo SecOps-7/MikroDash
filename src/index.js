@@ -45,6 +45,8 @@ const queueGuard           = require('./routeros/queueGuard');
 const wanGuard             = require('./routeros/wanGuard');
 const selfPath             = require('./routeros/selfPath');
 const fwGuard              = require('./routeros/fwGuard');
+const wifiGuard            = require('./routeros/wifiGuard');
+const capsmanGuard         = require('./routeros/capsmanGuard');
 const history              = require('./routeros/history');
 const Resources            = require('./routeros/resources');
 const Pdf                  = require('./reports/pdf');
@@ -103,6 +105,7 @@ const PackagesCollector     = require('./collectors/packages');
 const RosUsersCollector     = require('./collectors/rosusers');
 const QueuesCollector       = require('./collectors/queues');
 const WanCollector          = require('./collectors/wan');
+const WifiCollector         = require('./collectors/wifi');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
 const alertSessions         = require('./alertSessions');
@@ -527,12 +530,13 @@ function buildSession(routerCfg, routerIo) {
   // wan borrows rates from ifStatus by reference, so it is constructed after it
   // for the same reason vlans and bridges are.
   const wan          = _on('wan',      () => new WanCollector         ({ros, io:routerIo, pollMs:eff.poll.wan,      state, streamMode:eff.stream.wan, ifStatus}));
-  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology, vlans, ppp, bridges, dns, capsman, packages, rosusers, queues, wan];
+  const wifi         = _on('wifi',     () => new WifiCollector        ({ros, io:routerIo, pollMs:eff.poll.wifi,     state, streamMode:eff.stream.wifi}));
+  const allCollectors = [traffic, dhcpLeases, dhcpNetworks, arp, conns, talkers, logs, system, wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology, vlans, ppp, bridges, dns, capsman, packages, rosusers, queues, wan, wifi];
 
   return { ros, state, connTableCache, DEFAULT_IF, HISTORY_MINUTES, collection: eff,
            dhcpLeases, dhcpNetworks, arp, traffic, conns, talkers, logs, system,
            wireless, vpn, firewall, ifStatus, ping, bandwidth, routing, netwatch, topology,
-           vlans, ppp, bridges, dns, capsman, packages, rosusers, queues, wan, allCollectors,
+           vlans, ppp, bridges, dns, capsman, packages, rosusers, queues, wan, wifi, allCollectors,
            routerId: routerCfg.id, cachedInterfaces: null };
 }
 
@@ -772,6 +776,8 @@ async function startCollectors(session, entry) {
     await session.queues.start();
     await _delay(300);
     await session.wan.start();
+    await _delay(300);
+    await session.wifi.start();
 
     entry.startupReady = true;
     console.log('[MikroDash] All collectors running');
@@ -1899,7 +1905,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
     const updates = {};
     const intFields = {
       routerPort:[1,65535], pollConns:[1000,60000], pollTalkers:[1000,60000], pollSystem:[1000,60000],
-      pollWireless:[10000,600000], pollVpn:[1000,30000],  pollFirewall:[1000,30000],
+      pollWifi:[10000,600000], pollWireless:[10000,600000], pollVpn:[1000,30000],  pollFirewall:[1000,30000],
       pollIfstatus:[1000,60000], pollIfaces:[10000,600000], pollPing:[1000,30000], pollArp:[5000,300000],
       pollBandwidth:[1000,60000], pollDhcp:[10000,600000], pollRouting:[500,300000], topN:[1,50], topTalkersN:[1,20],
       firewallTopN:[1,50], vpnDashTopN:[1,50], maxConns:[1000,100000], historyMinutes:[5,120],
@@ -1966,7 +1972,8 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
     const _pinned = (key) => _ovr[key] !== undefined;
 
     const collectorMap = { conns:s.conns, talkers:s.talkers, system:s.system, wireless:s.wireless, vpn:s.vpn, firewall:s.firewall, ifStatus:s.ifStatus, ping:s.ping, arp:s.arp, dhcpNetworks:s.dhcpNetworks, bandwidth:s.bandwidth, routing:s.routing, vlans:s.vlans, ppp:s.ppp,
-      topology:s.topology, bridges:s.bridges, dns:s.dns, capsman:s.capsman, packages:s.packages, rosusers:s.rosusers, queues:s.queues, wan:s.wan };
+      topology:s.topology, bridges:s.bridges, dns:s.dns, capsman:s.capsman, packages:s.packages, rosusers:s.rosusers, queues:s.queues, wan:s.wan,
+      wifi:s.wifi };
     const pollMap = { pollConns:'conns', pollTalkers:'talkers', pollSystem:'system', pollWireless:'wireless',
       pollVpn:'vpn', pollFirewall:'firewall', pollIfstatus:'ifStatus', pollBandwidth:'bandwidth',
       pollPing:'ping', pollArp:'arp', pollDhcp:'dhcpNetworks', pollRouting:'routing',
@@ -1977,7 +1984,7 @@ app.post('/api/settings', Rbac.requireGlobalAdmin, (req, res) => {
       // have made it four times worse.
       pollTopology:'topology', pollVlans:'vlans', pollPpp:'ppp',
       pollBridges:'bridges', pollDns:'dns', pollCapsman:'capsman', pollPackages:'packages',
-      pollRosusers:'rosusers', pollQueues:'queues', pollWan:'wan' };
+      pollRosusers:'rosusers', pollQueues:'queues', pollWan:'wan', pollWifi:'wifi' };
     for (const [key, name] of Object.entries(pollMap)) {
       if (key in updates && !_pinned(key)) {
         const col = collectorMap[name];
@@ -3107,6 +3114,7 @@ app.get('/healthz', (req, res) => {
       rosusers: { ts:st.lastRosusersTs, err:sanitizeErr(st.lastRosusersErr) },
       queues: { ts:st.lastQueuesTs, err:sanitizeErr(st.lastQueuesErr) },
       wan: { ts:st.lastWanTs, err:sanitizeErr(st.lastWanErr) },
+      wifi: { ts:st.lastWifiTs, err:sanitizeErr(st.lastWifiErr) },
     },
   };
   res.status(statusCode).json(body);
@@ -4174,6 +4182,7 @@ async function sendInitialState(socket, entry) {
   if (s.rosusers.lastPayload && _mayReplay(socket, 'rosusers')) socket.emit('rosusers:update', s.rosusers.lastPayload);
   if (s.queues.lastPayload   && _mayReplay(socket, 'queues'))   socket.emit('queues:update',   s.queues.lastPayload);
   if (s.wan.lastPayload      && _mayReplay(socket, 'wan'))      socket.emit('wan:update',      s.wan.lastPayload);
+  if (s.wifi.lastPayload     && _mayReplay(socket, 'wifi'))     socket.emit('wifi:update',     s.wifi.lastPayload);
 
   socket.emit('settings:pages', _pageSettings(_ps));
 
@@ -4359,6 +4368,7 @@ function _idleSuspend(session, entry) {
   session.rosusers.suspend();
   session.queues.suspend();
   session.wan.suspend();
+  session.wifi.suspend();
   session.ping.suspend();
   session.talkers.suspend();
   session.dhcpNetworks.suspend();
@@ -4479,6 +4489,10 @@ function _emitDiagnostics(session, rid, socket) {
     // they mark the tables stale and the tick reads them.
     { name: 'queues',       streams: (s.queues._listens || []).filter(l => l && l.open).length },
     { name: 'wan',          streams: s.wan._listen && s.wan._listen.open ? 1 : 0 },
+    // One channel when streaming, and only if this build offers /listen on the
+    // stack it latched — the wifi menu does not advertise one, so it may be 0
+    // on a router that is streaming everything else.
+    { name: 'wifi',         streams: s.wifi._listen && s.wifi._listen.open ? 1 : 0 },
   ];
   const total = collectors.reduce((sum, c) => sum + c.streams, 0);
   // Geo availability rides along here so a failed geoip-lite load is visible in
@@ -5863,7 +5877,19 @@ io.on('connection', (socket) => {
     const wasEnabled = before.disabled !== 'true';
     const nowDisabled = values.disabled === 'yes' || values.disabled === true;
     const renamed = names.some(n => of(before, n) !== String(values[n] == null ? '' : values[n]));
-    if (!renamed && !(wasEnabled && nowDisabled)) return [];
+    // Renaming and disabling are not the only edits that cut a link. Changing a
+    // wireless SSID or passphrase drops every client on the radio, management
+    // path included, while leaving the interface named and enabled — so a
+    // resource may name the fields whose change is disruptive in its own terms.
+    // A `secret` never reads back, so any value submitted for one is a change.
+    const disruptive = (resource.guardDisruptiveFields || []).some(n => {
+      if (!Object.prototype.hasOwnProperty.call(values, n)) return false;
+      const f = resource.fields.find(x => x.name === n);
+      const next = String(values[n] == null ? '' : values[n]);
+      if (f && f.type === 'secret') return !!next;
+      return next !== of(before, n);
+    });
+    if (!renamed && !disruptive && !(wasEnabled && nowDisabled)) return [];
     return after.concat(names.map(n => of(before, n))).filter(Boolean);
   };
 
@@ -5878,18 +5904,70 @@ io.on('connection', (socket) => {
    * `before` is the RAW freshly-read row throughout; each guard converts it to
    * whatever it needs.
    */
-  const _resVerdict = async (resource, session, rid, what, values, before) => {
+  const _resVerdict = async (resource, session, rid, what, values, before, rows) => {
     if (!resource.guard) return null;
+    // A resource may declare more than one guard, because they answer different
+    // questions: selfPath asks whether an edit cuts the path we reach the
+    // router by, wifiInherit asks whether it quietly overrides a profile two
+    // radios share. Both can be true of one write. The FIRST warn wins — one
+    // prompt per write, because a second dialog after the first is answered is
+    // how somebody learns to click both without reading either.
+    const kinds = Array.isArray(resource.guard) ? resource.guard : [resource.guard];
+    for (const kind of kinds) {
+      const v = await _resVerdictOne(kind, resource, session, rid, what, values, before, rows);
+      if (v && v.level === 'warn') return v;
+    }
+    return null;
+  };
+
+  const _resVerdictOne = async (kind, resource, session, rid, what, values, before, rows) => {
+    // wifiInherit needs no /user/active read: it is answered entirely from the
+    // rows the caller already has, so the path lookup is skipped for it.
+    if (kind === 'wifiInherit') {
+      return wifiGuard.checkInherit({
+        values: values || {}, before, siblings: rows || [],
+        action: what === 'delete' ? 'delete' : what,
+      });
+    }
+
+    // A CAPsMAN profile edit reaches every CAP following it the moment it is
+    // saved. Answering that needs two menus this write is not about, so the
+    // guard reads them here, in the same tick as the write is checked — the
+    // collector's copy can be two minutes old. Both reads FAIL SOFT: a menu the
+    // API user cannot see costs the warning, never the write.
+    if (kind === 'capsmanPush') {
+      const menus = require('./routeros/wifiMenus').MENUS;
+      const read = async (m) => {
+        try { return (await session.ros.write(m[0], [m[1]])) || []; }
+        catch (_) { return []; }
+      };
+      const [configRows, provRows, capRows] = await Promise.all([
+        read(menus.configuration), read(menus.provisioning),
+        // The CAP count is read here rather than taken from the collector's
+        // payload — deliberately, and not only because the engine may not touch
+        // lastPayload. A number in a warning about what is about to happen
+        // should describe the router now, not the last config tick two minutes
+        // ago.
+        read(['/interface/wifi/capsman/remote-cap/print', '=.proplist=.id']),
+      ]);
+      return capsmanGuard.checkPush({
+        resourceKey: resource.key,
+        action: what === 'delete' ? 'delete' : what,
+        values: values || {}, before, configRows, provRows,
+        capCount: capRows.length,
+      });
+    }
+
     const path = await _resSelfPath(session, rid);
 
-    if (resource.guard === 'selfPath') {
+    if (kind === 'selfPath') {
       const targets = _resGuardTargets(resource, what, values || {}, before);
       if (!targets.length) return null;
       return selfPath.checkInterfaceEdit({
         path, targets, action: what === 'delete' ? 'delete' : 'update' });
     }
 
-    if (resource.guard === 'fwGuard') {
+    if (kind === 'fwGuard') {
       // The API port is the one this router is actually reached on, not a
       // guess: a rule that spares 8729 still locks us out of a router we talk
       // to on 8728.
@@ -6637,7 +6715,7 @@ io.on('connection', (socket) => {
 
       const gate = _resAckGate(
         await _resVerdict(resource, session, rid, editing ? 'update' : 'create',
-                          validated.values, before), r.ack);
+                          validated.values, before, rows), r.ack);
       if (gate) return _resErr(gate.code, { resource: resource.key, name,
         warning: gate.warning, fingerprint: gate.fingerprint });
 
@@ -6703,8 +6781,18 @@ io.on('connection', (socket) => {
         return _resErr('read-only-row', { resource: resource.key, name });
       }
 
+      // Editable but not removable — a wireless radio is hardware, and its row
+      // exists whether or not anyone wants it to. readOnlyWhen cannot say this
+      // because it would block the edit too. Checked on the freshly-read row,
+      // for the same reason readOnlyWhen is.
+      if (resource.removableWhen && !resource.removableWhen(before)) {
+        audit.fromSocket(socket).denied({ action, targetType: resource.key, routerId: rid,
+          targetId: String(r.id), targetName: name, note: 'not-removable' });
+        return _resErr('not-removable', { resource: resource.key, name });
+      }
+
       const gate = _resAckGate(
-        await _resVerdict(resource, session, rid, 'delete', {}, before), r.ack);
+        await _resVerdict(resource, session, rid, 'delete', {}, before, rows), r.ack);
       if (gate) return _resErr(gate.code, { resource: resource.key, name,
         warning: gate.warning, fingerprint: gate.fingerprint });
 
