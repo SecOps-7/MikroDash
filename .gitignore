@@ -8,6 +8,12 @@ docs/superpowers/
 # Playwright MCP session artifacts (snapshots, console logs)
 .playwright-mcp/
 
-# Stray screenshots dropped in the repo root by browser tooling.
-# Real assets live in screenshots/ and public/, which are unaffected.
+# Where browser tooling puts screenshots. Scratch by definition: these are taken
+# to check a change looks right and are worthless a day later, so they are never
+# committed. Real assets live in screenshots/ and public/, which are tracked.
+.screenshots/
+
+# Belt and braces for the same thing. 178 stray screenshots accumulated in the
+# repo root before .screenshots/ existed; this keeps a tool that ignores the
+# output directory from starting that again.
 /*.png

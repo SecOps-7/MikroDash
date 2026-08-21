@@ -155,6 +155,12 @@ RouterOS binary API (TCP)
 
 - The container rebuilds **once per turn**, not once per edit — a Stop hook runs `docker compose build && docker compose up -d`, checksum-gated over `src/`, `public/`, `patch-routeros.js`, `package*.json`, `Dockerfile` and `docker-compose.yml`. Run the rebuild by hand only when you need it mid-turn (running the tests, driving the UI); the gate then makes the turn-end run a no-op.
 - Append to `Changes.md` after every file edit (not in a batch at the end).
+- **Screenshots go in `.screenshots/`.** Every browser screenshot — Playwright MCP, Claude in
+  Chrome, anything else — is written there as `.screenshots/<name>.png`, never to the repo root.
+  Pass the directory explicitly in the `filename`; tools that default to the working directory
+  will otherwise drop the file beside `package.json`. The folder is gitignored, and so is `/*.png`
+  as a second line of defence. 178 stray screenshots had collected in the root before this rule.
+  `screenshots/` (no dot) and `public/` hold tracked assets and are a different thing entirely.
 - Always confirm before `git push` or Docker push.
 - A `v*.*.*` git tag is required alongside every version bump so GitHub Actions publishes the Docker image.
 
