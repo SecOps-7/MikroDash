@@ -2,6 +2,70 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.33] — Failures that never announced themselves
+
+Every fix in this release is something that had been quietly not working. None of them logged an
+error, none crashed, and several had been broken for weeks behind a green test suite. Most were
+found by porting MikroDash to Go and TypeScript and discovering that the two implementations
+disagreed.
+
+**A daily backup at 08:00 now happens at 08:00.** The scheduler applied its 24-hour interval gate
+*before* the wall-clock anchor, so a run late in the day pushed the next one past its own target. A
+manual backup at 11:45 left "daily at 08:00" not due at 08:00 the next morning, and once it fired at
+11:45 it stayed there permanently. One router's daily schedule had never fired once in its life;
+another was drifting a couple of minutes later every day. Weekly and monthly keep the interval,
+because "today at 08:00" knows an hour and a minute but not a weekday or a date.
+
+**Clicking a column header sorts the table again.** Nine tables lost their sort on the first click
+and could not recover it for the life of the page — VLANs, PPP, CAPsMAN, the three Bridges tables,
+DNS, Packages and Audit. Two incompatible conventions for the sort direction were the cause, and the
+second half of the same mismatch emitted a CSS class no stylesheet defines, so no arrow ever
+appeared to contradict it. A table that had silently stopped sorting looked like one that had never
+been sorted.
+
+**An edit you make now reaches the page you are looking at.** Several collectors suppress a
+redundant update by fingerprinting the payload, and those fingerprints were built from hand-written
+field lists. Any field left off the list was invisible to the check: the collector re-read the
+router, hashed an identical string, and returned without emitting. A comment-only edit to a DNS
+entry wrote the router and never reached the open table. It hid because these collectors also hash
+something that moves on its own, so on a busy router the table caught up a tick or two later and
+merely looked slow; on an idle device the update never arrived at all. Fixed for DNS (`comment` and
+`ttl`), interfaces (`type`, `comment`, MAC), queues (`comment`), and firewall — where the
+fingerprint covered only rule counters, so *every* rule field, and rule order with it, reached the
+page only when traffic happened to move a counter in the same tick.
+
+**MX, NS and SRV DNS records survive being looked at.** The DNS form offered six of the nine record
+types RouterOS supports. Opening an MX record showed its type as "A", and saving rewrote it as one:
+the MX preference, the SRV target and port, the NS delegation, gone, with nothing on screen
+suggesting the form was showing anything other than the record. All nine types are now supported
+with their own fields, and, more generally, a form no longer silently coerces a value it does not
+recognise into the first item of a list.
+
+**The audit trail records what happened.** Two problems in the one table that cannot be pruned
+selectively. Credential masking knew `private_key` but not `private-key`, `passphrase` but not
+`pre-shared-key` — the settings vocabulary, not the router's. And because row values are real
+booleans while form values are the strings `yes`/`no`, every save of every resource carrying a
+checkbox recorded a change nobody made, burying the edit that did happen.
+
+**Fewer bytes on the wire.** Routing sent every route's internal flags object to every viewer, up to
+800 routes at a time, despite a comment claiming it did not and nothing on the page reading them.
+
+### Merged contributions
+
+Thanks to [@invoker-karl](https://github.com/invoker-karl) for both.
+
+- **Fail closed when node-routeros compatibility patches are incomplete** ([#113]). The build no
+  longer warns and continues when a compatibility patch cannot be applied. Underneath the headline
+  sat a real gap: three of the seven patches were being applied and then never verified, so a
+  dependency update could have dropped any of them silently. Marker matching is now token-bounded,
+  so `MULTI_BLOCK_V2` can no longer satisfy a requirement for `MULTI_BLOCK`.
+- **Fix missing action status handlers on WAN, Queues and Router Users** ([#112]). Six status calls
+  on those three pages had no handler in scope. A write landed on the router and the browser then
+  threw instead of reporting the result, so the operator saw nothing and assumed it had failed.
+
+[#112]: https://github.com/SecOps-7/MikroDash/pull/112
+[#113]: https://github.com/SecOps-7/MikroDash/pull/113
+
 ## [0.7.32] — Wireless you can change, not just watch
 
 MikroDash could see wireless in detail and change none of it. Every SSID edit, every passphrase
