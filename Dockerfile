@@ -13,7 +13,7 @@
 # Node 24 API would install cleanly, pass CI and then fail to load at runtime.
 # Node 20 is also past the end of its LTS maintenance window. better-sqlite3
 # compiles natively here, so its ABI rebuild is the thing to watch. See #101.
-FROM node:24-alpine
+FROM node:24-alpine AS base
 WORKDIR /app
 # Build tools needed for better-sqlite3 native compilation on alpine
 RUN apk add --no-cache python3 make g++
@@ -24,5 +24,33 @@ COPY src/routeros/patchVerification.js ./src/routeros/patchVerification.js
 COPY patch-routeros.js ./
 RUN node patch-routeros.js
 COPY . .
+
+# ── test ─────────────────────────────────────────────────────────────────────
+#
+# The runtime image plus devDependencies, and nothing else. A test needing a
+# dev-only tool — jsdom to drive a real renderer, espree to parse source — could
+# not run at all before this stage existed: the runtime install is `--omit=dev`,
+# so the module was simply absent and the whole file failed to load.
+#
+# test/ stays out of every image (see .dockerignore), so mount it at run time:
+#
+#   docker build --target test -t mikrodash-test .
+#   docker run --rm -v "$PWD/test:/app/test:ro" mikrodash-test
+#
+# The second `npm install` re-resolves the whole tree and can restore an
+# unpatched node-routeros over the patched one, so the patch is re-applied here.
+# It is idempotent — already-applied markers are skipped — and since #113 it
+# exits non-zero rather than leaving an unverified build behind.
+FROM base AS test
+RUN npm install --no-audit --no-fund \
+ && node patch-routeros.js
+CMD ["node", "--test", "--test-force-exit", "/app/test/*.test.js"]
+
+# ── runtime ──────────────────────────────────────────────────────────────────
+#
+# Last on purpose. Docker builds the final stage when none is named, so
+# `docker compose build` keeps producing the runtime image with no target and no
+# compose change, and the dev dependencies above never reach it.
+FROM base AS runtime
 EXPOSE 3081
 CMD ["node", "src/index.js"]
