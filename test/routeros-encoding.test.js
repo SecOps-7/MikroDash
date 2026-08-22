@@ -22,7 +22,7 @@ const ROS = require('../src/routeros/client');
 const { PATCH_MARKERS, resolveDistPath } = require('../src/routeros/patchVerification');
 
 const ROOT = path.join(__dirname, '..');
-const patchSource = fs.readFileSync(path.join(ROOT, 'patch-routeros.js'), 'utf8');
+const patchSource = fs.readFileSync(path.join(ROOT, 'patch-routeros.js'), 'utf8').replace(/\r\n/g, '\n');
 
 /** Every `replace:` string in patch-routeros.js — what it WRITES, not what it looks for. */
 const replacements = patchSource
@@ -88,7 +88,10 @@ test('every verified marker is actually written by patch-routeros.js', () => {
   // server refused to start until the two agreed again.
   for (const marker of PATCH_MARKERS) {
     const description = marker.replace('MIKRODASH_PATCHED_', '');
-    assert.ok(patchSource.includes(`'${description}'`),
+    const genericPatch = patchSource.includes(`'${description}'`)
+      && patchSource.includes("'MIKRODASH_PATCHED_' + description");
+    const dedicatedPatch = patchSource.includes(marker);
+    assert.ok(genericPatch || dedicatedPatch,
       `${marker} is verified at startup but patch-routeros.js writes no such patch`);
   }
 });
