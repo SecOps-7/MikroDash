@@ -193,7 +193,60 @@ function checkSimpleQueue({ selfAddresses, values, before, floorBps }) {
   };
 }
 
+// ── Audit ────────────────────────────────────────────────────────────────────
+
+/**
+ * The two sides of a queue save, in one vocabulary.
+ *
+ * `before` comes from the router and `after` from the browser, and they do not
+ * speak the same language. The API answers `max-limit` in raw bps and reads a
+ * parentless simple queue back as `none`; the form submits the CLI form
+ * (`50M/25M`) and an empty string. Diffed verbatim, a save that changed nothing
+ * recorded `50000000/25000000 -> 50M/25M` and `none -> ''` on every queue that
+ * had a limit.
+ *
+ * A field the form left blank is OMITTED from `after` rather than recorded as
+ * ''. The write path drops a blank instead of sending it, so the router keeps
+ * its value; recording '' told the trail the field had been CLEARED when nothing
+ * had touched it. That is the one symptom here that made the trail actively
+ * wrong rather than merely noisy. `audit.diff` walks only the keys present in
+ * `after`, which is what makes omission the way to say "not part of this write".
+ *
+ * It lives here rather than at the call site because the call site is the thing
+ * that keeps getting this wrong, and because `parsePair` — which collapses both
+ * vocabularies to the same numbers — is already here.
+ */
+function auditSides(menu, row, name, values) {
+  const v = values || {};
+  const pair = (raw) => {
+    const p = parsePair(raw);
+    return (p.up === null && p.down === null) ? '' : p.up + '/' + p.down;
+  };
+  const text = (raw) => String(raw == null ? '' : raw).trim();
+  // A simple queue with no parent reads back as the string `none`, which means
+  // the same thing the form's empty box does.
+  const parent = (raw) => { const s = text(raw); return s === 'none' ? '' : s; };
+  const sent = (raw) => raw !== undefined && raw !== null && String(raw).trim() !== '';
+
+  const before = row ? { name: row.name || '', disabled: row.disabled === 'true' } : {};
+  const after  = { name, disabled: !!v.disabled };
+
+  const add = (key, rowValue, sentValue, norm) => {
+    if (row) before[key] = norm(rowValue);
+    if (sent(sentValue)) after[key] = norm(sentValue);
+  };
+  add('maxLimit', row && row['max-limit'], v.maxLimit, pair);
+  add('limitAt',  row && row['limit-at'],  v.limitAt,  pair);
+  // Only the field this menu actually carries. A simple queue has no parent and
+  // a tree has no target, and recording the absent one is where the `none -> ''`
+  // change on every simple-queue edit came from.
+  if (menu === 'simple') add('target', row && row.target, v.target, text);
+  else                   add('parent', row && row.parent, v.parent, parent);
+
+  return { before, after };
+}
+
 module.exports = {
   parseRate, parsePair, cidrContains, resolveSelfAddresses, checkSimpleQueue,
-  SELF_THROTTLE_FLOOR_BPS,
+  auditSides, SELF_THROTTLE_FLOOR_BPS,
 };
