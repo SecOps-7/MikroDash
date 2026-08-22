@@ -9,6 +9,19 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 ---
 
+> ### 💬 Your input wanted: should MikroDash be rewritten in Go + TypeScript?
+>
+> A Go + TypeScript implementation is being developed alongside this one. **No decision has been
+> made**, and nothing user-visible would change if it lands. The case for it is a single static
+> binary small enough to run in a container on the router itself ([#44](https://github.com/SecOps-7/MikroDash/issues/44)),
+> ARMv7 support that Node 24 took away, and type checking over a 16,000 line frontend.
+>
+> Objections are as welcome as support, including "fix what I already use instead".
+>
+> **[Read the reasoning and weigh in on #114](https://github.com/SecOps-7/MikroDash/issues/114)**
+
+---
+
 ## Screenshots
 
 ### Dashboard
