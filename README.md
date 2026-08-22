@@ -207,7 +207,7 @@ docker buildx build --platform linux/amd64,linux/arm64 -t mikrodash:local --load
 - Dashboard: `http://localhost:3081`
 - Health check: `http://localhost:3081/healthz` (`200` only after startup completes, RouterOS is connected, and the critical collectors are delivering fresh data; a stalled traffic stream or an unreachable `defaultIf` now returns `503`)
 
-Source builds require the bundled `node-routeros` compatibility patch. If startup reports a missing patch marker, run `node patch-routeros.js` again before launching MikroDash.
+Source builds require the bundled `node-routeros` compatibility patch. `patch-routeros.js` fails closed: it exits non-zero if any required marker or patched behaviour is missing, rather than warning and leaving you with a build that works until it meets an edge case. If it fails, or if startup reports a missing patch marker, reinstall dependencies and run `node patch-routeros.js` again before launching MikroDash.
 
 For a production-style deployment on an external Docker host such as an R5S that connects to a MikroTik hEX S over the RouterOS API, see `docs/deploy-r5s.md` and the ready-to-copy files in `deploy/r5s/`.
 
