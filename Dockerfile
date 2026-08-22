@@ -20,6 +20,7 @@ RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm install --omit=dev --no-audit --no-fund
 # Patch node-routeros to handle RouterOS 7.18+ !empty API reply
+COPY src/routeros/patchVerification.js ./src/routeros/patchVerification.js
 COPY patch-routeros.js ./
 RUN node patch-routeros.js
 COPY . .

@@ -18,18 +18,25 @@
 'use strict';
 const fs   = require('fs');
 const path = require('path');
+const {
+  PATCH_MARKERS,
+  resolveDistPath,
+  hasExactPatchMarker,
+} = require('./src/routeros/patchVerification');
 
 const BASE = path.join(__dirname, 'node_modules', 'node-routeros', 'dist');
+let patchFailed = false;
 
 function patch(filePath, description, replacements) {
   if (!fs.existsSync(filePath)) {
     console.warn('[patch] File not found, skipping:', filePath);
+    patchFailed = true;
     return false;
   }
 
   let src = fs.readFileSync(filePath, 'utf8');
 
-  if (src.includes('MIKRODASH_PATCHED_' + description)) {
+  if (hasExactPatchMarker(src, 'MIKRODASH_PATCHED_' + description)) {
     console.log('[patch]', description, '— already applied, skipping');
     return true;
   }
@@ -44,7 +51,8 @@ function patch(filePath, description, replacements) {
 
   if (applied === 0) {
     console.warn('[patch]', description, '— target string not found (library version mismatch?)');
-    console.warn('[patch] App will start but may crash on edge cases. File:', filePath);
+    console.warn('[patch] Refusing an unverified dependency build. File:', filePath);
+    patchFailed = true;
     return false;
   }
 
@@ -273,10 +281,11 @@ patch(
   const channelPath = path.join(BASE, 'Channel.js');
   if (!fs.existsSync(channelPath)) {
     console.warn('[patch] MULTI_BLOCK_V2 — Channel.js not found');
+    patchFailed = true;
     return;
   }
   let src = fs.readFileSync(channelPath, 'utf8');
-  if (src.includes('MIKRODASH_PATCHED_MULTI_BLOCK_V2')) {
+  if (hasExactPatchMarker(src, 'MIKRODASH_PATCHED_MULTI_BLOCK_V2')) {
     console.log('[patch] MULTI_BLOCK_V2 — already applied, skipping');
     return;
   }
@@ -286,6 +295,7 @@ patch(
   const replace = `        if (this.trapped) { this.close(); break; } // MIKRODASH_PATCHED_MULTI_BLOCK_V2\n                if (this.streaming) break;\n                if (this._doneTimer) clearTimeout(this._doneTimer);`;
   if (!src.includes(find)) {
     console.warn('[patch] MULTI_BLOCK_V2 — target not found (MULTI_BLOCK not applied or format changed)');
+    patchFailed = true;
     return;
   }
   fs.writeFileSync(channelPath, src.replace(find, replace), 'utf8');
@@ -321,4 +331,32 @@ patch(
   ]
 );
 
-console.log('[patch] Done.');
+// A successful npm install is not enough: this archived dependency is safe for
+// MikroDash only with every required compatibility patch. Docker builds and CI
+// must fail closed if a dependency update makes a marker or behavior disappear.
+const required = PATCH_MARKERS.map(marker => [path.join(BASE, resolveDistPath(marker)), marker]);
+for (const [file, marker] of required) {
+  let source = '';
+  try { source = fs.readFileSync(file, 'utf8'); } catch (_) { /* handled below */ }
+  if (!hasExactPatchMarker(source, marker)) {
+    console.error('[patch] REQUIRED marker missing:', marker, 'in', file);
+    patchFailed = true;
+  }
+}
+const channelSource = fs.existsSync(path.join(BASE, 'Channel.js'))
+  ? fs.readFileSync(path.join(BASE, 'Channel.js'), 'utf8') : '';
+const emptyReplySafe = channelSource.includes(
+  "if (reply === '!empty') { if (this.streaming) return; this.emit('done', []); return; }"
+);
+const emptyDefaultSafe = /if \(reply === '!empty'\) \{\s*if \(this\.streaming\) break;\s*this\.emit\('done', this\.data\);\s*this\.close\(\);\s*break;/m
+  .test(channelSource);
+if (!emptyReplySafe || !emptyDefaultSafe || !channelSource.includes('if (this.streaming) break;')) {
+  console.error('[patch] REQUIRED patched behavior verification failed');
+  patchFailed = true;
+}
+if (patchFailed) {
+  console.error('[patch] FAILED — refusing to continue with an unverified node-routeros build.');
+  process.exitCode = 1;
+} else {
+  console.log('[patch] Done — all required markers and behaviors verified.');
+}
