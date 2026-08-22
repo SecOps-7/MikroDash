@@ -45,6 +45,36 @@ test('a credential value never reaches the trail, in either direction', () => {
   assert.ok(serialised.includes('10000') && serialised.includes('30000'));
 });
 
+test('the spellings RouterOS actually uses are treated as credentials', () => {
+  // The pattern matched `private_key` but not `private-key`, and `passphrase`
+  // but not `pre-shared-key` — that is, it knew the settings/users spelling and
+  // not the router's. Name matching is only the second line of defence (the
+  // resource path masks by declared TYPE first), but it is the line that has to
+  // hold for any future caller that hands audit.diff a raw RouterOS row.
+  for (const name of ['private-key', 'privateKey', 'PrivateKey', 'privkey', 'private_key',
+                      'pre-shared-key', 'pre_shared_key', 'wpa2-pre-shared-key', 'psk',
+                      'api-key', 'apiKey', 'api_key', 'auth-key',
+                      'passphrase', 'password', 'secret', 'token', 'credential']) {
+    assert.ok(audit.isCredentialField(name), name + ' must be masked');
+  }
+  // And a value under any of those names does not reach the row.
+  const serialised = JSON.stringify(audit.diff(
+    { 'private-key': 'OLD-PRIVATE', 'pre-shared-key': 'OLD-PSK' },
+    { 'private-key': 'NEW-PRIVATE', 'pre-shared-key': 'NEW-PSK' }));
+  for (const v of ['OLD-PRIVATE', 'NEW-PRIVATE', 'OLD-PSK', 'NEW-PSK']) {
+    assert.ok(!serialised.includes(v), 'value leaked into the trail: ' + v);
+  }
+});
+
+test('a public key stays readable, because it is public', () => {
+  // Over-masking costs a field name; here it would cost the one detail that
+  // says WHICH peer an edit touched. The line is drawn deliberately.
+  assert.ok(!audit.isCredentialField('public-key'));
+  assert.ok(!audit.isCredentialField('publicKey'));
+  const [d] = audit.diff({ 'public-key': 'AAA=' }, { 'public-key': 'BBB=' });
+  assert.deepStrictEqual([d.from, d.to], ['AAA=', 'BBB=']);
+});
+
 test('redaction distinguishes set, unset and changed', () => {
   const [a] = audit.diff({ smtpPass: '' },  { smtpPass: 'x' });
   const [b] = audit.diff({ smtpPass: 'x' }, { smtpPass: '' });
@@ -52,6 +82,62 @@ test('redaction distinguishes set, unset and changed', () => {
   assert.deepStrictEqual([b.from, b.to], [audit.SET, audit.UNSET],     'cleared');
   // "Was a password set before this?" is a real question a trail should answer,
   // and it is answerable without recording the password.
+});
+
+/**
+ * `_resAuditValues` is module-local to index.js, so it is lifted out of the
+ * source and driven directly. Worth the awkwardness: it is the seam where the
+ * form's vocabulary and the write's vocabulary are made comparable, and the
+ * bug it carried was invisible from either side alone.
+ */
+function resAuditValues() {
+  const vm = require('node:vm');
+  const from = INDEX_JS.slice(INDEX_JS.indexOf('const _resAuditValues ='));
+  const body = from.slice(0, from.indexOf('\n  };') + 5);
+  const sandbox = { audit };
+  vm.runInNewContext(body + '\nlifted = _resAuditValues;', sandbox);
+  return sandbox.lifted;
+}
+
+test('an unchanged checkbox is not recorded as a change', () => {
+  // rowValues() gives a real boolean, validate() gives 'yes'/'no', and diff
+  // compares with ===. Every save of every resource with a checkbox used to
+  // record `false -> 'no'`, which nobody did — noise in the one table that
+  // cannot be pruned selectively, burying the edit that actually happened.
+  const fn = resAuditValues();
+  const resource = { fields: [
+    { name: 'address',        type: 'ip' },
+    { name: 'disabled',       type: 'bool' },
+    // Absent from the router's row, supplied by validate: the same shape.
+    { name: 'matchSubdomain', type: 'bool' },
+  ] };
+
+  const before = fn(resource, { address: '198.51.100.77', disabled: false, matchSubdomain: null });
+  const after  = fn(resource, { address: '198.51.100.88', disabled: 'no',  matchSubdomain: 'no' });
+
+  assert.deepStrictEqual(audit.diff(before, after),
+    [{ field: 'address', from: '198.51.100.77', to: '198.51.100.88' }],
+    'only the field the operator actually changed');
+});
+
+test('a checkbox that did move is still recorded', () => {
+  // The normalisation must not have made bool changes invisible, which would
+  // be a worse bug than the noise it replaced.
+  const fn = resAuditValues();
+  const resource = { fields: [{ name: 'disabled', type: 'bool' }] };
+  const d = audit.diff(fn(resource, { disabled: false }), fn(resource, { disabled: 'yes' }));
+  assert.deepStrictEqual(d, [{ field: 'disabled', from: false, to: true }]);
+});
+
+test('a secret field is still masked by declared type, not by its name', () => {
+  // The first line of defence, unchanged by widening the name pattern.
+  const fn = resAuditValues();
+  const resource = { fields: [{ name: 'presharedKey', type: 'secret' }] };
+  // Property-wise, not deepStrictEqual: the lifted function builds its object
+  // inside the vm context, so the prototypes differ across realms.
+  assert.equal(fn(resource, { presharedKey: 'hunter2' }).presharedKey, audit.SET);
+  assert.equal(fn(resource, { presharedKey: '' }).presharedKey, audit.UNSET);
+  assert.ok(!JSON.stringify(fn(resource, { presharedKey: 'hunter2' })).includes('hunter2'));
 });
 
 test('unchanged fields are omitted, so a partial save is not reported as a rewrite', () => {
