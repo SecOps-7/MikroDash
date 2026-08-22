@@ -296,11 +296,19 @@ class RoutingCollector {
       .filter(r => r.type === 'static' || r.type === 'dynamic')
       .slice(0, 800)
       // `id` crosses the wire so the page can open a route in the edit form;
-      // `_raw` and `_flags` deliberately do not — `_raw` is the whole RouterOS
+      // `_raw` and `flags` deliberately do not — `_raw` is the whole RouterOS
       // row, and the Routing page is not entitled to fields nobody asked for.
       // A `.id` is safe to expose: it addresses a row, it does not authorise
       // one, and every write re-reads and re-checks before touching it.
-      .map(({ _id, _raw, _flags, ...r }) => ({ ...r, id: _id }));
+      //
+      // This named `_flags` for a long time, which matches nothing: `_mapRoute`
+      // calls the field `flags`. The exclusion silently did nothing, and every
+      // route carried its whole flags object to every viewer. Stripping it now
+      // costs the page nothing — `active`, `type` and `protocol` are derived
+      // from those flags before this point and are what the table renders —
+      // while `routeCounts` below still reads `flags` from `allRoutes`, which
+      // is the stored object and keeps it.
+      .map(({ _id, _raw, flags, ...r }) => ({ ...r, id: _id }));
 
     const routeCounts = {
       total:   allRoutes.length,
