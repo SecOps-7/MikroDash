@@ -662,8 +662,16 @@ class TopologyCollector {
     const core = {
       key: 'core',
       kind: 'core',
-      name: (sys && sys.identity) || (this.ros && this.ros.routerLabel) || 'Router',
-      identity: (sys && sys.identity) || '',
+      // The router's own label, not its RouterOS identity. Every OTHER node here
+      // is named from `/ip/neighbor`, which carries `identity`; the core has no
+      // such source, because nothing in the app reads `/system/identity` and the
+      // system payload has never carried one. This used to try `sys.identity`
+      // first, which no producer sets, so that branch could never be taken and
+      // the label was reached by accident rather than by choice. Adding an
+      // upstream read per router to name one node was not worth it; if that
+      // changes, put `identity` on the system payload and prefer it here.
+      name: (this.ros && this.ros.routerLabel) || 'Router',
+      identity: '',
       mac: '',
       ip: (this.ros && this.ros.host) || '',
       ip6: '',

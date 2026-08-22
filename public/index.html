@@ -3633,6 +3633,10 @@
     </div>
     <div class="bw-toolbar">
       <input class="bw-search" id="bwSearch" type="text" placeholder="Search IP / hostname / MAC…">
+      <!-- How many rows survived the four filters beside it. app.js has always
+           computed this and written it here; the element itself was missing, so
+           the count was discarded on every frame. -->
+      <span id="bwStats" class="muted-note" aria-live="polite"></span>
       <select id="bwIface" style="margin-left:auto" aria-label="Interface filter">
         <option value="">All interfaces</option>
       </select>
