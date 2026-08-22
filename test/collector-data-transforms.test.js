@@ -2278,6 +2278,54 @@ test('routing collector BGP peer removed via .dead=true clears session', async (
 
 // ── Route stream delta ────────────────────────────────────────────────────────
 
+// A static route and a connected one, so routeCounts has something in more
+// than one bucket to count.
+const ROUTE_ROWS = [
+  { '.id': '*1', 'dst-address': '0.0.0.0/0',   gateway: '1.2.3.1', distance: '1', '.flags': 'AS' },
+  { '.id': '*2', 'dst-address': '10.0.0.0/24', gateway: 'bridge',  distance: '0', '.flags': 'AC' },
+];
+
+test('a route crosses the wire without its internals', async () => {
+  // The destructure named `_flags` and _mapRoute calls the field `flags`, so
+  // the exclusion silently did nothing and every route carried its whole flags
+  // object. Nothing renders it: `active`, `type` and `protocol` are derived
+  // from those flags server-side and are what the table shows.
+  const emitted = [];
+  const io = { to(room) { return { emit(ev, d) { emitted.push(d); } }; } };
+  const collector = new RoutingCollector({ ros: makeRoutingRos({ printRows: ROUTE_ROWS }),
+                                           io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+  collector._emit(null);
+
+  const route = emitted[0].routes[0];
+  assert.ok(route, 'a route to inspect');
+  for (const internal of ['flags', '_flags', '_raw', '_id']) {
+    assert.ok(!(internal in route), internal + ' must not cross the wire');
+  }
+  // And what the page does render is still all there.
+  for (const shown of ['id', 'dst', 'gateway', 'distance', 'active',
+                       'comment', 'type', 'protocol', 'family']) {
+    assert.ok(shown in route, shown + ' is rendered and must survive the projection');
+  }
+});
+
+test('stripping flags from the wire leaves the route counts intact', async () => {
+  // routeCounts is computed from the STORED routes, which keep their flags —
+  // a fix that reached into those would empty the summary instead.
+  const emitted = [];
+  const io = { to(room) { return { emit(ev, d) { emitted.push(d); } }; } };
+  const collector = new RoutingCollector({ ros: makeRoutingRos({ printRows: ROUTE_ROWS }),
+                                           io, pollMs: 10000, state: {} });
+  await collector._loadRoutes();
+  collector._emit(null);
+
+  const c = emitted[0].routeCounts;
+  assert.ok(c.total > 0, 'routes are still counted');
+  for (const k of ['connect', 'static', 'dynamic', 'bgp', 'ospf']) {
+    assert.equal(typeof c[k], 'number', k + ' must still be counted');
+  }
+});
+
 test('routing collector route stream delta adds new route', async () => {
   const emitted = [];
   const io = { to(room) { return { emit(ev, d) { emitted.push(d); } }; } };
