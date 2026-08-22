@@ -6015,9 +6015,26 @@ io.on('connection', (socket) => {
     const out = {};
     for (const f of resource.fields) {
       if (!Object.prototype.hasOwnProperty.call(values, f.name)) continue;
-      out[f.name] = f.type === 'secret'
-        ? (values[f.name] ? audit.SET : audit.UNSET)
-        : values[f.name];
+      if (f.type === 'secret') {
+        out[f.name] = values[f.name] ? audit.SET : audit.UNSET;
+      } else if (f.type === 'bool') {
+        // The two sides of the diff say the same thing in different words:
+        // rowValues() gives a real boolean, validate() gives 'yes'/'no', and
+        // audit.diff compares with ===. Left alone, `false` against `'no'` reads
+        // as a change, so EVERY save of every resource carrying a checkbox
+        // recorded one nobody made — noise in the one table that cannot be
+        // pruned selectively, and it buries the edit that did happen. A field
+        // the router omits altogether (match-subdomain on a DNS entry) is the
+        // same shape: null against 'no' is not a change either.
+        //
+        // Normalised here rather than in rowValues() or validate(), because
+        // those two feed the FORM and the WRITE. This is a reporting problem,
+        // and _resAuditValues already exists to make the two sides comparable.
+        out[f.name] = values[f.name] === true || values[f.name] === 'yes'
+                   || values[f.name] === 'true';
+      } else {
+        out[f.name] = values[f.name];
+      }
     }
     return out;
   };

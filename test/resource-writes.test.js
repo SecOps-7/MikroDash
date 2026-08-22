@@ -458,12 +458,23 @@ test('the audit trail masks a field whose declared type is secret', () => {
   assert.ok(/_resAuditValues/.test(body), '_resAuditValues is gone');
   assert.ok(/f\.type === 'secret'/.test(body),
     'masking must key on the declared type, not on the field name');
-  // audit.js masks on NAME, and `presharedKey` does not match its pattern —
-  // which is exactly why the engine must not rely on it.
+  // This used to assert that CRED_PATTERN does NOT match `presharedKey`, as the
+  // proof that the type check was load-bearing. Saying so here, as that
+  // assertion asked: the pattern has since been widened to cover the spellings
+  // RouterOS actually uses (`private-key`, `pre-shared-key`), and
+  // `pre[-_]?shared[-_]?key` catches the camelCase form too.
+  //
+  // The type check stays, and the reason is now stronger than the old one. A
+  // name pattern is a guess about what a field holds; `type: 'secret'` is a
+  // statement of it. A future secret field named something nobody anticipated is
+  // covered the moment it is declared, and only the type check can promise that.
+  // Name matching is the second line, for callers that never had a declared type
+  // to consult.
   const m = SRC('audit.js').match(/const CRED_PATTERN = \/([^/]+)\/i;/);
   assert.ok(m, 'CRED_PATTERN moved; check whether the type-based masking is still needed');
-  assert.ok(!new RegExp(m[1], 'i').test('presharedKey'),
-    'if audit.js now matches this name, say so here rather than deleting the type check');
+  assert.ok(new RegExp(m[1], 'i').test('presharedKey'),
+    'the widened pattern should catch this name; if it stops, the type check above '
+    + 'is the only thing standing between a pre-shared key and the audit table');
 });
 
 // ── The upgrade button ───────────────────────────────────────────────────────
