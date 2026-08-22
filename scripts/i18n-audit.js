@@ -50,7 +50,7 @@ function _walk(node, visit) {
 
 function dynamicCandidates(file) {
   const source = fs.readFileSync(path.join(root, 'public', file), 'utf8');
-  const ast = espree.parse(source, { ecmaVersion: 2022, sourceType: 'script' });
+  const ast = espree.parse(source, { ecmaVersion: 2022, sourceType: 'script', loc: true, range: true });
   const definitions = new Map();
   _walk(ast, (node) => {
     if (node.type === 'VariableDeclarator' && node.id.type === 'Identifier' && node.init) {
@@ -64,7 +64,34 @@ function dynamicCandidates(file) {
     }
   });
 
+  const functionScopes = [];
+  _walk(ast, (node) => {
+    if (['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)) {
+      functionScopes.push(node);
+    }
+  });
+  const scopeKey = (node) => {
+    const matches = functionScopes.filter((fn) => fn.range[0] <= node.range[0] && fn.range[1] >= node.range[1])
+      .sort((a, b) => (a.range[1] - a.range[0]) - (b.range[1] - b.range[0]));
+    return matches.length ? `${matches[0].range[0]}:${matches[0].range[1]}` : 'global';
+  };
+  const scopedDefinitions = new Map();
+  _walk(ast, (node) => {
+    let name = '', value = null;
+    if (node.type === 'VariableDeclarator' && node.id.type === 'Identifier' && node.init) {
+      name = node.id.name; value = node.init;
+    } else if (node.type === 'AssignmentExpression' && node.operator === '=' &&
+               node.left.type === 'Identifier' && node.right) {
+      name = node.left.name; value = node.right;
+    }
+    if (!name) return;
+    if (!scopedDefinitions.has(name)) scopedDefinitions.set(name, []);
+    scopedDefinitions.get(name).push({ value, scope: scopeKey(value) });
+  });
+
   const candidates = new Set();
+  const unresolvedTranslations = [];
+  const untranslatedDialogs = [];
   const addLiteral = (value) => {
     if (typeof value !== 'string' || !/[A-Za-z]{2}/.test(value)) return;
     if (/^(?:dis$|dashboard$|routes$|padding:|[.#"]|rgba\(|(?:bw-proto|diag-count|hs-|ifl-|wl-band))|(?:class|style|viewBox|width)="|cursor:|px">/.test(value)) return;
@@ -163,8 +190,96 @@ function dynamicCandidates(file) {
     const direct = node.callee.type === 'Identifier' && node.callee.name === 'tr';
     const apiCall = node.callee.type === 'MemberExpression' && !node.callee.computed &&
       node.callee.property.name === 't';
-    if (direct || apiCall) collectExpression(node.arguments[0]);
+    if (direct) {
+      const rendered = renderExpression(node.arguments[0]);
+      if (rendered) rendered.forEach(addLiteral);
+      else unresolvedTranslations.push(
+        `${file}:${node.loc.start.line}: ${source.slice(node.range[0], node.range[1])}`
+      );
+    } else if (apiCall) collectExpression(node.arguments[0]);
   });
+
+  const isDirectTranslation = (node) => node && node.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' && node.callee.name === 'tr';
+  const nearestDefinition = (name, anchor) => {
+    const anchorScope = scopeKey(anchor);
+    const items = (scopedDefinitions.get(name) || []).filter((item) =>
+      item.scope === anchorScope && item.value.loc && item.value.loc.start.line <= anchor.loc.start.line);
+    const hit = items.sort((a, b) => b.value.loc.start.line - a.value.loc.start.line)[0];
+    return hit ? hit.value : null;
+  };
+  const addDialogIssue = (node, value) => {
+    const text = normalise(value);
+    if (!/[A-Za-z]{2}/.test(text)) return;
+    untranslatedDialogs.push(`${file}:${node.loc.start.line}: ${text}`);
+  };
+  const scanDialogExpression = (node, anchor, resolving = new Set()) => {
+    if (!node) return;
+    if (isDirectTranslation(node)) return;
+    if (node.type === 'Literal') {
+      if (typeof node.value === 'string') addDialogIssue(node, node.value);
+      return;
+    }
+    if (node.type === 'TemplateLiteral') {
+      node.quasis.forEach((quasi) => addDialogIssue(quasi, quasi.value.cooked || ''));
+      node.expressions.forEach((item) => scanDialogExpression(item, anchor, resolving));
+      return;
+    }
+    if (node.type === 'Identifier') {
+      if (resolving.has(node.name)) return;
+      const definition = nearestDefinition(node.name, anchor);
+      if (definition) scanDialogExpression(definition, anchor, new Set(resolving).add(node.name));
+      return;
+    }
+    if (node.type === 'ObjectExpression') {
+      node.properties.forEach((property) => scanDialogExpression(property.value, anchor, resolving));
+      return;
+    }
+    if (node.type === 'ConditionalExpression') {
+      scanDialogExpression(node.consequent, anchor, resolving);
+      scanDialogExpression(node.alternate, anchor, resolving);
+      return;
+    }
+    if (node.type === 'BinaryExpression') {
+      if (node.operator === '+') {
+        scanDialogExpression(node.left, anchor, resolving);
+        scanDialogExpression(node.right, anchor, resolving);
+      }
+      return;
+    }
+    if (node.type === 'LogicalExpression') {
+      scanDialogExpression(node.left, anchor, resolving);
+      scanDialogExpression(node.right, anchor, resolving);
+      return;
+    }
+    if (node.type === 'MemberExpression') {
+      scanDialogExpression(node.object, anchor, resolving);
+      return;
+    }
+    if (node.type === 'CallExpression') {
+      if (node.callee.type === 'MemberExpression' && !node.callee.computed &&
+          node.callee.property.name === 'join') {
+        scanDialogExpression(node.callee.object, anchor, resolving);
+      }
+      return;
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (['loc', 'range', 'start', 'end', 'raw'].includes(key)) continue;
+      if (Array.isArray(value)) value.forEach((item) => {
+        if (item && typeof item.type === 'string') scanDialogExpression(item, anchor, resolving);
+      });
+      else if (value && typeof value.type === 'string') scanDialogExpression(value, anchor, resolving);
+    }
+  };
+  _walk(ast, (node) => {
+    if (node.type !== 'CallExpression' || !node.arguments[0]) return;
+    const direct = node.callee.type === 'Identifier' && ['confirm', 'prompt', 'alert'].includes(node.callee.name);
+    const member = node.callee.type === 'MemberExpression' && !node.callee.computed &&
+      ['confirm', 'prompt', 'alert'].includes(node.callee.property.name);
+    if (direct || member) scanDialogExpression(node.arguments[0], node);
+  });
+  candidates.unresolvedTranslations = [...new Set(unresolvedTranslations)];
+  candidates.untranslatedDialogs = [...new Set(untranslatedDialogs)];
   return candidates;
 }
 
@@ -176,7 +291,10 @@ function audit() {
   const staticSet = new Set([...staticCandidates('index.html'), ...staticCandidates('login.html')]);
   const dynamicFiles = ['app.js', 'login.js', 'preflight.js',
     path.join('js', 'dashboard-grid.js'), path.join('js', 'topology.js')];
-  const dynamicSet = new Set(dynamicFiles.flatMap((file) => [...dynamicCandidates(file)]));
+  const dynamicResults = dynamicFiles.map((file) => dynamicCandidates(file));
+  const dynamicSet = new Set(dynamicResults.flatMap((result) => [...result]));
+  const unresolvedTranslations = dynamicResults.flatMap((result) => result.unresolvedTranslations || []);
+  const untranslatedDialogs = dynamicResults.flatMap((result) => result.untranslatedDialogs || []);
   const candidates = new Set([...staticSet, ...dynamicSet]);
   const missing = [...candidates].filter((value) =>
     !Object.prototype.hasOwnProperty.call(locale.messages, value) &&
@@ -192,14 +310,22 @@ function audit() {
     candidates: [...candidates].sort(),
     staticCandidates: [...staticSet].sort(),
     dynamicCandidates: [...dynamicSet].sort(),
-    missing, staleAllowed, staleMessages,
+    missing, staleAllowed, staleMessages, unresolvedTranslations, untranslatedDialogs,
   };
 }
 
 if (require.main === module) {
   const result = audit();
-  if (result.missing.length) {
-    console.error('Unclassified English UI candidates:\n' + result.missing.map((item) => '  - ' + item).join('\n'));
+  if (result.missing.length || result.unresolvedTranslations.length || result.untranslatedDialogs.length) {
+    if (result.missing.length) {
+      console.error('Unclassified English UI candidates:\n' + result.missing.map((item) => '  - ' + item).join('\n'));
+    }
+    if (result.unresolvedTranslations.length) {
+      console.error('Unresolved explicit translation calls:\n' + result.unresolvedTranslations.map((item) => '  - ' + item).join('\n'));
+    }
+    if (result.untranslatedDialogs.length) {
+      console.error('Untranslated native-dialog text:\n' + result.untranslatedDialogs.map((item) => '  - ' + item).join('\n'));
+    }
     process.exitCode = 1;
   } else {
     console.log(`i18n audit passed: ${result.staticCandidates.length} static HTML and ${result.dynamicCandidates.length} dynamic UI candidates classified; ${result.staleMessages.length} locale entries have no static match (visibility only).`);

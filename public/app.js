@@ -98,6 +98,7 @@ if (sessionStorage.getItem('justLoggedIn')) {
 // ── Utilities ──────────────────────────────────────────────────────────────
 var DOT = '\u00b7';
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+function dataText(s){return '<span data-i18n-user-data>'+esc(s)+'</span>';}
 function tr(s, context){
   return window.MikroDashI18n ? window.MikroDashI18n.t(s, context || 'app.js') : s;
 }
@@ -941,7 +942,7 @@ function _flushSysUpdate() {
   gaugeRow.innerHTML=html;
   if(!_sysMetaWritten&&(d.boardName||d.version||d.cpuCount||d.totalMem)){
     var meta='';
-    if(d.boardName)meta+='<div class="sys-meta-item"><strong>'+esc(d.boardName)+'</strong></div>';
+    if(d.boardName)meta+='<div class="sys-meta-item"><strong data-i18n-user-data>'+esc(d.boardName)+'</strong></div>';
     if(d.version)  meta+='<div class="sys-meta-item">ROS <strong>'+esc(d.version)+'</strong></div>';
     if(d.cpuCount) meta+='<div class="sys-meta-item"><strong>'+esc(d.cpuCount)+'</strong>×CPU</div>';
     if(d.cpuFreq)  meta+='<div class="sys-meta-item"><strong>'+esc(d.cpuFreq)+'</strong> MHz</div>';
@@ -1036,8 +1037,8 @@ socket.on('lan:overview',function(data){
       ifaceEl.innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem">'+
         ifaces.map(function(f){
           return'<div class="net-wan-row">'+
-            '<div class="net-field-label">'+esc(f.name)+'</div>'+
-            '<div class="net-field-val">'+esc((f.ip||'').split('/')[0]||'\u2014')+'</div>'+
+            '<div class="net-field-label" data-i18n-user-data>'+esc(f.name)+'</div>'+
+            '<div class="net-field-val" data-i18n-user-data>'+esc((f.ip||'').split('/')[0]||'\u2014')+'</div>'+
             '</div>';
         }).join('')+
         '</div>';
@@ -1169,7 +1170,7 @@ function renderProtoBars(pc){
 }
 function svcBadge(org, cat){
   if(!org) return '';
-  return '<span class="svc-badge svc-'+(cat||'other')+'">'+esc(org)+'</span>';
+  return '<span class="svc-badge svc-'+(cat||'other')+'" data-i18n-user-data>'+esc(org)+'</span>';
 }
 var _connSrcFp='', _connDstFp='', _connProtoFp='';
 var _pendingConnData=null, _connRafId=null;
@@ -1182,7 +1183,7 @@ function _flushConnUpdate(){
     _connSrcFp=srcFp;
     if(data.topSources&&data.topSources.length){
       topSources.innerHTML=data.topSources.map(function(s){
-        return'<div class="top-row"><div style="display:flex;align-items:center;gap:.4rem;min-width:0;overflow:hidden"><span class="card-badge" style="flex-shrink:0">'+esc(s.ip)+'</span><div class="top-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(s.name)+'</div></div><div class="top-count">'+s.count+'</div></div>';
+        return'<div class="top-row"><div style="display:flex;align-items:center;gap:.4rem;min-width:0;overflow:hidden"><span class="card-badge" style="flex-shrink:0" data-i18n-user-data>'+esc(s.ip)+'</span><div class="top-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-i18n-user-data>'+esc(s.name)+'</div></div><div class="top-count">'+s.count+'</div></div>';
       }).join('');
     }else{topSources.innerHTML='<div class="empty-state">\u2014</div>';}
   }
@@ -1199,13 +1200,13 @@ function _flushConnUpdate(){
         return'<div class="top-row">'+
           '<div style="flex:1;min-width:0;overflow:hidden">'+
             '<div style="display:flex;align-items:center;gap:0;overflow:hidden">'+
-              '<span class="top-name text-truncate has-ip-tip" data-ip="'+esc(d.key)+
+              '<span class="top-name text-truncate has-ip-tip" data-i18n-user-data data-ip="'+esc(d.key)+
                 '" data-org="'+(d.org?esc(d.org):'')+
                 '" data-cat="'+esc(d.cat||'')+'">'+ esc(d.key)+'</span>'+
               (d.org?svcBadge(d.org,d.cat):'')+
             '</div>'+
           '</div>'+
-          (geoLabel?'<div class="top-geo">'+geoLabel+'</div>':'')+
+          (geoLabel?'<div class="top-geo" data-i18n-user-data>'+geoLabel+'</div>':'')+
           '<div class="top-count">'+d.count+'</div>'+
         '</div>';
       }).join('');
@@ -1417,10 +1418,10 @@ function renderIfaceList(ifaces) {
     tr.dataset.fp = fp;
     var dotCls = i.disabled ? 'dis' : i.running ? 'up' : 'down';
     tr.innerHTML =
-      '<td class="ifl-name" title="' + esc(i.name + (i.comment ? ' · ' + i.comment : '')) + '">' +
+      '<td class="ifl-name" data-i18n-user-data title="' + esc(i.name + (i.comment ? ' · ' + i.comment : '')) + '">' +
         '<span class="iface-dot ' + dotCls + '"></span>' + esc(i.name) + '</td>' +
       '<td class="ifl-type">' + ifTypePill(i.type) + '</td>' +
-      '<td class="ifl-ip" title="' + esc(ipStr) + '">' + (ipStr ? esc(ipStr) : '<span class="ifl-na">&mdash;</span>') + '</td>' +
+      '<td class="ifl-ip" data-i18n-user-data title="' + esc(ipStr) + '">' + (ipStr ? esc(ipStr) : '<span class="ifl-na">&mdash;</span>') + '</td>' +
       '<td class="ifl-num ' + (i.rxMbps ? 'ifl-rx' : 'ifl-zero') + '">' + fmtMbps(i.rxMbps || 0) + '</td>' +
       '<td class="ifl-num ' + (i.txMbps ? 'ifl-tx' : 'ifl-zero') + '">' + fmtMbps(i.txMbps || 0) + '</td>' +
       '<td class="ifl-num">' + iflBytes(i.rxBytes) + '</td>' +
@@ -1507,12 +1508,12 @@ socket.on('ifstatus:update',function(data){
         // title carries the full text, so a name the CSS had to truncate is
         // still readable on hover. #56 asked for full names; this gives them
         // without letting a long one change the tile's size.
-        '<div class="iface-name" title="'+esc(i.name)+'"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
-        '<div class="iface-type" title="'+esc(i.type+(i.comment?' \u00b7 '+i.comment:''))+'">'+esc(i.type)+(i.comment?' \u00b7 '+esc(i.comment):'')+'</div>'+
+        '<div class="iface-name" data-i18n-user-data title="'+esc(i.name)+'"><span class="iface-dot '+dotCls+'"></span>'+esc(i.name)+'</div>'+
+        '<div class="iface-type" data-i18n-user-data title="'+esc(i.type+(i.comment?' \u00b7 '+i.comment:''))+'">'+esc(i.type)+(i.comment?' \u00b7 '+esc(i.comment):'')+'</div>'+
         // Always rendered, with a blank placeholder when the interface has no
         // address. Omitting it made those tiles one line shorter, so their rate
         // bars sat higher than their neighbours' and whole rows came up short.
-        '<div class="iface-ip">'+(ipStr?esc(ipStr):' ')+'</div>'+
+        '<div class="iface-ip" data-i18n-user-data>'+(ipStr?esc(ipStr):' ')+'</div>'+
         '<div class="iface-rates">'+
           ifaceRateRow(i.name,'rx',i.rxMbps||0,p.rx)+
           ifaceRateRow(i.name,'tx',i.txMbps||0,p.tx)+
@@ -1545,7 +1546,7 @@ socket.on('ifstatus:update',function(data){
         if (ipEl.textContent !== ipText) ipEl.textContent = ipText;
       } else {
         var typeEl = tile.querySelector('.iface-type');
-        if (typeEl) typeEl.insertAdjacentHTML('afterend','<div class="iface-ip">'+esc(ipText)+'</div>');
+        if (typeEl) typeEl.insertAdjacentHTML('afterend','<div class="iface-ip" data-i18n-user-data>'+esc(ipText)+'</div>');
       }
 
       // Rate bars + values (changes on every poll)
@@ -1567,7 +1568,7 @@ socket.on('ifstatus:update',function(data){
     ifaces.forEach(function(i) { if (i.type && types.indexOf(i.type) === -1) types.push(i.type); });
     types.sort();
     ifaceTypeFilter.innerHTML = '<option value="">All Types</option>' +
-      types.map(function(t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join('');
+      types.map(function(t) { return '<option value="' + esc(t) + '" data-i18n-user-data>' + esc(t) + '</option>'; }).join('');
     if (_ifaceTypeFilter && types.indexOf(_ifaceTypeFilter) !== -1) ifaceTypeFilter.value = _ifaceTypeFilter;
     ifaceTypeFilter.classList.toggle('active', !!_ifaceTypeFilter);
   }
@@ -1687,7 +1688,7 @@ function ifTypePill(t) {
   if (!t) return '<span class="ifl-na">&mdash;</span>';
   var col = ifTypeColour(t);
   var bg  = col.replace(/,\s*[\d.]+\)$/, ',.14)');
-  return '<span class="ifl-type-pill" style="color:' + col + ';background:' + bg + '">' + esc(t) + '</span>';
+  return '<span class="ifl-type-pill" data-i18n-user-data style="color:' + col + ';background:' + bg + '">' + esc(t) + '</span>';
 }
 
 function renderIfTypes(ifaces) {
@@ -1707,7 +1708,7 @@ function renderIfTypes(ifaces) {
   panel.innerHTML = order.map(function(t) {
     var col = IF_TYPE_COLOURS[t] || IF_TYPE_FALLBACKS[fallbackIdx++ % IF_TYPE_FALLBACKS.length];
     return '<div class="if-type-item">'+
-      '<span class="if-type-label" title="'+esc(t)+'">'+esc(t)+'</span>'+
+      '<span class="if-type-label" data-i18n-user-data title="'+esc(t)+'">'+esc(t)+'</span>'+
       '<span class="if-type-count" style="color:'+col+'">'+counts[t]+'</span>'+
     '</div>';
   }).join('');
@@ -1728,7 +1729,7 @@ function renderIfPorts(ifaces) {
   var sz = n <= 8 ? 44 : n <= 16 ? 36 : n <= 24 ? 30 : 26;
   panel.innerHTML = ethers.map(function(i) {
     var state = i.disabled ? 'dis' : i.running ? 'up' : 'down';
-    return '<div class="if-port-item" data-state="'+state+'" title="'+esc(i.name)+(i.ips&&i.ips.length?' — '+esc(i.ips[0]):'')+(i.running?' (up)':i.disabled?' (disabled)':' (down)')+'">' +
+    return '<div class="if-port-item" data-i18n-user-data data-state="'+state+'" title="'+esc(i.name)+(i.ips&&i.ips.length?' — '+esc(i.ips[0]):'')+(i.running?' (up)':i.disabled?' (disabled)':' (down)')+'">' +
       portSvg(sz) +
       '<span class="if-port-label">'+esc(i.name)+'</span>'+
     '</div>';
@@ -1872,7 +1873,7 @@ function portSvg(sz) {
       if(multiGroup){
         var isCapsman=g.clients.some(function(c){return c.source==='capsman';});
         rows+='<tr class="wl-group-row"><td colspan="6">'+
-          '<span class="wl-group-label">'+esc(g.iface)+'</span>'+
+          '<span class="wl-group-label" data-i18n-user-data>'+esc(g.iface)+'</span>'+
           (isCapsman?'<span class="badge badge-outline-azure ms-1" style="font-size:.6rem">CAP</span>':'')+
           (g.ssid?'<span class="wl-group-sub" data-i18n-user-data>'+esc(g.ssid)+'</span>':'')+
           '<span class="wl-group-sub">'+g.clients.length+' client'+(g.clients.length!==1?'s':'')+'</span>'+
@@ -1882,8 +1883,8 @@ function portSvg(sz) {
         var sig=parseInt(c.signal,10)||0;
         var txMbps=parseTxRateNum(c.txRate);
         var idle=false;
-        var ipStr=c.ip?'<div style="font-size:.62rem;color:var(--accent-rx)">'+esc(c.ip)+'</div>':'';
-        var macStr='<div style="font-size:.6rem;color:var(--text-muted)">'+esc(c.mac)+'</div>';
+        var ipStr=c.ip?'<div style="font-size:.62rem;color:var(--accent-rx)" data-i18n-user-data>'+esc(c.ip)+'</div>':'';
+        var macStr='<div style="font-size:.6rem;color:var(--text-muted)" data-i18n-user-data>'+esc(c.mac)+'</div>';
         rows+='<tr'+(idle?' class="wl-idle"':'')+'>'+
           '<td>'+
             '<div style="font-weight:600;font-size:.78rem" data-i18n-user-data>'+esc(c.name||c.mac)+
@@ -1891,7 +1892,7 @@ function portSvg(sz) {
             '</div>'+
             ipStr+macStr+
           '</td>'+
-          '<td class="wl-col-iface" style="color:var(--text-muted);font-size:.73rem">'+esc(c.iface||'\u2014')+'</td>'+
+          '<td class="wl-col-iface" style="color:var(--text-muted);font-size:.73rem" data-i18n-user-data>'+esc(c.iface||'\u2014')+'</td>'+
           '<td>'+bandBadge(c.band)+'</td>'+
           '<td class="text-end">'+
             signalBars(sig)+
@@ -1902,7 +1903,7 @@ function portSvg(sz) {
             '<div class="wl-rate">'+esc(parseTxRate(c.txRate))+'</div>'+
             (c.rxRate?'<div class="wl-rate-rx">\u2191 '+esc(parseTxRate(c.rxRate))+'</div>':'')+
           '</td>'+
-          '<td class="wl-col-uptime" style="color:var(--text-muted);font-size:.73rem">'+esc(c.uptime||'\u2014')+'</td>'+
+          '<td class="wl-col-uptime" style="color:var(--text-muted);font-size:.73rem" data-i18n-user-data>'+esc(c.uptime||'\u2014')+'</td>'+
         '</tr>';
       });
     });
@@ -2087,11 +2088,11 @@ socket.on('vpn:update',function(data){
     vpnTable.innerHTML = '<tr><td colspan="3" class="empty-state">No active peers</td></tr>';
   } else {
     vpnTable.innerHTML = connected.slice(0, _vpnDashTopN).map(function(t) {
-      var endStr = t.endpoint ? '<div style="font-size:.65rem;color:var(--text-muted);margin-top:.1rem">' + esc(t.endpoint) + '</div>' : '';
+      var endStr = t.endpoint ? '<div style="font-size:.65rem;color:var(--text-muted);margin-top:.1rem" data-i18n-user-data>' + esc(t.endpoint) + '</div>' : '';
       return '<tr>' +
         '<td><span class="wg-up">Up</span></td>' +
-        '<td><div style="font-size:.78rem;font-weight:600">' + esc(t.name || t.interface || '\u2014') + '</div>' + endStr + '</td>' +
-        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(t.lastHandshake || '\u2014') + '</td>' +
+        '<td><div style="font-size:.78rem;font-weight:600" data-i18n-user-data>' + esc(t.name || t.interface || '\u2014') + '</div>' + endStr + '</td>' +
+        '<td style="font-size:.7rem;color:var(--text-muted)" data-i18n-user-data>' + esc(t.lastHandshake || '\u2014') + '</td>' +
         '</tr>';
     }).join('');
   }
@@ -2123,11 +2124,11 @@ socket.on('vpn:update',function(data){
   if (pppBody && ppp.length) {
     pppBody.innerHTML = ppp.map(function(s) {
       return '<tr>' +
-        '<td style="font-weight:600">' + esc(s.name || '—') + '</td>' +
-        '<td><span class="vpn-proto-pill">' + esc(s.service || '—') + '</span></td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(s.address || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted)">' + esc(s.callerId || '—') + '</td>' +
-        '<td style="font-size:.72rem">' + esc(s.uptime || '—') + '</td>' +
+        '<td style="font-weight:600" data-i18n-user-data>' + esc(s.name || '—') + '</td>' +
+        '<td data-i18n-user-data><span class="vpn-proto-pill">' + esc(s.service || '—') + '</span></td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem" data-i18n-user-data>' + esc(s.address || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted)" data-i18n-user-data>' + esc(s.callerId || '—') + '</td>' +
+        '<td style="font-size:.72rem" data-i18n-user-data>' + esc(s.uptime || '—') + '</td>' +
         '<td style="text-align:right;font-family:var(--font-mono);font-size:.72rem">' +
           '<span style="color:var(--accent-rx)">' + esc(fmtBytes(s.rx || 0)) + '</span> / ' +
           '<span style="color:var(--accent-tx)">' + esc(fmtBytes(s.tx || 0)) + '</span></td>' +
@@ -2141,12 +2142,12 @@ socket.on('vpn:update',function(data){
   if (ipBody && ipsec.length) {
     ipBody.innerHTML = ipsec.map(function(p) {
       return '<tr>' +
-        '<td style="font-family:var(--font-mono);font-size:.74rem;font-weight:600">' + esc(p.name || '—') + '</td>' +
-        '<td><span class="vpn-proto-pill">' + esc(p.state || '—') + '</span></td>' +
-        '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(p.side || '—') + '</td>' +
-        '<td style="font-size:.72rem">' + esc(p.uptime || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.enc || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(p.auth || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.74rem;font-weight:600" data-i18n-user-data>' + esc(p.name || '—') + '</td>' +
+        '<td data-i18n-user-data><span class="vpn-proto-pill">' + esc(p.state || '—') + '</span></td>' +
+        '<td style="font-size:.72rem;color:var(--text-muted)" data-i18n-user-data>' + esc(p.side || '—') + '</td>' +
+        '<td style="font-size:.72rem" data-i18n-user-data>' + esc(p.uptime || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem" data-i18n-user-data>' + esc(p.enc || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem" data-i18n-user-data>' + esc(p.auth || '—') + '</td>' +
         '</tr>';
     }).join('');
   }
@@ -2169,9 +2170,9 @@ socket.on('vpn:update',function(data){
         // A tile, not a row — the engine looks for the nearest ancestor with a
         // data-id, so the two work the same. Identity is the public key.
         return '<div class="' + tileCls + '"' + resRow(t.id, t.publicKey) + '>' +
-          '<div class="vpn-tile-name"><span class="iface-dot ' + dotCls + '"></span><span class="vpn-tile-name-text">' + esc(t.name || t.interface || '—') + '</span></div>' +
-          (t.interface ? '<div class="vpn-tile-iface">' + esc(t.interface) + (t.allowedIp ? ' · ' + esc(t.allowedIp) : '') + '</div>' : '') +
-          (t.endpoint ? '<div class="vpn-tile-ip">' + esc(t.endpoint) + '</div>' : '') +
+          '<div class="vpn-tile-name"><span class="iface-dot ' + dotCls + '"></span><span class="vpn-tile-name-text" data-i18n-user-data>' + esc(t.name || t.interface || '—') + '</span></div>' +
+          (t.interface ? '<div class="vpn-tile-iface" data-i18n-user-data>' + esc(t.interface) + (t.allowedIp ? ' · ' + esc(t.allowedIp) : '') + '</div>' : '') +
+          (t.endpoint ? '<div class="vpn-tile-ip" data-i18n-user-data>' + esc(t.endpoint) + '</div>' : '') +
           '<div class="vpn-tile-hs">' + vpnHsBadge(t.lastHandshake, isConn) + '</div>' +
           ((rxRateStr || txRateStr) ? '<div class="vpn-tile-traffic">' + rxRateStr + txRateStr + '</div>' : (isConn ? '<div class="vpn-tile-traffic">' + totStr + '</div>' : '')) +
         '</div>';
@@ -2199,8 +2200,8 @@ socket.on('netwatch:update', function(data) {
         : '<span style="color:var(--text-muted);font-size:.7rem">' + esc(h.status || '?') + '</span>';
     return '<tr>' +
       '<td>' + statusHtml + '</td>' +
-      '<td style="font-size:.78rem;font-weight:600">' + esc(h.name || '—') + '</td>' +
-      '<td style="font-size:.72rem;color:var(--text-muted)">' + esc(h.host || '—') + '</td>' +
+      '<td style="font-size:.78rem;font-weight:600" data-i18n-user-data>' + esc(h.name || '—') + '</td>' +
+      '<td style="font-size:.72rem;color:var(--text-muted)" data-i18n-user-data>' + esc(h.host || '—') + '</td>' +
       '</tr>';
   }).join('');
 });
@@ -2265,9 +2266,9 @@ function renderDhcp(leases){
     var st=(l.status||'').toLowerCase();
     var pillCls=st==='bound'?'bound':st==='waiting'||st==='offered'?'waiting':'expired';
     return'<tr'+resRow(l.id,l.mac)+'>'+
-      '<td style="font-weight:600">'+esc(l.name||l.hostName||'—')+'</td>'+
-      '<td style="color:var(--accent-rx)">'+esc(l.ip)+'</td>'+
-      '<td style="font-size:.7rem;color:var(--text-muted)">'+esc(l.mac||'—')+'</td>'+
+      '<td style="font-weight:600" data-i18n-user-data>'+esc(l.name||l.hostName||'—')+'</td>'+
+      '<td style="color:var(--accent-rx)" data-i18n-user-data>'+esc(l.ip)+'</td>'+
+      '<td style="font-size:.7rem;color:var(--text-muted)" data-i18n-user-data>'+esc(l.mac||'—')+'</td>'+
       '<td><span class="lease-pill '+pillCls+'">'+esc(l.status||'?')+'</span></td>'+
       '</tr>';
   }).join('');
@@ -2301,7 +2302,7 @@ function _renderDhcpServerOptions(servers){
     var bits = [s.name];
     if(s.iface && s.iface !== s.name) bits.push(s.iface);
     if(s.vlanId) bits.push('VLAN '+s.vlanId);
-    return '<option value="'+esc(s.name)+'">'+esc(bits.join(' · '))+' ('+s.count+')</option>';
+    return '<option value="'+esc(s.name)+'" data-i18n-user-data>'+esc(bits.join(' · '))+' ('+s.count+')</option>';
   }).join('');
   sel.innerHTML = html;
   // A server can disappear between updates (config change); fall back to All.
@@ -2614,10 +2615,10 @@ function renderFirewallTab(){
       '<td class="fw-dragcell">'+dragCell+'</td>'+
       '<td class="fw-movecell">'+moveCell+'</td>'+
       '<td class="fw-pos">'+at+'</td>'+
-      '<td style="font-size:.7rem;color:var(--text-muted)">'+esc(r.chain)+'</td>'+
-      '<td>'+actionBadge(r.action)+'</td>'+
-      '<td style="font-size:.7rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(sd||'\u2014')+'</td>'+
-      '<td style="font-size:.7rem;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.comment||'\u2014')+'</td>'+
+      '<td style="font-size:.7rem;color:var(--text-muted)" data-i18n-user-data>'+esc(r.chain)+'</td>'+
+      '<td data-i18n-user-data>'+actionBadge(r.action)+'</td>'+
+      '<td style="font-size:.7rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-i18n-user-data>'+esc(sd||'\u2014')+'</td>'+
+      '<td style="font-size:.7rem;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-i18n-user-data>'+esc(r.comment||'\u2014')+'</td>'+
       '<td class="fw-pkt text-end" style="font-family:var(--font-mono);white-space:nowrap">'+deltaIndicator+r.packets.toLocaleString()+'</td>'+
       '<td class="fw-byte text-end" style="font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted);white-space:nowrap">'+(r.bytes>0?fmtBytes(r.bytes):'\u2014')+'</td>'+
     '</tr>';
@@ -3661,12 +3662,12 @@ function renderNotifPanel(){
     var cls = 'notif-item' + (_alertIsOpen(a) ? ' is-open' : ' is-resolved');
     var when = _alertIsOpen(a) ? a.firedAt : (a.resolvedAt || a.firedAt);
     return '<div class="' + cls + '" data-alert-id="' + a.id + '">' +
-      '<div class="notif-item-title">' + esc(a.label || a.alertType) +
-        (a.subject ? ' — ' + esc(a.subject) : '') + '</div>' +
-      '<div class="notif-item-body">' + esc(a.detail || '') + '</div>' +
+      '<div class="notif-item-title"><span>' + esc(a.label || a.alertType) + '</span>' +
+        (a.subject ? ' — ' + dataText(a.subject) : '') + '</div>' +
+      '<div class="notif-item-body" data-i18n-user-data>' + esc(a.detail || '') + '</div>' +
       '<div class="notif-item-time">' +
-        (a.routerName ? '<span class="notif-item-router">' + esc(a.routerName) + '</span> · ' : '') +
-        _alertAgeStr(when) + '</div>' +
+        (a.routerName ? '<span class="notif-item-router" data-i18n-user-data>' + esc(a.routerName) + '</span> · ' : '') +
+        '<span class="notif-item-age">' + _alertAgeStr(when) + '</span></div>' +
       (_alertIsOpen(a)
         ? '<button class="notif-ack-btn" data-ack="' + a.id + '">Acknowledge</button>' : '') +
     '</div>';
@@ -5444,8 +5445,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function _renderSiteRow(s, routerCount) {
     var td = 'padding:.4rem .5rem;border-bottom:1px solid var(--border)';
     return '<tr>' +
-      '<td style="' + td + ';font-weight:600">' + esc(s.name) + '</td>' +
-      '<td style="' + td + ';color:var(--text-muted)">' + (s.description ? esc(s.description) : '—') + '</td>' +
+      '<td style="' + td + ';font-weight:600" data-i18n-user-data>' + esc(s.name) + '</td>' +
+      '<td style="' + td + ';color:var(--text-muted)" data-i18n-user-data>' + (s.description ? esc(s.description) : '—') + '</td>' +
       '<td style="' + td + ';font-family:var(--font-mono);font-size:.72rem">' + routerCount + '</td>' +
       '<td style="' + td + ';text-align:right;white-space:nowrap">' +
         '<button class="sbtn sbtn-ghost" style="padding:.2rem .55rem;font-size:.7rem" data-site-action="edit" data-site-id="' + esc(s.id) + '">Edit</button> ' +
@@ -5500,11 +5501,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
             .filter(function (id) { return (!site || id !== site.id) && window._sitesById[id]; })
             .map(function (id) { return window._sitesById[id].name; });
           var other = elsewhere.length
-            ? ' <span style="color:var(--text-muted)">— also in ' + esc(elsewhere.join(', ')) + '</span>'
+            ? ' <span style="color:var(--text-muted)">— also in ' + dataText(elsewhere.join(', ')) + '</span>'
             : '';
           return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
             '<input type="checkbox" data-site-router="' + esc(r.id) + '"' + (here ? ' checked' : '') + '>' +
-            '<span>' + esc(r.label || r.host) + other + '</span></label>';
+            '<span>' + dataText(r.label || r.host) + other + '</span></label>';
         }).join('')
       : '<span style="color:var(--text-muted)">No devices configured yet.</span>';
 
@@ -5561,9 +5562,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   function deleteSite(id, name, routerCount) {
     var warn = routerCount
-      ? '\n\n' + routerCount + ' device(s) will lose this site. They keep any other sites, and are not deleted.'
+      ? '\n\n' + routerCount + ' ' + tr('device(s) will lose this site. They keep any other sites, and are not deleted.')
       : '';
-    if (!confirm('Delete site "' + name + '"?' + warn)) return;
+    if (!confirm(tr('Delete site') + ' "' + name + '"?' + warn)) return;
     fetch('/api/sites/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function () { loadSites(); })
@@ -5742,7 +5743,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         : '<button class="sbtn sbtn-outline" data-role-edit="' + esc(r.id) + '" style="padding:.15rem .5rem;font-size:.7rem">Edit</button>' +
           ' <button class="sbtn sbtn-outline" data-role-del="' + esc(r.id) + '" style="padding:.15rem .5rem;font-size:.7rem;color:#f87171;border-color:rgba(248,113,113,.35)">Delete</button>';
       return '<tr style="border-bottom:1px solid var(--border)">' +
-        '<td style="padding:.4rem .5rem">' + esc(r.name) +
+        '<td style="padding:.4rem .5rem" data-i18n-user-data>' + esc(r.name) +
           (r.description ? '<div style="color:var(--text-muted);font-size:.7rem">' + esc(r.description) + '</div>' : '') + '</td>' +
         '<td style="padding:.4rem .5rem">' + _pageSummary(r) + '</td>' +
         '<td style="padding:.4rem .5rem">' + (r.grants ? r.grants + ' grant' + (r.grants === 1 ? '' : 's') : '<span style="color:var(--text-muted)">—</span>') + '</td>' +
@@ -5834,16 +5835,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   function deleteRole(id) {
     var role = window._allRoles.find(function (r) { return r.id === id; });
-    if (!confirm('Delete the role "' + (role ? role.name : id) + '"?')) return;
+    if (!confirm(tr('Delete the role') + ' "' + (role ? role.name : id) + '"?')) return;
     fetch('/api/roles/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         // A role still assigned is refused with a count, which is more useful
         // than a constraint error — surface it rather than failing silently.
-        if (!d || !d.ok) return alert((d && d.error) || 'Could not delete the role');
+        if (!d || !d.ok) return alert((d && d.error) || tr('Could not delete the role'));
         loadRoles();
       })
-      .catch(function () { alert('Could not delete the role'); });
+      .catch(function () { alert(tr('Could not delete the role')); });
   }
 
   document.addEventListener('click', function (e) {
@@ -5920,14 +5921,18 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     return r ? r.name : 'unknown role';
   }
 
-  function _scopeLabel(g) {
-    if (g.scope_type === 'global') return 'all routers';
+  function _scopeHtml(g) {
+    if (g.scope_type === 'global') return '<span>all routers</span>';
     if (g.scope_type === 'site') {
       var s = window._sitesById && window._sitesById[g.scope_id];
-      return 'site: ' + (s ? s.name : 'unknown');
+      return '<span>site:</span> ' + dataText(s ? s.name : 'unknown');
     }
     var r = (window._allRouters || []).find(function (x) { return x.id === g.scope_id; });
-    return 'router: ' + (r ? (r.label || r.host) : 'unknown');
+    return '<span>router:</span> ' + dataText(r ? (r.label || r.host) : 'unknown');
+  }
+
+  function _grantHtml(g) {
+    return dataText(_roleName(g)) + ' — ' + _scopeHtml(g);
   }
 
   function loadGroups() {
@@ -5955,10 +5960,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var td = 'padding:.4rem .5rem;border-bottom:1px solid var(--border)';
     tb.innerHTML = _groupsCache.map(function (g) {
       var access = (g.grants || []).length
-        ? g.grants.map(function (x) { return esc(_roleName(x) + ' — ' + _scopeLabel(x)); }).join('<br>')
+        ? g.grants.map(_grantHtml).join('<br>')
         : '<span style="color:var(--text-muted)">no access granted</span>';
       return '<tr>' +
-        '<td style="' + td + ';font-weight:600">' + esc(g.name) +
+        '<td style="' + td + ';font-weight:600" data-i18n-user-data>' + esc(g.name) +
           (g.description ? '<div style="font-weight:400;font-size:.7rem;color:var(--text-muted)">' + esc(g.description) + '</div>' : '') + '</td>' +
         '<td style="' + td + ';font-family:var(--font-mono);font-size:.72rem">' + (g.memberUserIds || []).length + '</td>' +
         '<td style="' + td + ';font-size:.72rem">' + access + '</td>' +
@@ -5997,7 +6002,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
     var rows = (grants || []).map(function (g) {
       return '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">' +
-        '<span style="flex:1">' + esc(_roleName(g)) + ' — ' + esc(_scopeLabel(g)) + '</span>' +
+        '<span style="flex:1">' + _grantHtml(g) + '</span>' +
         '<button class="sbtn sbtn-ghost" style="padding:.1rem .45rem;font-size:.65rem" data-grant-del="' + esc(g.id) + '">Remove</button>' +
         '</div>';
     }).join('');
@@ -6015,7 +6020,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         // three hardcoded options that could not name a custom role at all.
         '<select class="sform-input" data-grant-role style="flex:0 0 9rem">' +
           (window._allRoles || []).map(function (r) {
-            return '<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>';
+            return '<option value="' + esc(r.id) + '" data-i18n-user-data>' + esc(r.name) + '</option>';
           }).join('') +
         '</select>' +
         '<select class="sform-input" data-grant-scope style="flex:1">' +
@@ -6119,10 +6124,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var group = _groupsCache.find(function (g) { return g.id === id; });
     if (!group) return;
     if (btn.getAttribute('data-group-action') === 'edit') return showGroupForm(group);
-    if (!confirm('Delete group "' + group.name + '"?\n\nIts members keep any access granted to them directly.')) return;
+    if (!confirm(tr('Delete group') + ' "' + group.name + '"?\n\n' +
+        tr('Its members keep any access granted to them directly.'))) return;
     fetch('/api/groups/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
-      .then(function (j) { if (!j.ok) alert(j.error || 'Could not delete the group'); loadGroups(); })
+      .then(function (j) { if (!j.ok) alert(j.error || tr('Could not delete the group')); loadGroups(); })
       .catch(function () {});
   });
 
@@ -6202,7 +6208,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       return '<span style="padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(148,163,190,.1);color:var(--text-muted);border:1px solid rgba(148,163,190,.15)">No access</span>';
     }
     return u.grants.map(function (g) {
-      return '<div style="font-size:.72rem">' + esc(_roleName(g)) + ' <span style="color:var(--text-muted)">— ' + esc(_scopeLabel(g)) + '</span></div>';
+      return '<div style="font-size:.72rem">' + dataText(_roleName(g)) + ' <span style="color:var(--text-muted)">— ' + _scopeHtml(g) + '</span></div>';
     }).join('');
   }
 
@@ -6296,7 +6302,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   function deleteUser(id, username) {
-    if (!confirm('Delete user "' + username + '"? This cannot be undone.')) return;
+    if (!confirm(tr('Delete user') + ' "' + username + '"? ' + tr('This cannot be undone.'))) return;
     fetch('/api/users/' + id, { method: 'DELETE' })
       .then(function(r) { return r.json(); })
       .then(function(d) { if (d.ok) loadUsers(); else showBanner('err', d.error || 'Delete failed'); })
@@ -6588,7 +6594,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   });
 
   if (resetBtn) resetBtn.addEventListener('click', function() {
-    if (!confirm('Reset all settings to defaults? This cannot be undone.')) return;
+    if (!confirm(tr('Reset all settings to defaults?') + ' ' + tr('This cannot be undone.'))) return;
     fetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -6772,9 +6778,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       // checkbox is one stray click, and the consequence is that every visitor
       // becomes an implicit admin. Ask, and put it back if they decline.
       if (!this.checked && !confirm(
-            'Turn authentication off?\n\n' +
-            'Anyone who can reach this page will have full control, with no ' +
-            'login and no per-user permissions. Only do this on a trusted network.')) {
+            tr('Turn authentication off?') + '\n\n' +
+            tr('Anyone who can reach this page will have full control, with no login and no per-user permissions. Only do this on a trusted network.'))) {
         this.checked = true;
         return;
       }
@@ -6932,7 +6937,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   delBtn.addEventListener('click', function() {
     var opts = currentOpts();
     if (!opts.types.length) return;
-    if (!confirm('Delete this data permanently? This cannot be undone.')) return;
+    if (!confirm(tr('Delete this data permanently?') + ' ' + tr('This cannot be undone.'))) return;
     var n = _pendingCount;
     _pendingCount = 0;   // the preview is spent either way
     setBusy(true, 'delete', 'Deleting ' + n.toLocaleString() + ' rows and compacting the database…');
@@ -7217,12 +7222,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     tbody.innerHTML = rows.map(function(r) {
       var flag = r.country ? ('<span class="bw-flag">'+iso2FlagBw(r.country)+'</span>') : '';
       var dstLabel = r.dstIp ?
-        '<span class="bw-ip">'+esc(r.dstIp)+'</span>' +
-        (r.country ? '<br><span style="font-size:.65rem;color:var(--text-muted)">'+flag+esc(r.country)+(r.city&&r.city.length>1&&r.city!==r.country?', '+esc(r.city):'')+'</span>' : '') : '—';
+        '<span class="bw-ip" data-i18n-user-data>'+esc(r.dstIp)+'</span>' +
+        (r.country ? '<br><span style="font-size:.65rem;color:var(--text-muted)" data-i18n-user-data>'+flag+esc(r.country)+(r.city&&r.city.length>1&&r.city!==r.country?', '+esc(r.city):'')+'</span>' : '') : '—';
       var devLabel =
-        (r.name ? '<div class="bw-name">'+esc(r.name)+'</div>' : '') +
-        '<div class="bw-ip">'+esc(r.srcIp)+'</div>' +
-        (r.mac ? '<div class="bw-mac">'+esc(r.mac)+'</div>' : '');
+        (r.name ? '<div class="bw-name" data-i18n-user-data>'+esc(r.name)+'</div>' : '') +
+        '<div class="bw-ip" data-i18n-user-data>'+esc(r.srcIp)+'</div>' +
+        (r.mac ? '<div class="bw-mac" data-i18n-user-data>'+esc(r.mac)+'</div>' : '');
       var orgLabel = r.org ? svcBadge(r.org, r.cat) : '—';
       return '<tr>' +
         '<td>'+devLabel+'</td>' +
@@ -7230,10 +7235,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         '<td class="bw-rate bw-rate-rx">'+fmtMbps(r.rxMbps)+bar(r.rxMbps,_maxBar,'bw-bar-rx')+'</td>' +
         '<td class="bw-rate bw-rate-tx">'+fmtMbps(r.txMbps)+bar(r.txMbps,_maxBar,'bw-bar-tx')+'</td>' +
         '<td class="bw-rate bw-rate-total">'+fmtMbps(r.totalMbps)+'</td>' +
-        '<td><span class="bw-ip">'+esc(r.iface||'—')+'</span></td>' +
+        '<td><span class="bw-ip" data-i18n-user-data>'+esc(r.iface||'—')+'</span></td>' +
         '<td>'+(r.proto?(function(p){
           var cls=p==='tcp'?'bw-proto-tcp':p==='udp'?'bw-proto-udp':p.indexOf('icmp')!==-1?'bw-proto-icmp':'bw-proto-other';
-          return '<span class="bw-proto '+cls+'">'+esc(p)+'</span>';
+          return '<span class="bw-proto '+cls+'" data-i18n-user-data>'+esc(p)+'</span>';
         })(r.proto):'—')+'</td>' +
         '<td>'+orgLabel+'</td>' +
         '</tr>';
@@ -7529,15 +7534,15 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var ptype = p.peerType || 'upstream';
       var typeBadge = '<span style="font-size:.6rem;font-family:var(--font-ui);padding:.1rem .35rem;border-radius:3px;' +
         'background:' + (typeColors[ptype]||'rgba(99,130,190,.1)') + ';color:' + (typeText[ptype]||'var(--text-muted)') + '">' +
-        (typeLabel[ptype]||esc(ptype)) + '</span>';
-      var nameCell = '<div class="rt-peer-name">' + esc(p.name) + ' ' + typeBadge + '</div>' +
-        (p.description ? '<div class="rt-peer-desc">' + esc(p.description) + '</div>' : '');
+        (typeLabel[ptype]||dataText(ptype)) + '</span>';
+      var nameCell = '<div class="rt-peer-name">' + dataText(p.name) + ' ' + typeBadge + '</div>' +
+        (p.description ? '<div class="rt-peer-desc" data-i18n-user-data>' + esc(p.description) + '</div>' : '');
       var errCell = p.lastError
-        ? '<span title="' + esc(p.lastError) + '" style="font-size:.65rem;color:rgba(251,113,133,.85);cursor:help;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚠ ' + esc(p.lastError) + '</span>'
+        ? '<span data-i18n-user-data title="' + esc(p.lastError) + '" style="font-size:.65rem;color:rgba(251,113,133,.85);cursor:help;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⚠ ' + esc(p.lastError) + '</span>'
         : '<span style="color:var(--text-muted);font-size:.65rem">—</span>';
       return '<tr>' +
         '<td>' + nameCell + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.7rem">' + esc(p.remoteAddr) + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.7rem" data-i18n-user-data>' + esc(p.remoteAddr) + '</td>' +
         '<td style="font-family:var(--font-mono)">' + (p.remoteAs || '—') + '</td>' +
         '<td>' + stateBadge(p.state, p.flapping) + '</td>' +
         '<td style="font-family:var(--font-mono)">' + fmtUptime(p.uptimeSec) + '</td>' +
@@ -7640,19 +7645,19 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var typeCell = r.type === 'static'
         ? '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(56,189,248,.1);color:rgba(56,189,248,.8)">Static</span>'
         : '<span style="font-size:.65rem;padding:.1rem .35rem;border-radius:3px;background:rgba(251,191,36,.1);color:rgba(251,191,36,.8)">' +
-          (r.protocol !== r.type ? esc(r.protocol.toUpperCase()) : 'Dynamic') + '</span>';
+          (r.protocol !== r.type ? dataText(r.protocol.toUpperCase()) : 'Dynamic') + '</span>';
       var familyBadge = r.family === 'ipv6'
         ? '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:3px;background:rgba(167,139,250,.12);color:rgba(167,139,250,.8);margin-right:.3rem">IPv6</span>'
         : '';
       // The family picks the RouterOS menu, so a v6 row overrides the table's
       // default resource on itself.
       return '<tr' + resRow(r.id, r.dst, r.family === 'ipv6' ? 'route6' : null) + '>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + familyBadge + esc(r.dst || '—') + '</td>' +
-        '<td style="font-family:var(--font-mono);font-size:.72rem">' + esc(r.gateway || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem">' + familyBadge + dataText(r.dst || '—') + '</td>' +
+        '<td style="font-family:var(--font-mono);font-size:.72rem" data-i18n-user-data>' + esc(r.gateway || '—') + '</td>' +
         '<td style="font-family:var(--font-mono);text-align:right">' + r.distance + '</td>' +
         '<td>' + activeCell + '</td>' +
         '<td>' + typeCell + '</td>' +
-        '<td style="font-size:.7rem;color:var(--text-muted)">' + esc(r.comment || '—') + '</td>' +
+        '<td style="font-size:.7rem;color:var(--text-muted)" data-i18n-user-data>' + esc(r.comment || '—') + '</td>' +
         '</tr>';
     }).join('');
   }
@@ -7865,8 +7870,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       html += '<div class="rtr-dd-item' + (act ? ' active' : '') + (i === _ddHl ? ' hl' : '') + '"'
            +  ' role="option" aria-selected="' + (act ? 'true' : 'false') + '" data-rtr="' + esc(r.id) + '">'
            +  '<span class="rtr-dd-dot ' + dot + '"></span>'
-           +  '<span class="rtr-dd-meta"><span class="rtr-dd-name">' + esc(_rtrLabel(r)) + '</span>'
-           +  (r.host ? '<span class="rtr-dd-host">' + esc(r.host) + '</span>' : '') + '</span>'
+           +  '<span class="rtr-dd-meta"><span class="rtr-dd-name" data-i18n-user-data>' + esc(_rtrLabel(r)) + '</span>'
+           +  (r.host ? '<span class="rtr-dd-host" data-i18n-user-data>' + esc(r.host) + '</span>' : '') + '</span>'
            +  (act ? '<span class="rtr-dd-check">&#10003;</span>' : '')
            +  '</div>';
     });
@@ -7876,6 +7881,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if (!ddLabel) return;
     var r = _routers.find(function(x) { return x.id === _activeRouterId; });
     ddLabel.textContent = r ? _rtrLabel(r) : '—';
+  }
+  function updateSwitchingLabel(label) {
+    if (!switchLbl) return;
+    switchLbl.innerHTML = '<span>Switching to</span> ' + dataText(label || 'router') + '…';
   }
   function openDropdown() {
     if (_ddOpen || !ddWrap) return;
@@ -7922,6 +7931,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
       function _addOpt(parent, r) {
         var opt = document.createElement('option');
+        opt.setAttribute('data-i18n-user-data', '');
         opt.value = r.id;
         opt.text  = _rtrLabel(r);
         parent.appendChild(opt);
@@ -7941,6 +7951,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
           .sort(function(a, b) { return sitesById[a].name.localeCompare(sitesById[b].name); })
           .forEach(function(sid) {
             var g = document.createElement('optgroup');
+            g.setAttribute('data-i18n-user-data', '');
             g.label = sitesById[sid].name;   // .label is text, not markup
             bySite[sid].forEach(function(r) { _addOpt(g, r); });
             navSel.appendChild(g);
@@ -8121,16 +8132,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       .filter(Boolean));
     var siteChip = _siteNames.length
       ? '<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">' + _siteNames.map(function (n) {
-          return '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(99,130,190,.12);color:var(--text-muted);border:1px solid var(--border)">'+esc(n)+'</span>';
+          return '<span data-i18n-user-data style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(99,130,190,.12);color:var(--text-muted);border:1px solid var(--border)">'+esc(n)+'</span>';
         }).join('') + '</div>'
       : '';
-    var modelCell   = r.model     ? esc(r.model) : unknown;
-    var serialCell  = r.serial    ? '<span class="rtr-host">'+esc(r.serial)+'</span>'    : unknown;
-    var versionCell = r.osVersion ? '<span class="rtr-ver-pill">'+esc(r.osVersion)+'</span>' : unknown;
+    var modelCell   = r.model     ? dataText(r.model) : unknown;
+    var serialCell  = r.serial    ? '<span class="rtr-host" data-i18n-user-data>'+esc(r.serial)+'</span>'    : unknown;
+    var versionCell = r.osVersion ? '<span class="rtr-ver-pill" data-i18n-user-data>'+esc(r.osVersion)+'</span>' : unknown;
     return '<tr'+(r.disabled?' style="opacity:.55"':'')+'>'+
-      '<td><div style="font-weight:600;font-size:.76rem">'+esc(r.label)+'</div>' + activeBadge + siteChip + '</td>' +
+      '<td><div style="font-weight:600;font-size:.76rem" data-i18n-user-data>'+esc(r.label)+'</div>' + activeBadge + siteChip + '</td>' +
       '<td>'+statusCell+'</td>' +
-      '<td><span class="rtr-host">'+esc(r.host)+'</span></td>' +
+      '<td><span class="rtr-host" data-i18n-user-data>'+esc(r.host)+'</span></td>' +
       '<td>'+modelCell+'</td>' +
       '<td>'+serialCell+'</td>' +
       '<td>'+versionCell+'</td>' +
@@ -8185,7 +8196,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   socket.on('router:switching', function(data) {
     _switchFalseCount = 0;
     if (switchOvl) switchOvl.classList.add('open');
-    if (switchLbl) switchLbl.textContent = 'Switching to ' + esc(data.label || 'router') + '…';
+    updateSwitchingLabel(data.label || 'router');
     // Reset traffic chart state immediately so stale data from the old router
     // doesn't linger. The new traffic:history event will re-initialise the chart
     // once the new router connects and sendInitialState() runs.
@@ -8614,7 +8625,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var router = _routers.find(function(r){ return r.id === id; });
     if (!router) return;
     if (switchOvl) switchOvl.classList.add('open');
-    if (switchLbl) switchLbl.textContent = 'Switching to ' + esc(router.label || id) + '…';
+    updateSwitchingLabel(router.label || id);
     if (window._authMode === 'modern') {
       // Per-user socket-based switch — no global router change
       socket.emit('router:switch', id);
@@ -8624,7 +8635,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         .then(function(r){ return r.json(); })
         .catch(function(e){
           if (switchOvl) switchOvl.classList.remove('open');
-          alert('Switch failed: ' + e);
+          alert(tr('Switch failed:') + ' ' + e);
         });
     }
   }
@@ -8654,16 +8665,18 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
           method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
           body:JSON.stringify({disabled:!rr.disabled})
         }).then(function(res){ return res.json(); })
-          .then(function(j){ if (!j.ok) alert(j.error||'Toggle failed'); })
-          .catch(function(){ alert('Network error'); });
+          .then(function(j){ if (!j.ok) alert(j.error||tr('Toggle failed')); })
+          .catch(function(){ alert(tr('Network error')); });
       }
       if (action === 'delete') {
         var label = btn.dataset.rtrLabel || id;
-        if (!confirm('Delete router "' + label + '"?\n\nAll accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.\n\nThis cannot be undone.')) return;
+        if (!confirm(tr('Delete router') + ' "' + label + '"?\n\n' +
+          tr('All accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.') +
+          '\n\n' + tr('This cannot be undone.'))) return;
         fetch('/api/routers/' + encodeURIComponent(id), { method: 'DELETE' })
           .then(function(r){ return r.json(); })
-          .then(function(r){ if (!r.ok) alert('Delete failed: ' + (r.error||'Unknown error')); })
-          .catch(function(e){ alert('Request failed: '+e); });
+          .then(function(r){ if (!r.ok) alert(tr('Delete failed:') + ' ' + (r.error||tr('Unknown error'))); })
+          .catch(function(e){ alert(tr('Request failed:') + ' '+e); });
       }
     });
   }
@@ -9559,15 +9572,15 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var rows = [];
     if (a.global && a.global.length) {
       rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Everything</strong>' +
-                '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(a.global.join(', ')) + '</div></div>');
+                '<div style="font-size:.75rem;color:var(--text-muted)" data-i18n-user-data>' + esc(a.global.join(', ')) + '</div></div>');
     }
     (a.sites || []).forEach(function (s) {
-      rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Site: ' + esc(s.siteName) + '</strong>' +
-                '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(s.roles.join(', ')) + '</div></div>');
+      rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Site: ' + dataText(s.siteName) + '</strong>' +
+                '<div style="font-size:.75rem;color:var(--text-muted)" data-i18n-user-data>' + esc(s.roles.join(', ')) + '</div></div>');
     });
     (a.routers || []).forEach(function (r) {
-      rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Router: ' + esc(r.routerLabel) + '</strong>' +
-                '<div style="font-size:.75rem;color:var(--text-muted)">' + esc(r.roles.join(', ')) + '</div></div>');
+      rows.push('<div style="margin-bottom:.5rem"><strong style="font-size:.78rem">Router: ' + dataText(r.routerLabel) + '</strong>' +
+                '<div style="font-size:.75rem;color:var(--text-muted)" data-i18n-user-data>' + esc(r.roles.join(', ')) + '</div></div>');
     });
     body.innerHTML = rows.length ? rows.join('')
       : '<span style="color:var(--text-muted);font-size:.78rem">No access granted yet — ask an administrator.</span>';
@@ -9584,8 +9597,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var when = new Date(s.createdAt).toLocaleString();
       var exp  = s.expiresAt ? new Date(s.expiresAt).toLocaleString() : 'never';
       return '<div style="display:flex;justify-content:space-between;gap:.7rem;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.75rem">' +
-             '<span>Signed in ' + esc(when) + (s.current ? ' <strong>(this device)</strong>' : '') + '</span>' +
-             '<span style="color:var(--text-muted)">expires ' + esc(exp) + '</span></div>';
+             '<span>Signed in ' + dataText(when) + (s.current ? ' <strong>(this device)</strong>' : '') + '</span>' +
+             '<span style="color:var(--text-muted)">expires ' + dataText(exp) + '</span></div>';
     }).join('');
   }
 
@@ -9890,6 +9903,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     return new Date(r.ran_at).toLocaleString() + ' · ' + r.outcome;
   }
 
+  function scheduleFrequency(value) {
+    return { hourly: 'Hourly', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' }[value] || value;
+  }
+
   function renderSchedules() {
     var body = $('rptSchedTbody');
     var actions = $('rptSchedActions');
@@ -9923,11 +9940,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       }
       acts.push('<button class="sbtn sbtn-ghost" data-rs-runs="' + esc(r.id) + '">History</button>');
       var why = r.disabledReason
-        ? '<div class="bw-mac">' + esc(r.disabledReason) + '</div>' : '';
+        ? '<div class="bw-mac" data-i18n-user-data>' + esc(r.disabledReason) + '</div>' : '';
       return '<tr>' +
-        '<td>' + esc(r.name) + (r.enabled ? '' : ' <span class="bw-proto bw-proto-other">off</span>') + why + '</td>' +
-        '<td>' + esc(r.frequency) + ' at ' + String(r.sendHour).padStart(2,'0') + ':00</td>' +
-        '<td>' + esc(r.sections.join(', ')) + (r.iface ? '<div class="bw-mac">' + esc(r.iface) + '</div>' : '') + '</td>' +
+        '<td>' + dataText(r.name) + (r.enabled ? '' : ' <span class="bw-proto bw-proto-other">off</span>') + why + '</td>' +
+        '<td><span>' + esc(scheduleFrequency(r.frequency)) + '</span> <span>at</span> ' +
+          dataText(String(r.sendHour).padStart(2,'0') + ':00') + '</td>' +
+        '<td>' + esc(r.sections.join(', ')) + (r.iface ? '<div class="bw-mac" data-i18n-user-data>' + esc(r.iface) + '</div>' : '') + '</td>' +
         '<td>' + esc(String(r.recipients.length)) + '</td>' +
         '<td class="bw-mac">' + esc(r.lastRun ? fmtRun(r.lastRun) : '—') + '</td>' +
         '<td class="text-end">' + acts.join(' ') + '</td>' +
@@ -10029,7 +10047,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var del = e.target.closest('[data-rs-del]');
     if (del) {
       var row = _sched.rows.filter(function(r){ return r.id === del.getAttribute('data-rs-del'); })[0];
-      if (!row || !window.confirm('Remove the scheduled report "' + row.name + '"?')) return;
+      if (!row || !window.confirm(tr('Remove the scheduled report') + ' "' + row.name + '"?')) return;
       schedApi('/' + encodeURIComponent(row.id), { method: 'DELETE' })
         .then(function(){ loadSchedules(); });
       return;
@@ -10047,9 +10065,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
             // unhandled rejection and an untouched history box. The empty state
             // below is the right answer to that.
             ((d.runs || []).length ? d.runs.map(function(r) {
-              return '<tr><td class="bw-mac">' + esc(new Date(r.ran_at).toLocaleString()) + '</td>' +
-                '<td>' + esc(r.outcome) + '</td>' +
-                // ?? 0 rather than a bare String(): String(undefined) renders
+              // ?? 0 rather than a bare String(): String(undefined) renders
                 // the word "undefined" into a column an operator reads to see
                 // how many people got the report. Every other column in this
                 // row already defends itself; this was the one bare String().
@@ -10059,9 +10075,11 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
                 // column left and put a plausible recipient count under "Result".
                 // That is worse than the "undefined" it replaced: the word was
                 // obviously wrong, a number in the wrong column is not.
+              return '<tr><td class="bw-mac" data-i18n-user-data>' + esc(new Date(r.ran_at).toLocaleString()) + '</td>' +
+                '<td>' + esc(r.outcome) + '</td>' +
                 '<td>' + esc(String(r.recipients_n ?? 0)) + '</td>' +
                 '<td>' + esc(r.bytes ? fmtBytes(r.bytes) : '—') + '</td>' +
-                '<td class="bw-mac">' + esc(r.error || '') + '</td></tr>';
+                '<td class="bw-mac" data-i18n-user-data>' + esc(r.error || '') + '</td></tr>';
             }).join('') : '<tr><td colspan="5" class="rpt-empty">No runs yet.</td></tr>') +
             '</tbody></table></div>';
         });
@@ -10078,7 +10096,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if (!rptRouter) return;
     var cur = rptRouter.value;
     rptRouter.innerHTML = _rptRouters.map(function(r) {
-      return '<option value="'+esc(r.id)+'">'+esc(r.label||r.host)+'</option>';
+      return '<option value="'+esc(r.id)+'" data-i18n-user-data>'+esc(r.label||r.host)+'</option>';
     }).join('');
     if (cur && _rptRouters.find(function(r){ return r.id===cur; })) rptRouter.value = cur;
   });
@@ -10137,7 +10155,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   function statCard(val, lbl) {
-    return '<div class="rpt-stat-card"><div class="rpt-stat-val">'+esc(String(val))+'</div><div class="rpt-stat-lbl">'+esc(lbl)+'</div></div>';
+    return '<div class="rpt-stat-card"><div class="rpt-stat-val" data-i18n-user-data>'+esc(String(val))+'</div><div class="rpt-stat-lbl">'+esc(lbl)+'</div></div>';
   }
 
   function dateToTs(dateStr, endOfDay) {
@@ -10330,7 +10348,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       ? slice.map(function(r) {
           return '<tr>'+
             '<td style="color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
-            '<td style="font-family:var(--font-mono)">'+esc(r.interface||'')+'</td>'+
+            '<td style="font-family:var(--font-mono)" data-i18n-user-data>'+esc(r.interface||'')+'</td>'+
             '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-rx)">'+esc(fmtDataMB(+r.rx_mb))+'</td>'+
             '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-tx)">'+esc(fmtDataMB(+r.tx_mb))+'</td></tr>';
         }).join('')
@@ -10412,7 +10430,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       ? slice.map(function(r) {
           var lossClass = r.loss_pct>=5?' style="color:var(--accent-err)"' : r.loss_pct>0?' style="color:var(--accent-warn)"':'';
           return '<tr><td style="color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
-            '<td style="font-family:var(--font-mono)">'+esc(r.target||'')+'</td>'+
+            '<td style="font-family:var(--font-mono)" data-i18n-user-data>'+esc(r.target||'')+'</td>'+
             '<td style="text-align:right;font-family:var(--font-mono)">'+(r.rtt_ms!=null?esc((+r.rtt_ms).toFixed(1)):'—')+'</td>'+
             '<td style="text-align:right;font-family:var(--font-mono)"'+lossClass+'>'+esc((+r.loss_pct).toFixed(1))+'%</td></tr>';
         }).join('')
@@ -10495,7 +10513,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     if (rptTrafficTbody) rptTrafficTbody.innerHTML = sorted.length
       ? sorted.map(function(r) {
           return '<tr><td style="color:var(--text-muted)">'+esc(fmtTs(r.ts))+'</td>'+
-            '<td style="font-family:var(--font-mono)">'+esc(r.interface||'')+'</td>'+
+            '<td style="font-family:var(--font-mono)" data-i18n-user-data>'+esc(r.interface||'')+'</td>'+
             '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-rx)">'+esc((+r.rx_mbps).toFixed(3))+'</td>'+
             '<td style="text-align:right;font-family:var(--font-mono);color:var(--accent-tx)">'+esc((+r.tx_mbps).toFixed(3))+'</td></tr>';
         }).join('')
@@ -10536,24 +10554,24 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var sorted = _sortRows(_alertRawRows, _alertSort.col, _alertSort.dir);
     if (rptAlertTbody) rptAlertTbody.innerHTML = sorted.length
       ? sorted.map(function(r) {
-          var res = r.resolved_at ? esc(fmtTs(r.resolved_at)) : '<span style="color:var(--accent-warn)">Open</span>';
+          var res = r.resolved_at ? dataText(fmtTs(r.resolved_at)) : '<span style="color:var(--accent-warn)">Open</span>';
           var dt  = r.resolved_at ? fmtDuration(r.resolved_at - r.fired_at) : '—';
           // Acknowledging is how an operator says "seen, being handled" about an
           // alert that is still open — which is most of what the bell's "Clear
           // all" used to mean, except it now survives a refresh and records who.
           var ack = r.acknowledged_at
-            ? esc(fmtTs(r.acknowledged_at)) + (r.acknowledged_by ? ' · ' + esc(r.acknowledged_by) : '')
+            ? dataText(fmtTs(r.acknowledged_at)) + (r.acknowledged_by ? ' · ' + dataText(r.acknowledged_by) : '')
             : (r.resolved_at ? '—'
                : '<button class="sbtn sbtn-ghost" style="padding:.15rem .5rem;font-size:.65rem"' +
                  ' data-ack-id="' + esc(String(r.id)) + '">Acknowledge</button>');
           return '<tr>'+
-            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(fmtTs(r.fired_at))+'</td>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)" data-i18n-user-data>'+esc(fmtTs(r.fired_at))+'</td>'+
             '<td style="font-size:.71rem">'+esc(r.alert_label||r.alert_type||'')+'</td>'+
-            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+esc(r.subject||'—')+'</td>'+
-            '<td style="font-size:.71rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.detail||'—')+'</td>'+
+            '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)" data-i18n-user-data>'+esc(r.subject||'—')+'</td>'+
+            '<td style="font-size:.71rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-i18n-user-data>'+esc(r.detail||'—')+'</td>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem">'+res+'</td>'+
             '<td style="font-family:var(--font-mono);font-size:.71rem;color:var(--text-muted)">'+ack+'</td>'+
-            '<td style="font-family:var(--font-mono);font-size:.71rem;text-align:right">'+esc(dt)+'</td></tr>';
+            '<td style="font-family:var(--font-mono);font-size:.71rem;text-align:right" data-i18n-user-data>'+esc(dt)+'</td></tr>';
         }).join('')
       : '<tr><td colspan="7" class="rpt-empty">No alerts for this range.</td></tr>';
     _renderSortHeader('rptAlertThead', [
@@ -10689,7 +10707,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (rptTrafficIface) {
         var curIface = rptTrafficIface.value;
         rptTrafficIface.innerHTML = ifaces.map(function(i){
-          return '<option value="'+esc(i)+'">'+esc(i)+'</option>';
+          return '<option value="'+esc(i)+'" data-i18n-user-data>'+esc(i)+'</option>';
         }).join('');
         if (curIface && ifaces.indexOf(curIface)!==-1) rptTrafficIface.value = curIface;
       }
@@ -10709,7 +10727,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       if (bwIfSel) {
         var curBwIface = bwIfSel.value;
         bwIfSel.innerHTML = bwIfaces.map(function(i){
-          return '<option value="'+esc(i)+'">'+esc(i)+'</option>';
+          return '<option value="'+esc(i)+'" data-i18n-user-data>'+esc(i)+'</option>';
         }).join('');
         if (curBwIface && bwIfaces.indexOf(curBwIface)!==-1) bwIfSel.value = curBwIface;
       }
@@ -11004,10 +11022,10 @@ function _renderRoutersList(rows) {
     return '<tr class="rtl-row' + (r.connected ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
       + '<td><span class="rtl-dot" style="background:' + (r.connected ? '#34d399' : '#f87171') + '" title="'
         + (r.connected ? 'Online' : 'Offline') + '"></span></td>'
-      + '<td>' + esc(r.label) + (r.isActive ? ' <span class="badge badge-outline text-blue">active</span>' : '') + '</td>'
-      + '<td class="text-muted">' + esc(r.host || '') + '</td>'
-      + '<td>' + (r.boardName ? esc(r.boardName) : dash) + '</td>'
-      + '<td>' + (r.version ? esc(r.version) : dash) + '</td>'
+      + '<td>' + dataText(r.label) + (r.isActive ? ' <span class="badge badge-outline text-blue">active</span>' : '') + '</td>'
+      + '<td class="text-muted" data-i18n-user-data>' + esc(r.host || '') + '</td>'
+      + '<td data-i18n-user-data>' + (r.boardName ? esc(r.boardName) : dash) + '</td>'
+      + '<td data-i18n-user-data>' + (r.version ? esc(r.version) : dash) + '</td>'
       + '<td class="rtl-num">' + alerts + '</td>'
       + '<td class="rtl-num">' + _rtlBar(r.cpu, cpuC) + '</td>'
       + '<td class="rtl-num">' + _rtlBar(r.memPct, memC) + '</td>'
@@ -11015,7 +11033,7 @@ function _renderRoutersList(rows) {
       + '<td class="rtl-num">' + (r.clients != null ? r.clients : dash) + '</td>'
       + '<td class="rtl-num">' + (r.rxMbps != null ? r.rxMbps.toFixed(2) : dash) + '</td>'
       + '<td class="rtl-num">' + (r.txMbps != null ? r.txMbps.toFixed(2) : dash) + '</td>'
-      + '<td class="text-muted">' + (up ? esc(up) : dash) + '</td>'
+      + '<td class="text-muted" data-i18n-user-data>' + (up ? esc(up) : dash) + '</td>'
       + '</tr>';
   }).join('');
   _rtlRefreshHeaders();
@@ -11145,20 +11163,20 @@ function _renderRoutersStats(rows) {
     var tx      = r.txMbps  != null ? '<span style="color:var(--accent-tx)">&#8593; ' + r.txMbps.toFixed(2) + ' Mbps</span>' : '—';
     var clients = r.clients != null ? r.clients                       : '—';
     var footerPills = '';
-    if (r.boardName)    footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);margin-right:.3rem">' + esc(r.boardName) + '</span>';
-    if (r.version)      footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);margin-right:.3rem">ROS ' + esc(r.version) + '</span>';
-    if (r.arch)         footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);margin-right:.3rem">' + esc(r.arch) + '</span>';
-    if (r.serial)       footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);margin-right:.3rem">SN: ' + esc(r.serial) + '</span>';
-    if (r.licenseLevel) footerPills += '<span style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25)">L' + esc(r.licenseLevel) + '</span>';
+    if (r.boardName)    footerPills += '<span data-i18n-user-data style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);margin-right:.3rem">' + esc(r.boardName) + '</span>';
+    if (r.version)      footerPills += '<span data-i18n-user-data style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.2);margin-right:.3rem">ROS ' + esc(r.version) + '</span>';
+    if (r.arch)         footerPills += '<span data-i18n-user-data style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.25);margin-right:.3rem">' + esc(r.arch) + '</span>';
+    if (r.serial)       footerPills += '<span data-i18n-user-data style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);margin-right:.3rem">SN: ' + esc(r.serial) + '</span>';
+    if (r.licenseLevel) footerPills += '<span data-i18n-user-data style="display:inline-flex;align-items:center;padding:.1rem .5rem;border-radius:20px;font-size:.7rem;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25)">L' + esc(r.licenseLevel) + '</span>';
     var footer = footerPills ? '<div class="mt-2">' + footerPills + '</div>' : '';
     var hostSub = (r.host && r.host !== r.label)
-      ? '<div style="font-size:.72rem;margin-top:.1rem;color:#ec4899">' + esc(r.host) + '</div>'
+      ? '<div style="font-size:.72rem;margin-top:.1rem;color:#ec4899" data-i18n-user-data>' + esc(r.host) + '</div>'
       : '';
     // Explain an offline card rather than leaving the user to read container
     // logs. The server sends this already sanitized; esc() it like any other value.
     var offlineWhy = (!r.connected && r.lastError)
       ? '<div style="font-size:.72rem;line-height:1.35;color:#d63939;background:rgba(214,57,57,.08);'
-        + 'border:1px solid rgba(214,57,57,.22);border-radius:6px;padding:.35rem .55rem;margin-bottom:.75rem">'
+        + 'border:1px solid rgba(214,57,57,.22);border-radius:6px;padding:.35rem .55rem;margin-bottom:.75rem" data-i18n-user-data>'
         + esc(r.lastError) + '</div>'
       : '';
     // Compact fits four across where Comfortable fits three — the same cards,
@@ -11172,7 +11190,7 @@ function _renderRoutersStats(rows) {
       + '<div class="card-header" style="align-items:flex-start">'
       + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (r.connected ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
       + '<div class="me-auto">'
-      + '<div class="d-flex align-items-center"><strong class="card-title mb-0 me-1" style="color:inherit">' + esc(r.label) + '</strong>' + activeBadge + '</div>'
+      + '<div class="d-flex align-items-center"><strong class="card-title mb-0 me-1" style="color:inherit" data-i18n-user-data>' + esc(r.label) + '</strong>' + activeBadge + '</div>'
       + hostSub
       + '</div>'
       + '<span class="badge ms-2 ' + (r.connected ? 'bg-green-lt' : 'bg-red-lt') + '">'
@@ -11604,20 +11622,20 @@ function _renderRoutersMap(rows) {
     var up = r.uptime ? String(r.uptime) : '—';
     // Where the position came from, stated plainly and without alarm. The map
     // itself no longer distinguishes them.
-    var from = g.source === 'manual' ? 'set here'
-             : g.source === 'site'   ? 'from its site'
-             : (g.wanIp ? 'from ' + esc(g.wanIp) : 'from its WAN address');
-    var loc = esc(g.label || 'Unknown')
+    var from = g.source === 'manual' ? '<span>set here</span>'
+             : g.source === 'site'   ? '<span>from its site</span>'
+             : (g.wanIp ? '<span>from</span> ' + dataText(g.wanIp) : '<span>from its WAN address</span>');
+    var loc = (g.label ? dataText(g.label) : '<span>Unknown</span>')
       + ' <span class="text-muted">(' + from + ')</span>';
     var canManage = !!(window._caps && window._caps.routers
       && (window._caps.routers.manageable || []).indexOf(r.id) !== -1);
     return '<div class="rmp-name"><span class="rtl-dot" style="background:'
       + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
-      + '"></span>' + esc(r.label) + '</div>'
+      + '"></span>' + dataText(r.label) + '</div>'
       + '<div class="rmp-grid">'
-      + '<span>Host</span><b>' + esc(r.host) + '</b>'
+      + '<span>Host</span><b>' + dataText(r.host) + '</b>'
       + '<span>CPU</span><b>' + (r.cpu == null ? '—' : r.cpu + '%') + '</b>'
-      + '<span>Uptime</span><b>' + esc(up) + '</b>'
+      + '<span>Uptime</span><b>' + dataText(up) + '</b>'
       + '<span>WAN</span><b>&#8595;' + (r.rxMbps == null ? '—' : r.rxMbps)
       + ' &#8593;' + (r.txMbps == null ? '—' : r.txMbps) + ' Mbps</b>'
       + (r.openAlerts ? '<span>Alerts</span><b style="color:var(--accent-amber,#f59f00)">' + r.openAlerts + '</b>' : '')
@@ -11633,12 +11651,12 @@ function _renderRoutersMap(rows) {
      each one's settings. Without it a cluster would be a dead end. */
   function groupPopHtml(g) {
     if (g.routers.length === 1) return popHtml(g.routers[0]);
-    var place = (g.routers[0].geo && g.routers[0].geo.label) || 'this location';
+    var place = g.routers[0].geo && g.routers[0].geo.label;
     var down = g.routers.filter(function (r) { return !r.connected; }).length;
     return '<div class="rmp-name">' + g.routers.length + ' routers</div>'
       + '<div class="rmp-loc" style="margin-top:.2rem;padding-top:0;border-top:0">'
-      + esc(place)
-      + (down ? ' <span style="color:var(--accent-err,#f87171)">— ' + down + ' offline</span>' : '')
+      + (place ? dataText(place) : '<span>this location</span>')
+      + (down ? ' <span style="color:var(--accent-err,#f87171)">— <span>' + down + ' offline</span></span>' : '')
       + '</div>'
       + '<div class="rmp-list">' + g.routers.map(function (r) {
           var can = !!(window._caps && window._caps.routers
@@ -11646,8 +11664,8 @@ function _renderRoutersMap(rows) {
           return '<div class="rmp-row"' + (can ? ' data-open-router="' + esc(r.id) + '"' : '')
             + '><span class="rtl-dot" style="background:'
             + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
-            + '"></span><span class="rmp-rl">' + esc(r.label) + '</span>'
-            + '<span class="rmp-rh">' + esc(r.host) + '</span></div>';
+            + '"></span><span class="rmp-rl" data-i18n-user-data>' + esc(r.label) + '</span>'
+            + '<span class="rmp-rh" data-i18n-user-data>' + esc(r.host) + '</span></div>';
         }).join('') + '</div>';
   }
 
@@ -12352,7 +12370,7 @@ function _renderRoutersMap(rows) {
 
   function ports(list) {
     if (!list.length) return '<span style="color:var(--text-muted)">&mdash;</span>';
-    return list.map(function (n) { return '<span class="wl-band wl-band-5">' + esc(n) + '</span>'; }).join(' ');
+    return list.map(function (n) { return '<span class="wl-band wl-band-5" data-i18n-user-data>' + esc(n) + '</span>'; }).join(' ');
   }
 
   // Per-VLAN rate history for the sparklines, kept here rather than server-side:
@@ -12445,8 +12463,8 @@ function _renderRoutersMap(rows) {
       // data-id and is simply not clickable.
       return '<tr' + resRow(i0 && i0.id, i0 && i0.name) + '>' +
         '<td><span class="wl-band wl-band-24">' + v.vlanId + '</span></td>' +
-        '<td>' + (v.name ? esc(v.name) : '<span style="color:var(--text-muted)">no L3 interface</span>') + '</td>' +
-        '<td>' + esc(i0 ? i0.parent : '') + '</td>' +
+        '<td>' + (v.name ? dataText(v.name) : '<span style="color:var(--text-muted)">no L3 interface</span>') + '</td>' +
+        '<td data-i18n-user-data>' + esc(i0 ? i0.parent : '') + '</td>' +
         '<td>' + (i0 && i0.mtu ? i0.mtu : '&mdash;') + '</td>' +
         '<td>' + ports(v.tagged) + '</td>' +
         '<td>' + ports(v.untagged) + '</td>' +
@@ -12471,8 +12489,8 @@ function _renderRoutersMap(rows) {
       // already says which is which, and dimming them made real membership
       // harder to read for no added information.
       return '<tr>' +
-        '<td>' + esc(r.bridge) + '</td>' +
-        '<td><span class="wl-band wl-band-24">' + esc(r.raw) + '</span></td>' +
+        '<td data-i18n-user-data>' + esc(r.bridge) + '</td>' +
+        '<td><span class="wl-band wl-band-24" data-i18n-user-data>' + esc(r.raw) + '</span></td>' +
         '<td>' + ports(r.tagged) + '</td>' +
         '<td>' + ports(r.untagged) + '</td>' +
         '<td>' + (r.dynamic ? '<span class="wl-band wl-band-6">dynamic</span>'
@@ -12569,11 +12587,11 @@ function _renderRoutersMap(rows) {
         : '<span style="color:var(--accent-rx)">' + fmtMbps((s.rxRate * 8) / 1e6) + '</span> / ' +
           '<span style="color:var(--accent-tx,#f59f00)">' + fmtMbps((s.txRate * 8) / 1e6) + '</span>';
       return '<tr>' +
-        '<td>' + esc(s.name) + '</td>' +
-        '<td><span class="vpn-proto-pill">' + esc(s.service || 'PPP') + '</span></td>' +
-        '<td>' + esc(s.address) + '</td>' +
-        '<td>' + esc(s.callerId) + '</td>' +
-        '<td>' + esc(s.uptime) + '</td>' +
+        '<td data-i18n-user-data>' + esc(s.name) + '</td>' +
+        '<td data-i18n-user-data><span class="vpn-proto-pill">' + esc(s.service || 'PPP') + '</span></td>' +
+        '<td data-i18n-user-data>' + esc(s.address) + '</td>' +
+        '<td data-i18n-user-data>' + esc(s.callerId) + '</td>' +
+        '<td data-i18n-user-data>' + esc(s.uptime) + '</td>' +
         '<td>' + r + '</td>' +
         '<td>' + fmtBytes(s.rx) + ' / ' + fmtBytes(s.tx) + '</td>' +
       '</tr>';
@@ -12585,17 +12603,27 @@ function _renderRoutersMap(rows) {
   function renderConfig() {
     var tb = $('pppServerTable'); if (!tb || !_data) return;
     var rows = [];
+    var dash = '<span style="color:var(--text-muted)">&mdash;</span>';
+    function pppData(value, fallback) {
+      return value ? dataText(String(value)) : (fallback || dash);
+    }
     (_data.servers || []).forEach(function (s) {
-      rows.push(['Server', s.serviceName || '(unnamed)', s.interface,
-                 s.maxSessions ? ('max ' + s.maxSessions) : '',
-                 s.disabled ? 'disabled' : 'enabled']);
+      rows.push({ kind: 'Server', cells: [
+        pppData(s.serviceName, '<span>(unnamed)</span>'),
+        pppData(s.interface),
+        s.maxSessions ? '<span>max</span> ' + dataText(String(s.maxSessions)) : dash,
+        s.disabled ? '<span>disabled</span>' : '<span>enabled</span>',
+      ] });
     });
     (_data.profiles || []).forEach(function (p) {
-      rows.push(['Profile', p.name, p.localAddress, p.rateLimit || p.remoteAddress || '', p.onlyOne || '']);
+      rows.push({ kind: 'Profile', cells: [
+        pppData(p.name), pppData(p.localAddress),
+        pppData(p.rateLimit || p.remoteAddress), pppData(p.onlyOne),
+      ] });
     });
     tb.innerHTML = rows.length ? rows.map(function (r) {
-      return '<tr><td><span class="wl-band wl-band-24">' + esc(r[0]) + '</span></td>' +
-             r.slice(1).map(function (c) { return '<td>' + (c ? esc(String(c)) : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>'; }).join('') +
+      return '<tr><td><span class="wl-band wl-band-24">' + esc(r.kind) + '</span></td>' +
+             r.cells.map(function (cell) { return '<td>' + cell + '</td>'; }).join('') +
              '</tr>';
     }).join('') : '<tr><td colspan="5" class="empty-state">No PPP servers or profiles.</td></tr>';
   }
@@ -12659,12 +12687,12 @@ function _renderRoutersMap(rows) {
 
   function stateBadge(state) {
     var ok = /^ok$/i.test(state || '');
-    return '<span class="wl-band ' + (ok ? 'wl-band-6' : 'wl-band-24') + '">' +
+    return '<span class="wl-band ' + (ok ? 'wl-band-6' : 'wl-band-24') + '" data-i18n-user-data>' +
            esc(state || 'unknown') + '</span>';
   }
 
   function clientRow(c) {
-    return '<tr class="cap-client"><td colspan="8" style="padding-left:2.2rem">' +
+    return '<tr class="cap-client"><td colspan="8" style="padding-left:2.2rem" data-i18n-user-data>' +
       '<span style="color:var(--text-muted)">' + esc(c.interface) + '</span> &nbsp; ' +
       '<span class="mono">' + esc(c.mac) + '</span> &nbsp; ' +
       (c.ssid ? '<span class="wl-band wl-band-5">' + esc(c.ssid) + '</span> &nbsp; ' : '') +
@@ -12710,14 +12738,14 @@ function _renderRoutersMap(rows) {
       tbody.innerHTML = rows.map(function (c) {
         var open = !!_open[c.identity];
         var head = '<tr class="cap-row" data-cap="' + esc(c.identity) + '" style="cursor:pointer">' +
-          '<td>' + (c.clientCount ? (open ? '▾ ' : '▸ ') : '') + esc(c.identity) + '</td>' +
-          '<td>' + esc(c.boardName) + '</td>' +
-          '<td>' + esc(c.version) + '</td>' +
-          '<td>' + esc(c.serial) + '</td>' +
+          '<td data-i18n-user-data>' + (c.clientCount ? (open ? '▾ ' : '▸ ') : '') + esc(c.identity) + '</td>' +
+          '<td data-i18n-user-data>' + esc(c.boardName) + '</td>' +
+          '<td data-i18n-user-data>' + esc(c.version) + '</td>' +
+          '<td data-i18n-user-data>' + esc(c.serial) + '</td>' +
           '<td>' + stateBadge(c.state) + '</td>' +
-          '<td>' + esc(c.connectedTime) + '</td>' +
+          '<td data-i18n-user-data>' + esc(c.connectedTime) + '</td>' +
           '<td>' + (c.radios.length
-                     ? c.radios.map(function (r) { return '<span class="wl-band wl-band-5">' + esc(r.interface) + '</span>'; }).join(' ')
+                     ? c.radios.map(function (r) { return '<span class="wl-band wl-band-5" data-i18n-user-data>' + esc(r.interface) + '</span>'; }).join(' ')
                      : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
           '<td>' + c.clientCount + '</td>' +
         '</tr>';
@@ -12748,13 +12776,13 @@ function _renderRoutersMap(rows) {
     if (_data.role === 'cap' || (_data.role === 'both' && c.currentIdentity)) {
       panel.style.display = '';
       body.innerHTML = '<div class="kv-grid">' +
-        '<div class="kv-item"><div class="kv-key">Managed by</div><div class="kv-val on">' +
+        '<div class="kv-item"><div class="kv-key">Managed by</div><div class="kv-val on" data-i18n-user-data>' +
           esc(c.currentIdentity || 'discovering…') + '</div></div>' +
-        '<div class="kv-item"><div class="kv-key">Manager address</div><div class="kv-val">' +
+        '<div class="kv-item"><div class="kv-key">Manager address</div><div class="kv-val" data-i18n-user-data>' +
           esc(c.currentAddress || '—') + '</div></div>' +
-        '<div class="kv-item"><div class="kv-key">Discovery interfaces</div><div class="kv-val">' +
+        '<div class="kv-item"><div class="kv-key">Discovery interfaces</div><div class="kv-val" data-i18n-user-data>' +
           esc((c.discoveryInterfaces || []).join(', ') || '—') + '</div></div>' +
-        '<div class="kv-item"><div class="kv-key">Certificate</div><div class="kv-val">' +
+        '<div class="kv-item"><div class="kv-key">Certificate</div><div class="kv-val" data-i18n-user-data>' +
           esc(c.certificate || '—') + '</div></div>' +
       '</div>';
     } else {
@@ -12882,12 +12910,12 @@ function _renderRoutersMap(rows) {
     $('bridgesBadge').className = 'card-badge' + (bridges.length ? ' active-blue' : '');
     tbody.innerHTML = bridges.length ? bridges.map(function (b) {
       return '<tr' + (b.disabled ? ' style="opacity:.55"' : '') + resRow(b.id, b.name) + '>' +
-        '<td>' + esc(b.name) + (b.running ? '' : ' <span class="wl-band wl-band-24">down</span>') + '</td>' +
-        '<td>' + (b.protocolMode ? '<span class="wl-band wl-band-5">' + esc(b.protocolMode) + '</span>'
+        '<td>' + dataText(b.name) + (b.running ? '' : ' <span class="wl-band wl-band-24">down</span>') + '</td>' +
+        '<td>' + (b.protocolMode ? '<span class="wl-band wl-band-5" data-i18n-user-data>' + esc(b.protocolMode) + '</span>'
                                  : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
         '<td>' + onOff(b.vlanFiltering, 'on') + '</td>' +
         '<td>' + onOff(b.igmpSnooping, 'on') + '</td>' +
-        '<td class="mono">' + esc(b.macAddress) + '</td>' +
+        '<td class="mono" data-i18n-user-data>' + esc(b.macAddress) + '</td>' +
         '<td>' + (b.mtu || '&mdash;') + '</td>' +
         '<td>' + b.portCount + '</td>' +
         '<td>' + rate(b) + '</td>' +
@@ -12909,14 +12937,14 @@ function _renderRoutersMap(rows) {
                 : p.inactive ? '<span style="color:var(--text-muted)">inactive</span>'
                 : '<span class="wl-band wl-band-6">active</span>';
       return '<tr' + resRow(p.id, p.interface) + '>' +
-        '<td>' + esc(p.interface) + (p.dynamic ? ' <span class="wl-band wl-band-6">dyn</span>' : '') + '</td>' +
-        '<td>' + esc(p.bridge) + '</td>' +
+        '<td>' + dataText(p.interface) + (p.dynamic ? ' <span class="wl-band wl-band-6">dyn</span>' : '') + '</td>' +
+        '<td data-i18n-user-data>' + esc(p.bridge) + '</td>' +
         '<td>' + (p.pvid === null ? '&mdash;' : '<span class="wl-band wl-band-24">' + p.pvid + '</span>') + '</td>' +
         // A bridge with protocol-mode=none reports no role at all, which is not
         // the same as a port whose role is unknown.
-        '<td>' + (p.role ? esc(p.role) : '<span style="color:var(--text-muted)">no STP</span>') + '</td>' +
-        '<td>' + esc(p.edge || '—') + '</td>' +
-        '<td>' + esc(p.horizon || '—') + '</td>' +
+        '<td>' + (p.role ? dataText(p.role) : '<span style="color:var(--text-muted)">no STP</span>') + '</td>' +
+        '<td data-i18n-user-data>' + esc(p.edge || '—') + '</td>' +
+        '<td data-i18n-user-data>' + esc(p.horizon || '—') + '</td>' +
         '<td>' + state + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="7" class="empty-state">No bridge ports.</td></tr>';
@@ -12949,9 +12977,9 @@ function _renderRoutersMap(rows) {
                : h.dynamic ? '<span class="wl-band wl-band-6">learned</span>'
                : '<span class="wl-band wl-band-5">static</span>';
       return '<tr>' +
-        '<td class="mono">' + esc(h.mac) + '</td>' +
-        '<td>' + esc(h.onInterface) + '</td>' +
-        '<td>' + esc(h.bridge) + '</td>' +
+        '<td class="mono" data-i18n-user-data>' + esc(h.mac) + '</td>' +
+        '<td data-i18n-user-data>' + esc(h.onInterface) + '</td>' +
+        '<td data-i18n-user-data>' + esc(h.bridge) + '</td>' +
         '<td>' + (h.vid === null ? '&mdash;' : '<span class="wl-band wl-band-24">' + h.vid + '</span>') + '</td>' +
         '<td>' + type + '</td>' +
       '</tr>';
@@ -13090,12 +13118,12 @@ function _renderRoutersMap(rows) {
     $('dnsStaticBadge').textContent = rows.length;
     $('dnsStaticTable').innerHTML = list.length ? sorted(list, _sortS).map(function (e) {
       return '<tr' + (e.disabled ? ' style="opacity:.55"' : '') + resRow(e.id, e.name) + '>' +
-        '<td>' + esc(e.name || e.regexp) +
+        '<td>' + dataText(e.name || e.regexp) +
           (e.regexp ? ' <span class="wl-band wl-band-24">regexp</span>' : '') + '</td>' +
-        '<td class="mono">' + esc(e.address) + '</td>' +
-        '<td>' + esc(e.type) + '</td>' +
-        '<td>' + esc(e.ttl || '—') + '</td>' +
-        '<td style="color:var(--text-muted)">' + esc(e.comment || '') + '</td>' +
+        '<td class="mono" data-i18n-user-data>' + esc(e.address) + '</td>' +
+        '<td data-i18n-user-data>' + esc(e.type) + '</td>' +
+        '<td data-i18n-user-data>' + esc(e.ttl || '—') + '</td>' +
+        '<td style="color:var(--text-muted)" data-i18n-user-data>' + esc(e.comment || '') + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="5" class="empty-state">' +
       (q ? 'No entries match that search.' : 'No static DNS entries.') + '</td></tr>';
@@ -13237,10 +13265,10 @@ function _renderRoutersMap(rows) {
 
     tbody.innerHTML = rows.length ? rows.map(function (p) {
       return '<tr>' +
-        '<td>' + esc(p.name) + '</td>' +
-        '<td>' + (p.version ? esc(p.version) : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
+        '<td data-i18n-user-data>' + esc(p.name) + '</td>' +
+        '<td data-i18n-user-data>' + (p.version ? esc(p.version) : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
         '<td>' + (p.size ? fmtBytes(p.size) : '<span style="color:var(--text-muted)">&mdash;</span>') + '</td>' +
-        '<td style="color:var(--text-muted)">' + esc((p.buildTime || '').split(' ')[0] || '—') + '</td>' +
+        '<td style="color:var(--text-muted)" data-i18n-user-data>' + esc((p.buildTime || '').split(' ')[0] || '—') + '</td>' +
         '<td>' + stateCell(p) + '</td>' +
         '<td>' + actionsFor(p) + '</td>' +
       '</tr>';
@@ -13266,7 +13294,7 @@ function _renderRoutersMap(rows) {
     if (!pending.length) { card.style.display = 'none'; return; }
     card.style.display = '';
     list.innerHTML = pending.map(function (p) {
-      return esc(p.name) + ' — ' + esc(p.scheduledAction || 'change');
+      return dataText(p.name) + ' — ' + esc(p.scheduledAction || 'change');
     }).join(' · ') + ' · nothing has happened yet; the router applies these on reboot';
     var btn = $('pkgApplyBtn');
     if (btn) btn.disabled = !_caps.permitted;
@@ -13281,15 +13309,15 @@ function _renderRoutersMap(rows) {
              '<div class="kv-val' + (cls ? ' ' + cls : '') + '">' + v + '</div></div>';
     };
     var html = '';
-    html += kv('RouterOS', esc(u.installedVersion || '—') +
-      (u.updateAvailable ? ' → ' + esc(u.latestVersion) : ''), u.updateAvailable ? 'warn' : 'on');
-    html += kv('Channel', esc(u.channel || '—'));
-    html += kv('Update status', esc(u.status || '—'), u.updateAvailable ? 'warn' : 'off');
+    html += kv('RouterOS', dataText(u.installedVersion || '—') +
+      (u.updateAvailable ? ' → ' + dataText(u.latestVersion) : ''), u.updateAvailable ? 'warn' : 'on');
+    html += kv('Channel', dataText(u.channel || '—'));
+    html += kv('Update status', dataText(u.status || '—'), u.updateAvailable ? 'warn' : 'off');
     if (f.isRouterboard) {
-      html += kv('Firmware', esc(f.currentFirmware || '—') +
-        (f.upgradeAvailable ? ' → ' + esc(f.upgradeFirmware) : ''), f.upgradeAvailable ? 'warn' : 'on');
-      html += kv('Minimum firmware', esc(f.minimumFirmware || '—'));
-      html += kv('Board', esc(f.boardName || '—') + (f.model ? ' (' + esc(f.model) + ')' : ''));
+      html += kv('Firmware', dataText(f.currentFirmware || '—') +
+        (f.upgradeAvailable ? ' → ' + dataText(f.upgradeFirmware) : ''), f.upgradeAvailable ? 'warn' : 'on');
+      html += kv('Minimum firmware', dataText(f.minimumFirmware || '—'));
+      html += kv('Board', dataText(f.boardName || '—') + (f.model ? ' (' + dataText(f.model) + ')' : ''));
     }
     body.innerHTML = html;
   }
@@ -13468,13 +13496,13 @@ function _renderRoutersMap(rows) {
     tb.innerHTML = wans.length ? wans.map(function (w) {
       var age = since(w.since);
       return '<tr' + (w.running === false ? ' style="opacity:.62"' : '') + '>' +
-        '<td>' + esc(w.name) +
-          '<div class="muted-note">' + esc(w.isTunnel ? 'tunnel · ' + w.type : w.type || 'interface') +
+        '<td>' + dataText(w.name) +
+          '<div class="muted-note">' + dataText(w.isTunnel ? 'tunnel · ' + w.type : w.type || 'interface') +
           (age ? ' · up ' + esc(age) : '') + '</div></td>' +
-        '<td>' + (w.address ? esc(w.address) : dash()) +
+        '<td>' + (w.address ? dataText(w.address) : dash()) +
           (w.isPublic === true ? '<div class="muted-note" style="color:var(--accent-rx)">public</div>' :
            w.isPublic === false ? '<div class="muted-note">private</div>' : '') + '</td>' +
-        '<td>' + (w.gateway ? esc(w.gateway) : dash()) + '</td>' +
+        '<td data-i18n-user-data>' + (w.gateway ? esc(w.gateway) : dash()) + '</td>' +
         '<td>' + (w.hasDefaultRoute
             ? (w.routeActive
                 ? '<span class="wl-band wl-band-6">active</span>'
@@ -13796,8 +13824,8 @@ function _renderRoutersMap(rows) {
                   (x.invalid  ? '<span class="wl-band wl-band-24">invalid</span> '  : '');
       return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + '>' +
         '<td class="q-order">' + (x.order + 1) + '</td>' +
-        '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
-        '<td>' + (x.target ? esc(x.target) : dash()) + '</td>' +
+        '<td>' + flags + dataText(x.name) + (x.comment ? '<div class="muted-note" data-i18n-user-data>' + esc(x.comment) + '</div>' : '') + '</td>' +
+        '<td data-i18n-user-data>' + (x.target ? esc(x.target) : dash()) + '</td>' +
         '<td><div style="font-size:.72rem">&uarr; ' + fmtLimit(x.maxLimit.up) + '<br>&darr; ' + fmtLimit(x.maxLimit.down) + '</div></td>' +
         '<td>' + rateCell('s' + x.id, x.rateBps.up, x.rateBps.down, x.rateSource, x.rateWindowMs) + '</td>' +
         '<td>' + actions(x, 'simple') + '</td>' +
@@ -13822,9 +13850,9 @@ function _renderRoutersMap(rows) {
       var ft = (ftActive && x.fasttrackBypassable && !x.disabled)
         ? ' <span class="wl-band wl-band-24" title="FastTrack bypasses queue trees parented to global">bypassed</span>' : '';
       return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + '>' +
-        '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
-        '<td>' + esc(x.parent || '—') + ft + '</td>' +
-        '<td>' + (x.packetMark ? esc(x.packetMark) : dash()) + '</td>' +
+        '<td>' + flags + dataText(x.name) + (x.comment ? '<div class="muted-note" data-i18n-user-data>' + esc(x.comment) + '</div>' : '') + '</td>' +
+        '<td>' + dataText(x.parent || '—') + ft + '</td>' +
+        '<td data-i18n-user-data>' + (x.packetMark ? esc(x.packetMark) : dash()) + '</td>' +
         '<td style="font-size:.72rem">' + fmtLimit(x.maxLimit) + '</td>' +
         '<td>' + rateCell('t' + x.id, x.rateBps, null, x.rateSource, x.rateWindowMs) + '</td>' +
         '<td>' + actions(x, 'tree') + '</td>' +
@@ -14058,9 +14086,9 @@ function _renderRoutersMap(rows) {
   socket.on('queues:ok', function (d) {
     _busy = '';
     $('qFormWrap').classList.remove('open');
-    var what = { create:'Created ', update:'Updated ', 'delete':'Removed ', enable:'Enabled ',
-                 disable:'Disabled ', reset:'Reset counters for ', move:'Reordered ' }[d && d.action] || 'Done: ';
-    setStatus(tr(what.trim()) + ' ' + ((d && d.name) || ''));
+    var what = { create:tr('Created'), update:tr('Updated'), 'delete':tr('Removed'), enable:tr('Enabled'),
+                 disable:tr('Disabled'), reset:tr('Reset counters for'), move:tr('Reordered') }[d && d.action] || tr('Done:');
+    setStatus(what + ' ' + ((d && d.name) || ''));
   });
   socket.on('queues:error', function (d) {
     _busy = '';
@@ -14220,10 +14248,10 @@ function _renderRoutersMap(rows) {
                  : u.expired  ? '<span style="color:var(--text-muted)">expired</span>'
                               : '<span class="wl-band wl-band-6">enabled</span>';
       return '<tr>' +
-        '<td>' + esc(u.name) + (u.comment ? '<div class="muted-note">' + esc(u.comment) + '</div>' : '') + '</td>' +
-        '<td>' + esc(u.group) + '</td>' +
-        '<td>' + (u.address ? esc(u.address) : dash()) + '</td>' +
-        '<td style="color:var(--text-muted)">' + (u.lastLogin ? esc(u.lastLogin) : dash()) + '</td>' +
+        '<td data-i18n-user-data>' + esc(u.name) + (u.comment ? '<div class="muted-note">' + esc(u.comment) + '</div>' : '') + '</td>' +
+        '<td data-i18n-user-data>' + esc(u.group) + '</td>' +
+        '<td data-i18n-user-data>' + (u.address ? esc(u.address) : dash()) + '</td>' +
+        '<td style="color:var(--text-muted)" data-i18n-user-data>' + (u.lastLogin ? esc(u.lastLogin) : dash()) + '</td>' +
         '<td>' + status + '</td>' +
         '<td>' + (u.protected ? lockCell('account')
                 : !_caps.permitted ? ''
@@ -14248,10 +14276,10 @@ function _renderRoutersMap(rows) {
       // Only what is granted. The denied half is every other policy, and listing
       // seventeen names per row would bury the four that matter.
       var pol = g.granted.length
-        ? g.granted.map(function (p) { return '<span class="wl-band wl-band-5" style="margin:0 .15rem .15rem 0">' + esc(p) + '</span>'; }).join('')
+        ? g.granted.map(function (p) { return '<span class="wl-band wl-band-5" style="margin:0 .15rem .15rem 0" data-i18n-user-data>' + esc(p) + '</span>'; }).join('')
         : '<span class="muted-note">no permissions</span>';
       return '<tr>' +
-        '<td>' + esc(g.name) + (g.comment ? '<div class="muted-note">' + esc(g.comment) + '</div>' : '') + '</td>' +
+        '<td data-i18n-user-data>' + esc(g.name) + (g.comment ? '<div class="muted-note">' + esc(g.comment) + '</div>' : '') + '</td>' +
         '<td>' + pol + '</td>' +
         '<td>' + g.members + '</td>' +
         '<td>' + (g.protected ? lockCell('group')
@@ -14274,11 +14302,11 @@ function _renderRoutersMap(rows) {
 
     sessTb.innerHTML = rows.length ? rows.map(function (x) {
       return '<tr>' +
-        '<td>' + esc(x.name) + '</td>' +
-        '<td>' + (x.address ? esc(x.address) : dash()) + '</td>' +
-        '<td>' + esc(x.via || '—') + '</td>' +
-        '<td>' + esc(x.group || '—') + '</td>' +
-        '<td style="color:var(--text-muted)">' + (x.when ? esc(x.when) : dash()) + '</td>' +
+        '<td data-i18n-user-data>' + esc(x.name) + '</td>' +
+        '<td data-i18n-user-data>' + (x.address ? esc(x.address) : dash()) + '</td>' +
+        '<td data-i18n-user-data>' + esc(x.via || '—') + '</td>' +
+        '<td data-i18n-user-data>' + esc(x.group || '—') + '</td>' +
+        '<td style="color:var(--text-muted)" data-i18n-user-data>' + (x.when ? esc(x.when) : dash()) + '</td>' +
         '<td>' + (x.protected ? lockCell('session')
                 : !_caps.permitted ? ''
                 : btn('session-remove', x.id, x.name, 'End Session', 'danger')) + '</td>' +
@@ -14356,7 +14384,7 @@ function _renderRoutersMap(rows) {
     var sel = $('ruf_group');
     sel.innerHTML = (_data && _data.groups || []).filter(function (g) { return !g.protected; })
       .map(function (g) {
-        return '<option value="' + esc(g.name) + '"' + (u && u.group === g.name ? ' selected' : '') + '>' +
+        return '<option value="' + esc(g.name) + '" data-i18n-user-data' + (u && u.group === g.name ? ' selected' : '') + '>' +
                esc(g.name) + '</option>';
       }).join('');
     $('ruf_error').style.display = 'none';
@@ -14373,7 +14401,7 @@ function _renderRoutersMap(rows) {
     // From the payload, so a RouterOS that grows an eighteenth policy shows it
     // here without a frontend release.
     $('rgf_policies').innerHTML = ((_data && _data.policies) || []).map(function (p) {
-      return '<label style="display:flex;align-items:center;gap:.35rem;cursor:pointer">' +
+      return '<label style="display:flex;align-items:center;gap:.35rem;cursor:pointer" data-i18n-user-data>' +
              '<input type="checkbox" class="rgf-pol" value="' + esc(p) + '"' +
              (granted.indexOf(p) !== -1 ? ' checked' : '') + '>' + esc(p) + '</label>';
     }).join('');
@@ -14485,11 +14513,11 @@ function _renderRoutersMap(rows) {
     $('ruUserFormWrap').classList.remove('open');
     $('ruGroupFormWrap').classList.remove('open');
     var what = {
-      create: 'Created ', update: 'Updated ', 'delete': 'Removed ',
-      'group-create': 'Created group ', 'group-update': 'Updated group ', 'group-delete': 'Removed group ',
-      'session-remove': 'Ended the session for ',
-    }[d && d.action] || 'Done: ';
-    setStatus(tr(what.trim()) + ' ' + ((d && d.name) || ''));
+      create: tr('Created'), update: tr('Updated'), 'delete': tr('Removed'),
+      'group-create': tr('Created group'), 'group-update': tr('Updated group'), 'group-delete': tr('Removed group'),
+      'session-remove': tr('Ended the session for'),
+    }[d && d.action] || tr('Done:');
+    setStatus(what + ' ' + ((d && d.name) || ''));
   });
   socket.on('rosusers:error', function (d) {
     _busy = '';
@@ -14639,12 +14667,12 @@ function _renderRoutersMap(rows) {
 
     tbody.innerHTML = rows.length ? rows.map(function (r) {
       return '<tr>' +
-        '<td>' + esc(fmtTs(r.ts)) + '</td>' +
-        '<td>' + (r.actor === 'system'
+        '<td data-i18n-user-data>' + esc(fmtTs(r.ts)) + '</td>' +
+        '<td' + (r.actor === 'system' ? '' : ' data-i18n-user-data') + '>' + (r.actor === 'system'
                    ? '<span style="color:var(--text-muted)">system</span>' : esc(r.actor)) + '</td>' +
-        '<td class="mono" style="color:var(--text-muted)">' + esc(r.ip || '—') + '</td>' +
-        '<td>' + esc(r.action) + '</td>' +
-        '<td>' + (r.target ? esc(r.target) : '<span style="color:var(--text-muted)">&mdash;</span>') +
+        '<td class="mono" style="color:var(--text-muted)" data-i18n-user-data>' + esc(r.ip || '—') + '</td>' +
+        '<td data-i18n-user-data>' + esc(r.action) + '</td>' +
+        '<td data-i18n-user-data>' + (r.target ? esc(r.target) : '<span style="color:var(--text-muted)">&mdash;</span>') +
           // The pill names the device. It used to read the literal word
           // "router" — a scope marker that told the reader nothing they could
           // not already see from the Action column. A router deleted since the
@@ -14654,7 +14682,7 @@ function _renderRoutersMap(rows) {
             ? ' <span class="wl-band wl-band-5">' + esc(r.router_name || 'router') + '</span>'
             : '') + '</td>' +
         '<td>' + outcomeCell(r.outcome) + '</td>' +
-        '<td>' + detailCell(r.detail) + '</td>' +
+        '<td data-i18n-user-data>' + detailCell(r.detail) + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="7" class="empty-state">' +
       (_offset ? 'No more events.' : 'No audit events visible to you yet.') + '</td></tr>';
@@ -14712,7 +14740,7 @@ function _renderRoutersMap(rows) {
         var el = $(spec[0]); if (!el) return;
         var keep = el.value;
         el.innerHTML = '<option value="">' + spec[2] + '</option>' +
-          spec[1].map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('');
+          spec[1].map(function (v) { return '<option value="' + esc(v) + '" data-i18n-user-data>' + esc(v) + '</option>'; }).join('');
         el.value = keep;
       });
   }
@@ -15104,24 +15132,26 @@ function _renderRoutersMap(rows) {
     _move = null;
   });
 
-  var MSG = {
-    denied:               'You do not have write access to this router.',
-    unavailable:          'This router is not connected.',
-    'stale-row':          'That row changed on the router while the form was open. Close it and try again.',
-    'read-only-row':      'This row is managed by the router and cannot be edited here.',
-    'not-applicable':     'That action no longer applies to this row.',
-    // A move that has nowhere to go. Not really an error, so it says what it is
-    // rather than sounding like a failure.
-    'at-end':             'That rule is already at the end of its table.',
-    'bad-request':        'Something was missing from the request.',
-    'unknown-resource':   'This page does not support editing.',
-    // A radio is hardware. Its SSID and security are editable; the interface
-    // itself only goes away when the hardware does.
-    'not-removable':      'A physical radio cannot be removed — only the extra SSIDs on it can.',
-    'router-write-policy':'The RouterOS user MikroDash connects with lacks the write policy.',
-    unsupported:          'This RouterOS version does not have that menu.',
-    failed:               'The router refused the change.',
-  };
+  function messageFor(code) {
+    return {
+      denied:               tr('You do not have write access to this router.'),
+      unavailable:          tr('This router is not connected.'),
+      'stale-row':          tr('That row changed on the router while the form was open. Close it and try again.'),
+      'read-only-row':      tr('This row is managed by the router and cannot be edited here.'),
+      'not-applicable':     tr('That action no longer applies to this row.'),
+      // A move that has nowhere to go. Not really an error, so it says what it is
+      // rather than sounding like a failure.
+      'at-end':             tr('That rule is already at the end of its table.'),
+      'bad-request':        tr('Something was missing from the request.'),
+      'unknown-resource':   tr('This page does not support editing.'),
+      // A radio is hardware. Its SSID and security are editable; the interface
+      // itself only goes away when the hardware does.
+      'not-removable':      tr('A physical radio cannot be removed — only the extra SSIDs on it can.'),
+      'router-write-policy':tr('The RouterOS user MikroDash connects with lacks the write policy.'),
+      unsupported:          tr('This RouterOS version does not have that menu.'),
+      failed:               tr('The router refused the change.'),
+    }[code] || '';
+  }
 
   /**
    * Cancel and confirm, for whichever guard raised the prompt.
@@ -15247,11 +15277,12 @@ function _renderRoutersMap(rows) {
     // reorder is how a rule quietly stays where it was.
     if (!el('resModal').classList.contains('open')) {
       _move = null;
-      if (d.code !== 'at-end') alert(MSG[d.code] || (d.message ? String(d.message) : 'That did not work.'));
+      if (d.code !== 'at-end') alert(messageFor(d.code) ||
+        (d.message ? String(d.message) : tr('That did not work.')));
       return;
     }
 
-    fail(MSG[d.code] || (d.message ? String(d.message) : 'That did not work.'));
+    fail(messageFor(d.code) || (d.message ? String(d.message) : tr('That did not work.')));
   });
 
   // ── Wiring ─────────────────────────────────────────────────────────────────
@@ -15495,7 +15526,7 @@ function _renderRoutersMap(rows) {
   var delBtn = el('res_delete');
   if (delBtn) delBtn.addEventListener('click', function () {
     if (!_cur || !_cur.id) return;
-    if (!confirm('Delete ' + _schema[_cur.key].label.toLowerCase() + ' "' + (_cur.identity || '') + '"?')) return;
+    if (!confirm(tr('Delete this item') + ' "' + (_cur.identity || '') + '"?')) return;
     doRemove(_cur.ack);
   });
 
@@ -15808,7 +15839,8 @@ function _renderRoutersMap(rows) {
     note.textContent = rows.length ? '' : 'No backups have been taken yet.';
     note.style.color = '';
 
-    el('bkTable').innerHTML = rows.map(function (r) {
+    var table = el('bkTable');
+    table.innerHTML = rows.map(function (r) {
       var o = OUTCOME[r.outcome] || { label: r.outcome, cls: '' };
       var actions = [];
       if (r.stem && !r.pruned) {
@@ -15844,15 +15876,20 @@ function _renderRoutersMap(rows) {
         // The row id, which is what an audit entry names and what a support
         // question quotes — so it needs to be readable, not dug out of the DOM.
         '<td><span class="bk-id-pill">' + esc(String(r.id)) + '</span></td>' +
-        '<td>' + esc(fmtWhen(r.takenAt)) +
-          (detail ? '<div class="muted-note" style="font-size:.7rem">' + detail + '</div>' : '') + '</td>' +
+        '<td><span data-i18n-user-data>' + esc(fmtWhen(r.takenAt)) + '</span>' +
+          (detail ? '<div class="muted-note" style="font-size:.7rem" data-i18n-user-data>' + detail + '</div>' : '') + '</td>' +
         '<td><span class="badge ' + o.cls + '">' + esc(o.label) + '</span></td>' +
-        '<td>' + esc(r.source === 'manual' ? ('Manual' + (r.actor ? ' · ' + r.actor : '')) : 'Schedule') + '</td>' +
-        '<td>' + esc(r.osVersion || '—') + '</td>' +
+        '<td>' + (r.source === 'manual' ? 'Manual' + (r.actor ? ' · ' + dataText(r.actor) : '') : 'Schedule') + '</td>' +
+        '<td data-i18n-user-data>' + esc(r.osVersion || '—') + '</td>' +
         '<td>' + (r.bytes ? esc(fmtBytes(r.bytes)) : '—') + '</td>' +
         '<td class="text-end">' + actions.join(' ') + '</td>' +
       '</tr>';
     }).join('');
+    // Keep the upstream row markup stable while still excluding record IDs from
+    // dictionary translation. These IDs are stored data, not interface copy.
+    table.querySelectorAll('.bk-id-pill').forEach(function (pill) {
+      pill.setAttribute('data-i18n-user-data', '');
+    });
   }
 
   function render() {
@@ -15921,7 +15958,7 @@ function _renderRoutersMap(rows) {
         return head + h.lines.map(function (l) {
           var cls = l.op === '+' ? 'bk-add' : l.op === '-' ? 'bk-del' : '';
           var num = l.op === '+' ? l.bLine : l.aLine;
-          return '<div class="bk-line ' + cls + '"><span class="bk-ln">' + (num || '') + '</span>' +
+          return '<div class="bk-line ' + cls + '" data-i18n-user-data><span class="bk-ln">' + (num || '') + '</span>' +
                  esc(l.op + ' ' + l.text) + '</div>';
         }).join('');
       }).join('');
@@ -15967,8 +16004,8 @@ function _renderRoutersMap(rows) {
       // Asked once, then answered by re-submitting. The server refuses the
       // first attempt precisely so this sentence can name both versions.
       askRestore(_pendingRestore, true,
-        'WARNING: this backup was taken on RouterOS ' + e.was +
-        ' and the router now runs ' + e.now + '. MikroTik recommend matching versions.');
+        tr('WARNING: this backup was taken on RouterOS') + ' ' + e.was + ' ' +
+        tr('and the router now runs') + ' ' + e.now + '. ' + tr('MikroTik recommend matching versions.'));
       return;
     }
     if (e && e.code === 'serial-mismatch') {
@@ -16102,12 +16139,13 @@ function _renderRoutersMap(rows) {
     if (!_state || !_picked.size) return;
     var ids = Array.from(_picked);
     var msg = ids.length === 1
-      ? 'Delete this restore point?'
-      : 'Delete these ' + ids.length + ' restore points?';
+      ? tr('Delete this restore point?')
+      : tr('Delete these') + ' ' + ids.length + ' ' + tr('restore points?');
     // Both halves go — the files and the row listing them — so say so, and say
     // where the record does survive rather than implying nothing is kept.
-    if (!window.confirm(msg + '\n\nThe stored files and their history rows are removed,\n' +
-        'and cannot be recovered. The Audit page keeps the record.')) return;
+    if (!window.confirm(msg + '\n\n' +
+        tr('The stored files and their history rows are removed, and cannot be recovered.') + '\n' +
+        tr('The Audit page keeps the record.'))) return;
     socket.emit('backups:delete', { ids: ids });
     _picked.clear();
     _syncBulk();
@@ -16121,17 +16159,15 @@ function _renderRoutersMap(rows) {
   function askRestore(id, acceptVersion, versionNote) {
     if (!_state) return;
     var lines = [
-      'Restore ' + _state.label + ' from this backup?',
+      tr('Restore this router from this backup?') + ' "' + _state.label + '"',
       '',
-      'This REPLACES the entire configuration and reboots the router.',
-      'Everything configured since this backup is lost.',
+      tr('This REPLACES the entire configuration and reboots the router.'),
+      tr('Everything configured since this backup is lost.'),
       '',
-      'The API user MikroDash connects as is part of what gets replaced — if',
-      'that user did not exist when this backup was taken, MikroDash will lose',
-      'access to this router.',
+      tr('The API user MikroDash connects as is part of what gets replaced — if that user did not exist when this backup was taken, MikroDash will lose access to this router.'),
     ];
     if (versionNote) lines.push('', versionNote);
-    lines.push('', 'Type the router name to confirm:');
+    lines.push('', tr('Type the router name to confirm:'));
     var answer = window.prompt(lines.join('\n'), '');
     if (answer === null) return;
     socket.emit('backups:restore', { id: id, confirm: answer, acceptVersion: !!acceptVersion });
@@ -16196,7 +16232,7 @@ function _renderRoutersMap(rows) {
     // An open network is the thing worth noticing on this page, so it is the
     // one value that gets a colour rather than plain text.
     var cls = n.security === 'Open' ? 'bg-red-lt' : 'bg-azure-lt';
-    return '<span class="badge ' + cls + '">' + esc(n.security || '—') + '</span>';
+    return '<span class="badge ' + cls + '" data-i18n-user-data>' + esc(n.security || '—') + '</span>';
   }
 
   function radioHeader(radio, count) {
@@ -16207,9 +16243,9 @@ function _renderRoutersMap(rows) {
     if (radio.country)      bits.push(radio.country);
     return '<tr class="wn-radio-row">' +
       '<td colspan="7" style="background:var(--bg-subtle);font-weight:600;font-size:.76rem">' +
-        esc(radio.name) +
+        dataText(radio.name) +
         (bits.length ? '<span class="muted-note" style="margin-left:.5rem;font-weight:400">' +
-                       esc(bits.join(' · ')) + '</span>' : '') +
+                       dataText(bits.join(' · ')) + '</span>' : '') +
         (radio.capsManaged ? badge('CAP', 'bg-purple-lt') : '') +
         (radio.disabled ? badge('Disabled', 'bg-secondary-lt') : '') +
         '<span class="muted-note" style="float:right;font-weight:400">' +
@@ -16228,7 +16264,7 @@ function _renderRoutersMap(rows) {
   function ssidPill(n) {
     var name = n.ssid || '(no SSID)';
     var col  = _colours[n.ssid] || 'var(--text-main)';
-    return '<span class="wn-ssid-pill" style="color:' + col + ';border-color:' + col + '">' +
+    return '<span class="wn-ssid-pill" data-i18n-user-data style="color:' + col + ';border-color:' + col + '">' +
            esc(name) + '</span>';
   }
 
@@ -16253,8 +16289,8 @@ function _renderRoutersMap(rows) {
         // prompt make sense when it appears.
         (n.inherits && n.inherits.ssid
           ? '<div class="muted-note" style="font-size:.7rem;margin-top:.2rem">inherits from ' +
-            esc(n.inherits.ssid) + '</div>' : '') + '</td>' +
-      '<td>' + esc(n.name) + '</td>' +
+            dataText(n.inherits.ssid) + '</div>' : '') + '</td>' +
+      '<td data-i18n-user-data>' + esc(n.name) + '</td>' +
       '<td>' + bandCell(n) + '</td>' +
       '<td>' + securityCell(n) + '</td>' +
       '<td>' + esc(n.vlanId || '—') + '</td>' +
@@ -16318,9 +16354,9 @@ function _renderRoutersMap(rows) {
       ? rows.map(function (p) {
           return '<tr data-id="' + esc(p.id) + '" data-identity="' + esc(p.name) + '"' +
                    ' data-res="wlSecProfile">' +
-            '<td>' + esc(p.name) + (p.isDefault ? badge('default', 'bg-secondary-lt') : '') + '</td>' +
-            '<td>' + esc(p.mode || '—') + '</td>' +
-            '<td>' + esc(p.authTypes || 'none') + '</td>' +
+            '<td><span data-i18n-user-data>' + esc(p.name) + '</span>' + (p.isDefault ? badge('default', 'bg-secondary-lt') : '') + '</td>' +
+            '<td data-i18n-user-data>' + esc(p.mode || '—') + '</td>' +
+            '<td data-i18n-user-data>' + esc(p.authTypes || 'none') + '</td>' +
           '</tr>';
         }).join('')
       : '<tr><td colspan="3" class="empty-state">No security profiles</td></tr>';
@@ -16432,7 +16468,7 @@ function _renderRoutersMap(rows) {
   var _writable = {};
 
   function el(id) { return document.getElementById(id); }
-  function dash(v) { return v ? esc(v) : '<span class="muted-note">&mdash;</span>'; }
+  function dash(v) { return v ? dataText(v) : '<span class="muted-note">&mdash;</span>'; }
   function yesNo(v) { return v ? 'Yes' : '<span class="muted-note">No</span>'; }
 
   /** Rows for a tab, from the one payload the collector already sends. */
@@ -16456,7 +16492,7 @@ function _renderRoutersMap(rows) {
              (p.disabled ? ' style="opacity:.5"' : '') + '>' +
       '<td>' + move + '</td>' +
       '<td>' + ((p.supportedBands || []).map(function (b) {
-        return '<span class="wl-band wl-band-24" style="margin-right:.2rem">' + esc(b) + '</span>';
+        return '<span class="wl-band wl-band-24" style="margin-right:.2rem" data-i18n-user-data>' + esc(b) + '</span>';
       }).join('') || '<span class="muted-note">any</span>') + '</td>' +
       '<td>' + dash(p.action) + '</td>' +
       '<td>' + dash(p.masterConfiguration) + '</td>' +
@@ -16467,7 +16503,7 @@ function _renderRoutersMap(rows) {
 
   function configRow(c) {
     return '<tr' + resRow(c.id, c.name, 'capsConfig') + (c.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(c.name) +
+      '<td>' + dataText(c.name) +
         // A profile carrying `manager` is the CAP-side setting MikroTik warns
         // must never be provisioned onward. Worth flagging where it appears.
         (c.manager ? '<span class="badge bg-yellow-lt" style="margin-left:.35rem">manager</span>' : '') + '</td>' +
@@ -16484,8 +16520,8 @@ function _renderRoutersMap(rows) {
     // value that gets a colour rather than plain text.
     var open = !String(s.authTypes || '').trim();
     return '<tr' + resRow(s.id, s.name, 'capsSecurity') + (s.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(s.name) + '</td>' +
-      '<td><span class="badge ' + (open ? 'bg-red-lt' : 'bg-azure-lt') + '">' +
+      '<td data-i18n-user-data>' + esc(s.name) + '</td>' +
+      '<td><span class="badge ' + (open ? 'bg-red-lt' : 'bg-azure-lt') + '" data-i18n-user-data>' +
         esc(open ? 'Open' : s.authTypes) + '</span></td>' +
       '<td>' + dash(s.wps) + '</td>' +
       '<td>' + yesNo(s.ft) + '</td>' +
@@ -16494,7 +16530,7 @@ function _renderRoutersMap(rows) {
 
   function channelRow(c) {
     return '<tr' + resRow(c.id, c.name, 'capsChannel') + (c.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(c.name) + '</td>' +
+      '<td data-i18n-user-data>' + esc(c.name) + '</td>' +
       '<td>' + dash(c.band) + '</td>' +
       '<td>' + dash(c.frequency) + '</td>' +
       '<td>' + dash(c.width) + '</td>' +
@@ -16504,7 +16540,7 @@ function _renderRoutersMap(rows) {
 
   function datapathRow(d) {
     return '<tr' + resRow(d.id, d.name, 'capsDatapath') + (d.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(d.name) + '</td>' +
+      '<td data-i18n-user-data>' + esc(d.name) + '</td>' +
       '<td>' + dash(d.bridge) + '</td>' +
       '<td>' + dash(d.vlanId) + '</td>' +
       '<td>' + yesNo(d.clientIsolation) + '</td>' +

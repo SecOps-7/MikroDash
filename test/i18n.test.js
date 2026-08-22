@@ -8,11 +8,47 @@ const path = require('node:path');
 const vm = require('node:vm');
 const express = require('express');
 const { JSDOM } = require('jsdom');
+const espree = require('espree');
 const { isPublicI18nPath, PUBLIC_I18N_PATHS } = require('../src/i18nAssets');
 const { audit } = require('../scripts/i18n-audit');
 
 const root = path.resolve(__dirname, '..');
 const readPublic = (name) => fs.readFileSync(path.join(root, 'public', name), 'utf8');
+const appSource = readPublic('app.js');
+const appAst = espree.parse(appSource, { ecmaVersion: 2022, sourceType: 'script', range: true });
+
+function walk(node, visit) {
+  if (!node || typeof node !== 'object') return;
+  visit(node);
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) value.forEach((item) => walk(item, visit));
+    else if (value && typeof value.type === 'string') walk(value, visit);
+  }
+}
+
+function appFunction(name, marker = '') {
+  const matches = [];
+  walk(appAst, (node) => {
+    if (node.type !== 'FunctionDeclaration' || !node.id || node.id.name !== name) return;
+    const source = appSource.slice(node.range[0], node.range[1]);
+    if (!marker || source.includes(marker)) matches.push(source);
+  });
+  assert.equal(matches.length, 1, `expected one ${name} renderer containing ${marker || '(any source)'}`);
+  return matches[0];
+}
+
+function appFunctions(specs, bindings, returned) {
+  const declarations = specs.map(([name, marker]) => appFunction(name, marker)).join('\n');
+  const names = Object.keys(bindings);
+  return Function(...names, `'use strict';\n${declarations}\nreturn ${returned};`)(
+    ...names.map((name) => bindings[name])
+  );
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
 
 function loadLocale(name) {
   const window = {};
@@ -147,7 +183,20 @@ test('dynamic patterns accept bounded UI values and reject arbitrary user data',
   i18n.setLanguage('zh-CN');
   assert.equal(i18n.t('3 devices'), '3 台设备');
   assert.equal(i18n.t('5 minutes ago'), '5 分钟前');
+  assert.equal(i18n.t('just now'), '刚刚');
+  assert.equal(i18n.t('5m ago'), '5 分钟前');
+  assert.equal(i18n.t('2h ago'), '2 小时前');
+  assert.equal(i18n.t('3d ago'), '3 天前');
+  assert.equal(i18n.t('1 network'), '1 个网络');
+  assert.equal(i18n.t('4 networks'), '4 个网络');
+  assert.equal(i18n.t('2 routers'), '2 台路由器');
+  assert.equal(i18n.t('1 offline'), '1 台离线');
   assert.equal(i18n.t('Connected to My Router'), 'Connected to My Router');
+  assert.equal(i18n.t('Last updated Dashboard'), 'Last updated Dashboard');
+  assert.equal(i18n.t('Updated Admin'), 'Updated Admin');
+  assert.equal(i18n.t('Last handshake Down'), 'Last handshake Down');
+  assert.equal(i18n.t('Connected to router: Viewer'), 'Connected to router: Viewer');
+  assert.equal(i18n.t('Switching to router: Unknown…'), 'Switching to router: Unknown…');
   assert.equal(i18n.t('No Dashboard Home SSID found'), 'No Dashboard Home SSID found');
   assert.equal(i18n.t('Save Alice'), 'Save Alice');
   dom.window.close();
@@ -155,6 +204,7 @@ test('dynamic patterns accept bounded UI values and reject arbitrary user data',
 
 test('application marks router and user values as translation boundaries', () => {
   const app = readPublic('app.js');
+  const index = readPublic('index.html');
   assert.match(app, /<tr data-i18n-user-data><td>'\+esc\(d\.name/,
     'Top Talker device names and MAC addresses are router data');
   assert.match(app, /log-line" data-i18n-user-data/,
@@ -165,6 +215,201 @@ test('application marks router and user values as translation boundaries', () =>
     'interface names in the traffic selector are router data');
   assert.match(app, /data-i18n-user-data>' \+ esc\(u\.username\)/,
     'account names are user data');
+  assert.match(app, /class="top-name"[^>]+data-i18n-user-data[^>]*>'\+esc\(s\.name\)/,
+    'connection source names are router data');
+  assert.match(app, /class="ifl-name" data-i18n-user-data title=/,
+    'interface names and comments are router data');
+  assert.match(app, /class="rtr-dd-name" data-i18n-user-data/,
+    'router picker labels are user data');
+  assert.match(app, /esc\(r\.chain\).*data-i18n-user-data|data-i18n-user-data>'\+esc\(r\.chain\)/,
+    'firewall chains are RouterOS data');
+  assert.match(app, /esc\(r\.comment \|\| '—'\).*data-i18n-user-data|data-i18n-user-data>' \+ esc\(r\.comment/,
+    'route comments are RouterOS data');
+  assert.match(app, /<td data-i18n-user-data>' \+ esc\(u\.name\)/,
+    'RouterOS usernames are router data');
+  assert.match(app, /<td data-i18n-user-data>' \+ \(r\.target/,
+    'audit targets are recorded data');
+  assert.match(app, /class="wn-ssid-pill" data-i18n-user-data/,
+    'Wi-Fi SSIDs are router data');
+  assert.match(index, /id="authUsername" data-i18n-user-data/,
+    'the signed-in application username is user data');
+  assert.match(index, /id="routerSelectLabel" data-i18n-user-data/,
+    'the selected router label is user data');
+});
+
+test('representative live values stay intact while adjacent UI translates', async () => {
+  const dom = createDom();
+  const { document, MikroDashI18n } = dom.window;
+  const fixture = document.createElement('section');
+  fixture.innerHTML = [
+    '<span>Interfaces</span><span data-i18n-user-data>Bridge</span>',
+    '<span>Devices</span><span data-i18n-user-data>Unknown</span>',
+    '<span>Wireless</span><span data-i18n-user-data>Down</span>',
+    '<span>Accounts</span><span data-i18n-user-data>Admin</span>',
+    '<span>Router Users</span><span data-i18n-user-data>Viewer</span>',
+    '<span>Logs</span><span data-i18n-user-data>Save Alice</span>',
+    '<span>Audit</span><span data-i18n-user-data>Dashboard</span>',
+  ].join('');
+  document.body.appendChild(fixture);
+  MikroDashI18n.setLanguage('zh-CN');
+  await settle();
+  const values = [...fixture.querySelectorAll('[data-i18n-user-data]')].map((node) => node.textContent);
+  assert.deepEqual(values, ['Bridge', 'Unknown', 'Down', 'Admin', 'Viewer', 'Save Alice', 'Dashboard']);
+  assert.equal(fixture.firstElementChild.textContent, '接口');
+  assert.notEqual(fixture.querySelectorAll('span')[4].textContent, 'Wireless');
+  dom.window.close();
+});
+
+test('production renderers preserve collision-prone live values in Chinese mode', async () => {
+  const dom = createDom();
+  const { document, MikroDashI18n } = dom.window;
+  MikroDashI18n.setLanguage('zh-CN');
+
+  const wirelessTable = document.createElement('tbody');
+  document.body.appendChild(wirelessTable);
+  const renderWireless = appFunctions([
+    ['renderWireless', 'wl-group-label'],
+  ], {
+    wirelessTable,
+    _renderSortHeader() {},
+    _wlSyncSortBtns() {},
+    _wlClients: [
+      { iface: 'Bridge', ssid: 'Total', name: 'Admin', mac: 'Unknown', ip: 'Dashboard', signal: '-50', txRate: '1 Mbps', rxRate: '2 Mbps', uptime: 'Viewer', source: 'capsman', band: '5 GHz' },
+      { iface: 'ether2', ssid: 'Guest', name: 'client-2', mac: '00:11:22:33:44:55', ip: '192.0.2.2', signal: '-60', txRate: '0 Mbps', rxRate: '0 Mbps', uptime: '1m', source: 'local', band: '5 GHz' },
+    ],
+    _wlSortState: { col: 'signal', dir: 'desc' },
+    sortClients: (rows) => rows.slice(),
+    $: () => null,
+    esc: escapeHtml,
+    signalBars: () => '',
+    parseTxRateNum: () => 0,
+    parseTxRate: (value) => value,
+    sigQuality: () => 'Excellent',
+    bandBadge: (value) => `<span>${escapeHtml(value)}</span>`,
+  }, 'renderWireless');
+  renderWireless();
+
+  const notifList = document.createElement('div');
+  notifList.id = 'notifList';
+  document.body.appendChild(notifList);
+  const renderNotifPanel = appFunctions([
+    ['dataText', 'data-i18n-user-data'],
+    ['_alertAgeStr', 'just now'],
+    ['renderNotifPanel', 'notif-item-title'],
+  ], {
+    $: (id) => document.getElementById(id),
+    _alerts: [{ id: 'a1', label: 'Alerts', subject: 'Unknown', detail: 'Save Alice', routerName: 'Dashboard', firedAt: Date.now() }],
+    _alertIsOpen: () => true,
+    esc: escapeHtml,
+  }, 'renderNotifPanel');
+  renderNotifPanel();
+
+  const schedBody = document.createElement('tbody');
+  schedBody.id = 'rptSchedTbody';
+  const schedActions = document.createElement('div');
+  schedActions.id = 'rptSchedActions';
+  const schedNotice = document.createElement('div');
+  schedNotice.id = 'rptSchedNotice';
+  const schedNoticeText = document.createElement('span');
+  schedNoticeText.id = 'rptSchedNoticeText';
+  document.body.append(schedBody, schedActions, schedNotice, schedNoticeText);
+  const renderSchedules = appFunctions([
+    ['dataText', 'data-i18n-user-data'],
+    ['scheduleFrequency', "hourly: 'Hourly'"],
+    ['renderSchedules', 'rptSchedTbody'],
+  ], {
+    $: (id) => document.getElementById(id),
+    _sched: {
+      permitted: true, smtpReady: true,
+      rows: [{ id: 's1', name: 'Dashboard', enabled: false, disabledReason: 'Unknown', frequency: 'daily', sendHour: 7, sections: ['ping'], iface: 'Bridge', recipients: ['ops@example.com'], lastRun: null }],
+    },
+    esc: escapeHtml,
+    fmtRun: () => '—',
+  }, 'renderSchedules');
+  renderSchedules();
+
+  dom.window._caps = { routers: { manageable: [] } };
+  const mapRenderers = appFunctions([
+    ['dataText', 'data-i18n-user-data'],
+    ['popHtml', 'rmp-grid'],
+    ['groupPopHtml', 'rmp-list'],
+  ], { window: dom.window, esc: escapeHtml }, '({ popHtml, groupPopHtml })');
+  const groupPopover = document.createElement('div');
+  groupPopover.innerHTML = mapRenderers.groupPopHtml({ routers: [
+    { id: 'r1', label: 'Admin', host: 'Bridge', connected: true, geo: { label: 'Dashboard' } },
+    { id: 'r2', label: 'Viewer', host: 'Unknown', connected: false, geo: { label: 'Dashboard' } },
+  ] });
+  document.body.appendChild(groupPopover);
+  const singlePopover = document.createElement('div');
+  singlePopover.innerHTML = mapRenderers.popHtml({
+    id: 'r3', label: 'Admin', host: 'Bridge', connected: true, uptime: 'Viewer',
+    geo: { label: 'Dashboard', source: 'manual' },
+  });
+  document.body.appendChild(singlePopover);
+
+  const pppTable = document.createElement('tbody');
+  pppTable.id = 'pppServerTable';
+  document.body.appendChild(pppTable);
+  const renderPppConfig = appFunctions([
+    ['dataText', 'data-i18n-user-data'],
+    ['renderConfig', 'pppServerTable'],
+  ], {
+    $: (id) => document.getElementById(id),
+    _data: {
+      servers: [{ serviceName: 'Bridge', interface: 'Admin', maxSessions: 5, disabled: false }],
+      profiles: [{ name: 'Viewer', localAddress: 'Dashboard', rateLimit: 'Unknown', onlyOne: 'Down' }],
+    },
+    esc: escapeHtml,
+  }, 'renderConfig');
+  renderPppConfig();
+
+  const alertTable = document.createElement('tbody');
+  document.body.appendChild(alertTable);
+  const applyAlertSort = appFunctions([
+    ['dataText', 'data-i18n-user-data'],
+    ['_applyAlertSort', 'acknowledged_by'],
+  ], {
+    _alertRawRows: [{ id: 1, fired_at: 1, resolved_at: 2, alert_label: 'Alerts', alert_type: 'test', subject: 'Unknown', detail: 'Save Alice', acknowledged_at: 3, acknowledged_by: 'Admin' }],
+    _alertSort: { col: 'fired_at', dir: 'desc' },
+    _sortRows: (rows) => rows,
+    rptAlertTbody: alertTable,
+    _renderSortHeader() {},
+    fmtTs: (value) => String(value),
+    fmtDuration: () => 'Viewer',
+    esc: escapeHtml,
+  }, '_applyAlertSort');
+  applyAlertSort();
+
+  await settle();
+  assert.equal(wirelessTable.querySelector('.wl-group-label').textContent, 'Bridge');
+  assert.match(wirelessTable.textContent, /1 个客户端/);
+  assert.equal(notifList.querySelector('.notif-item-title > span').textContent, '告警');
+  assert.deepEqual(
+    [...notifList.querySelectorAll('[data-i18n-user-data]')].map((node) => node.textContent),
+    ['Unknown', 'Save Alice', 'Dashboard']
+  );
+  assert.match(notifList.textContent, /刚刚/);
+  assert.ok([...schedBody.querySelectorAll('[data-i18n-user-data]')].some((node) => node.textContent === 'Dashboard'));
+  assert.ok([...schedBody.querySelectorAll('[data-i18n-user-data]')].some((node) => node.textContent === 'Bridge'));
+  assert.match(schedBody.textContent, /每天/);
+  assert.match(groupPopover.textContent, /2 台路由器/);
+  assert.match(groupPopover.textContent, /1 台离线/);
+  assert.deepEqual([...groupPopover.querySelectorAll('.rmp-rl')].map((node) => node.textContent), ['Admin', 'Viewer']);
+  assert.equal(singlePopover.querySelector('.rmp-name [data-i18n-user-data]').textContent, 'Admin');
+  for (const value of ['Bridge', 'Admin', 'Viewer', 'Dashboard', 'Unknown', 'Down']) {
+    assert.ok([...pppTable.querySelectorAll('[data-i18n-user-data]')].some((node) => node.textContent === value), value);
+  }
+  assert.equal(pppTable.querySelector('.wl-band').textContent, '服务器');
+  assert.ok([...alertTable.querySelectorAll('[data-i18n-user-data]')].some((node) => node.textContent === 'Unknown'));
+  assert.ok([...alertTable.querySelectorAll('[data-i18n-user-data]')].some((node) => node.textContent === 'Save Alice'));
+  assert.ok([...alertTable.querySelectorAll('[data-i18n-user-data]')].some((node) => node.textContent === 'Admin'));
+  dom.window.close();
+});
+
+test('audit rejects unresolved translation calls and untranslated native dialogs', () => {
+  const result = audit();
+  assert.deepEqual(result.unresolvedTranslations, [], result.unresolvedTranslations.join('\n'));
+  assert.deepEqual(result.untranslatedDialogs, [], result.untranslatedDialogs.join('\n'));
 });
 
 test('mutation observer only runs while a translated language is active', async () => {
@@ -263,4 +508,12 @@ test('signed-out HTTP surface exposes exactly three i18n assets', async () => {
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+test('production authentication middleware uses the exact i18n asset helper', () => {
+  const server = fs.readFileSync(path.join(root, 'src', 'index.js'), 'utf8');
+  assert.match(server, /const \{ isPublicI18nPath \} = require\('\.\/i18nAssets'\);/);
+  assert.match(server, /_isPublicPath\(req\.path\) \|\| isPublicI18nPath\(req\.path\) \|\| req\.path\.startsWith\('\/vendor\/'\)/);
+  assert.doesNotMatch(server, /req\.path\.startsWith\('\/locales\/'\)/,
+    'production auth must not expose the whole locale directory');
 });

@@ -513,11 +513,12 @@
       ,'MikroDash · MIT License · Made with ♥ for the MikroTik community': 'MikroDash · MIT 许可证 · 用 ♥ 为 MikroTik 社区打造'
     },
     patterns: [
-      [/^Last updated (.+)$/i, function (_, value) { return '最后更新：' + value; }],
-      [/^Updated (.+)$/i, function (_, value) { return '更新于 ' + value; }],
-      [/^Last handshake (.+)$/i, function (_, value) { return '上次握手：' + value; }],
       [/^(\d+) (seconds?|minutes?|hours?|days?|weeks?) ago$/i, function (_, count, unit) {
         var units = { second: '秒', seconds: '秒', minute: '分钟', minutes: '分钟', hour: '小时', hours: '小时', day: '天', days: '天', week: '周', weeks: '周' };
+        return count + ' ' + units[unit.toLowerCase()] + '前';
+      }],
+      [/^(\d+)([mhd]) ago$/i, function (_, count, unit) {
+        var units = { m: '分钟', h: '小时', d: '天' };
         return count + ' ' + units[unit.toLowerCase()] + '前';
       }],
       [/^(\d+) devices?$/i, function (_, count) { return count + ' 台设备'; }],
@@ -525,15 +526,16 @@
       [/^(\d+) connections?$/i, function (_, count) { return count + ' 个连接'; }],
       [/^(\d+) peers?$/i, function (_, count) { return count + ' 个对端'; }],
       [/^(\d+) routes?$/i, function (_, count) { return count + ' 条路由'; }],
+      [/^(\d+) networks?$/i, function (_, count) { return count + ' 个网络'; }],
+      [/^(\d+) routers?$/i, function (_, count) { return count + ' 台路由器'; }],
+      [/^(\d+) offline$/i, function (_, count) { return count + ' 台离线'; }],
       [/^Showing (\d+)[–-](\d+) of (\d+)$/i, function (_, from, to, total) { return '显示第 ' + from + '–' + to + ' 项，共 ' + total + ' 项'; }],
       [/^Page (\d+) of (\d+)$/i, function (_, page, total) { return '第 ' + page + ' 页，共 ' + total + ' 页'; }],
-      [/^Connected to router: (.+)$/i, function (_, router) { return '已连接到路由器：' + router; }],
-      [/^Switching to router: (.+)…$/i, function (_, router) { return '正在切换到路由器：' + router + '…'; }]
-      ,[/^(\d+) errors?$/i, function (_, count) { return count + ' 个错误'; }]
-      ,[/^(\d+) warnings?$/i, function (_, count) { return count + ' 个警告'; }]
-      ,[/^(\d+) info$/i, function (_, count) { return count + ' 条信息'; }]
-      ,[/^(\d+) debug$/i, function (_, count) { return count + ' 条调试信息'; }]
-      ,[/^(\d+) pages? ·$/i, function (_, count) { return count + ' 页 ·'; }]
+      [/^(\d+) errors?$/i, function (_, count) { return count + ' 个错误'; }],
+      [/^(\d+) warnings?$/i, function (_, count) { return count + ' 个警告'; }],
+      [/^(\d+) info$/i, function (_, count) { return count + ' 条信息'; }],
+      [/^(\d+) debug$/i, function (_, count) { return count + ' 条调试信息'; }],
+      [/^(\d+) pages? ·$/i, function (_, count) { return count + ' 页 ·'; }]
     ]
   };
 
@@ -547,7 +549,7 @@
     'A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says': '角色决定用户可以查看哪些页面。可在某个作用域内将角色授予用户或组——角色定义',
     'A router belongs to one site at most. Ticking it here moves it from whatever site it was in before.': '一台路由器最多属于一个站点。在此勾选会将它从原站点移入当前站点。',
     'A site groups routers by location. A router belongs to one site, or none — assign it in the router\'s settings.': '站点按位置组织路由器。一台路由器可属于一个站点或不属于任何站点——请在路由器设置中分配。',
-    'AF': '地址族', 'Access': '访问权限', 'Access Management': '访问管理', 'Access granted to this group': '授予此组的访问权限', 'Access granted to this user': '授予此用户的访问权限', 'Access management sections': '访问管理部分', 'Access points': '接入点', 'Account': '账户', 'Acknowledged': '已确认', 'Active Sessions': '活动会话', 'Active routes filter': '活动路由筛选',
+    'AF': '地址族', 'Access': '访问权限', 'Access Management': '访问管理', 'Access granted to this group': '授予此组的访问权限', 'Access granted to this user': '授予此用户的访问权限', 'Access management sections': '访问管理部分', 'Access points': '接入点', 'Account': '账户', 'Acknowledge': '确认', 'Acknowledged': '已确认', 'Active Sessions': '活动会话', 'Active routes filter': '活动路由筛选',
     'Add Group': '添加组', 'Add Role': '添加角色', 'Add Site': '添加站点', 'Add User': '添加用户', 'Address family filter': '地址族筛选', 'Alerting': '告警中', 'Alerts & connectivity': '告警与连接状态', 'All VLANs': '全部 VLAN', 'All leases': '全部租约', 'All none': '全部无权限', 'All read': '全部只读', 'All write': '全部可写', 'Allow personal channels': '允许个人通知频道',
     'Auto Frame — keep every router in view. Panning or zooming turns it off.': '自动取景——让所有路由器保持在视图中。平移或缩放会将其关闭。',
     'BGP address family filter': 'BGP 地址族筛选', 'BGP peer type filter': 'BGP 对等体类型筛选', 'BGP peer up/down, large prefix-count swings, session flapping and hold-timer misconfiguration': 'BGP 对等体上下线、前缀数量大幅波动、会话抖动及保持计时器配置错误', 'BGP session state filter': 'BGP 会话状态筛选',
@@ -582,7 +584,8 @@
 
   // Literal UI written by app.js. Audited separately from static HTML.
   Object.assign(global.MikroDashLocales['zh-CN'].messages, {
-    '(down)': '（已断开）', '(this device)': '（此设备）', 'Buckets': '分组',
+    '(down)': '（已断开）', '(this device)': '（此设备）', '(unnamed)': '（未命名）',
+    'Buckets': '分组',
     'City search is unavailable on this install.': '此安装无法使用城市搜索。',
     'Clear it to go back to the automatic location.': '清除后恢复自动定位。',
     'Connecting…': '正在连接…', 'Could not load groups.': '无法加载组。',
@@ -619,16 +622,20 @@
     'No sites yet. Add one to group your routers.': '尚无站点。添加站点可对路由器分组。',
     'No users yet': '尚无用户', 'No users yet.': '尚无用户。',
     'Nothing matches that selection.': '没有符合该选择的数据。', 'Ongoing': '进行中',
-    'Open': '未解决', 'Recently resolved': '最近已解决', 'Request failed': '请求失败',
+    'Open': '未解决', 'Profile': '配置文件', 'Recently resolved': '最近已解决',
+    'Request failed': '请求失败', 'Server': '服务器',
     'Samples': '样本', 'Saving…': '正在保存…', 'Sending…': '正在发送…',
     'Set a town in the router’s settings, or give its site one.': '请在路由器设置中指定城市，或为其站点指定城市。',
     'Set here.': '在此设置。', 'Signed in': '已登录', 'Subnet': '子网', 'TCP:': 'TCP：',
     'Testing…': '正在测试…', 'Top connection destinations': '热门连接目标', 'Up': '上线',
     'Will delete': '将删除', 'active': '活动',
     'address cannot be geolocated — pick a town instead.': '地址无法定位——请手动选择城市。',
-    'bound': '已绑定', 'built in': '内置', 'conns': '连接', 'disabled': '已禁用',
-    'down': '断开', 'expired': '已过期', 'expires': '到期', 'leases': '租约',
+    'at': '于', 'bound': '已绑定', 'built in': '内置', 'conns': '连接', 'disabled': '已禁用',
+    'down': '断开', 'enabled': '已启用', 'expired': '已过期', 'expires': '到期',
+    'from its site': '来自其站点', 'from its WAN address': '来自其 WAN 地址',
+    'just now': '刚刚', 'leases': '租约',
     'no access granted': '未授予访问权限', 'rows': '行', 'rows from': '行，来源',
+    'set here': '在此设置', 'this location': '此位置',
     'up': '上线', 'waiting': '等待中', '— currently in': '— 当前位于',
     '· up': '· 上线', '· down': '· 断开', '· disabled': '· 已禁用',
     '· waiting': '· 等待中', '· unavailable': '· 不可用',
@@ -649,6 +656,42 @@
     'Reset counters for': '已重置计数器：', 'Reordered': '已重新排序', 'Done:': '已完成：',
     'Created group': '已创建组', 'Updated group': '已更新组', 'Removed group': '已删除组',
     'Ended the session for': '已结束会话：',
+    'Switching to': '正在切换到',
+    'A physical radio cannot be removed — only the extra SSIDs on it can.': '实体无线电接口无法删除——只能删除其上的额外 SSID。',
+    'All accumulated data (traffic history, ping history, bandwidth, alerts, and connectivity events) for this router will be permanently deleted.': '此路由器的所有累计数据（流量历史、Ping 历史、带宽、告警和连接事件）都将被永久删除。',
+    'Anyone who can reach this page will have full control, with no login and no per-user permissions. Only do this on a trusted network.': '任何能访问此页面的人都将拥有完整控制权，无需登录，也没有逐用户权限限制。仅可在可信网络中这样做。',
+    'Could not delete the group': '无法删除该组', 'Could not delete the role': '无法删除该角色',
+    'Delete failed:': '删除失败：', 'Delete group': '删除组', 'Delete router': '删除路由器',
+    'Delete site': '删除站点', 'Delete the role': '删除角色', 'Delete these': '删除这',
+    'Delete this data permanently?': '要永久删除这些数据吗？', 'Delete this item': '删除此项目',
+    'Delete this restore point?': '要删除此还原点吗？', 'Delete user': '删除用户',
+    'Everything configured since this backup is lost.': '此备份之后所做的所有配置都将丢失。',
+    'Its members keep any access granted to them directly.': '组成员仍会保留直接授予给他们的访问权限。',
+    'MikroTik recommend matching versions.': 'MikroTik 建议使用一致的版本。',
+    'Network error': '网络错误', 'Remove the scheduled report': '删除定时报告',
+    'Request failed:': '请求失败：', 'Reset all settings to defaults?': '要将所有设置重置为默认值吗？',
+    'Restore this router from this backup?': '要从此备份还原该路由器吗？',
+    'Something was missing from the request.': '请求缺少必要内容。', 'Switch failed:': '切换失败：',
+    'That action no longer applies to this row.': '该操作已不再适用于此行。',
+    'That did not work.': '操作未成功。',
+    'That row changed on the router while the form was open. Close it and try again.': '表单打开期间，该行已在路由器上发生变化。请关闭表单后重试。',
+    'That rule is already at the end of its table.': '该规则已位于表格末尾。',
+    'The API user MikroDash connects as is part of what gets replaced — if that user did not exist when this backup was taken, MikroDash will lose access to this router.': 'MikroDash 用于连接的 API 用户也会被替换——如果制作此备份时该用户尚不存在，MikroDash 将失去对此路由器的访问权限。',
+    'The Audit page keeps the record.': '审计页面会保留此次操作记录。',
+    'The RouterOS user MikroDash connects with lacks the write policy.': 'MikroDash 用于连接的 RouterOS 用户缺少 write 权限。',
+    'The router refused the change.': '路由器拒绝了此更改。',
+    'The stored files and their history rows are removed, and cannot be recovered.': '存储的文件及其历史记录行都会被删除，且无法恢复。',
+    'This REPLACES the entire configuration and reboots the router.': '这会替换整个配置并重启路由器。',
+    'This RouterOS version does not have that menu.': '此 RouterOS 版本没有该菜单。',
+    'This cannot be undone.': '此操作无法撤销。', 'This page does not support editing.': '此页面不支持编辑。',
+    'This router is not connected.': '此路由器未连接。',
+    'This row is managed by the router and cannot be edited here.': '此行由路由器管理，无法在此编辑。',
+    'Toggle failed': '切换状态失败', 'Turn authentication off?': '要关闭身份验证吗？',
+    'Unknown error': '未知错误', 'WARNING: this backup was taken on RouterOS': '警告：此备份制作于 RouterOS',
+    'You do not have write access to this router.': '您没有此路由器的写入权限。',
+    'and the router now runs': '而路由器当前运行的是',
+    'restore points?': '个还原点吗？',
+    'router(s) will be left without a site. They are not deleted.': '台路由器将变为无站点状态，但不会被删除。',
     'Package': '软件包', 'Built': '构建时间', 'Size': '大小', 'State': '状态',
     'Board': '硬件', 'Channel': '更新通道', 'Firmware': '固件', 'Minimum firmware': '最低固件版本',
     'Undo': '撤销', 'Install': '安装', 'Uninstall': '卸载', 'Disable': '禁用',

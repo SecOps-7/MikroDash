@@ -1988,7 +1988,7 @@
       <div class="nav-item" id="authUserChipBtn" style="height:44px">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
         <span class="nav-label" style="display:flex;align-items:center;justify-content:space-between;flex:1;min-width:0;gap:.4rem">
-          <span id="authUsername" style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0"></span>
+          <span id="authUsername" data-i18n-user-data style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0"></span>
           <button id="logoutBtn" title="Sign out" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:rgba(99,130,190,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0;transition:color .15s,background .15s">
             <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           </button>
@@ -2026,7 +2026,7 @@
       <div id="routerSelectWrap" class="topbar-mobile-hide" style="position:relative">
         <span class="rtr-status-dot" id="rtrStatusDot"></span>
         <button id="routerSelectBtn" type="button" title="Switch router" aria-haspopup="listbox" aria-expanded="false">
-          <span id="routerSelectLabel">—</span>
+          <span id="routerSelectLabel" data-i18n-user-data>—</span>
           <svg class="rtr-dd-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div id="routerDropdown" class="rtr-dd" role="listbox" aria-label="Switch router">
@@ -2271,7 +2271,7 @@
           <div class="card-body" style="padding:.4rem .75rem .5rem;display:flex;flex-direction:column;justify-content:center">
             <div id="ndPingSection">
               <div class="ping-header">
-                <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel">1.1.1.1</span></span>
+                <span style="color:var(--text-muted)">Latency &rarr; <span id="pingTargetLabel" data-i18n-user-data>1.1.1.1</span></span>
                 <div class="ping-stat">
                   <span><span class="ping-val" id="ndPingRtt">—</span> <span style="color:var(--text-muted)">ms</span></span>
                   <span><span class="ping-val" id="ndPingMin">—</span> <span style="color:var(--text-muted)">min</span></span>
@@ -3765,8 +3765,8 @@
 
       <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
         <div class="wl-summary-card"><div class="wl-summary-title">Uplinks</div><div class="fa-stat-val" id="wanSumCount">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">Carrying Traffic</div><div class="fa-stat-val" id="wanSumActive" style="font-size:1.1rem">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">Public Address</div><div class="fa-stat-val" id="wanSumPublic" style="font-size:1.1rem">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Carrying Traffic</div><div class="fa-stat-val" id="wanSumActive" data-i18n-user-data style="font-size:1.1rem">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Public Address</div><div class="fa-stat-val" id="wanSumPublic" data-i18n-user-data style="font-size:1.1rem">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Throughput</div><div class="fa-stat-val" id="wanSumRate" style="font-size:1.1rem">&mdash;</div></div>
       </div>
 
@@ -3966,7 +3966,7 @@
         <div class="wl-summary-card"><div class="wl-summary-title">Users</div><div class="fa-stat-val" id="ruSumUsers">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Groups</div><div class="fa-stat-val" id="ruSumGroups">&mdash;</div></div>
         <div class="wl-summary-card"><div class="wl-summary-title">Active Sessions</div><div class="fa-stat-val" id="ruSumSessions">&mdash;</div></div>
-        <div class="wl-summary-card"><div class="wl-summary-title">MikroDash Connects As</div><div class="fa-stat-val" id="ruSumSelf" style="font-size:1.1rem">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">MikroDash Connects As</div><div class="fa-stat-val" id="ruSumSelf" data-i18n-user-data style="font-size:1.1rem">&mdash;</div></div>
       </div>
 
       <!-- A banner, not a silent empty table. The documented monitoring group
@@ -6140,7 +6140,7 @@
           </div>
           <div class="scard-body">
             <label class="sform-label">Signed in as</label>
-            <div id="acct_username" style="font-size:.9rem;font-weight:600;padding:.25rem 0"></div>
+            <div id="acct_username" data-i18n-user-data style="font-size:.9rem;font-weight:600;padding:.25rem 0"></div>
             <p style="font-size:.72rem;color:var(--text-muted);margin:.35rem 0 0">
               Your username is managed by an administrator.
             </p>
