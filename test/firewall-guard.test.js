@@ -360,3 +360,57 @@ test('the guard reaches every write path, including the named verbs', () => {
   assert.ok(at > 0 && end > at);
   assert.ok(/_resAckGate/.test(body.slice(at, end)), 'res:action runs no guard');
 });
+
+// ── A spec with no prefix ────────────────────────────────────────────────────
+//
+// parseCIDR handed `parseInt(undefined, 10)` — NaN — to ipaddr.js, whose
+// matchCIDR loops `while (cidrBits > 0)`. NaN fails that immediately and the
+// match returns TRUE, so a prefix-less spec matched every address of the same
+// family and the same rule written two ways disagreed.
+
+const { isInCidrs } = require('../src/util/ip');
+
+test('a bare address matches itself and nothing else', () => {
+  assert.equal(isInCidrs('8.8.8.8', ['10.0.0.5']), false,
+    'a prefix-less spec must not match every address');
+  assert.equal(isInCidrs('10.0.0.5', ['10.0.0.5']), true, 'it still matches itself');
+  // The same rule, both spellings, one answer.
+  assert.equal(isInCidrs('8.8.8.8', ['10.0.0.5']), isInCidrs('8.8.8.8', ['10.0.0.5/32']));
+  assert.equal(isInCidrs('10.0.0.5', ['10.0.0.5']), isInCidrs('10.0.0.5', ['10.0.0.5/32']));
+});
+
+test('an unreadable prefix is the whole address, not every address', () => {
+  for (const spec of ['10.0.0.5/', '10.0.0.5/abc']) {
+    assert.equal(isInCidrs('8.8.8.8', [spec]), false, spec + ' must not match everything');
+    assert.equal(isInCidrs('10.0.0.5', [spec]), true, spec + ' must still match itself');
+  }
+  // An over-long mask is left alone: 33 parses, so it is passed through rather
+  // than defaulted. ipaddr compares byte-wise and runs out of octets, so it
+  // behaves as /32 for a v4 address. Harmless, and this is the half that
+  // matters: it still does not match a different address.
+  assert.equal(isInCidrs('8.8.8.8', ['10.0.0.5/33']), false);
+});
+
+test('real prefixes are unaffected, v4 and v6', () => {
+  assert.equal(isInCidrs('10.0.0.5', ['10.0.0.0/8']), true);
+  assert.equal(isInCidrs('8.8.8.8', ['10.0.0.0/8']), false);
+  assert.equal(isInCidrs('2001:db8::1', ['2001:db8::/32']), true);
+  assert.equal(isInCidrs('2001:db8::1', ['2001:db8::1']), true, 'bare v6 is /128');
+  assert.equal(isInCidrs('2001:db9::1', ['2001:db8::1']), false);
+  // Families do not cross.
+  assert.equal(isInCidrs('10.0.0.5', ['2001:db8::1']), false);
+});
+
+test('blocking one host does not raise a lockout warning', () => {
+  // The reachable consequence. Whether an ordinary block warned depended only on
+  // whether the operator typed the /32, and a guard that cries wolf on the
+  // ordinary case teaches people to click through the one that matters.
+  // addressCovers(spec, addresses): the rule's spec first, our addresses second.
+  const ours = ['198.51.100.7'];
+  const bare = G.addressCovers('203.0.113.9', ours);
+  const cidr = G.addressCovers('203.0.113.9/32', ours);
+  assert.equal(bare, cidr, 'the same rule, both spellings, must reach the same verdict');
+  assert.equal(bare, false, 'and that verdict is: this rule does not hold us');
+  // The rule that does hold us still says so.
+  assert.equal(G.addressCovers('198.51.100.0/24', ours), true);
+});

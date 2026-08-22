@@ -1,5 +1,33 @@
 const ipaddr = require('ipaddr.js');
-function parseCIDR(cidr){ const parts = String(cidr).split('/'); return [ipaddr.parse(parts[0]), parseInt(parts[1],10)]; }
+/**
+ * Split `addr/prefix`, defaulting a missing or unreadable prefix to the whole
+ * address — /32 for v4, /128 for v6 — which is what a bare address means
+ * everywhere in RouterOS.
+ *
+ * It used to hand `parseInt(undefined, 10)` straight to ipaddr.js, which is NaN.
+ * `matchCIDR` loops `while (cidrBits > 0)`, NaN fails that immediately, and the
+ * function returns TRUE. So a spec with no prefix matched EVERY address of the
+ * same family, and the same rule written two ways disagreed:
+ *
+ *   isInCidrs('8.8.8.8', ['10.0.0.5'])    -> true
+ *   isInCidrs('8.8.8.8', ['10.0.0.0/8'])  -> false
+ *
+ * fwGuard is where that was reachable. Blocking one abusive host is an ordinary
+ * edit, and whether it raised a lockout warning depended only on whether the
+ * operator typed the `/32`. A guard that cries wolf on the ordinary case teaches
+ * people to click through the warning that mattered, which is the whole thing
+ * that module exists to avoid.
+ *
+ * An over-long mask (`/33`) still throws and is still caught as `false`: it is
+ * not a prefix this address could have, so it is not a spec we can honour.
+ */
+function parseCIDR(cidr){
+  const parts = String(cidr).split('/');
+  const addr  = ipaddr.parse(parts[0]);
+  const bits  = parseInt(parts[1], 10);
+  const full  = addr.kind() === 'ipv6' ? 128 : 32;
+  return [addr, Number.isNaN(bits) ? full : bits];
+}
 function isInCidrs(ip, cidrs){
   if(!ip) return false;
   let obj; try{ obj=ipaddr.parse(ip);}catch{return false;}

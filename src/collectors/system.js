@@ -146,8 +146,13 @@ class SystemCollector {
     const updateAvailable = latestVersion
       ? latestVersion !== installedBase
       : updateStatus.toLowerCase().includes('new version');
+    // `channel` comes back in this same row, and the upgrade dialog has always
+    // had a line for it — it read `updateChannel` off the payload, which nothing
+    // ever set, so it rendered blank on every router. It is the one thing that
+    // distinguishes a stable upgrade from a testing one.
     const updated = { ...this.lastPayload, ts: Date.now(), latestVersion,
-                      updateAvailable: !!updateAvailable, updateStatus };
+                      updateAvailable: !!updateAvailable, updateStatus,
+                      updateChannel: u['channel'] || '' };
     this.lastPayload = updated;
     this._lastFp = '';
     this.io.emit('system:update', updated);
@@ -335,6 +340,7 @@ class SystemCollector {
       ts: Date.now(), uptimeRaw: r.uptime || '', cpuLoad, memPct, usedMem, totalMem,
       hddPct, totalHdd, freeHdd, version: installed,
       latestVersion, updateAvailable: !!updateAvailable, updateStatus,
+      updateChannel: u['channel'] || '',
       boardName: r['board-name'] || r['platform'] || '',
       cpuCount: parseInt(r['cpu-count'] || '1', 10),
       cpuFreq:  parseInt(r['cpu-frequency'] || '0', 10),
