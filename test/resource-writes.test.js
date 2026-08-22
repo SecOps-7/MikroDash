@@ -856,3 +856,22 @@ test('the gap is the same red as the drop pill, carried by colour alone', () => 
   assert.ok(!/border/.test(cell), 'colour alone — no border on the gap cell');
   assert.ok(!/!important/.test(cell), 'and so no !important needed');
 });
+
+test('each write page owns the status handler its socket callbacks call', () => {
+  // setStatus in the Packages IIFE is not visible to the three IIFEs below it.
+  // Without a local handler, a successful write completes on RouterOS and then
+  // throws ReferenceError in the browser instead of reporting the result.
+  const pages = [
+    ['── WAN page', '── Queues page', 'wanActionNote'],
+    ['── Queues page', '── Router Users page', 'qActionNote'],
+    ['── Router Users page', '── Audit page', 'ruActionNote'],
+  ];
+  for (const [start, end, noteId] of pages) {
+    const at = APP.indexOf(start);
+    const to = APP.indexOf(end, at);
+    assert.ok(at > 0 && to > at, `found ${start}`);
+    const block = APP.slice(at, to);
+    assert.match(block, /function setStatus\(text\)/, `${start} needs a local setStatus`);
+    assert.ok(block.includes(`$('${noteId}')`), `${start} writes to ${noteId}`);
+  }
+});
