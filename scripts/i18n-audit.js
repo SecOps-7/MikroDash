@@ -154,6 +154,17 @@ function dynamicCandidates(file) {
       collectExpression(node.arguments[1]);
     }
   });
+  // Explicit translation calls are UI copy even when their result is joined
+  // with user data before it reaches a DOM sink. Without this pass, those
+  // fragments look like unused locale entries and a missing translation can
+  // hide inside a sentence that is only partly Chinese.
+  _walk(ast, (node) => {
+    if (node.type !== 'CallExpression' || !node.arguments[0]) return;
+    const direct = node.callee.type === 'Identifier' && node.callee.name === 'tr';
+    const apiCall = node.callee.type === 'MemberExpression' && !node.callee.computed &&
+      node.callee.property.name === 't';
+    if (direct || apiCall) collectExpression(node.arguments[0]);
+  });
   return candidates;
 }
 
@@ -163,7 +174,9 @@ function audit() {
   const allowed = new Set(Object.values(policy.exact).flat());
   const allowedPatterns = policy.patterns.map((item) => ({ reason: item.reason, regex: new RegExp(item.regex) }));
   const staticSet = new Set([...staticCandidates('index.html'), ...staticCandidates('login.html')]);
-  const dynamicSet = dynamicCandidates('app.js');
+  const dynamicFiles = ['app.js', 'login.js', 'preflight.js',
+    path.join('js', 'dashboard-grid.js'), path.join('js', 'topology.js')];
+  const dynamicSet = new Set(dynamicFiles.flatMap((file) => [...dynamicCandidates(file)]));
   const candidates = new Set([...staticSet, ...dynamicSet]);
   const missing = [...candidates].filter((value) =>
     !Object.prototype.hasOwnProperty.call(locale.messages, value) &&
@@ -171,11 +184,15 @@ function audit() {
     !allowedPatterns.some((item) => item.regex.test(value))
   ).sort();
   const staleAllowed = [...allowed].filter((value) => !candidates.has(value)).sort();
+  // Visibility only: some keys are assembled from bounded runtime values (for
+  // example document titles), so an unmatched entry is a cleanup lead rather
+  // than a release failure. Missing current UI copy remains the hard failure.
+  const staleMessages = Object.keys(locale.messages).filter((value) => !candidates.has(value)).sort();
   return {
     candidates: [...candidates].sort(),
     staticCandidates: [...staticSet].sort(),
     dynamicCandidates: [...dynamicSet].sort(),
-    missing, staleAllowed,
+    missing, staleAllowed, staleMessages,
   };
 }
 
@@ -185,7 +202,7 @@ if (require.main === module) {
     console.error('Unclassified English UI candidates:\n' + result.missing.map((item) => '  - ' + item).join('\n'));
     process.exitCode = 1;
   } else {
-    console.log(`i18n audit passed: ${result.staticCandidates.length} static HTML and ${result.dynamicCandidates.length} app.js UI candidates classified.`);
+    console.log(`i18n audit passed: ${result.staticCandidates.length} static HTML and ${result.dynamicCandidates.length} dynamic UI candidates classified; ${result.staleMessages.length} locale entries have no static match (visibility only).`);
   }
 }
 

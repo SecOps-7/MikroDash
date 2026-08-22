@@ -732,8 +732,7 @@
           // Say plainly when the attachment was deduced from a shared port
           // rather than observed, so a wrong guess is visible rather than silent.
           (n.attrib === 'port'
-            ? '<span class="topo-badge is-guess" title="Deduced: this device shares a ' +
-              'port with that switch. The router cannot see which switch port.">inferred</span>'
+            ? '<span class="topo-badge is-guess" title="Deduced: this device shares a port with that switch. The router cannot see which switch port.">inferred</span>'
             : '') +
         '</div>' +
         '<dl class="topo-kv">' +

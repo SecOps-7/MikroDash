@@ -151,6 +151,7 @@
     currentLanguage = next;
     try { localStorage.setItem(STORAGE_KEY, next); } catch (_) {}
     applyDocument();
+    syncObserver();
     document.dispatchEvent(new CustomEvent('mikrodash:languagechange', { detail: { language: next } }));
   }
 
@@ -178,9 +179,20 @@
   }
 
   function startObserver() {
-    if (!document.body || observer) return;
+    if (currentLanguage === DEFAULT_LANGUAGE || !document.body || observer) return;
     observer = new MutationObserver(processMutations);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: TRANSLATABLE_ATTRIBUTES, childList: true, characterData: true, subtree: true });
+  }
+
+  function stopObserver() {
+    if (!observer) return;
+    observer.disconnect();
+    observer = null;
+  }
+
+  function syncObserver() {
+    if (currentLanguage === DEFAULT_LANGUAGE) stopObserver();
+    else startObserver();
   }
 
   global.MikroDashI18n = {
@@ -196,6 +208,6 @@
   };
 
   bindSelectors();
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { applyDocument(); startObserver(); });
-  else { applyDocument(); startObserver(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { applyDocument(); syncObserver(); });
+  else { applyDocument(); syncObserver(); }
 })(window);

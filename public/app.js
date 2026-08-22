@@ -98,6 +98,9 @@ if (sessionStorage.getItem('justLoggedIn')) {
 // ── Utilities ──────────────────────────────────────────────────────────────
 var DOT = '\u00b7';
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+function tr(s, context){
+  return window.MikroDashI18n ? window.MikroDashI18n.t(s, context || 'app.js') : s;
+}
 
 /**
  * The attributes that make a rendered row editable by the resource engine at
@@ -847,9 +850,11 @@ function initChart(points){
 // ── WAN ────────────────────────────────────────────────────────────────────
 function renderWanStatus(s){
   wanStatusBadge.className='wan-badge';
-  if(s.disabled){wanStatusBadge.className+=' wan-disabled';wanStatusBadge.textContent=(s.ifName||'?')+' · disabled';}
-  else if(s.running){wanStatusBadge.className+=' wan-up';wanStatusBadge.textContent=(s.ifName||'?')+' · up';}
-  else{wanStatusBadge.className+=' wan-down';wanStatusBadge.textContent=(s.ifName||'?')+' · down';}
+  var stateText=' · down';
+  if(s.disabled){wanStatusBadge.className+=' wan-disabled';stateText=' · disabled';}
+  else if(s.running){wanStatusBadge.className+=' wan-up';stateText=' · up';}
+  else{wanStatusBadge.className+=' wan-down';}
+  wanStatusBadge.innerHTML='<span data-i18n-user-data>'+esc(s.ifName||'?')+'</span><span>'+stateText+'</span>';
 }
 
 // ── System ─────────────────────────────────────────────────────────────────
@@ -1237,7 +1242,7 @@ socket.on('talkers:update',function(data){
     return;
   }
   talkersTable.innerHTML=devices.map(function(d){
-    return'<tr><td>'+esc(d.name||'\u2014')+'</td><td style="color:var(--text-muted)">'+esc(d.mac||'\u2014')+'</td>'+
+    return'<tr data-i18n-user-data><td>'+esc(d.name||'\u2014')+'</td><td style="color:var(--text-muted)">'+esc(d.mac||'\u2014')+'</td>'+
       '<td class="text-end" style="color:var(--accent-rx)">'+fmtMbps(d.rx_mbps)+'</td>'+
       '<td class="text-end" style="color:var(--accent-tx)">'+fmtMbps(d.tx_mbps)+'</td></tr>';
   }).join('');
@@ -2704,6 +2709,7 @@ function _rebuildIfaceSelect(names) {
   ifaceSelect.innerHTML = '';
   names.forEach(function(n) {
     var opt = document.createElement('option');
+    opt.setAttribute('data-i18n-user-data', '');
     opt.value = n; opt.textContent = n;
     ifaceSelect.appendChild(opt);
   });
@@ -13357,8 +13363,8 @@ function _renderRoutersMap(rows) {
     // router, and the name is what makes "the wrong router" a hard mistake to
     // make rather than an easy one.
     var typed = window.prompt(
-      'This applies all scheduled package changes and REBOOTS the router.\n\n' +
-      'Type the router name to confirm: ' + name);
+      tr('This applies all scheduled package changes and REBOOTS the router.') + '\n\n' +
+      tr('Type the router name to confirm:') + ' ' + name);
     if (typed === null) return;
     socket.emit('packages:apply', { confirm: typed });
   });
@@ -13535,8 +13541,10 @@ function _renderRoutersMap(rows) {
     if (!b) return;
     var verb = b.getAttribute('data-wanact'), id = b.getAttribute('data-id'), name = b.getAttribute('data-name');
     var msg = verb === 'release'
-      ? 'Release the DHCP lease on "' + name + '"?\n\nThe uplink goes down until the client rebinds — usually seconds, but it is a real outage.'
-      : 'Renew the DHCP lease on "' + name + '"?\n\nThe uplink blips briefly while the lease is renewed.';
+      ? tr('Release the DHCP lease on') + ' "' + name + '"?\n\n' +
+        tr('The uplink goes down until the client rebinds — usually seconds, but it is a real outage.')
+      : tr('Renew the DHCP lease on') + ' "' + name + '"?\n\n' +
+        tr('The uplink blips briefly while the lease is renewed.');
     if (!window.confirm(msg)) return;
     send(verb, id, name);
   });
@@ -13561,7 +13569,7 @@ function _renderRoutersMap(rows) {
     _busy = '';
     // "Requested", not "renewed": the lease settles over the next second or two
     // and the next tick is what reports the outcome.
-    setStatus((d && d.action === 'release' ? 'Released the lease on ' : 'Requested a renewal on ') + ((d && d.name) || ''));
+    setStatus(tr(d && d.action === 'release' ? 'Released the lease on' : 'Requested a renewal on') + ' ' + ((d && d.name) || ''));
   });
   socket.on('wan:error', function (d) {
     _busy = '';
@@ -14019,7 +14027,8 @@ function _renderRoutersMap(rows) {
       return socket.emit('queue:resetCounters', { id: id, expectedName: name, menu: menu });
     }
     if (act === 'remove') {
-      if (!window.confirm('Remove the queue "' + name + '"?\n\nTraffic it was limiting will no longer be shaped.')) return;
+      if (!window.confirm(tr('Remove the queue') + ' "' + name + '"?\n\n' +
+        tr('Traffic it was limiting will no longer be shaped.'))) return;
       _busy = id; render();
       return socket.emit('queue:remove', { id: id, expectedName: name, menu: menu });
     }
@@ -14051,7 +14060,7 @@ function _renderRoutersMap(rows) {
     $('qFormWrap').classList.remove('open');
     var what = { create:'Created ', update:'Updated ', 'delete':'Removed ', enable:'Enabled ',
                  disable:'Disabled ', reset:'Reset counters for ', move:'Reordered ' }[d && d.action] || 'Done: ';
-    setStatus(what + ((d && d.name) || ''));
+    setStatus(tr(what.trim()) + ' ' + ((d && d.name) || ''));
   });
   socket.on('queues:error', function (d) {
     _busy = '';
@@ -14412,9 +14421,9 @@ function _renderRoutersMap(rows) {
                                            address: u.address, comment: u.comment, disabled: !u.disabled });
     }
     var prompts = {
-      'user-remove':    'Remove the router user "' + name + '"?\n\nThey will no longer be able to log in to this router.',
-      'group-remove':   'Remove the group "' + name + '"?\n\nRouterOS refuses this if any user is still in it.',
-      'session-remove': 'End "' + name + '"’s session?\n\nThey will be disconnected from the router immediately.',
+      'user-remove':    tr('Remove the router user') + ' "' + name + '"?\n\n' + tr('They will no longer be able to log in to this router.'),
+      'group-remove':   tr('Remove the group') + ' "' + name + '"?\n\n' + tr('RouterOS refuses this if any user is still in it.'),
+      'session-remove': tr('End the session for') + ' "' + name + '"?\n\n' + tr('They will be disconnected from the router immediately.'),
     };
     if (!prompts[act]) return;
     if (!window.confirm(prompts[act])) return;
@@ -14480,7 +14489,7 @@ function _renderRoutersMap(rows) {
       'group-create': 'Created group ', 'group-update': 'Updated group ', 'group-delete': 'Removed group ',
       'session-remove': 'Ended the session for ',
     }[d && d.action] || 'Done: ';
-    setStatus(what + ((d && d.name) || ''));
+    setStatus(tr(what.trim()) + ' ' + ((d && d.name) || ''));
   });
   socket.on('rosusers:error', function (d) {
     _busy = '';
@@ -15168,17 +15177,17 @@ function _renderRoutersMap(rows) {
       // count, because "which rule" is the question somebody asks here.
       if (w.profile && w.ruleCount) {
         el('res_warn').innerHTML =
-          '<strong>This is pushed to every CAP as soon as you save.</strong><br>' +
-          '<code>' + esc(w.profile) + '</code> is used by ' + esc(String(w.ruleCount)) +
-          (w.ruleCount === 1 ? ' provisioning rule' : ' provisioning rules') +
+          '<strong>' + tr('This is pushed to every CAP as soon as you save.') + '</strong><br>' +
+          '<code>' + esc(w.profile) + '</code> ' + tr('is used by') + ' ' + esc(String(w.ruleCount)) + ' ' +
+          tr(w.ruleCount === 1 ? 'provisioning rule' : 'provisioning rules') +
           (w.rules && w.rules.length ? ' (' + w.rules.map(esc).join(', ') + ')' : '') +
-          (w.caps ? ', covering ' + esc(String(w.caps)) + (w.caps === 1 ? ' CAP' : ' CAPs') : '') +
-          '. Clients on those networks will reconnect.' +
+          (w.caps ? ', ' + tr('covering') + ' ' + esc(String(w.caps)) + ' CAP' : '') +
+          '. ' + tr('Clients on those networks will reconnect.') +
           (d.code === 'stale-warning'
-            ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
+            ? '<br><em>' + tr('The values changed since you were asked, so please confirm again.') + '</em>' : '') +
           '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
-          '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
-          '<button class="sbtn sbtn-primary" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Push it</button></div>';
+          '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">' + tr('Cancel') + '</button>' +
+          '<button class="sbtn sbtn-primary" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">' + tr('Push it') + '</button></div>';
         box.style.display = '';
         bindWarnButtons(d);
         return;
@@ -15191,43 +15200,43 @@ function _renderRoutersMap(rows) {
       if (w.profile) {
         var flds = (w.fields || []).join(', ');
         el('res_warn').innerHTML =
-          '<strong>This will override a shared profile.</strong><br>' +
-          '<code>' + esc(w.interface || '?') + '</code> currently takes ' + esc(flds) +
-          ' from the profile <code>' + esc(w.profile) + '</code>, which ' + esc(String(w.sharedBy)) +
-          ' interfaces share. Saving sets the value on this interface only — the others keep ' +
-          'following the profile, and the two stop changing together.' +
+          '<strong>' + tr('This will override a shared profile.') + '</strong><br>' +
+          '<code>' + esc(w.interface || '?') + '</code> ' + tr('currently takes') + ' ' + esc(flds) +
+          ' ' + tr('from the profile') + ' <code>' + esc(w.profile) + '</code>. ' + esc(String(w.sharedBy)) +
+          ' ' + tr('interfaces share that profile.') + ' ' +
+          tr('Saving sets the value on this interface only — the others keep following the profile, and the two stop changing together.') +
           (d.code === 'stale-warning'
-            ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
+            ? '<br><em>' + tr('The values changed since you were asked, so please confirm again.') + '</em>' : '') +
           '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
-          '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
-          '<button class="sbtn sbtn-primary" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Override it</button></div>';
+          '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">' + tr('Cancel') + '</button>' +
+          '<button class="sbtn sbtn-primary" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">' + tr('Override it') + '</button></div>';
         box.style.display = '';
         bindWarnButtons(d);
         return;
       }
 
       var why = w.kind === 'block'
-        ? 'This rule sits on the <code>' + esc(w.chain) + '</code> chain and would <code>' +
-          esc(w.action) + '</code> traffic matching the address the router sees MikroDash at — ' +
-          '<code>' + esc(w.address || '?') + '</code> arriving on <code>' + esc(w.interface || '?') +
-          '</code>, port <code>' + esc(w.port) + '</code>.'
+        ? tr('This rule sits on the') + ' <code>' + esc(w.chain) + '</code> ' + tr('chain and would') + ' <code>' +
+          esc(w.action) + '</code> ' + tr('traffic matching the address the router sees MikroDash at —') + ' ' +
+          '<code>' + esc(w.address || '?') + '</code>, ' + tr('arriving on') + ' <code>' + esc(w.interface || '?') +
+          '</code>, ' + tr('port') + ' <code>' + esc(w.port) + '</code>.'
         : w.kind === 'accept-removed'
-        ? 'This is a rule that currently lets MikroDash in. ' +
-          (w.what === 'move' ? 'Moving' : 'Removing') + ' it may leave nothing on the <code>' +
-          esc(w.chain) + '</code> chain accepting <code>' + esc(w.address || '?') + '</code>.'
-        : 'The router sees MikroDash at <code>' + esc(w.address || '?') + '</code>, which arrives on <code>' +
-          esc(w.interface || '?') + '</code> — the interface this change ' +
-          (w.action === 'delete' ? 'removes' : 'alters') + '.';
+        ? tr('This is a rule that currently lets MikroDash in.') + ' ' +
+          tr(w.what === 'move' ? 'Moving' : 'Removing') + ' ' + tr('it may leave nothing on the') + ' <code>' +
+          esc(w.chain) + '</code> ' + tr('chain accepting') + ' <code>' + esc(w.address || '?') + '</code>.'
+        : tr('The router sees MikroDash at') + ' <code>' + esc(w.address || '?') + '</code>, ' + tr('which arrives on') + ' <code>' +
+          esc(w.interface || '?') + '</code> — ' + tr('the interface this change') + ' ' +
+          tr(w.action === 'delete' ? 'removes' : 'alters') + '.';
       box.innerHTML =
-        '<strong>This may cut MikroDash off from this router.</strong><br>' + why +
+        '<strong>' + tr('This may cut MikroDash off from this router.') + '</strong><br>' + why +
         // What the guard cannot see, said plainly: it reasons about this rule,
         // not about the chain around it.
-        (w.kind ? '<br><em>Rule order is not taken into account — check where this sits in the chain.</em>' : '') +
+        (w.kind ? '<br><em>' + tr('Rule order is not taken into account — check where this sits in the chain.') + '</em>' : '') +
         (d.code === 'stale-warning'
-          ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
+          ? '<br><em>' + tr('The values changed since you were asked, so please confirm again.') + '</em>' : '') +
         '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
-        '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
-        '<button class="sbtn sbtn-danger" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Do it anyway</button></div>';
+        '<button class="sbtn sbtn-outline" id="res_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">' + tr('Cancel') + '</button>' +
+        '<button class="sbtn sbtn-danger" id="res_warnGo" style="padding:.3rem .7rem;font-size:.72rem">' + tr('Do it anyway') + '</button></div>';
       box.style.display = '';
       bindWarnButtons(d);
       return;

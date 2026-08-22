@@ -20,11 +20,23 @@ function loadLocale(name) {
   return window.MikroDashLocales[name];
 }
 
-function createDom(language = 'en-US') {
-  const dom = new JSDOM('<!doctype html><html><body><select data-language-select><option value="en-US">English</option><option value="zh-CN">简体中文</option></select><p id="label">Dashboard</p><input id="search" placeholder="Search"><img id="visual" alt="Dashboard" aria-description="Settings" aria-valuetext="Interfaces"></body></html>', {
+function createDom(language = 'en-US', options = {}) {
+  const dom = new JSDOM('<!doctype html><html><body><h1 id="brand" data-i18n-skip>Mikro<span>Dash</span></h1><select data-language-select><option value="en-US">English</option><option value="zh-CN">简体中文</option></select><p id="label">Dashboard</p><input id="search" placeholder="Search"><img id="visual" alt="Dashboard" aria-description="Settings" aria-valuetext="Interfaces"></body></html>', {
     url: 'http://127.0.0.1/', runScripts: 'dangerously', pretendToBeVisual: true,
   });
   Object.defineProperty(dom.window.navigator, 'language', { configurable: true, value: language });
+  if (options.trackObserver) {
+    const NativeObserver = dom.window.MutationObserver;
+    const stats = { created: 0, disconnected: 0 };
+    dom.window.MutationObserver = function TrackingObserver(callback) {
+      stats.created++;
+      const instance = new NativeObserver(callback);
+      const disconnect = instance.disconnect.bind(instance);
+      instance.disconnect = function () { stats.disconnected++; return disconnect(); };
+      return instance;
+    };
+    dom.observerStats = stats;
+  }
   dom.window.eval(readPublic(path.join('locales', 'en-US.js')));
   dom.window.eval(readPublic(path.join('locales', 'zh-CN.js')));
   dom.window.eval(readPublic('i18n.js'));
@@ -53,6 +65,9 @@ test('locale maps required current navigation and settings copy', () => {
 test('every static English UI candidate is translated or explicitly classified', () => {
   const result = audit();
   assert.deepEqual(result.missing, [], result.missing.join('\n'));
+  assert.ok(Array.isArray(result.staleMessages));
+  assert.ok(!result.staleMessages.includes('Dashboard'));
+  assert.ok(!result.staleMessages.includes('This applies all scheduled package changes and REBOOTS the router.'));
 });
 
 test('English locale remains the source-language fallback', () => {
@@ -73,12 +88,14 @@ test('language round-trip restores original text and attributes', async () => {
   const dom = createDom();
   const { document, MikroDashI18n } = dom.window;
   MikroDashI18n.setLanguage('zh-CN');
+  assert.equal(document.querySelector('#brand').textContent, 'MikroDash');
   assert.equal(document.querySelector('#label').textContent, '仪表盘');
   assert.equal(document.querySelector('#search').placeholder, '搜索');
   assert.equal(document.querySelector('#visual').alt, '仪表盘');
   assert.equal(document.querySelector('#visual').getAttribute('aria-description'), '设置');
   assert.equal(document.querySelector('#visual').getAttribute('aria-valuetext'), '接口');
   MikroDashI18n.setLanguage('en-US');
+  assert.equal(document.querySelector('#brand').textContent, 'MikroDash');
   assert.equal(document.querySelector('#label').textContent, 'Dashboard');
   assert.equal(document.querySelector('#search').placeholder, 'Search');
   assert.equal(document.querySelector('#visual').alt, 'Dashboard');
@@ -136,6 +153,70 @@ test('dynamic patterns accept bounded UI values and reject arbitrary user data',
   dom.window.close();
 });
 
+test('application marks router and user values as translation boundaries', () => {
+  const app = readPublic('app.js');
+  assert.match(app, /<tr data-i18n-user-data><td>'\+esc\(d\.name/,
+    'Top Talker device names and MAC addresses are router data');
+  assert.match(app, /log-line" data-i18n-user-data/,
+    'RouterOS log topics and messages are router data');
+  assert.match(app, /wl-ssid-name" data-i18n-user-data/,
+    'SSID values are router data');
+  assert.match(app, /opt\.setAttribute\('data-i18n-user-data', ''\)/,
+    'interface names in the traffic selector are router data');
+  assert.match(app, /data-i18n-user-data>' \+ esc\(u\.username\)/,
+    'account names are user data');
+});
+
+test('mutation observer only runs while a translated language is active', async () => {
+  const dom = createDom('en-US', { trackObserver: true });
+  await settle();
+  assert.equal(dom.observerStats.created, 0, 'English should not pay for a document-wide observer');
+  dom.window.MikroDashI18n.setLanguage('zh-CN');
+  assert.equal(dom.observerStats.created, 1);
+  dom.window.MikroDashI18n.setLanguage('en-US');
+  assert.equal(dom.observerStats.disconnected, 1);
+  dom.window.MikroDashI18n.setLanguage('zh-CN');
+  assert.equal(dom.observerStats.created, 2, 'switching back to Chinese re-arms translation');
+  dom.window.close();
+});
+
+test('every page introduced by upstream v0.7.25 has a translated document title', () => {
+  const messages = loadLocale('zh-CN').messages;
+  const pages = ['VLANs', 'PPP', 'Bridges', 'DNS', 'CAPsMAN', 'Packages',
+    'Queues', 'Router Users', 'WAN', 'Audit'];
+  const translatedWords = new Set(['VLANs', 'Bridges', 'Packages', 'Queues', 'Router Users', 'Audit']);
+  for (const page of pages) {
+    const source = 'MikroDash — ' + page;
+    assert.ok(messages[source], source);
+    if (translatedWords.has(page)) assert.notEqual(messages[source], source, source);
+  }
+});
+
+test('v0.7.25 router-write confirmations and refusals are translated', () => {
+  const messages = loadLocale('zh-CN').messages;
+  const required = [
+    'This applies all scheduled package changes and REBOOTS the router.',
+    'The uplink goes down until the client rebinds — usually seconds, but it is a real outage.',
+    'Traffic it was limiting will no longer be shaped.',
+    'They will no longer be able to log in to this router.',
+    'Package collection is not running for this router',
+    'WAN collection is not running for this router',
+    'Queue collection is not running for this router',
+    'Router user collection is not running for this router',
+    'That is the account MikroDash signs in with — manage it in WinBox',
+    'The RouterOS user needs the "policy" permission for this',
+  ];
+  for (const source of required) {
+    assert.ok(messages[source], source);
+    assert.notEqual(messages[source], source, source);
+  }
+  const app = readPublic('app.js');
+  assert.match(app, /function tr\(s, context\)/);
+  assert.match(app, /window\.prompt\(\s*tr\(/);
+  assert.match(app, /window\.confirm\(tr\('Remove the queue'/);
+  assert.match(app, /'user-remove':\s+tr\('Remove the router user'/);
+});
+
 test('audit mode records inspectable misses without changing the display', () => {
   const dom = createDom();
   const i18n = dom.window.MikroDashI18n;
@@ -156,6 +237,8 @@ test('application and login pages load locales before page scripts', () => {
   assert.ok(login.indexOf('/locales/zh-CN.js') < login.indexOf('/i18n.js'));
   assert.ok(login.indexOf('/i18n.js') < login.indexOf('/login.js'));
   assert.match(index, /data-language-select/);
+  assert.match(index, /id="topbarLogo"\s+data-i18n-skip>Mikro<span>Dash<\/span>/,
+    'the split brand is an explicit translation boundary');
   assert.match(login, /data-language-select/);
 });
 
@@ -173,7 +256,8 @@ test('signed-out HTTP surface exposes exactly three i18n assets', async () => {
       assert.equal(response.status, 200, url);
       assert.match(response.type, /javascript/, url);
     }
-    for (const url of ['/locales/', '/locales/private.js', '/locales/zh-CN.js.map', '/app.js']) {
+    for (const url of ['/locales/', '/locales/private.js', '/locales/zh-CN.js.map',
+      '/locales/../app.js', '/locales/%2e%2e/app.js', '/app.js']) {
       assert.equal((await get(base + url)).status, 401, url);
     }
   } finally {
