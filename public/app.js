@@ -12759,8 +12759,16 @@ function _renderRoutersMap(rows) {
     var el = $('pkgStatus');
     if (!el) return;
     el.textContent = text || '';
+    // Marked while a message is showing. render() writes this same element from
+    // _caps.permitted and runs again on the next payload — the server calls
+    // refreshNow() after every write — so unmarked it erased the message in the
+    // same tick on a failure, and one round trip later on a success. The 8 s
+    // timer never got to expire and the operator saw nothing either way.
+    if (text) el.dataset.status = '1'; else delete el.dataset.status;
     if (_statusTimer) clearTimeout(_statusTimer);
-    if (text) _statusTimer = setTimeout(function () { el.textContent = ''; }, 8000);
+    if (text) _statusTimer = setTimeout(function () {
+      el.textContent = ''; delete el.dataset.status;
+    }, 8000);
   }
 
   var COLS = [
@@ -12823,7 +12831,8 @@ function _renderRoutersMap(rows) {
     $('packagesBadge').textContent = (_data.packages || []).length;
     $('packagesBadge').className = 'card-badge' + ((_data.packages || []).length ? ' active-blue' : '');
     var an = $('pkgActionNote');
-    if (an) an.textContent = _caps.permitted ? '' : 'read-only — you do not have write access to this router';
+    // Never clears a message it did not write — see setStatus.
+    if (an && !an.dataset.status) an.textContent = _caps.permitted ? '' : 'read-only — you do not have write access to this router';
 
     tbody.innerHTML = rows.length ? rows.map(function (p) {
       return '<tr>' +
@@ -12985,8 +12994,16 @@ function _renderRoutersMap(rows) {
     var el = $('wanActionNote');
     if (!el) return;
     el.textContent = text || '';
+    // Marked while a message is showing. render() writes this same element from
+    // _caps.permitted and runs again on the next payload — the server calls
+    // refreshNow() after every write — so unmarked it erased the message in the
+    // same tick on a failure, and one round trip later on a success. The 8 s
+    // timer never got to expire and the operator saw nothing either way.
+    if (text) el.dataset.status = '1'; else delete el.dataset.status;
     if (_statusTimer) clearTimeout(_statusTimer);
-    if (text) _statusTimer = setTimeout(function () { el.textContent = ''; }, 8000);
+    if (text) _statusTimer = setTimeout(function () {
+      el.textContent = ''; delete el.dataset.status;
+    }, 8000);
   }
 
   var COLS = [{key:'',label:'Uplink'},{key:'',label:'Address'},{key:'',label:'Gateway'},
@@ -13070,7 +13087,8 @@ function _renderRoutersMap(rows) {
     }).join('') : '<tr><td colspan="7" class="empty-state">' + emptyState() + '</td></tr>';
 
     var note = $('wanActionNote');
-    if (note) note.textContent = _caps.permitted ? '' : 'read-only — you do not have write access to this router';
+    // Never clears a message it did not write — see setStatus.
+    if (note && !note.dataset.status) note.textContent = _caps.permitted ? '' : 'read-only — you do not have write access to this router';
     renderNotice();
     renderSummary();
   }
@@ -13226,14 +13244,31 @@ function _renderRoutersMap(rows) {
     var el = $('qActionNote');
     if (!el) return;
     el.textContent = text || '';
+    // Marked while a message is showing. render() writes this same element from
+    // _caps.permitted and runs again on the next payload — the server calls
+    // refreshNow() after every write — so unmarked it erased the message in the
+    // same tick on a failure, and one round trip later on a success. The 8 s
+    // timer never got to expire and the operator saw nothing either way.
+    if (text) el.dataset.status = '1'; else delete el.dataset.status;
     if (_statusTimer) clearTimeout(_statusTimer);
-    if (text) _statusTimer = setTimeout(function () { el.textContent = ''; }, 8000);
+    if (text) _statusTimer = setTimeout(function () {
+      el.textContent = ''; delete el.dataset.status;
+    }, 8000);
   }
 
   // Order first, and it is not cosmetic — see the header.
-  var SIMPLE_COLS = [{key:'',label:'#'},{key:'name',label:'Name'},{key:'target',label:'Target'},
+  // Every key is blank on purpose. _renderSortHeader gives any column with a
+  // truthy key a pointer cursor and a click listener, and this page passes a
+  // no-op callback with a throwaway sort state — correct, because the order
+  // here is the router's. Five of these carried keys anyway, so the header
+  // invited a click, mutated a state object discarded on the next render, and
+  // called a function that does nothing. That reads as a broken sort.
+  //
+  // Making them sortable is not the fix. A simple queue is first-match-wins, so
+  // position IS semantics, and a sorted view would misrepresent which rule wins.
+  var SIMPLE_COLS = [{key:'',label:'#'},{key:'',label:'Name'},{key:'',label:'Target'},
                      {key:'',label:'Limits'},{key:'',label:'Rate'},{key:'',label:''}];
-  var TREE_COLS   = [{key:'name',label:'Name'},{key:'parent',label:'Parent'},{key:'packetMark',label:'Packet Mark'},
+  var TREE_COLS   = [{key:'',label:'Name'},{key:'',label:'Parent'},{key:'',label:'Packet Mark'},
                      {key:'',label:'Max Limit'},{key:'',label:'Rate'},{key:'',label:''}];
 
   function q() { var e = $('qSearch'); return (e && e.value || '').toLowerCase().trim(); }
@@ -13468,7 +13503,8 @@ function _renderRoutersMap(rows) {
       add.style.display = _caps.permitted ? '' : 'none';
     }
     var note = $('qActionNote');
-    if (note) {
+    // Never clears a message it did not write — see setStatus.
+    if (note && !note.dataset.status) {
       note.textContent = !_caps.permitted ? 'read-only — you do not have write access to this router'
                        : (_data && _data.stats === 'none') ? 'this router reports no queue statistics' : '';
     }
@@ -13701,8 +13737,16 @@ function _renderRoutersMap(rows) {
     var el = $('ruActionNote');
     if (!el) return;
     el.textContent = text || '';
+    // Marked while a message is showing. render() writes this same element from
+    // _caps.permitted and runs again on the next payload — the server calls
+    // refreshNow() after every write — so unmarked it erased the message in the
+    // same tick on a failure, and one round trip later on a success. The 8 s
+    // timer never got to expire and the operator saw nothing either way.
+    if (text) el.dataset.status = '1'; else delete el.dataset.status;
     if (_statusTimer) clearTimeout(_statusTimer);
-    if (text) _statusTimer = setTimeout(function () { el.textContent = ''; }, 8000);
+    if (text) _statusTimer = setTimeout(function () {
+      el.textContent = ''; delete el.dataset.status;
+    }, 8000);
   }
 
   // A keyless column is not sortable — see _renderSortHeader. The action column
@@ -13874,7 +13918,8 @@ function _renderRoutersMap(rows) {
       add.style.display = (_caps.permitted && _tab !== 'sessions') ? '' : 'none';
     }
     var note = $('ruActionNote');
-    if (note) note.textContent = _caps.permitted ? '' : 'read-only — you do not have write access to this router';
+    // Never clears a message it did not write — see setStatus.
+    if (note && !note.dataset.status) note.textContent = _caps.permitted ? '' : 'read-only — you do not have write access to this router';
     renderNotice();
     renderSummary();
   }

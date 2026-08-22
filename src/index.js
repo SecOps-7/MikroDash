@@ -5442,13 +5442,16 @@ io.on('connection', (socket) => {
       if (editing) await session.ros.write(_QUEUE_MENUS[menu] + '/set', ['=.id=' + r.id].concat(args));
       else         await session.ros.write(_QUEUE_MENUS[menu] + '/add', args);
 
+      // Both sides through one vocabulary — see queueGuard.auditSides. Built
+      // inline here, the router's bps and the form's `50M/25M` were different
+      // strings for the same limit, so every save of every queue with a limit
+      // recorded changes nobody made; and a field left blank was recorded as
+      // cleared when the write had omitted it and the router had kept it.
+      const sides = queueGuard.auditSides(menu, target, name, r);
       audit.fromSocket(socket).record({ action, targetType: 'queue',
         targetId: editing ? r.id : null, targetName: name, routerId: rid,
-        before: target ? { name: target.name, target: target.target || '', parent: target.parent || '',
-                           maxLimit: target['max-limit'] || '', limitAt: target['limit-at'] || '',
-                           disabled: target.disabled === 'true' } : {},
-        after: { name, target: r.target || '', parent: r.parent || '',
-                 maxLimit: r.maxLimit || '', limitAt: r.limitAt || '', disabled: !!r.disabled },
+        before: sides.before,
+        after: sides.after,
         // The acknowledgement is the interesting fact in the trail, not the queue.
         extra: Object.assign({ menu }, r.ack ? { selfThrottleAcknowledged: true } : null) });
       // A set can zero a counter, and the next window would otherwise be

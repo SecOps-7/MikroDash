@@ -875,3 +875,42 @@ test('each write page owns the status handler its socket callbacks call', () => 
     assert.ok(block.includes(`$('${noteId}')`), `${start} writes to ${noteId}`);
   }
 });
+
+test('a status message is not erased by the render that follows it', () => {
+  // #112 gave WAN, Queues and Router Users a setStatus, which stopped the
+  // ReferenceError. The message still reached nobody: render() writes the same
+  // element from _caps.permitted, and it runs again on the next payload because
+  // the server calls refreshNow() after every write. On a failure it wiped the
+  // text in the same tick; on a success, one round trip later. Packages, which
+  // those three were copied from, had it too.
+  //
+  // The rule: setStatus marks the element, render() skips a marked one.
+  const pages = [
+    ['── Packages', '── WAN page', 'pkgActionNote'],
+    ['── WAN page', '── Queues page', 'wanActionNote'],
+    ['── Queues page', '── Router Users page', 'qActionNote'],
+    ['── Router Users page', '── Audit page', 'ruActionNote'],
+  ];
+  for (const [start, end, noteId] of pages) {
+    const at = APP.indexOf(start);
+    const to = APP.indexOf(end, at);
+    assert.ok(at > 0 && to > at, `found ${start}`);
+    const block = APP.slice(at, to);
+
+    assert.match(block, /function setStatus\(text\)/, `${start} needs a local setStatus`);
+    assert.ok(block.includes(`$('${noteId}')`), `${start} writes to ${noteId}`);
+    // setStatus marks while a message shows, and clears the mark when it goes.
+    assert.match(block, /dataset\.status = '1'/, `${start}: setStatus must mark the element`);
+    assert.match(block, /delete \w+\.dataset\.status/, `${start}: the mark must be cleared`);
+
+    // Every write of the note that is NOT setStatus's own must check the mark.
+    // Read a window rather than a line: the Queues guard wraps a two-line
+    // ternary, so the `if` and the assignment are not on the same line.
+    for (let i = block.indexOf(noteId); i !== -1; i = block.indexOf(noteId, i + 1)) {
+      const near = block.slice(i, i + 320);
+      if (!/read-only|no queue statistics/.test(near)) continue;   // setStatus's own write
+      assert.match(near, /!\w+\.dataset\.status/,
+        `${start}: render() must not clear a message it did not write`);
+    }
+  }
+});

@@ -508,3 +508,83 @@ test('the poll interval is settable and bounded', () => {
   assert.ok(src.includes('pollQueues:[2000,60000]'), 'bounded in intFields');
   assert.ok(src.includes("pollQueues:'queues'"), 'reaches the live collector on save');
 });
+
+// ── Audit sides ──────────────────────────────────────────────────────────────
+//
+// `before` comes from the router and `after` from the browser, and they speak
+// different vocabularies. Diffed verbatim, a save that changed nothing recorded
+// three changes. This is the string form of the bool quirk fixed earlier in
+// _resAuditValues, in a path that helper never reaches.
+
+const audit = require('../src/audit');
+const changed = (menu, row, name, values) => {
+  const s = guard.auditSides(menu, row, name, values);
+  return audit.diff(s.before, s.after).map(d => d.field).sort();
+};
+
+// The row the live hAP ac2 answers with, and the request the form submits for
+// the identical queue: same name, same target, same 50M/25M, same 10M/5M.
+const SIMPLE_ROW = { name: 'guest', target: '10.0.0.0/24', parent: 'none',
+                     'max-limit': '50000000/25000000', 'limit-at': '10000000/5000000',
+                     disabled: 'false' };
+const SIMPLE_REQ = { name: 'guest', target: '10.0.0.0/24',
+                     maxLimit: '50M/25M', limitAt: '10M/5M', disabled: false };
+
+test('a queue save that changed nothing records nothing', () => {
+  assert.deepStrictEqual(changed('simple', SIMPLE_ROW, 'guest', SIMPLE_REQ), []);
+});
+
+test('the router answers in bps and the form submits 50M, and they are one limit', () => {
+  // Units. Every edit of every queue carrying a limit reported one or two
+  // changes that did not happen.
+  const s = guard.auditSides('simple', SIMPLE_ROW, 'guest', SIMPLE_REQ);
+  assert.strictEqual(s.before.maxLimit, s.after.maxLimit);
+  assert.strictEqual(s.before.limitAt, s.after.limitAt);
+  assert.strictEqual(s.after.maxLimit, '50000000/25000000');
+});
+
+test('a parentless simple queue reads back as none and submits as blank', () => {
+  // Sentinel. `parent` is not a simple queue's field at all, so it must not
+  // appear on either side of a simple save.
+  const s = guard.auditSides('simple', SIMPLE_ROW, 'guest', SIMPLE_REQ);
+  assert.ok(!('parent' in s.before) && !('parent' in s.after));
+  // On a tree, where parent IS the field, `none` and '' are still one value.
+  const treeRow = { name: 'kids', parent: 'none', 'max-limit': '10000000' };
+  const t = guard.auditSides('tree', treeRow, 'kids', { name: 'kids', maxLimit: '10M' });
+  assert.strictEqual(t.before.parent, '');
+});
+
+test('a field the write omits is absent from after, not recorded as cleared', () => {
+  // The symptom that made the trail actively wrong. A blank field is dropped
+  // from the write, so the router keeps its value; recording '' said it had
+  // been cleared when nothing touched it.
+  const s = guard.auditSides('simple', SIMPLE_ROW, 'guest',
+    { name: 'guest', target: '10.0.0.0/24', maxLimit: '50M/25M', disabled: false });
+  assert.ok(!('limitAt' in s.after), 'an omitted field must not appear in after');
+  assert.deepStrictEqual(audit.diff(s.before, s.after), [],
+    'omitting a field is not a change');
+});
+
+test('a real change is still recorded, in the router\'s own units', () => {
+  // The inverse. Suppressing the noise must not suppress the signal.
+  const d = audit.diff(...(() => {
+    const s = guard.auditSides('simple', SIMPLE_ROW, 'guest',
+      Object.assign({}, SIMPLE_REQ, { maxLimit: '80M/40M' }));
+    return [s.before, s.after];
+  })());
+  assert.deepStrictEqual(d, [{ field: 'maxLimit',
+    from: '50000000/25000000', to: '80000000/40000000' }]);
+  // And a rename, and a disable.
+  assert.deepStrictEqual(changed('simple', SIMPLE_ROW, 'visitors', SIMPLE_REQ), ['name']);
+  assert.deepStrictEqual(
+    changed('simple', SIMPLE_ROW, 'guest', Object.assign({}, SIMPLE_REQ, { disabled: true })),
+    ['disabled']);
+});
+
+test('a create records what it created rather than diffing against nothing', () => {
+  const s = guard.auditSides('simple', null, 'new-q',
+    { name: 'new-q', target: '10.0.0.0/24', maxLimit: '5M/5M', disabled: false });
+  assert.deepStrictEqual(s.before, {});
+  assert.strictEqual(s.after.maxLimit, '5000000/5000000');
+  assert.strictEqual(s.after.target, '10.0.0.0/24');
+});

@@ -133,6 +133,34 @@ test('no sort callback takes a key argument', () => {
     + offenders.join(', '));
 });
 
+test('a header that cannot sort does not offer to', () => {
+  // The opposite failure from the nine tables above, and it reads the same to a
+  // user. _renderSortHeader gives any column with a truthy key a pointer cursor
+  // and a click listener; three call sites pass a no-op callback and a throwaway
+  // sort state, so a key there produces an affordance that does nothing.
+  //
+  // Queues is the case that matters beyond tidiness: a simple queue is
+  // first-match-wins, so position is semantics and sorting would misrepresent
+  // which rule wins.
+  const re = /_renderSortHeader\(\s*'(\w+)'\s*,\s*(\w+)\s*,[^;]*?function \(\) \{\}\s*\)/g;
+  const offenders = [];
+  let m;
+  while ((m = re.exec(SRC)) !== null) {
+    const constName = m[2];
+    // Backwards from the call site: `COLS` is declared separately inside a dozen
+    // page IIFEs, so a forward search finds whichever page happens to come first
+    // in the file rather than this one.
+    const at = SRC.lastIndexOf('var ' + constName + ' ', m.index);
+    assert.notEqual(at, -1, constName + ' is gone');
+    const decl = SRC.slice(at, SRC.indexOf('];', at));
+    const keyed = decl.match(/key:\s*'([^']+)'/g) || [];
+    if (keyed.length) offenders.push(m[1] + ' via ' + constName + ': ' + keyed.join(', '));
+  }
+  assert.deepEqual(offenders, [],
+    'these tables pass a no-op sort callback but still mark columns sortable:\n  '
+    + offenders.join('\n  '));
+});
+
 test('no comparator multiplies by a raw sort direction', () => {
   // `sort.dir * x` is only correct while dir is numeric, which is the convention
   // that conflicts with the helper. Comparators go through _sortMul instead.
