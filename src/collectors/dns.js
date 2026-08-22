@@ -18,8 +18,12 @@
 const { clampPoll, createPollLoop } = require('./util');
 
 const SETTINGS_CMD = ['/ip/dns/print', ''];
+// Every type's value half is fetched, not just A/CNAME/FWD. The table shows one
+// Address column for all nine types, and a row whose value was never read
+// renders blank — which is how MX, NS, SRV and TXT entries looked before.
 const STATIC_CMD   = ['/ip/dns/static/print',
-                      '=.proplist=.id,name,address,type,ttl,disabled,comment,regexp,cname,forward-to'];
+                      '=.proplist=.id,name,address,type,ttl,disabled,comment,regexp,cname,'
+                      + 'forward-to,text,mx-exchange,ns,srv-target'];
 
 // Static entries are configuration: they change when somebody edits the router,
 // not every tick. The settings row is read every tick because cache-used is live.
@@ -74,7 +78,11 @@ function parseStaticEntries(rows) {
       id:       r['.id'] || '',
       name:     r.name || '',
       regexp:   r.regexp || '',
-      address:  r.address || r.cname || r['forward-to'] || '',
+      // One column, nine types: whichever property this record's type puts its
+      // value in. The types are mutually exclusive on the router, so the order
+      // only decides what a malformed row shows.
+      address:  r.address || r.cname || r['forward-to'] || r['mx-exchange']
+                || r.ns || r['srv-target'] || r.text || '',
       type:     r.type || (r.cname ? 'CNAME' : 'A'),
       ttl:      r.ttl || '',
       disabled: _bool(r.disabled),

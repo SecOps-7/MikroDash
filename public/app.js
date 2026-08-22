@@ -14405,11 +14405,21 @@ function _renderRoutersMap(rows) {
       // blank box — even for a field whose declared type is free text.
       body = selectHtml(f, id, value, choices);
     } else if (f.input === 'select') {
+      // The router's value is kept as an option even when our list does not
+      // name it. A required select emits no blank option, so without this
+      // nothing matches, the browser falls back to selectedIndex 0, and Save
+      // rewrites the record as whatever option zero happens to be — silently,
+      // and with no sign on screen that the form was not showing the record.
+      // selectHtml already does this for router-supplied choices; a list
+      // declared here is no more exhaustive than one the router sent.
+      var selOpts = (f.options || []).slice();
+      var selCur  = (value === undefined || value === null) ? '' : String(value);
+      if (selCur && selOpts.indexOf(selCur) === -1) selOpts.unshift(selCur);
       body = '<select class="sform-input" id="' + id + '">' +
              (f.required ? '' : '<option value=""></option>') +
-             (f.options || []).map(function (o) {
+             selOpts.map(function (o) {
                return '<option value="' + esc(o) + '"' +
-                      (String(value) === o ? ' selected' : '') + '>' + esc(o) + '</option>';
+                      (selCur === o ? ' selected' : '') + '>' + esc(o) + '</option>';
              }).join('') + '</select>';
     } else {
       var attrs = ' type="' + esc(f.input) + '"';
