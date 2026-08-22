@@ -12991,6 +12991,15 @@ function _renderRoutersMap(rows) {
   var _caps = { permitted: false, routerName: '' };
   var _busy = '';
 
+  var _statusTimer = null;
+  function setStatus(text) {
+    var el = $('wanActionNote');
+    if (!el) return;
+    el.textContent = text || '';
+    if (_statusTimer) clearTimeout(_statusTimer);
+    if (text) _statusTimer = setTimeout(function () { el.textContent = ''; }, 8000);
+  }
+
   var COLS = [{key:'',label:'Uplink'},{key:'',label:'Address'},{key:'',label:'Gateway'},
               {key:'',label:'Route'},{key:'',label:'Lease'},{key:'',label:'Rate'},{key:'',label:''}];
 
@@ -13222,6 +13231,15 @@ function _renderRoutersMap(rows) {
   var _caps = { permitted: false, routerName: '' };
   var _tab  = 'simple';
   var _busy = '';
+
+  var _statusTimer = null;
+  function setStatus(text) {
+    var el = $('qActionNote');
+    if (!el) return;
+    el.textContent = text || '';
+    if (_statusTimer) clearTimeout(_statusTimer);
+    if (text) _statusTimer = setTimeout(function () { el.textContent = ''; }, 8000);
+  }
 
   // Order first, and it is not cosmetic — see the header.
   var SIMPLE_COLS = [{key:'',label:'#'},{key:'name',label:'Name'},{key:'target',label:'Target'},
@@ -13688,6 +13706,15 @@ function _renderRoutersMap(rows) {
   var _caps = { permitted: false, routerName: '' };
   var _tab  = 'users';
   var _busy = '';          // id of the row with an action in flight
+
+  var _statusTimer = null;
+  function setStatus(text) {
+    var el = $('ruActionNote');
+    if (!el) return;
+    el.textContent = text || '';
+    if (_statusTimer) clearTimeout(_statusTimer);
+    if (text) _statusTimer = setTimeout(function () { el.textContent = ''; }, 8000);
+  }
 
   // A keyless column is not sortable — see _renderSortHeader. The action column
   // is the only one here that must never be.
