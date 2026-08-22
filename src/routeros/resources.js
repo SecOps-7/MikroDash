@@ -668,11 +668,44 @@ const RESOURCES = Object.freeze([
     readOnlyWhen: (r) => !!r.regexp,
     fields: [
       _f('name', 'name', 'Name', 'text', { required: true, placeholder: 'server.lan' }),
-      _f('type', 'type', 'Type', 'select', { required: true, options: ['A', 'AAAA', 'CNAME', 'FWD', 'NXDOMAIN', 'TXT'] }),
+      // All nine types RouterOS defines. Listing six was not a smaller feature,
+      // it was data loss: the form showed "A" for an MX record and Save rewrote
+      // it as one. fieldHtml() no longer coerces an unlisted value, so a tenth
+      // type would now display honestly, but it would still fail the select
+      // check on save — so this list has to stay in step with the router.
+      _f('type', 'type', 'Type', 'select', { required: true,
+         options: ['A', 'AAAA', 'CNAME', 'FWD', 'MX', 'NS', 'NXDOMAIN', 'SRV', 'TXT'] }),
       _f('address', 'address', 'Address', 'ip', { showIf: { field: 'type', in: ['A', 'AAAA'] }, required: true }),
       _f('cname', 'cname', 'Canonical Name', 'text', { showIf: { field: 'type', in: ['CNAME'] }, required: true }),
       _f('forwardTo', 'forward-to', 'Forward To', 'text', { showIf: { field: 'type', in: ['FWD'] }, required: true }),
       _f('text', 'text', 'Text', 'text', { showIf: { field: 'type', in: ['TXT'] }, required: true }),
+      // MX, NS and SRV each carry their own properties. Only the name half of
+      // each is required: RouterOS defaults the numeric ones to 0, and demanding
+      // a preference before a comment could be saved would be the form
+      // inventing a rule the router does not have.
+      _f('mxExchange', 'mx-exchange', 'Mail Exchanger', 'text',
+         { showIf: { field: 'type', in: ['MX'] }, required: true, placeholder: 'mx1.lan' }),
+      _f('mxPreference', 'mx-preference', 'Preference', 'int',
+         { showIf: { field: 'type', in: ['MX'] }, min: 0, max: 65535, placeholder: '10' }),
+      _f('ns', 'ns', 'Name Server', 'text',
+         { showIf: { field: 'type', in: ['NS'] }, required: true, placeholder: 'ns1.lan' }),
+      // No trailing dot, and the manual is wrong about this: it says srv-target
+      // "ends in a dot", but a live hAP ac2 refuses `=srv-target=host.b4.lan.`
+      // with `bad SRV data` and accepts the same name without it. The router
+      // wins. The help also carries the record's NAME rule, because that is the
+      // other thing `bad SRV data` is returned for — an SRV entry must be named
+      // `_service._proto.name` — and one error message covering two causes
+      // explains neither.
+      _f('srvTarget', 'srv-target', 'Target', 'text',
+         { showIf: { field: 'type', in: ['SRV'] }, required: true, placeholder: 'host.lan',
+           help: 'No trailing dot. The Name above must be _service._proto.name, '
+                 + 'for example _sip._tcp.office.lan' }),
+      _f('srvPort', 'srv-port', 'Port', 'int',
+         { showIf: { field: 'type', in: ['SRV'] }, min: 0, max: 65535, placeholder: '0' }),
+      _f('srvPriority', 'srv-priority', 'Priority', 'int',
+         { showIf: { field: 'type', in: ['SRV'] }, min: 0, max: 65535, placeholder: '0' }),
+      _f('srvWeight', 'srv-weight', 'Weight', 'int',
+         { showIf: { field: 'type', in: ['SRV'] }, min: 0, max: 65535, placeholder: '0' }),
       _f('ttl', 'ttl', 'TTL', 'text', { placeholder: '1d' }),
       _f('matchSubdomain', 'match-subdomain', 'Match Subdomains', 'bool', { clearable: true }),
       _f('comment', 'comment', 'Comment', 'text', { clearable: true }),
