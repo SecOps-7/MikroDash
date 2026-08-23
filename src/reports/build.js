@@ -49,8 +49,22 @@ function ifaceSummary(routerId, iface, from, to) {
   const capDown = Math.max(1, parseInt(r && r.bwDownMbps, 10) || 1000);
   const capUp   = Math.max(1, parseInt(r && r.bwUpMbps,   10) || 1000);
   const pct = (v, cap) => (v == null ? null : +((v / cap) * 100).toFixed(1));
+  // Both summaries carry a `samples` key, and this one object serves BOTH the
+  // traffic sections and the bandwidth ones. The spread meant the second won, so
+  // every consumer got the bandwidth count: the card under the RATE chart
+  // reported how many VOLUME rows exist. The two genuinely differ — a bandwidth
+  // bucket is only written when the minute actually moved bytes — and neither
+  // number is labelled with its table, so nothing on screen contradicted it.
+  //
+  // Named apart rather than resolved in favour of one, because both are wanted:
+  // the traffic tab means one, the bandwidth tab and PDF mean the other. The
+  // ambiguous `samples` is deliberately NOT carried forward, so a consumer has
+  // to say which it means instead of reading whichever survived the spread.
+  const { samples: trafficSamples, ...tRest } = t;
+  const { samples: bandwidthSamples, ...bRest } = b;
   return {
-    ...t, ...b,
+    ...tRest, ...bRest,
+    trafficSamples, bandwidthSamples,
     capacityDownMbps: capDown,
     capacityUpMbps:   capUp,
     rxPeakPct: pct(t.rxMaxMbps, capDown), txPeakPct: pct(t.txMaxMbps, capUp),
@@ -221,7 +235,7 @@ const BUILDERS = {
             { label: 'Total',          value: F.fmtDataMB((s.rxTotalMb || 0) + (s.txTotalMb || 0)) },
             { label: 'Busiest ' + F.bucketNoun(aggregate) + ' ↓', value: s.rxMaxMb == null ? '—' : F.fmtDataMB(s.rxMaxMb) },
             { label: 'Busiest ' + F.bucketNoun(aggregate) + ' ↑', value: s.txMaxMb == null ? '—' : F.fmtDataMB(s.txMaxMb) },
-            { label: aggregate ? 'Buckets' : 'Samples', value: s.samples.toLocaleString() },
+            { label: aggregate ? 'Buckets' : 'Samples', value: s.bandwidthSamples.toLocaleString() },
           ],
           chartData: { yLabel: 'MB/min', lines: [
             { label: 'Download MB', color: '#38bdf8', pts: sub.map(r=>({ x:r.ts, y:r.rx_mb })) },
