@@ -44,7 +44,11 @@ COPY . .
 FROM base AS test
 RUN npm install --no-audit --no-fund \
  && node patch-routeros.js
-CMD ["node", "--test", "--test-force-exit", "/app/test/*.test.js"]
+# No --test-force-exit. CONTRIBUTING.md forbids it and explains why: it masks a
+# test leaking a timer, and it truncates the tail of the largest file at random,
+# so a run silently reports fewer tests than exist. If this hangs, a collector
+# was constructed and never stopped — see test/helpers/collector-cleanup.js.
+CMD ["node", "--test", "/app/test/*.test.js"]
 
 # ── runtime ──────────────────────────────────────────────────────────────────
 #
