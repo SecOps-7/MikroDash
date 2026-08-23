@@ -12,7 +12,14 @@
 const test   = require('node:test');
 const assert = require('node:assert');
 
-const TopTalkersCollector = require('../src/collectors/talkers');
+// Tracked, because several tests here call probe(), which resumes the collector
+// and starts a 9 s silence timer and a 60 s heartbeat. Those are meant to keep a
+// SERVER alive; in a test they keep the RUNNER alive. This file was the reason
+// the suite needed --test-force-exit, and that flag is what made the reported
+// test count unstable — it killed the process the moment the runner thought it
+// was done, intermittently truncating the tail of the largest file.
+const { track } = require('./helpers/collector-cleanup');
+const TopTalkersCollector = track(require('../src/collectors/talkers'));
 
 function harness({ clientsCount = 1, connected = true } = {}) {
   const emitted = [];
