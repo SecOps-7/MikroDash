@@ -190,7 +190,25 @@ function _stemToMs(stem) {
 function selectForPruning(pairs, opts, now) {
   const keepCount = Number(opts && opts.keepCount) || 0;
   const keepDays = Number(opts && opts.keepDays) || 0;
-  const sorted = pairs.slice().sort((a, b) => (a.stem < b.stem ? 1 : a.stem > b.stem ? -1 : 0));
+  // Only stems this app could have written. The sort below is a string compare
+  // standing in for a time compare, which holds exactly as long as every stem is
+  // a timestamp. One that is not breaks it in the worst direction: 'n' > '2', so
+  // a pair named `not-a-timestamp` sorts above every real backup, takes the
+  // protected newest slot, and leaves every genuine restore point doomed — with
+  // no error, so the loss would look like backups that were never taken.
+  //
+  // Not reachable today: the only caller passes rows from `storedBackups`, whose
+  // stems `stemFor` generated. This holds the invariant the header states rather
+  // than relying on that remaining true, and it is the cheaper half of the two.
+  //
+  // Dropping them BEFORE the sort rather than after is the whole fix. It also
+  // means an unreadable stem is never returned as prunable, which is what
+  // pruneFor's header already asks for: a file this app did not make is not its
+  // to delete. keepDays could not have removed one anyway — `_stemToMs` gives
+  // NaN and `NaN < cutoff` is false — so such a stem was unprunable and
+  // protective at once.
+  const known = pairs.filter(p => p && !Number.isNaN(_stemToMs(p.stem)));
+  const sorted = known.sort((a, b) => (a.stem < b.stem ? 1 : a.stem > b.stem ? -1 : 0));
   if (sorted.length <= 1) return [];
 
   const doomed = new Set();

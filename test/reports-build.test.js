@@ -183,3 +183,36 @@ test('teardown', () => {
   db.close();
   fs.rmSync(TMP, { recursive: true, force: true });
 });
+
+// ── The two sample counts ────────────────────────────────────────────────────
+//
+// queryTrafficSummary and queryBandwidthSummary both return a `samples` key, and
+// ifaceSummary spreads both into one object that serves BOTH the traffic and the
+// bandwidth sections. The second spread won, so the card under the RATE chart
+// reported how many VOLUME rows exist. On a real range those were 4,637 and
+// 3,793: both plausible, neither labelled with its table, nothing to contradict.
+
+test('the two sample counts are named apart, and the ambiguous one is gone', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'reports', 'build.js'), 'utf8');
+  const at = src.indexOf('function ifaceSummary');
+  const body = src.slice(at, src.indexOf('\n}', at));
+  assert.match(body, /trafficSamples/, 'the traffic count needs its own name');
+  assert.match(body, /bandwidthSamples/, 'and so does the bandwidth count');
+  assert.ok(!/\.\.\.t,\s*\.\.\.b/.test(body),
+    'spreading both wholesale is what let one `samples` silently win');
+});
+
+test('each consumer asks for the count it means', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  const build = fs.readFileSync(path.join(__dirname, '..', 'src', 'reports', 'build.js'), 'utf8');
+
+  // Nothing may read the old ambiguous key off a summary any more.
+  assert.ok(!/\bs\.samples\b/.test(app), 'app.js must not read summary.samples');
+  assert.ok(!/\bs\.samples\b/.test(build), 'build.js must not read summary.samples');
+
+  // The rate card takes the traffic count; the volume card and PDF take the other.
+  assert.match(app, /s\.trafficSamples/, 'the traffic tab reads trafficSamples');
+  assert.match(app, /s\.bandwidthSamples/, 'the bandwidth tab reads bandwidthSamples');
+  assert.match(build, /s\.bandwidthSamples\.toLocaleString/,
+    'the bandwidth PDF section reads bandwidthSamples');
+});

@@ -10083,16 +10083,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       statCard(fmtDataMB(s.txTotalMb), 'Total Upload') +
       statCard(s.rxMaxMb == null ? '—' : fmtDataMB(s.rxMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↓') +
       statCard(s.txMaxMb == null ? '—' : fmtDataMB(s.txMaxMb), 'Busiest ' + bucketNoun(agg) + ' ↑') +
-      statCard((agg ? rows.length : (s.samples || 0)).toLocaleString(), countLabel);
+      statCard((agg ? rows.length : (s.bandwidthSamples || 0)).toLocaleString(), countLabel);
     // The stat cards now cover the whole range but the chart and table still
     // only show the rows that fit under the LIMIT. Say so rather than let the
     // two quietly disagree.
     var hint = $('rptBwTruncHint');
     if (hint) {
-      var truncated = !agg && s.samples && s.samples > rows.length;
+      var truncated = !agg && s.bandwidthSamples && s.bandwidthSamples > rows.length;
       hint.style.display = truncated ? '' : 'none';
       if (truncated) hint.textContent = 'Chart and table show ' + rows.length.toLocaleString() +
-        ' of ' + s.samples.toLocaleString() + ' samples — choose an aggregation to cover the full range. Totals above are for the full range.';
+        ' of ' + s.bandwidthSamples.toLocaleString() + ' samples — choose an aggregation to cover the full range. Totals above are for the full range.';
     }
     renderBandwidthChart(rows, s);
     _bwRawRows = rows;
@@ -10191,7 +10191,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       statCard(mbpsOrDash(s.txP95Mbps), '95th %ile TX') +
       statCard(utilPct(s.rxPeakPct) + ' / ' + utilPct(s.txPeakPct),
                'Peak Util RX/TX' + (over ? ' ⚠' : '')) +
-      statCard((agg ? rows.length : (s.samples || 0)).toLocaleString(), sampleLabel);
+      // trafficSamples, not the summary's old ambiguous `samples`: this card
+      // sits under the RATE chart and used to report the VOLUME row count.
+      statCard((agg ? rows.length : (s.trafficSamples || 0)).toLocaleString(), sampleLabel);
     _trafficLastSummary = s;
     renderTrafficChart(rows, s);
     _trafficRawRows = rows;
