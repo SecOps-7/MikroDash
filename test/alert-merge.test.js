@@ -235,3 +235,50 @@ test('an interface type that is still enabled continues to alert', () => {
   assert.equal(inserted.filter(r => r.subject === 'ether1').length, 1,
     'ethernet is still ticked, so it must still alert');
 });
+
+// ── {{comment}} must not leak into what is recorded (issue #116) ─────────────
+//
+// The comment was added as a notification template variable only. The bell, the
+// alerts history table and the PDF export all render the stored `detail`, and
+// the open/resolve pairing keys off `subject`. Both must be exactly what they
+// were before, or a feature meant to change one optional line of a push message
+// has quietly changed three other surfaces.
+
+const IFACE_ON = { notifIfaceUpDown: true, notifIfaceEther: true };
+const eth = (running, comment) => [{ name: 'ether1', type: 'ether', running, disabled: false, comment }];
+
+test('a comment changes the notification and nothing that is recorded', () => {
+  // harness() resets inserted/resolved but deliberately not openKeys, and an
+  // earlier test in this file leaves ether1 open. Clearing it here keeps that
+  // shared state out of these assertions without changing what the tests
+  // above are asserting.
+  openKeys.clear();
+  const { ev } = harness(IFACE_ON);
+  ev.evaluate('ifstatus:update', { interfaces: eth(true,  'Uplink to ISP') });
+  ev.evaluate('ifstatus:update', { interfaces: eth(false, 'Uplink to ISP') });
+
+  assert.equal(inserted.length, 1);
+  assert.equal(inserted[0].alertType, 'interface_down');
+  assert.equal(inserted[0].subject,   'ether1', 'subject stays the bare interface name');
+  assert.equal(inserted[0].detail,    'ether1 went down', 'detail is untouched — the bell and PDF render this');
+});
+
+test('editing a comment between the down and the up still resolves the alert', () => {
+  // The exact failure mode of the obvious wrong implementation: folding the
+  // comment into `subject` to get a richer bell entry. That would key the down
+  // row on "ether1 (A)" while the up event looked for "ether1 (B)", so the
+  // alert would never close and the bell would accumulate forever. An operator
+  // relabelling a port between an outage and its recovery is an ordinary
+  // Tuesday, not a contrived case.
+  openKeys.clear();
+  const { ev } = harness(IFACE_ON);
+  ev.evaluate('ifstatus:update', { interfaces: eth(true,  'A') });
+  ev.evaluate('ifstatus:update', { interfaces: eth(false, 'A') });
+  ev.evaluate('ifstatus:update', { interfaces: eth(true,  'B') });
+
+  assert.equal(inserted.length, 1);
+  assert.equal(resolved.length, 1);
+  assert.equal(resolved[0].alertType, 'interface_down');
+  assert.equal(resolved[0].subject,   'ether1');
+  assert.equal(openKeys.size, 0, 'nothing left open');
+});

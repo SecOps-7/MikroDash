@@ -65,3 +65,115 @@ test('the fields the frontend reads off a collector payload are sent', () => {
   assert.ok(!/sys && sys\.identity/.test(TOPOLOGY),
     'topology must not prefer sys.identity: the system payload carries no identity');
 });
+
+// ── windowedPoints must not truncate at an out-of-order sample ──────────────
+//
+// Reported from the port. The walk went backwards from the newest point and
+// `break`-ed at the first sample older than the cutoff, which is correct only
+// while allPoints is sorted by ts. One stale sample ended the walk and took
+// every older point still inside the window with it, so the chart silently
+// redrew short and refilled — it looks like a slow collector, which is why it
+// would never be reported from the field.
+//
+// Two real sources of an out-of-order sample: traffic:history is loaded
+// wholesale from the server, and the timestamps are the ROUTER's — a MikroTik
+// with no battery steps its clock backwards when NTP corrects a drifted RTC.
+test('windowedPoints keeps in-window samples that arrive out of order', () => {
+  const vm = require('node:vm');
+  const src = APP.match(/function windowedPoints\(\)\{[\s\S]*?\n\}/);
+  assert.ok(src, 'windowedPoints not found — did it move or get renamed?');
+
+  const now = 1700000000000;
+  const ctx = {
+    Date: { now: () => now },
+    windowSecs: 60,
+    RIGHT_BUFFER_MS: 1000,
+    // Third sample is stale but every other one sits inside the 61 s window.
+    allPoints: [
+      { ts: now - 50000 }, { ts: now - 40000 },
+      { ts: now - 90000 },
+      { ts: now - 20000 }, { ts: now - 10000 },
+    ],
+  };
+  vm.createContext(ctx);
+  vm.runInContext(src[0] + '; var __out = windowedPoints();', ctx);
+
+  // Array.from, not .map: the vm context is a separate realm, so an array
+  // built in there has a different Array.prototype and deepStrictEqual
+  // fails on identical contents.
+  const got = Array.from(ctx.__out, p => (now - p.ts) / 1000);
+  assert.deepEqual(got, [50, 40, 20, 10],
+    'the stale sample must be skipped, not treated as the end of the window');
+
+  // The inverse, so this cannot pass by simply returning everything: a sample
+  // genuinely outside the window is still excluded.
+  assert.ok(!got.includes(90), 'the out-of-window sample must not be included');
+});
+
+// The third sweep: state that is written and never read.
+//
+// `lastLanData` was reported from the port, and generalising it found two more
+// of the same species — `lastTalkers` on the very same declaration line, which
+// the report believed was live, and `_lastSampleAt`. All three are remnants of
+// guards removed when an empty payload stopped being treated as "nothing
+// changed". The assignments stayed behind and read as live state.
+//
+// That is the trap this exists for: a write-only variable sitting beside a real
+// one is indistinguishable at a glance, and each is harmless on its own, so
+// nothing ever forces the question.
+//
+// espree is a devDependency (via eslint) and only resolves in the `test` stage
+// of the Dockerfile — see CONTRIBUTING. Against the runtime image this file
+// fails to LOAD rather than failing an assertion.
+test('no module-scope variable in app.js is written but never read', () => {
+  const espree = require('espree');
+  const ast = espree.parse(APP, { ecmaVersion: 2020, loc: true });
+
+  const declared = new Map();
+  for (const node of ast.body) {
+    if (node.type !== 'VariableDeclaration') continue;
+    for (const d of node.declarations) {
+      if (d.id.type === 'Identifier') declared.set(d.id.name, d.id.loc.start.line);
+    }
+  }
+
+  // An identifier counts as READ unless it sits in a position that can only be
+  // a write or a name. Shadowing by an inner function makes this conservative —
+  // it reports fewer orphans than exist, never more — which is the right
+  // direction for a test that fails the build.
+  const read = new Set();
+  (function walk(node, parent) {
+    if (!node || typeof node.type !== 'string') return;
+    if (node.type === 'Identifier') {
+      let isRead = true;
+      if (parent) {
+        if (parent.type === 'VariableDeclarator' && parent.id === node) isRead = false;
+        if (parent.type === 'AssignmentExpression' && parent.left === node && parent.operator === '=') isRead = false;
+        if (parent.type === 'MemberExpression' && parent.property === node && !parent.computed) isRead = false;
+        if (parent.type === 'Property' && parent.key === node && !parent.computed) isRead = false;
+        if (parent.type === 'FunctionDeclaration' && parent.id === node) isRead = false;
+        if ((parent.type === 'FunctionDeclaration' || parent.type === 'FunctionExpression' ||
+             parent.type === 'ArrowFunctionExpression') && parent.params.includes(node)) isRead = false;
+      }
+      if (isRead) read.add(node.name);
+      return;
+    }
+    for (const k of Object.keys(node)) {
+      if (k === 'loc' || k === 'range') continue;
+      const v = node[k];
+      if (Array.isArray(v)) { for (const c of v) walk(c, node); }
+      else if (v && typeof v.type === 'string') walk(v, node);
+    }
+  })(ast, null);
+
+  const orphans = [];
+  for (const [name, line] of declared) {
+    if (read.has(name)) continue;
+    // A name the markup mentions is consumed by an inline handler or attribute.
+    if (MARKUP.includes(name)) continue;
+    orphans.push(`${name} (app.js:${line})`);
+  }
+
+  assert.deepEqual(orphans, [],
+    'written but never read — delete it, or read it: ' + orphans.join(', '));
+});

@@ -249,7 +249,6 @@ var autoScroll = true, logFilter = '', logLevel = '';
 var currentIf = '', windowSecs = 60, RIGHT_BUFFER_MS = 1000, _ifaceSelectKey = '';
 var fwTab = 'filter', fwData = {};
 var connHistory = [], MAX_CONN_HIST = 60;
-var lastTalkers = null, lastLanData = null;
 var allLeases = [], leaseFilter = '', leaseServerFilter = '';
 var _dhcpTotalPoolSize = 0;  // updated from lan:overview; used to render gauge from leases:list
 var _dhcpNetworksData  = null; // last lan:overview payload
@@ -757,9 +756,24 @@ var allPoints = [];
 var MAX_CLIENT_POINTS = 1800; // 30 min at 1 Hz — matches server HISTORY_MINUTES default
 
 
+// Filters the whole buffer rather than walking back from the newest point and
+// stopping at the first sample older than the cutoff. That `break` assumed
+// allPoints is sorted by ts, and ONE out-of-order sample ended the walk, taking
+// every older point still inside the window with it — the chart silently redrew
+// short and refilled, which reads as a slow collector rather than a bug.
+//
+// Two things produce an out-of-order sample: traffic:history is loaded wholesale
+// from the server, so the order is whatever that endpoint returns; and the
+// timestamps are the ROUTER's, so a MikroTik with no battery emits a lower ts
+// than the sample before it when NTP corrects its drifted RTC on boot.
+//
+// Deliberately NOT sorted here: redrawChart() runs every tick and sorting per
+// frame is an expensive fix to a rare condition. The full scan is 1800
+// comparisons at worst, and going forwards with push() also drops the old
+// unshift(), which was O(n^2) at the 30 m window where out holds every point.
 function windowedPoints(){
   var cutoff = Date.now()-(windowSecs*1000)-RIGHT_BUFFER_MS, out=[];
-  for(var i=allPoints.length-1;i>=0;i--){if(allPoints[i].ts<cutoff)break;out.unshift(allPoints[i]);}
+  for(var i=0;i<allPoints.length;i++){if(allPoints[i].ts>=cutoff)out.push(allPoints[i]);}
   return out;
 }
 // Draws evenly-spaced grid lines and timestamp labels at fixed pixel positions.
@@ -1003,8 +1017,7 @@ socket.on('lan:overview',function(data){
   // Same bug as Top Talkers: an empty payload left the last render in place, so
   // the card kept showing networks the router no longer reports — and, after a
   // router switch, the previous router's.
-  if(!nets.length){lastLanData=null;lanOverview.innerHTML='<div class="empty-state">No DHCP networks</div>';return;}
-  lastLanData=data;
+  if(!nets.length){lanOverview.innerHTML='<div class="empty-state">No DHCP networks</div>';return;}
   lanOverview.innerHTML=nets.map(function(n){
     return'<div class="lan-net"><div class="lan-cidr"><span style="color:var(--text-muted);font-size:.65rem;margin-right:.3rem">LAN:</span>'+esc(n.cidr)+'</div>'+
       '<div class="lan-meta">GW: '+esc(n.gateway||'\u2014')+' '+DOT+' DNS: '+esc(n.dns||'\u2014')+' '+DOT+' <strong style="color:rgba(200,215,240,.75)">'+n.leaseCount+'</strong> leases</div></div>';
@@ -1177,7 +1190,6 @@ socket.on('talkers:update',function(data){
   // card kept showing devices the router had stopped reporting, and kept showing
   // the PREVIOUS router's devices after a switch.
   if(!devices.length){
-    lastTalkers=null;
     // available===false means the router has no kid-control menu at all. The
     // card-level dormant scrim says so; this keeps the table from claiming the
     // narrower "there are no devices", which would be a guess.
@@ -1186,7 +1198,6 @@ socket.on('talkers:update',function(data){
       '</td></tr>';
     return;
   }
-  lastTalkers=devices;
   talkersTable.innerHTML=devices.map(function(d){
     return'<tr><td>'+esc(d.name||'\u2014')+'</td><td style="color:var(--text-muted)">'+esc(d.mac||'\u2014')+'</td>'+
       '<td class="text-end" style="color:var(--accent-rx)">'+fmtMbps(d.rx_mbps)+'</td>'+
@@ -2702,7 +2713,7 @@ socket.on('traffic:history',function(data){
   var tc=$('trafficCard');if(tc)tc.classList.remove('is-stale');
 });
 var _pendingTraffic = null, _trafficRafId = null;
-var _lastSampleTs = 0, _lastSampleAt = 0, _serverOffset = 0, _chartKeepaliveId = null, _yMaxTarget = 0, _yMaxCurrent = 0, _lastTickMs = 0;
+var _lastSampleTs = 0, _serverOffset = 0, _chartKeepaliveId = null, _yMaxTarget = 0, _yMaxCurrent = 0, _lastTickMs = 0;
 socket.on('traffic:update',function(sample){
   if(!currentIf||sample.ifName!==currentIf)return;
   // Always buffer into allPoints so history is preserved while the tab is hidden
@@ -2730,7 +2741,7 @@ socket.on('traffic:update',function(sample){
       trafficCtx.style.transition='opacity 0.4s ease';
       trafficCtx.style.opacity='1';
     }
-    _lastSampleTs=p.ts; _lastSampleAt=Date.now();
+    _lastSampleTs=p.ts;
     // Sample arrival timing jitters ±several hundred ms, so each sample's raw offset
     // (p.ts - now) is noisy. Smooth it with an EMA so the keepalive's X axis doesn't
     // swing back and forth. Seed directly on the first sample / after a reset.
@@ -8017,10 +8028,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var tc = $('trafficCard'); if (tc) tc.classList.remove('is-stale');
     if (liveRx) liveRx.textContent = '—';
     if (liveTx) liveTx.textContent = '—';
-    // Clear cached-data guards so the lan:overview and talkers handlers
-    // don't skip incoming payloads from the new router.
-    lastLanData = null;
-    lastTalkers = null;
+    // No cached-data guards to clear here any more: the lan:overview and
+    // talkers handlers now treat an empty payload as news rather than silence,
+    // so there is nothing that could make them skip the new router's payloads.
     // Reset system meta so new router's board info replaces old
     _sysMetaWritten = false;
     // Clear ping history

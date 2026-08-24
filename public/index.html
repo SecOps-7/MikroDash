@@ -5126,7 +5126,8 @@
             </div>
             <div style="margin-top:.6rem;padding:.6rem .7rem;background:var(--bg-alt);border-radius:.4rem;border:1px solid var(--border)">
               <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 .3rem;font-weight:600">Available variables</p>
-              <p style="font-size:.72rem;color:var(--text-muted);margin:0;line-height:1.7;font-family:var(--font-mono)">{{alertType}} &nbsp;{{routerName}} &nbsp;{{detail}} &nbsp;{{ifaceName}} &nbsp;{{status}}<br>{{cpuLoad}} &nbsp;{{pingLoss}} &nbsp;{{pingTarget}} &nbsp;{{pingRtt}} &nbsp;{{vpnPeer}} &nbsp;{{host}} &nbsp;{{netwatchName}} &nbsp;{{timestamp}}</p>
+              <p style="font-size:.72rem;color:var(--text-muted);margin:0;line-height:1.7;font-family:var(--font-mono)">{{alertType}} &nbsp;{{routerName}} &nbsp;{{detail}} &nbsp;{{ifaceName}} &nbsp;{{status}} &nbsp;{{comment}}<br>{{cpuLoad}} &nbsp;{{pingLoss}} &nbsp;{{pingTarget}} &nbsp;{{pingRtt}} &nbsp;{{vpnPeer}} &nbsp;{{host}} &nbsp;{{netwatchName}} &nbsp;{{bgpPeer}} &nbsp;{{timestamp}}</p>
+              <p style="font-size:.7rem;color:var(--text-muted);margin:.45rem 0 0;line-height:1.6">A variable that does not apply to an alert renders as empty. <code>{{comment}}</code> is the comment set on the router for whatever the alert is about &mdash; an interface, a NetWatch host, a VPN peer or a BGP peer.</p>
             </div>
           </div>
         </div>

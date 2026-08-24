@@ -181,7 +181,12 @@ class TopTalkersCollector {
   // and useless for polling, where a 3 s interval means a 23 s deadline. That is
   // the hAP AC2 case: it runs collection mode "poll", so the card still went
   // stale ~30 s in, and only recovered when dormancy fired ~20 s after that.
-  get _heartbeatMs() { return this.streamMode ? 60000 : Math.max(5000, this.pollMs); }
+  // Clamped at the call site, not only upstream. `pollMs` is already bounded to
+  // POLL_BOUNDS.pollTalkers ([1000, 60000]) by Settings.load() and again by
+  // clampPollValue(), so the ceiling is a no-op today — it is here because every
+  // other collector's timer bounds itself inline as well, and this getter was
+  // the one place that trusted its caller. Same shape as `_pollDelayMs` above.
+  get _heartbeatMs() { return this.streamMode ? 60000 : clampPoll(this.pollMs, 5000, 60000, 5000); }
 
   /**
    * Treat prolonged silence on an open stream as the empty answer.

@@ -533,8 +533,17 @@ test('an empty payload clears the table instead of leaving the last one up', () 
     'talkers:update must not treat an empty payload as "no news"');
   assert.ok(!/if\(lastLanData\)return;/.test(APP_JS),
     'the LAN overview had the identical bug');
-  assert.ok(/lastTalkers=null;/.test(APP_JS), 'and must drop the cached rows');
-  assert.ok(/lastLanData=null;/.test(APP_JS));
+  // These used to assert `lastTalkers=null;` and `lastLanData=null;` — the
+  // MECHANISM of the fix rather than its effect. Both variables turned out to
+  // be written and never read (ToDo #15), so they were deleted and there is no
+  // cache left to drop. What actually delivers the behaviour is the empty
+  // branch rendering an empty state and returning, so pin that instead: it
+  // survives the next refactor of how the handler stores things, and it fails
+  // if someone restores an early return that leaves the old rows on screen.
+  assert.ok(/if\(!devices\.length\)\{[\s\S]{0,400}?talkersTable\.innerHTML=/.test(APP_JS),
+    'an empty talkers payload must write the table, not return silently');
+  assert.ok(/if\(!nets\.length\)\{lanOverview\.innerHTML='<div class="empty-state">/.test(APP_JS),
+    'and the LAN overview must do the same');
 });
 
 test('an unsupported talkers payload says so rather than guessing "no devices"', () => {
