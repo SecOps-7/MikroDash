@@ -8684,8 +8684,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var sz=n<=8?44:n<=16?36:n<=24?30:26;
     panel.innerHTML=ifaces.map(function(i){
       var state=i.disabled?'dis':i.running?'up':'down';
+      // esc(), not dcEsc(), because this lands in an ATTRIBUTE. dcEsc round-trips
+      // through a text node, which is the browser's own text escaper: it handles
+      // & < > and deliberately leaves " and ' alone. Correct in text position,
+      // wrong here. Verified on a hAP ac2 running RouterOS 7.24: an interface
+      // named qt"test is accepted by the router and the API returns the raw
+      // quote, so `ether1" onmouseover="x` would close this attribute and open
+      // another. The Interfaces page builds the same markup from the same
+      // payload and has always used esc(); this card is the copy that drifted.
       return '<div class="if-port-item" data-state="'+state+'" title="'+
-        dcEsc(i.name)+(i.ips&&i.ips.length?' — '+dcEsc(i.ips[0]):'')+
+        esc(i.name)+(i.ips&&i.ips.length?' — '+esc(i.ips[0]):'')+
         (i.running?' (up)':i.disabled?' (disabled)':' (down)')+'">'+
         portSvg(sz)+
         '<span class="if-port-label">'+dcEsc(i.name)+'</span>'+
@@ -9027,7 +9035,16 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   }
 
   socket.on('logs:history', function(data){
-    var entries=data.entries||data||[];
+    // Array.isArray FIRST, matching the Logs page. `data.entries || data` looks
+    // like it handles both shapes and cannot: on a bare array, `data.entries` is
+    // Array.prototype.entries, a truthy FUNCTION, so the first operand wins, the
+    // isArray guard below fails and the handler returns having rendered nothing.
+    // The `|| data` fallback it was built around is unreachable for arrays.
+    //
+    // It matters because the two emit sites disagree: index.js sends a bare
+    // array on connect and { entries } on card focus, so the connect-time replay
+    // was silently dropped and the card stayed empty until a focus arrived.
+    var entries=Array.isArray(data)?data:(data&&data.entries?data.entries:[]);
     if(!Array.isArray(entries)) return;
     _dcLogs=entries.slice(-DC_LOG_MAX);
     _renderDcLogs();
@@ -9051,7 +9068,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // render empty, which looks identical to a quiet network. Say so instead.
     var geoRow='';
     if(data.geo&&!data.geo.available){
-      geoRow='<div class="diag-row" title="'+dcEsc(data.geo.reason||'geoip-lite failed to load')+'">'+
+      // esc() for the same reason as the Physical Ports title above: attribute
+      // position. This value is our own error text from a failed geoip-lite
+      // require rather than anything the router supplies, so it is the far less
+      // urgent of the two, but it is the identical defect and the same one-line
+      // fix. Leaving it would only preserve the inconsistency that made the
+      // first one easy to miss.
+      geoRow='<div class="diag-row" title="'+esc(data.geo.reason||'geoip-lite failed to load')+'">'+
              '<span class="diag-name">geo lookups</span>'+
              '<span class="diag-count diag-count-zero">unavailable</span></div>';
     }

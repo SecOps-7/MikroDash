@@ -628,3 +628,84 @@ describe('{{comment}} notification variable', () => {
     assert.ok(!/placeholder="[^"]*\{\{comment\}\}/.test(html), 'and must stay out of the textarea placeholders');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Area 9 — attribute escaping and payload shapes in app.js (ToDo #16, #17)
+// ═══════════════════════════════════════════════════════════════════════════
+describe('app.js escaping and payload shapes', () => {
+  const APP_SRC = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  test('no HTML attribute is built with the text-only escaper', () => {
+    // dcEsc round-trips through a text node, which is the browser's own TEXT
+    // escaper: it handles & < > and deliberately leaves " and ' alone. Correct
+    // for its ten text-position uses, wrong inside an attribute.
+    //
+    // Confirmed reachable on hardware rather than assumed: a hAP ac2 running
+    // RouterOS 7.24 accepted an interface named qt"test and the API returned
+    // the raw quote, so an interface called `ether1" onmouseover="x` would have
+    // closed the Physical Ports title attribute and opened another.
+    //
+    // A sweep rather than two assertions, because the defect was one helper
+    // used in two contexts: the Interfaces page renders the same payload with
+    // esc() and was always right, which is what made the card look like a
+    // correct copy of it.
+    // The gap is `="'+` : this file builds HTML inside single-quoted JS strings,
+    // so an attribute opens with the HTML quote immediately followed by the JS
+    // string terminator and a concatenation. An earlier version of this regex
+    // looked for the value directly after `="` and matched neither real site,
+    // which made the test vacuous. `[^\n>]` keeps it from reaching past the tag
+    // and flagging the ten legitimate text-position uses.
+    const bad = [];
+    const re = /=["'][^\n>]{0,4}\+\s*dcEsc\s*\(/g;
+    for (const m of APP_SRC.matchAll(re)) {
+      bad.push(APP_SRC.slice(Math.max(0, m.index - 60), m.index + 40).replace(/\s+/g, ' '));
+    }
+    assert.deepEqual(bad, [],
+      'dcEsc does not escape quotes, so it must not build an attribute value; use esc(): ' +
+      bad.join(' | '));
+  });
+
+  test('dcEsc stays a text escaper', () => {
+    // The inverse of the sweep above, and why the fix went to the two call
+    // sites rather than to the helper. Ten text-position uses rely on quotes
+    // and apostrophes surviving; "fixing" dcEsc to escape them would visibly
+    // mangle any name containing an apostrophe.
+    assert.ok(/function dcEsc\(s\)\{[^}]*textContent[^}]*innerHTML/.test(APP_SRC),
+      'dcEsc must keep round-tripping through a text node');
+    assert.ok(!/function dcEsc\(s\)\{[^}]*&quot;/.test(APP_SRC),
+      'dcEsc must not start escaping quotes; fix the call site instead');
+  });
+
+  test('the logs card accepts both payload shapes the server sends', () => {
+    // `data.entries || data` looks like it handles both and cannot: on a bare
+    // array, data.entries is Array.prototype.entries, a truthy FUNCTION, so the
+    // first operand wins and the isArray guard below it rejects the payload.
+    //
+    // Reachable because the two emit sites disagree. src/index.js sends a bare
+    // array on connect and { entries } on card focus, so the connect-time
+    // replay was dropped and the card stayed blank until a focus arrived.
+    const vm = require('node:vm');
+    const line = APP_SRC.match(/var entries=Array\.isArray\(data\).*?;/);
+    assert.ok(line, 'the logs:history shape guard moved or was rewritten');
+
+    const rows = [{ time: '12:00:00', topics: 'system', message: 'hello' }];
+    const run = (data) => {
+      const ctx = { data };
+      vm.createContext(ctx);
+      vm.runInContext(line[0], ctx);
+      return ctx.entries;
+    };
+
+    assert.equal(run(rows).length, 1, 'bare array, the connect-time replay');
+    assert.equal(run({ entries: rows }).length, 1, 'wrapped, the card-focus shape');
+    assert.equal(run(null).length, 0, 'and a null payload is still safe');
+
+    // Proves the test is not vacuous: the old form silently yields a non-array
+    // for the bare-array case, which is what made the card render nothing.
+    const oldCtx = { data: rows };
+    vm.createContext(oldCtx);
+    vm.runInContext('var entries=data.entries||data||[];', oldCtx);
+    assert.ok(!Array.isArray(oldCtx.entries),
+      'the old expression must be the broken one, or this test proves nothing');
+  });
+});
