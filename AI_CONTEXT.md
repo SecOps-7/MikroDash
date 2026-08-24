@@ -805,9 +805,15 @@ poll interval to its documented range beforehand. The delay cannot be unbounded 
 > **The rule that makes these dismissible:** a timer bounds itself *at its own call site*, and does
 > not merely inherit a bound from `POLL_BOUNDS`. Alert #137 was the exception and was **fixed, not
 > dismissed** — `TopTalkersCollector._heartbeatMs` read `Math.max(5000, this.pollMs)`, a floor with
-> no ceiling, and so was the one timer trusting its caller. It now uses `clampPoll` like its
-> sibling. Upstream clamping is what makes the *argument* true; the inline clamp is what makes it
-> checkable. Write both.
+> no ceiling, and so was the one timer trusting its caller. Upstream clamping is what makes the
+> *argument* true; the inline clamp is what makes it checkable. Write both.
+>
+> **Write the clamp inline, not through a helper.** The first attempt used `clampPoll(...)` and
+> CodeQL re-flagged the fixed code on the next scan: the query does not follow a bound across a
+> call, which is why the literal `Math.max(lo, Math.min(hi, …))` form is what closed this rule on
+> `system.js` and `interfaceStatus.js`. Guard the non-finite case yourself when you do
+> (`this.pollMs || 5000`) — `Math.min(60000, NaN)` is `NaN`, and a `NaN` interval is a 1 ms busy
+> loop, not a slow one.
 
 **`js/missing-rate-limiting` — dismissed "false positive".** `authLimiter` (100 req/min) is
 applied globally by the `app.use()` block near the top of `src/index.js`, ahead of every route
