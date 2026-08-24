@@ -1,10 +1,17 @@
 name: Tests
 
-# Runs the suite on every PR and on pushes to main. Tests execute inside the
-# production image rather than on a bare runner, so a PR that breaks the
-# Dockerfile, the node-routeros patch step or a native build fails here too.
-# test/ is excluded from the image, so it is mounted in — the same way the
-# local pre-push hook copies it into the running container.
+# Runs the suite on every PR and on pushes to main. Tests execute inside a
+# built image rather than on a bare runner, so a PR that breaks the Dockerfile,
+# the node-routeros patch step or a native build fails here too.
+# test/ is excluded from every image, so it is mounted in.
+#
+# TWO images are built, and the distinction matters. The suite runs in the
+# `test` stage, which is the runtime image plus devDependencies: the runtime
+# install is --omit=dev, so a test needing a dev-only tool (espree to parse
+# app.js) does not fail there, it fails to LOAD and takes its whole file with
+# it — a suite quietly reporting fewer tests than it has. The smoke test needs
+# the real runtime image, since that is the artefact users run. They share the
+# `base` layer, so building both costs almost nothing.
 
 on:
   pull_request:
@@ -25,20 +32,20 @@ jobs:
 
       # amd64 only — this job verifies behaviour, not multi-arch packaging.
       # docker-publish.yml covers arm64 on tagged releases.
-      - name: Build image
-        run: docker build -t mikrodash:ci .
+      - name: Build images
+        run: |
+          docker build --target test -t mikrodash:ci-test .
+          docker build -t mikrodash:ci .
 
       # $PWD is the checkout dir; avoids interpolating a ${{ }} expression
       # into a shell command, which is the workflow-injection footgun.
-      # The glob is quoted and deliberate: Node 24's test runner treats a bare
-      # directory argument as a module to load and dies with MODULE_NOT_FOUND,
-      # and the quotes stop the runner's shell expanding the pattern against
-      # the host filesystem before docker ever sees it.
+      # No --entrypoint override: the test stage's own CMD carries the quoted
+      # glob (Node 24's runner treats a bare directory as a module to load and
+      # dies with MODULE_NOT_FOUND), so running the default exercises the same
+      # command the Dockerfile documents.
       - name: Run test suite
         run: |
-          docker run --rm --entrypoint node \
-            -v "$PWD/test:/app/test:ro" \
-            mikrodash:ci --test '/app/test/*.test.js'
+          docker run --rm -v "$PWD/test:/app/test:ro" mikrodash:ci-test
 
       # Catches startup-only failures the suite cannot see: src/index.js is not
       # covered by any test, so a bad config value or a dependency behaviour
