@@ -1047,7 +1047,16 @@ socket.on('lan:overview',function(data){
 
 function renderDhcpGauge() {
   var totalPool = _dhcpTotalPoolSize;
-  var totalUsed = allLeases.length; // live lease count — always current
+  // The server's count, not the length of the lease TABLE. Those answer
+  // different questions: the table lists every lease including `waiting`
+  // reservations, while the gauge asks how much of the pool a new client could
+  // not be given. Taking the row count here made the gauge read 99% while the
+  // per-subnet bars directly beneath it read 22% (issue #115). Falls back to the
+  // row count only before the first lan:overview arrives, so a cold load still
+  // shows something rather than zero.
+  var totalUsed = _dhcpNetworksData && typeof _dhcpNetworksData.totalLeases === 'number'
+    ? _dhcpNetworksData.totalLeases
+    : allLeases.length;
   var usedPct   = totalPool > 0 ? Math.round((totalUsed / totalPool) * 100) : 0;
   var gaugeFill  = $('dhcpGaugeFill');
   var gaugeTrack = $('dhcpGaugeTrack');

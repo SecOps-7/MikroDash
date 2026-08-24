@@ -92,7 +92,7 @@ async function withPatchedTimers(runTest) {
 }
 
 // --- DhcpNetworksCollector streaming lifecycle ---
-const dhcpLeaseStub = { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] };
+const dhcpLeaseStub = { getInUseLeaseIPs: () => [] };
 
 function mockRosWithStream(writeFn) {
   const ros = new EventEmitter();
@@ -580,7 +580,7 @@ test('dhcp networks collector deduplicates LAN CIDRs', async () => {
     return [];
   });
   const io = { to() { return io; }, emit() {} };
-  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getActiveLeaseIPs: () => [], getAllLeaseIPs: () => [] }, state: {} });
+  const collector = new DhcpNetworksCollector({ ros, io, pollMs: 15000, dhcpLeases: { getInUseLeaseIPs: () => [] }, state: {} });
   await collector._fetchOnce();
 
   assert.deepEqual(collector.getLanCidrs(), ['192.168.1.0/24']);

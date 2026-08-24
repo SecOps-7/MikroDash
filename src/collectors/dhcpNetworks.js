@@ -92,7 +92,12 @@ class DhcpNetworksCollector {
       if (a.interface === wanIface && a.address) { wanIp = a.address; break; }
     }
 
-    const allLeaseIps = this.dhcpLeases ? this.dhcpLeases.getAllLeaseIPs() : [];
+    // In use, not every lease the table holds. A `waiting` lease is a static
+    // reservation nobody is currently using, and counting those made a /23 read
+    // 507 of 512 used while ~110 addresses were actually held (issue #115).
+    // getInUseLeaseIPs explains why that is a deny-list rather than a list of
+    // the statuses we happen to think of as active.
+    const allLeaseIps = this.dhcpLeases ? this.dhcpLeases.getInUseLeaseIPs() : [];
 
     const lanCidrs = [];
     const networks = [];
