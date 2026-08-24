@@ -2,6 +2,30 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.35] - An interface name can no longer inject markup
+
+### Security
+
+- **A quote in an interface name could inject an attribute into the Dashboard.** The Physical Ports
+  card and the API Diagnostics card built their tooltips with a text-only escaper, which leaves `"`
+  and `'` untouched by design. Confirmed on RouterOS 7.24 that a quoted name is accepted and reaches
+  the browser intact, so an interface called `ether1" onmouseover="x` could inject an attribute.
+  Exploiting it requires the ability to name an interface on a monitored router, so it is not remote,
+  but it is real. The Interfaces page was never affected: it always used the correct escaper.
+
+### Fixed
+
+- **The Logs card no longer starts blank.** The log history the server sends when a browser connects
+  was silently discarded, so the card stayed empty until you opened it and it refetched.
+
+### Internal
+
+- CI and the pre-push hook run the suite in the image that carries the dev tooling. A test needing a
+  dev-only tool previously failed to load rather than failing, taking its whole file with it.
+- A collector timer bounds itself where it is created instead of relying only on upstream clamping.
+- All GitHub code scanning alerts are resolved, each either fixed or dismissed with a written reason.
+- Release notes are short scannable points, and version headings no longer require an em dash.
+
 ## [0.7.34] - Interface comments in alerts, and a DHCP gauge that adds up
 
 ### New
