@@ -2,7 +2,7 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [0.7.34] — Interface comments in alerts, and a DHCP gauge that adds up
+## [0.7.34] - Interface comments in alerts, and a DHCP gauge that adds up
 
 ### New
 
