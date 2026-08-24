@@ -71,7 +71,11 @@ function makeNullCollector(key) {
     // ── Data accessors other code calls without a null guard ─────────────────
     getHistory: HISTORY_SHAPE[key] || (() => []),
     getLanCidrs: () => [],
-    byIP: () => null,
+    // A real Map, not a function: src/index.js iterates `dhcpLeases.byIP.entries()`
+    // when replaying initial state, so a stub that was callable but not iterable
+    // threw for any router with the leases collector switched off (#105).
+    byIP: new Map(),
+    getInUseLeaseIPs: () => [],
     getNameByIP: () => null,
     getNameByMAC: () => null,
     getByIP: () => null,
