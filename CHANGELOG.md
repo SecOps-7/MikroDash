@@ -2,97 +2,50 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [0.7.34] — Counts that did not add up
+## [0.7.34] — Interface comments in alerts, and a DHCP gauge that adds up
 
-Most of this release is numbers that were wrong on screen and had nothing to say about it. A
-utilisation gauge reading 99% over bars reading 22%, a chart quietly showing a tenth of its window,
-a report card counting the wrong table's rows, and a test suite whose own total varied between runs.
-Several were found by porting MikroDash to Go and TypeScript and discovering the two
-implementations disagreed.
+### New
 
-**"DHCP used IPs" counts addresses in use, not lease rows.** A CCR2004 with two /23 pools reported
-507 of 512 used while roughly 110 addresses were actually held. Pool sizing was never at fault. The
-numerator was: utilisation counted every row the lease table held, and a `waiting` lease is a static
-reservation nobody currently holds, so a subnet with reservations for its devices read as full
-whenever those devices were switched off. Filtering is a deny-list rather than an allow-list, so a
-RouterOS status nobody anticipated costs a small over-count instead of vanishing from the total.
+- **`{{comment}}` notification variable.** Alerts can now carry the RouterOS comment for the
+  interface, NetWatch host, VPN peer or BGP peer they are about. Add it to your template under
+  Settings, Notifications, Message Templates, for example `{{alertType}}: {{detail}} ({{comment}})`.
+  It is not in the default template, so nothing changes unless you add it.
+  ([#116](https://github.com/SecOps-7/MikroDash/issues/116), thanks
+  [@erion1979-cell](https://github.com/erion1979-cell))
 
-A second cause the filter could not have reached: `/print` never carries the `.dead` flag that
-removals arrive with, so in poll mode nothing was ever pruned, and on either path a lease that
-vanished during a disconnect stayed for good. A phantom keeps whatever status it last had, usually
-`bound`, where no status filter can touch it. The lease maps are now rebuilt after a successful
-read, so a failed read leaves the last good table standing. Thanks to
-[@erion1979-cell](https://github.com/erion1979-cell) for the report and for the follow-up data that
-ruled out the first diagnosis. ([#115](https://github.com/SecOps-7/MikroDash/issues/115))
+### Fixed
 
-**The traffic chart stopped losing most of its window.** The point selector walked backwards from
-the newest sample and stopped at the first one older than the cutoff, which is correct only while
-the buffer is sorted by timestamp. One out-of-order sample ended the walk and took every older point
-with it, so the chart redrew short and refilled as new data arrived. Two things produce that: the
-history array is loaded from the server wholesale, and the timestamps are the router's, so a
-MikroTik with no battery emits a lower one than the sample before it when NTP corrects its drifted
-clock on boot. It looked like a slow collector, which is why it was never reported from the field.
+- **"DHCP used IPs" over-reported utilisation.** Static reservations nobody was using counted as in
+  use, and leases that disappeared were never cleared in poll mode. A /23 could read 507 of 512 used
+  with about 110 addresses actually held. ([#115](https://github.com/SecOps-7/MikroDash/issues/115),
+  thanks [@erion1979-cell](https://github.com/erion1979-cell))
+- **Traffic chart could silently lose most of its window** and redraw short, then refill. One
+  out-of-order sample, which a router emits when NTP corrects its clock, ended the redraw early.
+- **Backup pruning could offer every real restore point for deletion** if a file it did not create
+  sat in the backup folder.
+- **Report rate card showed the wrong sample count**, counting bandwidth rows instead of traffic
+  samples.
+- **A firewall address written without a prefix matched every address**, so blocking a single host
+  did not raise the lockout warning it should have.
+- **Queue edits recorded changes nobody made**, and said a field had been cleared when the router
+  had kept its value.
+- **Action status messages never appeared** on the WAN, Queues, Router Users and Packages pages.
+- **Five Queues column headers offered a sort they do not have.** They are no longer marked
+  sortable: a simple queue is first match wins, so position is meaningful.
+- **Three values were rendered but never sent:** the upgrade dialog's channel line, the topology
+  core node name, and the Bandwidth page device count.
 
-**Alerts can carry the RouterOS comment.** A new `{{comment}}` notification variable holds the
-comment set on whatever the alert is about: an interface, a NetWatch host, a VPN peer or a BGP peer.
-Operators park what is actually plugged into a port there, so "ether5 went down" becomes as useful
-as the note beside it. It is **not** in the default template, so nothing changes until you add it —
-that is deliberate, since interface comments are also where circuit IDs and account numbers live and
-the rendered message is identical for every recipient. Thanks again to
-[@erion1979-cell](https://github.com/erion1979-cell) for the request.
-([#116](https://github.com/SecOps-7/MikroDash/issues/116))
+### Internal
 
-**The newest backup is never removed, as pruning has always claimed.** It enforced that by
-protecting the first entry after a string sort, which is a time sort only while every name is a
-timestamp. A pair called `not-a-timestamp` sorted above every real backup, took the protected slot,
-and left every genuine restore point eligible for deletion, with no error to show for it. Names that
-cannot be parsed are now dropped before the sort. Not reachable through the app today, and worth
-saying so rather than overstating it, but four lines to hold a documented invariant on a data-loss
-path is worth it.
+- The test suite stopped under-reporting its own size. 1527 tests, stable across runs.
+- CI and the pre-push hook now run the suite in the image that carries the dev tooling.
+- Three checks run on every build: orphaned element lookups, payload fields read but never sent, and
+  variables written but never read.
 
-**The report's rate card counts rate samples.** The traffic and bandwidth summaries both returned a
-key called `samples` into one shared object, so the second overwrote the first: 4,637 against 3,793
-on one real range, both plausible, nothing on screen to contradict it. They are now named apart
-rather than one being picked, because the obvious one-line fix corrects the traffic card and breaks
-the bandwidth PDF, which reads the same object and means the other count.
+### Discussion
 
-**A firewall rule written two ways stopped disagreeing with itself.** An address with no prefix was
-handed a `NaN` prefix length, and the matcher's loop fails that immediately and returns a match, so
-a bare address matched every address of the same family. Blocking a single abusive host is an
-ordinary edit, and whether it raised a lockout warning depended only on whether you typed the `/32`.
-A guard that cries wolf on the ordinary case teaches people to click through the one that matters.
-
-**Three fields that were rendered and never sent.** The upgrade dialog's channel line was blank on
-every router, the topology core node was named by accident rather than by choice, and the Bandwidth
-page wrote its device count into an element that was not in the markup. A sweep for the general
-shape found eight more orphaned lookups, and three module-scope variables that are written and never
-read. Both sweeps now run on every build.
-
-**Queues and Router Users stopped misreporting themselves.** A queue save that changed nothing
-recorded three changes, because the API answers in bits per second and the form submits the CLI
-form; worse, a blank field is dropped from the write, so the router kept its value while the audit
-trail said the field had been cleared. Action status messages never reached the operator on four
-pages, not the three reported, because the render that follows every write wiped the text in the
-same tick. And five Queues column headers offered a sort they do not have — left unsorted on
-purpose, since a simple queue is first-match-wins and position is semantics.
-
-**The test suite stopped lying about its own size.** Consecutive runs of identical code reported
-1,498 and 1,504 tests, both green: `--test-force-exit` truncated the tail of the largest file at
-random, so up to six tests silently did not run and which ones varied. Two unstopped collector
-timers were holding the runner open. The flag is gone, the count is stable, and a `test` stage in
-the Dockerfile now carries the dev dependencies so a test needing one can actually load rather than
-failing to load and taking its whole file with it. 1,527 tests passing.
-
-**Static analysis.** One collector timer took a floor with no ceiling, the only one relying purely
-on upstream clamping rather than bounding itself where it is constructed; it now clamps like its
-siblings. The remaining code scanning alerts are recorded as considered dismissals with reasons
-rather than left open.
-
-**Should MikroDash be rewritten in Go and TypeScript?** The question is now open for comment rather
-than being decided quietly. The case rests on things you can check: a 771 MB image cannot run in a
-container on a hEX S, ARMv7 has been unavailable since Node 24 dropped 32-bit ARM, and the frontend
-is 16,154 lines of untyped JavaScript. Objections are invited as explicitly as support.
-([#114](https://github.com/SecOps-7/MikroDash/issues/114))
+- **Should MikroDash be rewritten in Go and TypeScript?** Comments wanted, objections as welcome as
+  support. ([#114](https://github.com/SecOps-7/MikroDash/issues/114))
 
 ## [0.7.33] — Failures that never announced themselves
 
