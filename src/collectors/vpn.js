@@ -127,6 +127,14 @@ class VpnCollector {
         // every viewer of the VPN page.
         id: p['.id'] || '', publicKey: p['public-key'] || '',
         type: 'WireGuard', name, state,
+        // For the {{comment}} notification variable. Reported as the router has
+        // it, with no attempt to suppress a comment that happens to equal the
+        // peer's name: _peerName falls back to the comment for a peer with no
+        // name, so those two CAN be the same string. Hiding it in that case
+        // would make the variable's output depend on router config the reader
+        // cannot see, and the duplication belongs to _peerName's naming
+        // fallback rather than to this field.
+        comment: p.comment ? String(p.comment).trim() : '',
         // Named for what it actually is. WireGuard is stateless — there is no
         // session and therefore no uptime; this field has always held the time
         // since the last handshake, and calling it uptime made it read as one.

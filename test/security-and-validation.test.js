@@ -489,3 +489,142 @@ describe('topology layout validation', () => {
     }
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Area 8 — the {{comment}} notification variable (issue #116)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Operators comment their interfaces with what is actually plugged in, so
+// "ether5 went down" is far less useful than knowing it is the uplink. #116
+// asked for that comment in alerts; folding it into the alert text was rejected
+// because it would rewrite the wording every existing user already receives.
+//
+// The design instead is a generic {{comment}} template variable that is NOT in
+// the default template. The template is the opt-in, which is why the inverse
+// assertions below matter more than the positive ones: they are what pins
+// "nobody's alerts change unless they ask for it".
+describe('{{comment}} notification variable', () => {
+  // fire() requires BOTH keys for an interface alert — the feature toggle and
+  // the per-type filter. Omitting notifIfaceEther yields a test that passes
+  // while asserting nothing, because no push ever happens.
+  const IFACE_SETTINGS = {
+    telegramEnabled: true, notifIfaceUpDown: true, notifIfaceEther: true,
+  };
+
+  const up   = (over) => [Object.assign({ name: 'ether1', type: 'ether', running: true,  disabled: false }, over)];
+  const down = (over) => [Object.assign({ name: 'ether1', type: 'ether', running: false, disabled: false }, over)];
+
+  async function fireIface(settings, first, second) {
+    notifierStub.calls = [];
+    alerter.updateSettings(makeSettings(Object.assign({}, IFACE_SETTINGS, settings)));
+    const { evaluate } = alerter.createEvaluator(() => 'TestRouter', () => makeRouter());
+    evaluate('ifstatus:update', { interfaces: first });
+    evaluate('ifstatus:update', { interfaces: second });
+    await new Promise(r => setImmediate(r));
+    return notifierStub.calls;
+  }
+
+  test('the comment reaches the body when the template asks for it', async () => {
+    const calls = await fireIface(
+      { notifBody: '{{ifaceName}} ({{comment}})' },
+      up({ comment: 'Uplink to ISP' }), down({ comment: 'Uplink to ISP' }),
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body, 'ether1 (Uplink to ISP)');
+  });
+
+  test('and does not reach it when the template does not', async () => {
+    // The opt-in itself. Without this the feature would still "pass" if someone
+    // had folded the comment into {{detail}} — the design that was rejected.
+    const calls = await fireIface(
+      { notifBody: '{{alertType}}: {{detail}}' },
+      up({ comment: 'Uplink to ISP' }), down({ comment: 'Uplink to ISP' }),
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body, 'Interface Down: ether1 went down');
+    assert.ok(!calls[0].body.includes('Uplink'), 'comment must not appear unasked');
+  });
+
+  test('an interface with no comment renders the placeholder as empty', async () => {
+    // Exact equality, not a match: this pins the deliberate decision to leave
+    // the empty-parenthesis wart alone rather than add conditional sections or
+    // a name fallback. Every other variable already behaves this way, and a
+    // name fallback here would render a lie — "ether1 (ether1)".
+    const calls = await fireIface(
+      { notifBody: '{{ifaceName}} ({{comment}})' },
+      up(), down(),
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].body, 'ether1 ()');
+  });
+
+  test('the recovery template carries it too', async () => {
+    // Both fire() sites, not only the down one. A fix applied to just one of
+    // the pair passes every test above.
+    notifierStub.calls = [];
+    alerter.updateSettings(makeSettings(Object.assign({}, IFACE_SETTINGS, {
+      notifBody: 'down {{comment}}', notifBodyUp: 'up {{comment}}',
+    })));
+    const { evaluate } = alerter.createEvaluator(() => 'TestRouter', () => makeRouter());
+    evaluate('ifstatus:update', { interfaces: up({ comment: 'Uplink' })   });
+    evaluate('ifstatus:update', { interfaces: down({ comment: 'Uplink' }) });
+    evaluate('ifstatus:update', { interfaces: up({ comment: 'Uplink' })   });
+    await new Promise(r => setImmediate(r));
+    assert.equal(notifierStub.calls.length, 2);
+    assert.equal(notifierStub.calls[0].body, 'down Uplink');
+    assert.equal(notifierStub.calls[1].body, 'up Uplink');
+  });
+
+  test('a hostile comment is capped and stripped like every other variable', async () => {
+    // This is the first template variable that is free-form operator text the
+    // router controls end to end, with no MikroDash formatting in between. A
+    // newline surviving here would inject a header into the ntfy Title.
+    const nasty = 'A'.repeat(250) + '\u000aB';
+    const calls = await fireIface(
+      { notifBody: '{{comment}}' },
+      up({ comment: nasty }), down({ comment: nasty }),
+    );
+    assert.equal(calls[0].body.length, 200, 'capped at 200 characters');
+    assert.ok(!calls[0].body.includes('\u000a'), 'control characters stripped');
+  });
+
+  test('a comment shorter than the cap survives whole', async () => {
+    const c = 'B'.repeat(199);
+    const calls = await fireIface({ notifBody: '{{comment}}' }, up({ comment: c }), down({ comment: c }));
+    assert.equal(calls[0].body, c);
+  });
+
+  test('settings are still not reachable as template variables', async () => {
+    // There is a standing warning above _render that _settings must never be
+    // spread into vars, and until now nothing pinned it. Adding a variable is
+    // exactly the moment someone widens that object "just a little".
+    //
+    // This doubles as the generic-contract test: {{comment}} renders empty on
+    // an alert type with no commented RouterOS object behind it.
+    notifierStub.calls = [];
+    alerter.updateSettings(makeSettings({
+      telegramEnabled: true, notifCpu: true,
+      telegramBotToken: 'SECRET-TOKEN', smtpPass: 'SECRET-PASS',
+      notifBody: '[{{telegramBotToken}}|{{smtpPass}}|{{comment}}]',
+    }));
+    const { evaluate } = alerter.createEvaluator(() => 'TestRouter', () => makeRouter());
+    evaluate('system:update', { cpuLoad: 95 });
+    await new Promise(r => setImmediate(r));
+    assert.equal(notifierStub.calls.length, 1);
+    assert.equal(notifierStub.calls[0].body, '[||]');
+  });
+
+  test('the shipped defaults and the UI placeholders stay free of it', () => {
+    // The only test here that pins the maintainer's actual decision rather than
+    // the mechanics. It fails, by name, the day someone helpfully adds
+    // {{comment}} to the stock template and thereby changes the wording every
+    // existing user receives without anyone asking them.
+    const DEFAULTS = require('../src/settings').DEFAULTS;
+    assert.ok(!DEFAULTS.notifBody.includes('{{comment}}'),   'default body must stay unchanged');
+    assert.ok(!DEFAULTS.notifBodyUp.includes('{{comment}}'), 'default recovery body must stay unchanged');
+
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+    assert.ok(html.includes('{{comment}}'), 'the variable must be documented or nobody can find it');
+    assert.ok(!/placeholder="[^"]*\{\{comment\}\}/.test(html), 'and must stay out of the textarea placeholders');
+  });
+});

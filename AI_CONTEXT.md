@@ -797,9 +797,17 @@ rewriting 85+ sinks; see the invariant below for when that calculus changes.
 > in isolation — that trades 11 flagged sites for 85 real ones.
 
 **`js/resource-exhaustion` — dismissed "false positive".** The `setTimeout` delays in
-`system.js` (`_scheduleResourceNext`) and `interfaceStatus.js` (`_scheduleRatesNext`) are clamped
+`system.js` (`_scheduleResourceNext`), `interfaceStatus.js` (`_scheduleRatesNext`) and
+`talkers.js` (`_scheduleTalkersNext`, via `_pollDelayMs = clampPoll(pollMs, 3000)`) are clamped
 inline at the call site to `Math.max(500, Math.min(60000, …))`, and `Settings.load()` clamps every
 poll interval to its documented range beforehand. The delay cannot be unbounded or near-zero.
+
+> **The rule that makes these dismissible:** a timer bounds itself *at its own call site*, and does
+> not merely inherit a bound from `POLL_BOUNDS`. Alert #137 was the exception and was **fixed, not
+> dismissed** — `TopTalkersCollector._heartbeatMs` read `Math.max(5000, this.pollMs)`, a floor with
+> no ceiling, and so was the one timer trusting its caller. It now uses `clampPoll` like its
+> sibling. Upstream clamping is what makes the *argument* true; the inline clamp is what makes it
+> checkable. Write both.
 
 **`js/missing-rate-limiting` — dismissed "false positive".** `authLimiter` (100 req/min) is
 applied globally by the `app.use()` block near the top of `src/index.js`, ahead of every route

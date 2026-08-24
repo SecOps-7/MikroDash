@@ -406,9 +406,9 @@ function createEvaluator(getNameFn, getRouterFn) {
           // the push — and both then travel on to each recipient.
           const ifKeys = ['notifIfaceUpDown', _ifaceTypeKey(_ifaceType(iface.name, iface.type))];
           if (!isRunning) {
-            fire('iface:' + iface.name + ':down', { alertType:'Interface Down', ifaceName:iface.name, status:'down', detail:iface.name + ' went down' }, false, ifKeys);
+            fire('iface:' + iface.name + ':down', { alertType:'Interface Down', ifaceName:iface.name, comment:iface.comment || '', status:'down', detail:iface.name + ' went down' }, false, ifKeys);
           } else {
-            fire('iface:' + iface.name + ':up',   { alertType:'Interface Up',   resolveType:'interface_down', ifaceName:iface.name, status:'up',   detail:iface.name + ' came up'   }, true, ifKeys);
+            fire('iface:' + iface.name + ':up',   { alertType:'Interface Up',   resolveType:'interface_down', ifaceName:iface.name, comment:iface.comment || '', status:'up',   detail:iface.name + ' came up'   }, true, ifKeys);
           }
         }
         _capMap(prevIfState);
@@ -429,9 +429,9 @@ function createEvaluator(getNameFn, getRouterFn) {
         const isConn  = tunnel.state === 'active';
         if (prev !== undefined && wasConn !== isConn) {
           if (!isConn) {
-            fire('vpn:' + tunnel.name + ':down', { alertType:'VPN Disconnected', vpnPeer:tunnel.name, status:'down', detail:'VPN peer ' + tunnel.name + ' disconnected' }, false, ['notifVpn']);
+            fire('vpn:' + tunnel.name + ':down', { alertType:'VPN Disconnected', vpnPeer:tunnel.name, comment:tunnel.comment || '', status:'down', detail:'VPN peer ' + tunnel.name + ' disconnected' }, false, ['notifVpn']);
           } else {
-            fire('vpn:' + tunnel.name + ':up',   { alertType:'VPN Connected',    resolveType:'vpn_disconnected', vpnPeer:tunnel.name, status:'up',   detail:'VPN peer ' + tunnel.name + ' connected'    }, true, ['notifVpn']);
+            fire('vpn:' + tunnel.name + ':up',   { alertType:'VPN Connected',    resolveType:'vpn_disconnected', vpnPeer:tunnel.name, comment:tunnel.comment || '', status:'up',   detail:'VPN peer ' + tunnel.name + ' connected'    }, true, ['notifVpn']);
           }
         }
         _capMap(prevVpnState);
@@ -449,9 +449,9 @@ function createEvaluator(getNameFn, getRouterFn) {
           const netwatchName = host.name || host.host;
           const netwatchDesc = netwatchName !== host.host ? netwatchName + ' (' + host.host + ')' : host.host;
           if (isDown) {
-            fire('netwatch:' + host.id + ':down', { alertType:'Host Down',                            host:host.host, netwatchName, status:'down', detail:'NetWatch host ' + netwatchDesc + ' is unreachable' }, false, ['notifNetwatch']);
+            fire('netwatch:' + host.id + ':down', { alertType:'Host Down',                            host:host.host, netwatchName, comment:host.comment || '', status:'down', detail:'NetWatch host ' + netwatchDesc + ' is unreachable' }, false, ['notifNetwatch']);
           } else {
-            fire('netwatch:' + host.id + ':up',   { alertType:'Host Up', resolveType:'host_down',     host:host.host, netwatchName, status:'up',   detail:'NetWatch host ' + netwatchDesc + ' is reachable'   }, true, ['notifNetwatch']);
+            fire('netwatch:' + host.id + ':up',   { alertType:'Host Up', resolveType:'host_down',     host:host.host, netwatchName, comment:host.comment || '', status:'up',   detail:'NetWatch host ' + netwatchDesc + ' is reachable'   }, true, ['notifNetwatch']);
           }
         }
         _capMap(prevNetwatchState);
@@ -477,18 +477,21 @@ function createEvaluator(getNameFn, getRouterFn) {
         if (!key) continue;
         const peer  = p.name || p.remoteAddr || key;
         const where = p.remoteAddr ? peer + ' (' + p.remoteAddr + ')' : peer;
+        // `p.description` IS the peer's RouterOS comment — routing.js reads the
+        // comment field into it under that name. That is why every {{comment}}
+        // below reads `description`; it is not the wrong field.
         const isEst = p.state === 'established';
         const prev  = prevBgpState.get(key);
 
         if (prev !== undefined && prev !== isEst) {
           if (!isEst) {
             fire('bgp:' + key + ':down', {
-              alertType: 'BGP Peer Down', bgpPeer: peer,
+              alertType: 'BGP Peer Down', bgpPeer: peer, comment: p.description || '',
               detail: 'BGP peer ' + where + ' left established (' + (p.state || 'unknown') + ')',
             }, false, ['notifBgp']);
           } else {
             fire('bgp:' + key + ':up', {
-              alertType: 'BGP Peer Up', resolveType: 'bgp_peer_down', bgpPeer: peer,
+              alertType: 'BGP Peer Up', resolveType: 'bgp_peer_down', bgpPeer: peer, comment: p.description || '',
               detail: 'BGP peer ' + where + ' is established',
             }, true, ['notifBgp']);
           }
@@ -506,7 +509,7 @@ function createEvaluator(getNameFn, getRouterFn) {
             if (swung && !prevBgpPfxAlert.get(key)) {
               const dir = p.prefixes > oldPfx ? '+' : '-';
               fire('bgp-pfx:' + key + ':down', {
-                alertType: 'BGP Prefix Change', bgpPeer: peer,
+                alertType: 'BGP Prefix Change', bgpPeer: peer, comment: p.description || '',
                 detail: peer + ': ' + dir + Math.abs(p.prefixes - oldPfx) + ' prefixes (' +
                         oldPfx + ' → ' + p.prefixes + ')',
               }, false, ['notifBgp']);
@@ -515,7 +518,7 @@ function createEvaluator(getNameFn, getRouterFn) {
               // The count held steady for a reading, so the table has settled.
               fire('bgp-pfx:' + key + ':up', {
                 alertType: 'BGP Prefixes Settled', resolveType: 'bgp_prefix_change',
-                bgpPeer: peer, detail: peer + ': prefix count steady at ' + p.prefixes,
+                bgpPeer: peer, comment: p.description || '', detail: peer + ': prefix count steady at ' + p.prefixes,
               }, true, ['notifBgp']);
               prevBgpPfxAlert.set(key, false);
             }
@@ -528,13 +531,13 @@ function createEvaluator(getNameFn, getRouterFn) {
         if (flapping !== !!prevBgpFlap.get(key)) {
           if (flapping) {
             fire('bgp-flap:' + key + ':down', {
-              alertType: 'BGP Session Flapping', bgpPeer: peer,
+              alertType: 'BGP Session Flapping', bgpPeer: peer, comment: p.description || '',
               detail: 'BGP session ' + where + ' is flapping',
             }, false, ['notifBgp']);
           } else if (prevBgpFlap.has(key)) {
             fire('bgp-flap:' + key + ':up', {
               alertType: 'BGP Session Stable', resolveType: 'bgp_session_flapping',
-              bgpPeer: peer, detail: 'BGP session ' + where + ' has stopped flapping',
+              bgpPeer: peer, comment: p.description || '', detail: 'BGP session ' + where + ' has stopped flapping',
             }, true, ['notifBgp']);
           }
           _capMap(prevBgpFlap);
@@ -546,13 +549,13 @@ function createEvaluator(getNameFn, getRouterFn) {
         if (badHold !== !!prevBgpHold.get(key)) {
           if (badHold) {
             fire('bgp-hold:' + key + ':down', {
-              alertType: 'BGP Hold Timer Warning', bgpPeer: peer,
+              alertType: 'BGP Hold Timer Warning', bgpPeer: peer, comment: p.description || '',
               detail: peer + ': hold-time=' + p.holdTime + 's, keepalive=0',
             }, false, ['notifBgp']);
           } else if (prevBgpHold.has(key)) {
             fire('bgp-hold:' + key + ':up', {
               alertType: 'BGP Hold Timer OK', resolveType: 'bgp_hold_timer_warning',
-              bgpPeer: peer, detail: peer + ': hold timer no longer misconfigured',
+              bgpPeer: peer, comment: p.description || '', detail: peer + ': hold timer no longer misconfigured',
             }, true, ['notifBgp']);
           }
           _capMap(prevBgpHold);

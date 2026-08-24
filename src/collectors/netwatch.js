@@ -30,11 +30,23 @@ class NetwatchCollector {
       type:    row.type    || 'icmp',
       status:  row.status  || 'unknown',
       name:    row.name    || '',
+      // Free: the print above takes no proplist, so the comment is already in
+      // the row and was simply being dropped here. It feeds the {{comment}}
+      // notification variable — the operator's note about what a host IS, which
+      // is the useful half of "NetWatch host 10.0.5.20 is unreachable".
+      comment: row.comment || '',
     };
   }
 
   _emit() {
     const hosts = [...this._hosts.values()].map(r => this._normalize(r));
+    // `comment` is deliberately NOT in this fingerprint, which looks like the
+    // bug fixed across four collectors in 0.7.33 and is not. That rule is
+    // "every field the PAGE DISPLAYS belongs in the fingerprint"; nothing
+    // renders a NetWatch comment. It exists only to feed the {{comment}}
+    // notification variable, which is read at alert time from the payload the
+    // status change itself emits. Hashing it would buy re-emits with no
+    // consumer.
     const fp = JSON.stringify(hosts.map(h => h.id + ':' + h.status));
     if (fp === this._lastFp && this.lastPayload) return;
     this._lastFp = fp;
