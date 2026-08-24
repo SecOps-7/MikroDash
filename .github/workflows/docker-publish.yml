@@ -97,7 +97,12 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           # Extract description from the CHANGELOG header line, e.g. "CAPsMAN support, ..."
-          DESCRIPTION=$(grep "^## \[${VERSION}\]" CHANGELOG.md | head -1 | sed "s/^## \[${VERSION}\] — //")
+          # Separator-tolerant on purpose: entries up to 0.7.33 use an em dash, 0.7.34 onward use a
+          # plain hyphen because em dashes are not wanted in anything user-facing. A hard-coded " — "
+          # here would silently yield an empty description for every future release, and the release
+          # would publish with no title rather than fail.
+          DESCRIPTION=$(grep "^## \[${VERSION}\]" CHANGELOG.md | head -1 \
+            | sed -E "s/^## \[${VERSION}\][[:space:]]*[—–:-][[:space:]]*//")
           # Build release notes: description as a heading, then the section body
           {
             [ -n "$DESCRIPTION" ] && printf '## %s\n\n' "$DESCRIPTION"
