@@ -583,7 +583,13 @@ const STARTUP_GRACE_MS = 15000; // 15 s covers staggered collector startup
 
 // Per-entry ros:status broadcast — scoped to the router's room.
 // `router:status` (router reachability for the list UI) stays as io.emit (global).
-function broadcastRosStatus(connected, reason, entry) {
+function broadcastRosStatus(connected, reason, entry, session) {
+  // A torn-down session must not narrate. Its ROS events can still fire after
+  // teardown, and entry.routerIo addresses the room by ROUTER id — which after
+  // a rebuild belongs to the LIVE session. A zombie's stale connected:true
+  // would then clear the banner for a router that is genuinely down, which is
+  // the one way this fix could have masked a real outage. (#118)
+  if (session && session._destroyed) return;
   if (entry) entry.rosConnected = connected;
   const target = entry ? entry.routerIo : io;
   target.emit('ros:status', { connected, reason: reason || null });
@@ -671,7 +677,7 @@ function wireRosEvents(session, entry) {
     session.cachedInterfaces = null; // invalidate on reconnect — interfaces may have changed
     session._ifacesFetch    = null;
     if (entry) { entry.lastError = null; entry.lastErrorTs = 0; } // recovered (#92)
-    broadcastRosStatus(true, null, entry);
+    broadcastRosStatus(true, null, entry, session);
     _emitRouterStatus(true);
     // Restore page-aware streams for any pages still open after the reconnect.
     // Collector reconnect handlers (in constructors) fire before this listener
@@ -687,7 +693,7 @@ function wireRosEvents(session, entry) {
   ros.on('close', () => {
     session.connTableCache.invalidate();
     console.log('%s', `[${ros.routerLabel}][ROS] connection to ${host}:${port} closed`);
-    broadcastRosStatus(false, 'RouterOS connection closed', entry);
+    broadcastRosStatus(false, 'RouterOS connection closed', entry, session);
     _emitRouterStatus(false);
   });
   ros.on('connectionError', (e) => {
@@ -701,13 +707,44 @@ function wireRosEvents(session, entry) {
     const safeReason = classified ? reason : sanitizeErr(e);
     // Remember it so the Routers page can say *why* this router is offline (#92).
     if (entry) { entry.lastError = safeReason; entry.lastErrorTs = Date.now(); }
-    broadcastRosStatus(false, safeReason, entry);
+    broadcastRosStatus(false, safeReason, entry, session);
     _emitRouterStatus(false);
   });
   ros.on('connected', () => startCollectors(session, entry));
 }
 
+/**
+ * Replay full state to every socket already sitting in this router's room.
+ *
+ * On first startup there are none yet, so it is a no-op. On a hot-swap the
+ * Socket.IO connections stay alive — existing browser clients never receive a
+ * 'connection' event, so without this they would not get the new router's data
+ * until they manually refreshed the page.
+ *
+ * Called from TWO places, and the second is the one that was missing (#118).
+ * The tail of startCollectors covers a session that is starting. switchRouter
+ * covers sockets relocated onto a session that was ALREADY running, where
+ * ensureRouterSession returns the pooled entry early and startCollectors never
+ * runs again — so nothing else would ever replay for them. That left those
+ * sockets with no initial state and, worse, no traffic.bindSocket, meaning the
+ * traffic chart was not stale but unbound until the page was reloaded.
+ */
+function _replayToRoomSockets(session, entry) {
+  for (const [, socket] of io.sockets.sockets) {
+    if (socket.routerId !== session.routerId) continue;
+    session.traffic.bindSocket(socket);
+    sendInitialState(socket, entry).catch((e) => {
+      console.error('[MikroDash] sendInitialState failed for socket', socket.id, ':', e && e.message ? e.message : e);
+    });
+  }
+}
+
 async function startCollectors(session, entry) {
+  // Teardown won the race. The collectorsStarted guard below CANNOT catch this
+  // on its own, because teardownSession resets that very flag to false — so a
+  // late 'connected' from a connection that was closing would sail past it and
+  // start 27 collectors on a session the pool has already dropped. (#118)
+  if (session._destroyed) return;
   if (entry.collectorsStarted) return;
   entry.collectorsStarted = true;
   const _delay = ms => new Promise(r => setTimeout(r, ms));
@@ -805,18 +842,7 @@ async function startCollectors(session, entry) {
     if (!routerRoom || routerRoom.size === 0) _idleSuspend(session, entry);
     else _idleResume(session, entry);
 
-    // Broadcast initial state to sockets watching this router.
-    // On first startup there are none yet, so this is a no-op.
-    // On a hot-swap the Socket.IO connections stay alive — existing browser
-    // clients never receive a 'connection' event, so without this they would
-    // not get the new router's data until they manually refreshed the page.
-    for (const [, socket] of io.sockets.sockets) {
-      if (socket.routerId !== session.routerId) continue;
-      session.traffic.bindSocket(socket);
-      sendInitialState(socket, entry).catch((e) => {
-        console.error('[MikroDash] sendInitialState failed for socket', socket.id, ':', e && e.message ? e.message : e);
-      });
-    }
+    _replayToRoomSockets(session, entry);
   } catch (e) {
     entry.startupReady = false;
     entry.collectorsStarted = false;
@@ -874,8 +900,29 @@ async function switchRouter(newRouterId) {
       }
     }
 
-    // Build and start new session
-    ensureRouterSession(newRouterId);
+    // Build and start new session.
+    const newEntry = ensureRouterSession(newRouterId);
+
+    // When that session was ALREADY pooled and connected, ensureRouterSession
+    // returned early: no ros.on('connected') fires, and that event is the only
+    // producer of ros:status{connected:true} (see wireRosEvents). The client
+    // clears both the RouterOS banner and the switching MODAL on that event and
+    // on nothing else, so switching to a healthy router left the banner up and,
+    // in authMode 'none' — where router:switched is never emitted — the user
+    // behind a modal until they reloaded. Say it explicitly instead. (#118)
+    //
+    // true only. A synthetic false would be the client's SECOND false and would
+    // dismiss the switching overlay while the new router is still connecting.
+    // It also cannot mask a real outage: rosConnected is set false synchronously
+    // by the close/connectionError handlers, so a stale true cannot outlive one
+    // turn of the event loop.
+    if (newEntry && newEntry.rosConnected) {
+      io.to('router-' + newRouterId).emit('ros:status', { connected: true, reason: null });
+      // Gated on startupReady: if collectors are mid-start, the tail of that
+      // in-flight startCollectors replays shortly and doing it here as well
+      // would cost every socket a duplicate fetchInterfaces.
+      if (newEntry.startupReady && newEntry.session) _replayToRoomSockets(newEntry.session, newEntry);
+    }
     return { ok: true };
   } finally {
     _switching = false;
@@ -2324,7 +2371,24 @@ app.put('/api/routers/:id', Rbac.requirePerm('router:manage', Rbac.fromParam('id
     const _beforeRouter = Routers.getById(req.params.id);
     const _beforeFp = _beforeRouter ? collectionFingerprint(Settings.load(), _beforeRouter) : null;
 
-    // A siteId change alters who can reach this router, so every cached
+    // Site membership is an AUTHORIZATION decision, not router config, so it is
+    // administrator-only here — matching PUT /api/sites/:id/routers, which has
+    // always been requireGlobalAdmin for exactly this reason.
+    //
+    // This route is gated on router:manage for the target router, which write
+    // access to the Devices page confers and which is NOT global-only. Before
+    // #117 that let a non-admin MOVE a device between sites: an escalation, but
+    // self-limiting and loud, because the device vanished from the old site's
+    // users. Many-to-many would have made it purely ADDITIVE — a repeatable,
+    // invisible way to inject a device into any scope, with every site id
+    // enumerable from the ungated GET /api/sites. So the field is dropped
+    // rather than honoured for anyone who cannot manage principals.
+    if (!Rbac.can(req.authSession, 'system:principals')) {
+      delete body.siteIds;
+      delete body.siteId;
+    }
+
+    // A membership change alters who can reach this router, so every cached
     // authorization view is stale. Easy to miss: it reads as router config.
     const _before = Routers.getById(req.params.id);
     const router = Routers.update(req.params.id, body);
@@ -4060,6 +4124,16 @@ async function sendInitialState(socket, entry) {
       : 'Waiting for RouterOS connection…' });
     try { await s.ros.waitUntilConnected(10000); } catch (_) {}
   }
+  // Both polarities. This used to report only the bad news, so a socket landing
+  // on an already-connected session was never told it was connected — and
+  // ros:status{connected:true} is what clears the RouterOS banner and dismisses
+  // the switching modal. Its only other producer is ros.on('connected'), which
+  // for a pooled session fired long before this socket joined the room, so the
+  // banner from a PREVIOUS router stayed up until a manual refresh. (#118)
+  //
+  // Deliberately after the waitUntilConnected above, so a router that comes up
+  // during that 10 s wait is reported as connected rather than missed.
+  if (s.ros.connected) socket.emit('ros:status', { connected: true, reason: null });
 
   let ifs = [];
   try {
@@ -6577,7 +6651,15 @@ io.on('connection', (socket) => {
       // The load reboots, so this call is not expected to answer. A rejection
       // here is normal and must not be reported as a failed restore.
       session.ros.write('/system/backup/load',
-        ['=name=' + dst, '=password=' + (router.backup && router.backup.password) || ''])
+        // Brackets matter: `+` binds tighter than `||`, so without them this
+        // read as ('=password=' + …) || '', whose left side always starts with
+        // '=password=' and is therefore never falsy. The fallback was dead, and
+        // a router record with no backup block sent the literal eight
+        // characters `undefined` as the password. RouterOS accepts that and
+        // fails to decrypt, so the operator saw a restore that failed ON THE
+        // ROUTER with a password error pointing at their stored credential
+        // rather than at a missing block.
+        ['=name=' + dst, '=password=' + ((router.backup && router.backup.password) || '')])
         .catch(() => { /* the connection drops as the router reboots */ });
 
       socket.emit('backups:restored', { routerId: rid, id: row.id });

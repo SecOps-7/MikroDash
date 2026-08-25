@@ -235,3 +235,84 @@ test('wouldOrphanGlobalAdmin sees group-held grants and rolls back', () => {
   assert.equal(db.listGrants().length, before, 'the probe must not commit');
   assert.deepEqual(db.getGroupMembers(g.id), ['u1'], 'membership must survive the probe');
 });
+
+// ── A device in several sites (issue #117) ──────────────────────────────────
+//
+// Membership became many-to-many so an operator can pull the devices that
+// matter out of several sites into one view. _roleSetsInScope pushes one role
+// set per site and can() returns on the first that confers, so reachability is
+// a UNION: a grant on ANY of a device's sites reaches it.
+//
+// Each test creates and REMOVES its own device rather than adding one to the
+// shared fixture. Several tests above assert exact router-id arrays
+// (effectiveRouterIds, caps.routers.readable), so a module-scope addition here
+// silently rewrites what they mean.
+
+const SITE_B = 'site-paris';
+
+function withDualHomed(sites, fn) {
+  const r = Routers.add({ label: 'Dual ' + Math.random().toString(36).slice(2, 8), host: '10.9.9.9' });
+  Routers.update(r.id, { siteIds: sites });
+  rbac.bump();
+  try { return fn(r); } finally { Routers.remove(r.id); rbac.bump(); }
+}
+
+test('a device in two sites is reachable from a grant on either', () => {
+  withDualHomed([SITE, SITE_B], (r) => {
+    reset();
+    grant('u1', 'operator', 'site', SITE);
+    assert.equal(rbac.can(sess('u1'), 'router:read', r.id), true,
+      'the first site must reach it');
+
+    reset();
+    grant('u2', 'operator', 'site', SITE_B);
+    assert.equal(rbac.can(sess('u2'), 'router:read', r.id), true,
+      'and so must the second — that is the point of many-to-many');
+  });
+});
+
+test('a second site does not make unrelated devices reachable', () => {
+  // The inverse, so the union cannot pass by granting everything: holding only
+  // the second site must reach neither the first site's device nor a site-less
+  // one.
+  reset();
+  grant('u1', 'operator', 'site', SITE_B);
+  assert.equal(rbac.can(sess('u1'), 'router:read', rIn.id), false,
+    'a device in SITE only must stay out of reach of a SITE_B grant');
+  assert.equal(rbac.can(sess('u1'), 'router:read', rOut.id), false,
+    'and a site-less device is reachable from no site grant at all');
+});
+
+test('membership still confers nothing global, however many sites', () => {
+  // The boundary that must survive this change: no amount of site membership
+  // reaches a GLOBAL_ONLY permission. If this fails, sites have stopped being a
+  // security boundary and have become a default view.
+  withDualHomed([SITE, SITE_B], (r) => {
+    reset();
+    grant('u1', 'admin', 'site', SITE);
+    grant('u1', 'admin', 'site', SITE_B);
+    for (const perm of rbac.GLOBAL_ONLY) {
+      assert.equal(rbac.can(sess('u1'), perm, r.id), false,
+        perm + ' must not be reachable from a site grant');
+    }
+  });
+});
+
+test('losing one site does not lose the other', () => {
+  // clearSite runs when a site is DELETED. A device detached from one site must
+  // stay reachable through the sites it is still in.
+  withDualHomed([SITE, SITE_B], (r) => {
+    Routers.clearSite(SITE);
+    rbac.bump();
+
+    reset();
+    grant('u1', 'operator', 'site', SITE_B);
+    assert.equal(rbac.can(sess('u1'), 'router:read', r.id), true,
+      'the surviving membership must still confer access');
+
+    reset();
+    grant('u1', 'operator', 'site', SITE);
+    assert.equal(rbac.can(sess('u1'), 'router:read', r.id), false,
+      'and the removed one must not');
+  });
+});

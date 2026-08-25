@@ -210,8 +210,19 @@ function _roleSetsInScope(view, t) {
   // byRouter.
   const router = Routers.getById(t.id);
   if (!router) return null;
-  if (router.siteId) {
-    const s = view.bySite.get(router.siteId);
+  // Every site the device belongs to, since #117 made membership many-to-many.
+  // can() and canPage() already walk `out` and return on the first set that
+  // confers, so pushing one set per site preserves the existing union semantics
+  // exactly — a device in A and B is reachable from a grant on EITHER.
+  //
+  // That is the feature, and it is also why membership is administrator-only:
+  // adding a device to a site widens who can reach it, so PUT /api/routers/:id
+  // strips the field for anyone without system:principals.
+  const _siteIds = Array.isArray(router.siteIds)
+    ? router.siteIds
+    : (router.siteId ? [router.siteId] : []);   // a record read before normalising
+  for (const sid of _siteIds) {
+    const s = view.bySite.get(sid);
     if (s) out.push(s);
   }
   const r = view.byRouter.get(t.id);

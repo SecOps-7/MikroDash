@@ -380,7 +380,11 @@ function _readFile() {
       if (r.backup && r.backup.password) {
         out.backup = { ...r.backup, password: _decrypt(r.backup.password) };
       }
-      return out;
+      // Site membership is normalised HERE rather than by a migration that
+      // rewrites the file. A pre-#117 record has a scalar siteId and no list;
+      // it reads as a one-element list, and a record nobody edits is never
+      // touched on disk. See _normalizeSites.
+      return _normalizeSites(out);
     });
   } catch (_) {
     return [];
@@ -470,6 +474,58 @@ function _cleanSiteId(v) {
 }
 
 /**
+ * Clean a LIST of site ids (issue #117).
+ *
+ * A device may belong to several sites. Order is meaningful: the FIRST entry is
+ * the primary, which supplies the map's site geo tier and is what the `siteId`
+ * mirror stores.
+ *
+ * Same contract as _cleanSiteId, deliberately: a malformed entry is dropped
+ * rather than raising, because that is how a bad id has always behaved here and
+ * the pickers submit '' for "no site". Duplicates collapse, so ticking a site
+ * twice cannot inflate a per-site count.
+ */
+function _cleanSiteIds(v) {
+  if (v === null || v === undefined || v === '') return [];
+  const list = Array.isArray(v) ? v : [v];
+  const out = [];
+  for (const raw of list) {
+    const id = _cleanSiteId(raw);
+    if (id && out.indexOf(id) === -1) out.push(id);
+  }
+  return out;
+}
+
+/**
+ * Normalise a record's site membership on READ.
+ *
+ * This IS the migration. A record written before #117 carries a scalar `siteId`
+ * and no list, so it reads as a one-element list. Nothing rewrites routers.json
+ * to achieve that, which means a half-migrated file is fine and a record nobody
+ * edits is never touched.
+ *
+ * `siteId` is kept in step as a WRITE-ONLY downgrade mirror holding the primary,
+ * the same doctrine as grants.role (CLAUDE.md). Nothing in this codebase reads
+ * it any more, but a binary rolled back to before #117 reads ONLY that field —
+ * without it every device would load site-less, which is fail-closed for
+ * authorization but silently empties the map's site tier and every site chip.
+ */
+function _updSiteIds(data, existing) {
+  if (data.siteIds !== undefined) return _cleanSiteIds(data.siteIds);
+  if (data.siteId  !== undefined) return _cleanSiteIds(data.siteId);
+  return _cleanSiteIds(Array.isArray(existing.siteIds) ? existing.siteIds : existing.siteId);
+}
+
+function _normalizeSites(r) {
+  if (!r || typeof r !== 'object') return r;
+  const ids = Array.isArray(r.siteIds) ? _cleanSiteIds(r.siteIds)
+                                       : _cleanSiteIds(r.siteId);
+  r.siteIds = ids;
+  r.siteId  = ids.length ? ids[0] : null;
+  return r;
+}
+
+/**
  * Detach every router from a site. Called when the site is deleted: sites live
  * in SQLite and routers in JSON, so there is no foreign key to cascade through.
  * Returns how many routers were changed.
@@ -479,7 +535,15 @@ function clearSite(siteId) {
   const routers = loadAll();
   let changed = 0;
   for (const r of routers) {
-    if (r.siteId === siteId) { r.siteId = null; changed++; }
+    // Remove THIS site from the list rather than nulling the field: since #117
+    // a device can hold several, and detaching it from a deleted site must not
+    // take its other memberships with it.
+    const ids = _cleanSiteIds(Array.isArray(r.siteIds) ? r.siteIds : r.siteId);
+    const kept = ids.filter((id) => id !== siteId);
+    if (kept.length === ids.length) continue;
+    r.siteIds = kept;
+    r.siteId  = kept.length ? kept[0] : null;   // keep the downgrade mirror true
+    changed++;
   }
   if (changed) { _cache = routers; _writeFile(routers); }
   return changed;
@@ -508,11 +572,16 @@ function add(data) {
     collection:          _normalizeCollection(data.collection, null),
     geo:                 _normalizeGeo(data.geo, null),
     backup:              _normalizeBackup(data.backup, null),
-    // Site membership (issue #78). Exactly one site, or none. Sites themselves
+    // Site membership (issue #78, made many-to-many by #117). Sites themselves
     // live in SQLite; only the membership is here, next to the rest of the
     // router's configuration. An absent field reads as site-less, so existing
     // records need no migration.
-    siteId:              _cleanSiteId(data.siteId),
+    //
+    // siteIds is the real field; siteId is a write-only mirror of the primary
+    // for a rolled-back binary. Accepts either shape from a caller, so a client
+    // that has not been updated still works.
+    siteIds:             _cleanSiteIds(data.siteIds !== undefined ? data.siteIds : data.siteId),
+    siteId:              _cleanSiteIds(data.siteIds !== undefined ? data.siteIds : data.siteId)[0] || null,
     disabled:            false,
     addedAt:             Date.now(),
   };
@@ -558,7 +627,11 @@ function update(id, data) {
     collection:          _normalizeCollection(data.collection, existing),
     geo:                 _normalizeGeo(data.geo, existing),
     backup:              _normalizeBackup(data.backup, existing),
-    siteId:              data.siteId !== undefined ? _cleanSiteId(data.siteId) : (existing.siteId || null),
+    // Membership: siteIds wins when sent, siteId is still accepted from an
+    // older client, and an absent field preserves what is there. The mirror is
+    // recomputed from whichever won so the two can never disagree.
+    siteIds:             _updSiteIds(data, existing),
+    siteId:              _updSiteIds(data, existing)[0] || null,
     disabled:            data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),
   };
 
