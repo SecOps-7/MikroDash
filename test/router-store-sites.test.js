@@ -137,3 +137,84 @@ test('getPublic() exposes siteId while still masking the password', () => {
   assert.strictEqual(pub.siteId, 'site-visible');
   assert.strictEqual(pub.password, '••••••••');
 });
+
+// ── Many-to-many membership (issue #117) ────────────────────────────────────
+//
+// A device used to hold one site, so assigning it to a second silently removed
+// it from the first. The list is now the real field; `siteId` survives only as
+// a write-only mirror of the primary, for a binary rolled back to before #117.
+
+test('a device can belong to several sites at once', () => {
+  const r = addRouter({ siteIds: ['site-a', 'site-b'] });
+  assert.deepStrictEqual(r.siteIds, ['site-a', 'site-b']);
+  // The inverse of the old behaviour: adding the second must not drop the first.
+  assert.ok(r.siteIds.includes('site-a'), 'the first site must survive the second');
+});
+
+test('the first site is the primary, and siteId mirrors it', () => {
+  // The mirror is what a rolled-back binary reads. Without it every device
+  // would load site-less there: fail-closed for authorization, but it silently
+  // empties the map's site tier and every site chip.
+  const r = addRouter({ siteIds: ['site-a', 'site-b'] });
+  assert.equal(r.siteId, 'site-a', 'siteId must hold the primary, not null');
+});
+
+test('a legacy record with a scalar siteId reads as a one-element list', () => {
+  // The whole migration. Nothing rewrites routers.json; the record is
+  // normalised on read, so a file nobody edits is never touched.
+  const r = addRouter({ siteId: 'site-a' });
+  assert.deepStrictEqual(r.siteIds, ['site-a']);
+  assert.equal(r.siteId, 'site-a');
+});
+
+test('duplicate and malformed ids are dropped, not stored', () => {
+  // Same contract the scalar always had: a bad id means "no site" rather than
+  // an error, because the pickers submit '' and old records omit the field.
+  const r = addRouter({ siteIds: ['site-a', 'site-a', '../etc', '', null, 'site-b'] });
+  assert.deepStrictEqual(r.siteIds, ['site-a', 'site-b']);
+});
+
+test('an empty list is site-less, exactly like the old null', () => {
+  // This is the case rbac-model.test.js relies on to catch a rule written as
+  // "everything inherits from a site".
+  const r = addRouter({ siteIds: [] });
+  assert.deepStrictEqual(r.siteIds, []);
+  assert.equal(r.siteId, null);
+});
+
+test('update() preserves membership when the field is omitted', () => {
+  // A label-only edit must not detach a device from every site it is in.
+  const r = addRouter({ siteIds: ['site-a', 'site-b'] });
+  const after = Routers.update(r.id, { label: 'Renamed' });
+  assert.deepStrictEqual(after.siteIds, ['site-a', 'site-b']);
+  assert.equal(after.siteId, 'site-a');
+});
+
+test('update() still accepts a bare siteId from an older client', () => {
+  const r = addRouter({ siteIds: ['site-a', 'site-b'] });
+  const after = Routers.update(r.id, { siteId: 'site-c' });
+  assert.deepStrictEqual(after.siteIds, ['site-c'], 'the scalar replaces the whole list');
+});
+
+test('clearSite removes one site and leaves the others', () => {
+  // The old clearSite nulled the field. Detaching a device from a DELETED site
+  // must not take its unrelated memberships with it.
+  const r = addRouter({ siteIds: ['site-a', 'site-b'] });
+  const changed = Routers.clearSite('site-a');
+  assert.ok(changed >= 1);
+  const after = Routers.getById(r.id);
+  assert.deepStrictEqual(after.siteIds, ['site-b']);
+  assert.equal(after.siteId, 'site-b', 'the mirror follows the new primary');
+});
+
+test('clearSite on a site the device is not in changes nothing', () => {
+  const r = addRouter({ siteIds: ['site-a'] });
+  Routers.clearSite('site-zzz');
+  assert.deepStrictEqual(Routers.getById(r.id).siteIds, ['site-a']);
+});
+
+test('membership survives a round trip through disk', () => {
+  const r = addRouter({ siteIds: ['site-a', 'site-b'] });
+  const fresh = Routers.loadAll().find((x) => x.id === r.id);
+  assert.deepStrictEqual(fresh.siteIds, ['site-a', 'site-b']);
+});
