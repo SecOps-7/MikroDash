@@ -1524,3 +1524,134 @@ test('connections does not open a stream for a router nobody is watching', () =>
     collector.stop();
   }
 });
+
+// ── issue #118: a write must not outlive its connection ─────────────────────
+//
+// Reported as "collectors start before the old connection is torn down, then
+// hang for the full 30 s write timeout". The teardown ordering turned out to be
+// fine — teardownSession has always been awaited — but the hang was real and
+// had two causes, both of which these tests pin.
+
+test('stop() marks the connection disconnected immediately', async () => {
+  // teardownSession calls ros.stop() and then yields only 150 ms. `connected`
+  // used to stay true until the socket's close event eventually landed, so any
+  // collector tick inside that window passed its own guard AND write()'s gate
+  // and handed a command to a dying socket — which the library queues rather
+  // than refuses, so nothing ever settled it.
+  const ros = new ROS({});
+  ros.connected = true;
+  ros.conn = mockConn();
+  ros.stop();
+  assert.equal(ros.connected, false, 'stop() must not leave connected true for the guards that read it');
+});
+
+test('a write in flight when the connection closes rejects at once', { timeout: 1000 }, async () => {
+  // THE REPORTED BUG. The library settles a channel promise on `done` or `trap`
+  // and nothing else: Channel.close() removes listeners without rejecting, and
+  // one-shot write channels are not registered so stopAllStreams() never
+  // reaches them. Before the close signal this could only end via the 30 s
+  // timer, which is why the timeout here is 1 s — the old code cannot pass it,
+  // it can only time out.
+  const ros = new ROS({});
+  let live = null;
+  ros._buildConn = () => {
+    const conn = mockConn();
+    conn.write = () => new Promise(() => {});   // a reply that never comes
+    live = conn;
+    return conn;
+  };
+  ros._sleep = async () => { ros._stopping = true; };
+
+  const loop = ros.connectLoop();
+  await new Promise((r) => ros.once('connected', r));
+
+  const p = ros.write('/ip/firewall/connection/print');
+  live.emit('close');
+  await assert.rejects(p, /closed before reply/);
+  await loop;
+});
+
+test('a write in flight when stop() is called rejects even with no close event', { timeout: 1000 }, async () => {
+  // The half a close-event-only signal would miss. RouterOSAPI.close() returns
+  // early while `connected` is false, emitting nothing at all, so a connection
+  // torn down mid-handshake never announces itself. If the signal did not also
+  // fire from stop(), every in-flight write here would wait out the timeout.
+  const ros = new ROS({});
+  let live = null;
+  ros._buildConn = () => {
+    const conn = mockConn();
+    conn.write = () => new Promise(() => {});
+    conn.close = () => {};                       // deliberately silent, as the library is
+    live = conn;
+    return conn;
+  };
+  ros._sleep = async () => { ros._stopping = true; };
+
+  const loop = ros.connectLoop();
+  await new Promise((r) => ros.once('connected', r));
+
+  const p = ros.write('/tool/ping');
+  ros.stop();
+  // Asserted BEFORE any close event exists, which is the whole point: the
+  // rejection came from stop(), not from the socket announcing itself.
+  await assert.rejects(p, /closed before reply/);
+  assert.ok(live, 'the connection was built');
+  // Only now let connectLoop unpark. Without this the loop waits forever on a
+  // close that this deliberately-silent connection never emits, and the test
+  // times out having already proved its point.
+  live.emit('close');
+  await loop;
+});
+
+test('closing with no write in flight raises no unhandled rejection', { timeout: 1000 }, async () => {
+  // A GUARD, not a regression test: it passes before and after the fix. It
+  // exists to catch the naive implementation of the close signal — a stored
+  // rejected promise with nothing attached reaches process.on('unhandledRejection')
+  // once per reconnect. Verified to bite by temporarily removing the .catch()
+  // inside _armCloseSignal. Do not delete it as tautological.
+  const seen = [];
+  const onUnhandled = (err) => seen.push(err);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const ros = new ROS({});
+    ros._buildConn = () => mockConn({
+      onConnect: async (conn) => { process.nextTick(() => conn.emit('close')); },
+    });
+    ros._sleep = async () => { ros._stopping = true; };
+    await ros.connectLoop();
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual(seen, [], 'the close signal must not leave an unawaited rejection');
+  } finally {
+    process.removeListener('unhandledRejection', onUnhandled);
+  }
+});
+
+test('a teardown during connect starts no session and leaves no live login', { timeout: 1000 }, async () => {
+  // The zombie. RouterOSAPI.close() does nothing while still connecting, so
+  // stop() closed nothing; connectLoop then announced 'connected' anyway and
+  // startCollectors ran 27 collectors against a session the pool had already
+  // dropped, holding an authenticated login nobody owned.
+  const ros = new ROS({});
+  let closes = 0;
+  let release = null;
+  const handshake = new Promise((r) => { release = r; });
+
+  ros._buildConn = () => mockConn({
+    onConnect: async () => { await handshake; },
+    onClose: () => { closes++; },
+  });
+  ros._sleep = async () => { ros._stopping = true; };
+
+  let announced = false;
+  ros.on('connected', () => { announced = true; });
+
+  const loop = ros.connectLoop();
+  await new Promise((r) => setImmediate(r));
+  ros.stop();          // lands while the handshake is still pending
+  release();           // ... and only now does connect() resolve
+  await loop;
+
+  assert.equal(announced, false, 'a session must not be announced after stop()');
+  assert.ok(closes > 0, 'the connection that completed after stop() must be closed, not left open');
+});

@@ -76,8 +76,17 @@ test('the flag is applied on every connect, because the receiver is rebuilt', ()
   // would work until the first disconnect and then quietly stop working.
   const source = fs.readFileSync(path.join(ROOT, 'src', 'routeros', 'client.js'), 'utf8');
   const loop = source.slice(source.indexOf('async connectLoop()'));
-  assert.ok(/await this\.conn\.connect\(\);\s*\n\s*this\._applyRawBytes\(\);/.test(loop),
-    '_applyRawBytes must be called from connectLoop, immediately after connect');
+  // Asserted as "somewhere between connecting and announcing", not as the line
+  // physically after connect(). The stricter form pinned the mechanism rather
+  // than the requirement and broke when a stop()-during-connect guard was added
+  // between the two (#118) — a change that does not affect this rule at all,
+  // because that guard closes the connection and breaks out of the loop.
+  // What actually matters: the flag is applied on the new Receiver before
+  // anything is allowed to use the connection.
+  const afterConnect = loop.slice(loop.indexOf('await this.conn.connect();'));
+  const beforeAnnounce = afterConnect.slice(0, afterConnect.indexOf("_safeEmit('connected')"));
+  assert.ok(beforeAnnounce.includes('this._applyRawBytes();'),
+    '_applyRawBytes must be called from connectLoop after connect and before the connected event');
 });
 
 // ── The join between the patcher and the verifier ──────────────────────────
