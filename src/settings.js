@@ -237,7 +237,7 @@ const DEFAULTS = {
   // Advanced-only in the view presets, but the toggle still defaults visible:
   // page-registry.test.js pins every page toggle to true so a fresh install
   // shows everything, and the preset is what narrows it.
-  pageRouters:     true,
+  pageDevices:     true,
   pageAudit:       true,
   pageBackups:     true,
 
@@ -465,7 +465,7 @@ const VIEWER_FIELDS = [
   'pageWifi', 'pageWireless', 'pageInterfaces', 'pageDhcp', 'pageVpn', 'pageConnections',
   'pageFirewall', 'pageLogs', 'pageBandwidth', 'pageRouting', 'pageTopology',
   'pageVlans', 'pagePpp', 'pageBridges', 'pageDns', 'pageCapsman', 'pagePackages',
-  'pageRosusers', 'pageQueues', 'pageWan', 'pageRouters', 'pageAudit', 'pageBackups',
+  'pageRosusers', 'pageQueues', 'pageWan', 'pageDevices', 'pageAudit', 'pageBackups',
   'displayTimezone',
   // Whether the My Alerts tab exists at all. A non-admin is the whole audience
   // for that tab and only ever sees this subset, so leaving it out would hide

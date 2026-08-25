@@ -45,9 +45,15 @@ test('Read Only reproduces today\'s viewer exactly, and grants no reports', () =
   // reports row confers router:history, so granting it here would hand every
   // existing viewer historical reports and CSV exports on upgrade.
   const rows = db.rolePages('readonly');
+  // 'devices' AND 'routers': the Routers page became Devices (#117) and
+  // migration 15 copies each row to the new key while LEAVING the old one. The
+  // stale row is inert here — the registry has no 'routers' page, so canPage()
+  // never looks it up — and it exists so a binary rolled back to before the
+  // rename still finds the grant. The pair collapses on its own, because
+  // setRolePages() deletes and re-inserts a role's rows on the next edit.
   assert.deepStrictEqual(rows.map(r => r.page).sort(), [
-    'bandwidth', 'connections', 'dashboard', 'dhcp', 'firewall', 'interfaces',
-    'logs', 'routers', 'routing', 'topology', 'vpn', 'wireless',
+    'bandwidth', 'connections', 'dashboard', 'devices', 'dhcp', 'firewall',
+    'interfaces', 'logs', 'routers', 'routing', 'topology', 'vpn', 'wireless',
   ]);
   assert.ok(rows.every(r => r.access === 'read'), 'viewer has no write action today');
   assert.ok(!rows.some(r => r.page === 'reports'), 'reports would confer router:history');

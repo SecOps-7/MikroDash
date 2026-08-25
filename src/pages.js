@@ -112,7 +112,8 @@ const PAGES = Object.freeze([
   // people — which is a more useful neighbourhood than filing them under IP and
   // System respectively.
   { key: 'firewall',    title: 'Firewall',         settingsKey: 'pageFirewall',    streamRooms: ['page-firewall', 'dash-card-firewall'], category: 'security' },
-  { key: 'rosusers',    title: 'Router Users',     settingsKey: 'pageRosusers',    streamRooms: ['page-rosusers'],                                  category: 'security' },
+  // Title only — the key has always been 'rosusers', so this needs no migration.
+  { key: 'rosusers',    title: 'Device Users',     settingsKey: 'pageRosusers',    streamRooms: ['page-rosusers'],                                  category: 'security' },
 
   { key: 'logs',        title: 'Logs',             settingsKey: 'pageLogs',        streamRooms: [],                                  category: 'system' },
   { key: 'packages',    title: 'Packages',         settingsKey: 'pagePackages',    streamRooms: ['page-packages'],                                  category: 'system' },
@@ -121,7 +122,16 @@ const PAGES = Object.freeze([
   // are both history but answer different questions — Reports is per-router
   // telemetry gated on router:history, and half the audit rows have no router at
   // all — so neither belongs inside the other, nor under System.
-  { key: 'routers',     title: 'Routers',          settingsKey: 'pageRouters',     streamRooms: [],                                  category: null },
+  // Renamed from 'routers' to 'devices' (#117): a fleet holds switches too, and
+  // the reporter's own words were "there may be switches and routers there".
+  //
+  // The key moved as well as the title, which the warning on the wireless entry
+  // above says not to do lightly. It is done here because this is the smaller
+  // case — two persisted surfaces, not four: role_pages rows (migration 15,
+  // which leaves the old row as a rollback mirror) and the pageDevices setting
+  // (which needs no mirror: it defaults true and _pageAllowed denies only on an
+  // explicit false, so an absent key is benign on rollback).
+  { key: 'devices',     title: 'Devices',          settingsKey: 'pageDevices',     streamRooms: [],                                  category: null },
   { key: 'reports',     title: 'Reports',          settingsKey: null,              streamRooms: [],                                  category: null },
   { key: 'audit',       title: 'Audit',            settingsKey: 'pageAudit',       streamRooms: [],                                  category: null },
   // Immediately before Settings, because that is where someone goes looking

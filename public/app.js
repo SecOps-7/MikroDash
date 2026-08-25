@@ -541,7 +541,7 @@ function applyFontSize(sizeId) {
 })();
 
 // ── Page router ────────────────────────────────────────────────────────────
-var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wifi:'Wifi Networks',wireless:'Wifi Clients',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',routers:'Routers',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Router Users',audit:'Audit',backups:'Backups'};
+var PAGE_TITLES = {dashboard:'Dashboard',topology:'Network Topology',connections:'Connections',wifi:'Wifi Networks',wireless:'Wifi Clients',wan:'WAN',interfaces:'Interfaces',dhcp:'DHCP',firewall:'Firewall',vpn:'VPN',logs:'Logs',bandwidth:'Bandwidth',settings:'Settings',routing:'Routing',reports:'Reports',devices:'Devices',vlans:'VLANs',ppp:'PPP',capsman:'CAPsMAN',bridges:'Bridges',dns:'DNS',packages:'Packages',queues:'Queues',rosusers:'Device Users',audit:'Audit',backups:'Backups'};
 var PAGE_KEYS   = ['dashboard','wan','wifi','wireless','capsman','interfaces','dhcp','dns','vlans','bridges','vpn','ppp','connections','routing','bandwidth','firewall','logs','packages','queues','rosusers','audit'];
 var _currentPage = 'dashboard';
 function pageVisible(name){ return _currentPage === name && !document.hidden; }
@@ -914,6 +914,14 @@ function gauge(label, pct, cls) {
   '</div>';
 }
 var _sysMetaWritten = false;
+// Last markup written into #rosUpdateRow. system:update carries cpuLoad and
+// uptime, so it fires on every poll tick and this row was rebuilt every time
+// even though its content almost never changes. Rebuilding destroyed
+// #sysUpdateAction and the Update button inside it, and `.sbtn` has a
+// transition, so a freshly inserted button restarted it and the strip visibly
+// flashed once per tick. Reset on reconnect and on router switch, next to
+// _sysMetaWritten, or the new router's row would be suppressed as unchanged.
+var _lastUpdateRowHtml = null;
 var _pendingSysData = null, _sysRafId = null;
 function _flushSysUpdate() {
   _sysRafId = null;
@@ -948,7 +956,7 @@ function _flushSysUpdate() {
     }
   }
   if(rosUpdateRow){
-    var ur='';
+    var ur='', updEvent=null;
     if(d.updateAvailable&&d.latestVersion){
       var installedBase=(d.version||'').replace(/\s*\(.*\)/,'').trim();
       // The Update button lands in #sysUpdateAction, filled by the upgrade
@@ -958,8 +966,12 @@ function _flushSysUpdate() {
       ur='<div class="ros-update-row warn"><span class="ros-update-dot"></span>&#11014; '+esc(installedBase)+' &rarr; <strong>'+esc(d.latestVersion)+'</strong> available<span id="sysUpdateAction"></span></div>';
       // Published rather than read back off the DOM: the versions are already
       // parsed here, and the upgrade dialog should show what this row showed.
-      document.dispatchEvent(new CustomEvent('mikrodash:updateavailable',
-        { detail: { installed: installedBase, latest: d.latestVersion, channel: d.updateChannel || '' } }));
+      //
+      // Behind the dirty check below, because this event is not free: the
+      // listener redraws the Update button AND emits packages:caps, so firing
+      // it every tick cost a socket round trip per tick and re-created the
+      // button the row had just re-created.
+      updEvent = { installed: installedBase, latest: d.latestVersion, channel: d.updateChannel || '' };
     }else if(d.latestVersion){
       ur='<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; RouterOS <strong>'+esc(d.latestVersion)+'</strong> &mdash; Up to date</div>';
     }else if(d.updateStatus){
@@ -969,7 +981,19 @@ function _flushSysUpdate() {
     }else{
       ur='<div class="ros-update-row pending"><span class="ros-update-dot"></span>Checking for updates…</div>';
     }
-    rosUpdateRow.innerHTML=ur;
+    // Dirty check. Without it the row was rewritten on every poll tick, which
+    // is what made the amber "available" strip and its Update button flash:
+    // innerHTML destroys and recreates the node, and a newly inserted .sbtn
+    // restarts its own transition. The markup IS the fingerprint here, so it
+    // cannot drift out of sync with what is rendered the way a hand-written
+    // field list can.
+    if(ur!==_lastUpdateRowHtml){
+      _lastUpdateRowHtml=ur;
+      rosUpdateRow.innerHTML=ur;
+      // After the write, so the listener's draw() finds the #sysUpdateAction
+      // slot this markup just created rather than the one it replaced.
+      if(updEvent) document.dispatchEvent(new CustomEvent('mikrodash:updateavailable',{ detail: updEvent }));
+    }
   }
 }
 socket.on('system:update',function(d){
@@ -980,11 +1004,17 @@ socket.on('system:update',function(d){
 });
 
 // ── LAN ────────────────────────────────────────────────────────────────────
-// The WAN IP is chrome — it sets the connections map's arc origin and the WAN
-// readout in the network-devices diagram — so it arrives router-wide while the
-// pool and per-network detail is page-scoped (issue #108).
+// The WAN IP is chrome — it feeds the WAN readout in the network-devices
+// diagram — so it arrives router-wide while the pool and per-network detail is
+// page-scoped (issue #108).
+//
+// It used to claim a second consumer, the connections map's arc origin. That
+// was never true: the map takes its origin from /api/localcc, and the only
+// thing that would have connected this event to it was a window._wanGeoDetect
+// hook that nothing in the repository ever assigned. The dead call is gone and
+// the justification for the event's router-wide scope is now one consumer, not
+// two, which is worth knowing before anyone reasons about that scope again.
 socket.on('lan:wan',function(data){
-  if(window._wanGeoDetect) window._wanGeoDetect(data.wanIp);
   var wip=(data.wanIp||'').split('/')[0]||'—';
   var ndWanIp=$('ndWanIp'); if(ndWanIp)ndWanIp.textContent=wip;
   if(wanIpDisplay)wanIpDisplay.textContent=wip;
@@ -1008,7 +1038,15 @@ socket.on('lan:overview',function(data){
         '</div>';
     }
   }
-  // LAN info (other consumers: ndLanCidr, ndGateway on other pages)
+  // LAN info. The two writes below are ORPHANS: neither #ndLanCidr nor
+  // #ndGateway exists in public/index.html, so both $() lookups return null and
+  // both writes are skipped by their own guards, on every page. This comment
+  // used to claim they had "other consumers on other pages" — they have none,
+  // and that sentence is what made them look load-bearing on review.
+  //
+  // Left in place rather than deleted, per CLAUDE.md on pre-existing dead code,
+  // and both ids are pinned in the allow-list in test/orphaned-references.test.js
+  // which fails if that list grows OR if one of them stops being an orphan.
   var nets=data.networks||[];
   var ndLanCidr=$('ndLanCidr'); if(ndLanCidr)ndLanCidr.textContent=nets.length?nets.map(function(n){return n.cidr;}).join(', '):'\u2014';
   var ndGateway=$('ndGateway'); if(ndGateway)ndGateway.textContent=nets.length&&nets[0].gateway?nets[0].gateway:'\u2014';
@@ -2034,7 +2072,6 @@ socket.on('vpn:update',function(data){
   var wgPeers   = allTunnels.filter(function(t){ return t.type === 'WireGuard'; });
   var connected = wgPeers.filter(function(t){ return t.state === 'active'; });
   var stale     = wgPeers.filter(function(t){ return t.state === 'stale'; });
-  var idle      = wgPeers.filter(function(t){ return t.state !== 'active'; });
 
   // ── Dashboard nav badges ──────────────────────────────────────────────────
   if (vpnPageCount) { vpnPageCount.textContent = wgPeers.length; vpnPageCount.className = 'card-badge' + (wgPeers.length > 0 ? ' active-blue' : ''); }
@@ -2786,7 +2823,7 @@ var PAGE_NAV_MAP = {
   pageVlans:'vlans', pagePpp:'ppp',
   pageCapsman:'capsman', pageBridges:'bridges', pageDns:'dns', pagePackages:'packages',
   pageRosusers:'rosusers', pageQueues:'queues', pageWan:'wan',
-  pageRouters:'routers', pageAudit:'audit', pageBackups:'backups',
+  pageDevices:'devices', pageAudit:'audit', pageBackups:'backups',
 };
 // Every page the nav can show. Kept in step with src/pages.js — the drift check
 // lives in test/page-registry.test.js.
@@ -2801,7 +2838,7 @@ var ALL_NAV_PAGES = ['dashboard',
                      'bandwidth','queues','connections',
                      'firewall','rosusers',
                      'logs','packages',
-                     'routers','reports','audit','backups','settings'];
+                     'devices','reports','audit','backups','settings'];
 // The two inputs to page visibility, merged by applyPageVisibility(): what the
 // install allows, and what this session's role allows. Both must say yes.
 var _pageInstall = {};
@@ -2864,7 +2901,7 @@ function applyPageVisibility(pages) {
     var byRole    = !_pageAccess || !!_pageAccess[pageName];
     // Routers is meaningless with one router, and that rule composes with the
     // other two rather than overriding them.
-    var byCount   = pageName !== 'routers' || _routersMultiple;
+    var byCount   = pageName !== 'devices' || _routersMultiple;
     var visible   = byInstall && byRole && byCount;
 
     // The user chip is no longer a match here: it carries no data-page at all
@@ -2929,6 +2966,7 @@ socket.on('connect',function(){
   reconnectBanner.classList.remove('show');
   document.body.classList.remove('is-disconnected');
   _sysMetaWritten=false;
+  _lastUpdateRowHtml=null;   // the row is re-rendered from scratch after a reconnect
   currentIf=''; allPoints=[];
   if(_rosCurrentlyDisconnected) {
     rosBanner.classList.add('show');
@@ -4122,49 +4160,117 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     }).join('');
   }
 
+  // Rows are updated in place, not rewritten. conn:update arrives on the
+  // collector's normal cadence, so an open Connections page rebuilt this list
+  // every tick: `.conn-map-row` is cursor:pointer with transition:background,
+  // so the row under the pointer was destroyed and recreated, :hover
+  // re-evaluated on a fresh node and the transition restarted; a click that
+  // began before a tick could finish on a detached node; and a fresh listener
+  // was attached per row per tick.
+  //
+  // A markup fingerprint like the one on the update strip would NOT work here,
+  // and that is worth stating so nobody tries it: every row embeds
+  // drawSparkSVG(_sparkData[cc]) and pushSpark appends a point per country per
+  // tick, so the path differs every tick even when every count is identical.
+  // The comparison would never be equal, giving no suppression and a check
+  // that reads like a fix. Excluding the spark from the fingerprint walks into
+  // the drift failure that rule warns about, so the rows are updated instead.
+  var _ccRows = Object.create(null);   // cc -> row element, reused across ticks
+  var _ccLast = [];                    // latest payload, for the delegated click
+  var _ccClickBound = false;
+
+  function _ccRowEl(cc){
+    var row = document.createElement('div');
+    row.className = 'conn-map-row';
+    row.dataset.cc = cc;
+    row.innerHTML =
+      '<span class="conn-map-flag"></span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">' +
+          '<div class="conn-map-label" style="min-width:0"></div>' +
+          '<div class="conn-map-spark" style="flex-shrink:0"></div>' +
+        '</div>' +
+        '<div class="svc-sub-rows"></div>' +
+        '<div class="conn-proto-bar">' +
+          '<div class="conn-proto-tcp"></div>' +
+          '<div class="conn-proto-udp"></div>' +
+          '<div class="conn-proto-other"></div>' +
+        '</div>' +
+      '</div>' +
+      '<span class="conn-map-count"></span>';
+    return row;
+  }
+
+  // Only what changed. Every write is guarded by a comparison because assigning
+  // an identical innerHTML still replaces the subtree, which is the whole
+  // defect this function exists to avoid.
+  function _ccRowSync(row, e, sel){
+    var q = function(s){ return row.querySelector(s); };
+    var flag = iso2Flag(e.cc);
+    var fl = q('.conn-map-flag'); if(fl.textContent !== flag) fl.textContent = flag;
+
+    var labelHtml = esc(CC_NAMES[e.cc]||e.cc) +
+      (e.city ? ' <span class="conn-map-label-sub">'+esc(e.city)+'</span>' : '');
+    var lab = q('.conn-map-label'); if(lab.innerHTML !== labelHtml) lab.innerHTML = labelHtml;
+
+    // The spark genuinely changes every tick; it is the one write that is
+    // expected to happen each time, and it is a leaf so it costs one subtree.
+    var spark = drawSparkSVG(_sparkData[e.cc]) || '';
+    var sp = q('.conn-map-spark');
+    if(sp.innerHTML !== spark) sp.innerHTML = spark;
+    // Hidden rather than absent: the parent is a flex row with a gap, so an
+    // empty child would still take one gap of width.
+    var spDisp = spark ? '' : 'none';
+    if(sp.style.display !== spDisp) sp.style.display = spDisp;
+
+    var orgsHtml = (e.orgs&&e.orgs.length) ? e.orgs.map(function(o){
+      return '<span class="svc-sub-row">'+svcBadge(o.org,o.cat)+'<span class="svc-sub-count">'+o.count+'</span></span>';
+    }).join('') : '';
+    var og = q('.svc-sub-rows');
+    if(og.innerHTML !== orgsHtml) og.innerHTML = orgsHtml;
+    // .svc-sub-rows carries margin-top, so an empty one would leave dead space.
+    var ogDisp = orgsHtml ? '' : 'none';
+    if(og.style.display !== ogDisp) og.style.display = ogDisp;
+
+    var total=(e.proto.tcp||0)+(e.proto.udp||0)+(e.proto.other||0)||1;
+    var tcpPct=Math.round((e.proto.tcp||0)/total*100);
+    var udpPct=Math.round((e.proto.udp||0)/total*100);
+    var othPct=100-tcpPct-udpPct;
+    var bars=[['.conn-proto-tcp',tcpPct],['.conn-proto-udp',udpPct],['.conn-proto-other',othPct]];
+    for(var b=0;b<bars.length;b++){
+      var el=q(bars[b][0]), v=String(bars[b][1]);
+      if(el.style.flex !== v) el.style.flex = v;
+    }
+
+    var cnt = String(e.count);
+    var ce = q('.conn-map-count'); if(ce.textContent !== cnt) ce.textContent = cnt;
+
+    row.classList.toggle('selected', !!sel);
+  }
+
   function renderCountryList(topCountries, selectedCC){
     var list=$('connMapList'); if(!list) return;
     var sub=$('connMapSub');
     if(!topCountries||!topCountries.length){
+      _ccRows = Object.create(null);
+      _ccLast = [];
       list.innerHTML='<div class="empty-state">No geo data yet</div>'; return;
     }
     if(sub) sub.textContent=topCountries.length+' countries active';
-    list.innerHTML=topCountries.map(function(e){
-      var flag=iso2Flag(e.cc);
-      var total=(e.proto.tcp||0)+(e.proto.udp||0)+(e.proto.other||0)||1;
-      var tcpPct=Math.round((e.proto.tcp||0)/total*100);
-      var udpPct=Math.round((e.proto.udp||0)/total*100);
-      var othPct=100-tcpPct-udpPct;
-      var spark=drawSparkSVG(_sparkData[e.cc]);
-      var sel=(e.cc===selectedCC);
-      return '<div class="conn-map-row'+(sel?' selected':'')+'" data-cc="'+e.cc+'">'+
-        '<span class="conn-map-flag">'+flag+'</span>'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem">'+
-            '<div class="conn-map-label" style="min-width:0">'+esc(CC_NAMES[e.cc]||e.cc)+(e.city?' <span class="conn-map-label-sub">'+esc(e.city)+'</span>':'')+'</div>'+
-            (spark?'<div style="flex-shrink:0">'+spark+'</div>':'')+
-          '</div>'+
-          (e.orgs&&e.orgs.length?'<div class="svc-sub-rows">'+e.orgs.map(function(o){
-            return'<span class="svc-sub-row">'+svcBadge(o.org,o.cat)+'<span class="svc-sub-count">'+o.count+'</span></span>';
-          }).join('')+'</div>':'')+
-          '<div class="conn-proto-bar">'+
-            '<div class="conn-proto-tcp" style="flex:'+tcpPct+'"></div>'+
-            '<div class="conn-proto-udp" style="flex:'+udpPct+'"></div>'+
-            '<div class="conn-proto-other" style="flex:'+othPct+'"></div>'+
-          '</div>'+
-        '</div>'+
-        '<span class="conn-map-count">'+e.count+'</span>'+
-      '</div>';
-    }).join('');
+    _ccLast = topCountries;
 
-    // Re-bind click handlers for filter
-    list.querySelectorAll('.conn-map-row').forEach(function(row){
-      row.addEventListener('click',function(){
+    // Bound once on the container, not per row per tick. A row can now be moved
+    // or left alone without its handler going with it.
+    if(!_ccClickBound){
+      _ccClickBound = true;
+      list.addEventListener('click', function(ev){
+        var row = ev.target && ev.target.closest ? ev.target.closest('.conn-map-row') : null;
+        if(!row || !list.contains(row)) return;
         var cc=row.dataset.cc;
         _selectedCC=(cc===_selectedCC)?null:cc;
         var lbl=$('connFilterLabel');
         if(lbl) lbl.style.display=_selectedCC?'':'none';
-        renderCountryList(topCountries, _selectedCC);
+        renderCountryList(_ccLast, _selectedCC);
         // Map: highlight only selected country, dim others
         if(_selectedCC){
           Object.keys(_pathEls).forEach(function(c){
@@ -4182,6 +4288,35 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         // Filter ports and Sankey
         applyCountryFilter(_selectedCC);
       });
+    }
+
+    // Re-seed when the DOM no longer matches the cache. Two paths empty this
+    // list without going through here: the empty state above, and the
+    // router-switch reset that assigns innerHTML = ''. Without this the cache
+    // would still hold detached rows and the next tick would silently re-attach
+    // the previous router's.
+    if(!list.querySelector('.conn-map-row')) _ccRows = Object.create(null);
+
+    var seen = Object.create(null);
+    var prev = null;
+    for(var i=0;i<topCountries.length;i++){
+      var e = topCountries[i];
+      var row = _ccRows[e.cc];
+      if(!row){ row = _ccRowEl(e.cc); _ccRows[e.cc] = row; }
+      _ccRowSync(row, e, e.cc===selectedCC);
+      seen[e.cc] = true;
+      // insertBefore MOVES an existing node rather than cloning it, so identity,
+      // listeners and focus survive a reorder. Skipped when already in place,
+      // because moving a node the pointer is over still disturbs it.
+      var want = prev ? prev.nextSibling : list.firstChild;
+      if(row !== want) list.insertBefore(row, want);
+      prev = row;
+    }
+    Object.keys(_ccRows).forEach(function(cc){
+      if(seen[cc]) return;
+      var el=_ccRows[cc];
+      if(el && el.parentNode) el.parentNode.removeChild(el);
+      delete _ccRows[cc];
     });
   }
 
@@ -6186,7 +6321,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       var el = $('s_'+f); if (el) el.checked = !!data[f];
     });
     // Page visibility + dashboard widget toggles
-    ['pageWifi','pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit','pageBackups'].forEach(function(f) {
+    ['pageWifi','pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageDevices','pageAudit','pageBackups'].forEach(function(f) {
       var el = $('s_'+f); if (el) el.checked = data[f] !== false;
     });
     ['notifBackupDrift','notifBackupFail'].forEach(function(f) {
@@ -6314,7 +6449,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     ['routerTls','routerTlsInsecure'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
-    ['pageWifi','pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageRouters','pageAudit','pageBackups'].forEach(function(f) {
+    ['pageWifi','pageWireless','pageInterfaces','pageDhcp','pageVlans','pageVpn','pagePpp','pageConnections','pageFirewall','pageLogs','pageBandwidth','pageRouting','pageTopology','pageCapsman','pageBridges','pageDns','pagePackages','pageQueues','pageWan','pageRosusers','pageDevices','pageAudit','pageBackups'].forEach(function(f) {
       var el = $('s_'+f); if (el) out[f] = el.checked;
     });
     var pingEnabledEl = $('s_pingEnabled'); if (pingEnabledEl) out.pingEnabled = pingEnabledEl.checked;
@@ -6921,12 +7056,19 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // the redraw paints exactly where the keepalive continues from — no forward snap.
   function _syncBwChart(animated) {
     if (!_bwChart) return;
-    var cutoff = Date.now() - (windowSecs * 1000) - RIGHT_BUFFER_MS;
-    var pts = [];
-    for (var i = allPoints.length - 1; i >= 0; i--) {
-      if (allPoints[i].ts < cutoff - 3000) break;
-      pts.unshift(allPoints[i]);
-    }
+    // The second copy of the walk fixed in windowedPoints. This function is
+    // redrawChart with two edits and inherited the defect by being written from
+    // it, so the dashboard chart drew a sample that this one dropped, off the
+    // same buffer, for the same second.
+    //
+    // The extra 3 s is NOT part of the bug and stays: the keepalive prunes at
+    // viewLeft - 3000, so seeding with that slack stops a point being drawn on
+    // one frame and dropped on the next. Only the backward walk was wrong,
+    // because `break` assumes allPoints is sorted by ts and one out-of-order
+    // sample — an NTP correction on a router with a drifted RTC — ended it
+    // early, taking every newer sample with it.
+    var cutoff = Date.now() - (windowSecs * 1000) - RIGHT_BUFFER_MS - 3000;
+    var pts = allPoints.filter(function (p) { return p.ts >= cutoff; });
     _bwChart.data.datasets[0].data = pts.map(function(p){ return {x:p.ts,y:p.rx_mbps}; });
     _bwChart.data.datasets[1].data = pts.map(function(p){ return {x:p.ts,y:p.tx_mbps}; });
     var dMax = 0;
@@ -8033,6 +8175,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // so there is nothing that could make them skip the new router's payloads.
     // Reset system meta so new router's board info replaces old
     _sysMetaWritten = false;
+    // Same for the update row's dirty check: two routers can sit on identical
+    // versions, so without this the strip would be suppressed as "unchanged"
+    // and keep showing the previous router's row.
+    _lastUpdateRowHtml = null;
     // Clear ping history
     pingHistory = [];
     // Clear connection table fingerprint caches
@@ -9812,9 +9958,24 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
           if (!d || !d.ok || !box) return;
           box.innerHTML = '<div class="bw-table-wrap"><table class="bw-table">' +
             '<thead><tr><th>When</th><th>Result</th><th>Recipients</th><th>Size</th><th>Detail</th></tr></thead><tbody>' +
-            (d.runs.length ? d.runs.map(function(r) {
+            // (d.runs || []): a response carrying ok:true and no runs key threw
+            // inside the .then, and this branch has no .catch, so it left an
+            // unhandled rejection and an untouched history box. The empty state
+            // below is the right answer to that.
+            ((d.runs || []).length ? d.runs.map(function(r) {
               return '<tr><td class="bw-mac">' + esc(new Date(r.ran_at).toLocaleString()) + '</td>' +
-                '<td>' + esc(r.outcome) + '</td><td>' + esc(String(r.recipients_n)) + '</td>' +
+                '<td>' + esc(r.outcome) + '</td>' +
+                // ?? 0 rather than a bare String(): String(undefined) renders
+                // the word "undefined" into a column an operator reads to see
+                // how many people got the report. Every other column in this
+                // row already defends itself; this was the one bare String().
+                //
+                // Five headers, five cells. The outcome cell above was lost once
+                // while this line was being edited, which shifted every value one
+                // column left and put a plausible recipient count under "Result".
+                // That is worse than the "undefined" it replaced: the word was
+                // obviously wrong, a number in the wrong column is not.
+                '<td>' + esc(String(r.recipients_n ?? 0)) + '</td>' +
                 '<td>' + esc(r.bytes ? fmtBytes(r.bytes) : '—') + '</td>' +
                 '<td class="bw-mac">' + esc(r.error || '') + '</td></tr>';
             }).join('') : '<tr><td colspan="5" class="rpt-empty">No runs yet.</td></tr>') +
@@ -12347,7 +12508,14 @@ function _renderRoutersMap(rows) {
         ? 'This router runs the legacy wireless package, which has no CAPsMAN here.'
         : (_data.role === 'cap'
             ? 'This router is a CAP, not a manager — it has no CAPs of its own.'
-            : 'No CAPs are connected to this manager.');
+            // The search rung goes AFTER the two structural ones on purpose: a
+            // CAP with a search term typed into it is still a CAP, and saying
+            // so is more useful than reporting the filter. Without this rung a
+            // viewer who filtered on a name none of their CAPs match was told
+            // the manager has nothing connected, which is a statement about the
+            // router rather than about what they just typed.
+            : (q ? 'No CAPs match that search.'
+                 : 'No CAPs are connected to this manager.'));
       tbody.innerHTML = '<tr><td colspan="8" class="empty-state">' + msg + '</td></tr>';
     } else {
       tbody.innerHTML = rows.map(function (c) {
@@ -14226,6 +14394,17 @@ function _renderRoutersMap(rows) {
     if (!raw) return '<span style="color:var(--text-muted)">&mdash;</span>';
     var d;
     try { d = JSON.parse(raw); } catch (e) { return esc(String(raw).slice(0, 120)); }
+    // The try covers the PARSE only, and JSON.parse('null') does not throw — it
+    // returns null, and `d.changes` on the next line then does. That exception
+    // escapes detailCell and render and lands in load()'s empty .catch, so ONE
+    // row whose detail column holds the four characters `null` left the whole
+    // Audit table blank with the filters above it looking normal. An audit
+    // trail showing no entries is the most reassuring possible way to fail.
+    //
+    // Only null does this: 12345 and "a string" both parse, have no `changes`
+    // and render the dash correctly. null is the one result that is falsy AND
+    // has no properties, which is what made the other non-objects look safe.
+    if (!d || typeof d !== 'object') return '<span style="color:var(--text-muted)">&mdash;</span>';
     var bits = [];
     (d.changes || []).slice(0, 4).forEach(function (c) {
       bits.push('<span style="color:var(--text-muted)">' + esc(c.field) + '</span> ' +

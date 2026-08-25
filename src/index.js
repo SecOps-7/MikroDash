@@ -4667,7 +4667,7 @@ io.on('connection', (socket) => {
     // returns before both.
     if (!_pageAllowed(socket, name)) return;
     socket.join('router-' + rid + '-page-' + name);
-    if (name === 'routers') {
+    if (name === 'devices') {
       if (!_routersPageSockets.has(socket.id)) {
         _routersPageSockets.add(socket.id);
         if (_routersPageSockets.size === 1) overviewSessions.resume();
@@ -4722,7 +4722,7 @@ io.on('connection', (socket) => {
     const e = rid ? _routerSessions.get(rid) : null;
     if (!e) return;
     if (_PAGE_STREAM_ROOMS[name]) _updatePageStream(e.session, e, name);
-    if (name === 'routers') {
+    if (name === 'devices') {
       if (_routersTimer) { clearInterval(_routersTimer); _routersTimer = null; }
       if (_routersPageSockets.delete(socket.id) && _routersPageSockets.size === 0) overviewSessions.suspend();
     }

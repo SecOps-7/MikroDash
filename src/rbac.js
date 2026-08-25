@@ -74,7 +74,7 @@ const WRITE_CONFERS = Object.freeze({
   // Deliberately not router:write, which WRITE_CONFERS_ALWAYS would leak in
   // from any write page at all.
   reports:   ['router:schedule'],                   // schedule a report to be emailed out
-  routers:   ['router:manage'],                     // edit/delete a router, change its site
+  devices:   ['router:manage'],                     // edit/delete a device (the permission keeps the domain noun)
   settings:  ['system:settings', 'router:purge'],   // app settings; purge one router's history
 });
 
