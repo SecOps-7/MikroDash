@@ -177,3 +177,127 @@ test('no module-scope variable in app.js is written but never read', () => {
   assert.deepEqual(orphans, [],
     'written but never read — delete it, or read it: ' + orphans.join(', '));
 });
+
+// ── the second copy of the windowed walk (ToDo #24) ─────────────────────────
+//
+// windowedPoints was fixed and _syncBwChart was not. It is redrawChart with two
+// edits and inherited the same backward-walk-and-break, so the dashboard chart
+// drew a sample the Bandwidth chart dropped, off the same buffer, for the same
+// second. The lesson recorded with it: sweep for a second copy of a fixed
+// FUNCTION, not just a second instance of the bug shape.
+test('both charts select the same points when a sample arrives out of order', () => {
+  const vm = require('node:vm');
+  const now = 1700000000000;
+  // Newest sample first in arrival order, with a stale one wedged in front of
+  // it — the shape an NTP correction on a drifted RTC produces.
+  const pts = [
+    { ts: now - 1000,  rx_mbps: 1, tx_mbps: 1 },
+    { ts: now - 70000, rx_mbps: 5, tx_mbps: 5 },
+    { ts: now - 2000,  rx_mbps: 2, tx_mbps: 2 },
+  ];
+
+  const dash = APP.match(/function windowedPoints\(\)\{[\s\S]*?\n\}/);
+  assert.ok(dash, 'windowedPoints not found');
+  const bw = APP.match(/var cutoff = Date\.now\(\)[^\n]*\n\s*var pts = allPoints\.filter[^\n]*/);
+  assert.ok(bw, 'the _syncBwChart point selection moved or still uses the old walk');
+
+  const runDash = () => {
+    const ctx = { Date: { now: () => now }, windowSecs: 60, RIGHT_BUFFER_MS: 1000, allPoints: pts };
+    vm.createContext(ctx);
+    vm.runInContext(dash[0] + '; var __o = windowedPoints();', ctx);
+    return Array.from(ctx.__o, p => p.ts);
+  };
+  const runBw = () => {
+    const ctx = { Date: { now: () => now }, windowSecs: 60, RIGHT_BUFFER_MS: 1000, allPoints: pts };
+    vm.createContext(ctx);
+    vm.runInContext(bw[0] + '; var __o = pts;', ctx);
+    return Array.from(ctx.__o, p => p.ts);
+  };
+
+  const d = runDash(), b = runBw();
+  assert.ok(d.includes(now - 1000), 'the dashboard chart keeps the newest sample');
+  assert.ok(b.includes(now - 1000),
+    'and so must the bandwidth chart — the old walk broke before reaching it');
+  assert.ok(!d.includes(now - 70000), 'the out-of-window sample is still excluded');
+
+  // The 3 s slack is deliberate and must survive: the bandwidth keepalive prunes
+  // at viewLeft - 3000, so its cutoff is wider than the dashboard's by exactly
+  // that. Unifying the two would reintroduce a point flickering between frames.
+  assert.ok(/RIGHT_BUFFER_MS - 3000/.test(bw[0]),
+    'the bandwidth chart keeps its 3 s seeding slack');
+});
+
+// ── one audit row must not blank the table (ToDo #21) ───────────────────────
+//
+// The try wraps the parse only, and JSON.parse('null') does not throw: it
+// returns null, and `d.changes` on the next line does. That escaped detailCell
+// and render into load()'s empty .catch, so a single row whose detail column
+// held the four characters `null` left the whole Audit table blank with the
+// filters above it looking normal.
+test('a detail column holding null does not take out the audit table', () => {
+  const vm = require('node:vm');
+  const guard = APP.match(/if \(!d \|\| typeof d !== 'object'\) return [^\n]*/);
+  assert.ok(guard, 'the non-object guard in detailCell is missing');
+
+  // The guard plus the line that used to throw, which is what it protects.
+  const src = guard[0] + '\n var bits = []; (d.changes || []).slice(0, 4);';
+  const run = (raw) => {
+    const ctx = { d: JSON.parse(raw), out: null };
+    vm.createContext(ctx);
+    vm.runInContext('out = (function(){ ' + src + ' return "rendered"; })();', ctx);
+    return ctx.out;
+  };
+
+  assert.doesNotThrow(() => run('null'),
+    'null is the one parse result that is falsy AND has no properties');
+
+  // The inverse, so the guard cannot pass by rejecting everything: a real
+  // change set must still reach the renderer.
+  assert.equal(run('{"changes":[{"field":"a","from":"1","to":"2"}]}'), 'rendered');
+  // And the two values that always worked must keep working.
+  assert.doesNotThrow(() => run('12345'));
+  assert.doesNotThrow(() => run('"a string"'));
+});
+
+// ── the run-history table declares as many columns as it fills (ToDo #26) ────
+//
+// A regression introduced while fixing #25: replacing the recipients cell took
+// the outcome cell with it, so five headers were filled by four cells and every
+// value shifted one column left. Recipients rendered under "Result".
+//
+// That is worse than the bug it replaced. `undefined` in a count column is
+// obviously wrong; a plausible number under the wrong heading is not, and the
+// empty-state row still said colspan=5 so nothing looked out of place.
+//
+// Counting is the whole check. It is cheap, it is exact, and it would have
+// caught this the moment the edit landed.
+test('the report run-history row fills every column its header declares', () => {
+  // Anchored on rptSchedRuns, the box this table is written into, NOT on
+  // data-rs-runs: that attribute first appears on the History button in the
+  // schedules table above, so slicing from it counted the wrong header.
+  const block = APP.slice(APP.indexOf("$('rptSchedRuns')"));
+  const head = block.match(/<thead><tr>(.*?)<\/tr><\/thead>/);
+  assert.ok(head, 'the run-history table header moved or was rewritten');
+  const headers = (head[1].match(/<th>/g) || []).length;
+
+  const rowSrc = block.match(/return '<tr>[\s\S]*?<\/tr>';/);
+  assert.ok(rowSrc, 'the run-history row template moved or was rewritten');
+  const cells = (rowSrc[0].match(/<td[ >]/g) || []).length;
+
+  assert.equal(cells, headers,
+    'the row emits ' + cells + ' cells for ' + headers + ' headers, so every ' +
+    'value after the missing one renders under the wrong heading');
+
+  // The empty state spans the same table, so it has to agree too. If a column
+  // is ever added, this fails alongside the row rather than drifting quietly.
+  const span = block.match(/colspan="(\d+)" class="rpt-empty"/);
+  assert.ok(span, 'the run-history empty state moved');
+  assert.equal(Number(span[1]), headers, 'the empty-state colspan must match the header count');
+
+  // And the two defences from #25 must survive, since this test sits on the
+  // same lines and a future edit here is exactly how they would be lost.
+  assert.ok(/recipients_n \?\? 0/.test(block),
+    'recipients must keep its ?? 0 or the column prints the word "undefined"');
+  assert.ok(/\(d\.runs \|\| \[\]\)/.test(block),
+    'the runs array must stay guarded or a response without it throws unhandled');
+});
