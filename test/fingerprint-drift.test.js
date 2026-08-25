@@ -183,3 +183,71 @@ test('the firewall fingerprint covers the whole rule, not just its counters', ()
     assert.ok(fp.includes(table), table + ' is missing from the fingerprint');
   }
 });
+
+// ── the same rule, on the render side ───────────────────────────────────────
+//
+// Everything above pins a COLLECTOR fingerprint. This pins a render one, and it
+// is the same failure read backwards: the collector emits correctly, and the
+// page rebuilds regardless.
+//
+// system:update carries cpuLoad and uptime, so it arrives on every poll tick.
+// The #rosUpdateRow block wrote innerHTML unconditionally, which destroyed
+// #sysUpdateAction and the Update button inside it, and `.sbtn` carries a
+// transition that a freshly inserted node restarts. The amber "7.x available"
+// strip therefore flashed once per tick. Worse, the dispatch it made on the way
+// past told the upgrade module to redraw the button AND emit packages:caps, so
+// an idle dashboard did a socket round trip every tick to learn nothing.
+test('the update row is rebuilt only when the update itself changes', () => {
+  const vm  = require('node:vm');
+  const APP = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+
+  const m = APP.match(/if\(rosUpdateRow\)\{[\s\S]*?\n {2}\}\n\}/);
+  assert.ok(m, 'the #rosUpdateRow render block moved or was renamed');
+  const src = m[0].replace(/\n\}$/, '');   // drop _flushSysUpdate's closing brace
+
+  let writes = 0, dispatches = 0, html = '', orderOk = true;
+  const ctx = {
+    _lastUpdateRowHtml: null,
+    esc: (s) => String(s == null ? '' : s),
+    CustomEvent: function (name, opts) { this.type = name; this.detail = opts && opts.detail; },
+    document: {
+      dispatchEvent(ev) {
+        dispatches++;
+        // The listener's draw() looks up #sysUpdateAction, so the markup that
+        // creates that slot must already be in place. Firing first would have
+        // it fill the node the next write is about to throw away.
+        if (!html.includes(ev.detail.latest)) orderOk = false;
+      },
+    },
+    rosUpdateRow: {
+      set innerHTML(v) { writes++; html = v; },
+      get innerHTML() { return html; },
+    },
+    d: null,
+  };
+  vm.createContext(ctx);
+  const tick = (payload) => { ctx.d = payload; vm.runInContext(src, ctx); };
+
+  const avail = { version: '7.23.4 (stable)', latestVersion: '7.24', updateAvailable: true, updateChannel: 'stable' };
+
+  tick(avail);
+  assert.equal(writes, 1, 'first payload must render the row');
+  assert.equal(dispatches, 1, 'and announce it once');
+  assert.ok(orderOk, 'the row must be written before the event is dispatched');
+
+  // The actual bug: five more identical ticks, as a poll loop produces.
+  for (let i = 0; i < 5; i++) tick(avail);
+  assert.equal(writes, 1, 'an unchanged update must not rebuild the row');
+  assert.equal(dispatches, 1, 'nor re-announce it, which redraws the button and refetches caps');
+
+  // The inverse, so this cannot pass by never rendering at all.
+  tick(Object.assign({}, avail, { latestVersion: '7.25' }));
+  assert.equal(writes, 2, 'a genuinely new version must still render');
+  assert.equal(dispatches, 2, 'and must still be announced');
+  assert.ok(html.includes('7.25'), 'and the new version must be what is on screen');
+
+  // Transitioning to up-to-date is also a change, and must not be swallowed.
+  tick({ version: '7.25 (stable)', latestVersion: '7.25', updateAvailable: false });
+  assert.equal(writes, 3, 'clearing the warning is a change too');
+  assert.equal(dispatches, 2, 'but there is no update to announce any more');
+});
