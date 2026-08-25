@@ -5394,10 +5394,18 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // Router-per-site counts come from the router list the page already holds
   // rather than a join on the server — the numbers are small, and this keeps
   // GET /api/sites a plain table read.
+  // A device may belong to several sites (#117), so it counts once in EACH.
+  // The totals therefore no longer sum to the device count, which is correct:
+  // the column answers "how many devices are in this site".
+  function _siteIdsOf(r) {
+    if (Array.isArray(r.siteIds)) return r.siteIds;
+    return r.siteId ? [r.siteId] : [];
+  }
+
   function _siteRouterCounts() {
     var counts = {};
     (window._allRouters || []).forEach(function (r) {
-      if (r.siteId) counts[r.siteId] = (counts[r.siteId] || 0) + 1;
+      _siteIdsOf(r).forEach(function (id) { counts[id] = (counts[id] || 0) + 1; });
     });
     return counts;
   }
@@ -5421,7 +5429,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function _renderSiteTable() {
     var tb = $('siteTbody'); if (!tb) return;
     if (!_sitesCache.length) {
-      tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">No sites yet. Add one to group your routers.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">No sites yet. Add one to group your devices.</td></tr>';
       return;
     }
     var counts = _siteRouterCounts();
@@ -5479,15 +5487,21 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var routers = window._allRouters || [];
     box.innerHTML = routers.length
       ? routers.map(function (r) {
-          var here  = site && r.siteId === site.id;
-          var other = (!here && r.siteId && window._sitesById[r.siteId])
-            ? ' <span style="color:var(--text-muted)">— currently in ' + esc(window._sitesById[r.siteId].name) + '</span>'
+          var ids   = _siteIdsOf(r);
+          var here  = !!(site && ids.indexOf(site.id) !== -1);
+          // "also in", not "currently in": ticking a device here ADDS this site
+          // now, it no longer moves the device out of the ones it already has.
+          var elsewhere = ids
+            .filter(function (id) { return (!site || id !== site.id) && window._sitesById[id]; })
+            .map(function (id) { return window._sitesById[id].name; });
+          var other = elsewhere.length
+            ? ' <span style="color:var(--text-muted)">— also in ' + esc(elsewhere.join(', ')) + '</span>'
             : '';
           return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
             '<input type="checkbox" data-site-router="' + esc(r.id) + '"' + (here ? ' checked' : '') + '>' +
             '<span>' + esc(r.label || r.host) + other + '</span></label>';
         }).join('')
-      : '<span style="color:var(--text-muted)">No routers configured yet.</span>';
+      : '<span style="color:var(--text-muted)">No devices configured yet.</span>';
 
     $('sf_title').textContent = site ? 'Edit Site' : 'Add Site';
     wrap.classList.add('open');
@@ -5542,7 +5556,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   function deleteSite(id, name, routerCount) {
     var warn = routerCount
-      ? '\n\n' + routerCount + ' router(s) will be left without a site. They are not deleted.'
+      ? '\n\n' + routerCount + ' device(s) will lose this site. They keep any other sites, and are not deleted.'
       : '';
     if (!confirm('Delete site "' + name + '"?' + warn)) return;
     fetch('/api/sites/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' })
@@ -5553,17 +5567,51 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
 
   // Fills the router modal's site picker. Called on every site load so the
   // options cannot go stale behind an open modal.
-  function _populateSiteSelect() {
-    var sel = $('rtrModalSite'); if (!sel) return;
+  // The sites a device belongs to, and which of them is primary (#117).
+  function _selectedModalSites() {
+    var sel = $('rtrModalSites');
+    if (!sel) return [];
+    return [].slice.call(sel.selectedOptions).map(function (o) { return o.value; });
+  }
+
+  // The primary list offers only what is currently selected above, so it cannot
+  // name a site the device is not in. Keeps the current choice when it survives,
+  // otherwise falls back to the first selected — never to nothing, because a
+  // device with sites and no primary would lose its map location.
+  function _syncPrimarySiteSelect() {
+    var sel = $('rtrModalPrimarySite'); if (!sel) return;
+    var chosen = _selectedModalSites();
     var keep = sel.value;
     sel.innerHTML = '<option value="">— No site —</option>';
+    chosen.forEach(function (id) {
+      var o = document.createElement('option');
+      o.value = id;
+      o.textContent = (window._sitesById && window._sitesById[id]) ? window._sitesById[id].name : id;
+      sel.appendChild(o);
+    });
+    sel.value = chosen.indexOf(keep) !== -1 ? keep : (chosen[0] || '');
+    sel.disabled = chosen.length === 0;
+  }
+
+  // Re-offer the primary whenever membership changes, so it can never name a
+  // site the device is no longer in.
+  (function () {
+    var ms = $('rtrModalSites');
+    if (ms) ms.addEventListener('change', _syncPrimarySiteSelect);
+  }());
+
+  function _populateSiteSelect() {
+    var sel = $('rtrModalSites'); if (!sel) return;
+    var keep = _selectedModalSites();
+    sel.innerHTML = '';
     _sitesCache.forEach(function (s) {
       var o = document.createElement('option');
       o.value = s.id; o.textContent = s.name;   // textContent, so no escaping needed
+      // Preserve the selection, dropping any site that has since been deleted.
+      o.selected = keep.indexOf(s.id) !== -1;
       sel.appendChild(o);
     });
-    // Preserve the selection unless the site it named has since been deleted.
-    sel.value = window._sitesById[keep] ? keep : '';
+    _syncPrimarySiteSelect();
   }
 
   // Delegated: the table is rebuilt on every load.
@@ -6122,6 +6170,9 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // The routers IIFE calls this when the router list changes, so the Routers
   // column reflects a reassignment without a manual refresh.
   window._refreshSiteCounts = _renderSiteTable;
+  // The device modal lives in a different IIFE and has to re-offer the primary
+  // after seeding membership, so this crosses the boundary the same way.
+  window._syncPrimarySiteSelect = _syncPrimarySiteSelect;
 
   loadSites();
 
@@ -7790,7 +7841,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   var modalTitle= $('rtrModalTitle');
   var modalId   = $('rtrModalId');
   var modalLabel= $('rtrModalLabel');
-  var modalSite = $('rtrModalSite');
   var modalHost = $('rtrModalHost');
   var modalPort = $('rtrModalPort');
   var modalUser = $('rtrModalUser');
@@ -7898,7 +7948,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       navSel.innerHTML = '';
       var enabled = _routers.filter(function(r) { return !r.disabled; });
       var sitesById = window._sitesById || {};
-      var anyGrouped = enabled.some(function(r) { return r.siteId && sitesById[r.siteId]; });
+      // Grouped by PRIMARY site (#117). A device may belong to several, but a
+      // <select> cannot list one option under two optgroups without duplicating
+      // its value, and a duplicated value breaks navSel.value round-tripping in
+      // activateRouter. The primary is exactly the "where does this live"
+      // answer, so it is the right one to group by.
+      function _primarySite(r) {
+        var ids = Array.isArray(r.siteIds) ? r.siteIds : (r.siteId ? [r.siteId] : []);
+        for (var i = 0; i < ids.length; i++) if (sitesById[ids[i]]) return ids[i];
+        return null;
+      }
+      var anyGrouped = enabled.some(function(r) { return !!_primarySite(r); });
 
       function _addOpt(parent, r) {
         var opt = document.createElement('option');
@@ -7913,7 +7973,8 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       } else {
         var bySite = {}, loose = [];
         enabled.forEach(function(r) {
-          if (r.siteId && sitesById[r.siteId]) (bySite[r.siteId] = bySite[r.siteId] || []).push(r);
+          var sid = _primarySite(r);
+          if (sid) (bySite[sid] = bySite[sid] || []).push(r);
           else loose.push(r);
         });
         Object.keys(bySite)
@@ -8093,9 +8154,15 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // the table keeps its eight columns and the empty-state colspan stays right.
     // Nothing renders for a site-less router — an explicit "no site" chip on
     // every row would be noise for the installs that never create one.
-    var _site = (r.siteId && window._sitesById) ? window._sitesById[r.siteId] : null;
-    var siteChip = _site
-      ? '<div style="margin-top:.15rem"><span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(99,130,190,.12);color:var(--text-muted);border:1px solid var(--border)">'+esc(_site.name)+'</span></div>'
+    // One chip per site (#117). The table keeps its column count either way;
+    // only this cell grows.
+    var _siteNames = ((Array.isArray(r.siteIds) ? r.siteIds : (r.siteId ? [r.siteId] : []))
+      .map(function (id) { return (window._sitesById && window._sitesById[id]) ? window._sitesById[id].name : null; })
+      .filter(Boolean));
+    var siteChip = _siteNames.length
+      ? '<div style="margin-top:.15rem;display:flex;flex-wrap:wrap;gap:.2rem">' + _siteNames.map(function (n) {
+          return '<span style="font-size:.6rem;padding:.1rem .4rem;border-radius:4px;background:rgba(99,130,190,.12);color:var(--text-muted);border:1px solid var(--border)">'+esc(n)+'</span>';
+        }).join('') + '</div>'
       : '';
     var modelCell   = r.model     ? esc(r.model) : unknown;
     var serialCell  = r.serial    ? '<span class="rtr-host">'+esc(r.serial)+'</span>'    : unknown;
@@ -8254,7 +8321,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     var p = _geoPickerEnsure();
     if (!p) return;
     var geo  = (router && router.geo) || {};
-    var site = (router && router.siteId && window._sitesById) ? window._sitesById[router.siteId] : null;
+    // The PRIMARY site supplies the map fallback, so that is the one this hint
+    // names. Mirrors the server's resolveLocation call, which reads the same
+    // entry — a second answer here is a second answer that can disagree.
+    var _primary = (router && Array.isArray(router.siteIds) && router.siteIds.length)
+      ? router.siteIds[0] : (router ? router.siteId : null);
+    var site = (_primary && window._sitesById) ? window._sitesById[_primary] : null;
 
     if (geo.place) {
       p.set(geo.place);                       // an override the user set earlier
@@ -8290,12 +8362,25 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   function openModal(router) {
     if (!modalBg) return;
     var isEdit = !!router;
-    modalTitle.textContent = isEdit ? 'Edit Router' : 'Add Router';
+    modalTitle.textContent = isEdit ? 'Edit Device' : 'Add Device';
     modalId.value    = router ? router.id        : '';
     modalLabel.value = router ? router.label     : '';
     // A site that has since been deleted falls back to "— No site —" rather
     // than leaving the picker showing whatever happened to be selected before.
-    if (modalSite) modalSite.value = (router && router.siteId && window._sitesById && window._sitesById[router.siteId]) ? router.siteId : '';
+    // Seed membership from the device (#117). Sites the viewer's cache does not
+    // know are dropped rather than shown as a bare id.
+    var _mSites = $('rtrModalSites');
+    if (_mSites) {
+      var _have = (router && Array.isArray(router.siteIds)) ? router.siteIds
+                : (router && router.siteId ? [router.siteId] : []);
+      [].slice.call(_mSites.options).forEach(function (o) {
+        o.selected = _have.indexOf(o.value) !== -1 && !!(window._sitesById && window._sitesById[o.value]);
+      });
+      if (typeof window._syncPrimarySiteSelect === 'function') window._syncPrimarySiteSelect();
+      var _mPrim = $('rtrModalPrimarySite');
+      // The primary is the FIRST entry, which is the order the store keeps.
+      if (_mPrim && _have.length && window._sitesById && window._sitesById[_have[0]]) _mPrim.value = _have[0];
+    }
     _seedGeoPicker(router);
     modalHost.value  = router ? router.host      : '';
     modalPort.value  = router ? router.port      : '8729';
@@ -8389,7 +8474,17 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       id:          modalId  ? modalId.value.trim()   : '',
       label:       modalLabel? modalLabel.value.trim(): '',
       // '' is the "— No site —" option; the server maps it to null.
-      siteId:      modalSite ? modalSite.value        : '',
+      // siteIds, ordered with the primary first — that order IS the primary, and
+      // the server keeps the scalar siteId in step as the rollback mirror, so
+      // the client no longer sends it.
+      siteIds:     (function () {
+        var chosen = _selectedModalSites();
+        var prim   = $('rtrModalPrimarySite') ? $('rtrModalPrimarySite').value : '';
+        if (prim && chosen.indexOf(prim) !== -1) {
+          chosen = [prim].concat(chosen.filter(function (id) { return id !== prim; }));
+        }
+        return chosen;
+      }()),
       // Only ever `place`. Never `auto`: the store reads an absent `auto` as
       // "keep what you learned", so sending one here would let a save race the
       // background refresh and discard it.
@@ -14247,7 +14342,7 @@ function _renderRoutersMap(rows) {
   // ── Dialogs ───────────────────────────────────────────────────────────────
 
   function openUserForm(u) {
-    $('ruf_title').textContent  = u ? 'Edit Router User' : 'Add Router User';
+    $('ruf_title').textContent  = u ? 'Edit Device User' : 'Add Device User';
     $('ruf_id').value           = u ? u.id : '';
     $('ruf_expectedName').value = u ? u.name : '';
     $('ruf_name').value    = u ? u.name : '';

@@ -1927,7 +1927,7 @@
         </a>
         <a class="nav-item" data-page="rosusers" data-cat="security" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-1.5-1.5"/></svg></span>
-          <span class="nav-label">Router Users</span>
+          <span class="nav-label">Device Users</span>
         </a>
       </div>
     </div>
@@ -4036,7 +4036,7 @@
       <div class="rtr-modal-bg" id="ruUserFormWrap">
        <div class="rtr-modal pmodal">
         <div class="rtr-modal-hdr">
-          <span class="rtr-modal-title" id="ruf_title">Add Router User</span>
+          <span class="rtr-modal-title" id="ruf_title">Add Device User</span>
           <button class="rtr-modal-close" data-modal-close="ruUserFormWrap" aria-label="Close">&#10005;</button>
         </div>
         <div class="rtr-modal-body">
@@ -4599,7 +4599,7 @@
 
       <!-- Tab bar -->
       <div class="stab-bar">
-        <button class="stab active" data-tab="routers">Routers</button>
+        <button class="stab active" data-tab="routers">Devices</button>
         <button class="stab" data-tab="general">General</button>
         <button class="stab" data-tab="notifications">Notifications</button>
         <button class="stab" data-tab="appearance">Appearance</button>
@@ -4612,10 +4612,10 @@
         <div class="scard scard--wide">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="var(--accent-rx)" stroke="none"/></svg>
-            <span class="scard-title">Routers</span>
+            <span class="scard-title">Devices</span>
             <button class="sbtn sbtn-primary" id="rtrAddBtn" style="padding:.3rem .8rem;font-size:.72rem">
               <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Add Router
+              Add Device
             </button>
           </div>
           <!-- overflow-x here because .scard is overflow:hidden — without it the
@@ -5358,7 +5358,7 @@
               <label class="stoggle"><span class="stoggle-label">Packages</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePackages"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Devices</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDevices"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Queues</span><span class="stoggle-switch"><input type="checkbox" id="s_pageQueues"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
-              <label class="stoggle"><span class="stoggle-label">Router Users</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRosusers"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Device Users</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRosusers"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Audit</span><span class="stoggle-switch"><input type="checkbox" id="s_pageAudit"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Backups</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBackups"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
               <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
@@ -5441,7 +5441,7 @@
 
           <div class="ptab-panel" id="ptab-sites" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">A site groups routers by location. A router belongs to one site, or none — assign it in the router's settings.</span>
+              <span class="ptab-desc">A site groups devices by location. Since #117 a device may belong to several sites, or none — assign them in the device's settings.</span>
               <button class="sbtn sbtn-primary" id="addSiteBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Site</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="siteTable">
@@ -5449,7 +5449,7 @@
                 <tr style="border-bottom:1px solid var(--border)">
                   <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Name</th>
                   <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Description</th>
-                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Routers</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Devices</th>
                   <th style="padding:.35rem .5rem"></th>
                 </tr>
               </thead>
@@ -5492,13 +5492,13 @@
                   <button type="button" class="cpick-clear" id="sf_placeClear" title="Clear this site's location">Clear</button>
                 </div>
                 <div class="cpick-list" id="sf_placeList" role="listbox" hidden></div>
-                <div class="cpick-hint">Routers here with no location of their own are shown at this place on the map.</div>
+                <div class="cpick-hint">Devices whose PRIMARY site is this one, and which have no location of their own, are shown here on the map.</div>
               </div>
 
               <div style="margin-top:.6rem">
-                <label class="sform-label">Routers at this site</label>
+                <label class="sform-label">Devices at this site</label>
                 <div id="sf_routers" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:12rem;overflow-y:auto"></div>
-                <div style="font-size:.7rem;color:var(--text-muted);margin-top:.35rem">A router belongs to one site at most. Ticking it here moves it from whatever site it was in before.</div>
+                <div style="font-size:.7rem;color:var(--text-muted);margin-top:.35rem">Ticking a device adds this site to it. It keeps any other sites it is already in, and unticking removes only this one.</div>
               </div>
               <div class="login-error" id="sf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
               </div>
@@ -5567,7 +5567,7 @@
 
           <div class="ptab-panel" id="ptab-roles" role="tabpanel">
             <div class="ptab-head">
-              <span class="ptab-desc">A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says <em>what</em>, the scope says <em>which routers</em>. Administrator is built in and always sees everything.</span>
+              <span class="ptab-desc">A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says <em>what</em>, the scope says <em>which devices</em>. Administrator is built in and always sees everything.</span>
               <button class="sbtn sbtn-primary" id="addRoleBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Role</button>
             </div>
             <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="roleTable">
@@ -6338,7 +6338,7 @@
   <div class="rtr-modal-bg" id="rtrModalBg">
     <div class="rtr-modal">
       <div class="rtr-modal-hdr">
-        <span class="rtr-modal-title" id="rtrModalTitle">Add Router</span>
+        <span class="rtr-modal-title" id="rtrModalTitle">Add Device</span>
         <button class="rtr-modal-close" id="rtrModalCloseBtn">&#10005;</button>
       </div>
       <div class="rtr-modal-body">
@@ -6349,8 +6349,21 @@
           <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
         </div>
         <div class="sform-group">
-          <label class="sform-label">Site</label>
-          <select class="sform-input" id="rtrModalSite" aria-label="Site this router belongs to">
+          <label class="sform-label">Sites</label>
+          <!-- A device may belong to several sites (#117). Multi-select rather
+               than a checkbox list so it stays one .sform-input control like
+               every other field in this form. -->
+          <select class="sform-input" id="rtrModalSites" multiple size="4"
+                  aria-label="Sites this device belongs to"></select>
+          <div class="form-hint">Hold Ctrl (Cmd on a Mac) to pick more than one. A device in several sites is reachable from a grant on any of them.</div>
+        </div>
+        <div class="sform-group">
+          <label class="sform-label">Primary site</label>
+          <!-- Explicit rather than "whichever is first": the primary decides
+               where the device is drawn on the map when it has no coordinates of
+               its own, so it is a choice worth showing. Offers only the sites
+               selected above. -->
+          <select class="sform-input" id="rtrModalPrimarySite" aria-label="Primary site, used for the map location">
             <option value="">— No site —</option>
           </select>
         </div>
