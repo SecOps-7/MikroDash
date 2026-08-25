@@ -3067,19 +3067,26 @@ app.put('/api/sites/:id/routers', Rbac.requireGlobalAdmin, (req, res) => {
     const all = Routers.loadAll();
     let changed = 0;
     for (const r of all) {
+      // THIS site is added or removed; the device keeps every other site it is
+      // in (#117). Before that, ticking a device here wrote a scalar siteId,
+      // and the overwrite WAS the removal — so adding a device to a second site
+      // silently took it out of the first, with the old site never consulted.
+      //
+      // The loop still walks every device, not just this site's members,
+      // because a device that was here and is no longer listed has to be
+      // detached, which a per-device save never sees.
+      const before       = Array.isArray(r.siteIds) ? r.siteIds : (r.siteId ? [r.siteId] : []);
       const shouldBeHere = wanted.includes(r.id);
-      const isHere       = r.siteId === req.params.id;
-      if (shouldBeHere && !isHere) {
-        Routers.update(r.id, { siteId: req.params.id }); changed++;
-        audit.fromReq(req).record({ action: 'router.site', targetType: 'router', targetId: r.id,
-          targetName: r.label || r.host, routerId: r.id,
-          before: { siteId: r.siteId || '' }, after: { siteId: req.params.id } });
-      } else if (!shouldBeHere && isHere) {
-        Routers.update(r.id, { siteId: '' }); changed++;
-        audit.fromReq(req).record({ action: 'router.site', targetType: 'router', targetId: r.id,
-          targetName: r.label || r.host, routerId: r.id,
-          before: { siteId: r.siteId || '' }, after: { siteId: '' } });
-      }
+      const isHere       = before.indexOf(req.params.id) !== -1;
+      if (shouldBeHere === isHere) continue;
+
+      const after = shouldBeHere
+        ? before.concat(req.params.id)                                  // add, keeping the rest
+        : before.filter((sid) => sid !== req.params.id);                // remove only this one
+      Routers.update(r.id, { siteIds: after }); changed++;
+      audit.fromReq(req).record({ action: 'router.site', targetType: 'router', targetId: r.id,
+        targetName: r.label || r.host, routerId: r.id,
+        before: { siteIds: before }, after: { siteIds: after } });
     }
     if (changed) {
       // A router's site determines who can reach it through a site-scoped grant.

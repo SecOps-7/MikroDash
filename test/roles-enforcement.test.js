@@ -268,3 +268,39 @@ test('system:principals cannot be satisfied by a scoped grant', () => {
   assert.ok(rbac.GLOBAL_ONLY.has('system:principals'),
     'system:principals must stay global-only or the membership gate is cosmetic');
 });
+
+// ── Assigning from the site side ADDS, it does not move (issue #117) ─────────
+//
+// Reported after the rest of #117 landed: ticking a device under Settings →
+// Access Management → Sites still took it out of the site it was already in.
+//
+// The client-side wording had been updated and the store was many-to-many, but
+// this route still read a scalar and wrote a scalar, so the overwrite WAS the
+// removal — the old site was never consulted, and nothing said so. The device
+// modal was fixed; this second door was not.
+//
+// Source scan for the reason this file's header gives: the handler needs a live
+// io/session stack, and the wiring is the thing worth holding in place.
+test('the site membership route adds a site instead of replacing the list', () => {
+  const at = INDEX_JS.indexOf("app.put('/api/sites/:id/routers'");
+  assert.ok(at > 0, 'the site membership route moved or was renamed');
+  const block = INDEX_JS.slice(at, at + 2600);
+
+  // It must write the LIST. A scalar write here is the bug: it silently drops
+  // every other site the device is in.
+  assert.ok(/Routers\.update\([^)]*\{\s*siteIds:/.test(block),
+    'membership must be written as siteIds; writing siteId replaces the whole list');
+  assert.ok(!/Routers\.update\([^)]*\{\s*siteId:/.test(block),
+    'no scalar siteId write may remain on this route');
+
+  // Adding keeps what was there, removing takes only this site.
+  assert.ok(/\.concat\(req\.params\.id\)/.test(block),
+    'adding must keep the sites the device already has');
+  assert.ok(/!== req\.params\.id/.test(block),
+    'removing must drop only this site');
+
+  // And it stays administrator-only, because membership decides reachability.
+  const line = INDEX_JS.slice(at, INDEX_JS.indexOf('\n', at));
+  assert.ok(line.includes('Rbac.requireGlobalAdmin'),
+    'assigning devices to a site must remain an administrator decision');
+});
