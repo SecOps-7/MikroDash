@@ -26,6 +26,11 @@ class ROS extends EventEmitter {
     this._stopping = false;
     this._wakeResolve = null;
     this._sleepTimer = null;
+    // One rejection signal per CONNECTION GENERATION, shared by every in-flight
+    // write on that connection. Not a listener per write: setMaxListeners is 30
+    // and ~22 are already taken by collectors, so a burst of concurrent writes
+    // would trip MaxListenersExceededWarning. See _armCloseSignal.
+    this._closeSignal = null;
     // Default sleep is interruptible: stop() can call _wakeResolve() to wake immediately.
     // Tests override this._sleep to control timing without real delays.
     this._sleep = (ms) => new Promise(resolve => {
@@ -138,19 +143,38 @@ class ROS extends EventEmitter {
       try {
         log.debug(`[ROS] connecting to ${host}:${port} as "${user}" (${tls ? 'TLS' : 'plain'})…`);
         this.conn = this._buildConn();
+        this._armCloseSignal();
 
         this.conn.on('error', (err) => {
           // Suppress — wireRosEvents connectionError handler logs the classified reason
           this.connected = false;
+          this._fireCloseSignal('error');
           this._emitConnectionError(err);
         });
 
         this.conn.on('close', () => {
           this.connected = false;
+          this._fireCloseSignal('close');
           this._safeEmit('close');
         });
 
         await this.conn.connect();
+
+        // stop() may have run while we were connecting or logging in. That is
+        // not harmless: RouterOSAPI.close() returns early while `connected` is
+        // false, so stop()'s close did NOTHING and this is now a live,
+        // authenticated login that nobody owns. Emitting 'connected' here would
+        // start all collectors on a session the pool has already dropped, which
+        // then holds that login open and fires alerts through a stale closure.
+        // A bare `break` is not enough — it would leave the same zombie socket.
+        if (this._stopping) {
+          try {
+            const p = this.conn.close();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+          } catch (_) {}
+          break;
+        }
+
         this._applyRawBytes();
         this.connected = true;
         this.backoffMs = 2000;
@@ -195,25 +219,76 @@ class ROS extends EventEmitter {
    * params is an optional array of '=key=value' strings.
    * timeoutMs caps how long we wait for a reply (default 30 s).
    */
+  /**
+   * Arm a fresh close signal for the connection just built.
+   *
+   * Exists because a one-shot write can otherwise ONLY end via its 30 s timer.
+   * The library settles a channel promise on `done` or `trap` and on nothing
+   * else: Channel.close() emits and removes listeners without rejecting, and
+   * write channels are not registered, so stopAllStreams() never reaches them.
+   * A write in flight when the socket dies therefore hangs for the full
+   * timeout, which is exactly what #118 reported.
+   */
+  _armCloseSignal() {
+    const sig = { fired: false };
+    sig.promise = new Promise((_, reject) => { sig.fail = reject; });
+    // Nobody may be awaiting this when the socket dies. A bare rejected promise
+    // would reach process.on('unhandledRejection') once per reconnect; this
+    // marks it handled and does not affect racers, which attach their own.
+    sig.promise.catch(() => {});
+    this._closeSignal = sig;
+  }
+
+  _fireCloseSignal(why) {
+    const sig = this._closeSignal;
+    if (!sig || sig.fired) return;
+    sig.fired = true;
+    sig.fail(new Error(`RouterOS connection closed before reply (${why})`));
+  }
+
   async write(cmd, params, timeoutMs = this.cfg.writeTimeoutMs || 30000) {
     if (!this.conn || !this.connected) throw new Error('Not connected');
     const activeConn = this.conn;
     let timer = null;
 
+    const closeSig = this._closeSignal;   // may be null in tests that set .conn by hand
+
     try {
-      const result = await Promise.race([
-        activeConn.write(cmd, params || []),
+      const pending = activeConn.write(cmd, params || []);
+      // A trap arriving AFTER the timeout or the close signal has already won
+      // the race would otherwise be an unhandled rejection on a promise nobody
+      // is holding any more.
+      if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+
+      const racers = [
+        pending,
         new Promise((_, reject) => {
           timer = setTimeout(() => reject(new Error(`RouterOS write timeout (${timeoutMs}ms): ${cmd}`)), timeoutMs);
         }),
-      ]);
+      ];
+      // Fail fast when the connection goes away instead of waiting out the full
+      // 30 s. Without this a teardown mid-write left ~26 write-capable
+      // collectors each stalled for the timeout (#118).
+      if (closeSig) racers.push(closeSig.promise);
+
+      const result = await Promise.race(racers);
       // Normalise null/undefined (e.g. from !empty responses before patch applies)
       return Array.isArray(result) ? result : (result == null ? [] : result);
     } catch (err) {
       const msg = String(err && err.message ? err.message : err);
-      if (msg.includes('write timeout') && this.conn === activeConn) {
+      // Only a genuine TIMEOUT tears the connection down. A 'closed before
+      // reply' rejection means the connection is already gone, so closing again
+      // would be redundant — and would be the second close on a socket that is
+      // mid-teardown.
+      if (msg.includes('write timeout') && !msg.includes('closed before reply') && this.conn === activeConn) {
         this.connected = false;
-        try { activeConn.close(); } catch (_) {}
+        // close() returns a REJECTED promise when already closing, which a
+        // try/catch cannot catch — it is not a throw. Without this .catch it
+        // reaches process.on('unhandledRejection').
+        try {
+          const p = activeConn.close();
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (_) {}
       }
       throw err;
     } finally {
@@ -243,10 +318,25 @@ class ROS extends EventEmitter {
 
   stop() {
     this._stopping = true;
+    // Lower `connected` HERE, not when the socket's close event eventually
+    // lands. teardownSession calls stop() and then yields only 150 ms; any
+    // collector tick inside that window used to see connected === true, pass
+    // its own guard and pass write()'s gate, and hand a command to a dying
+    // socket — which the library silently QUEUES rather than refusing
+    // (Transmitter pools when !socket.writable). Nothing then settles it. (#118)
+    this.connected = false;
     if (this._sleepTimer) { clearTimeout(this._sleepTimer); this._sleepTimer = null; }
     if (this._wakeResolve) { this._wakeResolve(); this._wakeResolve = null; }
+    // Fire the signal from here too, not only from the 'close' handler. When
+    // stop() lands on a connection that is still connecting, RouterOSAPI.close()
+    // returns early without emitting 'close' at all, so a close-event-only
+    // signal would leave every in-flight write hanging for the full timeout.
+    this._fireCloseSignal('stopped');
     if (this.conn) {
-      try { this.conn.close(); } catch (_) {}
+      try {
+        const p = this.conn.close();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      } catch (_) {}
     }
   }
 }
