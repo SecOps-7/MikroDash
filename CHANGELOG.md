@@ -2,6 +2,55 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.36] - Devices can belong to several sites
+
+### New
+
+- **The Routers page is now Devices.** A fleet holds switches and access points too, so the name no
+  longer claims otherwise. Custom roles keep the page across the upgrade.
+  ([#117](https://github.com/SecOps-7/MikroDash/issues/117), thanks
+  [@erion1979-cell](https://github.com/erion1979-cell))
+- **A device can belong to more than one site.** Assigning it to a second site no longer removes it
+  from the first. A grant on any of its sites reaches it, and the first site listed is the primary,
+  which is what places it on the map.
+- **Sites card** on the Devices page, counting the distinct sites your devices are assigned to.
+- **Site filter** on the left of the Devices toolbar. All Sites by default, then each site, plus
+  Unassigned when such a device exists. It narrows the cards, the list and the map together.
+- The device editor takes multiple sites and lets you pick which one is primary. Site names are
+  searchable.
+
+### Fixed
+
+- **Switching routers could hang for 30 seconds.** A request already in flight when the old
+  connection went away had no way to fail, so it waited out the full write timeout, and with 26
+  collectors they all waited at once. Requests now fail as soon as the connection goes.
+  ([#118](https://github.com/SecOps-7/MikroDash/issues/118))
+- **A disconnected banner that would not clear** when switching to a router already connected in the
+  background. That switch also left the traffic chart unbound until you reloaded.
+- **Only administrators can change which sites a device is in.** Previously anyone who could edit a
+  device could set its site, which decides who can reach it.
+- **The Backups table no longer fills with no-op runs.** A run that found nothing changed has nothing
+  to restore, and on a stable router with a daily schedule those rows crowded out the real restore
+  points. The newest one is kept so you can still see the schedule fired.
+- **The update banner stopped flickering** once per poll on the Dashboard.
+- **The report history table put values under the wrong headings**, and a report run with no history
+  left the box blank instead of saying so.
+- One malformed row in the Audit table no longer blanks the whole table.
+- The Bandwidth chart and the Dashboard chart could disagree by one sample after a router corrected
+  its clock.
+- Restoring a backup on a router with no stored backup settings sent a literal `undefined` password.
+- The Connections country list is updated in place, so hovering and clicking no longer fight with the
+  live refresh.
+- CAPsMAN now distinguishes "no results for your search" from "no clients connected".
+
+### Internal
+
+- The RouterOS client carries one close signal per connection, so a teardown mid-request cannot leave
+  a request unsettled or a login open that nobody owns.
+- Site membership is stored as a list, with the old single value kept in step so an older build still
+  reads it.
+- 1563 tests, 21 more than 0.7.35.
+
 ## [0.7.35] - An interface name can no longer inject markup
 
 ### Security
