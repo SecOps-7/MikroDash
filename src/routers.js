@@ -504,9 +504,9 @@ function _cleanSiteIds(v) {
  * to achieve that, which means a half-migrated file is fine and a record nobody
  * edits is never touched.
  *
- * `siteId` is kept in step as a WRITE-ONLY downgrade mirror holding the primary,
- * the same doctrine as grants.role (CLAUDE.md). Nothing in this codebase reads
- * it any more, but a binary rolled back to before #117 reads ONLY that field —
+ * `siteId` is kept in step as a downgrade mirror holding the primary, the same
+ * doctrine as grants.role (CLAUDE.md). A binary rolled back to before #117 reads
+ * ONLY that field —
  * without it every device would load site-less, which is fail-closed for
  * authorization but silently empties the map's site tier and every site chip.
  */

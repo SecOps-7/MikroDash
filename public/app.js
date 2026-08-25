@@ -10713,8 +10713,25 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
  * see. Alerting is not part of the online/offline split: it counts routers with
  * an unresolved alert, which a reachable router can perfectly well have.
  */
+// Every site id on a row, as a list. A device may belong to several (#117);
+// `siteIds` is the real field and `siteId` is only the primary's mirror, but a
+// payload built by an older server still carries just the scalar.
+function _rtrSiteIds(r) {
+  if (Array.isArray(r.siteIds)) return r.siteIds;
+  return r.siteId ? [r.siteId] : [];
+}
+
+// Display names for those sites. The server resolves them, so the browser never
+// has to consult its own site cache here — that cache comes from an ungated
+// endpoint and would show names for sites this viewer has no device in.
+function _rtrSiteNames(r) {
+  if (Array.isArray(r.siteNames)) return r.siteNames;
+  return r.siteName ? [r.siteName] : [];
+}
+
 function _renderRoutersSummary(rows) {
-  var el = { total: $('rsTotal'), online: $('rsOnline'), offline: $('rsOffline'), alerting: $('rsAlerting') };
+  var el = { total: $('rsTotal'), online: $('rsOnline'), offline: $('rsOffline'),
+             alerting: $('rsAlerting'), sites: $('rsSites') };
   if (!el.total) return;
   var total = rows ? rows.length : 0;
   var online = 0, alerting = 0;
@@ -10726,6 +10743,18 @@ function _renderRoutersSummary(rows) {
   el.online.textContent   = online;
   el.offline.textContent  = total - online;
   el.alerting.textContent = alerting;
+  // Sites the fleet is actually spread across, not sites that exist. A device in
+  // two sites counts once for each, which is the point of the number: it answers
+  // "how many places am I looking after", and it always agrees with what the
+  // filter beside it can usefully select.
+  if (el.sites) {
+    var seen = {};
+    var n = 0;
+    (rows || []).forEach(function (r) {
+      _rtrSiteIds(r).forEach(function (id) { if (!seen[id]) { seen[id] = 1; n++; } });
+    });
+    el.sites.textContent = n;
+  }
   // Colour only when there is something to say: a red zero reads as a problem.
   el.offline.style.color  = (total - online) > 0 ? 'var(--accent-red, #f87171)'  : '';
   el.alerting.style.color = alerting > 0         ? 'var(--accent-amber, #f59f00)' : '';
@@ -10765,7 +10794,11 @@ var RTL_COLS = {
  */
 function _rtrMatches(r, q) {
   if (!q) return true;
-  var hay = [r.label, r.host, r.boardName, r.version].join(' ').toLowerCase();
+  // Site names are in the haystack so typing a site name and picking it from
+  // the filter narrow to the same set. A device in several sites contributes
+  // all their names.
+  var hay = [r.label, r.host, r.boardName, r.version]
+    .concat(_rtrSiteNames(r)).join(' ').toLowerCase();
   return q.split(/\s+/).every(function (term) {
     if (term === 'online')   return !!r.connected;
     if (term === 'offline')  return !r.connected;
@@ -10777,6 +10810,52 @@ function _rtrMatches(r, q) {
 function _rtrQuery() {
   var el = $('routersSearch');
   return el ? el.value.trim().toLowerCase() : '';
+}
+
+// The sentinel for "no site at all". A leading space cannot collide with a real
+// site id, which is /^[A-Za-z0-9_-]{1,64}$/, so it needs no separate flag.
+var RTR_UNASSIGNED = ' unassigned';
+
+function _rtrSiteFilter() {
+  var el = $('routersSiteFilter');
+  return el ? el.value : '';
+}
+
+// Repopulate the site dropdown from the rows, preserving the current selection.
+// Same shape as the interface-type filter: rebuild, restore the value only if
+// it still exists, and mark the control active when it is narrowing.
+function _syncRoutersSiteFilter(rows) {
+  var sel = $('routersSiteFilter');
+  if (!sel) return;
+
+  var names = {};          // id -> display name
+  var anyLoose = false;
+  (rows || []).forEach(function (r) {
+    var ids = _rtrSiteIds(r), nm = _rtrSiteNames(r);
+    if (!ids.length) { anyLoose = true; return; }
+    ids.forEach(function (id, i) { if (!names[id]) names[id] = nm[i] || id; });
+  });
+
+  var ids = Object.keys(names).sort(function (a, b) {
+    return String(names[a]).localeCompare(String(names[b]));
+  });
+  var html = '<option value="">All Sites</option>' +
+    ids.map(function (id) {
+      return '<option value="' + esc(id) + '">' + esc(names[id]) + '</option>';
+    }).join('') +
+    // Only offered when such devices exist, so a fully assigned fleet keeps a
+    // clean list.
+    (anyLoose ? '<option value="' + RTR_UNASSIGNED + '">Unassigned</option>' : '');
+
+  if (sel.innerHTML !== html) {
+    var keep = sel.value;
+    sel.innerHTML = html;
+    // Restoring an option that no longer exists would silently reset the filter
+    // to All Sites while the list still looked filtered.
+    sel.value = (keep === RTR_UNASSIGNED ? (anyLoose ? keep : '')
+                                         : (names[keep] ? keep : ''));
+  }
+  sel.classList.toggle('active', !!sel.value);
 }
 
 function _rtlRefreshHeaders() {
@@ -10896,6 +10975,10 @@ function _renderRoutersList(rows) {
   // two-second refresh cannot wipe what was typed.
   var search = $('routersSearch');
   if (search) search.addEventListener('input', function () { _renderRoutersStats(_lastRtrRows); });
+  // The site filter re-renders through the same path, so one filter point feeds
+  // the card grid, the list and the map and they cannot disagree.
+  var siteSel = $('routersSiteFilter');
+  if (siteSel) siteSel.addEventListener('change', function () { _renderRoutersStats(_lastRtrRows); });
 }());
 
 function _renderRoutersStats(rows) {
@@ -10906,8 +10989,25 @@ function _renderRoutersStats(rows) {
   // typed would stop answering "how many routers do I have".
   _renderRoutersSummary(all);
 
+  // Rebuilt from the rows, not from the site cache: these rows are RBAC-filtered
+  // per socket, so the dropdown can only ever offer sites this viewer actually
+  // has a device in. window._sitesById comes from an ungated endpoint and would
+  // list the whole install.
+  _syncRoutersSiteFilter(all);
+
   var q = _rtrQuery();
-  var visible = q ? all.filter(function (r) { return _rtrMatches(r, q); }) : all;
+  var site = _rtrSiteFilter();
+  var visible = all;
+  if (site) {
+    visible = visible.filter(function (r) {
+      var ids = _rtrSiteIds(r);
+      // '' is All Sites and never reaches here. UNASSIGNED is its own option so
+      // the devices nobody has filed can be found, which is the set someone
+      // tidying up assignments wants.
+      return site === RTR_UNASSIGNED ? ids.length === 0 : ids.indexOf(site) !== -1;
+    });
+  }
+  if (q) visible = visible.filter(function (r) { return _rtrMatches(r, q); });
 
   var shown = $('routersShown');
   if (shown) {

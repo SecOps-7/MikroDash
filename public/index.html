@@ -2022,7 +2022,7 @@
           <svg class="rtr-dd-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div id="routerDropdown" class="rtr-dd" role="listbox" aria-label="Switch router">
-          <div class="rtr-dd-search"><input id="routerDropdownSearch" type="text" placeholder="Search routers…" autocomplete="off" spellcheck="false"/></div>
+          <div class="rtr-dd-search"><input id="routerDropdownSearch" type="text" placeholder="Search devices…" autocomplete="off" spellcheck="false"/></div>
           <div id="routerDropdownList" class="rtr-dd-list"></div>
         </div>
       </div>
@@ -4391,28 +4391,38 @@
            overlaps both, since a reachable router can still have something
            wrong on it. -->
       <div class="row row-cards mt-3" id="routersSummary">
-        <div class="col-6 col-sm-3">
+        <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Total Devices</div>
             <div class="h1 m-0 mt-1" id="rsTotal">—</div>
           </div></div>
         </div>
-        <div class="col-6 col-sm-3">
+        <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Online</div>
             <div class="h1 m-0 mt-1" id="rsOnline" style="color:var(--accent-green,#34d399)">—</div>
           </div></div>
         </div>
-        <div class="col-6 col-sm-3">
+        <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Offline</div>
             <div class="h1 m-0 mt-1" id="rsOffline">—</div>
           </div></div>
         </div>
-        <div class="col-6 col-sm-3">
+        <div class="col-6 col-sm">
           <div class="card"><div class="card-body p-3">
             <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Alerting</div>
             <div class="h1 m-0 mt-1" id="rsAlerting">—</div>
+          </div></div>
+        </div>
+        <!-- Sites: how many distinct sites the fleet is spread across. Counted
+             from the rows this socket already receives, which are RBAC-filtered,
+             so it can never disclose a site the viewer has no device in. Built
+             from /api/sites it would, because that endpoint has no gate. -->
+        <div class="col-6 col-sm">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Sites</div>
+            <div class="h1 m-0 mt-1" id="rsSites">—</div>
           </div></div>
         </div>
       </div>
@@ -4421,9 +4431,12 @@
            filter boxes lived in the table head and cost a row of chrome for
            something one box answers. -->
       <div class="card mt-3 routers-toolbar d-flex flex-row align-items-center gap-2">
+        <select id="routersSiteFilter" class="conn-src-filter" title="Filter by site — a device may belong to more than one" style="min-width:150px">
+          <option value="">All Sites</option>
+        </select>
         <input id="routersSearch" type="search" class="sform-input"
-               placeholder="Search routers…"
-               title="Matches name, host, model and RouterOS version. Also understands online, offline and alerting."
+               placeholder="Search devices…"
+               title="Matches name, host, model, RouterOS version and site. Also understands online, offline and alerting."
                autocomplete="off" style="max-width:22rem">
         <span class="text-muted" id="routersShown" style="font-size:.75rem"></span>
         <select id="routersView" class="conn-src-filter ms-auto" title="View — Compact fits more cards per row; List adds sortable columns" style="min-width:140px">
@@ -4447,11 +4460,11 @@
             <thead>
               <tr>
                 <th data-sort="connected" style="min-width:5.5rem">Status</th>
-                <th data-sort="label">Router</th>
+                <th data-sort="label">Device</th>
                 <th data-sort="host">Host</th>
                 <th data-sort="boardName">Model</th>
                 <th data-sort="version">RouterOS</th>
-                <th class="rtl-num" data-sort="openAlerts" title="Unresolved alerts on this router">Alerts</th>
+                <th class="rtl-num" data-sort="openAlerts" title="Unresolved alerts on this device">Alerts</th>
                 <th class="rtl-num" data-sort="cpu">CPU</th>
                 <th class="rtl-num" data-sort="memPct">RAM</th>
                 <th class="rtl-num" data-sort="hddPct">Disk</th>
