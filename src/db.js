@@ -595,6 +595,40 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 15,
+    up(db) {
+      // The Routers page became Devices (#117), and role_pages.page stores page
+      // keys as bare strings with no foreign key and no CHECK. Every custom role
+      // a user created holds the literal 'routers'; canPage() resolves through a
+      // Map built from these rows, so a key the map does not contain confers
+      // nothing. Renaming without this migration removes the page from every
+      // non-Administrator role — silently, and failing closed.
+      //
+      // src/pages.js carries a standing warning against renaming a page key, and
+      // AI_CONTEXT.md records that this was DEFERRED for the wireless page. This
+      // one is done because it is the smaller case: two persisted surfaces
+      // instead of four, with no collector key and no poll/stream keys.
+      //
+      // Administrator needs nothing here: it holds zero role_pages rows by
+      // design, because its reach is structural rather than enumerated.
+      //
+      // THE OLD ROW IS LEFT IN PLACE, deliberately. A new binary never reads it
+      // — the registry has no 'routers' page, so nothing looks it up — but a
+      // binary rolled back to before this release reads it and keeps working.
+      // Same downgrade doctrine as the grants.role mirror. The pair collapses on
+      // its own: setRolePages() deletes and re-inserts a role's rows, so any
+      // role edited after the upgrade drops the stale half.
+      //
+      // INSERT OR IGNORE, not INSERT: the primary key is (role_id, page), so a
+      // role that somehow already holds a 'devices' row must not make the whole
+      // migration throw. That also makes this idempotent.
+      db.exec(`
+        INSERT OR IGNORE INTO role_pages (role_id, page, access)
+          SELECT role_id, 'devices', access FROM role_pages WHERE page = 'routers';
+      `);
+    },
+  },
 ];
 
 function _runMigrations(db) {
@@ -1399,11 +1433,35 @@ function recordBackup(row) {
   }
 }
 
-/** Runs for one router, newest first. */
+/**
+ * Runs for one router, newest first — for the Backups table.
+ *
+ * All but the newest `unchanged` run are left out. A run that found the
+ * configuration identical stores no pair, so each one was a table row offering
+ * nothing to restore, and on a stable router with a daily schedule they
+ * accumulate one per day and crowd out the rows that ARE restore points. One is
+ * kept because it answers "did the schedule actually fire?", which is not
+ * otherwise visible when nothing ever changes.
+ *
+ * Filtered HERE rather than by the caller, because the LIMIT has to apply to
+ * what is displayed. Fetching 200 runs and then dropping the unchanged ones
+ * would hide genuine backups behind a year of no-ops.
+ *
+ * This is a view concern only. The rows stay in the table: lastBackupRun()
+ * reads the newest run of ANY outcome and is what gates isDue(), so an
+ * unchanged run must still record or a stable router would re-export on every
+ * scheduler tick forever.
+ */
 function listBackups(routerId, limit) {
   if (!_db) return [];
-  return _prep(`SELECT * FROM config_backups WHERE router_id = ?
-                ORDER BY taken_at DESC LIMIT ?`).all(routerId, Math.min(Number(limit) || 200, 1000));
+  return _prep(`SELECT * FROM config_backups
+                WHERE router_id = ?
+                  AND (outcome != 'unchanged' OR id = (
+                        SELECT id FROM config_backups
+                        WHERE router_id = ? AND outcome = 'unchanged'
+                        ORDER BY taken_at DESC LIMIT 1))
+                ORDER BY taken_at DESC LIMIT ?`)
+    .all(routerId, routerId, Math.min(Number(limit) || 200, 1000));
 }
 
 function getBackup(id) {

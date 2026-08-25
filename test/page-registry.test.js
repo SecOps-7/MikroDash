@@ -269,10 +269,13 @@ test('the presets nest, and Advanced is every toggleable page', () => {
 test('Routers is Advanced-only', () => {
   // The reason that page gained a toggle at all: fleet management is a pro
   // feature, so it must not appear in the two lower tiers.
-  assert.ok(!Pages.VIEW_PRESETS.home.includes('routers'));
-  assert.ok(!Pages.VIEW_PRESETS.standard.includes('routers'));
-  assert.ok(Pages.VIEW_PRESETS.advanced.includes('routers'));
-  assert.strictEqual(Pages.BY_KEY.routers.settingsKey, 'pageRouters');
+  assert.ok(!Pages.VIEW_PRESETS.home.includes('devices'));
+  assert.ok(!Pages.VIEW_PRESETS.standard.includes('devices'));
+  assert.ok(Pages.VIEW_PRESETS.advanced.includes('devices'));
+  assert.strictEqual(Pages.BY_KEY.devices.settingsKey, 'pageDevices');
+  // The old key is gone from the registry, which is what makes migration 15
+  // load-bearing: role_pages rows naming it would otherwise confer nothing.
+  assert.strictEqual(Pages.BY_KEY.routers, undefined, "the page key is 'devices' now");
 });
 
 test('app.js mirrors the preset definition in src/pages.js', () => {
@@ -325,7 +328,7 @@ test('every page declares a nav category from the registry vocabulary', () => {
   // here silently means somebody forgot to file it. Backups sits here because a
   // restore point is configuration about the router, not telemetry from it.
   const top = Pages.PAGES.filter(p => p.category === null).map(p => p.key).sort();
-  assert.deepStrictEqual(top, ['audit', 'backups', 'dashboard', 'reports', 'routers', 'settings']);
+  assert.deepStrictEqual(top, ['audit', 'backups', 'dashboard', 'devices', 'reports', 'settings']);
   // An empty category is a header the visibility sweep has to hide and nobody
   // meant to write.
   for (const c of Pages.CATEGORY_KEYS) {
