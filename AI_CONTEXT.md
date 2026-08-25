@@ -659,6 +659,40 @@ therefore means:
 - `settings.save(updates)` merges updates, re-encrypts, writes to disk, updates in-memory cache
 - Most settings changes take effect immediately without restart. Router connection changes (`routerHost`, `routerPort`, `routerTls`, `routerUser`, `routerPass`) require restart — the API returns `{ requiresRestart: true }`.
 
+### Deferred: renaming the router domain vocabulary (noted 2026-08-25, not done)
+
+The **page** was renamed Routers -> Devices in #117, key and all, with migration 15 rewriting
+`role_pages` and leaving the old row as a rollback mirror. The **domain noun was not touched**, and
+this note records why and what it would cost.
+
+| Name | Where it is persisted or exposed | Renaming it breaks |
+|---|---|---|
+| `routerId` | every payload, socket event, audit row and DB column | the wire format, in ~687 places |
+| `routers.json` | the file itself, on disk | a rollback reads nothing; the file must stay a bare array |
+| `/api/routers` | the HTTP surface | any external caller, and every fetch in `public/app.js` |
+| `router:switch`, `router:active`, `routers:stats` | socket event names | the wire, silently: an unknown event is simply never received |
+| `router:manage`, `router:read`, `router:secrets`... | `grants.role` projections, `role_pages` semantics | authorization, and these are DATA not labels |
+| `grants.scope_type = 'router'` | a CHECK constraint | grant creation, immediately and loudly |
+
+Roughly **4,800 lines mention router**, against the 11 page-id lines the #117 rename touched. The
+ratio is the argument: 0.2% of the occurrences carried the page meaning.
+
+Two reasons it is parked rather than scheduled. **RouterOS itself calls these routers**, so the code
+currently matches the vendor's vocabulary and a rename would end that. And the failure mode is the
+worst kind: a missed socket event name does not throw, it just never arrives, so the cost is not the
+edit but the certainty that the edit was complete.
+
+If it is ever done, it wants the same treatment as #117: one surface at a time, each independently
+revertable, with a downgrade mirror wherever a persisted name changes shape. The UI is already free
+of the word, so there is no user-visible pressure to do it at all.
+
+Related and also parked: issue #117's **"custom site"** idea, an ad-hoc cross-site grouping. Sites
+became many-to-many instead, which answers most of it. A named saved view is a separate feature and
+needs its own design pass: per-user or install-wide, and how it interacts with RBAC site scopes,
+which are a security boundary.
+
+---
+
 ### Deferred: renaming the wireless keys (noted 2026-08-20, not done)
 
 The two wireless pages were renamed to **Wifi Clients** and **Wifi Networks**, but only their
