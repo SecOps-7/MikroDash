@@ -4042,6 +4042,8 @@ function _buildRoutersStats(socket) {
     const sysPay    = s ? s.system.lastPayload    : (bg ? bg.systemPayload   : null);
     const ifPay     = s ? s.ifStatus.lastPayload  : (bg ? bg.ifStatusPayload : null);
     const wanIf     = ifPay ? (ifPay.interfaces || []).find(i => i.name === defaultIf) : null;
+    // Membership, tolerating a record read before normalisation (#117).
+    const _rIds     = Array.isArray(r.siteIds) ? r.siteIds : (r.siteId ? [r.siteId] : []);
 
     return {
       id:        r.id,
@@ -4068,14 +4070,23 @@ function _buildRoutersStats(socket) {
         const lp = s ? s.dhcpLeases.lastPayload : (bg ? bg.dhcpLeasesPayload : null);
         return lp ? lp.leases.length : null;
       })(),
-      siteId:    r.siteId || null,
-      siteName:  (r.siteId && sitesById.get(r.siteId)) ? sitesById.get(r.siteId).name : null,
+      // A device may belong to several sites (#117). siteIds/siteNames are the
+      // real fields; the two scalars below are the primary's mirrors, kept so a
+      // browser served an older bundle still renders something sensible.
+      siteIds:   _rIds,
+      siteNames: _rIds.map((sid) => (sitesById.get(sid) || {}).name).filter(Boolean),
+      siteId:    _rIds[0] || null,
+      siteName:  (_rIds[0] && sitesById.get(_rIds[0])) ? sitesById.get(_rIds[0]).name : null,
       // Where to draw it, and how confident to look (#96). Resolved server-side
       // so the browser holds one answer per router rather than reimplementing
       // the priority order — a second implementation is one that can disagree.
       // null means unlocated: the map's tray, never a marker at 0,0.
       geo: (() => {
-        const loc = GeoPlace.resolveLocation(r, r.siteId ? sitesById.get(r.siteId) : null);
+        // The PRIMARY site supplies the geo tier. resolveLocation takes one site
+        // row and has no tie-break, so a device in several needed a defined
+        // answer — read from _rIds[0] rather than the siteId mirror, so this
+        // says which site it means.
+        const loc = GeoPlace.resolveLocation(r, _rIds[0] ? sitesById.get(_rIds[0]) : null);
         if (!loc) return null;
         if (loc.wanIp !== undefined && !maySeeWanIp) delete loc.wanIp;
         return loc;
