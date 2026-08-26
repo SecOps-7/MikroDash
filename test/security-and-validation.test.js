@@ -709,3 +709,99 @@ describe('app.js escaping and payload shapes', () => {
       'the old expression must be the broken one, or this test proves nothing');
   });
 });
+
+// ── Reusing a stored password for a connection test (#117 followup) ─────────
+//
+// The device modal blanks the password on edit — its placeholder says "leave
+// blank to keep current" — while Save refuses to write until a connection test
+// passes. With no password that test could never pass, so NO field of an
+// existing device could be saved without retyping the credential. Reported on
+// #117 as sites not being removable; it was never about sites, and it has been
+// true since the test gate landed in 0.5.33.
+//
+// The fix lets POST /api/routers/test fall back to the stored password. That is
+// only safe because of the predicate below, so the predicate is what is tested:
+// looking a password up by id ALONE would turn the route into a credential
+// oracle — submit a stored id with an attacker-chosen host and the server posts
+// the saved secret to it.
+describe('sameEndpoint — when a stored credential may be reused', () => {
+  const STORED = { host: '10.0.0.53', port: 8729, username: 'mikrodash', tls: true, tlsInsecure: false };
+  const like = (over) => Object.assign({}, STORED, over);
+
+  test('an unchanged endpoint matches', () => {
+    assert.equal(Routers.sameEndpoint(STORED, like({})), true);
+  });
+
+  test('a different host does NOT match — this is the exfiltration case', () => {
+    // The whole reason the predicate exists. An admin editing a device could
+    // otherwise point it at a host they control, leave the password blank, and
+    // have the server deliver the stored secret there.
+    assert.equal(Routers.sameEndpoint(STORED, like({ host: '10.9.9.9' })), false);
+    assert.equal(Routers.sameEndpoint(STORED, like({ host: 'evil.example.com' })), false);
+  });
+
+  test('a different port or username does not match', () => {
+    assert.equal(Routers.sameEndpoint(STORED, like({ port: 8728 })), false);
+    assert.equal(Routers.sameEndpoint(STORED, like({ username: 'admin' })), false);
+  });
+
+  test('turning TLS off does not match', () => {
+    // Same host, but the secret would now cross the wire in clear text where
+    // anyone on the path can read it. That is a downgrade, not a detail.
+    assert.equal(Routers.sameEndpoint(STORED, like({ tls: false })), false);
+  });
+
+  test('accepting an invalid certificate does not match', () => {
+    // The subtlest of the five, and the one most likely to be dropped as
+    // over-strict: tlsInsecure accepts a FORGED certificate, so the right
+    // hostname becomes a man-in-the-middle and the credential is readable.
+    assert.equal(Routers.sameEndpoint(STORED, like({ tlsInsecure: true })), false);
+  });
+
+  test('the host comparison is case-insensitive but not loose', () => {
+    assert.equal(Routers.sameEndpoint({ ...STORED, host: 'Router.Example.COM' },
+                                      like({ host: 'router.example.com' })), true);
+    // A prefix or suffix is a DIFFERENT host and must not match.
+    assert.equal(Routers.sameEndpoint({ ...STORED, host: 'router.example.com' },
+                                      like({ host: 'router.example.com.evil.net' })), false);
+  });
+
+  test('absent tls fields are read the same way on both sides', () => {
+    // A record stored before a field existed must not compare unequal to a form
+    // that defaults it, or the fallback silently stops working for old devices.
+    assert.equal(Routers.sameEndpoint({ host: '10.0.0.53', port: 8729, username: 'mikrodash' },
+                                      like({})), true);
+  });
+
+  test('a missing or empty host never matches', () => {
+    assert.equal(Routers.sameEndpoint(null, like({})), false);
+    assert.equal(Routers.sameEndpoint(STORED, null), false);
+    assert.equal(Routers.sameEndpoint({ host: '', port: 8729, username: 'mikrodash' },
+                                      { host: '', port: 8729, username: 'mikrodash' }), false);
+  });
+});
+
+test('the test route only falls back when the submitted password is empty', () => {
+  // A source scan for the reason this file's siblings give: the route needs a
+  // live server stack. What must hold is the WIRING — a fallback that ran even
+  // when a password was supplied would silently ignore what the admin typed,
+  // and one that skipped sameEndpoint would be the oracle.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const at = src.indexOf("app.post('/api/routers/test'");
+  assert.ok(at > 0, 'the test route moved or was renamed');
+  const block = src.slice(at, at + 3000);
+
+  assert.match(block, /if \(!_testPass && body\.id\)/,
+    'the fallback must be reached only when no password was supplied');
+  assert.match(block, /Routers\.sameEndpoint\(/,
+    'the stored password may only be reused for a matching endpoint');
+
+  const guard = block.indexOf('Routers.sameEndpoint(');
+  const use   = block.indexOf('_testPass = String(_stored.password)');
+  assert.ok(guard > 0 && use > guard,
+    'the endpoint check has to happen BEFORE the stored password is adopted');
+
+  const line = src.slice(at, src.indexOf('\n', at));
+  assert.ok(line.includes('Rbac.requireGlobalAdmin'),
+    'the test route must stay administrator-only');
+});

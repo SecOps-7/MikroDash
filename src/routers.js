@@ -771,8 +771,51 @@ function getPublic() {
   });
 }
 
+/**
+ * Do two router configs name the SAME DESTINATION, reached the SAME WAY?
+ *
+ * Pure, and deliberately here rather than inline at its one call site: it is the
+ * whole security property behind reusing a stored password for a connection
+ * test, and a predicate nobody can unit-test is a predicate nobody can check.
+ *
+ * `POST /api/routers/test` reuses a device's saved password when the admin
+ * leaves the field blank — otherwise editing an existing device is impossible,
+ * because the modal blanks the password by design and Save refuses to write
+ * until a test passes. Looking the password up by id ALONE would make that
+ * route a credential oracle: submit a stored id with an attacker-chosen host and
+ * the server posts the saved secret to it.
+ *
+ * So every field that decides where the secret goes, or whether anyone can read
+ * it on the way, has to be unchanged:
+ *
+ *   host, port, username — where it is sent
+ *   tls                  — whether it is encrypted at all
+ *   tlsInsecure          — whether a FORGED certificate is accepted, which makes
+ *                          the right hostname a man-in-the-middle
+ *
+ * Host is compared case-insensitively because a hostname is; everything else is
+ * exact. Absent `tls` means true, matching the rest of the codebase, and absent
+ * `tlsInsecure` means false — read the same way on both sides, so a stored
+ * record predating a field cannot compare unequal to a form that defaults it.
+ *
+ * @returns {boolean} true only if a stored credential may be reused for b
+ */
+function sameEndpoint(a, b) {
+  if (!a || !b) return false;
+  const host = (r) => String(r.host || '').trim().toLowerCase();
+  const port = (r) => parseInt(r.port || '8729', 10);
+  const user = (r) => String(r.username || '').trim();
+  const tls  = (r) => r.tls !== false && r.tls !== 'false';
+  const lax  = (r) => !!(r.tlsInsecure || r.tlsInsecure === 'true');
+  return host(a) !== '' && host(a) === host(b)
+      && port(a) === port(b)
+      && user(a) === user(b)
+      && tls(a)  === tls(b)
+      && lax(a)  === lax(b);
+}
+
 /** Invalidate the in-memory cache (used after external settings changes). */
 function invalidateCache() { _cache = null; }
 
-module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, updateGeoAuto, remove, getPublic, invalidateCache, clearSite,
+module.exports = { loadAll, getById, add, update, updateLabel, updateIdentity, updateGeoAuto, remove, getPublic, invalidateCache, clearSite, sameEndpoint,
   BACKUP_SCHEDULES, BACKUP_DEFAULTS, _normalizeBackup, backupTimeMinutes };
