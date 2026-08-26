@@ -10928,6 +10928,11 @@ function _syncRoutersSiteFilter(rows) {
   (rows || []).forEach(function (r) {
     var ids = _rtrSiteIds(r), nm = _rtrSiteNames(r);
     if (!ids.length) { anyLoose = true; return; }
+    // Zipped BY INDEX, which is only safe because the server sends one entry per
+    // id and uses '' for a site it could not resolve. It used to drop those, so
+    // a device listing a deleted site shifted every later name onto the wrong
+    // id: a live site appeared under its raw id while the dead one wore a real
+    // site's name, and picking it filtered to the deleted site instead.
     ids.forEach(function (id, i) { if (!names[id]) names[id] = nm[i] || id; });
   });
 

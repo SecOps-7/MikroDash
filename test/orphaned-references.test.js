@@ -301,3 +301,47 @@ test('the report run-history row fills every column its header declares', () => 
   assert.ok(/\(d\.runs \|\| \[\]\)/.test(block),
     'the runs array must stay guarded or a response without it throws unhandled');
 });
+
+// ── Two arrays zipped by index must stay the same length ────────────────────
+//
+// `routers:stats` sends siteIds and siteNames as parallel arrays and the Devices
+// page's site filter pairs them POSITIONALLY. The server built the names with
+// `.filter(Boolean)`, which removes an element from the middle of one array and
+// nothing from the other, so from the first unresolvable id onward every name
+// attached to the wrong site.
+//
+// An id fails to resolve when a site is deleted while a device still lists it.
+// That is a state the app expects to be in: router-store-sites.test.js has a
+// case for a dangling membership on the singular field.
+//
+// The worked example, for a device in ['siteA', 'deleted', 'siteC'] where the
+// middle site is gone and the names resolve to ['Depot', 'Annexe']:
+//
+//     siteA   -> "Depot"    correct
+//     deleted -> "Annexe"   WRONG, that is siteC's name, on a dead site
+//     siteC   -> "siteC"    the raw id, because nm[2] is undefined
+//
+// So a live site hides under an opaque id while a deleted one wears a real
+// site's name, and picking it filters to the deleted site.
+test('the site name array is not compacted away from the id array', () => {
+  const INDEX = P('src', 'index.js');
+  const at = INDEX.indexOf('siteNames:');
+  assert.ok(at > 0, 'siteNames moved or was renamed');
+  const line = INDEX.slice(at, INDEX.indexOf('\n', at));
+
+  assert.ok(!/\.filter\(/.test(line),
+    'siteNames must not be filtered: it is zipped against siteIds by index, so ' +
+    'dropping an entry shifts every later name onto the wrong site');
+  assert.match(line, /\|\|\s*''/,
+    'an unresolvable id must send an empty placeholder so the arrays stay aligned');
+});
+
+test('the client falls back to the id for a name it was not given', () => {
+  // The other half of the contract. The placeholder is only safe because the
+  // consumer treats a blank as "no name" and shows the raw id instead.
+  const at = APP.indexOf('function _syncRoutersSiteFilter');
+  assert.ok(at > 0, '_syncRoutersSiteFilter moved or was renamed');
+  const body = APP.slice(at, at + 1200);
+  assert.match(body, /names\[id\]\s*=\s*nm\[i\]\s*\|\|\s*id/,
+    'a blank name must fall back to the site id, not render empty');
+});
