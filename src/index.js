@@ -4080,8 +4080,15 @@ function _buildRoutersStats(socket) {
       // A device may belong to several sites (#117). siteIds/siteNames are the
       // real fields; the two scalars below are the primary's mirrors, kept so a
       // browser served an older bundle still renders something sensible.
+      // THE TWO ARRAYS ARE ZIPPED BY INDEX on the client, so they must stay the
+      // same length. An unresolvable id sends '' rather than being dropped: a
+      // site can be deleted while a device still lists it, and .filter(Boolean)
+      // removed an element from the middle of the names while leaving the ids
+      // intact, so every name after the first dangling membership attached to
+      // the wrong site. Do not reintroduce the filter — take the blank out at
+      // the point of display instead.
       siteIds:   _rIds,
-      siteNames: _rIds.map((sid) => (sitesById.get(sid) || {}).name).filter(Boolean),
+      siteNames: _rIds.map((sid) => ((sitesById.get(sid) || {}).name || '')),
       siteId:    _rIds[0] || null,
       siteName:  (_rIds[0] && sitesById.get(_rIds[0])) ? sitesById.get(_rIds[0]).name : null,
       // Where to draw it, and how confident to look (#96). Resolved server-side
