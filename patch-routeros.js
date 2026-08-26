@@ -191,10 +191,26 @@ patch(
 //
 // It is not what a caller reading a FILE wants. `/file/read` returns raw bytes
 // in its `data` word, and a UTF-8 decode replaces every invalid byte with
-// U+FFFD. That is silent: one replacement character per bad byte, so the
-// reassembled length still matches the file size exactly and the result looks
-// fine. A known blob pushed to a live AX3 and read back came home with a
+// U+FFFD. A known blob pushed to a live AX3 and read back came home with a
 // different sha256 and 177 of its 256 distinct byte values intact.
+//
+// THIS COMMENT USED TO CLAIM THE LENGTH IS PRESERVED — "one replacement
+// character per bad byte, so the reassembled length still matches the file size
+// exactly and the result looks fine". THAT IS WRONG, and it was wrong in the
+// direction that matters: it describes the corruption as SILENT.
+//
+// Measured on a 46,910-byte backup: the UTF-8 path returns 46,395 bytes, 515
+// short, 1.1%. One-U+FFFD-per-bad-byte accounts for only part of what happens.
+// Binary data also contains sequences that are ACCIDENTALLY VALID multi-byte
+// UTF-8, and those collapse from 2-4 bytes into a single code point, so the
+// length drops rather than holding.
+//
+// Which means the length check `src/backups/runner.js` already performs
+// (`if (out.length !== size) throw`) DOES catch it. The hazard is real and
+// severe — 72.85% of bytes differ — but it is not silent, and a reader who
+// believed this comment might add a defence that is already there, or distrust
+// the one that works. Corrected 2026-08-26 from the port's hardware harness,
+// which reconstructed the same file both ways and diffed per byte.
 //
 // So the encoding becomes a property of the CONNECTION. `this` here is the
 // Receiver, one per connection; `rawBytes` is set by src/routeros/client.js
@@ -241,11 +257,37 @@ patch(
 );
 
 // ── Patch 4: Channel.js — multi-block !done accumulation ────────────────────
-// RouterOS wifi-qcom devices (hAP ax2, hAP AX³) send /interface/wifi/
-// registration-table/print as SEPARATE response blocks per interface, each
-// terminated by its own !done. The library resolves the write() Promise on
-// the FIRST !done, so only one interface's clients are returned and all
-// subsequent blocks are discarded as UNREGISTEREDTAG packets.
+// OBSERVED ON 7.23; NOT REPRODUCIBLE ON 7.24. Read the qualification below
+// before treating this patch's cost as justified — it is insurance now, not a
+// correctness fix, and the distinction was not recorded when it was written.
+//
+// The observation: RouterOS wifi-qcom devices (hAP ax2, hAP AX³) send
+// /interface/wifi/registration-table/print as SEPARATE response blocks per
+// interface, each terminated by its own !done. The library resolves the write()
+// Promise on the FIRST !done, so only one interface's clients are returned and
+// all subsequent blocks are discarded as UNREGISTEREDTAG packets.
+//
+// RETESTED ON 7.24 AND IT DID NOT REPRODUCE. The exact hardware — a wifi-qcom
+// hAP AX³ running as a CAPsMAN manager, 12 wifi interfaces, one remote CAP, 30
+// clients across 8 interfaces — answered in ONE block with ONE !done, six
+// repeats out of six, including with the same `=.proplist=` forms wireless.js
+// sends. The rows were not even grouped by interface: they came ordered by
+// descending client uptime with all 8 interfaces interleaved, which is
+// structurally incompatible with a per-interface block. A client returning on
+// the first !done got 30 of 30. Widened to 14 further commands on the same
+// router, up to a 1000-row /log/print: every one was a single block.
+//
+// THE PATCH STAYS ANYWAY, deliberately. The original was verified against a
+// live 7.23.3 hAP AX3 with specific detail, no 7.23 device is available to
+// retest, and MikroDash may still meet one in the field. "Not reproduced on the
+// versions we could test" is not "never true", and failing this open means
+// silently returning one interface's clients as though they were all of them.
+//
+// But the cost is now a KNOWN price rather than a free defence: the 20 ms
+// debounce below expires on every non-empty one-shot write, because there is
+// never a second block to wait for on 7.24. Anyone tempted to make this
+// conditional should gate it on the router's RouterOS version rather than
+// delete it. Qualification added 2026-08-26 from the port's hardware traces.
 //
 // Fix: instead of resolving immediately on !done, start a 20 ms debounce
 // timer. If more !re/!done blocks arrive within the window (RouterOS sends
