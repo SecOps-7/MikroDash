@@ -1427,6 +1427,122 @@ test('interface status collector normalizes booleans and computes Mbps', () => {
   assert.equal(ifaces[1].rxMbps, 0);
 });
 
+// ── A split print cycle must not truncate the interface list (issue #119) ───
+//
+// `/interface/print` runs with `=interval=N`, so the router re-prints the WHOLE
+// list every cycle, one packet per interface. _commitMeta then REPLACES _ifaces
+// with whatever accumulated in _ifacesNext.
+//
+// The only thing deciding when a cycle has ended was a 300 ms debounce, reset on
+// every packet. A debounce cannot delimit a burst: if any gap between two
+// packets of one cycle exceeds it, the timer fires MID-CYCLE and installs a
+// partial map as the complete truth. The rest of that cycle then lands in a
+// fresh map, so the next commit installs an even smaller set.
+//
+// Reported on a CCR2004 — many interfaces, so many packets and more chances of
+// a gap — as the Traffic dropdown losing all but one interface after a couple
+// of minutes. A couple of minutes is one or two ticks at the default 60 s meta
+// interval.
+test('a print cycle split by a slow packet does not shrink the interface list', async () => {
+  const { EventEmitter } = require('node:events');
+  const fake = new EventEmitter(); fake.stop = () => {};
+  const ros = { connected: true, on() {}, stream: () => fake };
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, metaPollMs: 60000, state: {} });
+
+  const row = (n) => ({ name: n, type: 'ether', running: 'true', disabled: 'false' });
+  const NAMES = ['ether1', 'ether2', 'ether3', 'sfp-sfpplus1'];
+  const settle = () => new Promise(r => setTimeout(r, 400));   // > the 300 ms debounce
+
+  collector._startIfStream();
+
+  // A clean cycle: every packet inside the debounce window.
+  for (const n of NAMES) fake.emit('data', row(n));
+  await settle();
+  assert.equal(collector._ifaces.size, 4, 'a whole cycle must commit whole');
+
+  // The same cycle, delivered with one slow packet in the middle. This is the
+  // reported fault: the router sent all four, and the collector must end up
+  // holding all four however they were spread over the wire.
+  fake.emit('data', row('ether1'));
+  fake.emit('data', row('ether2'));
+  await settle();                       // the debounce fires here, mid-cycle
+  fake.emit('data', row('ether3'));
+  fake.emit('data', row('sfp-sfpplus1'));
+  await settle();
+
+  assert.deepEqual([...collector._ifaces.keys()].sort(), [...NAMES].sort(),
+    'a cycle split across the debounce must not truncate the list');
+
+  collector.stop();
+});
+
+// The two behaviours the size guard in _commitMeta depends on. It trusts a
+// batch that is NOT SMALLER than the last complete cycle, which is what keeps a
+// newly added interface instant while making a shrinking list wait for proof.
+test('a new interface still appears without waiting for the next cycle', async () => {
+  // refreshNow() restarts the meta streams precisely so a freshly created VETH
+  // shows up at once rather than a meta interval later. A rule of "only commit
+  // on a wrap" would have broken that, silently, and it would have read as a
+  // failed save.
+  const { EventEmitter } = require('node:events');
+  const fake = new EventEmitter(); fake.stop = () => {};
+  const ros = { connected: true, on() {}, stream: () => fake };
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, metaPollMs: 60000, state: {} });
+
+  const row = (n) => ({ name: n, type: 'ether', running: 'true', disabled: 'false' });
+  const settle = () => new Promise(r => setTimeout(r, 400));
+
+  collector._startIfStream();
+  for (const n of ['ether1', 'ether2']) fake.emit('data', row(n));
+  await settle();
+  assert.equal(collector._ifaces.size, 2);
+
+  // A cycle carrying one MORE interface commits on the debounce, no wrap needed.
+  for (const n of ['ether1', 'ether2', 'veth1']) fake.emit('data', row(n));
+  await settle();
+  assert.ok(collector._ifaces.has('veth1'), 'a bigger cycle must not wait for a wrap');
+
+  collector.stop();
+});
+
+test('a deleted interface leaves the list once the cycle proves it is gone', async () => {
+  // The inverse, and the cost of the guard: a SMALLER cycle looks exactly like a
+  // truncated one, so it is held until a repeated name proves the cycle ended.
+  // Worth pinning because "removal is delayed by up to one meta interval" is a
+  // deliberate trade, not an oversight.
+  const { EventEmitter } = require('node:events');
+  const fake = new EventEmitter(); fake.stop = () => {};
+  const ros = { connected: true, on() {}, stream: () => fake };
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, metaPollMs: 60000, state: {} });
+
+  const row = (n) => ({ name: n, type: 'ether', running: 'true', disabled: 'false' });
+  const settle = () => new Promise(r => setTimeout(r, 400));
+
+  collector._startIfStream();
+  for (const n of ['ether1', 'ether2', 'veth1']) fake.emit('data', row(n));
+  await settle();
+  assert.equal(collector._ifaces.size, 3);
+
+  // veth1 deleted. This cycle is smaller, so it is not trusted on the debounce.
+  fake.emit('data', row('ether1'));
+  fake.emit('data', row('ether2'));
+  await settle();
+  assert.ok(collector._ifaces.has('veth1'), 'a smaller batch alone must not drop it');
+
+  // The next cycle repeats ether1, which ends the previous one and commits it.
+  fake.emit('data', row('ether1'));
+  assert.ok(!collector._ifaces.has('veth1'), 'the wrap must commit the smaller list');
+  assert.equal(collector._ifaces.size, 2);
+
+  collector.stop();
+});
+
 test('interface status collector clamps malformed throughput fields to zero', () => {
   // The monitor stream's parseBps('bad-data') and parseBps('') both clamp to 0.
   // When no _streamRates entry exists the default {rxMbps:0,txMbps:0} applies.
