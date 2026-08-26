@@ -2540,12 +2540,56 @@ app.post('/api/routers/test', Rbac.requireGlobalAdmin, _testConnLimiter, async (
 
   const testTls = (body.tls !== false && body.tls !== 'false');
   const testTlsInsecure = !!(body.tlsInsecure || body.tlsInsecure === 'true');
+
+  const _testHost = String(body.host).trim();
+  const _testPort = parseInt(body.port || '8729', 10);
+  const _testUser = String(body.username || 'admin').trim();
+  let   _testPass = body.password && body.password !== '••••••••' ? String(body.password) : '';
+
+  // EDITING AN EXISTING DEVICE MAY REUSE ITS STORED PASSWORD, but only for the
+  // destination it is already stored against.
+  //
+  // The modal blanks the password on edit and its placeholder says "leave blank
+  // to keep current" — while Save refuses to write until a connection test
+  // passes. With no password the test could never pass, so that promise was
+  // false and NO field of an existing device could be saved without retyping
+  // the credential. Reported on #117 as sites not being removable; it was never
+  // about sites, and it has been true since the test gate landed in 0.5.33.
+  //
+  // THE MATCH IS THE WHOLE SECURITY PROPERTY. A bare "look it up by id" turns
+  // this route into a credential oracle: submit a stored id with an
+  // attacker-chosen host and the server posts the saved password to it. So the
+  // stored secret is only reused when every field deciding WHERE it goes and
+  // HOW it travels is unchanged:
+  //
+  //   host, port, username — where it is sent
+  //   tls, tlsInsecure     — whether an observer, or a forged certificate, can
+  //                          read it in transit
+  //
+  // tlsInsecure matters as much as the host: turning it on accepts any
+  // certificate, which makes the same hostname a man-in-the-middle. Change any
+  // of the five and the admin types the password again, which is exactly the
+  // moment explicit consent is worth asking for.
+  //
+  // requireGlobalAdmin already gates this route and is NOT sufficient on its
+  // own: the point is to stop a stored secret reaching a destination nobody
+  // stored it against, including at the hands of an admin.
+  if (!_testPass && body.id) {
+    const _stored = Routers.getById(String(body.id));
+    if (_stored && _stored.password && Routers.sameEndpoint(_stored, {
+      host: _testHost, port: _testPort, username: _testUser,
+      tls: testTls, tlsInsecure: testTlsInsecure,
+    })) {
+      _testPass = String(_stored.password);
+    }
+  }
+
   const testRos = new ROS({
-    host:           String(body.host).trim(),
-    port:           parseInt(body.port || '8729', 10),
+    host:           _testHost,
+    port:           _testPort,
     tls:            testTls ? { rejectUnauthorized: !testTlsInsecure } : false,
-    username:       String(body.username || 'admin').trim(),
-    password:       body.password && body.password !== '••••••••' ? String(body.password) : '',
+    username:       _testUser,
+    password:       _testPass,
     writeTimeoutMs: 8000,
   });
 
