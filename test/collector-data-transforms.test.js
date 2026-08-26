@@ -1451,25 +1451,25 @@ test('a print cycle split by a slow packet does not shrink the interface list', 
   const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
   const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, metaPollMs: 60000, state: {} });
 
-  const row = (n) => ({ name: n, type: 'ether', running: 'true', disabled: 'false' });
+  const row = (n, sec) => ({ name: n, type: 'ether', running: 'true', disabled: 'false', '.section': String(sec) });
   const NAMES = ['ether1', 'ether2', 'ether3', 'sfp-sfpplus1'];
   const settle = () => new Promise(r => setTimeout(r, 400));   // > the 300 ms debounce
 
   collector._startIfStream();
 
-  // A clean cycle: every packet inside the debounce window.
-  for (const n of NAMES) fake.emit('data', row(n));
+  // A clean cycle: every packet inside the debounce window, one section.
+  for (const n of NAMES) fake.emit('data', row(n, 0));
   await settle();
   assert.equal(collector._ifaces.size, 4, 'a whole cycle must commit whole');
 
   // The same cycle, delivered with one slow packet in the middle. This is the
   // reported fault: the router sent all four, and the collector must end up
   // holding all four however they were spread over the wire.
-  fake.emit('data', row('ether1'));
-  fake.emit('data', row('ether2'));
+  fake.emit('data', row('ether1', 1));
+  fake.emit('data', row('ether2', 1));
   await settle();                       // the debounce fires here, mid-cycle
-  fake.emit('data', row('ether3'));
-  fake.emit('data', row('sfp-sfpplus1'));
+  fake.emit('data', row('ether3', 1));
+  fake.emit('data', row('sfp-sfpplus1', 1));
   await settle();
 
   assert.deepEqual([...collector._ifaces.keys()].sort(), [...NAMES].sort(),
@@ -1493,18 +1493,19 @@ test('a new interface still appears without waiting for the next cycle', async (
   const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
   const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, metaPollMs: 60000, state: {} });
 
-  const row = (n) => ({ name: n, type: 'ether', running: 'true', disabled: 'false' });
+  const row = (n, sec) => ({ name: n, type: 'ether', running: 'true', disabled: 'false', '.section': String(sec) });
   const settle = () => new Promise(r => setTimeout(r, 400));
 
   collector._startIfStream();
-  for (const n of ['ether1', 'ether2']) fake.emit('data', row(n));
+  for (const n of ['ether1', 'ether2']) fake.emit('data', row(n, 0));
   await settle();
   assert.equal(collector._ifaces.size, 2);
 
-  // A cycle carrying one MORE interface commits on the debounce, no wrap needed.
-  for (const n of ['ether1', 'ether2', 'veth1']) fake.emit('data', row(n));
+  // A cycle carrying one MORE interface commits on the debounce, without
+  // waiting for the next section to arrive.
+  for (const n of ['ether1', 'ether2', 'veth1']) fake.emit('data', row(n, 1));
   await settle();
-  assert.ok(collector._ifaces.has('veth1'), 'a bigger cycle must not wait for a wrap');
+  assert.ok(collector._ifaces.has('veth1'), 'a bigger cycle must not wait for a boundary');
 
   collector.stop();
 });
@@ -1521,24 +1522,63 @@ test('a deleted interface leaves the list once the cycle proves it is gone', asy
   const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
   const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, metaPollMs: 60000, state: {} });
 
-  const row = (n) => ({ name: n, type: 'ether', running: 'true', disabled: 'false' });
+  const row = (n, sec) => ({ name: n, type: 'ether', running: 'true', disabled: 'false', '.section': String(sec) });
   const settle = () => new Promise(r => setTimeout(r, 400));
 
   collector._startIfStream();
-  for (const n of ['ether1', 'ether2', 'veth1']) fake.emit('data', row(n));
+  for (const n of ['ether1', 'ether2', 'veth1']) fake.emit('data', row(n, 0));
   await settle();
   assert.equal(collector._ifaces.size, 3);
 
-  // veth1 deleted. This cycle is smaller, so it is not trusted on the debounce.
-  fake.emit('data', row('ether1'));
-  fake.emit('data', row('ether2'));
+  // veth1 deleted. This cycle is smaller, so the debounce alone must not
+  // install it — a smaller batch is indistinguishable from a truncated one.
+  fake.emit('data', row('ether1', 1));
+  fake.emit('data', row('ether2', 1));
   await settle();
   assert.ok(collector._ifaces.has('veth1'), 'a smaller batch alone must not drop it');
 
-  // The next cycle repeats ether1, which ends the previous one and commits it.
-  fake.emit('data', row('ether1'));
-  assert.ok(!collector._ifaces.has('veth1'), 'the wrap must commit the smaller list');
+  // The next cycle's first packet carries a new section, which ends the
+  // previous cycle and commits it exactly as it stood.
+  fake.emit('data', row('ether1', 2));
+  assert.ok(!collector._ifaces.has('veth1'), 'the section change must commit the smaller list');
   assert.equal(collector._ifaces.size, 2);
+
+  collector.stop();
+});
+
+// The delimiter is the router's own, not our inference. `.section` is stamped on
+// every packet of an `=interval=N` response and increments per cycle — verified
+// on a hAP AC2 (RouterOS 7.24), where /interface/print =interval=3 delivered
+// nine packets stamped 0, then nine stamped 1.
+//
+// It matters that this is `.section` and not `!done`: a print terminates each
+// cycle with `!done`, but /interface/monitor-traffic never does, so only
+// `.section` is a delimiter both shapes carry.
+test('a cycle boundary is taken from the router\'s own section stamp', async () => {
+  const { EventEmitter } = require('node:events');
+  const fake = new EventEmitter(); fake.stop = () => {};
+  const ros = { connected: true, on() {}, stream: () => fake };
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, metaPollMs: 60000, state: {} });
+
+  const row = (n, sec) => ({ name: n, type: 'ether', running: 'true', disabled: 'false', '.section': String(sec) });
+  const settle = () => new Promise(r => setTimeout(r, 400));
+
+  collector._startIfStream();
+  for (const n of ['ether1', 'ether2', 'ether3']) fake.emit('data', row(n, 0));
+  await settle();
+  assert.equal(collector._ifaces.size, 3);
+
+  // Section 0 is falsy as a string only if mishandled — this pins that the
+  // FIRST cycle is not skipped by a truthiness check on the stamp.
+  assert.equal(collector._ifaceSection, '0', 'section 0 must be recorded, not treated as absent');
+
+  // A boundary commits the cycle SYNCHRONOUSLY, with no timer involved: the
+  // first packet of section 1 is proof that section 0 finished.
+  fake.emit('data', row('ether1', 1));
+  assert.equal(collector._ifaces.size, 3, 'the completed cycle stands until the new one completes');
+  assert.equal(collector._ifacesNext.size, 1, 'the new cycle starts accumulating immediately');
 
   collector.stop();
 });
