@@ -27,6 +27,46 @@ const { tsFmt } = require('./format');
 
 const L = 40, R = 40;
 
+const HOUR = 3600000, DAY = 86400000;
+
+/**
+ * One chart X-axis label: `HH:MM`, `MM-DD HH:MM` or `MM-DD` by span.
+ *
+ * At module scope, and exported, because the bug it carries was invisible from
+ * outside: it lived in a closure over `spanMs` and the display timezone, so
+ * nothing could ask it what it drew.
+ *
+ * BOTH BRANCHES MUST PRODUCE THE SAME SHAPE. The timezone path used to hand a
+ * partial date to `sv-SE` — chosen because sv-SE renders a COMPLETE date
+ * ISO-style — but asked for month and day alone it answers `25/08`. So setting
+ * a display timezone silently reversed the field order against the plain path,
+ * and `08-09` and `09-08` became the same day depending on a setting the reader
+ * of the PDF cannot see. Assembling from `formatToParts` keeps the zone maths
+ * and drops the locale's opinion about layout.
+ *
+ * @param {number} ts      epoch ms
+ * @param {number} spanMs  width of the chart's time axis, which picks the format
+ * @param {string} tz      IANA zone, or '' for the host clock
+ */
+function _tickLabel(ts, spanMs, tz) {
+  if (tz) {
+    const part = {};
+    for (const p of new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz, hour12: false,
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    }).formatToParts(new Date(ts))) part[p.type] = p.value;
+    // An h24 cycle renders midnight as 24 rather than 00 on some builds.
+    if (part.hour === '24') part.hour = '00';
+    if (spanMs <= 12 * HOUR) return `${part.hour}:${part.minute}`;
+    if (spanMs <= 3  * DAY)  return `${part.month}-${part.day} ${part.hour}:${part.minute}`;
+    return `${part.month}-${part.day}`;
+  }
+  const d = new Date(ts), p = n => String(n).padStart(2, '0');
+  if (spanMs <= 12 * HOUR) return `${p(d.getHours())}:${p(d.getMinutes())}`;
+  if (spanMs <= 3  * DAY)  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 /**
  * Draw the whole report into `doc`. Ends the document.
  *
@@ -56,7 +96,13 @@ function _render(doc, title, columns, rows, meta) {
   const fmtTs = ts => ts ? tsFmt(ts) || '—' : '—';
   const routerLabel = (meta && meta.router) ? meta.router : '';
   const dateRange   = (meta && meta.from && meta.to)
-    ? `${fmtTs(meta.from)}  →  ${fmtTs(meta.to)}`
+    // An EN DASH, not the rightwards arrow this used to use. The report is drawn
+    // in the standard-14 Helvetica, whose WinAnsi charset has no U+2192, and
+    // pdfkit does not substitute: it emits the raw code point and advances by
+    // ZERO, so the separator was invisible in every report that left the
+    // building. U+2013 is at 0x96 in WinAnsi, measures 5.56pt, and is the
+    // conventional separator for a range anyway.
+    ? `${fmtTs(meta.from)}  –  ${fmtTs(meta.to)}`
     : '';
   if (routerLabel || dateRange) {
     doc.font('Helvetica').fontSize(8).fillColor('#64748b');
@@ -126,22 +172,9 @@ function _render(doc, title, columns, rows, meta) {
 
       // X axis time labels (5 ticks) — format adapts to span; respects displayTimezone
       const _tz      = Settings.load().displayTimezone || '';
-      const HOUR     = 3600000, DAY = 86400000;
       const spanMs   = xRange;
       const labelW   = spanMs <= 12 * HOUR ? 28 : spanMs <= 3 * DAY ? 54 : 28;
-      const _pdfTick = ts => {
-        if (_tz) {
-          let opts;
-          if (spanMs <= 12 * HOUR) opts = { timeZone:_tz, hour:'2-digit', minute:'2-digit', hour12:false };
-          else if (spanMs <= 3 * DAY) opts = { timeZone:_tz, month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false };
-          else opts = { timeZone:_tz, month:'2-digit', day:'2-digit' };
-          return new Intl.DateTimeFormat('sv-SE', opts).format(new Date(ts));
-        }
-        const d = new Date(ts), p = n => String(n).padStart(2, '0');
-        if (spanMs <= 12 * HOUR)  return `${p(d.getHours())}:${p(d.getMinutes())}`;
-        if (spanMs <= 3  * DAY)   return `${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-        return `${p(d.getMonth()+1)}-${p(d.getDate())}`;
-      };
+      const _pdfTick = ts => _tickLabel(ts, spanMs, _tz);
       for (let ti = 0; ti <= 4; ti++) {
         const ts  = xMin + (xRange / 4) * ti;
         const tx  = toX(ts);
@@ -264,4 +297,4 @@ function toBuffer(title, columns, rows, meta, maxBytes) {
   });
 }
 
-module.exports = { pipe, toBuffer, _render };
+module.exports = { pipe, toBuffer, _render, _tickLabel };
