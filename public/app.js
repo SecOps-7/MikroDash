@@ -5417,7 +5417,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         if (!d || !d.ok) throw new Error('load failed');
         _cacheSites(d.sites);
         _renderSiteTable();
-        _populateSiteSelect();
         return _sitesCache;
       })
       .catch(function () {
@@ -5565,54 +5564,13 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       .catch(function () {});
   }
 
-  // Fills the router modal's site picker. Called on every site load so the
-  // options cannot go stale behind an open modal.
-  // The sites a device belongs to, and which of them is primary (#117).
-  function _selectedModalSites() {
-    var sel = $('rtrModalSites');
-    if (!sel) return [];
-    return [].slice.call(sel.selectedOptions).map(function (o) { return o.value; });
-  }
-
-  // The primary list offers only what is currently selected above, so it cannot
-  // name a site the device is not in. Keeps the current choice when it survives,
-  // otherwise falls back to the first selected — never to nothing, because a
-  // device with sites and no primary would lose its map location.
-  function _syncPrimarySiteSelect() {
-    var sel = $('rtrModalPrimarySite'); if (!sel) return;
-    var chosen = _selectedModalSites();
-    var keep = sel.value;
-    sel.innerHTML = '<option value="">— No site —</option>';
-    chosen.forEach(function (id) {
-      var o = document.createElement('option');
-      o.value = id;
-      o.textContent = (window._sitesById && window._sitesById[id]) ? window._sitesById[id].name : id;
-      sel.appendChild(o);
-    });
-    sel.value = chosen.indexOf(keep) !== -1 ? keep : (chosen[0] || '');
-    sel.disabled = chosen.length === 0;
-  }
-
-  // Re-offer the primary whenever membership changes, so it can never name a
-  // site the device is no longer in.
-  (function () {
-    var ms = $('rtrModalSites');
-    if (ms) ms.addEventListener('change', _syncPrimarySiteSelect);
-  }());
-
-  function _populateSiteSelect() {
-    var sel = $('rtrModalSites'); if (!sel) return;
-    var keep = _selectedModalSites();
-    sel.innerHTML = '';
-    _sitesCache.forEach(function (s) {
-      var o = document.createElement('option');
-      o.value = s.id; o.textContent = s.name;   // textContent, so no escaping needed
-      // Preserve the selection, dropping any site that has since been deleted.
-      o.selected = keep.indexOf(s.id) !== -1;
-      sel.appendChild(o);
-    });
-    _syncPrimarySiteSelect();
-  }
+  // The device modal used to carry a multi-select for membership, with
+  // _selectedModalSites / _syncPrimarySiteSelect / _populateSiteSelect behind
+  // it. Membership is an authorization decision and now lives on this tab
+  // alone, so the modal keeps only a PRIMARY picker and seeds it from the
+  // device's own siteIds. All four are gone rather than left guarded: a
+  // function that quietly does nothing because its element no longer exists is
+  // how the ndLanCidr orphans survived long enough to look load-bearing.
 
   // Delegated: the table is rebuilt on every load.
   var _siteTbody = $('siteTbody');
@@ -5635,7 +5593,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   socket.on('sites:update', function (list) {
     _cacheSites(list);
     _renderSiteTable();
-    _populateSiteSelect();
   });
 
   // ── Principal dialogs ─────────────────────────────────────────────────────
@@ -6170,9 +6127,6 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // The routers IIFE calls this when the router list changes, so the Routers
   // column reflects a reassignment without a manual refresh.
   window._refreshSiteCounts = _renderSiteTable;
-  // The device modal lives in a different IIFE and has to re-offer the primary
-  // after seeding membership, so this crosses the boundary the same way.
-  window._syncPrimarySiteSelect = _syncPrimarySiteSelect;
 
   loadSites();
 
@@ -8369,17 +8323,28 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // than leaving the picker showing whatever happened to be selected before.
     // Seed membership from the device (#117). Sites the viewer's cache does not
     // know are dropped rather than shown as a bare id.
-    var _mSites = $('rtrModalSites');
-    if (_mSites) {
+    // MEMBERSHIP IS NOT EDITABLE HERE (it moved to Access Management), so the
+    // primary picker offers exactly the sites this device is already in. It
+    // cannot name one it does not belong to, and there is no control that could
+    // add or remove one by accident.
+    var _mPrim = $('rtrModalPrimarySite');
+    if (_mPrim) {
       var _have = (router && Array.isArray(router.siteIds)) ? router.siteIds
                 : (router && router.siteId ? [router.siteId] : []);
-      [].slice.call(_mSites.options).forEach(function (o) {
-        o.selected = _have.indexOf(o.value) !== -1 && !!(window._sitesById && window._sitesById[o.value]);
+      // A site deleted since the device was filed has no name to show, so it is
+      // left out of the picker — but it is NOT dropped from the device: save
+      // reorders the stored list and never rewrites it from these options.
+      var _known = _have.filter(function (id) { return !!(window._sitesById && window._sitesById[id]); });
+      _mPrim.innerHTML = '<option value="">— No site —</option>';
+      _known.forEach(function (id) {
+        var o = document.createElement('option');
+        o.value = id;
+        o.textContent = window._sitesById[id].name;
+        _mPrim.appendChild(o);
       });
-      if (typeof window._syncPrimarySiteSelect === 'function') window._syncPrimarySiteSelect();
-      var _mPrim = $('rtrModalPrimarySite');
       // The primary is the FIRST entry, which is the order the store keeps.
-      if (_mPrim && _have.length && window._sitesById && window._sitesById[_have[0]]) _mPrim.value = _have[0];
+      _mPrim.value = (_known.indexOf(_have[0]) !== -1) ? _have[0] : '';
+      _mPrim.disabled = _known.length === 0;
     }
     _seedGeoPicker(router);
     modalHost.value  = router ? router.host      : '';
@@ -8477,13 +8442,31 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       // siteIds, ordered with the primary first — that order IS the primary, and
       // the server keeps the scalar siteId in step as the rollback mirror, so
       // the client no longer sends it.
+      // REORDERED, NEVER REWRITTEN. This modal no longer edits membership — that
+      // is an authorization decision and lives in Access Management — so the
+      // list sent back is the device's OWN stored list with the chosen primary
+      // moved to the front, because position 0 is what the store reads as
+      // primary.
+      //
+      // It is built from the stored record rather than from the picker's
+      // options on purpose. A site deleted since the device was filed has no
+      // name and is absent from the picker; rebuilding from the options would
+      // silently drop it from the device. Reordering cannot.
+      //
+      // A device the client has not loaded sends undefined, which the server
+      // reads as "leave membership alone" — the safe answer, and the reason
+      // this is not `|| []`.
       siteIds:     (function () {
-        var chosen = _selectedModalSites();
-        var prim   = $('rtrModalPrimarySite') ? $('rtrModalPrimarySite').value : '';
-        if (prim && chosen.indexOf(prim) !== -1) {
-          chosen = [prim].concat(chosen.filter(function (id) { return id !== prim; }));
+        var _id  = modalId ? modalId.value.trim() : '';
+        var _rec = _id ? _routers.filter(function (r) { return r.id === _id; })[0] : null;
+        if (!_rec) return undefined;
+        var have = Array.isArray(_rec.siteIds) ? _rec.siteIds.slice()
+                 : (_rec.siteId ? [_rec.siteId] : []);
+        var prim = $('rtrModalPrimarySite') ? $('rtrModalPrimarySite').value : '';
+        if (prim && have.indexOf(prim) !== -1) {
+          have = [prim].concat(have.filter(function (id) { return id !== prim; }));
         }
-        return chosen;
+        return have;
       }()),
       // Only ever `place`. Never `auto`: the store reads an absent `auto` as
       // "keep what you learned", so sending one here would let a save race the

@@ -345,3 +345,135 @@ test('the client falls back to the id for a name it was not given', () => {
   assert.match(body, /names\[id\]\s*=\s*nm\[i\]\s*\|\|\s*id/,
     'a blank name must fall back to the site id, not render empty');
 });
+
+// ── A function called from outside the IIFE that declares it ────────────────
+//
+// app.js is a series of top-level IIFEs, so a `function _foo()` inside one is
+// invisible to the others. Calling it anyway is a ReferenceError at CALL time,
+// not at load, so the file parses, the page renders, and the failure waits for
+// whoever clicks the thing.
+//
+// It has bitten twice. `_syncPrimarySiteSelect` threw every time the device
+// modal opened, and was patched by exporting it onto `window`. That export is
+// exactly why the second one was missed: `_selectedModalSites`, its sibling in
+// the same IIFE, stayed bare — and it sat as the first statement of
+// collectModal(), which is the first statement of BOTH the Save and Test
+// Connection handlers. Both buttons did nothing, silently, and the operator who
+// reported it had no way to tell why.
+//
+// Neither was caught by any test here, because every other check in this file
+// reads the source as text and both calls LOOK fine as text. The scope is the
+// thing that is wrong.
+test('no function is called from outside the IIFE that declares it', () => {
+  const espree = require('espree');
+  const ast = espree.parse(APP, { ecmaVersion: 2020, loc: true, range: true });
+
+  // Top-level IIFEs, and the functions each one declares directly.
+  const iifes = [];
+  for (const node of ast.body) {
+    if (node.type !== 'ExpressionStatement') continue;
+    let call = node.expression;
+    if (call.type === 'UnaryExpression') call = call.argument;
+    if (call.type !== 'CallExpression') continue;
+    const fn = call.callee;
+    if (!fn || (fn.type !== 'FunctionExpression' && fn.type !== 'ArrowFunctionExpression')) continue;
+    // EVERY binding anywhere inside the IIFE, not just the ones at its top
+    // level. A function declared inside another function is still in scope for
+    // its siblings, and collecting only the outer layer reported six such
+    // helpers as cross-IIFE calls when they were nothing of the kind.
+    const declared = new Set();
+    JSON.stringify(fn, (k, v) => {
+      if (v && v.type === 'FunctionDeclaration' && v.id) declared.add(v.id.name);
+      if (v && v.type === 'VariableDeclarator' && v.id && v.id.type === 'Identifier') declared.add(v.id.name);
+      // Parameters bind too: a callback named `cb` is in scope for its own body
+      // and is not a reference to some other IIFE's `cb`.
+      if (v && v.params) for (const prm of v.params) if (prm.type === 'Identifier') declared.add(prm.name);
+      return v;
+    });
+    iifes.push({ range: node.range, declared });
+  }
+  assert.ok(iifes.length > 5, 'expected app.js to be built from top-level IIFEs; found ' + iifes.length);
+
+  // Names visible to everyone: declared at module scope, or hung on window.
+  const moduleScope = new Set();
+  for (const node of ast.body) {
+    if (node.type === 'FunctionDeclaration' && node.id) moduleScope.add(node.id.name);
+    if (node.type === 'VariableDeclaration') {
+      for (const d of node.declarations) if (d.id.type === 'Identifier') moduleScope.add(d.id.name);
+    }
+  }
+  const onWindow = new Set();
+  JSON.stringify(ast, (k, v) => {
+    if (v && v.type === 'AssignmentExpression' && v.left.type === 'MemberExpression'
+        && v.left.object.type === 'Identifier' && v.left.object.name === 'window'
+        && v.left.property.type === 'Identifier') onWindow.add(v.left.property.name);
+    return v;
+  });
+
+  // Browser globals. `confirm` is the one that matters here: it is window.confirm
+  // at every call site, and it only looked suspicious because another IIFE
+  // happens to bind a local of the same name.
+  const GLOBALS = new Set(['confirm', 'alert', 'prompt', 'fetch', 'setTimeout', 'clearTimeout',
+    'setInterval', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame', 'encodeURIComponent',
+    'decodeURIComponent', 'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'String', 'Number', 'Boolean',
+    'Array', 'Object', 'Date', 'Math', 'JSON', 'RegExp', 'Error', 'Promise', 'Set', 'Map', 'io', 'structuredClone']);
+
+  const owner = (pos) => iifes.findIndex(i => pos >= i.range[0] && pos < i.range[1]);
+  const offenders = [];
+  JSON.stringify(ast, (k, v) => {
+    if (v && v.type === 'CallExpression' && v.callee && v.callee.type === 'Identifier') {
+      const name = v.callee.name;
+      if (moduleScope.has(name) || onWindow.has(name) || GLOBALS.has(name)) return v;
+      const here = owner(v.range[0]);
+      if (here === -1) return v;
+      if (iifes[here].declared.has(name)) return v;
+      const declaredElsewhere = iifes.some((i, idx) => idx !== here && i.declared.has(name));
+      if (declaredElsewhere) offenders.push(name + ' at line ' + v.loc.start.line);
+    }
+    return v;
+  });
+
+  assert.deepEqual(offenders, [],
+    'these calls reach a function declared in a DIFFERENT top-level IIFE, which throws ' +
+    'ReferenceError when the handler runs rather than when the file loads');
+});
+
+// ── The device modal chooses a primary; it does not edit membership ─────────
+//
+// Which sites a device belongs to decides WHO CAN REACH IT, so it is an
+// authorization decision and lives in Access Management behind the
+// administrator gate — the same reasoning that made PUT /api/routers/:id strip
+// the field for anyone without system:principals. The modal keeps only a
+// primary picker, which chooses where the device is drawn on the map.
+//
+// The risk this pins is specific: a modal that rebuilt siteIds from its own
+// picker would silently DROP any site missing from that picker, and a site
+// deleted since the device was filed has no name and is deliberately absent
+// from it. Reordering the stored list cannot lose one; rebuilding can.
+test('the device modal has no membership control', () => {
+  assert.ok(!/id="rtrModalSites"/.test(MARKUP),
+    'the multi-select is gone; membership is set in Access Management');
+  assert.match(MARKUP, /id="rtrModalPrimarySite"/, 'the primary picker stays');
+  assert.ok(!/_selectedModalSites|_populateSiteSelect|_syncPrimarySiteSelect/.test(
+    APP.replace(/^\s*\/\/.*$/gm, '')),
+    'the helpers that drove the removed select must be deleted, not left guarded');
+});
+
+test('saving reorders the stored site list rather than rebuilding it', () => {
+  const at = APP.indexOf('siteIds:     (function () {');
+  assert.ok(at > 0, 'the siteIds builder moved or was renamed');
+  const block = APP.slice(at, at + 900);
+
+  // It must read the DEVICE RECORD, not the picker's options.
+  assert.match(block, /_routers\.filter/,
+    'the list must come from the stored record, so a nameless site is not dropped');
+  assert.match(block, /\.concat\(have\.filter/,
+    'the primary is moved to the front of the existing list');
+  assert.ok(!/rtrModalPrimarySite'\)\.value\s*\]/.test(block),
+    'the list must never be built FROM the primary picker alone');
+
+  // An unknown device sends undefined, which the server reads as "leave
+  // membership alone". `|| []` here would wipe every site the device is in.
+  assert.match(block, /if \(!_rec\) return undefined;/,
+    'a device the client has not loaded must not send an empty membership');
+});

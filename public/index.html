@@ -6349,23 +6349,18 @@
           <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
         </div>
         <div class="sform-group">
-          <label class="sform-label">Sites</label>
-          <!-- A device may belong to several sites (#117). Multi-select rather
-               than a checkbox list so it stays one .sform-input control like
-               every other field in this form. -->
-          <select class="sform-input" id="rtrModalSites" multiple size="4"
-                  aria-label="Sites this device belongs to"></select>
-          <div class="form-hint">Hold Ctrl (Cmd on a Mac) to pick more than one. A device in several sites is reachable from a grant on any of them.</div>
-        </div>
-        <div class="sform-group">
           <label class="sform-label">Primary site</label>
-          <!-- Explicit rather than "whichever is first": the primary decides
-               where the device is drawn on the map when it has no coordinates of
-               its own, so it is a choice worth showing. Offers only the sites
-               selected above. -->
+          <!-- MEMBERSHIP IS NOT EDITED HERE. Which sites a device belongs to is
+               an authorization decision — it changes who can reach the device —
+               so it lives in Access Management with the rest of them, behind the
+               same administrator gate. This picker only chooses WHICH of the
+               sites it already belongs to places it on the map when it has no
+               coordinates of its own, so it offers exactly those and nothing
+               else. Saving reorders that list; it never adds or removes. -->
           <select class="sform-input" id="rtrModalPrimarySite" aria-label="Primary site, used for the map location">
             <option value="">— No site —</option>
           </select>
+          <div class="form-hint">Decides where this device is drawn on the map when it has no location of its own. To change which sites it belongs to, use Settings → Access Management → Sites.</div>
         </div>
         <!-- Location (issue #96). Deliberately a search, not two number boxes:
              coordinates are derived from the town, never typed. Left blank the
