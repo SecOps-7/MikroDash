@@ -216,3 +216,80 @@ test('each consumer asks for the count it means', () => {
   assert.match(build, /s\.bandwidthSamples\.toLocaleString/,
     'the bandwidth PDF section reads bandwidthSamples');
 });
+
+// ── The PDF has to be able to DRAW what it is asked to draw ─────────────────
+//
+// The report is set in the standard-14 Helvetica, whose WinAnsi charset is
+// small. pdfkit does not substitute for a glyph the font lacks: it emits the
+// raw code point and advances by ZERO, so the character is silently invisible
+// and the text around it closes up. Nothing throws and nothing logs.
+//
+// The date range on the front page used U+2192 RIGHTWARDS ARROW, so every
+// report that left the building by email read
+//
+//     2026-08-25 14:03    2026-08-26 14:03
+//
+// with no separator at all. Measured, not assumed: widthOfString('→') is
+// 0, against 5.56 for the en dash now used and 10 for an em dash.
+test('every character the PDF draws has a glyph in the font it uses', () => {
+  const PDFDocument = require('pdfkit');
+  const doc = new PDFDocument({ autoFirstPage: false });
+  doc.font('Helvetica').fontSize(10);
+
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'reports', 'pdf.js'), 'utf8');
+  // Only literals that are DRAWN. Comments are stripped first, so prose about
+  // the bug (which necessarily names the arrow) cannot fail its own test.
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  const bad = [];
+  for (const ch of new Set(code.replace(/[\x00-\x7F]/g, ''))) {
+    if (doc.widthOfString(ch) === 0) bad.push(ch + ' (U+' + ch.codePointAt(0).toString(16).toUpperCase() + ')');
+  }
+  assert.deepEqual(bad, [],
+    'these characters measure zero width in Helvetica and would render invisibly');
+});
+
+// ── One date format, whatever the timezone setting ──────────────────────────
+//
+// The label helper had two branches and they disagreed about what a date looks
+// like. The timezone branch handed a PARTIAL date to sv-SE, chosen because
+// sv-SE renders a COMPLETE date ISO-style. Asked for month and day alone it
+// answers 25/08, so the field order reversed against the other branch and
+// 08-09 and 09-08 became the same day depending on a setting the reader of the
+// PDF cannot see.
+const HOUR_MS = 3600000, DAY_MS = 86400000;
+
+test('a date label reads the same way with and without a display timezone', () => {
+  const ts = Date.UTC(2026, 7, 25, 6, 0);   // 25 Aug 2026, 06:00 UTC
+
+  for (const span of [2 * DAY_MS, 10 * DAY_MS]) {
+    const withTz = Pdf._tickLabel(ts, span, 'Europe/Berlin');
+    const plain  = Pdf._tickLabel(ts, span, '');
+    // MM-DD, both of them. Not equal values: the zone shifts the instant, and
+    // for the short span the time differs too. The SHAPE is the invariant.
+    assert.match(withTz, /^\d{2}-\d{2}( \d{2}:\d{2})?$/,
+      'the timezone path drew "' + withTz + '", which is not MM-DD');
+    assert.match(plain, /^\d{2}-\d{2}( \d{2}:\d{2})?$/,
+      'the plain path drew "' + plain + '"');
+    assert.ok(!withTz.includes('/'),
+      'a slash means a locale chose the layout: "' + withTz + '"');
+  }
+});
+
+test('the month stays in front of the day in every zone', () => {
+  // The specific failure. 25 August must never render as 25-08, in any zone,
+  // because the other branch renders it 08-25.
+  const ts = Date.UTC(2026, 7, 25, 12, 0);
+  for (const tz of ['Australia/Adelaide', 'America/New_York', 'Asia/Kolkata', 'UTC']) {
+    const lbl = Pdf._tickLabel(ts, 10 * DAY_MS, tz);
+    assert.equal(lbl.slice(0, 2), '08', tz + ' drew "' + lbl + '", day-first');
+  }
+});
+
+test('a short span still shows a time, and midnight is 00 rather than 24', () => {
+  // en-GB with hour12:false can render midnight as 24, which would print an
+  // hour that does not exist and sort after 23:59 on the same axis.
+  const midnight = Date.UTC(2026, 7, 25, 0, 0);
+  assert.equal(Pdf._tickLabel(midnight, 6 * HOUR_MS, 'UTC'), '00:00');
+  assert.match(Pdf._tickLabel(midnight, 2 * DAY_MS, 'UTC'), /^08-25 00:00$/);
+});
