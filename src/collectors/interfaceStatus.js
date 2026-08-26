@@ -89,6 +89,9 @@ class InterfaceStatusCollector {
     this.rid = rid || '';
 
     this._ifaces     = new Map(); // name -> committed interface row
+    // How many interfaces the last COMPLETE print cycle held. Guards the
+    // debounce path in _commitMeta against installing a truncated list (#119).
+    this._lastCycleSize = 0;
     this._addrs      = new Map(); // interface name -> [cidr, ...]
     this._eth        = new Map(); // ether name -> committed PHY error row
     this._ifacesNext = new Map(); // accumulator for current metadata tick
@@ -270,6 +273,12 @@ class InterfaceStatusCollector {
     );
     stream.on('data', (packet) => {
       if (!packet || !packet.name || typeof packet.name !== 'string') return;
+      // `=interval=N` re-prints the WHOLE list every cycle, so a name already in
+      // the batch means the previous cycle just ended. That repeat is the only
+      // in-band delimiter this stream has — there is no per-cycle sentinel — and
+      // it is what lets _commitMeta know a batch is COMPLETE rather than
+      // "whatever arrived before a 300 ms timer happened to fire" (#119).
+      if (this._ifacesNext.has(packet.name)) this._commitMeta(true);
       this._ifacesNext.set(packet.name, packet);
       this._scheduleMetaCommit();
     });
@@ -362,14 +371,33 @@ class InterfaceStatusCollector {
     this._metaDebounce = setTimeout(() => this._commitMeta(), 300);
   }
 
-  _commitMeta() {
+  /**
+   * @param {boolean} [fromCycleWrap] the interface stream saw a repeated name,
+   *   so the batch it is holding is a whole print cycle.
+   */
+  _commitMeta(fromCycleWrap) {
+    // A wrap can land while the debounce is still pending; leaving it armed
+    // would fire a second commit over the fresh batch.
+    clearTimeout(this._metaDebounce);
     this._metaDebounce = null;
     // Deltas are only meaningful against a fresh counter read. A commit driven
     // solely by the address or ethernet stream leaves _ifaces untouched, and
     // differencing it against itself would report a zero-error window that
     // never actually elapsed.
-    const ifacesTicked = this._ifacesNext.size > 0;
+    //
+    // A BATCH SMALLER THAN THE LAST COMPLETE CYCLE IS NOT TRUSTED unless a wrap
+    // proved the cycle ended. The debounce cannot delimit a burst: if any gap
+    // between two packets of one cycle exceeds 300 ms it fires MID-CYCLE, and
+    // this swap would then install a partial map as the whole truth — which is
+    // issue #119, the Traffic dropdown losing all but one interface on a
+    // CCR2004. Sizing rather than waiting for the wrap unconditionally is what
+    // keeps refreshNow() instant: a newly created VETH makes the cycle BIGGER,
+    // so it still commits on the debounce. A removed interface makes it
+    // smaller, so it waits for the wrap, one meta interval at worst.
+    const ifacesTicked = this._ifacesNext.size > 0 &&
+                         (fromCycleWrap || this._ifacesNext.size >= this._lastCycleSize);
     if (ifacesTicked) {
+      this._lastCycleSize = this._ifacesNext.size;
       this._ifaces     = this._ifacesNext;
       this._ifacesNext = new Map();
     }
