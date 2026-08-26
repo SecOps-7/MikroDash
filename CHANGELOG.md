@@ -2,6 +2,49 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.37] - Fixes for the Devices page, reports and alerts
+
+### Fixed
+
+- **The Save and Test Connection buttons in the device editor did nothing.** A scripting error broke
+  both, silently, with no message to say why. This is what made sites look unremovable in
+  [#117](https://github.com/SecOps-7/MikroDash/issues/117).
+- **Editing a device no longer asks you to retype its password.** The field says "leave blank to keep
+  current", but saving then failed because the connection test had no password to use. The stored one
+  is now reused, as long as the host, port, username and TLS settings are unchanged.
+- **The Traffic dropdown lost all but one interface** after a couple of minutes. Reported on a
+  CCR2004; more likely the more interfaces a router has.
+  ([#119](https://github.com/SecOps-7/MikroDash/issues/119), thanks
+  [@steenekenm](https://github.com/steenekenm))
+- **The site filter could label a site wrongly** on the Devices page when a device still listed a
+  deleted site. Picking that entry filtered to the wrong site.
+- **Report PDFs had no separator in the date range.** The character used had no glyph in the report
+  font, so it was invisible in every report.
+- **Report chart dates flipped day and month** when a display timezone was set, so 08-09 and 09-08
+  could mean the same day depending on a setting the reader cannot see.
+- **A failed ntfy notification now says why** instead of showing a bare status code.
+- The Backups table no longer fills with runs that found nothing to back up.
+- A report run with no history left the box blank instead of saying so, and its table put values
+  under the wrong headings.
+- One malformed row no longer blanks the whole Audit table.
+- The Bandwidth and Dashboard charts could disagree by one sample after a router corrected its clock.
+- Restoring a backup on a router with no stored backup settings sent an invalid password.
+
+### Changed
+
+- **Site membership is now set in Settings → Access Management → Sites only.** The device editor
+  keeps a **Primary site** picker, which chooses where the device is drawn on the map. Membership
+  decides who can reach a device, so it belongs with the other access controls.
+
+### Internal
+
+- Interface cycles are delimited by the marker RouterOS already sends, rather than by a timer.
+- A test now catches the class of scripting error behind the broken buttons, which had appeared
+  twice.
+- Two notes in the RouterOS patch file are corrected against fresh hardware traces; one described a
+  failure as silent when it is not.
+- 1588 tests, 25 more than 0.7.36.
+
 ## [0.7.36] - Devices can belong to several sites
 
 ### New
