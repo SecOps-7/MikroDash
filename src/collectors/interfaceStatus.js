@@ -89,8 +89,10 @@ class InterfaceStatusCollector {
     this.rid = rid || '';
 
     this._ifaces     = new Map(); // name -> committed interface row
-    // How many interfaces the last COMPLETE print cycle held. Guards the
-    // debounce path in _commitMeta against installing a truncated list (#119).
+    // The `.section` stamp of the interval cycle currently being accumulated,
+    // and how many interfaces the last COMPLETE cycle held. Together they keep
+    // a truncated list from being installed as the truth (#119).
+    this._ifaceSection  = undefined;
     this._lastCycleSize = 0;
     this._addrs      = new Map(); // interface name -> [cidr, ...]
     this._eth        = new Map(); // ether name -> committed PHY error row
@@ -261,6 +263,12 @@ class InterfaceStatusCollector {
 
   _startIfStream() {
     if (this._ifStream || !this.ros.connected) return;
+    // A restart begins its cycle numbering again at 0, so anything half
+    // accumulated from the previous stream belongs to nobody. Dropping it also
+    // stops the first packet of the new stream reading as a cycle boundary and
+    // committing that orphan as a complete list.
+    this._ifacesNext.clear();
+    this._ifaceSection = undefined;
     const intervalSec = Math.max(1, Math.round(this.metaPollMs / 1000));
     console.log('%s', this._lbl + ' streaming /interface/print, interval=' + intervalSec + 's');
     const stream = this.ros.stream(
@@ -273,12 +281,26 @@ class InterfaceStatusCollector {
     );
     stream.on('data', (packet) => {
       if (!packet || !packet.name || typeof packet.name !== 'string') return;
-      // `=interval=N` re-prints the WHOLE list every cycle, so a name already in
-      // the batch means the previous cycle just ended. That repeat is the only
-      // in-band delimiter this stream has — there is no per-cycle sentinel — and
-      // it is what lets _commitMeta know a batch is COMPLETE rather than
-      // "whatever arrived before a 300 ms timer happened to fire" (#119).
-      if (this._ifacesNext.has(packet.name)) this._commitMeta(true);
+      // `.section` IS THE CYCLE DELIMITER, and it was on the wire all along.
+      // RouterOS stamps every packet of an `=interval=N` response with the
+      // cycle it belongs to — 0, 1, 2, … — so a changed section means the
+      // previous cycle ended and the batch we are holding is COMPLETE, rather
+      // than "whatever arrived before a 300 ms timer happened to fire" (#119).
+      //
+      // Verified on a hAP AC2 (RouterOS 7.24): /interface/print =interval=3
+      // delivers nine packets stamped .section=0, then nine stamped 1, and so
+      // on. It is on the monitor-shaped commands too, which is why this and not
+      // `!done` is the delimiter worth relying on: a `print =interval=N`
+      // terminates each cycle with `!done` but `/interface/monitor-traffic`
+      // never does, so only `.section` covers both.
+      //
+      // Guarded on !== undefined rather than truthiness: the first cycle is
+      // section '0'.
+      const _sec = packet['.section'];
+      if (_sec !== undefined && this._ifaceSection !== undefined && _sec !== this._ifaceSection) {
+        this._commitMeta(true);
+      }
+      if (_sec !== undefined) this._ifaceSection = _sec;
       this._ifacesNext.set(packet.name, packet);
       this._scheduleMetaCommit();
     });
@@ -385,15 +407,20 @@ class InterfaceStatusCollector {
     // differencing it against itself would report a zero-error window that
     // never actually elapsed.
     //
-    // A BATCH SMALLER THAN THE LAST COMPLETE CYCLE IS NOT TRUSTED unless a wrap
-    // proved the cycle ended. The debounce cannot delimit a burst: if any gap
+    // A BATCH SMALLER THAN THE LAST COMPLETE CYCLE IS NOT TRUSTED unless the
+    // `.section` stamp changed and proved the cycle ended. The debounce cannot
+    // delimit a burst — it measures silence, not completeness — so if any gap
     // between two packets of one cycle exceeds 300 ms it fires MID-CYCLE, and
-    // this swap would then install a partial map as the whole truth — which is
-    // issue #119, the Traffic dropdown losing all but one interface on a
-    // CCR2004. Sizing rather than waiting for the wrap unconditionally is what
-    // keeps refreshNow() instant: a newly created VETH makes the cycle BIGGER,
-    // so it still commits on the debounce. A removed interface makes it
-    // smaller, so it waits for the wrap, one meta interval at worst.
+    // this swap would install a partial map as the whole truth. That is issue
+    // #119, the Traffic dropdown losing all but one interface on a CCR2004.
+    //
+    // The size test is not redundant with the section test: it covers the FIRST
+    // cycle after a (re)start, which has no previous section to differ from.
+    // That is what keeps refreshNow() instant — it restarts the streams so a
+    // newly created VETH appears at once rather than a meta interval later,
+    // where its absence reads as a failed save. A bigger cycle commits on the
+    // debounce; a smaller one waits for the section change, which arrives with
+    // the first packet of the next cycle.
     const ifacesTicked = this._ifacesNext.size > 0 &&
                          (fromCycleWrap || this._ifacesNext.size >= this._lastCycleSize);
     if (ifacesTicked) {
