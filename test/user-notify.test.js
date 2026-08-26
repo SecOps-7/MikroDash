@@ -272,3 +272,75 @@ test("in authMode 'none' a saved config still delivers, because everyone is admi
     rbac.bump();
   }
 });
+
+// ── An ntfy failure has to say WHY ──────────────────────────────────────────
+//
+// notifier.js has a `_reason()` helper whose own comment names ntfy as one of
+// the two channels that return a human explanation: "without it a failure reads
+// as a bare status code". Telegram and Pushbullet go through _httpsPost and get
+// it; sendNtfy had its own request and did not, even though it had already
+// buffered the body two lines before throwing it away.
+//
+// Reachable on any misconfigured topic: a token-protected one answers 403 with
+// a body saying authentication is required, and the operator saw `HTTP 403`.
+//
+// Driven over a real loopback server rather than a source scan, because
+// sendNtfy picks http or https off the URL scheme, so the whole path runs.
+const http = require('node:http');
+const Notifier = require('../src/notifier');
+
+function _ntfyServer(status, payload) {
+  const srv = http.createServer((req, res) => {
+    res.writeHead(status, { 'Content-Type': 'application/json' });
+    res.end(payload);
+  });
+  return new Promise((resolve) => {
+    srv.listen(0, '127.0.0.1', () => resolve({
+      srv,
+      url: 'http://127.0.0.1:' + srv.address().port + '/alerts',
+      close: () => new Promise((r) => srv.close(r)),
+    }));
+  });
+}
+
+test('an ntfy rejection carries the server\'s explanation, not just a status', async () => {
+  const s = await _ntfyServer(403, '{"code":40301,"http":403,"error":"unauthorized"}');
+  try {
+    await assert.rejects(
+      () => Notifier.testChannel({ ntfyUrl: s.url }, 'ntfy'),
+      (e) => {
+        assert.match(e.message, /403/, 'the status must survive');
+        assert.match(e.message, /unauthorized/,
+          'the reason the server gave must reach the operator, got: ' + e.message);
+        return true;
+      });
+  } finally { await s.close(); }
+});
+
+test('a body with no recognisable reason still reports the status alone', async () => {
+  // _reason returns '' for an empty body, so the message must not gain a
+  // dangling separator with nothing after it.
+  const s = await _ntfyServer(500, '');
+  try {
+    await assert.rejects(
+      () => Notifier.testChannel({ ntfyUrl: s.url }, 'ntfy'),
+      (e) => {
+        assert.match(e.message, /^HTTP 500$/, 'got: ' + e.message);
+        return true;
+      });
+  } finally { await s.close(); }
+});
+
+test('a long error page cannot flood the log', async () => {
+  // _reason truncates at 160 characters and collapses whitespace, which is why
+  // handing it an arbitrary body is safe.
+  const s = await _ntfyServer(400, '<html>\n' + 'x'.repeat(5000) + '</html>');
+  try {
+    await assert.rejects(
+      () => Notifier.testChannel({ ntfyUrl: s.url }, 'ntfy'),
+      (e) => {
+        assert.ok(e.message.length < 300, 'message was ' + e.message.length + ' chars');
+        return true;
+      });
+  } finally { await s.close(); }
+});

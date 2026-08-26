@@ -194,7 +194,12 @@ async function sendNtfy(topicUrl, token, title, body) {
       res.on('data', c => { buf += c; });
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) resolve(buf);
-        else reject(new Error('HTTP ' + res.statusCode));
+        // _reason(buf), not a bare status. ntfy answers a token-protected topic
+        // with a body saying so, and this path had already buffered it before
+        // throwing it away — which is the exact outcome _reason exists to
+        // prevent, as the comment above it says. It truncates, so an HTML error
+        // page cannot flood the log.
+        else reject(new Error('HTTP ' + res.statusCode + _reason(buf)));
       });
     });
     req.on('error', reject);
