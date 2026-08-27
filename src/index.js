@@ -2722,7 +2722,14 @@ function _parseSiteBody(body, { partial } = {}) {
   const b   = body || {};
 
   if (b.name !== undefined || !partial) {
-    const name = String(b.name === undefined ? '' : b.name).trim();
+    // `== null`, loose, matching the description check below — a JSON null is a
+    // MISSING name, not the four-character string "null". With the strict
+    // `=== undefined` this fell through to String(null), which passes the 1-64
+    // check and creates a record literally called "null"; posting a second one
+    // then answers 409 "a site with that name already exists", about a field
+    // the caller sent as empty. `{"name": null}` is what a cleared form field
+    // serialises to, so this is reachable from the UI, not just from curl.
+    const name = String(b.name == null ? '' : b.name).trim();
     if (!name || name.length > 64) return { error: 'Name must be 1-64 characters' };
     out.name = name;
   }
@@ -2764,7 +2771,14 @@ function _parseSiteBody(body, { partial } = {}) {
 function _parseName(body, { partial } = {}) {
   const out = {}, b = body || {};
   if (b.name !== undefined || !partial) {
-    const name = String(b.name === undefined ? '' : b.name).trim();
+    // `== null`, loose, matching the description check below — a JSON null is a
+    // MISSING name, not the four-character string "null". With the strict
+    // `=== undefined` this fell through to String(null), which passes the 1-64
+    // check and creates a record literally called "null"; posting a second one
+    // then answers 409 "a site with that name already exists", about a field
+    // the caller sent as empty. `{"name": null}` is what a cleared form field
+    // serialises to, so this is reachable from the UI, not just from curl.
+    const name = String(b.name == null ? '' : b.name).trim();
     if (!name || name.length > 64) return { error: 'Name must be 1-64 characters' };
     out.name = name;
   }

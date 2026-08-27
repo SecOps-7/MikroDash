@@ -805,3 +805,41 @@ test('the test route only falls back when the submitted password is empty', () =
   assert.ok(line.includes('Rbac.requireGlobalAdmin'),
     'the test route must stay administrator-only');
 });
+
+// ── A JSON null name is missing, not the string "null" (ToDo §6) ────────────
+//
+// `_parseSiteBody` and `_parseName` tested `b.name === undefined` — strict — so
+// a JSON null fell through to String(null), which is four characters, passes
+// the 1-64 length check, and creates a record literally called "null". A second
+// such POST is then refused with 409 "a site with that name already exists",
+// which is a confusing thing to be told about a field you sent as empty.
+//
+// `{"name": null}` is what a cleared form field serialises to, so this is
+// reachable from the UI rather than only from curl.
+//
+// The tell that it was accidental rather than deliberate: the DESCRIPTION check
+// two lines below each one already used loose `== null` and never had the
+// problem. The two lines are now consistent, and this test pins them together
+// so a future edit cannot quietly split them again.
+test('a null name is treated as missing by every parser that takes one', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+
+  const nameChecks = src.match(/const name = String\(b\.name [^)]*\)\.trim\(\);/g) || [];
+  assert.ok(nameChecks.length >= 2,
+    'expected the site and principal name parsers; found ' + nameChecks.length);
+  for (const line of nameChecks) {
+    assert.ok(!/b\.name === undefined/.test(line),
+      'strict === undefined lets a JSON null through as the string "null": ' + line);
+    assert.match(line, /b\.name == null/,
+      'a null name must be read as missing: ' + line);
+  }
+
+  // The sibling that was always right. If someone "tidies" these to match by
+  // making the description strict, that is the same bug in the other field.
+  const descChecks = src.match(/const d = String\(b\.description [^)]*\)\.trim\(\);/g) || [];
+  assert.ok(descChecks.length >= 2, 'expected the matching description parsers');
+  for (const line of descChecks) {
+    assert.match(line, /b\.description == null/,
+      'the description check must stay loose too: ' + line);
+  }
+});
