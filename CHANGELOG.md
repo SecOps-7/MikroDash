@@ -2,6 +2,42 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.38] - Release notes in the Update dialog, and the Traffic dropdown fix that actually works
+
+### New
+
+- **The Update dialog shows the release notes** for the version it is offering, in a scrollable box
+  above the reboot warning. The decision to restart a router is now made against what changed rather
+  than against two version numbers. The notes come from MikroTik, because the router does not carry
+  them; an install with no route to the internet sees "Release notes unavailable" and everything else
+  works as before.
+
+### Fixed
+
+- **The Traffic dropdown still lost its interfaces in 0.7.37.** The earlier fix did not prevent the
+  problem, it completed it. An interface that reports late, such as a ZeroTier tunnel, ended up
+  replacing the whole list instead of joining it, which is why one reporter's dropdown contained
+  exactly `zerotier1`. ([#119](https://github.com/SecOps-7/MikroDash/issues/119), thanks
+  [@steenekenm](https://github.com/steenekenm) and
+  [@erion1979-cell](https://github.com/erion1979-cell))
+- **Alerts went quiet on large fleets.** Past 500 tracked interfaces, VPN peers, NetWatch hosts or
+  BGP peers, the alerter discarded what it knew about all of them at once. On a router at that size
+  a fleet-wide outage produced a single alert. It now forgets only what the router has stopped
+  reporting.
+- **A second RouterOS release is announced.** A router left un-updated across two releases was only
+  ever told about the first.
+- **A site could be created called "null"** by a form field that had been cleared, and creating a
+  second one then reported that the name was already taken.
+- Saving site membership sent every open browser a duplicate refresh.
+
+### Internal
+
+- Release-note lookups validate the version against a strict whitelist before any request is made,
+  cache per version, cap the response size while it downloads and time out.
+- A test suite can be confidently green about something it never checks: several rules added
+  recently were verified by removing them and watching the tests still pass. Those gaps are closed.
+- 1620 tests, 25 more than 0.7.37.
+
 ## [0.7.37] - Fixes for the Devices page, reports and alerts
 
 ### Fixed
