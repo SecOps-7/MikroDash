@@ -3134,7 +3134,7 @@ app.put('/api/sites/:id/routers', Rbac.requireGlobalAdmin, (req, res) => {
     }
     if (changed) {
       // A router's site determines who can reach it through a site-scoped grant.
-      Rbac.bump(); _broadcastPermsChanged(); _broadcastPermsChanged();
+      Rbac.bump(); _broadcastPermsChanged();
       _broadcastRoutersList();
     }
     res.json({ ok: true, changed });
