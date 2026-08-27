@@ -886,10 +886,22 @@ describe('POST /api/routers/test error classification', () => {
 
     // classifyError.js splits reason onto its own line; take the branch above it.
     const canonIdx  = canon.split('\n').findIndex(l => l.includes('Authentication failed'));
+    // THE EXTRACTION MUST PROVE IT FOUND SOMETHING. A ledger whose extractor
+    // silently returns nothing compares two empty sets and passes for ever —
+    // green about a relationship it can no longer see. Reword either sentence
+    // and this currently dies on a TypeError, which is a crash rather than a
+    // verdict: it happens to fail, and one `|| ''` anywhere in this path would
+    // turn that into a permanent pass. Assert, rather than rely on the crash.
+    assert.ok(canonIdx > 0,
+      'could not locate the canonical auth branch in classifyError.js — a ledger ' +
+      'cannot compare what it cannot find, so this is a failure, not a pass');
     const canonAuth = canon.split('\n')[canonIdx - 1] + canon.split('\n')[canonIdx];
     const hereAuth  = authLine(handler);
 
     assert.ok(hereAuth, 'the auth branch moved or was renamed');
+    assert.ok(patterns(canonAuth).size > 0,
+      'the canonical branch was found but yielded no patterns — the extractor has ' +
+      'stopped understanding the shape it reads');
     const missing = [...patterns(canonAuth)].filter(p => !patterns(hereAuth).has(p));
     assert.deepEqual(missing, [],
       'classifyError.js recognises these and the test route does not, so the same ' +
