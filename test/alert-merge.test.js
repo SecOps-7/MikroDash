@@ -363,3 +363,69 @@ test('a rebuilt evaluator does not re-announce an update it already filed', () =
   assert.equal(resolved.filter(r => r.alertType === 'routeros_update').length, 0,
     'and must not close it either');
 });
+
+// ── Crossing the state bound must not silence the fleet ─────────────────────
+//
+// The prev-state maps are capped so churn — dynamic pppoe/l2tp/WireGuard peer
+// names — cannot grow them for the lifetime of the evaluator. The cap used to
+// be `if (m.size > STATE_MAX) m.clear()`, run inside the per-item loop before
+// every write, so crossing it forgot the whole fleet MID-ITERATION. Everything
+// after the clear read `prev === undefined`, and an unknown previous state is
+// not a transition, so no alert fired.
+//
+// Measured before the fix: 501 interfaces going down produced ONE alert.
+//
+// The 500 case is the believability twin. Without it, "501 produces 501" could
+// pass for a reason that has nothing to do with the boundary.
+// `ether` prefix on purpose: _ifaceType falls back to the NAME when no type is
+// given, and anything unrecognised lands on notifIfaceOther. Both toggles are
+// enabled below so the churn peers count too.
+const fleet = (n, running) => ({
+  interfaces: Array.from({ length: n }, (_, i) => ({ name: 'ether' + i, type: 'ether', running, disabled: false })),
+});
+const IF_ON = { notifIfaceUpDown: true, notifIfaceEther: true, notifIfaceOther: true };
+
+test('a fleet at the state bound alerts on every interface', () => {
+  openKeys.clear();
+  const { ev } = harness(IF_ON);
+  ev.evaluate('ifstatus:update', fleet(500, true));
+  ev.evaluate('ifstatus:update', fleet(500, false));
+  assert.equal(inserted.filter(r => r.alertType === 'interface_down').length, 500);
+});
+
+test('a fleet ONE OVER the state bound still alerts on every interface', () => {
+  // The regression. One extra interface used to cost 500 alerts, not one.
+  openKeys.clear();
+  const { ev } = harness(IF_ON);
+  ev.evaluate('ifstatus:update', fleet(501, true));
+  ev.evaluate('ifstatus:update', fleet(501, false));
+  assert.equal(inserted.filter(r => r.alertType === 'interface_down').length, 501,
+    'crossing the bound must not discard the previous state of the whole fleet');
+});
+
+test('the bound drops departed keys and keeps the ones still present', () => {
+  // Why it prunes by ABSENCE rather than by age. Map.set on an existing key does
+  // not move it, so insertion order is not recency: a long-lived interface
+  // re-set on every pass keeps position 0 forever, while the churn that caused
+  // the growth sits at the end. An oldest-first trim would evict exactly the
+  // entries that must be kept.
+  openKeys.clear();
+  const { ev } = harness(IF_ON);
+
+  // A stable fleet, plus enough transient peers to push it over the bound.
+  const stable = Array.from({ length: 10 }, (_, i) => ({ name: 'ether' + i, type: 'ether', running: true, disabled: false }));
+  const churn  = (gen) => Array.from({ length: 495 }, (_, i) => ({ name: 'pppoe-' + gen + '-' + i, type: 'pppoe', running: true, disabled: false }));
+
+  ev.evaluate('ifstatus:update', { interfaces: stable.concat(churn(1)) });
+  ev.evaluate('ifstatus:update', { interfaces: stable.concat(churn(2)) });   // generation 1 is gone
+  ev.evaluate('ifstatus:update', { interfaces: stable.concat(churn(3)) });   // and so is generation 2
+
+  // The stable interfaces must still have their state, so a real transition is
+  // still detected after all that churn.
+  inserted.length = 0;
+  ev.evaluate('ifstatus:update', {
+    interfaces: stable.map(i => ({ ...i, running: false })).concat(churn(3)),
+  });
+  assert.equal(inserted.filter(r => r.alertType === 'interface_down').length, 10,
+    'the long-lived interfaces kept their previous state through the churn');
+});

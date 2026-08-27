@@ -217,7 +217,45 @@ function createEvaluator(getNameFn, getRouterFn) {
   // had no cap at all — dynamic pppoe/l2tp/WireGuard peers grew them for the
   // lifetime of the evaluator. Same bound, same reasoning.
   const STATE_MAX = 500;
-  function _capMap(m) { if (m.size > STATE_MAX) m.clear(); }
+
+  /**
+   * Bound a prev-state map by dropping entries that no longer EXIST.
+   *
+   * This used to be `if (m.size > STATE_MAX) m.clear()`, called inside the
+   * per-item loop before every write. Crossing the bound therefore forgot the
+   * previous state of the entire fleet, mid-iteration: measured, 501 interfaces
+   * going down produced ONE alert instead of 501, because everything after the
+   * clear read `prev === undefined` and an unknown previous state is not a
+   * transition. Then the map refilled from the clear point and the split simply
+   * moved. One entry over the line silenced the fleet.
+   *
+   * NOT A TRIM, and this is the trap. `Map.set` on an EXISTING key does not move
+   * it, so insertion order is not recency: an interface that has been present
+   * since startup and is re-set on every single pass keeps position 0 forever,
+   * while the churning pppoe/l2tp/WireGuard peers that caused the growth sit at
+   * the end. An oldest-first trim evicts exactly what must be kept and keeps
+   * exactly what should go. Verified rather than assumed.
+   *
+   * So: prune what is absent from the CURRENT payload. Only that can never
+   * forget something still live — clearing forgets everything periodically, and
+   * LRU forgets the least-recently-seen, which for a stable fleet is still
+   * something real.
+   *
+   * STILL GATED ON THE BOUND, deliberately. Under STATE_MAX this touches
+   * nothing, which matters because a payload is not always the whole fleet:
+   * ifstatus:update can carry a provisional snapshot mid-cycle (see
+   * interfaceStatus._commitMeta), and pruning against a partial list would drop
+   * live state and recreate the very bug. Above the bound that risk is worth
+   * taking, because the alternative there is discarding all of it.
+   *
+   * If more than STATE_MAX entries are genuinely live the map simply stays that
+   * size. That is correct: the bound exists to stop CHURN accumulating, not to
+   * cap a large fleet, and a real fleet is not a leak.
+   */
+  function _capMap(m, live) {
+    if (m.size <= STATE_MAX || !live) return;
+    for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+  }
 
   // Fraction the advertised prefix count must move to be worth an alert.
   const BGP_PFX_THRESH = 0.2;
@@ -421,7 +459,12 @@ function createEvaluator(getNameFn, getRouterFn) {
     }
 
     if (event === 'ifstatus:update' && Array.isArray(data.interfaces)) {
+      // Collected as we go and applied ONCE after the loop. The cap used to run
+      // before every write, which is how it managed to clear the map halfway
+      // through a fleet.
+      const _live = new Set();
       for (const iface of data.interfaces) {
+        _live.add(iface.name);
         const prev       = prevIfState.get(iface.name);
         const wasRunning = prev ? prev.running : undefined;
         const isRunning  = !!iface.running;
@@ -444,13 +487,15 @@ function createEvaluator(getNameFn, getRouterFn) {
             fire('iface:' + iface.name + ':up',   { alertType:'Interface Up',   resolveType:'interface_down', ifaceName:iface.name, comment:iface.comment || '', status:'up',   detail:iface.name + ' came up'   }, true, ifKeys);
           }
         }
-        _capMap(prevIfState);
         prevIfState.set(iface.name, { running: isRunning, disabled: isDisabled });
       }
+      _capMap(prevIfState, _live);
     }
 
     if (event === 'vpn:update' && Array.isArray(data.tunnels)) {
+      const _live = new Set();
       for (const tunnel of data.tunnels) {
+        _live.add(tunnel.name);
         // VpnCollector.peerState emits 'active' | 'stale' | 'never' — there is no
         // 'connected'. It previously emitted 'connected'/'idle' and this compared
         // against that; when the collector's contract changed this consumer was
@@ -467,13 +512,18 @@ function createEvaluator(getNameFn, getRouterFn) {
             fire('vpn:' + tunnel.name + ':up',   { alertType:'VPN Connected',    resolveType:'vpn_disconnected', vpnPeer:tunnel.name, comment:tunnel.comment || '', status:'up',   detail:'VPN peer ' + tunnel.name + ' connected'    }, true, ['notifVpn']);
           }
         }
-        _capMap(prevVpnState);
         prevVpnState.set(tunnel.name, tunnel.state);
       }
+      _capMap(prevVpnState, _live);
     }
 
     if (event === 'netwatch:update' && Array.isArray(data.hosts)) {
+      const _live = new Set();
       for (const host of data.hosts) {
+        // Added before the `unknown` skip below: a host being re-probed is still
+        // live, and pruning it would throw away the state its next reading is
+        // compared against.
+        _live.add(host.id);
         if (host.status === 'unknown') continue; // transient re-probe state — skip to avoid premature fire/resolve
         const prev    = prevNetwatchState.get(host.id);
         const wasDown = prev === 'down';
@@ -487,9 +537,9 @@ function createEvaluator(getNameFn, getRouterFn) {
             fire('netwatch:' + host.id + ':up',   { alertType:'Host Up', resolveType:'host_down',     host:host.host, netwatchName, comment:host.comment || '', status:'up',   detail:'NetWatch host ' + netwatchDesc + ' is reachable'   }, true, ['notifNetwatch']);
           }
         }
-        _capMap(prevNetwatchState);
         prevNetwatchState.set(host.id, host.status);
       }
+      _capMap(prevNetwatchState, _live);
     }
 
     // BGP. These used to live in public/app.js and fired straight at the browser
@@ -505,9 +555,11 @@ function createEvaluator(getNameFn, getRouterFn) {
     // true. A cooldown cannot express "tell me once until it changes"; an edge
     // can, and it is also what gives the bell something to resolve.
     if (event === 'routing:update' && Array.isArray(data.peers)) {
+      const _live = new Set();
       for (const p of data.peers) {
         const key   = p.key;
         if (!key) continue;
+        _live.add(key);
         const peer  = p.name || p.remoteAddr || key;
         const where = p.remoteAddr ? peer + ' (' + p.remoteAddr + ')' : peer;
         // `p.description` IS the peer's RouterOS comment — routing.js reads the
@@ -529,7 +581,6 @@ function createEvaluator(getNameFn, getRouterFn) {
             }, true, ['notifBgp']);
           }
         }
-        _capMap(prevBgpState);
         prevBgpState.set(key, isEst);
 
         // Prefix swing. Compared against the previous ESTABLISHED reading, so a
@@ -556,7 +607,6 @@ function createEvaluator(getNameFn, getRouterFn) {
               prevBgpPfxAlert.set(key, false);
             }
           }
-          _capMap(prevBgpPfx);
           prevBgpPfx.set(key, p.prefixes);
         }
 
@@ -573,7 +623,6 @@ function createEvaluator(getNameFn, getRouterFn) {
               bgpPeer: peer, comment: p.description || '', detail: 'BGP session ' + where + ' has stopped flapping',
             }, true, ['notifBgp']);
           }
-          _capMap(prevBgpFlap);
           prevBgpFlap.set(key, flapping);
         }
 
@@ -591,10 +640,16 @@ function createEvaluator(getNameFn, getRouterFn) {
               bgpPeer: peer, comment: p.description || '', detail: peer + ': hold timer no longer misconfigured',
             }, true, ['notifBgp']);
           }
-          _capMap(prevBgpHold);
           prevBgpHold.set(key, badHold);
         }
       }
+      // All five share one key set. prevBgpPfxAlert was never bounded at all —
+      // it is written on the same churning key and was simply missed.
+      _capMap(prevBgpState,    _live);
+      _capMap(prevBgpPfx,      _live);
+      _capMap(prevBgpFlap,     _live);
+      _capMap(prevBgpHold,     _live);
+      _capMap(prevBgpPfxAlert, _live);
     }
   }
 
