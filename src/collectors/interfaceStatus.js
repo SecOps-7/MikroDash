@@ -421,12 +421,48 @@ class InterfaceStatusCollector {
     // where its absence reads as a failed save. A bigger cycle commits on the
     // debounce; a smaller one waits for the section change, which arrives with
     // the first packet of the next cycle.
-    const ifacesTicked = this._ifacesNext.size > 0 &&
+    // "Did the interface batch actually change?", not "is it non-empty?". Now
+    // that a provisional commit LEAVES the batch in place, non-empty is true for
+    // the whole cycle, and a commit driven by the address or ethernet stream
+    // would otherwise re-run _computeDeltas() against rows it had already
+    // differenced — reporting a zero-error window that never elapsed.
+    //
+    // Identity, not deep equality: every packet off the stream is a fresh
+    // object, so a carried-over row is the SAME object and a re-read is not.
+    const _batchChanged = this._ifacesNext.size > 0 && (
+      this._ifaces.size !== this._ifacesNext.size ||
+      [...this._ifacesNext.keys()].some((k) => this._ifaces.get(k) !== this._ifacesNext.get(k))
+    );
+    const ifacesTicked = _batchChanged &&
                          (fromCycleWrap || this._ifacesNext.size >= this._lastCycleSize);
     if (ifacesTicked) {
+      // A DEBOUNCE COMMIT IS PROVISIONAL: it publishes what has arrived so far
+      // and leaves the batch accumulating, because only a section change ends a
+      // cycle. Handing the batch over and starting a new one mid-cycle is what
+      // kept #119 alive after the section stamp was adopted — an interface that
+      // reports late (a ZeroTier tunnel, in the report) landed ALONE in the
+      // fresh batch, the size guard correctly refused to publish a batch of
+      // one, and then the next cycle's first packet committed it on the wrap,
+      // where the guard is bypassed by design. The reporter's dropdown
+      // contained exactly `zerotier1`.
+      //
+      // So: copy here, hand over only at a real boundary. A straggler then
+      // rejoins the cycle it belongs to instead of replacing it.
+      this._ifaces = new Map(this._ifacesNext);
+    }
+    // THE BOUNDARY RESET IS UNCONDITIONAL, and deliberately outside the block
+    // above. A wrap is a structural fact — the router has started a new cycle —
+    // not a data event. Gating it on the batch having changed meant a cycle
+    // already published provisionally never got cleared, so the next cycle
+    // accumulated ON TOP of it and a deleted interface stayed in the list
+    // forever.
+    //
+    // A completed cycle is also the only thing that can teach us how big a
+    // cycle is: learning that from a provisional commit would set the bar to a
+    // half-arrived burst and defeat the guard on the next one.
+    if (fromCycleWrap && this._ifacesNext.size > 0) {
       this._lastCycleSize = this._ifacesNext.size;
-      this._ifaces     = this._ifacesNext;
-      this._ifacesNext = new Map();
+      this._ifacesNext    = new Map();
     }
     // Only swap addresses when the new set is non-empty — an empty _addrsNext
     // means the address stream tick fired before the data arrived, not that

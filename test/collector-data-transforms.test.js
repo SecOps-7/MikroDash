@@ -3577,3 +3577,58 @@ test('a failed re-read leaves the last good table standing', async () => {
   assert.equal(collector.getInUseLeaseIPs().length, 2, 'a failed read must not blank the table');
   collector.stop();
 });
+
+// ── A packet arriving late in its OWN cycle must not become the whole list ──
+//
+// Issue #119, still reproducing on a CCR2004 after the .section fix, and this is
+// why. The section stamp correctly identifies where a cycle ENDS. What it did
+// not fix is that a debounce commit HANDED THE BATCH OVER and started a new one:
+//
+//     this._ifaces     = this._ifacesNext;
+//     this._ifacesNext = new Map();      // <- mid-cycle, the cycle is not over
+//
+// A debounce commit is PROVISIONAL. Only a section change ends a cycle. So on a
+// router where one interface reports late — a ZeroTier tunnel in the reported
+// case, and the reporter's dropdown contained exactly `zerotier1` and nothing
+// else — the sequence was:
+//
+//   1. the main burst arrives, debounce commits it, batch reset to empty
+//   2. the straggler lands ALONE in the fresh batch
+//   3. the size guard correctly refuses to commit a batch of 1...
+//   4. ...and then the next cycle's first packet changes the section, which
+//      commits on the wrap and BYPASSES the size guard by design
+//
+// Step 4 is the fix from the previous release completing the bug rather than
+// preventing it.
+test('an interface reporting late in its cycle joins the list rather than replacing it', async () => {
+  const { EventEmitter } = require('node:events');
+  const fake = new EventEmitter(); fake.stop = () => {};
+  const ros = { connected: true, on() {}, stream: () => fake };
+  const _chain = { emit() {} }; _chain.to = () => _chain;
+  const io = { engine: { clientsCount: 1 }, emit() {}, to: () => _chain };
+  const collector = new InterfaceStatusCollector({ ros, io, pollMs: 5000, metaPollMs: 60000, state: {} });
+
+  const row = (n, sec) => ({ name: n, type: 'ether', running: 'true', disabled: 'false', '.section': String(sec) });
+  const settle = () => new Promise(r => setTimeout(r, 400));
+  const FLEET = ['ether1', 'ether10', 'ether11', 'sfp-sfpplus1', 'Bridge-LAN', 'MGMT', 'lo'];
+
+  collector._startIfStream();
+
+  // Cycle 0: the fleet arrives promptly, then the tunnel reports late — still
+  // section 0, because it belongs to this cycle.
+  for (const n of FLEET) fake.emit('data', row(n, 0));
+  await settle();
+  fake.emit('data', row('zerotier1', 0));
+  await settle();
+
+  // Cycle 1 begins. The section change ends cycle 0.
+  fake.emit('data', row('ether1', 1));
+
+  const names = [...collector._ifaces.keys()].sort();
+  assert.deepEqual(names, [...FLEET, 'zerotier1'].sort(),
+    'the late interface must be ADDED to its cycle, not become the entire list');
+  assert.ok(collector._ifaces.size > 1,
+    'the dropdown showed exactly one interface because a batch of one was committed as a whole cycle');
+
+  collector.stop();
+});
