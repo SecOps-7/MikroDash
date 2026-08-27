@@ -201,7 +201,10 @@ function createEvaluator(getNameFn, getRouterFn) {
   // The version last alerted on, not a boolean. system:update fires every poll
   // (~2 s), so a boolean would re-fire as soon as the cooldown lapsed. Keying
   // on the version gives one alert per release, and a later release still
-  // notifies instead of being swallowed as "already alerting".
+  // notifies instead of being swallowed as "already alerting" — which needs the
+  // supersede flag passed to fire() below, because both alerts key on
+  // (routeros_update, null) and the second would otherwise be dropped by the
+  // hasOpenAlert guard. The keying alone did NOT achieve what this said.
   let   prevUpdateVersion = null;
   const prevBgpState      = new Map();  // peer key → last state string
   const prevBgpPfx        = new Map();  // peer key → prefix count at last established reading
@@ -219,7 +222,8 @@ function createEvaluator(getNameFn, getRouterFn) {
   // Fraction the advertised prefix count must move to be worth an alert.
   const BGP_PFX_THRESH = 0.2;
 
-  function fire(key, vars, isUp, notifKeys) {
+  function fire(key, vars, isUp, notifKeys, opts) {
+    opts = opts || {};
     // The install-wide toggles suppress for everyone, and they do it here —
     // before the event is recorded, before the bell, before anyone's push.
     //
@@ -266,7 +270,29 @@ function createEvaluator(getNameFn, getRouterFn) {
         // persists — an available update, most visibly — rings the bell again
         // every time the evaluator is rebuilt, and acknowledging it achieves
         // nothing because the next rebuild files a fresh one.
-        if (db.hasOpenAlert(router.id, alertType, subject)) return;
+        if (db.hasOpenAlert(router.id, alertType, subject)) {
+          // ...UNLESS the caller says this one SUPERSEDES the open row. The
+          // RouterOS-update alert keys on the version so a later release still
+          // notifies, and that keying did nothing: both alerts carry alertType
+          // `routeros_update` and a null subject, so the second was swallowed
+          // here, and a router left un-updated across two releases was only ever
+          // told about the first.
+          //
+          // NOT fixed by putting the version in `subject`. The recovery event
+          // resolves on (routeros_update, null), so a versioned subject would
+          // match nothing and every update alert would stay open forever.
+          // Superseding keeps one open row per router, always naming the latest
+          // release, and leaves resolution untouched.
+          if (!opts.supersede) return;
+          const stale = db.resolveAlertEvent(router.id, alertType, subject);
+          if (stale && stale.length) {
+            _emit(router.id, 'alert:resolved', {
+              ids: stale, routerId: router.id, routerName: getNameFn(),
+              alertType, subject, label: labelFor(alertType),
+              detail: vars.detail || null, resolvedAt: Date.now(),
+            });
+          }
+        }
         const id = db.insertAlertEvent(router.id, alertType, subject, vars.detail || null);
         _emit(router.id, 'alert:fired', {
           id, routerId: router.id, routerName: getNameFn(),
@@ -337,12 +363,19 @@ function createEvaluator(getNameFn, getRouterFn) {
         // Only on a version we have not announced. Without this the alert
         // would repeat on every poll once the cooldown expired.
         if (prevUpdateVersion !== latest) {
+          // SUPERSEDE ONLY WHEN WE ACTUALLY SAW THE EARLIER VERSION. This is
+          // in-memory, so a rebuilt evaluator starts at null and every open
+          // alert would look like a new release — which is exactly the
+          // "rings the bell again on every rebuild" failure the hasOpenAlert
+          // guard exists to prevent. Null means "we have not announced anything
+          // yet", and the guard should stand.
+          const _supersede = prevUpdateVersion !== null;
           prevUpdateVersion = latest;
           fire('update:router:down', {
             alertType: 'RouterOS Update',
             detail:    'RouterOS ' + latest + ' is available (running ' +
                        ((data.version || '').replace(/\s*\(.*\)/, '').trim() || 'unknown') + ')',
-          }, false, ['notifRouterUpdate']);
+          }, false, ['notifRouterUpdate'], { supersede: _supersede });
         }
       } else if (!data.updateAvailable && prevUpdateVersion !== null) {
         // Router reached the version, or the channel changed. Clear the open

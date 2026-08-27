@@ -282,3 +282,84 @@ test('editing a comment between the down and the up still resolves the alert', (
   assert.equal(resolved[0].subject,   'ether1');
   assert.equal(openKeys.size, 0, 'nothing left open');
 });
+
+// ── A later RouterOS release still notifies (ToDo §7) ───────────────────────
+//
+// prevUpdateVersion is keyed on the version rather than a boolean, and its
+// comment said that means "a later release still notifies instead of being
+// swallowed as 'already alerting'". It did not. Both alerts carry alertType
+// `routeros_update` and a null subject, so with the first still open the
+// version check passed and fire() then returned at the hasOpenAlert guard. A
+// router left un-updated across two releases was told about the first only.
+//
+// These drive createEvaluator directly, which is the only way to see it: the
+// version check and the guard are twenty lines apart and both look right.
+const UPD = (latest, running) => ({ updateAvailable: true, latestVersion: latest, version: running });
+
+test('a second release fires while the first alert is still open', () => {
+  openKeys.clear();
+  const { ev } = harness({ notifRouterUpdate: true });
+
+  ev.evaluate('system:update', UPD('7.19', '7.18'));
+  ev.evaluate('system:update', UPD('7.20', '7.18'));
+
+  const updates = inserted.filter(r => r.alertType === 'routeros_update');
+  assert.equal(updates.length, 2, 'the newer release must be recorded, not swallowed');
+  assert.match(updates[1].detail, /7\.20/, 'the second alert names the newer version');
+});
+
+test('the superseded alert is closed rather than left open', () => {
+  // Superseding rather than versioning the subject is deliberate: the recovery
+  // event resolves on (routeros_update, null), so a versioned subject would
+  // match nothing and every update alert would stay open forever. The cost of
+  // that choice is that the stale row must be closed explicitly, which is what
+  // this pins.
+  openKeys.clear();
+  const { emits, ev } = harness({ notifRouterUpdate: true });
+
+  ev.evaluate('system:update', UPD('7.19', '7.18'));
+  ev.evaluate('system:update', UPD('7.20', '7.18'));
+
+  const closed = resolved.filter(r => r.alertType === 'routeros_update');
+  assert.equal(closed.length, 1, 'exactly the one stale row is closed');
+  assert.equal(closed[0].subject, null, 'closed on the key the recovery path also uses');
+
+  // The bell has to hear about it too, or the browser keeps showing the old one
+  // alongside the new.
+  const res = emits.filter(e => e.ev === 'alert:resolved');
+  assert.ok(res.length >= 1, 'the browser must be told the old advisory closed');
+});
+
+test('the same release does not fire twice', () => {
+  // The behaviour the version keying was there for in the first place, and what
+  // supersede must not break: an update that simply persists says nothing new.
+  openKeys.clear();
+  const { ev } = harness({ notifRouterUpdate: true });
+
+  ev.evaluate('system:update', UPD('7.19', '7.18'));
+  ev.evaluate('system:update', UPD('7.19', '7.18'));
+  ev.evaluate('system:update', UPD('7.19', '7.18'));
+
+  assert.equal(inserted.filter(r => r.alertType === 'routeros_update').length, 1);
+});
+
+test('a rebuilt evaluator does not re-announce an update it already filed', () => {
+  // THE TRAP IN THE FIX. prevUpdateVersion is in-memory, so a rebuilt evaluator
+  // starts at null and every open alert looks like a new release. Superseding
+  // unconditionally would ring the bell on every rebuild, which is precisely
+  // the failure the hasOpenAlert guard exists to prevent — so supersede is only
+  // set when this evaluator actually saw an earlier version.
+  openKeys.clear();
+  const first = harness({ notifRouterUpdate: true });
+  first.ev.evaluate('system:update', UPD('7.19', '7.18'));
+  assert.equal(inserted.filter(r => r.alertType === 'routeros_update').length, 1);
+
+  // Same open row, brand new evaluator, same version still available.
+  const second = harness({ notifRouterUpdate: true });
+  second.ev.evaluate('system:update', UPD('7.19', '7.18'));
+
+  assert.equal(inserted.filter(r => r.alertType === 'routeros_update').length, 0,
+    'a rebuild must stay silent about an alert that is already open');
+  assert.equal(resolved.filter(r => r.alertType === 'routeros_update').length, 0,
+    'and must not close it either');
+});
