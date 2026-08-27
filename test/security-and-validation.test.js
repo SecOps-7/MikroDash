@@ -843,3 +843,91 @@ test('a null name is treated as missing by every parser that takes one', () => {
       'the description check must stay loose too: ' + line);
   }
 });
+
+// ── The connection test's error classifier ──────────────────────────────────
+//
+// Found by the Go port, which lifted this handler into a vm and drove it. The
+// handler needs a live server stack, so the wiring is scanned; the DIVERGENCE
+// test below is the one that matters, because it pins the rule rather than
+// today's symptom.
+describe('POST /api/routers/test error classification', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const at  = src.indexOf("testRos.on('connectionError'");
+  const handler = src.slice(at, src.indexOf("testRos.on('connected'", at));
+
+  test('the TLS sentence describes the connection that was attempted', () => {
+    // It tells the operator WHICH RouterOS service to go and check, so it has
+    // to read the coerced value the ROS constructor was given, not the raw
+    // request field. body.tls disagrees with testTls in both directions:
+    // absent -> testTls true but body.tls falsy (api-ssl blamed on api);
+    // the string "false" -> testTls false but the string is truthy (a plain
+    // connection blamed on a TLS handshake that never happened).
+    assert.ok(at > 0, 'the connectionError handler moved or was renamed');
+    assert.ok(!/reason = body\.tls/.test(handler),
+      'the raw request field describes a connection that may not have been attempted');
+    assert.match(handler, /reason = testTls/,
+      'the coerced value is the one the ROS constructor was given');
+  });
+
+  test('the two error classifiers agree on what counts as an auth failure', () => {
+    // THE ACTUAL RULE. This handler is a second copy of the decision that lives
+    // in classifyError.js, and copies drift: RouterOS's own words for a rejected
+    // login are "invalid user name or password", which classifyError.js caught
+    // and this one did not — so the commonest failure of the Test Connection
+    // button showed the raw driver message instead of a useful sentence.
+    //
+    // Comparing the alternative SETS rather than asserting today's list, so the
+    // test keeps working when either side legitimately gains a pattern, and
+    // fails the moment one gains it alone.
+    const canon = fs.readFileSync(path.join(__dirname, '..', 'src', 'routeros', 'classifyError.js'), 'utf8');
+    const authLine = (s) => (s.split('\n').find(l => l.includes("'Authentication failed")) ||
+                             s.split('\n').find(l => l.includes('Authentication failed')) || '');
+    const patterns = (s) => new Set((s.match(/\/[^/\n]+\/i\.test\(/g) || []).map(x => x.slice(0, -6)));
+
+    // classifyError.js splits reason onto its own line; take the branch above it.
+    const canonIdx  = canon.split('\n').findIndex(l => l.includes('Authentication failed'));
+    const canonAuth = canon.split('\n')[canonIdx - 1] + canon.split('\n')[canonIdx];
+    const hereAuth  = authLine(handler);
+
+    assert.ok(hereAuth, 'the auth branch moved or was renamed');
+    const missing = [...patterns(canonAuth)].filter(p => !patterns(hereAuth).has(p));
+    assert.deepEqual(missing, [],
+      'classifyError.js recognises these and the test route does not, so the same ' +
+      'router error gets two different answers: ' + missing.join(', '));
+  });
+
+  test("RouterOS's own rejection wording is recognised", () => {
+    // The concrete case, asserted against the canonical classifier, which is
+    // callable. "invalid user name or password" matches none of the older
+    // alternatives: no "authentication", no "login", and "user name" is two
+    // words where the pattern wants one.
+    const { classifyRosError } = require('../src/routeros/classifyError');
+    const out = classifyRosError({ message: 'invalid user name or password (6)' },
+                                 { host: '10.0.0.1', port: 8728, user: 'admin', tls: false });
+    assert.equal(out.classified, true, 'the commonest login failure must not fall through');
+    assert.match(out.reason, /Authentication failed/);
+  });
+});
+
+test('sameEndpoint reads the string "false" as false, not as true', () => {
+  // `!!('false')` is true. The truthiness form read "certificate checking is
+  // off" from a record that says it is on, turning the strictest setting into
+  // the laxest by coercion. It failed closed — the two sides disagreed and the
+  // stored password was refused — but a security predicate that is wrong in a
+  // safe direction is still wrong.
+  const BASE = { host: '10.0.0.53', port: 8729, username: 'mikrodash', tls: true };
+
+  assert.equal(Routers.sameEndpoint({ ...BASE, tlsInsecure: 'false' },
+                                    { ...BASE, tlsInsecure: false }), true,
+    'the string "false" and boolean false mean the same thing');
+  assert.equal(Routers.sameEndpoint({ ...BASE, tlsInsecure: 'false' },
+                                    { ...BASE }), true,
+    'and so does absent');
+  // The distinction that must survive: "true" in either form is still a match
+  // only against another true, never against false.
+  assert.equal(Routers.sameEndpoint({ ...BASE, tlsInsecure: 'true' },
+                                    { ...BASE, tlsInsecure: false }), false,
+    'accepting a forged certificate is still a different endpoint');
+  assert.equal(Routers.sameEndpoint({ ...BASE, tlsInsecure: 'true' },
+                                    { ...BASE, tlsInsecure: true }), true);
+});

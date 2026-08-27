@@ -806,7 +806,14 @@ function sameEndpoint(a, b) {
   const port = (r) => parseInt(r.port || '8729', 10);
   const user = (r) => String(r.username || '').trim();
   const tls  = (r) => r.tls !== false && r.tls !== 'false';
-  const lax  = (r) => !!(r.tlsInsecure || r.tlsInsecure === 'true');
+  // Explicit, like `tls` above, and for the same reason: a form field can arrive
+  // as the STRING "false", and `!!('false')` is true. The truthiness form read
+  // "certificate checking is off" from a record that says it is on — turning the
+  // strictest setting into the laxest by coercion. It failed closed (the two
+  // sides then disagreed and the stored password was refused) rather than open,
+  // but a security predicate that is wrong in a safe direction is still wrong,
+  // and the next reader would have to re-derive which direction it was.
+  const lax  = (r) => r.tlsInsecure === true || r.tlsInsecure === 'true';
   return host(a) !== '' && host(a) === host(b)
       && port(a) === port(b)
       && user(a) === user(b)
