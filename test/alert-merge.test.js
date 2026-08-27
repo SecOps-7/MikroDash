@@ -489,3 +489,35 @@ test('an empty or missing live set is a no-op, not a wipe', () => {
     'an explicitly EMPTY set does mean "nothing is live" — documented here so the ' +
     'difference from undefined is a decision rather than an accident');
 });
+
+// ── Every prev-state map is actually pruned ─────────────────────────────────
+//
+// `prevBgpPfxAlert` was written on the same churning key as the other four BGP
+// maps and was simply never capped. Nobody removed it; it was never added. The
+// Go port then inherited the same omission by mirroring the four maps it could
+// see capped, which is how a gap propagates: the next reader copies the shape,
+// not the intent.
+//
+// So this is a LEDGER rather than a behaviour test. It fails naming the map that
+// is missing, because "the one I forgot" is a failure mode that has now happened
+// twice in two codebases, and no amount of testing the prune itself catches a
+// map the prune is never handed.
+//
+// Borrowed from the port's TestEveryCappedMapIsActuallyPruned.
+test('every prev-state map in the evaluator is passed to the prune', () => {
+  const fs = require('node:fs');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'alerter.js'), 'utf8');
+
+  const declared = [...src.matchAll(/^\s+(?:const|let)\s+(prev[A-Za-z]+)\s*=\s*new Map\(\)/gm)]
+    .map(m => m[1]);
+  const pruned = new Set(
+    [...src.matchAll(/_capMap\(\s*(prev[A-Za-z]+)/g)].map(m => m[1]));
+
+  assert.ok(declared.length >= 8,
+    'expected the evaluator to still hold its prev-state maps; found ' + declared.length);
+
+  const missing = declared.filter(n => !pruned.has(n));
+  assert.deepEqual(missing, [],
+    'these prev-state maps are never handed to _capMap, so they grow without bound ' +
+    'on a churning key: ' + missing.join(', '));
+});
