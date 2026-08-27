@@ -64,7 +64,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 ### Dashboard
 - **Configurable drag-and-drop grid** — 24×22 layout; drag cards to reposition, resize with 8 handles, or swap positions by hovering one card over another for 1.5 s; add/remove cards via the Add Card panel; layout synced server-side so all browsers and devices share the same arrangement
 - **Live traffic chart** — per-interface RX/TX Mbps with configurable history window
-- **System card** — CPU, RAM, Storage gauges with colour-coded thresholds (amber >75%, red >90%), board info, temperature, uptime chip
+- **System card** — CPU, RAM, Storage gauges with colour-coded thresholds (amber >75%, red >90%), board info, temperature, uptime chip. When a newer RouterOS is available it shows an update strip, and with Packages write access an **Update** button: the dialog carries that release's notes in a scrollable box so the decision to reboot is made against what actually changed, and asks for the router's name typed back before it acts
 - **RouterOS update indicator** — shows installed vs available version side by side
 - **Network card** — animated SVG topology diagram with live wired/wireless client counts, WAN IP, LAN subnets, and latency chart
 - **Connections card** — total connection count sparkline, protocol breakdown bars (TCP/UDP/ICMP), top sources with hostname resolution, top destinations with geo-IP country flags and click-to-filter
