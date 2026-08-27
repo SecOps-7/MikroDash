@@ -429,3 +429,63 @@ test('the bound drops departed keys and keeps the ones still present', () => {
   assert.equal(inserted.filter(r => r.alertType === 'interface_down').length, 10,
     'the long-lived interfaces kept their previous state through the churn');
 });
+
+// ── The prune itself, asserted on the MAP ───────────────────────────────────
+//
+// THE CASES ABOVE CANNOT SEE THE PRUNE AT ALL. They assert on alert counts, and
+// the count is decided by the payload either way — so the entire suite of 1615
+// stayed green with the body of _capMap replaced by `return`. Measured, not
+// suspected. The alert-level cases prove the prune does not BREAK anything;
+// nothing there could prove it happens.
+//
+// Found by the Go port, whose corpus had the identical blindness. The general
+// form is worth more than this fix: a suite can be confidently green about a
+// thing it never asks, and no amount of reading the assertions reveals it —
+// only mutating the code does.
+const _mapOf = (...keys) => new Map(keys.map(k => [k, { running: true }]));
+
+test('under the bound the prune touches nothing', () => {
+  // Deliberate: a payload is not always the whole fleet. Since the #119 fix an
+  // ifstatus:update can carry a provisional snapshot mid-cycle, and pruning
+  // against a partial list would drop live state and recreate the very bug the
+  // prune exists to fix. Below the bound it must not act at all.
+  const m = _mapOf('ether1', 'ether2', 'gone');
+  alerter._capMap(m, new Set(['ether1']));
+  assert.equal(m.size, 3, 'a small map is not churn and must be left alone');
+  assert.ok(m.has('gone'));
+});
+
+test('over the bound, keys absent from the payload go', () => {
+  const m = new Map();
+  for (let i = 0; i < alerter.STATE_MAX + 1; i++) m.set('pppoe' + i, { running: true });
+  alerter._capMap(m, new Set(['pppoe0', 'pppoe1']));
+  assert.equal(m.size, 2, 'everything the router no longer reports should be dropped');
+});
+
+test('over the bound, keys still present STAY', () => {
+  // The reported defect, restated as an assertion. Clearing forgot these, which
+  // is why 501 interfaces going down produced one alert.
+  const m = new Map();
+  for (let i = 0; i < alerter.STATE_MAX + 1; i++) m.set('if' + i, { running: true });
+  const live = new Set([...m.keys()]);          // the whole fleet is still there
+  alerter._capMap(m, live);
+  assert.equal(m.size, alerter.STATE_MAX + 1,
+    'a live fleet larger than the bound is not churn, and must not be forgotten');
+});
+
+test('an empty or missing live set is a no-op, not a wipe', () => {
+  // A family that collected nothing this tick — an empty payload, or a guard
+  // that skipped the loop — must not be able to empty its own map. Without
+  // this, "we saw no interfaces" and "there are no interfaces" become the same
+  // statement, and the next real reading has nothing to compare against.
+  const m = new Map();
+  for (let i = 0; i < alerter.STATE_MAX + 1; i++) m.set('if' + i, { running: true });
+
+  alerter._capMap(m, undefined);
+  assert.equal(m.size, alerter.STATE_MAX + 1, 'a missing live set must not wipe the map');
+
+  alerter._capMap(m, new Set());
+  assert.equal(m.size, 0,
+    'an explicitly EMPTY set does mean "nothing is live" — documented here so the ' +
+    'difference from undefined is a decision rather than an accident');
+});

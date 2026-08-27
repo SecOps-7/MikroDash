@@ -155,6 +155,47 @@ function _ifaceTypeKey(type) {
   return map[type] || 'notifIfaceOther';
 }
 
+const STATE_MAX = 500;
+
+/**
+ * Bound a prev-state map by dropping entries that no longer EXIST.
+ *
+ * This used to be `if (m.size > STATE_MAX) m.clear()`, called inside the
+ * per-item loop before every write. Crossing the bound therefore forgot the
+ * previous state of the entire fleet, mid-iteration: measured, 501 interfaces
+ * going down produced ONE alert instead of 501, because everything after the
+ * clear read `prev === undefined` and an unknown previous state is not a
+ * transition. Then the map refilled from the clear point and the split simply
+ * moved. One entry over the line silenced the fleet.
+ *
+ * NOT A TRIM, and this is the trap. `Map.set` on an EXISTING key does not move
+ * it, so insertion order is not recency: an interface that has been present
+ * since startup and is re-set on every single pass keeps position 0 forever,
+ * while the churning pppoe/l2tp/WireGuard peers that caused the growth sit at
+ * the end. An oldest-first trim evicts exactly what must be kept and keeps
+ * exactly what should go. Verified rather than assumed.
+ *
+ * So: prune what is absent from the CURRENT payload. Only that can never
+ * forget something still live — clearing forgets everything periodically, and
+ * LRU forgets the least-recently-seen, which for a stable fleet is still
+ * something real.
+ *
+ * STILL GATED ON THE BOUND, deliberately. Under STATE_MAX this touches
+ * nothing, which matters because a payload is not always the whole fleet:
+ * ifstatus:update can carry a provisional snapshot mid-cycle (see
+ * interfaceStatus._commitMeta), and pruning against a partial list would drop
+ * live state and recreate the very bug. Above the bound that risk is worth
+ * taking, because the alternative there is discarding all of it.
+ *
+ * If more than STATE_MAX entries are genuinely live the map simply stays that
+ * size. That is correct: the bound exists to stop CHURN accumulating, not to
+ * cap a large fleet, and a real fleet is not a leak.
+ */
+function _capMap(m, live) {
+  if (m.size <= STATE_MAX || !live) return;
+  for (const k of m.keys()) if (!live.has(k)) m.delete(k);
+}
+
 // ── Per-router evaluator factory ──────────────────────────────────────────────
 // Returns an isolated { evaluate(event, data) } with its own cooldown and state maps.
 // getNameFn() is called at fire-time to get the router label for {{routerName}}.
@@ -216,46 +257,6 @@ function createEvaluator(getNameFn, getRouterFn) {
   // but the prev-state maps are populated from that same churning source and
   // had no cap at all — dynamic pppoe/l2tp/WireGuard peers grew them for the
   // lifetime of the evaluator. Same bound, same reasoning.
-  const STATE_MAX = 500;
-
-  /**
-   * Bound a prev-state map by dropping entries that no longer EXIST.
-   *
-   * This used to be `if (m.size > STATE_MAX) m.clear()`, called inside the
-   * per-item loop before every write. Crossing the bound therefore forgot the
-   * previous state of the entire fleet, mid-iteration: measured, 501 interfaces
-   * going down produced ONE alert instead of 501, because everything after the
-   * clear read `prev === undefined` and an unknown previous state is not a
-   * transition. Then the map refilled from the clear point and the split simply
-   * moved. One entry over the line silenced the fleet.
-   *
-   * NOT A TRIM, and this is the trap. `Map.set` on an EXISTING key does not move
-   * it, so insertion order is not recency: an interface that has been present
-   * since startup and is re-set on every single pass keeps position 0 forever,
-   * while the churning pppoe/l2tp/WireGuard peers that caused the growth sit at
-   * the end. An oldest-first trim evicts exactly what must be kept and keeps
-   * exactly what should go. Verified rather than assumed.
-   *
-   * So: prune what is absent from the CURRENT payload. Only that can never
-   * forget something still live — clearing forgets everything periodically, and
-   * LRU forgets the least-recently-seen, which for a stable fleet is still
-   * something real.
-   *
-   * STILL GATED ON THE BOUND, deliberately. Under STATE_MAX this touches
-   * nothing, which matters because a payload is not always the whole fleet:
-   * ifstatus:update can carry a provisional snapshot mid-cycle (see
-   * interfaceStatus._commitMeta), and pruning against a partial list would drop
-   * live state and recreate the very bug. Above the bound that risk is worth
-   * taking, because the alternative there is discarding all of it.
-   *
-   * If more than STATE_MAX entries are genuinely live the map simply stays that
-   * size. That is correct: the bound exists to stop CHURN accumulating, not to
-   * cap a large fleet, and a real fleet is not a leak.
-   */
-  function _capMap(m, live) {
-    if (m.size <= STATE_MAX || !live) return;
-    for (const k of m.keys()) if (!live.has(k)) m.delete(k);
-  }
 
   // Fraction the advertised prefix count must move to be worth an alert.
   const BGP_PFX_THRESH = 0.2;
@@ -777,4 +778,9 @@ function updateSettings(settings) {
   _settings = settings;
 }
 
-module.exports = { init, updateSettings, createEvaluator, evaluateForRouter, dropEvaluator, fireConnectivityAlert, labelFor };
+module.exports = {
+  // Exported so the prune can be asserted on the MAP. It lived in the
+  // evaluator closure, where the only way to reach it was through alert counts
+  // — and those are identical whether it runs or not, so the whole suite stayed
+  // green with the body removed. A rule nobody can test is a rule nobody checks.
+  _capMap, STATE_MAX, init, updateSettings, createEvaluator, evaluateForRouter, dropEvaluator, fireConnectivityAlert, labelFor };
