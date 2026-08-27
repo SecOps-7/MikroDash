@@ -1090,6 +1090,14 @@
        Harmless when the span is empty, which it is for anyone who may not
        reboot the router. */
     .ros-update-row #sysUpdateAction{margin-left:auto;display:inline-flex;align-items:center}
+    /* Release notes in the Update dialog. Fixed height and scrolled: a patch
+       changelog is ~23 lines but a feature release is ~520, and the dialog is
+       max-width:26rem and must not grow to fit either. pre-wrap keeps the
+       "*) area - what changed;" layout without parsing it. */
+    .upd-notes{max-height:11rem;overflow-y:auto;overflow-x:hidden;white-space:pre-wrap;word-break:break-word;
+               font-size:.72rem;line-height:1.45;color:var(--text-muted);background:var(--bg-elev,rgba(127,127,127,.06));
+               border:1px solid var(--border);border-radius:6px;padding:.5rem .6rem;margin-bottom:.8rem}
+    .upd-notes.muted{color:var(--text-muted);font-style:italic}
     .ros-update-row.ok{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.18);color:var(--accent-ok)}
     .ros-update-row.warn{background:rgba(245,159,0,.10);border:1px solid rgba(245,159,0,.3);color:var(--accent-warn)}
     .ros-update-row.pending{background:rgba(99,130,190,.06);border:1px solid var(--border);color:var(--text-muted)}
@@ -6684,6 +6692,10 @@
         <strong id="upd_to" style="color:var(--accent-warn)">&mdash;</strong>
       </div>
       <div style="text-align:center;font-size:.72rem;color:var(--text-muted);margin-bottom:.8rem" id="upd_channel"></div>
+      <!-- Release notes for the offered version. ABOVE the reboot warning on
+           purpose: what changed is what the operator is deciding on, and the
+           warning is the consequence of that decision, not the input to it. -->
+      <div class="upd-notes muted" id="upd_notes" aria-live="polite" tabindex="0"></div>
       <div style="background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.3);border-radius:6px;font-size:.78rem;padding:.55rem .7rem;margin-bottom:.8rem;color:var(--text-main)">
         The router downloads the packages and <strong>reboots immediately</strong>. Every connection through it drops for the duration.
       </div>

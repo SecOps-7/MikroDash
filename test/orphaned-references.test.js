@@ -477,3 +477,74 @@ test('saving reorders the stored site list rather than rebuilding it', () => {
   assert.match(block, /if \(!_rec\) return undefined;/,
     'a device the client has not loaded must not send an empty membership');
 });
+
+// ── The release-notes box in the Update dialog ──────────────────────────────
+//
+// The text in this box is the only content in MikroDash fetched from a third
+// party — the router does not carry its own changelog, so it comes from
+// mikrotik.com over HTTP (see src/changelog.js). That makes it external
+// untrusted input rendered into the DOM, which is exactly what the esc() rule
+// in CLAUDE.md exists for.
+test('the release notes are escaped before they reach the DOM', () => {
+  const at = APP.indexOf('function _setNotes(');
+  assert.ok(at > 0, '_setNotes moved or was renamed');
+  const body = APP.slice(at, at + 500);
+  assert.match(body, /innerHTML\s*=\s*esc\(/,
+    'notes come from a third party and must be escaped, not assigned raw');
+  assert.ok(!/innerHTML\s*=\s*text\b/.test(body),
+    'assigning the fetched text directly is the bug this pins');
+});
+
+test('a notes failure never speaks on the upgrade error channel', () => {
+  // The dialog renders `packages:error` with code `denied` as "You do not have
+  // permission to update this router". A notes lookup that failed for a
+  // completely different reason must not produce that sentence: it would be
+  // false, and alarming, for an operator who can update perfectly well and
+  // merely cannot be shown a changelog.
+  const INDEX = P('src', 'index.js');
+  const at = INDEX.indexOf("socket.on('packages:notes'");
+  assert.ok(at > 0, 'the notes handler moved or was renamed');
+  // Bounded at the NEXT handler, not by a character count. The one after this
+  // uses _pkgErr legitimately, and a fixed window ran straight into it.
+  const nextAt = INDEX.indexOf("socket.on('", at + 20);
+  assert.ok(nextAt > at, 'expected another handler after this one');
+  // Comments stripped first. The handler's own comment says "NEVER _pkgErr()
+  // from here", and prose describing a rule must not fail the test enforcing
+  // it — the same trap the PDF glyph scan hit.
+  const block = INDEX.slice(at, nextAt).replace(/^\s*\/\/.*$/gm, '');
+
+  assert.ok(!/_pkgErr\(/.test(block),
+    'the notes handler must answer on packages:notes, never on packages:error');
+  assert.match(block, /packages:notes'?,\s*\{\s*version,\s*error/,
+    'a failure still has to reach the browser, on its own channel');
+  assert.match(block, /sanitizeErr\(/,
+    'raw error text must not reach the browser');
+});
+
+test('the notes reply is matched against the version the dialog is showing', () => {
+  // A slow reply for a router the operator has since switched away from would
+  // otherwise paint the previous router's changelog under the new router's
+  // version numbers, which is worse than showing nothing at all.
+  const at = APP.indexOf("socket.on('packages:notes'");
+  assert.ok(at > 0, 'the notes listener moved or was renamed');
+  const body = APP.slice(at, at + 600);
+  assert.match(body, /d\.version\s*!==\s*_notesFor/,
+    'a reply for a different version must be discarded');
+});
+
+test('the notes are requested on open, not on the update-available tick', () => {
+  // mikrodash:updateavailable fires on every poll tick. Requesting there would
+  // be a fetch per tick for everyone, including people who never open the
+  // dialog — the same path whose unconditional rebuild made the update strip
+  // flash before _lastUpdateRowHtml was added.
+  const at = APP.indexOf("document.addEventListener('mikrodash:updateavailable'");
+  assert.ok(at > 0, 'the updateavailable listener moved');
+  const body = APP.slice(at, at + 400);
+  assert.ok(!/packages:notes/.test(body),
+    'the notes must not be fetched from the per-tick path');
+
+  const openAt = APP.indexOf("e.target.closest('#sysUpdateBtn')");
+  assert.ok(openAt > 0, 'the open handler moved');
+  assert.match(APP.slice(openAt, openAt + 900), /emit\('packages:notes'/,
+    'they are requested when the dialog opens');
+});

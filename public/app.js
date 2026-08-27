@@ -15539,8 +15539,31 @@ function _renderRoutersMap(rows) {
 
   var _caps = { permitted: false, routerName: '' };
   var _upd  = { installed: '', latest: '', channel: '' };
+  // The version the OPEN dialog is asking about. A reply naming anything else
+  // is stale — the operator switched routers, or reopened on a newer release
+  // while the first fetch was still in flight — and must not be painted into a
+  // dialog that is now about a different upgrade.
+  var _notesFor = '';
 
   function el(id) { return document.getElementById(id); }
+
+  /**
+   * Paint the release-notes box.
+   *
+   * `muted` is for our own status lines, which are the only text here that is
+   * ours. Everything else is EXTERNAL CONTENT — fetched from mikrotik.com, not
+   * produced by this app or its router — so it goes through esc() before it
+   * reaches innerHTML, per the hard constraint in CLAUDE.md. white-space is
+   * pre-wrap in CSS, which keeps the "*) area - what changed;" layout without
+   * parsing or trusting a line of it.
+   */
+  function _setNotes(text, muted) {
+    var box = el('upd_notes');
+    if (!box) return;
+    box.className = 'upd-notes' + (muted ? ' muted' : '');
+    box.innerHTML = esc(text);
+    box.scrollTop = 0;
+  }
 
   function draw() {
     var slot = el('sysUpdateAction');
@@ -15553,6 +15576,17 @@ function _renderRoutersMap(rows) {
   socket.on('packages:caps', function (d) {
     _caps = d || { permitted: false, routerName: '' };
     draw();
+  });
+
+  socket.on('packages:notes', function (d) {
+    d = d || {};
+    // Discard a reply for a version this dialog is no longer about. Without
+    // this, switching routers with the dialog open paints the previous router's
+    // changelog under the new router's version numbers, which is worse than
+    // showing nothing.
+    if (!_notesFor || d.version !== _notesFor) return;
+    if (d.notes) _setNotes(d.notes, false);
+    else         _setNotes('Release notes unavailable', true);
   });
 
   // The System card publishes what it drew, so this module never re-reads the
@@ -15615,6 +15649,14 @@ function _renderRoutersMap(rows) {
       el('upd_from').textContent    = _upd.installed || '—';
       el('upd_to').textContent      = _upd.latest || '—';
       el('upd_channel').textContent = _upd.channel ? 'channel: ' + _upd.channel : '';
+      // Asked for HERE, on open, and never on the mikrodash:updateavailable
+      // path: that fires on every poll tick, which is what made the update
+      // strip flash before _lastUpdateRowHtml was added. Nobody who never opens
+      // the dialog should cost a fetch.
+      _notesFor = _upd.latest || '';
+      _setNotes('Loading release notes…', true);
+      if (_notesFor) socket.emit('packages:notes', { version: _notesFor });
+      else _setNotes('Release notes unavailable', true);
       el('upd_confirm').value       = '';
       el('upd_confirm').placeholder = _caps.routerName || '';
       el('upd_error').style.display = 'none';

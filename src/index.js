@@ -108,6 +108,9 @@ const WanCollector          = require('./collectors/wan');
 const WifiCollector         = require('./collectors/wifi');
 const alerter               = require('./alerter');
 const notifier              = require('./notifier');
+// The only other module in here that reaches outside this machine. See its
+// header for why the release notes cannot come from the router.
+const Changelog             = require('./changelog');
 const alertSessions         = require('./alertSessions');
 const wifiScanLib           = require('./wifiScan');
 const overviewSessions      = require('./overviewSessions');
@@ -4934,6 +4937,39 @@ io.on('connection', (socket) => {
       permitted: _socketCan(socket, 'router:write', rid) && _pageAllowed(socket, 'packages', 'write'),
       routerName: (Routers.getById(rid) || {}).label || '',
     });
+  });
+
+  // The release notes for the version the Update dialog is offering.
+  //
+  // READ, not write: this shows text and acts on nothing, so it takes the same
+  // `packages` READ that already lets this socket see the Update button, rather
+  // than the router:write that the upgrade itself needs. Gating it harder would
+  // hide the notes from exactly the people deciding whether to ask someone else
+  // to run the upgrade.
+  //
+  // Everything here fails soft. The notes come from outside (see
+  // src/changelog.js — the router does not have them), so an install with no
+  // route to the internet must still be able to upgrade: on any failure the box
+  // says so and the rest of the dialog is untouched.
+  socket.on('packages:notes', async (req) => {
+    const version = String((req && req.version) || '').trim();
+    // NEVER _pkgErr() from here. That channel is the UPGRADE's, and the dialog
+    // renders `denied` on it as "You do not have permission to update this
+    // router" — which would be false and alarming for someone who can update
+    // perfectly well and merely cannot be shown a changelog. A notes failure
+    // answers on the notes channel and says only that the notes are missing.
+    const _no = (why) => socket.emit('packages:notes', { version, error: why });
+    const { rid, session, off } = _pkgSession();
+    if (!rid || !session || off) return _no('unavailable');
+    if (!_pageAllowed(socket, 'packages', 'read')) return _no('denied');
+    try {
+      socket.emit('packages:notes', { version, notes: await Changelog.fetchNotes(version) });
+    } catch (e) {
+      // sanitizeErr before anything reaches the browser, per CLAUDE.md. The
+      // version is echoed back so a slow reply for a router the operator has
+      // since switched away from can be discarded by the client.
+      socket.emit('packages:notes', { version, error: sanitizeErr(e) });
+    }
   });
 
   socket.on('packages:schedule', async (req) => {
