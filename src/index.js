@@ -2616,10 +2616,32 @@ app.post('/api/routers/test', Rbac.requireGlobalAdmin, _testConnLimiter, async (
     else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))       reason = 'Host not found — check router host/IP';
     else if (/ECONNRESET/.test(msg))                            reason = 'Connection reset by router';
     else if (/certificate/i.test(msg))                          reason = 'TLS certificate error — try enabling "Allow self-signed cert"';
-    else if (/authentication/i.test(msg) || /login/i.test(msg) || /username.*invalid|password.*invalid/i.test(msg) || (e && e.errno === 'CANTLOGIN')) reason = 'Authentication failed — check username and password';
+    // `invalid user` and `wrong password` are here because they are RouterOS's
+    // OWN words. A rejected login says "invalid user name or password", which
+    // matches none of the other alternatives: there is no "authentication", no
+    // "login" ("log in" has a space), and "username" is two words on the router
+    // while the pattern below wants one — so the commonest failure of this
+    // button fell through to the raw driver message unless the errno happened
+    // to be CANTLOGIN.
+    //
+    // The list is kept identical to classifyError.js:55 deliberately. That is
+    // the canonical classifier and this is a second copy of the same decision;
+    // the copy is what let them drift apart in the first place, so if you edit
+    // one, edit both. Collapsing the two is the real fix and is recorded for
+    // after the port, because it would reword several other messages and the
+    // JS wording is currently the port's oracle.
+    else if (/authentication/i.test(msg) || /login/i.test(msg) || /invalid user/i.test(msg) || /wrong password/i.test(msg) || /username.*invalid|password.*invalid/i.test(msg) || (e && e.errno === 'CANTLOGIN')) reason = 'Authentication failed — check username and password';
     else if (/RosException/.test(msg) || (e && e.name === 'RosException')) {
       const errno = e && e.errno ? ` [${e.errno}]` : '';
-      reason = body.tls
+      // testTls, NOT body.tls. This sentence tells the operator which RouterOS
+      // service to go and check, so it has to describe the connection that was
+      // actually attempted — the coerced value the ROS constructor above was
+      // given, not the raw request field. They disagree in BOTH directions:
+      // absent means testTls is TRUE (it defaults on) while body.tls is falsy,
+      // so a connection over api-ssl got blamed on `api`; and the STRING
+      // "false" means testTls is FALSE while a non-empty string is truthy, so a
+      // plain connection got blamed on a TLS handshake that never happened.
+      reason = testTls
         ? `TLS handshake failed — check that RouterOS api-ssl is enabled${errno}`
         : `RouterOS API error${errno} — check that api service is enabled and user has API access`;
     }
