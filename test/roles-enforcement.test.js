@@ -304,3 +304,27 @@ test('the site membership route adds a site instead of replacing the list', () =
   assert.ok(line.includes('Rbac.requireGlobalAdmin'),
     'assigning devices to a site must remain an administrator decision');
 });
+
+// ── One permissions broadcast per authorization write (ToDo §5) ─────────────
+//
+// The site membership route called _broadcastPermsChanged() twice on one line.
+// Not a correctness bug — the event carries no payload and every handler just
+// refetches — but each call is a frame to every connected browser and a
+// GET /api/me/permissions back from each. With three tabs open one membership
+// save cost six of each where three would do.
+//
+// Counted rather than pattern-matched on the one line, so the check keeps
+// working if the duplicate reappears somewhere else in the file.
+test('no route broadcasts a permissions change twice', () => {
+  const lines = INDEX_JS.split('\n');
+  const doubled = [];
+  lines.forEach((line, i) => {
+    const n = (line.match(/_broadcastPermsChanged\(\)/g) || []).length;
+    // The declaration line names it once without calling it; a call site that
+    // names it twice is the defect.
+    if (n > 1) doubled.push((i + 1) + ': ' + line.trim());
+  });
+  assert.deepEqual(doubled, [],
+    'a second call sends a duplicate frame to every browser and costs each one ' +
+    'an extra permissions refetch');
+});
