@@ -859,3 +859,40 @@ test('null collector methods are safe to call and payloads are empty', () => {
   assert.deepEqual(makeNullCollector('logs').getHistory(), []);
   assert.deepEqual(makeNullCollector('ping').getHistory().history, []);
 });
+
+// ── bindSocket subscribes to the default interface, and that is load-bearing ─
+//
+// This one line is the ONLY thing that puts a freshly connected socket into a
+// per-interface traffic room. The picker emits `traffic:select` when the
+// operator changes interface, and `_rebuildIfaceSelect` emits it when the
+// current one goes AWAY — neither fires on a plain page load. Remove the
+// default and the chart is simply blank forever, with no error anywhere.
+//
+// It was already covered, but only INCIDENTALLY: a test about rejecting a bogus
+// selection asserts the subscription is still the default, and would fail if the
+// default had never been set. That is coverage by side effect, and it evaporates
+// the moment somebody rewrites that test to seed the subscription explicitly.
+//
+// Reported by the Go port, which hit exactly this as a real bug: its Bandwidth
+// page showed a dash beside the Node app showing 185 Kbps, because nothing on
+// its side subscribed on connect. Twenty seconds on the page gave nineteen
+// wan:status, nine system:update and ZERO traffic:update. None of its 115
+// differential gates could catch it — they all supply a payload and compare what
+// is rendered, and this was a payload that never arrived. Subscription, not
+// rendering.
+test('a freshly bound socket is subscribed to the default interface', () => {
+  const ros = new EventEmitter();
+  ros.connected = false;
+  const t = new TrafficCollector({ ros, io: stubIo(0), defaultIf: 'ether1', historyMinutes: 1, pollMs: 1000, state: {} });
+
+  const sock = new EventEmitter();
+  sock.id = 'fresh-1';
+  t.bindSocket(sock);
+
+  const sub = t.subscriptions.get(sock.id);
+  assert.ok(sub, 'bindSocket must create a subscription; without one no traffic is ever sent');
+  assert.equal(sub.ifName, 'ether1',
+    'a page load emits no traffic:select, so the default subscription is the only route in');
+
+  t.stop();
+});
