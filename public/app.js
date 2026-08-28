@@ -247,6 +247,18 @@ var dhcpSearch       = $('dhcpSearch');
 // ── State ──────────────────────────────────────────────────────────────────
 var autoScroll = true, logFilter = '', logLevel = '';
 var currentIf = '', windowSecs = 60, RIGHT_BUFFER_MS = 1000, _ifaceSelectKey = '';
+// The interface the OPERATOR chose, as opposed to the one currently streaming.
+//
+// Deliberately NOT cleared on socket connect, which is the whole point. The
+// server keys its traffic subscription on socket.id, and a reconnect is a new
+// socket — so bindSocket() re-subscribes to defaultIf and the operator's choice
+// is simply gone. A network blip silently moved them back to the WAN interface
+// minutes after they picked something else (issue #119, second report). The
+// page has not reloaded, so this survives and the choice can be restored.
+//
+// It IS cleared on router:switching, because a different router has different
+// interfaces and carrying a name across would be meaningless.
+var _userPickedIf = '';
 var fwTab = 'filter', fwData = {};
 var connHistory = [], MAX_CONN_HIST = 60;
 var allLeases = [], leaseFilter = '', leaseServerFilter = '';
@@ -2734,7 +2746,14 @@ socket.on('interfaces:error',function(data){
   ifaceSelect.appendChild(opt);
   console.warn('[MikroDash] interfaces:error —',data&&data.reason?data.reason:'unknown error');
 });
-ifaceSelect.addEventListener('change',function(){socket.emit('traffic:select',{ifName:ifaceSelect.value});});
+ifaceSelect.addEventListener('change',function(){
+  // Recorded here and ONLY here: this is the operator acting. The auto-switch in
+  // _rebuildIfaceSelect, which moves off an interface that has gone down, must
+  // not overwrite it — that is the app coping, not a choice, and remembering it
+  // would mean a flap permanently rewrote what the operator asked for.
+  _userPickedIf = ifaceSelect.value;
+  socket.emit('traffic:select',{ifName:ifaceSelect.value});
+});
 var windowSelect=$('windowSelect');
 var WINDOW_OPTIONS={'1m':60,'5m':300,'15m':900,'30m':1800};
 if(windowSelect){windowSelect.addEventListener('change',function(){applyWindow(WINDOW_OPTIONS[windowSelect.value]||60);});}
@@ -2742,6 +2761,24 @@ if(windowSelect){windowSelect.addEventListener('change',function(){applyWindow(W
 // ── Traffic events ─────────────────────────────────────────────────────────
 socket.on('traffic:history',function(data){
   currentIf=data.ifName; ifaceSelect.value=data.ifName;
+  // A reconnect arrives here with the server's default, because the new socket
+  // has a new subscription. If the operator had chosen something else, ask for
+  // it back.
+  //
+  // Guarded on the pick still being IN THE LIST, which is what keeps this from
+  // fighting the auto-switch: when an interface goes down it leaves the options,
+  // _rebuildIfaceSelect moves to the first live one, and this stays quiet
+  // because the pick is no longer selectable. It resumes if the interface comes
+  // back and the socket reconnects.
+  //
+  // No loop: this only reacts to history ARRIVING, and the re-request produces
+  // history naming the pick itself, which fails the first condition.
+  if (_userPickedIf && data.ifName !== _userPickedIf &&
+      [].some.call(ifaceSelect.options, function (o) { return o.value === _userPickedIf; })) {
+    ifaceSelect.value = _userPickedIf;
+    socket.emit('traffic:select', { ifName: _userPickedIf });
+    return;   // the history for the pick is on its way; drawing this one first would flash
+  }
   var pts=data.points||[]; initChart(pts);
   if(pts.length){var last=pts[pts.length-1];liveRx.textContent=fmtMbps(last.rx_mbps);liveTx.textContent=fmtMbps(last.tx_mbps);}
   // Reset stale timer when new router history arrives — prevents the 10s stale
@@ -8184,6 +8221,12 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     // doesn't linger. The new traffic:history event will re-initialise the chart
     // once the new router connects and sendInitialState() runs.
     currentIf = '';
+    // Cleared HERE but not on reconnect, and the difference is the whole fix: a
+    // reconnect is the same operator looking at the same router, so their choice
+    // should survive it. A router switch is a different fleet of interfaces, and
+    // carrying a name across would either miss or, worse, match something
+    // unrelated that happens to share it.
+    _userPickedIf = '';
     allPoints  = [];
     if (chart) { chart.data.datasets[0].data = []; chart.data.datasets[1].data = []; chart.update('none'); }
     // Reset stale timer and clear the chart while switching.
