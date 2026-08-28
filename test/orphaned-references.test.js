@@ -548,3 +548,83 @@ test('the notes are requested on open, not on the update-available tick', () => 
   assert.match(APP.slice(openAt, openAt + 900), /emit\('packages:notes'/,
     'they are requested when the dialog opens');
 });
+
+// ── A reconnect must not silently rechoose the operator's interface ─────────
+//
+// The server keys its traffic subscription on socket.id, so a RECONNECT is a
+// new socket and `bindSocket()` re-subscribes it to `defaultIf`. The client
+// then receives history for the default and follows it. Net effect: a network
+// blip, an idle timeout or a server restart silently moved the operator back to
+// the WAN interface, minutes after they picked something else.
+//
+// Reported on #119 as "it seems to switch to ether2 after some time. Maybe when
+// it refreshes interface list" — the list refresh was a coincidence of timing,
+// and ether2 was that router's defaultIf. Reproduced in a browser before the
+// fix: pick ether2, force one reconnect, land back on WAN1.
+//
+// The distinction the tests below pin is the whole design: a reconnect is the
+// same operator on the same router and their choice should survive it; a ROUTER
+// SWITCH is a different fleet of interfaces and carrying a name across would
+// either miss or, worse, match something unrelated that shares it.
+test('the operator\'s interface choice survives a reconnect', () => {
+  assert.match(APP, /var _userPickedIf = '';/,
+    'the choice has to live somewhere that connect does not clear');
+
+  // Recorded on the change event, which is the operator acting.
+  const at = APP.indexOf("ifaceSelect.addEventListener('change'");
+  assert.ok(at > 0, 'the interface picker listener moved');
+  assert.match(APP.slice(at, at + 400), /_userPickedIf = ifaceSelect\.value/,
+    'an explicit pick is what gets remembered');
+
+  // Restored when history arrives naming something else.
+  const h = APP.indexOf("socket.on('traffic:history'");
+  assert.ok(h > 0, 'the history handler moved');
+  const body = APP.slice(h, h + 1200);
+  assert.match(body, /data\.ifName !== _userPickedIf/,
+    'a reconnect arrives with the server default; the pick has to be re-requested');
+  assert.match(body, /emit\('traffic:select', \{ ifName: _userPickedIf \}\)/,
+    'and re-requested through the same path a manual selection uses');
+});
+
+test('the restore does not fight the auto-switch when an interface goes down', () => {
+  // _rebuildIfaceSelect moves off an interface that has left the list. If the
+  // restore ignored that, the two would argue every tick: one moving away from
+  // a downed interface, the other dragging back to it. The guard is that the
+  // pick must still be selectable.
+  const h = APP.indexOf("socket.on('traffic:history'");
+  const body = APP.slice(h, h + 1200);
+  assert.match(body, /ifaceSelect\.options/,
+    'the restore must check the pick is still in the list');
+
+  // And the auto-switch must not overwrite the remembered choice, or one flap
+  // would permanently rewrite what the operator asked for.
+  const r = APP.indexOf('function _rebuildIfaceSelect');
+  assert.ok(r > 0, '_rebuildIfaceSelect moved');
+  assert.ok(!/_userPickedIf/.test(APP.slice(r, r + 900)),
+    'the app coping with a downed interface is not the operator making a choice');
+});
+
+test('a router switch clears the choice, a reconnect does not', () => {
+  // The counter-case, and the one most likely to be broken by a later tidy-up:
+  // somebody adding `_userPickedIf = ''` beside the connect handler's
+  // `currentIf = ''` would reintroduce the whole bug.
+  // Anchored on WHERE the clear lives, not on a distance from a handler. There
+  // are four router:switching handlers in this file and indexOf finds the first,
+  // which is not the one that owns the traffic chart — a fixed window made this
+  // test fail for a reason that had nothing to do with the rule.
+  const clearAt = APP.indexOf("_userPickedIf = ''", APP.indexOf("var _userPickedIf") + 20);
+  assert.ok(clearAt > 0, 'nothing clears the remembered choice');
+  const ownerAt = APP.lastIndexOf("socket.on('", clearAt);
+  const owner   = APP.slice(ownerAt, APP.indexOf('\n', ownerAt));
+  assert.match(owner, /router:switching/,
+    'the clear belongs to router:switching and nowhere else — a different router ' +
+    'has different interfaces, so the name means nothing there. It is currently ' +
+    'owned by: ' + owner.trim());
+
+  const cn = APP.indexOf("socket.on('connect',function()");
+  assert.ok(cn > 0, 'the connect handler moved');
+  const connectBody = APP.slice(cn, cn + 700);
+  assert.match(connectBody, /currentIf=''/, 'connect still resets the streaming interface');
+  assert.ok(!/_userPickedIf\s*=\s*''/.test(connectBody),
+    'clearing the pick on connect is exactly the bug this fixes');
+});
