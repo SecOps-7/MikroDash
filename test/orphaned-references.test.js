@@ -598,10 +598,40 @@ test('the restore does not fight the auto-switch when an interface goes down', (
 
   // And the auto-switch must not overwrite the remembered choice, or one flap
   // would permanently rewrite what the operator asked for.
-  const r = APP.indexOf('function _rebuildIfaceSelect');
-  assert.ok(r > 0, '_rebuildIfaceSelect moved');
-  assert.ok(!/_userPickedIf/.test(APP.slice(r, r + 900)),
-    'the app coping with a downed interface is not the operator making a choice');
+  //
+  // A LEDGER OVER THE WHOLE FILE, not a window around _rebuildIfaceSelect.
+  // `_userPickedIf` is a file-level var, so any of app.js's 16,000 lines can
+  // assign it — and the window version was worse than merely narrow: it covered
+  // characters 137121-138021, where NONE of the three assignments live. It was
+  // vacuously true from the moment it was written, and none of the mutations
+  // that accompanied it happened to test this rule.
+  //
+  // Reported by the Go port, whose own version of this rule is structural: its
+  // equivalent is module-private and the auto-switch lives in another module, so
+  // it cannot reach it at all. We cannot have that here, so the ledger stands in
+  // for it: every assignment must be one of the two sanctioned sites.
+  const assigns = [...APP.matchAll(/_userPickedIf\s*=/g)].map((m) => {
+    const declAt  = APP.lastIndexOf('var _userPickedIf', m.index);
+    const isDecl  = declAt === m.index - 4;
+    const ownerAt = Math.max(APP.lastIndexOf("socket.on('", m.index),
+                             APP.lastIndexOf('addEventListener(', m.index));
+    return { isDecl, owner: APP.slice(ownerAt, APP.indexOf('\n', ownerAt)).trim() };
+  });
+
+  assert.equal(assigns.length, 3,
+    'expected the declaration plus exactly two assignments; a third place writing ' +
+    'this variable is a third opinion about what the operator chose');
+
+  const writers = assigns.filter(a => !a.isDecl).map(a => a.owner);
+  assert.equal(writers.length, 2, 'expected exactly two writers');
+  assert.ok(writers.some(w => /addEventListener\('change'/.test(w)),
+    'the operator picking an interface must be one of them');
+  assert.ok(writers.some(w => /router:switching/.test(w)),
+    'clearing it on a router switch must be the other');
+  const stray = writers.filter(w => !/addEventListener\('change'|router:switching/.test(w));
+  assert.deepEqual(stray, [],
+    'something other than an explicit pick or a router switch writes the remembered ' +
+    'choice: ' + stray.join(' | '));
 });
 
 test('a router switch clears the choice, a reconnect does not', () => {
