@@ -8283,7 +8283,22 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
   // Update per-router status dots in the Routers table
   socket.on('router:status', function(data) {
     _routerStatus[data.routerId] = !!data.connected;
-    var badge = document.querySelector('[data-rtr-conn="' + data.routerId + '"]');
+    // Recorded above unconditionally, painted below only when the row is not
+    // disabled. The Settings table renders data-rtr-conn on the DISABLED badge
+    // too, so an unguarded selector replaced "Disabled" with "Offline" — or
+    // worse, "Online" — leaving a dimmed row with an Enable button and an Online
+    // badge until the next full renderTable() put it back. A disabled router
+    // still has its session torn down and re-established around a switch, and
+    // router:status is emitted per router rather than only for enabled ones, so
+    // this fires in ordinary use.
+    //
+    // The status is still recorded, which is the point of splitting the two:
+    // re-enabling the router re-renders from _routerStatus and shows the state
+    // it actually had rather than a dash.
+    var _r = _routers.find(function(x) { return x.id === data.routerId; });
+    var badge = (_r && !_r.disabled)
+      ? document.querySelector('[data-rtr-conn="' + data.routerId + '"]')
+      : null;
     if (badge) {
       badge.className = 'rtr-status-badge ' + (data.connected ? 'rtr-status-badge--on' : 'rtr-status-badge--off');
       badge.textContent = data.connected ? 'Online' : 'Offline';
