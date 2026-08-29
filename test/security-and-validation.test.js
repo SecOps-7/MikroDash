@@ -943,3 +943,101 @@ test('sameEndpoint reads the string "false" as false, not as true', () => {
   assert.equal(Routers.sameEndpoint({ ...BASE, tlsInsecure: 'true' },
                                     { ...BASE, tlsInsecure: true }), true);
 });
+
+// ── The WAN address is withheld by EVERY path that serves a router record ────
+//
+// geo.auto.ip is a WAN address. /api/localcc withholds it from anyone without
+// system:settings, and so does the socket payload, and so does the stats
+// payload. GET /api/routers served the same Routers.getPublic() records with no
+// strip at all — so a `router:read` grant, including the readonly tier this rule
+// exists to exclude, could read the address straight out of the JSON.
+//
+// The strip was a local const inside _routersForSocket. Three copies of one
+// disclosure rule, and the copy that mattered was the one nobody wrote. It is
+// now a single module-level _stripWanIp.
+//
+// Found by the Go/TypeScript port diffing each endpoint's payload against its
+// own on the same /data with the same session. No test on either side could have
+// found it: a round trip through one implementation agrees with itself whatever
+// it disclosed.
+describe('geo.auto.ip is withheld from anyone without system:settings', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+
+  // Extract the helper and run it for real. A scan alone would pin the wiring
+  // while saying nothing about whether the strip actually removes the field, and
+  // this rule is one where "it is called" and "it works" are separate claims.
+  const at = src.indexOf('function _stripWanIp(');
+  assert.ok(at > 0, '_stripWanIp moved or was renamed');
+  const end = src.indexOf('\n}\n', at);
+  assert.ok(end > at, 'could not delimit _stripWanIp');
+  const vm = require('node:vm');
+  const ctx = { module: {} };
+  vm.createContext(ctx);
+  vm.runInContext(src.slice(at, end + 3) + '\nmodule.exports = _stripWanIp;', ctx);
+  const stripWanIp = ctx.module.exports;
+
+  const LOCATED = {
+    id: 'r-1', label: 'edge',
+    geo: { place: { name: 'Berlin', cc: 'DE' },
+           auto:  { name: 'Brilon', cc: 'DE', lat: 51.39, lon: 8.56, ip: '203.0.113.7' } },
+  };
+
+  test('the WAN address is removed', () => {
+    const out = stripWanIp(LOCATED);
+    assert.equal(out.geo.auto.ip, undefined);
+  });
+
+  test('everything else about the location survives', () => {
+    // The believability twin. A strip that returned {} would also pass the test
+    // above, and would break the map for every operator instead of protecting
+    // one field.
+    const out = stripWanIp(LOCATED);
+    assert.equal(out.geo.auto.name, 'Brilon');
+    assert.equal(out.geo.auto.lat, 51.39);
+    assert.deepEqual(out.geo.place, LOCATED.geo.place);
+    assert.equal(out.label, 'edge');
+  });
+
+  test('the caller\'s record is not mutated', () => {
+    // getPublic() records are served to several sockets in a row. A strip that
+    // deleted in place would blank the field for the NEXT caller too — including
+    // one who may see it — which reads as the WAN address randomly vanishing.
+    const input = JSON.parse(JSON.stringify(LOCATED));
+    stripWanIp(input);
+    assert.equal(input.geo.auto.ip, '203.0.113.7');
+  });
+
+  test('a router with no location passes through untouched', () => {
+    for (const r of [{ id: 'a' }, { id: 'b', geo: {} }, { id: 'c', geo: { auto: {} } }]) {
+      assert.deepEqual(stripWanIp(r), r);
+    }
+    assert.equal(stripWanIp(null), null);
+  });
+
+  test('BOTH paths that serve getPublic() records apply it', () => {
+    // The rule that was actually broken. Not "the helper exists" — it did, as a
+    // local — but that every path serving these records reaches it. A future
+    // route that serves getPublic() and forgets this is the same bug again, so
+    // the ledger is over the call sites rather than over one route.
+    const route = src.indexOf("app.get('/api/routers'");
+    assert.ok(route > 0, 'GET /api/routers moved or was renamed');
+    const block = src.slice(route, src.indexOf('});', route));
+    assert.match(block, /_stripWanIp/,
+      'GET /api/routers serves getPublic() records and must strip the WAN address');
+    assert.match(block, /Rbac\.can\(req\.authSession, 'system:settings'\)/,
+      'and it must be gated on system:settings, the same permission /api/localcc uses');
+
+    const sock = src.indexOf('function _routersForSocket(');
+    assert.ok(sock > 0, '_routersForSocket moved or was renamed');
+    assert.match(src.slice(sock, src.indexOf('\n}\n', sock)), /_stripWanIp/,
+      'the socket payload must go through the shared helper, not a private copy');
+  });
+
+  test('the strip is not defined twice', () => {
+    // Three copies is what let one of them miss the rule. Re-inlining it would
+    // pass every test above while re-opening the exact failure mode.
+    const inlined = src.match(/const \{ ip, \.\.\.auto \} = /g) || [];
+    assert.equal(inlined.length, 1,
+      'the WAN-address strip must have exactly one implementation; found ' + inlined.length);
+  });
+});

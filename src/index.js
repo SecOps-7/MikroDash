@@ -1115,23 +1115,42 @@ function _resolveRouterId(socket) {
   return cfg.activeRouterId || '';
 }
 
+/**
+ * Remove the WAN address from a public router record.
+ *
+ * geo.auto.ip is a WAN address, and /api/localcc deliberately withholds that
+ * from anyone without system:settings. getPublic() masks the password but does
+ * not know about this, so the strip happens here — otherwise adding a location
+ * would quietly undo an existing disclosure rule.
+ *
+ * This lives at module scope because it did NOT, and that is exactly how the
+ * rule got away. It was a local inside _routersForSocket, and GET /api/routers
+ * served the same getPublic() records with no strip at all: withheld by
+ * /api/localcc, withheld by the socket payload, withheld by the stats payload,
+ * and handed out by the HTTP route the same browser calls. A `router:read`
+ * grant — including a readonly one, the tier this rule exists to exclude — could
+ * read the WAN address straight out of the JSON.
+ *
+ * So: one implementation, called by everything that serves these records. The
+ * comment that used to sit here predicted this ("otherwise adding a location
+ * would quietly undo an existing disclosure rule"); three copies is what let one
+ * of them miss it. Found by the Go/TypeScript port's endpoint-by-endpoint
+ * payload diff — not by any test, because a round trip through one
+ * implementation agrees with itself whatever it disclosed.
+ */
+function _stripWanIp(r) {
+  if (!r || !r.geo || !r.geo.auto || r.geo.auto.ip === undefined) return r;
+  const { ip, ...auto } = r.geo.auto;
+  return { ...r, geo: { ...r.geo, auto } };
+}
+
 // The router list a specific socket may see, resolved through grants.
 function _routersForSocket(socket) {
   const all = Routers.getPublic();
-  // geo.auto.ip is a WAN address, and /api/localcc deliberately withholds that
-  // from anyone without system:settings. getPublic() masks the password but does
-  // not know about this, so the strip happens here — otherwise adding a location
-  // would quietly undo an existing disclosure rule. _buildRoutersStats does the
-  // same for the stats payload.
-  const strip = (r) => {
-    if (!r.geo || !r.geo.auto || r.geo.auto.ip === undefined) return r;
-    const { ip, ...auto } = r.geo.auto;
-    return { ...r, geo: { ...r.geo, auto } };
-  };
   if (!_isModern()) return all;
   const maySeeWanIp = _socketCan(socket, 'system:settings');
   const visible = new Set(_visibleRouterIds(socket));
-  return all.filter(r => visible.has(r.id)).map(r => (maySeeWanIp ? r : strip(r)));
+  return all.filter(r => visible.has(r.id)).map(r => (maySeeWanIp ? r : _stripWanIp(r)));
 }
 
 // Persist model/serial/version learned from RouterOS against the router entry,
@@ -2322,6 +2341,10 @@ app.get('/api/routers', (req, res) => {
     // the caller is genuinely entitled to see.
     const visible = new Set(Rbac.effectiveRouterIds(req.authSession, 'router:read'));
     routers = routers.filter(r => visible.has(r.id));
+    // Same rule as the socket payload and /api/localcc: router:read gets you the
+    // device, system:settings gets you its WAN address. Being allowed to SEE a
+    // router has never been what entitles you to that.
+    if (!Rbac.can(req.authSession, 'system:settings')) routers = routers.map(_stripWanIp);
   }
   res.json({ routers, activeId: active });
 });
