@@ -97,7 +97,7 @@ test('update() leaves the stored value alone when the field is absent', () => {
 
 // ── the ledger ──────────────────────────────────────────────────────────────
 
-test('no truthiness coercion of tlsInsecure survives anywhere in src/', () => {
+test('no truthiness coercion of a request boolean survives anywhere in src/', () => {
   // A LEDGER over the whole tree, not a window on the three lines just fixed.
   //
   // This defect appeared four times in two files, and 2af8164 fixed exactly one
@@ -128,17 +128,20 @@ test('no truthiness coercion of tlsInsecure survives anywhere in src/', () => {
   for (const f of files) {
     const code = stripComments(fs.readFileSync(f, 'utf8'));
     code.split('\n').forEach((line, i) => {
-      // `!!(` anything `tlsInsecure` — the shape of the coercion, whichever
-      // object the field hangs off (data, body, s, router, ...).
-      if (/!!\s*\([^)]*tlsInsecure/.test(line)) {
+      // `!!(` on a field read off a request body or a stored record. The FIELD
+      // NAME is deliberately absent: the first version of this ledger named
+      // tlsInsecure, and alertsEnabled and disabled sat five lines away carrying
+      // the identical defect. A ledger over one member of a class is how the
+      // rest of the class survives.
+      if (/!!\s*\(\s*(data|body|updates|patch|existing)\./.test(line)) {
         offenders.push(path.relative(SRC, f) + ':' + (i + 1) + '  ' + line.trim());
       }
     });
   }
 
   assert.deepEqual(offenders, [],
-    'tlsInsecure must be compared explicitly (=== true || === \'true\'), never coerced:\n' +
-    offenders.join('\n'));
+    'a boolean off a request body or a stored record must go through _isTrue, ' +
+    'never `!!` — the string "false" is truthy:\n' + offenders.join('\n'));
 });
 
 test('the ledger can actually see an offender', () => {
@@ -148,9 +151,131 @@ test('the ledger can actually see an offender', () => {
   // explanation. So exercise the pattern against a known-bad line and a
   // known-good one rather than trusting the empty result.
   const BAD  = "    tlsInsecure:   !!(data.tlsInsecure || data.tlsInsecure === 'true'),";
-  const GOOD = "    tlsInsecure:   data.tlsInsecure === true || data.tlsInsecure === 'true',";
-  const RE   = /!!\s*\([^)]*tlsInsecure/;
+  const BAD2 = "    disabled: data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),";
+  const GOOD = "    tlsInsecure:   _isTrue(data.tlsInsecure),";
+  const RE   = /!!\s*\(\s*(data|body|updates|patch|existing)\./;
 
   assert.equal(RE.test(BAD),  true,  'the ledger would not have caught the original defect');
+  assert.equal(RE.test(BAD2), true,  'nor the disabled/alertsEnabled members of the same class');
   assert.equal(RE.test(GOOD), false, 'the ledger rejects the fixed form');
+});
+
+// ── The rest of the class: alertsEnabled and disabled ───────────────────────
+//
+// Filed by the port after the tlsInsecure fix landed, having enumerated the
+// class rather than the instance. `disabled` is the one with teeth: PUT with
+// `disabled: "false"` is an operator ENABLING a router, and the truthiness form
+// read it as true and disabled it — tearing the session down.
+//
+// The stored-value branches mattered as much as the incoming ones. They read
+// `!!(existing.disabled)`, so a record written by an earlier binary holding the
+// string "false" would have the bug revived on every read. They now go through
+// the same predicate, which is read-time normalisation — the migration approach
+// used elsewhere in this file.
+
+test('update() reads disabled: "false" as ENABLED', () => {
+  const r = add();
+  Routers.update(r.id, { disabled: true });
+  assert.equal(Routers.update(r.id, { disabled: 'false' }).disabled, false,
+    'an operator enabling a router must not have it disabled instead');
+});
+
+test('update() still disables on a genuine request', () => {
+  const r = add();
+  assert.equal(Routers.update(r.id, { disabled: 'true' }).disabled, true);
+  assert.equal(Routers.update(r.id, { disabled: true }).disabled,   true);
+});
+
+test('update() leaves disabled alone when the field is absent', () => {
+  const off = add();
+  Routers.update(off.id, { disabled: true });
+  assert.equal(Routers.update(off.id, { label: 'renamed-disabled' }).disabled, true);
+
+  const on = add();
+  assert.equal(Routers.update(on.id, { label: 'renamed-enabled' }).disabled, false);
+});
+
+test('update() treats junk as ENABLED rather than taking a router out of service', () => {
+  const r = add();
+  for (const v of ['1', 'yes', 'TRUE', 'on', 1, {}, []]) {
+    Routers.update(r.id, { disabled: false });
+    assert.equal(Routers.update(r.id, { disabled: v }).disabled, false,
+      'disabled a router on: ' + JSON.stringify(v));
+  }
+});
+
+test('alertsEnabled reads "false" as off, on both add and update', () => {
+  assert.equal(add({ alertsEnabled: 'false' }).alertsEnabled, false);
+  const r = add({ alertsEnabled: true });
+  assert.equal(Routers.update(r.id, { alertsEnabled: 'false' }).alertsEnabled, false);
+});
+
+test('alertsEnabled still honours a genuine request', () => {
+  assert.equal(add({ alertsEnabled: 'true' }).alertsEnabled, true);
+  assert.equal(add({ alertsEnabled: true }).alertsEnabled,   true);
+  assert.equal(add().alertsEnabled, false, 'absent means off, as before');
+});
+
+test('a stored "false" written by an earlier binary is not revived as true', () => {
+  // The half that is invisible from the request side. Before the fix these
+  // branches were `!!(existing.X)`, so a record the buggy version wrote would
+  // have the defect re-applied every time it was read — a fix that only touched
+  // the incoming values would have left every already-corrupted record wrong.
+  const r = add();
+  const raw = JSON.parse(fs.readFileSync(path.join(process.env.DATA_DIR, 'routers.json'), 'utf8'));
+  const rec = raw.find(x => x.id === r.id);
+  rec.disabled = 'false'; rec.alertsEnabled = 'false'; rec.tlsInsecure = 'false';
+  fs.writeFileSync(path.join(process.env.DATA_DIR, 'routers.json'), JSON.stringify(raw));
+  Routers.invalidateCache();
+
+  // An edit that does not mention any of them must normalise, not preserve.
+  const out = Routers.update(r.id, { label: 'touched' });
+  assert.equal(out.disabled,      false, 'a stored "false" must read as false');
+  assert.equal(out.alertsEnabled, false);
+  assert.equal(out.tlsInsecure,   false);
+});
+
+// ── The legacy seed: the likeliest place of all to meet a stored string ──────
+//
+// loadAll() migrates a pre-multi-router settings.json into routers.json the
+// first time it runs. It read `!!s.routerTlsInsecure`, so a settings.json
+// holding the string "false" seeded a router that accepts forged certificates —
+// and wrote it, permanently.
+//
+// This path exists specifically to read OLD data, which makes it the likeliest
+// place in the codebase to meet a boolean stored as a string, and the worst
+// place to get it wrong because the answer is persisted rather than recomputed.
+//
+// Run in a child process: the seed branch only fires when routers.json does not
+// exist, and the tests above have already created one in this process's DATA_DIR.
+test('the settings.json seed reads stored booleans the same way as addRouter', () => {
+  const { execFileSync } = require('node:child_process');
+
+  const seed = (routerTlsInsecure, routerTls) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'router-seed-'));
+    fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({
+      routerHost: '10.0.0.53', routerPort: 8729, routerUser: 'mikrodash',
+      routerTls, routerTlsInsecure,
+    }));
+    const out = execFileSync(process.execPath, ['-e', `
+      process.env.DATA_DIR = ${JSON.stringify(dir)};
+      const R = require(${JSON.stringify(path.join(__dirname, '..', 'src', 'routers'))});
+      const r = R.loadAll()[0];
+      console.log(JSON.stringify({ tls: r.tls, tlsInsecure: r.tlsInsecure }));
+    `], { encoding: 'utf8' });
+    return JSON.parse(out.trim().split('\n').pop());
+  };
+
+  // The defect: a stored "false" seeded a router that accepts forged certs.
+  assert.deepEqual(seed('false', true), { tls: true, tlsInsecure: false },
+    'a stored "false" must not seed a router that accepts a forged certificate');
+
+  // The believability twin — a genuine opt-in still survives the migration.
+  assert.deepEqual(seed('true', true), { tls: true, tlsInsecure: true });
+  assert.deepEqual(seed(true, true),   { tls: true, tlsInsecure: true });
+
+  // tls defaults ON, so its rule is the other one: only false or "false" is off.
+  assert.equal(seed(false, 'false').tls, false,
+    'a stored "false" for tls must turn TLS off, matching addRouter');
+  assert.equal(seed(false, undefined).tls, true, 'absent still means on');
 });

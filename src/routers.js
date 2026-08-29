@@ -107,6 +107,33 @@ function _decrypt(b64) {
 }
 
 // ── UUID v4 ───────────────────────────────────────────────────────────────────
+/**
+ * Read a boolean that arrived from a request body.
+ *
+ * A JSON body, a form post, or any client that stringifies its booleans all send
+ * the four characters "false" — and `!!('false')` is true, so the truthiness
+ * form inverts every one of them. That is not hypothetical: it shipped four
+ * times on `tlsInsecure` alone, and 2af8164 fixed one of the four because the
+ * pattern was respelled at each site instead of named once.
+ *
+ * So it is named once. Only an explicit `true`, or the string a form sends for
+ * it, is true. Everything else — `'1'`, `'yes'`, `'on'`, an object, junk — reads
+ * as false, because the safe reading of a client bug is the conservative one:
+ * do not relax a certificate check, do not take a router out of service.
+ *
+ * Applied to STORED values too, not only incoming ones. A record written by an
+ * earlier binary can hold the string "false", and `!!` on the way back out would
+ * revive the bug at read time. That is read-time normalisation, the same
+ * migration approach the rest of this file uses.
+ *
+ * `tls` deliberately does NOT go through this: it defaults to ON, so its rule is
+ * "not false and not 'false'", which is a different question with a different
+ * safe direction.
+ */
+function _isTrue(v) {
+  return v === true || v === 'true';
+}
+
 function _uuid() {
   return crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex');
 }
@@ -432,8 +459,12 @@ function loadAll() {
           label:       'My Router',   // will be replaced by board name on first connect
           host:        s.routerHost,
           port:        s.routerPort   || 8729,
-          tls:         s.routerTls    !== false,
-          tlsInsecure: !!s.routerTlsInsecure,
+          // Same rules as addRouter, not looser ones. This path exists to read an
+          // OLD settings.json, so it is the likeliest place of all to meet a
+          // boolean stored as a string — and whatever it decides is written to
+          // routers.json permanently.
+          tls:         s.routerTls !== false && s.routerTls !== 'false',
+          tlsInsecure: _isTrue(s.routerTlsInsecure),
           username:    s.routerUser   || 'admin',
           password:    s.routerPass   || '',
           defaultIf:   s.defaultIf    || 'ether1',
@@ -560,14 +591,14 @@ function add(data) {
     host:          String(data.host          || '').trim(),
     port:          parseInt(data.port        || '8729', 10),
     tls:           data.tls !== false && data.tls !== 'false',
-    tlsInsecure:   data.tlsInsecure === true || data.tlsInsecure === 'true',
+    tlsInsecure:   _isTrue(data.tlsInsecure),
     username:      String(data.username      || 'admin').trim(),
     password:      (data.password && data.password !== '••••••••') ? String(data.password) : '',
     defaultIf:     String(data.defaultIf     || 'ether1').trim(),
     pingTarget:    String(data.pingTarget    || '1.1.1.1').trim(),
     bwDownMbps:    Math.max(1, parseInt(data.bwDownMbps || '1000', 10) || 1000),
     bwUpMbps:      Math.max(1, parseInt(data.bwUpMbps   || '1000', 10) || 1000),
-    alertsEnabled:       !!(data.alertsEnabled),
+    alertsEnabled:       _isTrue(data.alertsEnabled),
     connDownThresholdSec:(function(){ var n = parseInt(data.connDownThresholdSec, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     collection:          _normalizeCollection(data.collection, null),
     geo:                 _normalizeGeo(data.geo, null),
@@ -616,13 +647,13 @@ function update(id, data) {
     host:          data.host          !== undefined ? String(data.host).trim()        : existing.host,
     port:          data.port          !== undefined ? parseInt(data.port, 10)          : existing.port,
     tls:           data.tls           !== undefined ? (data.tls !== false && data.tls !== 'false') : existing.tls,
-    tlsInsecure:   data.tlsInsecure   !== undefined ? (data.tlsInsecure === true || data.tlsInsecure === 'true') : existing.tlsInsecure,
+    tlsInsecure:   data.tlsInsecure   !== undefined ? _isTrue(data.tlsInsecure) : _isTrue(existing.tlsInsecure),
     username:      data.username      !== undefined ? String(data.username).trim()     : existing.username,
     defaultIf:     data.defaultIf     !== undefined ? String(data.defaultIf).trim()   : existing.defaultIf,
     pingTarget:    data.pingTarget     !== undefined ? String(data.pingTarget).trim()  : existing.pingTarget,
     bwDownMbps:    data.bwDownMbps    !== undefined ? Math.max(1, parseInt(data.bwDownMbps, 10) || 1000) : (existing.bwDownMbps || 1000),
     bwUpMbps:      data.bwUpMbps      !== undefined ? Math.max(1, parseInt(data.bwUpMbps,   10) || 1000) : (existing.bwUpMbps   || 1000),
-    alertsEnabled:       data.alertsEnabled       !== undefined ? !!(data.alertsEnabled)           : !!(existing.alertsEnabled),
+    alertsEnabled:       data.alertsEnabled       !== undefined ? _isTrue(data.alertsEnabled)      : _isTrue(existing.alertsEnabled),
     connDownThresholdSec:(function(){ var raw = data.connDownThresholdSec !== undefined ? data.connDownThresholdSec : (existing.connDownThresholdSec !== undefined ? existing.connDownThresholdSec : 30); var n = parseInt(raw, 10); return (n >= 0 && n <= 300) ? n : 30; }()),
     collection:          _normalizeCollection(data.collection, existing),
     geo:                 _normalizeGeo(data.geo, existing),
@@ -632,7 +663,7 @@ function update(id, data) {
     // recomputed from whichever won so the two can never disagree.
     siteIds:             _updSiteIds(data, existing),
     siteId:              _updSiteIds(data, existing)[0] || null,
-    disabled:            data.disabled !== undefined ? !!(data.disabled) : !!(existing.disabled),
+    disabled:            data.disabled !== undefined ? _isTrue(data.disabled) : _isTrue(existing.disabled),
   };
 
   _validateTargets(updated.defaultIf, updated.pingTarget);
@@ -813,7 +844,7 @@ function sameEndpoint(a, b) {
   // sides then disagreed and the stored password was refused) rather than open,
   // but a security predicate that is wrong in a safe direction is still wrong,
   // and the next reader would have to re-derive which direction it was.
-  const lax  = (r) => r.tlsInsecure === true || r.tlsInsecure === 'true';
+  const lax  = (r) => _isTrue(r.tlsInsecure);
   return host(a) !== '' && host(a) === host(b)
       && port(a) === port(b)
       && user(a) === user(b)
