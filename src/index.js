@@ -1607,7 +1607,18 @@ app.put('/api/users/:id', Rbac.requireGlobalAdmin, async (req, res) => {
     // administrator access now means removing the grant, which
     // DELETE /api/grants/:id already guards with wouldOrphanGlobalAdmin — the
     // one check that can see a grant held through a group.
-    if (updates.username !== undefined && !_USERNAME_RE.test(updates.username)) {
+    // typeof BEFORE the pattern. The guard is presence-based so that an edit
+    // which does not mention the username leaves it alone — but `!== undefined`
+    // is true for null, and RegExp.prototype.test COERCES its argument, so what
+    // was actually being tested was the string "null", which matches this
+    // pattern perfectly. `{"username": null}` renamed the account to those four
+    // characters, and `{"username": 42}` to "42". Nobody was locked out, which is
+    // what made it quiet: the row was simply wrong, and alert_events stores
+    // acknowledged_by as raw text, so every later acknowledgement was attributed
+    // to `null`. POST /api/users thirty lines up never had this — its guard
+    // starts `!username`, and `!null` is true.
+    if (updates.username !== undefined
+        && (typeof updates.username !== 'string' || !_USERNAME_RE.test(updates.username))) {
       return res.status(400).json({ ok: false, error: 'Invalid username' });
     }
     if (updates.role !== undefined && !Users.ROLES.includes(updates.role)) {
