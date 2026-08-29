@@ -658,3 +658,94 @@ test('a router switch clears the choice, a reconnect does not', () => {
   assert.ok(!/_userPickedIf\s*=\s*''/.test(connectBody),
     'clearing the pick on connect is exactly the bug this fixes');
 });
+
+// ── A router:status event must not repaint a DISABLED router's badge ────────
+//
+// The Settings routers table renders data-rtr-conn on the DISABLED badge as well
+// as the online/offline one, so the handler's unguarded querySelector replaced
+// "Disabled" with "Offline" — or worse, "Online". The row kept its dimmed
+// styling and its Enable button, so the table read as a contradiction until the
+// next full renderTable() put it back.
+//
+// It fires in ordinary use: a disabled router still has its session torn down
+// and re-established around a router switch, and router:status is emitted per
+// router rather than only for enabled ones.
+//
+// Run rather than scanned. The guard is two conditions and a selector, and a
+// scan would pass on a correctly-spelled check wired to the wrong record.
+//
+// Found by the Go/TypeScript port, which reproduces the quirk deliberately in
+// web/src/pages/settings-routers.ts and pins it in tools/settings-routers-check.js.
+test('router:status leaves a disabled row saying Disabled', () => {
+  const APP = P('public', 'app.js');
+  const at  = APP.indexOf("socket.on('router:status'");
+  assert.ok(at > 0, 'the router:status handler moved or was renamed');
+  const body = APP.slice(APP.indexOf('{', APP.indexOf('function(data)', at)) + 1,
+                         APP.indexOf('\n  });', at));
+
+  const vm = require('node:vm');
+
+  // One badge element per router, exactly as _renderRow emits it: the disabled
+  // row carries data-rtr-conn too, which is the whole reason this bug existed.
+  const run = (routers, event) => {
+    const badges = {};
+    for (const r of routers) {
+      badges[r.id] = {
+        className: r.disabled ? 'rtr-status-badge rtr-status-badge--disabled' : 'rtr-status-badge',
+        textContent: r.disabled ? 'Disabled' : '—',
+      };
+    }
+    const ctx = {
+      _routers: routers,
+      _routerStatus: {},
+      _activeRouterId: 'r-a',
+      _ddOpen: false,
+      renderDropdown() {},
+      $: () => null,
+      document: {
+        querySelector(sel) {
+          const m = /data-rtr-conn="([^"]+)"/.exec(sel);
+          return (m && badges[m[1]]) || null;
+        },
+      },
+      socket: { on(name, fn) { if (name === 'router:status') ctx._handler = fn; } },
+    };
+    vm.createContext(ctx);
+    vm.runInContext('var data = ' + JSON.stringify(event) + ';\n' + body, ctx);
+    return { badges, status: ctx._routerStatus };
+  };
+
+  const ROUTERS = [
+    { id: 'r-a', disabled: false },
+    { id: 'r-c', disabled: true },
+  ];
+
+  // The reported case: a status event for the disabled router.
+  let out = run(ROUTERS, { routerId: 'r-c', connected: false });
+  assert.equal(out.badges['r-c'].textContent, 'Disabled',
+    'a disabled row must keep saying Disabled, not Offline');
+
+  // The worse one — a dimmed row with an Enable button and an Online badge.
+  out = run(ROUTERS, { routerId: 'r-c', connected: true });
+  assert.equal(out.badges['r-c'].textContent, 'Disabled');
+  assert.ok(!/--on\b/.test(out.badges['r-c'].className),
+    'a disabled row must not be painted with the online class');
+
+  // The believability twin. A guard that skipped every row would pass both of
+  // the above and break the feature the handler exists for.
+  out = run(ROUTERS, { routerId: 'r-a', connected: true });
+  assert.equal(out.badges['r-a'].textContent, 'Online');
+  out = run(ROUTERS, { routerId: 'r-a', connected: false });
+  assert.equal(out.badges['r-a'].textContent, 'Offline');
+
+  // The status is still RECORDED for the disabled router even though it is not
+  // painted. That split is deliberate: re-enabling it re-renders from
+  // _routerStatus, and dropping the record would show a dash instead.
+  out = run(ROUTERS, { routerId: 'r-c', connected: true });
+  assert.equal(out.status['r-c'], true,
+    'the status must still be recorded so a re-enabled row renders its real state');
+
+  // An event for a router the client does not know about must not throw — a
+  // status can arrive between a delete and the list refresh.
+  assert.doesNotThrow(() => run(ROUTERS, { routerId: 'r-gone', connected: true }));
+});
