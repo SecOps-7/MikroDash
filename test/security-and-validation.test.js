@@ -1041,3 +1041,90 @@ describe('geo.auto.ip is withheld from anyone without system:settings', () => {
       'the WAN-address strip must have exactly one implementation; found ' + inlined.length);
   });
 });
+
+// ── A JSON null username is missing, not the string "null" ──────────────────
+//
+// PUT /api/users/:id used a presence-based guard, which is right — an edit that
+// does not mention the username must leave it alone. But `!== undefined` is TRUE
+// for null, and RegExp.prototype.test COERCES its argument, so what was actually
+// tested was the string "null" — which matches /^[a-zA-Z0-9_.\-]{1,64}$/
+// perfectly. The check passed and String(null).trim() wrote "null".
+//
+// Nobody was locked out, which is what made it quiet. The account still worked;
+// the row was just wrong. alert_events.acknowledged_by stores the username as
+// raw text, so every acknowledgement made afterwards was attributed to `null`.
+//
+// POST /api/users, thirty lines up, never had this: its guard starts `!username`
+// and `!null` is true. Two routes, thirty lines apart, different tests for the
+// same field — so the divergence test below matters more than the value cases.
+//
+// Found by the Go/TypeScript port, which reproduced the behaviour rather than
+// fixing it (a port that refused this would differ from the app it replaces) and
+// pinned it as "an explicit null username is coerced, as the live app does".
+describe('a null username is rejected, not coerced to the string "null"', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+
+  // Pull the guard's real condition out of the source and run it, rather than
+  // asserting the text looks right. A scan would pass on a typeof check that was
+  // spelled correctly and wired to the wrong variable.
+  const m = src.match(/if \(updates\.username !== undefined\s*\n?\s*&&([\s\S]{0,200}?)\) \{\n\s*return res\.status\(400\)/);
+  assert.ok(m, 'the update-route username guard moved or was rewritten');
+  const RE = /^[a-zA-Z0-9_.\-]{1,64}$/;
+  // eslint-disable-next-line no-new-func
+  const rejects = new Function('updates', '_USERNAME_RE',
+    'return updates.username !== undefined && (' + m[1] + ');');
+  const rejected = (v) => rejects({ username: v }, RE);
+
+  test('an explicit null is refused', () => {
+    assert.equal(rejected(null), true,
+      '{"username": null} renamed the account to the four characters "null"');
+  });
+
+  test('a number is refused too', () => {
+    // Same coercion, different literal. String(42) is "42", which also matches.
+    assert.equal(rejected(42), true);
+  });
+
+  test('other non-strings are refused', () => {
+    for (const v of [true, {}, [], ['bob']]) {
+      assert.equal(rejected(v), true, 'accepted: ' + JSON.stringify(v));
+    }
+  });
+
+  test('a real username is still accepted', () => {
+    // The believability twin: a guard that rejected everything would pass every
+    // case above and make the route unusable.
+    for (const v of ['bob', 'Bob.Smith', 'ops_1', 'a-b', 'x'.repeat(64)]) {
+      assert.equal(rejected(v), false, 'refused a valid username: ' + v);
+    }
+  });
+
+  test('an absent username still means "leave it alone"', () => {
+    // The presence semantics are the reason the guard is shaped this way. A fix
+    // that required a username would break every edit that only changes a role.
+    assert.equal(rejects({}, RE), false);
+    assert.equal(rejects({ username: undefined }, RE), false);
+  });
+
+  test('an invalid string is still refused for the original reason', () => {
+    for (const v of ['', 'has space', 'we/slash', 'x'.repeat(65)]) {
+      assert.equal(rejected(v), true, 'accepted: ' + JSON.stringify(v));
+    }
+  });
+
+  test('the create and update routes agree on what a username is', () => {
+    // The real lesson. Two guards for one field, thirty lines apart, written
+    // differently — one correct by accident (`!username` catches null) and one
+    // not. Value cases pin today's behaviour; this pins the thing that caused
+    // it, so a future edit cannot fix one route and leave the other.
+    const createGuards = src.match(/if \(!username \|\| !_USERNAME_RE\.test\(username\)\)/g) || [];
+    assert.ok(createGuards.length >= 2,
+      'expected the setup and create routes to share one guard; found ' + createGuards.length);
+
+    const updateGuard = m[1];
+    assert.match(updateGuard, /typeof updates\.username !== 'string'/,
+      'the update route must check the TYPE before the pattern — test() coerces');
+    assert.match(updateGuard, /_USERNAME_RE\.test\(updates\.username\)/,
+      'and must still apply the pattern');
+  });
+});
