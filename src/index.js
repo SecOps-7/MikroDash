@@ -2542,7 +2542,7 @@ app.post('/api/routers/test', Rbac.requireGlobalAdmin, _testConnLimiter, async (
   if (!body.host) return res.status(400).json({ ok:false, error:'host is required' });
 
   const testTls = (body.tls !== false && body.tls !== 'false');
-  const testTlsInsecure = !!(body.tlsInsecure || body.tlsInsecure === 'true');
+  const testTlsInsecure = (body.tlsInsecure === true || body.tlsInsecure === 'true');
 
   const _testHost = String(body.host).trim();
   const _testPort = parseInt(body.port || '8729', 10);
