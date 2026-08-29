@@ -2762,6 +2762,25 @@ function sanitizeErr(e) {
     // Provider errors (SMTP auth, Telegram API) can embed the account/email or
     // bot token — redact both before anything reaches the browser.
     .replace(/[\w.+-]+@[\w.-]+\.\w+/g, '[email]')
+    // A HOSTNAME, after the email rule so an address is still redacted whole as
+    // [email] rather than half-matched into user@[host].
+    //
+    // The IPv4 form of this was closed from the start, which is exactly what made
+    // the gap easy to miss: the obvious version of the probe was already blocked.
+    // A hostname inside a URL is caught incidentally by the [path] rule above —
+    // what survived was the BARE name in a resolver error, which has no leading
+    // slash: "getaddrinfo ENOTFOUND build-server.internal".
+    //
+    // It matters because POST /api/user-notify/test-notification is deliberately
+    // NOT behind requireGlobalAdmin — correctly, since it manages the caller's
+    // own channels — and per-user ntfy lets that user choose the destination URL.
+    // So an ordinary account could enter an internal hostname, press Test, and
+    // read back whether the name resolves: a resolvable one gives a connection
+    // error, an unresolvable one "no such host". Distinguishable, and therefore a
+    // name oracle for the server's DNS view. The install-wide route uses the same
+    // sanitiser but is admin-gated, so there the admin is reading back a host
+    // they configured.
+    .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b/gi, '[host]')
     .replace(/\b\d{6,}:[A-Za-z0-9_-]{20,}\b/g, '[token]')
     .slice(0, 200);
 }

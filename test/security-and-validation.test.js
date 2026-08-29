@@ -1128,3 +1128,113 @@ describe('a null username is rejected, not coerced to the string "null"', () => 
       'and must still apply the pattern');
   });
 });
+
+// ── sanitizeErr redacts a HOSTNAME, not only an address ─────────────────────
+//
+// sanitizeErr had no direct coverage at all — one incidental scan asserting a
+// route calls it. It is the last thing between a driver error and the browser,
+// so the rules are pinned here individually and in combination.
+//
+// The rule that was missing: a hostname. Paths, IPv4 addresses, emails and bot
+// tokens were redacted; a bare name in a resolver error was not. A hostname
+// inside a URL is caught incidentally by the [path] rule, so what survived was
+// "getaddrinfo ENOTFOUND build-server.internal".
+//
+// It is reachable because POST /api/user-notify/test-notification is
+// deliberately NOT admin-gated — correctly, it manages the caller's own channels
+// — and per-user ntfy lets that user choose the destination URL. So an ordinary
+// account could enter an internal hostname, press Test, and distinguish "no such
+// host" from a connection error: a name oracle for the server's DNS view. The
+// IPv4 form was closed from the start, which is what made the gap easy to miss.
+//
+// Found by the Go/TypeScript port, whose own test asserted the gap STILL EXISTS
+// so that closing it here forces that assertion to be rewritten rather than left
+// quietly wrong.
+describe('sanitizeErr', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const at  = src.indexOf('function sanitizeErr(');
+  assert.ok(at > 0, 'sanitizeErr moved or was renamed');
+  const end = src.indexOf('\n}\n', at);
+  const vm  = require('node:vm');
+  const ctx = { module: {} };
+  vm.createContext(ctx);
+  vm.runInContext(src.slice(at, end + 3) + '\nmodule.exports = sanitizeErr;', ctx);
+  const sanitizeErr = ctx.module.exports;
+  const clean = (m) => sanitizeErr(new Error(m));
+
+  test('a bare hostname in a resolver error is redacted', () => {
+    assert.equal(clean('getaddrinfo ENOTFOUND build-server.internal'),
+                 'getaddrinfo ENOTFOUND [host]');
+  });
+
+  test('the name oracle is closed in both of its answers', () => {
+    // The whole point is that the two replies must not be DISTINGUISHABLE by the
+    // host they name. They may still differ in kind — that is a connectivity
+    // fact, not a naming one.
+    const unresolvable = clean('dial tcp: lookup wiki.corp.local: no such host');
+    const resolvable   = clean('connect ECONNREFUSED build.corp.local');
+    for (const out of [unresolvable, resolvable]) {
+      assert.ok(!/corp\.local/.test(out), 'leaked the hostname: ' + out);
+    }
+  });
+
+  test('an IPv4 address is still redacted, with or without a port', () => {
+    assert.equal(clean('connect ECONNREFUSED 10.0.0.5:443'), 'connect ECONNREFUSED [addr]');
+    assert.equal(clean('no route to 192.168.88.1'), 'no route to [addr]');
+  });
+
+  test('an email address is redacted WHOLE, not split into user@[host]', () => {
+    // Ordering. The host rule runs after the email rule for exactly this reason,
+    // and swapping them yields "ops@[host]" — which still names the domain.
+    assert.equal(clean('SMTP auth failed for ops@example.com'),
+                 'SMTP auth failed for [email]');
+  });
+
+  test('a bot token is redacted', () => {
+    assert.equal(clean('Telegram: 123456789:AAHxyzabcdefghijklmnopqrstuvw failed'),
+                 'Telegram: [token] failed');
+  });
+
+  test('a path is redacted', () => {
+    assert.match(clean('ENOENT: cannot open /data/settings.json'), /\[path\]/);
+    assert.ok(!/settings\.json/.test(clean('ENOENT: cannot open /data/settings.json')));
+  });
+
+  test('a message with nothing sensitive survives intact', () => {
+    // The believability twin for all of the above. A sanitiser that redacted
+    // everything would pass every test here and make every error unreadable.
+    assert.equal(clean('ENOENT: no such file or directory'),
+                 'ENOENT: no such file or directory');
+    assert.equal(clean('Authentication failed'), 'Authentication failed');
+  });
+
+  test('a version number is not mistaken for a hostname', () => {
+    // The host pattern requires a letter-only final label, so 7.24.1 does not
+    // match. Worth pinning: RouterOS versions appear in these messages often.
+    assert.equal(clean('RouterOS 7.24.1 rejected the request'),
+                 'RouterOS 7.24.1 rejected the request');
+  });
+
+  test('the output is length-capped', () => {
+    assert.ok(clean('x'.repeat(500)).length <= 200);
+  });
+
+  test('a falsy error yields null rather than the string "undefined"', () => {
+    assert.equal(sanitizeErr(null), null);
+    assert.equal(sanitizeErr(undefined), null);
+  });
+
+  test('the per-user notification test route sanitises what it returns', () => {
+    // The route that makes the hostname rule matter. It is deliberately not
+    // admin-gated, so if it ever returned a raw message the rule above would be
+    // protecting nothing.
+    const route = src.indexOf("app.post('/api/user-notify/test-notification'");
+    assert.ok(route > 0, 'the per-user test route moved or was renamed');
+    const block = src.slice(route, src.indexOf('\n});', route));
+    assert.match(block, /sanitizeErr\(/,
+      'a driver error from this route reaches a non-admin and must be sanitised');
+    const line = src.slice(route, src.indexOf('\n', route));
+    assert.ok(!line.includes('requireGlobalAdmin'),
+      'if this route became admin-only the rationale above needs rewriting, not deleting');
+  });
+});
