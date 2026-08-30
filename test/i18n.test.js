@@ -191,6 +191,7 @@ test('dynamic patterns accept bounded UI values and reject arbitrary user data',
   assert.equal(i18n.t('4 networks'), '4 个网络');
   assert.equal(i18n.t('2 routers'), '2 台路由器');
   assert.equal(i18n.t('1 offline'), '1 台离线');
+  assert.equal(i18n.t('3 of 7 shown'), '显示 3 台，共 7 台');
   assert.equal(i18n.t('Connected to My Router'), 'Connected to My Router');
   assert.equal(i18n.t('Last updated Dashboard'), 'Last updated Dashboard');
   assert.equal(i18n.t('Updated Admin'), 'Updated Admin');
@@ -199,6 +200,7 @@ test('dynamic patterns accept bounded UI values and reject arbitrary user data',
   assert.equal(i18n.t('Switching to router: Unknown…'), 'Switching to router: Unknown…');
   assert.equal(i18n.t('No Dashboard Home SSID found'), 'No Dashboard Home SSID found');
   assert.equal(i18n.t('Save Alice'), 'Save Alice');
+  assert.equal(i18n.t('Alice of Bob shown'), 'Alice of Bob shown');
   dom.window.close();
 });
 
@@ -231,6 +233,14 @@ test('application marks router and user values as translation boundaries', () =>
     'audit targets are recorded data');
   assert.match(app, /class="wn-ssid-pill" data-i18n-user-data/,
     'Wi-Fi SSIDs are router data');
+  assert.match(app, /o\.setAttribute\('data-i18n-user-data', ''\);\s+o\.value = id;/,
+    'primary-site option labels are user data');
+  assert.match(app, /cpick-opt[^\n]+role="option" data-i18n-user-data/,
+    'city and town names are external data');
+  assert.match(app, /rmt-pill" data-i18n-user-data/,
+    'unlocated device names and hosts are user data');
+  assert.match(index, /id="upd_notes" data-i18n-user-data/,
+    'external RouterOS release notes are data, not interface copy');
   assert.match(index, /id="authUsername" data-i18n-user-data/,
     'the signed-in application username is user data');
   assert.match(index, /id="routerSelectLabel" data-i18n-user-data/,

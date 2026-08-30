@@ -5501,7 +5501,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
             .filter(function (id) { return (!site || id !== site.id) && window._sitesById[id]; })
             .map(function (id) { return window._sitesById[id].name; });
           var other = elsewhere.length
-            ? ' <span style="color:var(--text-muted)">— also in ' + dataText(elsewhere.join(', ')) + '</span>'
+            ? ' <span style="color:var(--text-muted)">— ' + esc(tr('also in')) + ' <span data-i18n-user-data>' + esc(elsewhere.join(', ')) + '</span></span>'
             : '';
           return '<label style="display:flex;align-items:center;gap:.4rem;margin-bottom:.2rem">' +
             '<input type="checkbox" data-site-router="' + esc(r.id) + '"' + (here ? ' checked' : '') + '>' +
@@ -6008,10 +6008,10 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
     }).join('');
 
     var siteOpts = (window._sitesById ? Object.keys(window._sitesById) : []).map(function (id) {
-      return '<option value="site:' + esc(id) + '">Site: ' + esc(window._sitesById[id].name) + '</option>';
+      return '<option data-i18n-user-data value="site:' + esc(id) + '">' + esc(tr('Site:')) + ' ' + esc(window._sitesById[id].name) + '</option>';
     }).join('');
     var rtrOpts = (window._allRouters || []).map(function (r) {
-      return '<option value="router:' + esc(r.id) + '">Router: ' + esc(r.label || r.host) + '</option>';
+      return '<option data-i18n-user-data value="router:' + esc(r.id) + '">' + esc(tr('Router:')) + ' ' + esc(r.label || r.host) + '</option>';
     }).join('');
 
     container.innerHTML = (rows || '<div style="color:var(--text-muted);margin-bottom:.3rem">No access granted yet.</div>') +
@@ -7960,7 +7960,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         // reachable rather than being hidden by the grouping.
         if (loose.length) {
           var g2 = document.createElement('optgroup');
-          g2.label = 'No site';
+          g2.label = tr('No site');
           loose.forEach(function(r) { _addOpt(g2, r); });
           navSel.appendChild(g2);
         }
@@ -8323,7 +8323,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
         + '. Pick a different town to override it.</span>';
     } else if (site && site.place_name) {
       hint.innerHTML = '<span class="text-muted">From this router’s site, '
-        + esc(site.place_name) + '. Pick a town to override it.</span>';
+        + '<span data-i18n-user-data>' + esc(site.place_name) + '</span>. Pick a town to override it.</span>';
     } else {
       hint.innerHTML = '<span class="text-muted">No location yet. A private or CGNAT WAN '
         + 'address cannot be geolocated — pick a town instead.</span>';
@@ -8355,6 +8355,7 @@ var MAP_URL = '/vendor/world-atlas/countries-110m.json';
       _mPrim.innerHTML = '<option value="">— No site —</option>';
       _known.forEach(function (id) {
         var o = document.createElement('option');
+        o.setAttribute('data-i18n-user-data', '');
         o.value = id;
         o.textContent = window._sitesById[id].name;
         _mPrim.appendChild(o);
@@ -10946,13 +10947,13 @@ function _syncRoutersSiteFilter(rows) {
   var ids = Object.keys(names).sort(function (a, b) {
     return String(names[a]).localeCompare(String(names[b]));
   });
-  var html = '<option value="">All Sites</option>' +
+  var html = '<option data-i18n-user-data value="">' + esc(tr('All Sites')) + '</option>' +
     ids.map(function (id) {
-      return '<option value="' + esc(id) + '">' + esc(names[id]) + '</option>';
+      return '<option data-i18n-user-data value="' + esc(id) + '">' + esc(names[id]) + '</option>';
     }).join('') +
     // Only offered when such devices exist, so a fully assigned fleet keeps a
     // clean list.
-    (anyLoose ? '<option value="' + RTR_UNASSIGNED + '">Unassigned</option>' : '');
+    (anyLoose ? '<option data-i18n-user-data value="' + RTR_UNASSIGNED + '">' + esc(tr('Unassigned')) + '</option>' : '');
 
   if (sel.innerHTML !== html) {
     var keep = sel.value;
@@ -11305,7 +11306,7 @@ function _mountCityPicker(inputEl, listEl, opts) {
     listEl.innerHTML = results.map(function (p, i) {
       // Place names come from a local database rather than a user, but they are
       // still being put into innerHTML, and the esc() rule has no exceptions.
-      return '<div class="cpick-opt' + (i === active ? ' is-active' : '') + '" role="option"'
+      return '<div class="cpick-opt' + (i === active ? ' is-active' : '') + '" role="option" data-i18n-user-data'
         + ' data-i="' + i + '">' + esc(p.name)
         + '<span class="cpick-cc">' + esc([p.region, p.cc].filter(Boolean).join(' ')) + '</span></div>';
     }).join('');
@@ -11870,7 +11871,7 @@ function _renderRoutersMap(rows) {
     // transform until a town name spanned a continent.
     badgeLayer.innerHTML = '';
     labelled.forEach(function (L) {
-      var t = el('text', { class: 'rtrmap-place', x: L.x, y: L.ly,
+      var t = el('text', { class: 'rtrmap-place', x: L.x, y: L.ly, 'data-i18n-user-data': '',
                            'font-size': 8 / scale, 'stroke-width': 2.5 / scale });
       t.textContent = L.text;
       badgeLayer.appendChild(t);
@@ -11895,7 +11896,7 @@ function _renderRoutersMap(rows) {
     tray.innerHTML = '<span class="rmt-label">No location ('
       + unlocated.length + '):</span>'
       + unlocated.map(function (r) {
-        return '<span class="rmt-pill" data-open-router="' + esc(r.id) + '" title="'
+        return '<span class="rmt-pill" data-i18n-user-data data-open-router="' + esc(r.id) + '" title="'
           + esc(r.host) + '"><span class="rtl-dot" style="background:'
           + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
           + '"></span>' + esc(r.label) + '</span>';
@@ -15626,7 +15627,7 @@ function _renderRoutersMap(rows) {
     // showing nothing.
     if (!_notesFor || d.version !== _notesFor) return;
     if (d.notes) _setNotes(d.notes, false);
-    else         _setNotes('Release notes unavailable', true);
+    else         _setNotes(tr('Release notes unavailable'), true);
   });
 
   // The System card publishes what it drew, so this module never re-reads the
@@ -15667,7 +15668,7 @@ function _renderRoutersMap(rows) {
 
     go.disabled = true;
     go.innerHTML = '<span class="sbtn-spin"></span>' +
-                   (state === 'rebooting' ? 'Rebooting&hellip;' : 'Issuing&hellip;');
+                   esc(tr(state === 'rebooting' ? 'Rebooting…' : 'Issuing…'));
     // Once the command is out there is nothing left to confirm, and "Cancel"
     // would imply the upgrade could still be called off. It cannot.
     if (confirm) confirm.disabled = true;
@@ -15688,15 +15689,15 @@ function _renderRoutersMap(rows) {
     if (e.target.closest('#sysUpdateBtn')) {
       el('upd_from').textContent    = _upd.installed || '—';
       el('upd_to').textContent      = _upd.latest || '—';
-      el('upd_channel').textContent = _upd.channel ? 'channel: ' + _upd.channel : '';
+      el('upd_channel').textContent = _upd.channel ? tr('channel:') + ' ' + _upd.channel : '';
       // Asked for HERE, on open, and never on the mikrodash:updateavailable
       // path: that fires on every poll tick, which is what made the update
       // strip flash before _lastUpdateRowHtml was added. Nobody who never opens
       // the dialog should cost a fetch.
       _notesFor = _upd.latest || '';
-      _setNotes('Loading release notes…', true);
+      _setNotes(tr('Loading release notes…'), true);
       if (_notesFor) socket.emit('packages:notes', { version: _notesFor });
-      else _setNotes('Release notes unavailable', true);
+      else _setNotes(tr('Release notes unavailable'), true);
       el('upd_confirm').value       = '';
       el('upd_confirm').placeholder = _caps.routerName || '';
       el('upd_error').style.display = 'none';
@@ -15717,11 +15718,11 @@ function _renderRoutersMap(rows) {
     if (!d || !modal || !modal.classList.contains('open')) return;
     var box = el('upd_error');
     box.textContent =
-      d.code === 'confirm-mismatch'    ? 'That is not this router’s name. Type "' + (d.routerName || '') + '".' :
-      d.code === 'nothing-to-update'   ? 'This router is already on the newest version it knows about.' :
-      d.code === 'denied'              ? 'You do not have permission to update this router.' :
-      d.code === 'router-write-policy' ? 'The RouterOS user MikroDash connects with lacks the write policy.' :
-      'The router refused the upgrade.';
+      d.code === 'confirm-mismatch'    ? tr('That is not this router’s name. Type') + ' "' + (d.routerName || '') + '".' :
+      d.code === 'nothing-to-update'   ? tr('This router is already on the newest version it knows about.') :
+      d.code === 'denied'              ? tr('You do not have permission to update this router.') :
+      d.code === 'router-write-policy' ? tr('The RouterOS user MikroDash connects with lacks the write policy.') :
+      tr('The router refused the upgrade.');
     box.style.display = '';
     // Nothing was issued, so the operator can correct the name and try again.
     updState('idle');
