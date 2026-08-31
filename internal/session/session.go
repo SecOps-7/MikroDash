@@ -32,6 +32,8 @@ import (
 	"mikrodash/internal/store"
 
 	"mikrodash/internal/safe"
+
+	"mikrodash/internal/roslimit"
 )
 
 // Session is one router's connection and collectors.
@@ -300,6 +302,14 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	if cmd.Timeout == 0 {
 		cmd.Timeout = 15 * time.Second
 	}
+	// ── ONE ROUTER'S BUDGET, SHARED WITH THE TWO POOLS ───────────────────
+	//
+	// Taken AFTER the connection check and the timeout default, so a call that
+	// was never going to reach the router does not hold a slot while it fails.
+	// Deferred immediately, so an early return or a panic inside Do cannot leak
+	// one -- a leaked slot never comes back.
+	done := roslimit.Acquire(r.s.RouterID)
+	defer done()
 	return c.Do(cmd)
 }
 

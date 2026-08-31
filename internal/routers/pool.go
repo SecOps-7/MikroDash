@@ -106,6 +106,8 @@ import (
 	"mikrodash/internal/collect"
 	"mikrodash/internal/collection"
 	"mikrodash/internal/routeros"
+
+	"mikrodash/internal/roslimit"
 )
 
 // Conn is the slice of a router connection this pool needs: the collectors' Do,
@@ -236,6 +238,11 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	if c == nil || !up {
 		return nil, errNotConnected{}
 	}
+	// The same per-router budget the viewing session and the alert pool take.
+	// This pool reaches routers nobody is watching, but it reaches the SAME
+	// routers, so a cap that skipped it would not be a cap on the device.
+	done := roslimit.Acquire(r.s.cfg.ID)
+	defer done()
 	return c.Do(cmd)
 }
 

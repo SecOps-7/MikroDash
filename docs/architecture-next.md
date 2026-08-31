@@ -1,6 +1,7 @@
 # What is left to change architecturally, re-measured
 
-> **STATUS: one item delivered, one half-delivered, one still open.**
+> **STATUS (2026-09-01): item 3 delivered, item 1 half-delivered, item 2 addressed at its
+> documented goal rather than by the refactor it proposed.**
 >
 > Written 2026-08-27 against the JavaScript app at v0.7.38, when it was deferred until after
 > cutover. **Re-measured 2026-08-31** against the Go + TypeScript tree at v0.8.1, which is what the
@@ -35,7 +36,7 @@ Counts from the repo's own audits (`event-audit`, `emit-audit`, `endpoint-audit`
 hand-written greps -- an earlier pass of this revision used regexes and got the event count wrong by
 70%.
 
-## 1. One schema for the wire, generated both ways — STILL OPEN, and the case is now sharper
+## 1. One schema for the wire, generated both ways — GENERATOR DELIVERED, MIGRATION OPEN
 
 **Still the highest-leverage change, and it is not about performance.**
 
@@ -58,6 +59,19 @@ pipeline points backwards at an implementation that no longer exists.
 Pointing it at `internal/` instead would turn a hand-maintained mirror into a build artefact. No IDL
 is needed; the structs and their tags are already the schema.
 
+**DONE 2026-09-01, as far as generating goes.** `cmd/tsgen` reads `internal/collect` with `go/ast`
+and writes `web/src/gen/payloads.ts` — 101 interfaces from 25 payload structs — and `verify.sh` runs
+its `--check`. The prediction that it would be "the only generator whose `--check` still works" held:
+the other 105 all skip.
+
+**What remains is 2c, the migration.** Nothing imports the generated file yet. `-drift` reports what
+adopting it would cost: 12 hand-written interfaces disagree, 11 of them partial views (normal) and
+one real — `dashboard-ping.ts` guards on `data.enabled`, which Go never sends. That one is inherited;
+the frozen recording shows the Node frontend carrying the same line.
+
+Note for whoever does 2c: **the gates cannot help.** 124 of 136 bundle through esbuild, which strips
+types without checking them, so a wrong generated type passes every one. `tsc --noEmit` is the check.
+
 ## 2. One connection per router, one reader, collectors as consumers — HALF DELIVERED
 
 The documented bottleneck was **concurrent open channels, not data volume**. The port halved the
@@ -77,6 +91,18 @@ the half still worth doing, and on 2026-08-31 it cost a real bug:
 
 With one reader owning the connection and collectors as pure consumers, that race has nowhere to
 live: there is one lifecycle to get right instead of twenty-nine.
+
+**THE DOCUMENTED GOAL WAS MET WITHOUT THE REFACTOR, on 2026-09-01.** The stated bottleneck is
+concurrent channels on the device, and nothing bounded them: 29 poll loops could all be inside
+`reader.Do` at once. `internal/roslimit` caps in-flight commands PER ROUTER at 8, taken in all three
+`reader.Do` implementations — the viewing session, the background pool and the alert pool — because
+they reach the same devices and a per-pool cap would not be a cap on the router.
+
+That is ~90 lines against the 40-45 files the refactor needs, of which ~2,250 lines are
+source-scanning tests pinned to literal text that can only be re-authored. **The refactor stays a
+proposal**, and the case for it is now narrower: it would fix the OWNERSHIP problem (the `Resume()`
+race, patched by a latch in `Session`), not the concurrency one. Revisit if the cap turns out to
+bind.
 
 Two smaller counts moved the wrong way and are worth watching rather than acting on: a session now
 starts **16** collectors on connect (was 14) and the background pool **5** (was 3).
