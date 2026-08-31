@@ -40,8 +40,20 @@ const SOURCES = [
     .filter((f) => f.endsWith('.js'))
     .map((f) => path.join('tools', f)),
   'CLAUDE.md',
-  'Changes.md',
 ];
+
+// `Changes.md` was scanned until 2026-08-31 and is deliberately not any more.
+//
+// It is GITIGNORED and transient -- reset to a bare header after every push -- so
+// the number of notes this audit reports depended on how much unpushed work
+// happened to be sitting in the working copy. On a fresh clone it does not exist
+// at all. That made the gate census, which fails when a gate checks LESS than it
+// used to, report a shrink on every clone and in CI, for a file no clone has.
+//
+// A count that varies with the environment cannot be ratcheted. The same lesson
+// as the nine timezone-dependent gates found on the same day: a check has to
+// mean the same thing everywhere it runs, or the thing guarding it is measuring
+// the machine rather than the code.
 
 // `docs/port-history/PORT-QUEUE.md` was scanned until the 2026-08-31 cutover and
 // is deliberately not any more.

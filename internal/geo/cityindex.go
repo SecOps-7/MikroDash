@@ -147,10 +147,14 @@ func buildFromDat(dir string) (*CityIndex, error) {
 
 	for o := 0; o+rangeRecordSize <= len(ranges); o += rangeRecordSize {
 		// The location id sits at byte 8 of a range record.
-		id := int(binary.BigEndian.Uint32(ranges[o+8:]))
-		if id == noLocation || id >= locCount {
+		// Compared AS uint32 before narrowing. On a 32-bit build int(raw) wraps
+		// negative for anything above 2^31, so the sentinel check has to happen
+		// while the value is still the width it was read at.
+		raw := binary.BigEndian.Uint32(ranges[o+8:])
+		if raw == noLocation || raw >= uint32(locCount) {
 			continue
 		}
+		id := int(raw)
 		weight[id]++
 		if seen[id] {
 			continue

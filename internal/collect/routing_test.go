@@ -138,7 +138,7 @@ func TestParseUptime(t *testing.T) {
 func TestClassifyPeer(t *testing.T) {
 	for _, tc := range []struct {
 		name             string
-		as               int
+		as               int64
 		desc, peer, want string
 	}{
 		{"private 16-bit low", 64512, "", "", "private"},

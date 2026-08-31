@@ -107,7 +107,7 @@ type Peer struct {
 	Name          string `json:"name"`
 	Description   string `json:"description"`
 	RemoteAddr    string `json:"remoteAddr"`
-	RemoteAs      int    `json:"remoteAs"`
+	RemoteAs      int64  `json:"remoteAs"`
 	State         string `json:"state"`
 	UptimeSec     int    `json:"uptimeSec"`
 	Prefixes      int    `json:"prefixes"`
@@ -137,6 +137,25 @@ type RoutingPayload struct {
 
 // safeInt is `parseInt(v || '0', 10) || 0`: a leading number wins over trailing
 // junk ("64512abc" is 64512) and anything unparseable is zero.
+// safeAS parses an AS number. Separate from safeInt and 64-bit on purpose: AS
+// numbers are 32-bit UNSIGNED, so the top of the range does not fit a 32-bit
+// signed int and strconv.Atoi rejects it outright on such a build.
+func safeAS(v string) int64 {
+	s := strings.TrimSpace(v)
+	end := 0
+	if end < len(s) && (s[end] == '-' || s[end] == '+') {
+		end++
+	}
+	for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+		end++
+	}
+	n, err := strconv.ParseInt(s[:end], 10, 64)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 func safeInt(v string) int {
 	s := strings.TrimSpace(v)
 	end := 0
@@ -253,7 +272,7 @@ var ixRe = regexp.MustCompile(`\b(ix|ixp|peering|rs\d|route.server|routeserver)\
 
 // classifyPeer labels a session for the page. The private-ASN ranges are
 // RFC 6996's: 64512–65534 and 4200000000–4294967294.
-func classifyPeer(remoteAs int, description, name string) string {
+func classifyPeer(remoteAs int64, description, name string) string {
 	if (remoteAs >= 64512 && remoteAs <= 65534) ||
 		(remoteAs >= 4200000000 && remoteAs <= 4294967294) {
 		return "private"
@@ -501,7 +520,10 @@ func (r *Routing) buildPeers() []Peer {
 			continue
 		}
 
-		remoteAs := safeInt(firstNonEmpty(s["remote.as"], s["remote-as"], cfg["remote.as"], cfg["remote-as"]))
+		// int64, not int. A 4-byte ASN above 2^31 cannot be held in a 32-bit int,
+		// and strconv.Atoi does not merely truncate it -- it fails, so the value
+		// was wrong before any comparison saw it.
+		remoteAs := safeAS(firstNonEmpty(s["remote.as"], s["remote-as"], cfg["remote.as"], cfg["remote-as"]))
 		prefixes := safeInt(s["prefix-count"])
 		state := normalisePeerState(s)
 

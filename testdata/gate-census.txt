@@ -19,7 +19,7 @@ canfail-audit.js 26
 caps-check.js 92
 capsman-page-check.js 35
 case-name-audit.js 1371
-citation-audit.js 298
+citation-audit.js 297
 city-picker-check.js 49
 class-hook-audit.js 35
 collector-coverage-check.js 26

@@ -39,10 +39,13 @@ import (
 
 // The record geometry, from geoip-lite's `conf4` and `conf6`.
 const (
-	rangeRecordSize  = 24         // geoip-city.dat
-	rangeRecordSize6 = 48         // geoip-city6.dat
-	locRecordSize    = 88         // geoip-city-names.dat
-	noLocation       = 4294967295 // (-1 >>> 0), the "no location" marker
+	rangeRecordSize  = 24 // geoip-city.dat
+	rangeRecordSize6 = 48 // geoip-city6.dat
+	locRecordSize    = 88 // geoip-city-names.dat
+	// TYPED uint32, not untyped. It is read from a big-endian uint32 field and
+	// compared against one. Left untyped it defaulted to int, which overflows on
+	// a 32-bit build -- ARMv7 could not compile this file at all.
+	noLocation uint32 = 4294967295 // (-1 >>> 0), the "no location" marker
 
 	// Field offsets inside a location record (geoip-city-names.dat).
 	locCountry = 0  // 2 bytes
