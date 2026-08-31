@@ -36,7 +36,10 @@
 # THE MONTH IS TRIED, THEN THE ONE BEFORE. DB-IP publishes monthly and the new
 # file appears partway through the first day; a build at 00:30 on the 1st would
 # otherwise fail for a reason that has nothing to do with the build.
-FROM alpine:3.20 AS geodata
+# --platform=$BUILDPLATFORM: an .mmdb is the same file on every architecture,
+# so downloading it once natively beats downloading it three times, twice
+# under emulation.
+FROM --platform=$BUILDPLATFORM alpine:3.20 AS geodata
 RUN apk add --no-cache curl
 RUN set -eux; \
     this=$(date -u +%Y-%m); \
@@ -55,19 +58,35 @@ RUN set -eux; \
 # CGO_ENABLED=0 is not decoration. `modernc.org/sqlite` is pure Go precisely so
 # this binary needs no libc at runtime, which is what lets the final stage be a
 # base image rather than a distro.
-FROM golang:1.25-alpine AS build
+# --platform=$BUILDPLATFORM PINS THE TOOLCHAIN TO THE NATIVE BUILDER, and that is
+# the single biggest thing keeping this build fast.
+#
+# Without it, buildx runs this whole stage once per target architecture, and two
+# of the three under QEMU emulation. Measured on the v0.8.1 release build: 18m34s
+# for three architectures, with the emulated arm/v7 `go build` alone taking over
+# 280 seconds and `geogen` -- which walks ~14.7M networks -- far longer.
+#
+# Go cross-compiles from a single native toolchain, and CGO_ENABLED=0 means there
+# is no C toolchain to arrange, so emulating anything here buys nothing. The
+# binary is the ONLY per-architecture artefact; everything else this stage
+# produces is identical across all three.
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
+# Supplied by buildx per target. GOARM wants the bare number, hence the ${..#v}.
+ARG TARGETOS TARGETARCH TARGETVARIANT
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/mikrodash ./cmd/mikrodash
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} \
+    go build -trimpath -ldflags="-s -w" -o /out/mikrodash ./cmd/mikrodash
 
-# THE FRONTEND, from the same stage. `cmd/webbuild` composes index.html from the
+# THE FRONTEND, from the same stage and built for the BUILDER, not the target:
+# JavaScript and JSON are the same bytes everywhere. `cmd/webbuild` composes index.html from the
 # extracted markup and bundles the three entry documents through esbuild's Go
 # API, at the version `web/package-lock.json` pins.
 RUN go run ./cmd/webbuild -dir web
 
-# THE GAZETTEER IS GENERATED HERE, not at runtime. The picker behind
+# THE GAZETTEER IS GENERATED HERE, not at runtime, and also for the builder. The picker behind
 # /api/cities needs a LIST, and an .mmdb is a lookup structure: enumerating it
 # means walking ~14.7M networks, which takes ~35s. `CityHolder` builds lazily on
 # first search, so doing it at runtime would hang the first keystroke.
