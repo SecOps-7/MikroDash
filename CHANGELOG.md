@@ -2,6 +2,25 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.2] - The Connections card fills straight away again
+
+### Fixed
+
+- **The Connections card was empty after a restart until you visited the Connections page.** The
+  dashboard asks for its cards as the grid lays out, which is before the router connection has
+  finished opening, and that request was being dropped silently with nothing to ask again. Every
+  card fed by the connection table was affected: Connection Flow, Top Countries, Top Ports and the
+  Connections Map. It now fills within a few seconds of the dashboard loading.
+
+  Anything that dropped and restored the connection used to fix it, which is why it looked like the
+  card "eventually recovered".
+
+### Internal
+
+- `docs/port-history/ARCHITECTURE-NEXT.md` re-measured against the Go tree: of the three changes
+  proposed before the port, one shipped with it, one is half done, and one is still open. The
+  numbers behind each are now the current ones rather than the JavaScript app's.
+
 ## [0.8.1] - MikroDash is now Go and TypeScript
 
 The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114) replaces the

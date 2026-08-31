@@ -90,11 +90,11 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 //
 // 0.8.0 was the cutover release — the first on Go and TypeScript — but it never
 // produced an image: its build failed on the newly restored 32-bit ARM target.
-// 0.8.1 is that same cutover with the 32-bit fix, and is the first published
+// 0.8.1 is that same cutover with the 32-bit fix, and was the first published
 // Go image. 0.7.40 was the last on Node.
 //
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.1"
+const AppVersion = "0.8.2"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.
