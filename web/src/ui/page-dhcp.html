@@ -1,0 +1,71 @@
+  <div class="page-view" id="page-dhcp">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <!-- Top summary row: Subnets (2/3) + IP Utilisation gauge (1/3) -->
+      <div class="dhcp-summary-row">
+
+        <!-- Subnets card -->
+        <div class="dhcp-card">
+          <div class="dhcp-card-title">Subnets</div>
+          <div id="dhcpSubnetTable"><div class="empty-state" style="font-size:.75rem;padding:.5rem 0">Waiting for network data…</div></div>
+        </div>
+
+        <!-- IP Utilisation gauge card -->
+        <div class="dhcp-card" style="display:flex;flex-direction:column">
+          <div class="dhcp-card-title">IP Utilisation</div>
+          <div class="dhcp-gauge-wrap">
+            <svg class="dhcp-gauge-svg" id="dhcpGaugeSvg" viewBox="0 0 200 130">
+              <!-- Track arc -->
+              <path id="dhcpGaugeTrack" d="" fill="none" stroke="rgba(99,130,190,.12)" stroke-width="16" stroke-linecap="round"/>
+              <!-- Fill arc -->
+              <path id="dhcpGaugeFill"  d="" fill="none" stroke="#38bdf8"             stroke-width="16" stroke-linecap="round"/>
+              <!-- Percentage -->
+              <text id="dhcpGaugePct"   class="dhcp-gauge-pct"   x="100" y="96">—</text>
+              <!-- "used" label -->
+              <text id="dhcpGaugeLbl"   class="dhcp-gauge-label" x="100" y="116">used</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leases table -->
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">DHCP Leases</h3>
+            <span id="dhcpTotalBadge" class="card-badge">0</span>
+          </div>
+          <!-- Tabler gives form controls width:100%, so inside a wrapping flex row
+               each one claims the full width and drops onto its own line. Pin the
+               flex basis so they sit side by side, and let them shrink (and only
+               then wrap) on narrow screens. -->
+          <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+            <input id="dhcpSearch" class="form-control form-control-sm" placeholder="Search hostname, IP, MAC&#8230;" style="flex:0 1 240px;width:240px"/>
+            <select id="dhcpServerFilter" class="form-select form-select-sm" style="flex:0 1 240px;width:240px" title="Filter leases by DHCP server">
+              <option value="">All leases</option>
+            </select>
+            <span data-res-add="dhcpLease"></span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%">
+              <colgroup><col style="width:30%"><col style="width:20%"><col style="width:25%"><col style="width:25%"></colgroup>
+              <thead><tr>
+                <th id="dhcpThName" style="cursor:pointer;user-select:none">Hostname</th>
+                <th id="dhcpThIp"   class="sort-asc" style="cursor:pointer;user-select:none">IP</th>
+                <th id="dhcpThMac"  style="cursor:pointer;user-select:none">MAC</th>
+                <th id="dhcpThStatus" style="cursor:pointer;user-select:none">Status</th>
+              </tr></thead>
+            </table>
+          </div>
+          <div class="data-scroll" id="dhcpScrollWrap" style="max-height:calc(100vh - 200px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%">
+              <colgroup><col style="width:30%"><col style="width:20%"><col style="width:25%"><col style="width:25%"></colgroup>
+              <tbody id="dhcpTable" data-res-rows="dhcpLease"><tr><td colspan="4" class="empty-state">Waiting for lease data&#8230;</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

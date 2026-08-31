@@ -1,0 +1,273 @@
+{
+  "ts": 0,
+  "pollMs": 0,
+  "routeCounts": {
+    "total": 23,
+    "connect": 12,
+    "static": 10,
+    "dynamic": 13,
+    "bgp": 0,
+    "ospf": 0
+  },
+  "peers": [],
+  "routes": [
+    {
+      "dst": "198.51.100.132/0",
+      "gateway": "198.51.100.137",
+      "distance": 1,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*8000001C"
+    },
+    {
+      "dst": "198.51.100.54/24",
+      "gateway": "Home",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191020"
+    },
+    {
+      "dst": "198.51.100.203/24",
+      "gateway": "WG-GL-iNET",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191060"
+    },
+    {
+      "dst": "198.51.100.56/32",
+      "gateway": "198.51.100.164",
+      "distance": 1,
+      "active": true,
+      "comment": "",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*80000006"
+    },
+    {
+      "dst": "198.51.100.34/24",
+      "gateway": "WG-DSTV",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191030"
+    },
+    {
+      "dst": "198.51.100.245/24",
+      "gateway": "WG-HOME",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191090"
+    },
+    {
+      "dst": "198.51.100.56/32",
+      "gateway": "WG-VPN-SW",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191050"
+    },
+    {
+      "dst": "198.51.100.176/32",
+      "gateway": "WG-VPN-DE1",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191070"
+    },
+    {
+      "dst": "198.51.100.216/32",
+      "gateway": "WG-VPN-DE2",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191080"
+    },
+    {
+      "dst": "198.51.100.225/24",
+      "gateway": "WG-SA",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191040"
+    },
+    {
+      "dst": "198.51.100.173/22",
+      "gateway": "WAN1",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*201910B0"
+    },
+    {
+      "dst": "198.51.100.122/32",
+      "gateway": "WG-VPN-DE1",
+      "distance": 1,
+      "active": true,
+      "comment": "comment-2de7",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*80000018"
+    },
+    {
+      "dst": "198.51.100.122/32",
+      "gateway": "",
+      "distance": 10,
+      "active": false,
+      "comment": "comment-21b2",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*80000019"
+    },
+    {
+      "dst": "198.51.100.134/32",
+      "gateway": "WG-VPN-DE2",
+      "distance": 1,
+      "active": true,
+      "comment": "comment-8277",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*8000001A"
+    },
+    {
+      "dst": "198.51.100.134/32",
+      "gateway": "",
+      "distance": 10,
+      "active": false,
+      "comment": "comment-43cd",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*8000001B"
+    },
+    {
+      "dst": "198.51.100.164/24",
+      "gateway": "IoT",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191010"
+    },
+    {
+      "dst": "198.51.100.145/24",
+      "gateway": "Guest",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*20191000"
+    },
+    {
+      "dst": "198.51.100.56/24",
+      "gateway": "back-to-home-vpn",
+      "distance": 0,
+      "active": true,
+      "comment": "",
+      "type": "dynamic",
+      "protocol": "dynamic",
+      "family": "ipv4",
+      "id": "*201910A0"
+    },
+    {
+      "dst": "198.51.100.132/0",
+      "gateway": "WG-SA",
+      "distance": 1,
+      "active": true,
+      "comment": "",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*80000001"
+    },
+    {
+      "dst": "198.51.100.132/0",
+      "gateway": "WG-VPN-SW",
+      "distance": 1,
+      "active": true,
+      "comment": "",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*80000004"
+    },
+    {
+      "dst": "198.51.100.132/0",
+      "gateway": "WG-VPN-DE1",
+      "distance": 1,
+      "active": true,
+      "comment": "comment-9dad",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*8000000E"
+    },
+    {
+      "dst": "198.51.100.132/0",
+      "gateway": "WG-VPN-DE2",
+      "distance": 2,
+      "active": false,
+      "comment": "comment-f1c1",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*80000016"
+    },
+    {
+      "dst": "198.51.100.132/0",
+      "gateway": "WG-VPN-DE2",
+      "distance": 1,
+      "active": true,
+      "comment": "comment-65f3",
+      "type": "static",
+      "protocol": "static",
+      "family": "ipv4",
+      "id": "*80000012"
+    }
+  ],
+  "summary": {
+    "total": 0,
+    "established": 0,
+    "down": 0
+  }
+}

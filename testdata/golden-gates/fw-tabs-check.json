@@ -1,0 +1,6 @@
+{
+ "click the filter tab": "\"{\\n \\\"active\\\": [\\n  \\\"filter\\\"\\n ],\\n \\\"emitted\\\": [\\n  {\\n   \\\"ev\\\": \\\"firewall:tab\\\",\\n   \\\"v\\\": \\\"filter\\\"\\n  }\\n ]\\n}\"",
+ "click the nat tab": "\"{\\n \\\"active\\\": [\\n  \\\"nat\\\"\\n ],\\n \\\"emitted\\\": [\\n  {\\n   \\\"ev\\\": \\\"firewall:tab\\\",\\n   \\\"v\\\": \\\"nat\\\"\\n  }\\n ]\\n}\"",
+ "click the mangle tab": "\"{\\n \\\"active\\\": [\\n  \\\"mangle\\\"\\n ],\\n \\\"emitted\\\": [\\n  {\\n   \\\"ev\\\": \\\"firewall:tab\\\",\\n   \\\"v\\\": \\\"mangle\\\"\\n  }\\n ]\\n}\"",
+ "click the raw tab": "\"{\\n \\\"active\\\": [\\n  \\\"raw\\\"\\n ],\\n \\\"emitted\\\": [\\n  {\\n   \\\"ev\\\": \\\"firewall:tab\\\",\\n   \\\"v\\\": \\\"raw\\\"\\n  }\\n ]\\n}\""
+}

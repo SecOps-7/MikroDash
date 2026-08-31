@@ -1,0 +1,444 @@
+{
+  "rows": [
+    {
+      "name": "ordinary",
+      "row": {
+        "id": 1,
+        "router_id": "r1",
+        "alert_type": "cpu",
+        "subject": "CPU",
+        "detail": "high",
+        "fired_at": 1000,
+        "resolved_at": null,
+        "acknowledged_at": null,
+        "acknowledged_by": null
+      }
+    },
+    {
+      "name": "all-null",
+      "row": {
+        "id": 2,
+        "router_id": "r1",
+        "alert_type": "link",
+        "subject": null,
+        "detail": null,
+        "fired_at": 2000,
+        "resolved_at": null,
+        "acknowledged_at": null,
+        "acknowledged_by": null
+      }
+    },
+    {
+      "name": "all-empty",
+      "row": {
+        "id": 3,
+        "router_id": "r1",
+        "alert_type": "link",
+        "subject": "",
+        "detail": "",
+        "fired_at": 3000,
+        "resolved_at": null,
+        "acknowledged_at": null,
+        "acknowledged_by": ""
+      }
+    },
+    {
+      "name": "closed-acked",
+      "row": {
+        "id": 4,
+        "router_id": "r1",
+        "alert_type": "routeros_update",
+        "subject": "RouterOS",
+        "detail": "7.24",
+        "fired_at": 4000,
+        "resolved_at": 5000,
+        "acknowledged_at": 4500,
+        "acknowledged_by": "alice"
+      }
+    },
+    {
+      "name": "unknown-router",
+      "row": {
+        "id": 5,
+        "router_id": "gone",
+        "alert_type": "connectivity",
+        "subject": null,
+        "detail": null,
+        "fired_at": 6000,
+        "resolved_at": null,
+        "acknowledged_at": null,
+        "acknowledged_by": null
+      }
+    },
+    {
+      "name": "no-router-id",
+      "row": {
+        "id": 6,
+        "router_id": null,
+        "alert_type": "bgp_down",
+        "subject": null,
+        "detail": null,
+        "fired_at": 7000,
+        "resolved_at": null,
+        "acknowledged_at": null,
+        "acknowledged_by": null
+      }
+    },
+    {
+      "name": "blank-label",
+      "row": {
+        "id": 7,
+        "router_id": "blank",
+        "alert_type": "vpn_down",
+        "subject": null,
+        "detail": null,
+        "fired_at": 8000,
+        "resolved_at": null,
+        "acknowledged_at": null,
+        "acknowledged_by": null
+      }
+    },
+    {
+      "name": "unmapped-type",
+      "row": {
+        "id": 8,
+        "router_id": "r1",
+        "alert_type": "ping_loss_ok",
+        "subject": null,
+        "detail": null,
+        "fired_at": 9000,
+        "resolved_at": null,
+        "acknowledged_at": null,
+        "acknowledged_by": null
+      }
+    }
+  ],
+  "maps": {
+    "full": [
+      [
+        "r1",
+        "Office"
+      ],
+      [
+        "blank",
+        ""
+      ]
+    ],
+    "empty": [],
+    "none": null
+  },
+  "cases": {
+    "ordinary/full": {
+      "id": 1,
+      "routerId": "r1",
+      "alertType": "cpu",
+      "label": "CPU",
+      "routerName": "Office",
+      "subject": "CPU",
+      "detail": "high",
+      "firedAt": 1000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "ordinary/empty": {
+      "id": 1,
+      "routerId": "r1",
+      "alertType": "cpu",
+      "label": "CPU",
+      "routerName": null,
+      "subject": "CPU",
+      "detail": "high",
+      "firedAt": 1000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "ordinary/none": {
+      "id": 1,
+      "routerId": "r1",
+      "alertType": "cpu",
+      "label": "CPU",
+      "routerName": null,
+      "subject": "CPU",
+      "detail": "high",
+      "firedAt": 1000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "all-null/full": {
+      "id": 2,
+      "routerId": "r1",
+      "alertType": "link",
+      "label": "Link",
+      "routerName": "Office",
+      "subject": null,
+      "detail": null,
+      "firedAt": 2000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "all-null/empty": {
+      "id": 2,
+      "routerId": "r1",
+      "alertType": "link",
+      "label": "Link",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 2000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "all-null/none": {
+      "id": 2,
+      "routerId": "r1",
+      "alertType": "link",
+      "label": "Link",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 2000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "all-empty/full": {
+      "id": 3,
+      "routerId": "r1",
+      "alertType": "link",
+      "label": "Link",
+      "routerName": "Office",
+      "subject": null,
+      "detail": null,
+      "firedAt": 3000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "all-empty/empty": {
+      "id": 3,
+      "routerId": "r1",
+      "alertType": "link",
+      "label": "Link",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 3000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "all-empty/none": {
+      "id": 3,
+      "routerId": "r1",
+      "alertType": "link",
+      "label": "Link",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 3000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "closed-acked/full": {
+      "id": 4,
+      "routerId": "r1",
+      "alertType": "routeros_update",
+      "label": "Update Available",
+      "routerName": "Office",
+      "subject": "RouterOS",
+      "detail": "7.24",
+      "firedAt": 4000,
+      "resolvedAt": 5000,
+      "acknowledgedAt": 4500,
+      "acknowledgedBy": "alice"
+    },
+    "closed-acked/empty": {
+      "id": 4,
+      "routerId": "r1",
+      "alertType": "routeros_update",
+      "label": "Update Available",
+      "routerName": null,
+      "subject": "RouterOS",
+      "detail": "7.24",
+      "firedAt": 4000,
+      "resolvedAt": 5000,
+      "acknowledgedAt": 4500,
+      "acknowledgedBy": "alice"
+    },
+    "closed-acked/none": {
+      "id": 4,
+      "routerId": "r1",
+      "alertType": "routeros_update",
+      "label": "Update Available",
+      "routerName": null,
+      "subject": "RouterOS",
+      "detail": "7.24",
+      "firedAt": 4000,
+      "resolvedAt": 5000,
+      "acknowledgedAt": 4500,
+      "acknowledgedBy": "alice"
+    },
+    "unknown-router/full": {
+      "id": 5,
+      "routerId": "gone",
+      "alertType": "connectivity",
+      "label": "Router Connectivity",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 6000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "unknown-router/empty": {
+      "id": 5,
+      "routerId": "gone",
+      "alertType": "connectivity",
+      "label": "Router Connectivity",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 6000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "unknown-router/none": {
+      "id": 5,
+      "routerId": "gone",
+      "alertType": "connectivity",
+      "label": "Router Connectivity",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 6000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "no-router-id/full": {
+      "id": 6,
+      "routerId": null,
+      "alertType": "bgp_down",
+      "label": "BGP Down",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 7000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "no-router-id/empty": {
+      "id": 6,
+      "routerId": null,
+      "alertType": "bgp_down",
+      "label": "BGP Down",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 7000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "no-router-id/none": {
+      "id": 6,
+      "routerId": null,
+      "alertType": "bgp_down",
+      "label": "BGP Down",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 7000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "blank-label/full": {
+      "id": 7,
+      "routerId": "blank",
+      "alertType": "vpn_down",
+      "label": "VPN Down",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 8000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "blank-label/empty": {
+      "id": 7,
+      "routerId": "blank",
+      "alertType": "vpn_down",
+      "label": "VPN Down",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 8000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "blank-label/none": {
+      "id": 7,
+      "routerId": "blank",
+      "alertType": "vpn_down",
+      "label": "VPN Down",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 8000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "unmapped-type/full": {
+      "id": 8,
+      "routerId": "r1",
+      "alertType": "ping_loss_ok",
+      "label": "Ping Loss OK",
+      "routerName": "Office",
+      "subject": null,
+      "detail": null,
+      "firedAt": 9000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "unmapped-type/empty": {
+      "id": 8,
+      "routerId": "r1",
+      "alertType": "ping_loss_ok",
+      "label": "Ping Loss OK",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 9000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    },
+    "unmapped-type/none": {
+      "id": 8,
+      "routerId": "r1",
+      "alertType": "ping_loss_ok",
+      "label": "Ping Loss OK",
+      "routerName": null,
+      "subject": null,
+      "detail": null,
+      "firedAt": 9000,
+      "resolvedAt": null,
+      "acknowledgedAt": null,
+      "acknowledgedBy": null
+    }
+  }
+}

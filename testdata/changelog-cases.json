@@ -1,0 +1,193 @@
+{
+  "generated_from": "src/changelog.js VERSION_RE and its constants",
+  "constants": {
+    "maxBytes": 262144,
+    "timeoutMs": 8000,
+    "cacheMax": 32,
+    "negTtlMs": 60000,
+    "host": "upgrade.mikrotik.com",
+    "pathTemplate": "/routeros/<version>/CHANGELOG"
+  },
+  "cases": [
+    {
+      "input": "7.24",
+      "trimmed": "7.24",
+      "accepted": true
+    },
+    {
+      "input": "7.24.1",
+      "trimmed": "7.24.1",
+      "accepted": true
+    },
+    {
+      "input": "6.49.18",
+      "trimmed": "6.49.18",
+      "accepted": true
+    },
+    {
+      "input": "0.0",
+      "trimmed": "0.0",
+      "accepted": true
+    },
+    {
+      "input": "10.100.999",
+      "trimmed": "10.100.999",
+      "accepted": true
+    },
+    {
+      "input": "../../etc/passwd",
+      "trimmed": "../../etc/passwd",
+      "accepted": false
+    },
+    {
+      "input": "7.24/../../..",
+      "trimmed": "7.24/../../..",
+      "accepted": false
+    },
+    {
+      "input": "..",
+      "trimmed": "..",
+      "accepted": false
+    },
+    {
+      "input": "../7.24",
+      "trimmed": "../7.24",
+      "accepted": false
+    },
+    {
+      "input": "//evil.example.com/",
+      "trimmed": "//evil.example.com/",
+      "accepted": false
+    },
+    {
+      "input": "//evil.example.com/routeros/7.24/CHANGELOG",
+      "trimmed": "//evil.example.com/routeros/7.24/CHANGELOG",
+      "accepted": false
+    },
+    {
+      "input": "7.24?x=1",
+      "trimmed": "7.24?x=1",
+      "accepted": false
+    },
+    {
+      "input": "7.24#frag",
+      "trimmed": "7.24#frag",
+      "accepted": false
+    },
+    {
+      "input": "7.24%2F..%2F",
+      "trimmed": "7.24%2F..%2F",
+      "accepted": false
+    },
+    {
+      "input": "7",
+      "trimmed": "7",
+      "accepted": false
+    },
+    {
+      "input": "7.",
+      "trimmed": "7.",
+      "accepted": false
+    },
+    {
+      "input": ".7",
+      "trimmed": ".7",
+      "accepted": false
+    },
+    {
+      "input": "7..24",
+      "trimmed": "7..24",
+      "accepted": false
+    },
+    {
+      "input": "7.24.",
+      "trimmed": "7.24.",
+      "accepted": false
+    },
+    {
+      "input": "7.24.1.2",
+      "trimmed": "7.24.1.2",
+      "accepted": false
+    },
+    {
+      "input": " 7.24",
+      "trimmed": "7.24",
+      "accepted": true
+    },
+    {
+      "input": "7.24 ",
+      "trimmed": "7.24",
+      "accepted": true
+    },
+    {
+      "input": "7.24\n",
+      "trimmed": "7.24",
+      "accepted": true
+    },
+    {
+      "input": "7,24",
+      "trimmed": "7,24",
+      "accepted": false
+    },
+    {
+      "input": "7-24",
+      "trimmed": "7-24",
+      "accepted": false
+    },
+    {
+      "input": "v7.24",
+      "trimmed": "v7.24",
+      "accepted": false
+    },
+    {
+      "input": "7.24a",
+      "trimmed": "7.24a",
+      "accepted": false
+    },
+    {
+      "input": "",
+      "trimmed": "",
+      "accepted": false
+    },
+    {
+      "input": "   ",
+      "trimmed": "",
+      "accepted": false
+    },
+    {
+      "input": "null",
+      "trimmed": "",
+      "accepted": false
+    },
+    {
+      "input": "undefined",
+      "trimmed": "",
+      "accepted": false
+    },
+    {
+      "input": "0",
+      "trimmed": "0",
+      "accepted": false
+    },
+    {
+      "input": "7.24",
+      "trimmed": "7.24",
+      "accepted": true
+    },
+    {
+      "input": "true",
+      "trimmed": "true",
+      "accepted": false
+    },
+    {
+      "input": "[]",
+      "trimmed": "",
+      "accepted": false
+    },
+    {
+      "input": "{}",
+      "trimmed": "[object Object]",
+      "accepted": false
+    }
+  ]
+}

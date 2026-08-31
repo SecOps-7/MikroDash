@@ -1,0 +1,566 @@
+{
+  "collector": "capsman",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/interface/wifi/provisioning/print",
+      "params": [
+        "=.proplist=.id,supported-bands,action,master-configuration,slave-configurations,name-format,radio-mac,identity-regexp,comment,disabled"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "supported-bands": "5ghz-ac,5ghz-ax,5ghz-n,5ghz-a",
+          "action": "create-dynamic-enabled",
+          "master-configuration": "Home WiFi 5Ghz",
+          "slave-configurations": "Guest WiFi 5Ghz,IoT WiFi 5Ghz",
+          "name-format": "5GHz WiFi",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "supported-bands": "2ghz-n,2ghz-g,2ghz-ax",
+          "action": "create-dynamic-enabled",
+          "master-configuration": "Home WiFi 2.4Ghz",
+          "slave-configurations": "Guest WiFi 2.4Ghz,IoT WiFi 2.4Ghz",
+          "name-format": "2.4GHz WiFi",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/security/print",
+      "params": [
+        "=.proplist=.id,name,authentication-types,wps,ft,ft-over-ds,connect-priority,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "Home WiFi",
+          "authentication-types": "wpa2-psk,wpa3-psk",
+          "wps": "disable",
+          "ft": "true",
+          "ft-over-ds": "true",
+          "connect-priority": "0/1",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "name": "Guest WiFi",
+          "authentication-types": "wpa2-psk,wpa3-psk",
+          "wps": "disable",
+          "ft": "true",
+          "ft-over-ds": "true",
+          "connect-priority": "0/1",
+          "disabled": "false"
+        },
+        {
+          ".id": "*3",
+          "name": "IoT WiFi",
+          "authentication-types": "wpa2-psk,wpa3-psk",
+          "wps": "disable",
+          "ft": "true",
+          "ft-over-ds": "true",
+          "connect-priority": "0/1",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/channel/print",
+      "params": [
+        "=.proplist=.id,name,band,frequency,width,secondary-frequency,skip-dfs-channels,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*4",
+          "name": "5Ghz Channels",
+          "frequency": "5180,5260,5500,5660",
+          "skip-dfs-channels": "10min-cac",
+          "disabled": "false"
+        },
+        {
+          ".id": "*5",
+          "name": "2.4Ghz Channels",
+          "frequency": "2412,2437,2462,2484",
+          "width": "20mhz",
+          "skip-dfs-channels": "10min-cac",
+          "disabled": "false"
+        },
+        {
+          ".id": "*6",
+          "name": "5Ghz Channel Range",
+          "frequency": "5180-5730",
+          "skip-dfs-channels": "10min-cac",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/datapath/print",
+      "params": [
+        "=.proplist=.id,name,bridge,vlan-id,client-isolation,local-forwarding,traffic-processing,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "datapath",
+          "bridge": "Bridge",
+          "traffic-processing": "on-capsman",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/capsman/print",
+      "params": [],
+      "rows": [
+        {
+          "enabled": "yes",
+          "interfaces": "Home",
+          "ca-certificate": "ca-certificate-0433",
+          "certificate": "certificate-134b",
+          "require-peer-certificate": "false",
+          "package-path": "",
+          "upgrade-policy": "suggest-same-version",
+          "generated-ca-certificate": "generated-ca-certificate-4983",
+          "generated-certificate": "generated-certificate-1aa7"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/cap/print",
+      "params": [],
+      "rows": [
+        {
+          "enabled": "yes",
+          "certificate": "certificate-b887",
+          "caps-man-addresses": "caps-man-addresses-66a9",
+          "requested-certificate": "requested-certificate-d4b1"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/configuration/print",
+      "params": [
+        "=.proplist=.id,name,ssid,mode,country,hide-ssid,security,channel,datapath,manager,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "Home WiFi 5Ghz",
+          "ssid": "ssid-4943",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "Home WiFi",
+          "channel": "5Ghz Channel Range",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "name": "Home WiFi 2.4Ghz",
+          "ssid": "ssid-4943",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "Home WiFi",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*3",
+          "name": "Guest WiFi 2.4Ghz",
+          "ssid": "ssid-84f1",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "Guest WiFi",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*4",
+          "name": "Guest WiFi 5Ghz",
+          "ssid": "ssid-84f1",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "Guest WiFi",
+          "channel": "5Ghz Channel Range",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*5",
+          "name": "IoT WiFi 2.4Ghz",
+          "ssid": "ssid-7e71",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "IoT WiFi",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*6",
+          "name": "IoT WiFi 5Ghz",
+          "ssid": "ssid-7e71",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "IoT WiFi",
+          "channel": "5Ghz Channel Range",
+          "datapath": "datapath",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/print",
+      "params": [
+        "=.proplist=name,radio-mac,master-interface,cap,disabled,inactive"
+      ],
+      "rows": [
+        {
+          "name": "2.4GHz WiFi",
+          "radio-mac": "02:CA:65:80:7F:1F",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "2.4GHz WiFi2",
+          "master-interface": "2.4GHz WiFi",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "2.4GHz WiFi3",
+          "master-interface": "2.4GHz WiFi",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "2.4GHz WiFi4",
+          "radio-mac": "02:92:85:C2:C4:A8",
+          "cap": "host-name-8ab7@02:31:48:F6:C4:AF%*41",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "2.4GHz WiFi5",
+          "master-interface": "2.4GHz WiFi4",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "2.4GHz WiFi6",
+          "master-interface": "2.4GHz WiFi4",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "5GHz WiFi",
+          "radio-mac": "02:21:12:F9:6F:D4",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "5GHz WiFi2",
+          "master-interface": "5GHz WiFi",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "5GHz WiFi3",
+          "master-interface": "5GHz WiFi",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "5GHz WiFi4",
+          "radio-mac": "02:60:E0:D4:C8:C7",
+          "cap": "host-name-8ab7@02:31:48:F6:C4:AF%*41",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "5GHz WiFi5",
+          "master-interface": "5GHz WiFi4",
+          "disabled": "false",
+          "inactive": "false"
+        },
+        {
+          "name": "5GHz WiFi6",
+          "master-interface": "5GHz WiFi4",
+          "disabled": "false",
+          "inactive": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/capsman/remote-cap/print",
+      "params": [
+        "=.proplist=.id,address,identity,board-name,serial,version,base-mac,common-name,state,connected-time,uptime"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "address": "02:31:48:F6:C4:AF%Home",
+          "identity": "identity-80e8",
+          "board-name": "host-name-8ab7Gi-5HaxD2HaxD",
+          "serial": "serial-9227",
+          "version": "7.24",
+          "base-mac": "02:31:48:F6:C4:AF",
+          "common-name": "",
+          "state": "Ok",
+          "connected-time": "3d8h38m22s",
+          "uptime": "3d17h47m55s"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/radio/print",
+      "params": [
+        "=.proplist=radio-mac,interface,cap,disabled"
+      ],
+      "rows": [
+        {
+          "radio-mac": "02:21:12:F9:6F:D4",
+          "interface": "5GHz WiFi"
+        },
+        {
+          "radio-mac": "02:CA:65:80:7F:1F",
+          "interface": "2.4GHz WiFi"
+        },
+        {
+          "radio-mac": "02:60:E0:D4:C8:C7",
+          "interface": "5GHz WiFi4",
+          "cap": "host-name-8ab7@02:31:48:F6:C4:AF%*41"
+        },
+        {
+          "radio-mac": "02:92:85:C2:C4:A8",
+          "interface": "2.4GHz WiFi4",
+          "cap": "host-name-8ab7@02:31:48:F6:C4:AF%*41"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/registration-table/print",
+      "params": [
+        "=.proplist=interface,mac-address,uptime,signal,ssid"
+      ],
+      "rows": [
+        {
+          "interface": "5GHz WiFi6",
+          "mac-address": "02:16:1C:3A:E1:12",
+          "uptime": "3d8h34m41s",
+          "signal": "-63",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "mac-address": "02:AD:73:D7:5B:19",
+          "uptime": "3d4h29m49s",
+          "signal": "-59",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "mac-address": "02:E7:41:72:83:33",
+          "uptime": "3d4h29m44s",
+          "signal": "-24",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "mac-address": "02:37:B4:D5:A8:AB",
+          "uptime": "3d4h29m42s",
+          "signal": "-69",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi",
+          "mac-address": "02:F8:B6:24:79:32",
+          "uptime": "3d4h24m",
+          "signal": "-16",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi6",
+          "mac-address": "02:8F:38:9C:3F:5D",
+          "uptime": "3d10m49s",
+          "signal": "-63",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi3",
+          "mac-address": "02:B7:EF:BB:12:EE",
+          "uptime": "2d13h29m53s",
+          "signal": "-46",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "mac-address": "02:EB:0A:9A:37:20",
+          "uptime": "2d8h19m30s",
+          "signal": "-80",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "mac-address": "02:04:FF:43:D1:42",
+          "uptime": "1d7h21m47s",
+          "signal": "-65",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "mac-address": "02:50:21:2A:C4:D0",
+          "uptime": "1d6h34m40s",
+          "signal": "-78",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "mac-address": "02:DA:CC:8F:66:41",
+          "uptime": "1d6h33m7s",
+          "signal": "-60",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "mac-address": "02:73:C0:10:31:1E",
+          "uptime": "15h36m53s",
+          "signal": "-67",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi6",
+          "mac-address": "02:0C:F4:BB:57:67",
+          "uptime": "14h35m54s",
+          "signal": "-64",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi3",
+          "mac-address": "02:63:BA:83:16:02",
+          "uptime": "13h4m52s",
+          "signal": "-53",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "mac-address": "02:5E:39:46:89:48",
+          "uptime": "8h14m18s",
+          "signal": "-50",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "mac-address": "02:05:27:35:06:3D",
+          "uptime": "7h3m10s",
+          "signal": "-67",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi6",
+          "mac-address": "02:0E:A6:51:B0:5A",
+          "uptime": "6h43m32s",
+          "signal": "-60",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "mac-address": "02:59:19:A8:5F:97",
+          "uptime": "3h41m23s",
+          "signal": "-65",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi4",
+          "mac-address": "02:68:45:32:38:85",
+          "uptime": "2h55m2s",
+          "signal": "-71",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi4",
+          "mac-address": "02:24:7A:52:3D:BA",
+          "uptime": "2h54m41s",
+          "signal": "-66",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi4",
+          "mac-address": "02:EC:08:20:44:48",
+          "uptime": "2h40m15s",
+          "signal": "-54",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi3",
+          "mac-address": "02:DB:D2:E6:78:22",
+          "uptime": "2h29m38s",
+          "signal": "-75",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "mac-address": "02:FF:D8:4E:A5:C1",
+          "uptime": "2h1m41s",
+          "signal": "-50",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi",
+          "mac-address": "02:7C:8B:10:49:58",
+          "uptime": "1h5m49s",
+          "signal": "-73",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi5",
+          "mac-address": "02:F1:85:EB:A7:3A",
+          "uptime": "57m28s",
+          "signal": "-55",
+          "ssid": "ssid-84f1"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "mac-address": "02:09:B4:E1:91:05",
+          "uptime": "39m5s",
+          "signal": "-58",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "mac-address": "02:45:6C:57:CB:DF",
+          "uptime": "36m42s",
+          "signal": "-58",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi4",
+          "mac-address": "02:3A:F8:3D:AA:AF",
+          "uptime": "31m23s",
+          "signal": "-65",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi2",
+          "mac-address": "02:94:09:27:4F:23",
+          "uptime": "18m2s",
+          "signal": "-78",
+          "ssid": "ssid-84f1"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "mac-address": "02:3A:CB:73:0B:2C",
+          "uptime": "49s",
+          "signal": "-74",
+          "ssid": "ssid-7e71"
+        }
+      ]
+    }
+  ]
+}

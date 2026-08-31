@@ -1,0 +1,224 @@
+{
+  "collector": "packages",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/system/routerboard/print",
+      "params": [
+        "=.proplist=routerboard,board-name,model,serial-number,firmware-type,current-firmware,upgrade-firmware,minimum-firmware"
+      ],
+      "rows": [
+        {
+          "routerboard": "true",
+          "board-name": "identity-0cc5 ax^3",
+          "model": "C53UiG+5HPaxD2HPaxD",
+          "serial-number": "serial-number-b1fa",
+          "firmware-type": "ipq6000",
+          "current-firmware": "7.24",
+          "upgrade-firmware": "7.24",
+          "minimum-firmware": "7.6"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/package/update/print",
+      "params": [],
+      "rows": [
+        {
+          "channel": "stable",
+          "mode": "https",
+          "check-certificate": "yes",
+          "ip-version": "auto",
+          "installed-version": "7.24",
+          "latest-version": "7.24",
+          "status": "System is already up to date"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/package/print",
+      "params": [
+        "=.proplist=.id,name,version,build-time,scheduled,size,available,disabled"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "wifi-qcom",
+          "version": "7.24",
+          "build-time": "2026-08-14 08:33:14",
+          "scheduled": "",
+          "size": "11485329",
+          "available": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "name": "routeros",
+          "version": "7.24",
+          "build-time": "2026-08-14 08:33:14",
+          "scheduled": "",
+          "size": "13918469",
+          "available": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*3",
+          "name": "calea",
+          "version": "",
+          "scheduled": "",
+          "size": "20625",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*4",
+          "name": "container",
+          "version": "",
+          "scheduled": "",
+          "size": "1187985",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*5",
+          "name": "dude",
+          "version": "",
+          "scheduled": "",
+          "size": "1249425",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*6",
+          "name": "extra-nic",
+          "version": "",
+          "scheduled": "",
+          "size": "2441361",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*7",
+          "name": "gps",
+          "version": "",
+          "scheduled": "",
+          "size": "24721",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*8",
+          "name": "iot",
+          "version": "",
+          "scheduled": "",
+          "size": "934033",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*9",
+          "name": "iot-bt-extra",
+          "version": "",
+          "scheduled": "",
+          "size": "450705",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*A",
+          "name": "netinstall",
+          "version": "",
+          "scheduled": "",
+          "size": "73873",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*B",
+          "name": "openflow",
+          "version": "",
+          "scheduled": "",
+          "size": "82065",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*C",
+          "name": "rose-storage",
+          "version": "",
+          "scheduled": "",
+          "size": "4558993",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*D",
+          "name": "switch-marvell",
+          "version": "",
+          "scheduled": "",
+          "size": "9261201",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*E",
+          "name": "tr069-client",
+          "version": "",
+          "scheduled": "",
+          "size": "139409",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*F",
+          "name": "ups",
+          "version": "",
+          "scheduled": "",
+          "size": "32913",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*10",
+          "name": "user-manager",
+          "version": "",
+          "scheduled": "",
+          "size": "344209",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*11",
+          "name": "wifi-qcom-be",
+          "version": "",
+          "scheduled": "",
+          "size": "16572561",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*12",
+          "name": "wireless",
+          "version": "",
+          "scheduled": "",
+          "size": "864401",
+          "available": "true",
+          "disabled": "true"
+        },
+        {
+          ".id": "*13",
+          "name": "zerotier",
+          "version": "",
+          "scheduled": "",
+          "size": "868497",
+          "available": "true",
+          "disabled": "true"
+        }
+      ]
+    }
+  ]
+}

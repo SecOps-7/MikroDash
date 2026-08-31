@@ -1,0 +1,675 @@
+{
+  "generated_from": "src/db.js _purgeWhere/_purgeTargets + src/index.js _purgeScope/_purgeOpts",
+  "now": 1700000000000,
+  "where": [
+    {
+      "why": "no options at all",
+      "opts": {},
+      "tsCol": "ts",
+      "sql": "",
+      "params": []
+    },
+    {
+      "why": "an empty router id is not a condition",
+      "opts": {
+        "routerId": ""
+      },
+      "tsCol": "ts",
+      "sql": "",
+      "params": []
+    },
+    {
+      "why": "a zero age is not a condition",
+      "opts": {
+        "olderThanMs": 0
+      },
+      "tsCol": "ts",
+      "sql": "",
+      "params": []
+    },
+    {
+      "why": "both absent",
+      "opts": {
+        "routerId": "",
+        "olderThanMs": 0
+      },
+      "tsCol": "ts",
+      "sql": "",
+      "params": []
+    },
+    {
+      "why": "a router only",
+      "opts": {
+        "routerId": "rtr-1"
+      },
+      "tsCol": "ts",
+      "sql": " WHERE router_id = ?",
+      "params": [
+        "rtr-1"
+      ]
+    },
+    {
+      "why": "an age only",
+      "opts": {
+        "olderThanMs": 86400000
+      },
+      "tsCol": "ts",
+      "sql": " WHERE ts < ?",
+      "params": [
+        1699913600000
+      ]
+    },
+    {
+      "why": "a router and an age",
+      "opts": {
+        "routerId": "rtr-1",
+        "olderThanMs": 604800000
+      },
+      "tsCol": "ts",
+      "sql": " WHERE router_id = ? AND ts < ?",
+      "params": [
+        "rtr-1",
+        1699395200000
+      ]
+    },
+    {
+      "why": "the fired_at column",
+      "opts": {
+        "olderThanMs": 86400000
+      },
+      "tsCol": "fired_at",
+      "sql": " WHERE fired_at < ?",
+      "params": [
+        1699913600000
+      ]
+    },
+    {
+      "why": "a router and an age on fired_at",
+      "opts": {
+        "routerId": "rtr-1",
+        "olderThanMs": 86400000
+      },
+      "tsCol": "fired_at",
+      "sql": " WHERE router_id = ? AND fired_at < ?",
+      "params": [
+        "rtr-1",
+        1699913600000
+      ]
+    },
+    {
+      "why": "a negative age",
+      "opts": {
+        "olderThanMs": -1
+      },
+      "tsCol": "ts",
+      "sql": "",
+      "params": []
+    }
+  ],
+  "targets": [
+    {
+      "why": "no types means every type",
+      "types": null,
+      "typesWasUndefined": true,
+      "targets": [
+        {
+          "table": "ping_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "traffic_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "bandwidth_usage",
+          "ts": "ts"
+        },
+        {
+          "table": "alert_events",
+          "ts": "fired_at"
+        },
+        {
+          "table": "connectivity_events",
+          "ts": "ts"
+        }
+      ]
+    },
+    {
+      "why": "an empty list means every type",
+      "types": [],
+      "typesWasUndefined": false,
+      "targets": [
+        {
+          "table": "ping_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "traffic_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "bandwidth_usage",
+          "ts": "ts"
+        },
+        {
+          "table": "alert_events",
+          "ts": "fired_at"
+        },
+        {
+          "table": "connectivity_events",
+          "ts": "ts"
+        }
+      ]
+    },
+    {
+      "why": "one type",
+      "types": [
+        "ping"
+      ],
+      "typesWasUndefined": false,
+      "targets": [
+        {
+          "table": "ping_samples",
+          "ts": "ts"
+        }
+      ]
+    },
+    {
+      "why": "two types",
+      "types": [
+        "ping",
+        "traffic"
+      ],
+      "typesWasUndefined": false,
+      "targets": [
+        {
+          "table": "ping_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "traffic_samples",
+          "ts": "ts"
+        }
+      ]
+    },
+    {
+      "why": "events is two tables",
+      "types": [
+        "events"
+      ],
+      "typesWasUndefined": false,
+      "targets": [
+        {
+          "table": "alert_events",
+          "ts": "fired_at"
+        },
+        {
+          "table": "connectivity_events",
+          "ts": "ts"
+        }
+      ]
+    },
+    {
+      "why": "an unknown type is dropped",
+      "types": [
+        "nosuchtype"
+      ],
+      "typesWasUndefined": false,
+      "targets": []
+    },
+    {
+      "why": "an unknown type among good ones",
+      "types": [
+        "ping",
+        "nosuchtype",
+        "bandwidth"
+      ],
+      "typesWasUndefined": false,
+      "targets": [
+        {
+          "table": "ping_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "bandwidth_usage",
+          "ts": "ts"
+        }
+      ]
+    },
+    {
+      "why": "a string is not a list, so every type",
+      "types": "ping",
+      "typesWasUndefined": false,
+      "targets": [
+        {
+          "table": "ping_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "traffic_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "bandwidth_usage",
+          "ts": "ts"
+        },
+        {
+          "table": "alert_events",
+          "ts": "fired_at"
+        },
+        {
+          "table": "connectivity_events",
+          "ts": "ts"
+        }
+      ]
+    },
+    {
+      "why": "null means every type",
+      "types": null,
+      "typesWasUndefined": false,
+      "targets": [
+        {
+          "table": "ping_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "traffic_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "bandwidth_usage",
+          "ts": "ts"
+        },
+        {
+          "table": "alert_events",
+          "ts": "fired_at"
+        },
+        {
+          "table": "connectivity_events",
+          "ts": "ts"
+        }
+      ]
+    },
+    {
+      "why": "every type named explicitly",
+      "types": [
+        "ping",
+        "traffic",
+        "bandwidth",
+        "events"
+      ],
+      "typesWasUndefined": false,
+      "targets": [
+        {
+          "table": "ping_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "traffic_samples",
+          "ts": "ts"
+        },
+        {
+          "table": "bandwidth_usage",
+          "ts": "ts"
+        },
+        {
+          "table": "alert_events",
+          "ts": "fired_at"
+        },
+        {
+          "table": "connectivity_events",
+          "ts": "ts"
+        }
+      ]
+    }
+  ],
+  "options": [
+    {
+      "why": "no age at all",
+      "body": {
+        "routerId": "rtr-1"
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": "Invalid age filter",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "age 0 — everything",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 0
+    },
+    {
+      "why": "age 1",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 1
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 86400000
+    },
+    {
+      "why": "age 7",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 7
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 604800000
+    },
+    {
+      "why": "age 365",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 365
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 31536000000
+    },
+    {
+      "why": "age 2 is not a preset",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 2
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": "Invalid age filter",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "age 400 is not a preset",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 400
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": "Invalid age filter",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "a negative age",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": -1
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": "Invalid age filter",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "an age as a numeric string",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": "7"
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 604800000
+    },
+    {
+      "why": "an age that is not a number",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": "week"
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": "Invalid age filter",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "no types key means all",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 0
+    },
+    {
+      "why": "one valid type",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0,
+        "types": [
+          "ping"
+        ]
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [
+        "ping"
+      ],
+      "olderThanMs": 0
+    },
+    {
+      "why": "an empty list is REFUSED",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0,
+        "types": []
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": "No valid data types selected",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "a list of only invalid types is refused",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0,
+        "types": [
+          "nope"
+        ]
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": "No valid data types selected",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "invalid types are filtered out of a good list",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0,
+        "types": [
+          "ping",
+          "nope"
+        ]
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [
+        "ping"
+      ],
+      "olderThanMs": 0
+    },
+    {
+      "why": "types as a string is not a list, so all",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0,
+        "types": "ping"
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 0
+    },
+    {
+      "why": "a global purge with system:db",
+      "body": {
+        "olderThanDays": 0
+      },
+      "perms": {
+        "systemDb": true
+      },
+      "error": null,
+      "routerId": "",
+      "types": [],
+      "olderThanMs": 0
+    },
+    {
+      "why": "a global purge WITHOUT system:db",
+      "body": {
+        "olderThanDays": 0
+      },
+      "perms": {
+        "systemDb": false
+      },
+      "error": "Select a router — your account cannot purge all routers",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "a router purge with permission",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0
+      },
+      "perms": {
+        "routerPurge": true
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 0
+    },
+    {
+      "why": "a router purge WITHOUT permission",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0
+      },
+      "perms": {
+        "routerPurge": false
+      },
+      "error": "Router not permitted",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    },
+    {
+      "why": "a whitespace router id reads as global",
+      "body": {
+        "routerId": "   ",
+        "olderThanDays": 0
+      },
+      "perms": {
+        "systemDb": true
+      },
+      "error": null,
+      "routerId": "",
+      "types": [],
+      "olderThanMs": 0
+    },
+    {
+      "why": "auth mode none allows a global purge",
+      "body": {
+        "olderThanDays": 0
+      },
+      "perms": {
+        "modern": false
+      },
+      "error": null,
+      "routerId": "",
+      "types": [],
+      "olderThanMs": 0
+    },
+    {
+      "why": "auth mode none allows a router purge",
+      "body": {
+        "routerId": "rtr-1",
+        "olderThanDays": 0
+      },
+      "perms": {
+        "modern": false
+      },
+      "error": null,
+      "routerId": "rtr-1",
+      "types": [],
+      "olderThanMs": 0
+    },
+    {
+      "why": "a bad scope AND a bad age reports the scope",
+      "body": {
+        "olderThanDays": 999
+      },
+      "perms": {
+        "systemDb": false
+      },
+      "error": "Select a router — your account cannot purge all routers",
+      "routerId": null,
+      "types": null,
+      "olderThanMs": null
+    }
+  ]
+}

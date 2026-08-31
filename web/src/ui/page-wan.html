@@ -1,0 +1,62 @@
+  <div class="page-view" id="page-wan">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Uplinks</div><div class="fa-stat-val" id="wanSumCount">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Carrying Traffic</div><div class="fa-stat-val" id="wanSumActive" style="font-size:1.1rem">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Public Address</div><div class="fa-stat-val" id="wanSumPublic" style="font-size:1.1rem">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Throughput</div><div class="fa-stat-val" id="wanSumRate" style="font-size:1.1rem">&mdash;</div></div>
+      </div>
+
+      <!-- detect-interface-list defaults to none, so a router nobody has
+           configured reports nothing. That is a different thing from being
+           offline, and the page says which. -->
+      <div id="wanNoticeCard" style="display:none;margin-bottom:.85rem"><div class="q-ftbanner q-ft-unknown" id="wanNotice"></div></div>
+
+      <div class="card" id="wanCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Internet Uplinks</h3>
+            <span id="wanBadge" class="card-badge">0</span>
+          </div>
+          <span id="wanActionNote" class="muted-note"></span>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 400px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:1040px">
+              <colgroup><col style="width:15%"><col style="width:16%"><col style="width:15%"><col style="width:11%">
+                        <col style="width:17%"><col style="width:14%"><col style="width:12%"></colgroup>
+              <thead><tr id="wanThead"></tr></thead>
+              <tbody id="wanTable">
+                <tr><td colspan="7" class="empty-state">Waiting for WAN data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- The self-cutoff prompt. A dialog rather than a confirm() so it can
+           name the address, the uplink and what will happen. -->
+      <div class="rtr-modal-bg" id="wanWarnWrap">
+       <div class="rtr-modal pmodal">
+        <div class="rtr-modal-hdr">
+          <span class="rtr-modal-title" id="wanWarnTitle">This will interrupt your own connection</span>
+          <button class="rtr-modal-close" data-modal-close="wanWarnWrap" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="rtr-modal-body">
+          <input type="hidden" id="wanWarnId">
+          <input type="hidden" id="wanWarnName">
+          <input type="hidden" id="wanWarnVerb">
+          <input type="hidden" id="wanWarnAck">
+          <div id="wanWarnBody" style="font-size:.8rem;line-height:1.5"></div>
+        </div>
+        <div class="rtr-modal-footer">
+          <button class="sbtn sbtn-outline" data-modal-close="wanWarnWrap">Cancel</button>
+          <button class="sbtn sbtn-danger" id="wanWarnGo">Do it anyway</button>
+        </div>
+       </div>
+      </div>
+
+    </div>
+  </div>

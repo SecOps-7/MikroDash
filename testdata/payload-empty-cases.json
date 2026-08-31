@@ -1,0 +1,176 @@
+{
+  "generated_from": "src/collectors/util.js payloadEmpty + src/collection.js COLLECTORS",
+  "disableableIsRedundantToday": true,
+  "eligible": [
+    "bandwidth",
+    "talkers",
+    "ifStatus",
+    "wifi",
+    "wireless",
+    "vpn",
+    "firewall",
+    "routing",
+    "netwatch",
+    "topology",
+    "vlans",
+    "ppp",
+    "bridges",
+    "capsman",
+    "packages",
+    "wan",
+    "queues",
+    "rosusers"
+  ],
+  "cases": [
+    {
+      "why": "a single list that is empty",
+      "payload": {
+        "hosts": []
+      },
+      "emptyKey": "hosts",
+      "empty": true
+    },
+    {
+      "why": "a single list with a row",
+      "payload": {
+        "hosts": [
+          {
+            "a": 1
+          }
+        ]
+      },
+      "emptyKey": "hosts",
+      "empty": false
+    },
+    {
+      "why": "the key is missing entirely",
+      "payload": {
+        "other": []
+      },
+      "emptyKey": "hosts",
+      "empty": false
+    },
+    {
+      "why": "the key holds null",
+      "payload": {
+        "hosts": null
+      },
+      "emptyKey": "hosts",
+      "empty": false
+    },
+    {
+      "why": "the key holds an object rather than a list",
+      "payload": {
+        "hosts": {
+          "a": 1
+        }
+      },
+      "emptyKey": "hosts",
+      "empty": false
+    },
+    {
+      "why": "the key holds a number",
+      "payload": {
+        "hosts": 0
+      },
+      "emptyKey": "hosts",
+      "empty": false
+    },
+    {
+      "why": "a null payload",
+      "payload": null,
+      "emptyKey": "hosts",
+      "empty": false
+    },
+    {
+      "why": "an empty payload object",
+      "payload": {},
+      "emptyKey": "hosts",
+      "empty": false
+    },
+    {
+      "why": "no emptyKey",
+      "payload": {
+        "hosts": []
+      },
+      "emptyKey": null,
+      "empty": false
+    },
+    {
+      "why": "an empty emptyKey array",
+      "payload": {
+        "hosts": []
+      },
+      "emptyKey": [],
+      "empty": false
+    },
+    {
+      "why": "two lists, both empty",
+      "payload": {
+        "networks": [],
+        "clients": []
+      },
+      "emptyKey": [
+        "networks",
+        "clients"
+      ],
+      "empty": true
+    },
+    {
+      "why": "two lists, one with a row",
+      "payload": {
+        "networks": [],
+        "clients": [
+          {
+            "a": 1
+          }
+        ]
+      },
+      "emptyKey": [
+        "networks",
+        "clients"
+      ],
+      "empty": false
+    },
+    {
+      "why": "two keys, only one readable and it is empty",
+      "payload": {
+        "networks": [],
+        "clients": null
+      },
+      "emptyKey": [
+        "networks",
+        "clients"
+      ],
+      "empty": true
+    },
+    {
+      "why": "two keys, only one readable and it has a row",
+      "payload": {
+        "networks": [
+          {
+            "a": 1
+          }
+        ],
+        "clients": null
+      },
+      "emptyKey": [
+        "networks",
+        "clients"
+      ],
+      "empty": false
+    },
+    {
+      "why": "two keys, neither readable",
+      "payload": {
+        "networks": null,
+        "clients": "x"
+      },
+      "emptyKey": [
+        "networks",
+        "clients"
+      ],
+      "empty": false
+    }
+  ]
+}

@@ -1,0 +1,5750 @@
+{
+  "configRows": [
+    {
+      ".id": "*c1",
+      "name": "home-cfg",
+      "security": "home-sec",
+      "channel": "ch-5g",
+      "datapath": "dp1"
+    },
+    {
+      ".id": "*c2",
+      "name": "guest-cfg",
+      "security": "guest-sec",
+      "channel": "ch-5g",
+      "datapath": "dp1"
+    },
+    {
+      ".id": "*c3",
+      "name": "unused-cfg",
+      "security": "unused-sec",
+      "channel": "ch-2g",
+      "datapath": "dp2"
+    }
+  ],
+  "provRows": [
+    {
+      ".id": "*p1",
+      "master-configuration": "home-cfg",
+      "slave-configurations": "guest-cfg",
+      "name-format": "home-%I",
+      "disabled": "false"
+    },
+    {
+      ".id": "*p2",
+      "master-configuration": "unused-cfg",
+      "name-format": "off-%I",
+      "disabled": "true"
+    },
+    {
+      ".id": "*p3",
+      "master-configuration": "nowhere-cfg",
+      "name-format": "orphan-%I"
+    }
+  ],
+  "cases": [
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"ssid\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"ssid\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"ssid\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, ssid changed",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile, provisioned, nothing changed",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "guest-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"guest-cfg\",[\"*p1\"],[\"ssid\"]]"
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "guest-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"guest-cfg\",[\"*p1\"],[\"ssid\"]]"
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "guest-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"guest-cfg\",[\"*p1\"],[\"ssid\"]]"
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "guest-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"guest-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "guest-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"guest-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "guest-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"guest-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile reached only as a SLAVE configuration",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c2",
+        "name": "guest-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "config profile nothing provisions",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c3",
+        "name": "unused-cfg"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"authTypes\"]]"
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"authTypes\"]]"
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"authTypes\"]]"
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile, TWO levels up to a rule",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile reached only via an unprovisioned config",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s9",
+        "name": "unused-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a passphrase, which never reads back",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[]]"
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[]]"
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[]]"
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "security profile: a BLANK passphrase",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s1",
+        "name": "home-sec",
+        "authentication-types": "wpa2-psk"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "passphrase": "already-stored"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"passphrase\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-sec",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-sec\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "passphrase": "a-new-one"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "before": {
+        ".id": "*s2",
+        "name": "home-sec",
+        "passphrase": "already-stored"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "ch-5g",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"ch-5g\",[\"*p1\"],[\"frequency\"]]"
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "ch-5g",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"ch-5g\",[\"*p1\"],[\"frequency\"]]"
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "ch-5g",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"ch-5g\",[\"*p1\"],[\"frequency\"]]"
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "ch-5g",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"ch-5g\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "ch-5g",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"ch-5g\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "ch-5g",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"ch-5g\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "channel profile, shared by two configs",
+      "key": "capsChannel",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "before": {
+        ".id": "*h1",
+        "name": "ch-5g",
+        "frequency": "5180",
+        "width": "20/40/80mhz"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "dp1",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"dp1\",[\"*p1\"],[\"vlanId\"]]"
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "dp1",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"dp1\",[\"*p1\"],[\"vlanId\"]]"
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "dp1",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"dp1\",[\"*p1\"],[\"vlanId\"]]"
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "dp1",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"dp1\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "dp1",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"dp1\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "dp1",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"dp1\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "datapath profile",
+      "key": "capsDatapath",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "vlanId": "20"
+      },
+      "valueKeys": [
+        "vlanId"
+      ],
+      "before": {
+        ".id": "*d1",
+        "name": "dp1",
+        "bridge": "bridge",
+        "vlan-id": "10"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "a profile nothing references at all",
+      "key": "capsSecurity",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "before": {
+        ".id": "*s8",
+        "name": "not-referenced-at-all"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "an unknown resource key",
+      "key": "capsProvisioning",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "before": {
+        ".id": "*c1",
+        "name": "home-cfg",
+        "ssid": "HomeNet",
+        "country": "GB"
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 3,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": 0,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "create",
+      "capCount": null,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 3,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"name\",\"ssid\"]]"
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": 0,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"name\",\"ssid\"]]"
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "update",
+      "capCount": null,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "update"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"name\",\"ssid\"]]"
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 3,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 3,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": 0,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": 0,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "delete",
+      "capCount": null,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "capsman-push",
+        "detail": {
+          "profile": "home-cfg",
+          "rules": [
+            "home-%I"
+          ],
+          "ruleCount": 1,
+          "caps": -1,
+          "action": "delete"
+        },
+        "fingerprint": "[\"capsman-push\",\"home-cfg\",[\"*p1\"],[\"(removed)\"]]"
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 3,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": 0,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "enable",
+      "capCount": null,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 3,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": 0,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no before row at all",
+      "key": "capsConfig",
+      "action": "disable",
+      "capCount": null,
+      "values": {
+        "name": "home-cfg",
+        "ssid": "X"
+      },
+      "valueKeys": [
+        "name",
+        "ssid"
+      ],
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    }
+  ]
+}

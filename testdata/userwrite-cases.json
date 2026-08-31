@@ -1,0 +1,595 @@
+{
+  "generated_from": "src/users.js updateUser + deleteUser (executed)",
+  "seed": [
+    {
+      "id": "u-1",
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "salt": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "passwordHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "createdAt": 1700000000000
+    },
+    {
+      "id": "u-2",
+      "username": "bob",
+      "role": "viewer",
+      "allowedRouterIds": [
+        "rtr-1"
+      ],
+      "salt": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "passwordHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "createdAt": 1700000001000
+    }
+  ],
+  "updates": [
+    {
+      "why": "rename only",
+      "id": "u-1",
+      "patch": {
+        "username": "alice2"
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice2",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "rename with surrounding whitespace is trimmed",
+      "id": "u-1",
+      "patch": {
+        "username": "  alice2  "
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice2",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "role only",
+      "id": "u-1",
+      "patch": {
+        "role": "operator"
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice",
+      "role": "operator",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "router ids only",
+      "id": "u-1",
+      "patch": {
+        "allowedRouterIds": [
+          "rtr-1",
+          "rtr-2"
+        ]
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [
+        "rtr-1",
+        "rtr-2"
+      ],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "router ids emptied deliberately",
+      "id": "u-2",
+      "patch": {
+        "allowedRouterIds": []
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "bob",
+      "role": "viewer",
+      "allowedRouterIds": [],
+      "createdAt": 1700000001000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "everything at once",
+      "id": "u-2",
+      "patch": {
+        "username": "bob2",
+        "role": "admin",
+        "allowedRouterIds": [
+          "rtr-9"
+        ]
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "bob2",
+      "role": "admin",
+      "allowedRouterIds": [
+        "rtr-9"
+      ],
+      "createdAt": 1700000001000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "an empty updates object changes nothing",
+      "id": "u-1",
+      "patch": {},
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "an EMPTY password leaves the credential alone",
+      "id": "u-1",
+      "patch": {
+        "password": ""
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "a real password re-hashes and re-salts",
+      "id": "u-1",
+      "patch": {
+        "password": "a-new-password"
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": true,
+      "hashChanged": true,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "a password alongside other fields",
+      "id": "u-1",
+      "patch": {
+        "username": "alice3",
+        "password": "another-one"
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice3",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": true,
+      "hashChanged": true,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "allowedRouterIds as a STRING is ignored",
+      "id": "u-2",
+      "patch": {
+        "allowedRouterIds": "rtr-1"
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "bob",
+      "role": "viewer",
+      "allowedRouterIds": [
+        "rtr-1"
+      ],
+      "createdAt": 1700000001000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "allowedRouterIds as null is ignored, NOT cleared",
+      "id": "u-2",
+      "patch": {
+        "allowedRouterIds": null
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "bob",
+      "role": "viewer",
+      "allowedRouterIds": [
+        "rtr-1"
+      ],
+      "createdAt": 1700000001000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "allowedRouterIds as a number is ignored",
+      "id": "u-2",
+      "patch": {
+        "allowedRouterIds": 7
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "bob",
+      "role": "viewer",
+      "allowedRouterIds": [
+        "rtr-1"
+      ],
+      "createdAt": 1700000001000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "an invalid role THROWS and writes nothing",
+      "id": "u-1",
+      "patch": {
+        "role": "superuser"
+      },
+      "threw": "Invalid role: superuser (expected one of viewer, operator, admin)",
+      "returnedNull": false,
+      "returnedKeys": null,
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "an empty role throws too",
+      "id": "u-1",
+      "patch": {
+        "role": ""
+      },
+      "threw": "Invalid role:  (expected one of viewer, operator, admin)",
+      "returnedNull": false,
+      "returnedKeys": null,
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "a null role throws",
+      "id": "u-1",
+      "patch": {
+        "role": null
+      },
+      "threw": "Invalid role: null (expected one of viewer, operator, admin)",
+      "returnedNull": false,
+      "returnedKeys": null,
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "role casing is not normalised — Admin is invalid",
+      "id": "u-1",
+      "patch": {
+        "role": "Admin"
+      },
+      "threw": "Invalid role: Admin (expected one of viewer, operator, admin)",
+      "returnedNull": false,
+      "returnedKeys": null,
+      "username": "alice",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "role viewer",
+      "id": "u-1",
+      "patch": {
+        "role": "viewer"
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice",
+      "role": "viewer",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "role operator",
+      "id": "u-1",
+      "patch": {
+        "role": "operator"
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "alice",
+      "role": "operator",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "role admin",
+      "id": "u-2",
+      "patch": {
+        "role": "admin"
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "bob",
+      "role": "admin",
+      "allowedRouterIds": [
+        "rtr-1"
+      ],
+      "createdAt": 1700000001000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "an unknown id returns null",
+      "id": "u-nope",
+      "patch": {
+        "username": "x"
+      },
+      "threw": null,
+      "returnedNull": true,
+      "returnedKeys": null,
+      "username": null,
+      "role": null,
+      "allowedRouterIds": null,
+      "createdAt": null,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "an unknown id with an INVALID role still returns null, not a throw",
+      "id": "u-nope",
+      "patch": {
+        "role": "superuser"
+      },
+      "threw": null,
+      "returnedNull": true,
+      "returnedKeys": null,
+      "username": null,
+      "role": null,
+      "allowedRouterIds": null,
+      "createdAt": null,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    },
+    {
+      "why": "a numeric username is stringified",
+      "id": "u-1",
+      "patch": {
+        "username": 42
+      },
+      "threw": null,
+      "returnedNull": false,
+      "returnedKeys": [
+        "allowedRouterIds",
+        "createdAt",
+        "id",
+        "role",
+        "username"
+      ],
+      "username": "42",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "createdAt": 1700000000000,
+      "saltChanged": false,
+      "hashChanged": false,
+      "otherIntact": true,
+      "count": 2
+    }
+  ],
+  "deletes": [
+    {
+      "why": "delete an existing user",
+      "id": "u-1",
+      "removed": true,
+      "count": 1,
+      "remaining": [
+        "u-2"
+      ],
+      "isArray": true
+    },
+    {
+      "why": "delete the other one",
+      "id": "u-2",
+      "removed": true,
+      "count": 1,
+      "remaining": [
+        "u-1"
+      ],
+      "isArray": true
+    },
+    {
+      "why": "delete an unknown id",
+      "id": "u-nope",
+      "removed": false,
+      "count": 2,
+      "remaining": [
+        "u-1",
+        "u-2"
+      ],
+      "isArray": true
+    }
+  ]
+}

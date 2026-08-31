@@ -1,0 +1,688 @@
+{
+  "now": 1773567000000,
+  "cases": [
+    {
+      "name": "no limits set keeps everything",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-12T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-11T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {},
+      "now": 1773567000000,
+      "want": []
+    },
+    {
+      "name": "keepCount 3 of 5",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-12T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-11T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 3
+      },
+      "now": 1773567000000,
+      "want": [
+        "2026-03-12T093000",
+        "2026-03-11T093000"
+      ]
+    },
+    {
+      "name": "keepCount 1 keeps only the newest",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-12T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-11T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 1
+      },
+      "now": 1773567000000,
+      "want": [
+        "2026-03-14T093000",
+        "2026-03-13T093000",
+        "2026-03-12T093000",
+        "2026-03-11T093000"
+      ]
+    },
+    {
+      "name": "keepCount larger than the set",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-12T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-11T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 99
+      },
+      "now": 1773567000000,
+      "want": []
+    },
+    {
+      "name": "keepCount 0 is not applied",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-12T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-11T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 0,
+        "keepDays": 0
+      },
+      "now": 1773567000000,
+      "want": []
+    },
+    {
+      "name": "keepDays 30 with everything recent",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-12T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-11T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepDays": 30
+      },
+      "now": 1773567000000,
+      "want": []
+    },
+    {
+      "name": "keepDays 30 ages out the old ones",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-05-19T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepDays": 30
+      },
+      "now": 1773567000000,
+      "want": [
+        "2025-12-05T093000",
+        "2025-08-27T093000",
+        "2025-05-19T093000"
+      ]
+    },
+    {
+      "name": "ALL older than keepDays — the newest still survives",
+      "pairs": [
+        {
+          "stem": "2025-02-08T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2024-10-31T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2024-07-23T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepDays": 30
+      },
+      "now": 1773567000000,
+      "want": [
+        "2024-10-31T093000",
+        "2024-07-23T093000"
+      ]
+    },
+    {
+      "name": "a single pair is never pruned",
+      "pairs": [
+        {
+          "stem": "2023-06-20T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 1,
+        "keepDays": 1
+      },
+      "now": 1773567000000,
+      "want": []
+    },
+    {
+      "name": "no pairs at all",
+      "pairs": [],
+      "opts": {
+        "keepCount": 1,
+        "keepDays": 1
+      },
+      "now": 1773567000000,
+      "want": []
+    },
+    {
+      "name": "both limits, keepCount stricter",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-05-19T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 2,
+        "keepDays": 365
+      },
+      "now": 1773567000000,
+      "want": [
+        "2025-08-27T093000",
+        "2025-05-19T093000"
+      ]
+    },
+    {
+      "name": "both limits, keepDays stricter",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-05-19T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 99,
+        "keepDays": 30
+      },
+      "now": 1773567000000,
+      "want": [
+        "2025-12-05T093000",
+        "2025-08-27T093000",
+        "2025-05-19T093000"
+      ]
+    },
+    {
+      "name": "malformed stem is not aged out by keepDays",
+      "pairs": [
+        {
+          "stem": "not-a-timestamp",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-05-19T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepDays": 30
+      },
+      "now": 1773567000000,
+      "want": [
+        "2025-12-05T093000",
+        "2025-08-27T093000",
+        "2025-05-19T093000"
+      ]
+    },
+    {
+      "name": "malformed stem sorts first and is spared as newest",
+      "pairs": [
+        {
+          "stem": "not-a-timestamp",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-05-19T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 2
+      },
+      "now": 1773567000000,
+      "want": [
+        "2025-08-27T093000",
+        "2025-05-19T093000"
+      ]
+    },
+    {
+      "name": "DEFECT: a stray stem lets keepCount 1 prune every real backup",
+      "pairs": [
+        {
+          "stem": "not-a-timestamp",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 1
+      },
+      "now": 1773567000000,
+      "want": [
+        "2026-03-14T093000",
+        "2026-03-13T093000"
+      ]
+    },
+    {
+      "name": "a LOW-sorting malformed stem is still never aged out",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "!stray",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepDays": 30
+      },
+      "now": 1773567000000,
+      "want": [
+        "2025-12-05T093000",
+        "2025-08-27T093000"
+      ]
+    },
+    {
+      "name": "a LOW-sorting malformed stem CAN go by keepCount",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "!stray",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 2
+      },
+      "now": 1773567000000,
+      "want": [
+        "2025-08-27T093000"
+      ]
+    },
+    {
+      "name": "unsorted input",
+      "pairs": [
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-11T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": 2
+      },
+      "now": 1773567000000,
+      "want": [
+        "2026-03-13T093000",
+        "2026-03-11T093000"
+      ]
+    },
+    {
+      "name": "string limits",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-05-19T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": "2",
+        "keepDays": "30"
+      },
+      "now": 1773567000000,
+      "want": [
+        "2025-12-05T093000",
+        "2025-08-27T093000",
+        "2025-05-19T093000"
+      ]
+    },
+    {
+      "name": "junk limits are not applied",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-12-05T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-08-27T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2025-05-19T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": "abc",
+        "keepDays": null
+      },
+      "now": 1773567000000,
+      "want": []
+    },
+    {
+      "name": "negative keepCount",
+      "pairs": [
+        {
+          "stem": "2026-03-15T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-14T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-13T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-12T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        },
+        {
+          "stem": "2026-03-11T093000",
+          "rscBytes": 100,
+          "backupBytes": 200
+        }
+      ],
+      "opts": {
+        "keepCount": -1
+      },
+      "now": 1773567000000,
+      "want": []
+    }
+  ]
+}

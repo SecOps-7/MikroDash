@@ -1,0 +1,353 @@
+{
+  "schedules": {
+    "hourly": 3600000,
+    "daily": 86400000,
+    "weekly": 604800000,
+    "monthly": 2592000000
+  },
+  "defaultTime": "08:00",
+  "cases": [
+    {
+      "name": "daily 08:00, last run 11:45 yesterday — THE BUG",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "daily 08:00, last run 11:45 today — already ran",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773561900000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "daily 08:00, last run just before yesterday target",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773475140000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "daily 22:00, not yet today",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "22:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "disabled",
+      "backup": {
+        "enabled": false,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "no backup block at all",
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "never run is due at once",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 0,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "unknown schedule name",
+      "backup": {
+        "enabled": true,
+        "schedule": "fortnightly",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "time ABSENT takes the default",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "time explicitly empty is interval-only",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": ""
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "time empty, a full interval elapsed",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": ""
+      },
+      "lastRun": 1773480599000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "time malformed",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "25:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "time single-digit hour",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "8:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "hourly ignores the chosen time",
+      "backup": {
+        "enabled": true,
+        "schedule": "hourly",
+        "time": "08:00"
+      },
+      "lastRun": 1773563399000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "hourly within the interval",
+      "backup": {
+        "enabled": true,
+        "schedule": "hourly",
+        "time": "08:00"
+      },
+      "lastRun": 1773566940000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "weekly, interval not elapsed",
+      "backup": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "weekly, interval elapsed and past target",
+      "backup": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "08:00"
+      },
+      "lastRun": 1772962199000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "monthly, interval elapsed",
+      "backup": {
+        "enabled": true,
+        "schedule": "monthly",
+        "time": "08:00"
+      },
+      "lastRun": 1770974999000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "daily 08:00 in UTC",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": true
+    },
+    {
+      "name": "daily 23:30 in UTC",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "23:30"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "UTC",
+      "want": false
+    },
+    {
+      "name": "daily 08:00 in Europe/Berlin",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "Europe/Berlin",
+      "want": true
+    },
+    {
+      "name": "daily 23:30 in Europe/Berlin",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "23:30"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "Europe/Berlin",
+      "want": false
+    },
+    {
+      "name": "daily 08:00 in Pacific/Kiritimati",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "Pacific/Kiritimati",
+      "want": true
+    },
+    {
+      "name": "daily 23:30 in Pacific/Kiritimati",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "23:30"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "Pacific/Kiritimati",
+      "want": true
+    },
+    {
+      "name": "daily 08:00 in America/Los_Angeles",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "America/Los_Angeles",
+      "want": false
+    },
+    {
+      "name": "daily 23:30 in America/Los_Angeles",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "23:30"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "America/Los_Angeles",
+      "want": false
+    },
+    {
+      "name": "daily 08:00 in (blank zone)",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "",
+      "want": true
+    },
+    {
+      "name": "daily 23:30 in (blank zone)",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "23:30"
+      },
+      "lastRun": 1773488700000,
+      "now": 1773567000000,
+      "tz": "",
+      "want": false
+    },
+    {
+      "name": "daily 02:30 across spring-forward",
+      "backup": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "02:30"
+      },
+      "lastRun": 1774698300000,
+      "now": 1774771200000,
+      "tz": "Europe/Berlin",
+      "want": true
+    }
+  ]
+}

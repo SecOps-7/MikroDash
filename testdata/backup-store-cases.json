@@ -1,0 +1,234 @@
+{
+  "slugs": [
+    {
+      "label": "Mikrotik hAP AX3",
+      "slug": "mikrotik-hap-ax3"
+    },
+    {
+      "label": "cAP AX",
+      "slug": "cap-ax"
+    },
+    {
+      "label": "hAP ac2",
+      "slug": "hap-ac2"
+    },
+    {
+      "label": "ALL CAPS",
+      "slug": "all-caps"
+    },
+    {
+      "label": "trailing spaces   ",
+      "slug": "trailing-spaces"
+    },
+    {
+      "label": "   leading spaces",
+      "slug": "leading-spaces"
+    },
+    {
+      "label": "dots.and.dots",
+      "slug": "dots-and-dots"
+    },
+    {
+      "label": "under_scores",
+      "slug": "under-scores"
+    },
+    {
+      "label": "hyphen-already",
+      "slug": "hyphen-already"
+    },
+    {
+      "label": "123",
+      "slug": "123"
+    },
+    {
+      "label": "a",
+      "slug": "a"
+    },
+    {
+      "label": "",
+      "slug": "router"
+    },
+    {
+      "label": null,
+      "slug": "router"
+    },
+    {
+      "label": "...",
+      "slug": "router"
+    },
+    {
+      "label": "---",
+      "slug": "router"
+    },
+    {
+      "label": "   ",
+      "slug": "router"
+    },
+    {
+      "label": "!!!",
+      "slug": "router"
+    },
+    {
+      "label": "../../etc/passwd",
+      "slug": "etc-passwd"
+    },
+    {
+      "label": "..",
+      "slug": "router"
+    },
+    {
+      "label": "../",
+      "slug": "router"
+    },
+    {
+      "label": "/absolute/path",
+      "slug": "absolute-path"
+    },
+    {
+      "label": "C:\\Windows\\System32",
+      "slug": "c-windows-system32"
+    },
+    {
+      "label": "a/../../b",
+      "slug": "a-b"
+    },
+    {
+      "label": "./hidden",
+      "slug": "hidden"
+    },
+    {
+      "label": ".hidden",
+      "slug": "hidden"
+    },
+    {
+      "label": "nul\u0000byte",
+      "slug": "nul-byte"
+    },
+    {
+      "label": "new\nline",
+      "slug": "new-line"
+    },
+    {
+      "label": "tab\there",
+      "slug": "tab-here"
+    },
+    {
+      "label": "Büro Router",
+      "slug": "b-ro-router"
+    },
+    {
+      "label": "маршрутизатор",
+      "slug": "router"
+    },
+    {
+      "label": "路由器",
+      "slug": "router"
+    },
+    {
+      "label": "emoji 🚀 router",
+      "slug": "emoji-router"
+    },
+    {
+      "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "slug": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "slug": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "slug": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "slug": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx tail",
+      "slug": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "label": "ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ab ",
+      "slug": "ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-ab-"
+    }
+  ],
+  "paths": [
+    {
+      "slug": "mikrotik-hap-ax3",
+      "dir": "mikrotik-hap-ax3",
+      "rsc": "mikrotik-hap-ax3/2026-08-19T203521.rsc.gz",
+      "backup": "mikrotik-hap-ax3/2026-08-19T203521.backup"
+    },
+    {
+      "slug": "router",
+      "dir": "router",
+      "rsc": "router/2026-08-19T203521.rsc.gz",
+      "backup": "router/2026-08-19T203521.backup"
+    },
+    {
+      "slug": "a",
+      "dir": "a",
+      "rsc": "a/2026-08-19T203521.rsc.gz",
+      "backup": "a/2026-08-19T203521.backup"
+    }
+  ],
+  "stems": [
+    {
+      "ts": 1787171721000,
+      "stem": "2026-08-19T203521"
+    },
+    {
+      "ts": 1767225600000,
+      "stem": "2026-01-01T000000"
+    },
+    {
+      "ts": 1798761599000,
+      "stem": "2026-12-31T235959"
+    },
+    {
+      "ts": 1773617400000,
+      "stem": "2026-03-15T233000"
+    },
+    {
+      "ts": 1773534600000,
+      "stem": "2026-03-15T003000"
+    },
+    {
+      "ts": 0,
+      "stem": "1970-01-01T000000"
+    }
+  ],
+  "roundTrip": [
+    {
+      "stem": "2026-08-19T203521",
+      "ms": 1787171721000,
+      "ts": 1787171721000
+    },
+    {
+      "stem": "2026-01-01T000000",
+      "ms": 1767225600000,
+      "ts": 1767225600000
+    },
+    {
+      "stem": "2026-12-31T235959",
+      "ms": 1798761599000,
+      "ts": 1798761599000
+    },
+    {
+      "stem": "2026-03-15T233000",
+      "ms": 1773617400000,
+      "ts": 1773617400000
+    },
+    {
+      "stem": "2026-03-15T003000",
+      "ms": 1773534600000,
+      "ts": 1773534600000
+    },
+    {
+      "stem": "1970-01-01T000000",
+      "ms": 0,
+      "ts": 0
+    }
+  ]
+}

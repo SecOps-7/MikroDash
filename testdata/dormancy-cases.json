@@ -1,0 +1,1148 @@
+{
+  "generated_from": "src/collectors/util.js createDormancyState",
+  "defaults": {
+    "emptyThreshold": 3,
+    "backoffMs": 60000,
+    "maxBackoffMs": 600000,
+    "probeTimeoutMs": 30000,
+    "restampMs": 45000
+  },
+  "t0": 1700000000000,
+  "cases": [
+    {
+      "why": "three consecutive empties put it to sleep, and not the second",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000002000,
+          "obs": {
+            "ts": 3,
+            "empty": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        }
+      ]
+    },
+    {
+      "why": "a non-empty payload resets the streak, so the next two empties are not enough",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000002000,
+          "obs": {
+            "ts": 3,
+            "empty": false
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000003000,
+          "obs": {
+            "ts": 4,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000004000,
+          "obs": {
+            "ts": 5,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        }
+      ]
+    },
+    {
+      "why": "unsupported sleeps immediately, and for maxBackoffMs rather than backoffMs",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "unsupported": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 600000,
+            "wakeAt": 1700000600000
+          }
+        }
+      ]
+    },
+    {
+      "why": "a fresh non-empty payload wakes it, and returns \"wake\" exactly once",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000002000,
+          "obs": {
+            "ts": 3,
+            "empty": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000003000,
+          "obs": {
+            "ts": 4,
+            "empty": false
+          },
+          "verdict": "wake",
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000004000,
+          "obs": {
+            "ts": 5,
+            "empty": false
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        }
+      ]
+    },
+    {
+      "why": "an empty probe doubles the delay and does not re-announce sleep",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000002000,
+          "obs": {
+            "ts": 3,
+            "empty": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000003000,
+          "obs": {
+            "ts": 4,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 120000,
+            "wakeAt": 1700000123000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000004000,
+          "obs": {
+            "ts": 5,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 240000,
+            "wakeAt": 1700000244000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000005000,
+          "obs": {
+            "ts": 6,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 480000,
+            "wakeAt": 1700000485000
+          }
+        }
+      ]
+    },
+    {
+      "why": "the delay doubles to maxBackoffMs and stops there",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000002000,
+          "obs": {
+            "ts": 3,
+            "empty": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000004000,
+          "obs": {
+            "ts": 4,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 120000,
+            "wakeAt": 1700000124000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000005000,
+          "obs": {
+            "ts": 5,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 240000,
+            "wakeAt": 1700000245000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000006000,
+          "obs": {
+            "ts": 6,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 480000,
+            "wakeAt": 1700000486000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000007000,
+          "obs": {
+            "ts": 7,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 600000,
+            "wakeAt": 1700000607000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000008000,
+          "obs": {
+            "ts": 8,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 600000,
+            "wakeAt": 1700000608000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000009000,
+          "obs": {
+            "ts": 9,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 600000,
+            "wakeAt": 1700000609000
+          }
+        }
+      ]
+    },
+    {
+      "why": "a repeated ts is ignored until restampMs has passed, then it counts",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000044000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000046000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000092000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000152000
+          }
+        }
+      ]
+    },
+    {
+      "why": "an observation with no ts is ignored entirely, whatever else it says",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 0,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        }
+      ]
+    },
+    {
+      "why": "dueForProbe: false while awake, true at wakeAt, and it settles a timed-out probe",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "dueForProbe",
+          "now": 1700000001500,
+          "verdict": null,
+          "due": false,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000002000,
+          "obs": {
+            "ts": 3,
+            "empty": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "dueForProbe",
+          "now": 1700000003000,
+          "verdict": null,
+          "due": false,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "dueForProbe",
+          "now": 1700000062000,
+          "verdict": null,
+          "due": true,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "markProbed",
+          "now": 1700000062000,
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": true,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "dueForProbe",
+          "now": 1700000080000,
+          "verdict": null,
+          "due": false,
+          "state": {
+            "dormant": true,
+            "probing": true,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "dueForProbe",
+          "now": 1700000095000,
+          "verdict": null,
+          "due": false,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 120000,
+            "wakeAt": 1700000215000
+          }
+        },
+        {
+          "op": "dueForProbe",
+          "now": 1700000095001,
+          "verdict": null,
+          "due": false,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 120000,
+            "wakeAt": 1700000215000
+          }
+        }
+      ]
+    },
+    {
+      "why": "reset forgets everything, including the doubled delay",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "unsupported": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 600000,
+            "wakeAt": 1700000600000
+          }
+        },
+        {
+          "op": "reset",
+          "now": 1700000001000,
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "dueForProbe",
+          "now": 1700000002000,
+          "verdict": null,
+          "due": false,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000003000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        }
+      ]
+    },
+    {
+      "why": "a zero ts is ignored even when a real one preceded it and restampMs has passed",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 7,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000050000,
+          "obs": {
+            "ts": 0,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000100000,
+          "obs": {
+            "ts": 0,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        }
+      ]
+    },
+    {
+      "why": "waking resets the delay to backoffMs, not to whatever the backoff reached",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000002000,
+          "obs": {
+            "ts": 3,
+            "empty": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 1700000062000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000003000,
+          "obs": {
+            "ts": 4,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 120000,
+            "wakeAt": 1700000123000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000004000,
+          "obs": {
+            "ts": 5,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 240000,
+            "wakeAt": 1700000244000
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000005000,
+          "obs": {
+            "ts": 6,
+            "empty": false
+          },
+          "verdict": "wake",
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        }
+      ]
+    },
+    {
+      "why": "reset forgets a partial empty streak, so the count starts again",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000001000,
+          "obs": {
+            "ts": 2,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "reset",
+          "now": 1700000001500,
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000002000,
+          "obs": {
+            "ts": 3,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 1,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        },
+        {
+          "op": "observe",
+          "now": 1700000003000,
+          "obs": {
+            "ts": 4,
+            "empty": true
+          },
+          "verdict": null,
+          "due": null,
+          "state": {
+            "dormant": false,
+            "probing": false,
+            "streak": 2,
+            "delayMs": 60000,
+            "wakeAt": 0
+          }
+        }
+      ]
+    },
+    {
+      "why": "the options are honoured: a threshold of 1 and a 10s backoff",
+      "steps": [
+        {
+          "op": "observe",
+          "now": 1700000000000,
+          "obs": {
+            "ts": 1,
+            "empty": true
+          },
+          "verdict": "sleep",
+          "due": null,
+          "state": {
+            "dormant": true,
+            "probing": false,
+            "streak": 0,
+            "delayMs": 10000,
+            "wakeAt": 1700000010000
+          }
+        }
+      ]
+    }
+  ]
+}

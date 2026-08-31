@@ -1,0 +1,766 @@
+{
+  "generated_from": "src/index.js the Collector dormancy region",
+  "eligible": [
+    "bandwidth",
+    "talkers",
+    "ifStatus",
+    "wifi",
+    "wireless",
+    "vpn",
+    "firewall",
+    "routing",
+    "netwatch",
+    "topology",
+    "vlans",
+    "ppp",
+    "bridges",
+    "capsman",
+    "packages",
+    "wan",
+    "queues",
+    "rosusers"
+  ],
+  "cases": [
+    {
+      "why": "three empty ticks put a collector to sleep, and only then is there an emit",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 16000,
+          "payloads": {
+            "netwatch": {
+              "ts": 2,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 31000,
+          "payloads": {
+            "netwatch": {
+              "ts": 3,
+              "hosts": []
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "why": "nothing is judged while nobody is watching the router",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 16000,
+          "payloads": {
+            "netwatch": {
+              "ts": 2,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 31000,
+          "payloads": {
+            "netwatch": {
+              "ts": 3,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 46000,
+          "watching": true,
+          "payloads": {
+            "netwatch": {
+              "ts": 4,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 61000,
+          "payloads": {
+            "netwatch": {
+              "ts": 5,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 76000,
+          "payloads": {
+            "netwatch": {
+              "ts": 6,
+              "hosts": []
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "why": "a collector the operator disabled is skipped entirely",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 16000,
+          "payloads": {
+            "netwatch": {
+              "ts": 2,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 31000,
+          "payloads": {
+            "netwatch": {
+              "ts": 3,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        }
+      ]
+    },
+    {
+      "why": "an unsupported menu sleeps on the first tick",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "why": "a row appearing wakes it, and the wake is a resume plus an emit",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 16000,
+          "payloads": {
+            "netwatch": {
+              "ts": 2,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 31000,
+          "payloads": {
+            "netwatch": {
+              "ts": 3,
+              "hosts": []
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "op": "tick",
+          "now": 46000,
+          "payloads": {
+            "netwatch": {
+              "ts": 4,
+              "hosts": [
+                {
+                  "a": 1
+                }
+              ]
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "resume"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "why": "a due probe calls probe() where one exists",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "op": "tick",
+          "now": 300000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 700000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "probe"
+            }
+          ],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 710000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        }
+      ]
+    },
+    {
+      "why": "a due probe resumes and refreshes where there is no probe()",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "op": "tick",
+          "now": 700000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "resume"
+            },
+            {
+              "key": "netwatch",
+              "op": "refreshNow"
+            }
+          ],
+          "emitsAfter": []
+        }
+      ]
+    },
+    {
+      "why": "reset wakes everything that was asleep and emits once",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "op": "reset",
+          "now": 2000,
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "probe"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": []
+              }
+            }
+          ]
+        },
+        {
+          "op": "tick",
+          "now": 3000,
+          "payloads": {
+            "netwatch": {
+              "ts": 2,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        }
+      ]
+    },
+    {
+      "why": "reset probes only what was asleep, not every collector it knows",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            },
+            "vlans": {
+              "ts": 1,
+              "hosts": [
+                {
+                  "a": 1
+                }
+              ]
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "op": "reset",
+          "now": 2000,
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "probe"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "why": "focus on a dormant collector resets it, probes, and emits",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "op": "focus",
+          "now": 2000,
+          "key": "netwatch",
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "probe"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "why": "focus on a collector that is NOT dormant does nothing at all",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [
+                {
+                  "a": 1
+                }
+              ]
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "focus",
+          "now": 2000,
+          "key": "netwatch",
+          "opsAfter": [],
+          "emitsAfter": []
+        }
+      ]
+    },
+    {
+      "why": "two collectors sleep independently and the emit lists both",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            },
+            "vlans": {
+              "ts": 1,
+              "hosts": []
+            }
+          },
+          "opsAfter": [
+            {
+              "key": "netwatch",
+              "op": "suspend"
+            }
+          ],
+          "emitsAfter": [
+            {
+              "ev": "collection:status",
+              "payload": {
+                "routerId": "r-under-test",
+                "dormant": [
+                  "netwatch"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "op": "tick",
+          "now": 16000,
+          "payloads": {
+            "vlans": {
+              "ts": 2,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 31000,
+          "payloads": {
+            "vlans": {
+              "ts": 3,
+              "hosts": []
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        }
+      ]
+    },
+    {
+      "why": "a collector with no payload yet is neither judged nor probed",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "opsAfter": [],
+          "emitsAfter": []
+        },
+        {
+          "op": "tick",
+          "now": 16000,
+          "opsAfter": [],
+          "emitsAfter": []
+        }
+      ]
+    },
+    {
+      "why": "startupReady false suppresses the whole tick",
+      "steps": [
+        {
+          "op": "tick",
+          "now": 1000,
+          "payloads": {
+            "netwatch": {
+              "ts": 1,
+              "hosts": [],
+              "available": false
+            }
+          },
+          "opsAfter": [],
+          "emitsAfter": []
+        }
+      ]
+    }
+  ]
+}

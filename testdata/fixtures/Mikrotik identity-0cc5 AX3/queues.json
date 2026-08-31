@@ -1,0 +1,24 @@
+{
+  "collector": "queues",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/queue/simple/print",
+      "params": [],
+      "rows": []
+    },
+    {
+      "cmd": "/queue/tree/print",
+      "params": [],
+      "rows": [
+        {
+          "undefined": ""
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+ "value:the live esc() definition": "\"function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\\"/g,'&quot;').replace(/'/g,'&#039;');}\"",
+ "nothing chosen, three interfaces": "{\"html\":\"<option value=\\\"ether1\\\">ether1</option><option value=\\\"ether2\\\">ether2</option><option value=\\\"bridge\\\">bridge</option>\",\"value\":\"ether1\",\"returned\":\"ether1\"}",
+ "the CHOICE SURVIVES a reload": "{\"html\":\"<option value=\\\"ether1\\\">ether1</option><option value=\\\"ether2\\\">ether2</option><option value=\\\"bridge\\\">bridge</option>\",\"value\":\"ether2\",\"returned\":\"ether2\"}",
+ "the choice is GONE — it cannot be preserved": "{\"html\":\"<option value=\\\"ether1\\\">ether1</option><option value=\\\"ether2\\\">ether2</option>\",\"value\":\"ether1\",\"returned\":\"ether1\"}",
+ "the choice is the first one": "{\"html\":\"<option value=\\\"ether1\\\">ether1</option><option value=\\\"ether2\\\">ether2</option>\",\"value\":\"ether1\",\"returned\":\"ether1\"}",
+ "the choice is the last one": "{\"html\":\"<option value=\\\"ether1\\\">ether1</option><option value=\\\"bridge\\\">bridge</option>\",\"value\":\"bridge\",\"returned\":\"bridge\"}",
+ "an empty interface list": "{\"html\":\"\",\"value\":\"ether1\",\"returned\":\"ether1\"}",
+ "an empty list with nothing chosen": "{\"html\":\"\",\"value\":\"\",\"returned\":\"\"}",
+ "one interface": "{\"html\":\"<option value=\\\"ether1\\\">ether1</option>\",\"value\":\"ether1\",\"returned\":\"ether1\"}",
+ "markup in an interface name": "{\"html\":\"<option value=\\\"&lt;img src=x&gt;\\\">&lt;img src=x&gt;</option>\",\"value\":\"&lt;img src=x&gt;\",\"returned\":\"&lt;img src=x&gt;\"}",
+ "a quote in an interface name": "{\"html\":\"<option value=\\\"a&quot;b\\\">a&quot;b</option>\",\"value\":\"a&quot;b\",\"returned\":\"a&quot;b\"}",
+ "a chosen name containing markup survives": "{\"html\":\"<option value=\\\"&lt;img src=x&gt;\\\">&lt;img src=x&gt;</option><option value=\\\"ether1\\\">ether1</option>\",\"value\":\"<img src=x>\",\"returned\":\"<img src=x>\"}",
+ "names that differ only by case are distinct": "{\"html\":\"<option value=\\\"ether1\\\">ether1</option><option value=\\\"Ether1\\\">Ether1</option>\",\"value\":\"Ether1\",\"returned\":\"Ether1\"}"
+}

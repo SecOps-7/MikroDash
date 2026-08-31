@@ -1,0 +1,66 @@
+  <div class="page-view" id="page-vpn">
+    <div class="container-fluid px-0" style="width:100%">
+      <!-- VPN summary row -->
+      <div class="vpn-summary-row">
+        <div class="vpn-stat-tile">
+          <span class="vpn-stat-label">Total Peers</span>
+          <span class="vpn-stat-value" id="vpnStatTotal">—</span>
+        </div>
+        <div class="vpn-stat-tile">
+          <span class="vpn-stat-label">Active</span>
+          <span class="vpn-stat-value connected" id="vpnStatConn">—</span>
+        </div>
+        <div class="vpn-stat-tile" title="Handshook before, but not within the last 3 minutes">
+          <span class="vpn-stat-label">Stale</span>
+          <span class="vpn-stat-value idle" id="vpnStatStale">—</span>
+        </div>
+        <div class="vpn-stat-tile">
+          <span class="vpn-stat-label">Never Connected</span>
+          <span class="vpn-stat-value idle" id="vpnStatIdle">—</span>
+        </div>
+        <div class="vpn-stat-tile">
+          <span class="vpn-stat-label">Total Throughput</span>
+          <span class="vpn-stat-value throughput" id="vpnStatThroughput">—</span>
+        </div>
+      </div>
+
+      <!-- All peer tiles -->
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">WireGuard Peers</h3><span id="vpnPageCount" class="card-badge">0</span><span data-res-add="wgPeer"></span></div>
+        <div class="card-body" style="padding:.65rem .75rem">
+          <!-- Tiles, not rows — the delegation looks for the nearest ancestor
+               carrying data-id, so a grid works the same as a tbody. -->
+          <div class="vpn-tile-grid" id="vpnPageGrid" data-res-rows="wgPeer">
+            <div class="empty-state">No peers configured</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PPP sessions (L2TP / PPTP / SSTP / OpenVPN). Hidden unless the router
+           actually has sessions, so a WireGuard-only setup is unchanged. -->
+      <div class="card" id="vpnPppCard" style="display:none">
+        <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">PPP Sessions</h3><span id="vpnPppCount" class="card-badge">0</span></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-vcenter mb-0">
+              <thead><tr><th>User</th><th>Service</th><th>Address</th><th>Caller ID</th><th>Uptime</th><th style="text-align:right">RX / TX</th></tr></thead>
+              <tbody id="vpnPppTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- IPsec peers, joined to their installed SAs for the negotiated ciphers. -->
+      <div class="card" id="vpnIpsecCard" style="display:none">
+        <div class="card-header d-flex align-items-center gap-2"><h3 class="card-title">IPsec Peers</h3><span id="vpnIpsecCount" class="card-badge">0</span></div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-vcenter mb-0">
+              <thead><tr><th>Peer</th><th>State</th><th>Side</th><th>Uptime</th><th>Encryption</th><th>Authentication</th></tr></thead>
+              <tbody id="vpnIpsecTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

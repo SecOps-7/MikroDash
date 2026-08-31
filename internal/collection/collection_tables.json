@@ -1,0 +1,476 @@
+{
+  "registry": [
+    {
+      "key": "traffic",
+      "label": "Traffic",
+      "pollKey": null,
+      "defaultPollMs": 1000,
+      "streamKey": null,
+      "pollable": false,
+      "disableable": false,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "traffic"
+    },
+    {
+      "key": "system",
+      "label": "System / Gauges",
+      "pollKey": "pollSystem",
+      "defaultPollMs": 2000,
+      "streamKey": "streamSystem",
+      "pollable": true,
+      "disableable": false,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "system"
+    },
+    {
+      "key": "arp",
+      "label": "ARP",
+      "pollKey": "pollArp",
+      "defaultPollMs": 30000,
+      "streamKey": "streamArp",
+      "pollable": true,
+      "disableable": false,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "arp"
+    },
+    {
+      "key": "dhcpLeases",
+      "label": "DHCP Leases",
+      "pollKey": "pollDhcp",
+      "defaultPollMs": 600000,
+      "streamKey": "streamLeases",
+      "pollable": true,
+      "disableable": false,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "dhcpLeases"
+    },
+    {
+      "key": "dhcpNetworks",
+      "label": "DHCP Networks",
+      "pollKey": "pollDhcp",
+      "defaultPollMs": 600000,
+      "streamKey": "streamDhcp",
+      "pollable": true,
+      "disableable": false,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "dhcpNetworks"
+    },
+    {
+      "key": "conns",
+      "label": "Connections",
+      "pollKey": "pollConns",
+      "defaultPollMs": 5000,
+      "streamKey": "streamConns",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "conns"
+    },
+    {
+      "key": "bandwidth",
+      "label": "Bandwidth",
+      "pollKey": "pollBandwidth",
+      "defaultPollMs": 5000,
+      "streamKey": null,
+      "pollable": true,
+      "disableable": true,
+      "requires": [
+        "conns"
+      ],
+      "emptyKey": [
+        "devices"
+      ],
+      "sessionProp": "bandwidth"
+    },
+    {
+      "key": "talkers",
+      "label": "Top Talkers",
+      "pollKey": "pollTalkers",
+      "defaultPollMs": 3000,
+      "streamKey": "streamTalkers",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "devices"
+      ],
+      "sessionProp": "talkers"
+    },
+    {
+      "key": "ifStatus",
+      "label": "Interface Rates",
+      "pollKey": "pollIfstatus",
+      "defaultPollMs": 5000,
+      "streamKey": "streamIfrates",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "interfaces"
+      ],
+      "sessionProp": "ifStatus"
+    },
+    {
+      "key": "ping",
+      "label": "Ping",
+      "pollKey": "pollPing",
+      "defaultPollMs": 5000,
+      "streamKey": "streamPing",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "ping"
+    },
+    {
+      "key": "wifi",
+      "label": "Wifi Networks",
+      "pollKey": "pollWifi",
+      "defaultPollMs": 30000,
+      "streamKey": "streamWifi",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "networks",
+        "radios"
+      ],
+      "sessionProp": "wifi"
+    },
+    {
+      "key": "wireless",
+      "label": "Wifi Clients",
+      "pollKey": "pollWireless",
+      "defaultPollMs": 30000,
+      "streamKey": "streamWireless",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "clients",
+        "ssids"
+      ],
+      "sessionProp": "wireless"
+    },
+    {
+      "key": "vpn",
+      "label": "VPN",
+      "pollKey": "pollVpn",
+      "defaultPollMs": 10000,
+      "streamKey": "streamVpn",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "tunnels",
+        "ppp",
+        "ipsec"
+      ],
+      "sessionProp": "vpn"
+    },
+    {
+      "key": "firewall",
+      "label": "Firewall",
+      "pollKey": "pollFirewall",
+      "defaultPollMs": 5000,
+      "streamKey": "streamFirewall",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "filter",
+        "nat",
+        "mangle",
+        "raw"
+      ],
+      "sessionProp": "firewall"
+    },
+    {
+      "key": "routing",
+      "label": "Routing",
+      "pollKey": "pollRouting",
+      "defaultPollMs": 10000,
+      "streamKey": "streamRouting",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "peers",
+        "routes"
+      ],
+      "sessionProp": "routing"
+    },
+    {
+      "key": "netwatch",
+      "label": "NetWatch",
+      "pollKey": null,
+      "defaultPollMs": 30000,
+      "streamKey": "streamNetwatch",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "hosts"
+      ],
+      "sessionProp": "netwatch"
+    },
+    {
+      "key": "topology",
+      "label": "Network Topology",
+      "pollKey": "pollTopology",
+      "defaultPollMs": 30000,
+      "streamKey": "streamTopology",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "nodes"
+      ],
+      "sessionProp": "topology"
+    },
+    {
+      "key": "vlans",
+      "label": "VLANs",
+      "pollKey": "pollVlans",
+      "defaultPollMs": 5000,
+      "streamKey": "streamVlans",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "vlans"
+      ],
+      "sessionProp": "vlans"
+    },
+    {
+      "key": "ppp",
+      "label": "PPP",
+      "pollKey": "pollPpp",
+      "defaultPollMs": 5000,
+      "streamKey": "streamPpp",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "sessions",
+        "servers",
+        "profiles"
+      ],
+      "sessionProp": "ppp"
+    },
+    {
+      "key": "bridges",
+      "label": "Bridges",
+      "pollKey": "pollBridges",
+      "defaultPollMs": 5000,
+      "streamKey": "streamBridges",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "bridges"
+      ],
+      "sessionProp": "bridges"
+    },
+    {
+      "key": "capsman",
+      "label": "CAPsMAN",
+      "pollKey": "pollCapsman",
+      "defaultPollMs": 10000,
+      "streamKey": "streamCapsman",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "caps",
+        "localRadios"
+      ],
+      "sessionProp": "capsman"
+    },
+    {
+      "key": "dns",
+      "label": "DNS",
+      "pollKey": "pollDns",
+      "defaultPollMs": 10000,
+      "streamKey": null,
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "dns"
+    },
+    {
+      "key": "packages",
+      "label": "Packages",
+      "pollKey": "pollPackages",
+      "defaultPollMs": 60000,
+      "streamKey": null,
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "packages"
+      ],
+      "sessionProp": "packages"
+    },
+    {
+      "key": "wan",
+      "label": "WAN",
+      "pollKey": "pollWan",
+      "defaultPollMs": 10000,
+      "streamKey": "streamWan",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "wans"
+      ],
+      "sessionProp": "wan"
+    },
+    {
+      "key": "queues",
+      "label": "Queues",
+      "pollKey": "pollQueues",
+      "defaultPollMs": 5000,
+      "streamKey": "streamQueues",
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "simple",
+        "tree"
+      ],
+      "sessionProp": "queues"
+    },
+    {
+      "key": "rosusers",
+      "label": "Router Users",
+      "pollKey": "pollRosusers",
+      "defaultPollMs": 60000,
+      "streamKey": null,
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [
+        "users"
+      ],
+      "sessionProp": "rosusers"
+    },
+    {
+      "key": "logs",
+      "label": "Logs",
+      "pollKey": null,
+      "defaultPollMs": 0,
+      "streamKey": null,
+      "pollable": false,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "logs"
+    }
+  ],
+  "pollBounds": {
+    "pollConns": [
+      1000,
+      60000
+    ],
+    "pollTalkers": [
+      1000,
+      60000
+    ],
+    "pollBandwidth": [
+      1000,
+      60000
+    ],
+    "pollRouting": [
+      500,
+      300000
+    ],
+    "pollSystem": [
+      1000,
+      60000
+    ],
+    "pollWireless": [
+      10000,
+      600000
+    ],
+    "pollWifi": [
+      10000,
+      600000
+    ],
+    "pollVpn": [
+      1000,
+      30000
+    ],
+    "pollFirewall": [
+      1000,
+      30000
+    ],
+    "pollIfstatus": [
+      1000,
+      60000
+    ],
+    "pollIfaces": [
+      10000,
+      600000
+    ],
+    "pollPing": [
+      1000,
+      30000
+    ],
+    "pollArp": [
+      5000,
+      300000
+    ],
+    "pollDhcp": [
+      10000,
+      600000
+    ],
+    "pollTopology": [
+      10000,
+      600000
+    ],
+    "pollVlans": [
+      1000,
+      60000
+    ],
+    "pollPpp": [
+      1000,
+      60000
+    ],
+    "pollBridges": [
+      1000,
+      60000
+    ],
+    "pollDns": [
+      1000,
+      60000
+    ],
+    "pollCapsman": [
+      1000,
+      60000
+    ],
+    "pollPackages": [
+      5000,
+      600000
+    ],
+    "pollRosusers": [
+      5000,
+      300000
+    ],
+    "pollQueues": [
+      2000,
+      60000
+    ],
+    "pollWan": [
+      1000,
+      60000
+    ]
+  }
+}

@@ -1,0 +1,624 @@
+{
+  "collector": "topology",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/neighbor/print",
+      "params": [],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether5,Bridge",
+          "address": "198.51.100.141",
+          "address4": "198.51.100.141",
+          "mac-address": "02:A0:05:E1:6E:3C",
+          "identity": "identity-bab6",
+          "platform": "Meraki",
+          "version": "",
+          "unpack": "none",
+          "age": "25s",
+          "interface-name": "Port 8",
+          "system-description": "Meraki MS120-8LP Cloud Managed PoE Switch",
+          "system-caps": "bridge",
+          "system-caps-enabled": "bridge",
+          "discovered-by": "lldp"
+        },
+        {
+          ".id": "*3",
+          "interface": "Home",
+          "address": "198.51.100.175",
+          "address4": "198.51.100.175",
+          "address6": "2001:db8::e23a",
+          "mac-address": "02:31:48:F6:C4:AF",
+          "identity": "identity-80e8",
+          "platform": "MikroTik",
+          "version": "7.24 (stable) 2026-08-14 08:33:14",
+          "unpack": "none",
+          "age": "9s",
+          "uptime": "3d17h48m21s",
+          "software-id": "I5DX-28HL",
+          "board": "host-name-8ab7Gi-5HaxD2HaxD",
+          "ipv6": "true",
+          "interface-name": "bridgeLocal/ether1",
+          "system-caps": "",
+          "system-caps-enabled": "",
+          "discovered-by": "mndp"
+        },
+        {
+          ".id": "*4",
+          "interface": "Home",
+          "address": "198.51.100.252",
+          "address4": "198.51.100.252",
+          "address6": "2001:db8::5523",
+          "mac-address": "02:37:FB:7E:4F:24",
+          "identity": "identity-62de",
+          "platform": "MikroTik",
+          "version": "7.24 (stable) 2026-08-14 08:33:14",
+          "unpack": "none",
+          "age": "8s",
+          "uptime": "1d1h12m29s",
+          "software-id": "EVQZ-UJRN",
+          "board": "RBD52G-5HacD2HnD",
+          "ipv6": "true",
+          "interface-name": "ether1",
+          "system-caps": "",
+          "system-caps-enabled": "",
+          "discovered-by": "cdp,mndp"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/bridge/host/print",
+      "params": [
+        "?local=false",
+        "=.proplist=mac-address,on-interface,bridge,vid"
+      ],
+      "rows": [
+        {
+          "mac-address": "02:5D:57:D5:69:77",
+          "on-interface": "ether3",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:7C:8B:10:49:58",
+          "on-interface": "5GHz WiFi",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:37:FB:7E:4F:24",
+          "on-interface": "ether2",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:59:56:B0:B2:DF",
+          "on-interface": "ether4",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:C1:CA:94:8E:4D",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:A0:05:E1:6E:3C",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:F8:B6:24:79:32",
+          "on-interface": "2.4GHz WiFi",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:C8:23:46:F1:23",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:31:48:F6:C4:AF",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:EC:08:20:44:48",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:3A:F8:3D:AA:AF",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:68:45:32:38:85",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:24:7A:52:3D:BA",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5"
+        },
+        {
+          "mac-address": "02:C1:CA:94:8E:4D",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:37:B4:D5:A8:AB",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:EB:0A:9A:37:20",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:09:B4:E1:91:05",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:DB:D2:E6:78:22",
+          "on-interface": "5GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:DA:CC:8F:66:41",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:FF:D8:4E:A5:C1",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:AD:73:D7:5B:19",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:50:21:2A:C4:D0",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:45:6C:57:CB:DF",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:73:C0:10:31:1E",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:5E:39:46:89:48",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:59:19:A8:5F:97",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:3A:CB:73:0B:2C",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:05:27:35:06:3D",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:96:D1:8A:A2:CA",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:0E:A6:51:B0:5A",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:E7:41:72:83:33",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:04:FF:43:D1:42",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:AA:E9:10:76:06",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:8F:38:9C:3F:5D",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:16:1C:3A:E1:12",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:B7:EF:BB:12:EE",
+          "on-interface": "5GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:0C:F4:BB:57:67",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:63:BA:83:16:02",
+          "on-interface": "5GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10"
+        },
+        {
+          "mac-address": "02:94:09:27:4F:23",
+          "on-interface": "5GHz WiFi2",
+          "bridge": "Bridge",
+          "vid": "20"
+        },
+        {
+          "mac-address": "02:F1:85:EB:A7:3A",
+          "on-interface": "5GHz WiFi5",
+          "bridge": "Bridge",
+          "vid": "20"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/print",
+      "params": [
+        "=.proplist=name,radio-mac,master-interface,disabled"
+      ],
+      "rows": [
+        {
+          "name": "2.4GHz WiFi",
+          "radio-mac": "02:CA:65:80:7F:1F",
+          "disabled": "false"
+        },
+        {
+          "name": "2.4GHz WiFi2",
+          "master-interface": "2.4GHz WiFi",
+          "disabled": "false"
+        },
+        {
+          "name": "2.4GHz WiFi3",
+          "master-interface": "2.4GHz WiFi",
+          "disabled": "false"
+        },
+        {
+          "name": "2.4GHz WiFi4",
+          "radio-mac": "02:92:85:C2:C4:A8",
+          "disabled": "false"
+        },
+        {
+          "name": "2.4GHz WiFi5",
+          "master-interface": "2.4GHz WiFi4",
+          "disabled": "false"
+        },
+        {
+          "name": "2.4GHz WiFi6",
+          "master-interface": "2.4GHz WiFi4",
+          "disabled": "false"
+        },
+        {
+          "name": "5GHz WiFi",
+          "radio-mac": "02:21:12:F9:6F:D4",
+          "disabled": "false"
+        },
+        {
+          "name": "5GHz WiFi2",
+          "master-interface": "5GHz WiFi",
+          "disabled": "false"
+        },
+        {
+          "name": "5GHz WiFi3",
+          "master-interface": "5GHz WiFi",
+          "disabled": "false"
+        },
+        {
+          "name": "5GHz WiFi4",
+          "radio-mac": "02:60:E0:D4:C8:C7",
+          "disabled": "false"
+        },
+        {
+          "name": "5GHz WiFi5",
+          "master-interface": "5GHz WiFi4",
+          "disabled": "false"
+        },
+        {
+          "name": "5GHz WiFi6",
+          "master-interface": "5GHz WiFi4",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/registration-table/print",
+      "params": [
+        "=.proplist=mac-address,interface,ssid,signal,uptime"
+      ],
+      "rows": [
+        {
+          "mac-address": "02:16:1C:3A:E1:12",
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-63",
+          "uptime": "3d8h35m17s"
+        },
+        {
+          "mac-address": "02:AD:73:D7:5B:19",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-59",
+          "uptime": "3d4h30m25s"
+        },
+        {
+          "mac-address": "02:E7:41:72:83:33",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-24",
+          "uptime": "3d4h30m20s"
+        },
+        {
+          "mac-address": "02:37:B4:D5:A8:AB",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-69",
+          "uptime": "3d4h30m18s"
+        },
+        {
+          "mac-address": "02:F8:B6:24:79:32",
+          "interface": "2.4GHz WiFi",
+          "ssid": "ssid-4943",
+          "signal": "-17",
+          "uptime": "3d4h24m36s"
+        },
+        {
+          "mac-address": "02:8F:38:9C:3F:5D",
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-63",
+          "uptime": "3d11m26s"
+        },
+        {
+          "mac-address": "02:B7:EF:BB:12:EE",
+          "interface": "5GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-47",
+          "uptime": "2d13h30m29s"
+        },
+        {
+          "mac-address": "02:EB:0A:9A:37:20",
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-78",
+          "uptime": "2d8h20m7s"
+        },
+        {
+          "mac-address": "02:04:FF:43:D1:42",
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-65",
+          "uptime": "1d7h22m23s"
+        },
+        {
+          "mac-address": "02:50:21:2A:C4:D0",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-77",
+          "uptime": "1d6h35m16s"
+        },
+        {
+          "mac-address": "02:DA:CC:8F:66:41",
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-62",
+          "uptime": "1d6h33m43s"
+        },
+        {
+          "mac-address": "02:73:C0:10:31:1E",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-67",
+          "uptime": "15h37m29s"
+        },
+        {
+          "mac-address": "02:0C:F4:BB:57:67",
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-63",
+          "uptime": "14h36m30s"
+        },
+        {
+          "mac-address": "02:63:BA:83:16:02",
+          "interface": "5GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-43",
+          "uptime": "13h5m29s"
+        },
+        {
+          "mac-address": "02:5E:39:46:89:48",
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-49",
+          "uptime": "8h14m54s"
+        },
+        {
+          "mac-address": "02:05:27:35:06:3D",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-67",
+          "uptime": "7h3m47s"
+        },
+        {
+          "mac-address": "02:0E:A6:51:B0:5A",
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-61",
+          "uptime": "6h44m9s"
+        },
+        {
+          "mac-address": "02:59:19:A8:5F:97",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-64",
+          "uptime": "3h41m59s"
+        },
+        {
+          "mac-address": "02:68:45:32:38:85",
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943",
+          "signal": "-72",
+          "uptime": "2h55m38s"
+        },
+        {
+          "mac-address": "02:24:7A:52:3D:BA",
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943",
+          "signal": "-66",
+          "uptime": "2h55m17s"
+        },
+        {
+          "mac-address": "02:EC:08:20:44:48",
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943",
+          "signal": "-56",
+          "uptime": "2h40m51s"
+        },
+        {
+          "mac-address": "02:DB:D2:E6:78:22",
+          "interface": "5GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-75",
+          "uptime": "2h30m14s"
+        },
+        {
+          "mac-address": "02:FF:D8:4E:A5:C1",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": "-50",
+          "uptime": "2h2m17s"
+        },
+        {
+          "mac-address": "02:7C:8B:10:49:58",
+          "interface": "5GHz WiFi",
+          "ssid": "ssid-4943",
+          "signal": "-74",
+          "uptime": "1h6m26s"
+        },
+        {
+          "mac-address": "02:F1:85:EB:A7:3A",
+          "interface": "5GHz WiFi5",
+          "ssid": "ssid-84f1",
+          "signal": "-54",
+          "uptime": "58m4s"
+        },
+        {
+          "mac-address": "02:09:B4:E1:91:05",
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-59",
+          "uptime": "39m41s"
+        },
+        {
+          "mac-address": "02:45:6C:57:CB:DF",
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-58",
+          "uptime": "37m18s"
+        },
+        {
+          "mac-address": "02:3A:F8:3D:AA:AF",
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943",
+          "signal": "-65",
+          "uptime": "31m59s"
+        },
+        {
+          "mac-address": "02:94:09:27:4F:23",
+          "interface": "5GHz WiFi2",
+          "ssid": "ssid-84f1",
+          "signal": "-78",
+          "uptime": "18m38s"
+        },
+        {
+          "mac-address": "02:3A:CB:73:0B:2C",
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71",
+          "signal": "-76",
+          "uptime": "1m25s"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/capsman/remote-cap/print",
+      "params": [
+        "=.proplist=identity,address,board-name,state"
+      ],
+      "rows": [
+        {
+          "identity": "identity-80e8",
+          "address": "02:31:48:F6:C4:AF%Home",
+          "board-name": "host-name-8ab7Gi-5HaxD2HaxD",
+          "state": "Ok"
+        }
+      ]
+    }
+  ]
+}

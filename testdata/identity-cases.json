@@ -1,0 +1,293 @@
+{
+  "generated_from": "src/routers.js updateIdentity (executed)",
+  "base": {
+    "id": "rtr-1",
+    "label": "Router One",
+    "host": "198.51.100.1",
+    "port": 8728,
+    "username": "api",
+    "password": "",
+    "model": "C53UiG5HPaxD2HPaxD",
+    "serial": "HDX0ABCDEF1",
+    "osVersion": "7.23.1"
+  },
+  "cases": [
+    {
+      "why": "all three change",
+      "identity": {
+        "model": "C53UiG5HPaxD2HPaxD-new",
+        "serial": "HDX0ZZZZZZ9",
+        "osVersion": "7.24"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": true,
+      "model": "C53UiG5HPaxD2HPaxD-new",
+      "serial": "HDX0ZZZZZZ9",
+      "osVersion": "7.24"
+    },
+    {
+      "why": "one changes, two are identical",
+      "identity": {
+        "model": "C53UiG5HPaxD2HPaxD",
+        "serial": "HDX0ABCDEF1",
+        "osVersion": "7.24"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": true,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.24"
+    },
+    {
+      "why": "nothing changes at all",
+      "identity": {
+        "model": "C53UiG5HPaxD2HPaxD",
+        "serial": "HDX0ABCDEF1",
+        "osVersion": "7.23.1"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "an empty identity object",
+      "identity": {},
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "null",
+      "identity": null,
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "undefined",
+      "identity": null,
+      "identityWasUndefined": true,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "a number",
+      "identity": {
+        "osVersion": 724
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "a null field",
+      "identity": {
+        "model": null
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "a boolean field",
+      "identity": {
+        "serial": true
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "an object field",
+      "identity": {
+        "model": {
+          "name": "x"
+        }
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "an array field",
+      "identity": {
+        "model": [
+          "x"
+        ]
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "an empty string",
+      "identity": {
+        "model": ""
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "whitespace only",
+      "identity": {
+        "model": "   "
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "a tab and newline only",
+      "identity": {
+        "model": "\t\n"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "padded but IDENTICAL once trimmed",
+      "identity": {
+        "model": "  C53UiG5HPaxD2HPaxD  "
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": false,
+      "model": "C53UiG5HPaxD2HPaxD",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "padded and different",
+      "identity": {
+        "model": "  RB5009UG  "
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": true,
+      "model": "RB5009UG",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "65 characters — one over the cap",
+      "identity": {
+        "model": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": true,
+      "model": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "64 characters — exactly the cap",
+      "identity": {
+        "model": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": true,
+      "model": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "40 accented characters — 80 bytes, 40 code units",
+      "identity": {
+        "model": "éééééééééééééééééééééééééééééééééééééééé"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": true,
+      "model": "éééééééééééééééééééééééééééééééééééééééé",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "40 CJK characters — 120 bytes, 40 code units",
+      "identity": {
+        "model": "路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": true,
+      "model": "路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "70 CJK characters — over the cap in units too",
+      "identity": {
+        "model": "路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路"
+      },
+      "identityWasUndefined": false,
+      "base": null,
+      "wrote": true,
+      "model": "路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路路",
+      "serial": "HDX0ABCDEF1",
+      "osVersion": "7.23.1"
+    },
+    {
+      "why": "a record with no identity fields yet",
+      "identity": {
+        "model": "RB5009UG",
+        "serial": "HDX0NEW",
+        "osVersion": "7.24"
+      },
+      "identityWasUndefined": false,
+      "base": {
+        "id": "rtr-1",
+        "label": "Router One",
+        "host": "198.51.100.1",
+        "port": 8728,
+        "username": "api",
+        "password": ""
+      },
+      "wrote": true,
+      "model": "RB5009UG",
+      "serial": "HDX0NEW",
+      "osVersion": "7.24"
+    }
+  ]
+}

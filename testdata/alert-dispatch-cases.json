@@ -1,0 +1,712 @@
+{
+  "_generated": "tools/alert-dispatch-cases.js — do not edit",
+  "note": "Every value here is synthetic. Nothing was sent: notifier.send is stubbed.",
+  "messages": [
+    {
+      "why": "a down alert uses notifBody",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "High CPU",
+      "vars": {
+        "detail": "CPU at 94%"
+      },
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ High cpu on Test Router: CPU at 94%"
+    },
+    {
+      "why": "an up alert uses notifBodyUp",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "CPU Normal",
+      "vars": {
+        "detail": "CPU back to 10%"
+      },
+      "isUp": true,
+      "title": "MikroDash Alert",
+      "body": "✅ Cpu normal on Test Router: CPU back to 10%"
+    },
+    {
+      "why": "no notifBodyUp falls back to notifBody",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "CPU Normal",
+      "vars": {
+        "detail": "CPU back to 10%"
+      },
+      "isUp": true,
+      "title": "MikroDash Alert",
+      "body": "⚠️ Cpu normal on Test Router: CPU back to 10%"
+    },
+    {
+      "why": "neither template falls back to the built-in",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "",
+        "notifBodyUp": "",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "High CPU",
+      "vars": {
+        "detail": "CPU at 94%"
+      },
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ High cpu on Test Router: CPU at 94%"
+    },
+    {
+      "why": "neither template, on a RESOLUTION, uses the tick not the warning",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "",
+        "notifBodyUp": "",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "CPU Normal",
+      "vars": {
+        "detail": "CPU back to 10%"
+      },
+      "isUp": true,
+      "title": "MikroDash Alert",
+      "body": "✅ Cpu normal on Test Router: CPU back to 10%"
+    },
+    {
+      "why": "no title falls back to the built-in",
+      "settings": {
+        "notifTitle": "",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "High CPU",
+      "vars": {
+        "detail": "x"
+      },
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ High cpu on Test Router: x"
+    },
+    {
+      "why": "vars carrying its own alertType is overridden by the label",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "routeros_update",
+      "vars": {
+        "alertType": "WRONG-should-not-appear",
+        "detail": "RouterOS 7.24 is available"
+      },
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ Update Available on Test Router: RouterOS 7.24 is available"
+    },
+    {
+      "why": "a stored-form type is labelled",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "vpn_disconnected",
+      "vars": {
+        "detail": "peer wg0 down"
+      },
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ VPN Disconnected on Test Router: peer wg0 down"
+    },
+    {
+      "why": "an unknown type still gets a label",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "something_new",
+      "vars": {
+        "detail": "x"
+      },
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ Something New on Test Router: x"
+    },
+    {
+      "why": "an empty type",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "",
+      "vars": {
+        "detail": "x"
+      },
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ Alert on Test Router: x"
+    },
+    {
+      "why": "a template using every placeholder",
+      "settings": {
+        "notifTitle": "{{routerName}} @ {{timestamp}}",
+        "notifBody": "{{alertType}}/{{subject}}/{{detail}}/{{missing}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "High CPU",
+      "vars": {
+        "subject": "ether1",
+        "detail": "down"
+      },
+      "isUp": false,
+      "title": "Test Router @ 12:34:56",
+      "body": "High cpu/ether1/down/"
+    },
+    {
+      "why": "a detail with a brace in it",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "High CPU",
+      "vars": {
+        "detail": "weird {{routerName}} value"
+      },
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ High cpu on Test Router: weird {{routerName}} value"
+    },
+    {
+      "why": "no detail at all",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "alertType": "High CPU",
+      "vars": {},
+      "isUp": false,
+      "title": "MikroDash Alert",
+      "body": "⚠️ High cpu on Test Router: "
+    }
+  ],
+  "cooldowns": [
+    {
+      "why": "the first send goes, the second inside the window does not",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "steps": [
+        {
+          "at": 1000000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "cpu:router:down"
+        },
+        {
+          "at": 1010000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "cpu:router:down"
+        },
+        {
+          "at": 1061000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "cpu:router:down"
+        }
+      ],
+      "result": [
+        {
+          "at": 1000000,
+          "recipient": "_install",
+          "subjectKey": "cpu:router:down",
+          "sent": true,
+          "mapSize": 1
+        },
+        {
+          "at": 1010000,
+          "recipient": "_install",
+          "subjectKey": "cpu:router:down",
+          "sent": false,
+          "mapSize": 1
+        },
+        {
+          "at": 1061000,
+          "recipient": "_install",
+          "subjectKey": "cpu:router:down",
+          "sent": true,
+          "mapSize": 1
+        }
+      ]
+    },
+    {
+      "why": "two subjects are independent",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "steps": [
+        {
+          "at": 1000000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        },
+        {
+          "at": 1000001,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "b"
+        }
+      ],
+      "result": [
+        {
+          "at": 1000000,
+          "recipient": "_install",
+          "subjectKey": "a",
+          "sent": true,
+          "mapSize": 1
+        },
+        {
+          "at": 1000001,
+          "recipient": "_install",
+          "subjectKey": "b",
+          "sent": true,
+          "mapSize": 2
+        }
+      ]
+    },
+    {
+      "why": "two recipients are independent, so one cannot spend the other cooldown",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "steps": [
+        {
+          "at": 1000000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        },
+        {
+          "at": 1000001,
+          "recipient": {
+            "id": "user:u2",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        }
+      ],
+      "result": [
+        {
+          "at": 1000000,
+          "recipient": "_install",
+          "subjectKey": "a",
+          "sent": true,
+          "mapSize": 1
+        },
+        {
+          "at": 1000001,
+          "recipient": "user:u2",
+          "subjectKey": "a",
+          "sent": true,
+          "mapSize": 2
+        }
+      ]
+    },
+    {
+      "why": "A RECIPIENT WITH NO CHANNEL never stamps the cooldown",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "steps": [
+        {
+          "at": 1000000,
+          "recipient": {
+            "id": "user:u1",
+            "settings": {
+              "notifCooldownSec": 60
+            }
+          },
+          "subjectKey": "a"
+        },
+        {
+          "at": 1000001,
+          "recipient": {
+            "id": "user:u1",
+            "settings": {
+              "notifCooldownSec": 60
+            }
+          },
+          "subjectKey": "a"
+        },
+        {
+          "at": 1000002,
+          "recipient": {
+            "id": "user:u1",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        }
+      ],
+      "result": [
+        {
+          "at": 1000000,
+          "recipient": "user:u1",
+          "subjectKey": "a",
+          "sent": false,
+          "mapSize": 0
+        },
+        {
+          "at": 1000001,
+          "recipient": "user:u1",
+          "subjectKey": "a",
+          "sent": false,
+          "mapSize": 0
+        },
+        {
+          "at": 1000002,
+          "recipient": "user:u1",
+          "subjectKey": "a",
+          "sent": true,
+          "mapSize": 1
+        }
+      ]
+    },
+    {
+      "why": "a nil recipient is ignored",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 60,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "steps": [
+        {
+          "at": 1000000,
+          "recipient": null,
+          "subjectKey": "a"
+        }
+      ],
+      "result": [
+        {
+          "at": 1000000,
+          "recipient": null,
+          "subjectKey": "a",
+          "sent": false,
+          "mapSize": 0
+        }
+      ]
+    },
+    {
+      "why": "a custom cooldown window is honoured",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 5,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "steps": [
+        {
+          "at": 1000000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        },
+        {
+          "at": 1003000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        },
+        {
+          "at": 1006000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        }
+      ],
+      "result": [
+        {
+          "at": 1000000,
+          "recipient": "_install",
+          "subjectKey": "a",
+          "sent": true,
+          "mapSize": 1
+        },
+        {
+          "at": 1003000,
+          "recipient": "_install",
+          "subjectKey": "a",
+          "sent": false,
+          "mapSize": 1
+        },
+        {
+          "at": 1006000,
+          "recipient": "_install",
+          "subjectKey": "a",
+          "sent": true,
+          "mapSize": 1
+        }
+      ]
+    },
+    {
+      "why": "a zero cooldown falls back to 60 seconds",
+      "settings": {
+        "notifTitle": "MikroDash Alert",
+        "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+        "notifCooldownSec": 0,
+        "telegramEnabled": true,
+        "telegramBotToken": "synthetic",
+        "telegramChatId": "1"
+      },
+      "steps": [
+        {
+          "at": 1000000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        },
+        {
+          "at": 1030000,
+          "recipient": {
+            "id": "_install",
+            "settings": {
+              "notifTitle": "MikroDash Alert",
+              "notifBody": "⚠️ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifBodyUp": "✅ {{alertType}} on {{routerName}}: {{detail}}",
+              "notifCooldownSec": 60,
+              "telegramEnabled": true,
+              "telegramBotToken": "synthetic",
+              "telegramChatId": "1"
+            }
+          },
+          "subjectKey": "a"
+        }
+      ],
+      "result": [
+        {
+          "at": 1000000,
+          "recipient": "_install",
+          "subjectKey": "a",
+          "sent": true,
+          "mapSize": 1
+        },
+        {
+          "at": 1030000,
+          "recipient": "_install",
+          "subjectKey": "a",
+          "sent": false,
+          "mapSize": 1
+        }
+      ]
+    }
+  ]
+}

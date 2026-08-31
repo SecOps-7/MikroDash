@@ -1,0 +1,881 @@
+{
+  "cases": [
+    {
+      "name": "one traffic sample, never flushed",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          100,
+          50,
+          60000
+        ]
+      ],
+      "rows": []
+    },
+    {
+      "name": "two samples in ONE minute, then flush",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          100,
+          50,
+          60000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          200,
+          150,
+          90000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 150,
+          "tx": 100,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 37.5,
+          "tx": 25,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "the minute ROLLS OVER, which writes the previous bucket",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          100,
+          50,
+          60000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          300,
+          100,
+          120000
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 100,
+          "tx": 50,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 12.5,
+          "tx": 6.25,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "three minutes in a row",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          10,
+          10,
+          60000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          20,
+          20,
+          120000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          30,
+          30,
+          180000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 10,
+          "tx": 10,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 1.25,
+          "tx": 1.25,
+          "ts": 90000
+        },
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 20,
+          "tx": 20,
+          "ts": 150000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 2.5,
+          "tx": 2.5,
+          "ts": 150000
+        },
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 30,
+          "tx": 30,
+          "ts": 210000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 3.75,
+          "tx": 3.75,
+          "ts": 210000
+        }
+      ]
+    },
+    {
+      "name": "a minute of ZEROES writes traffic and no bandwidth",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          0,
+          0,
+          60000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          0,
+          0,
+          120000
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 0,
+          "tx": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "a minute of ZEROES, flushed rather than rolled over",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          0,
+          0,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 0,
+          "tx": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "zeroes flushed for ONE router only",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          0,
+          0,
+          60000
+        ],
+        [
+          "traffic",
+          "r2",
+          "ether1",
+          5,
+          5,
+          60000
+        ],
+        [
+          "flushTraffic",
+          "r1"
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 0,
+          "tx": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "zero rx but non-zero tx writes both",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          0,
+          8,
+          60000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          0,
+          0,
+          120000
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 0,
+          "tx": 8,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 0,
+          "tx": 1,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "two interfaces are separate buckets",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          100,
+          0,
+          60000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether2",
+          200,
+          0,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 100,
+          "tx": 0,
+          "ts": 90000
+        },
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether2",
+          "rx": 200,
+          "tx": 0,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 12.5,
+          "tx": 0,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether2",
+          "rx": 25,
+          "tx": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "two routers are separate buckets",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          100,
+          0,
+          60000
+        ],
+        [
+          "traffic",
+          "r2",
+          "ether1",
+          200,
+          0,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 100,
+          "tx": 0,
+          "ts": 90000
+        },
+        {
+          "table": "traffic",
+          "rid": "r2",
+          "name": "ether1",
+          "rx": 200,
+          "tx": 0,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 12.5,
+          "tx": 0,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r2",
+          "name": "ether1",
+          "rx": 25,
+          "tx": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "flushing ONE router leaves the other open",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          100,
+          0,
+          60000
+        ],
+        [
+          "traffic",
+          "r2",
+          "ether1",
+          200,
+          0,
+          60000
+        ],
+        [
+          "flushTraffic",
+          "r1"
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 100,
+          "tx": 0,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 12.5,
+          "tx": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "no router id is ignored",
+      "steps": [
+        [
+          "traffic",
+          "",
+          "ether1",
+          100,
+          50,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": []
+    },
+    {
+      "name": "no interface name is ignored",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "",
+          100,
+          50,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": []
+    },
+    {
+      "name": "a mid-minute timestamp floors to the same bucket",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          100,
+          0,
+          61000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          200,
+          0,
+          119999
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 150,
+          "tx": 0,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 37.5,
+          "tx": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "fractional rates",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          0.5,
+          0.25,
+          60000
+        ],
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          1.5,
+          0.75,
+          90000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 1,
+          "tx": 0.5,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 0.25,
+          "tx": 0.125,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "one ping sample, flushed",
+      "steps": [
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          12.5,
+          0,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "ping",
+          "rid": "r1",
+          "name": "1.1.1.1",
+          "rtt": 12.5,
+          "loss": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "ping averages rtt over samples that HAVE one",
+      "steps": [
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          10,
+          0,
+          60000
+        ],
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          null,
+          100,
+          90000
+        ],
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          20,
+          0,
+          100000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "ping",
+          "rid": "r1",
+          "name": "1.1.1.1",
+          "rtt": 15,
+          "loss": 33.333333333333336,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "every ping lost — rtt is null, loss is 100",
+      "steps": [
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          null,
+          100,
+          60000
+        ],
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          null,
+          100,
+          90000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "ping",
+          "rid": "r1",
+          "name": "1.1.1.1",
+          "rtt": null,
+          "loss": 100,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "an IPv6 target contains colons",
+      "steps": [
+        [
+          "ping",
+          "r1",
+          "2001:db8::1",
+          5,
+          0,
+          60000
+        ],
+        [
+          "ping",
+          "r1",
+          "2001:db8::1",
+          15,
+          0,
+          90000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "ping",
+          "rid": "r1",
+          "name": "2001:db8::1",
+          "rtt": 10,
+          "loss": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "ping rolls over",
+      "steps": [
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          10,
+          0,
+          60000
+        ],
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          20,
+          0,
+          120000
+        ]
+      ],
+      "rows": [
+        {
+          "table": "ping",
+          "rid": "r1",
+          "name": "1.1.1.1",
+          "rtt": 10,
+          "loss": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "ping with no router id is ignored",
+      "steps": [
+        [
+          "ping",
+          "",
+          "1.1.1.1",
+          10,
+          0,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": []
+    },
+    {
+      "name": "two ping targets are separate buckets",
+      "steps": [
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          10,
+          0,
+          60000
+        ],
+        [
+          "ping",
+          "r1",
+          "8.8.8.8",
+          20,
+          0,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "ping",
+          "rid": "r1",
+          "name": "1.1.1.1",
+          "rtt": 10,
+          "loss": 0,
+          "ts": 90000
+        },
+        {
+          "table": "ping",
+          "rid": "r1",
+          "name": "8.8.8.8",
+          "rtt": 20,
+          "loss": 0,
+          "ts": 90000
+        }
+      ]
+    },
+    {
+      "name": "traffic and ping together",
+      "steps": [
+        [
+          "traffic",
+          "r1",
+          "ether1",
+          80,
+          40,
+          60000
+        ],
+        [
+          "ping",
+          "r1",
+          "1.1.1.1",
+          12,
+          0,
+          60000
+        ],
+        [
+          "flushTraffic",
+          null
+        ]
+      ],
+      "rows": [
+        {
+          "table": "traffic",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 80,
+          "tx": 40,
+          "ts": 90000
+        },
+        {
+          "table": "bandwidth",
+          "rid": "r1",
+          "name": "ether1",
+          "rx": 10,
+          "tx": 5,
+          "ts": 90000
+        },
+        {
+          "table": "ping",
+          "rid": "r1",
+          "name": "1.1.1.1",
+          "rtt": 12,
+          "loss": 0,
+          "ts": 90000
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "fixedNow": 1700000000000,
+  "parse": [
+    {
+      "name": "a single cookie",
+      "header": "mikrodash_sid=abc123",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "mikrodash_sid": "abc123"
+      }
+    },
+    {
+      "name": "several, the one we want last",
+      "header": "theme=dark; lang=en; mikrodash_sid=abc123",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "theme": "dark",
+        "lang": "en",
+        "mikrodash_sid": "abc123"
+      }
+    },
+    {
+      "name": "whitespace around the pairs",
+      "header": "  mikrodash_sid=abc123  ;  theme=dark  ",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "mikrodash_sid": "abc123",
+        "theme": "dark"
+      }
+    },
+    {
+      "name": "no cookies at all",
+      "header": "",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {}
+    },
+    {
+      "name": "a value containing equals signs",
+      "header": "mikrodash_sid=YWJjPT0=",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "mikrodash_sid": "YWJjPT0="
+      }
+    },
+    {
+      "name": "a bare name with no equals",
+      "header": "flagonly; mikrodash_sid=abc123",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "mikrodash_sid": "abc123"
+      }
+    },
+    {
+      "name": "an empty name",
+      "header": "=orphan; mikrodash_sid=abc123",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "mikrodash_sid": "abc123"
+      }
+    },
+    {
+      "name": "an empty value",
+      "header": "mikrodash_sid=",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "mikrodash_sid": ""
+      }
+    },
+    {
+      "name": "a duplicate name, last wins",
+      "header": "mikrodash_sid=first; mikrodash_sid=second",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "mikrodash_sid": "second"
+      }
+    },
+    {
+      "name": "only a semicolon",
+      "header": ";",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {}
+    },
+    {
+      "name": "a trailing semicolon",
+      "header": "mikrodash_sid=abc123;",
+      "headerIsNull": false,
+      "headerIsUndefined": false,
+      "out": {
+        "mikrodash_sid": "abc123"
+      }
+    },
+    {
+      "name": "null",
+      "header": null,
+      "headerIsNull": true,
+      "headerIsUndefined": false,
+      "out": {}
+    },
+    {
+      "name": "undefined",
+      "header": null,
+      "headerIsNull": false,
+      "headerIsUndefined": true,
+      "out": {}
+    }
+  ],
+  "cookie": [
+    {
+      "name": "zero means never",
+      "timeoutMs": 0,
+      "infinite": true,
+      "plain": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/",
+      "forceHttps": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/; Secure"
+    },
+    {
+      "name": "negative means never too",
+      "timeoutMs": -1,
+      "infinite": true,
+      "plain": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/",
+      "forceHttps": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/; Secure"
+    },
+    {
+      "name": "a normal hour",
+      "timeoutMs": 3600000,
+      "infinite": false,
+      "plain": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600",
+      "forceHttps": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/; Max-Age=3600; Secure"
+    },
+    {
+      "name": "one millisecond",
+      "timeoutMs": 1,
+      "infinite": false,
+      "plain": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/; Max-Age=1",
+      "forceHttps": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/; Max-Age=1; Secure"
+    },
+    {
+      "name": "an expiry already in the past",
+      "timeoutMs": -3600000,
+      "infinite": false,
+      "plain": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/; Max-Age=1",
+      "forceHttps": "mikrodash_sid=TOKEN; HttpOnly; SameSite=Strict; Path=/; Max-Age=1; Secure"
+    }
+  ],
+  "expiry": [
+    {
+      "name": "zero means never",
+      "timeoutMs": 0,
+      "infinite": true,
+      "expiresAt": null,
+      "tokenLength": 64,
+      "tokenIsHex": true,
+      "liveImmediately": true
+    },
+    {
+      "name": "negative means never too",
+      "timeoutMs": -1,
+      "infinite": true,
+      "expiresAt": null,
+      "tokenLength": 64,
+      "tokenIsHex": true,
+      "liveImmediately": true
+    },
+    {
+      "name": "a normal hour",
+      "timeoutMs": 3600000,
+      "infinite": false,
+      "expiresAt": 1700003600000,
+      "tokenLength": 64,
+      "tokenIsHex": true,
+      "liveImmediately": true
+    },
+    {
+      "name": "one millisecond",
+      "timeoutMs": 1,
+      "infinite": false,
+      "expiresAt": 1700000000001,
+      "tokenLength": 64,
+      "tokenIsHex": true,
+      "liveImmediately": true
+    }
+  ],
+  "clear": {
+    "plain": "mikrodash_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
+    "forceHttps": "mikrodash_sid=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0; Secure"
+  }
+}

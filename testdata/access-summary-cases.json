@@ -1,0 +1,410 @@
+{
+  "roles": {
+    "role-admin": "Administrator",
+    "role-ops": "Operator",
+    "role-ro": "Read only"
+  },
+  "sites": {
+    "site-hq": "Head Office",
+    "site-dc": "Data Centre"
+  },
+  "routers": {
+    "rtr-1": {
+      "label": "Edge Router",
+      "host": "10.0.0.1"
+    },
+    "rtr-2": {
+      "label": "",
+      "host": "10.0.0.2"
+    }
+  },
+  "cases": {
+    "noGrants": {
+      "grants": [],
+      "out": {
+        "global": [],
+        "sites": [],
+        "routers": []
+      }
+    },
+    "oneGlobalRole": {
+      "grants": [
+        {
+          "scope_type": "global",
+          "scope_id": null,
+          "role_id": "role-admin"
+        }
+      ],
+      "out": {
+        "global": [
+          "Administrator"
+        ],
+        "sites": [],
+        "routers": []
+      }
+    },
+    "twoGlobalRolesSort": {
+      "grants": [
+        {
+          "scope_type": "global",
+          "scope_id": null,
+          "role_id": "role-ops"
+        },
+        {
+          "scope_type": "global",
+          "scope_id": null,
+          "role_id": "role-admin"
+        }
+      ],
+      "out": {
+        "global": [
+          "Administrator",
+          "Operator"
+        ],
+        "sites": [],
+        "routers": []
+      }
+    },
+    "oneSite": {
+      "grants": [
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ops"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [
+          {
+            "siteId": "site-hq",
+            "siteName": "Head Office",
+            "roles": [
+              "Operator"
+            ]
+          }
+        ],
+        "routers": []
+      }
+    },
+    "twoSites": {
+      "grants": [
+        {
+          "scope_type": "site",
+          "scope_id": "site-dc",
+          "role_id": "role-ro"
+        },
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ops"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [
+          {
+            "siteId": "site-dc",
+            "siteName": "Data Centre",
+            "roles": [
+              "Read only"
+            ]
+          },
+          {
+            "siteId": "site-hq",
+            "siteName": "Head Office",
+            "roles": [
+              "Operator"
+            ]
+          }
+        ],
+        "routers": []
+      }
+    },
+    "oneRouter": {
+      "grants": [
+        {
+          "scope_type": "router",
+          "scope_id": "rtr-1",
+          "role_id": "role-ro"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [],
+        "routers": [
+          {
+            "routerId": "rtr-1",
+            "routerLabel": "Edge Router",
+            "roles": [
+              "Read only"
+            ]
+          }
+        ]
+      }
+    },
+    "routerWithNoLabel": {
+      "grants": [
+        {
+          "scope_type": "router",
+          "scope_id": "rtr-2",
+          "role_id": "role-ro"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [],
+        "routers": [
+          {
+            "routerId": "rtr-2",
+            "routerLabel": "10.0.0.2",
+            "roles": [
+              "Read only"
+            ]
+          }
+        ]
+      }
+    },
+    "everything": {
+      "grants": [
+        {
+          "scope_type": "global",
+          "scope_id": null,
+          "role_id": "role-admin"
+        },
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ops"
+        },
+        {
+          "scope_type": "router",
+          "scope_id": "rtr-1",
+          "role_id": "role-ro"
+        }
+      ],
+      "out": {
+        "global": [
+          "Administrator"
+        ],
+        "sites": [
+          {
+            "siteId": "site-hq",
+            "siteName": "Head Office",
+            "roles": [
+              "Operator"
+            ]
+          }
+        ],
+        "routers": [
+          {
+            "routerId": "rtr-1",
+            "routerLabel": "Edge Router",
+            "roles": [
+              "Read only"
+            ]
+          }
+        ]
+      }
+    },
+    "twoRolesOneSite": {
+      "grants": [
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ops"
+        },
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ro"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [
+          {
+            "siteId": "site-hq",
+            "siteName": "Head Office",
+            "roles": [
+              "Operator",
+              "Read only"
+            ]
+          }
+        ],
+        "routers": []
+      }
+    },
+    "sameRoleTwiceAtOneSite": {
+      "grants": [
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ops"
+        },
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ops"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [
+          {
+            "siteId": "site-hq",
+            "siteName": "Head Office",
+            "roles": [
+              "Operator"
+            ]
+          }
+        ],
+        "routers": []
+      }
+    },
+    "deletedRoleGlobal": {
+      "grants": [
+        {
+          "scope_type": "global",
+          "scope_id": null,
+          "role_id": "role-gone"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [],
+        "routers": []
+      }
+    },
+    "deletedRoleAmongLive": {
+      "grants": [
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ops"
+        },
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-gone"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [
+          {
+            "siteId": "site-hq",
+            "siteName": "Head Office",
+            "roles": [
+              "Operator"
+            ]
+          }
+        ],
+        "routers": []
+      }
+    },
+    "deletedSite": {
+      "grants": [
+        {
+          "scope_type": "site",
+          "scope_id": "site-gone",
+          "role_id": "role-ops"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [],
+        "routers": []
+      }
+    },
+    "deletedRouter": {
+      "grants": [
+        {
+          "scope_type": "router",
+          "scope_id": "rtr-gone",
+          "role_id": "role-ops"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [],
+        "routers": []
+      }
+    },
+    "deletedSiteAmongLive": {
+      "grants": [
+        {
+          "scope_type": "site",
+          "scope_id": "site-gone",
+          "role_id": "role-ops"
+        },
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-ro"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [
+          {
+            "siteId": "site-hq",
+            "siteName": "Head Office",
+            "roles": [
+              "Read only"
+            ]
+          }
+        ],
+        "routers": []
+      }
+    },
+    "siteWhoseRolesAreAllGone": {
+      "grants": [
+        {
+          "scope_type": "site",
+          "scope_id": "site-hq",
+          "role_id": "role-gone"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [
+          {
+            "siteId": "site-hq",
+            "siteName": "Head Office",
+            "roles": []
+          }
+        ],
+        "routers": []
+      }
+    },
+    "unknownScopeType": {
+      "grants": [
+        {
+          "scope_type": "elsewhere",
+          "scope_id": "x",
+          "role_id": "role-admin"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [],
+        "routers": []
+      }
+    },
+    "unknownScopeTypeNamingARealSite": {
+      "grants": [
+        {
+          "scope_type": "elsewhere",
+          "scope_id": "site-hq",
+          "role_id": "role-ops"
+        }
+      ],
+      "out": {
+        "global": [],
+        "sites": [],
+        "routers": []
+      }
+    }
+  }
+}

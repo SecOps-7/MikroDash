@@ -1,0 +1,56 @@
+{
+  "generatedFrom": "src/db.js:prune, startPruneInterval",
+  "cutoffs": {
+    "metricCutoff": {
+      "arg": "retentionDays",
+      "fallbackDays": 90,
+      "msPerDay": 86400000
+    },
+    "alertCutoff": {
+      "arg": "alertRetentionDays",
+      "fallbackDays": 365,
+      "msPerDay": 86400000
+    },
+    "auditCutoff": {
+      "arg": "auditRetentionDays",
+      "fallbackDays": 365,
+      "msPerDay": 86400000
+    }
+  },
+  "tables": [
+    {
+      "table": "ping_samples",
+      "column": "ts",
+      "cutoff": "metricCutoff"
+    },
+    {
+      "table": "traffic_samples",
+      "column": "ts",
+      "cutoff": "metricCutoff"
+    },
+    {
+      "table": "bandwidth_usage",
+      "column": "ts",
+      "cutoff": "metricCutoff"
+    },
+    {
+      "table": "alert_events",
+      "column": "fired_at",
+      "cutoff": "alertCutoff"
+    },
+    {
+      "table": "connectivity_events",
+      "column": "ts",
+      "cutoff": "alertCutoff"
+    },
+    {
+      "table": "audit_events",
+      "column": "ts",
+      "cutoff": "auditCutoff"
+    }
+  ],
+  "intervalMs": 86400000,
+  "runsImmediately": true,
+  "recordsAudit": true,
+  "recordsOnlyWhenNonZero": true
+}

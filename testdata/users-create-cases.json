@@ -1,0 +1,440 @@
+{
+  "generated_from": "src/users.js createUser, run against a throwaway DATA_DIR",
+  "roles": [
+    "viewer",
+    "operator",
+    "admin"
+  ],
+  "file": {
+    "endsWithNewline": false,
+    "secondLine": "  {",
+    "ampersandRaw": true
+  },
+  "accepted": [
+    {
+      "why": "a plain admin",
+      "input": {
+        "username": "ann",
+        "password": "<invented>",
+        "role": "admin",
+        "allowedRouterIds": []
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "ann",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    },
+    {
+      "why": "an operator, the role added last and the reason the throw exists",
+      "input": {
+        "username": "bob",
+        "password": "<invented>",
+        "role": "operator",
+        "allowedRouterIds": [
+          "r1"
+        ]
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "bob",
+      "role": "operator",
+      "allowedRouterIds": [
+        "r1"
+      ],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    },
+    {
+      "why": "a viewer",
+      "input": {
+        "username": "cy",
+        "password": "<invented>",
+        "role": "viewer",
+        "allowedRouterIds": [
+          "r1",
+          "r2"
+        ]
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "cy",
+      "role": "viewer",
+      "allowedRouterIds": [
+        "r1",
+        "r2"
+      ],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    },
+    {
+      "why": "THE USERNAME IS TRIMMED",
+      "input": {
+        "username": "  di  ",
+        "password": "<invented>",
+        "role": "viewer",
+        "allowedRouterIds": []
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "di",
+      "role": "viewer",
+      "allowedRouterIds": [],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    },
+    {
+      "why": "allowedRouterIds ABSENT becomes an empty array, not undefined",
+      "input": {
+        "username": "eve",
+        "password": "<invented>",
+        "role": "admin"
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "eve",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    },
+    {
+      "why": "allowedRouterIds as a NON-ARRAY also becomes an empty array",
+      "input": {
+        "username": "fay",
+        "password": "<invented>",
+        "role": "admin",
+        "allowedRouterIds": "r1"
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "fay",
+      "role": "admin",
+      "allowedRouterIds": [],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    },
+    {
+      "why": "a username with an ampersand, which must reach disk unescaped",
+      "input": {
+        "username": "g & h",
+        "password": "<invented>",
+        "role": "viewer",
+        "allowedRouterIds": []
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "g & h",
+      "role": "viewer",
+      "allowedRouterIds": [],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    },
+    {
+      "why": "a non-ASCII username",
+      "input": {
+        "username": "Ünal",
+        "password": "<invented>",
+        "role": "viewer",
+        "allowedRouterIds": []
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "Ünal",
+      "role": "viewer",
+      "allowedRouterIds": [],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    },
+    {
+      "why": "an EMPTY password is accepted HERE - the length rule belongs to the HTTP layer",
+      "input": {
+        "username": "ivy",
+        "password": "<invented>",
+        "role": "viewer",
+        "allowedRouterIds": []
+      },
+      "recordKeys": [
+        "id",
+        "username",
+        "passwordHash",
+        "salt",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "publicKeys": [
+        "id",
+        "username",
+        "role",
+        "allowedRouterIds",
+        "createdAt"
+      ],
+      "username": "ivy",
+      "role": "viewer",
+      "allowedRouterIds": [],
+      "idIsUuidV4": true,
+      "saltLen": 64,
+      "saltIsHex": true,
+      "hashLen": 128,
+      "hashIsHex": true,
+      "createdAtType": "number",
+      "createdAtDigits": 13,
+      "publicOmits": [
+        "passwordHash",
+        "salt"
+      ],
+      "appended": true
+    }
+  ],
+  "refused": [
+    {
+      "why": "an unrecognised role",
+      "input": {
+        "username": "x1",
+        "password": "<invented>",
+        "role": "superuser",
+        "allowedRouterIds": []
+      },
+      "message": "Invalid role: superuser (expected one of viewer, operator, admin)",
+      "wroteNothing": true
+    },
+    {
+      "why": "an ABSENT role - there is no default",
+      "input": {
+        "username": "x2",
+        "password": "<invented>",
+        "allowedRouterIds": []
+      },
+      "message": "Invalid role: undefined (expected one of viewer, operator, admin)",
+      "wroteNothing": true
+    },
+    {
+      "why": "a capitalised role - the match is exact",
+      "input": {
+        "username": "x3",
+        "password": "<invented>",
+        "role": "Admin",
+        "allowedRouterIds": []
+      },
+      "message": "Invalid role: Admin (expected one of viewer, operator, admin)",
+      "wroteNothing": true
+    },
+    {
+      "why": "the empty string",
+      "input": {
+        "username": "x4",
+        "password": "<invented>",
+        "role": "",
+        "allowedRouterIds": []
+      },
+      "message": "Invalid role:  (expected one of viewer, operator, admin)",
+      "wroteNothing": true
+    },
+    {
+      "why": "null",
+      "input": {
+        "username": "x5",
+        "password": "<invented>",
+        "role": null,
+        "allowedRouterIds": []
+      },
+      "message": "Invalid role: null (expected one of viewer, operator, admin)",
+      "wroteNothing": true
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+ "value:the live connect assignments": "[\"_sysMetaWritten\",\"_lastUpdateRowHtml\",\"currentIf\",\"allPoints\"]",
+ "value:the live router:switching assignments": "[\"_switchFalseCount\",\"currentIf\",\"_userPickedIf\",\"allPoints\",\"_sysMetaWritten\",\"_lastUpdateRowHtml\",\"pingHistory\",\"_connSrcFp\",\"_connDstFp\",\"_connProtoFp\",\"logBuffer\"]",
+ "value:the live cleared names, normalised": "[\"allpoints\",\"conndstfp\",\"connprotofp\",\"connsrcfp\",\"currentif\",\"lastupdaterowhtml\",\"lines\",\"pinghistory\",\"svg\",\"switchfalsecount\",\"sysmetawritten\",\"tc\",\"userpickedif\"]"
+}

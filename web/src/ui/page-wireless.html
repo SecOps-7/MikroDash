@@ -1,0 +1,70 @@
+  <div class="page-view" id="page-wireless">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <!-- Summary row: WiFi SSIDs + Signal Health + Band Split, equal thirds -->
+      <div class="wl-summary-row">
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">WiFi SSIDs</div>
+          <div class="wl-ssid-list" id="wlSsidList">
+            <div class="wl-ssid-empty">Loading…</div>
+          </div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Signal Health</div>
+          <div id="wlSigHealth">
+            <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(52,211,153,.9)">Excellent</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="wlSigBarE" style="width:0%;background:rgba(52,211,153,.7)"></div></div><span class="wl-sig-count" id="wlSigCntE">0</span></div>
+            <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(56,189,248,.9)">Good</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="wlSigBarG" style="width:0%;background:rgba(56,189,248,.7)"></div></div><span class="wl-sig-count" id="wlSigCntG">0</span></div>
+            <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(251,191,36,.9)">Fair</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="wlSigBarF" style="width:0%;background:rgba(251,191,36,.7)"></div></div><span class="wl-sig-count" id="wlSigCntF">0</span></div>
+            <div class="wl-sig-row"><span class="wl-sig-tier" style="color:rgba(248,113,113,.9)">Poor</span><div class="wl-sig-bar-wrap"><div class="wl-sig-bar" id="wlSigBarP" style="width:0%;background:rgba(248,113,113,.7)"></div></div><span class="wl-sig-count" id="wlSigCntP">0</span></div>
+          </div>
+        </div>
+        <div class="wl-summary-card" style="display:flex;flex-direction:column;justify-content:center">
+          <div class="wl-summary-title">Band Split</div>
+          <div class="wl-band-grid" id="wlBandGrid">
+            <div class="wl-band-item">
+              <span class="wl-band-pill wl-band-24">2.4 GHz</span>
+              <span class="wl-band-num" id="wlBandNum24" style="color:rgba(167,139,250,.9)">0</span>
+            </div>
+            <div class="wl-band-item">
+              <span class="wl-band-pill wl-band-5">5 GHz</span>
+              <span class="wl-band-num" id="wlBandNum5" style="color:var(--accent-rx)">0</span>
+            </div>
+            <div class="wl-band-item" id="wlBandRow6" style="display:none">
+              <span class="wl-band-pill wl-band-6">6 GHz</span>
+              <span class="wl-band-num" id="wlBandNum6" style="color:rgba(52,211,153,.9)">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="wirelessCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center flex-wrap gap-2">
+          <h3 class="card-title mb-0">Wifi Clients</h3>
+          <span id="wirelessTabBadge" class="card-badge">0</span>
+          <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+            <span style="font-size:.7rem;color:var(--text-muted)">Sort:</span>
+            <div class="d-flex gap-1" id="wifiSortBtns">
+              <button class="wl-sort-btn active" data-sort="signal">Signal</button>
+              <button class="wl-sort-btn" data-sort="txRate">TX Rate</button>
+              <button class="wl-sort-btn" data-sort="uptime">Uptime</button>
+              <button class="wl-sort-btn" data-sort="name">Name</button>
+            </div>
+            <button class="wl-sort-btn fa-open-btn" id="faOpenBtn" type="button"
+                    title="Scan the RF environment — interrupts clients on the chosen radio"
+                    style="display:none">&#9678; Frequency Analyzer</button>
+          </div>
+        </div>
+        <div class="card-body p-0" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+          <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:520px">
+            <colgroup><col style="width:170px"><col style="width:80px"><col style="width:72px"><col style="width:110px"><col style="width:70px"><col style="width:70px"></colgroup>
+            <!-- id required by _renderSortHeader, which rewrites this row to add
+                 sort indicators and click handlers. The static contents are the
+                 pre-render fallback and must match renderWireless()'s column list. -->
+            <thead><tr id="wlThead"><th>Device</th><th class="wl-col-iface">Interface</th><th>Band</th><th class="text-end">Signal</th><th>TX / RX</th><th class="wl-col-uptime">Uptime</th></tr></thead>
+            <tbody id="wirelessTable"><tr><td colspan="6" class="empty-state">No wireless clients</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,29 @@
+{
+  "hosts": [
+    {
+      "id": "*1",
+      "host": "198.51.100.121",
+      "type": "simple",
+      "status": "up",
+      "name": "SA VPN",
+      "comment": ""
+    },
+    {
+      "id": "*2",
+      "host": "198.51.100.122",
+      "type": "simple",
+      "status": "up",
+      "name": "VPN1",
+      "comment": ""
+    },
+    {
+      "id": "*3",
+      "host": "198.51.100.134",
+      "type": "simple",
+      "status": "up",
+      "name": "VPN2",
+      "comment": ""
+    }
+  ],
+  "ts": 0
+}

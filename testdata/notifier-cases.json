@@ -1,0 +1,251 @@
+{
+  "reasons": [
+    {
+      "name": "nothing",
+      "raw": "",
+      "want": ""
+    },
+    {
+      "name": "null",
+      "raw": null,
+      "want": ""
+    },
+    {
+      "name": "a bare string",
+      "raw": "Bad Request",
+      "want": " — Bad Request"
+    },
+    {
+      "name": "a string needing a trim",
+      "raw": "   Bad Request   ",
+      "want": " — Bad Request"
+    },
+    {
+      "name": "json description",
+      "raw": "{\"description\":\"chat not found\"}",
+      "want": " — chat not found"
+    },
+    {
+      "name": "json error",
+      "raw": "{\"error\":\"nope\"}",
+      "want": " — nope"
+    },
+    {
+      "name": "json message",
+      "raw": "{\"message\":\"nope\"}",
+      "want": " — nope"
+    },
+    {
+      "name": "json with all three",
+      "raw": "{\"description\":\"first\",\"error\":\"second\",\"message\":\"third\"}",
+      "want": " — first"
+    },
+    {
+      "name": "json with error and message",
+      "raw": "{\"error\":\"second\",\"message\":\"third\"}",
+      "want": " — second"
+    },
+    {
+      "name": "json with none of them",
+      "raw": "{\"other\":\"x\"}",
+      "want": ""
+    },
+    {
+      "name": "json that is not an object",
+      "raw": "\"just a string\"",
+      "want": ""
+    },
+    {
+      "name": "json null",
+      "raw": "null",
+      "want": " — null"
+    },
+    {
+      "name": "malformed json",
+      "raw": "{\"description\":",
+      "want": " — {\"description\":"
+    },
+    {
+      "name": "newlines and tabs",
+      "raw": "a\n\nb\t\tc",
+      "want": " — a b c"
+    },
+    {
+      "name": "a long body",
+      "raw": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "want": " — xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "name": "a long json description",
+      "raw": "{\"description\":\"yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\"}",
+      "want": " — yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+    },
+    {
+      "name": "long with whitespace runs",
+      "raw": "word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  word   \n\t  ",
+      "want": " — word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word "
+    },
+    {
+      "name": "exactly 160",
+      "raw": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      "want": " — zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+    },
+    {
+      "name": "161 characters",
+      "raw": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      "want": " — zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+    },
+    {
+      "name": "an html error page",
+      "raw": "<html><body>\n  <h1>502 Bad Gateway</h1>\n</body></html>",
+      "want": " — <html><body> <h1>502 Bad Gateway</h1> </body></html>"
+    }
+  ],
+  "channels": [
+    {
+      "name": "nothing at all",
+      "settings": {},
+      "want": false
+    },
+    {
+      "name": "null settings",
+      "settings": null,
+      "want": false
+    },
+    {
+      "name": "telegram complete",
+      "settings": {
+        "telegramEnabled": true,
+        "telegramBotToken": "t",
+        "telegramChatId": "c"
+      },
+      "want": true
+    },
+    {
+      "name": "telegram without a token",
+      "settings": {
+        "telegramEnabled": true,
+        "telegramChatId": "c"
+      },
+      "want": false
+    },
+    {
+      "name": "telegram without a chat id",
+      "settings": {
+        "telegramEnabled": true,
+        "telegramBotToken": "t"
+      },
+      "want": false
+    },
+    {
+      "name": "telegram configured but DISABLED",
+      "settings": {
+        "telegramBotToken": "t",
+        "telegramChatId": "c"
+      },
+      "want": false
+    },
+    {
+      "name": "pushbullet complete",
+      "settings": {
+        "pushbulletEnabled": true,
+        "pushbulletApiKey": "k"
+      },
+      "want": true
+    },
+    {
+      "name": "pushbullet without a key",
+      "settings": {
+        "pushbulletEnabled": true
+      },
+      "want": false
+    },
+    {
+      "name": "pushbullet configured but disabled",
+      "settings": {
+        "pushbulletApiKey": "k"
+      },
+      "want": false
+    },
+    {
+      "name": "smtp complete",
+      "settings": {
+        "smtpEnabled": true,
+        "smtpHost": "h",
+        "smtpFrom": "f",
+        "smtpTo": "t"
+      },
+      "want": true
+    },
+    {
+      "name": "smtp without a host",
+      "settings": {
+        "smtpEnabled": true,
+        "smtpFrom": "f",
+        "smtpTo": "t"
+      },
+      "want": false
+    },
+    {
+      "name": "smtp without a from",
+      "settings": {
+        "smtpEnabled": true,
+        "smtpHost": "h",
+        "smtpTo": "t"
+      },
+      "want": false
+    },
+    {
+      "name": "smtp without a to",
+      "settings": {
+        "smtpEnabled": true,
+        "smtpHost": "h",
+        "smtpFrom": "f"
+      },
+      "want": false
+    },
+    {
+      "name": "ntfy complete",
+      "settings": {
+        "ntfyEnabled": true,
+        "ntfyUrl": "https://ntfy.sh/x"
+      },
+      "want": true
+    },
+    {
+      "name": "ntfy without a url",
+      "settings": {
+        "ntfyEnabled": true
+      },
+      "want": false
+    },
+    {
+      "name": "one usable, one half-configured",
+      "settings": {
+        "telegramEnabled": true,
+        "telegramBotToken": "t",
+        "telegramChatId": "c",
+        "ntfyEnabled": true
+      },
+      "want": true
+    },
+    {
+      "name": "telegram with an empty token",
+      "settings": {
+        "telegramEnabled": true,
+        "telegramBotToken": "",
+        "telegramChatId": "c"
+      },
+      "want": false
+    },
+    {
+      "name": "enabled is the string \"false\"",
+      "settings": {
+        "telegramEnabled": "false",
+        "telegramBotToken": "t",
+        "telegramChatId": "c"
+      },
+      "want": true
+    }
+  ]
+}

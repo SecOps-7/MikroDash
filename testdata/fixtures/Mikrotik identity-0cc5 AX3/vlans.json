@@ -1,0 +1,329 @@
+{
+  "collector": "vlans",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/interface/bridge/vlan/print",
+      "params": [
+        "=.proplist=.id,bridge,vlan-ids,tagged,untagged,current-tagged,dynamic,disabled"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "bridge": "Bridge",
+          "vlan-ids": "20",
+          "tagged": "ether5",
+          "untagged": "",
+          "current-tagged": "ether5",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "bridge": "Bridge",
+          "vlan-ids": "10",
+          "tagged": "ether5",
+          "untagged": "",
+          "current-tagged": "ether5",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*D",
+          "bridge": "Bridge",
+          "vlan-ids": "5",
+          "tagged": "ether5",
+          "untagged": "ether2,ether3,ether4",
+          "current-tagged": "ether5",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*46",
+          "bridge": "Bridge",
+          "vlan-ids": "1",
+          "tagged": "Bridge",
+          "untagged": "",
+          "current-tagged": "Bridge",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*47",
+          "bridge": "Bridge",
+          "vlan-ids": "5,10,20",
+          "tagged": "Bridge",
+          "untagged": "",
+          "current-tagged": "Bridge",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*51",
+          "bridge": "Bridge",
+          "vlan-ids": "10",
+          "tagged": "5GHz WiFi6",
+          "untagged": "",
+          "current-tagged": "5GHz WiFi6",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*CE",
+          "bridge": "Bridge",
+          "vlan-ids": "10",
+          "tagged": "2.4GHz WiFi6",
+          "untagged": "",
+          "current-tagged": "2.4GHz WiFi6",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*D4",
+          "bridge": "Bridge",
+          "vlan-ids": "10",
+          "tagged": "2.4GHz WiFi3",
+          "untagged": "",
+          "current-tagged": "2.4GHz WiFi3",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*D6",
+          "bridge": "Bridge",
+          "vlan-ids": "5",
+          "tagged": "2.4GHz WiFi",
+          "untagged": "",
+          "current-tagged": "2.4GHz WiFi",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*DA",
+          "bridge": "Bridge",
+          "vlan-ids": "10",
+          "tagged": "5GHz WiFi3",
+          "untagged": "",
+          "current-tagged": "5GHz WiFi3",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*179",
+          "bridge": "Bridge",
+          "vlan-ids": "5",
+          "tagged": "5GHz WiFi4",
+          "untagged": "",
+          "current-tagged": "5GHz WiFi4",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*188",
+          "bridge": "Bridge",
+          "vlan-ids": "5",
+          "tagged": "5GHz WiFi",
+          "untagged": "",
+          "current-tagged": "5GHz WiFi",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*18A",
+          "bridge": "Bridge",
+          "vlan-ids": "20",
+          "tagged": "5GHz WiFi5",
+          "untagged": "",
+          "current-tagged": "5GHz WiFi5",
+          "dynamic": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*190",
+          "bridge": "Bridge",
+          "vlan-ids": "20",
+          "tagged": "5GHz WiFi2",
+          "untagged": "",
+          "current-tagged": "5GHz WiFi2",
+          "dynamic": "true",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/vlan/print",
+      "params": [
+        "=.proplist=.id,name,vlan-id,interface,mtu,running,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*33",
+          "name": "Guest",
+          "vlan-id": "20",
+          "interface": "Bridge",
+          "mtu": "1500",
+          "running": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*41",
+          "name": "Home",
+          "vlan-id": "5",
+          "interface": "Bridge",
+          "mtu": "1500",
+          "running": "true",
+          "disabled": "false"
+        },
+        {
+          ".id": "*34",
+          "name": "IoT",
+          "vlan-id": "10",
+          "interface": "Bridge",
+          "mtu": "1500",
+          "running": "true",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/bridge/port/print",
+      "params": [
+        "=.proplist=.id,bridge,interface,pvid,frame-types,disabled"
+      ],
+      "rows": [
+        {
+          ".id": "*0",
+          "bridge": "Bridge",
+          "interface": "ether2",
+          "pvid": "5",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*1",
+          "bridge": "Bridge",
+          "interface": "ether3",
+          "pvid": "5",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "bridge": "Bridge",
+          "interface": "ether4",
+          "pvid": "5",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*3",
+          "bridge": "Bridge",
+          "interface": "ether5",
+          "pvid": "5",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*6",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi2",
+          "pvid": "20",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*7",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi3",
+          "pvid": "10",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*8",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi4",
+          "pvid": "5",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*C",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi2",
+          "pvid": "20",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*D",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi3",
+          "pvid": "10",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*E",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi5",
+          "pvid": "20",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*F",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi6",
+          "pvid": "10",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*4D",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi",
+          "pvid": "5",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*51",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi4",
+          "pvid": "5",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*52",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi5",
+          "pvid": "20",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*53",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi6",
+          "pvid": "10",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        },
+        {
+          ".id": "*55",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi",
+          "pvid": "5",
+          "frame-types": "admit-all",
+          "disabled": "false"
+        }
+      ]
+    }
+  ]
+}

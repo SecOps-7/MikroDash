@@ -1,0 +1,885 @@
+{
+  "floorBps": 1000000,
+  "rates": [
+    {
+      "raw": "15000000",
+      "want": 15000000
+    },
+    {
+      "raw": "0",
+      "want": 0
+    },
+    {
+      "raw": "",
+      "want": null
+    },
+    {
+      "raw": "   ",
+      "want": null
+    },
+    {
+      "raw": "15M",
+      "want": 15000000
+    },
+    {
+      "raw": "15m",
+      "want": 15000000
+    },
+    {
+      "raw": "15 M",
+      "want": 15000000
+    },
+    {
+      "raw": "1.5M",
+      "want": 1500000
+    },
+    {
+      "raw": "0.5k",
+      "want": 500
+    },
+    {
+      "raw": "512k",
+      "want": 512000
+    },
+    {
+      "raw": "512K",
+      "want": 512000
+    },
+    {
+      "raw": "2G",
+      "want": 2000000000
+    },
+    {
+      "raw": "2g",
+      "want": 2000000000
+    },
+    {
+      "raw": "1000000",
+      "want": 1000000
+    },
+    {
+      "raw": "999999",
+      "want": 999999
+    },
+    {
+      "raw": "15MB",
+      "want": null
+    },
+    {
+      "raw": "M",
+      "want": null
+    },
+    {
+      "raw": "1.5.2M",
+      "want": null
+    },
+    {
+      "raw": "-5M",
+      "want": null
+    },
+    {
+      "raw": "1e6",
+      "want": null
+    },
+    {
+      "raw": "unlimited",
+      "want": null
+    },
+    {
+      "raw": "15M ",
+      "want": 15000000
+    },
+    {
+      "raw": " 15M",
+      "want": 15000000
+    },
+    {
+      "raw": "00015M",
+      "want": 15000000
+    },
+    {
+      "raw": "1.0M",
+      "want": 1000000
+    },
+    {
+      "raw": ".5M",
+      "want": null
+    }
+  ],
+  "pairs": [
+    {
+      "raw": "15000000/30000000",
+      "up": 15000000,
+      "down": 30000000
+    },
+    {
+      "raw": "15M/30M",
+      "up": 15000000,
+      "down": 30000000
+    },
+    {
+      "raw": "15M",
+      "up": 15000000,
+      "down": 15000000
+    },
+    {
+      "raw": "0/0",
+      "up": 0,
+      "down": 0
+    },
+    {
+      "raw": "0/15M",
+      "up": 0,
+      "down": 15000000
+    },
+    {
+      "raw": "15M/0",
+      "up": 15000000,
+      "down": 0
+    },
+    {
+      "raw": "",
+      "up": null,
+      "down": null
+    },
+    {
+      "raw": "/",
+      "up": null,
+      "down": null
+    },
+    {
+      "raw": "15M/",
+      "up": 15000000,
+      "down": null
+    },
+    {
+      "raw": "/15M",
+      "up": null,
+      "down": 15000000
+    },
+    {
+      "raw": "15M/30M/45M",
+      "up": 15000000,
+      "down": 30000000
+    },
+    {
+      "raw": "garbage/15M",
+      "up": null,
+      "down": 15000000
+    },
+    {
+      "raw": "10000000",
+      "up": 10000000,
+      "down": 10000000
+    }
+  ],
+  "cidrs": [
+    {
+      "cidr": "10.0.0.0/24",
+      "ip": "10.0.0.53",
+      "want": true
+    },
+    {
+      "cidr": "10.0.0.0/24",
+      "ip": "10.0.1.53",
+      "want": false
+    },
+    {
+      "cidr": "10.0.0.53",
+      "ip": "10.0.0.53",
+      "want": true
+    },
+    {
+      "cidr": "10.0.0.53",
+      "ip": "10.0.0.54",
+      "want": false
+    },
+    {
+      "cidr": "0.0.0.0/0",
+      "ip": "10.0.0.53",
+      "want": true
+    },
+    {
+      "cidr": "10.0.0.0/0",
+      "ip": "198.51.100.7",
+      "want": true
+    },
+    {
+      "cidr": "10.0.0.0/32",
+      "ip": "10.0.0.0",
+      "want": true
+    },
+    {
+      "cidr": "10.0.0.0/33",
+      "ip": "10.0.0.1",
+      "want": null
+    },
+    {
+      "cidr": "10.0.0.0/-1",
+      "ip": "10.0.0.1",
+      "want": null
+    },
+    {
+      "cidr": "10.0.0.0/abc",
+      "ip": "10.0.0.1",
+      "want": null
+    },
+    {
+      "cidr": "10.0.0.0/",
+      "ip": "10.0.0.1",
+      "want": true
+    },
+    {
+      "cidr": "bridge",
+      "ip": "10.0.0.53",
+      "want": null
+    },
+    {
+      "cidr": "WAN1",
+      "ip": "10.0.0.53",
+      "want": null
+    },
+    {
+      "cidr": "",
+      "ip": "10.0.0.53",
+      "want": null
+    },
+    {
+      "cidr": "   ",
+      "ip": "10.0.0.53",
+      "want": null
+    },
+    {
+      "cidr": "2001:db8::/32",
+      "ip": "10.0.0.53",
+      "want": null
+    },
+    {
+      "cidr": "10.0.0.0/24",
+      "ip": "2001:db8::1",
+      "want": null
+    },
+    {
+      "cidr": "10.0.0.256/24",
+      "ip": "10.0.0.1",
+      "want": null
+    },
+    {
+      "cidr": "10.0.0/24",
+      "ip": "10.0.0.1",
+      "want": null
+    },
+    {
+      "cidr": "10.0.0.0/24",
+      "ip": "",
+      "want": null
+    },
+    {
+      "cidr": "  10.0.0.0/24  ",
+      "ip": "10.0.0.53",
+      "want": true
+    },
+    {
+      "cidr": "10.0.0.0/24",
+      "ip": " 10.0.0.53 ",
+      "want": true
+    },
+    {
+      "cidr": "192.168.1.0/25",
+      "ip": "192.168.1.100",
+      "want": true
+    },
+    {
+      "cidr": "192.168.1.0/25",
+      "ip": "192.168.1.200",
+      "want": false
+    }
+  ],
+  "checks": [
+    {
+      "name": "fail open — no self addresses",
+      "selfAddresses": [],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled queue is not in force",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": true
+      },
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "unlimited (0/0) covering us",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "0/0",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "absent max-limit covering us",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "exactly at the floor",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "1M/1M",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "one bit under the floor",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "999999/999999",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 999999,
+          "maxLimitDown": 999999
+        },
+        "fingerprint": "[\"10.0.0.0/24\",999999,999999,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "upload capped only",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/50M",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 50000000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",500000,50000000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "download capped only",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "50M/500k",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 50000000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",50000000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "create — covers us, well under the floor",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",500000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "create — covers the OTHER of our addresses",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.9",
+        "maxLimit": "100k/100k",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.9",
+          "target": "10.0.0.9",
+          "maxLimitUp": 100000,
+          "maxLimitDown": 100000
+        },
+        "fingerprint": "[\"10.0.0.9\",100000,100000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "create — does not cover us",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "192.168.99.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "create — interface target, undecidable",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "bridge",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "create — 0.0.0.0/0 covers everything",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "0.0.0.0/0",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": null,
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "0.0.0.0/0",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"0.0.0.0/0\",500000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "edit — unchanged throttling queue stays quiet",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "edit — comment-only on a throttling queue (same inputs) stays quiet",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "edit — raised the cap, still under the floor",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "900k/900k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "edit — LOWERED the cap",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "100k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 100000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",100000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "edit — lowered the download half only",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/100k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 100000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",500000,100000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "edit — newly enabled",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": true
+      },
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",500000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "edit — newly covering us",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "192.168.99.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",500000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "edit — was unlimited, now capped",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "0/0",
+        "disabled": false
+      },
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",500000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "edit — was absent, now capped",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "",
+        "disabled": false
+      },
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",500000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "edit — was an interface target (undecidable), now ours",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "bridge",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "warn",
+        "code": "self-throttle",
+        "detail": {
+          "address": "10.0.0.53",
+          "target": "10.0.0.0/24",
+          "maxLimitUp": 500000,
+          "maxLimitDown": 500000
+        },
+        "fingerprint": "[\"10.0.0.0/24\",500000,500000,[\"10.0.0.53\",\"10.0.0.9\"]]"
+      }
+    },
+    {
+      "name": "edit — narrowed from /24 to the host, same cap",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.53",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "edit — being disabled",
+      "selfAddresses": [
+        "10.0.0.53",
+        "10.0.0.9"
+      ],
+      "values": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": true
+      },
+      "before": {
+        "target": "10.0.0.0/24",
+        "maxLimit": "500k/500k",
+        "disabled": false
+      },
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    }
+  ]
+}

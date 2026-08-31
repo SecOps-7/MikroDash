@@ -1,0 +1,36 @@
+{
+  "collector": "ping",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/tool/ping",
+      "params": [
+        "=address=198.51.100.27",
+        "=count=3",
+        "=interval=1",
+        "=.proplist=time,response-time,status,min-rtt,max-rtt"
+      ],
+      "rows": [
+        {
+          "time": "10ms781us",
+          "min-rtt": "10ms781us",
+          "max-rtt": "10ms781us"
+        },
+        {
+          "time": "8ms152us",
+          "min-rtt": "8ms152us",
+          "max-rtt": "10ms781us"
+        },
+        {
+          "time": "8ms37us",
+          "min-rtt": "8ms37us",
+          "max-rtt": "10ms781us"
+        }
+      ]
+    }
+  ]
+}

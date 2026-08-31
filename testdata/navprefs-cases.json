@@ -1,0 +1,300 @@
+{
+  "categoryKeys": [
+    "network",
+    "wireless",
+    "ipsvc",
+    "tunnels",
+    "traffic",
+    "security",
+    "system"
+  ],
+  "cases": {
+    "every real category": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "network",
+          "wireless",
+          "ipsvc",
+          "tunnels",
+          "traffic",
+          "security",
+          "system"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": [
+          "ipsvc",
+          "network",
+          "security",
+          "system",
+          "traffic",
+          "tunnels",
+          "wireless"
+        ]
+      }
+    },
+    "a subset": {
+      "body": {
+        "grouped": false,
+        "expanded": [
+          "ipsvc",
+          "network"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": false,
+        "expanded": [
+          "ipsvc",
+          "network"
+        ]
+      }
+    },
+    "empty": {
+      "body": {
+        "grouped": true,
+        "expanded": []
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "duplicates collapse": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "network",
+          "network",
+          "network"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": [
+          "network"
+        ]
+      }
+    },
+    "out of order sorts": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "system",
+          "security",
+          "traffic",
+          "tunnels",
+          "ipsvc",
+          "wireless",
+          "network"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": [
+          "ipsvc",
+          "network",
+          "security",
+          "system",
+          "traffic",
+          "tunnels",
+          "wireless"
+        ]
+      }
+    },
+    "a script tag": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "<script>alert(1)</script>"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "an html attribute payload": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "\" onload=\"alert(1)"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "a very long string": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "a real key with different case": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "NETWORK"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "a real key with whitespace": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          " network "
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "a prototype key": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "__proto__",
+          "constructor"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "one real among many fake": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          "a",
+          "b",
+          "wireless",
+          "c"
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": [
+          "wireless"
+        ]
+      }
+    },
+    "numbers and nulls": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          7,
+          null,
+          true
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "a nested object": {
+      "body": {
+        "grouped": true,
+        "expanded": [
+          {
+            "evil": 1
+          }
+        ]
+      },
+      "accepted": true,
+      "stored": {
+        "grouped": true,
+        "expanded": []
+      }
+    },
+    "grouped missing": {
+      "body": {
+        "expanded": []
+      },
+      "accepted": false,
+      "stored": null
+    },
+    "grouped is a string": {
+      "body": {
+        "grouped": "true",
+        "expanded": []
+      },
+      "accepted": false,
+      "stored": null
+    },
+    "grouped is null": {
+      "body": {
+        "grouped": null,
+        "expanded": []
+      },
+      "accepted": false,
+      "stored": null
+    },
+    "expanded missing": {
+      "body": {
+        "grouped": true
+      },
+      "accepted": false,
+      "stored": null
+    },
+    "expanded is a string": {
+      "body": {
+        "grouped": true,
+        "expanded": "network"
+      },
+      "accepted": false,
+      "stored": null
+    },
+    "expanded is an object": {
+      "body": {
+        "grouped": true,
+        "expanded": {
+          "0": "network"
+        }
+      },
+      "accepted": false,
+      "stored": null
+    },
+    "expanded is null": {
+      "body": {
+        "grouped": true,
+        "expanded": null
+      },
+      "accepted": false,
+      "stored": null
+    },
+    "an empty body": {
+      "body": {},
+      "accepted": false,
+      "stored": null
+    }
+  }
+}

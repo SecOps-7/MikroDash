@@ -1,0 +1,116 @@
+  <div class="page-view" id="page-devices">
+    <div class="container-xl">
+      <!-- Fleet summary. Online + Offline account for every device; Alerting
+           overlaps both, since a reachable router can still have something
+           wrong on it. -->
+      <div class="row row-cards mt-3" id="routersSummary">
+        <div class="col-6 col-sm">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Total Devices</div>
+            <div class="h1 m-0 mt-1" id="rsTotal">—</div>
+          </div></div>
+        </div>
+        <div class="col-6 col-sm">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Online</div>
+            <div class="h1 m-0 mt-1" id="rsOnline" style="color:var(--accent-green,#34d399)">—</div>
+          </div></div>
+        </div>
+        <div class="col-6 col-sm">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Offline</div>
+            <div class="h1 m-0 mt-1" id="rsOffline">—</div>
+          </div></div>
+        </div>
+        <div class="col-6 col-sm">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Alerting</div>
+            <div class="h1 m-0 mt-1" id="rsAlerting">—</div>
+          </div></div>
+        </div>
+        <!-- Sites: how many distinct sites the fleet is spread across. Counted
+             from the rows this socket already receives, which are RBAC-filtered,
+             so it can never disclose a site the viewer has no device in. Built
+             from /api/sites it would, because that endpoint has no gate. -->
+        <div class="col-6 col-sm">
+          <div class="card"><div class="card-body p-3">
+            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em">Sites</div>
+            <div class="h1 m-0 mt-1" id="rsSites">—</div>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- Header bar: view on the left, one search on the right. Per-column
+           filter boxes lived in the table head and cost a row of chrome for
+           something one box answers. -->
+      <div class="card mt-3 routers-toolbar d-flex flex-row align-items-center gap-2">
+        <select id="routersSiteFilter" class="conn-src-filter" title="Filter by site — a device may belong to more than one" style="min-width:150px">
+          <option value="">All Sites</option>
+        </select>
+        <input id="routersSearch" type="search" class="sform-input"
+               placeholder="Search devices…"
+               title="Matches name, host, model, RouterOS version and site. Also understands online, offline and alerting."
+               autocomplete="off" style="max-width:22rem">
+        <span class="text-muted" id="routersShown" style="font-size:.75rem"></span>
+        <select id="routersView" class="conn-src-filter ms-auto" title="View — Compact fits more cards per row; List adds sortable columns" style="min-width:140px">
+          <option value="comfortable">Comfortable</option>
+          <option value="compact">Compact</option>
+          <option value="list">List</option>
+          <option value="map">Map</option>
+        </select>
+      </div>
+
+      <div class="row row-cards mt-3" id="routers-grid">
+        <div class="col-12 text-muted text-center py-4">Loading…</div>
+      </div>
+
+      <!-- List view. Every column sorts; the row under the headers filters.
+           Filters live in the header rather than a toolbar so it is obvious
+           which column each one narrows. -->
+      <div class="card mt-3 routers-list-wrap" id="routersListWrap" hidden>
+        <div class="table-responsive">
+          <table class="table table-sm routers-list">
+            <thead>
+              <tr>
+                <th data-sort="connected" style="min-width:5.5rem">Status</th>
+                <th data-sort="label">Device</th>
+                <th data-sort="host">Host</th>
+                <th data-sort="boardName">Model</th>
+                <th data-sort="version">RouterOS</th>
+                <th class="rtl-num" data-sort="openAlerts" title="Unresolved alerts on this device">Alerts</th>
+                <th class="rtl-num" data-sort="cpu">CPU</th>
+                <th class="rtl-num" data-sort="memPct">RAM</th>
+                <th class="rtl-num" data-sort="hddPct">Disk</th>
+                <th class="rtl-num" data-sort="clients" title="DHCP leases">Clients</th>
+                <th class="rtl-num" data-sort="rxMbps">WAN Rx</th>
+                <th class="rtl-num" data-sort="txMbps">WAN Tx</th>
+                <th data-sort="uptime">Uptime</th>
+              </tr>
+            </thead>
+            <tbody id="routersListBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Map view (issue #96). Reuses the country geometry the Connections page
+           already builds — no tile server, which the CSP would block anyway.
+           The tray below the map is not optional: a router with no resolvable
+           location must stay discoverable rather than silently vanish. -->
+      <div class="card mt-3" id="routersMapWrap" hidden>
+        <div class="rtrmap-viewport" id="rtrMapViewport">
+          <svg id="routersMap" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet"
+               role="img" aria-label="Map of configured routers"></svg>
+          <div class="rtrmap-pop" id="rtrMapPop" hidden></div>
+          <div class="rtrmap-zoom">
+            <button type="button" data-map-zoom="in"    title="Zoom in">+</button>
+            <button type="button" data-map-zoom="out"   title="Zoom out">&#8722;</button>
+            <button type="button" data-map-zoom="reset" title="Reset view — zoom right out to the whole world">&#8634;</button>
+            <button type="button" data-map-zoom="autoframe" id="rtrMapAutoFrame"
+                    class="rtrmap-af" aria-pressed="false"
+                    title="Auto Frame — keep every router in view. Panning or zooming turns it off.">AF</button>
+          </div>
+        </div>
+        <div class="rtrmap-tray" id="rtrMapTray" hidden></div>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,14 @@
+{
+  "ts": 0,
+  "pollMs": 30000,
+  "simple": [],
+  "tree": [],
+  "fasttrack": {
+    "state": "unknown",
+    "count": 0,
+    "scoped": false
+  },
+  "stats": "full",
+  "available": true,
+  "denied": false
+}

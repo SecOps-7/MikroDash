@@ -1,0 +1,66 @@
+  <div class="page-view" id="page-interfaces">
+    <div class="container-fluid px-0" style="width:100%">
+      <!-- Summary row: Interface Types (left) + Ports panel (right) -->
+      <div class="if-summary-row">
+
+        <!-- Interface Types card -->
+        <div class="if-scard">
+          <div class="if-scard-title">Interface Types</div>
+          <div class="if-type-grid" id="ifTypeGrid">
+            <div class="if-type-item"><span class="if-type-label">—</span><span class="if-type-count">—</span></div>
+          </div>
+        </div>
+
+        <!-- Ports card -->
+        <div class="if-scard">
+          <div class="if-scard-title">Physical Ports</div>
+          <div class="if-ports-scroll" id="ifPortsPanel">
+            <div class="empty-state" style="font-size:.72rem">Waiting&hellip;</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card" id="ifStatusCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center gap-2">
+          <h3 class="card-title">Interfaces</h3>
+          <span id="ifaceCount" class="card-badge">0</span>
+          <select id="ifaceTypeFilter" class="conn-src-filter ms-auto" title="Filter by type" style="min-width:120px">
+            <option value="">All Types</option>
+          </select>
+          <select id="ifaceCardSize" class="conn-src-filter" title="View &#8212; larger cards show longer names in full; List adds counters and error columns" style="min-width:120px">
+            <option value="sm">Compact</option>
+            <option value="md">Comfortable</option>
+            <option value="lg">Large</option>
+            <option value="list">List</option>
+          </select>
+          <!-- VETH and nothing else. A VLAN belongs on the VLANs page and a
+               bridge on the Bridges page; the thing this card is missing is the
+               one virtual interface with no page of its own. -->
+          <span data-res-add="veth"></span>
+        </div>
+        <div class="card-body" style="padding:.65rem .75rem">
+          <div class="iface-grid" id="ifaceGrid"><div class="empty-state">Waiting&#8230;</div></div>
+          <div class="iface-list-wrap" id="ifaceListWrap" hidden>
+            <table class="table table-sm iface-list">
+              <thead><tr>
+                <th data-sort="name">Interface</th>
+                <th data-sort="type">Type</th>
+                <th data-sort="ip">IP</th>
+                <th class="ifl-num" data-sort="rxMbps">RX</th>
+                <th class="ifl-num" data-sort="txMbps">TX</th>
+                <th class="ifl-num" data-sort="rxBytes" title="Total received since the counter was last reset">Total RX</th>
+                <th class="ifl-num" data-sort="txBytes" title="Total sent since the counter was last reset">Total TX</th>
+                <th class="ifl-num" data-sort="errors" title="Link integrity faults: CRC/FCS, alignment, collisions. A rising count means a cable or duplex problem">Errors</th>
+                <th class="ifl-num" data-sort="drops" title="Packets discarded rather than corrupted: full queue, no buffer. A rising count means congestion">Drops</th>
+                <th class="ifl-num" data-sort="linkDowns" title="Times the link has gone down since the counter was last reset">Flaps</th>
+                <th data-sort="lastLinkUp" title="When the link last came up">Last Up</th>
+              </tr></thead>
+              <tbody id="ifaceListBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

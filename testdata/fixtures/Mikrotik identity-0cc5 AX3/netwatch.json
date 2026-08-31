@@ -1,0 +1,64 @@
+{
+  "collector": "netwatch",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/tool/netwatch/print",
+      "params": [],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "SA VPN",
+          "host": "198.51.100.121",
+          "type": "simple",
+          "interval": "1h",
+          "up-script": "up-script-c1f6",
+          "down-script": "down-script-8700,down-script-8a8d",
+          "test-script": "",
+          "http-codes": "",
+          "status": "up",
+          "since": "2026-08-18 08:37:59",
+          "done-tests": "88",
+          "failed-tests": "0",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "name": "VPN1",
+          "host": "198.51.100.122",
+          "type": "simple",
+          "src-address": "198.51.100.176",
+          "interval": "1m",
+          "up-script": "up-script-1437",
+          "down-script": "down-script-f556",
+          "test-script": "",
+          "status": "up",
+          "since": "2026-08-18 08:37:59",
+          "done-tests": "5271",
+          "failed-tests": "0",
+          "disabled": "false"
+        },
+        {
+          ".id": "*3",
+          "name": "VPN2",
+          "host": "198.51.100.134",
+          "type": "simple",
+          "src-address": "198.51.100.216",
+          "interval": "1m",
+          "up-script": "up-script-876d",
+          "down-script": "down-script-2a33",
+          "test-script": "",
+          "status": "up",
+          "since": "2026-08-19 06:03:01",
+          "done-tests": "5271",
+          "failed-tests": "8",
+          "disabled": "false"
+        }
+      ]
+    }
+  ]
+}

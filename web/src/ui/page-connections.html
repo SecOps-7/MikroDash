@@ -1,0 +1,59 @@
+  <div class="page-view" id="page-connections">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title">Connections Map</h3>
+            <span id="connMapBadge" class="card-badge">0</span>
+          </div>
+          <select id="connSrcFilter" class="conn-src-filter" title="Filter by Client">
+            <option value="">All Clients</option>
+          </select>
+        </div>
+        <div class="card-body" style="padding:.5rem">
+          <div id="worldMapWrap" style="width:100%;position:relative;overflow:hidden;border-radius:6px;background:rgba(56,189,248,.03);cursor:grab;user-select:none">
+            <svg id="worldMap" viewBox="0 0 1000 500" style="width:100%;display:block;touch-action:none"></svg>
+            <div class="map-tooltip" id="mapTooltip"></div>
+            <div style="position:absolute;bottom:.5rem;right:.5rem;display:flex;flex-direction:column;gap:3px;z-index:2">
+              <button id="mapZoomReset" title="Reset zoom" style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);font-size:.55rem;cursor:pointer;line-height:1">RST</button>
+              <button id="mapZoomIn"    style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">+</button>
+              <button id="mapZoomOut"   style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:1rem;cursor:pointer;line-height:1">−</button>
+              <button id="mapFullscreenBtn" title="Fullscreen map" style="width:26px;height:26px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:5px;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="conn-bottom-grid">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h3 class="card-title">Top Countries</h3>
+            <span id="connFilterLabel" style="font-family:var(--font-mono);font-size:.65rem;color:var(--accent-rx);display:none">● filtered</span>
+          </div>
+          <div class="card-body" style="padding:.5rem .75rem">
+            <div id="connMapList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:.35rem"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Connection Flow + Top Ports -->
+      <div class="conn-sankey-grid">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h3 class="card-title">Connection Flow</h3>
+            <span style="font-family:var(--font-mono);font-size:.65rem;color:var(--text-muted)">Sources → Destinations</span>
+          </div>
+          <div class="card-body" style="padding:.6rem .75rem">
+            <div class="sankey-wrap">
+              <div id="sankeyEmpty">Waiting for connection data…</div>
+              <svg id="sankeySvg"></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Top Ports</h3></div>
+          <div class="card-body" style="padding:.35rem .6rem">
+            <div id="connPortList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,557 @@
+{
+  "collector": "dhcpLeases",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/dhcp-server/print",
+      "params": [
+        "=.proplist=name,interface"
+      ],
+      "rows": [
+        {
+          "name": "Home DHCP",
+          "interface": "Home"
+        },
+        {
+          "name": "Guest DHCP",
+          "interface": "Guest"
+        },
+        {
+          "name": "IoT DHCP",
+          "interface": "IoT"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/vlan/print",
+      "params": [
+        "=.proplist=name,vlan-id"
+      ],
+      "rows": [
+        {
+          "name": "Guest",
+          "vlan-id": "20"
+        },
+        {
+          "name": "Home",
+          "vlan-id": "5"
+        },
+        {
+          "name": "IoT",
+          "vlan-id": "10"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/dhcp-server/lease/print",
+      "params": [
+        "=.proplist=.id,.dead,address,active-address,mac-address,active-mac-address,status,comment,host-name,server,dynamic"
+      ],
+      "rows": [
+        {
+          ".id": "*2",
+          "address": "198.51.100.54",
+          "active-address": "198.51.100.54",
+          "mac-address": "02:59:56:B0:B2:DF",
+          "active-mac-address": "02:59:56:B0:B2:DF",
+          "status": "bound",
+          "host-name": "host-name-a7ba",
+          "server": "Home DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*1BF5",
+          "address": "198.51.100.120",
+          "active-address": "198.51.100.120",
+          "mac-address": "02:5D:57:D5:69:77",
+          "active-mac-address": "02:5D:57:D5:69:77",
+          "status": "bound",
+          "host-name": "host-name-d161",
+          "server": "Home DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*1D92",
+          "address": "198.51.100.84",
+          "mac-address": "02:18:16:D4:DD:C0",
+          "status": "waiting",
+          "host-name": "host-name-d161",
+          "server": "Home DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*26C8",
+          "address": "198.51.100.252",
+          "active-address": "198.51.100.252",
+          "mac-address": "02:C8:23:46:F1:23",
+          "active-mac-address": "02:C8:23:46:F1:23",
+          "status": "bound",
+          "host-name": "host-name-47e5",
+          "server": "Home DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*278B",
+          "address": "198.51.100.175",
+          "active-address": "198.51.100.175",
+          "mac-address": "02:31:48:F6:C4:AF",
+          "active-mac-address": "02:31:48:F6:C4:AF",
+          "status": "bound",
+          "host-name": "host-name-8ab7",
+          "server": "Home DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*2790",
+          "address": "198.51.100.141",
+          "active-address": "198.51.100.141",
+          "mac-address": "02:C1:CA:94:8E:4D",
+          "active-mac-address": "02:C1:CA:94:8E:4D",
+          "status": "bound",
+          "host-name": "host-name-48ce",
+          "server": "Home DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*29B8",
+          "address": "198.51.100.174",
+          "active-address": "198.51.100.174",
+          "mac-address": "02:96:D1:8A:A2:CA",
+          "active-mac-address": "02:96:D1:8A:A2:CA",
+          "status": "bound",
+          "host-name": "host-name-ab76",
+          "server": "IoT DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*29CD",
+          "address": "198.51.100.12",
+          "active-address": "198.51.100.12",
+          "mac-address": "02:7C:8B:10:49:58",
+          "active-mac-address": "02:7C:8B:10:49:58",
+          "status": "bound",
+          "host-name": "host-name-37c7",
+          "server": "Home DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*29D6",
+          "address": "198.51.100.143",
+          "active-address": "198.51.100.143",
+          "mac-address": "02:AA:E9:10:76:06",
+          "active-mac-address": "02:AA:E9:10:76:06",
+          "status": "bound",
+          "host-name": "host-name-06c1",
+          "server": "IoT DHCP",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*2B19",
+          "address": "198.51.100.209",
+          "active-address": "198.51.100.209",
+          "mac-address": "02:0E:A6:51:B0:5A",
+          "active-mac-address": "02:0E:A6:51:B0:5A",
+          "status": "bound",
+          "host-name": "host-name-c241",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B1A",
+          "address": "198.51.100.49",
+          "active-address": "198.51.100.49",
+          "mac-address": "02:E7:41:72:83:33",
+          "active-mac-address": "02:E7:41:72:83:33",
+          "status": "bound",
+          "host-name": "host-name-a7e6",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B1B",
+          "address": "198.51.100.193",
+          "active-address": "198.51.100.193",
+          "mac-address": "02:EB:0A:9A:37:20",
+          "active-mac-address": "02:EB:0A:9A:37:20",
+          "status": "bound",
+          "host-name": "host-name-a6dc",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B1C",
+          "address": "198.51.100.223",
+          "active-address": "198.51.100.223",
+          "mac-address": "02:AD:73:D7:5B:19",
+          "active-mac-address": "02:AD:73:D7:5B:19",
+          "status": "bound",
+          "host-name": "host-name-17b2",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B1E",
+          "address": "198.51.100.71",
+          "active-address": "198.51.100.71",
+          "mac-address": "02:37:B4:D5:A8:AB",
+          "active-mac-address": "02:37:B4:D5:A8:AB",
+          "status": "bound",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B1F",
+          "address": "198.51.100.226",
+          "active-address": "198.51.100.226",
+          "mac-address": "02:45:6C:57:CB:DF",
+          "active-mac-address": "02:45:6C:57:CB:DF",
+          "status": "bound",
+          "host-name": "host-name-4a32",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B29",
+          "address": "198.51.100.175",
+          "active-address": "198.51.100.175",
+          "mac-address": "02:AF:C0:BB:E1:6E",
+          "active-mac-address": "02:AF:C0:BB:E1:6E",
+          "status": "bound",
+          "host-name": "host-name-4992",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B2A",
+          "address": "198.51.100.1",
+          "active-address": "198.51.100.1",
+          "mac-address": "02:8F:38:9C:3F:5D",
+          "active-mac-address": "02:8F:38:9C:3F:5D",
+          "status": "bound",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B2C",
+          "address": "198.51.100.20",
+          "active-address": "198.51.100.20",
+          "mac-address": "02:16:1C:3A:E1:12",
+          "active-mac-address": "02:16:1C:3A:E1:12",
+          "status": "bound",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B2D",
+          "address": "198.51.100.86",
+          "active-address": "198.51.100.86",
+          "mac-address": "02:0C:F4:BB:57:67",
+          "active-mac-address": "02:0C:F4:BB:57:67",
+          "status": "bound",
+          "host-name": "host-name-3ab6",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B2E",
+          "address": "198.51.100.168",
+          "active-address": "198.51.100.168",
+          "mac-address": "02:05:18:7F:68:63",
+          "active-mac-address": "02:05:18:7F:68:63",
+          "status": "bound",
+          "host-name": "host-name-b2a7",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B2F",
+          "address": "198.51.100.152",
+          "active-address": "198.51.100.152",
+          "mac-address": "02:63:BA:83:16:02",
+          "active-mac-address": "02:63:BA:83:16:02",
+          "status": "bound",
+          "host-name": "host-name-8847",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2B32",
+          "address": "198.51.100.13",
+          "active-address": "198.51.100.13",
+          "mac-address": "02:97:CE:CD:55:2D",
+          "active-mac-address": "02:97:CE:CD:55:2D",
+          "status": "bound",
+          "host-name": "host-name-65e8",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2BC7",
+          "address": "198.51.100.225",
+          "active-address": "198.51.100.225",
+          "mac-address": "02:09:B4:E1:91:05",
+          "active-mac-address": "02:09:B4:E1:91:05",
+          "status": "bound",
+          "host-name": "host-name-1588",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2BF9",
+          "address": "198.51.100.165",
+          "active-address": "198.51.100.165",
+          "mac-address": "02:B7:EF:BB:12:EE",
+          "active-mac-address": "02:B7:EF:BB:12:EE",
+          "status": "bound",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2D32",
+          "address": "198.51.100.130",
+          "active-address": "198.51.100.130",
+          "mac-address": "02:F8:B6:24:79:32",
+          "active-mac-address": "02:F8:B6:24:79:32",
+          "status": "bound",
+          "host-name": "host-name-e321",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2D3B",
+          "address": "198.51.100.90",
+          "active-address": "198.51.100.90",
+          "mac-address": "02:82:0F:97:AA:23",
+          "active-mac-address": "02:82:0F:97:AA:23",
+          "status": "bound",
+          "host-name": "host-name-5cb3",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2E1F",
+          "address": "198.51.100.4",
+          "active-address": "198.51.100.4",
+          "mac-address": "02:FF:D8:4E:A5:C1",
+          "active-mac-address": "02:FF:D8:4E:A5:C1",
+          "status": "bound",
+          "host-name": "host-name-96ae",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2E33",
+          "address": "198.51.100.200",
+          "active-address": "198.51.100.200",
+          "mac-address": "02:DA:CC:8F:66:41",
+          "active-mac-address": "02:DA:CC:8F:66:41",
+          "status": "bound",
+          "host-name": "host-name-ec92",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2E34",
+          "address": "198.51.100.207",
+          "active-address": "198.51.100.207",
+          "mac-address": "02:3A:F8:3D:AA:AF",
+          "active-mac-address": "02:3A:F8:3D:AA:AF",
+          "status": "bound",
+          "host-name": "host-name-97e1",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2E37",
+          "address": "198.51.100.12",
+          "active-address": "198.51.100.12",
+          "mac-address": "02:24:7A:52:3D:BA",
+          "active-mac-address": "02:24:7A:52:3D:BA",
+          "status": "bound",
+          "host-name": "host-name-8d34",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2E3A",
+          "address": "198.51.100.241",
+          "active-address": "198.51.100.241",
+          "mac-address": "02:94:C8:F4:28:C3",
+          "active-mac-address": "02:94:C8:F4:28:C3",
+          "status": "bound",
+          "host-name": "host-name-e198",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2E3E",
+          "address": "198.51.100.207",
+          "active-address": "198.51.100.207",
+          "mac-address": "02:E8:77:4C:FF:87",
+          "active-mac-address": "02:E8:77:4C:FF:87",
+          "status": "bound",
+          "host-name": "host-name-b429",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2E44",
+          "address": "198.51.100.138",
+          "active-address": "198.51.100.138",
+          "mac-address": "02:EC:08:20:44:48",
+          "active-mac-address": "02:EC:08:20:44:48",
+          "status": "bound",
+          "host-name": "host-name-7755",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2E5B",
+          "address": "198.51.100.128",
+          "active-address": "198.51.100.128",
+          "mac-address": "02:6F:21:29:83:E3",
+          "active-mac-address": "02:6F:21:29:83:E3",
+          "status": "bound",
+          "host-name": "host-name-3fef",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2F25",
+          "address": "198.51.100.252",
+          "active-address": "198.51.100.252",
+          "mac-address": "02:37:FB:7E:4F:24",
+          "active-mac-address": "02:37:FB:7E:4F:24",
+          "status": "bound",
+          "host-name": "host-name-fce0",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*2FFA",
+          "address": "198.51.100.183",
+          "active-address": "198.51.100.183",
+          "mac-address": "02:68:45:32:38:85",
+          "active-mac-address": "02:68:45:32:38:85",
+          "status": "bound",
+          "host-name": "host-name-5642",
+          "server": "Home DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*3061",
+          "address": "198.51.100.131",
+          "active-address": "198.51.100.131",
+          "mac-address": "02:DB:D2:E6:78:22",
+          "active-mac-address": "02:DB:D2:E6:78:22",
+          "status": "bound",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*3070",
+          "address": "198.51.100.1",
+          "active-address": "198.51.100.1",
+          "mac-address": "02:F1:85:EB:A7:3A",
+          "active-mac-address": "02:F1:85:EB:A7:3A",
+          "status": "bound",
+          "host-name": "host-name-f507",
+          "server": "Guest DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*307A",
+          "address": "198.51.100.90",
+          "active-address": "198.51.100.90",
+          "mac-address": "02:C2:C4:2A:E1:F4",
+          "active-mac-address": "02:C2:C4:2A:E1:F4",
+          "status": "bound",
+          "host-name": "host-name-c241",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*3081",
+          "address": "198.51.100.41",
+          "active-address": "198.51.100.41",
+          "mac-address": "02:C1:CA:94:8E:4D",
+          "active-mac-address": "02:C1:CA:94:8E:4D",
+          "status": "bound",
+          "host-name": "host-name-48ce",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*308E",
+          "address": "198.51.100.187",
+          "active-address": "198.51.100.187",
+          "mac-address": "02:50:21:2A:C4:D0",
+          "active-mac-address": "02:50:21:2A:C4:D0",
+          "status": "bound",
+          "host-name": "host-name-17b2",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*30A3",
+          "address": "198.51.100.13",
+          "active-address": "198.51.100.13",
+          "mac-address": "02:04:FF:43:D1:42",
+          "active-mac-address": "02:04:FF:43:D1:42",
+          "status": "bound",
+          "host-name": "host-name-7d2f",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*30A9",
+          "address": "198.51.100.64",
+          "active-address": "198.51.100.64",
+          "mac-address": "02:05:27:35:06:3D",
+          "active-mac-address": "02:05:27:35:06:3D",
+          "status": "bound",
+          "host-name": "host-name-c23e",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*30E3",
+          "address": "198.51.100.222",
+          "active-address": "198.51.100.222",
+          "mac-address": "02:59:19:A8:5F:97",
+          "active-mac-address": "02:59:19:A8:5F:97",
+          "status": "bound",
+          "host-name": "host-name-d2e9",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*30E7",
+          "address": "198.51.100.191",
+          "active-address": "198.51.100.191",
+          "mac-address": "02:94:09:27:4F:23",
+          "active-mac-address": "02:94:09:27:4F:23",
+          "status": "bound",
+          "host-name": "host-name-39a2",
+          "server": "Guest DHCP",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*30EC",
+          "address": "198.51.100.148",
+          "active-address": "198.51.100.148",
+          "mac-address": "02:3A:CB:73:0B:2C",
+          "active-mac-address": "02:3A:CB:73:0B:2C",
+          "status": "bound",
+          "host-name": "host-name-1dfd",
+          "server": "IoT DHCP",
+          "dynamic": "true"
+        }
+      ]
+    }
+  ]
+}

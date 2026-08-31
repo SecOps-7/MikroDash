@@ -1,0 +1,173 @@
+{
+  "cases": {
+    "null": {
+      "kind": "null",
+      "value": null,
+      "finite": true,
+      "number": 0
+    },
+    "true": {
+      "kind": "boolean",
+      "value": true,
+      "finite": true,
+      "number": 1
+    },
+    "false": {
+      "kind": "boolean",
+      "value": false,
+      "finite": true,
+      "number": 0
+    },
+    "zero": {
+      "kind": "number",
+      "value": 0,
+      "finite": true,
+      "number": 0
+    },
+    "int": {
+      "kind": "number",
+      "value": 4000,
+      "finite": true,
+      "number": 4000
+    },
+    "negative": {
+      "kind": "number",
+      "value": -5,
+      "finite": true,
+      "number": -5
+    },
+    "float": {
+      "kind": "number",
+      "value": 5999.9,
+      "finite": true,
+      "number": 5999.9
+    },
+    "emptyString": {
+      "kind": "string",
+      "value": "",
+      "finite": true,
+      "number": 0
+    },
+    "spaces": {
+      "kind": "string",
+      "value": "   ",
+      "finite": true,
+      "number": 0
+    },
+    "numericString": {
+      "kind": "string",
+      "value": "4000",
+      "finite": true,
+      "number": 4000
+    },
+    "paddedNumericString": {
+      "kind": "string",
+      "value": "  4000  ",
+      "finite": true,
+      "number": 4000
+    },
+    "floatString": {
+      "kind": "string",
+      "value": "12.5",
+      "finite": true,
+      "number": 12.5
+    },
+    "negativeString": {
+      "kind": "string",
+      "value": "-7",
+      "finite": true,
+      "number": -7
+    },
+    "plusString": {
+      "kind": "string",
+      "value": "+7",
+      "finite": true,
+      "number": 7
+    },
+    "expString": {
+      "kind": "string",
+      "value": "1e3",
+      "finite": true,
+      "number": 1000
+    },
+    "trailingGarbage": {
+      "kind": "string",
+      "value": "25abc",
+      "finite": false,
+      "number": null
+    },
+    "leadingGarbage": {
+      "kind": "string",
+      "value": "abc25",
+      "finite": false,
+      "number": null
+    },
+    "word": {
+      "kind": "string",
+      "value": "soon",
+      "finite": false,
+      "number": null
+    },
+    "hex": {
+      "kind": "string",
+      "value": "0x10",
+      "finite": true,
+      "number": 16
+    },
+    "binary": {
+      "kind": "string",
+      "value": "0b101",
+      "finite": true,
+      "number": 5
+    },
+    "octal": {
+      "kind": "string",
+      "value": "0o17",
+      "finite": true,
+      "number": 15
+    },
+    "infinity": {
+      "kind": "string",
+      "value": "Infinity",
+      "finite": false,
+      "number": null
+    },
+    "negInfinity": {
+      "kind": "string",
+      "value": "-Infinity",
+      "finite": false,
+      "number": null
+    },
+    "nanString": {
+      "kind": "string",
+      "value": "NaN",
+      "finite": false,
+      "number": null
+    },
+    "object": {
+      "kind": "object",
+      "finite": false,
+      "number": null
+    },
+    "array": {
+      "kind": "array",
+      "finite": true,
+      "number": 0
+    },
+    "arrayOfOne": {
+      "kind": "array",
+      "finite": true,
+      "number": 5
+    },
+    "arrayOfTwo": {
+      "kind": "array",
+      "finite": false,
+      "number": null
+    },
+    "undefined": {
+      "kind": "undefined",
+      "finite": false,
+      "number": null
+    }
+  }
+}

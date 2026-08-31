@@ -1,0 +1,485 @@
+{
+  "collector": "wifi",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/interface/wifi/security/print",
+      "params": [
+        "=.proplist=.id,name,authentication-types,wps,ft,ft-over-ds,connect-priority,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "Home WiFi",
+          "authentication-types": "wpa2-psk,wpa3-psk",
+          "wps": "disable",
+          "ft": "true",
+          "ft-over-ds": "true",
+          "connect-priority": "0/1",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "name": "Guest WiFi",
+          "authentication-types": "wpa2-psk,wpa3-psk",
+          "wps": "disable",
+          "ft": "true",
+          "ft-over-ds": "true",
+          "connect-priority": "0/1",
+          "disabled": "false"
+        },
+        {
+          ".id": "*3",
+          "name": "IoT WiFi",
+          "authentication-types": "wpa2-psk,wpa3-psk",
+          "wps": "disable",
+          "ft": "true",
+          "ft-over-ds": "true",
+          "connect-priority": "0/1",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/channel/print",
+      "params": [
+        "=.proplist=.id,name,band,frequency,width,secondary-frequency,skip-dfs-channels,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*4",
+          "name": "5Ghz Channels",
+          "frequency": "5180,5260,5500,5660",
+          "skip-dfs-channels": "10min-cac",
+          "disabled": "false"
+        },
+        {
+          ".id": "*5",
+          "name": "2.4Ghz Channels",
+          "frequency": "2412,2437,2462,2484",
+          "width": "20mhz",
+          "skip-dfs-channels": "10min-cac",
+          "disabled": "false"
+        },
+        {
+          ".id": "*6",
+          "name": "5Ghz Channel Range",
+          "frequency": "5180-5730",
+          "skip-dfs-channels": "10min-cac",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/registration-table/print",
+      "params": [
+        "=.proplist=interface,ssid"
+      ],
+      "rows": [
+        {
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi5",
+          "ssid": "ssid-84f1"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71"
+        },
+        {
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943"
+        },
+        {
+          "interface": "5GHz WiFi2",
+          "ssid": "ssid-84f1"
+        },
+        {
+          "interface": "2.4GHz WiFi3",
+          "ssid": "ssid-7e71"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/print",
+      "params": [
+        "=.proplist=.id,name,default-name,disabled,running,master-interface,radio-mac,mac-address,configuration,configuration.ssid,configuration.mode,configuration.hide-ssid,configuration.country,configuration.manager,security,security.authentication-types,channel,channel.band,channel.frequency,channel.width,datapath,datapath.bridge,datapath.vlan-id,comment,dynamic"
+      ],
+      "rows": [
+        {
+          ".id": "*45",
+          "name": "2.4GHz WiFi",
+          "default-name": "wifi2",
+          "disabled": "false",
+          "running": "true",
+          "radio-mac": "02:CA:65:80:7F:1F",
+          "mac-address": "02:CA:65:80:7F:1F",
+          "configuration": "Home WiFi 2.4Ghz",
+          "configuration.ssid": "ssid-4943",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "5",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*46",
+          "name": "2.4GHz WiFi2",
+          "disabled": "false",
+          "running": "false",
+          "master-interface": "2.4GHz WiFi",
+          "mac-address": "02:70:22:57:79:D6",
+          "configuration": "Guest WiFi 2.4Ghz",
+          "configuration.ssid": "ssid-84f1",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "20",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*47",
+          "name": "2.4GHz WiFi3",
+          "disabled": "false",
+          "running": "true",
+          "master-interface": "2.4GHz WiFi",
+          "mac-address": "02:45:D0:A8:59:DB",
+          "configuration": "IoT WiFi 2.4Ghz",
+          "configuration.ssid": "ssid-7e71",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "10",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*49",
+          "name": "2.4GHz WiFi4",
+          "disabled": "false",
+          "running": "false",
+          "radio-mac": "02:92:85:C2:C4:A8",
+          "mac-address": "02:92:85:C2:C4:A8",
+          "configuration": "Home WiFi 2.4Ghz",
+          "configuration.ssid": "ssid-4943",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "5",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*4C",
+          "name": "2.4GHz WiFi5",
+          "disabled": "false",
+          "running": "false",
+          "master-interface": "2.4GHz WiFi4",
+          "mac-address": "02:6A:BA:5A:60:82",
+          "configuration": "Guest WiFi 2.4Ghz",
+          "configuration.ssid": "ssid-84f1",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "20",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*4D",
+          "name": "2.4GHz WiFi6",
+          "disabled": "false",
+          "running": "true",
+          "master-interface": "2.4GHz WiFi4",
+          "mac-address": "02:A4:AB:76:65:2F",
+          "configuration": "IoT WiFi 2.4Ghz",
+          "configuration.ssid": "ssid-7e71",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "10",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*42",
+          "name": "5GHz WiFi",
+          "default-name": "wifi1",
+          "disabled": "false",
+          "running": "true",
+          "radio-mac": "02:21:12:F9:6F:D4",
+          "mac-address": "02:21:12:F9:6F:D4",
+          "configuration": "Home WiFi 5Ghz",
+          "configuration.ssid": "ssid-4943",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "channel.frequency": "5180-5730",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "5",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*43",
+          "name": "5GHz WiFi2",
+          "disabled": "false",
+          "running": "true",
+          "master-interface": "5GHz WiFi",
+          "mac-address": "02:68:1B:A8:93:C6",
+          "configuration": "Guest WiFi 5Ghz",
+          "configuration.ssid": "ssid-84f1",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "channel.frequency": "5180-5730",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "20",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*44",
+          "name": "5GHz WiFi3",
+          "disabled": "false",
+          "running": "true",
+          "master-interface": "5GHz WiFi",
+          "mac-address": "02:38:0D:AC:A3:8A",
+          "configuration": "IoT WiFi 5Ghz",
+          "configuration.ssid": "ssid-7e71",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "channel.frequency": "5180-5730",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "10",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*48",
+          "name": "5GHz WiFi4",
+          "disabled": "false",
+          "running": "true",
+          "radio-mac": "02:60:E0:D4:C8:C7",
+          "mac-address": "02:60:E0:D4:C8:C7",
+          "configuration": "Home WiFi 5Ghz",
+          "configuration.ssid": "ssid-4943",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "channel.frequency": "5180-5730",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "5",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*4A",
+          "name": "5GHz WiFi5",
+          "disabled": "false",
+          "running": "true",
+          "master-interface": "5GHz WiFi4",
+          "mac-address": "02:75:80:E6:5F:AF",
+          "configuration": "Guest WiFi 5Ghz",
+          "configuration.ssid": "ssid-84f1",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "channel.frequency": "5180-5730",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "20",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*4B",
+          "name": "5GHz WiFi6",
+          "disabled": "false",
+          "running": "true",
+          "master-interface": "5GHz WiFi4",
+          "mac-address": "02:A6:8B:36:7E:AD",
+          "configuration": "IoT WiFi 5Ghz",
+          "configuration.ssid": "ssid-7e71",
+          "configuration.mode": "ap",
+          "configuration.country": "country-b6ed",
+          "security.authentication-types": "wpa2-psk,wpa3-psk",
+          "channel.frequency": "5180-5730",
+          "datapath.bridge": "Bridge",
+          "datapath.vlan-id": "10",
+          "dynamic": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/wifi/configuration/print",
+      "params": [
+        "=.proplist=.id,name,ssid,mode,country,hide-ssid,security,channel,datapath,manager,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "Home WiFi 5Ghz",
+          "ssid": "ssid-4943",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "Home WiFi",
+          "channel": "5Ghz Channel Range",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*2",
+          "name": "Home WiFi 2.4Ghz",
+          "ssid": "ssid-4943",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "Home WiFi",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*3",
+          "name": "Guest WiFi 2.4Ghz",
+          "ssid": "ssid-84f1",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "Guest WiFi",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*4",
+          "name": "Guest WiFi 5Ghz",
+          "ssid": "ssid-84f1",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "Guest WiFi",
+          "channel": "5Ghz Channel Range",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*5",
+          "name": "IoT WiFi 2.4Ghz",
+          "ssid": "ssid-7e71",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "IoT WiFi",
+          "datapath": "datapath",
+          "disabled": "false"
+        },
+        {
+          ".id": "*6",
+          "name": "IoT WiFi 5Ghz",
+          "ssid": "ssid-7e71",
+          "mode": "ap",
+          "country": "country-b6ed",
+          "security": "IoT WiFi",
+          "channel": "5Ghz Channel Range",
+          "datapath": "datapath",
+          "disabled": "false"
+        }
+      ]
+    }
+  ]
+}

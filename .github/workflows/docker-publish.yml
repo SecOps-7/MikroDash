@@ -24,16 +24,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # QEMU lets the runner execute arm64 instructions via emulation.
-      # Required for cross-compiling non-amd64 layers on an amd64 runner.
+      # QEMU lets the runner execute non-amd64 instructions via emulation.
       #
-      # linux/arm/v7 was dropped at the Node 24 move: node:24-alpine publishes
-      # no 32-bit ARM variant (amd64, arm64/v8 and s390x only), because Node 24
-      # dropped 32-bit ARM upstream. ARMv7 users stay on 0.5.54.
+      # linux/arm/v7 IS BACK as of v0.8.0. It was dropped at the Node 24 move
+      # because node:24-alpine published no 32-bit ARM variant (amd64, arm64/v8
+      # and s390x only), which stranded ARMv7 users on 0.5.54 — and restoring it
+      # was one of the stated motives for the Go rewrite. The runtime is now
+      # alpine with a CGO_ENABLED=0 static binary, and Go cross-compiles, so the
+      # constraint that removed it no longer exists.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
 
       # Buildx is the Docker CLI plugin that drives multi-platform builds.
       - name: Set up Docker Buildx
@@ -60,15 +62,17 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
-      # Main pushes still build both architectures, they just do not publish.
-      # better-sqlite3 compiles natively per architecture, so an arm64 break is
-      # a real possibility and finding it at tag time would be finding it too
-      # late.
+      # Main pushes still build every architecture, they just do not publish.
+      # The old reason was that better-sqlite3 compiled natively per arch, so an
+      # arm64 break was a real possibility; modernc.org/sqlite is pure Go and
+      # there is no native compilation left. What can still break per-arch is the
+      # geodata stage's download and the QEMU emulation itself, so building all
+      # three on main remains worth the minutes.
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: ${{ startsWith(github.ref, 'refs/tags/v') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

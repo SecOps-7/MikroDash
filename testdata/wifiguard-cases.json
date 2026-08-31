@@ -1,0 +1,3698 @@
+{
+  "siblings": [
+    {
+      "name": "wifi1",
+      "configuration": "home",
+      "configuration.ssid": "HomeNet",
+      "security.authentication-types": "wpa2-psk,wpa3-psk",
+      "security.passphrase": "",
+      "channel.band": "5ghz-ax",
+      "channel.frequency": "5180",
+      "channel.width": "20/40/80mhz"
+    },
+    {
+      "name": "wifi2",
+      "configuration": "home",
+      "configuration.ssid": "HomeNet",
+      "security.authentication-types": "wpa2-psk,wpa3-psk",
+      "security.passphrase": "",
+      "channel.band": "5ghz-ax",
+      "channel.frequency": "5180",
+      "channel.width": "20/40/80mhz"
+    },
+    {
+      "name": "wifi3",
+      "configuration": "guest",
+      "configuration.ssid": "GuestNet",
+      "security.authentication-types": "wpa2-psk,wpa3-psk",
+      "security.passphrase": "",
+      "channel.band": "5ghz-ax",
+      "channel.frequency": "5180",
+      "channel.width": "20/40/80mhz"
+    },
+    {
+      "name": "wifi4",
+      "configuration": "",
+      "configuration.ssid": "HomeNet",
+      "security.authentication-types": "wpa2-psk,wpa3-psk",
+      "security.passphrase": "",
+      "channel.band": "5ghz-ax",
+      "channel.frequency": "5180",
+      "channel.width": "20/40/80mhz"
+    },
+    {
+      "name": "wifi5",
+      "configuration": "iot",
+      "configuration.ssid": "HomeNet",
+      "security.authentication-types": "wpa2-psk,wpa3-psk",
+      "security.passphrase": "stored-secret",
+      "channel.band": "5ghz-ax",
+      "channel.frequency": "5180",
+      "channel.width": "20/40/80mhz"
+    },
+    {
+      "name": "wifi6",
+      "configuration": "iot",
+      "configuration.ssid": "HomeNet",
+      "security.authentication-types": "wpa2-psk,wpa3-psk",
+      "security.passphrase": "stored-secret",
+      "channel.band": "5ghz-ax",
+      "channel.frequency": "5180",
+      "channel.width": "20/40/80mhz"
+    }
+  ],
+  "order": [
+    "ssid",
+    "authTypes",
+    "passphrase",
+    "band",
+    "frequency",
+    "width"
+  ],
+  "cases": [
+    {
+      "name": "no change at all",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "no change at all",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "ssid"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"ssid\"],2]"
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a shared profile",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed on a LONE profile",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid changed with NO profile",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "ssid": "NewNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "ssid"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"ssid\"],2]"
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid cleared to empty",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "ssid": ""
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "ssid absent from the submission",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "band": "5ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "passphrase"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"passphrase\"],2]"
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase set",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "passphrase": "hunter2hunter2"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase submitted BLANK",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "passphrase absent",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "ssid": "HomeNet"
+      },
+      "valueKeys": [
+        "ssid"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "band"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"band\"],2]"
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "band changed",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "frequency"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"frequency\"],2]"
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "frequency changed",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "frequency": "5745"
+      },
+      "valueKeys": [
+        "frequency"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "width"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"width\"],2]"
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "width changed",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "authTypes"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"authTypes\"],2]"
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "authTypes changed",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "authTypes": "wpa3-psk"
+      },
+      "valueKeys": [
+        "authTypes"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "ssid",
+            "band",
+            "width"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"band\",\"ssid\",\"width\"],2]"
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "three at once, submitted out of order",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "width": "20mhz",
+        "ssid": "NewNet",
+        "band": "2ghz-ax"
+      },
+      "valueKeys": [
+        "width",
+        "ssid",
+        "band"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "home",
+          "sharedBy": 2,
+          "fields": [
+            "ssid",
+            "authTypes",
+            "passphrase",
+            "band",
+            "frequency",
+            "width"
+          ],
+          "iface": "wifi1"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"home\",[\"authTypes\",\"band\",\"frequency\",\"passphrase\",\"ssid\",\"width\"],2]"
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "every inheritable field at once",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "ssid": "A",
+        "authTypes": "wpa3-psk",
+        "passphrase": "p",
+        "band": "2ghz-ax",
+        "frequency": "2412",
+        "width": "20mhz"
+      },
+      "valueKeys": [
+        "ssid",
+        "authTypes",
+        "passphrase",
+        "band",
+        "frequency",
+        "width"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "iot",
+          "sharedBy": 2,
+          "fields": [
+            "passphrase"
+          ],
+          "iface": "wifi5"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"iot\",[\"passphrase\"],2]"
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase re-submitted unchanged",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "passphrase": "stored-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "warn",
+        "code": "wifi-inherit",
+        "detail": {
+          "profile": "iot",
+          "sharedBy": 2,
+          "fields": [
+            "passphrase"
+          ],
+          "iface": "wifi5"
+        },
+        "fingerprint": "[\"wifi-inherit\",\"iot\",[\"passphrase\"],2]"
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase changed",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "passphrase": "a-new-secret"
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "STORED passphrase submitted blank",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "passphrase": ""
+      },
+      "valueKeys": [
+        "passphrase"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "only a comment changed",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "comment": "note"
+      },
+      "valueKeys": [
+        "comment"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "create",
+      "before": "row",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "create",
+      "before": "null",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "update",
+      "before": "row",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "update",
+      "before": "null",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "delete",
+      "before": "row",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "delete",
+      "before": "null",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "enable",
+      "before": "row",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "enable",
+      "before": "null",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "disable",
+      "before": "row",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    },
+    {
+      "name": "disabled toggled",
+      "action": "disable",
+      "before": "null",
+      "values": {
+        "disabled": "yes"
+      },
+      "valueKeys": [
+        "disabled"
+      ],
+      "want": {
+        "level": "none",
+        "code": "",
+        "detail": null,
+        "fingerprint": ""
+      }
+    }
+  ]
+}

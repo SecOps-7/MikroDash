@@ -1,0 +1,55 @@
+{
+  "collector": "dns",
+  "router": {
+    "model": "hAP ac^2",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/dns/static/print",
+      "params": [
+        "=.proplist=.id,name,address,type,ttl,disabled,comment,regexp,cname,forward-to,text,mx-exchange,ns,srv-target"
+      ],
+      "rows": [
+        {
+          "undefined": "",
+          ".id": "*1",
+          "name": "router.lan",
+          "address": "198.51.100.92",
+          "type": "A",
+          "ttl": "1d",
+          "disabled": "false",
+          "comment": "comment-c17f"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/dns/print",
+      "params": [],
+      "rows": [
+        {
+          "servers": "198.51.100.64",
+          "dynamic-servers": "",
+          "use-doh-server": "",
+          "verify-doh-cert": "false",
+          "doh-max-server-connections": "5",
+          "doh-max-concurrent-queries": "50",
+          "doh-timeout": "5s",
+          "allow-remote-requests": "true",
+          "max-udp-packet-size": "4096",
+          "query-server-timeout": "2s",
+          "query-total-timeout": "10s",
+          "max-concurrent-queries": "100",
+          "max-concurrent-tcp-sessions": "20",
+          "cache-size": "2048",
+          "cache-max-ttl": "1w",
+          "address-list-extra-time": "0s",
+          "vrf": "main",
+          "mdns-repeat-ifaces": "",
+          "cache-used": "47"
+        }
+      ]
+    }
+  ]
+}

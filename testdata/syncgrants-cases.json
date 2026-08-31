@@ -1,0 +1,784 @@
+{
+  "generated_from": "src/rbac.js syncUserGrants",
+  "cases": [
+    {
+      "why": "an empty list is UNRESTRICTED, not no access",
+      "user": {
+        "id": "u1",
+        "username": "ann",
+        "role": "admin",
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u1"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u1",
+          "role": "admin",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "an ABSENT list is unrestricted too - the array check fails, not the length",
+      "user": {
+        "id": "u2",
+        "username": "bob",
+        "role": "admin",
+        "allowedRouterIds": null,
+        "allowedRouterIdsAbsent": true
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u2"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u2",
+          "role": "admin",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "null is unrestricted",
+      "user": {
+        "id": "u3",
+        "username": "cy",
+        "role": "viewer",
+        "allowedRouterIds": null,
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u3"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u3",
+          "role": "viewer",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "a STRING is not an array, so it is unrestricted - not one grant per character",
+      "user": {
+        "id": "u4",
+        "username": "di",
+        "role": "viewer",
+        "allowedRouterIds": "r1",
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u4"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u4",
+          "role": "viewer",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "a list of only falsy ids is unrestricted: filter(Boolean) runs BEFORE the length test",
+      "user": {
+        "id": "u5",
+        "username": "eve",
+        "role": "admin",
+        "allowedRouterIds": [
+          "",
+          null,
+          0
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u5"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u5",
+          "role": "admin",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "one known router is one router-scoped grant",
+      "user": {
+        "id": "u6",
+        "username": "fay",
+        "role": "operator",
+        "allowedRouterIds": [
+          "r1"
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u6"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u6",
+          "role": "operator",
+          "scopeType": "router",
+          "scopeId": "r1"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "several known routers are one grant each, in the order given",
+      "user": {
+        "id": "u7",
+        "username": "gus",
+        "role": "viewer",
+        "allowedRouterIds": [
+          "r3",
+          "r1"
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 2,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u7"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u7",
+          "role": "viewer",
+          "scopeType": "router",
+          "scopeId": "r3"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u7",
+          "role": "viewer",
+          "scopeType": "router",
+          "scopeId": "r1"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "a falsy entry among real ones is dropped without dropping the others",
+      "user": {
+        "id": "u8",
+        "username": "hal",
+        "role": "admin",
+        "allowedRouterIds": [
+          "r1",
+          "",
+          "r2"
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 2,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u8"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u8",
+          "role": "admin",
+          "scopeType": "router",
+          "scopeId": "r1"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u8",
+          "role": "admin",
+          "scopeType": "router",
+          "scopeId": "r2"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "a numeric id is stringified for BOTH the lookup and the scope",
+      "user": {
+        "id": "u9",
+        "username": "ivy",
+        "role": "viewer",
+        "allowedRouterIds": [
+          1
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "1",
+        "r1"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u9"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u9",
+          "role": "viewer",
+          "scopeType": "router",
+          "scopeId": "1"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "a DUPLICATE id is not de-duplicated - the upsert absorbs it",
+      "user": {
+        "id": "u10",
+        "username": "jo",
+        "role": "admin",
+        "allowedRouterIds": [
+          "r1",
+          "r1"
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 2,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u10"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u10",
+          "role": "admin",
+          "scopeType": "router",
+          "scopeId": "r1"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u10",
+          "role": "admin",
+          "scopeType": "router",
+          "scopeId": "r1"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "an unknown router is dropped with a warning",
+      "user": {
+        "id": "u11",
+        "username": "kim",
+        "role": "admin",
+        "allowedRouterIds": [
+          "r1",
+          "gone"
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u11"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u11",
+          "role": "admin",
+          "scopeType": "router",
+          "scopeId": "r1"
+        },
+        {
+          "op": "warn",
+          "text": "%s [rbac] dropping kim's access to unknown router gone"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "EVERY id unknown leaves the user with NO grants - the delete already ran",
+      "user": {
+        "id": "u12",
+        "username": "lee",
+        "role": "admin",
+        "allowedRouterIds": [
+          "gone",
+          "also-gone"
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 0,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u12"
+        },
+        {
+          "op": "warn",
+          "text": "%s [rbac] dropping lee's access to unknown router gone"
+        },
+        {
+          "op": "warn",
+          "text": "%s [rbac] dropping lee's access to unknown router also-gone"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "an empty fleet makes every id unknown",
+      "user": {
+        "id": "u13",
+        "username": "moe",
+        "role": "admin",
+        "allowedRouterIds": [
+          "r1"
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [],
+      "made": 0,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u13"
+        },
+        {
+          "op": "warn",
+          "text": "%s [rbac] dropping moe's access to unknown router r1"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "an empty fleet does NOT affect the unrestricted case",
+      "user": {
+        "id": "u14",
+        "username": "ned",
+        "role": "admin",
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u14"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u14",
+          "role": "admin",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "admin stays admin",
+      "user": {
+        "id": "u15",
+        "username": "ola",
+        "role": "admin",
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u15"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u15",
+          "role": "admin",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "operator stays operator",
+      "user": {
+        "id": "u16",
+        "username": "pat",
+        "role": "operator",
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u16"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u16",
+          "role": "operator",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "viewer stays viewer",
+      "user": {
+        "id": "u17",
+        "username": "quy",
+        "role": "viewer",
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u17"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u17",
+          "role": "viewer",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "an UNKNOWN role becomes viewer, not admin - least privilege",
+      "user": {
+        "id": "u18",
+        "username": "rex",
+        "role": "superuser",
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u18"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u18",
+          "role": "viewer",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "an ABSENT role becomes viewer",
+      "user": {
+        "id": "u19",
+        "username": "sam",
+        "role": null,
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u19"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u19",
+          "role": "viewer",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "role is matched EXACTLY - \"Admin\" is not admin",
+      "user": {
+        "id": "u20",
+        "username": "tia",
+        "role": "Admin",
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u20"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u20",
+          "role": "viewer",
+          "scopeType": "global"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "and the role applies to router-scoped grants too, not only global ones",
+      "user": {
+        "id": "u21",
+        "username": "uma",
+        "role": "nonsense",
+        "allowedRouterIds": [
+          "r1"
+        ],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 1,
+      "ops": [
+        {
+          "op": "delete",
+          "principalType": "user",
+          "principalId": "u21"
+        },
+        {
+          "op": "upsert",
+          "principalType": "user",
+          "principalId": "u21",
+          "role": "viewer",
+          "scopeType": "router",
+          "scopeId": "r1"
+        },
+        {
+          "op": "bump"
+        }
+      ]
+    },
+    {
+      "why": "a user with no id does NOTHING AT ALL - not even the delete",
+      "user": {
+        "id": null,
+        "username": "vic",
+        "role": "admin",
+        "allowedRouterIds": [],
+        "allowedRouterIdsAbsent": false
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 0,
+      "ops": []
+    },
+    {
+      "why": "an empty id is falsy, so the same",
+      "user": {
+        "id": "",
+        "username": "wes",
+        "role": "admin",
+        "allowedRouterIds": null,
+        "allowedRouterIdsAbsent": true
+      },
+      "routerIds": [
+        "r1",
+        "r2",
+        "r3"
+      ],
+      "made": 0,
+      "ops": []
+    }
+  ]
+}

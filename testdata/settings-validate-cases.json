@@ -1,0 +1,503 @@
+{
+  "settingKeys": [
+    "pageWan",
+    "pageInterfaces",
+    "pageVlans",
+    "pageBridges",
+    "pageTopology",
+    "pageWifi",
+    "pageWireless",
+    "pageCapsman",
+    "pageDhcp",
+    "pageDns",
+    "pageRouting",
+    "pagePpp",
+    "pageVpn",
+    "pageBandwidth",
+    "pageQueues",
+    "pageConnections",
+    "pageFirewall",
+    "pageRosusers",
+    "pageLogs",
+    "pagePackages",
+    "pageDevices",
+    "pageAudit",
+    "pageBackups"
+  ],
+  "cases": {
+    "empty": {
+      "body": {},
+      "updates": {}
+    },
+    "intInRange": {
+      "body": {
+        "topN": 25
+      },
+      "updates": {
+        "topN": 25
+      }
+    },
+    "intAtLowBound": {
+      "body": {
+        "topN": 1
+      },
+      "updates": {
+        "topN": 1
+      }
+    },
+    "intAtHighBound": {
+      "body": {
+        "topN": 50
+      },
+      "updates": {
+        "topN": 50
+      }
+    },
+    "intBelowBound": {
+      "body": {
+        "topN": 0
+      },
+      "updates": {}
+    },
+    "intAboveBound": {
+      "body": {
+        "topN": 51
+      },
+      "updates": {}
+    },
+    "intWithTrailingGarbage": {
+      "body": {
+        "topN": "25abc"
+      },
+      "updates": {
+        "topN": 25
+      }
+    },
+    "intUnparseable": {
+      "body": {
+        "topN": "abc"
+      },
+      "updates": {}
+    },
+    "intNull": {
+      "body": {
+        "topN": null
+      },
+      "updates": {}
+    },
+    "intFloat": {
+      "body": {
+        "topN": 25.9
+      },
+      "updates": {
+        "topN": 25
+      }
+    },
+    "intBoolean": {
+      "body": {
+        "topN": true
+      },
+      "updates": {}
+    },
+    "updateHoursLow": {
+      "body": {
+        "updateCheckHours": 0
+      },
+      "updates": {}
+    },
+    "updateHoursOk": {
+      "body": {
+        "updateCheckHours": 1
+      },
+      "updates": {
+        "updateCheckHours": 1
+      }
+    },
+    "updateHoursHigh": {
+      "body": {
+        "updateCheckHours": 169
+      },
+      "updates": {}
+    },
+    "authModeValid": {
+      "body": {
+        "authMode": "modern"
+      },
+      "updates": {
+        "authMode": "modern"
+      }
+    },
+    "authModeNone": {
+      "body": {
+        "authMode": "none"
+      },
+      "updates": {
+        "authMode": "none"
+      }
+    },
+    "authModeInvalid": {
+      "body": {
+        "authMode": "basic"
+      },
+      "updates": {}
+    },
+    "authModeEmpty": {
+      "body": {
+        "authMode": ""
+      },
+      "updates": {}
+    },
+    "sessionZero": {
+      "body": {
+        "sessionTimeoutMs": 0
+      },
+      "updates": {
+        "sessionTimeoutMs": 0
+      }
+    },
+    "sessionJustUnder": {
+      "body": {
+        "sessionTimeoutMs": 3599999
+      },
+      "updates": {}
+    },
+    "sessionAtMin": {
+      "body": {
+        "sessionTimeoutMs": 3600000
+      },
+      "updates": {
+        "sessionTimeoutMs": 3600000
+      }
+    },
+    "sessionAtMax": {
+      "body": {
+        "sessionTimeoutMs": 86400000
+      },
+      "updates": {
+        "sessionTimeoutMs": 86400000
+      }
+    },
+    "sessionOverMax": {
+      "body": {
+        "sessionTimeoutMs": 86400001
+      },
+      "updates": {}
+    },
+    "sessionOne": {
+      "body": {
+        "sessionTimeoutMs": 1
+      },
+      "updates": {}
+    },
+    "sessionUnparseable": {
+      "body": {
+        "sessionTimeoutMs": "never"
+      },
+      "updates": {}
+    },
+    "strPlain": {
+      "body": {
+        "pingTarget": "198.51.100.1"
+      },
+      "updates": {
+        "pingTarget": "198.51.100.1"
+      }
+    },
+    "strPadded": {
+      "body": {
+        "pingTarget": "   198.51.100.1   "
+      },
+      "updates": {
+        "pingTarget": "198.51.100.1"
+      }
+    },
+    "strLong": {
+      "body": {
+        "pingTarget": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "updates": {
+        "pingTarget": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    "strPaddedLong": {
+      "body": {
+        "pingTarget": "  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  "
+      },
+      "updates": {
+        "pingTarget": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    "strEmpty": {
+      "body": {
+        "pingTarget": ""
+      },
+      "updates": {
+        "pingTarget": ""
+      }
+    },
+    "strNumber": {
+      "body": {
+        "pingTarget": 12345
+      },
+      "updates": {
+        "pingTarget": "12345"
+      }
+    },
+    "strNull": {
+      "body": {
+        "pingTarget": null
+      },
+      "updates": {
+        "pingTarget": "null"
+      }
+    },
+    "boolTrue": {
+      "body": {
+        "pingEnabled": true
+      },
+      "updates": {
+        "pingEnabled": true
+      }
+    },
+    "boolStringTrue": {
+      "body": {
+        "pingEnabled": "true"
+      },
+      "updates": {
+        "pingEnabled": true
+      }
+    },
+    "boolStringTrueUpper": {
+      "body": {
+        "pingEnabled": "TRUE"
+      },
+      "updates": {
+        "pingEnabled": false
+      }
+    },
+    "boolOne": {
+      "body": {
+        "pingEnabled": 1
+      },
+      "updates": {
+        "pingEnabled": false
+      }
+    },
+    "boolFalse": {
+      "body": {
+        "pingEnabled": false
+      },
+      "updates": {
+        "pingEnabled": false
+      }
+    },
+    "boolStringFalse": {
+      "body": {
+        "pingEnabled": "false"
+      },
+      "updates": {
+        "pingEnabled": false
+      }
+    },
+    "boolYes": {
+      "body": {
+        "pingEnabled": "yes"
+      },
+      "updates": {
+        "pingEnabled": false
+      }
+    },
+    "boolPageKey": {
+      "body": {
+        "pageWifi": true
+      },
+      "updates": {
+        "pageWifi": true
+      }
+    },
+    "credPlain": {
+      "body": {
+        "telegramBotToken": "abc123"
+      },
+      "updates": {
+        "telegramBotToken": "abc123"
+      }
+    },
+    "credMasked": {
+      "body": {
+        "telegramBotToken": "••••••••"
+      },
+      "updates": {}
+    },
+    "credPadded": {
+      "body": {
+        "telegramBotToken": "  abc123  "
+      },
+      "updates": {
+        "telegramBotToken": "  abc123  "
+      }
+    },
+    "credLong": {
+      "body": {
+        "telegramBotToken": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+      },
+      "updates": {
+        "telegramBotToken": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+      }
+    },
+    "credEmpty": {
+      "body": {
+        "telegramBotToken": ""
+      },
+      "updates": {
+        "telegramBotToken": ""
+      }
+    },
+    "notifBodyLong": {
+      "body": {
+        "notifBody": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+      },
+      "updates": {
+        "notifBody": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+      }
+    },
+    "notifBodyPadded": {
+      "body": {
+        "notifBody": "  hello  "
+      },
+      "updates": {
+        "notifBody": "hello"
+      }
+    },
+    "notifBodyUpLong": {
+      "body": {
+        "notifBodyUp": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+      },
+      "updates": {
+        "notifBodyUp": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+      }
+    },
+    "profileEmpty": {
+      "body": {
+        "customPollProfile": ""
+      },
+      "updates": {
+        "customPollProfile": ""
+      }
+    },
+    "profileObject": {
+      "body": {
+        "customPollProfile": "{\"pollSystem\":5000}"
+      },
+      "updates": {
+        "customPollProfile": "{\"pollSystem\":5000}"
+      }
+    },
+    "profileArray": {
+      "body": {
+        "customPollProfile": "[1,2]"
+      },
+      "updates": {
+        "customPollProfile": "[1,2]"
+      }
+    },
+    "profileNull": {
+      "body": {
+        "customPollProfile": "null"
+      },
+      "updates": {
+        "customPollProfile": "null"
+      }
+    },
+    "profileNumber": {
+      "body": {
+        "customPollProfile": "42"
+      },
+      "updates": {}
+    },
+    "profileString": {
+      "body": {
+        "customPollProfile": "\"hi\""
+      },
+      "updates": {}
+    },
+    "profileBroken": {
+      "body": {
+        "customPollProfile": "{oops"
+      },
+      "updates": {}
+    },
+    "profileLong": {
+      "body": {
+        "customPollProfile": "{\"a\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}"
+      },
+      "updates": {}
+    },
+    "tzValid": {
+      "body": {
+        "displayTimezone": "Europe/Stockholm"
+      },
+      "updates": {
+        "displayTimezone": "Europe/Stockholm"
+      }
+    },
+    "tzEmpty": {
+      "body": {
+        "displayTimezone": ""
+      },
+      "updates": {
+        "displayTimezone": ""
+      }
+    },
+    "tzPadded": {
+      "body": {
+        "displayTimezone": "  Europe/Stockholm  "
+      },
+      "updates": {
+        "displayTimezone": "Europe/Stockholm"
+      }
+    },
+    "tzInvalid": {
+      "body": {
+        "displayTimezone": "Nowhere/Atall"
+      },
+      "updates": {}
+    },
+    "tzUTC": {
+      "body": {
+        "displayTimezone": "UTC"
+      },
+      "updates": {
+        "displayTimezone": "UTC"
+      }
+    },
+    "unknownKey": {
+      "body": {
+        "notASetting": 1,
+        "topN": 10
+      },
+      "updates": {
+        "topN": 10
+      }
+    },
+    "mixed": {
+      "body": {
+        "topN": 30,
+        "pingTarget": " host ",
+        "pingEnabled": "true",
+        "authMode": "none",
+        "telegramBotToken": "tok",
+        "displayTimezone": "UTC",
+        "notASetting": "x"
+      },
+      "updates": {
+        "authMode": "none",
+        "topN": 30,
+        "pingTarget": "host",
+        "pingEnabled": true,
+        "telegramBotToken": "tok",
+        "displayTimezone": "UTC"
+      }
+    }
+  }
+}

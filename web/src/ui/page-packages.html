@@ -1,0 +1,60 @@
+  <div class="page-view" id="page-packages">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Installed</div><div class="fa-stat-val" id="pkgSumInstalled">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Available</div><div class="fa-stat-val" id="pkgSumAvailable">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Disabled</div><div class="fa-stat-val" id="pkgSumDisabled">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">RouterOS</div><div class="fa-stat-val" id="pkgSumUpdate">&mdash;</div></div>
+      </div>
+
+      <div class="card pkg-pending" id="pkgPendingCard" style="margin-bottom:.85rem;display:none">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+              <div class="pkg-pending-title">Changes waiting for a reboot</div>
+              <div class="pkg-pending-body" id="pkgPendingList"></div>
+            </div>
+            <button id="pkgApplyBtn" class="btn btn-sm btn-danger" type="button">Apply changes &amp; reboot&hellip;</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="packagesCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Packages</h3>
+            <span id="packagesBadge" class="card-badge">0</span>
+            <span id="pkgActionNote" class="muted-note"></span>
+            <span id="pkgStatus" class="muted-note"></span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button id="pkgCheckBtn" class="btn btn-sm btn-outline-secondary" type="button">Check for updates</button>
+            <input id="packagesSearch" class="form-control form-control-sm"
+                   placeholder="Search package&hellip;" style="flex:0 1 220px;width:220px"/>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
+              <colgroup><col style="width:22%"><col style="width:12%"><col style="width:11%"><col style="width:18%">
+                        <col style="width:17%"><col style="width:20%"></colgroup>
+              <thead><tr id="packagesThead"></tr></thead>
+              <tbody id="packagesTable">
+                <tr><td colspan="6" class="empty-state">Waiting for package data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="packagesFwCard" style="margin-top:.85rem">
+        <div class="card-header"><h3 class="card-title mb-0">Firmware &amp; Update</h3></div>
+        <div class="card-body">
+          <div id="pkgFwBody" class="kv-grid"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>

@@ -1,0 +1,822 @@
+{
+  "cases": {
+    "minimal": {
+      "body": {
+        "host": "198.51.100.1"
+      },
+      "record": {
+        "label": "198.51.100.1",
+        "host": "198.51.100.1",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "fullySpecified": {
+      "body": {
+        "host": "198.51.100.2",
+        "port": 8728,
+        "label": "Depot",
+        "tls": false,
+        "tlsInsecure": true,
+        "username": "api-ro",
+        "password": "PLACEHOLDER",
+        "defaultIf": "ether2",
+        "pingTarget": "192.0.2.1",
+        "bwDownMbps": 500,
+        "bwUpMbps": 100,
+        "alertsEnabled": true,
+        "connDownThresholdSec": 60,
+        "siteIds": [
+          "site-a",
+          "site-b"
+        ]
+      },
+      "record": {
+        "label": "Depot",
+        "host": "198.51.100.2",
+        "port": 8728,
+        "tls": false,
+        "tlsInsecure": true,
+        "username": "api-ro",
+        "password": "PLACEHOLDER",
+        "defaultIf": "ether2",
+        "pingTarget": "192.0.2.1",
+        "bwDownMbps": 500,
+        "bwUpMbps": 100,
+        "alertsEnabled": true,
+        "connDownThresholdSec": 60,
+        "siteIds": [
+          "site-a",
+          "site-b"
+        ],
+        "siteId": "site-a",
+        "disabled": false
+      }
+    },
+    "duplicateLabel": {
+      "body": {
+        "host": "198.51.100.3",
+        "label": "Depot"
+      },
+      "record": {
+        "label": "Depot - [2]",
+        "host": "198.51.100.3",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "duplicateLabelAgain": {
+      "body": {
+        "host": "198.51.100.4",
+        "label": "Depot"
+      },
+      "record": {
+        "label": "Depot - [3]",
+        "host": "198.51.100.4",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsStringFalse": {
+      "body": {
+        "host": "198.51.100.5",
+        "tls": "false"
+      },
+      "record": {
+        "label": "198.51.100.5",
+        "host": "198.51.100.5",
+        "port": 8729,
+        "tls": false,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsStringTrue": {
+      "body": {
+        "host": "198.51.100.6",
+        "tls": "true"
+      },
+      "record": {
+        "label": "198.51.100.6",
+        "host": "198.51.100.6",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsAbsent": {
+      "body": {
+        "host": "198.51.100.7"
+      },
+      "record": {
+        "label": "198.51.100.7",
+        "host": "198.51.100.7",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsInsecureStringTrue": {
+      "body": {
+        "host": "198.51.100.8",
+        "tlsInsecure": "true"
+      },
+      "record": {
+        "label": "198.51.100.8",
+        "host": "198.51.100.8",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": true,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsInsecureStringFalse": {
+      "body": {
+        "host": "198.51.100.9",
+        "tlsInsecure": "false"
+      },
+      "record": {
+        "label": "198.51.100.9",
+        "host": "198.51.100.9",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsInsecureLiteralFalse": {
+      "body": {
+        "host": "198.51.100.10",
+        "tlsInsecure": false
+      },
+      "record": {
+        "label": "198.51.100.10",
+        "host": "198.51.100.10",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsInsecureAbsent": {
+      "body": {
+        "host": "198.51.100.11"
+      },
+      "record": {
+        "label": "198.51.100.11",
+        "host": "198.51.100.11",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsInsecureOne": {
+      "body": {
+        "host": "198.51.100.12",
+        "tlsInsecure": "1"
+      },
+      "record": {
+        "label": "198.51.100.12",
+        "host": "198.51.100.12",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsInsecureYes": {
+      "body": {
+        "host": "198.51.100.13",
+        "tlsInsecure": "yes"
+      },
+      "record": {
+        "label": "198.51.100.13",
+        "host": "198.51.100.13",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsInsecureUpperTrue": {
+      "body": {
+        "host": "198.51.100.14",
+        "tlsInsecure": "TRUE"
+      },
+      "record": {
+        "label": "198.51.100.14",
+        "host": "198.51.100.14",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "tlsInsecureOn": {
+      "body": {
+        "host": "198.51.100.15",
+        "tlsInsecure": "on"
+      },
+      "record": {
+        "label": "198.51.100.15",
+        "host": "198.51.100.15",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "maskedPassword": {
+      "body": {
+        "host": "198.51.100.9",
+        "password": "••••••••"
+      },
+      "record": {
+        "label": "198.51.100.9 - [2]",
+        "host": "198.51.100.9",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "emptyPassword": {
+      "body": {
+        "host": "198.51.100.10",
+        "password": ""
+      },
+      "record": {
+        "label": "198.51.100.10 - [2]",
+        "host": "198.51.100.10",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "bwZero": {
+      "body": {
+        "host": "198.51.100.11",
+        "bwDownMbps": 0,
+        "bwUpMbps": 0
+      },
+      "record": {
+        "label": "198.51.100.11 - [2]",
+        "host": "198.51.100.11",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "bwNegative": {
+      "body": {
+        "host": "198.51.100.12",
+        "bwDownMbps": -5,
+        "bwUpMbps": -5
+      },
+      "record": {
+        "label": "198.51.100.12 - [2]",
+        "host": "198.51.100.12",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1,
+        "bwUpMbps": 1,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "bwUnparseable": {
+      "body": {
+        "host": "198.51.100.13",
+        "bwDownMbps": "fast",
+        "bwUpMbps": "slow"
+      },
+      "record": {
+        "label": "198.51.100.13 - [2]",
+        "host": "198.51.100.13",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "bwStrings": {
+      "body": {
+        "host": "198.51.100.14",
+        "bwDownMbps": "250",
+        "bwUpMbps": "50"
+      },
+      "record": {
+        "label": "198.51.100.14 - [2]",
+        "host": "198.51.100.14",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 250,
+        "bwUpMbps": 50,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "connDownZero": {
+      "body": {
+        "host": "198.51.100.15",
+        "connDownThresholdSec": 0
+      },
+      "record": {
+        "label": "198.51.100.15 - [2]",
+        "host": "198.51.100.15",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 0,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "connDownMax": {
+      "body": {
+        "host": "198.51.100.16",
+        "connDownThresholdSec": 300
+      },
+      "record": {
+        "label": "198.51.100.16",
+        "host": "198.51.100.16",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 300,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "connDownOver": {
+      "body": {
+        "host": "198.51.100.17",
+        "connDownThresholdSec": 301
+      },
+      "record": {
+        "label": "198.51.100.17",
+        "host": "198.51.100.17",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "connDownNegative": {
+      "body": {
+        "host": "198.51.100.18",
+        "connDownThresholdSec": -1
+      },
+      "record": {
+        "label": "198.51.100.18",
+        "host": "198.51.100.18",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "connDownAbsent": {
+      "body": {
+        "host": "198.51.100.19"
+      },
+      "record": {
+        "label": "198.51.100.19",
+        "host": "198.51.100.19",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "siteIdsArray": {
+      "body": {
+        "host": "198.51.100.20",
+        "siteIds": [
+          "s1",
+          "s2"
+        ]
+      },
+      "record": {
+        "label": "198.51.100.20",
+        "host": "198.51.100.20",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [
+          "s1",
+          "s2"
+        ],
+        "siteId": "s1",
+        "disabled": false
+      }
+    },
+    "siteIdScalar": {
+      "body": {
+        "host": "198.51.100.21",
+        "siteId": "s9"
+      },
+      "record": {
+        "label": "198.51.100.21",
+        "host": "198.51.100.21",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [
+          "s9"
+        ],
+        "siteId": "s9",
+        "disabled": false
+      }
+    },
+    "siteIdsEmpty": {
+      "body": {
+        "host": "198.51.100.22",
+        "siteIds": []
+      },
+      "record": {
+        "label": "198.51.100.22",
+        "host": "198.51.100.22",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "siteNone": {
+      "body": {
+        "host": "198.51.100.23"
+      },
+      "record": {
+        "label": "198.51.100.23",
+        "host": "198.51.100.23",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "paddedFields": {
+      "body": {
+        "host": "  198.51.100.24  ",
+        "username": "  op  ",
+        "label": "   Padded   "
+      },
+      "record": {
+        "label": "Padded",
+        "host": "198.51.100.24",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "op",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "longLabel": {
+      "body": {
+        "host": "198.51.100.25",
+        "label": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL"
+      },
+      "record": {
+        "label": "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+        "host": "198.51.100.25",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "password": "",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1",
+        "bwDownMbps": 1000,
+        "bwUpMbps": 1000,
+        "alertsEnabled": false,
+        "connDownThresholdSec": 30,
+        "siteIds": [],
+        "siteId": null,
+        "disabled": false
+      }
+    },
+    "noHost": {
+      "body": {},
+      "refused": true
+    },
+    "emptyHost": {
+      "body": {
+        "host": "   "
+      },
+      "refused": true
+    },
+    "portZero": {
+      "body": {
+        "host": "198.51.100.26",
+        "port": 0
+      },
+      "refused": true
+    },
+    "portTooHigh": {
+      "body": {
+        "host": "198.51.100.27",
+        "port": 70000
+      },
+      "refused": true
+    }
+  }
+}

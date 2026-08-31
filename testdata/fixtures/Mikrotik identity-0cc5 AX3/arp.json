@@ -1,0 +1,262 @@
+{
+  "collector": "arp",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/arp/print",
+      "params": [
+        "=.proplist=address,mac-address,interface"
+      ],
+      "rows": [
+        {
+          "address": "198.51.100.252",
+          "mac-address": "02:C8:23:46:F1:23",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.226",
+          "mac-address": "02:45:6C:57:CB:DF",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.200",
+          "mac-address": "02:DA:CC:8F:66:41",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.174",
+          "mac-address": "02:96:D1:8A:A2:CA",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.193",
+          "mac-address": "02:EB:0A:9A:37:20",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.131",
+          "mac-address": "02:DB:D2:E6:78:22",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.165",
+          "mac-address": "02:B7:EF:BB:12:EE",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.20",
+          "mac-address": "02:16:1C:3A:E1:12",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.86",
+          "mac-address": "02:0C:F4:BB:57:67",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.152",
+          "mac-address": "02:63:BA:83:16:02",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.1",
+          "mac-address": "02:8F:38:9C:3F:5D",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.143",
+          "mac-address": "02:AA:E9:10:76:06",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.120",
+          "mac-address": "02:5D:57:D5:69:77",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.141",
+          "mac-address": "02:C1:CA:94:8E:4D",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.223",
+          "mac-address": "02:AD:73:D7:5B:19",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.225",
+          "mac-address": "02:09:B4:E1:91:05",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.137",
+          "mac-address": "02:41:6F:7A:29:92",
+          "interface": "WAN1"
+        },
+        {
+          "address": "198.51.100.54",
+          "mac-address": "02:59:56:B0:B2:DF",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.175",
+          "mac-address": "02:31:48:F6:C4:AF",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.49",
+          "mac-address": "02:E7:41:72:83:33",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.209",
+          "mac-address": "02:0E:A6:51:B0:5A",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.64",
+          "mac-address": "02:05:27:35:06:3D",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.12",
+          "mac-address": "02:7C:8B:10:49:58",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.187",
+          "mac-address": "02:50:21:2A:C4:D0",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.148",
+          "mac-address": "02:3A:CB:73:0B:2C",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.71",
+          "mac-address": "02:37:B4:D5:A8:AB",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.56",
+          "mac-address": "02:5E:39:46:89:48",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.222",
+          "mac-address": "02:59:19:A8:5F:97",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.183",
+          "mac-address": "02:68:45:32:38:85",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.90",
+          "mac-address": "02:C2:C4:2A:E1:F4",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.13",
+          "mac-address": "02:04:FF:43:D1:42",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.207",
+          "mac-address": "02:3A:F8:3D:AA:AF",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.138",
+          "mac-address": "02:EC:08:20:44:48",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.12",
+          "mac-address": "02:24:7A:52:3D:BA",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.241",
+          "mac-address": "02:94:C8:F4:28:C3",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.1",
+          "mac-address": "02:F1:85:EB:A7:3A",
+          "interface": "Guest"
+        },
+        {
+          "address": "198.51.100.252",
+          "mac-address": "02:37:FB:7E:4F:24",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.223",
+          "mac-address": "02:5D:0A:5C:09:16",
+          "interface": "Guest"
+        },
+        {
+          "address": "198.51.100.193",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.171",
+          "mac-address": "02:73:C0:10:31:1E",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.90",
+          "mac-address": "02:82:0F:97:AA:23",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.168",
+          "mac-address": "02:05:18:7F:68:63",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.175",
+          "mac-address": "02:AF:C0:BB:E1:6E",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.207",
+          "mac-address": "02:E8:77:4C:FF:87",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.191",
+          "mac-address": "02:94:09:27:4F:23",
+          "interface": "Guest"
+        },
+        {
+          "address": "198.51.100.130",
+          "mac-address": "02:F8:B6:24:79:32",
+          "interface": "Home"
+        },
+        {
+          "address": "198.51.100.187",
+          "mac-address": "02:72:7A:E4:44:62",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.13",
+          "mac-address": "02:97:CE:CD:55:2D",
+          "interface": "IoT"
+        },
+        {
+          "address": "198.51.100.4",
+          "mac-address": "02:FF:D8:4E:A5:C1",
+          "interface": "IoT"
+        }
+      ]
+    }
+  ]
+}

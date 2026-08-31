@@ -1,0 +1,18 @@
+{
+ "call:1": "\"{\\n \\\"steps\\\": [\\n  \\\"<gap>,b,a,c,d,e|home=n\\\"\\n ],\\n \\\"order\\\": \\\"b,a,c,d,e\\\",\\n \\\"anchor\\\": \\\"c\\\"\\n}\"",
+ "call:2": "\"{\\n \\\"steps\\\": [\\n  \\\"<gap>,b,a,c,d,e|home=n\\\",\\n  \\\"<gap>,b,a,c,d,e|home=n\\\",\\n  \\\"<gap>,b,c,a,d,e|home=n\\\",\\n  \\\"<gap>,b,c,d,a,e|home=n\\\"\\n ],\\n \\\"order\\\": \\\"b,c,d,a,e\\\",\\n \\\"anchor\\\": \\\"e\\\"\\n}\"",
+ "call:3": "\"{\\n \\\"steps\\\": [\\n  \\\"a,b,<gap>,d,c,e|home=n\\\"\\n ],\\n \\\"order\\\": \\\"a,b,d,c,e\\\",\\n \\\"anchor\\\": \\\"e\\\"\\n}\"",
+ "call:4": "\"{\\n \\\"steps\\\": [\\n  \\\"a,b,c,e,d,<gap>|home=n\\\"\\n ],\\n \\\"order\\\": \\\"a,b,c,e,d\\\",\\n \\\"anchor\\\": \\\"d\\\"\\n}\"",
+ "call:5": "\"{\\n \\\"steps\\\": [\\n  \\\"a,b,c,e,d,<gap>|home=n\\\",\\n  \\\"a,b,e,c,d,<gap>|home=n\\\",\\n  \\\"a,e,b,c,d,<gap>|home=n\\\",\\n  \\\"e,a,b,c,d,<gap>|home=n\\\"\\n ],\\n \\\"order\\\": \\\"e,a,b,c,d\\\",\\n \\\"anchor\\\": \\\"a\\\"\\n}\"",
+ "call:6": "\"{\\n \\\"steps\\\": [\\n  \\\"a,c,b,<gap>,d,e|home=n\\\"\\n ],\\n \\\"order\\\": \\\"a,c,b,d,e\\\",\\n \\\"anchor\\\": \\\"b\\\"\\n}\"",
+ "call:7": "\"{\\n \\\"steps\\\": [\\n  \\\"a,b,c,d,e|nomarker\\\"\\n ],\\n \\\"order\\\": \\\"a,b,c,d,e\\\",\\n \\\"anchor\\\": \\\"d\\\"\\n}\"",
+ "call:8": "\"{\\n \\\"steps\\\": [],\\n \\\"order\\\": \\\"a,b,c,d,e\\\",\\n \\\"anchor\\\": \\\"d\\\"\\n}\"",
+ "call:9": "\"{\\n \\\"steps\\\": [\\n  \\\"a,<gap>,c,b,d,e|home=n\\\",\\n  \\\"a,<gap>,b,c,d,e|home=y\\\"\\n ],\\n \\\"order\\\": \\\"a,b,c,d,e\\\",\\n \\\"anchor\\\": \\\"c\\\"\\n}\"",
+ "call:10": "\"{\\n \\\"steps\\\": [\\n  \\\"a,b,d,c,<gap>,e|home=n\\\",\\n  \\\"a,b,c,<gap>,d,e|home=y\\\"\\n ],\\n \\\"order\\\": \\\"a,b,c,d,e\\\",\\n \\\"anchor\\\": \\\"e\\\"\\n}\"",
+ "call:11": "\"{\\n \\\"steps\\\": [\\n  \\\"<gap>,b,a,c,d,e|home=n\\\",\\n  \\\"<gap>,b,a,c,d,e|home=n\\\",\\n  \\\"<gap>,a,b,c,d,e|home=y\\\"\\n ],\\n \\\"order\\\": \\\"a,b,c,d,e\\\",\\n \\\"anchor\\\": \\\"b\\\"\\n}\"",
+ "call:12": "\"{\\n \\\"steps\\\": [\\n  \\\"<gap>,b,a|home=n\\\"\\n ],\\n \\\"order\\\": \\\"b,a\\\",\\n \\\"anchor\\\": \\\"\\\"\\n}\"",
+ "call:13": "\"{\\n \\\"steps\\\": [\\n  \\\"b,a,<gap>|home=n\\\"\\n ],\\n \\\"order\\\": \\\"b,a\\\",\\n \\\"anchor\\\": \\\"a\\\"\\n}\"",
+ "call:14": "\"{\\n \\\"steps\\\": [\\n  \\\"a,<gap>,c,b,d,e|home=n\\\",\\n  \\\"a,c,d,e|nomarker\\\"\\n ],\\n \\\"order\\\": \\\"a,c,d,e\\\",\\n \\\"anchor\\\": null\\n}\"",
+ "call:15": "\"{\\n \\\"steps\\\": [\\n  \\\"a,c,d,e|nomarker\\\"\\n ],\\n \\\"order\\\": \\\"a,c,d,e\\\",\\n \\\"anchor\\\": null\\n}\"",
+ "call:16": "\"{\\n \\\"steps\\\": [\\n  \\\"a|nomarker\\\"\\n ],\\n \\\"order\\\": \\\"a\\\",\\n \\\"anchor\\\": \\\"\\\"\\n}\""
+}

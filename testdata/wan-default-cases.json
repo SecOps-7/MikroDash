@@ -1,0 +1,250 @@
+{
+  "generatedFrom": "src/index.js _wanRead",
+  "cases": [
+    {
+      "name": "one active default, gateway is an interface name",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether1",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        },
+        {
+          ".id": "*2",
+          "interface": "ether2"
+        }
+      ],
+      "activeDefaultWan": "ether1"
+    },
+    {
+      "name": "one active default, gateway is a LEASE address — resolved by row.gateway",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "198.51.100.1",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1",
+          "gateway": "198.51.100.1"
+        }
+      ],
+      "activeDefaultWan": "ether1"
+    },
+    {
+      "name": "gateway matches NOTHING — the raw gateway is used as the name",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "203.0.113.254",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1",
+          "gateway": "198.51.100.1"
+        }
+      ],
+      "activeDefaultWan": "203.0.113.254"
+    },
+    {
+      "name": "FOUR active defaults at once — ambiguous, so unknown",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether1",
+          "active": "true"
+        },
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether2",
+          "active": "true"
+        },
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether3",
+          "active": "true"
+        },
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether4",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        }
+      ],
+      "activeDefaultWan": ""
+    },
+    {
+      "name": "two defaults, only ONE active — the active one wins",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether1",
+          "active": "false"
+        },
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether2",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        },
+        {
+          ".id": "*2",
+          "interface": "ether2"
+        }
+      ],
+      "activeDefaultWan": "ether2"
+    },
+    {
+      "name": "no default route at all",
+      "routes": [
+        {
+          "dst-address": "10.0.0.0/8",
+          "gateway": "ether1",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        }
+      ],
+      "activeDefaultWan": ""
+    },
+    {
+      "name": "a default route that is not active",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether1",
+          "active": "false"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        }
+      ],
+      "activeDefaultWan": ""
+    },
+    {
+      "name": "active is a BOOLEAN true, not the string — RouterOS sends strings",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether1",
+          "active": true
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        }
+      ],
+      "activeDefaultWan": ""
+    },
+    {
+      "name": "the one active default has NO gateway field",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        }
+      ],
+      "activeDefaultWan": ""
+    },
+    {
+      "name": "an IPv6 default is not an IPv4 one",
+      "routes": [
+        {
+          "dst-address": "::/0",
+          "gateway": "ether1",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        }
+      ],
+      "activeDefaultWan": ""
+    },
+    {
+      "name": "routes missing entirely",
+      "routes": null,
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1"
+        }
+      ],
+      "activeDefaultWan": ""
+    },
+    {
+      "name": "no dhcp-client rows to resolve against",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether1",
+          "active": "true"
+        }
+      ],
+      "rows": [],
+      "activeDefaultWan": "ether1"
+    },
+    {
+      "name": "BOTH an interface-name match and a lease match exist — name wins",
+      "routes": [
+        {
+          "dst-address": "0.0.0.0/0",
+          "gateway": "ether9",
+          "active": "true"
+        }
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "ether1",
+          "gateway": "ether9"
+        },
+        {
+          ".id": "*2",
+          "interface": "ether9",
+          "gateway": "198.51.100.1"
+        }
+      ],
+      "activeDefaultWan": "ether9"
+    }
+  ]
+}

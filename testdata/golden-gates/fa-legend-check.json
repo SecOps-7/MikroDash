@@ -1,0 +1,7 @@
+{
+ "call:1": "{\"out\":[{\"text\":\"Signal power\",\"datasetIndex\":0},{\"text\":\"Noise floor\",\"datasetIndex\":1},{\"text\":\"Active Channel\",\"fillStyle\":\"rgba(56,189,248,.35)\",\"strokeStyle\":\"rgba(56,189,248,.85)\",\"lineWidth\":1.5,\"pointStyle\":\"rect\",\"hidden\":false}],\"log\":[[\"generateLabels\",\"the-chart\"]]}",
+ "call:2": "{\"log\":[[\"default onClick\",\"evt\",\"Signal power\",\"the-legend\",true]]}",
+ "call:3": "{\"log\":[[\"default onClick\",\"evt\",\"Noise floor\",\"the-legend\",true]]}",
+ "call:4": "{\"log\":[]}",
+ "call:5": "{\"log\":[[\"default onClick\",\"evt\",\"Signal power\",\"the-legend\",true]]}"
+}

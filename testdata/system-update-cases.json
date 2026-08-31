@@ -1,0 +1,234 @@
+{
+  "generatedFrom": "src/collectors/system.js",
+  "cases": [
+    {
+      "name": "a plain newer version",
+      "row": {
+        "latest-version": "7.25",
+        "status": "New version is available"
+      },
+      "version": "7.24",
+      "isAnswer": true,
+      "latestVersion": "7.25",
+      "updateStatus": "New version is available",
+      "installedBase": "7.24",
+      "updateAvailable": true
+    },
+    {
+      "name": "the SAME version installed",
+      "row": {
+        "latest-version": "7.24",
+        "status": "System is already up to date"
+      },
+      "version": "7.24",
+      "isAnswer": true,
+      "latestVersion": "7.24",
+      "updateStatus": "System is already up to date",
+      "installedBase": "7.24",
+      "updateAvailable": false
+    },
+    {
+      "name": "an OLDER latest than installed is still \"available\" — it is inequality, not ordering",
+      "row": {
+        "latest-version": "7.23",
+        "status": ""
+      },
+      "version": "7.24",
+      "isAnswer": true,
+      "latestVersion": "7.23",
+      "updateStatus": "",
+      "installedBase": "7.24",
+      "updateAvailable": true
+    },
+    {
+      "name": "no latest-version, status says a new version exists",
+      "row": {
+        "status": "New version is available"
+      },
+      "version": "7.24",
+      "isAnswer": true,
+      "latestVersion": "",
+      "updateStatus": "New version is available",
+      "installedBase": "7.24",
+      "updateAvailable": true
+    },
+    {
+      "name": "no latest-version, status in MIXED case",
+      "row": {
+        "status": "NEW VERSION IS AVAILABLE"
+      },
+      "version": "7.24",
+      "isAnswer": true,
+      "latestVersion": "",
+      "updateStatus": "NEW VERSION IS AVAILABLE",
+      "installedBase": "7.24",
+      "updateAvailable": true
+    },
+    {
+      "name": "no latest-version, status says up to date",
+      "row": {
+        "status": "System is already up to date"
+      },
+      "version": "7.24",
+      "isAnswer": true,
+      "latestVersion": "",
+      "updateStatus": "System is already up to date",
+      "installedBase": "7.24",
+      "updateAvailable": false
+    },
+    {
+      "name": "no latest-version and no status at all",
+      "row": {},
+      "version": "7.24",
+      "isAnswer": false,
+      "latestVersion": "",
+      "updateStatus": "",
+      "installedBase": "7.24",
+      "updateAvailable": false
+    },
+    {
+      "name": "the router is still finding out",
+      "row": {
+        "status": "finding out latest version"
+      },
+      "version": "7.24",
+      "isAnswer": false,
+      "latestVersion": "",
+      "updateStatus": "finding out latest version",
+      "installedBase": "7.24",
+      "updateAvailable": false
+    },
+    {
+      "name": "the router is checking",
+      "row": {
+        "status": "checking for updates"
+      },
+      "version": "7.24",
+      "isAnswer": false,
+      "latestVersion": "",
+      "updateStatus": "checking for updates",
+      "installedBase": "7.24",
+      "updateAvailable": false
+    },
+    {
+      "name": "a check in progress",
+      "row": {
+        "status": "update in progress"
+      },
+      "version": "7.24",
+      "isAnswer": false,
+      "latestVersion": "",
+      "updateStatus": "update in progress",
+      "installedBase": "7.24",
+      "updateAvailable": false
+    },
+    {
+      "name": "installed version with a (stable) suffix",
+      "row": {
+        "latest-version": "7.24",
+        "status": ""
+      },
+      "version": "7.24 (stable)",
+      "isAnswer": true,
+      "latestVersion": "7.24",
+      "updateStatus": "",
+      "installedBase": "7.24",
+      "updateAvailable": false
+    },
+    {
+      "name": "installed version with a (testing) suffix and a newer latest",
+      "row": {
+        "latest-version": "7.25",
+        "status": ""
+      },
+      "version": "7.24 (testing)",
+      "isAnswer": true,
+      "latestVersion": "7.25",
+      "updateStatus": "",
+      "installedBase": "7.24",
+      "updateAvailable": true
+    },
+    {
+      "name": "installed version with surrounding whitespace",
+      "row": {
+        "latest-version": "7.24",
+        "status": ""
+      },
+      "version": "  7.24  ",
+      "isAnswer": true,
+      "latestVersion": "7.24",
+      "updateStatus": "",
+      "installedBase": "7.24",
+      "updateAvailable": false
+    },
+    {
+      "name": "no installed version known yet",
+      "row": {
+        "latest-version": "7.25",
+        "status": ""
+      },
+      "version": "",
+      "isAnswer": true,
+      "latestVersion": "7.25",
+      "updateStatus": "",
+      "installedBase": "",
+      "updateAvailable": true
+    },
+    {
+      "name": "a channel is carried through",
+      "row": {
+        "latest-version": "7.25",
+        "status": "",
+        "channel": "testing"
+      },
+      "version": "7.24",
+      "isAnswer": true,
+      "latestVersion": "7.25",
+      "updateStatus": "",
+      "installedBase": "7.24",
+      "updateAvailable": true
+    },
+    {
+      "name": "an empty channel",
+      "row": {
+        "latest-version": "7.25",
+        "status": "",
+        "channel": ""
+      },
+      "version": "7.24",
+      "isAnswer": true,
+      "latestVersion": "7.25",
+      "updateStatus": "",
+      "installedBase": "7.24",
+      "updateAvailable": true
+    },
+    {
+      "name": "not a row: null",
+      "row": null,
+      "version": "7.24",
+      "isAnswer": false,
+      "notARow": true
+    },
+    {
+      "name": "not a row: undefined",
+      "row": null,
+      "version": "7.24",
+      "isAnswer": false,
+      "notARow": true
+    },
+    {
+      "name": "not a row: a string",
+      "row": "nope",
+      "version": "7.24",
+      "isAnswer": false,
+      "notARow": true
+    },
+    {
+      "name": "not a row: a number",
+      "row": 7,
+      "version": "7.24",
+      "isAnswer": false,
+      "notARow": true
+    }
+  ]
+}

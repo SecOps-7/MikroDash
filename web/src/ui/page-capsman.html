@@ -1,0 +1,128 @@
+  <div class="page-view" id="page-capsman">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Mode</div><div class="fa-stat-val" id="capSumMode">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">CAPs</div><div class="fa-stat-val" id="capSumCaps">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Radios</div><div class="fa-stat-val" id="capSumRadios">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Clients</div><div class="fa-stat-val" id="capSumClients">&mdash;</div></div>
+      </div>
+
+      <div class="card" id="capsmanRolePanel" style="margin-bottom:.85rem;display:none">
+        <div class="card-body" id="capsmanRoleBody"></div>
+      </div>
+
+      <div class="card" id="capsmanCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Remote CAPs</h3>
+            <span id="capsmanBadge" class="card-badge">0</span>
+          </div>
+          <input id="capsmanSearch" class="form-control form-control-sm"
+                 placeholder="Search identity, board or serial&hellip;" style="flex:0 1 260px;width:260px"/>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 380px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:900px">
+              <colgroup><col style="width:15%"><col style="width:19%"><col style="width:9%"><col style="width:15%">
+                        <col style="width:10%"><col style="width:12%"><col style="width:10%"><col style="width:10%"></colgroup>
+              <thead><tr id="capsmanThead"></tr></thead>
+              <tbody id="capsmanTable">
+                <tr><td colspan="8" class="empty-state">Waiting for CAPsMAN data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CAPsMAN configuration. Five RouterOS menus behind one tab strip, all
+           editable through the shared resource dialog. The Provisioning tab
+           replaced a separate read-only card showing the same rules: two tables
+           of one thing is one too many once the second one can edit it. -->
+      <div class="card" id="capsCfgCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="stab-bar" id="capsCfgTabBar" role="tablist" aria-label="CAPsMAN configuration">
+            <button class="stab active" data-capstab="provisioning" role="tab" aria-selected="true"
+                    aria-controls="capstab-provisioning" id="capsTabBtn-provisioning">Provisioning</button>
+            <button class="stab" data-capstab="configuration" role="tab" aria-selected="false"
+                    aria-controls="capstab-configuration" id="capsTabBtn-configuration">Configuration</button>
+            <button class="stab" data-capstab="security" role="tab" aria-selected="false"
+                    aria-controls="capstab-security" id="capsTabBtn-security">Security</button>
+            <button class="stab" data-capstab="channel" role="tab" aria-selected="false"
+                    aria-controls="capstab-channel" id="capsTabBtn-channel">Channel</button>
+            <button class="stab" data-capstab="datapath" role="tab" aria-selected="false"
+                    aria-controls="capstab-datapath" id="capsTabBtn-datapath">Datapath</button>
+          </div>
+          <div class="hdr-actions">
+            <span class="muted-note" id="capsCfgNote"></span>
+            <!-- Which resource this means follows the active tab: app.js rewrites
+                 data-res-add and fires mikrodash:resmount. data-res-add-dynamic
+                 declares the whole range it can become, so the mount is greppable
+                 and a resource reachable only after a tab change still counts. -->
+            <span id="capsAddSlot" data-res-add="capsProvisioning"
+                  data-res-add-dynamic="capsProvisioning,capsConfig,capsSecurity,capsChannel,capsDatapath"></span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+
+          <div class="capstab-panel" id="capstab-provisioning" role="tabpanel"
+               aria-labelledby="capsTabBtn-provisioning">
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:820px">
+                <colgroup><col style="width:6%"><col style="width:20%"><col style="width:17%"><col style="width:19%"><col style="width:22%"><col style="width:16%"></colgroup>
+                <thead><tr><th class="fw-movecell"></th><th>Bands</th><th>Action</th><th>Master Config</th><th>Slave Configs</th><th>Name Format</th></tr></thead>
+                <tbody id="capsCfgProvTable" data-res-rows="capsProvisioning"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="capstab-panel" id="capstab-configuration" role="tabpanel"
+               aria-labelledby="capsTabBtn-configuration" hidden>
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:820px">
+                <colgroup><col style="width:22%"><col style="width:18%"><col style="width:14%"><col style="width:16%"><col style="width:16%"><col style="width:14%"></colgroup>
+                <thead><tr><th>Name</th><th>SSID</th><th>Country</th><th>Security</th><th>Channel</th><th>Datapath</th></tr></thead>
+                <tbody id="capsCfgConfigTable" data-res-rows="capsConfig"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="capstab-panel" id="capstab-security" role="tabpanel"
+               aria-labelledby="capsTabBtn-security" hidden>
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:620px">
+                <colgroup><col style="width:28%"><col style="width:34%"><col style="width:19%"><col style="width:19%"></colgroup>
+                <thead><tr><th>Name</th><th>Authentication</th><th>WPS</th><th>Fast Roaming</th></tr></thead>
+                <tbody id="capsCfgSecurityTable" data-res-rows="capsSecurity"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="capstab-panel" id="capstab-channel" role="tabpanel"
+               aria-labelledby="capsTabBtn-channel" hidden>
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:660px">
+                <colgroup><col style="width:26%"><col style="width:14%"><col style="width:28%"><col style="width:16%"><col style="width:16%"></colgroup>
+                <thead><tr><th>Name</th><th>Band</th><th>Frequency</th><th>Width</th><th>Skip DFS</th></tr></thead>
+                <tbody id="capsCfgChannelTable" data-res-rows="capsChannel"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="capstab-panel" id="capstab-datapath" role="tabpanel"
+               aria-labelledby="capsTabBtn-datapath" hidden>
+            <div class="data-scroll" style="max-height:340px">
+              <table class="table table-vcenter mb-0" style="min-width:660px">
+                <colgroup><col style="width:24%"><col style="width:20%"><col style="width:12%"><col style="width:22%"><col style="width:22%"></colgroup>
+                <thead><tr><th>Name</th><th>Bridge</th><th>VLAN</th><th>Client Isolation</th><th>Forwarding</th></tr></thead>
+                <tbody id="capsCfgDatapathTable" data-res-rows="capsDatapath"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>

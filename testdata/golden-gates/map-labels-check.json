@@ -1,0 +1,3 @@
+{
+ "value:body": "\"      var fsz = 8 / scale;\\n      var kept = [];\\n      labelled.forEach(function (L) {\\n        // 0.55em per character is a good enough advance width for a monospace\\n        // face; being slightly generous errs toward hiding, which is the safe\\n        // way to be wrong here.\\n        L.hw = (L.text.length * fsz * 0.55) / 2;\\n        L.hh = fsz * 0.75;\\n        L.ly = L.y + 11 / scale;              // just under the marker\\n        for (var i = 0; i < kept.length; i++) {\\n          var k = kept[i];\\n          if (Math.abs(k.x - L.x) < (k.hw + L.hw) && Math.abs(k.ly - L.ly) < (k.hh + L.hh)) return;\\n        }\\n        kept.push(L);\\n      });\\n      labelled = kept;\\n\""
+}

@@ -1,0 +1,426 @@
+{
+  "generated_from": "src/index.js _parseRolePages (executed)",
+  "pageKeys": [
+    "dashboard",
+    "wan",
+    "interfaces"
+  ],
+  "cases": [
+    {
+      "why": "pages absent — leave the role alone",
+      "body": {},
+      "error": null,
+      "hasValue": true,
+      "valueIsNull": true,
+      "value": null
+    },
+    {
+      "why": "pages explicitly undefined is the same as absent",
+      "body": {},
+      "error": null,
+      "hasValue": true,
+      "valueIsNull": true,
+      "value": null
+    },
+    {
+      "why": "an EMPTY array means this role confers nothing",
+      "body": {
+        "pages": []
+      },
+      "error": null,
+      "hasValue": true,
+      "valueIsNull": false,
+      "value": []
+    },
+    {
+      "why": "one read page",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard",
+            "access": "read"
+          }
+        ]
+      },
+      "error": null,
+      "hasValue": true,
+      "valueIsNull": false,
+      "value": [
+        {
+          "page": "dashboard",
+          "access": "read"
+        }
+      ]
+    },
+    {
+      "why": "one write page",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard",
+            "access": "write"
+          }
+        ]
+      },
+      "error": null,
+      "hasValue": true,
+      "valueIsNull": false,
+      "value": [
+        {
+          "page": "dashboard",
+          "access": "write"
+        }
+      ]
+    },
+    {
+      "why": "several pages keep their order",
+      "body": {
+        "pages": [
+          {
+            "page": "wan",
+            "access": "write"
+          },
+          {
+            "page": "dashboard",
+            "access": "read"
+          },
+          {
+            "page": "interfaces",
+            "access": "write"
+          }
+        ]
+      },
+      "error": null,
+      "hasValue": true,
+      "valueIsNull": false,
+      "value": [
+        {
+          "page": "wan",
+          "access": "write"
+        },
+        {
+          "page": "dashboard",
+          "access": "read"
+        },
+        {
+          "page": "interfaces",
+          "access": "write"
+        }
+      ]
+    },
+    {
+      "why": "pages as a string",
+      "body": {
+        "pages": "dashboard"
+      },
+      "error": "pages must be an array",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "pages as an object",
+      "body": {
+        "pages": {
+          "dashboard": "read"
+        }
+      },
+      "error": "pages must be an array",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "pages as null",
+      "body": {
+        "pages": null
+      },
+      "error": "pages must be an array",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "pages as a number",
+      "body": {
+        "pages": 3
+      },
+      "error": "pages must be an array",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a null row",
+      "body": {
+        "pages": [
+          null
+        ]
+      },
+      "error": "Each page entry must be an object",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a string row",
+      "body": {
+        "pages": [
+          "dashboard"
+        ]
+      },
+      "error": "Each page entry must be an object",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a number row",
+      "body": {
+        "pages": [
+          7
+        ]
+      },
+      "error": "Each page entry must be an object",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "an empty row object",
+      "body": {
+        "pages": [
+          {}
+        ]
+      },
+      "error": "Unknown page: ",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "an unknown page",
+      "body": {
+        "pages": [
+          {
+            "page": "nosuchpage",
+            "access": "read"
+          }
+        ]
+      },
+      "error": "Unknown page: nosuchpage",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "an empty page key",
+      "body": {
+        "pages": [
+          {
+            "page": "",
+            "access": "read"
+          }
+        ]
+      },
+      "error": "Unknown page: ",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a missing page key",
+      "body": {
+        "pages": [
+          {
+            "access": "read"
+          }
+        ]
+      },
+      "error": "Unknown page: ",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a numeric page key",
+      "body": {
+        "pages": [
+          {
+            "page": 42,
+            "access": "read"
+          }
+        ]
+      },
+      "error": "Unknown page: 42",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a page key of ZERO becomes empty, not \"0\"",
+      "body": {
+        "pages": [
+          {
+            "page": 0,
+            "access": "read"
+          }
+        ]
+      },
+      "error": "Unknown page: ",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a page key of false becomes empty",
+      "body": {
+        "pages": [
+          {
+            "page": false,
+            "access": "read"
+          }
+        ]
+      },
+      "error": "Unknown page: ",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a valid page after an unknown one still fails",
+      "body": {
+        "pages": [
+          {
+            "page": "nosuchpage",
+            "access": "read"
+          },
+          {
+            "page": "dashboard",
+            "access": "read"
+          }
+        ]
+      },
+      "error": "Unknown page: nosuchpage",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "the same page twice",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard",
+            "access": "read"
+          },
+          {
+            "page": "dashboard",
+            "access": "write"
+          }
+        ]
+      },
+      "error": "Duplicate page: dashboard",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "a duplicate after a good one",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard",
+            "access": "read"
+          },
+          {
+            "page": "wan",
+            "access": "read"
+          },
+          {
+            "page": "wan",
+            "access": "write"
+          }
+        ]
+      },
+      "error": "Duplicate page: wan",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "access none",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard",
+            "access": "none"
+          }
+        ]
+      },
+      "error": "access must be read or write",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "access missing",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard"
+          }
+        ]
+      },
+      "error": "access must be read or write",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "access READ in capitals",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard",
+            "access": "READ"
+          }
+        ]
+      },
+      "error": "access must be read or write",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "access as a boolean",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard",
+            "access": true
+          }
+        ]
+      },
+      "error": "access must be read or write",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    },
+    {
+      "why": "access as an empty string",
+      "body": {
+        "pages": [
+          {
+            "page": "dashboard",
+            "access": ""
+          }
+        ]
+      },
+      "error": "access must be read or write",
+      "hasValue": false,
+      "valueIsNull": false,
+      "value": null
+    }
+  ]
+}

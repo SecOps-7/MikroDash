@@ -1,0 +1,353 @@
+{
+  "renders": [
+    {
+      "name": "a plain substitution",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": "x"
+      },
+      "want": "x"
+    },
+    {
+      "name": "two of them",
+      "tpl": "{{a}}-{{b}}",
+      "vars": {
+        "a": "1",
+        "b": "2"
+      },
+      "want": "1-2"
+    },
+    {
+      "name": "a repeated key",
+      "tpl": "{{a}}{{a}}",
+      "vars": {
+        "a": "z"
+      },
+      "want": "zz"
+    },
+    {
+      "name": "no placeholders",
+      "tpl": "plain text",
+      "vars": {
+        "a": "x"
+      },
+      "want": "plain text"
+    },
+    {
+      "name": "a missing key",
+      "tpl": "{{nope}}",
+      "vars": {},
+      "want": ""
+    },
+    {
+      "name": "an explicit undefined",
+      "tpl": "{{a}}",
+      "vars": {},
+      "want": ""
+    },
+    {
+      "name": "an explicit null",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": null
+      },
+      "want": "null"
+    },
+    {
+      "name": "a number",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": 42
+      },
+      "want": "42"
+    },
+    {
+      "name": "a boolean",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": false
+      },
+      "want": "false"
+    },
+    {
+      "name": "zero",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": 0
+      },
+      "want": "0"
+    },
+    {
+      "name": "an empty string",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": ""
+      },
+      "want": ""
+    },
+    {
+      "name": "a newline in a value",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": "one\ntwo"
+      },
+      "want": "onetwo"
+    },
+    {
+      "name": "a NUL and a DEL",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": "a\u0000bc"
+      },
+      "want": "abc"
+    },
+    {
+      "name": "a tab",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": "a\tb"
+      },
+      "want": "ab"
+    },
+    {
+      "name": "a long value",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "want": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "name": "a long value full of control characters",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": "x\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\n"
+      },
+      "want": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "name": "a value that looks like a placeholder",
+      "tpl": "{{a}}",
+      "vars": {
+        "a": "{{b}}"
+      },
+      "want": "{{b}}"
+    },
+    {
+      "name": "a malformed placeholder",
+      "tpl": "{{ a }}",
+      "vars": {
+        "a": "x"
+      },
+      "want": "{{ a }}"
+    },
+    {
+      "name": "a non-word key",
+      "tpl": "{{a-b}}",
+      "vars": {
+        "a-b": "x"
+      },
+      "want": "{{a-b}}"
+    }
+  ],
+  "ifaces": [
+    {
+      "name": "ether by type",
+      "iface": "anything",
+      "type": "ether",
+      "want": "ether",
+      "key": "notifIfaceEther"
+    },
+    {
+      "name": "wlan by type",
+      "iface": "anything",
+      "type": "wlan",
+      "want": "wlan",
+      "key": "notifIfaceWlan"
+    },
+    {
+      "name": "wifi normalises to wlan",
+      "iface": "anything",
+      "type": "wifi",
+      "want": "wlan",
+      "key": "notifIfaceWlan"
+    },
+    {
+      "name": "WIFI uppercase",
+      "iface": "anything",
+      "type": "WIFI",
+      "want": "wlan",
+      "key": "notifIfaceWlan"
+    },
+    {
+      "name": "bridge by type",
+      "iface": "anything",
+      "type": "bridge",
+      "want": "bridge",
+      "key": "notifIfaceBridge"
+    },
+    {
+      "name": "vlan by type",
+      "iface": "anything",
+      "type": "vlan",
+      "want": "vlan",
+      "key": "notifIfaceVlan"
+    },
+    {
+      "name": "an unrecognised type is other",
+      "iface": "ether1",
+      "type": "pppoe",
+      "want": "other",
+      "key": "notifIfaceOther"
+    },
+    {
+      "name": "type unknown falls through",
+      "iface": "ether1",
+      "type": "unknown",
+      "want": "ether",
+      "key": "notifIfaceEther"
+    },
+    {
+      "name": "type empty falls through",
+      "iface": "wlan1",
+      "type": "",
+      "want": "wlan",
+      "key": "notifIfaceWlan"
+    },
+    {
+      "name": "type missing falls through",
+      "iface": "bridge-lan",
+      "type": null,
+      "want": "bridge",
+      "key": "notifIfaceBridge"
+    },
+    {
+      "name": "name ether",
+      "iface": "ether5",
+      "type": null,
+      "want": "ether",
+      "key": "notifIfaceEther"
+    },
+    {
+      "name": "name wlan",
+      "iface": "wlan1",
+      "type": null,
+      "want": "wlan",
+      "key": "notifIfaceWlan"
+    },
+    {
+      "name": "name wireless",
+      "iface": "wireless2",
+      "type": null,
+      "want": "wlan",
+      "key": "notifIfaceWlan"
+    },
+    {
+      "name": "name wifi",
+      "iface": "wifi1",
+      "type": null,
+      "want": "wlan",
+      "key": "notifIfaceWlan"
+    },
+    {
+      "name": "name bridge",
+      "iface": "bridge1",
+      "type": null,
+      "want": "bridge",
+      "key": "notifIfaceBridge"
+    },
+    {
+      "name": "name vlan",
+      "iface": "vlan10",
+      "type": null,
+      "want": "vlan",
+      "key": "notifIfaceVlan"
+    },
+    {
+      "name": "a dotted name that starts with ether",
+      "iface": "ether1.10",
+      "type": null,
+      "want": "ether",
+      "key": "notifIfaceEther"
+    },
+    {
+      "name": "a dotted name that reaches the vlan rule",
+      "iface": "sfp1.20",
+      "type": null,
+      "want": "vlan",
+      "key": "notifIfaceVlan"
+    },
+    {
+      "name": "an unmatched name",
+      "iface": "sfp-sfpplus1",
+      "type": null,
+      "want": "other",
+      "key": "notifIfaceOther"
+    },
+    {
+      "name": "an empty name",
+      "iface": "",
+      "type": null,
+      "want": "other",
+      "key": "notifIfaceOther"
+    }
+  ],
+  "labels": [
+    {
+      "type": "routeros_update",
+      "want": "Update Available"
+    },
+    {
+      "type": "routeros_updated",
+      "want": "Up To Date"
+    },
+    {
+      "type": "connectivity",
+      "want": "Router Connectivity"
+    },
+    {
+      "type": "cpu",
+      "want": "CPU"
+    },
+    {
+      "type": "cpu_ok",
+      "want": "CPU OK"
+    },
+    {
+      "type": "bgp_down",
+      "want": "BGP Down"
+    },
+    {
+      "type": "vpn_up",
+      "want": "VPN Up"
+    },
+    {
+      "type": "os_mismatch",
+      "want": "OS Mismatch"
+    },
+    {
+      "type": "disk_full",
+      "want": "Disk Full"
+    },
+    {
+      "type": "some_new_alert",
+      "want": "Some New Alert"
+    },
+    {
+      "type": "ALREADY_UPPER",
+      "want": "Already Upper"
+    },
+    {
+      "type": "",
+      "want": "Alert"
+    },
+    {
+      "type": null,
+      "want": "Alert"
+    },
+    {
+      "type": "single",
+      "want": "Single"
+    }
+  ]
+}

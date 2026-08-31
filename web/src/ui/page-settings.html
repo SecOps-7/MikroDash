@@ -1,0 +1,1179 @@
+  <div class="page-view" id="page-settings">
+    <!-- Was max-width:720px;margin:0 auto - a centred column that left most of a
+         wide window empty while the page grew ever longer. Now the house
+         full-width idiom, with .stab-panel.active doing the columnising. -->
+    <div class="container-fluid px-0" style="width:100%">
+
+      <!-- Tab bar -->
+      <div class="stab-bar">
+        <button class="stab active" data-tab="routers">Devices</button>
+        <button class="stab" data-tab="general">General</button>
+        <button class="stab" data-tab="notifications">Notifications</button>
+        <button class="stab" data-tab="appearance">Appearance</button>
+        <button class="stab" data-tab="auth">Authentication</button>
+        <button class="stab" data-tab="about">About</button>
+      </div>
+
+      <!-- ── Routers tab ─────────────────────────────────────────────────── -->
+      <div class="stab-panel active" id="stab-routers">
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="var(--accent-rx)" stroke="none"/></svg>
+            <span class="scard-title">Devices</span>
+            <button class="sbtn sbtn-primary" id="rtrAddBtn" style="padding:.3rem .8rem;font-size:.72rem">
+              <svg viewBox="0 0 24 24" style="width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add Device
+            </button>
+          </div>
+          <!-- overflow-x here because .scard is overflow:hidden — without it the
+               extra identity columns are clipped on a narrow window, not scrolled. -->
+          <div class="scard-body" style="padding:.5rem;overflow-x:auto">
+            <table class="rtr-list" id="rtrTable">
+              <thead><tr>
+                <th>Name</th><th>Status</th><th>Host</th><th>Model</th><th>Serial</th><th>Version</th><th>Connection</th><th style="text-align:right">Actions</th>
+              </tr></thead>
+              <tbody id="rtrTbody"><tr><td colspan="8" style="text-align:center;padding:1rem;color:var(--text-muted);font-size:.73rem">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── General tab: Poll Intervals + Limits + Diagnostics ─────────── -->
+      <div class="stab-panel" id="stab-general">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span class="scard-title">Regional</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Sets the timezone for all timestamps: dashboard clock, push notifications, reports, and exports.</p>
+            <div class="sform-row" style="margin-bottom:0">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Display Timezone</label>
+                <select class="sform-input" id="s_displayTimezone" aria-label="Display timezone">
+                  <option value="">Auto (browser / server local)</option>
+                  <optgroup label="UTC">
+                    <option value="UTC">UTC</option>
+                  </optgroup>
+                  <optgroup label="Europe">
+                    <option value="Europe/London">Europe/London</option>
+                    <option value="Europe/Dublin">Europe/Dublin</option>
+                    <option value="Europe/Lisbon">Europe/Lisbon</option>
+                    <option value="Europe/Paris">Europe/Paris</option>
+                    <option value="Europe/Berlin">Europe/Berlin</option>
+                    <option value="Europe/Rome">Europe/Rome</option>
+                    <option value="Europe/Madrid">Europe/Madrid</option>
+                    <option value="Europe/Amsterdam">Europe/Amsterdam</option>
+                    <option value="Europe/Brussels">Europe/Brussels</option>
+                    <option value="Europe/Stockholm">Europe/Stockholm</option>
+                    <option value="Europe/Helsinki">Europe/Helsinki</option>
+                    <option value="Europe/Athens">Europe/Athens</option>
+                    <option value="Europe/Warsaw">Europe/Warsaw</option>
+                    <option value="Europe/Prague">Europe/Prague</option>
+                    <option value="Europe/Budapest">Europe/Budapest</option>
+                    <option value="Europe/Bucharest">Europe/Bucharest</option>
+                    <option value="Europe/Istanbul">Europe/Istanbul</option>
+                    <option value="Europe/Moscow">Europe/Moscow</option>
+                  </optgroup>
+                  <optgroup label="Americas">
+                    <option value="America/New_York">America/New_York (ET)</option>
+                    <option value="America/Chicago">America/Chicago (CT)</option>
+                    <option value="America/Denver">America/Denver (MT)</option>
+                    <option value="America/Phoenix">America/Phoenix (MST)</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles (PT)</option>
+                    <option value="America/Anchorage">America/Anchorage (AKT)</option>
+                    <option value="America/Honolulu">America/Honolulu (HST)</option>
+                    <option value="America/Toronto">America/Toronto</option>
+                    <option value="America/Vancouver">America/Vancouver</option>
+                    <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+                    <option value="America/Argentina/Buenos_Aires">America/Buenos_Aires</option>
+                    <option value="America/Bogota">America/Bogota</option>
+                    <option value="America/Mexico_City">America/Mexico_City</option>
+                  </optgroup>
+                  <optgroup label="Asia">
+                    <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                    <option value="Asia/Karachi">Asia/Karachi (PKT)</option>
+                    <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                    <option value="Asia/Dhaka">Asia/Dhaka (BST)</option>
+                    <option value="Asia/Bangkok">Asia/Bangkok (ICT)</option>
+                    <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                    <option value="Asia/Hong_Kong">Asia/Hong_Kong (HKT)</option>
+                    <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                    <option value="Asia/Seoul">Asia/Seoul (KST)</option>
+                    <option value="Asia/Jerusalem">Asia/Jerusalem (IST)</option>
+                  </optgroup>
+                  <optgroup label="Pacific &amp; Australia">
+                    <option value="Australia/Perth">Australia/Perth (AWST)</option>
+                    <option value="Australia/Adelaide">Australia/Adelaide (ACST)</option>
+                    <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
+                    <option value="Pacific/Auckland">Pacific/Auckland (NZST)</option>
+                    <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
+                  </optgroup>
+                  <optgroup label="Africa &amp; Middle East">
+                    <option value="Africa/Cairo">Africa/Cairo (EET)</option>
+                    <option value="Africa/Johannesburg">Africa/Johannesburg (SAST)</option>
+                    <option value="Africa/Lagos">Africa/Lagos (WAT)</option>
+                    <option value="Africa/Nairobi">Africa/Nairobi (EAT)</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="scard-title">Poll Intervals</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Changes apply immediately without restart.</p>
+            <div id="pollProfileWrap" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem">
+              <button class="poll-profile-btn" data-profile="fast">Fast</button>
+              <button class="poll-profile-btn" data-profile="faster">Faster</button>
+              <button class="poll-profile-btn" data-profile="standard">Standard</button>
+              <button class="poll-profile-btn" data-profile="slow">Slow</button>
+              <button class="poll-profile-btn" data-profile="slower">Slower</button>
+              <button class="poll-profile-btn" data-profile="custom">Custom</button>
+            </div>
+            <!-- Deliberately outside the profile grid: every other interval
+                 polls the router locally, this one reaches MikroTik's update
+                 servers, so it is measured in hours and is not touched by the
+                 Fast/Slow presets. -->
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;flex-wrap:wrap">
+              <label for="s_updateCheckHours" style="font-size:.74rem;color:var(--text-muted)">RouterOS update check every</label>
+              <input type="number" id="s_updateCheckHours" min="1" max="168" step="1"
+                     style="width:5rem;font-size:.74rem;font-family:var(--font-mono);padding:.22rem .4rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-main)">
+              <span style="font-size:.74rem;color:var(--text-muted)">hours</span>
+              <span style="font-size:.7rem;color:var(--text-muted);opacity:.75;flex-basis:100%">The only check that contacts MikroTik rather than your router. Minimum 1 hour.</span>
+            </div>
+            <details id="pollAdvanced">
+              <summary style="font-size:.74rem;color:var(--text-muted);cursor:pointer;margin-bottom:.7rem;user-select:none">Advanced</summary>
+              <!-- Two columns: nineteen sliders in one column made the Advanced
+                   section taller than the viewport. Collapses to one below
+                   900px, where two columns would be narrower than the labels. -->
+              <div id="pollSlidersWrap"></div>
+              <div style="margin-top:.7rem;display:flex;align-items:center;gap:.6rem">
+                <button id="pollCustomSaveBtn" style="font-size:.72rem;font-family:var(--font-ui);padding:.28rem .8rem;border-radius:4px;border:1px solid var(--accent-rx);background:transparent;color:var(--accent-rx);cursor:pointer">Save Custom Profile</button>
+                <span id="pollCustomSaveStatus" style="font-size:.72rem;opacity:0;transition:opacity .25s"></span>
+              </div>
+            </details>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="9" y2="18"/></svg>
+            <span class="scard-title">Limits</span>
+          </div>
+          <div class="scard-body">
+            <div class="sform-row3">
+              <div class="sform-group">
+                <label class="sform-label">Top Connections N</label>
+                <input class="sform-input" id="s_topN" type="number" min="1" max="50" aria-label="Top connections count">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">Top Talkers N</label>
+                <input class="sform-input" id="s_topTalkersN" type="number" min="1" max="20" aria-label="Top talkers count">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">Firewall Top N</label>
+                <input class="sform-input" id="s_firewallTopN" type="number" min="1" max="50" aria-label="Top firewall rules count">
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">VPN Dashboard Top N</label>
+                <input class="sform-input" id="s_vpnDashTopN" type="number" min="1" max="50" aria-label="VPN peers shown on dashboard">
+              </div>
+            </div>
+            <div class="sform-row" style="margin-bottom:0">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Max Connections</label>
+                <input class="sform-input" id="s_maxConns" type="number" min="1000" max="100000" aria-label="Maximum connections tracked">
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Traffic History (min)</label>
+                <input class="sform-input" id="s_historyMinutes" type="number" min="5" max="120" aria-label="Chart history window in minutes">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            <span class="scard-title">Data Retention</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Controls how long historical data is kept in the SQLite database. The daily prune job removes rows older than these limits.</p>
+            <div class="sform-row">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Metrics retention (days)</label>
+                <input class="sform-input" id="s_dbRetentionDays" type="number" min="7" max="3650" placeholder="90">
+                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">Ping &amp; traffic samples</span>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Events retention (days)</label>
+                <input class="sform-input" id="s_dbAlertRetentionDays" type="number" min="7" max="3650" placeholder="365">
+                <span style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;display:block">Alerts &amp; connectivity events</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-err);stroke-width:2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            <span class="scard-title">Data Cleanup</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Delete stored history on demand. Retention above prunes automatically over time; this removes data right now. The database file is compacted afterwards so the space is actually returned to disk.</p>
+            <div class="dbc-stats" id="dbcStats">
+              <div class="dbc-stat"><span class="dbc-stat-label">Database size</span><span class="dbc-stat-value" id="dbcSize">—</span></div>
+              <div class="dbc-stat"><span class="dbc-stat-label">Stored rows</span><span class="dbc-stat-value" id="dbcRows">—</span></div>
+              <div class="dbc-stat"><span class="dbc-stat-label">Oldest record</span><span class="dbc-stat-value" id="dbcOldest">—</span></div>
+            </div>
+            <div id="dbcByRouter" class="dbc-routers"></div>
+            <div class="sform-row" style="margin-top:.9rem">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Routers</label>
+                <select class="sform-input" id="dbcScope" aria-label="Data cleanup scope"><option value="">All routers</option></select>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Delete data older than</label>
+                <select class="sform-input" id="dbcAge" aria-label="Data cleanup age">
+                  <option value="1">1 day</option>
+                  <option value="7">7 days</option>
+                  <option value="30" selected>30 days</option>
+                  <option value="90">90 days</option>
+                  <option value="365">1 year</option>
+                  <option value="0">Everything (no age limit)</option>
+                </select>
+              </div>
+            </div>
+            <div class="sform-group" style="margin-top:.8rem;margin-bottom:0">
+              <label class="sform-label">Data types</label>
+              <div class="dbc-types" id="dbcTypes">
+                <label class="dbc-type"><input type="checkbox" value="traffic" checked><span>Traffic graphs</span></label>
+                <label class="dbc-type"><input type="checkbox" value="ping" checked><span>Ping history</span></label>
+                <label class="dbc-type"><input type="checkbox" value="bandwidth" checked><span>Bandwidth usage</span></label>
+                <label class="dbc-type"><input type="checkbox" value="events" checked><span>Alerts &amp; connectivity</span></label>
+              </div>
+            </div>
+            <div class="dbc-summary" id="dbcSummary"></div>
+            <div class="dbc-actions" style="display:flex;gap:.5rem;margin-top:.8rem;flex-wrap:wrap">
+              <button class="sbtn sbtn-ghost" id="dbcPreviewBtn" type="button">Preview</button>
+              <button class="sbtn sbtn-danger" id="dbcPurgeBtn" type="button" disabled>Delete data</button>
+            </div>
+            <div class="dbc-result" id="dbcResult"></div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span class="scard-title">Diagnostics</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.75rem">Enable verbose logging to the container console. Useful for troubleshooting connection or wireless client issues. Takes effect immediately — no restart required.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Debug Logging (ROS_DEBUG)</span><span class="stoggle-switch"><input type="checkbox" id="s_rosDebug"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Notifications tab ─────────────────────────────────────────── -->
+      <div class="stab-panel" id="stab-notifications">
+
+        <!-- Alert Types -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="scard-title">Alert Types</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Choose which events trigger alerts and push notifications.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Interface Up / Down</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceUpDown"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">VPN Peer State</span><span class="stoggle-switch"><input type="checkbox" id="s_notifVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">High CPU</span><span class="stoggle-switch"><input type="checkbox" id="s_notifCpu"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Ping Loss</span><span class="stoggle-switch"><input type="checkbox" id="s_notifPing"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">NetWatch Hosts</span><span class="stoggle-switch"><input type="checkbox" id="s_notifNetwatch"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Router Offline / Online</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterStatus"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Configuration Drift</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBackupDrift"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Backup Failed</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBackupFail"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle" title="Notify once per release when RouterOS has a newer version available"><span class="stoggle-label">RouterOS Update Available</span><span class="stoggle-switch"><input type="checkbox" id="s_notifRouterUpdate"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle" title="BGP peer up/down, large prefix-count swings, session flapping and hold-timer misconfiguration"><span class="stoggle-label">BGP Peers</span><span class="stoggle-switch"><input type="checkbox" id="s_notifBgp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interface Alert Filter -->
+        <div class="scard" id="notifIfaceFilterCard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="15" y="2" width="7" height="7" rx="1"/><rect x="2" y="15" width="7" height="7" rx="1"/><path d="M17 17h4m-2-2v4"/></svg>
+            <span class="scard-title">Interface Alert Filter</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Limit interface up/down alerts to specific interface types.</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Ethernet</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceEther"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Wireless</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceWlan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Bridge</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceBridge"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">VLAN</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceVlan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Other</span><span class="stoggle-switch"><input type="checkbox" id="s_notifIfaceOther"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert Thresholds -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span class="scard-title">Alert Thresholds</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Send alerts when these thresholds are reached.</p>
+            <div class="sform-row">
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">CPU Alert Threshold (%)</label>
+                <div style="display:flex;align-items:center;gap:.6rem">
+                  <input type="range" id="s_alertCpuThreshold" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="CPU alert threshold, percent">
+                  <span id="s_alertCpuThresholdVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">90%</span>
+                </div>
+              </div>
+              <div class="sform-group" style="margin-bottom:0">
+                <label class="sform-label">Ping Loss Alert (%)</label>
+                <div style="display:flex;align-items:center;gap:.6rem">
+                  <input type="range" id="s_alertPingLoss" min="1" max="100" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Ping loss alert threshold, percent">
+                  <span id="s_alertPingLossVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:2.5rem;text-align:right;color:var(--text-main)">100%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alert Cooldown -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="scard-title">Alert Cooldown</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">Minimum time between repeated push alerts for the same event. Prevents notification flooding.</p>
+            <div class="sform-group" style="margin-bottom:0">
+              <label class="sform-label">Cooldown (seconds)</label>
+              <div style="display:flex;align-items:center;gap:.6rem">
+                <input type="range" id="s_notifCooldownSec" min="10" max="3600" step="10" style="flex:1;accent-color:var(--accent-rx)" aria-label="Notification cooldown, seconds">
+                <span id="s_notifCooldownSecVal" style="font-family:var(--font-mono);font-size:.75rem;min-width:3.2rem;text-align:right;color:var(--text-main)">60 s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notification Channels -->
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span class="scard-title">Notification Channels</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:1rem">Configure push notification services. Save settings before using the test button.</p>
+
+            <!-- Per-user channels (#109). Off by default and deliberately an
+                 explicit choice: a personal ntfy topic or SMTP host is a
+                 destination the user picks, so this widens what an ordinary
+                 account can make the server connect to. -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-bottom:.9rem;background:var(--bg-alt)">
+              <label class="stoggle" style="margin:0">
+                <span class="stoggle-label">
+                  Allow personal channels
+                  <span style="display:block;font-weight:400;font-size:.72rem;color:var(--text-muted);margin-top:.15rem;max-width:52ch">
+                    Lets each user add their own Telegram, Pushbullet, ntfy or email destination under
+                    <strong>My Alerts</strong>, in addition to the channels here. Users are only ever notified
+                    about routers they have access to. Because ntfy and SMTP let a user choose the destination
+                    host, enabling this allows any account to make this server send to an address it picks.
+                  </span>
+                </span>
+                <span class="stoggle-switch"><input type="checkbox" id="s_userNotifyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+              </label>
+            </div>
+
+            <!-- Telegram -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-bottom:.9rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                <div style="display:flex;align-items:center;gap:.55rem">
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.555l-2.95-.924c-.64-.204-.657-.64.136-.954l11.57-4.46c.532-.194 1 .13.966.004z"/></svg>
+                  <strong style="font-size:.82rem">Telegram</strong>
+                </div>
+                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_telegramEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Bot Token</label>
+                  <input type="password" id="s_telegramBotToken" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
+                </div>
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Chat ID</label>
+                  <input type="text" id="s_telegramChatId" class="sform-input" placeholder="e.g. -100123456789" autocomplete="off">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                <button id="btn-test-telegram" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                <span id="test-telegram-result" style="font-size:.75rem"></span>
+              </div>
+            </div>
+
+            <div class="nchan-pair">
+              <!-- Pushbullet -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.5 18h-3v-2h3v2zm0-4h-3V6h3v8z"/></svg>
+                    <strong style="font-size:.82rem">Pushbullet</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_pushbulletEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                </div>
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">API Key</label>
+                    <input type="password" id="s_pushbulletApiKey" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-test-pushbullet" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                  <span id="test-pushbullet-result" style="font-size:.75rem"></span>
+                </div>
+              </div>
+
+              <!-- ntfy -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <strong style="font-size:.82rem">ntfy</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_ntfyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                </div>
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">Topic URL</label>
+                    <input type="url" id="s_ntfyUrl" class="sform-input" placeholder="https://ntfy.sh/my-topic" autocomplete="off">
+                  </div>
+                </div>
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">Access Token <span style="font-weight:400;color:var(--text-muted)">(optional)</span></label>
+                    <input type="password" id="s_ntfyToken" class="sform-input" placeholder="optional" autocomplete="off">
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-test-ntfy" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                  <span id="test-ntfy-result" style="font-size:.75rem"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SMTP Email -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem;margin-top:.9rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                <div style="display:flex;align-items:center;gap:.55rem">
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  <strong style="font-size:.82rem">Email (SMTP)</strong>
+                </div>
+                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="s_smtpEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="flex:2">
+                  <label class="sform-label">SMTP Host</label>
+                  <input type="text" id="s_smtpHost" class="sform-input" placeholder="smtp.example.com" autocomplete="off">
+                </div>
+                <div class="sform-group" style="flex:1">
+                  <label class="sform-label">Port</label>
+                  <input type="number" id="s_smtpPort" class="sform-input" min="1" max="65535" placeholder="587" autocomplete="off">
+                </div>
+              </div>
+              <div class="sform-group" style="margin-top:.5rem">
+                <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
+                  <input type="checkbox" id="s_smtpSecure">
+                  <span>Use implicit TLS (port 465) — leave unchecked for STARTTLS (port 587)</span>
+                </label>
+              </div>
+              <div class="sform-row" style="margin-top:.5rem">
+                <div class="sform-group">
+                  <label class="sform-label">Username</label>
+                  <input type="text" id="s_smtpUser" class="sform-input" placeholder="optional" autocomplete="off">
+                </div>
+                <div class="sform-group">
+                  <label class="sform-label">Password</label>
+                  <input type="password" id="s_smtpPass" class="sform-input" placeholder="leave blank to keep current" autocomplete="off">
+                </div>
+              </div>
+              <div class="sform-row" style="margin-top:.5rem">
+                <div class="sform-group">
+                  <label class="sform-label">From</label>
+                  <input type="email" id="s_smtpFrom" class="sform-input" placeholder="alerts@example.com" autocomplete="off">
+                </div>
+                <div class="sform-group">
+                  <label class="sform-label">To</label>
+                  <input type="email" id="s_smtpTo" class="sform-input" placeholder="you@example.com" autocomplete="off">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.6rem">
+                <button id="btn-test-smtp" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                <span id="test-smtp-result" style="font-size:.75rem"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Message Templates -->
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span class="scard-title">Message Templates</span>
+          </div>
+          <div class="scard-body">
+            <div class="sform-group">
+              <label class="sform-label">Notification Title</label>
+              <input type="text" id="s_notifTitle" class="sform-input" maxlength="256" placeholder="MikroDash Alert">
+            </div>
+            <div class="sform-row" style="margin-top:.6rem">
+              <div class="sform-group">
+                <label class="sform-label">Body — Down / Alert</label>
+                <textarea id="s_notifBody" class="sform-input" rows="3" maxlength="512" placeholder="⚠️ {{alertType}} on {{routerName}}: {{detail}}" style="resize:vertical;font-family:var(--font-mono);font-size:.78rem"></textarea>
+              </div>
+              <div class="sform-group">
+                <label class="sform-label">Body — Up / Recovery</label>
+                <textarea id="s_notifBodyUp" class="sform-input" rows="3" maxlength="512" placeholder="✅ {{alertType}} on {{routerName}}: {{detail}}" style="resize:vertical;font-family:var(--font-mono);font-size:.78rem"></textarea>
+              </div>
+            </div>
+            <div style="margin-top:.6rem;padding:.6rem .7rem;background:var(--bg-alt);border-radius:.4rem;border:1px solid var(--border)">
+              <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 .3rem;font-weight:600">Available variables</p>
+              <p style="font-size:.72rem;color:var(--text-muted);margin:0;line-height:1.7;font-family:var(--font-mono)">{{alertType}} &nbsp;{{routerName}} &nbsp;{{detail}} &nbsp;{{ifaceName}} &nbsp;{{status}} &nbsp;{{comment}}<br>{{cpuLoad}} &nbsp;{{pingLoss}} &nbsp;{{pingTarget}} &nbsp;{{pingRtt}} &nbsp;{{vpnPeer}} &nbsp;{{host}} &nbsp;{{netwatchName}} &nbsp;{{bgpPeer}} &nbsp;{{timestamp}}</p>
+              <p style="font-size:.7rem;color:var(--text-muted);margin:.45rem 0 0;line-height:1.6">A variable that does not apply to an alert renders as empty. <code>{{comment}}</code> is the comment set on the router for whatever the alert is about &mdash; an interface, a NetWatch host, a VPN peer or a BGP peer.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Appearance tab ─────────────────────────────────────────────── -->
+      <div class="stab-panel" id="stab-appearance">
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="3"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+            <span class="scard-title">Appearance</span>
+          </div>
+          <div class="scard-body">
+            <label class="sform-label" style="margin-bottom:.5rem">Theme</label>
+            <div class="theme-swatch-grid" id="themeSwatches">
+              <div class="theme-swatch" data-palette="default" data-mode="dark" title="Default Dark">
+                <div class="swatch-preview" style="background:#07090f"><div class="swatch-dot" style="background:#38bdf8"></div></div>
+                <span class="swatch-name">Default<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="default" data-mode="light" title="Default Light">
+                <div class="swatch-preview" style="background:#f0f2f7;border-color:rgba(0,0,0,.12)"><div class="swatch-dot" style="background:#38bdf8"></div></div>
+                <span class="swatch-name">Default<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="nord" data-mode="dark" title="Nord Dark">
+                <div class="swatch-preview" style="background:#2e3440"><div class="swatch-dot" style="background:#88c0d0"></div></div>
+                <span class="swatch-name">Nord<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="nord" data-mode="light" title="Nord Light">
+                <div class="swatch-preview" style="background:#e5e9f0;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#5e81ac"></div></div>
+                <span class="swatch-name">Nord<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="catppuccin" data-mode="dark" title="Catppuccin Mocha">
+                <div class="swatch-preview" style="background:#1e1e2e"><div class="swatch-dot" style="background:#89b4fa"></div></div>
+                <span class="swatch-name">Catppuccin<br>Mocha</span>
+              </div>
+              <div class="theme-swatch" data-palette="catppuccin" data-mode="light" title="Catppuccin Latte">
+                <div class="swatch-preview" style="background:#eff1f5;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#1e66f5"></div></div>
+                <span class="swatch-name">Catppuccin<br>Latte</span>
+              </div>
+              <div class="theme-swatch" data-palette="dracula" data-mode="dark" title="Dracula">
+                <div class="swatch-preview" style="background:#282a36"><div class="swatch-dot" style="background:#8be9fd"></div></div>
+                <span class="swatch-name">Dracula</span>
+              </div>
+              <div class="theme-swatch" data-palette="tokyo" data-mode="dark" title="Tokyo Night">
+                <div class="swatch-preview" style="background:#1a1b26"><div class="swatch-dot" style="background:#7aa2f7"></div></div>
+                <span class="swatch-name">Tokyo<br>Night</span>
+              </div>
+              <div class="theme-swatch" data-palette="gruvbox" data-mode="dark" title="Gruvbox Dark">
+                <div class="swatch-preview" style="background:#282828"><div class="swatch-dot" style="background:#83a598"></div></div>
+                <span class="swatch-name">Gruvbox<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="gruvbox" data-mode="light" title="Gruvbox Light">
+                <div class="swatch-preview" style="background:#fbf1c7;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#076678"></div></div>
+                <span class="swatch-name">Gruvbox<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="rosepine" data-mode="dark" title="Rose Pine">
+                <div class="swatch-preview" style="background:#191724"><div class="swatch-dot" style="background:#c4a7e7"></div></div>
+                <span class="swatch-name">Rose Pine<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="rosepine" data-mode="light" title="Rose Pine Dawn">
+                <div class="swatch-preview" style="background:#faf4ed;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#907aa9"></div></div>
+                <span class="swatch-name">Rose Pine<br>Dawn</span>
+              </div>
+              <div class="theme-swatch" data-palette="rosepine-moon" data-mode="dark" title="Rose Pine Moon">
+                <div class="swatch-preview" style="background:#232136"><div class="swatch-dot" style="background:#c4a7e7"></div></div>
+                <span class="swatch-name">Rose Pine<br>Moon</span>
+              </div>
+              <div class="theme-swatch" data-palette="onedark" data-mode="dark" title="One Dark">
+                <div class="swatch-preview" style="background:#282c34"><div class="swatch-dot" style="background:#61afef"></div></div>
+                <span class="swatch-name">One<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="onedark" data-mode="light" title="Atom One Light">
+                <div class="swatch-preview" style="background:#fafafa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#4078f2"></div></div>
+                <span class="swatch-name">One<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="solarized" data-mode="dark" title="Solarized Dark">
+                <div class="swatch-preview" style="background:#002b36"><div class="swatch-dot" style="background:#268bd2"></div></div>
+                <span class="swatch-name">Solarized<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="solarized" data-mode="light" title="Solarized Light">
+                <div class="swatch-preview" style="background:#fdf6e3;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#268bd2"></div></div>
+                <span class="swatch-name">Solarized<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="everforest" data-mode="dark" title="Everforest">
+                <div class="swatch-preview" style="background:#2d353b"><div class="swatch-dot" style="background:#a7c080"></div></div>
+                <span class="swatch-name">Everforest</span>
+              </div>
+              <div class="theme-swatch" data-palette="kanagawa" data-mode="dark" title="Kanagawa">
+                <div class="swatch-preview" style="background:#1f1f28"><div class="swatch-dot" style="background:#7e9cd8"></div></div>
+                <span class="swatch-name">Kanagawa</span>
+              </div>
+              <div class="theme-swatch" data-palette="monokai" data-mode="dark" title="Monokai">
+                <div class="swatch-preview" style="background:#272822"><div class="swatch-dot" style="background:#f92672"></div></div>
+                <span class="swatch-name">Monokai</span>
+              </div>
+              <div class="theme-swatch" data-palette="monokai-pro" data-mode="dark" title="Monokai Pro">
+                <div class="swatch-preview" style="background:#2d2a2e"><div class="swatch-dot" style="background:#ff6188"></div></div>
+                <span class="swatch-name">Monokai<br>Pro</span>
+              </div>
+              <div class="theme-swatch" data-palette="material" data-mode="dark" title="Material Dark">
+                <div class="swatch-preview" style="background:#263238"><div class="swatch-dot" style="background:#80cbc4"></div></div>
+                <span class="swatch-name">Material<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="material" data-mode="light" title="Material Light">
+                <div class="swatch-preview" style="background:#fafafa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#00acc1"></div></div>
+                <span class="swatch-name">Material<br>Light</span>
+              </div>
+              <div class="theme-swatch" data-palette="palenight" data-mode="dark" title="Palenight">
+                <div class="swatch-preview" style="background:#292d3e"><div class="swatch-dot" style="background:#c792ea"></div></div>
+                <span class="swatch-name">Palenight</span>
+              </div>
+              <div class="theme-swatch" data-palette="github" data-mode="dark" title="GitHub Dark">
+                <div class="swatch-preview" style="background:#0d1117"><div class="swatch-dot" style="background:#58a6ff"></div></div>
+                <span class="swatch-name">GitHub<br>Dark</span>
+              </div>
+              <div class="theme-swatch" data-palette="github" data-mode="light" title="GitHub Light">
+                <div class="swatch-preview" style="background:#f6f8fa;border-color:rgba(0,0,0,.1)"><div class="swatch-dot" style="background:#0969da"></div></div>
+                <span class="swatch-name">GitHub<br>Light</span>
+              </div>
+            </div>
+            <label class="sform-label">Contrast</label>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Low</span>
+              <input type="range" id="appearanceContrast" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Contrast">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">High</span>
+            </div>
+            <label class="sform-label" style="margin-top:.75rem">Text Brightness</label>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dim</span>
+              <input type="range" id="appearanceTextBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Text brightness">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Bright</span>
+            </div>
+            <label class="sform-label" style="margin-top:.75rem">Background Brightness</label>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2rem">Dark</span>
+              <input type="range" id="appearanceBgBright" min="1" max="15" step="1" style="flex:1;accent-color:var(--accent-rx)" aria-label="Background brightness">
+              <span style="font-size:.72rem;color:var(--text-muted);min-width:2.5rem;text-align:right">Light</span>
+            </div>
+            <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+            <label class="sform-label">Font Family</label>
+            <select id="appearanceFont" class="sform-input" style="margin-bottom:.75rem" aria-label="Interface font">
+              <option value="system">System UI</option>
+              <option value="syne">Syne (Default)</option>
+              <option value="geist">Geist</option>
+              <option value="inter">Inter</option>
+              <option value="plus-jakarta">Plus Jakarta Sans</option>
+              <option value="dm-sans">DM Sans</option>
+              <option value="outfit">Outfit</option>
+              <option value="space-grotesk">Space Grotesk</option>
+              <option value="sofia-sans">Sofia Sans</option>
+              <option value="nunito">Nunito</option>
+              <option value="poppins">Poppins</option>
+              <option value="montserrat">Montserrat</option>
+              <option value="raleway">Raleway</option>
+              <option value="manrope">Manrope</option>
+              <option value="roboto">Roboto</option>
+              <option value="open-sans">Open Sans</option>
+              <option value="lato">Lato</option>
+              <option value="source-sans">Source Sans 3</option>
+              <option value="work-sans">Work Sans</option>
+              <option value="fira-sans">Fira Sans</option>
+              <option value="jetbrains-mono">JetBrains Mono</option>
+              <option value="fira-code">Fira Code</option>
+              <option value="quicksand">Quicksand</option>
+              <option value="comfortaa">Comfortaa</option>
+              <option value="ibm-plex-sans">IBM Plex Sans</option>
+              <option value="oxanium">Oxanium</option>
+              <option value="orbitron">Orbitron</option>
+            </select>
+            <label class="sform-label" style="margin-top:.25rem">Font Size</label>
+            <select id="appearanceFontSize" class="sform-input" aria-label="Interface font size">
+              <option value="xs">Extra Small</option>
+              <option value="sm">Small</option>
+              <option value="normal">Normal</option>
+              <option value="md">Medium</option>
+              <option value="lg">Large</option>
+              <option value="xl">Extra Large</option>
+            </select>
+            <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+            <label class="sform-label">Navigation</label>
+            <!-- Applies on change like the swatches above, not via Save. Unlike
+                 its neighbours in this card it persists SERVER-SIDE per user
+                 rather than in localStorage, so it follows you between browsers;
+                 localStorage is only the pre-paint cache. It is deliberately not
+                 a Settings.DEFAULTS field — it is a personal preference, not an
+                 install-wide one, which keeps it clear of the settings
+                 machinery and its drift tests. -->
+            <label class="stoggle" style="margin-top:.35rem">
+              <span class="stoggle-label">Group the sidebar into categories</span>
+              <span class="stoggle-switch"><input type="checkbox" id="navGrouped" class="nav-grouped-input"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+            </label>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:.4rem 0 0">Collapses the 23 pages into Network, Wireless, IP Services, Tunnels, Traffic, Security and System. Turn it off for one flat list.</p>
+            <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+            <label class="sform-label">Visible Pages</label>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:.25rem 0 .65rem">Hide pages you don't use. Dashboard and Settings are always visible. A preset ticks a whole set at once; each user still only sees pages their role allows.</p>
+            <div id="viewPresetWrap" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.75rem">
+              <button type="button" class="view-preset-btn" data-view-preset="home" title="Wireless, Interfaces, DHCP, Connections and Bandwidth">Home</button>
+              <button type="button" class="view-preset-btn" data-view-preset="standard" title="Home plus Topology, DNS, VLANs, VPN, Firewall and Logs">Standard</button>
+              <button type="button" class="view-preset-btn" data-view-preset="advanced" title="Every page, including Routers">Advanced</button>
+              <button type="button" class="view-preset-btn" data-view-preset="custom" title="Your own selection">Custom</button>
+            </div>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Wifi Networks</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWifi"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Wifi Clients</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWireless"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">WAN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageWan"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Interfaces</span><span class="stoggle-switch"><input type="checkbox" id="s_pageInterfaces"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">DHCP</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDhcp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">VPN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVpn"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">VLANs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageVlans"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">PPP</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePpp"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">CAPsMAN</span><span class="stoggle-switch"><input type="checkbox" id="s_pageCapsman"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Bridges</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBridges"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">DNS</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDns"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Packages</span><span class="stoggle-switch"><input type="checkbox" id="s_pagePackages"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Devices</span><span class="stoggle-switch"><input type="checkbox" id="s_pageDevices"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Queues</span><span class="stoggle-switch"><input type="checkbox" id="s_pageQueues"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Device Users</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRosusers"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Audit</span><span class="stoggle-switch"><input type="checkbox" id="s_pageAudit"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Backups</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBackups"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Connections</span><span class="stoggle-switch"><input type="checkbox" id="s_pageConnections"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Firewall</span><span class="stoggle-switch"><input type="checkbox" id="s_pageFirewall"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Logs</span><span class="stoggle-switch"><input type="checkbox" id="s_pageLogs"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Bandwidth</span><span class="stoggle-switch"><input type="checkbox" id="s_pageBandwidth"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Routing</span><span class="stoggle-switch"><input type="checkbox" id="s_pageRouting"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              <label class="stoggle"><span class="stoggle-label">Topology</span><span class="stoggle-switch"><input type="checkbox" id="s_pageTopology"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+            <p style="font-size:.74rem;color:var(--text-muted);margin:.75rem 0 .5rem">Dashboard widgets</p>
+            <div class="stoggle-grid">
+              <label class="stoggle"><span class="stoggle-label">Ping / Latency</span><span class="stoggle-switch"><input type="checkbox" id="s_pingEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Authentication tab ─────────────────────────────────────────── -->
+      <div class="stab-panel" id="stab-auth">
+
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="scard-title">Authentication</span>
+          </div>
+          <div class="scard-body">
+            <!-- Two columns: the card spans the full grid width, so stacking two
+                 short controls left a lot of empty space to their right. -->
+            <div class="auth-grid">
+              <!-- Both columns follow the same shape — heading, control, hint —
+                   so the controls sit on one line and the hints start together. -->
+              <div>
+                <span class="sform-label">Sign-in</span>
+                <label class="stoggle"><span class="stoggle-label">Require sign-in</span><span class="stoggle-switch"><input type="checkbox" id="s_authEnabled" aria-label="Require sign-in"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                <p class="auth-hint">Off means no login at all — anyone who can reach this page has full control. Only sensible on a trusted network.</p>
+              </div>
+
+              <!-- Modern auth fields -->
+              <div id="modernAuthFields" style="display:none">
+                <span class="sform-label">Session Timeout</span>
+                <select class="sform-input" id="s_sessionTimeoutMs" aria-label="Session timeout">
+                  <option value="3600000">1 hour</option>
+                  <option value="14400000">4 hours</option>
+                  <option value="28800000">8 hours</option>
+                  <option value="86400000">24 hours</option>
+                  <option value="0">Never</option>
+                </select>
+                <p class="auth-hint">Sessions are cleared on server restart. Signing in again is all that is needed.</p>
+              </div>
+            </div>
+
+            <!-- Warning: open access. Full width beneath both columns — it is the
+                 loudest thing on the card when it shows, and must not be a
+                 narrow strip beside the toggle. -->
+            <div id="authNoneWarn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.25);border-radius:6px;padding:.5rem .75rem;font-size:.76rem;color:var(--accent-warn);margin-top:.75rem">
+              ⚠ Dashboard is publicly accessible — anyone on the network can view it.
+            </div>
+          </div>
+        </div>
+
+        <!-- Users, Groups, Sites and Roles share one card. Four separate cards
+             turned this panel into a long scroll of tables; each keeps its own
+             table, form and Add button, one per tab. -->
+        <div class="scard scard--wide" id="principalsCard" data-cap="managePrincipals" style="display:none">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M21 2l-2 2"/><path d="M15.5 7.5L19 4l3 3-3.5 3.5"/><path d="M15.5 7.5l-4.11 4.11a5.5 5.5 0 1 1-2.83-1.5"/><circle cx="7.5" cy="16.5" r="1.5"/></svg>
+            <span class="scard-title">Access Management</span>
+          </div>
+          <!-- Tabs sit in their own row beneath the title, so the card reads like
+               every other settings card and the strip still divides header from body. -->
+          <div class="ptabs-bar">
+            <div class="ptabs" role="tablist" aria-label="Access management sections">
+              <button class="ptab active" data-ptab="users"  role="tab" aria-selected="true"  id="ptabBtn-users">Users</button>
+              <button class="ptab"        data-ptab="groups" role="tab" aria-selected="false">Groups</button>
+              <button class="ptab"        data-ptab="sites"  role="tab" aria-selected="false">Sites</button>
+              <button class="ptab"        data-ptab="roles"  role="tab" aria-selected="false">Roles</button>
+            </div>
+          </div>
+          <div class="scard-body">
+
+          <div class="ptab-panel" id="ptab-sites" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">A site groups devices by location. Since #117 a device may belong to several sites, or none — assign them in the device's settings.</span>
+              <button class="sbtn sbtn-primary" id="addSiteBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Site</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="siteTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Name</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Description</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Devices</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="siteTbody">
+                <tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading…</td></tr>
+              </tbody>
+            </table>
+
+            <!-- Add/Edit site inline form -->
+            <!-- Centre-screen dialog rather than an inline panel that pushed the
+                 table down. Reuses the router modal's treatment — the rtr- prefix
+                 is historical; it is the app's only modal styling. -->
+            <div class="rtr-modal-bg" id="siteFormWrap">
+             <div class="rtr-modal pmodal">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="sf_title">Add Site</span>
+                <button class="rtr-modal-close" data-modal-close="siteFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
+              <input type="hidden" id="sf_id">
+              <div class="sform-row">
+                <div>
+                  <label class="sform-label">Name</label>
+                  <input class="sform-input" id="sf_name" type="text" placeholder="Head Office" autocomplete="off" maxlength="64">
+                </div>
+                <div>
+                  <label class="sform-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                  <input class="sform-input" id="sf_description" type="text" placeholder="Main building, ground floor" autocomplete="off" maxlength="256">
+                </div>
+              </div>
+              <!-- A site's location, picked the same way a router's is (#96). It
+                   is the fallback for every router here that has no location of
+                   its own, so one choice can place a whole site. -->
+              <div class="sform-group cpick" id="sf_placeWrap" style="margin-top:.6rem">
+                <label class="sform-label" for="sf_place">Location <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                <div class="cpick-row">
+                  <input class="sform-input" id="sf_place" type="text" role="combobox"
+                         aria-expanded="false" aria-autocomplete="list" aria-controls="sf_placeList"
+                         placeholder="Search for a town or city…" autocomplete="off" maxlength="64">
+                  <button type="button" class="cpick-clear" id="sf_placeClear" title="Clear this site's location">Clear</button>
+                </div>
+                <div class="cpick-list" id="sf_placeList" role="listbox" hidden></div>
+                <div class="cpick-hint">Devices whose PRIMARY site is this one, and which have no location of their own, are shown here on the map.</div>
+              </div>
+
+              <div style="margin-top:.6rem">
+                <label class="sform-label">Devices at this site</label>
+                <div id="sf_routers" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:12rem;overflow-y:auto"></div>
+                <div style="font-size:.7rem;color:var(--text-muted);margin-top:.35rem">Ticking a device adds this site to it. It keeps any other sites it is already in, and unticking removes only this one.</div>
+              </div>
+              <div class="login-error" id="sf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
+                <button class="sbtn sbtn-outline" id="sf_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="sf_save">Save Site</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+          <div class="ptab-panel" id="ptab-groups" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">A group collects users so a role can be granted to all of them at once — for example a support team given Operator access to one site. Members get the group's access on top of anything granted to them directly.</span>
+              <button class="sbtn sbtn-primary" id="addGroupBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Group</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="groupTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Name</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Members</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Access</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="groupTbody">
+                <tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading…</td></tr>
+              </tbody>
+            </table>
+
+            <div class="rtr-modal-bg" id="groupFormWrap">
+             <div class="rtr-modal pmodal">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="gf_title">Add Group</span>
+                <button class="rtr-modal-close" data-modal-close="groupFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
+              <input type="hidden" id="gf_id">
+              <div class="sform-row">
+                <div>
+                  <label class="sform-label">Name</label>
+                  <input class="sform-input" id="gf_name" type="text" placeholder="Network Operators" autocomplete="off" maxlength="64">
+                </div>
+                <div>
+                  <label class="sform-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                  <input class="sform-input" id="gf_description" type="text" placeholder="Team responsible for day-to-day monitoring" autocomplete="off" maxlength="256">
+                </div>
+              </div>
+              <div style="margin-top:.6rem">
+                <label class="sform-label">Members</label>
+                <div id="gf_members" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:12rem;overflow-y:auto"></div>
+              </div>
+              <div style="margin-top:.6rem">
+                <label class="sform-label">Access granted to this group</label>
+                <div id="gf_grants" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem"></div>
+              </div>
+              <div class="login-error" id="gf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
+                <button class="sbtn sbtn-outline" id="gf_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="gf_save">Save Group</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+          <div class="ptab-panel" id="ptab-roles" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">A role decides which pages someone sees. Grant it to a user or a group over a scope — the role says <em>what</em>, the scope says <em>which devices</em>. Administrator is built in and always sees everything.</span>
+              <button class="sbtn sbtn-primary" id="addRoleBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add Role</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="roleTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Name</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Pages</th>
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">In use</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="roleTbody">
+                <tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading…</td></tr>
+              </tbody>
+            </table>
+
+            <div class="rtr-modal-bg" id="roleFormWrap">
+             <div class="rtr-modal pmodal">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="rf_title">Add Role</span>
+                <button class="rtr-modal-close" data-modal-close="roleFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
+              <input type="hidden" id="rf_id">
+              <div class="sform-row">
+                <div>
+                  <label class="sform-label">Name</label>
+                  <input class="sform-input" id="rf_name" type="text" placeholder="NOC Tier 1" autocomplete="off" maxlength="64">
+                </div>
+                <div>
+                  <label class="sform-label">Description <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                  <input class="sform-input" id="rf_description" type="text" placeholder="First-line monitoring: logs and reports" autocomplete="off" maxlength="256">
+                </div>
+              </div>
+              <div style="margin-top:.7rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap">
+                  <label class="sform-label" style="margin:0">Page access</label>
+                  <div style="display:flex;gap:.3rem">
+                    <button class="sbtn sbtn-outline rf-bulk" data-bulk="none"  style="padding:.15rem .5rem;font-size:.68rem">All none</button>
+                    <button class="sbtn sbtn-outline rf-bulk" data-bulk="read"  style="padding:.15rem .5rem;font-size:.68rem">All read</button>
+                    <button class="sbtn sbtn-outline rf-bulk" data-bulk="write" style="padding:.15rem .5rem;font-size:.68rem">All write</button>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.4rem">
+                  <span style="font-size:.68rem;color:var(--text-muted)">Preset</span>
+                  <button type="button" class="sbtn sbtn-outline rf-preset" data-role-preset="home"     style="padding:.15rem .5rem;font-size:.68rem">Home</button>
+                  <button type="button" class="sbtn sbtn-outline rf-preset" data-role-preset="standard" style="padding:.15rem .5rem;font-size:.68rem">Standard</button>
+                  <button type="button" class="sbtn sbtn-outline rf-preset" data-role-preset="advanced" style="padding:.15rem .5rem;font-size:.68rem">Advanced</button>
+                  <span style="font-size:.66rem;color:var(--text-muted)">sets read on that tier and clears the rest</span>
+                </div>
+                <div id="rf_pages" style="margin-top:.4rem;padding:.35rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem;max-height:22rem;overflow-y:auto"></div>
+              </div>
+              <div class="login-error" id="rf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
+                <button class="sbtn sbtn-outline" id="rf_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="rf_save">Save Role</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+          <!-- Users is the default tab, and the only one that also depends on
+               auth mode: in 'none' mode there are no accounts to manage. -->
+          <div class="ptab-panel active" id="ptab-users" role="tabpanel">
+            <div class="ptab-head">
+              <span class="ptab-desc">Each user signs in with their own account. Access comes from the roles granted to them here, and from any group they belong to.</span>
+              <button class="sbtn sbtn-primary" id="addUserBtn" style="padding:.25rem .65rem;font-size:.75rem;flex-shrink:0">+ Add User</button>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:.78rem" id="userTable">
+              <thead>
+                <tr style="border-bottom:1px solid var(--border)">
+                  <th style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Username</th>
+                  <th colspan="2" style="text-align:left;padding:.35rem .5rem;color:var(--text-muted);font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em">Access</th>
+                  <th style="padding:.35rem .5rem"></th>
+                </tr>
+              </thead>
+              <tbody id="userTbody">
+                <tr><td colspan="4" style="padding:.75rem .5rem;color:var(--text-muted);font-size:.76rem">Loading…</td></tr>
+              </tbody>
+            </table>
+
+            <!-- Add/Edit user inline form -->
+            <div class="rtr-modal-bg" id="userFormWrap">
+             <div class="rtr-modal pmodal">
+              <div class="rtr-modal-hdr">
+                <span class="rtr-modal-title" id="uf_title">Add User</span>
+                <button class="rtr-modal-close" data-modal-close="userFormWrap" aria-label="Close">&#10005;</button>
+              </div>
+              <div class="rtr-modal-body">
+              <input type="hidden" id="uf_id">
+              <div class="sform-row">
+                <div>
+                  <label class="sform-label">Username</label>
+                  <input class="sform-input" id="uf_username" type="text" placeholder="username" autocomplete="off">
+                </div>
+                <div>
+                  <label class="sform-label">Password <span id="uf_passHint" style="font-weight:400;text-transform:none;letter-spacing:0">(leave blank to keep)</span></label>
+                  <input class="sform-input" id="uf_password" type="password" placeholder="Password" autocomplete="new-password">
+                </div>
+              </div>
+              <!-- Access is granted the same way for users as for groups (#108):
+                   rows of [Role] over [All routers | Site | Router]. The old
+                   single-role select plus an all-or-listed router picker could
+                   not express a custom role, nor two different roles at two
+                   different sites. -->
+              <div style="margin-top:.6rem">
+                <label class="sform-label">Access granted to this user</label>
+                <div id="uf_grants" style="padding:.6rem;background:rgba(99,130,190,.05);border:1px solid var(--border);border-radius:6px;font-size:.78rem"></div>
+              </div>
+              <div class="login-error" id="uf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+              </div>
+              <div class="rtr-modal-footer">
+                <button class="sbtn sbtn-outline" id="uf_cancel">Cancel</button>
+                <button class="sbtn sbtn-primary" id="uf_save">Save User</button>
+              </div>
+             </div>
+            </div>
+          </div>
+
+          </div><!-- /scard-body -->
+        </div><!-- /principalsCard -->
+
+      </div>
+
+      <!-- ── About tab ──────────────────────────────────────────────────── -->
+      <div class="stab-panel" id="stab-about">
+        <div class="scard">
+          <div class="scard-body" style="text-align:center;padding:1.75rem 1.5rem">
+            <div style="display:flex;align-items:center;justify-content:center;gap:.75rem;margin-bottom:.5rem">
+              <img src="/logo.png" style="width:36px;height:36px;border-radius:8px;opacity:.9"/>
+              <span style="font-size:1.35rem;font-weight:700;color:var(--text-main);letter-spacing:.01em">MikroDash</span>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);margin-bottom:.4rem">Real-time MikroTik Router Dashboard</div>
+            <div style="margin:.35rem 0 .5rem">
+              <span id="stabAboutVersion" style="font-family:var(--font-mono);font-size:.72rem;background:rgba(56,189,248,.1);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);border-radius:5px;padding:.15rem .55rem">v—</span>
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted)">Built with Node.js · Socket.IO · Chart.js · Bootstrap</div>
+            <div style="margin-top:.7rem">
+              <a href="https://github.com/SecOps-7/MikroDash/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" title="Read the full licence"
+                 style="font-family:var(--font-mono);font-size:.72rem;background:rgba(52,211,153,.1);color:var(--accent-tx);border:1px solid rgba(52,211,153,.3);border-radius:5px;padding:.15rem .55rem;text-decoration:none">MIT License</a>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <span class="scard-title">Support &amp; Donations</span>
+          </div>
+          <div class="scard-body">
+            <div style="font-size:.78rem;color:var(--text-muted);line-height:1.7;margin-bottom:1rem">
+              MikroDash is free and open source. If it saves you time or you find it useful, consider supporting continued development.
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:.6rem">
+              <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;flex-shrink:0"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.868-.013-1.703-2.782.604-3.369-1.341-3.369-1.341-.454-1.154-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+                GitHub
+              </a>
+              <a href="https://buymeacoffee.com/SecOps7" target="_blank" rel="noopener" class="info-btn info-btn-coffee">
+                ☕ Buy me a coffee
+              </a>
+              <a href="https://paypal.me/SecOps7App" target="_blank" rel="noopener" class="info-btn info-btn-outline">
+                💳 PayPal
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <span class="scard-title">Links</span>
+          </div>
+          <div class="scard-body" style="display:flex;flex-wrap:wrap;gap:.5rem">
+            <a href="https://github.com/SecOps-7/MikroDash" target="_blank" rel="noopener" class="info-btn info-btn-outline">Documentation</a>
+            <a href="https://github.com/SecOps-7/MikroDash/issues" target="_blank" rel="noopener" class="info-btn info-btn-outline">Report a Bug</a>
+            <a href="https://mikrotik.com/software" target="_blank" rel="noopener" class="info-btn info-btn-outline">MikroTik RouterOS</a>
+          </div>
+        </div>
+        <div class="scard" style="border-color:rgba(251,191,36,.15)">
+          <div class="scard-body" style="display:flex;gap:.75rem;align-items:flex-start">
+            <span style="font-size:1rem;flex-shrink:0">⚠️</span>
+            <div style="font-size:.74rem;color:var(--text-muted);line-height:1.65">
+              <strong style="color:rgba(200,215,240,.75)">Disclaimer</strong><br>
+              MikroDash is an independent, community-built project and is <strong style="color:rgba(200,215,240,.75)">not affiliated with, endorsed by, or associated with MikroTik SIA</strong> in any way. MikroTik and RouterOS are trademarks of MikroTik SIA. All product names and trademarks are the property of their respective owners.
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;font-family:var(--font-mono);font-size:.65rem;color:rgba(148,163,190,.35);padding:.5rem 0 1.5rem">
+          MikroDash · MIT License · Made with ♥ for the MikroTik community
+        </div>
+      </div>
+
+      <!-- Actions (hidden on Routers and About tabs) -->
+      <div id="settingsActions" style="display:none;gap:.6rem;justify-content:flex-end;padding-bottom:.75rem">
+        <button class="sbtn sbtn-ghost" id="settingsResetBtn">Reset to defaults</button>
+        <button class="sbtn sbtn-primary" id="settingsSaveBtn">
+          <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Settings
+        </button>
+      </div>
+      <div id="settingsBanner" class="sbanner" style="margin-bottom:2rem"></div>
+
+    </div>
+  </div>

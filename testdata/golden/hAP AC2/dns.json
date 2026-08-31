@@ -1,0 +1,39 @@
+{
+  "ts": 0,
+  "pollMs": 30000,
+  "settings": {
+    "servers": [
+      "198.51.100.64"
+    ],
+    "dynamicServers": [],
+    "dohEnabled": false,
+    "dohUrl": "",
+    "dohVerifyCert": false,
+    "dohMaxServerConnections": 5,
+    "dohMaxConcurrentQueries": 50,
+    "dohTimeout": "5s",
+    "allowRemoteRequests": true,
+    "cacheSize": 2048,
+    "cacheUsed": 47,
+    "cacheMaxTtl": "1w",
+    "maxUdpPacketSize": 4096,
+    "maxConcurrentQueries": 100,
+    "queryServerTimeout": "2s",
+    "queryTotalTimeout": "10s",
+    "mdnsRepeatIfaces": [],
+    "vrf": "main"
+  },
+  "staticEntries": [
+    {
+      "id": "*1",
+      "name": "router.lan",
+      "regexp": "",
+      "address": "198.51.100.92",
+      "type": "A",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": "comment-c17f"
+    }
+  ],
+  "available": true
+}

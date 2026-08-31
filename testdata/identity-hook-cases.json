@@ -1,0 +1,335 @@
+{
+  "generated_from": "src/collectors/system.js identityKey dedupe",
+  "cases": [
+    {
+      "why": "a fresh connection: no serial, then the serial arrives",
+      "ticks": [
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": null,
+          "installedBase": "7.23.1",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": null,
+            "osVersion": "7.23.1"
+          }
+        },
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.23.1",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.23.1"
+          }
+        },
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.23.1",
+          "fired": false,
+          "reported": null
+        },
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.23.1",
+          "fired": false,
+          "reported": null
+        }
+      ]
+    },
+    {
+      "why": "a steady router never reports twice",
+      "ticks": [
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.23.1",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.23.1"
+          }
+        },
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.23.1",
+          "fired": false,
+          "reported": null
+        },
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.23.1",
+          "fired": false,
+          "reported": null
+        }
+      ]
+    },
+    {
+      "why": "an OS upgrade is reported",
+      "ticks": [
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.23.1",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.23.1"
+          }
+        },
+        {
+          "version": "7.23.1 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.23.1",
+          "fired": false,
+          "reported": null
+        },
+        {
+          "version": "7.24 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.24"
+          }
+        },
+        {
+          "version": "7.24 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": false,
+          "reported": null
+        }
+      ]
+    },
+    {
+      "why": "switching channel at the same release reports nothing",
+      "ticks": [
+        {
+          "version": "7.24 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.24"
+          }
+        },
+        {
+          "version": "7.24 (testing)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": false,
+          "reported": null
+        },
+        {
+          "version": "7.24 (long-term)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": false,
+          "reported": null
+        }
+      ]
+    },
+    {
+      "why": "a bare version with no channel at all",
+      "ticks": [
+        {
+          "version": "7.24",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.24"
+          }
+        },
+        {
+          "version": "7.24 (stable)",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": false,
+          "reported": null
+        }
+      ]
+    },
+    {
+      "why": "an empty version",
+      "ticks": [
+        {
+          "version": "",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": ""
+          }
+        },
+        {
+          "version": "7.24",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.24"
+          }
+        }
+      ]
+    },
+    {
+      "why": "an empty board name, then one arrives",
+      "ticks": [
+        {
+          "version": "7.24 (stable)",
+          "boardName": "",
+          "serial": null,
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "",
+            "serial": null,
+            "osVersion": "7.24"
+          }
+        },
+        {
+          "version": "7.24 (stable)",
+          "boardName": "CHR",
+          "serial": null,
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "CHR",
+            "serial": null,
+            "osVersion": "7.24"
+          }
+        }
+      ]
+    },
+    {
+      "why": "the serial disappears again",
+      "ticks": [
+        {
+          "version": "7.24",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.24"
+          }
+        },
+        {
+          "version": "7.24",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": null,
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": null,
+            "osVersion": "7.24"
+          }
+        },
+        {
+          "version": "7.24",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.24"
+          }
+        }
+      ]
+    },
+    {
+      "why": "a board name containing a space",
+      "ticks": [
+        {
+          "version": "7.24",
+          "boardName": "RB 5009",
+          "serial": "UG",
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "RB 5009",
+            "serial": "UG",
+            "osVersion": "7.24"
+          }
+        },
+        {
+          "version": "7.24",
+          "boardName": "RB",
+          "serial": "5009 UG",
+          "installedBase": "7.24",
+          "fired": false,
+          "reported": null
+        }
+      ]
+    },
+    {
+      "why": "whitespace around the version is trimmed",
+      "ticks": [
+        {
+          "version": "  7.24  ",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": true,
+          "reported": {
+            "model": "C53UiG5HPaxD2HPaxD",
+            "serial": "HDX0ABCDEF1",
+            "osVersion": "7.24"
+          }
+        },
+        {
+          "version": "7.24",
+          "boardName": "C53UiG5HPaxD2HPaxD",
+          "serial": "HDX0ABCDEF1",
+          "installedBase": "7.24",
+          "fired": false,
+          "reported": null
+        }
+      ]
+    }
+  ]
+}

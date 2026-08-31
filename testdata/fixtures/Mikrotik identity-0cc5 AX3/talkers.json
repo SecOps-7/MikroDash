@@ -1,0 +1,402 @@
+{
+  "collector": "talkers",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/kid-control/device/print",
+      "params": [
+        "=.proplist=name,mac-address,rate-up,rate-down"
+      ],
+      "rows": [
+        {
+          "name": "name-c146",
+          "mac-address": "02:DB:D2:E6:78:22",
+          "rate-up": "0",
+          "rate-down": "480"
+        },
+        {
+          "name": "name-c4e7",
+          "mac-address": "02:59:56:B0:B2:DF",
+          "rate-up": "7248568",
+          "rate-down": "310880"
+        },
+        {
+          "name": "name-cba8",
+          "mac-address": "02:50:31:34:AF:F3",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-66e8",
+          "mac-address": "02:AD:73:D7:5B:19",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-55dc",
+          "mac-address": "02:63:BA:83:16:02",
+          "rate-up": "2104",
+          "rate-down": "2520"
+        },
+        {
+          "name": "name-0b13",
+          "mac-address": "02:16:1C:3A:E1:12",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-5e4d",
+          "mac-address": "02:0C:F4:BB:57:67",
+          "rate-up": "1616",
+          "rate-down": "1936"
+        },
+        {
+          "name": "name-9ef3",
+          "mac-address": "02:B7:EF:BB:12:EE",
+          "rate-up": "0",
+          "rate-down": "3696"
+        },
+        {
+          "name": "name-2bd7",
+          "mac-address": "02:EB:0A:9A:37:20",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-7c8f",
+          "mac-address": "02:09:B4:E1:91:05",
+          "rate-up": "13312",
+          "rate-down": "105640"
+        },
+        {
+          "name": "name-f8f7",
+          "mac-address": "02:8F:38:9C:3F:5D",
+          "rate-up": "1520",
+          "rate-down": "1520"
+        },
+        {
+          "name": "name-0d67",
+          "mac-address": "02:50:21:2A:C4:D0",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-1dd4",
+          "mac-address": "02:FF:D8:4E:A5:C1",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-9852",
+          "mac-address": "02:45:6C:57:CB:DF",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-4922",
+          "mac-address": "02:3D:B7:CD:C8:8C",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-2c97",
+          "mac-address": "02:84:14:9F:77:ED",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-b838",
+          "mac-address": "02:5D:57:D5:69:77",
+          "rate-up": "416",
+          "rate-down": "416"
+        },
+        {
+          "name": "name-d15b",
+          "mac-address": "02:73:C0:10:31:1E",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-84a6",
+          "mac-address": "02:5E:39:46:89:48",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-7e34",
+          "mac-address": "02:3A:CB:73:0B:2C",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-faf1",
+          "mac-address": "02:04:FF:43:D1:42",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-d533",
+          "mac-address": "02:05:27:35:06:3D",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-5704",
+          "mac-address": "02:AF:C0:BB:E1:6E",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-d331",
+          "mac-address": "02:05:18:7F:68:63",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-a1c9",
+          "mac-address": "02:C8:23:46:F1:23",
+          "rate-up": "142792",
+          "rate-down": "47840"
+        },
+        {
+          "name": "name-0836",
+          "mac-address": "02:31:48:F6:C4:AF",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-8d44",
+          "mac-address": "02:C1:CA:94:8E:4D",
+          "rate-up": "2960",
+          "rate-down": "4248"
+        },
+        {
+          "name": "name-49c8",
+          "mac-address": "02:E7:41:72:83:33",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-706b",
+          "mac-address": "02:72:1E:45:9F:45",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-2320",
+          "mac-address": "02:96:D1:8A:A2:CA",
+          "rate-up": "7960",
+          "rate-down": "6376"
+        },
+        {
+          "name": "name-4d57",
+          "mac-address": "02:97:CE:CD:55:2D",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-ba9e",
+          "mac-address": "02:AA:E9:10:76:06",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-69e1",
+          "mac-address": "02:4F:73:73:6D:5F",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-fa28",
+          "mac-address": "02:DA:CC:8F:66:41",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-1d51",
+          "mac-address": "02:7C:8B:10:49:58",
+          "rate-up": "35888",
+          "rate-down": "27928"
+        },
+        {
+          "name": "name-5386",
+          "mac-address": "02:94:09:27:4F:23",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-62aa",
+          "mac-address": "02:37:B4:D5:A8:AB",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-d2d6",
+          "mac-address": "02:76:04:8A:CD:32",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-07e6",
+          "mac-address": "02:BC:E3:80:9C:EC",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-0ce4",
+          "mac-address": "02:59:19:A8:5F:97",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-dba7",
+          "mac-address": "02:E8:77:4C:FF:87",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-a875",
+          "mac-address": "02:6F:21:29:83:E3",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-f397",
+          "mac-address": "02:72:7A:E4:44:62",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-03eb",
+          "mac-address": "02:2E:4D:F6:6D:68",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-838c",
+          "mac-address": "02:A4:0F:33:4D:89",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-ee6f",
+          "mac-address": "02:55:3D:F0:39:32",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-08c7",
+          "mac-address": "02:4E:B4:01:27:91",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-b359",
+          "mac-address": "02:9B:49:E9:34:07",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-8e0b",
+          "mac-address": "02:08:19:F7:F8:FC",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-1c49",
+          "mac-address": "02:B0:95:BF:75:54",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "",
+          "mac-address": "02:41:6F:7A:29:92",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-2d07",
+          "mac-address": "02:0E:A6:51:B0:5A",
+          "rate-up": "2080",
+          "rate-down": "25888"
+        },
+        {
+          "name": "name-5230",
+          "mac-address": "02:68:45:32:38:85",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-2d07",
+          "mac-address": "02:C2:C4:2A:E1:F4",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-cc87",
+          "mac-address": "02:3A:F8:3D:AA:AF",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-5418",
+          "mac-address": "02:EC:08:20:44:48",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-6284",
+          "mac-address": "02:24:7A:52:3D:BA",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-8c56",
+          "mac-address": "02:94:C8:F4:28:C3",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-5a7b",
+          "mac-address": "02:F1:85:EB:A7:3A",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-77cb",
+          "mac-address": "02:37:FB:7E:4F:24",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-34fb",
+          "mac-address": "02:5D:0A:5C:09:16",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-f1fe",
+          "mac-address": "02:82:0F:97:AA:23",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "name-8fc3",
+          "mac-address": "02:F8:B6:24:79:32",
+          "rate-up": "0",
+          "rate-down": "0"
+        },
+        {
+          "name": "",
+          "mac-address": "02:50:05:28:60:88",
+          "rate-up": "0",
+          "rate-down": "0"
+        }
+      ]
+    }
+  ]
+}

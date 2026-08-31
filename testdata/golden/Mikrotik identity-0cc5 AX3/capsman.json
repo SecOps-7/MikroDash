@@ -1,0 +1,404 @@
+{
+  "ts": 0,
+  "pollMs": 30000,
+  "role": "both",
+  "manager": {
+    "enabled": true,
+    "interfaces": [
+      "Home"
+    ],
+    "caCertificate": "ca-certificate-0433",
+    "certificate": "certificate-134b",
+    "requirePeerCertificate": false,
+    "upgradePolicy": "suggest-same-version",
+    "packagePath": ""
+  },
+  "cap": {
+    "enabled": true,
+    "discoveryInterfaces": [],
+    "capsManAddresses": [
+      "caps-man-addresses-66a9"
+    ],
+    "currentAddress": "",
+    "currentIdentity": "",
+    "certificate": "certificate-b887",
+    "slavesDatapath": ""
+  },
+  "caps": [
+    {
+      "identity": "identity-80e8",
+      "address": "02:31:48:F6:C4:AF%Home",
+      "boardName": "host-name-8ab7Gi-5HaxD2HaxD",
+      "serial": "serial-9227",
+      "version": "7.24",
+      "baseMac": "02:31:48:F6:C4:AF",
+      "commonName": "",
+      "state": "Ok",
+      "connectedTime": "3d8h38m22s",
+      "uptime": "3d17h47m55s",
+      "radios": [
+        {
+          "radioMac": "02:92:85:C2:C4:A8",
+          "interface": "2.4GHz WiFi4",
+          "disabled": false
+        },
+        {
+          "radioMac": "02:60:E0:D4:C8:C7",
+          "interface": "5GHz WiFi4",
+          "disabled": false
+        }
+      ],
+      "clients": [
+        {
+          "mac": "02:E7:41:72:83:33",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -24,
+          "uptime": "3d4h29m44s"
+        },
+        {
+          "mac": "02:FF:D8:4E:A5:C1",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -50,
+          "uptime": "2h1m41s"
+        },
+        {
+          "mac": "02:EC:08:20:44:48",
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943",
+          "signal": -54,
+          "uptime": "2h40m15s"
+        },
+        {
+          "mac": "02:F1:85:EB:A7:3A",
+          "interface": "5GHz WiFi5",
+          "ssid": "ssid-84f1",
+          "signal": -55,
+          "uptime": "57m28s"
+        },
+        {
+          "mac": "02:AD:73:D7:5B:19",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -59,
+          "uptime": "3d4h29m49s"
+        },
+        {
+          "mac": "02:0E:A6:51:B0:5A",
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -60,
+          "uptime": "6h43m32s"
+        },
+        {
+          "mac": "02:16:1C:3A:E1:12",
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -63,
+          "uptime": "3d8h34m41s"
+        },
+        {
+          "mac": "02:8F:38:9C:3F:5D",
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -63,
+          "uptime": "3d10m49s"
+        },
+        {
+          "mac": "02:0C:F4:BB:57:67",
+          "interface": "5GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -64,
+          "uptime": "14h35m54s"
+        },
+        {
+          "mac": "02:59:19:A8:5F:97",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -65,
+          "uptime": "3h41m23s"
+        },
+        {
+          "mac": "02:3A:F8:3D:AA:AF",
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943",
+          "signal": -65,
+          "uptime": "31m23s"
+        },
+        {
+          "mac": "02:24:7A:52:3D:BA",
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943",
+          "signal": -66,
+          "uptime": "2h54m41s"
+        },
+        {
+          "mac": "02:73:C0:10:31:1E",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -67,
+          "uptime": "15h36m53s"
+        },
+        {
+          "mac": "02:05:27:35:06:3D",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -67,
+          "uptime": "7h3m10s"
+        },
+        {
+          "mac": "02:37:B4:D5:A8:AB",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -69,
+          "uptime": "3d4h29m42s"
+        },
+        {
+          "mac": "02:68:45:32:38:85",
+          "interface": "5GHz WiFi4",
+          "ssid": "ssid-4943",
+          "signal": -71,
+          "uptime": "2h55m2s"
+        },
+        {
+          "mac": "02:50:21:2A:C4:D0",
+          "interface": "2.4GHz WiFi6",
+          "ssid": "ssid-7e71",
+          "signal": -78,
+          "uptime": "1d6h34m40s"
+        }
+      ],
+      "clientCount": 17
+    }
+  ],
+  "provisioning": [
+    {
+      "id": "*1",
+      "identity": "5ghz-ac,5ghz-ax,5ghz-n,5ghz-a\u0001create-dynamic-enabled\u0001Home WiFi 5Ghz\u00015GHz WiFi",
+      "supportedBands": [
+        "5ghz-ac",
+        "5ghz-ax",
+        "5ghz-n",
+        "5ghz-a"
+      ],
+      "action": "create-dynamic-enabled",
+      "masterConfiguration": "Home WiFi 5Ghz",
+      "slaveConfigurations": [
+        "Guest WiFi 5Ghz",
+        "IoT WiFi 5Ghz"
+      ],
+      "nameFormat": "5GHz WiFi",
+      "radioMac": "",
+      "identityRegexp": "",
+      "comment": "",
+      "disabled": false
+    },
+    {
+      "id": "*2",
+      "identity": "2ghz-n,2ghz-g,2ghz-ax\u0001create-dynamic-enabled\u0001Home WiFi 2.4Ghz\u00012.4GHz WiFi",
+      "supportedBands": [
+        "2ghz-n",
+        "2ghz-g",
+        "2ghz-ax"
+      ],
+      "action": "create-dynamic-enabled",
+      "masterConfiguration": "Home WiFi 2.4Ghz",
+      "slaveConfigurations": [
+        "Guest WiFi 2.4Ghz",
+        "IoT WiFi 2.4Ghz"
+      ],
+      "nameFormat": "2.4GHz WiFi",
+      "radioMac": "",
+      "identityRegexp": "",
+      "comment": "",
+      "disabled": false
+    }
+  ],
+  "localRadios": [
+    {
+      "radioMac": "02:21:12:F9:6F:D4",
+      "interface": "5GHz WiFi",
+      "disabled": false
+    },
+    {
+      "radioMac": "02:CA:65:80:7F:1F",
+      "interface": "2.4GHz WiFi",
+      "disabled": false
+    }
+  ],
+  "totals": {
+    "caps": 1,
+    "capsOk": 1,
+    "radios": 4,
+    "clients": 30,
+    "clientsOnCaps": 17,
+    "clientsLocal": 13
+  },
+  "profiles": {
+    "configuration": [
+      {
+        "id": "*1",
+        "name": "Home WiFi 5Ghz",
+        "ssid": "ssid-4943",
+        "mode": "ap",
+        "country": "country-b6ed",
+        "hideSsid": false,
+        "security": "Home WiFi",
+        "channel": "5Ghz Channel Range",
+        "datapath": "datapath",
+        "manager": "",
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*2",
+        "name": "Home WiFi 2.4Ghz",
+        "ssid": "ssid-4943",
+        "mode": "ap",
+        "country": "country-b6ed",
+        "hideSsid": false,
+        "security": "Home WiFi",
+        "channel": "",
+        "datapath": "datapath",
+        "manager": "",
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*3",
+        "name": "Guest WiFi 2.4Ghz",
+        "ssid": "ssid-84f1",
+        "mode": "ap",
+        "country": "country-b6ed",
+        "hideSsid": false,
+        "security": "Guest WiFi",
+        "channel": "",
+        "datapath": "datapath",
+        "manager": "",
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*4",
+        "name": "Guest WiFi 5Ghz",
+        "ssid": "ssid-84f1",
+        "mode": "ap",
+        "country": "country-b6ed",
+        "hideSsid": false,
+        "security": "Guest WiFi",
+        "channel": "5Ghz Channel Range",
+        "datapath": "datapath",
+        "manager": "",
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*5",
+        "name": "IoT WiFi 2.4Ghz",
+        "ssid": "ssid-7e71",
+        "mode": "ap",
+        "country": "country-b6ed",
+        "hideSsid": false,
+        "security": "IoT WiFi",
+        "channel": "",
+        "datapath": "datapath",
+        "manager": "",
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*6",
+        "name": "IoT WiFi 5Ghz",
+        "ssid": "ssid-7e71",
+        "mode": "ap",
+        "country": "country-b6ed",
+        "hideSsid": false,
+        "security": "IoT WiFi",
+        "channel": "5Ghz Channel Range",
+        "datapath": "datapath",
+        "manager": "",
+        "comment": "",
+        "disabled": false
+      }
+    ],
+    "security": [
+      {
+        "id": "*1",
+        "name": "Home WiFi",
+        "authTypes": "wpa2-psk,wpa3-psk",
+        "wps": "disable",
+        "ft": true,
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*2",
+        "name": "Guest WiFi",
+        "authTypes": "wpa2-psk,wpa3-psk",
+        "wps": "disable",
+        "ft": true,
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*3",
+        "name": "IoT WiFi",
+        "authTypes": "wpa2-psk,wpa3-psk",
+        "wps": "disable",
+        "ft": true,
+        "comment": "",
+        "disabled": false
+      }
+    ],
+    "channel": [
+      {
+        "id": "*4",
+        "name": "5Ghz Channels",
+        "band": "",
+        "frequency": "5180,5260,5500,5660",
+        "width": "",
+        "secondaryFrequency": "",
+        "skipDfsChannels": "10min-cac",
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*5",
+        "name": "2.4Ghz Channels",
+        "band": "",
+        "frequency": "2412,2437,2462,2484",
+        "width": "20mhz",
+        "secondaryFrequency": "",
+        "skipDfsChannels": "10min-cac",
+        "comment": "",
+        "disabled": false
+      },
+      {
+        "id": "*6",
+        "name": "5Ghz Channel Range",
+        "band": "",
+        "frequency": "5180-5730",
+        "width": "",
+        "secondaryFrequency": "",
+        "skipDfsChannels": "10min-cac",
+        "comment": "",
+        "disabled": false
+      }
+    ],
+    "datapath": [
+      {
+        "id": "*1",
+        "name": "datapath",
+        "bridge": "Bridge",
+        "vlanId": "",
+        "clientIsolation": false,
+        "localForwarding": false,
+        "trafficProcessing": "on-capsman",
+        "comment": "",
+        "disabled": false
+      }
+    ]
+  },
+  "available": true
+}

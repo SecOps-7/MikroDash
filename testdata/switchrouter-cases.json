@@ -1,0 +1,717 @@
+{
+  "generated_from": "src/index.js switchRouter",
+  "cases": [
+    {
+      "why": "a switch with NO previous active router - the first-run overlay's case",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": null,
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {},
+        "newEntry": {
+          "rosConnected": false
+        },
+        "switching": false,
+        "sockets": []
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "NO previous active router, and a socket following nothing",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": null,
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {},
+        "newEntry": {
+          "rosConnected": false
+        },
+        "switching": false,
+        "sockets": [
+          {
+            "id": "unattached",
+            "rooms": [
+              "lobby"
+            ]
+          }
+        ]
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "a switch away from an active router that has a pooled session",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {
+          "r1": {
+            "hasIdleTimer": true
+          }
+        },
+        "newEntry": {
+          "rosConnected": false
+        },
+        "switching": false,
+        "sockets": [
+          {
+            "id": "s1",
+            "routerId": "r1",
+            "rooms": [
+              "router-r1",
+              "router-r1:wifi"
+            ]
+          }
+        ]
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "broadcastRosStatus",
+          "connected": false,
+          "reason": "Switching to Two…"
+        },
+        {
+          "op": "emit",
+          "to": "router-r1",
+          "event": "router:switching",
+          "payload": {
+            "routerId": "r2",
+            "label": "Two"
+          }
+        },
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "clearTimeout"
+        },
+        {
+          "op": "teardown",
+          "routerId": "r1"
+        },
+        {
+          "op": "dropEvaluator",
+          "routerId": "r1"
+        },
+        {
+          "op": "leave",
+          "socket": "s1",
+          "room": "router-r1"
+        },
+        {
+          "op": "leave",
+          "socket": "s1",
+          "room": "router-r1:wifi"
+        },
+        {
+          "op": "join",
+          "socket": "s1",
+          "room": "router-r2"
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "a socket watching a DIFFERENT router is left alone",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {
+          "r1": {
+            "hasIdleTimer": false
+          }
+        },
+        "newEntry": {
+          "rosConnected": false
+        },
+        "switching": false,
+        "sockets": [
+          {
+            "id": "following",
+            "routerId": "r1",
+            "rooms": [
+              "router-r1"
+            ]
+          },
+          {
+            "id": "pinned-elsewhere",
+            "routerId": "r3",
+            "rooms": [
+              "router-r3"
+            ]
+          }
+        ]
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "broadcastRosStatus",
+          "connected": false,
+          "reason": "Switching to Two…"
+        },
+        {
+          "op": "emit",
+          "to": "router-r1",
+          "event": "router:switching",
+          "payload": {
+            "routerId": "r2",
+            "label": "Two"
+          }
+        },
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "teardown",
+          "routerId": "r1"
+        },
+        {
+          "op": "dropEvaluator",
+          "routerId": "r1"
+        },
+        {
+          "op": "leave",
+          "socket": "following",
+          "room": "router-r1"
+        },
+        {
+          "op": "join",
+          "socket": "following",
+          "room": "router-r2"
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "a socket already on the new router is not moved to it again",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {
+          "r1": {
+            "hasIdleTimer": false
+          }
+        },
+        "newEntry": {
+          "rosConnected": false
+        },
+        "switching": false,
+        "sockets": [
+          {
+            "id": "already",
+            "routerId": "r2",
+            "rooms": [
+              "router-r2"
+            ]
+          }
+        ]
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "broadcastRosStatus",
+          "connected": false,
+          "reason": "Switching to Two…"
+        },
+        {
+          "op": "emit",
+          "to": "router-r1",
+          "event": "router:switching",
+          "payload": {
+            "routerId": "r2",
+            "label": "Two"
+          }
+        },
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "teardown",
+          "routerId": "r1"
+        },
+        {
+          "op": "dropEvaluator",
+          "routerId": "r1"
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "ROOMS ARE LEFT BY PREFIX, so a sub-room like router-r1:wifi goes too",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {
+          "r1": {
+            "hasIdleTimer": false
+          }
+        },
+        "newEntry": {
+          "rosConnected": false
+        },
+        "switching": false,
+        "sockets": [
+          {
+            "id": "s1",
+            "routerId": "r1",
+            "rooms": [
+              "router-r1",
+              "router-r1:wifi",
+              "lobby"
+            ]
+          }
+        ]
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "broadcastRosStatus",
+          "connected": false,
+          "reason": "Switching to Two…"
+        },
+        {
+          "op": "emit",
+          "to": "router-r1",
+          "event": "router:switching",
+          "payload": {
+            "routerId": "r2",
+            "label": "Two"
+          }
+        },
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "teardown",
+          "routerId": "r1"
+        },
+        {
+          "op": "dropEvaluator",
+          "routerId": "r1"
+        },
+        {
+          "op": "leave",
+          "socket": "s1",
+          "room": "router-r1"
+        },
+        {
+          "op": "leave",
+          "socket": "s1",
+          "room": "router-r1:wifi"
+        },
+        {
+          "op": "join",
+          "socket": "s1",
+          "room": "router-r2"
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "the new session is ALREADY connected, so a synthetic ros:status true is sent (#118)",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {
+          "r1": {
+            "hasIdleTimer": false
+          }
+        },
+        "newEntry": {
+          "rosConnected": true,
+          "startupReady": true,
+          "session": {}
+        },
+        "switching": false,
+        "sockets": []
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "broadcastRosStatus",
+          "connected": false,
+          "reason": "Switching to Two…"
+        },
+        {
+          "op": "emit",
+          "to": "router-r1",
+          "event": "router:switching",
+          "payload": {
+            "routerId": "r2",
+            "label": "Two"
+          }
+        },
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "teardown",
+          "routerId": "r1"
+        },
+        {
+          "op": "dropEvaluator",
+          "routerId": "r1"
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        },
+        {
+          "op": "emit",
+          "to": "router-r2",
+          "event": "ros:status",
+          "payload": {
+            "connected": true,
+            "reason": null
+          }
+        },
+        {
+          "op": "replay"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "already connected but NOT startupReady - the status is sent, the replay is not",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {
+          "r1": {
+            "hasIdleTimer": false
+          }
+        },
+        "newEntry": {
+          "rosConnected": true,
+          "startupReady": false,
+          "session": {}
+        },
+        "switching": false,
+        "sockets": []
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "broadcastRosStatus",
+          "connected": false,
+          "reason": "Switching to Two…"
+        },
+        {
+          "op": "emit",
+          "to": "router-r1",
+          "event": "router:switching",
+          "payload": {
+            "routerId": "r2",
+            "label": "Two"
+          }
+        },
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "teardown",
+          "routerId": "r1"
+        },
+        {
+          "op": "dropEvaluator",
+          "routerId": "r1"
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        },
+        {
+          "op": "emit",
+          "to": "router-r2",
+          "event": "ros:status",
+          "payload": {
+            "connected": true,
+            "reason": null
+          }
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "a NOT-yet-connected new session sends no synthetic status at all",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {
+          "r1": {
+            "hasIdleTimer": false
+          }
+        },
+        "newEntry": {
+          "rosConnected": false,
+          "startupReady": true,
+          "session": {}
+        },
+        "switching": false,
+        "sockets": []
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "broadcastRosStatus",
+          "connected": false,
+          "reason": "Switching to Two…"
+        },
+        {
+          "op": "emit",
+          "to": "router-r1",
+          "event": "router:switching",
+          "payload": {
+            "routerId": "r2",
+            "label": "Two"
+          }
+        },
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r2"
+          }
+        },
+        {
+          "op": "teardown",
+          "routerId": "r1"
+        },
+        {
+          "op": "dropEvaluator",
+          "routerId": "r1"
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r2"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "REFUSAL: both at once - a busy switch reports the flag, not the bad id",
+      "input": {
+        "newRouterId": "nope",
+        "activeRouterId": "r1",
+        "knownRouters": {},
+        "pooled": {},
+        "newEntry": null,
+        "switching": true,
+        "sockets": []
+      },
+      "result": {
+        "ok": false,
+        "error": "Switch already in progress"
+      },
+      "ops": [],
+      "switchingAfter": true
+    },
+    {
+      "why": "switching to the router that is ALREADY active",
+      "input": {
+        "newRouterId": "r1",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r1": "One"
+        },
+        "pooled": {
+          "r1": {
+            "hasIdleTimer": false
+          }
+        },
+        "newEntry": {
+          "rosConnected": false
+        },
+        "switching": false,
+        "sockets": [
+          {
+            "id": "onIt",
+            "routerId": "r1",
+            "rooms": [
+              "router-r1",
+              "router-r1:wifi"
+            ]
+          }
+        ]
+      },
+      "result": {
+        "ok": true
+      },
+      "ops": [
+        {
+          "op": "broadcastRosStatus",
+          "connected": false,
+          "reason": "Switching to One…"
+        },
+        {
+          "op": "emit",
+          "to": "router-r1",
+          "event": "router:switching",
+          "payload": {
+            "routerId": "r1",
+            "label": "One"
+          }
+        },
+        {
+          "op": "settings.save",
+          "patch": {
+            "activeRouterId": "r1"
+          }
+        },
+        {
+          "op": "teardown",
+          "routerId": "r1"
+        },
+        {
+          "op": "dropEvaluator",
+          "routerId": "r1"
+        },
+        {
+          "op": "ensureRouterSession",
+          "routerId": "r1"
+        }
+      ],
+      "switchingAfter": false
+    },
+    {
+      "why": "REFUSAL: an unknown router id",
+      "input": {
+        "newRouterId": "nope",
+        "activeRouterId": "r1",
+        "knownRouters": {},
+        "pooled": {},
+        "newEntry": null,
+        "switching": false,
+        "sockets": []
+      },
+      "result": {
+        "ok": false,
+        "error": "Router not found"
+      },
+      "ops": [],
+      "switchingAfter": false
+    },
+    {
+      "why": "REFUSAL: a switch is already in progress",
+      "input": {
+        "newRouterId": "r2",
+        "activeRouterId": "r1",
+        "knownRouters": {
+          "r2": "Two"
+        },
+        "pooled": {},
+        "newEntry": null,
+        "switching": true,
+        "sockets": []
+      },
+      "result": {
+        "ok": false,
+        "error": "Switch already in progress"
+      },
+      "ops": [],
+      "switchingAfter": true
+    }
+  ]
+}

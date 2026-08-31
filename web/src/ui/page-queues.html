@@ -1,0 +1,135 @@
+  <div class="page-view" id="page-queues">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Simple Queues</div><div class="fa-stat-val" id="qSumSimple">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Tree Queues</div><div class="fa-stat-val" id="qSumTree">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Shaping Now</div><div class="fa-stat-val" id="qSumActive">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Total Shaped</div><div class="fa-stat-val" id="qSumBytes" style="font-size:1.1rem">&mdash;</div></div>
+      </div>
+
+      <!-- FastTrack swallows the traffic simple queues are meant to shape, so a
+           queue can look configured and do nothing. Rendered only when at least
+           one enabled queue is actually affected. -->
+      <div id="qFtCard" style="display:none;margin-bottom:.85rem"><div class="q-ftbanner" id="qFtBanner"></div></div>
+      <div id="qNoticeCard" style="display:none;margin-bottom:.85rem"><div class="q-ftbanner q-ft-unknown" id="qNotice"></div></div>
+
+      <div class="card" id="queuesCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="stab-bar brtab-bar" id="qTabBar" role="tablist" aria-label="Queue tables">
+            <button class="stab active" data-qtab="simple" role="tab" aria-selected="true"
+                    aria-controls="qtab-simple" id="qTabBtn-simple">Simple
+              <span id="qSimpleBadge" class="card-badge">0</span></button>
+            <button class="stab" data-qtab="tree" role="tab" aria-selected="false"
+                    aria-controls="qtab-tree" id="qTabBtn-tree">Tree
+              <span id="qTreeBadge" class="card-badge">0</span></button>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span id="qActionNote" class="muted-note"></span>
+            <input id="qSearch" class="form-control form-control-sm"
+                   placeholder="Search&hellip;" style="flex:0 1 200px;width:200px"/>
+            <button class="sbtn sbtn-primary" id="qAddBtn" style="padding:.32rem .7rem;font-size:.72rem">+ Add Queue</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+
+          <div class="brtab-panel active" id="qtab-simple" role="tabpanel" aria-labelledby="qTabBtn-simple">
+            <div class="data-scroll" style="max-height:calc(100vh - 440px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:1000px">
+                <colgroup><col style="width:4%"><col style="width:17%"><col style="width:15%"><col style="width:16%">
+                          <col style="width:22%"><col style="width:26%"></colgroup>
+                <thead><tr id="qSimpleThead"></tr></thead>
+                <tbody id="qSimpleTable">
+                  <tr><td colspan="6" class="empty-state">Waiting for queue data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="brtab-panel" id="qtab-tree" role="tabpanel" aria-labelledby="qTabBtn-tree">
+            <div class="data-scroll" style="max-height:calc(100vh - 440px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:940px">
+                <colgroup><col style="width:18%"><col style="width:14%"><col style="width:16%"><col style="width:14%">
+                          <col style="width:18%"><col style="width:20%"></colgroup>
+                <thead><tr id="qTreeThead"></tr></thead>
+                <tbody id="qTreeTable">
+                  <tr><td colspan="6" class="empty-state">Waiting for queue data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Add / edit a queue ────────────────────────────────────────── -->
+      <div class="rtr-modal-bg" id="qFormWrap">
+       <div class="rtr-modal pmodal">
+        <div class="rtr-modal-hdr">
+          <span class="rtr-modal-title" id="qf_title">Add Queue</span>
+          <button class="rtr-modal-close" data-modal-close="qFormWrap" aria-label="Close">&#10005;</button>
+        </div>
+        <div class="rtr-modal-body">
+          <input type="hidden" id="qf_id">
+          <input type="hidden" id="qf_menu">
+          <input type="hidden" id="qf_expectedName">
+          <input type="hidden" id="qf_ack">
+          <div class="sform-row">
+            <div>
+              <label class="sform-label">Name</label>
+              <input class="sform-input" id="qf_name" type="text" placeholder="queue name" autocomplete="off">
+            </div>
+            <div id="qf_targetWrap">
+              <label class="sform-label">Target</label>
+              <input class="sform-input" id="qf_target" type="text" placeholder="10.0.0.5/32 or an interface" autocomplete="off">
+            </div>
+            <div id="qf_parentWrap" style="display:none">
+              <label class="sform-label">Parent</label>
+              <input class="sform-input" id="qf_parent" type="text" placeholder="global, or an interface" autocomplete="off">
+            </div>
+          </div>
+          <div class="sform-row" style="margin-top:.6rem">
+            <div>
+              <!-- Suffixes are what the router accepts and what people type; it
+                   answers in raw bps, which the page converts back for display. -->
+              <label class="sform-label">Max Limit <span style="font-weight:400;text-transform:none;letter-spacing:0" id="qf_maxHint">(up/down, e.g. 15M/20M)</span></label>
+              <input class="sform-input" id="qf_maxLimit" type="text" placeholder="15M/20M" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">Limit At <span style="font-weight:400;text-transform:none;letter-spacing:0">(guaranteed, optional)</span></label>
+              <input class="sform-input" id="qf_limitAt" type="text" placeholder="5M/5M" autocomplete="off">
+            </div>
+          </div>
+          <div class="sform-row" style="margin-top:.6rem">
+            <div id="qf_markWrap">
+              <label class="sform-label" id="qf_markLabel">Packet Marks</label>
+              <input class="sform-input" id="qf_packetMark" type="text" placeholder="Optional" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">Priority <span style="font-weight:400;text-transform:none;letter-spacing:0">(1 highest, 8 lowest)</span></label>
+              <input class="sform-input" id="qf_priority" type="text" placeholder="8" autocomplete="off">
+            </div>
+          </div>
+          <div style="margin-top:.6rem">
+            <label class="sform-label">Comment</label>
+            <input class="sform-input" id="qf_comment" type="text" placeholder="Optional" autocomplete="off">
+          </div>
+          <label class="stoggle" style="margin-top:.7rem">
+            <span class="stoggle-label">Disabled</span>
+            <span class="stoggle-switch"><input type="checkbox" id="qf_disabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+          <div class="login-error" id="qf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+          <!-- The self-throttle prompt lives inside the dialog rather than in a
+               window.confirm, so it can name the address, the CIDR and the cap. -->
+          <div id="qf_warn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.3);border-radius:6px;color:var(--text);font-size:.78rem;padding:.55rem .7rem;margin-top:.6rem"></div>
+        </div>
+        <div class="rtr-modal-footer">
+          <button class="sbtn sbtn-outline" data-modal-close="qFormWrap">Cancel</button>
+          <button class="sbtn sbtn-primary" id="qf_save">Save Queue</button>
+        </div>
+       </div>
+      </div>
+
+    </div>
+  </div>

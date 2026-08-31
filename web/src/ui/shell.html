@@ -1,0 +1,986 @@
+<div id="reconnectBanner">&#9889; Reconnecting&#8230;</div>
+<div id="rosBanner">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="rosBannerText">RouterOS not connected</span>
+</div>
+
+<button id="burgerBtn" aria-label="Open menu">
+  <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+<div id="navOverlay"></div>
+
+<nav id="sidenav">
+  <div class="nav-logo">
+    <img src="/logo.png" alt="MikroDash" />
+    <div id="navRouterWrap">
+      <span class="rtr-status-dot" id="navRtrStatusDot"></span>
+      <select id="navRouterSelect" title="Switch router"></select>
+    </div>
+  </div>
+  <div class="nav-items">
+    <a class="nav-item active" data-page="dashboard" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      <span class="nav-label">Dashboard</span>
+    </a>
+
+    <div class="nav-group" data-cat="network">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-network">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 14h16a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z"/><path d="M7 14V9h10v5"/><path d="M12 9V3"/></svg></span>
+        <span class="nav-label">Network</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-network" role="group" aria-label="Network">
+        <a class="nav-item" data-page="wan" data-cat="network" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M3.6 9h16.8"/><path d="M3.6 15h16.8"/></svg></span>
+          <span class="nav-label">WAN</span>
+        </a>
+        <a class="nav-item" data-page="interfaces" data-cat="network" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="6" height="5" rx="1"/><rect x="9" y="3" width="6" height="5" rx="1"/><rect x="16" y="3" width="6" height="5" rx="1"/><rect x="5" y="16" width="6" height="5" rx="1"/><rect x="13" y="16" width="6" height="5" rx="1"/><line x1="5" y1="8" x2="5" y2="13"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="19" y1="8" x2="19" y2="13"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="13" x2="8" y2="16"/><line x1="16" y1="13" x2="16" y2="16"/></svg></span>
+          <span class="nav-label">Interfaces</span>
+        </a>
+        <a class="nav-item" data-page="vlans" data-cat="network" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><rect x="3" y="15" width="18" height="5" rx="1"/><path d="M7 9v6"/><path d="M17 9v6"/></svg></span>
+          <span class="nav-label">VLANs</span>
+        </a>
+        <a class="nav-item" data-page="bridges" data-cat="network" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 17V9"/><path d="M21 17V9"/><path d="M3 12h18"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/></svg></span>
+          <span class="nav-label">Bridges</span>
+        </a>
+        <a class="nav-item" data-page="topology" data-cat="network" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.6"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><line x1="10.2" y1="10.4" x2="5.5" y2="6.4"/><line x1="13.8" y1="10.4" x2="18.5" y2="6.4"/><line x1="10.2" y1="13.6" x2="5.5" y2="17.6"/><line x1="13.8" y1="13.6" x2="18.5" y2="17.6"/></svg></span>
+          <span class="nav-label">Topology</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-group" data-cat="wireless">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-wireless">
+        <!-- Swapped with the page below. The classic wifi symbol belongs on the
+             SECTION — it is the one that means "wireless, generally" — while the
+             ascending bars mean signal strength, which is what the page under it
+             actually lists, one row per client. -->
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
+        <span class="nav-label">Wireless</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-wireless" role="group" aria-label="Wireless">
+        <a class="nav-item" data-page="wifi" data-cat="wireless" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="6.5" r="3"/><path d="M18.5 4.9v3.2M16.9 6.5h3.2"/></svg></span>
+          <span class="nav-label">Wifi Networks</span>
+        </a>
+        <a class="nav-item" data-page="wireless" data-cat="wireless" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 20v-4"/><path d="M9 20v-8"/><path d="M14 20v-12"/><path d="M19 20v-16"/></svg></span>
+          <span class="nav-label">Wifi Clients</span>
+        </a>
+        <a class="nav-item" data-page="capsman" data-cat="wireless" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="2"/><path d="M8.5 13.5a5 5 0 0 1 7 0"/><path d="M5.5 10.5a9 9 0 0 1 13 0"/><rect x="10" y="3" width="4" height="4" rx="1"/></svg></span>
+          <span class="nav-label">CAPsMAN</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-group" data-cat="ipsvc">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-ipsvc">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/><path d="M6.5 7h.01"/><path d="M6.5 17h.01"/></svg></span>
+        <span class="nav-label">IP Services</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-ipsvc" role="group" aria-label="IP Services">
+        <a class="nav-item" data-page="dhcp" data-cat="ipsvc" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
+          <span class="nav-label">DHCP</span>
+        </a>
+        <a class="nav-item" data-page="dns" data-cat="ipsvc" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 2.5 15.3 0 18"/><path d="M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg></span>
+          <span class="nav-label">DNS</span>
+        </a>
+        <a class="nav-item" data-page="routing" data-cat="ipsvc" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></span>
+          <span class="nav-label">Routing</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-group" data-cat="tunnels">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-tunnels">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 20v-7a9 9 0 0 1 18 0v7"/><path d="M9 20v-7a3 3 0 0 1 6 0v7"/></svg></span>
+        <span class="nav-label">Tunnels</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-tunnels" role="group" aria-label="Tunnels">
+        <a class="nav-item" data-page="ppp" data-cat="tunnels" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 7h10a4 4 0 0 1 0 8H8"/><path d="M11 12l-3 3 3 3"/><circle cx="19" cy="7" r="2"/></svg></span>
+          <span class="nav-label">PPP</span>
+        </a>
+        <a class="nav-item" data-page="vpn" data-cat="tunnels" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h8"/><path d="M16 10v4"/><path d="M19 9v6"/></svg></span>
+          <span class="nav-label">VPN</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-group" data-cat="traffic">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-traffic">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M2 12h4l3-8 4 16 3-8h6"/></svg></span>
+        <span class="nav-label">Traffic</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-traffic" role="group" aria-label="Traffic">
+        <a class="nav-item" data-page="bandwidth" data-cat="traffic" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+          <span class="nav-label">Bandwidth</span>
+        </a>
+        <a class="nav-item" data-page="queues" data-cat="traffic" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M3 12h12"/><path d="M3 18h6"/><path d="M19 15l3 3-3 3"/></svg></span>
+          <span class="nav-label">Queues</span>
+        </a>
+        <a class="nav-item" data-page="connections" data-cat="traffic" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+          <span class="nav-label">Connections</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-group" data-cat="security">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-security">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.4 8.6-8 9.6C7.4 20.6 4 17 4 12V6z"/><path d="M9.2 12.2l2 2 3.6-3.8"/></svg></span>
+        <span class="nav-label">Security</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-security" role="group" aria-label="Security">
+        <a class="nav-item" data-page="firewall" data-cat="security" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+          <span class="nav-label">Firewall</span>
+        </a>
+        <a class="nav-item" data-page="rosusers" data-cat="security" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-1.5-1.5"/></svg></span>
+          <span class="nav-label">Device Users</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="nav-group" data-cat="system">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-system">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.6 4.6l2.1 2.1M16.9 16.9l2.1 2.1M19.4 4.6L17.3 6.7M6.7 17.3l-2.1 2.1"/></svg></span>
+        <span class="nav-label">System</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-system" role="group" aria-label="System">
+        <a class="nav-item" data-page="logs" data-cat="system" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+          <span class="nav-label">Logs</span>
+        </a>
+        <a class="nav-item" data-page="packages" data-cat="system" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7.5 12 12.5l8.7-5"/><path d="M12 12.5V21"/></svg></span>
+          <span class="nav-label">Packages</span>
+        </a>
+      </div>
+    </div>
+
+    <a class="nav-item" data-page="devices" href="#" id="nav-devices">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="11" width="18" height="4" rx="1"/><rect x="3" y="18" width="18" height="4" rx="1"/><circle cx="19" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="20" r="1" fill="currentColor" stroke="none"/></svg></span>
+      <span class="nav-label">Devices</span>
+    </a>
+    <a class="nav-item" data-page="reports" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+      <span class="nav-label">Reports</span>
+    </a>
+    <a class="nav-item" data-page="audit" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8 12h5"/><path d="M8 16h8"/></svg></span>
+      <span class="nav-label">Audit</span>
+    </a>
+    <a class="nav-item" data-page="backups" href="#">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></span>
+      <span class="nav-label">Backups</span>
+    </a>
+    <a class="nav-item" data-page="settings" href="#" id="settingsNavItem">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      <span class="nav-label">Settings</span>
+    </a>
+    <div style="flex:1;min-height:8px"></div>
+    <div style="margin:0 14px 4px;border-top:1px solid var(--border);opacity:.25"></div>
+    <div id="authUserChip" style="display:none">
+      <!-- Identity chrome, not navigation. It keeps .nav-item purely for the
+           sidebar styling; the click opens the account modal, wired in app.js.
+           It deliberately carries no data-page — it used to say "settings",
+           which is how an ordinary user ended up on the admin page. -->
+      <div class="nav-item" id="authUserChipBtn" style="height:44px">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        <span class="nav-label" style="display:flex;align-items:center;justify-content:space-between;flex:1;min-width:0;gap:.4rem">
+          <span id="authUsername" style="font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0"></span>
+          <button id="logoutBtn" title="Sign out" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:rgba(99,130,190,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);flex-shrink:0;transition:color .15s,background .15s">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+</nav>
+
+<div id="main">
+  <div id="topbar">
+    <h1 id="topbarLogo">Mikro<span>Dash</span></h1>
+    <div class="topbar-sep"></div>
+    <div id="pageTitleWrap">
+      <span id="pageTitleIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      <span id="pageTitle">Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <div class="notif-wrap">
+        <button id="notifToggleBtn" title="Notifications" style="background:none;border:none;cursor:pointer;padding:2px 4px;display:flex;align-items:center;transition:opacity .2s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+        <span class="notif-dot" id="notifDot"></span>
+        <div class="notif-panel" id="notifPanel">
+          <div class="notif-panel-hdr">
+            <span>Alerts</span>
+            <button class="notif-clear-btn" id="notifClearBtn">Clear all</button>
+          </div>
+          <div class="notif-list" id="notifList">
+            <div class="notif-empty">No alerts yet</div>
+          </div>
+        </div>
+      </div>
+      <span id="tobarClock" class="topbar-mobile-hide" style="font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);white-space:nowrap"></span>
+      <span id="uptimeChip" title="Router uptime"></span>
+      <div id="routerSelectWrap" class="topbar-mobile-hide" style="position:relative">
+        <span class="rtr-status-dot" id="rtrStatusDot"></span>
+        <button id="routerSelectBtn" type="button" title="Switch router" aria-haspopup="listbox" aria-expanded="false">
+          <span id="routerSelectLabel">—</span>
+          <svg class="rtr-dd-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="routerDropdown" class="rtr-dd" role="listbox" aria-label="Switch router">
+          <div class="rtr-dd-search"><input id="routerDropdownSearch" type="text" placeholder="Search devices…" autocomplete="off" spellcheck="false"/></div>
+          <div id="routerDropdownList" class="rtr-dd-list"></div>
+        </div>
+      </div>
+      <!-- Dashboard grid edit controls (visible in edit mode) -->
+      <div id="dashEditControls">
+        <button class="dash-ctrl-btn dash-ctrl-save" id="dashSaveBtn" type="button">Save</button>
+        <button class="dash-ctrl-btn dash-ctrl-discard" id="dashDiscardBtn" type="button">Discard</button>
+        <div class="dash-add-wrap">
+          <button class="dash-ctrl-btn dash-ctrl-add" id="dashAddCardBtn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Card
+          </button>
+          <div id="dashAddPanel"></div>
+        </div>
+      </div>
+      <!-- Edit Dashboard button (visible when on Dashboard page) -->
+      <button id="dashEditBtn" type="button" title="Customise dashboard layout">
+        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit
+      </button>
+      <button id="themeToggle" title="Toggle light / dark">
+        <svg viewBox="0 0 24 24"><path id="themeIconPath" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <!--PAGES-->
+
+  <!-- CONNECTIONS MAP -->
+
+  <!-- WIRELESS -->
+  <!-- Wifi Networks — what this router broadcasts. The configuration side of
+       wireless; who is connected to it lives on #page-wireless below. -->
+
+  <!-- DHCP -->
+
+  <!-- VLANS -->
+
+  <!-- PPP -->
+
+  <!-- FIREWALL -->
+
+  <!-- VPN -->
+
+  <!-- LOGS -->
+
+  <!-- INTERFACES -->
+
+  <!-- ── Bandwidth ───────────────────────────────────────────────────────── -->
+
+  <!-- ── Settings ─────────────────────────────────────────────────────────── -->
+  <!-- REPORTS -->
+
+  <!-- NETWORK TOPOLOGY -->
+
+</div><!-- /main -->
+
+<div id="mapFsOverlay">
+  <button id="mapFsClose" title="Close fullscreen"><svg viewBox="0 0 24 24" style="width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+</div>
+
+<div id="kbdHint"><kbd>1</kbd>&#8211;<kbd>9</kbd> pages &nbsp;&#183;&nbsp; <kbd>/</kbd> log search</div>
+
+  <!-- ── Router Add/Edit Modal ────────────────────────────────────── -->
+  <!-- ── Account modal ────────────────────────────────────────────────────────
+       Everything a signed-in user may change about themselves, reachable from
+       every page via the sidebar chip. Kept out of #page-settings on purpose:
+       that container is display:none unless the Settings page is active, so a
+       modal nested inside it could never be shown. -->
+  <!-- Frequency Analyzer. Body-level for the same reason as the account modal
+       below: a modal nested inside #page-wireless is display:none whenever that
+       page is not the active one, and could never be shown. -->
+  <div class="rtr-modal-bg" id="faModal">
+    <div class="rtr-modal fa-modal">
+      <div class="rtr-modal-hdr">
+        <span class="rtr-modal-title">Frequency Analyzer</span>
+        <button class="rtr-modal-close" data-modal-close="faModal" aria-label="Close">&#10005;</button>
+      </div>
+      <div class="rtr-modal-body">
+
+        <div class="fa-warn">
+          <span class="fa-warn-icon">&#9888;</span>
+          <span class="fa-warn-text" id="faWarnText">
+            Scanning takes the selected radio off the air.
+          </span>
+        </div>
+
+        <div class="fa-controls">
+          <label for="faIface">Interface</label>
+          <select id="faIface" class="conn-src-filter" style="min-width:150px"></select>
+          <label for="faDuration">Duration</label>
+          <select id="faDuration" class="conn-src-filter" style="min-width:80px">
+            <option value="30" selected>30 s</option>
+            <option value="60">1 min</option>
+            <option value="120">2 min</option>
+          </select>
+          <button class="sbtn sbtn-primary" id="faScanBtn" type="button">Scan</button>
+          <button class="sbtn sbtn-outline" id="faStopBtn" type="button" style="display:none">Stop</button>
+          <span class="fa-spin" id="faSpin" role="status" aria-label="Scanning"></span>
+          <span class="fa-status" id="faStatus">Idle</span>
+        </div>
+
+        <div class="fa-stat-row">
+          <div class="fa-stat">
+            <div class="fa-stat-label">Current Channel</div>
+            <div class="fa-stat-val" id="faCurChan">&mdash;<span class="fa-stat-unit">MHz</span></div>
+          </div>
+          <div class="fa-stat">
+            <div class="fa-stat-label">Networks</div>
+            <div class="fa-stat-val" id="faNetworks">&mdash;</div>
+          </div>
+          <div class="fa-stat">
+            <div class="fa-stat-label">Congestion</div>
+            <div class="fa-stat-val" id="faCongestion">&mdash;<span class="fa-stat-unit">%</span></div>
+          </div>
+          <div class="fa-stat">
+            <div class="fa-stat-label">Best Channel</div>
+            <div class="fa-stat-val" id="faBestChan">&mdash;<span class="fa-stat-unit">MHz</span></div>
+          </div>
+          <div class="fa-stat">
+            <div class="fa-stat-label">Noise Floor</div>
+            <div class="fa-stat-val" id="faNoise">&mdash;<span class="fa-stat-unit">dBm</span></div>
+          </div>
+        </div>
+
+        <div class="fa-section-title">Channel congestion</div>
+        <div class="fa-chan-grid" id="faChanGrid"></div>
+
+        <div class="fa-section-title">Spectrum</div>
+        <div class="fa-chart-wrap"><canvas id="faSpectrum"></canvas></div>
+
+        <div class="fa-empty" id="faEmpty">Choose a radio and press Scan.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rtr-modal-bg" id="accountModal">
+    <div class="rtr-modal acct-modal">
+      <div class="rtr-modal-hdr">
+        <span class="rtr-modal-title">My Account</span>
+        <button class="rtr-modal-close" data-modal-close="accountModal" aria-label="Close">&#10005;</button>
+      </div>
+      <div class="rtr-modal-body">
+
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="scard-title">Account</span>
+          </div>
+          <div class="scard-body">
+            <label class="sform-label">Signed in as</label>
+            <div id="acct_username" style="font-size:.9rem;font-weight:600;padding:.25rem 0"></div>
+            <p style="font-size:.72rem;color:var(--text-muted);margin:.35rem 0 0">
+              Your username is managed by an administrator.
+            </p>
+            <!-- The same preference as Settings → Appearance, mirrored here
+                 because Settings is unreachable without manageSettings or
+                 managePrincipals — so a Read Only user could otherwise never
+                 turn grouping off for their own sidebar. Same id-free handler,
+                 same server round trip; the two checkboxes stay in step. -->
+            <hr style="border:none;border-top:1px solid var(--border);margin:.85rem 0">
+            <label class="stoggle">
+              <span class="stoggle-label">Group the sidebar into categories</span>
+              <span class="stoggle-switch"><input type="checkbox" id="acctNavGrouped" class="nav-grouped-input"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="scard-title">Change Password</span>
+          </div>
+          <div class="scard-body">
+            <!-- Collapsed by default. Changing a password is a rare, deliberate
+                 act, and three empty password boxes sitting open every time the
+                 modal is opened read as something that needs doing. -->
+            <div style="display:flex;align-items:center;gap:.7rem" id="acct_pwPrompt">
+              <button id="acct_pwToggleBtn" class="sbtn sbtn-ghost" type="button">Change Password</button>
+              <span style="font-size:.72rem;color:var(--text-muted)">You will need your current password.</span>
+            </div>
+
+            <div id="acct_pwForm" style="display:none">
+              <div class="sform-group" style="margin-bottom:.55rem">
+                <label class="sform-label">Current Password</label>
+                <input type="password" id="acct_currentPassword" class="sform-input" autocomplete="current-password">
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">New Password</label>
+                  <input type="password" id="acct_newPassword" class="sform-input" autocomplete="new-password">
+                </div>
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Confirm New Password</label>
+                  <input type="password" id="acct_confirmPassword" class="sform-input" autocomplete="new-password">
+                </div>
+              </div>
+              <p style="font-size:.72rem;color:var(--text-muted);margin:0 0 .6rem">
+                Changing your password signs you out everywhere else. This device stays signed in.
+              </p>
+              <div style="display:flex;align-items:center;gap:.7rem">
+                <button id="acct_pwSaveBtn" class="sbtn sbtn-primary" type="button">Update Password</button>
+                <button id="acct_pwCancelBtn" class="sbtn sbtn-ghost" type="button">Cancel</button>
+                <span id="acct_pwResult" style="font-size:.75rem"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span class="scard-title">My Access</span>
+          </div>
+          <div class="scard-body" id="acct_accessBody">
+            <span style="color:var(--text-muted);font-size:.78rem">Loading…</span>
+          </div>
+        </div>
+
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+            <span class="scard-title">Active Sessions</span>
+          </div>
+          <div class="scard-body">
+            <div id="acct_sessionsBody"><span style="color:var(--text-muted);font-size:.78rem">Loading…</span></div>
+            <div style="display:flex;align-items:center;gap:.7rem;margin-top:.7rem">
+              <button id="acct_signOutOthersBtn" class="sbtn sbtn-ghost" type="button">Sign Out Everywhere Else</button>
+              <span id="acct_sessionsResult" style="font-size:.75rem"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-user notification channels (#109), moved here from Settings so
+             an ordinary user never needs the admin page. -->
+        <div id="acctMyAlerts" style="display:none">
+        <div class="scard scard--wide">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="scard-title">My Notification Channels</span>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:1rem">
+              Your own delivery, in addition to the install-wide channels. You are only ever notified
+              about routers you have access to, checked at the moment the alert is sent.
+            </p>
+
+            <!-- Telegram -->
+            <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                <div style="display:flex;align-items:center;gap:.55rem">
+                  <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.17 13.555l-2.95-.924c-.64-.204-.657-.64.136-.954l11.57-4.46c.532-.194 1 .13.966.004z"/></svg>
+                  <strong style="font-size:.82rem">Telegram</strong>
+                </div>
+                <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_telegramEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+              </div>
+              <div class="sform-row">
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Bot Token</label>
+                  <input type="password" id="un_telegramBotToken" class="sform-input" placeholder="paste token here" autocomplete="off">
+                </div>
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Chat ID</label>
+                  <input type="text" id="un_telegramChatId" class="sform-input" placeholder="e.g. -100123456789" autocomplete="off">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                <button id="btn-un-test-telegram" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                <span id="un-test-telegram-result" style="font-size:.75rem"></span>
+              </div>
+            </div>
+
+            <div class="nchan-pair">
+              <!-- Pushbullet -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:var(--accent-rx)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.5 18h-3v-2h3v2zm0-4h-3V6h3v8z"/></svg>
+                    <strong style="font-size:.82rem">Pushbullet</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_pushbulletEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                </div>
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">API Key</label>
+                    <input type="password" id="un_pushbulletApiKey" class="sform-input" placeholder="paste key here" autocomplete="off">
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-un-test-pushbullet" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                  <span id="un-test-pushbullet-result" style="font-size:.75rem"></span>
+                </div>
+              </div>
+
+              <!-- ntfy -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <strong style="font-size:.82rem">ntfy</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_ntfyEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                </div>
+                <div class="sform-row">
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">Topic URL</label>
+                    <input type="text" id="un_ntfyUrl" class="sform-input" placeholder="https://ntfy.sh/your-topic" autocomplete="off">
+                  </div>
+                  <div class="sform-group" style="margin-bottom:.55rem">
+                    <label class="sform-label">Access Token <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+                    <input type="password" id="un_ntfyToken" class="sform-input" placeholder="paste token here" autocomplete="off">
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-un-test-ntfy" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Send Test</button>
+                  <span id="un-test-ntfy-result" style="font-size:.75rem"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Email — opt in only. The mail server belongs to the install; the
+                   only part that is this user's is where to send it. -->
+              <div style="border:1px solid var(--border);border-radius:.5rem;padding:.9rem">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+                  <div style="display:flex;align-items:center;gap:.55rem">
+                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:none;stroke:var(--accent-rx);stroke-width:2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+                    <strong style="font-size:.82rem">Email</strong>
+                  </div>
+                  <label class="stoggle" style="margin:0"><span class="stoggle-switch"><input type="checkbox" id="un_emailEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+                </div>
+                <div class="sform-group" style="margin-bottom:.55rem">
+                  <label class="sform-label">Send To</label>
+                  <input type="text" id="un_emailTo" class="sform-input" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <p style="font-size:.7rem;color:var(--text-muted);margin:0 0 .5rem">Sent using the server's mail settings.</p>
+                <div style="display:flex;align-items:center;gap:.6rem;margin-top:.4rem">
+                  <button id="btn-un-test-email" class="sbtn sbtn-ghost" type="button">Send Test</button>
+                  <span id="un-test-email-result" style="font-size:.75rem"></span>
+                </div>
+              </div>
+          </div>
+        </div>
+
+                <div class="scard scard--wide">
+          <div class="scard-body" style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">
+            <button id="saveUserNotifyBtn" class="sbtn sbtn-primary" type="button">Save My Channels</button>
+            <span id="userNotifySaveResult" style="font-size:.75rem"></span>
+            <span style="font-size:.72rem;color:var(--text-muted);margin-left:auto">Which alerts are sent is set by an administrator.</span>
+          </div>
+        </div>
+      </div>
+
+      </div>
+      <div class="rtr-modal-footer">
+        <span id="acct_version" style="font-size:.72rem;color:var(--text-muted);margin-right:auto"></span>
+        <button id="acct_signOutBtn" class="sbtn sbtn-outline" type="button">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="rtr-modal-bg" id="rtrModalBg">
+    <div class="rtr-modal">
+      <div class="rtr-modal-hdr">
+        <span class="rtr-modal-title" id="rtrModalTitle">Add Device</span>
+        <button class="rtr-modal-close" id="rtrModalCloseBtn">&#10005;</button>
+      </div>
+      <div class="rtr-modal-body">
+        <input type="hidden" id="rtrModalId">
+        <div class="rtr-modal-col">
+        <div class="sform-group">
+          <label class="sform-label">Display Name</label>
+          <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
+        </div>
+        <div class="sform-group">
+          <label class="sform-label">Primary site</label>
+          <!-- MEMBERSHIP IS NOT EDITED HERE. Which sites a device belongs to is
+               an authorization decision — it changes who can reach the device —
+               so it lives in Access Management with the rest of them, behind the
+               same administrator gate. This picker only chooses WHICH of the
+               sites it already belongs to places it on the map when it has no
+               coordinates of its own, so it offers exactly those and nothing
+               else. Saving reorders that list; it never adds or removes. -->
+          <select class="sform-input" id="rtrModalPrimarySite" aria-label="Primary site, used for the map location">
+            <option value="">— No site —</option>
+          </select>
+          <div class="form-hint">Decides where this device is drawn on the map when it has no location of its own. To change which sites it belongs to, use Settings → Access Management → Sites.</div>
+        </div>
+        <!-- Location (issue #96). Deliberately a search, not two number boxes:
+             coordinates are derived from the town, never typed. Left blank the
+             router is placed from its WAN IP, and the hint below says what that
+             currently resolves to. -->
+        <div class="sform-group cpick" id="rtrModalGeoWrap">
+          <label class="sform-label" for="rtrModalGeo">Location</label>
+          <div class="cpick-row">
+            <input class="sform-input" id="rtrModalGeo" type="text" role="combobox"
+                   aria-expanded="false" aria-autocomplete="list" aria-controls="rtrModalGeoList"
+                   placeholder="Search for a town or city…" autocomplete="off" maxlength="64">
+            <button type="button" class="cpick-clear" id="rtrModalGeoClear"
+                    title="Clear this override and use the automatic location">Use automatic</button>
+          </div>
+          <div class="cpick-list" id="rtrModalGeoList" role="listbox" hidden></div>
+          <div class="cpick-hint" id="rtrModalGeoHint"></div>
+        </div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label">Host / IP</label>
+            <input class="sform-input" id="rtrModalHost" type="text" placeholder="192.168.88.1">
+          </div>
+          <div>
+            <label class="sform-label">API Port</label>
+            <input class="sform-input" id="rtrModalPort" type="number" min="1" max="65535" value="8729" placeholder="8729">
+          </div>
+        </div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label">Username</label>
+            <input class="sform-input" id="rtrModalUser" type="text" placeholder="admin">
+          </div>
+          <div>
+            <label class="sform-label">Password</label>
+            <input class="sform-input" id="rtrModalPass" type="password" placeholder="leave blank to keep current">
+          </div>
+        </div>
+        <div class="sform-row sform-group" style="margin-bottom:.4rem">
+          <label class="stoggle" id="rtrStogTls">
+            <span class="stoggle-label">Use TLS</span>
+            <span class="stoggle-switch"><input type="checkbox" id="rtrModalTls" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+          <label class="stoggle">
+            <span class="stoggle-label">Allow self-signed cert</span>
+            <span class="stoggle-switch"><input type="checkbox" id="rtrModalTlsInsecure"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+        </div>
+        <p style="font-size:.68rem;color:var(--text-muted);margin:0 0 .6rem">TLS uses port 8729 (API-SSL, recommended) &nbsp;·&nbsp; Plain uses port 8728 (API, unencrypted)</p>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label">Default WAN Interface</label>
+            <input class="sform-input" id="rtrModalIf" type="text" placeholder="ether1">
+          </div>
+          <div>
+            <label class="sform-label">Ping Target</label>
+            <input class="sform-input" id="rtrModalPing" type="text" placeholder="1.1.1.1">
+          </div>
+        </div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label">Bandwidth Down (capacity)</label>
+            <div style="display:flex;gap:.3rem">
+              <input class="sform-input" id="rtrModalBwDown" type="number" min="1" step="1" value="1" style="flex:1" aria-label="Download capacity, Mbps">
+              <input type="hidden" id="rtrModalBwDownUnit" value="gbps">
+              <div class="bw-unit-toggle" data-unit-for="rtrModalBwDownUnit">
+                <button type="button" class="bw-unit-btn active" data-val="gbps">Gbps</button>
+                <button type="button" class="bw-unit-btn" data-val="mbps">Mbps</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="sform-label">Bandwidth Up (capacity)</label>
+            <div style="display:flex;gap:.3rem">
+              <input class="sform-input" id="rtrModalBwUp" type="number" min="1" step="1" value="1" style="flex:1" aria-label="Upload capacity, Mbps">
+              <input type="hidden" id="rtrModalBwUpUnit" value="gbps">
+              <div class="bw-unit-toggle" data-unit-for="rtrModalBwUpUnit">
+                <button type="button" class="bw-unit-btn active" data-val="gbps">Gbps</button>
+                <button type="button" class="bw-unit-btn" data-val="mbps">Mbps</button>
+              </div>
+            </div>
+          </div>
+        </div>
+                <div class="sform-row sform-group" style="margin-bottom:.6rem">
+          <label class="stoggle">
+            <span class="stoggle-label">Alert Monitoring</span>
+            <span class="stoggle-switch"><input type="checkbox" id="rtrModalAlertsEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+          <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Open a background connection for push alerts even when this router is not the active view.</p>
+        </div>
+<div class="sform-group" style="margin-bottom:.6rem">
+          <label class="sform-label" for="rtrModalDownThresh">Offline threshold</label>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            <input class="sform-input" id="rtrModalDownThresh" type="number" min="0" max="300" step="1" value="30" style="width:5rem">
+            <span style="font-size:.8rem;color:var(--text-muted)">seconds</span>
+          </div>
+          <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Status badge and alerts only change after the router has been unreachable for this long. Set to 0 to react immediately.</p>
+        </div>
+        
+        </div><div class="rtr-modal-col">
+
+        <!-- Collection (#105) — per-router, because a fleet is not uniform.
+             An access point has no routed traffic and no Kid Control devices,
+             so running those collectors against it is pure load. -->
+        <div class="sform-group" style="margin-bottom:.6rem;border-top:1px solid var(--border);padding-top:.7rem">
+          <label class="sform-label">Collection method</label>
+          <div class="poll-profile-row" id="rtrModalModeWrap" style="display:flex;gap:.35rem;margin-bottom:.5rem">
+            <button type="button" class="poll-profile-btn active" data-mode="stream">Stream</button>
+            <button type="button" class="poll-profile-btn" data-mode="poll">Poll</button>
+          </div>
+          <input type="hidden" id="rtrModalMode" value="stream">
+          <p style="font-size:.68rem;color:var(--text-muted);margin:0 0 .6rem">
+            Poll suits lower-end hardware: it replaces persistent API streams with periodic requests,
+            which is what actually strains a small router. Logs and the traffic graph always stream —
+            polling them would drop log lines and cost more than it saves.
+          </p>
+
+          <label class="sform-label">Collectors</label>
+          <!-- Built from GET /api/collectors, not written by hand. The hand-written
+               version drifted to 11 toggles against 21 disableable collectors, so ten
+               of them could only be turned off by editing routers.json directly. -->
+          <div class="stoggle-grid" id="rtrModalCollectors"></div>
+          <p style="font-size:.68rem;color:var(--text-muted);margin:.35rem 0 0">
+            Turn off what a router has no data for. Bandwidth needs Connections and follows it.
+            Turning off Interface Rates also stops interface up/down alerts; turning off Ping also
+            stops ping-loss alerts. Saving briefly reconnects this router.
+          </p>
+        </div>
+        </div>
+      </div>
+      <div class="rtr-modal-footer">
+        <span id="rtrTestResult" class="rtr-test-result" style="display:none"></span>
+        <button class="sbtn sbtn-ghost" id="rtrModalTestBtn">Test Connection</button>
+        <button class="sbtn sbtn-ghost" id="rtrModalCancelBtn">Cancel</button>
+        <button class="sbtn sbtn-primary" id="rtrModalSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── First-Run Setup Overlay ──────────────────────────────────── -->
+  <div id="setupOverlay" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--bg-page);overflow-y:auto;">
+    <div style="min-height:100%;display:flex;align-items:center;justify-content:center;padding:2rem;">
+      <div style="width:100%;max-width:520px;">
+        <div style="text-align:center;margin-bottom:2rem;">
+          <div style="font-size:2rem;font-weight:700;color:var(--text-main);letter-spacing:-.02em;margin-bottom:.4rem;">MikroDash</div>
+          <div style="font-size:.95rem;color:var(--text-muted);">Add your MikroTik router to get started</div>
+        </div>
+        <div class="card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1.5rem;">
+          <div id="setupError" style="display:none;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);border-radius:6px;padding:.6rem .9rem;margin-bottom:1rem;font-size:.8rem;color:#f87171;"></div>
+          <div class="sform-group">
+            <label class="sform-label">Display Name <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+            <input class="sform-input" id="setupLabel" type="text" placeholder="e.g. Home Router">
+          </div>
+          <div class="sform-row sform-group">
+            <div>
+              <label class="sform-label">Host / IP <span style="color:#f87171">*</span></label>
+              <input class="sform-input" id="setupHost" type="text" placeholder="192.168.88.1" autocomplete="off">
+            </div>
+            <div>
+              <label class="sform-label">API Port</label>
+              <input class="sform-input" id="setupPort" type="number" min="1" max="65535" value="8729" aria-label="RouterOS API port">
+            </div>
+          </div>
+          <div class="sform-row sform-group">
+            <div>
+              <label class="sform-label">Username</label>
+              <input class="sform-input" id="setupUser" type="text" value="admin" autocomplete="off" aria-label="RouterOS username">
+            </div>
+            <div>
+              <label class="sform-label">Password</label>
+              <input class="sform-input" id="setupPass" aria-label="RouterOS password" type="password" placeholder="" autocomplete="new-password">
+            </div>
+          </div>
+          <div class="sform-row sform-group">
+            <div>
+              <label class="sform-label">Default WAN Interface</label>
+              <input class="sform-input" id="setupIf" type="text" value="ether1" placeholder="ether1">
+            </div>
+            <div>
+              <label class="sform-label">Ping Target</label>
+              <input class="sform-input" id="setupPing" type="text" value="1.1.1.1" placeholder="1.1.1.1">
+            </div>
+          </div>
+          <div class="sform-row sform-group" style="margin-bottom:.4rem;">
+            <label class="stoggle" id="setupStogTls">
+              <span class="stoggle-label">Use TLS</span>
+              <span class="stoggle-switch"><input type="checkbox" id="setupTls" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+            </label>
+            <label class="stoggle">
+              <span class="stoggle-label">Allow self-signed cert</span>
+              <span class="stoggle-switch"><input type="checkbox" id="setupTlsInsecure"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+            </label>
+          </div>
+          <p style="font-size:.68rem;color:var(--text-muted);margin:0 0 1.25rem;">TLS uses port 8729 (API-SSL, recommended) &nbsp;·&nbsp; Plain uses port 8728 (API, unencrypted)</p>
+          <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+            <span id="setupTestResult" style="flex:1;font-size:.78rem;min-width:0;"></span>
+            <button class="sbtn sbtn-ghost" id="setupTestBtn" type="button">Test Connection</button>
+            <button class="sbtn sbtn-primary" id="setupSaveBtn" type="button">Connect</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Add / edit any RouterOS resource ──────────────────────────────
+       ONE dialog for every resource in src/routeros/resources.js. The fields
+       are built at runtime from the schema the server sends, which is why
+       there is nothing between the header and the footer: a field list here
+       would be a second copy of the registry, and copies drift. -->
+  <!-- Configuration diff. Wide and monospaced, because a config diff is only
+       readable if the columns line up. -->
+  <!-- Create or edit a scheduled report. -->
+  <div class="rtr-modal-bg" id="rptSchedModal">
+   <div class="rtr-modal pmodal" style="max-width:30rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="rptSchedTitle">Scheduled report</span>
+      <button class="rtr-modal-close" data-modal-close="rptSchedModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div class="sform-group">
+        <label class="sform-label" for="rs_name">Name</label>
+        <input class="sform-input" id="rs_name" type="text" maxlength="80" placeholder="Monthly usage">
+      </div>
+      <div class="sform-row">
+        <div class="sform-group">
+          <label class="sform-label" for="rs_frequency">Frequency</label>
+          <select class="sform-input" id="rs_frequency">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        <div class="sform-group">
+          <label class="sform-label" for="rs_hour">Send at</label>
+          <select class="sform-input" id="rs_hour"></select>
+        </div>
+      </div>
+      <div class="sform-group">
+        <label class="sform-label">Sections</label>
+        <div class="stoggle-grid" id="rs_sections"></div>
+      </div>
+      <div class="sform-group" id="rs_ifaceWrap" style="display:none">
+        <label class="sform-label" for="rs_iface">Interface</label>
+        <input class="sform-input" id="rs_iface" type="text" placeholder="ether1">
+        <div class="form-hint">Traffic and bandwidth reports cover one interface.</div>
+      </div>
+      <div class="sform-group">
+        <label class="sform-label" for="rs_recipients">Recipients</label>
+        <textarea class="sform-input" id="rs_recipients" rows="3" placeholder="ops@example.com&#10;noc@example.com"></textarea>
+        <div class="form-hint">One address per line. Sent as Bcc, so recipients cannot see each other.</div>
+      </div>
+      <label class="stoggle"><span class="stoggle-label">Enabled</span><span class="stoggle-switch"><input type="checkbox" id="rs_enabled" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+      <div class="login-error" id="rs_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" data-modal-close="rptSchedModal">Cancel</button>
+      <button class="sbtn sbtn-primary" id="rs_save">Save</button>
+    </div>
+   </div>
+  </div>
+
+  <div class="rtr-modal-bg" id="bkDiffModal">
+   <div class="rtr-modal pmodal" style="max-width:1100px;width:96vw">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="bkDiffTitle">Changes</span>
+      <button class="rtr-modal-close" data-modal-close="bkDiffModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div id="bkDiffSummary" class="muted-note" style="margin-bottom:.5rem"></div>
+      <div id="bkDiffBody" class="bk-diff"></div>
+    </div>
+   </div>
+  </div>
+
+  <div class="rtr-modal-bg" id="resModal">
+   <div class="rtr-modal pmodal">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title" id="res_title">Add</span>
+      <button class="rtr-modal-close" data-modal-close="resModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div id="res_fields"></div>
+      <div class="login-error" id="res_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+      <!-- The self-cutoff prompt lives inside the dialog rather than in a
+           window.confirm, so it can name the interface and the address the
+           router sees us from. -->
+      <div id="res_warn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.3);border-radius:6px;color:var(--text-main);font-size:.78rem;padding:.55rem .7rem;margin-top:.6rem"></div>
+      <!-- #97 asks for a preview before apply. Collapsed by default: it is
+           reassurance for the cautious, not a step everyone must read. -->
+      <div style="margin-top:.7rem">
+        <button class="sbtn sbtn-ghost" id="res_previewBtn" type="button" style="padding:.25rem .6rem;font-size:.7rem">Show command</button>
+        <pre id="res_preview" style="display:none;margin:.5rem 0 0;padding:.5rem .6rem;background:rgba(127,127,127,.09);border-radius:6px;font-size:.7rem;white-space:pre-wrap;word-break:break-all;color:var(--text-muted)"></pre>
+      </div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-danger" id="res_delete" style="margin-right:auto;display:none">Delete</button>
+      <!-- Verbs a row still offers when it cannot be edited — "make static" on
+           a dynamic DHCP lease is the case this exists for. Filled from the
+           action list the server sends, which it re-checks against a fresh
+           read before acting on any of them. -->
+      <span id="res_actions"></span>
+      <button class="sbtn sbtn-outline" data-modal-close="resModal">Cancel</button>
+      <button class="sbtn sbtn-primary" id="res_save">Save</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── Upgrade RouterOS ──────────────────────────────────────────────
+       Reached from the update row on the Dashboard's System card. The name
+       confirmation is the same second gate apply-changes uses: this one
+       downloads and reboots in a single command. -->
+  <div class="rtr-modal-bg" id="updModal">
+   <div class="rtr-modal pmodal" style="max-width:26rem">
+    <div class="rtr-modal-hdr">
+      <span class="rtr-modal-title">Update RouterOS</span>
+      <button class="rtr-modal-close" data-modal-close="updModal" aria-label="Close">&#10005;</button>
+    </div>
+    <div class="rtr-modal-body">
+      <div style="display:flex;align-items:center;justify-content:center;gap:.6rem;font-size:1.05rem;margin:.2rem 0 .1rem">
+        <span id="upd_from" style="color:var(--text-muted)">&mdash;</span>
+        <span style="color:var(--text-muted)">&rarr;</span>
+        <strong id="upd_to" style="color:var(--accent-warn)">&mdash;</strong>
+      </div>
+      <div style="text-align:center;font-size:.72rem;color:var(--text-muted);margin-bottom:.8rem" id="upd_channel"></div>
+      <!-- Release notes for the offered version. ABOVE the reboot warning on
+           purpose: what changed is what the operator is deciding on, and the
+           warning is the consequence of that decision, not the input to it. -->
+      <div class="upd-notes muted" id="upd_notes" aria-live="polite" tabindex="0"></div>
+      <div style="background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.3);border-radius:6px;font-size:.78rem;padding:.55rem .7rem;margin-bottom:.8rem;color:var(--text-main)">
+        The router downloads the packages and <strong>reboots immediately</strong>. Every connection through it drops for the duration.
+      </div>
+      <label class="sform-label">Type the router name to confirm</label>
+      <input class="sform-input" id="upd_confirm" type="text" autocomplete="off" placeholder="">
+      <div id="upd_pending" style="display:none;text-align:center;font-size:.76rem;color:var(--text-muted);margin-top:.7rem;line-height:1.5"></div>
+      <div class="login-error" id="upd_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
+    </div>
+    <div class="rtr-modal-footer">
+      <button class="sbtn sbtn-outline" id="upd_cancel" data-modal-close="updModal">Cancel</button>
+      <button class="sbtn sbtn-primary" id="upd_go">Update &amp; Reboot</button>
+    </div>
+   </div>
+  </div>
+
+  <!-- ── Router Switching Overlay ──────────────────────────────────── -->
+  <div class="rtr-switching-overlay" id="rtrSwitchingOverlay">
+    <div class="rtr-switching-spinner"></div>
+    <div class="rtr-switching-label" id="rtrSwitchingLabel">Switching router…</div>
+  </div>

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "rosetta": {
+      "type": "stdio",
+      "command": "bunx",
+      "args": ["@tikoci/rosetta"],
+      "env": {}
+    }
+  }
+}

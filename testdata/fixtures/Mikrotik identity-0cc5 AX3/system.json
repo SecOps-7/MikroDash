@@ -1,0 +1,59 @@
+{
+  "collector": "system",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/system/resource/print",
+      "params": [
+        "=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime,architecture-name"
+      ],
+      "rows": [
+        {
+          "cpu-load": "13",
+          "total-memory": "1073741824",
+          "free-memory": "562020352",
+          "total-hdd-space": "134217728",
+          "free-hdd-space": "84942848",
+          "version": "7.24 (stable)",
+          "board-name": "identity-0cc5 ax^3",
+          "platform": "MikroTik",
+          "cpu-count": "4",
+          "cpu-frequency": "1800",
+          "uptime": "3d8h39m31s",
+          "architecture-name": "arm64"
+        }
+      ]
+    },
+    {
+      "cmd": "/system/license/print",
+      "params": [],
+      "rows": [
+        {
+          "software-id": "HR2S-3YN6",
+          "nlevel": "6",
+          "features": ""
+        }
+      ]
+    },
+    {
+      "cmd": "/system/routerboard/print",
+      "params": [],
+      "rows": [
+        {
+          "routerboard": "true",
+          "board-name": "identity-0cc5 ax^3",
+          "model": "C53UiG+5HPaxD2HPaxD",
+          "serial-number": "serial-number-b1fa",
+          "firmware-type": "ipq6000",
+          "minimum-firmware": "7.6",
+          "current-firmware": "7.24",
+          "upgrade-firmware": "7.24"
+        }
+      ]
+    }
+  ]
+}

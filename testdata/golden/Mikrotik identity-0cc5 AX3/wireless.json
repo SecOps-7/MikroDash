@@ -1,0 +1,418 @@
+{
+  "ts": 0,
+  "clients": [
+    {
+      "mac": "02:F8:B6:24:79:32",
+      "signal": -18,
+      "iface": "2.4GHz WiFi",
+      "txRate": "81500000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "135000000",
+      "uptime": "3d4h24m58s",
+      "ssid": "ssid-4943",
+      "name": ""
+    },
+    {
+      "mac": "02:E7:41:72:83:33",
+      "signal": -25,
+      "iface": "2.4GHz WiFi6",
+      "txRate": "30000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "150000000",
+      "uptime": "3d4h30m42s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:B7:EF:BB:12:EE",
+      "signal": -46,
+      "iface": "5GHz WiFi3",
+      "txRate": "585000000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "468000000",
+      "uptime": "2d13h30m51s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:5E:39:46:89:48",
+      "signal": -49,
+      "iface": "2.4GHz WiFi3",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "39000000",
+      "uptime": "8h15m16s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:FF:D8:4E:A5:C1",
+      "signal": -50,
+      "iface": "2.4GHz WiFi6",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "1000000",
+      "uptime": "2h2m39s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:63:BA:83:16:02",
+      "signal": -54,
+      "iface": "5GHz WiFi3",
+      "txRate": "263300000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "390000000",
+      "uptime": "13h5m51s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:EC:08:20:44:48",
+      "signal": -55,
+      "iface": "5GHz WiFi4",
+      "txRate": "6000000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "195000000",
+      "uptime": "2h41m13s",
+      "ssid": "ssid-4943",
+      "name": ""
+    },
+    {
+      "mac": "02:F1:85:EB:A7:3A",
+      "signal": -55,
+      "iface": "5GHz WiFi5",
+      "txRate": "6000000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "6000000",
+      "uptime": "58m26s",
+      "ssid": "ssid-84f1",
+      "name": ""
+    },
+    {
+      "mac": "02:09:B4:E1:91:05",
+      "signal": -58,
+      "iface": "2.4GHz WiFi3",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "1000000",
+      "uptime": "40m3s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:45:6C:57:CB:DF",
+      "signal": -58,
+      "iface": "2.4GHz WiFi3",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "1000000",
+      "uptime": "37m40s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:AD:73:D7:5B:19",
+      "signal": -59,
+      "iface": "2.4GHz WiFi6",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "11000000",
+      "uptime": "3d4h30m47s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:0E:A6:51:B0:5A",
+      "signal": -60,
+      "iface": "5GHz WiFi6",
+      "txRate": "390000000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "390000000",
+      "uptime": "6h44m31s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:DA:CC:8F:66:41",
+      "signal": -61,
+      "iface": "2.4GHz WiFi3",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "1000000",
+      "uptime": "1d6h34m5s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:16:1C:3A:E1:12",
+      "signal": -63,
+      "iface": "5GHz WiFi6",
+      "txRate": "96000000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "86700000",
+      "uptime": "3d8h35m39s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:8F:38:9C:3F:5D",
+      "signal": -63,
+      "iface": "5GHz WiFi6",
+      "txRate": "72200000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "86700000",
+      "uptime": "3d11m48s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:0C:F4:BB:57:67",
+      "signal": -63,
+      "iface": "5GHz WiFi6",
+      "txRate": "195000000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "351000000",
+      "uptime": "14h36m52s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:59:19:A8:5F:97",
+      "signal": -64,
+      "iface": "2.4GHz WiFi6",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "6500000",
+      "uptime": "3h42m21s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:04:FF:43:D1:42",
+      "signal": -65,
+      "iface": "2.4GHz WiFi3",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "6500000",
+      "uptime": "1d7h22m45s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:3A:F8:3D:AA:AF",
+      "signal": -65,
+      "iface": "5GHz WiFi4",
+      "txRate": "6000000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "103200000",
+      "uptime": "32m21s",
+      "ssid": "ssid-4943",
+      "name": ""
+    },
+    {
+      "mac": "02:24:7A:52:3D:BA",
+      "signal": -66,
+      "iface": "5GHz WiFi4",
+      "txRate": "6000000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "6000000",
+      "uptime": "2h55m39s",
+      "ssid": "ssid-4943",
+      "name": ""
+    },
+    {
+      "mac": "02:73:C0:10:31:1E",
+      "signal": -67,
+      "iface": "2.4GHz WiFi6",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "6500000",
+      "uptime": "15h37m51s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:05:27:35:06:3D",
+      "signal": -67,
+      "iface": "2.4GHz WiFi6",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "6500000",
+      "uptime": "7h4m9s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:37:B4:D5:A8:AB",
+      "signal": -69,
+      "iface": "2.4GHz WiFi6",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "26000000",
+      "uptime": "3d4h30m40s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:7C:8B:10:49:58",
+      "signal": -73,
+      "iface": "5GHz WiFi",
+      "txRate": "576500000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "288200000",
+      "uptime": "1h6m48s",
+      "ssid": "ssid-4943",
+      "name": ""
+    },
+    {
+      "mac": "02:68:45:32:38:85",
+      "signal": -74,
+      "iface": "5GHz WiFi4",
+      "txRate": "103200000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "73100000",
+      "uptime": "2h56m",
+      "ssid": "ssid-4943",
+      "name": ""
+    },
+    {
+      "mac": "02:DB:D2:E6:78:22",
+      "signal": -76,
+      "iface": "5GHz WiFi3",
+      "txRate": "292500000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "260000000",
+      "uptime": "2h30m36s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:3A:CB:73:0B:2C",
+      "signal": -76,
+      "iface": "2.4GHz WiFi3",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "6500000",
+      "uptime": "1m47s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:50:21:2A:C4:D0",
+      "signal": -77,
+      "iface": "2.4GHz WiFi6",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "6000000",
+      "uptime": "1d6h35m38s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    },
+    {
+      "mac": "02:94:09:27:4F:23",
+      "signal": -78,
+      "iface": "5GHz WiFi2",
+      "txRate": "288200000",
+      "band": "5GHz",
+      "ip": "",
+      "rxRate": "144100000",
+      "uptime": "19m",
+      "ssid": "ssid-84f1",
+      "name": ""
+    },
+    {
+      "mac": "02:EB:0A:9A:37:20",
+      "signal": -80,
+      "iface": "2.4GHz WiFi3",
+      "txRate": "1000000",
+      "band": "2.4GHz",
+      "ip": "",
+      "rxRate": "2000000",
+      "uptime": "2d8h20m29s",
+      "ssid": "ssid-7e71",
+      "name": ""
+    }
+  ],
+  "mode": "wifi",
+  "pollMs": 30000,
+  "capsmanAvailable": false,
+  "ssids": [
+    {
+      "ssid": "ssid-4943",
+      "ifaces": [
+        "2.4GHz WiFi",
+        "2.4GHz WiFi4",
+        "5GHz WiFi",
+        "5GHz WiFi4"
+      ],
+      "bands": [
+        "2.4GHz",
+        "5GHz"
+      ],
+      "disabled": false,
+      "running": true,
+      "clients": 6
+    },
+    {
+      "ssid": "ssid-7e71",
+      "ifaces": [
+        "2.4GHz WiFi3",
+        "2.4GHz WiFi6",
+        "5GHz WiFi3",
+        "5GHz WiFi6"
+      ],
+      "bands": [
+        "2.4GHz",
+        "5GHz"
+      ],
+      "disabled": false,
+      "running": true,
+      "clients": 22
+    },
+    {
+      "ssid": "ssid-84f1",
+      "ifaces": [
+        "2.4GHz WiFi2",
+        "2.4GHz WiFi5",
+        "5GHz WiFi2",
+        "5GHz WiFi5"
+      ],
+      "bands": [
+        "5GHz"
+      ],
+      "disabled": false,
+      "running": true,
+      "clients": 2
+    }
+  ],
+  "ssidsManagedElsewhere": 0
+}

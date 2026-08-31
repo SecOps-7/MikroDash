@@ -1,0 +1,147 @@
+{
+  "generated_from": "public/app.js faSpectrum tooltip + faChannelBand",
+  "tooltip": [
+    {
+      "why": "every measurement present, and not the radio's own channel",
+      "row": {
+        "ch": 2412,
+        "chNum": 1,
+        "load": 44,
+        "nets": 3,
+        "nf": -98,
+        "maxSig": -55,
+        "minSig": -80
+      },
+      "currentChannelMhz": 5180,
+      "lines": [
+        "Load        44%",
+        "Networks    3",
+        "Noise floor -98 dBm",
+        "Max signal  -55 dBm",
+        "Min signal  -80 dBm"
+      ]
+    },
+    {
+      "why": "the radio's own channel gets the marker",
+      "row": {
+        "ch": 2412,
+        "chNum": 1,
+        "load": 10,
+        "nets": 1,
+        "nf": -95,
+        "maxSig": -60,
+        "minSig": -70
+      },
+      "currentChannelMhz": 2412,
+      "lines": [
+        "Load        10%",
+        "Networks    1",
+        "Noise floor -95 dBm",
+        "Max signal  -60 dBm",
+        "Min signal  -70 dBm",
+        "— this radio —"
+      ]
+    },
+    {
+      "why": "a row with nothing measured contributes nothing",
+      "row": {
+        "ch": 2412,
+        "chNum": 1
+      },
+      "currentChannelMhz": 5180,
+      "lines": []
+    },
+    {
+      "why": "zero is a measurement, not an absence",
+      "row": {
+        "ch": 2412,
+        "chNum": 1,
+        "load": 0,
+        "nets": 0,
+        "nf": 0,
+        "maxSig": 0,
+        "minSig": 0
+      },
+      "currentChannelMhz": 5180,
+      "lines": [
+        "Load        0%",
+        "Networks    0",
+        "Noise floor 0 dBm",
+        "Max signal  0 dBm",
+        "Min signal  0 dBm"
+      ]
+    },
+    {
+      "why": "nulls are skipped one by one, and order is preserved",
+      "row": {
+        "ch": 2412,
+        "chNum": 1,
+        "load": null,
+        "nets": 2,
+        "nf": null,
+        "maxSig": -50,
+        "minSig": null
+      },
+      "currentChannelMhz": 5180,
+      "lines": [
+        "Networks    2",
+        "Max signal  -50 dBm"
+      ]
+    }
+  ],
+  "band": [
+    {
+      "why": "the bar element gives both x and width",
+      "el": {
+        "x": 120,
+        "width": 22
+      },
+      "labelCount": 8,
+      "pixel0": 40,
+      "pixel1": 60,
+      "idx": 3,
+      "x": 120,
+      "w": 22
+    },
+    {
+      "why": "no bar: the width comes from the category spacing",
+      "el": null,
+      "labelCount": 8,
+      "pixel0": 40,
+      "pixel1": 60,
+      "idx": 3,
+      "x": 30,
+      "w": 20
+    },
+    {
+      "why": "no bar and ONE column: the spacing cannot be measured, so 18",
+      "el": null,
+      "labelCount": 1,
+      "pixel0": 40,
+      "pixel1": 60,
+      "idx": 0,
+      "x": 40,
+      "w": 18
+    },
+    {
+      "why": "the spacing is clamped UP to 10",
+      "el": null,
+      "labelCount": 8,
+      "pixel0": 40,
+      "pixel1": 42,
+      "idx": 3,
+      "x": 30,
+      "w": 10
+    },
+    {
+      "why": "the spacing is clamped DOWN to 44",
+      "el": null,
+      "labelCount": 8,
+      "pixel0": 0,
+      "pixel1": 400,
+      "idx": 3,
+      "x": 30,
+      "w": 44
+    }
+  ]
+}

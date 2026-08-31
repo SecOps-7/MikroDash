@@ -1,0 +1,11 @@
+{
+ "nothing ticked": "\"custom\"",
+ "exactly home": "\"home\"",
+ "exactly standard": "\"standard\"",
+ "every page (advanced, DERIVED)": "\"advanced\"",
+ "home plus one extra": "\"custom\"",
+ "standard minus one": "\"custom\"",
+ "all but one": "\"custom\"",
+ "home with one checkbox absent from the page": "\"home\"",
+ "every page with several checkboxes absent": "\"advanced\""
+}

@@ -1,0 +1,24 @@
+  <div class="page-view" id="page-logs">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <h3 class="card-title">Router Logs</h3>
+            <span class="log-count-badge log-count-error" id="logCountError" title="Filter errors" data-sev="error">0 errors</span>
+            <span class="log-count-badge log-count-warning" id="logCountWarning" title="Filter warnings" data-sev="warning">0 warnings</span>
+            <span class="log-count-badge log-count-info" id="logCountInfo" title="Filter info" data-sev="info">0 info</span>
+            <span class="log-count-badge log-count-debug" id="logCountDebug" title="Filter debug" data-sev="debug">0 debug</span>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <select id="logSeverity" class="form-select form-select-sm" style="max-width:110px;font-size:.73rem" aria-label="Log severity filter">
+              <option value="">All levels</option><option value="error">Error</option><option value="warning">Warning</option><option value="info">Info</option><option value="debug">Debug</option>
+            </select>
+            <input id="logSearch" class="form-control form-control-sm" placeholder="Search&#8230;" style="max-width:200px;font-size:.73rem"/>
+            <button id="toggleScroll" class="btn btn-sm btn-outline-secondary" style="font-size:.7rem">Pause</button>
+            <button id="clearLogs"   class="btn btn-sm btn-outline-secondary" style="font-size:.7rem">Clear</button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:.75rem"><div id="logs"></div></div>
+      </div>
+    </div>
+  </div>

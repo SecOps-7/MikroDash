@@ -1,0 +1,369 @@
+{
+  "defaults": {
+    "telegramEnabled": false,
+    "pushbulletEnabled": false,
+    "ntfyEnabled": false,
+    "emailEnabled": false,
+    "telegramBotToken": "",
+    "pushbulletApiKey": "",
+    "ntfyToken": "",
+    "telegramChatId": "",
+    "ntfyUrl": "",
+    "emailTo": ""
+  },
+  "picks": [
+    {
+      "name": "nothing stored",
+      "stored": {},
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "every default",
+      "stored": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      },
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "a known toggle",
+      "stored": {
+        "telegramEnabled": true
+      },
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": true,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "a known string",
+      "stored": {
+        "telegramChatId": "abc"
+      },
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "abc",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "an injected smtpHost",
+      "stored": {
+        "smtpHost": "evil.example",
+        "telegramEnabled": true
+      },
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": true,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "an injected smtpTo",
+      "stored": {
+        "smtpTo": "attacker@example"
+      },
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "an unknown key",
+      "stored": {
+        "nonsense": 1
+      },
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "__proto__ as a key",
+      "stored": {
+        "__proto__": {
+          "x": 1
+        }
+      },
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "a credential, not decrypted",
+      "stored": {
+        "telegramBotToken": "CIPHER"
+      },
+      "decrypt": false,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "CIPHER",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "a credential, decrypted",
+      "stored": {
+        "telegramBotToken": "CIPHER"
+      },
+      "decrypt": true,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "dec(CIPHER)",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "a non-credential is never decrypted",
+      "stored": {
+        "telegramChatId": "PLAIN"
+      },
+      "decrypt": true,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "",
+        "pushbulletApiKey": "",
+        "ntfyToken": "",
+        "telegramChatId": "PLAIN",
+        "ntfyUrl": "",
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "mixed, decrypted",
+      "stored": {
+        "telegramBotToken": "C1",
+        "ntfyToken": "C2",
+        "ntfyUrl": "https://n/x"
+      },
+      "decrypt": true,
+      "want": {
+        "telegramEnabled": false,
+        "pushbulletEnabled": false,
+        "ntfyEnabled": false,
+        "emailEnabled": false,
+        "telegramBotToken": "dec(C1)",
+        "pushbulletApiKey": "",
+        "ntfyToken": "dec(C2)",
+        "telegramChatId": "",
+        "ntfyUrl": "https://n/x",
+        "emailTo": ""
+      }
+    }
+  ],
+  "mails": [
+    {
+      "name": "not opted in",
+      "own": {
+        "emailEnabled": false,
+        "emailTo": "u@x"
+      },
+      "install": {
+        "smtpHost": "h",
+        "smtpFrom": "f"
+      },
+      "want": {
+        "emailEnabled": false,
+        "emailTo": "u@x"
+      }
+    },
+    {
+      "name": "opted in with no address",
+      "own": {
+        "emailEnabled": true,
+        "emailTo": ""
+      },
+      "install": {
+        "smtpHost": "h",
+        "smtpFrom": "f"
+      },
+      "want": {
+        "emailEnabled": true,
+        "emailTo": ""
+      }
+    },
+    {
+      "name": "opted in, install has no host",
+      "own": {
+        "emailEnabled": true,
+        "emailTo": "u@x"
+      },
+      "install": {
+        "smtpFrom": "f"
+      },
+      "want": {
+        "emailEnabled": true,
+        "emailTo": "u@x"
+      }
+    },
+    {
+      "name": "opted in, install has no from",
+      "own": {
+        "emailEnabled": true,
+        "emailTo": "u@x"
+      },
+      "install": {
+        "smtpHost": "h"
+      },
+      "want": {
+        "emailEnabled": true,
+        "emailTo": "u@x"
+      }
+    },
+    {
+      "name": "opted in, install ready",
+      "own": {
+        "emailEnabled": true,
+        "emailTo": "u@x"
+      },
+      "install": {
+        "smtpHost": "h",
+        "smtpPort": 587,
+        "smtpSecure": true,
+        "smtpUser": "su",
+        "smtpPass": "sp",
+        "smtpFrom": "f",
+        "smtpTo": "ADMIN@example"
+      },
+      "want": {
+        "emailEnabled": true,
+        "emailTo": "u@x",
+        "smtpEnabled": true,
+        "smtpHost": "h",
+        "smtpPort": 587,
+        "smtpSecure": true,
+        "smtpUser": "su",
+        "smtpPass": "sp",
+        "smtpFrom": "f",
+        "smtpTo": "u@x"
+      }
+    },
+    {
+      "name": "opted in with other channels too",
+      "own": {
+        "emailEnabled": true,
+        "emailTo": "u@x",
+        "telegramEnabled": true,
+        "telegramBotToken": "t",
+        "telegramChatId": "c"
+      },
+      "install": {
+        "smtpHost": "h",
+        "smtpFrom": "f"
+      },
+      "want": {
+        "emailEnabled": true,
+        "emailTo": "u@x",
+        "telegramEnabled": true,
+        "telegramBotToken": "t",
+        "telegramChatId": "c",
+        "smtpEnabled": true,
+        "smtpHost": "h",
+        "smtpFrom": "f",
+        "smtpTo": "u@x"
+      }
+    }
+  ]
+}

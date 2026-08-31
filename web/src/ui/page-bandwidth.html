@@ -1,0 +1,84 @@
+  <div class="page-view" id="page-bandwidth">
+    <div id="bandwidthCard" style="width:100%">
+    <div class="bw-header-row">
+      <div class="bw-chart-card">
+        <div class="bw-chart-card-title">WAN Traffic</div>
+        <div class="bw-chart-wrap"><canvas id="bwTrafficChart"></canvas></div>
+      </div>
+      <div class="bw-stat-col">
+        <div class="bw-stat-card">
+          <div>
+            <div class="bw-stat-label bw-stat-label-rx">&#8595; RX &nbsp;<span class="bw-stat-sub">download</span></div>
+            <div class="bw-stat-val-row">
+              <span class="bw-stat-num" id="bwLiveRxNum">—</span>
+              <span class="bw-stat-unit" id="bwLiveRxUnit"></span>
+            </div>
+          </div>
+          <div style="width:100%;height:1px;background:var(--border)"></div>
+          <div>
+            <div class="bw-stat-label bw-stat-label-tx">&#8593; TX &nbsp;<span class="bw-stat-sub">upload</span></div>
+            <div class="bw-stat-val-row">
+              <span class="bw-stat-num" id="bwLiveTxNum">—</span>
+              <span class="bw-stat-unit" id="bwLiveTxUnit"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bw-toolbar">
+      <input class="bw-search" id="bwSearch" type="text" placeholder="Search IP / hostname / MAC…">
+      <!-- How many rows survived the four filters beside it. app.js has always
+           computed this and written it here; the element itself was missing, so
+           the count was discarded on every frame. -->
+      <span id="bwStats" class="muted-note" aria-live="polite"></span>
+      <select id="bwIface" style="margin-left:auto" aria-label="Interface filter">
+        <option value="">All interfaces</option>
+      </select>
+      <select id="bwScope" aria-label="Traffic scope filter">
+        <option value="">LAN + WAN</option>
+        <option value="lan">LAN only</option>
+        <option value="wan">WAN only</option>
+      </select>
+      <select id="bwIpver" aria-label="IP version filter">
+        <option value="">IPv4 + IPv6</option>
+        <option value="4">IPv4 only</option>
+        <option value="6">IPv6 only</option>
+      </select>
+      <select id="bwTopN" aria-label="Number of devices to show">
+        <option value="10" selected>Top 10</option>
+        <option value="20">Top 20</option>
+        <option value="50">Top 50</option>
+        <option value="0">All</option>
+      </select>
+    </div>
+    <div class="bw-table-wrap">
+      <table class="bw-table">
+        <colgroup>
+          <col style="width:16%">
+          <col style="width:20%">
+          <col style="width:9%">
+          <col style="width:9%">
+          <col style="width:9%">
+          <col style="width:10%">
+          <col style="width:7%">
+          <col style="width:20%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th id="bwThDevice">Device</th>
+            <th id="bwThDst">Destination</th>
+            <th id="bwThRx">RX</th>
+            <th id="bwThTx">TX</th>
+            <th id="bwThTotal" class="sort-desc">Total</th>
+            <th id="bwThIface">Interface</th>
+            <th id="bwThProto">Proto</th>
+            <th id="bwThOrg">ASN / Org</th>
+          </tr>
+        </thead>
+        <tbody id="bwTbody">
+          <tr><td colspan="8" class="bw-empty">Waiting for data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div><!-- /bandwidthCard -->
+  </div>

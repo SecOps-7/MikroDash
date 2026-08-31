@@ -1,0 +1,208 @@
+{
+  "ts": 0,
+  "pollMs": 30000,
+  "simple": [
+    {
+      "id": "*1",
+      "order": 0,
+      "name": "md-probe-lan",
+      "target": "198.51.100.167/24",
+      "parent": "",
+      "packetMarks": "",
+      "priority": "4/4",
+      "queueType": "default-small/default-small",
+      "limitAt": {
+        "up": 10000000,
+        "down": 5000000
+      },
+      "maxLimit": {
+        "up": 50000000,
+        "down": 25000000
+      },
+      "burstLimit": {
+        "up": 60000000,
+        "down": 30000000
+      },
+      "bytes": {
+        "up": 0,
+        "down": 0
+      },
+      "packets": {
+        "up": 0,
+        "down": 0
+      },
+      "dropped": {
+        "up": 0,
+        "down": 0
+      },
+      "queuedBytes": {
+        "up": 0,
+        "down": 0
+      },
+      "disabled": false,
+      "invalid": false,
+      "dynamic": false,
+      "comment": "comment-bd39",
+      "rateBps": {
+        "up": 0,
+        "down": 0
+      },
+      "rateSource": "router",
+      "rateWindowMs": null
+    },
+    {
+      "id": "*2",
+      "order": 1,
+      "name": "md-probe-unlimited",
+      "target": "198.51.100.141/32",
+      "parent": "",
+      "packetMarks": "",
+      "priority": "8/8",
+      "queueType": "default-small/default-small",
+      "limitAt": {
+        "up": 0,
+        "down": 0
+      },
+      "maxLimit": {
+        "up": 0,
+        "down": 0
+      },
+      "burstLimit": {
+        "up": 0,
+        "down": 0
+      },
+      "bytes": {
+        "up": 0,
+        "down": 0
+      },
+      "packets": {
+        "up": 0,
+        "down": 0
+      },
+      "dropped": {
+        "up": 0,
+        "down": 0
+      },
+      "queuedBytes": {
+        "up": 0,
+        "down": 0
+      },
+      "disabled": false,
+      "invalid": false,
+      "dynamic": false,
+      "comment": "",
+      "rateBps": {
+        "up": 0,
+        "down": 0
+      },
+      "rateSource": "router",
+      "rateWindowMs": null
+    },
+    {
+      "id": "*3",
+      "order": 2,
+      "name": "md-probe-off",
+      "target": "198.51.100.254/32",
+      "parent": "",
+      "packetMarks": "",
+      "priority": "8/8",
+      "queueType": "default-small/default-small",
+      "limitAt": {
+        "up": 0,
+        "down": 0
+      },
+      "maxLimit": {
+        "up": 500000,
+        "down": 500000
+      },
+      "burstLimit": {
+        "up": 0,
+        "down": 0
+      },
+      "bytes": {
+        "up": 0,
+        "down": 0
+      },
+      "packets": {
+        "up": 0,
+        "down": 0
+      },
+      "dropped": {
+        "up": 0,
+        "down": 0
+      },
+      "queuedBytes": {
+        "up": 0,
+        "down": 0
+      },
+      "disabled": true,
+      "invalid": true,
+      "dynamic": false,
+      "comment": "comment-6914",
+      "rateBps": {
+        "up": 0,
+        "down": 0
+      },
+      "rateSource": "router",
+      "rateWindowMs": null
+    }
+  ],
+  "tree": [
+    {
+      "id": "*1000000",
+      "order": 0,
+      "name": "md-probe-tree-global",
+      "parent": "global",
+      "packetMark": "md-probe-mark",
+      "priority": "3",
+      "queueType": "default-small",
+      "limitAt": 5000000,
+      "maxLimit": 20000000,
+      "burstLimit": 0,
+      "bytes": 0,
+      "packets": 0,
+      "dropped": 0,
+      "queuedBytes": 0,
+      "disabled": false,
+      "invalid": false,
+      "dynamic": false,
+      "comment": "comment-b32b",
+      "fasttrackBypassable": true,
+      "rateBps": 0,
+      "rateSource": "router",
+      "rateWindowMs": null
+    },
+    {
+      "id": "*1000001",
+      "order": 1,
+      "name": "md-probe-tree-iface",
+      "parent": "ether5",
+      "packetMark": "md-probe-mark",
+      "priority": "8",
+      "queueType": "default-small",
+      "limitAt": 0,
+      "maxLimit": 10000000,
+      "burstLimit": 0,
+      "bytes": 0,
+      "packets": 0,
+      "dropped": 0,
+      "queuedBytes": 0,
+      "disabled": false,
+      "invalid": false,
+      "dynamic": false,
+      "comment": "",
+      "fasttrackBypassable": false,
+      "rateBps": 0,
+      "rateSource": "router",
+      "rateWindowMs": null
+    }
+  ],
+  "fasttrack": {
+    "state": "unknown",
+    "count": 0,
+    "scoped": false
+  },
+  "stats": "full",
+  "available": true,
+  "denied": false
+}

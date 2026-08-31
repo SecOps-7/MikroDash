@@ -1,0 +1,59 @@
+{
+  "bridge hosts": [
+    "=.proplist=mac-address,on-interface,bridge,vid,dynamic,local,external,age"
+  ],
+  "bridge ports": [
+    "=.proplist=.id,bridge,interface,pvid,role,edge,learn,horizon,path-cost,frame-types,disabled,inactive,dynamic"
+  ],
+  "bridge vlan table": [
+    "=.proplist=.id,bridge,vlan-ids,tagged,untagged,current-tagged,dynamic,disabled"
+  ],
+  "bridges": [
+    "=.proplist=.id,name,protocol-mode,vlan-filtering,igmp-snooping,dhcp-snooping,fast-forward,priority,ageing-time,mac-address,actual-mtu,mtu,running,disabled,comment"
+  ],
+  "dns settings": null,
+  "dns static": [
+    "=.proplist=.id,name,address,type,ttl,disabled,comment,regexp,cname,forward-to,text,mx-exchange,ns,srv-target"
+  ],
+  "log backlog": [
+    "=.proplist=time,topics,message"
+  ],
+  "packages": [
+    "=.proplist=.id,name,version,build-time,scheduled,size,available,disabled"
+  ],
+  "packages routerboard": [
+    "=.proplist=routerboard,board-name,model,serial-number,firmware-type,current-firmware,upgrade-firmware,minimum-firmware"
+  ],
+  "routes v4": [
+    "=.proplist=.id,dst-address,gateway,distance,comment,.flags,active,static,dynamic,connect,bgp,ospf,disabled"
+  ],
+  "routes v6": [
+    "=.proplist=.id,dst-address,gateway,distance,comment,.flags,active,static,dynamic,connect,bgp,ospf,disabled",
+    "=.proplist=.id,dst-address,gateway,distance,comment,.flags,active,static,dynamic,connect,bgp,ospf,disabled"
+  ],
+  "system resource": [
+    "=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime,architecture-name",
+    "=.proplist=cpu-load,total-memory,free-memory,total-hdd-space,free-hdd-space,version,board-name,platform,cpu-count,cpu-frequency,uptime,architecture-name"
+  ],
+  "vlan bridge ports": [
+    "=.proplist=.id,bridge,interface,pvid,frame-types,disabled"
+  ],
+  "vlan interfaces": [
+    "=.proplist=.id,name,vlan-id,interface,mtu,running,disabled,comment"
+  ],
+  "wan addresses": [
+    "=.proplist=address,interface,disabled"
+  ],
+  "wan detect-internet": [
+    "=.proplist=.id,name,state,state-change-time"
+  ],
+  "wan dhcp client": [
+    "=.proplist=.id,interface,status,address,gateway,primary-dns,secondary-dns,expires-after,dhcp-server,disabled,invalid"
+  ],
+  "wan interfaces": [
+    "=.proplist=name,type,running"
+  ],
+  "wan routes": [
+    "=.proplist=.id,dst-address,gateway,distance,active,dynamic"
+  ]
+}

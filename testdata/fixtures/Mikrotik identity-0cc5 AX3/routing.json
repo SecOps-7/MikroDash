@@ -1,0 +1,239 @@
+{
+  "collector": "routing",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ipv6/route/print",
+      "params": [
+        "=.proplist=.id,dst-address,gateway,distance,comment,.flags,active,static,dynamic,connect,bgp,ospf,disabled"
+      ],
+      "rows": []
+    },
+    {
+      "cmd": "/ip/route/print",
+      "params": [
+        "=.proplist=.id,dst-address,gateway,distance,comment,.flags,active,static,dynamic,connect,bgp,ospf,disabled"
+      ],
+      "rows": [
+        {
+          ".id": "*8000001C",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "198.51.100.137",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191020",
+          "dst-address": "198.51.100.54/24",
+          "gateway": "Home",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*20191060",
+          "dst-address": "198.51.100.203/24",
+          "gateway": "WG-GL-iNET",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*80000006",
+          "dst-address": "198.51.100.56/32",
+          "gateway": "198.51.100.164",
+          "distance": "1",
+          "active": "true",
+          "static": "true",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*20191030",
+          "dst-address": "198.51.100.34/24",
+          "gateway": "WG-DSTV",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*20191090",
+          "dst-address": "198.51.100.245/24",
+          "gateway": "WG-HOME",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*20191050",
+          "dst-address": "198.51.100.56/32",
+          "gateway": "WG-VPN-SW",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*20191070",
+          "dst-address": "198.51.100.176/32",
+          "gateway": "WG-VPN-DE1",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*20191080",
+          "dst-address": "198.51.100.216/32",
+          "gateway": "WG-VPN-DE2",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*20191040",
+          "dst-address": "198.51.100.225/24",
+          "gateway": "WG-SA",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*201910B0",
+          "dst-address": "198.51.100.173/22",
+          "gateway": "WAN1",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*80000018",
+          "dst-address": "198.51.100.122/32",
+          "gateway": "WG-VPN-DE1",
+          "distance": "1",
+          "comment": "comment-2de7",
+          "active": "true",
+          "static": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*80000019",
+          "dst-address": "198.51.100.122/32",
+          "distance": "10",
+          "comment": "comment-21b2",
+          "static": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*8000001A",
+          "dst-address": "198.51.100.134/32",
+          "gateway": "WG-VPN-DE2",
+          "distance": "1",
+          "comment": "comment-8277",
+          "active": "true",
+          "static": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*8000001B",
+          "dst-address": "198.51.100.134/32",
+          "distance": "10",
+          "comment": "comment-43cd",
+          "static": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*20191010",
+          "dst-address": "198.51.100.164/24",
+          "gateway": "IoT",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*20191000",
+          "dst-address": "198.51.100.145/24",
+          "gateway": "Guest",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*201910A0",
+          "dst-address": "198.51.100.56/24",
+          "gateway": "back-to-home-vpn",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true",
+          "connect": "true"
+        },
+        {
+          ".id": "*80000001",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-SA",
+          "distance": "1",
+          "active": "true",
+          "static": "true",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*80000004",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-VPN-SW",
+          "distance": "1",
+          "active": "true",
+          "static": "true",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*8000000E",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-VPN-DE1",
+          "distance": "1",
+          "comment": "comment-9dad",
+          "active": "true",
+          "static": "true",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*80000016",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-VPN-DE2",
+          "distance": "2",
+          "comment": "comment-f1c1",
+          "static": "true",
+          "dynamic": "false",
+          "disabled": "false"
+        },
+        {
+          ".id": "*80000012",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-VPN-DE2",
+          "distance": "1",
+          "comment": "comment-65f3",
+          "active": "true",
+          "static": "true",
+          "dynamic": "false",
+          "disabled": "false"
+        }
+      ]
+    }
+  ]
+}

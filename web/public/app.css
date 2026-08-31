@@ -1,0 +1,1765 @@
+    :root{--bg-deep:#07090f;--bg-card:rgba(13,18,30,.85);--border:rgba(99,130,190,.13);--accent-rx:#38bdf8;--accent-tx:#34d399;--accent-warn:#f59f00;--accent-err:#f87171;--accent-ok:#4ade80;--accent-alt:#a78bfa;--accent-pink:#f472b6;--text-muted:rgba(148,163,190,.55);--text-main:rgba(200,215,240,.9);--font-mono:'JetBrains Mono',ui-monospace,monospace;--font-ui:'Syne',sans-serif;--nav-w:52px;--nav-w-open:190px;--nav-bg:rgba(5,8,16,.92);--topbar-bg:rgba(5,8,16,.70)}
+    html[data-theme="light"]{--bg-deep:#e8eaee;--bg-card:rgba(255,255,255,.92);--border:#b1bbcf;--accent-rx:#247ba1;--accent-tx:#20835f;--accent-alt:#6a3fb0;--accent-pink:#c2185b;--text-muted:#5f7196;--text-main:#1a2030;--nav-bg:rgba(232,234,239,.95);--topbar-bg:rgba(232,234,239,.85);--card-badge-bg:rgba(100,120,160,.15);--card-badge-color:rgba(40,60,100,.8);--card-badge-bg-active-blue:rgba(56,149,218,.18);--card-badge-color-active-blue:rgba(14,90,160,.9);--card-badge-bg-active-green:rgba(34,170,100,.15);--card-badge-color-active-green:rgba(20,120,70,.9)}
+    html[data-palette="nord"]{--bg-deep:#1e2430;--bg-card:rgba(46,52,64,.9);--border:rgba(76,86,106,.4);--accent-rx:#88c0d0;--accent-tx:#a3be8c;--text-muted:rgba(216,222,233,.5);--text-main:rgba(236,239,244,.9);--nav-bg:rgba(25,30,40,.95);--topbar-bg:rgba(25,30,40,.8)}
+    html[data-palette="nord"][data-theme="light"]{--bg-deep:#d8dce3;--bg-card:rgba(236,239,244,.95);--border:#a9afba;--accent-rx:#5e81ac;--accent-tx:#4b7a55;--text-muted:#626876;--text-main:rgba(46,52,64,.9);--nav-bg:rgba(204,210,220,.97);--topbar-bg:rgba(204,210,220,.9)}
+    html[data-palette="catppuccin"]{--bg-deep:#11111b;--bg-card:rgba(30,30,46,.9);--border:rgba(69,71,90,.4);--accent-rx:#89b4fa;--accent-tx:#a6e3a1;--text-muted:rgba(166,173,200,.55);--text-main:rgba(205,214,244,.9);--nav-bg:rgba(17,17,27,.95);--topbar-bg:rgba(17,17,27,.8)}
+    html[data-palette="catppuccin"][data-theme="light"]{--bg-deep:#dadee6;--bg-card:rgba(239,241,245,.95);--border:#acb0be;--accent-rx:#1e66f5;--accent-tx:#40a02b;--text-muted:#656880;--text-main:#454759;--nav-bg:rgba(228,231,237,.97);--topbar-bg:rgba(228,231,237,.9)}
+    html[data-palette="dracula"]{--bg-deep:#1c1e26;--bg-card:rgba(40,42,54,.9);--border:rgba(68,71,90,.5);--accent-rx:#8be9fd;--accent-tx:#50fa7b;--text-muted:rgba(98,114,164,.7);--text-main:rgba(248,248,242,.9);--nav-bg:rgba(25,26,38,.97);--topbar-bg:rgba(25,26,38,.8)}
+    html[data-palette="tokyo"]{--bg-deep:#13141e;--bg-card:rgba(26,27,38,.9);--border:rgba(41,46,66,.5);--accent-rx:#7aa2f7;--accent-tx:#9ece6a;--text-muted:rgba(86,95,137,.7);--text-main:rgba(192,202,245,.9);--nav-bg:rgba(16,16,24,.97);--topbar-bg:rgba(16,16,24,.8)}
+    html[data-palette="gruvbox"]{--bg-deep:#1d2021;--bg-card:rgba(40,40,40,.9);--border:rgba(60,56,54,.55);--accent-rx:#83a598;--accent-tx:#8ec07c;--text-muted:rgba(168,153,132,.55);--text-main:rgba(235,219,178,.9);--nav-bg:rgba(24,24,24,.97);--topbar-bg:rgba(24,24,24,.8)}
+    html[data-palette="gruvbox"][data-theme="light"]{--bg-deep:#eaddb5;--bg-card:rgba(251,241,199,.95);--border:#bcae94;--accent-rx:#076678;--accent-tx:#427b58;--text-muted:#6e695c;--text-main:#4c4742;--nav-bg:rgba(227,211,172,.97);--topbar-bg:rgba(227,211,172,.9)}
+    html[data-palette="rosepine"]{--bg-deep:#14121e;--bg-card:rgba(31,29,46,.9);--border:rgba(110,106,134,.35);--accent-rx:#c4a7e7;--accent-tx:#9ccfd8;--text-muted:rgba(110,106,134,.6);--text-main:rgba(224,222,244,.9);--nav-bg:rgba(18,16,28,.97);--topbar-bg:rgba(18,16,28,.8)}
+    html[data-palette="rosepine"][data-theme="light"]{--bg-deep:#e5e0d9;--bg-card:rgba(250,244,237,.95);--border:#b9b2a8;--accent-rx:#907aa9;--accent-tx:#286983;--text-muted:#6d6a76;--text-main:#4b4761;--nav-bg:rgba(221,215,207,.97);--topbar-bg:rgba(221,215,207,.9)}
+    html[data-palette="rosepine-moon"]{--bg-deep:#1d1b30;--bg-card:rgba(42,40,55,.9);--border:rgba(86,82,117,.4);--accent-rx:#c4a7e7;--accent-tx:#9ccfd8;--text-muted:rgba(110,106,134,.6);--text-main:rgba(224,222,244,.9);--nav-bg:rgba(24,22,42,.97);--topbar-bg:rgba(24,22,42,.8)}
+    html[data-palette="onedark"]{--bg-deep:#21252b;--bg-card:rgba(40,44,52,.9);--border:rgba(56,60,67,.6);--accent-rx:#61afef;--accent-tx:#98c379;--text-muted:rgba(171,178,191,.5);--text-main:rgba(171,178,191,.9);--nav-bg:rgba(28,31,36,.97);--topbar-bg:rgba(28,31,36,.8)}
+    html[data-palette="onedark"][data-theme="light"]{--bg-deep:#e5e6e7;--bg-card:rgba(250,250,250,.95);--border:#b6b7ba;--accent-rx:#4078f2;--accent-tx:#50a14f;--text-muted:#6e6e73;--text-main:rgba(56,58,66,.9);--nav-bg:rgba(225,226,228,.97);--topbar-bg:rgba(225,226,228,.9)}
+    html[data-palette="solarized"]{--bg-deep:#002b36;--bg-card:rgba(7,54,66,.9);--border:rgba(88,110,117,.4);--accent-rx:#268bd2;--accent-tx:#2aa198;--text-muted:rgba(131,148,150,.55);--text-main:rgba(131,148,150,.9);--nav-bg:rgba(0,36,48,.97);--topbar-bg:rgba(0,36,48,.8)}
+    html[data-palette="solarized"][data-theme="light"]{--bg-deep:#e8e2d0;--bg-card:rgba(253,246,227,.95);--border:#aeb6b2;--accent-rx:#268bd2;--accent-tx:#2aa198;--text-muted:#5c7077;--text-main:#424d51;--nav-bg:rgba(227,222,205,.97);--topbar-bg:rgba(227,222,205,.9)}
+    html[data-palette="everforest"]{--bg-deep:#1e2528;--bg-card:rgba(45,53,59,.9);--border:rgba(65,75,79,.5);--accent-rx:#a7c080;--accent-tx:#7fbbb3;--text-muted:rgba(211,198,170,.5);--text-main:rgba(211,198,170,.9);--nav-bg:rgba(26,31,34,.97);--topbar-bg:rgba(26,31,34,.8)}
+    html[data-palette="kanagawa"]{--bg-deep:#16161d;--bg-card:rgba(31,31,40,.9);--border:rgba(54,54,70,.6);--accent-rx:#7e9cd8;--accent-tx:#98bb6c;--text-muted:rgba(114,113,105,.6);--text-main:rgba(220,215,186,.9);--nav-bg:rgba(19,19,26,.97);--topbar-bg:rgba(19,19,26,.8)}
+    html[data-palette="monokai"]{--bg-deep:#1d1e19;--bg-card:rgba(39,40,34,.9);--border:rgba(60,61,53,.6);--accent-rx:#66d9e8;--accent-tx:#a6e22e;--text-muted:rgba(117,113,94,.65);--text-main:rgba(248,248,242,.9);--nav-bg:rgba(22,23,18,.97);--topbar-bg:rgba(22,23,18,.8)}
+    html[data-palette="monokai-pro"]{--bg-deep:#1e1c20;--bg-card:rgba(45,42,46,.9);--border:rgba(58,55,64,.5);--accent-rx:#78dce8;--accent-tx:#a9dc76;--text-muted:rgba(128,122,136,.65);--text-main:rgba(252,252,250,.9);--nav-bg:rgba(24,22,26,.97);--topbar-bg:rgba(24,22,26,.8)}
+    html[data-palette="material"]{--bg-deep:#1b2528;--bg-card:rgba(38,50,56,.9);--border:rgba(53,74,82,.55);--accent-rx:#80cbc4;--accent-tx:#c3e88d;--text-muted:rgba(176,190,197,.55);--text-main:rgba(238,255,255,.9);--nav-bg:rgba(21,30,34,.97);--topbar-bg:rgba(21,30,34,.8)}
+    html[data-palette="material"][data-theme="light"]{--bg-deep:#e6e6e6;--bg-card:rgba(250,250,250,.95);--border:#b7b7b7;--accent-rx:#00acc1;--accent-tx:#43a047;--text-muted:#6f6f6f;--text-main:rgba(33,33,33,.9);--nav-bg:rgba(230,230,230,.97);--topbar-bg:rgba(230,230,230,.9)}
+    html[data-palette="palenight"]{--bg-deep:#202336;--bg-card:rgba(41,45,62,.9);--border:rgba(63,68,98,.45);--accent-rx:#82aaff;--accent-tx:#c3e88d;--text-muted:rgba(191,199,213,.5);--text-main:rgba(191,199,213,.9);--nav-bg:rgba(26,29,46,.97);--topbar-bg:rgba(26,29,46,.8)}
+    html[data-palette="github"]{--bg-deep:#010409;--bg-card:rgba(22,27,34,.9);--border:rgba(48,54,61,.5);--accent-rx:#58a6ff;--accent-tx:#3fb950;--text-muted:rgba(139,148,158,.6);--text-main:rgba(201,209,217,.9);--nav-bg:rgba(8,10,16,.97);--topbar-bg:rgba(8,10,16,.8)}
+    html[data-palette="github"][data-theme="light"]{--bg-deep:#e0e5e9;--bg-card:rgba(246,248,250,.95);--border:#b0b6bc;--accent-rx:#0969da;--accent-tx:#1a7f37;--text-muted:#666e78;--text-main:rgba(36,41,47,.9);--nav-bg:rgba(221,227,232,.97);--topbar-bg:rgba(221,227,232,.9)}
+    :root{--card-badge-bg:rgba(99,130,190,.12);--card-badge-color:rgba(148,163,190,.7);--card-badge-bg-active-blue:rgba(56,189,248,.15);--card-badge-color-active-blue:rgba(56,189,248,.9);--card-badge-bg-active-green:rgba(52,211,153,.15);--card-badge-color-active-green:rgba(52,211,153,.9)}
+    .card-badge{font-family:var(--font-mono);font-size:.68rem;font-weight:600;padding:.15em .55em;border-radius:5px;background:var(--card-badge-bg);color:var(--card-badge-color);border:none;line-height:1.5}
+    .card-badge.active-blue{background:var(--card-badge-bg-active-blue);color:var(--card-badge-color-active-blue)}
+    .card-badge.active-green{background:var(--card-badge-bg-active-green);color:var(--card-badge-color-active-green)}
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{height:100%;margin:0}
+    /* Keyboard focus. Before this there were seven :focus rules in the whole
+       app, all border-colour on inputs and none at all on buttons, so tabbing
+       through the UI gave no indication of position (WCAG 2.4.7). Uses
+       :focus-visible so a mouse click does not leave a ring behind. */
+    /* !important is deliberate and load-bearing here. A dozen component classes
+       set `outline:none` in their *base* rule rather than a :focus rule —
+       .conn-src-filter, .sform-input, .rt-sel, .rpt-select, .bw-toolbar
+       input/select among them — so those apply in every state, and
+       #navRouterSelect / #routerSelectBtn are ID selectors that outrank any
+       class-based focus rule outright. Without it the ring is suppressed across
+       most of the interactive surface. An accessibility guarantee should not be
+       defeatable by a decorative reset. */
+
+    /* ── Shared data-table behaviour ─────────────────────────────────────
+       One definition each, instead of a copy per table. The sort indicators
+       existed four times (.bw-table, .rt-table, .iface-list, #page-dhcp) and
+       had already drifted in encoding, and any new sortable table had to
+       remember to add its own pair. Global on th means it is now free.
+       Row hover was also four copies, one of which had drifted to .06 alpha
+       against .05 everywhere else; they now match. Column widths, padding
+       and density stay per-table, because those genuinely differ. */
+    th.sort-asc::after{content:' \2191'}
+    th.sort-desc::after{content:' \2193'}
+    .table tbody tr:hover td,.bw-table tr:hover td,
+    .iface-list tbody tr:hover td{background:rgba(99,130,190,.05)}
+    :focus-visible{outline:2px solid var(--accent-rx) !important;outline-offset:2px;border-radius:3px}
+    /* Fallback for engines without :focus-visible support. */
+    @supports not selector(:focus-visible){
+      button:focus,a:focus,input:focus,select:focus,textarea:focus,[tabindex]:focus{
+        outline:2px solid var(--accent-rx) !important;outline-offset:2px}
+    }
+    body{background:var(--bg-deep);background-image:radial-gradient(ellipse 900px 600px at 10% 0%,rgba(56,189,248,.05) 0%,transparent 70%),radial-gradient(ellipse 600px 400px at 90% 80%,rgba(52,211,153,.04) 0%,transparent 70%);font-family:var(--font-ui);display:flex;min-height:100vh;color:var(--text-main)}
+    /* sidenav */
+    #sidenav{position:fixed;left:0;top:0;bottom:0;z-index:200;width:var(--nav-w);background:var(--nav-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .22s cubic-bezier(.4,0,.2,1)}
+    #sidenav:hover{width:var(--nav-w-open)}
+    .nav-logo{height:52px;display:flex;align-items:center;justify-content:flex-start;padding:0 14px;gap:.55rem;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
+    .nav-logo img{width:24px;height:24px;object-fit:contain;flex-shrink:0;border-radius:4px}
+    #navRouterWrap{display:none;align-items:center;gap:.35rem;flex:1;min-width:0;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:6px;padding:.2rem .5rem .2rem .4rem;overflow:hidden}
+    #navRouterWrap .rtr-status-dot{flex-shrink:0}
+    #navRouterSelect{background:transparent;border:none;color:var(--text-main);font-family:var(--font-mono);font-size:.72rem;font-weight:600;cursor:pointer;outline:none;width:100%;min-width:0;padding:0}
+    #navRouterSelect option{background:var(--bg-deep);color:var(--text-main)}
+    /* Scrolling exists exactly when the user can see what they are scrolling: a
+       scrollbar inside the 52px rail is unusable and steals a chunk of it. */
+    .nav-items{flex:1;padding:8px 0;overflow:hidden;display:flex;flex-direction:column;overscroll-behavior:contain}
+    #sidenav:hover .nav-items,#sidenav.mobile-open .nav-items{overflow-y:auto}
+    .nav-items::-webkit-scrollbar{width:6px}
+    .nav-items::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    .nav-items::-webkit-scrollbar-track{background:transparent}
+    /* One rule, two element types — a category header is chrome but wears the
+       same row. flex-shrink:0 because these are flex children of a column: 44px
+       is a basis, not a floor, so on a short viewport the rows were already
+       squashing rather than clipping, and more rows makes that visible. */
+    .nav-item,.nav-group-hdr{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;cursor:pointer;color:var(--text-muted);text-decoration:none;transition:color .15s,background .15s;white-space:nowrap;overflow:hidden;flex-shrink:0}
+    .nav-group-hdr{width:100%;background:none;border:0;font:inherit;text-align:left}
+    .nav-item:hover,.nav-group-hdr:hover{color:var(--text-main);background:rgba(99,130,190,.07)}
+    .nav-item.active{color:var(--accent-rx);background:rgba(56,189,248,.08);border-right:2px solid var(--accent-rx)}
+    .nav-icon{width:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+    .nav-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+    .nav-label{font-family:var(--font-mono);font-size:.73rem;font-weight:600;letter-spacing:.04em;opacity:0;transition:opacity .15s .08s}
+    #sidenav:hover .nav-label{opacity:1}
+    #sidenav.mobile-open .nav-label{opacity:1}
+
+    /* ── Grouped nav ──────────────────────────────────────────────────────────
+       The rail is 52px at rest and 190px on hover, so a category has to read at
+       both widths. Headers keep an icon, because a bare 44px row at 52px is dead
+       space that looks like a rendering fault. The open-group cue is an inset bar
+       plus a tint — inset rather than border-left so opening a group shifts
+       nothing — because it is the only cue that survives with no labels. The
+       chevron and the indent are opacity/width-gated exactly as .nav-label is,
+       appearing only once there is something to read.
+
+       Open state is applied twice by design: preflight.js injects #navBoot
+       before the nav paints (the elements do not exist yet for classes), then
+       app.js takes over with .is-open and removes it. */
+    .nav-group{display:flex;flex-direction:column;flex-shrink:0}
+    .nav-group-body{display:none;flex-direction:column}
+    .nav-group.is-open>.nav-group-body{display:flex}
+    .nav-group.is-open{background:rgba(99,130,190,.07);box-shadow:inset 2px 0 0 rgba(99,130,190,.5)}
+    .nav-group-chev{margin-left:auto;display:flex;opacity:0;transition:opacity .15s .08s,transform .18s}
+    .nav-group-chev svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    #sidenav:hover .nav-group-chev,#sidenav.mobile-open .nav-group-chev{opacity:.55}
+    .nav-group.is-open>.nav-group-hdr .nav-group-chev{transform:rotate(90deg)}
+    /* Indent only once the labels exist. At 52px the icon column stays centred —
+       an off-centre icon rail reads as broken. */
+    .nav-group-body>.nav-item{transition:color .15s,background .15s,padding-left .22s cubic-bezier(.4,0,.2,1)}
+    #sidenav:hover .nav-group-body>.nav-item,#sidenav.mobile-open .nav-group-body>.nav-item{padding-left:22px}
+    /* "You are here" has to survive collapsing the group you are standing in. */
+    .nav-group.has-active>.nav-group-hdr{color:var(--accent-rx)}
+    .nav-group.has-active:not(.is-open)>.nav-group-hdr{background:rgba(56,189,248,.08);border-right:2px solid var(--accent-rx)}
+    /* Flat mode — same markup, groups dissolved. Set on <html> by preflight.js so
+       the nav never paints grouped and then flattens. */
+    html[data-nav="flat"] .nav-group{background:none;box-shadow:none}
+    html[data-nav="flat"] .nav-group-hdr{display:none}
+    html[data-nav="flat"] .nav-group-body{display:flex}
+    html[data-nav="flat"] .nav-group-body>.nav-item{padding-left:14px}
+    @media (prefers-reduced-motion: reduce){
+      .nav-group-chev{transition:opacity .15s .08s}
+      .nav-group-body>.nav-item{transition:color .15s,background .15s}
+    }
+    /* main */
+    #main{margin-left:var(--nav-w);flex:1;min-width:0;display:flex;flex-direction:column}
+    /* topbar */
+    #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:100}
+    #topbarLogo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap}
+    #topbarLogo span{color:var(--accent-rx)}
+    .topbar-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
+    #pageTitleWrap{display:flex;align-items:center;gap:.45rem;min-width:0}
+    #pageTitleIcon{display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-muted)}
+    #pageTitleIcon svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+    #pageTitle{font-family:var(--font-ui);font-weight:600;font-size:.85rem;color:var(--text-muted);letter-spacing:.01em}
+    .topbar-right{margin-left:auto;display:flex;align-items:center;gap:.65rem}
+    #uptimeChip{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:5px;padding:2px 8px;white-space:nowrap;display:none}
+    #routerTag{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted)}
+    #themeToggle{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:rgba(99,130,190,.08);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);transition:color .15s,background .15s;flex-shrink:0}
+    #themeToggle:hover{color:var(--accent-rx);background:rgba(56,189,248,.1)}
+    #themeToggle svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    /* kbd hint */
+    #kbdHint{position:fixed;bottom:.85rem;right:.85rem;z-index:400;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;font-family:var(--font-mono);font-size:.66rem;color:var(--text-muted);opacity:0;pointer-events:none;transition:opacity .25s}
+    #kbdHint.show{opacity:1}
+    kbd{background:rgba(99,130,190,.12);border:1px solid var(--border);border-radius:3px;padding:0 4px;font-size:.65rem;font-family:var(--font-mono)}
+    /* reconnect */
+    #reconnectBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(248,113,113,.12);border-bottom:1px solid rgba(248,113,113,.35);backdrop-filter:blur(8px);text-align:center;padding:.4rem;font-family:var(--font-mono);font-size:.72rem;color:#fca5a5;animation:pulse-banner 2s ease infinite}
+    #reconnectBanner.show{display:block}
+    #sidenav,#main{transition:opacity .35s ease}
+    body.is-disconnected #sidenav,body.is-disconnected #main{opacity:.35;pointer-events:none}
+    body.is-ros-disconnected #sidenav,body.is-ros-disconnected #main{opacity:.7}
+    #rosBanner{display:none;position:fixed;top:0;left:0;right:0;z-index:9998;background:rgba(245,159,0,.1);border-bottom:1px solid rgba(245,159,0,.3);backdrop-filter:blur(8px);padding:.4rem 1rem;font-family:var(--font-mono);font-size:.72rem;color:#fcd34d;animation:pulse-banner 2s ease infinite;align-items:center;justify-content:center;gap:.5rem}
+    #rosBanner.show{display:flex}
+    #rosBannerText{flex:1;text-align:center}
+    @keyframes pulse-banner{0%,100%{opacity:1}50%{opacity:.5}}
+    /* pages */
+    .page-view{display:none;flex:1;padding:1.25rem;overflow-y:auto}
+    .bw-header-row{display:grid;grid-template-columns:4fr 1fr;gap:.75rem;margin-bottom:.85rem;align-items:stretch}
+    .bw-chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem .45rem;min-width:0;position:relative}
+    .bw-chart-card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
+    .bw-chart-wrap{position:relative;height:120px;width:100%;overflow:hidden}
+    .bw-stat-col{display:flex;flex-direction:column;min-width:0}
+    .bw-stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:1rem 1.4rem;display:flex;flex-direction:column;justify-content:center;gap:1rem;flex:1;min-width:0}
+    .bw-stat-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-family:var(--font-ui)}
+    .bw-stat-label-rx{color:var(--accent-rx)}
+    .bw-stat-label-tx{color:var(--accent-tx)}
+    .bw-stat-val-row{display:flex;align-items:baseline;justify-content:space-between;gap:.4rem;width:100%}
+    .bw-stat-num{font-family:var(--font-mono);font-size:1.9rem;font-weight:700;line-height:1;color:var(--text-main);white-space:nowrap}
+    .bw-stat-unit{font-family:var(--font-mono);font-size:1.9rem;font-weight:700;color:var(--text-muted);white-space:nowrap;line-height:1}
+    .bw-stat-sub{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted);margin-top:.15rem}
+    @media(max-width:600px){.bw-header-row{grid-template-columns:1fr;}.bw-stat-col{flex-direction:row;gap:.5rem;}.bw-stat-card{padding:.7rem 1rem;}}
+    .bw-toolbar{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem;align-items:center}
+    .bw-search{flex:1 1 0;min-width:0}
+    .bw-toolbar input,.bw-toolbar select{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.35rem .65rem;font-size:.76rem;color:var(--text-main);outline:none;transition:border-color .15s,background .15s,color .15s}
+    .bw-toolbar select{appearance:none;-webkit-appearance:none;padding-right:1.8rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,190,.6)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .5rem center;cursor:pointer}
+    .bw-toolbar input:focus,.bw-toolbar select:focus{border-color:var(--accent-rx)}
+    html[data-theme="light"] .bw-toolbar input,html[data-theme="light"] .bw-toolbar select{background:rgba(255,255,255,.95);color:var(--text-main)}
+    .bw-table-wrap{background:var(--bg-card)}
+    .conn-src-filter{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.25rem .5rem;padding-right:1.7rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);outline:none;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,190,.5)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .4rem center;cursor:pointer;min-width:160px;transition:border-color .15s,color .15s}
+    /* outline:none removed — it suppressed the global focus ring on every
+       filter dropdown in the app, which is most of them. */
+    .conn-src-filter:focus{border-color:var(--accent-rx);color:var(--text-main)}
+    .conn-src-filter.active{border-color:var(--accent-rx);color:var(--accent-rx)}
+    html[data-theme="light"] .conn-src-filter{background:rgba(255,255,255,.95);color:var(--text-main)}
+
+    .bw-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);background:var(--bg-card)}
+    .bw-table{width:100%;border-collapse:collapse;font-size:.75rem;table-layout:fixed}
+    .bw-table th{padding:.45rem .75rem;text-align:left;font-size:.66rem;font-weight:400;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-color:var(--border);background:rgba(99,130,190,.04);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;font-family:var(--font-ui)}
+    .bw-table th:hover{color:var(--text-main)}
+    #page-dhcp th{cursor:pointer;user-select:none}
+    .bw-table td{padding:.4rem .7rem;border-bottom:1px solid rgba(99,130,190,.08);vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
+    .bw-table tr:last-child td{border-bottom:none}
+    .bw-rate{font-family:var(--font-mono);font-size:.72rem}
+    .bw-rate-rx{color:var(--accent-rx)}
+    .bw-rate-tx{color:var(--accent-tx)}
+    .bw-rate-total{color:var(--text-main);font-weight:600}
+    .bw-bar{display:inline-block;height:3px;border-radius:2px;min-width:2px;vertical-align:middle;margin-left:4px}
+    .bw-bar-rx{background:var(--accent-rx)}
+    .bw-bar-tx{background:var(--accent-tx)}
+    .bw-name{color:var(--text-main);font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+    .bw-ip{color:var(--text-muted);font-family:var(--font-mono);font-size:.7rem}
+    .bw-mac{color:rgba(148,163,190,.5);font-family:var(--font-mono);font-size:.65rem}
+    .bw-proto{display:inline-block;padding:.1rem .4rem;border-radius:3px;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:var(--font-mono)}
+    .bw-proto-tcp{background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.2)}
+    .bw-proto-udp{background:rgba(52,211,153,.12);color:var(--accent-tx);border:1px solid rgba(52,211,153,.2)}
+    .bw-proto-icmp{background:rgba(245,159,0,.1);color:var(--accent-warn);border:1px solid rgba(245,159,0,.2)}
+    .bw-proto-other{background:rgba(148,163,190,.1);color:var(--text-muted);border:1px solid var(--border)}
+    .bw-flag{font-size:.85rem;margin-right:.2rem}
+    .bw-empty{text-align:center;padding:2.5rem;color:var(--text-muted);font-size:.8rem}
+    .bw-stats{display:none}
+    .nav-items{display:flex;flex-direction:column}
+    .sform-label{font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.3rem;display:block}
+    .sform-input{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.45rem .7rem;font-size:.8rem;color:var(--text-main);outline:none;transition:border-color .15s}
+    .sform-input:focus{border-color:var(--accent-rx)}
+    .bw-unit-toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;flex-shrink:0}
+    .bw-unit-btn{background:transparent;border:none;border-right:1px solid var(--border);padding:.42rem .6rem;font-size:.8rem;font-family:inherit;color:var(--text-muted);cursor:pointer;line-height:1;transition:background .15s,color .15s;white-space:nowrap}
+    .bw-unit-btn:last-child{border-right:none}
+    .bw-unit-btn.active{background:var(--accent-rx,#4a90d9);color:#fff}
+    .bw-unit-btn:not(.active):hover{background:var(--border);color:var(--text-main)}
+    .sform-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+    .sform-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem}
+    @media(max-width:640px){.sform-row,.sform-row3{grid-template-columns:1fr}}
+    .sform-group{margin-bottom:.9rem}
+    .stoggle-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    @media(max-width:500px){.stoggle-grid{grid-template-columns:1fr}}
+    .stoggle{display:flex;align-items:center;justify-content:space-between;padding:.55rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);cursor:pointer;user-select:none;gap:.5rem}
+    .stoggle-label{font-size:.8rem;color:var(--text-main);font-weight:500}
+    .stoggle-switch{position:relative;width:34px;height:18px;flex-shrink:0}
+    .stoggle-switch input{opacity:0;width:0;height:0;position:absolute}
+    .stoggle-track{position:absolute;inset:0;border-radius:9px;background:rgba(99,130,190,.2);border:1px solid var(--border);transition:background .2s,border-color .2s}
+    .stoggle-switch input:checked + .stoggle-track{background:rgba(56,189,248,.35);border-color:var(--accent-rx)}
+    .stoggle-thumb{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--text-muted);transition:transform .2s,background .2s;pointer-events:none}
+    .stoggle-switch input:checked ~ .stoggle-thumb{transform:translateX(16px);background:var(--accent-rx)}
+    .sbtn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1.1rem;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;transition:opacity .15s,transform .1s}
+    .sbtn:active{transform:scale(.97)}
+    .sbtn-primary{background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.3)}
+    .sbtn-primary:hover{background:rgba(56,189,248,.25)}
+    /* For a button sitting ON a warn surface — the RouterOS update banner.
+       Its background is rgba(245,159,0,.10), so this is deliberately a step
+       stronger in both fill and border, or the button dissolves into the
+       banner it is standing on. */
+    /* Sized for a button and drawn in currentColor, so it matches whichever
+       .sbtn variant it lands in rather than pinning one accent. */
+    .sbtn-spin{width:12px;height:12px;flex:0 0 auto;border:2px solid currentColor;
+      border-top-color:transparent;border-radius:50%;opacity:.85;animation:spin .7s linear infinite}
+    .sbtn:disabled{opacity:.75;cursor:default}
+    .sbtn:disabled:active{transform:none}
+    .sbtn-warn{background:rgba(245,159,0,.18);color:var(--accent-warn);border:1px solid rgba(245,159,0,.45)}
+    .sbtn-warn:hover{background:rgba(245,159,0,.30)}
+    .sbtn-danger{background:rgba(248,113,113,.12);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
+    .sbtn-danger:hover{background:rgba(248,113,113,.22)}
+    /* Restore. Purple because it is neither an ordinary action nor a deletion:
+       it replaces the entire configuration and reboots the router, so it should
+       not share the danger red that Delete uses two buttons along. Built to the
+       same fill/border recipe as the variants above rather than a new palette. */
+    .sbtn-purple{background:rgba(167,139,250,.15);color:rgba(196,181,253,.95);border:1px solid rgba(167,139,250,.35)}
+    .sbtn-purple:hover{background:rgba(167,139,250,.26)}
+    /* Bulk actions dim rather than vanish when nothing is selected: a button that
+       disappears makes the header jump, and the operator loses the affordance
+       telling them selection is what unlocks it. */
+    .sbtn-purple:disabled,.sbtn-danger:disabled{opacity:.45;cursor:not-allowed}
+    .sbtn-purple:disabled:hover{background:rgba(167,139,250,.15)}
+    .sbtn-danger:disabled:hover{background:rgba(248,113,113,.12)}
+    /* Selection column. Sized and coloured to match .stoggle rather than left as
+       browser chrome, which is the reason the rest of this page was reworked. */
+    /* The row's database id. Mono and cyan rather than a Tabler bg-*-lt badge,
+       because the Result column two along already uses those and a second
+       badge in the same language would read as a second status. One colour for
+       every id on purpose: tinting them per-row would imply a grouping that
+       does not exist. */
+    .bk-id-pill{display:inline-block;font-family:var(--font-mono);font-size:.68rem;font-weight:600;
+      padding:.1rem .45rem;border-radius:4px;background:rgba(56,189,248,.13);
+      color:var(--accent-rx);border:1px solid rgba(56,189,248,.28);line-height:1.5;white-space:nowrap}
+    .bk-pick{width:15px;height:15px;margin:0;cursor:pointer;accent-color:var(--accent-rx);vertical-align:middle}
+    .bk-pick:disabled{opacity:.35;cursor:not-allowed}
+    tr.bk-row-picked{background:rgba(56,189,248,.07)}
+    /* .sbtn-outline shares the ghost treatment. It was referenced in a dozen
+       places but never defined, so those buttons fell through to the bare .sbtn
+       — which sets border:none and no background — and picked up the browser's
+       default grey chrome instead of the theme. */
+    .sbtn-ghost,.sbtn-outline{background:transparent;color:var(--text-muted);border:1px solid var(--border)}
+    .sbtn-ghost:hover,.sbtn-outline:hover{color:var(--text-main);border-color:var(--text-muted);background:rgba(99,130,190,.07)}
+    .sbtn-outline:disabled,.sbtn-primary:disabled{opacity:.4;cursor:not-allowed}
+    .sbtn-outline:disabled:hover{color:var(--text-muted);border-color:var(--border);background:transparent}
+    /* Principal tabs — Users / Groups / Sites / Roles share one card, because
+       four full cards made the Authentication panel a long scroll of tables.
+       Same visual language as the settings tabs above them (.stab), one level in. */
+    .ptabs{display:flex;gap:.15rem;overflow-x:auto;scrollbar-width:none}
+    .ptabs::-webkit-scrollbar{display:none}
+    .ptab{background:transparent;border:none;border-bottom:2px solid transparent;padding:.45rem .9rem;font-size:.76rem;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:6px 6px 0 0;transition:color .15s,border-color .15s;margin-bottom:-1px;white-space:nowrap;flex-shrink:0}
+    .ptab:hover{color:var(--text-main)}
+    .ptab.active{color:var(--accent-rx);border-bottom-color:var(--accent-rx)}
+    .ptab-panel{display:none}
+    .ptab-panel.active{display:block}
+    /* Each panel's own action row: the blurb on the left, its Add button right,
+       replacing the four card headers these panels used to have. */
+    .ptab-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.9rem;margin-bottom:.7rem}
+    .ptab-desc{font-size:.72rem;color:var(--text-muted);flex:1;min-width:0}
+    /* Authentication spans both columns, so its two short controls sit side by
+       side rather than stacking into a tall, mostly empty card.
+       Two fixed tracks rather than auto-fit: when "require sign-in" is off the
+       right-hand field is hidden, and auto-fit would stretch the lone toggle
+       across the whole card. */
+    .auth-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem 1.75rem;align-items:start}
+    @media (min-width:820px){.auth-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    /* Each column is label → control → hint, so the two read as one row. The
+       toggle pill and the select are separate components with different
+       padding (.55rem vs .45rem), which left them a few pixels out of line —
+       one height for both fixes it. */
+    .auth-grid .stoggle,.auth-grid .sform-input{min-height:2.4rem}
+    .auth-grid .stoggle{padding-top:0;padding-bottom:0}
+    .auth-hint{font-size:.72rem;color:var(--text-muted);margin-top:.4rem;line-height:1.5}
+    /* The principals card runs to the bottom of the viewport and scrolls its own
+       body, so the tab strip stays put while a long table moves under it. Its
+       height is set in JS from the card's actual top offset — a CSS calc() would
+       need to hardcode the topbar, tab strip, Authentication card and save bar,
+       and go wrong the moment any of them changes. */
+    #principalsCard{display:flex;flex-direction:column;min-height:0}
+    #principalsCard>.scard-header,#principalsCard>.ptabs-bar{flex-shrink:0}
+    #principalsCard>.scard-body{flex:1;min-height:0;overflow-y:auto}
+    /* The tab strip's own row, under the card title. Its bottom border is the
+       divider the header would otherwise provide. */
+    .ptabs-bar{padding:.4rem 1rem 0;border-bottom:1px solid var(--border)}
+    /* Narrower than the router modal: these forms are a single column.
+       Qualified with .rtr-modal so it beats that rule's width regardless of
+       source order — both are one class otherwise, and .rtr-modal is declared
+       further down the sheet. */
+    .rtr-modal.pmodal{width:min(640px,94vw)}
+    /* The router modal splits its body into two .rtr-modal-col children at wide
+       viewports. These forms have no columns — their fields go straight into the
+       body — so that grid would slice the form in half. */
+    .rtr-modal.pmodal>.rtr-modal-body{display:block}
+    /* Same opt-out as pmodal: the base .rtr-modal-body is a two-column grid
+       for the router form, and the analyzer stacks full-width sections. */
+    .rtr-modal.fa-modal>.rtr-modal-body{display:block}
+    /* The account modal is not a form like the four above — it holds five
+       unrelated sections, and stacking them made a tall narrow ribbon that had
+       to be scrolled past to reach anything. It takes the width instead and
+       lays the sections out two-up, so the whole thing is visible at once.
+       Everything below is scoped to .acct-modal; the principal forms keep the
+       single narrow column that suits them. */
+    /* Wide enough for two comfortable columns, no wider. It was 1400px when the
+       sections included two toggle grids and a full SMTP form; with those gone
+       the extra width was just margin inside the fields. */
+    .rtr-modal.acct-modal{width:min(950px,88vw)}
+    /* Cards stretch to their row rather than sitting at their natural height,
+       so the two in a row share a baseline and an edge. Ragged card bottoms are
+       what makes a two-column layout read as accidental. */
+    .rtr-modal.acct-modal>.rtr-modal-body{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:1rem;align-items:stretch;
+    }
+    /* Cards space themselves with margin when stacked; in a grid the gap does
+       it, and the margin would only make the rows uneven. */
+    .rtr-modal.acct-modal>.rtr-modal-body>.scard,
+    .rtr-modal.acct-modal #acctMyAlerts>.scard{margin-bottom:0}
+    /* My Alerts is a section of sections: channels across the full width, then
+       the two toggle grids side by side beneath them. */
+    .rtr-modal.acct-modal #acctMyAlerts{
+      grid-column:1/-1;
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:1rem;align-items:stretch;
+    }
+    .rtr-modal.acct-modal #acctMyAlerts>.scard--wide{grid-column:1/-1}
+    /* The four channels as an even 2x2. display:contents lifts the existing
+       Pushbullet/ntfy pair out of its wrapper so all four are siblings of the
+       same grid, which avoids restructuring markup that Settings also uses. */
+    /* Four channels, each asking for a toggle and one or two fields, so an even
+       2x2. Email used to be a seven-field SMTP form that had to take a row of
+       its own; it is an opt-in and an address now, the same size as the rest. */
+    .rtr-modal.acct-modal #acctMyAlerts .scard--wide>.scard-body{
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:.9rem;align-items:stretch;
+    }
+    .rtr-modal.acct-modal #acctMyAlerts .scard--wide>.scard-body>p{grid-column:1/-1;margin-bottom:0}
+    .rtr-modal.acct-modal #acctMyAlerts .nchan-pair{display:contents}
+    /* One column on anything narrow: two columns of password fields on a phone
+       would be worse than the ribbon this replaces. */
+    @media(max-width:900px){
+      .rtr-modal.acct-modal>.rtr-modal-body,
+      .rtr-modal.acct-modal #acctMyAlerts,
+      .rtr-modal.acct-modal #acctMyAlerts .scard--wide>.scard-body{grid-template-columns:1fr}
+    }
+    /* Data Cleanup card (Settings) */
+    .dbc-stats{display:flex;gap:.5rem;flex-wrap:wrap}
+    .dbc-stat{flex:1 1 120px;background:var(--bg-deep);border:1px solid var(--border);border-radius:7px;padding:.5rem .6rem}
+    .dbc-stat-label{display:block;font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+    .dbc-stat-value{display:block;font-family:var(--font-mono);font-size:.86rem;font-weight:600;color:var(--text-main);margin-top:.15rem}
+    .dbc-routers{display:flex;flex-direction:column;gap:.25rem;margin-top:.5rem}
+    .dbc-router{display:flex;justify-content:space-between;gap:.6rem;font-size:.7rem;color:var(--text-muted);padding:.25rem .1rem}
+    .dbc-router b{font-family:var(--font-mono);font-weight:600;color:var(--text-main)}
+    .dbc-types{display:flex;gap:.45rem;flex-wrap:wrap}
+    .dbc-type{display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--text-main);
+              background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;padding:.3rem .55rem;cursor:pointer}
+    .dbc-type input{accent-color:var(--accent-rx);cursor:pointer}
+    .dbc-summary{margin-top:.8rem;font-size:.73rem;color:var(--text-muted);line-height:1.5;min-height:1px}
+    .dbc-summary b{color:var(--text-main);font-family:var(--font-mono)}
+    .dbc-result{margin-top:.6rem;font-size:.73rem;line-height:1.5}
+    .dbc-result.ok{color:var(--accent-tx)}
+    .dbc-result.err{color:var(--accent-err)}
+    .dbc-result.busy{color:var(--text-muted)}
+    /* Scoped to this card so other settings buttons keep their current look. */
+    .dbc-actions .sbtn:disabled{opacity:.45;cursor:not-allowed}
+    .dbc-spin{display:inline-block;width:11px;height:11px;border:2px solid var(--border);
+              border-top-color:var(--accent-rx);border-radius:50%;animation:spin .7s linear infinite;
+              vertical-align:-1px;margin-right:.45rem}
+    .scard{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.18)}
+    /* Settings lays its cards out on a grid rather than one long strip. Cards
+       need min-width:0 so they can shrink inside a track (same reason as
+       .mikrodash-col--center). */
+    .scard{min-width:0}
+    /* Cards that want the whole width: tables, the tallest card (which would
+       otherwise leave a large gap beside it), and tabs holding only one card. */
+    .scard--wide{grid-column:1/-1}
+    /* Grid items already stretch to their row, so a card only looks short when
+       it is alone on its row with nothing to stretch against — which is exactly
+       what happens to Sites and Users once Users spans the grid. A min-height on
+       the body (not the card) keeps the table area from collapsing while still
+       letting the card grow past it as rows are added. */
+    .scard--tall .scard-body{min-height:15rem}
+    .scard-header{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
+    .scard-title{font-size:.78rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em;flex:1}
+    .scard-body{padding:.9rem 1rem}
+    .sbanner{border-radius:7px;padding:.55rem .85rem;font-size:.75rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem;min-height:2rem;visibility:hidden}
+    .sbanner.show{visibility:visible}
+    .sbanner-ok{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);color:rgba(52,211,153,.9)}
+    .sbanner-warn{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);color:rgba(251,191,36,.9)}
+    .sbanner-err{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);color:rgba(248,113,113,.9)}
+    .srange-wrap{display:flex;align-items:center;gap:.6rem}
+    .srange-wrap input[type=range]{flex:1;accent-color:var(--accent-rx)}
+    #pollSlidersWrap{display:grid;grid-template-columns:1fr 1fr;gap:0 1.4rem;align-items:start}
+    /* The group heading spans both columns so the split reads as two lists of
+       one kind each, not one list wrapped arbitrarily. */
+    #pollSlidersWrap .poll-group-hdr{grid-column:1/-1;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--text-muted);margin:.2rem 0 .5rem;padding-top:.35rem;border-top:1px solid var(--border)}
+    #pollSlidersWrap .poll-group-hdr:first-child{border-top:none;padding-top:0}
+    @media(max-width:900px){#pollSlidersWrap{grid-template-columns:1fr}}
+    .srange-val{font-size:.75rem;font-family:var(--font-mono);color:var(--accent-rx);min-width:52px;text-align:right}
+    .stab-bar{display:flex;gap:.15rem;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:0;overflow-x:auto;scrollbar-width:none}
+    .stab-bar::-webkit-scrollbar{display:none}
+    .stab{background:transparent;border:none;border-bottom:2px solid transparent;padding:.5rem .95rem;font-size:.78rem;font-weight:600;color:var(--text-muted);cursor:pointer;border-radius:6px 6px 0 0;transition:color .15s,border-color .15s;margin-bottom:-1px;white-space:nowrap;flex-shrink:0}
+    .stab:hover{color:var(--text-main)}
+    .stab.active{color:var(--accent-rx);border-bottom-color:var(--accent-rx)}
+    .stab-panel{display:none}
+    /* A grid, not CSS columns. Columns flowed cards down one track and into the
+       next, and column-span:all split the flow into independent regions, which
+       stranded a lone card beside a full-width one. On a grid every card in a
+       row shares the row's height (the same reason router cards use h-100), so
+       rows line up instead of ending ragged.
+       Two fixed columns above 1100px rather than auto-fit: the card count per
+       tab is small and odd, so a third column strands one card in a third-width
+       row mid-page (Notifications did exactly this at 1920px). No auto-fit
+       minimum yields two columns at both 1200px and 1920px without collapsing
+       1200px to one, so the count is pinned and the cards are paired by height
+       to suit it. Two columns also keeps each card near the ~720px these forms
+       were laid out for; three squeezed them to 492px and wrapped labels badly.
+       'dense' backfills the hole a full-width card would otherwise leave. It
+       lets a later card move up visually while tab order follows the DOM, which
+       is acceptable here only because settings cards are self-contained and
+       carry no meaningful sequence. */
+    .stab-panel.active{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem;grid-auto-flow:row dense}
+    @media (min-width:1100px){.stab-panel.active{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    /* margin-bottom on .scard would double up the grid gap. */
+    .stab-panel.active .scard{margin-bottom:0}
+    /* Pushbullet and ntfy sit side by side inside Notification Channels: both
+       are short (a key, or a URL and token, plus a test button), so a full row
+       each was mostly empty. auto-fit rather than a media query because the
+       width here follows the card, not the viewport — the card is full-width in
+       a settings grid that itself changes column count. With two children the
+       third track collapses, giving two equal columns, and one column once the
+       card is too narrow for two 22rem tracks. */
+    .nchan-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));gap:.9rem}
+    /* About is a read-only page of short blurbs. Grid stretched them into wide
+       shallow bands, so it keeps the original stacked single column. */
+    #stab-about.stab-panel.active{display:block;max-width:46rem;margin:0 auto}
+    #stab-about .scard{margin-bottom:1rem}
+    /* Save bar pinned to the bottom of .page-view (the scroll container) so it
+       stays reachable however long the panel gets. app.js sets display on this
+       element to show/hide it per tab, so this rule must not declare display. */
+    #settingsActions{position:sticky;bottom:0;z-index:4;background:var(--bg-deep);border-top:1px solid var(--border);padding-top:.6rem}
+    .theme-swatch-grid{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem}
+    .theme-swatch{display:flex;flex-direction:column;align-items:center;gap:.35rem;cursor:pointer;border-radius:8px;padding:.4rem;border:2px solid transparent;transition:border-color .15s}
+    .theme-swatch:hover{border-color:rgba(99,130,190,.3)}
+    .theme-swatch.active{border-color:var(--accent-rx)}
+    .swatch-preview{width:44px;height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(128,128,128,.2)}
+    .swatch-dot{width:10px;height:10px;border-radius:50%}
+    .swatch-name{font-family:var(--font-mono);font-size:.6rem;color:var(--text-muted);text-align:center;line-height:1.3}
+    .page-view.active{display:block}
+    /* cards */
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 24px rgba(0,0,0,.25);position:relative}
+    .card-header{border-bottom:1px solid var(--border);padding:.65rem 1rem}
+    .card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin:0}
+    /* stale */
+    .stale-overlay{position:absolute;inset:0;border-radius:10px;background:rgba(7,9,15,.55);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted);z-index:10;opacity:0;pointer-events:none;transition:opacity .3s}
+    .card.is-stale .stale-overlay{opacity:1;pointer-events:auto}
+    /* A stream the watchdog keeps restarting is a persistent fault, not a
+       transient stall. .is-stale only dims the card once data stops; this says
+       why, and stays visible while the stream is still delivering bursts. */
+    .stream-warn{display:none;align-items:center;gap:.4rem;font-family:var(--font-mono);font-size:.62rem;
+                 color:rgba(251,191,36,.95);background:rgba(251,191,36,.10);
+                 border-bottom:1px solid rgba(251,191,36,.25);padding:.25rem .7rem}
+    .card.is-degraded .stream-warn{display:flex}
+    /* A collector switched off for this router is a deliberate setting, not a
+       fault, so it gets the neutral grey scrim rather than the amber warning
+       bar above (which means "should be working and isn't"). (#105) */
+    .card.is-collector-off{opacity:.5}
+    .card.is-collector-off .stale-overlay{opacity:1;pointer-events:auto;
+      background:rgba(7,9,15,.62);color:rgba(148,163,190,.75)}
+    /* Dormant deliberately has NO visual treatment. The card already says what it
+       needs to from inside its own body — "No devices", "No active peers" — and a
+       scrim on top made an otherwise ordinary empty card stand out against its
+       neighbours, which reads as a fault rather than as "there is nothing here".
+       .is-dormant is therefore a state marker for the stale sweep and for QA, not
+       a style hook. Contrast is-collector-off, which keeps its scrim: that one IS
+       worth announcing, because the operator switched it off and would otherwise
+       have no way to tell a disabled card from an empty one. */
+    /* traffic */
+    .chart-wrap{position:relative;height:200px;width:100%}
+    .chart-legend{display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
+    .legend-item{display:flex;align-items:center;gap:.4rem;font-family:var(--font-mono);font-size:.75rem}
+    .legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .legend-rate{font-weight:600;font-size:.88rem}
+    #liveRx{color:var(--accent-rx)} #liveTx{color:var(--accent-tx)}
+    /* wan */
+    .wan-badge{font-family:var(--font-mono);font-size:.72rem;padding:.2em .6em;border-radius:4px;display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap;flex-shrink:0}
+    .wan-badge::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+    .wan-up{background:rgba(74,222,128,.1);color:var(--accent-ok);border:1px solid rgba(74,222,128,.2)}
+    .wan-down{background:rgba(248,113,113,.1);color:var(--accent-err);border:1px solid rgba(248,113,113,.2)}
+    .wan-disabled{background:rgba(148,163,190,.08);color:var(--text-muted);border:1px solid var(--border)}
+    /* segmented arc gauges */
+    .gauge-row{display:flex;gap:.5rem;align-items:flex-end;justify-content:space-between;max-height:70px;overflow:hidden;margin-bottom:.5rem}
+    .gauge-arc-wrap{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0;max-height:70px;overflow:hidden}
+    .gauge-arc-svg{width:100%;height:100%;display:block}
+    .gauge-arc-pct{font-size:.78rem;font-weight:700;font-family:var(--font-mono);fill:var(--text-main);text-anchor:middle}
+    .gauge-arc-lbl{font-size:.44rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;fill:var(--text-muted);text-anchor:middle}
+    .gauge-val-warn{color:#fb923c!important;font-weight:700}
+    .gauge-val-crit{color:#f87171!important;font-weight:700}
+    .sys-meta{display:flex;flex-wrap:wrap;gap:.35rem .7rem;margin-top:.65rem}
+    .sys-meta-item{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted)}
+    .sys-meta-item strong{color:var(--text-main)}
+    /* lan */
+    .lan-divider{border-top:1px solid var(--border);margin:.8rem -.75rem 0;padding:.7rem .75rem 0}
+    .lan-section-label{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:rgba(99,130,190,.5);margin-bottom:.45rem}
+    .lan-net{padding:.25rem .45rem;background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.18);border-radius:6px;margin-bottom:.25rem}
+    .lan-net:last-child{margin-bottom:0}
+    .lan-cidr{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--text-main)}
+    .lan-meta{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted);margin-top:.1rem}
+    /* connections */
+    .conn-stats{display:flex;gap:1.2rem;align-items:flex-end}
+    .conn-stat-val{font-family:var(--font-mono);font-size:1.3rem;font-weight:600;color:var(--text-main)}
+    .conn-stat-lbl{font-size:.67rem;font-family:var(--font-mono);color:var(--text-muted)}
+    /* proto bars */
+    .proto-bar-row{display:flex;align-items:center;gap:.45rem;margin:.2rem 0;font-family:var(--font-mono);font-size:.68rem}
+    .proto-label{width:36px;color:var(--text-muted);text-align:right}
+    .proto-track{flex:1;height:4px;background:rgba(99,130,190,.12);border-radius:2px;overflow:hidden}
+    .proto-fill{height:100%;border-radius:2px;transition:width .4s ease}
+    .proto-fill.tcp{background:#f472b6}
+    .proto-fill.udp{background:#fb923c}
+    .proto-fill.icmp{background:#a78bfa}
+    .proto-fill.other{background:rgba(148,163,190,.3)}
+    .proto-val{width:36px;color:var(--text-muted)}
+    /* iface grid */
+
+    /* ── Interfaces summary row ──────────────────────────────────────────────── */
+    .if-summary-row{display:grid;grid-template-columns:1fr 2fr;gap:.75rem;margin-bottom:.85rem;align-items:stretch}
+    @media(max-width:700px){.if-summary-row{grid-template-columns:1fr}}
+    .if-scard{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0;display:flex;flex-direction:column}
+    .if-scard-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
+
+    /* Interface Types grid (left card) */
+    .if-type-grid{display:flex;flex-wrap:wrap;gap:.4rem;flex:1;align-content:flex-start}
+    .if-type-item{background:rgba(99,130,190,.06);border:1px solid var(--border);border-radius:6px;padding:.45rem .6rem;display:flex;flex-direction:column;gap:.1rem;min-width:80px}
+    .if-type-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .if-type-count{font-size:1.35rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
+
+    /* Ports panel (right card) */
+    .if-ports-scroll{display:flex;flex-wrap:wrap;gap:.55rem .7rem;align-items:center;justify-content:center;flex:1}
+    .if-port-item{display:flex;flex-direction:column;align-items:center;gap:.28rem;cursor:default}
+    .if-port-label{font-size:.6rem;font-family:var(--font-mono);color:var(--text-muted);text-align:center;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
+    /* Port SVG colours driven by data attribute */
+    .if-port-item[data-state="up"]   .if-port-svg .port-body{fill:rgba(74,222,128,.15);stroke:rgba(74,222,128,.7)}
+    .if-port-item[data-state="up"]   .if-port-svg .port-led {fill:rgba(74,222,128,.95)}
+    .if-port-item[data-state="up"]   .if-port-label{color:rgba(74,222,128,.85)}
+    .if-port-item[data-state="down"] .if-port-svg .port-body{fill:rgba(248,113,113,.1);stroke:rgba(248,113,113,.55)}
+    .if-port-item[data-state="down"] .if-port-svg .port-led {fill:rgba(248,113,113,.8)}
+    .if-port-item[data-state="down"] .if-port-label{color:rgba(248,113,113,.7)}
+    .if-port-item[data-state="dis"]  .if-port-svg .port-body{fill:rgba(99,130,190,.07);stroke:rgba(99,130,190,.2)}
+    .if-port-item[data-state="dis"]  .if-port-svg .port-led {fill:rgba(99,130,190,.3)}
+    .if-port-item[data-state="dis"]  .if-port-label{color:var(--text-muted)}
+    /* Tile sizing is driven by two custom properties so the card size control
+       scales every element together: --if-w sets the grid track, --if-scale
+       multiplies each type size and the sparkline. --if-spark-w is the
+       sparkline's intrinsic width (see ifaceSparkSvg), reserved on the name so
+       a long name ellipsises *before* the graph rather than sliding under it. */
+    /* grid-auto-rows:1fr makes every row the same height as the tallest, so a
+       row of interfaces without IP addresses is no shorter than one with them.
+       Tiles stretch to fill their row by default. */
+    .iface-grid{--if-w:175px;--if-scale:1;--if-spark-w:56px;
+                display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--if-w),1fr));
+                grid-auto-rows:1fr;gap:.55rem}
+    .iface-grid[data-size="md"]{--if-w:230px;--if-scale:1.18}
+    .iface-grid[data-size="lg"]{--if-w:300px;--if-scale:1.42}
+    .iface-tile{padding:.6rem .7rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:calc(.7rem * var(--if-scale));transition:border-color .2s,background .2s}
+    .iface-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
+    .iface-tile.down{border-color:rgba(248,113,113,.2);background:rgba(248,113,113,.03);opacity:.6}
+    .iface-tile.disabled{opacity:.35}
+    /* padding-right keeps the name clear of the absolutely positioned sparkline */
+    .iface-name{font-weight:600;font-size:calc(.77rem * var(--if-scale));color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.1rem;
+                padding-right:calc(var(--if-spark-w) * var(--if-scale) + .35rem)}
+    /* nowrap matters here too: a long comment used to wrap and make the tile
+       taller than its neighbours in the same row */
+    .iface-type{font-size:calc(.62rem * var(--if-scale));color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .iface-ip{font-size:calc(.65rem * var(--if-scale));color:var(--accent-rx);margin-top:.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .iface-rates{margin-top:.35rem;display:flex;flex-direction:column;gap:.18rem}
+    .iface-rate-row{display:flex;align-items:center;gap:.3rem;font-size:calc(.63rem * var(--if-scale))}
+    .iface-rate-label{width:.7rem;text-align:right;opacity:.55;flex-shrink:0}
+    .iface-rate-bar-wrap{flex:1;height:3px;border-radius:2px;background:rgba(99,130,190,.1);overflow:hidden;min-width:0}
+    .iface-rate-bar{height:100%;border-radius:2px;transition:width .6s ease;min-width:0}
+    .iface-rate-bar.rx{background:var(--accent-rx)}
+    .iface-rate-bar.tx{background:var(--accent-tx)}
+    .iface-rate-val{width:calc(5.8rem * var(--if-scale));text-align:right;flex-shrink:0;white-space:nowrap;font-size:calc(.61rem * var(--if-scale))}
+    .iface-rate-val.rx{color:var(--accent-rx)}
+    .iface-rate-val.tx{color:var(--accent-tx)}
+    .iface-rate-val.zero{color:var(--text-muted)}
+    .iface-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:3px;vertical-align:middle}
+    .iface-dot.up{background:var(--accent-ok)} .iface-dot.down{background:var(--accent-err)} .iface-dot.dis{background:var(--text-muted)}
+    .iface-tile{position:relative}
+    .iface-spark{position:absolute;top:.35rem;right:.4rem;pointer-events:none;opacity:.75;
+                 width:calc(var(--if-spark-w) * var(--if-scale));height:calc(18px * var(--if-scale))}
+    /* ── Bridges: tabbed Ports / Host Table ─────────────────────── */
+    .brtab-panel{display:none}
+    .brtab-panel.active{display:block}
+    /* The strip lives inside a card header rather than above the card, so it
+       drops the bottom rule and the margin the standalone version carries. */
+    .brtab-bar{margin-bottom:0;border-bottom:none;padding-bottom:0}
+    .brtab-bar .stab{padding:.3rem .75rem;font-size:.74rem}
+
+    /* ── VLANs: stacked RX/TX cell ──────────────────────────────── */
+    /* Two lines rather than one "rx / tx" string: the rates are read far more
+       often than they are compared, and stacking leaves room for a sparkline
+       per direction without widening the column. */
+    /* Queues: the same rate-cell shape as the VLANs page, with its own class
+       names. Copied rather than shared because generalising the VLAN classes
+       would mean editing a working page for no functional gain. */
+    .q-rate{display:flex;flex-direction:column;gap:.12rem}
+    .q-rate-line{display:flex;align-items:center;gap:.35rem;line-height:1.15}
+    .q-rate-arrow{width:.6rem;flex-shrink:0;font-size:.7rem}
+    .q-rate-arrow.rx{color:var(--accent-rx)}
+    .q-rate-arrow.tx{color:var(--accent-tx,#f59f00)}
+    .q-rate-arrow.zero{color:var(--text-muted)}
+    .q-rate-val{min-width:5.4rem;text-align:right;white-space:nowrap;font-size:.72rem}
+    .q-rate-val.rx{color:var(--accent-rx)}
+    .q-rate-val.tx{color:var(--accent-tx,#f59f00)}
+    .q-rate-val.zero{color:var(--text-muted)}
+    .q-spark-slot{display:inline-block;width:56px;height:14px}
+    /* The FastTrack banner is a warning, not an error: the queues are valid, the
+       router is just not consulting them. */
+    .q-ftbanner{border:1px solid rgba(245,159,0,.3);background:rgba(245,159,0,.08);
+                border-radius:6px;padding:.55rem .7rem;font-size:.78rem;color:var(--text)}
+    .q-ftbanner code{font-size:.72rem}
+    .q-ftbanner.q-ft-unknown{border-color:var(--border);background:transparent;color:var(--text-muted)}
+    .q-order{font-family:var(--font-mono);font-size:.65rem;color:var(--text-muted)}
+
+    .vlan-rate{display:flex;flex-direction:column;gap:.12rem}
+    .vlan-rate-line{display:flex;align-items:center;gap:.35rem;line-height:1.15}
+    /* The arrow carries the same colour as the value it points at, so direction
+       and rate read as one thing rather than two. */
+    .vlan-rate-arrow{width:.6rem;flex-shrink:0;font-size:.7rem}
+    .vlan-rate-arrow.rx{color:var(--accent-rx)}
+    .vlan-rate-arrow.tx{color:var(--accent-tx,#f59f00)}
+    .vlan-rate-arrow.zero{color:var(--text-muted)}
+    .vlan-rate-val{min-width:5.4rem;text-align:right;white-space:nowrap;font-size:.72rem}
+    .vlan-rate-val.rx{color:var(--accent-rx)}
+    .vlan-rate-val.tx{color:var(--accent-tx,#f59f00)}
+    .vlan-rate-val.zero{color:var(--text-muted)}
+    .vlan-spark{flex-shrink:0;opacity:.8}
+    .vlan-spark.rx{color:var(--accent-rx)}
+    .vlan-spark.tx{color:var(--accent-tx,#f59f00)}
+    /* Holds the row height steady before enough samples exist to draw a line,
+       so rows do not jump as the first sparklines appear. */
+    .vlan-spark-slot{width:56px;height:14px;flex-shrink:0}
+
+    /* ── Shared: key/value panel used by DNS and Packages ───────── */
+    .kv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.5rem .9rem}
+    .kv-item{min-width:0}
+    .kv-key{font-family:var(--font-ui);font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;
+            color:var(--text-muted);margin-bottom:.1rem}
+    .kv-val{font-family:var(--font-mono);font-size:.78rem;word-break:break-all}
+    .kv-val.on{color:var(--accent-ok,#34d399)}
+    .kv-val.off{color:var(--text-muted)}
+    .kv-val.warn{color:var(--accent-tx,#f59f00)}
+    .muted-note{font-size:.68rem;color:var(--text-muted)}
+    /* ── Packages: pending changes ──────────────────────────────── */
+    /* Amber, not red: a scheduled change has done nothing yet and is one click
+       from being undone. Red is reserved for the apply button, which reboots. */
+    .pkg-pending{border-color:rgba(245,159,0,.5)}
+    .pkg-pending-title{font-family:var(--font-ui);font-weight:600;font-size:.75rem;color:var(--accent-tx,#f59f00)}
+    .pkg-pending-body{font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);margin-top:.2rem}
+    /* Shared by the Packages and Router Users row actions — the same control in
+       two tables, so one rule rather than a second one that drifts. */
+    .pkg-act,.ru-act{font-family:var(--font-mono);font-size:.62rem;padding:1px 6px;border-radius:3px;
+             border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer}
+    .pkg-act:hover,.ru-act:hover{border-color:var(--accent-rx)}
+    .pkg-act[disabled],.ru-act[disabled]{opacity:.35;cursor:not-allowed}
+    .pkg-act.undo{border-color:rgba(245,159,0,.5);color:var(--accent-tx,#f59f00)}
+    .ru-act.danger{border-color:rgba(248,113,113,.4);color:rgba(248,113,113,.9)}
+    .ru-act.danger:hover{border-color:rgba(248,113,113,.7)}
+
+    /* ── Interfaces: list view ─────────────────────────────────── */
+    /* Wide table, so it scrolls inside its own container rather than pushing
+       the page sideways. */
+    /* .iface-grid sets display:grid, which outranks the user-agent [hidden]
+       rule, so the attribute needs an explicit counterpart to take effect. */
+    .iface-grid[hidden],.iface-list-wrap[hidden]{display:none}
+    /* Routers list view. Same table idiom as the Interfaces list — monospace,
+       tabular numerals, click-to-sort headers — with a filter row beneath the
+       headers so each control sits under the column it narrows. */
+    /* NOT .rtr-list — that class already belongs to #rtrTable, the router
+       admin table on the Settings page. Reusing it silently restyled that
+       table and made a document-order accident decide which thead the sort
+       handler bound to. */
+    .routers-list{font-family:var(--font-mono);font-size:.72rem;margin-bottom:0;white-space:nowrap}
+    /* `thead th`, not a bare `th`: Tabler styles headers via `.table thead th`,
+       which carries one more element than `.routers-list th` and so wins the
+       cascade. That rule paints a flat #1f2937 band and a neutral grey text —
+       neither belongs on a translucent card in a blue-tinted palette. Matching
+       its shape lets source order decide, and this sheet loads after Tabler. */
+    .routers-list thead th{font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.3rem .5rem;background:transparent}
+    .routers-list td{padding:.3rem .5rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle}
+    .routers-list th[data-sort]{cursor:pointer;user-select:none}
+    .routers-list th[data-sort]:hover{color:var(--text-main)}
+    .rtl-num{text-align:right;font-variant-numeric:tabular-nums}
+    /* An offline router keeps its identity legible and lets its metrics recede —
+       they are all em dashes anyway. */
+    .routers-list tr.rtl-offline td{opacity:.62}
+    .routers-list tr.rtl-row{cursor:pointer}
+    .routers-list tr.rtl-row:hover td{background:rgba(56,189,248,.06)}
+    /* The page's own header bar. Sits above both views because the search
+       narrows both — a control that did nothing in card view would be worse
+       than no control. */
+    .routers-toolbar{padding:.3rem .6rem}
+    /* .sform-input is sized for a settings form, which made it 9px taller than
+       the select beside it and set the height of the whole bar. Matched to the
+       select's metrics so the bar is only as tall as its controls. */
+    .routers-toolbar .sform-input{flex:1 1 auto;min-width:0;padding:.25rem .55rem;font-size:.72rem}
+    .rtl-dot{display:inline-block;width:8px;height:8px;border-radius:50%}
+    /* A tiny inline bar, so a busy router is visible without reading the number.
+       Same thresholds the cards use. */
+    .rtl-bar{display:inline-block;width:34px;height:4px;border-radius:2px;background:rgba(99,130,190,.18);vertical-align:middle;margin-right:.35rem;overflow:hidden}
+    .rtl-bar>i{display:block;height:100%;border-radius:2px}
+
+    /* ── Map view (issue #96) ────────────────────────────────────────────────
+       The SVG carries the pan/zoom transform; the popover and the controls sit
+       outside it so they stay legible and clickable at every zoom level. */
+    .rtrmap-viewport{position:relative;overflow:hidden;background:rgba(99,130,190,.04);border-radius:6px}
+    #routersMap{display:block;width:100%;height:auto;transform-origin:0 0;cursor:grab;touch-action:none}
+    #routersMap.is-dragging{cursor:grabbing}
+    #routersMap .map-country{fill:rgba(99,130,190,.10);stroke:rgba(148,163,184,.55);stroke-width:.9;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+    /* Markers are sized in script against the zoom scale so they stay a constant
+       size on screen; the accuracy ring is deliberately NOT, because it is real
+       geography and should grow with the map. */
+    .rtrmap-marker{cursor:pointer}
+    .rtrmap-marker circle{transition:opacity .12s}
+    /* The only place names drawn are the ones a router stands on, so they can
+       afford full contrast — --text-main is near-white in dark themes and
+       near-black in light ones, and tracks all nine palettes rather than
+       hardcoding two colours that would be wrong in seven of them. The halo is
+       the page background, painted under the glyphs so a name stays readable
+       over a border line or a coast. */
+    .rtrmap-place{fill:var(--text-main);font-family:var(--font-mono);font-weight:600;text-anchor:middle;dominant-baseline:middle;pointer-events:none;paint-order:stroke;stroke:var(--bg-deep);stroke-linejoin:round}
+
+    /* Router pulse. The ripple is a sibling circle scaled by transform rather
+       than by an animated radius: the SVG already carries the zoom transform, so
+       a scale-based ripple stays correct at every zoom for free, while animating
+       `r` would need the keyframes rewritten on every zoom step. */
+    @keyframes rtrmap-ripple{
+      0%   { transform: scale(1);   opacity: .45 }
+      70%  { opacity: 0 }
+      100% { transform: scale(3.6); opacity: 0 }
+    }
+    .rtrmap-ripple{transform-box:fill-box;transform-origin:center;pointer-events:none;
+                   animation:rtrmap-ripple 2.6s cubic-bezier(.2,.6,.35,1) infinite}
+    /* A dashboard people leave open all day should not animate at someone who
+       has asked the system for less motion. */
+    @media (prefers-reduced-motion: reduce){
+      .rtrmap-ripple{animation:none;opacity:0}
+    }
+    /* The count sits inside its marker, so it is painted against the marker's own
+       fill rather than the map — white reads on both the green and the red. */
+    .rtrmap-clustern{fill:#fff;font-family:var(--font-mono);font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+    .rtrmap-pop{position:absolute;z-index:5;min-width:12rem;max-width:17rem;padding:.5rem .6rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.35);font-size:.72rem;pointer-events:none}
+    .rtrmap-pop.is-pinned{pointer-events:auto}
+    .rtrmap-pop .rmp-name{font-weight:600;font-size:.78rem;display:flex;align-items:center;gap:.35rem}
+    .rtrmap-pop .rmp-grid{display:grid;grid-template-columns:auto 1fr;gap:.1rem .55rem;margin-top:.35rem;color:var(--text-muted)}
+    .rtrmap-pop .rmp-grid b{color:var(--text-main);font-weight:600;font-family:var(--font-mono)}
+    .rtrmap-pop .rmp-loc{margin-top:.4rem;padding-top:.35rem;border-top:1px solid var(--border);color:var(--text-muted)}
+    .rtrmap-pop .rmp-list{margin-top:.45rem;border-top:1px solid var(--border);padding-top:.35rem;max-height:11rem;overflow-y:auto}
+    .rtrmap-pop .rmp-row{display:flex;align-items:center;gap:.35rem;padding:.18rem .25rem;border-radius:4px}
+    .rtrmap-pop .rmp-row[data-open-router]{cursor:pointer}
+    .rtrmap-pop .rmp-row[data-open-router]:hover{background:rgba(56,189,248,.12)}
+    .rtrmap-pop .rmp-rl{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rtrmap-pop .rmp-rh{color:var(--text-muted);font-family:var(--font-mono);font-size:.66rem}
+    .rtrmap-pop button{margin-top:.5rem;width:100%;font-size:.7rem;padding:.25rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-main);cursor:pointer}
+    .rtrmap-pop button:hover{background:rgba(56,189,248,.1)}
+    .rtrmap-zoom{position:absolute;right:.5rem;top:.5rem;display:flex;flex-direction:column;gap:.25rem}
+    .rtrmap-zoom button{width:1.6rem;height:1.6rem;line-height:1;font-size:.85rem;border-radius:5px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-muted);cursor:pointer}
+    .rtrmap-zoom button:hover{color:var(--text-main);background:rgba(56,189,248,.1)}
+    /* Auto Frame: a toggle, lit when on, so its state is readable at a glance
+       rather than only discoverable by panning and seeing what happens. */
+    .rtrmap-af{font-size:.6rem!important;font-weight:700;letter-spacing:.03em}
+    .rtrmap-af.is-on{color:var(--accent-green,#2fb344);border-color:var(--accent-green,#2fb344)}
+    /* The "no location" tray. Required by the issue: an unlocated router has to
+       stay reachable, and this is also where somebody discovers they need to set
+       a town. */
+    .rtrmap-tray{border-top:1px solid var(--border);padding:.5rem .6rem;display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+    .rtrmap-tray .rmt-label{font-size:.68rem;color:var(--text-muted);margin-right:.2rem}
+    .rtrmap-tray .rmt-pill{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .45rem;border:1px solid var(--border);border-radius:999px;font-size:.7rem;cursor:pointer}
+    .rtrmap-tray .rmt-pill:hover{background:rgba(56,189,248,.1)}
+
+    /* ── City/town picker, shared by the router modal and the site form ────── */
+    .cpick{position:relative}
+    .cpick-list{position:absolute;z-index:30;left:0;right:0;top:100%;margin-top:2px;max-height:11rem;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+    .cpick-list[hidden]{display:none}
+    .cpick-opt{padding:.3rem .55rem;font-size:.74rem;cursor:pointer}
+    .cpick-opt:hover,.cpick-opt.is-active{background:rgba(56,189,248,.12)}
+    .cpick-opt .cpick-cc{color:var(--text-muted);font-size:.68rem;margin-left:.3rem}
+    .cpick-empty{padding:.35rem .55rem;font-size:.72rem;color:var(--text-muted)}
+    .cpick-row{display:flex;gap:.35rem;align-items:center}
+    .cpick-row .sform-input{flex:1 1 auto;min-width:0}
+    .cpick-clear{flex:0 0 auto;padding:.2rem .5rem;font-size:.72rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer}
+    .cpick-clear:hover{color:var(--text-main);background:rgba(56,189,248,.1)}
+    .cpick-hint{font-size:.68rem;color:var(--text-muted);margin-top:.3rem}
+    .iface-list-wrap{overflow-x:auto}
+    .iface-list{font-family:var(--font-mono);font-size:.7rem;margin-bottom:0;white-space:nowrap}
+    .iface-list th{font-size:.62rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);padding:.3rem .5rem}
+    .iface-list td{padding:.28rem .5rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle}
+    .iface-list tr.down td{opacity:.6}
+    .iface-list tr.disabled td{opacity:.38}
+    .iface-list th[data-sort]{cursor:pointer;user-select:none}
+    .iface-list th[data-sort]:hover{color:var(--text-main)}
+    .ifl-num{text-align:right;font-variant-numeric:tabular-nums}
+    /* Colour is carried inline, from the same palette the Interface Types card
+       uses, so a type reads the same in both places. */
+    .ifl-type-pill{display:inline-block;padding:.03rem .32rem;border-radius:3px;font-size:.6rem;font-weight:600;letter-spacing:.02em}
+    /* Scoped to `.iface-list td` on purpose. Tabler sets a colour on every cell
+       via `.table>:not(caption)>*>*`, which outranks a bare class, so an
+       unscoped `.ifl-rx` was being overridden and the rate columns rendered in
+       the default text colour instead of matching the tile cards. Spans nested
+       inside a cell are unaffected, which is why the rules below this one do
+       not need the same treatment. */
+    .iface-list td.ifl-name{font-weight:600;color:var(--text-main);max-width:16rem;overflow:hidden;text-overflow:ellipsis}
+    .iface-list td.ifl-type{color:var(--text-muted);font-size:.65rem}
+    .iface-list td.ifl-ip{color:var(--accent-rx);max-width:12rem;overflow:hidden;text-overflow:ellipsis}
+    /* Same variables the tile cards use for live rates, so the two views match */
+    .iface-list td.ifl-rx{color:var(--accent-rx)} .iface-list td.ifl-tx{color:var(--accent-tx)}
+    .iface-list td.ifl-zero{color:var(--text-muted)}
+    /* A counter the interface does not report at all. Distinct from a zero so
+       an unsupported counter never reads as a clean bill of health. */
+    .ifl-na{color:var(--text-muted);opacity:.4}
+    .ifl-bad{color:var(--accent-err)}
+    /* Movement since the previous poll — the part that says a fault is live
+       rather than historical. */
+    .ifl-delta{margin-left:.3rem;font-size:.6rem;padding:0 .25rem;border-radius:3px;
+               background:rgba(248,113,113,.16);color:var(--accent-err)}
+    @media (max-width:1400px){ .iface-list{font-size:.66rem} }
+    /* ── Router modal & management ─────────────────────────────── */
+    .rtr-modal-bg{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center}
+    .rtr-modal-bg.open{display:flex}
+    .rtr-modal{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:min(960px,94vw);max-height:90vh;overflow-y:auto;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+    .rtr-modal-hdr{padding:.9rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .rtr-modal-title{font-size:.82rem;font-weight:700;color:var(--text-main);text-transform:uppercase;letter-spacing:.06em}
+    .rtr-modal-close{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1.1rem;padding:.2rem .4rem;border-radius:4px;line-height:1}
+    .rtr-modal-close:hover{color:var(--text-main)}
+    .rtr-modal-body{padding:1rem 1.1rem}
+    /* The router form is ten field groups deep, which made a 520px modal a long
+       scroll on every edit. Above 900px it splits into two columns — connection
+       settings left, monitoring and collection right — so the whole form fits
+       without scrolling. Below that it falls back to the original single column,
+       where a narrow screen has no side space to fill anyway. */
+    .rtr-modal-col{min-width:0}
+    @media(min-width:900px){
+      .rtr-modal-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.5rem;align-items:start}
+      .rtr-modal-col+.rtr-modal-col{border-left:1px solid var(--border);padding-left:1.5rem}
+    }
+    .rtr-modal-footer{padding:.75rem 1.1rem;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:.5rem}
+    .rtr-test-result{font-size:.72rem;padding:.3rem .6rem;border-radius:5px;margin-right:auto}
+    .rtr-test-result.ok{color:rgba(52,211,153,.9);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2)}
+    .rtr-test-result.err{color:rgba(248,113,113,.9);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2)}
+    /* Router list table */
+    .rtr-list{width:100%;border-collapse:collapse;font-size:.76rem}
+    .rtr-list th{font-size:.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;padding:.4rem .6rem;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+    .rtr-status-badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.65rem;font-weight:600;border-radius:4px;padding:1px 6px;white-space:nowrap;transition:color .3s,background .3s,border-color .3s}
+    .rtr-status-badge::before{content:'';width:5px;height:5px;border-radius:50%;flex-shrink:0;transition:background .3s}
+    .rtr-status-badge--on{color:var(--accent-ok);background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2)}
+    .rtr-status-badge--on::before{background:var(--accent-ok)}
+    .rtr-status-badge--off{color:#f87171;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2)}
+    .rtr-status-badge--off::before{background:#f87171}
+    .rtr-status-badge--unknown{color:var(--text-muted);background:rgba(99,130,190,.07);border:1px solid var(--border)}
+    .rtr-status-badge--unknown::before{background:var(--text-muted);opacity:.4}
+    .rtr-status-badge--disabled{color:rgba(251,191,36,.9);background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2)}
+    .rtr-status-badge--disabled::before{display:none}
+    .rtr-list td{padding:.5rem .6rem;border-bottom:1px solid rgba(99,130,190,.07);vertical-align:middle}
+    .rtr-list tr:last-child td{border-bottom:none}
+    .rtr-active-badge{font-size:.6rem;font-family:var(--font-ui);padding:.1rem .45rem;border-radius:4px;background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25);white-space:nowrap}
+    .rtr-host{font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)}
+    /* Same purple the rest of the UI uses, at low alpha for the pill ground.
+       Literal rather than a var because this colour is a literal everywhere else. */
+    .rtr-ver-pill{display:inline-block;padding:.05rem .38rem;border-radius:3px;font-family:var(--font-mono);
+                  font-size:.65rem;font-weight:600;color:rgba(167,139,250,.95);background:rgba(167,139,250,.14);
+                  border:1px solid rgba(167,139,250,.28)}
+    /* The light palettes need a darker violet: measured against the card ground,
+       rgba(167,139,250,.95) lands at ~2.5:1 there versus 6.9:1 on dark, which is
+       under the 3:1 floor. This shade measures ~7:1 on the light cards. */
+    :root[data-theme="light"] .rtr-ver-pill{color:rgba(109,40,217,.95);background:rgba(109,40,217,.10);
+                                            border-color:rgba(109,40,217,.30)}
+    .rtr-switching-overlay{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:1rem}
+    .rtr-switching-overlay.open{display:flex}
+    .rtr-switching-spinner{width:28px;height:28px;border:2.5px solid rgba(56,189,248,.2);border-top-color:var(--accent-rx);border-radius:50%;animation:spin .7s linear infinite}
+    .rtr-switching-label{font-family:var(--font-ui);font-size:.85rem;color:var(--text-main)}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    /* Topbar router selector */
+    /* Topbar router indicator */
+    #routerSelectWrap{display:flex;align-items:center;gap:.4rem;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:6px;padding:.25rem .6rem .25rem .45rem;cursor:pointer}
+    #routerSelectWrap:hover{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.35)}
+    .rtr-status-dot{width:7px;height:7px;border-radius:50%;background:var(--accent-tx);flex-shrink:0;box-shadow:0 0 5px rgba(52,211,153,.6)}
+    .rtr-status-dot.offline{background:rgba(248,113,113,.9);box-shadow:0 0 5px rgba(248,113,113,.5)}
+    /* Router picker — a custom popover replaces the native select so the list can
+       show per-router status and be styled with the app. The mobile nav keeps its
+       native select on purpose: the OS picker is the better control on touch. */
+    #routerSelectBtn{display:flex;align-items:center;gap:.35rem;background:transparent;border:none;color:var(--text-main);font-family:var(--font-mono);font-size:.72rem;font-weight:600;cursor:pointer;outline:none;max-width:200px;padding:0}
+    #routerSelectLabel{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rtr-dd-caret{width:11px;height:11px;flex-shrink:0;opacity:.65;transition:transform .16s ease}
+    #routerSelectWrap.open .rtr-dd-caret{transform:rotate(180deg)}
+    .rtr-dd{position:absolute;top:calc(100% + 7px);right:0;z-index:950;min-width:248px;max-width:330px;
+      background:var(--bg-card);border:1px solid var(--border);border-radius:10px;
+      box-shadow:0 14px 36px rgba(0,0,0,.32);backdrop-filter:blur(14px);display:none;overflow:hidden;cursor:default}
+    #routerSelectWrap.open .rtr-dd{display:block}
+    .rtr-dd-search{padding:.5rem .5rem .4rem;border-bottom:1px solid var(--border)}
+    .rtr-dd-search input{width:100%;background:var(--bg-deep);border:1px solid var(--border);border-radius:6px;
+      color:var(--text-main);font-family:var(--font-ui);font-size:.72rem;padding:.35rem .5rem;outline:none}
+    .rtr-dd-search input:focus{border-color:var(--accent-tx)}
+    .rtr-dd-list{max-height:286px;overflow-y:auto;padding:.3rem}
+    .rtr-dd-item{display:flex;align-items:center;gap:.55rem;padding:.42rem .5rem;border-radius:6px;
+      cursor:pointer;border:1px solid transparent}
+    .rtr-dd-item:hover,.rtr-dd-item.hl{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.28)}
+    .rtr-dd-item.active{background:rgba(52,211,153,.15)}
+    .rtr-dd-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--text-muted)}
+    .rtr-dd-dot.on{background:var(--accent-tx);box-shadow:0 0 6px var(--accent-tx)}
+    .rtr-dd-dot.off{background:var(--accent-err)}
+    .rtr-dd-meta{min-width:0;flex:1;display:flex;flex-direction:column;gap:.05rem}
+    .rtr-dd-name{font-family:var(--font-mono);font-size:.72rem;font-weight:600;color:var(--text-main);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rtr-dd-host{font-family:var(--font-mono);font-size:.62rem;color:var(--text-muted);
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .rtr-dd-check{flex-shrink:0;color:var(--accent-tx);font-size:.78rem;line-height:1}
+    .rtr-dd-empty{padding:.7rem;text-align:center;font-size:.7rem;color:var(--text-muted)}
+    /* tables */
+    .table{font-family:var(--font-mono);font-size:.76rem}
+    .table th{color:var(--text-muted);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;border-color:var(--border) !important;font-weight:400;padding:.45rem .75rem}
+    #talkersCard .table thead th,#vpnCard .table thead th,#netwatchCard .table thead th{background:transparent!important}
+    .table td{border-color:var(--border) !important;vertical-align:middle;padding:.45rem .75rem;color:var(--text-main)}
+    /* signal bars */
+    .signal-bars{display:inline-flex;align-items:flex-end;gap:2px;height:13px}
+    .signal-bars span{width:3px;border-radius:1px;background:rgba(99,130,190,.2)}
+    .signal-bars span.lit{background:var(--accent-rx)}
+    .signal-bars span:nth-child(1){height:4px} .signal-bars span:nth-child(2){height:7px}
+    .signal-bars span:nth-child(3){height:10px} .signal-bars span:nth-child(4){height:13px}
+    /* fw tabs */
+    .fw-tabs{display:flex;gap:.2rem;border-bottom:1px solid var(--border);padding:.5rem .75rem 0}
+    .fw-tab{font-family:var(--font-mono);font-size:.7rem;padding:.3rem .65rem;border-radius:5px 5px 0 0;cursor:pointer;color:var(--text-muted);border:1px solid transparent;border-bottom:none;transition:all .15s}
+    .fw-tab.active{background:rgba(56,189,248,.09);border-color:rgba(56,189,248,.18);color:var(--accent-rx)}
+    .fw-tab:hover:not(.active){background:rgba(99,130,190,.07)}
+    /* Firewall summary row */
+    .fw-summary-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:.85rem}
+    @media(max-width:700px){.fw-summary-row{grid-template-columns:1fr}}
+    .fw-scard{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
+    .fw-scard-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
+    /* Rule counts — BGP-style large centred numbers */
+    .fw-rc-num{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
+    .fw-rc-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
+    .fw-rc-dis{font-size:.62rem;font-family:var(--font-mono);color:rgba(248,113,113,.8);min-height:.85rem;line-height:1}
+    .fw-rc-divider{width:1px;height:2.5rem;background:var(--border)}
+    /* Action breakdown */
+    .fw-action-list{display:flex;flex-direction:column;gap:.28rem}
+    .fw-action-row{display:flex;align-items:center;gap:.45rem}
+    .fw-action-name{font-size:.68rem;font-family:var(--font-mono);min-width:5.5rem;flex-shrink:0}
+    .fw-action-bar-wrap{flex:1;height:6px;background:rgba(99,130,190,.1);border-radius:3px;overflow:hidden}
+    .fw-action-bar{height:100%;border-radius:3px;background:var(--accent-rx);transition:width .4s ease}
+    .fw-action-count{font-size:.65rem;font-family:var(--font-mono);color:var(--text-muted);min-width:1.8rem;text-align:right}
+    /* Chain Count vertical bar chart */
+    .fw-vbar-bars{display:flex;gap:.5rem;align-items:stretch;flex:1;min-height:0}
+    .fw-vbar-col{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+    .fw-vbar-count{font-size:.68rem;font-family:var(--font-mono);color:var(--text-muted);line-height:1;margin-bottom:.15rem;flex-shrink:0}
+    .fw-vbar{width:60%;border-radius:2px 2px 0 0;min-height:2px;flex-shrink:0}
+    .fw-vbar-labels{display:flex;gap:.5rem;flex-shrink:0;margin-top:.3rem}
+    .fw-vbar-label{flex:1;font-size:.72rem;color:var(--text-muted);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    /* Delta pulse on active rows */
+    .fw-delta-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent-rx);margin-right:.35rem;vertical-align:middle;animation:fw-pulse 1s ease-out forwards}
+    @keyframes fw-pulse{0%{opacity:1;transform:scale(1.4)}100%{opacity:.3;transform:scale(1)}}
+    .fw-cell-flash{animation:fw-flash .6s ease-out}
+    @keyframes fw-flash{0%{color:var(--accent-rx)}100%{color:inherit}}
+    /* Search */
+    .fw-search-wrap{padding:.45rem .75rem;border-bottom:1px solid var(--border)}
+    #fwSearch{width:100%;max-width:280px;background:rgba(13,18,30,.9);border:1px solid var(--border);border-radius:5px;color:var(--text-main);font-size:.72rem;padding:.28rem .6rem;font-family:var(--font-mono)}
+    html[data-theme="light"] #fwSearch{background:rgba(255,255,255,.9)}
+    /* scroll */
+    .data-scroll{scrollbar-width:thin;scrollbar-color:rgba(99,130,190,.2) transparent}
+    /* Pin the header row inside any scrolling table body. Without this the
+       column names leave the screen the moment the table is longer than the
+       viewport, which on a 500-row host table means scrolling back up to
+       remember which column is which.
+       The background is opaque on purpose: sticky cells paint over the rows
+       passing beneath them, and a translucent header lets the text show
+       through. z-index keeps it above the row borders. */
+    /* --bg-card is translucent in every palette and --bg-deep is solid, so the
+       header is painted as the card tint OVER the page colour: the same
+       composite the row shows when it is not pinned, but opaque, so the rows
+       sliding under it do not ghost through. */
+    /* Position only. The header already has an opaque background of its own —
+       tabler.min.css sets `.table thead th{background:var(--tblr-bg-surface-tertiary)}`,
+       which resolves to #1f2937 — so it hides the rows passing beneath it
+       without any help. An earlier version of this rule set its own background
+       and silently replaced that colour on EVERY table in a scroll wrapper,
+       including pages this change never touched. Do not paint here. */
+    .data-scroll thead th{position:sticky;top:0;z-index:3}
+    .data-scroll::-webkit-scrollbar{width:4px}
+    .data-scroll::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
+    /* dhcp */
+    .lease-pill{display:inline-block;font-family:var(--font-mono);font-size:.63rem;padding:1px 6px;border-radius:4px;font-weight:600}
+    .lease-pill.bound{background:rgba(74,222,128,.1);color:var(--accent-ok);border:1px solid rgba(74,222,128,.2)}
+    .lease-pill.waiting{background:rgba(245,159,0,.1);color:var(--accent-warn);border:1px solid rgba(245,159,0,.25)}
+    .lease-pill.expired{background:rgba(148,163,190,.08);color:var(--text-muted);border:1px solid var(--border)}
+    .lease-online{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle}
+    .lease-online.yes{background:var(--accent-ok)} .lease-online.no{background:rgba(148,163,190,.3)}
+    /* logs */
+    .log-count-badge{font-family:var(--font-mono);font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:12px;cursor:pointer;border:1px solid transparent;transition:opacity .15s,transform .1s;user-select:none;white-space:nowrap}
+    .log-count-badge:hover{opacity:.8;transform:scale(1.04)}
+    .log-count-badge.active{box-shadow:0 0 0 2px currentColor}
+    .log-count-error  {background:rgba(248,113,113,.25);color:#fca5a5;border-color:rgba(248,113,113,.4)}
+    .log-count-warning{background:rgba(251,146,60,.22);color:#fdba74;border-color:rgba(251,146,60,.38)}
+    .log-count-info   {background:rgba(56,189,248,.2);color:#7dd3fc;border-color:rgba(56,189,248,.35)}
+    .log-count-debug  {background:rgba(148,163,190,.18);color:rgba(185,200,225,.85);border-color:rgba(148,163,190,.32)}
+    html[data-theme="light"] .log-count-error  {background:rgba(220,38,38,.12);color:#dc2626;border-color:rgba(220,38,38,.3)}
+    html[data-theme="light"] .log-count-warning{background:rgba(234,88,12,.12);color:#ea580c;border-color:rgba(234,88,12,.3)}
+    html[data-theme="light"] .log-count-info   {background:rgba(3,105,161,.12);color:#0369a1;border-color:rgba(3,105,161,.28)}
+    html[data-theme="light"] .log-count-debug  {background:rgba(100,116,139,.12);color:#475569;border-color:rgba(100,116,139,.28)}
+    #logs{background:rgba(2,5,14,.85);font-family:var(--font-mono);font-size:11.5px;height:calc(100vh - 160px);overflow-y:auto;white-space:pre-wrap;word-break:break-all;color:#d5d7de;padding:10px 12px;border-radius:6px;line-height:1.6}
+    html[data-theme="light"] #logs{background:rgba(230,235,245,.9);color:#1a2030}
+    #logs::-webkit-scrollbar{width:4px} #logs::-webkit-scrollbar-thumb{background:rgba(99,130,190,.2);border-radius:2px}
+    .log-error{color:#fca5a5} .log-warning{color:#fcd34d} .log-debug{color:rgba(148,163,190,.45)} .log-info{color:#d5d7de}
+    .log-dhcp{color:#93c5fd} .log-wireless{color:#a5b4fc} .log-firewall{color:#fb923c} .log-system{color:#6ee7b7}
+    .log-line{display:block;padding:1px 0;line-height:1.6}
+    .log-line:hover{background:rgba(99,130,190,.06);border-radius:3px}
+    .log-topic{color:rgba(148,163,190,.6)} .log-time{color:rgba(148,163,190,.4)}
+    html[data-theme="light"] .log-error{color:#b91c1c}
+    html[data-theme="light"] .log-warning{color:#92400e}
+    html[data-theme="light"] .log-debug{color:rgba(80,100,140,.5)}
+    html[data-theme="light"] .log-info{color:#1e293b}
+    html[data-theme="light"] .log-dhcp{color:#1d4ed8}
+    html[data-theme="light"] .log-wireless{color:#6d28d9}
+    html[data-theme="light"] .log-firewall{color:#c2410c}
+    html[data-theme="light"] .log-system{color:#065f46}
+    html[data-theme="light"] .log-topic{color:rgba(80,100,140,.65)}
+    html[data-theme="light"] .log-time{color:rgba(80,100,140,.45)}
+    /* update */
+    .ros-update-row{display:flex;align-items:center;gap:.5rem;margin-top:.7rem;padding:.45rem .6rem;border-radius:6px;font-family:var(--font-mono);font-size:.72rem}
+    /* The Update button is the last flex item in the row; auto pushes it to
+       the right edge rather than leaving it tucked against the version text.
+       Harmless when the span is empty, which it is for anyone who may not
+       reboot the router. */
+    .ros-update-row #sysUpdateAction{margin-left:auto;display:inline-flex;align-items:center}
+    /* Release notes in the Update dialog. Fixed height and scrolled: a patch
+       changelog is ~23 lines but a feature release is ~520, and the dialog is
+       max-width:26rem and must not grow to fit either. pre-wrap keeps the
+       "*) area - what changed;" layout without parsing it. */
+    .upd-notes{max-height:11rem;overflow-y:auto;overflow-x:hidden;white-space:pre-wrap;word-break:break-word;
+               font-size:.72rem;line-height:1.45;color:var(--text-muted);background:var(--bg-elev,rgba(127,127,127,.06));
+               border:1px solid var(--border);border-radius:6px;padding:.5rem .6rem;margin-bottom:.8rem}
+    .upd-notes.muted{color:var(--text-muted);font-style:italic}
+    .ros-update-row.ok{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.18);color:var(--accent-ok)}
+    .ros-update-row.warn{background:rgba(245,159,0,.10);border:1px solid rgba(245,159,0,.3);color:var(--accent-warn)}
+    .ros-update-row.pending{background:rgba(99,130,190,.06);border:1px solid var(--border);color:var(--text-muted)}
+    .ros-update-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+    .ros-update-row.muted{background:rgba(99,130,190,.04);border:1px solid var(--border);color:var(--text-muted);opacity:.65}
+    /* wg pill */
+    .wg-up{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--accent-ok);background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:4px;padding:1px 6px}
+    .wg-idle{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--text-muted);background:rgba(99,130,190,.07);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+    .wg-up::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent-ok);flex-shrink:0}
+    .wg-down{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.68rem;font-weight:600;color:var(--accent-err);background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:1px 6px}
+    .wg-down::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent-err);flex-shrink:0}
+    /* misc */
+    .top-row{display:flex;justify-content:space-between;align-items:center;padding:.38rem 0;border-bottom:1px solid var(--border)}
+    .top-row:last-child{border-bottom:none}
+    .top-name{font-size:.78rem;font-weight:600;color:var(--text-main)}
+    .top-sub{font-family:var(--font-mono);font-size:.67rem;color:var(--text-muted)}
+    .top-count{font-family:var(--font-mono);font-size:.8rem;font-weight:600;color:var(--accent-rx)}
+    .top-geo{font-family:var(--font-mono);font-size:.62rem;color:#c084fc;background:rgba(192,132,252,.08);border:1px solid rgba(192,132,252,.2);border-radius:4px;padding:1px 6px;white-space:nowrap;flex-shrink:0;margin-right:.9rem}
+    .top-org{font-family:var(--font-mono);font-size:.62rem;color:var(--accent-rx);opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.05rem}
+    /* ── Service badges ───────────────────────────────────────────────────── */
+    .svc-badge{display:inline-block;font-family:var(--font-mono);font-size:.58rem;font-weight:600;padding:.1em .45em;border-radius:4px;vertical-align:middle;white-space:nowrap;line-height:1.5;margin-left:.35rem;flex-shrink:0}
+    .svc-cdn      {background:rgba(56,189,248,.15);  color:rgba(56,189,248,.95)}   /* sky blue   */
+    .svc-cloud    {background:rgba(251,146,60,.15);  color:rgba(251,146,60,.95)}   /* orange     */
+    .svc-social   {background:rgba(192,132,252,.15); color:rgba(192,132,252,.95)}  /* purple     */
+    .svc-streaming{background:rgba(236,72,153,.15);  color:rgba(249,168,212,.95)}  /* pink       */
+    .svc-messaging{background:rgba(52,211,153,.15);  color:rgba(52,211,153,.95)}   /* emerald    */
+    .svc-video    {background:rgba(251,191,36,.14);  color:rgba(251,191,36,.95)}   /* amber      */
+    .svc-dns      {background:rgba(45,212,191,.14);  color:rgba(45,212,191,.95)}   /* teal       */
+    .svc-other    {background:rgba(99,130,190,.12);  color:rgba(148,163,190,.75)}  /* slate      */
+    html[data-theme="light"] .svc-cdn      {background:rgba(14,116,144,.12);  color:rgba(8,90,120,.9)}
+    html[data-theme="light"] .svc-cloud    {background:rgba(180,83,9,.1);     color:rgba(154,52,18,.9)}
+    html[data-theme="light"] .svc-social   {background:rgba(126,34,206,.12);  color:rgba(107,33,168,.9)}
+    html[data-theme="light"] .svc-streaming{background:rgba(190,24,93,.1);    color:rgba(157,23,77,.9)}
+    html[data-theme="light"] .svc-messaging{background:rgba(6,95,70,.1);      color:rgba(6,78,59,.9)}
+    html[data-theme="light"] .svc-video    {background:rgba(146,64,14,.1);    color:rgba(120,53,15,.9)}
+    html[data-theme="light"] .svc-dns      {background:rgba(15,118,110,.1);   color:rgba(13,94,87,.9)}
+    html[data-theme="light"] .svc-other    {background:rgba(100,116,139,.1);  color:rgba(71,85,105,.9)}
+    /* ── Org sub-rows in country list ──────────────────────────────────────── */
+    .svc-sub-rows{display:flex;flex-wrap:wrap;gap:.25rem .4rem;margin-top:.22rem}
+    .svc-sub-row{display:inline-flex;align-items:center;gap:.28rem;font-family:var(--font-mono);font-size:.59rem;white-space:nowrap}
+    .svc-sub-count{color:var(--text-muted)}
+    /* ── IP tooltip ─────────────────────────────────────────────────────────── */
+    .ip-tip{position:fixed;left:0;top:0;pointer-events:none;z-index:9999;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.28rem .55rem;font-family:var(--font-mono);font-size:.67rem;color:var(--text-main);white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.35);display:none}
+    .ip-tip-org{color:var(--accent-rx);margin-left:.5rem;opacity:.85}
+    .ip-tip-cat{margin-left:.3rem;font-size:.6rem}
+    .section-sep{font-family:var(--font-ui);font-weight:800;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(99,130,190,.4);padding:.45rem 0 .2rem}
+    .empty-state{font-family:var(--font-mono);font-size:.74rem;color:var(--text-muted);padding:.9rem 0;text-align:center}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+    .row-deck>*{animation:fadeIn .3s ease both}
+    .row-deck>*:nth-child(1){animation-delay:.04s} .row-deck>*:nth-child(2){animation-delay:.09s}
+    .row-deck>*:nth-child(3){animation-delay:.14s} .row-deck>*:nth-child(4){animation-delay:.19s}
+    /* ── Mobile burger menu ───────────────────────────────────────────── */
+    #burgerBtn{display:none;position:fixed;top:11px;left:11px;z-index:300;width:32px;height:32px;border-radius:7px;border:1px solid var(--border);background:var(--nav-bg);backdrop-filter:blur(8px);cursor:pointer;align-items:center;justify-content:center;color:var(--text-muted)}
+    #burgerBtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+    #navOverlay{display:none;position:fixed;inset:0;z-index:190;background:rgba(0,0,0,.45);backdrop-filter:blur(2px)}
+    @media(max-width:767px){
+      #burgerBtn{display:flex}
+      #sidenav{transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1),width .22s;width:var(--nav-w-open) !important}
+      #sidenav.mobile-open{transform:translateX(0)}
+      #sidenav.mobile-open~#navOverlay,#navOverlay.show{display:block}
+      #main{margin-left:0 !important}
+      #topbar{padding-left:52px}
+      .topbar-right{gap:.45rem}
+      #uptimeChip{display:none !important}
+      .topbar-mobile-hide{display:none !important}
+      #navRouterWrap{display:flex}
+      .iface-grid{--if-w:160px}
+      .page-view{padding:.65rem .6rem}
+    }
+    /* Dashboard grid */
+    .mikrodash-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr auto;gap:.75rem;margin-bottom:1rem}
+    /* Stacked columns span row 1, stack cards with gap */
+    .mikrodash-col{grid-row:1;display:flex;flex-direction:column;gap:.75rem}
+    .mikrodash-col>[data-card-id]{display:flex;flex-direction:column;flex:1}
+    .mikrodash-col>[data-card-id]>.card{flex:1;display:flex;flex-direction:column}
+    .mikrodash-col>[data-card-id]>.card>.card-body{flex:1}
+    /* Center column: natural height; min-width:0 prevents SVG intrinsic-size from blocking shrink */
+    .mikrodash-col--center{align-self:start;min-width:0}
+    .mikrodash-col--center>[data-card-id]{flex:none;min-width:0}
+    .mikrodash-col--center>[data-card-id]>.card{flex:none;min-width:0}
+    .mikrodash-col--center>[data-card-id]>.card>.card-body{flex:none;min-width:0}
+    /* Connections in row 1, stretches full height */
+    [data-card-id="connCard"]{grid-row:1;display:flex;flex-direction:column}
+    [data-card-id="connCard"]>.card{flex:1;display:flex;flex-direction:column}
+    [data-card-id="connCard"]>.card>.card-body{flex:1}
+    [data-card-id="connCard"]>.card{height:100%}
+    @media(max-width:991px){
+      .mikrodash-grid{grid-template-columns:repeat(2,1fr);grid-template-rows:auto auto}
+      .mikrodash-col,[data-card-id="connCard"]{grid-row:auto}
+    }
+    @media(max-width:650px){
+      .mikrodash-grid{grid-template-columns:1fr;grid-template-rows:auto;gap:.5rem}
+      .mikrodash-col{gap:.5rem}
+      .mikrodash-col,[data-card-id="connCard"]{grid-row:auto;height:auto}
+      .mikrodash-col>[data-card-id]{flex:none}
+      .mikrodash-col>[data-card-id]>.card>.card-body{flex:none}
+      [data-card-id="connCard"]>.card{height:auto}
+      [data-card-id="connCard"]>.card>.card-body{flex:none;height:auto}
+    }
+    /* Ping chart */
+    .ping-section{border-top:1px solid var(--border);padding:.4rem .5rem .35rem;margin-top:.25rem}
+    .ping-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;font-family:var(--font-mono);font-size:.7rem}
+    .ping-stat{display:flex;gap:1.4rem}
+    .ping-val{font-weight:700;font-size:.82rem}
+    .ping-ok{color:var(--accent-ok)}
+    .ping-warn{color:#fb923c}
+    .ping-bad{color:#f87171}
+    .ping-canvas-wrap{position:relative;height:40px}
+    /* VPN page */
+    .vpn-page-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
+    @media(max-width:650px){.vpn-page-grid{grid-template-columns:1fr}}
+    /* World map */
+    .map-country{fill:rgba(99,130,190,.12);stroke:rgba(99,130,190,.2);stroke-width:.4;transition:fill .5s,stroke .5s}
+    @keyframes mapPulse{0%{fill:rgba(255,255,255,.7)}50%{fill:rgba(56,189,248,.9)}100%{}}
+    .map-country.pulse{animation:mapPulse .7s ease-out forwards}
+    .map-country.active{fill:rgba(56,189,248,.35);stroke:rgba(56,189,248,.65);stroke-width:.6}
+    .map-country.hot{fill:rgba(56,189,248,.75);stroke:rgba(56,189,248,1);stroke-width:.8;filter:drop-shadow(0 0 3px rgba(56,189,248,.5))}
+    .conn-map-row{display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-radius:5px;background:rgba(99,130,190,.05);border:1px solid var(--border);font-family:var(--font-mono);font-size:.68rem;cursor:pointer;transition:background .15s}
+    .conn-map-row:hover,.conn-map-row.selected{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.3)}
+    .conn-map-flag{font-size:.9rem;flex-shrink:0}
+    .conn-map-label{flex:1;color:var(--text-main);font-weight:600;min-width:0}
+    .conn-map-label-sub{font-size:.58rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .conn-map-count{color:var(--accent-rx);font-weight:700;flex-shrink:0}
+    .conn-proto-bar{display:flex;height:3px;border-radius:2px;overflow:hidden;margin-top:.25rem;gap:1px}
+    .conn-proto-tcp{background:var(--accent-rx)}
+    .conn-proto-udp{background:var(--accent-tx)}
+    .conn-proto-other{background:rgba(148,163,190,.4)}
+    .conn-sparkline{display:block;margin-top:.2rem}
+    .conn-port-row{display:flex;align-items:center;gap:.4rem;padding:.25rem .3rem;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:.68rem}
+    .conn-port-row:last-child{border-bottom:none}
+    .conn-port-num{color:var(--accent-rx);font-weight:700;width:46px;flex-shrink:0}
+    .conn-port-name{flex:1;color:var(--text-muted);font-size:.62rem}
+    .conn-port-bar{height:4px;background:rgba(56,189,248,.35);border-radius:2px;min-width:2px}
+    .conn-port-count{color:var(--text-main);font-weight:600;font-size:.65rem;width:32px;text-align:right;flex-shrink:0}
+    /* Map tooltip */
+    .map-tooltip{position:absolute;pointer-events:none;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.3rem .55rem;font-family:var(--font-mono);font-size:.68rem;color:var(--text-main);white-space:nowrap;display:none;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+    /* Arc lines */
+    .map-arc{fill:none;stroke:rgba(56,189,248,.2);stroke-width:.8}
+    .map-arc.hot{stroke:rgba(56,189,248,.35);stroke-width:1.2}
+    .map-comet{fill:rgba(56,189,248,.9);filter:drop-shadow(0 0 3px rgba(56,189,248,.9))}
+    .map-comet.hot{fill:#fff;filter:drop-shadow(0 0 5px rgba(56,189,248,1))}
+    /* Map count labels */
+    .map-label{font-family:var(--font-mono);font-size:9px;fill:rgba(244,114,182,1);text-anchor:middle;pointer-events:none;font-weight:700;text-shadow:0 0 4px rgba(244,114,182,.6)}
+    .conn-bottom-grid{display:grid;grid-template-columns:1fr;gap:.75rem;margin-top:.75rem}
+    .conn-sankey-grid{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-top:.75rem}
+    @media(max-width:767px){.conn-bottom-grid{grid-template-columns:1fr}.conn-sankey-grid{grid-template-columns:1fr}}
+    /* Sankey */
+    .sankey-wrap{width:100%;overflow:hidden}
+    #sankeyEmpty{display:none;text-align:center;padding:2rem;font-family:var(--font-mono);font-size:.75rem;color:var(--text-muted)}
+    #sankeySvg{display:block;width:100%;overflow:visible}
+    .sk-node rect{rx:4;ry:4}
+    .sk-node text{font-family:var(--font-mono);font-size:10px;fill:var(--text-main);pointer-events:none}
+    .sk-node text.sk-lbl-right{text-anchor:start}
+    .sk-node text.sk-lbl-left{text-anchor:end}
+    .sk-link{opacity:.38;transition:opacity .2s}
+    .sk-link:hover{opacity:.72}
+    /* Bandwidth horizontal scroll on mobile */
+    @media(max-width:700px){
+      .bw-table-wrap{ overflow-x:auto;-webkit-overflow-scrolling:touch }
+      .bw-table{ min-width:905px;width:905px }
+      .bw-table td{ overflow:visible;text-overflow:clip;white-space:normal }
+      .bw-table colgroup col:nth-child(1){ width:150px }
+      .bw-table colgroup col:nth-child(2){ width:150px }
+      .bw-table colgroup col:nth-child(3){ width:90px }
+      .bw-table colgroup col:nth-child(4){ width:90px }
+      .bw-table colgroup col:nth-child(5){ width:90px }
+      .bw-table colgroup col:nth-child(6){ width:110px }
+      .bw-table colgroup col:nth-child(7){ width:65px }
+      .bw-table colgroup col:nth-child(8){ width:160px }
+    }
+    /* Wireless horizontal scroll on mobile */
+    @media(max-width:700px){
+      #page-wireless .card-body.p-0{ overflow-x:auto;-webkit-overflow-scrolling:touch }
+      #page-wireless .table-responsive,
+      #page-wireless .data-scroll{ overflow:visible }
+      #page-wireless table{ min-width:460px;table-layout:fixed;width:460px }
+      #page-wireless colgroup col:nth-child(1){ width:170px }
+      #page-wireless colgroup col:nth-child(2){ width:80px }
+      #page-wireless colgroup col:nth-child(3){ width:110px }
+      #page-wireless colgroup col:nth-child(4){ width:70px }
+      #page-wireless colgroup col:nth-child(5){ width:70px }
+    }
+    /* Connections map fullscreen overlay */
+    #mapFsOverlay{display:none;position:fixed;inset:0;z-index:9999;background:var(--bg-deep);flex-direction:column}
+    #mapFsOverlay.active{display:flex}
+    #mapFsOverlay svg{flex:1;width:100%;display:block;touch-action:none}
+    #mapFsClose{position:absolute;top:.6rem;right:.6rem;width:34px;height:34px;background:rgba(13,18,30,.85);border:1px solid var(--border);border-radius:7px;color:var(--text-main);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10000}
+    @media(max-width:767px){
+      .conn-map-row{ padding:.25rem .35rem }
+      .conn-sparkline{ display:none }
+    }
+    /* Notification history dropdown */
+    .notif-wrap{position:relative}
+    .notif-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--accent-err);display:none;pointer-events:none}
+    .notif-panel{display:none;position:absolute;right:0;top:calc(100% + 6px);width:280px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.45);z-index:999;overflow:hidden}
+    .notif-panel.open{display:block}
+    .notif-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-bottom:1px solid var(--border);font-family:var(--font-ui);font-size:.72rem;font-weight:700;color:var(--text-main)}
+    .notif-clear-btn{font-size:.65rem;color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0}
+    .notif-clear-btn:hover{color:var(--accent-err)}
+    .notif-list{max-height:260px;overflow-y:auto}
+    .notif-empty{padding:1.25rem;text-align:center;font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)}
+    .notif-item{padding:.45rem .75rem;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:.68rem}
+    .notif-item:last-child{border-bottom:none}
+    .notif-item-title{font-weight:700;color:var(--text-main);margin-bottom:.1rem}
+    .notif-item-body{color:var(--text-muted)}
+    .notif-item-time{font-size:.6rem;color:rgba(148,163,190,.35);margin-top:.1rem}
+    /* Which router an alert came from. Three update alerts are otherwise
+       identical, so the device is the only thing that tells them apart and it
+       should not read as part of the timestamp. */
+    .notif-item-router{color:var(--text-main);font-weight:600}
+    /* An open alert is still happening; a resolved one is history. The bell now
+       shows both, so they have to be tellable apart at a glance — the left bar
+       carries that, not colour alone, which the dot already spends. */
+    .notif-item.is-open{border-left:2px solid var(--accent-err);padding-left:calc(.75rem - 2px)}
+    .notif-item.is-resolved{border-left:2px solid var(--accent-ok);padding-left:calc(.75rem - 2px);opacity:.6}
+    .notif-sep{padding:.3rem .75rem;font-family:var(--font-mono);font-size:.58rem;
+               letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);
+               background:var(--bg-deep);border-bottom:1px solid var(--border)}
+    .notif-ack-btn{margin-top:.3rem;padding:.15rem .45rem;font-family:var(--font-mono);
+                   font-size:.58rem;letter-spacing:.04em;text-transform:uppercase;
+                   color:var(--text-muted);background:transparent;
+                   border:1px solid var(--border);border-radius:3px;cursor:pointer}
+    .notif-ack-btn:hover{color:var(--text-main);border-color:var(--accent-rx)}
+    /* Geo flag */
+    .geo-flag{font-size:.8rem;margin-right:.2rem}
+    /* Wireless enhancements */
+    .wl-sort-btn{background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:.63rem;padding:2px 7px;cursor:pointer;transition:background .15s,color .15s}
+    .wl-sort-btn:hover{background:rgba(56,189,248,.12);color:var(--accent-rx)}
+    .wl-sort-btn.active{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.35);color:var(--accent-rx)}
+    /* Wireless summary row */
+    .wl-summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:.85rem}
+    @media(max-width:1100px){.wl-summary-row{grid-template-columns:1fr 1fr}}
+    @media(max-width:600px){.wl-summary-row{grid-template-columns:1fr}}
+    /* SSID list. Scrolls rather than growing, so one router with a dozen
+       virtual APs cannot push Signal Health and Band Split off the screen. */
+    .wl-ssid-list{max-height:8.6rem;overflow-y:auto;margin:-.15rem -.25rem 0}
+    .wl-ssid-row{display:flex;align-items:center;gap:.4rem;padding:.22rem .25rem;border-radius:4px}
+    .wl-ssid-row+.wl-ssid-row{border-top:1px solid var(--border)}
+    .wl-ssid-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.76rem}
+    .wl-ssid-off .wl-ssid-name{color:var(--text-muted);text-decoration:line-through}
+    .wl-ssid-row .wl-band{flex:0 0 auto}
+    /* The count is a fixed-width right-aligned column, not free-flowing text.
+       It is the last item in the row, so its width sets where everything before
+       it ends: a two-digit count pushed the band pills a character to the left
+       and they stopped lining up down the list. 2ch covers 0-99 in the mono
+       face; a router with 100+ clients on one SSID widens the column and the
+       pills shift once, which is the right trade against padding every row for
+       a case nobody has. */
+    .wl-ssid-clients{flex:0 0 auto;min-width:2ch;margin-left:.3rem;text-align:right;font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap}
+    .wl-ssid-empty{font-size:.72rem;color:var(--text-muted);padding:.3rem .25rem}
+    /* ── Frequency Analyzer ─────────────────────────────────────────────────
+       The one place in the app that drives a disruptive action, so the warning
+       is styled to be read rather than dismissed. */
+    .fa-open-btn{white-space:nowrap}
+    .rtr-modal.fa-modal{width:min(1080px,95vw)}
+    .fa-warn{display:flex;gap:.6rem;align-items:flex-start;background:rgba(251,146,60,.10);border:1px solid rgba(251,146,60,.30);border-radius:6px;padding:.6rem .75rem;margin-bottom:.85rem}
+    .fa-warn-icon{color:var(--accent-amber,#f59f00);font-size:1rem;line-height:1.1;flex:0 0 auto}
+    .fa-warn-text{font-size:.74rem;color:var(--text-main);line-height:1.45}
+    .fa-warn-text b{color:var(--accent-amber,#f59f00)}
+    .fa-controls{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.85rem}
+    .fa-controls label{font-size:.7rem;color:var(--text-muted);white-space:nowrap}
+    .fa-status{font-size:.72rem;color:var(--text-muted);font-family:var(--font-mono);margin-left:auto}
+    .fa-status.is-scanning{color:var(--accent-amber,#f59f00)}
+    /* Five equal cards; drops to a readable grid before it squashes. */
+    .fa-stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-bottom:.9rem}
+    @media(max-width:900px){.fa-stat-row{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:560px){.fa-stat-row{grid-template-columns:repeat(2,1fr)}}
+    .fa-stat{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.6rem .7rem;min-width:0}
+    .fa-stat-label{font-family:var(--font-ui);font-weight:600;font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fa-stat-val{font-family:var(--font-mono);font-size:1.15rem;font-weight:700;line-height:1.1}
+    /* These two are read as a pair — where you are, and where to move to — so
+       they carry the same blue and green as the chart marks them with. */
+    #faCurChan{color:var(--accent-rx)}
+    /* Each page's key metric carries the accent the same way the current channel
+       does above: VLAN count on the VLANs page, session count on PPP. */
+    #vlSumCount,#pppSumCount,#capSumCaps,#brSumCount,#dnsSumCache,#pkgSumInstalled,
+    #wanSumCount,#qSumSimple,#ruSumUsers{color:var(--accent-rx)}
+    /* WAN summary: each figure answers a different question, so each gets its
+       own colour rather than a wall of one accent. Throughput is coloured per
+       direction inside the value, matching the rate cells in the table. */
+    #wanSumActive{color:var(--accent-warn)}
+    #wanSumPublic{color:var(--accent-pink)}
+    /* Rows the resource engine can open. The cursor is a rule rather than an
+       inline style because several of these rows already carry one, and a row
+       cannot have two style attributes. Rows with nothing to edit carry no
+       data-id and so keep the default cursor. */
+    [data-res-rows] [data-id]{cursor:pointer}
+    [data-res-rows] tr[data-id]:hover{background:rgba(127,127,127,.06)}
+
+    /* The + Add button is pinned to the top right corner of its card. The auto
+       margin absorbs the free space before justify-content can distribute it,
+       so whatever else is in the header packs to the left and the button sits
+       hard against the right edge — the same place on every card. */
+    /* gap, because a slot may hold more than one button — the Routes card has
+       two, one per address family, and they read as one control without it. */
+    /* Not scoped to .card-header: the firewall card has none — its tabs and
+       search sit straight in the body — and the button belongs in that card's
+       top right corner like every other. `data-res-add` appears nowhere else,
+       so dropping the ancestor widens nothing in practice. */
+    [data-res-add]{margin-left:auto;display:flex;align-items:center;gap:.45rem}
+    /* Position, and the reorder arrows. Only the firewall has these: it is the
+       one table where where a row SITS is what it does. */
+    .fw-pos{font-family:var(--font-mono);font-size:.66rem;color:var(--text-muted);
+      text-align:right;width:2.2rem;padding-right:.2rem}
+    .fw-movecell{width:2.6rem;white-space:nowrap}
+    /* Tabler pads every cell 12px each side via `.table > :not(caption) > * > *`,
+       which outranks a bare class — so a plain `padding:0` here did nothing and
+       24px of it was most of these columns' width. Matched on td/th to win. */
+    .table td.fw-dragcell,.table th.fw-dragcell{padding-left:.3rem;padding-right:.35rem}
+    .table td.fw-movecell,.table th.fw-movecell{padding-left:.25rem;padding-right:.25rem}
+    /* Bigger glyph, original padding — the size was the ask, the padding was me
+       widening the column on the way past. */
+    .fw-move{background:none;border:none;cursor:pointer;color:var(--text-muted);
+      font-size:.78rem;line-height:1;padding:.12rem .14rem;border-radius:4px}
+    .fw-move:hover:not(:disabled){color:var(--accent-rx);background:rgba(56,189,248,.12)}
+    .fw-move:disabled{opacity:.22;cursor:default}
+    /* A viewer who cannot write has no use for either control, and two empty
+       columns on every row are dead space. app.js sets this on the table when
+       the schema comes back unpermitted. */
+    table.fw-noedit .fw-dragcell,
+    table.fw-noedit .fw-movecell{display:none}
+    /* The drag handle. `grab` rather than `move`, because it is the handle that
+       is grabbed and the row that travels. Sized to be an easy target: a grip
+       you have to aim at is worse than no grip. */
+    .fw-dragcell{width:1.5rem;padding-right:0;text-align:center}
+    .fw-drag{cursor:grab;color:var(--text-muted);font-size:1.15rem;line-height:1;
+      user-select:none;touch-action:none;display:inline-block;padding:0 .1rem;
+      border-radius:4px}
+    .fw-drag:hover{color:var(--accent-rx);background:rgba(56,189,248,.12)}
+    tr.res-dragging{cursor:grabbing;background:rgba(56,189,248,.10);
+      box-shadow:0 0 0 1px rgba(56,189,248,.3) inset}
+    tr.res-dragging .fw-drag{cursor:grabbing}
+    /* While a row is travelling, the pointer would otherwise paint a text
+       selection across everything it crosses. */
+    body.res-dragging-body{user-select:none;cursor:grabbing}
+    /* Where the dragged row came from. The engine moves the actual <tr> through
+       the DOM, so without this the origin is simply gone the moment you move and
+       there is no way to change your mind. Red rather than the cyan the dragged
+       row wears: the two must not read as the same thing, and this one is the
+       slot you are about to leave. Dashed, because it is a gap and not a row.
+       Its height is set inline from the row it replaced, so the gap is exactly
+       the size of the hole and nothing below it shifts by a stray pixel. */
+    /* Borrowed verbatim from the drop/reject/tarpit pill in the Action column:
+       actionBadge() builds those from rgba(248,113,113,.9), filling at 0.1 and
+       bordering at 0.25. Same red, same translucency, so the gap belongs to the
+       page rather than introducing a second red. Dashed rather than the pill's
+       solid edge is the one deliberate difference — it is a hole, not a chip. */
+    /* Colour alone, no outline: the wash IS the marker. Same red as the
+       drop/reject pill in the Action column — rgb(248,113,113), so the page
+       carries one red — but far more translucent, because this is an absence and
+       the pills are values. The cell keeps the table's ordinary grey rule top and
+       bottom, so the gap reads as an empty row rather than a boxed callout. */
+    tr.res-drag-origin{background:rgba(248,113,113,.09)}
+    tr.res-drag-origin td{padding:0}
+    /* Home again. The engine cannot put the row INSIDE the gap — a row is either
+       above it or below it — so as you dragged back the rule ended up beside its
+       own marker and the slot never looked reoccupied. Collapsing the gap while
+       the row sits home makes the table read exactly as it did before the drag,
+       which is what "drop it back where it was" is supposed to look like. It
+       reappears the moment the row leaves again. */
+    tr.res-drag-origin.is-home{display:none}
+    /* A reorder moves a row among thirty near-identical ones. Without a cue the
+       eye has no way to follow it — including when the move came from undo. */
+    @keyframes fwPulse{
+      0%{background:rgba(56,189,248,.34)}
+      100%{background:transparent}
+    }
+    tr.fw-pulse td{animation:fwPulse 1.15s ease-out}
+    @media (prefers-reduced-motion:reduce){tr.fw-pulse td{animation:none;background:rgba(56,189,248,.14)}}
+    /* Undo / redo. Grey until there is something to reverse; the disabled state
+       is the whole affordance, so it must not look clickable. */
+    .res-hist{padding:.24rem .5rem;font-size:.78rem;line-height:1;min-width:1.9rem}
+    .res-hist:disabled{opacity:.38;cursor:default;pointer-events:none}
+    /* The right-hand end of a card header: whatever already lived there, plus
+       the Add button, as ONE group. The auto margin belongs to the group, not
+       to the button — on the button it swallowed all the free space and shoved
+       the search boxes over to the title. Inside the group the button's own
+       auto margin has nothing left to absorb, so it is a harmless no-op.
+       NOT named `card-actions`: Tabler already defines that class with
+       `margin:-8px`, and inheriting it pulled the group into the header's
+       padding. */
+    /* A unified diff reads as columns, so the gutter and the text share one
+       monospaced grid and only the background carries the meaning. */
+    .bk-diff{max-height:60vh;overflow:auto;border:1px solid var(--border);border-radius:6px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.74rem;line-height:1.5}
+    .bk-hunk-hdr{background:var(--bg-subtle,rgba(127,127,127,.12));color:var(--text-muted);
+      padding:.2rem .6rem;position:sticky;left:0}
+    .bk-line{display:flex;white-space:pre;padding:0 .6rem}
+    .bk-line .bk-ln{flex:0 0 4.5rem;color:var(--text-muted);opacity:.7;user-select:none;text-align:right;padding-right:.8rem}
+    .bk-add{background:rgba(45,164,78,.14)}
+    .bk-del{background:rgba(248,113,113,.13)}
+    .bk-diff-empty{padding:1rem;color:var(--text-muted);text-align:center}
+    .hdr-actions{margin-left:auto;display:flex;align-items:center;
+      gap:.5rem;flex-wrap:wrap;justify-content:flex-end}
+    /* A viewer who may not write gets an EMPTY span, and an empty span must not
+       be a flex item at all: as a third item in a space-between header it would
+       strand the filters in the middle. Removing it from the layout entirely
+       gives the read-only view back exactly the header it had before, right
+       corner included. Higher specificity than the rule above, so order is not
+       load-bearing. */
+    .card-header [data-res-add]:empty{display:none}
+    #faBestChan{color:rgba(74,222,128,.95)}
+    .fa-stat-unit{font-size:.62rem;color:var(--text-muted);margin-left:.15rem;font-weight:400}
+    .fa-section-title{font-family:var(--font-ui);font-weight:600;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);margin:0 0 .5rem}
+    /* Congestion tiles: auto-fill so a 2.4GHz scan (13 channels) and a 5GHz one
+       (25+) both fill the row instead of one leaving a ragged gap. */
+    .fa-chan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:.35rem;margin-bottom:1rem}
+    .fa-chan{border:1px solid var(--border);border-radius:5px;padding:.3rem .35rem;text-align:center;font-family:var(--font-mono);line-height:1.25}
+    .fa-chan.is-current{outline:2px solid var(--accent-rx);outline-offset:1px}
+    .fa-chan-num{font-size:.72rem;font-weight:700;color:var(--text-main)}
+    .fa-chan-freq{font-size:.58rem;color:var(--text-muted)}
+    .fa-chan-load{font-size:.66rem;font-weight:700}
+    /* Busy indicator. A scan can run 30s with long gaps between frames, so the
+       button alone cannot show the difference between working and wedged. */
+    .fa-spin{display:none;width:14px;height:14px;flex:0 0 auto;border:2px solid rgba(148,163,190,.25);border-top-color:var(--accent-rx);border-radius:50%;animation:fa-spin .7s linear infinite}
+    .fa-spin.on{display:inline-block}
+    @keyframes fa-spin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){.fa-spin{animation-duration:2.4s}}
+    .fa-chart-wrap{position:relative;height:220px;width:100%}
+    .fa-empty{font-size:.75rem;color:var(--text-muted);padding:1.4rem;text-align:center}
+    .wl-summary-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0}
+    .wl-summary-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
+    /* Signal health bars */
+    .wl-sig-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem}
+    .wl-sig-row:last-child{margin-bottom:0}
+    .wl-sig-tier{font-size:.7rem;width:4.5rem;flex-shrink:0;font-family:var(--font-ui)}
+    .wl-sig-bar-wrap{flex:1;height:8px;background:rgba(99,130,190,.1);border-radius:4px;overflow:hidden}
+    .wl-sig-bar{height:100%;border-radius:4px;transition:width .5s ease}
+    .wl-sig-count{font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);min-width:1.5rem;text-align:right}
+    /* Band split */
+    .wl-band-grid{display:flex;flex-direction:column;gap:.5rem;justify-content:center;height:100%}
+    .wl-band-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+    .wl-band-pill{font-family:var(--font-mono);font-size:.65rem;border-radius:10px;padding:2px 9px;white-space:nowrap}
+    .wl-band-num{font-size:1.35rem;font-weight:700;font-family:var(--font-mono);line-height:1}
+    .wl-group-row td{background:rgba(56,189,248,.04);border-top:1px solid rgba(56,189,248,.15)!important;padding:.3rem .75rem!important}
+    .wl-group-label{font-family:var(--font-mono);font-size:.68rem;font-weight:700;color:var(--accent-rx);letter-spacing:.03em}
+    .wl-group-sub{font-size:.62rem;color:var(--text-muted);margin-left:.5rem}
+    /* One panel per CAPsMAN configuration tab. `hidden` does the hiding; this
+       only stops the visible one collapsing when its table is empty. */
+    .capstab-panel[hidden]{display:none}
+    .capstab-panel{min-height:2.5rem}
+    /* The SSID pill on the Wifi Networks page. Deliberately a step up in size
+       from the rest of the row: the SSID is what somebody scans the table for,
+       and everything beside it is detail about it. The colour is set inline,
+       from the same palette the Wifi Clients page uses. */
+    .wn-ssid-pill{display:inline-block;font-family:var(--font-mono);font-size:.82rem;font-weight:600;
+      padding:.1rem .5rem;border-radius:5px;white-space:nowrap;
+      border:1px solid currentColor;background:color-mix(in srgb,currentColor 10%,transparent)}
+    .wl-band{display:inline-block;font-family:var(--font-mono);font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap}
+    .wl-band-24{background:rgba(167,139,250,.15);color:rgba(167,139,250,.9);border:1px solid rgba(167,139,250,.25)}
+    .wl-band-5{background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25)}
+    .wl-band-6{background:rgba(52,211,153,.12);color:rgba(52,211,153,.9);border:1px solid rgba(52,211,153,.25)}
+    .wl-idle td{opacity:.55}
+    .wl-idle .wl-idle-tag{display:inline-block;font-family:var(--font-mono);font-size:.56rem;color:var(--text-muted);border:1px solid var(--border);border-radius:3px;padding:0 4px;margin-left:.3rem;vertical-align:middle}
+    .wl-rate{font-family:var(--font-mono);font-size:.7rem}
+    .wl-rate-rx{color:var(--accent-tx);font-size:.65rem}
+    /* Interface totals */
+    .iface-totals{font-size:.6rem;color:rgba(148,163,190,.4);margin-top:.1rem}
+    /* Topbar clock */
+    @media(max-width:767px){#tobarClock{display:none}}
+    .info-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .8rem;border-radius:6px;font-size:.73rem;font-family:var(--font-mono);text-decoration:none;transition:background .15s,color .15s;cursor:pointer;border:none}
+    .info-btn-outline{background:rgba(99,130,190,.08);border:1px solid var(--border);color:var(--text-muted)}
+    .info-btn-outline:hover{background:rgba(56,189,248,.1);color:var(--accent-rx);border-color:rgba(56,189,248,.3)}
+    .info-btn-coffee{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.25);color:rgba(251,191,36,.9)}
+    .info-btn-coffee:hover{background:rgba(251,191,36,.2)}
+    /* Topbar clock */
+        /* VPN page tiles */
+
+    /* ── VPN summary row ─────────────────────────────────────────────────── */
+    .vpn-summary-row{display:flex;gap:.6rem;margin-bottom:.85rem;flex-wrap:wrap}
+    .vpn-stat-tile{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.65rem .9rem;display:flex;flex-direction:column;gap:.1rem;min-width:110px;flex:1}
+    .vpn-stat-label{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.2rem;white-space:nowrap}
+    .vpn-proto-pill{display:inline-block;font-family:var(--font-mono);font-size:.64rem;padding:.1rem .4rem;border-radius:4px;background:rgba(56,189,248,.12);color:var(--accent-rx);border:1px solid rgba(56,189,248,.25)}
+    .vpn-stat-value{font-size:1.5rem;font-weight:700;font-family:var(--font-mono);line-height:1;color:var(--text-main)}
+    .vpn-stat-value.connected{color:rgba(74,222,128,.9)}
+    .vpn-stat-value.idle{color:var(--text-muted)}
+    .vpn-stat-value.throughput{color:var(--accent-rx)}
+    /* Handshake age badge */
+    .vpn-hs-badge{display:inline-flex;align-items:center;gap:.3rem;font-size:.62rem;font-family:var(--font-mono);padding:.15rem .45rem;border-radius:4px;white-space:nowrap}
+    .vpn-hs-badge.hs-ok    {background:rgba(74,222,128,.1); color:rgba(74,222,128,.95);border:1px solid rgba(74,222,128,.25)}
+    .vpn-hs-badge.hs-warn  {background:rgba(245,159,0,.1);  color:rgba(245,159,0,.95); border:1px solid rgba(245,159,0,.25)}
+    .vpn-hs-badge.hs-stale {background:rgba(248,113,113,.1);color:rgba(248,113,113,.9);border:1px solid rgba(248,113,113,.25)}
+    .vpn-hs-badge.hs-never {background:rgba(99,130,190,.07);color:var(--text-muted);   border:1px solid var(--border)}
+    .vpn-tile-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.45rem}
+    .vpn-tile{padding:.55rem .65rem;border-radius:7px;border:1px solid var(--border);background:rgba(99,130,190,.04);font-family:var(--font-mono);font-size:.7rem;transition:border-color .2s}
+    .vpn-tile.up{border-color:rgba(74,222,128,.22);background:rgba(74,222,128,.04)}
+    .vpn-tile.idle{opacity:.65}
+    .vpn-tile-name{font-weight:600;font-size:.77rem;color:var(--text-main);display:flex;align-items:center;gap:.35rem;margin-bottom:.18rem;min-width:0}
+    .vpn-tile-name .iface-dot{flex-shrink:0}
+    .vpn-tile-name-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .vpn-tile-iface{font-size:.62rem;color:var(--text-muted);margin-bottom:.15rem}
+    .vpn-tile-ip{font-size:.65rem;color:var(--accent-rx);margin-bottom:.1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .vpn-tile-hs{font-size:.62rem;color:var(--text-muted)}
+    .vpn-tile-traffic{display:flex;gap:.6rem;margin-top:.25rem;font-size:.63rem}
+    @media(max-width:650px){.vpn-tile-grid{grid-template-columns:1fr}}
+    /* Network diagram */
+    .net-diagram-body{padding:.35rem .5rem .4rem!important;display:flex;flex-direction:column}
+    .nd-line{stroke:var(--accent-rx);stroke-opacity:.25;stroke-width:1.5;stroke-dasharray:4 3}
+    .nd-line-wan{stroke:var(--accent-tx);stroke-opacity:.25}
+    .nd-node{fill:var(--bg-card);stroke:var(--border);stroke-width:1}
+    .nd-router-bg{fill:var(--accent-rx);fill-opacity:.06;stroke:var(--accent-rx);stroke-opacity:.3;stroke-width:1.2}
+    .nd-led{fill:#4ade80;filter:drop-shadow(0 0 3px #4ade80)}
+    .nd-label{font-family:var(--font-ui);font-size:7.5px;fill:var(--text-muted);text-anchor:middle;dominant-baseline:middle}
+    .nd-count{font-family:var(--font-mono);font-size:11px;font-weight:700;fill:var(--text-main);text-anchor:middle;dominant-baseline:middle}
+    .nd-wan-ip{font-family:var(--font-mono);font-size:6.5px;fill:var(--accent-rx);text-anchor:middle;dominant-baseline:middle}
+    .nd-dot{fill:var(--accent-rx);fill-opacity:.7}
+    .nd-dot-wan{fill:var(--accent-tx);fill-opacity:.7}
+    .nd-dot-l2{fill:rgba(167,139,250,.7)}
+    .is-ros-disconnected .nd-dot,.is-disconnected .nd-dot{visibility:hidden}
+    /* Networks card */
+
+    .net-wan-row{display:flex;align-items:baseline;justify-content:space-between;padding:.25rem .45rem;background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.14);border-radius:6px}
+    .net-field-label{font-family:var(--font-mono);font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em}
+    .net-field-val{font-family:var(--font-mono);font-size:.82rem;font-weight:600;color:var(--accent-rx)}
+        html[data-theme="light"] select.form-select{background-color:rgba(255,255,255,.9)}
+    #dhcpSearch{background:rgba(13,18,30,.9);border-color:var(--border);color:var(--text-main)}
+    html[data-theme="light"] #dhcpSearch{background:rgba(255,255,255,.9)}
+    /* ── Routing page ──────────────────────────────────────────────────────── */
+    .rt-summary-row{display:grid;grid-template-columns:2fr 1fr;gap:.75rem;margin-bottom:.85rem}
+    /* Routing protocol tabs. The bar reuses .stab-bar/.stab from Settings, as the
+       Reports tabs already do, so only the panel rule is new. A distinct panel
+       class matters: the Reports switcher queries .rtab-panel document-wide.
+       The #rtTabBar{margin-bottom:.85rem} that used to sit here separated the bar
+       from the card below it. Inside a card header there is nothing to separate
+       from, and being an id it outranked .rttab-bar — leaving a phantom 13.6px
+       under the tabs that pushed their centre above the title beside them. */
+    .rttab-panel{display:none}
+    .rttab-panel.active{display:block}
+    /* The strip lives inside the card header, so it drops the standalone bar's
+       rule and margin. */
+    .rttab-bar{margin-bottom:0;border-bottom:none;padding-bottom:0;align-items:center}
+    /* Tabler's .d-flex is display:flex!important, so it beats both the [hidden]
+       user-agent rule and an ordinary override. Same trap as .iface-grid[hidden]
+       above, one step worse because the utility class carries !important. */
+    #rtRoutesFilters[hidden],#rtPeersFilters[hidden]{display:none!important}
+    /* The standalone strip hangs its buttons 1px below the bar so they sit on
+       the rule. There is no rule in a card header, so that nudge only pushes the
+       tabs out of line with the title beside them. */
+    .rttab-bar .stab{padding:.3rem .75rem;font-size:.74rem;margin-bottom:0}
+    /* Clear of the tabs, and centred against them rather than sitting low. */
+    #rtCardTitle{margin-left:.85rem;line-height:1;align-self:center}
+    /* routingRoutesCard and routingPeersCard stay .card so the stale and
+       collector-off overlays keep working unchanged — staleConfig names them —
+       but nested inside the outer frame they must not draw a second one. */
+    #routingTablesCard .rttab-panel > .card{border:none;background:transparent;
+      border-radius:0;margin:0;box-shadow:none}
+    @media(max-width:600px){.rt-summary-row{grid-template-columns:1fr}}
+    /* DHCP summary row */
+    .dhcp-summary-row{display:grid;grid-template-columns:10fr 3fr;gap:.75rem;margin-bottom:.85rem;min-height:165px}
+    @media(max-width:500px){.dhcp-summary-row{grid-template-columns:1fr;min-height:auto}}
+    .dhcp-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem;min-width:0;overflow:hidden}
+    .dhcp-card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
+    /* Subnet table */
+    .dhcp-subnet-table{width:100%;border-collapse:collapse;table-layout:fixed}
+    .dhcp-subnet-table th{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding:.2rem .5rem .35rem;border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden}
+    .dhcp-subnet-table td{font-size:.75rem;padding:.3rem .5rem;border-bottom:1px solid rgba(99,130,190,.07);font-family:var(--font-mono);color:var(--text-main);vertical-align:middle;overflow:hidden;min-width:0}
+    .dhcp-subnet-table tr:last-child td{border-bottom:none}
+    .dhcp-subnet-table .td-label{font-family:var(--font-ui);font-size:.72rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .dhcp-util-bar{height:4px;border-radius:2px;background:rgba(99,130,190,.15);overflow:hidden;margin-top:3px}
+    .dhcp-util-fill{height:100%;border-radius:2px;transition:width .6s ease}
+    /* Gauge */
+    .dhcp-gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:.4rem 0 .6rem}
+    .dhcp-gauge-svg{overflow:visible;width:100%;max-width:200px}
+    .dhcp-gauge-pct{font-size:1.9rem;font-weight:700;font-family:var(--font-mono);fill:var(--text-main);text-anchor:middle;dominant-baseline:middle}
+    .dhcp-gauge-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;fill:var(--text-muted);text-anchor:middle}
+    .rt-proto-card,.rt-bgp-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.8rem 1rem}
+    /* proto card: donut left, grid right */
+    .rt-proto-inner{display:flex;gap:.9rem;align-items:center}
+    .rt-donut-wrap{flex-shrink:0;width:130px;height:130px;position:relative}
+    .rt-proto-grid-wrap{flex:1;min-width:0}
+    .rt-donut-legend{display:flex;flex-direction:column;gap:.2rem;margin-top:.4rem}
+    .rt-donut-legend-item{display:flex;align-items:center;gap:.35rem;font-size:.65rem;font-family:var(--font-ui)}
+    .rt-donut-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .rt-donut-legend-label{color:var(--text-muted);flex:1}
+    .rt-donut-legend-val{font-family:var(--font-mono);color:var(--text-main);font-size:.68rem}
+    .rt-card-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:.65rem}
+    .rt-proto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:.4rem}
+    .rt-proto-item{background:rgba(99,130,190,.06);border:1px solid var(--border);border-radius:6px;padding:.45rem .6rem;display:flex;flex-direction:column;gap:.1rem}
+    .rt-proto-label{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
+    .rt-proto-count{font-size:1.35rem;font-weight:700;font-family:var(--font-mono);color:var(--text-main);line-height:1}
+    .rt-proto-count.rt-connect{color:rgba(52,211,153,.9)}
+    .rt-proto-count.rt-static{color:rgba(56,189,248,.9)}
+    .rt-proto-count.rt-dynamic{color:rgba(251,191,36,.9)}
+    .rt-proto-count.rt-bgp{color:rgba(167,139,250,.9)}
+    .rt-proto-count.rt-ospf{color:rgba(251,113,133,.9)}
+    .rt-bgp-card{display:flex;flex-direction:column}
+    .rt-bgp-stats-wrap{flex:1;display:flex;align-items:center;justify-content:center}
+    .rt-proto-card,.rt-bgp-card{transition:opacity .3s}
+    .rt-proto-card.is-stale,.rt-bgp-card.is-stale{opacity:.45;border-color:rgba(99,130,190,.2)}
+    .rt-bgp-stats{display:flex;gap:1.2rem;align-items:center;justify-content:center}
+    .rt-bgp-stat{display:flex;flex-direction:column;align-items:center;gap:.1rem}
+    .rt-bgp-num{font-size:1.6rem;font-weight:700;font-family:var(--font-mono);line-height:1}
+    .rt-bgp-num.established{color:rgba(52,211,153,.9)}
+    .rt-bgp-num.down{color:rgba(251,113,133,.9)}
+    .rt-bgp-num.total{color:var(--text-main)}
+    .rt-bgp-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);font-family:var(--font-ui)}
+    .rt-bgp-divider{width:1px;height:2.5rem;background:var(--border)}
+    /* peers table */
+    /* state badges */
+    .bgp-state{display:inline-block;padding:.1rem .4rem;border-radius:4px;font-size:.65rem;font-weight:600;font-family:var(--font-ui);text-transform:uppercase;letter-spacing:.04em}
+    .bgp-state.established{background:rgba(52,211,153,.15);color:rgba(52,211,153,.95);border:1px solid rgba(52,211,153,.25)}
+    .bgp-state.active{background:rgba(251,191,36,.12);color:rgba(251,191,36,.95);border:1px solid rgba(251,191,36,.25)}
+    .bgp-state.connect,.bgp-state.opensent,.bgp-state.openconfirm{background:rgba(56,189,248,.12);color:rgba(56,189,248,.95);border:1px solid rgba(56,189,248,.2)}
+    .bgp-state.idle{background:rgba(251,113,133,.12);color:rgba(251,113,133,.9);border:1px solid rgba(251,113,133,.2)}
+    .bgp-state.flap{background:rgba(251,113,133,.2);color:#fca5a5;border:1px solid rgba(251,113,133,.4);animation:pulse-banner 1.5s ease infinite}
+    /* peer name + description */
+    .rt-peer-name{font-weight:500;color:var(--text-main)}
+    .rt-peer-desc{font-size:.65rem;color:var(--text-muted)}
+    /* toolbar */
+    .rt-toolbar{display:flex;gap:.5rem;align-items:center;padding:.6rem .8rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .rt-sel{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.28rem .5rem;font-size:.72rem;color:var(--text-main);outline:none;cursor:pointer;font-family:var(--font-ui);appearance:none;-webkit-appearance:none;padding-right:1.6rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(148,163,190,.6)' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .4rem center;transition:border-color .15s}
+    .rt-sel:focus{border-color:rgba(99,130,190,.5)}
+    html[data-theme="light"] .rt-sel{background:rgba(255,255,255,.95);color:var(--text-main)}
+    .rt-search{flex:1 1 0;min-width:0;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.3rem .6rem;font-size:.75rem;color:var(--text-main);outline:none;font-family:var(--font-ui);transition:border-color .15s}
+    .rt-search:focus{border-color:rgba(99,130,190,.5)}
+    html[data-theme="light"] .rt-search{background:rgba(255,255,255,.95);color:var(--text-main)}
+    /* sparkline cell */
+    .rt-spark{display:block}
+    /* mobile */
+    /* Mobile column widths, retargeted from the old .rt-table onto the cards the
+       two routing tables now live in. The percentage colgroups above collapse to
+       unreadable on a phone, so both tables scroll at fixed widths instead. */
+    @media(max-width:700px){
+      #routingPeersCard .table{min-width:960px;width:960px}
+      #routingPeersCard colgroup col:nth-child(1){width:140px}
+      #routingPeersCard colgroup col:nth-child(2){width:110px}
+      #routingPeersCard colgroup col:nth-child(3){width:65px}
+      #routingPeersCard colgroup col:nth-child(4){width:90px}
+      #routingPeersCard colgroup col:nth-child(5){width:65px}
+      #routingPeersCard colgroup col:nth-child(6){width:60px}
+      #routingPeersCard colgroup col:nth-child(7){width:60px}
+      #routingPeersCard colgroup col:nth-child(8){width:60px}
+      #routingPeersCard colgroup col:nth-child(9){width:130px}
+      #routingPeersCard colgroup col:nth-child(10){width:180px}
+      #rtRoutesTbody td,#rtRoutesTable th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:0}
+      #rtRoutesTable{min-width:600px;width:600px}
+    }
+    /* ── Reports page ─────────────────────────────────────────────────────── */
+    .rpt-bar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+    .rpt-select,.rpt-date-input{background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:.38rem .65rem;font-size:.76rem;color:var(--text-main);outline:none;transition:border-color .15s;font-family:var(--font-ui)}
+    .rpt-date-input{font-family:var(--font-mono)}
+    .rpt-select:focus,.rpt-date-input:focus{border-color:var(--accent-rx)}
+    #rptPreset optgroup{font-family:var(--font-ui);font-size:.78rem;font-weight:600}
+    html[data-theme="light"] .rpt-select,html[data-theme="light"] .rpt-date-input{background:rgba(255,255,255,.95)}
+    .rpt-stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.65rem;margin-bottom:.9rem}
+    .rpt-stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem}
+    .rpt-stat-val{font-family:var(--font-mono);font-size:1.35rem;font-weight:700;color:var(--text-main);line-height:1}
+    .rpt-stat-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:.25rem}
+    .rpt-chart-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem 1rem;position:relative;height:190px;margin-bottom:.85rem}
+    .rpt-chart-title{font-family:var(--font-ui);font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:.5rem}
+    .rtab-panel{display:none}
+    .rtab-panel.active{display:block}
+    .rpt-export-row{display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:center}
+    .rpt-iface-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem}
+    .rpt-iface-label{font-size:.72rem;color:var(--text-muted)}
+    .rpt-empty{text-align:center;padding:2.5rem;color:var(--text-muted);font-size:.78rem}
+    .rpt-pager{display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-top:1px solid var(--border);background:rgba(99,130,190,.03);font-family:var(--font-mono);font-size:.72rem}
+    .rpt-pager-info{flex:1;color:var(--text-muted)}
+    .rpt-pager-btn{background:var(--bg-card);border:1px solid var(--border);border-radius:5px;padding:.28rem .65rem;font-size:.72rem;font-family:var(--font-mono);color:var(--text-muted);cursor:pointer;transition:color .15s,border-color .15s}
+    .rpt-pager-btn:hover:not(:disabled){color:var(--text-main);border-color:var(--accent-rx)}
+    .rpt-pager-btn:disabled{opacity:.35;cursor:default}
+    @media(max-width:600px){.rpt-bar{gap:.4rem}.rpt-stat-row{grid-template-columns:repeat(2,1fr)}}
+    .poll-profile-btn{background:transparent;border:1px solid var(--border);border-radius:4px;padding:.22rem .65rem;font-size:.72rem;font-family:var(--font-ui);color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+    .poll-profile-btn.active{background:var(--accent-rx);border-color:var(--accent-rx);color:#fff}
+    /* View presets. A separate class from .poll-profile-btn on purpose: that one
+       is shared with the router modal's Stream/Poll picker, and its handler only
+       survives the collision by testing dataset.profile. */
+    .view-preset-btn{background:transparent;border:1px solid var(--border);border-radius:4px;padding:.22rem .65rem;font-size:.72rem;font-family:var(--font-ui);color:var(--text-muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+    .view-preset-btn.active{background:var(--accent-rx);border-color:var(--accent-rx);color:#fff}
+    /* API Diagnostics card */
+    .diag-total-wrap{text-align:center;margin-bottom:.75rem}
+    .diag-total-count{font-size:2rem;font-weight:700;color:var(--accent)}
+    .diag-total-label{font-size:.75rem;color:var(--text-muted);display:block;margin-top:-.2rem}
+    .diag-row{display:flex;justify-content:space-between;align-items:center;padding:.25rem 0;border-bottom:1px solid var(--border);font-size:.8rem}
+    .diag-row:last-child{border-bottom:none}
+    .diag-count{font-weight:600;min-width:1.5rem;text-align:right}
+    .diag-count-zero{color:var(--text-muted)}
+    .diag-count-active{color:var(--accent)}
+  

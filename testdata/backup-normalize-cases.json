@@ -1,0 +1,757 @@
+{
+  "cases": [
+    {
+      "name": "empty patch over a full block",
+      "input": {},
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "empty patch with nothing stored",
+      "input": {},
+      "prev": null,
+      "want": {
+        "enabled": false,
+        "schedule": "daily",
+        "time": "08:00",
+        "keepCount": 30,
+        "keepDays": 365,
+        "password": "none"
+      }
+    },
+    {
+      "name": "only enabled, over a full block",
+      "input": {
+        "enabled": false
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": false,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "time absent keeps stored",
+      "input": {
+        "enabled": true
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "time cleared is a real choice",
+      "input": {
+        "time": ""
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "time set",
+      "input": {
+        "time": "23:45"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "23:45",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "time single-digit hour is padded",
+      "input": {
+        "time": "8:00"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "08:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "time invalid falls back",
+      "input": {
+        "time": "25:00"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "time garbage falls back",
+      "input": {
+        "time": "later"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "time absent with nothing stored takes the default",
+      "input": {},
+      "prev": null,
+      "want": {
+        "enabled": false,
+        "schedule": "daily",
+        "time": "08:00",
+        "keepCount": 30,
+        "keepDays": 365,
+        "password": "none"
+      }
+    },
+    {
+      "name": "time cleared stays cleared on the next write",
+      "input": {
+        "enabled": true
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "",
+        "keepCount": 0,
+        "keepDays": 0,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "",
+        "keepCount": 0,
+        "keepDays": 0,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount zero is a real choice",
+      "input": {
+        "keepCount": 0
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 0,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount zero survives a later unrelated write",
+      "input": {
+        "enabled": true
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "",
+        "keepCount": 0,
+        "keepDays": 0,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "",
+        "keepCount": 0,
+        "keepDays": 0,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount absent keeps stored",
+      "input": {
+        "schedule": "daily"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount as a string",
+      "input": {
+        "keepCount": "12"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 12,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount empty string falls back",
+      "input": {
+        "keepCount": ""
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount garbage falls back",
+      "input": {
+        "keepCount": "lots"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount fractional truncates",
+      "input": {
+        "keepCount": 12.9
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 12,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount negative clamps to 0",
+      "input": {
+        "keepCount": -5
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 0,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepCount over the cap clamps",
+      "input": {
+        "keepCount": 99999
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 1000,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepDays over the cap clamps",
+      "input": {
+        "keepDays": 99999
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 3650,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "keepDays negative clamps",
+      "input": {
+        "keepDays": -1
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 0,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "schedule valid",
+      "input": {
+        "schedule": "monthly"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "monthly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "schedule unknown keeps stored",
+      "input": {
+        "schedule": "fortnightly"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "schedule unknown with nothing stored takes the default",
+      "input": {
+        "schedule": "nope"
+      },
+      "prev": null,
+      "want": {
+        "enabled": false,
+        "schedule": "daily",
+        "time": "08:00",
+        "keepCount": 30,
+        "keepDays": 365,
+        "password": "none"
+      }
+    },
+    {
+      "name": "enabled true",
+      "input": {
+        "enabled": true
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "enabled the string true",
+      "input": {
+        "enabled": "true"
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "enabled a truthy non-true is FALSE",
+      "input": {
+        "enabled": 1
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": false,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "enabled false",
+      "input": {
+        "enabled": false
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": false,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "enabling with nothing stored generates one",
+      "input": {
+        "enabled": true
+      },
+      "prev": null,
+      "want": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00",
+        "keepCount": 30,
+        "keepDays": 365,
+        "password": "generated"
+      }
+    },
+    {
+      "name": "enabling with one stored carries it",
+      "input": {
+        "enabled": true
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "disabling keeps the stored password",
+      "input": {
+        "enabled": false
+      },
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": false,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "a caller cannot set the password",
+      "input": {
+        "enabled": true,
+        "password": "chosen-by-me"
+      },
+      "prev": null,
+      "want": {
+        "enabled": true,
+        "schedule": "daily",
+        "time": "08:00",
+        "keepCount": 30,
+        "keepDays": 365,
+        "password": "generated"
+      }
+    },
+    {
+      "name": "disabled with nothing stored generates nothing",
+      "input": {
+        "enabled": false
+      },
+      "prev": null,
+      "want": {
+        "enabled": false,
+        "schedule": "daily",
+        "time": "08:00",
+        "keepCount": 30,
+        "keepDays": 365,
+        "password": "none"
+      }
+    },
+    {
+      "name": "null input removes the block",
+      "input": null,
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": null
+    },
+    {
+      "name": "undefined input keeps the block",
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    },
+    {
+      "name": "a non-object input keeps the block",
+      "input": "nope",
+      "prev": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "existing-password-value"
+      },
+      "want": {
+        "enabled": true,
+        "schedule": "weekly",
+        "time": "02:00",
+        "keepCount": 7,
+        "keepDays": 30,
+        "password": "carried"
+      }
+    }
+  ]
+}

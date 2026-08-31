@@ -1,0 +1,10 @@
+{
+ "an address with a prefix": "\"203.0.113.7\"",
+ "an address with no prefix": "\"203.0.113.7\"",
+ "an empty address": "\"—\"",
+ "no wanIp key at all": "\"—\"",
+ "a null wanIp": "\"—\"",
+ "a bare slash": "\"—\"",
+ "an IPv6 address with a prefix": "\"2001:db8::1\"",
+ "several slashes": "\"a\""
+}

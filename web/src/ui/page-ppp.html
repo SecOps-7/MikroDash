@@ -1,0 +1,65 @@
+  <div class="page-view" id="page-ppp">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Active Sessions</div>
+          <div class="fa-stat-val" id="pppSumCount">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Services</div>
+          <div class="fa-stat-val" id="pppSumServices" style="font-size:.8rem">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Download</div>
+          <div class="fa-stat-val" id="pppSumRx">&mdash;</div>
+        </div>
+        <div class="wl-summary-card">
+          <div class="wl-summary-title">Upload</div>
+          <div class="fa-stat-val" id="pppSumTx">&mdash;</div>
+        </div>
+      </div>
+
+      <div class="card" id="pppCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Active Sessions</h3>
+            <span id="pppBadge" class="card-badge">0</span>
+          </div>
+          <input id="pppSearch" class="form-control form-control-sm"
+                 placeholder="Search user, address or caller id…" style="flex:0 1 280px;width:280px"/>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:calc(100vh - 380px);overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
+              <colgroup><col style="width:16%"><col style="width:10%"><col style="width:14%"><col style="width:15%">
+                        <col style="width:11%"><col style="width:17%"><col style="width:17%"></colgroup>
+              <thead><tr id="pppThead"></tr></thead>
+              <tbody id="pppTable">
+                <tr><td colspan="7" class="empty-state">Waiting for PPP data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="pppServerCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center gap-2">
+          <h3 class="card-title mb-0">Servers &amp; Profiles</h3>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:300px;overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:640px">
+              <colgroup><col style="width:14%"><col style="width:22%"><col style="width:22%"><col style="width:22%"><col style="width:20%"></colgroup>
+              <thead><tr><th>Kind</th><th>Name</th><th>Interface / Local</th><th>Detail</th><th>State</th></tr></thead>
+              <tbody id="pppServerTable">
+                <tr><td colspan="5" class="empty-state">Waiting for PPP configuration&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>

@@ -1,0 +1,1344 @@
+{
+  "generatedFrom": "src/routeros/wanGuard.js",
+  "cases": [
+    {
+      "name": "no session addresses at all — /user/active denied, fail open",
+      "selfAddresses": {
+        "addresses": []
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": false,
+        "local": false,
+        "address": null
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "selfAddresses missing entirely",
+      "selfAddresses": null,
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": false,
+        "local": false,
+        "address": null
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "addresses known but NO connected subnets — knows nothing, must not warn",
+      "selfAddresses": {
+        "addresses": [
+          "203.0.113.9"
+        ]
+      },
+      "connectedCidrs": [],
+      "path": {
+        "resolved": false,
+        "local": false,
+        "address": null
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "connected subnets present but every entry falsy",
+      "selfAddresses": {
+        "addresses": [
+          "203.0.113.9"
+        ]
+      },
+      "connectedCidrs": [
+        "",
+        null,
+        null
+      ],
+      "path": {
+        "resolved": false,
+        "local": false,
+        "address": null
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "single address, on a connected subnet — local",
+      "selfAddresses": {
+        "addresses": [
+          "203.0.113.9"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": true,
+        "address": "203.0.113.9"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "single address, off subnet — remote",
+      "selfAddresses": {
+        "addresses": [
+          "192.0.2.44"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": false,
+        "address": "192.0.2.44"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": true
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"ether1\"]"
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": false
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "",
+              "certain": false
+            },
+            "fingerprint": "[\"\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "pppoe-out1",
+              "certain": true
+            },
+            "fingerprint": "[\"pppoe-out1\",\"192.0.2.44\",\"pppoe-out1\"]"
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "THREE addresses, all local — the reported one is addrs[0], not the match",
+      "selfAddresses": {
+        "addresses": [
+          "198.51.100.7",
+          "203.0.113.9",
+          "2001:db8:1::5"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": true,
+        "address": "198.51.100.7"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "THREE addresses, the SECOND off subnet — the off-subnet one is reported",
+      "selfAddresses": {
+        "addresses": [
+          "203.0.113.9",
+          "192.0.2.44",
+          "198.51.100.7"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": false,
+        "address": "192.0.2.44"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": true
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"ether1\"]"
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": false
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "",
+              "certain": false
+            },
+            "fingerprint": "[\"\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "pppoe-out1",
+              "certain": true
+            },
+            "fingerprint": "[\"pppoe-out1\",\"192.0.2.44\",\"pppoe-out1\"]"
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "THREE addresses, the LAST off subnet",
+      "selfAddresses": {
+        "addresses": [
+          "203.0.113.9",
+          "198.51.100.7",
+          "192.0.2.44"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": false,
+        "address": "192.0.2.44"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": true
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"ether1\"]"
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": false
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "",
+              "certain": false
+            },
+            "fingerprint": "[\"\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "pppoe-out1",
+              "certain": true
+            },
+            "fingerprint": "[\"pppoe-out1\",\"192.0.2.44\",\"pppoe-out1\"]"
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "TWO off-subnet addresses — the FIRST is reported",
+      "selfAddresses": {
+        "addresses": [
+          "192.0.2.44",
+          "192.0.2.99"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": false,
+        "address": "192.0.2.44"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": true
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"ether1\"]"
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": false
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "",
+              "certain": false
+            },
+            "fingerprint": "[\"\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "pppoe-out1",
+              "certain": true
+            },
+            "fingerprint": "[\"pppoe-out1\",\"192.0.2.44\",\"pppoe-out1\"]"
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPv6 session inside the connected v6 prefix — local",
+      "selfAddresses": {
+        "addresses": [
+          "2001:db8:1::5"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": true,
+        "address": "2001:db8:1::5"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "IPv6 session OUTSIDE it — remote, and the v4 subnets must not match it",
+      "selfAddresses": {
+        "addresses": [
+          "2001:db8:99::5"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": false,
+        "address": "2001:db8:99::5"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "2001:db8:99::5",
+              "wan": "ether1",
+              "certain": true
+            },
+            "fingerprint": "[\"ether1\",\"2001:db8:99::5\",\"ether1\"]"
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "2001:db8:99::5",
+              "wan": "ether1",
+              "certain": false
+            },
+            "fingerprint": "[\"ether1\",\"2001:db8:99::5\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "2001:db8:99::5",
+              "wan": "",
+              "certain": false
+            },
+            "fingerprint": "[\"\",\"2001:db8:99::5\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "2001:db8:99::5",
+              "wan": "pppoe-out1",
+              "certain": true
+            },
+            "fingerprint": "[\"pppoe-out1\",\"2001:db8:99::5\",\"pppoe-out1\"]"
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "an address on the far half of a /25 is OUTSIDE it",
+      "selfAddresses": {
+        "addresses": [
+          "198.51.100.200"
+        ]
+      },
+      "connectedCidrs": [
+        "198.51.100.0/25"
+      ],
+      "path": {
+        "resolved": true,
+        "local": false,
+        "address": "198.51.100.200"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "198.51.100.200",
+              "wan": "ether1",
+              "certain": true
+            },
+            "fingerprint": "[\"ether1\",\"198.51.100.200\",\"ether1\"]"
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "198.51.100.200",
+              "wan": "ether1",
+              "certain": false
+            },
+            "fingerprint": "[\"ether1\",\"198.51.100.200\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "198.51.100.200",
+              "wan": "",
+              "certain": false
+            },
+            "fingerprint": "[\"\",\"198.51.100.200\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "198.51.100.200",
+              "wan": "pppoe-out1",
+              "certain": true
+            },
+            "fingerprint": "[\"pppoe-out1\",\"198.51.100.200\",\"pppoe-out1\"]"
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "a bare address as a connected subnet means /32, not everything",
+      "selfAddresses": {
+        "addresses": [
+          "192.0.2.44"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.9"
+      ],
+      "path": {
+        "resolved": true,
+        "local": false,
+        "address": "192.0.2.44"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": true
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"ether1\"]"
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "ether1",
+              "certain": false
+            },
+            "fingerprint": "[\"ether1\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "",
+              "certain": false
+            },
+            "fingerprint": "[\"\",\"192.0.2.44\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "192.0.2.44",
+              "wan": "pppoe-out1",
+              "certain": true
+            },
+            "fingerprint": "[\"pppoe-out1\",\"192.0.2.44\",\"pppoe-out1\"]"
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "an unparseable session address is off-subnet, not an error",
+      "selfAddresses": {
+        "addresses": [
+          "not-an-address"
+        ]
+      },
+      "connectedCidrs": [
+        "203.0.113.0/24",
+        "198.51.100.0/25",
+        "2001:db8:1::/64"
+      ],
+      "path": {
+        "resolved": true,
+        "local": false,
+        "address": "not-an-address"
+      },
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "not-an-address",
+              "wan": "ether1",
+              "certain": true
+            },
+            "fingerprint": "[\"ether1\",\"not-an-address\",\"ether1\"]"
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether2",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        },
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "not-an-address",
+              "wan": "ether1",
+              "certain": false
+            },
+            "fingerprint": "[\"ether1\",\"not-an-address\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "",
+          "activeDefaultWan": "",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "not-an-address",
+              "wan": "",
+              "certain": false
+            },
+            "fingerprint": "[\"\",\"not-an-address\",\"\"]"
+          }
+        },
+        {
+          "targetWan": "pppoe-out1",
+          "activeDefaultWan": "pppoe-out1",
+          "verdict": {
+            "level": "warn",
+            "code": "self-cutoff",
+            "detail": {
+              "address": "not-an-address",
+              "wan": "pppoe-out1",
+              "certain": true
+            },
+            "fingerprint": "[\"pppoe-out1\",\"not-an-address\",\"pppoe-out1\"]"
+          }
+        },
+        {
+          "targetWan": null,
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "a null path — fail open rather than throw",
+      "selfAddresses": null,
+      "connectedCidrs": [],
+      "path": null,
+      "actions": [
+        {
+          "targetWan": "ether1",
+          "activeDefaultWan": "ether1",
+          "verdict": {
+            "level": "none",
+            "code": null,
+            "detail": null,
+            "fingerprint": null
+          }
+        }
+      ]
+    }
+  ]
+}

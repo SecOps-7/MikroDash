@@ -1,0 +1,254 @@
+{
+  "generated_from": "src/routers.js getPublic",
+  "cases": [
+    {
+      "why": "no routers at all",
+      "input": [],
+      "seededWith": "",
+      "public": []
+    },
+    {
+      "why": "a record whose password this install CAN decrypt",
+      "input": [],
+      "seededWith": "add",
+      "public": [
+        {
+          "id": "<generated-uuid>",
+          "label": "Seeded",
+          "host": "198.51.100.7",
+          "port": 8729,
+          "tls": true,
+          "tlsInsecure": false,
+          "username": "ops",
+          "password": "••••••••",
+          "defaultIf": "ether1",
+          "pingTarget": "1.1.1.1",
+          "bwDownMbps": 1000,
+          "bwUpMbps": 1000,
+          "alertsEnabled": false,
+          "connDownThresholdSec": 30,
+          "siteIds": [],
+          "siteId": null,
+          "disabled": false,
+          "addedAt": "<generated-ms-epoch>"
+        }
+      ]
+    },
+    {
+      "why": "a password this install CANNOT decrypt discloses the empty string",
+      "input": [
+        {
+          "id": "r1",
+          "label": "Undecryptable",
+          "host": "198.51.100.1",
+          "username": "ops",
+          "password": "<invented>"
+        }
+      ],
+      "seededWith": "",
+      "public": [
+        {
+          "id": "r1",
+          "label": "Undecryptable",
+          "host": "198.51.100.1",
+          "username": "ops",
+          "password": "",
+          "siteIds": [],
+          "siteId": null
+        }
+      ]
+    },
+    {
+      "why": "a record with NO password at all",
+      "input": [
+        {
+          "id": "r2",
+          "label": "None",
+          "host": "198.51.100.2",
+          "username": "ops"
+        }
+      ],
+      "seededWith": "",
+      "public": [
+        {
+          "id": "r2",
+          "label": "None",
+          "host": "198.51.100.2",
+          "username": "ops",
+          "password": "",
+          "siteIds": [],
+          "siteId": null
+        }
+      ]
+    },
+    {
+      "why": "a backup block WITH a password",
+      "input": [],
+      "seededWith": "backup",
+      "public": [
+        {
+          "id": "<generated-uuid>",
+          "label": "Seeded",
+          "host": "198.51.100.7",
+          "port": 8729,
+          "tls": true,
+          "tlsInsecure": false,
+          "username": "ops",
+          "password": "••••••••",
+          "defaultIf": "ether1",
+          "pingTarget": "1.1.1.1",
+          "bwDownMbps": 1000,
+          "bwUpMbps": 1000,
+          "alertsEnabled": false,
+          "connDownThresholdSec": 30,
+          "backup": {
+            "enabled": true,
+            "schedule": "daily",
+            "time": "08:00",
+            "keepCount": 7,
+            "keepDays": 365,
+            "hasPassword": true
+          },
+          "siteIds": [],
+          "siteId": null,
+          "disabled": false,
+          "addedAt": "<generated-ms-epoch>"
+        }
+      ]
+    },
+    {
+      "why": "a backup block WITHOUT a password",
+      "input": [
+        {
+          "id": "r4",
+          "label": "Backed up",
+          "host": "198.51.100.4",
+          "username": "ops",
+          "backup": {
+            "enabled": true,
+            "schedule": "daily",
+            "keepCount": 7
+          }
+        }
+      ],
+      "seededWith": "",
+      "public": [
+        {
+          "id": "r4",
+          "label": "Backed up",
+          "host": "198.51.100.4",
+          "username": "ops",
+          "backup": {
+            "enabled": true,
+            "schedule": "daily",
+            "keepCount": 7,
+            "hasPassword": false
+          },
+          "password": "",
+          "siteIds": [],
+          "siteId": null
+        }
+      ]
+    },
+    {
+      "why": "no backup block at all - no hasPassword is invented",
+      "input": [
+        {
+          "id": "r5",
+          "label": "Plain",
+          "host": "198.51.100.5",
+          "username": "ops"
+        }
+      ],
+      "seededWith": "",
+      "public": [
+        {
+          "id": "r5",
+          "label": "Plain",
+          "host": "198.51.100.5",
+          "username": "ops",
+          "password": "",
+          "siteIds": [],
+          "siteId": null
+        }
+      ]
+    },
+    {
+      "why": "a record carrying every field the real file has, plus one nobody models",
+      "input": [
+        {
+          "id": "r6",
+          "label": "Full",
+          "host": "198.51.100.6",
+          "port": 8729,
+          "tls": true,
+          "tlsInsecure": false,
+          "username": "ops",
+          "defaultIf": "ether1",
+          "pingTarget": "1.1.1.1",
+          "disabled": false,
+          "addedAt": 1700000000000,
+          "alertsEnabled": true,
+          "connDownThresholdSec": 60,
+          "model": "hAP ax3",
+          "osVersion": "7.24",
+          "serial": "INVENTED123",
+          "siteId": "site-a",
+          "siteIds": [
+            "site-a"
+          ],
+          "bwDownMbps": 100,
+          "bwUpMbps": 50,
+          "geo": {
+            "auto": {
+              "ip": "198.51.100.200",
+              "cc": "DE"
+            },
+            "place": {
+              "name": "Berlin"
+            }
+          },
+          "aFieldNobodyModels": "survives the spread"
+        }
+      ],
+      "seededWith": "",
+      "public": [
+        {
+          "id": "r6",
+          "label": "Full",
+          "host": "198.51.100.6",
+          "port": 8729,
+          "tls": true,
+          "tlsInsecure": false,
+          "username": "ops",
+          "defaultIf": "ether1",
+          "pingTarget": "1.1.1.1",
+          "disabled": false,
+          "addedAt": 1700000000000,
+          "alertsEnabled": true,
+          "connDownThresholdSec": 60,
+          "model": "hAP ax3",
+          "osVersion": "7.24",
+          "serial": "INVENTED123",
+          "siteId": "site-a",
+          "siteIds": [
+            "site-a"
+          ],
+          "bwDownMbps": 100,
+          "bwUpMbps": 50,
+          "geo": {
+            "auto": {
+              "ip": "198.51.100.200",
+              "cc": "DE"
+            },
+            "place": {
+              "name": "Berlin"
+            }
+          },
+          "aFieldNobodyModels": "survives the spread",
+          "password": ""
+        }
+      ]
+    }
+  ]
+}

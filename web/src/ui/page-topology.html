@@ -1,0 +1,54 @@
+  <div class="page-view" id="page-topology">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="topo-stats" id="topoStats">
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatDevices">—</span><span class="topo-stat-lbl">Devices</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatLinks">—</span><span class="topo-stat-lbl">Links</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatThru">—</span><span class="topo-stat-lbl">Throughput</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="topoStatRtt">—</span><span class="topo-stat-lbl">Worst latency</span></div>
+      </div>
+
+      <div class="card" id="topologyCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="rt-toolbar">
+          <span class="rt-card-title" style="margin-bottom:0;flex-shrink:0">Network Topology</span>
+          <input type="text" class="rt-search" id="topoSearch" placeholder="Find a device by name, IP or MAC…">
+          <select class="rt-sel" id="topoVlan" aria-label="VLAN filter" title="Show only clients on a VLAN">
+            <option value="">All VLANs</option>
+          </select>
+          <select class="rt-sel" id="topoType" aria-label="Device type filter">
+            <option value="">All types</option>
+            <option value="router">Routers</option>
+            <option value="switch">Switches</option>
+            <option value="ap">Access points</option>
+            <option value="station">Stations</option>
+            <option value="other">Other</option>
+          </select>
+          <button class="topo-chip is-on" id="topoFlowBtn" title="Toggle animated traffic flow">Flow</button>
+          <button class="topo-chip is-on" id="topoRateBtn" title="Toggle link rate labels">Rates</button>
+          <button class="topo-chip" id="topoClientsBtn" title="Show every client device. Collapsed by default — use the count chip on a device to expand just that one.">Clients</button>
+          <span class="topo-tools">
+            <button class="topo-btn" id="topoZoomOut" title="Zoom out" aria-label="Zoom out">&minus;</button>
+            <button class="topo-btn" id="topoZoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+            <button class="topo-btn" id="topoFit" title="Fit to view">Fit</button>
+            <button class="topo-btn" id="topoRelayout" title="Discard saved positions and lay out again">Re-layout</button>
+          </span>
+        </div>
+
+        <div class="topo-stage" id="topoStage">
+          <svg id="topoSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Network topology map">
+            <g id="topoViewport">
+              <g id="topoEdges"></g>
+              <g id="topoFlow"></g>
+              <g id="topoNodes"></g>
+            </g>
+          </svg>
+          <div class="topo-empty" id="topoEmpty"></div>
+          <aside class="topo-panel" id="topoPanel" aria-live="polite"></aside>
+        </div>
+
+        <div class="topo-foot" id="topoFoot"></div>
+      </div>
+
+    </div><!-- /container -->
+  </div><!-- /page-topology -->

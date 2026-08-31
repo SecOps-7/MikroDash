@@ -1,0 +1,48 @@
+{
+  "collector": "ppp",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ppp/profile/print",
+      "params": [
+        "=.proplist=.id,name,local-address,remote-address,rate-limit,only-one,use-encryption"
+      ],
+      "rows": [
+        {
+          ".id": "*0",
+          "name": "default",
+          "only-one": "default",
+          "use-encryption": "default"
+        },
+        {
+          ".id": "*FFFFFFFE",
+          "name": "default-encryption",
+          "only-one": "default",
+          "use-encryption": "yes"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/pppoe-server/server/print",
+      "params": [
+        "=.proplist=.id,service-name,interface,disabled,max-sessions,authentication"
+      ],
+      "rows": []
+    },
+    {
+      "cmd": "/ppp/active/print",
+      "params": [
+        "=.proplist=.id,name,service,caller-id,address,uptime,encoding,session-id,limit-bytes-in,limit-bytes-out,bytes-in,bytes-out"
+      ],
+      "rows": [
+        {
+          "undefined": ""
+        }
+      ]
+    }
+  ]
+}

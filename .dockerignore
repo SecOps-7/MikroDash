@@ -1,15 +1,9 @@
+# Build output and caches — the image builds its own.
+web/node_modules
+web/dist
+bin/
 .git
-.github
-node_modules
-npm-debug.log
-.env
-.env.*
-!.env.example
-*.test.js
-test/
-screenshots/
-docs/
-deploy/
-*.md
-!README.md
-.DS_Store
+.screenshots
+.playwright-mcp
+.serena/cache
+*.tgz

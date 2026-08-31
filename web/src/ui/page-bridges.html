@@ -1,0 +1,87 @@
+  <div class="page-view" id="page-bridges">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Bridges</div><div class="fa-stat-val" id="brSumCount">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Ports</div><div class="fa-stat-val" id="brSumPorts">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Learned Hosts</div><div class="fa-stat-val" id="brSumHosts">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Spanning Tree</div><div class="fa-stat-val" id="brSumStp">&mdash;</div></div>
+      </div>
+
+      <div class="card" id="bridgesCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-header d-flex align-items-center gap-2">
+          <h3 class="card-title mb-0">Bridges</h3>
+          <span id="bridgesBadge" class="card-badge">0</span>
+          <span data-res-add="bridge"></span>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:320px;overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:900px">
+              <colgroup><col style="width:16%"><col style="width:10%"><col style="width:10%"><col style="width:9%">
+                        <col style="width:15%"><col style="width:8%"><col style="width:8%"><col style="width:24%"></colgroup>
+              <thead><tr id="bridgesThead"></tr></thead>
+              <tbody id="bridgesTable" data-res-rows="bridge">
+                <tr><td colspan="8" class="empty-state">Waiting for bridge data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ports and the host table are two views of the same bridge, so they
+           share one card and a tab strip. The search box belongs to the host
+           view and hides with it. -->
+      <div class="card" id="bridgesTablesCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="stab-bar brtab-bar" id="brTabBar" role="tablist" aria-label="Bridge tables">
+            <button class="stab active" data-brtab="ports" role="tab" aria-selected="true"
+                    aria-controls="brtab-ports" id="brTabBtn-ports">Ports
+              <span id="bridgesPortBadge" class="card-badge">0</span></button>
+            <button class="stab" data-brtab="hosts" role="tab" aria-selected="false"
+                    aria-controls="brtab-hosts" id="brTabBtn-hosts">Host Table
+              <span id="bridgesHostBadge" class="card-badge">0</span></button>
+          </div>
+          <div class="hdr-actions">
+            <div class="d-flex align-items-center gap-2" id="bridgesHostTools" hidden>
+              <span id="bridgesHostNote" class="muted-note"></span>
+              <input id="bridgesHostSearch" class="form-control form-control-sm"
+                     placeholder="Search MAC, port or VLAN&hellip;" style="flex:0 1 260px;width:260px"/>
+            </div>
+            <!-- Last in the group, so it keeps the corner on the Host Table tab
+                 where the search box appears beside it. -->
+            <span data-res-add="bridgePort"></span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+
+          <div class="brtab-panel active" id="brtab-ports" role="tabpanel" aria-labelledby="brTabBtn-ports">
+            <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:860px">
+                <colgroup><col style="width:20%"><col style="width:14%"><col style="width:8%"><col style="width:20%">
+                          <col style="width:10%"><col style="width:14%"><col style="width:14%"></colgroup>
+                <thead><tr id="bridgesPortThead"></tr></thead>
+                <tbody id="bridgesPortTable" data-res-rows="bridgePort">
+                  <tr><td colspan="7" class="empty-state">Waiting for port data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="brtab-panel" id="brtab-hosts" role="tabpanel" aria-labelledby="brTabBtn-hosts">
+            <div class="data-scroll" style="max-height:calc(100vh - 420px);overflow-y:auto">
+              <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:720px">
+                <colgroup><col style="width:26%"><col style="width:24%"><col style="width:16%"><col style="width:12%"><col style="width:22%"></colgroup>
+                <thead><tr id="bridgesHostThead"></tr></thead>
+                <tbody id="bridgesHostTable">
+                  <tr><td colspan="5" class="empty-state">Waiting for host data&hellip;</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>

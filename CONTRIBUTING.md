@@ -14,49 +14,61 @@ Thanks for your interest in contributing. Small changes are as welcome as large 
 ```sh
 git clone https://github.com/SecOps-7/MikroDash.git
 cd MikroDash
-npm install
-node patch-routeros.js
 ```
 
-`patch-routeros.js` patches `node-routeros` (archived in 2024) for RouterOS 7.18+ compatibility. It runs once after install — the Docker build does the same thing. Skip it and live router connections misbehave in confusing ways.
-
-Run it:
+You need **Go 1.25+** and **Node 20+**. Node is for the frontend build only; nothing Node-related runs at runtime.
 
 ```sh
-npm start
+go run ./cmd/webbuild -dir web                    # the TypeScript frontend
+go build ./cmd/mikrodash                          # the binary
+./mikrodash -data ./devdata -web web/dist -static web/public
 ```
 
-**You do not need a MikroTik router to contribute.** MikroDash starts without one and shows the setup wizard, so frontend, documentation and test work need nothing but Node. A reachable RouterOS device is only required to see live data.
-
-Run the tests:
+If you would rather not install a Go toolchain, everything below also runs in a container:
 
 ```sh
-npm test
+docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine sh -c "go vet ./... && go build ./..."
 ```
 
-The tests use stubs throughout — no router, no network, no database setup. The suite takes a few seconds.
+**You do not need a MikroTik router to contribute.** MikroDash starts without one and shows the setup wizard, so frontend, documentation and test work need nothing but the toolchain. A reachable RouterOS device is only required to see live data.
 
-> `node --test` exits on its own. It used to need `--test-force-exit` because unstopped collectors
-> kept the runner alive; that flag also truncated the tail of the largest file at random, so runs
-> silently reported fewer tests than exist. Do not reintroduce it — if the suite hangs again, a
-> test is leaking a timer and `test/helpers/collector-cleanup.js` is the place to look.
+## Running the checks
+
+```sh
+go test ./...        # unit tests and the differential gates
+sh tools/verify.sh   # everything: gates, audits, generators, nodecheck, Go, tsc
+```
+
+`tools/verify.sh` is the one to run before opening a PR. It **discovers** what to check rather than working from a list, so a category cannot be forgotten — that rule exists because an audit once sat red for an unknown number of sessions while every sweep ran a list of names typed from memory.
+
+**You do not need the original Node implementation.** Every gate and audit compares against a recording of it, committed under `testdata/`, so `sh tools/verify.sh` is meaningful on a fresh clone. That was not true until recently: the gates read `../MikroDash` directly, and a contributor without it saw most of the sweep skip.
+
+If you *do* have it, point at it and the sweep does more:
+
+```sh
+sh tools/verify.sh
+```
+
+With the reference present each recording is **re-derived and compared against it**, which is the only thing that stops a recording drifting from the source it claims to describe. The generator `--check` runs also need it — they regenerate their corpora from the reference — and the sweep reports them as a skip, saying so, when it is absent.
 
 ## Project Conventions
 
-These are deliberate constraints rather than style preferences, and they are what keeps MikroDash a single `docker run` with no toolchain:
+These are deliberate constraints rather than style preferences:
 
-- **No build step.** Plain CommonJS, no TypeScript, no bundler — what you edit is what ships.
-- **Self-hosted assets.** Everything the browser loads lives in `public/vendor/`, so the dashboard works on an isolated network with no internet access. No CDN references.
-- **A small dependency footprint.** New dependencies are worth discussing first; often the thing you need is already there.
-- **Streaming-first.** Prefer RouterOS `/listen` or `=interval=N` streams over polling, so the router does the work of noticing change rather than being asked repeatedly.
-- **Errors are sanitised.** Anything reaching the browser goes through `sanitizeErr()` first.
+- **Gates are generated, never transcribed.** `tools/*-cases.js` build their corpora by RUNNING or LIFTING the reference implementation, and `--check` fails when one goes stale. A table retyped by hand is a fork with no update path, and it will be wrong the first time the thing it copied changes.
+- **A check that cannot fail is worse than no check.** Anything that scans a set asserts it actually found something. An audit that silently measures zero reads exactly like one that passed.
+- **Self-hosted assets.** Everything the browser loads lives in `web/public/vendor/`, so the dashboard works on an isolated network with no internet access. No CDN references.
+- **A small dependency footprint.** There are seven Go dependencies and each has a reason beyond convenience — the newest, `esbuild`, is there because it *removed* a runtime: the frontend build no longer needs Node. New ones are worth discussing first.
+- **Streaming-first.** Prefer RouterOS `/listen` or `=interval=N` streams over polling, so the router does the work of noticing change rather than being asked repeatedly. Concurrent API channels, not data volume, are what strain small hardware.
+- **Errors are sanitised.** Anything reaching the browser goes through `safe.Message()` first.
+- **Nothing user-visible changes without meaning to.** The frontend reuses the original stylesheet, class names, element ids and DOM shape. A page that renders differently is a regression, however correct its data.
 
-Collectors follow established patterns — inflight guards, idle-gating, dirty-check fingerprinting. You do not need to know these before starting: **[AI_CONTEXT.md](AI_CONTEXT.md)** documents each one with examples, and copying the closest existing collector in `src/collectors/` is a perfectly good way to begin.
+Collectors follow established patterns — inflight guards, idle-gating, dirty-check fingerprinting. You do not need to know these before starting: **[AI_CONTEXT.md](AI_CONTEXT.md)** documents each one with examples, and copying the closest existing collector in `internal/collect/` is a perfectly good way to begin.
 
 ## Submitting a Pull Request
 
 1. Fork the repo and create a branch from `main`
-2. Make your changes and check `npm test` passes
+2. Make your changes and check `sh tools/verify.sh` passes
 3. Keep commits focused — one logical change per commit
 4. Open a PR describing what changed and why
 

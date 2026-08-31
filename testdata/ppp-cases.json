@@ -1,0 +1,1021 @@
+{
+  "baseMs": 1700000000000,
+  "cases": [
+    {
+      "name": "first sample has no rate at all",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "second sample two seconds later derives a rate",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        },
+        {
+          "atMs": 2000,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "3000",
+              "bytes-out": "5000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 3000,
+              "tx": 5000,
+              "rxRate": 1000,
+              "txRate": 1500
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 3000,
+              "tx": 5000,
+              "tsOffsetMs": 2000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a counter reset clamps to zero rather than going negative",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "9000",
+              "bytes-out": "9000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 9000,
+              "tx": 9000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 9000,
+              "tx": 9000,
+              "tsOffsetMs": 0
+            }
+          ]
+        },
+        {
+          "atMs": 2000,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "10",
+              "bytes-out": "20"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 10,
+              "tx": 20,
+              "rxRate": 0,
+              "txRate": 0
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 10,
+              "tx": 20,
+              "tsOffsetMs": 2000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "unchanged bytes past the idle threshold read as idle",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        },
+        {
+          "atMs": 12000,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": 0,
+              "txRate": 0
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the baseline only advances when the bytes move",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        },
+        {
+          "atMs": 3000,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": 0,
+              "txRate": 0
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        },
+        {
+          "atMs": 6000,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "7000",
+              "bytes-out": "8000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 7000,
+              "tx": 8000,
+              "rxRate": 1000,
+              "txRate": 1000
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 7000,
+              "tx": 8000,
+              "tsOffsetMs": 6000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "the empty-menu junk row is dropped",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              "undefined": ""
+            }
+          ],
+          "want": [],
+          "prevAfter": []
+        }
+      ]
+    },
+    {
+      "name": "a row with no .id is keyed by name and service",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "bob/pppoe",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        },
+        {
+          "atMs": 2000,
+          "rows": [
+            {
+              ".id": "",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "5000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 5000,
+              "tx": 2000,
+              "rxRate": 2000,
+              "txRate": 0
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "bob/pppoe",
+              "rx": 5000,
+              "tx": 2000,
+              "tsOffsetMs": 2000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sessions are ordered by name",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*3",
+              "name": "zoe",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            },
+            {
+              ".id": "*1",
+              "name": "Alice",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            },
+            {
+              ".id": "*2",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "Alice",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            },
+            {
+              "id": "*2",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            },
+            {
+              "id": "*3",
+              "name": "zoe",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            },
+            {
+              "key": "*2",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            },
+            {
+              "key": "*3",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "byte limits are parsed when present and null when absent",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "withlimits",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000",
+              "limit-bytes-in": "1000000",
+              "limit-bytes-out": "2000000"
+            },
+            {
+              ".id": "*2",
+              "name": "nolimits",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*2",
+              "name": "nolimits",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            },
+            {
+              "id": "*1",
+              "name": "withlimits",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": 1000000,
+              "limitOut": 2000000,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            },
+            {
+              "key": "*2",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a session that goes away stops being tracked",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "alice",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            },
+            {
+              ".id": "*2",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "alice",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            },
+            {
+              "id": "*2",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            },
+            {
+              "key": "*2",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        },
+        {
+          "atMs": 2000,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "alice",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "4000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "alice",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 4000,
+              "tx": 2000,
+              "rxRate": 1500,
+              "txRate": 0
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 4000,
+              "tx": 2000,
+              "tsOffsetMs": 2000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "non-numeric byte counters take their leading number",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "bob",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "123abc",
+              "bytes-out": ""
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "bob",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 123,
+              "tx": 0,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 123,
+              "tx": 0,
+              "tsOffsetMs": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "service is upper-cased and a missing one stays empty",
+      "steps": [
+        {
+          "atMs": 0,
+          "rows": [
+            {
+              ".id": "*1",
+              "name": "a",
+              "service": "pppoe",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            },
+            {
+              ".id": "*2",
+              "name": "b",
+              "service": "",
+              "address": "198.51.100.5",
+              "caller-id": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "session-id": "0x81000001",
+              "bytes-in": "1000",
+              "bytes-out": "2000"
+            }
+          ],
+          "want": [
+            {
+              "id": "*1",
+              "name": "a",
+              "service": "PPPOE",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            },
+            {
+              "id": "*2",
+              "name": "b",
+              "service": "",
+              "address": "198.51.100.5",
+              "callerId": "02:00:5E:10:00:01",
+              "uptime": "1h2m3s",
+              "encoding": "AES-128",
+              "sessionId": "0x81000001",
+              "limitIn": null,
+              "limitOut": null,
+              "rx": 1000,
+              "tx": 2000,
+              "rxRate": null,
+              "txRate": null
+            }
+          ],
+          "prevAfter": [
+            {
+              "key": "*1",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            },
+            {
+              "key": "*2",
+              "rx": 1000,
+              "tx": 2000,
+              "tsOffsetMs": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

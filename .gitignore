@@ -1,19 +1,76 @@
 .env
-node_modules/
+
+# ── Build output ──────────────────────────────────────────────────────────
+/mikrodash
+/mikrodashd
+*.exe
+bin/
+# Build output, EXCEPT two frozen recordings that happen to live inside it.
+#
+# `live-dhcp.js` and `live-routers.js` are lifted from the Node renderer by
+# tools/live-renderer.js, and dhcp-table-check and routers-grid-check compare the
+# port against them. They are recordings in the same sense as
+# testdata/golden-gates/ -- the reference that produced them is gone, so they can
+# no longer be regenerated and must travel with the repo.
+#
+# Git cannot re-include a file whose parent directory is excluded, which is why
+# this is three rules instead of one negation.
+web/dist/*
+!web/dist/_compare/
+web/dist/_compare/*
+!web/dist/_compare/live-*.js
+web/node_modules/
+
+# Working notes for the current iteration. Cleared after every push.
 Changes.md
+
+# ── Agent tooling ─────────────────────────────────────────────────────────
+#
+# Ignored WHOLESALE, which is this repo's long-standing rule and deliberately
+# unlike the port repo's narrower one. The port committed .claude/ and .serena/
+# because they were project knowledge travelling with an unpublished repo; this
+# repo is public, so the safe default is that nothing agent-specific is
+# published unless somebody decides it should be, file by file.
+#
+# The practical trigger: the port's .claude/settings.json carried 61 deny rules
+# naming this repository as a forbidden EXTERNAL path. Inside this repository
+# they would have blocked the agent from editing anything at all.
 .claude/
 .serena/
 docs/superpowers/
 
-# Playwright MCP session artifacts (snapshots, console logs)
+# The port channel, closed at cutover (v0.8.0). Both files were untracked AND
+# unignored for months, so a single `git add -A` would have published them.
+ToDo.md
+port_drift_notes.md
+
+# ── Browser tooling scratch ───────────────────────────────────────────────
 .playwright-mcp/
 
-# Where browser tooling puts screenshots. Scratch by definition: these are taken
-# to check a change looks right and are worthless a day later, so they are never
-# committed. Real assets live in screenshots/ and public/, which are tracked.
+# Screenshots taken to check a change looks right. Worthless a day later, so
+# never committed. The Playwright MCP server also writes one CONSOLE LOG per
+# session here, and those are not scratch: measured on the port repo, 6.0 MB had
+# accumulated carrying WAN and LAN addresses, device hostnames and VPN provider
+# names — everything a page rendered while a session drove the browser.
+#
+# Real assets live in screenshots/ and web/public/, which are tracked.
 .screenshots/
 
-# Belt and braces for the same thing. 178 stray screenshots accumulated in the
-# repo root before .screenshots/ existed; this keeps a tool that ignores the
-# output directory from starting that again.
+# Belt and braces for the same thing, ROOT-ANCHORED on purpose. 178 stray
+# screenshots accumulated in the repo root before .screenshots/ existed. The
+# port repo used a bare `*.png`, which would also ignore the eleven tracked
+# images under screenshots/ that the README renders.
 /*.png
+
+# ── Transient gate bundles ────────────────────────────────────────────────
+#
+# Each gate esbuilds its port half to `testdata/.<name>-port.cjs` and removes it
+# when it finishes. An interrupted run leaves one behind, and a stray build
+# artefact is not a change anybody wants to review.
+testdata/.*-port.cjs
+testdata/.*-entry.ts
+testdata/.accept-meta.json
+# Three gates name their bundle without the `-port` suffix.
+testdata/.rs-runs.cjs
+testdata/.rt.cjs
+testdata/.seam.cjs

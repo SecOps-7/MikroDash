@@ -1,0 +1,193 @@
+{
+  "collector": "rosusers",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/user/settings/print",
+      "params": [],
+      "rows": [
+        {
+          "minimum-password-length": "0",
+          "minimum-categories": "0"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/print",
+      "params": [
+        "=.proplist=.id,name,group,address,comment,disabled,expired,last-logged-in,inactivity-timeout,inactivity-policy"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "name-f73a",
+          "group": "full",
+          "address": "",
+          "comment": "comment-73f6",
+          "disabled": "true",
+          "expired": "false",
+          "last-logged-in": "2023-08-07 13:25:00",
+          "inactivity-timeout": "10m",
+          "inactivity-policy": "none"
+        },
+        {
+          ".id": "*2",
+          "name": "name-aa30",
+          "group": "mktxp_group",
+          "address": "",
+          "disabled": "false",
+          "expired": "false",
+          "last-logged-in": "2026-03-18 21:59:59",
+          "inactivity-timeout": "10m",
+          "inactivity-policy": "none"
+        },
+        {
+          ".id": "*3",
+          "name": "name-373c",
+          "group": "full",
+          "address": "",
+          "disabled": "false",
+          "expired": "false",
+          "last-logged-in": "2026-08-18 09:26:31",
+          "inactivity-timeout": "10m",
+          "inactivity-policy": "none"
+        },
+        {
+          ".id": "*5",
+          "name": "name-79f6",
+          "group": "MikroDash",
+          "address": "",
+          "disabled": "false",
+          "expired": "false",
+          "last-logged-in": "2026-08-22 00:28:51",
+          "inactivity-timeout": "10m",
+          "inactivity-policy": "none"
+        },
+        {
+          ".id": "*6",
+          "name": "name-fffb",
+          "group": "full",
+          "address": "198.51.100.54/24",
+          "disabled": "false",
+          "expired": "false",
+          "last-logged-in": "2026-08-20 14:00:21",
+          "inactivity-timeout": "10m",
+          "inactivity-policy": "none"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/active/print",
+      "params": [
+        "=.proplist=.id,when,name,address,via,group,radius"
+      ],
+      "rows": [
+        {
+          ".id": "*2",
+          "when": "2026-08-18 09:26:30",
+          "name": "name-373c",
+          "address": "198.51.100.12",
+          "via": "winbox",
+          "group": "full",
+          "radius": "false"
+        },
+        {
+          ".id": "*26",
+          "when": "2026-08-18 11:17:27",
+          "name": "name-373c",
+          "address": "198.51.100.12",
+          "via": "winbox",
+          "group": "full",
+          "radius": "false"
+        },
+        {
+          ".id": "*CC",
+          "when": "2026-08-19 17:15:27",
+          "name": "name-fffb",
+          "address": "198.51.100.54",
+          "via": "rest-api",
+          "group": "full",
+          "radius": "false"
+        },
+        {
+          ".id": "*112",
+          "when": "2026-08-20 14:00:21",
+          "name": "name-fffb",
+          "address": "198.51.100.54",
+          "via": "rest-api",
+          "group": "full",
+          "radius": "false"
+        },
+        {
+          ".id": "*23D",
+          "when": "2026-08-21 15:10:46",
+          "name": "name-79f6",
+          "address": "198.51.100.54",
+          "via": "api",
+          "group": "MikroDash",
+          "radius": "false"
+        },
+        {
+          ".id": "*2BA",
+          "when": "2026-08-21 21:33:40",
+          "name": "name-79f6",
+          "address": "198.51.100.54",
+          "via": "api",
+          "group": "MikroDash",
+          "radius": "false"
+        },
+        {
+          ".id": "*2C4",
+          "when": "2026-08-22 01:12:52",
+          "name": "name-79f6",
+          "address": "198.51.100.54",
+          "via": "api",
+          "group": "MikroDash",
+          "radius": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/user/group/print",
+      "params": [
+        "=.proplist=.id,name,policy,skin,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "read",
+          "policy": "local,telnet,ssh,reboot,read,test,winbox,password,web,sniff,sensitive,api,romon,rest-api,!ftp,!write,!policy",
+          "skin": "default"
+        },
+        {
+          ".id": "*2",
+          "name": "write",
+          "policy": "local,telnet,ssh,reboot,read,write,test,winbox,password,web,sniff,sensitive,api,romon,rest-api,!ftp,!policy",
+          "skin": "default"
+        },
+        {
+          ".id": "*3",
+          "name": "full",
+          "policy": "local,telnet,ssh,ftp,reboot,read,write,policy,test,winbox,password,web,sniff,sensitive,api,romon,rest-api",
+          "skin": "default"
+        },
+        {
+          ".id": "*4",
+          "name": "mktxp_group",
+          "policy": "read,api,!local,!telnet,!ssh,!ftp,!reboot,!write,!policy,!test,!winbox,!password,!web,!sniff,!sensitive,!romon,!rest-api",
+          "skin": "default"
+        },
+        {
+          ".id": "*5",
+          "name": "MikroDash",
+          "policy": "local,telnet,ssh,ftp,reboot,read,write,policy,test,winbox,password,web,sniff,sensitive,api,romon,rest-api",
+          "skin": "default"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "collector": "traffic",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [],
+  "streams": [
+    {
+      "cmd": "/interface/monitor-traffic",
+      "params": [
+        "=interface=WAN1",
+        "=interval=1",
+        "=.proplist=name,rx-bits-per-second,tx-bits-per-second,running,disabled"
+      ],
+      "rows": [
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "591720",
+          "tx-bits-per-second": "611480",
+          "running": "true",
+          "disabled": "false",
+          ".section": "0"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "213984",
+          "tx-bits-per-second": "248712",
+          "running": "true",
+          "disabled": "false",
+          ".section": "1"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "205488",
+          "tx-bits-per-second": "240664",
+          "running": "true",
+          "disabled": "false",
+          ".section": "2"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "156336",
+          "tx-bits-per-second": "158256",
+          "running": "true",
+          "disabled": "false",
+          ".section": "3"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "455344",
+          "tx-bits-per-second": "369896",
+          "running": "true",
+          "disabled": "false",
+          ".section": "4"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "128064",
+          "tx-bits-per-second": "116256",
+          "running": "true",
+          "disabled": "false",
+          ".section": "5"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "139784",
+          "tx-bits-per-second": "165656",
+          "running": "true",
+          "disabled": "false",
+          ".section": "6"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "257288",
+          "tx-bits-per-second": "459880",
+          "running": "true",
+          "disabled": "false",
+          ".section": "7"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "145032",
+          "tx-bits-per-second": "177376",
+          "running": "true",
+          "disabled": "false",
+          ".section": "8"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "305704",
+          "tx-bits-per-second": "435104",
+          "running": "true",
+          "disabled": "false",
+          ".section": "9"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "402072",
+          "tx-bits-per-second": "330080",
+          "running": "true",
+          "disabled": "false",
+          ".section": "10"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "363096",
+          "tx-bits-per-second": "251184",
+          "running": "true",
+          "disabled": "false",
+          ".section": "11"
+        },
+        {
+          "name": "WAN1",
+          "rx-bits-per-second": "134488",
+          "tx-bits-per-second": "139784",
+          "running": "true",
+          "disabled": "false",
+          ".section": "12"
+        }
+      ]
+    }
+  ]
+}

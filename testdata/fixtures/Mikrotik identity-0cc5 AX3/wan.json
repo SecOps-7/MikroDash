@@ -1,0 +1,637 @@
+{
+  "collector": "wan",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/dhcp-client/print",
+      "params": [
+        "=.proplist=.id,interface,status,address,gateway,primary-dns,secondary-dns,expires-after,dhcp-server,disabled,invalid"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "interface": "WAN1",
+          "status": "bound",
+          "address": "198.51.100.91/22",
+          "gateway": "198.51.100.137",
+          "primary-dns": "198.51.100.205",
+          "secondary-dns": "198.51.100.162",
+          "expires-after": "3h32m35s",
+          "dhcp-server": "198.51.100.173",
+          "disabled": "false",
+          "invalid": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/print",
+      "params": [
+        "=.proplist=name,type,running"
+      ],
+      "rows": [
+        {
+          "name": "WAN1",
+          "type": "ether",
+          "running": "true"
+        },
+        {
+          "name": "ether2",
+          "type": "ether",
+          "running": "true"
+        },
+        {
+          "name": "ether3",
+          "type": "ether",
+          "running": "true"
+        },
+        {
+          "name": "ether4",
+          "type": "ether",
+          "running": "true"
+        },
+        {
+          "name": "ether5",
+          "type": "ether",
+          "running": "true"
+        },
+        {
+          "name": "2.4GHz WiFi",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "2.4GHz WiFi2",
+          "type": "wifi",
+          "running": "false"
+        },
+        {
+          "name": "2.4GHz WiFi3",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "2.4GHz WiFi4",
+          "type": "wifi",
+          "running": "false"
+        },
+        {
+          "name": "2.4GHz WiFi5",
+          "type": "wifi",
+          "running": "false"
+        },
+        {
+          "name": "2.4GHz WiFi6",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "5GHz WiFi",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "5GHz WiFi2",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "5GHz WiFi3",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "5GHz WiFi4",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "5GHz WiFi5",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "5GHz WiFi6",
+          "type": "wifi",
+          "running": "true"
+        },
+        {
+          "name": "Bridge",
+          "type": "bridge",
+          "running": "true"
+        },
+        {
+          "name": "Guest",
+          "type": "vlan",
+          "running": "true"
+        },
+        {
+          "name": "Home",
+          "type": "vlan",
+          "running": "true"
+        },
+        {
+          "name": "IoT",
+          "type": "vlan",
+          "running": "true"
+        },
+        {
+          "name": "WG-DSTV",
+          "type": "wg",
+          "running": "true"
+        },
+        {
+          "name": "WG-GL-iNET",
+          "type": "wg",
+          "running": "true"
+        },
+        {
+          "name": "WG-HOME",
+          "type": "wg",
+          "running": "true"
+        },
+        {
+          "name": "WG-SA",
+          "type": "wg",
+          "running": "true"
+        },
+        {
+          "name": "WG-VPN-DE1",
+          "type": "wg",
+          "running": "true"
+        },
+        {
+          "name": "WG-VPN-DE2",
+          "type": "wg",
+          "running": "true"
+        },
+        {
+          "name": "WG-VPN-SW",
+          "type": "wg",
+          "running": "true"
+        },
+        {
+          "name": "back-to-home-vpn",
+          "type": "wg",
+          "running": "true"
+        },
+        {
+          "name": "lo",
+          "type": "loopback",
+          "running": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/address/print",
+      "params": [
+        "=.proplist=address,interface,disabled"
+      ],
+      "rows": [
+        {
+          "address": "198.51.100.138/24",
+          "interface": "WG-DSTV",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.171/24",
+          "interface": "WG-SA",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.56/32",
+          "interface": "WG-VPN-SW",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.218/24",
+          "interface": "WG-GL-iNET",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.203/24",
+          "interface": "*17",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.176/32",
+          "interface": "WG-VPN-DE1",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.216/32",
+          "interface": "WG-VPN-DE2",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.11/24",
+          "interface": "WG-HOME",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.7/24",
+          "interface": "Guest",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.209/24",
+          "interface": "IoT",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.64/24",
+          "interface": "Home",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.17/24",
+          "interface": "back-to-home-vpn",
+          "disabled": "false"
+        },
+        {
+          "address": "198.51.100.91/22",
+          "interface": "WAN1",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/detect-internet/state/print",
+      "params": [
+        "=.proplist=.id,name,state,state-change-time"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "WAN1",
+          "state": "internet",
+          "state-change-time": "2026-08-20 22:42:23"
+        },
+        {
+          ".id": "*2",
+          "name": "ether2",
+          "state": "slave",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*3",
+          "name": "ether3",
+          "state": "slave",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*4",
+          "name": "ether4",
+          "state": "slave",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*5",
+          "name": "ether5",
+          "state": "slave",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*8",
+          "name": "Bridge",
+          "state": "lan",
+          "state-change-time": "2026-08-18 08:32:49"
+        },
+        {
+          ".id": "*9",
+          "name": "WG-VPN-SW",
+          "state": "internet",
+          "state-change-time": "2026-08-21 16:18:29"
+        },
+        {
+          ".id": "*A",
+          "name": "WG-DSTV",
+          "state": "wan",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*B",
+          "name": "WG-SA",
+          "state": "internet",
+          "state-change-time": "2026-08-21 09:53:36"
+        },
+        {
+          ".id": "*10",
+          "name": "WG-GL-iNET",
+          "state": "wan",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*11",
+          "name": "lo",
+          "state": "lan",
+          "state-change-time": "2026-08-18 08:32:49"
+        },
+        {
+          ".id": "*1C",
+          "name": "WG-VPN-DE1",
+          "state": "internet",
+          "state-change-time": "2026-08-19 16:43:54"
+        },
+        {
+          ".id": "*23",
+          "name": "WG-VPN-DE2",
+          "state": "internet",
+          "state-change-time": "2026-08-19 23:07:22"
+        },
+        {
+          ".id": "*28",
+          "name": "WG-HOME",
+          "state": "wan",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*2E",
+          "name": "back-to-home-vpn",
+          "state": "wan",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*33",
+          "name": "Guest",
+          "state": "wan",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*34",
+          "name": "IoT",
+          "state": "wan",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*41",
+          "name": "Home",
+          "state": "wan",
+          "state-change-time": "2026-08-18 08:32:55"
+        },
+        {
+          ".id": "*42",
+          "name": "5GHz WiFi",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:31:06"
+        },
+        {
+          ".id": "*43",
+          "name": "5GHz WiFi2",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:32:16"
+        },
+        {
+          ".id": "*44",
+          "name": "5GHz WiFi3",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:32:16"
+        },
+        {
+          ".id": "*45",
+          "name": "2.4GHz WiFi",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:42:41"
+        },
+        {
+          ".id": "*46",
+          "name": "2.4GHz WiFi2",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:42:51"
+        },
+        {
+          ".id": "*47",
+          "name": "2.4GHz WiFi3",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:42:51"
+        },
+        {
+          ".id": "*48",
+          "name": "5GHz WiFi4",
+          "state": "slave",
+          "state-change-time": "2026-08-18 08:33:05"
+        },
+        {
+          ".id": "*49",
+          "name": "2.4GHz WiFi4",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:36:19"
+        },
+        {
+          ".id": "*4A",
+          "name": "5GHz WiFi5",
+          "state": "slave",
+          "state-change-time": "2026-08-18 08:34:49"
+        },
+        {
+          ".id": "*4B",
+          "name": "5GHz WiFi6",
+          "state": "slave",
+          "state-change-time": "2026-08-18 08:34:49"
+        },
+        {
+          ".id": "*4C",
+          "name": "2.4GHz WiFi5",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:36:29"
+        },
+        {
+          ".id": "*4D",
+          "name": "2.4GHz WiFi6",
+          "state": "slave",
+          "state-change-time": "2026-08-18 12:36:29"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/route/print",
+      "params": [
+        "=.proplist=.id,dst-address,gateway,distance,active,dynamic"
+      ],
+      "rows": [
+        {
+          ".id": "*8000001C",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "198.51.100.137",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191020",
+          "dst-address": "198.51.100.54/24",
+          "gateway": "Home",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191060",
+          "dst-address": "198.51.100.203/24",
+          "gateway": "WG-GL-iNET",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*80000006",
+          "dst-address": "198.51.100.56/32",
+          "gateway": "198.51.100.164",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*20191030",
+          "dst-address": "198.51.100.34/24",
+          "gateway": "WG-DSTV",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191090",
+          "dst-address": "198.51.100.245/24",
+          "gateway": "WG-HOME",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191050",
+          "dst-address": "198.51.100.56/32",
+          "gateway": "WG-VPN-SW",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191070",
+          "dst-address": "198.51.100.176/32",
+          "gateway": "WG-VPN-DE1",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191080",
+          "dst-address": "198.51.100.216/32",
+          "gateway": "WG-VPN-DE2",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191040",
+          "dst-address": "198.51.100.225/24",
+          "gateway": "WG-SA",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*201910B0",
+          "dst-address": "198.51.100.173/22",
+          "gateway": "WAN1",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*80000018",
+          "dst-address": "198.51.100.122/32",
+          "gateway": "WG-VPN-DE1",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*80000019",
+          "dst-address": "198.51.100.122/32",
+          "distance": "10",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*8000001A",
+          "dst-address": "198.51.100.134/32",
+          "gateway": "WG-VPN-DE2",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*8000001B",
+          "dst-address": "198.51.100.134/32",
+          "distance": "10",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*20191010",
+          "dst-address": "198.51.100.164/24",
+          "gateway": "IoT",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*20191000",
+          "dst-address": "198.51.100.145/24",
+          "gateway": "Guest",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*201910A0",
+          "dst-address": "198.51.100.56/24",
+          "gateway": "back-to-home-vpn",
+          "distance": "0",
+          "active": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*80000001",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-SA",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*80000004",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-VPN-SW",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*8000000E",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-VPN-DE1",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*80000016",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-VPN-DE2",
+          "distance": "2",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*80000012",
+          "dst-address": "198.51.100.132/0",
+          "gateway": "WG-VPN-DE2",
+          "distance": "1",
+          "active": "true",
+          "dynamic": "false"
+        }
+      ]
+    }
+  ]
+}

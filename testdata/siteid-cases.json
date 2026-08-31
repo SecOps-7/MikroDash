@@ -1,0 +1,244 @@
+{
+  "generated_from": "src/routers.js _cleanSiteIds + _SITE_ID_RE",
+  "cases": [
+    {
+      "why": "a single valid id",
+      "input": "site-a",
+      "inputWasUndefined": false,
+      "ids": [
+        "site-a"
+      ]
+    },
+    {
+      "why": "a list of valid ids",
+      "input": [
+        "site-a",
+        "site-b"
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "site-a",
+        "site-b"
+      ]
+    },
+    {
+      "why": "duplicates collapse",
+      "input": [
+        "site-a",
+        "site-a",
+        "site-b"
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "site-a",
+        "site-b"
+      ]
+    },
+    {
+      "why": "whitespace is trimmed",
+      "input": [
+        "  site-a  "
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "site-a"
+      ]
+    },
+    {
+      "why": "empty string means no site",
+      "input": "",
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "null",
+      "input": null,
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "undefined",
+      "input": null,
+      "inputWasUndefined": true,
+      "ids": []
+    },
+    {
+      "why": "an empty list",
+      "input": [],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "a blank entry among good ones",
+      "input": [
+        "site-a",
+        "",
+        "site-b"
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "site-a",
+        "site-b"
+      ]
+    },
+    {
+      "why": "a slash",
+      "input": [
+        "site/a"
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "a dot-dot",
+      "input": [
+        ".."
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "a path",
+      "input": [
+        "../../etc/passwd"
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "a space inside",
+      "input": [
+        "site a"
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "punctuation only",
+      "input": [
+        "!!!"
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "a NUL",
+      "input": [
+        "site\u0000a"
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "a newline",
+      "input": [
+        "site\na"
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "unicode",
+      "input": [
+        "sité"
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "65 characters — one over the cap",
+      "input": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "64 characters — exactly the cap",
+      "input": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    {
+      "why": "an invalid FIRST entry changes which id is primary",
+      "input": [
+        "bad id",
+        "site-b"
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "site-b"
+      ]
+    },
+    {
+      "why": "valid, invalid, valid",
+      "input": [
+        "site-a",
+        "bad id",
+        "site-b"
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "site-a",
+        "site-b"
+      ]
+    },
+    {
+      "why": "a number",
+      "input": [
+        42
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "42"
+      ]
+    },
+    {
+      "why": "a nested list",
+      "input": [
+        [
+          "site-a"
+        ]
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "site-a"
+      ]
+    },
+    {
+      "why": "a nested list with two entries",
+      "input": [
+        [
+          "site-a",
+          "site-b"
+        ]
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "an object",
+      "input": [
+        {
+          "id": "site-a"
+        }
+      ],
+      "inputWasUndefined": false,
+      "ids": []
+    },
+    {
+      "why": "a boolean",
+      "input": [
+        true
+      ],
+      "inputWasUndefined": false,
+      "ids": [
+        "true"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+  <div class="page-view" id="page-backups">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="wl-summary-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="wl-summary-card"><div class="wl-summary-title">Last backup</div><div class="fa-stat-val" id="bkSumLast">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Restore points</div><div class="fa-stat-val" id="bkSumStored">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Disk used</div><div class="fa-stat-val" id="bkSumBytes">&mdash;</div></div>
+        <div class="wl-summary-card"><div class="wl-summary-title">Schedule</div><div class="fa-stat-val" id="bkSumSchedule">&mdash;</div></div>
+      </div>
+
+      <div class="card" id="bkSettingsCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Backup Schedule</h3>
+            <span id="bkRouterName" class="muted-note"></span>
+          </div>
+          <div class="hdr-actions" id="bkSettingsActions"></div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-sm-3">
+              <label class="form-label" for="bkEnabled">Automatic backups</label>
+              <label class="stoggle"><span class="stoggle-label">Enabled</span><span class="stoggle-switch"><input type="checkbox" id="bkEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label" for="bkSchedule">Frequency</label>
+              <select class="form-select form-select-sm" id="bkSchedule">
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div class="col-sm-2">
+              <label class="form-label" for="bkTime">Backup time</label>
+              <input type="time" class="form-control form-control-sm" id="bkTime">
+              <div class="form-hint" id="bkTimeHint">any time</div>
+            </div>
+            <div class="col-sm-2">
+              <label class="form-label" for="bkKeepCount">Keep at most</label>
+              <input type="number" min="0" max="1000" class="form-control form-control-sm" id="bkKeepCount">
+              <div class="form-hint">restore points, 0 for no limit</div>
+            </div>
+            <div class="col-sm-2">
+              <label class="form-label" for="bkKeepDays">Keep for</label>
+              <input type="number" min="0" max="3650" class="form-control form-control-sm" id="bkKeepDays">
+              <div class="form-hint">days, 0 for no limit</div>
+            </div>
+          </div>
+          <div class="form-hint mt-3" id="bkExplain">
+            A backup is stored only when the configuration actually changed, so a
+            frequent schedule costs a short check rather than disk. Each restore point
+            is a pair: an export for the diff, and an encrypted binary for the restore.
+          </div>
+        </div>
+      </div>
+
+      <!-- .card carries a 24px box-shadow and no margin, so stacked cards need
+           this explicitly — the same .85rem the summary row uses below itself.
+           Without it the schedule card's shadow falls across this one. -->
+      <div class="card" id="bkHistoryCard" style="margin-top:.85rem">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">History</h3>
+            <span id="bkBadge" class="card-badge">0</span>
+            <span id="bkNote" class="muted-note"></span>
+          </div>
+          <div class="hdr-actions" id="bkHistoryActions"></div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:520px;overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
+              <colgroup><col style="width:2.6rem"><col style="width:4.5rem"><col style="width:18%"><col style="width:13%"><col style="width:12%"><col style="width:13%"><col style="width:13%"><col style="width:21%"></colgroup>
+              <thead><tr>
+                <th class="text-center" style="padding-right:0">
+                  <input type="checkbox" class="bk-pick" id="bkPickAll" title="Select all restore points" aria-label="Select all restore points">
+                </th>
+                <th>ID</th>
+                <th>When</th><th>Result</th><th>Trigger</th><th>RouterOS</th><th>Size</th><th class="text-end">Actions</th>
+              </tr></thead>
+              <tbody id="bkTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>

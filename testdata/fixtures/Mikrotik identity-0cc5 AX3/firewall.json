@@ -1,0 +1,622 @@
+{
+  "collector": "firewall",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/firewall/filter/print",
+      "params": [
+        "=.proplist=.id,disabled,dynamic,chain,action,comment,src-address,dst-address,protocol,dst-port,in-interface,packets,bytes"
+      ],
+      "rows": [
+        {
+          ".id": "*72",
+          "disabled": "false",
+          "dynamic": "true",
+          "chain": "forward",
+          "action": "drop",
+          "comment": "comment-3d60",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*71",
+          "disabled": "false",
+          "dynamic": "true",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-3d60",
+          "protocol": "udp",
+          "dst-port": "41896",
+          "packets": "22",
+          "bytes": "992"
+        },
+        {
+          ".id": "*70",
+          "dynamic": "true",
+          "chain": "forward",
+          "action": "passthrough",
+          "comment": "comment-1d7c",
+          "packets": "145484165",
+          "bytes": "128299763370"
+        },
+        {
+          ".id": "*15",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-6f42,comment-957b,comment-d259",
+          "packets": "97639157",
+          "bytes": "97919150081"
+        },
+        {
+          ".id": "*16",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "drop",
+          "comment": "comment-14bf",
+          "packets": "20183",
+          "bytes": "890065"
+        },
+        {
+          ".id": "*6A",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-ee65",
+          "protocol": "udp",
+          "dst-port": "13231,13232,13233,13236,34731,51808,51817,51820",
+          "packets": "8",
+          "bytes": "1092"
+        },
+        {
+          ".id": "*19",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-f10f",
+          "protocol": "tcp",
+          "dst-port": "8291",
+          "packets": "1",
+          "bytes": "52"
+        },
+        {
+          ".id": "*1A",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-3ac7",
+          "protocol": "icmp",
+          "in-interface": "WAN1",
+          "packets": "3433",
+          "bytes": "213938"
+        },
+        {
+          ".id": "*4A",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-43c3",
+          "protocol": "udp",
+          "in-interface": "IoT",
+          "packets": "358222",
+          "bytes": "80430597"
+        },
+        {
+          ".id": "*1B",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-06c6",
+          "dst-address": "198.51.100.254",
+          "packets": "636484993",
+          "bytes": "24186429734"
+        },
+        {
+          ".id": "*57",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-8266",
+          "dst-address": "198.51.100.209",
+          "in-interface": "IoT",
+          "packets": "133464",
+          "bytes": "8997214"
+        },
+        {
+          ".id": "*58",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-f1a9",
+          "dst-address": "198.51.100.7",
+          "in-interface": "Guest",
+          "packets": "35503",
+          "bytes": "2591409"
+        },
+        {
+          ".id": "*62",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "accept",
+          "comment": "comment-c6e1",
+          "in-interface": "Home",
+          "packets": "858001",
+          "bytes": "73623443"
+        },
+        {
+          ".id": "*1E",
+          "dynamic": "false",
+          "chain": "input",
+          "action": "drop",
+          "comment": "comment-a9df",
+          "packets": "310064",
+          "bytes": "55619034"
+        },
+        {
+          ".id": "*1F",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "fasttrack-connection",
+          "comment": "comment-0bfd",
+          "packets": "95907332",
+          "bytes": "90705904614"
+        },
+        {
+          ".id": "*20",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "accept",
+          "comment": "comment-ca76,comment-957b,comment-d259",
+          "packets": "103154225",
+          "bytes": "98833200993"
+        },
+        {
+          ".id": "*21",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "drop",
+          "comment": "comment-14bf",
+          "packets": "30727",
+          "bytes": "1567901"
+        },
+        {
+          ".id": "*22",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "accept",
+          "comment": "comment-ec49",
+          "packets": "194361",
+          "bytes": "26070580"
+        },
+        {
+          ".id": "*23",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "accept",
+          "comment": "comment-f034",
+          "packets": "23571",
+          "bytes": "1417285"
+        },
+        {
+          ".id": "*3C",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "accept",
+          "comment": "comment-12f2",
+          "in-interface": "Home",
+          "packets": "136782",
+          "bytes": "8231626"
+        },
+        {
+          ".id": "*3E",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "accept",
+          "comment": "comment-f06e",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "8123,1883,8883,32400",
+          "in-interface": "IoT",
+          "packets": "36016",
+          "bytes": "2251944"
+        },
+        {
+          ".id": "*3B",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "drop",
+          "in-interface": "IoT",
+          "packets": "2382",
+          "bytes": "360622"
+        },
+        {
+          ".id": "*4B",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "drop",
+          "in-interface": "Guest",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*25",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "accept",
+          "comment": "comment-cf24",
+          "packets": "468634",
+          "bytes": "150974981"
+        },
+        {
+          ".id": "*6F",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "accept",
+          "comment": "comment-19c8",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*66",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "accept",
+          "comment": "comment-ba92",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*28",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "drop",
+          "comment": "comment-a9df",
+          "packets": "5",
+          "bytes": "300"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/firewall/nat/print",
+      "params": [
+        "=.proplist=.id,disabled,dynamic,chain,action,comment,src-address,dst-address,protocol,dst-port,in-interface,packets,bytes"
+      ],
+      "rows": [
+        {
+          ".id": "*AB",
+          "disabled": "false",
+          "dynamic": "true",
+          "chain": "srcnat",
+          "action": "masquerade",
+          "comment": "comment-3d60",
+          "in-interface": "back-to-home-vpn",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*1",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "srcnat",
+          "action": "masquerade",
+          "comment": "comment-5700",
+          "packets": "189466",
+          "bytes": "18007400"
+        },
+        {
+          ".id": "*2",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "srcnat",
+          "action": "masquerade",
+          "comment": "comment-8ac9",
+          "packets": "377313",
+          "bytes": "91969975"
+        },
+        {
+          ".id": "*A9",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "redirect",
+          "comment": "comment-4b41",
+          "protocol": "udp",
+          "dst-port": "53",
+          "packets": "324743",
+          "bytes": "23158670"
+        },
+        {
+          ".id": "*AA",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "redirect",
+          "comment": "comment-2e8b",
+          "protocol": "tcp",
+          "dst-port": "53",
+          "packets": "1051",
+          "bytes": "54752"
+        },
+        {
+          ".id": "*A6",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "dst-nat",
+          "comment": "comment-249e",
+          "dst-address": "198.51.100.91",
+          "protocol": "udp",
+          "dst-port": "8211",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*A7",
+          "dynamic": "false",
+          "chain": "srcnat",
+          "action": "masquerade",
+          "comment": "comment-e3fd",
+          "src-address": "198.51.100.54/24",
+          "dst-address": "198.51.100.54",
+          "protocol": "udp",
+          "dst-port": "8211",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*9D",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "dst-nat",
+          "comment": "comment-5a06",
+          "protocol": "udp",
+          "dst-port": "8211",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*9E",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "dst-nat",
+          "comment": "comment-5a06",
+          "protocol": "udp",
+          "dst-port": "27015",
+          "packets": "15",
+          "bytes": "795"
+        },
+        {
+          ".id": "*86",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "dst-nat",
+          "comment": "comment-8b2e",
+          "protocol": "tcp",
+          "dst-port": "5093",
+          "in-interface": "WAN1",
+          "packets": "2",
+          "bytes": "112"
+        },
+        {
+          ".id": "*3",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "dst-nat",
+          "comment": "comment-b8a5",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "packets": "1388",
+          "bytes": "85517"
+        },
+        {
+          ".id": "*82",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "dst-nat",
+          "comment": "comment-adab",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "packets": "22164",
+          "bytes": "1330769"
+        },
+        {
+          ".id": "*1A",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "dstnat",
+          "action": "dst-nat",
+          "comment": "comment-b401",
+          "src-address": "198.51.100.52",
+          "protocol": "tcp",
+          "dst-port": "22",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*B8",
+          "disabled": "false",
+          "dynamic": "true",
+          "chain": "dstnat",
+          "action": "dst-nat",
+          "comment": "comment-1583",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "58131",
+          "in-interface": "WAN1",
+          "packets": "0",
+          "bytes": "0"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/firewall/mangle/print",
+      "params": [
+        "=.proplist=.id,disabled,dynamic,chain,action,comment,src-address,dst-address,protocol,dst-port,in-interface,packets,bytes"
+      ],
+      "rows": [
+        {
+          ".id": "*F",
+          "dynamic": "true",
+          "chain": "prerouting",
+          "action": "passthrough",
+          "comment": "comment-1d7c",
+          "packets": "145484165",
+          "bytes": "128299763370"
+        },
+        {
+          ".id": "*E",
+          "dynamic": "true",
+          "chain": "forward",
+          "action": "passthrough",
+          "comment": "comment-1d7c",
+          "packets": "145484165",
+          "bytes": "128299763370"
+        },
+        {
+          ".id": "*D",
+          "dynamic": "true",
+          "chain": "postrouting",
+          "action": "passthrough",
+          "comment": "comment-1d7c",
+          "packets": "145484165",
+          "bytes": "128299763370"
+        },
+        {
+          ".id": "*4",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "prerouting",
+          "action": "mark-connection",
+          "comment": "comment-8ffe",
+          "packets": "367",
+          "bytes": "28175"
+        },
+        {
+          ".id": "*5",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "prerouting",
+          "action": "mark-routing",
+          "comment": "comment-7efa",
+          "packets": "1922206",
+          "bytes": "111477253"
+        },
+        {
+          ".id": "*C",
+          "dynamic": "false",
+          "chain": "prerouting",
+          "action": "accept",
+          "comment": "comment-0786",
+          "src-address": "198.51.100.203/24",
+          "dst-address": "198.51.100.54/24",
+          "packets": "0",
+          "bytes": "0"
+        },
+        {
+          ".id": "*A",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "prerouting",
+          "action": "mark-routing",
+          "comment": "comment-381e",
+          "src-address": "198.51.100.203/24",
+          "packets": "11710",
+          "bytes": "1077320"
+        },
+        {
+          ".id": "*6",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "forward",
+          "action": "change-mss",
+          "comment": "comment-5249",
+          "protocol": "tcp",
+          "packets": "175131",
+          "bytes": "9846456"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/firewall/raw/print",
+      "params": [
+        "=.proplist=.id,disabled,dynamic,chain,action,comment,src-address,dst-address,protocol,dst-port,in-interface,packets,bytes"
+      ],
+      "rows": [
+        {
+          ".id": "*13",
+          "dynamic": "true",
+          "chain": "prerouting",
+          "action": "passthrough",
+          "comment": "comment-1d7c",
+          "packets": "145484165",
+          "bytes": "128299763370"
+        },
+        {
+          ".id": "*10",
+          "dynamic": "false",
+          "chain": "prerouting",
+          "action": "accept",
+          "comment": "comment-210e",
+          "packets": "72128839",
+          "bytes": "88276508992"
+        },
+        {
+          ".id": "*12",
+          "dynamic": "false",
+          "chain": "prerouting",
+          "action": "accept",
+          "comment": "comment-3a28",
+          "packets": "415048",
+          "bytes": "62621123"
+        },
+        {
+          ".id": "*D",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "prerouting",
+          "action": "drop",
+          "comment": "comment-066a",
+          "packets": "36918",
+          "bytes": "2087084"
+        },
+        {
+          ".id": "*E",
+          "disabled": "false",
+          "dynamic": "false",
+          "chain": "prerouting",
+          "action": "drop",
+          "comment": "comment-a959",
+          "packets": "1218",
+          "bytes": "46744"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,332 @@
+{
+  "cases": {
+    "noChange": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": [
+            "s1"
+          ]
+        },
+        {
+          "id": "r2",
+          "siteIds": []
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [
+        "r1"
+      ],
+      "changes": []
+    },
+    "addOne": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": []
+        },
+        {
+          "id": "r2",
+          "siteIds": []
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [
+        "r1"
+      ],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [
+            "s1"
+          ],
+          "before": []
+        }
+      ]
+    },
+    "removeOne": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": [
+            "s1"
+          ]
+        },
+        {
+          "id": "r2",
+          "siteIds": []
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [],
+          "before": [
+            "s1"
+          ]
+        }
+      ]
+    },
+    "addKeepsOtherSites": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": [
+            "s2"
+          ]
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [
+        "r1"
+      ],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [
+            "s2",
+            "s1"
+          ],
+          "before": [
+            "s2"
+          ]
+        }
+      ]
+    },
+    "removeKeepsOtherSites": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": [
+            "s2",
+            "s1",
+            "s3"
+          ]
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [
+            "s2",
+            "s3"
+          ],
+          "before": [
+            "s2",
+            "s1",
+            "s3"
+          ]
+        }
+      ]
+    },
+    "detachAnUnlisted": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": []
+        },
+        {
+          "id": "r2",
+          "siteIds": [
+            "s1"
+          ]
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [
+        "r1"
+      ],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [
+            "s1"
+          ],
+          "before": []
+        },
+        {
+          "routerId": "r2",
+          "after": [],
+          "before": [
+            "s1"
+          ]
+        }
+      ]
+    },
+    "addAndRemoveTogether": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": [
+            "s1"
+          ]
+        },
+        {
+          "id": "r2",
+          "siteIds": []
+        },
+        {
+          "id": "r3",
+          "siteIds": [
+            "s1",
+            "s2"
+          ]
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [
+        "r2",
+        "r3"
+      ],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [],
+          "before": [
+            "s1"
+          ]
+        },
+        {
+          "routerId": "r2",
+          "after": [
+            "s1"
+          ],
+          "before": []
+        }
+      ]
+    },
+    "scalarJoinsASecondSite": {
+      "all": [
+        {
+          "id": "r1",
+          "siteId": "s2"
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [
+        "r1"
+      ],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [
+            "s2",
+            "s1"
+          ],
+          "before": [
+            "s2"
+          ]
+        }
+      ]
+    },
+    "scalarLeavesItsOnlySite": {
+      "all": [
+        {
+          "id": "r1",
+          "siteId": "s1"
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [],
+          "before": [
+            "s1"
+          ]
+        }
+      ]
+    },
+    "noSiteFieldsAtAll": {
+      "all": [
+        {
+          "id": "r1"
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [
+        "r1"
+      ],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [
+            "s1"
+          ],
+          "before": []
+        }
+      ]
+    },
+    "wantedNamesAStranger": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": []
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [
+        "r1",
+        "ghost"
+      ],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [
+            "s1"
+          ],
+          "before": []
+        }
+      ]
+    },
+    "emptyTheSite": {
+      "all": [
+        {
+          "id": "r1",
+          "siteIds": [
+            "s1"
+          ]
+        },
+        {
+          "id": "r2",
+          "siteIds": [
+            "s2"
+          ]
+        },
+        {
+          "id": "r3",
+          "siteIds": [
+            "s1",
+            "s2"
+          ]
+        }
+      ],
+      "siteId": "s1",
+      "wanted": [],
+      "changes": [
+        {
+          "routerId": "r1",
+          "after": [],
+          "before": [
+            "s1"
+          ]
+        },
+        {
+          "routerId": "r3",
+          "after": [
+            "s2"
+          ],
+          "before": [
+            "s1",
+            "s2"
+          ]
+        }
+      ]
+    }
+  }
+}

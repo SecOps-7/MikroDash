@@ -1,0 +1,2370 @@
+{
+  "cases": [
+    {
+      "name": "resolved from /user/active",
+      "userRows": [
+        {
+          "name": "admin",
+          "group": "full"
+        },
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api"
+        },
+        {
+          "name": "alice",
+          "group": "read"
+        }
+      ],
+      "activeRows": [
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api",
+          "via": "api"
+        },
+        {
+          "name": "admin",
+          "group": "full",
+          "via": "winbox"
+        }
+      ],
+      "usernames": [
+        "mikrodash"
+      ],
+      "self": {
+        "names": [
+          "mikrodash"
+        ],
+        "groups": [
+          "mikrodash-api"
+        ],
+        "resolved": true,
+        "source": "active"
+      },
+      "checks": [
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": {
+            "comment": "x"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "MIKRODASH"
+          },
+          "values": {},
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "MIKRODASH"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "comment": "fine"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": "mikrodash"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-name-value",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-name-value",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": ""
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": {
+            "policy": "read,api"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-group",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "policy": "read"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "newgroup"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "admin",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "resolved from /user when active is empty",
+      "userRows": [
+        {
+          "name": "admin",
+          "group": "full"
+        },
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api"
+        },
+        {
+          "name": "alice",
+          "group": "read"
+        }
+      ],
+      "activeRows": [],
+      "usernames": [
+        "mikrodash"
+      ],
+      "self": {
+        "names": [
+          "mikrodash"
+        ],
+        "groups": [
+          "mikrodash-api"
+        ],
+        "resolved": true,
+        "source": "user"
+      },
+      "checks": [
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": {
+            "comment": "x"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "MIKRODASH"
+          },
+          "values": {},
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "MIKRODASH"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "comment": "fine"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": "mikrodash"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-name-value",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-name-value",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": ""
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": {
+            "policy": "read,api"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-group",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "policy": "read"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "newgroup"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "admin",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "two usernames, both protected",
+      "userRows": [
+        {
+          "name": "admin",
+          "group": "full"
+        },
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api"
+        },
+        {
+          "name": "alice",
+          "group": "read"
+        }
+      ],
+      "activeRows": [
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api",
+          "via": "api"
+        },
+        {
+          "name": "admin",
+          "group": "full",
+          "via": "winbox"
+        }
+      ],
+      "usernames": [
+        "mikrodash",
+        "admin"
+      ],
+      "self": {
+        "names": [
+          "mikrodash",
+          "admin"
+        ],
+        "groups": [
+          "mikrodash-api",
+          "full"
+        ],
+        "resolved": true,
+        "source": "active"
+      },
+      "checks": [
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": {
+            "comment": "x"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "MIKRODASH"
+          },
+          "values": {},
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "MIKRODASH"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "comment": "fine"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": "mikrodash"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-name-value",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-name-value",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": ""
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": {
+            "policy": "read,api"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-group",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "policy": "read"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "newgroup"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "admin",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "admin"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "unresolvable: our name is on neither table",
+      "userRows": [
+        {
+          "name": "admin",
+          "group": "full"
+        },
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api"
+        },
+        {
+          "name": "alice",
+          "group": "read"
+        }
+      ],
+      "activeRows": [
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api",
+          "via": "api"
+        },
+        {
+          "name": "admin",
+          "group": "full",
+          "via": "winbox"
+        }
+      ],
+      "usernames": [
+        "nobody"
+      ],
+      "self": {
+        "names": [
+          "nobody"
+        ],
+        "groups": [],
+        "resolved": false,
+        "source": ""
+      },
+      "checks": [
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": {
+            "comment": "x"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "MIKRODASH"
+          },
+          "values": {},
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "comment": "fine"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": "mikrodash"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": ""
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": {
+            "policy": "read,api"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "policy": "read"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "newgroup"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "admin",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "unresolvable: no usernames given at all",
+      "userRows": [
+        {
+          "name": "admin",
+          "group": "full"
+        },
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api"
+        },
+        {
+          "name": "alice",
+          "group": "read"
+        }
+      ],
+      "activeRows": [
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api",
+          "via": "api"
+        },
+        {
+          "name": "admin",
+          "group": "full",
+          "via": "winbox"
+        }
+      ],
+      "usernames": [],
+      "self": {
+        "names": [],
+        "groups": [],
+        "resolved": false,
+        "source": ""
+      },
+      "checks": [
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": {
+            "comment": "x"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "MIKRODASH"
+          },
+          "values": {},
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "comment": "fine"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": "mikrodash"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": ""
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": {
+            "policy": "read,api"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "policy": "read"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "newgroup"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "admin",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "self-unresolved",
+            "detail": ""
+          }
+        }
+      ]
+    },
+    {
+      "name": "case and whitespace still match",
+      "userRows": [
+        {
+          "name": "admin",
+          "group": "full"
+        },
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api"
+        },
+        {
+          "name": "alice",
+          "group": "read"
+        }
+      ],
+      "activeRows": [
+        {
+          "name": "mikrodash",
+          "group": "mikrodash-api",
+          "via": "api"
+        },
+        {
+          "name": "admin",
+          "group": "full",
+          "via": "winbox"
+        }
+      ],
+      "usernames": [
+        "  MikroDash  "
+      ],
+      "self": {
+        "names": [
+          "mikrodash"
+        ],
+        "groups": [
+          "mikrodash-api"
+        ],
+        "resolved": true,
+        "source": "active"
+      },
+      "checks": [
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": {
+            "comment": "x"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "MIKRODASH"
+          },
+          "values": {},
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "MIKRODASH"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "comment": "fine"
+          },
+          "valueKeys": [
+            "comment"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": "mikrodash"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-name-value",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-name-value",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "bob",
+            "group": "read"
+          },
+          "valueKeys": [
+            "name",
+            "group"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "set",
+          "target": {
+            "name": "alice"
+          },
+          "values": {
+            "name": ""
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "user",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": {
+            "policy": "read,api"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": {
+            "name": "mikrodash-api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-group",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "policy": "read"
+          },
+          "valueKeys": [
+            "policy"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "set",
+          "target": {
+            "name": "read"
+          },
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "mikrodash-api"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": false,
+            "code": "protected-group-value",
+            "detail": "mikrodash-api"
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "add",
+          "target": null,
+          "values": {
+            "name": "newgroup"
+          },
+          "valueKeys": [
+            "name"
+          ],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "group",
+          "verb": "remove",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "api"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "mikrodash",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "protected-account",
+            "detail": "mikrodash"
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": {
+            "name": "admin",
+            "via": "winbox"
+          },
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": true,
+            "code": "",
+            "detail": ""
+          }
+        },
+        {
+          "kind": "session",
+          "verb": "",
+          "target": null,
+          "values": null,
+          "valueKeys": [],
+          "want": {
+            "ok": false,
+            "code": "bad-request",
+            "detail": ""
+          }
+        }
+      ]
+    }
+  ]
+}

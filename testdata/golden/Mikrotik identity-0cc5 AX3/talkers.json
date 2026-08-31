@@ -1,0 +1,37 @@
+{
+  "ts": 0,
+  "devices": [
+    {
+      "name": "name-c4e7",
+      "mac": "02:59:56:B0:B2:DF",
+      "tx_mbps": 7.249,
+      "rx_mbps": 0.311
+    },
+    {
+      "name": "name-a1c9",
+      "mac": "02:C8:23:46:F1:23",
+      "tx_mbps": 0.143,
+      "rx_mbps": 0.048
+    },
+    {
+      "name": "name-7c8f",
+      "mac": "02:09:B4:E1:91:05",
+      "tx_mbps": 0.013,
+      "rx_mbps": 0.106
+    },
+    {
+      "name": "name-1d51",
+      "mac": "02:7C:8B:10:49:58",
+      "tx_mbps": 0.036,
+      "rx_mbps": 0.028
+    },
+    {
+      "name": "name-2d07",
+      "mac": "02:0E:A6:51:B0:5A",
+      "tx_mbps": 0.002,
+      "rx_mbps": 0.026
+    }
+  ],
+  "pollMs": 30000,
+  "available": true
+}

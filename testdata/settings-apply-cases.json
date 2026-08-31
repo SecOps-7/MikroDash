@@ -1,0 +1,336 @@
+{
+  "pollMap": {
+    "pollConns": "conns",
+    "pollTalkers": "talkers",
+    "pollSystem": "system",
+    "pollWireless": "wireless",
+    "pollVpn": "vpn",
+    "pollFirewall": "firewall",
+    "pollIfstatus": "ifStatus",
+    "pollBandwidth": "bandwidth",
+    "pollPing": "ping",
+    "pollArp": "arp",
+    "pollDhcp": "dhcpNetworks",
+    "pollRouting": "routing",
+    "pollTopology": "topology",
+    "pollVlans": "vlans",
+    "pollPpp": "ppp",
+    "pollBridges": "bridges",
+    "pollDns": "dns",
+    "pollCapsman": "capsman",
+    "pollPackages": "packages",
+    "pollRosusers": "rosusers",
+    "pollQueues": "queues",
+    "pollWan": "wan",
+    "pollWifi": "wifi"
+  },
+  "cases": {
+    "nothing": {
+      "updates": {},
+      "saved": {
+        "pollSystem": 5000
+      },
+      "overrides": {},
+      "retunes": {}
+    },
+    "onePlain": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": 5000
+      },
+      "overrides": {},
+      "retunes": {
+        "system": 5000
+      }
+    },
+    "savedHasEverything": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": 5000,
+        "pollConns": 2000,
+        "pollWifi": 30000,
+        "pollDns": 4000
+      },
+      "overrides": {},
+      "retunes": {
+        "system": 5000
+      }
+    },
+    "pinned": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": 5000
+      },
+      "overrides": {
+        "pollSystem": 9000
+      },
+      "retunes": {}
+    },
+    "pinnedZero": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": 5000
+      },
+      "overrides": {
+        "pollSystem": 0
+      },
+      "retunes": {}
+    },
+    "pinnedFalse": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": 5000
+      },
+      "overrides": {
+        "pollSystem": false
+      },
+      "retunes": {}
+    },
+    "pinnedEmptyString": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": 5000
+      },
+      "overrides": {
+        "pollSystem": ""
+      },
+      "retunes": {}
+    },
+    "pinnedOther": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": 5000
+      },
+      "overrides": {
+        "pollConns": 3000
+      },
+      "retunes": {
+        "system": 5000
+      }
+    },
+    "pinnedOneOfTwo": {
+      "updates": {
+        "pollSystem": 5000,
+        "pollConns": 2000
+      },
+      "saved": {
+        "pollSystem": 5000,
+        "pollConns": 2000
+      },
+      "overrides": {
+        "pollConns": 7000
+      },
+      "retunes": {
+        "system": 5000
+      }
+    },
+    "clampLow": {
+      "updates": {
+        "pollRouting": 1
+      },
+      "saved": {
+        "pollRouting": 1
+      },
+      "overrides": {},
+      "retunes": {
+        "routing": 500
+      }
+    },
+    "clampHigh": {
+      "updates": {
+        "pollWifi": 900000
+      },
+      "saved": {
+        "pollWifi": 900000
+      },
+      "overrides": {},
+      "retunes": {
+        "wifi": 600000
+      }
+    },
+    "clampAtFloor": {
+      "updates": {
+        "pollRouting": 500
+      },
+      "saved": {
+        "pollRouting": 500
+      },
+      "overrides": {},
+      "retunes": {
+        "routing": 500
+      }
+    },
+    "clampAtCeiling": {
+      "updates": {
+        "pollWifi": 600000
+      },
+      "saved": {
+        "pollWifi": 600000
+      },
+      "overrides": {},
+      "retunes": {
+        "wifi": 600000
+      }
+    },
+    "fractional": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": 5999.9
+      },
+      "overrides": {},
+      "retunes": {
+        "system": 5999
+      }
+    },
+    "numericString": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": "4000"
+      },
+      "overrides": {},
+      "retunes": {
+        "system": 4000
+      }
+    },
+    "notFinite": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": "soon"
+      },
+      "overrides": {},
+      "retunes": {
+        "system": null
+      }
+    },
+    "savedMissing": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {},
+      "overrides": {},
+      "retunes": {
+        "system": null
+      }
+    },
+    "savedNull": {
+      "updates": {
+        "pollSystem": 5000
+      },
+      "saved": {
+        "pollSystem": null
+      },
+      "overrides": {},
+      "retunes": {
+        "system": 500
+      }
+    },
+    "nonPollKey": {
+      "updates": {
+        "topN": 25
+      },
+      "saved": {
+        "topN": 25
+      },
+      "overrides": {},
+      "retunes": {}
+    },
+    "all": {
+      "updates": {
+        "pollConns": 3000,
+        "pollTalkers": 3000,
+        "pollSystem": 3000,
+        "pollWireless": 3000,
+        "pollVpn": 3000,
+        "pollFirewall": 3000,
+        "pollIfstatus": 3000,
+        "pollBandwidth": 3000,
+        "pollPing": 3000,
+        "pollArp": 3000,
+        "pollDhcp": 3000,
+        "pollRouting": 3000,
+        "pollTopology": 3000,
+        "pollVlans": 3000,
+        "pollPpp": 3000,
+        "pollBridges": 3000,
+        "pollDns": 3000,
+        "pollCapsman": 3000,
+        "pollPackages": 3000,
+        "pollRosusers": 3000,
+        "pollQueues": 3000,
+        "pollWan": 3000,
+        "pollWifi": 3000
+      },
+      "saved": {
+        "pollConns": 3000,
+        "pollTalkers": 3000,
+        "pollSystem": 3000,
+        "pollWireless": 3000,
+        "pollVpn": 3000,
+        "pollFirewall": 3000,
+        "pollIfstatus": 3000,
+        "pollBandwidth": 3000,
+        "pollPing": 3000,
+        "pollArp": 3000,
+        "pollDhcp": 3000,
+        "pollRouting": 3000,
+        "pollTopology": 3000,
+        "pollVlans": 3000,
+        "pollPpp": 3000,
+        "pollBridges": 3000,
+        "pollDns": 3000,
+        "pollCapsman": 3000,
+        "pollPackages": 3000,
+        "pollRosusers": 3000,
+        "pollQueues": 3000,
+        "pollWan": 3000,
+        "pollWifi": 3000
+      },
+      "overrides": {},
+      "retunes": {
+        "conns": 3000,
+        "talkers": 3000,
+        "system": 3000,
+        "wireless": 3000,
+        "vpn": 3000,
+        "firewall": 3000,
+        "ifStatus": 3000,
+        "bandwidth": 3000,
+        "ping": 3000,
+        "arp": 3000,
+        "dhcpNetworks": 3000,
+        "routing": 3000,
+        "topology": 3000,
+        "vlans": 3000,
+        "ppp": 3000,
+        "bridges": 3000,
+        "dns": 3000,
+        "capsman": 3000,
+        "packages": 3000,
+        "rosusers": 3000,
+        "queues": 3000,
+        "wan": 3000,
+        "wifi": 3000
+      }
+    }
+  }
+}

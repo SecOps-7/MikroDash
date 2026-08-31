@@ -1,0 +1,117 @@
+{
+  "_generated": "tools/alert-filters-tables.js — do not edit",
+  "typesKey": "mkd_notif_types",
+  "ifaceKey": "mkd_notif_iface_types",
+  "types": {
+    "ifaceUpDown": true,
+    "vpn": true,
+    "cpu": true,
+    "ping": true,
+    "netwatch": false,
+    "routerStatus": false,
+    "routerUpdate": false,
+    "bgp": true
+  },
+  "iface": {
+    "ether": true,
+    "wlan": true,
+    "bridge": false,
+    "vlan": false,
+    "other": false
+  },
+  "map": [
+    {
+      "id": "s_notifIfaceUpDown",
+      "obj": "types",
+      "field": "ifaceUpDown",
+      "key": "notifIfaceUpDown"
+    },
+    {
+      "id": "s_notifVpn",
+      "obj": "types",
+      "field": "vpn",
+      "key": "notifVpn"
+    },
+    {
+      "id": "s_notifCpu",
+      "obj": "types",
+      "field": "cpu",
+      "key": "notifCpu"
+    },
+    {
+      "id": "s_notifPing",
+      "obj": "types",
+      "field": "ping",
+      "key": "notifPing"
+    },
+    {
+      "id": "s_notifNetwatch",
+      "obj": "types",
+      "field": "netwatch",
+      "key": "notifNetwatch"
+    },
+    {
+      "id": "s_notifRouterStatus",
+      "obj": "types",
+      "field": "routerStatus",
+      "key": "notifRouterStatus"
+    },
+    {
+      "id": "s_notifRouterUpdate",
+      "obj": "types",
+      "field": "routerUpdate",
+      "key": "notifRouterUpdate"
+    },
+    {
+      "id": "s_notifBgp",
+      "obj": "types",
+      "field": "bgp",
+      "key": "notifBgp"
+    },
+    {
+      "id": "s_notifIfaceEther",
+      "obj": "iface",
+      "field": "ether",
+      "key": "notifIfaceEther"
+    },
+    {
+      "id": "s_notifIfaceWlan",
+      "obj": "iface",
+      "field": "wlan",
+      "key": "notifIfaceWlan"
+    },
+    {
+      "id": "s_notifIfaceBridge",
+      "obj": "iface",
+      "field": "bridge",
+      "key": "notifIfaceBridge"
+    },
+    {
+      "id": "s_notifIfaceVlan",
+      "obj": "iface",
+      "field": "vlan",
+      "key": "notifIfaceVlan"
+    },
+    {
+      "id": "s_notifIfaceOther",
+      "obj": "iface",
+      "field": "other",
+      "key": "notifIfaceOther"
+    }
+  ],
+  "serverDefaults": {
+    "notifIfaceUpDown": true,
+    "notifVpn": true,
+    "notifCpu": true,
+    "notifPing": true,
+    "notifNetwatch": false,
+    "notifRouterStatus": false,
+    "notifRouterUpdate": false,
+    "notifBgp": true,
+    "notifIfaceEther": true,
+    "notifIfaceWlan": true,
+    "notifIfaceBridge": false,
+    "notifIfaceVlan": false,
+    "notifIfaceOther": false
+  }
+}

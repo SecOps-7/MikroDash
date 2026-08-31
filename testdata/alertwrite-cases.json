@@ -1,0 +1,402 @@
+{
+  "seededAckAt": 1000,
+  "seededAckBy": "seeded-operator",
+  "seed": [
+    {
+      "key": "open-unacked",
+      "router": "router-a",
+      "resolved": null,
+      "ackedAt": null
+    },
+    {
+      "key": "open-acked",
+      "router": "router-a",
+      "resolved": null,
+      "ackedAt": 1000
+    },
+    {
+      "key": "closed-unacked",
+      "router": "router-a",
+      "resolved": 5000,
+      "ackedAt": null
+    },
+    {
+      "key": "closed-acked",
+      "router": "router-a",
+      "resolved": 5000,
+      "ackedAt": 1000
+    },
+    {
+      "key": "open-second-ack",
+      "router": "router-a",
+      "resolved": null,
+      "ackedAt": null
+    },
+    {
+      "key": "open-untouched",
+      "router": "router-a",
+      "resolved": null,
+      "ackedAt": null
+    },
+    {
+      "key": "other-open",
+      "router": "router-b",
+      "resolved": null,
+      "ackedAt": null
+    }
+  ],
+  "cases": {
+    "scopeKnown": {
+      "result": "router-a"
+    },
+    "scopeOtherRouter": {
+      "result": "router-b"
+    },
+    "scopeUnknown": {
+      "result": null
+    },
+    "scopeZero": {
+      "result": null
+    },
+    "ackOpen": {
+      "result": {
+        "id": 1,
+        "routerId": "router-a",
+        "alertType": "open-unacked"
+      },
+      "state": {
+        "open-unacked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "fresh",
+          "acknowledgedBy": "alice"
+        },
+        "open-acked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "closed-unacked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "closed-acked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "open-second-ack": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "open-untouched": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "other-open": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        }
+      }
+    },
+    "ackClosed": {
+      "result": {
+        "id": 3,
+        "routerId": "router-a",
+        "alertType": "closed-unacked"
+      },
+      "state": {
+        "open-unacked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "alice"
+        },
+        "open-acked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "closed-unacked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "fresh",
+          "acknowledgedBy": "bob"
+        },
+        "closed-acked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "open-second-ack": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "open-untouched": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "other-open": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        }
+      }
+    },
+    "ackAlreadyAcked": {
+      "result": {
+        "id": 2,
+        "routerId": "router-a",
+        "alertType": "open-acked"
+      },
+      "state": {
+        "open-unacked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "alice"
+        },
+        "open-acked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "closed-unacked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "bob"
+        },
+        "closed-acked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "open-second-ack": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "open-untouched": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "other-open": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        }
+      }
+    },
+    "ackUnknown": {
+      "result": null,
+      "state": {
+        "open-unacked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "alice"
+        },
+        "open-acked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "closed-unacked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "bob"
+        },
+        "closed-acked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "open-second-ack": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "open-untouched": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "other-open": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        }
+      }
+    },
+    "ackEmptyUser": {
+      "result": {
+        "id": 5,
+        "acknowledgedBy": null
+      },
+      "state": {
+        "open-unacked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "alice"
+        },
+        "open-acked": {
+          "resolvedAt": null,
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "closed-unacked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "bob"
+        },
+        "closed-acked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "open-second-ack": {
+          "resolvedAt": null,
+          "acknowledgedAt": "fresh",
+          "acknowledgedBy": null
+        },
+        "open-untouched": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        },
+        "other-open": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        }
+      }
+    },
+    "clearAll": {
+      "result": [
+        "open-acked",
+        "open-second-ack",
+        "open-unacked",
+        "open-untouched"
+      ],
+      "state": {
+        "open-unacked": {
+          "resolvedAt": "fresh",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "alice"
+        },
+        "open-acked": {
+          "resolvedAt": "fresh",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "closed-unacked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "bob"
+        },
+        "closed-acked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "open-second-ack": {
+          "resolvedAt": "fresh",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": null
+        },
+        "open-untouched": {
+          "resolvedAt": "fresh",
+          "acknowledgedAt": "fresh",
+          "acknowledgedBy": "eve"
+        },
+        "other-open": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        }
+      }
+    },
+    "clearAllAgain": {
+      "result": [],
+      "state": {
+        "open-unacked": {
+          "resolvedAt": "earlier",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "alice"
+        },
+        "open-acked": {
+          "resolvedAt": "earlier",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "closed-unacked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "bob"
+        },
+        "closed-acked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "open-second-ack": {
+          "resolvedAt": "earlier",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": null
+        },
+        "open-untouched": {
+          "resolvedAt": "earlier",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "eve"
+        },
+        "other-open": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        }
+      }
+    },
+    "clearUnknownRouter": {
+      "result": [],
+      "state": {
+        "open-unacked": {
+          "resolvedAt": "earlier",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "alice"
+        },
+        "open-acked": {
+          "resolvedAt": "earlier",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "closed-unacked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "bob"
+        },
+        "closed-acked": {
+          "resolvedAt": "seeded",
+          "acknowledgedAt": "seeded",
+          "acknowledgedBy": "seeded-operator"
+        },
+        "open-second-ack": {
+          "resolvedAt": "earlier",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": null
+        },
+        "open-untouched": {
+          "resolvedAt": "earlier",
+          "acknowledgedAt": "earlier",
+          "acknowledgedBy": "eve"
+        },
+        "other-open": {
+          "resolvedAt": null,
+          "acknowledgedAt": null,
+          "acknowledgedBy": null
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+ "value:UN_BOOLS": "[\"telegramEnabled\",\"pushbulletEnabled\",\"ntfyEnabled\",\"emailEnabled\"]",
+ "value:UN_STRS": "[\"telegramChatId\",\"ntfyUrl\",\"emailTo\"]",
+ "value:UN_CREDS": "[\"telegramBotToken\",\"pushbulletApiKey\",\"smtpUser\",\"smtpPass\",\"ntfyToken\"]"
+}

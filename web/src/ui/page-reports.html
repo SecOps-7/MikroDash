@@ -1,0 +1,206 @@
+  <div class="page-view" id="page-reports">
+    <div>
+
+      <!-- Toolbar -->
+      <div class="rpt-bar">
+        <select id="rptRouter" class="rpt-select" title="Router"></select>
+        <select id="rptPreset" class="rpt-select" title="Quick date range">
+          <optgroup label="Relative">
+            <option value="last1h">Last 1 Hour</option>
+            <option value="last3h">Last 3 Hours</option>
+            <option value="last6h">Last 6 Hours</option>
+            <option value="last12h">Last 12 Hours</option>
+            <option value="last24h">Last 24 Hours</option>
+            <option value="last2d">Last 2 Days</option>
+            <option value="last7d" selected>Last 7 Days</option>
+            <option value="last30d">Last 30 Days</option>
+            <option value="last90d">Last 90 Days</option>
+            <option value="last6mo">Last 6 Months</option>
+            <option value="last1y">Last 1 Year</option>
+          </optgroup>
+          <optgroup label="Specific Days">
+            <option value="dayBeforeYesterday">Day Before Yesterday</option>
+            <option value="thisDayLastWeek">This Day Last Week</option>
+          </optgroup>
+          <optgroup label="Previous Periods">
+            <option value="prevWeek">Previous Week</option>
+            <option value="prevMonth">Previous Month</option>
+            <option value="prevYear">Previous Year</option>
+          </optgroup>
+          <optgroup label="Current Periods">
+            <option value="today">Today</option>
+            <option value="thisWeek">This Week</option>
+            <option value="thisMonth">This Month</option>
+            <option value="thisYear">This Year</option>
+          </optgroup>
+          <optgroup label="So Far">
+            <option value="todaySoFar">Today So Far</option>
+            <option value="thisWeekSoFar">This Week So Far</option>
+            <option value="thisMonthSoFar">This Month So Far</option>
+            <option value="thisYearSoFar">This Year So Far</option>
+          </optgroup>
+        </select>
+        <input type="datetime-local" id="rptFrom" class="rpt-date-input" title="From date/time"/>
+        <span style="color:var(--text-muted);font-size:.75rem;flex-shrink:0">to</span>
+        <input type="datetime-local" id="rptTo" class="rpt-date-input" title="To date/time"/>
+        <span style="color:var(--text-muted);font-size:.75rem;flex-shrink:0">Group by</span>
+        <select id="rptAggregate" class="rpt-select" title="Aggregation period">
+          <option value="">Default</option>
+          <option value="hour">Hour</option>
+          <option value="day">Day</option>
+          <option value="week">Week</option>
+          <option value="month">Month</option>
+        </select>
+        <button class="sbtn sbtn-primary" id="rptLoadBtn">Load</button>
+        <span id="rptSpinner" style="display:none;font-family:var(--font-mono);font-size:.7rem;color:var(--text-muted)">Loading…</span>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="stab-bar" id="rptTabBar">
+        <button class="stab active" data-rtab="ping">Ping Stability</button>
+        <button class="stab" data-rtab="traffic">Traffic History</button>
+        <button class="stab" data-rtab="bandwidth">Bandwidth Usage</button>
+        <button class="stab" data-rtab="alerts">Alert Events</button>
+        <button class="stab" data-rtab="connectivity">Connectivity</button>
+        <button class="stab" data-rtab="scheduled">Scheduled</button>
+      </div>
+
+      <!-- ── Ping Stability tab ─────────────────────────────────────────── -->
+      <div id="rtab-ping" class="rtab-panel active">
+        <div class="rpt-stat-row" id="rptPingStats"></div>
+        <div class="rpt-chart-wrap">
+          <div class="rpt-chart-title">RTT Trend (ms)</div>
+          <canvas id="rptPingChart" style="width:100%;height:140px"></canvas>
+        </div>
+        <div class="rpt-export-row">
+          <a id="rptPingCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptPingPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptPingThead"><th>Time</th><th>Target</th><th style="text-align:right">RTT (ms)</th><th style="text-align:right">Loss %</th></tr></thead>
+            <tbody id="rptPingTbody"><tr><td colspan="4" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+          <div class="rpt-pager" id="rptPingPager" style="display:none">
+            <span class="rpt-pager-info" id="rptPingPageInfo"></span>
+            <button class="rpt-pager-btn" id="rptPingPrev">&#8592; Prev</button>
+            <button class="rpt-pager-btn" id="rptPingNext">Next &#8594;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Traffic History tab ───────────────────────────────────────── -->
+      <div id="rtab-traffic" class="rtab-panel">
+        <div class="rpt-stat-row" id="rptTrafficStats"></div>
+        <div class="rpt-chart-wrap">
+          <div class="rpt-chart-title">RX / TX (Mbps)</div>
+          <canvas id="rptTrafficChart" style="width:100%;height:140px"></canvas>
+        </div>
+        <div class="rpt-iface-row">
+          <span class="rpt-iface-label">Interface:</span>
+          <select id="rptTrafficIface" class="rpt-select" aria-label="Interface"></select>
+          <label style="display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--text-muted);cursor:pointer;margin-left:.6rem">
+            <input type="checkbox" id="rptShowCapacity" style="accent-color:var(--accent-rx);cursor:pointer">
+            Show link capacity
+          </label>
+        </div>
+        <div class="rpt-export-row">
+          <a id="rptTrafficCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptTrafficPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptTrafficThead"><th>Time</th><th>Interface</th><th style="text-align:right">RX (Mbps)</th><th style="text-align:right">TX (Mbps)</th></tr></thead>
+            <tbody id="rptTrafficTbody"><tr><td colspan="4" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Bandwidth Usage tab ──────────────────────────────────────── -->
+      <div id="rtab-bandwidth" class="rtab-panel">
+        <div class="rpt-stat-row" id="rptBwStats"></div>
+        <div id="rptBwTruncHint" style="display:none;font-size:.7rem;color:var(--text-muted);margin:-.4rem 0 .6rem"></div>
+        <div class="rpt-chart-wrap">
+          <div class="rpt-chart-title" id="rptBwChartTitle">Download / Upload (MB/min)</div>
+          <canvas id="rptBandwidthChart" style="width:100%;height:140px"></canvas>
+        </div>
+        <div class="rpt-iface-row">
+          <span class="rpt-iface-label">Interface:</span>
+          <select id="rptBwIface" class="rpt-select" aria-label="Interface"></select>
+        </div>
+        <div class="rpt-export-row">
+          <a id="rptBwCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptBwPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptBwThead"><th>Time</th><th>Interface</th><th style="text-align:right">Download (MB)</th><th style="text-align:right">Upload (MB)</th></tr></thead>
+            <tbody id="rptBwTbody"><tr><td colspan="4" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="rpt-pager" id="rptBwPager" style="display:none">
+          <span class="rpt-pager-info" id="rptBwPageInfo"></span>
+          <button class="rpt-pager-btn" id="rptBwPrev">&#8592; Prev</button>
+          <button class="rpt-pager-btn" id="rptBwNext">Next &#8594;</button>
+        </div>
+      </div>
+
+      <!-- ── Alert Events tab ──────────────────────────────────────────── -->
+      <div id="rtab-alerts" class="rtab-panel">
+        <div class="rpt-stat-row" id="rptAlertStats"></div>
+        <div class="rpt-export-row">
+          <a id="rptAlertCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptAlertPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <!-- Six columns, matching what _applyAlertSort renders. The static
+                 markup declared five, so the header and the empty-state colspan
+                 disagreed with the rendered table until the first Load. -->
+            <thead><tr id="rptAlertThead"><th>Fired At</th><th>Type</th><th>Subject</th><th>Detail</th><th>Resolved At</th><th>Acknowledged</th><th style="text-align:right">Down Time</th></tr></thead>
+            <tbody id="rptAlertTbody"><tr><td colspan="7" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Connectivity tab ──────────────────────────────────────────── -->
+      <div id="rtab-connectivity" class="rtab-panel">
+        <div class="rpt-stat-row" id="rptConnStats"></div>
+        <div class="rpt-export-row">
+          <a id="rptConnCsvLink" class="sbtn sbtn-ghost" href="#" download style="display:none">Export CSV</a>
+          <a id="rptConnPdfLink" class="sbtn sbtn-ghost" href="#" target="_blank" style="display:none">Export PDF</a>
+        </div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr id="rptConnThead"><th>Time</th><th>Status</th></tr></thead>
+            <tbody id="rptConnTbody"><tr><td colspan="2" class="rpt-empty">Select a router and date range, then click Load.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Scheduled reports (#60) ─────────────────────────────────────
+           A tab rather than a card: this page is already tabbed, so a card
+           would sit on all five others. It inherits the router selector and
+           the page's permission gate, and needs no entry in src/pages.js. -->
+      <div id="rtab-scheduled" class="rtab-panel">
+        <div id="rptSchedNotice" class="ros-update-row warn" style="display:none">
+          <span class="ros-update-dot"></span>
+          <span id="rptSchedNoticeText"></span>
+        </div>
+        <div class="rpt-export-row" id="rptSchedActions"></div>
+        <div class="bw-table-wrap">
+          <table class="bw-table">
+            <thead><tr>
+              <th>Name</th><th>Frequency</th><th>Sections</th><th>Recipients</th>
+              <th>Last run</th><th class="text-end">Actions</th>
+            </tr></thead>
+            <tbody id="rptSchedTbody">
+              <tr><td colspan="6" class="rpt-empty">Select a router to see its scheduled reports.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="rptSchedRuns" style="margin-top:.85rem"></div>
+      </div>
+
+    </div>
+  </div>

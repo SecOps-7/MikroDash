@@ -1,17 +1,40 @@
+# The project name and the volume name are load-bearing.
+#
+# `name: mikrodash` + `volumes: data` is what produces the volume `mikrodash_data`,
+# which holds every history sample, alert row and audit row this install has ever
+# written, plus the encrypted settings and the user store. Renaming either would
+# silently start a brand new empty volume and look like total data loss.
 name: mikrodash
 
 services:
   mikrodash:
     build: .
-    image: mikrodash
-    container_name: mikrodash
-    environment:
-      - PORT=3081
+    image: mikrodash-go
+    container_name: mikrodash-go
     ports:
       - "3081:3081"
     volumes:
       - data:/data
     restart: unless-stopped
+    # The flags are baked into the image's CMD; they are repeated here so the
+    # deployed configuration is readable without inspecting the image.
+    #
+    # `-node=` is EMPTY on purpose and must stay that way. It names a Node
+    # MikroDash to proxy un-ported routes to, and it defaulted to
+    # http://127.0.0.1:3081 during the migration. At cutover that made the app
+    # proxy every such route TO ITSELF, and silently disabled the background pool
+    # and the retention sweep, because both are gated on "standalone" meaning no
+    # -node. Three subsystems wrong from one stale default.
+    command:
+      - -listen=:3081
+      - -node=
+      - -data=/data
+      - -web=/app/web/dist
+      - -static=/app/web/public
+      - -history
+      - -backup-scheduler
+      - -retention
+      - -alert-dispatch
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3081/healthz"]
       interval: 30s
@@ -23,10 +46,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    # To override infra settings, add an env_file or extra environment vars:
-    #   env_file: .env
-    # Available overrides: PORT, MAX_SOCKETS, TRUSTED_PROXY, ROS_WRITE_TIMEOUT_MS
-    # All router and dashboard settings are configured via the web UI.
 
 volumes:
   data:

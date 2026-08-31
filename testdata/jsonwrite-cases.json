@@ -1,0 +1,215 @@
+{
+  "generated_from": "JSON.stringify(value, null, 2)",
+  "cases": [
+    {
+      "why": "an empty array, which is what users.json holds on a fresh install",
+      "value": [],
+      "node": "[]",
+      "goSorted": "[]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "one record whose keys are already alphabetical, so Go agrees",
+      "value": [
+        {
+          "a": 1,
+          "b": 2,
+          "c": 3
+        }
+      ],
+      "node": "[\n  {\n    \"a\": 1,\n    \"b\": 2,\n    \"c\": 3\n  }\n]",
+      "goSorted": "[\n  {\n    \"a\": 1,\n    \"b\": 2,\n    \"c\": 3\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "THE ESCAPING: an ampersand in a label",
+      "value": [
+        {
+          "label": "A & B"
+        }
+      ],
+      "node": "[\n  {\n    \"label\": \"A & B\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"label\": \"A & B\"\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "angle brackets, which Go turns into escape sequences",
+      "value": [
+        {
+          "label": "<site>",
+          "note": "a > b"
+        }
+      ],
+      "node": "[\n  {\n    \"label\": \"<site>\",\n    \"note\": \"a > b\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"label\": \"<site>\",\n    \"note\": \"a > b\"\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "all three at once, in the shape a real site name takes",
+      "value": [
+        {
+          "id": "r1",
+          "label": "Ops & Eng <HQ>"
+        }
+      ],
+      "node": "[\n  {\n    \"id\": \"r1\",\n    \"label\": \"Ops & Eng <HQ>\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"id\": \"r1\",\n    \"label\": \"Ops & Eng <HQ>\"\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "a quote and a backslash, which BOTH sides escape and must escape alike",
+      "value": [
+        {
+          "label": "a \"quoted\" \\ path"
+        }
+      ],
+      "node": "[\n  {\n    \"label\": \"a \\\"quoted\\\" \\\\ path\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"label\": \"a \\\"quoted\\\" \\\\ path\"\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "a newline and a tab inside a value",
+      "value": [
+        {
+          "note": "line one\nline two\tend"
+        }
+      ],
+      "node": "[\n  {\n    \"note\": \"line one\\nline two\\tend\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"note\": \"line one\\nline two\\tend\"\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "non-ASCII stays raw on both sides - neither escapes it",
+      "value": [
+        {
+          "label": "Café Münster",
+          "city": "Kraków"
+        }
+      ],
+      "node": "[\n  {\n    \"label\": \"Café Münster\",\n    \"city\": \"Kraków\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"city\": \"Kraków\",\n    \"label\": \"Café Münster\"\n  }\n]",
+      "keyOrderDiffers": true
+    },
+    {
+      "why": "an emoji, which is a surrogate pair and must not be escaped",
+      "value": [
+        {
+          "label": "ops 🚀"
+        }
+      ],
+      "node": "[\n  {\n    \"label\": \"ops 🚀\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"label\": \"ops 🚀\"\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "a nested object, so the indent is checked at depth",
+      "value": [
+        {
+          "backup": {
+            "enabled": true,
+            "keepCount": 7
+          }
+        }
+      ],
+      "node": "[\n  {\n    \"backup\": {\n      \"enabled\": true,\n      \"keepCount\": 7\n    }\n  }\n]",
+      "goSorted": "[\n  {\n    \"backup\": {\n      \"enabled\": true,\n      \"keepCount\": 7\n    }\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "a nested array of strings",
+      "value": [
+        {
+          "id": "r1",
+          "siteIds": [
+            "site-a",
+            "site-b"
+          ]
+        }
+      ],
+      "node": "[\n  {\n    \"id\": \"r1\",\n    \"siteIds\": [\n      \"site-a\",\n      \"site-b\"\n    ]\n  }\n]",
+      "goSorted": "[\n  {\n    \"id\": \"r1\",\n    \"siteIds\": [\n      \"site-a\",\n      \"site-b\"\n    ]\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "null, true, false and a zero - the falsy values, whose spellings must match",
+      "value": [
+        {
+          "a": null,
+          "b": true,
+          "c": false,
+          "d": 0
+        }
+      ],
+      "node": "[\n  {\n    \"a\": null,\n    \"b\": true,\n    \"c\": false,\n    \"d\": 0\n  }\n]",
+      "goSorted": "[\n  {\n    \"a\": null,\n    \"b\": true,\n    \"c\": false,\n    \"d\": 0\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "a float and a large integer, where Go and JS number formatting can diverge",
+      "value": [
+        {
+          "big": 1000000,
+          "port": 8729,
+          "ratio": 0.5
+        }
+      ],
+      "node": "[\n  {\n    \"big\": 1000000,\n    \"port\": 8729,\n    \"ratio\": 0.5\n  }\n]",
+      "goSorted": "[\n  {\n    \"big\": 1000000,\n    \"port\": 8729,\n    \"ratio\": 0.5\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "an empty string and an empty object",
+      "value": [
+        {
+          "backup": {},
+          "label": ""
+        }
+      ],
+      "node": "[\n  {\n    \"backup\": {},\n    \"label\": \"\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"backup\": {},\n    \"label\": \"\"\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "two records, so the separator between array elements is checked",
+      "value": [
+        {
+          "id": "r1"
+        },
+        {
+          "id": "r2"
+        }
+      ],
+      "node": "[\n  {\n    \"id\": \"r1\"\n  },\n  {\n    \"id\": \"r2\"\n  }\n]",
+      "goSorted": "[\n  {\n    \"id\": \"r1\"\n  },\n  {\n    \"id\": \"r2\"\n  }\n]",
+      "keyOrderDiffers": false
+    },
+    {
+      "why": "KEY ORDER: a realistic record, whose keys are not alphabetical",
+      "value": [
+        {
+          "id": "r1",
+          "label": "One",
+          "host": "198.51.100.1",
+          "port": 8729,
+          "tls": true
+        }
+      ],
+      "node": "[\n  {\n    \"id\": \"r1\",\n    \"label\": \"One\",\n    \"host\": \"198.51.100.1\",\n    \"port\": 8729,\n    \"tls\": true\n  }\n]",
+      "goSorted": "[\n  {\n    \"host\": \"198.51.100.1\",\n    \"id\": \"r1\",\n    \"label\": \"One\",\n    \"port\": 8729,\n    \"tls\": true\n  }\n]",
+      "keyOrderDiffers": true
+    },
+    {
+      "why": "KEY ORDER: reverse-alphabetical, the clearest possible case",
+      "value": [
+        {
+          "z": 1,
+          "y": 2,
+          "x": 3
+        }
+      ],
+      "node": "[\n  {\n    \"z\": 1,\n    \"y\": 2,\n    \"x\": 3\n  }\n]",
+      "goSorted": "[\n  {\n    \"x\": 3,\n    \"y\": 2,\n    \"z\": 1\n  }\n]",
+      "keyOrderDiffers": true
+    }
+  ]
+}

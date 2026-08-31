@@ -1,0 +1,142 @@
+'use strict';
+/**
+ * The poll-interval tables, lifted from the live `public/app.js`.
+ *
+ * `POLL_SLIDERS` (19 rows) decides which sliders the Settings page draws, their
+ * ranges and which ones are event-driven; `POLL_PROFILES` decides what each
+ * preset button writes into them.
+ *
+ * ── THESE FAIL SILENTLY IN BOTH DIRECTIONS, WHICH IS WHY THEY ARE GENERATED ─
+ *
+ *   a slider missing from POLL_SLIDERS   is simply not drawn. The interval is
+ *                                        still live and still collected; the
+ *                                        operator just cannot see or change it.
+ *   a key missing from a PROFILE         is skipped by `_applyPollProfile`
+ *                                        ("leaves it alone rather than writing
+ *                                        undefined"), so clicking Fast quietly
+ *                                        leaves that one collector where it was.
+ *   a profile BUTTON with no entry       highlights itself as active and writes
+ *                                        nothing at all.
+ *
+ * None of those produce an error. Retyping 19 rows and five 20-key profiles by
+ * hand is exactly the shape that drifts, and the drift is invisible.
+ *
+ * ── THE MARKUP IS THE ENUMERABLE SOURCE, as in tools/appearance-tables.js ────
+ *
+ * The profile buttons carry `data-profile`, so the set of profiles a user can
+ * ASK for is readable from the page. This checks the table against that rather
+ * than against a pattern — with one legitimate exception, recorded below:
+ * `custom` is a real button and is deliberately absent from the literal, because
+ * it is filled in at load time from `data.customPollProfile`.
+ *
+ *   MIKRODASH_SRC=../MikroDash node tools/poll-tables.js [--check]
+ */
+
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const ROOT = path.join(__dirname, '..');
+const LIVE = path.resolve(process.env.MIKRODASH_SRC || path.join(ROOT, '..', 'MikroDash'));
+const src = fs.readFileSync(path.join(LIVE, 'public', 'app.js'), 'utf8');
+
+function slice(decl, close, name) {
+  const i = src.indexOf(decl);
+  if (i === -1) throw new Error('cannot find ' + name + ' — it has moved or been rewritten');
+  const j = src.indexOf(close, i);
+  if (j === -1) throw new Error(name + ' is never closed');
+  return src.slice(i, j + close.length);
+}
+
+const ctx = {};
+vm.createContext(ctx);
+vm.runInContext(
+  slice('  var POLL_SLIDERS = [', '\n  ];', 'POLL_SLIDERS') + '\n' +
+  slice('  var POLL_PROFILES = {', '\n  };', 'POLL_PROFILES') + '\n' +
+  slice('  var POLL_PROFILE_KEY = ', ';', 'POLL_PROFILE_KEY') + '\n' +
+  'this.OUT = { sliders: POLL_SLIDERS, profiles: POLL_PROFILES, key: POLL_PROFILE_KEY };',
+  ctx);
+const { sliders, profiles, key } = ctx.OUT;
+
+// ── The cross-checks ────────────────────────────────────────────────────────
+
+if (!Array.isArray(sliders) || sliders.length < 15) {
+  throw new Error('POLL_SLIDERS lifted as ' + sliders.length + ' rows — the slice is wrong');
+}
+
+// `custom` IS a button and is NOT in the literal. It is written at load time
+// from `data.customPollProfile`, so its absence here is correct and its presence
+// would be the bug. Named rather than filtered by a rule, so that a SECOND
+// runtime-filled profile appearing later shows up as a failure instead of being
+// swept into the same exception.
+const RUNTIME_FILLED = ['custom'];
+
+const markup = fs.readFileSync(path.join(ROOT, 'web', 'src', 'ui', 'page-settings.html'), 'utf8');
+const offered = [...markup.matchAll(/data-profile="([^"]+)"/g)].map((m) => m[1]).sort();
+if (offered.length === 0) {
+  throw new Error('no data-profile buttons in page-settings.html — this check is inert');
+}
+const known = Object.keys(profiles).concat(RUNTIME_FILLED).sort();
+const missing = offered.filter((p) => !known.includes(p));
+const unreachable = Object.keys(profiles).filter((p) => !offered.includes(p));
+if (missing.length) {
+  throw new Error('the page offers profile button(s) no table defines: ' + missing.join(', ') +
+                  ' — clicking one lights up and writes nothing');
+}
+if (unreachable.length) {
+  throw new Error('POLL_PROFILES defines profile(s) no button offers: ' + unreachable.join(', '));
+}
+
+// Every profile should cover every non-streamed slider. The live `standard` row
+// is documented as NOT matching Settings.DEFAULTS, so this records COVERAGE
+// rather than asserting equality — a profile silently missing a key is the
+// failure mode, and it is recorded per profile so a regression is visible in the
+// diff instead of being argued about.
+const settable = sliders.filter((s) => !s.streamed).map((s) => s.key);
+const coverage = {};
+for (const [name, p] of Object.entries(profiles)) {
+  coverage[name] = settable.filter((k) => p[k] === undefined).sort();
+}
+
+const out = {
+  _generated: 'tools/poll-tables.js — do not edit',
+  sliders, profiles, profileKey: key,
+  offeredProfiles: offered,
+  uncoveredByProfile: coverage,
+};
+
+const ts =
+  '// GENERATED by tools/poll-tables.js — do not edit.\n' +
+  '//\n' +
+  '// The poll-interval sliders and the preset profiles, lifted from the live\n' +
+  '// public/app.js. Every one of these tables fails SILENTLY when it drifts —\n' +
+  '// a missing slider is simply not drawn, a missing profile key leaves that\n' +
+  '// collector where it was — so they are lifted rather than retyped. See the\n' +
+  '// generator for the three silent-failure modes.\n\n' +
+  'export interface PollSlider {\n' +
+  '  key: string;\n  label: string;\n  min?: number;\n  max?: number;\n' +
+  '  step?: number;\n  unit?: string;\n  streamed?: boolean;\n}\n\n' +
+  'export const POLL_SLIDERS: PollSlider[] = ' + JSON.stringify(sliders, null, 2) + ';\n\n' +
+  'export const POLL_PROFILES: Record<string, Record<string, number>> = ' +
+  JSON.stringify(profiles, null, 2) + ';\n\n' +
+  '/** The localStorage key the live app remembers the chosen profile under. */\n' +
+  'export const POLL_PROFILE_KEY = ' + JSON.stringify(key) + ';\n';
+
+const TS_OUT = path.join(ROOT, 'web', 'src', 'gen', 'poll-tables.ts');
+const JSON_OUT = path.join(ROOT, 'testdata', 'poll-tables.json');
+
+if (process.argv.includes('--check')) {
+  let stale = false;
+  for (const [f, want] of [[TS_OUT, ts], [JSON_OUT, JSON.stringify(out, null, 2) + '\n']]) {
+    const have = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : '';
+    if (have !== want) { console.log('STALE: ' + path.relative(ROOT, f)); stale = true; }
+  }
+  if (stale) process.exit(1);
+  console.log('poll tables current (' + sliders.length + ' sliders, ' +
+              Object.keys(profiles).length + ' profiles, ' + offered.length + ' offered)');
+} else {
+  fs.writeFileSync(TS_OUT, ts);
+  fs.writeFileSync(JSON_OUT, JSON.stringify(out, null, 2) + '\n');
+  console.log('wrote ' + path.relative(ROOT, TS_OUT) + ' and ' + path.relative(ROOT, JSON_OUT) +
+              ' (' + sliders.length + ' sliders, ' + Object.keys(profiles).length + ' profiles)');
+}

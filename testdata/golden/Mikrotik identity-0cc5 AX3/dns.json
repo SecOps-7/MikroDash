@@ -1,0 +1,120 @@
+{
+  "ts": 0,
+  "pollMs": 30000,
+  "settings": {
+    "servers": [],
+    "dynamicServers": [],
+    "dohEnabled": true,
+    "dohUrl": "use-doh-server-c80d",
+    "dohVerifyCert": true,
+    "dohMaxServerConnections": 5,
+    "dohMaxConcurrentQueries": 50,
+    "dohTimeout": "5s",
+    "allowRemoteRequests": true,
+    "cacheSize": 2048,
+    "cacheUsed": 391,
+    "cacheMaxTtl": "1w",
+    "maxUdpPacketSize": 4096,
+    "maxConcurrentQueries": 100,
+    "queryServerTimeout": "2s",
+    "queryTotalTimeout": "10s",
+    "mdnsRepeatIfaces": [
+      "IoT",
+      "Home"
+    ],
+    "vrf": "main"
+  },
+  "staticEntries": [
+    {
+      "id": "*6",
+      "name": "name-2768",
+      "regexp": "",
+      "address": "198.51.100.54",
+      "type": "A",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": ""
+    },
+    {
+      "id": "*B",
+      "name": "name-3c3f",
+      "regexp": "",
+      "address": "",
+      "type": "FWD",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": "comment-c8e4"
+    },
+    {
+      "id": "*C",
+      "name": "name-562f",
+      "regexp": "",
+      "address": "",
+      "type": "FWD",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": "comment-c8e4"
+    },
+    {
+      "id": "*5",
+      "name": "name-5963",
+      "regexp": "",
+      "address": "198.51.100.219",
+      "type": "A",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": "comment-c17f"
+    },
+    {
+      "id": "*4",
+      "name": "name-9129",
+      "regexp": "",
+      "address": "198.51.100.219",
+      "type": "A",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": "comment-c17f"
+    },
+    {
+      "id": "*A",
+      "name": "name-963a",
+      "regexp": "",
+      "address": "",
+      "type": "FWD",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": "comment-c8e4"
+    },
+    {
+      "id": "*1",
+      "name": "name-b2d8",
+      "regexp": "",
+      "address": "endpoint-0ed5",
+      "type": "A",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": "comment-c17f"
+    },
+    {
+      "id": "*8",
+      "name": "name-b563",
+      "regexp": "",
+      "address": "",
+      "type": "FWD",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": "comment-c8e4"
+    },
+    {
+      "id": "*7",
+      "name": "name-ea2a",
+      "regexp": "",
+      "address": "198.51.100.252",
+      "type": "A",
+      "ttl": "1d",
+      "disabled": false,
+      "comment": ""
+    }
+  ],
+  "available": true
+}

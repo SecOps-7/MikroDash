@@ -1,0 +1,834 @@
+{
+  "generatedFrom": "src/alertSessions.js + src/db-writer.js",
+  "base": 1773567000000,
+  "cases": [
+    {
+      "name": "cold start, first connect records up",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        }
+      ]
+    },
+    {
+      "name": "reconnect with no intervening down writes NOTHING",
+      "note": "alertSessions.js:140 — unconditional writes on every reconnect inflate uptime for a flapping link",
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "connect"
+        ],
+        [
+          "connect"
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": true,
+          "atClock": 0
+        }
+      ]
+    },
+    {
+      "name": "a genuine down->up transition writes both rows",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          30000
+        ],
+        [
+          "connect"
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 30000
+        },
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 30000,
+          "atClock": 30000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 30000
+        },
+        {
+          "connected": true,
+          "atClock": 30000
+        }
+      ]
+    },
+    {
+      "name": "the debounced outage records the OBSERVED time, not the firing time",
+      "note": "alertSessions.js:~193 (#99) — downAt is captured before the timer and used inside it",
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          30000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 30000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 30000
+        }
+      ]
+    },
+    {
+      "name": "a flap INSIDE the debounce window writes nothing at all",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          10000
+        ],
+        [
+          "connect"
+        ],
+        [
+          "advance",
+          60000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": true,
+          "atClock": 10000
+        }
+      ]
+    },
+    {
+      "name": "a second close during the debounce does not re-arm or double-record",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          5000
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          5000
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          30000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 30000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 30000
+        }
+      ]
+    },
+    {
+      "name": "COLD-START disconnect records immediately, bypassing the debounce",
+      "note": "alertSessions.js:168 — _prevConnected === null takes the immediate branch",
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "close"
+        ],
+        [
+          "advance",
+          60000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": false,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": false,
+          "atClock": 0
+        }
+      ]
+    },
+    {
+      "name": "cold-start disconnect then connect writes the up row",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "close"
+        ],
+        [
+          "advance",
+          1000
+        ],
+        [
+          "connect"
+        ]
+      ],
+      "rows": [
+        {
+          "connected": false,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 1000,
+          "atClock": 1000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": false,
+          "atClock": 0
+        },
+        {
+          "connected": true,
+          "atClock": 1000
+        }
+      ]
+    },
+    {
+      "name": "threshold 0 records immediately with no timer",
+      "note": null,
+      "thresholdSec": 0,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          1000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 0
+        }
+      ]
+    },
+    {
+      "name": "threshold 0, repeated closes DO record a row each time",
+      "note": "named the other way round first, and the corpus disagreed: the _prevConnected !== false guard is on the ALERT only. The row is unguarded, so a router flapping with threshold 0 writes one DOWN per close. Reproduced deliberately — this is live behaviour, not a bug to fix in a port.",
+      "thresholdSec": 0,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          1000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 0
+        }
+      ]
+    },
+    {
+      "name": "threshold 0 full cycle down/up/down",
+      "note": null,
+      "thresholdSec": 0,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          1000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 0
+        },
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 0
+        }
+      ]
+    },
+    {
+      "name": "connectionError is a disconnect exactly like close",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "error"
+        ],
+        [
+          "advance",
+          30000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 30000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 30000
+        }
+      ]
+    },
+    {
+      "name": "connect CANCELS a pending debounce timer",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          29999
+        ],
+        [
+          "connect"
+        ],
+        [
+          "advance",
+          120000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": true,
+          "atClock": 29999
+        }
+      ]
+    },
+    {
+      "name": "the debounce fires exactly AT the threshold, not after it",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          29999
+        ],
+        [
+          "advance",
+          1
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 30000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 30000
+        }
+      ]
+    },
+    {
+      "name": "a long outage records once, not once per elapsed threshold",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          600000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 30000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 30000
+        }
+      ]
+    },
+    {
+      "name": "repeated full cycles each record a transition pair",
+      "note": null,
+      "thresholdSec": 30,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          30000
+        ],
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          30000
+        ],
+        [
+          "connect"
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 30000
+        },
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 30000,
+          "atClock": 30000
+        },
+        {
+          "connected": false,
+          "tsArg": 30000,
+          "rowTs": 30000,
+          "atClock": 60000
+        },
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 60000,
+          "atClock": 60000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 30000
+        },
+        {
+          "connected": true,
+          "atClock": 30000
+        },
+        {
+          "connected": false,
+          "atClock": 60000
+        },
+        {
+          "connected": true,
+          "atClock": 60000
+        }
+      ]
+    },
+    {
+      "name": "a custom threshold is honoured, not rounded to the default",
+      "note": null,
+      "thresholdSec": 5,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          4999
+        ],
+        [
+          "advance",
+          1
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 5000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 5000
+        }
+      ]
+    },
+    {
+      "name": "a long custom threshold does not fire at the default 30s",
+      "note": null,
+      "thresholdSec": 120,
+      "steps": [
+        [
+          "connect"
+        ],
+        [
+          "close"
+        ],
+        [
+          "advance",
+          30000
+        ],
+        [
+          "advance",
+          90000
+        ]
+      ],
+      "rows": [
+        {
+          "connected": true,
+          "tsArg": null,
+          "rowTs": 0,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "tsArg": 0,
+          "rowTs": 0,
+          "atClock": 120000
+        }
+      ],
+      "statusEmits": [
+        {
+          "connected": true,
+          "atClock": 0
+        },
+        {
+          "connected": false,
+          "atClock": 120000
+        }
+      ]
+    }
+  ]
+}

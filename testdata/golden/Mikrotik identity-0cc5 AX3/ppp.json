@@ -1,0 +1,28 @@
+{
+  "ts": 0,
+  "pollMs": 30000,
+  "sessions": [],
+  "profiles": [
+    {
+      "name": "default",
+      "localAddress": "",
+      "remoteAddress": "",
+      "rateLimit": "",
+      "onlyOne": "default",
+      "encryption": "default"
+    },
+    {
+      "name": "default-encryption",
+      "localAddress": "",
+      "remoteAddress": "",
+      "rateLimit": "",
+      "onlyOne": "default",
+      "encryption": "yes"
+    }
+  ],
+  "servers": [],
+  "byService": {},
+  "totalRxRate": null,
+  "totalTxRate": null,
+  "available": true
+}

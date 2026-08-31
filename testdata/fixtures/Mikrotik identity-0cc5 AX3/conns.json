@@ -1,0 +1,3880 @@
+{
+  "collector": "conns",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/firewall/connection/print",
+      "params": [
+        "=.proplist=.id,src-address,dst-address,protocol,dst-port,orig-bytes,repl-bytes"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "src-address": "198.51.100.64",
+          "dst-address": "198.51.100.160",
+          "protocol": "igmp",
+          "orig-bytes": "104184",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*9",
+          "src-address": "198.51.100.176",
+          "dst-address": "198.51.100.218",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "155136",
+          "repl-bytes": "193920"
+        },
+        {
+          ".id": "*B",
+          "src-address": "198.51.100.216",
+          "dst-address": "198.51.100.218",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "155328",
+          "repl-bytes": "193760"
+        },
+        {
+          ".id": "*D",
+          "src-address": "198.51.100.56",
+          "dst-address": "198.51.100.218",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "155136",
+          "repl-bytes": "193840"
+        },
+        {
+          ".id": "*1B",
+          "src-address": "198.51.100.225",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2390087",
+          "repl-bytes": "931969"
+        },
+        {
+          ".id": "*20",
+          "src-address": "198.51.100.91",
+          "dst-address": "198.51.100.193",
+          "protocol": "udp",
+          "dst-port": "51820",
+          "orig-bytes": "1976112",
+          "repl-bytes": "1201556"
+        },
+        {
+          ".id": "*2F",
+          "src-address": "198.51.100.141",
+          "dst-address": "198.51.100.218",
+          "protocol": "icmp",
+          "orig-bytes": "24298932",
+          "repl-bytes": "24288264"
+        },
+        {
+          ".id": "*55",
+          "src-address": "198.51.100.189",
+          "dst-address": "198.51.100.91",
+          "protocol": "udp",
+          "dst-port": "51817",
+          "orig-bytes": "10498086876",
+          "repl-bytes": "1435961108"
+        },
+        {
+          ".id": "*60",
+          "src-address": "198.51.100.64",
+          "dst-address": "198.51.100.117",
+          "protocol": "udp",
+          "dst-port": "5353",
+          "orig-bytes": "76116732",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*77",
+          "src-address": "198.51.100.141",
+          "dst-address": "198.51.100.34",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1492071",
+          "repl-bytes": "1232021"
+        },
+        {
+          ".id": "*7C",
+          "src-address": "198.51.100.91",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "35647705",
+          "repl-bytes": "41634648"
+        },
+        {
+          ".id": "*80",
+          "src-address": "198.51.100.174",
+          "dst-address": "198.51.100.117",
+          "protocol": "udp",
+          "dst-port": "5353",
+          "orig-bytes": "6991177",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*B3",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.63",
+          "protocol": "udp",
+          "dst-port": "51820",
+          "orig-bytes": "4128676784",
+          "repl-bytes": "32582168926"
+        },
+        {
+          ".id": "*CF",
+          "src-address": "198.51.100.95",
+          "dst-address": "198.51.100.91",
+          "protocol": "udp",
+          "dst-port": "51808",
+          "orig-bytes": "77777175584",
+          "repl-bytes": "2982504780"
+        },
+        {
+          ".id": "*D3",
+          "src-address": "198.51.100.120",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5474280",
+          "repl-bytes": "1785684"
+        },
+        {
+          ".id": "*D7",
+          "src-address": "198.51.100.174",
+          "dst-address": "198.51.100.218",
+          "protocol": "icmp",
+          "orig-bytes": "5341704",
+          "repl-bytes": "5339588"
+        },
+        {
+          ".id": "*1FE",
+          "src-address": "198.51.100.141",
+          "dst-address": "198.51.100.204",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "46764772",
+          "repl-bytes": "32232209"
+        },
+        {
+          ".id": "*2AB",
+          "src-address": "198.51.100.71",
+          "dst-address": "198.51.100.34",
+          "protocol": "tcp",
+          "dst-port": "8886",
+          "orig-bytes": "738695",
+          "repl-bytes": "534672"
+        },
+        {
+          ".id": "*823",
+          "src-address": "198.51.100.91",
+          "dst-address": "198.51.100.129",
+          "protocol": "udp",
+          "dst-port": "13231",
+          "orig-bytes": "248387660",
+          "repl-bytes": "8382535980"
+        },
+        {
+          ".id": "*87B",
+          "src-address": "198.51.100.132",
+          "dst-address": "198.51.100.205",
+          "protocol": "igmp",
+          "orig-bytes": "79200",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*44B7",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "8291",
+          "orig-bytes": "98758081",
+          "repl-bytes": "1863543201"
+        },
+        {
+          ".id": "*13CAE",
+          "src-address": "198.51.100.223",
+          "dst-address": "198.51.100.133",
+          "protocol": "tcp",
+          "dst-port": "8886",
+          "orig-bytes": "707950",
+          "repl-bytes": "518546"
+        },
+        {
+          ".id": "*13CBB",
+          "src-address": "198.51.100.49",
+          "dst-address": "198.51.100.183",
+          "protocol": "tcp",
+          "dst-port": "1885",
+          "orig-bytes": "4342390",
+          "repl-bytes": "1619297"
+        },
+        {
+          ".id": "*143FA",
+          "src-address": "198.51.100.209",
+          "dst-address": "198.51.100.117",
+          "protocol": "udp",
+          "dst-port": "5353",
+          "orig-bytes": "24922930",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*143FD",
+          "src-address": "198.51.100.130",
+          "dst-address": "198.51.100.117",
+          "protocol": "udp",
+          "dst-port": "5353",
+          "orig-bytes": "14635992",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*4D388",
+          "src-address": "198.51.100.91",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "82011536",
+          "repl-bytes": "95063098"
+        },
+        {
+          ".id": "*549F1",
+          "src-address": "198.51.100.120",
+          "dst-address": "198.51.100.176",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "96437",
+          "repl-bytes": "65641"
+        },
+        {
+          ".id": "*64ABE",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.247",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1666122",
+          "repl-bytes": "852846"
+        },
+        {
+          ".id": "*64BCC",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5222065",
+          "repl-bytes": "1789775"
+        },
+        {
+          ".id": "*708F1",
+          "src-address": "198.51.100.193",
+          "dst-address": "198.51.100.34",
+          "protocol": "tcp",
+          "dst-port": "8886",
+          "orig-bytes": "506915",
+          "repl-bytes": "376671"
+        },
+        {
+          ".id": "*7676B",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.17",
+          "protocol": "udp",
+          "dst-port": "32412",
+          "orig-bytes": "1936823",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*7676C",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.17",
+          "protocol": "udp",
+          "dst-port": "32414",
+          "orig-bytes": "1936823",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*7678B",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.241",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1030243",
+          "repl-bytes": "1707997"
+        },
+        {
+          ".id": "*767FC",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.140",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "1029728",
+          "repl-bytes": "1904053"
+        },
+        {
+          ".id": "*76813",
+          "src-address": "198.51.100.140",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "1029516",
+          "repl-bytes": "1904040"
+        },
+        {
+          ".id": "*7683E",
+          "src-address": "198.51.100.104",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "1030194",
+          "repl-bytes": "1909276"
+        },
+        {
+          ".id": "*78208",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.103",
+          "protocol": "tcp",
+          "dst-port": "23682",
+          "orig-bytes": "1022450",
+          "repl-bytes": "1889771"
+        },
+        {
+          ".id": "*7820D",
+          "src-address": "198.51.100.103",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "1022571",
+          "repl-bytes": "1891504"
+        },
+        {
+          ".id": "*9659B",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.132",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "698266",
+          "repl-bytes": "1465390"
+        },
+        {
+          ".id": "*ACC3B",
+          "src-address": "198.51.100.209",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "8855",
+          "repl-bytes": "19659"
+        },
+        {
+          ".id": "*B0C5C",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.241",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "788297",
+          "repl-bytes": "1307211"
+        },
+        {
+          ".id": "*B15EB",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.243",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "8434957",
+          "repl-bytes": "2127523"
+        },
+        {
+          ".id": "*B163F",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.143",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "771480",
+          "repl-bytes": "5532448"
+        },
+        {
+          ".id": "*B164A",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.165",
+          "protocol": "tcp",
+          "dst-port": "6466",
+          "orig-bytes": "7579395",
+          "repl-bytes": "12245188"
+        },
+        {
+          ".id": "*B16A4",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.59",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4271999",
+          "repl-bytes": "785654"
+        },
+        {
+          ".id": "*B16A6",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.174",
+          "protocol": "tcp",
+          "dst-port": "6638",
+          "orig-bytes": "39951086",
+          "repl-bytes": "56195107"
+        },
+        {
+          ".id": "*B16D9",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.71",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1003538",
+          "repl-bytes": "580741"
+        },
+        {
+          ".id": "*C5FBF",
+          "src-address": "198.51.100.86",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "152943",
+          "repl-bytes": "177619"
+        },
+        {
+          ".id": "*DCFA7",
+          "src-address": "198.51.100.13",
+          "dst-address": "198.51.100.126",
+          "protocol": "tcp",
+          "dst-port": "6021",
+          "orig-bytes": "108922",
+          "repl-bytes": "48684"
+        },
+        {
+          ".id": "*DD336",
+          "src-address": "198.51.100.76",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "588071",
+          "repl-bytes": "1089858"
+        },
+        {
+          ".id": "*E07F6",
+          "src-address": "198.51.100.187",
+          "dst-address": "198.51.100.33",
+          "protocol": "tcp",
+          "dst-port": "8886",
+          "orig-bytes": "284081",
+          "repl-bytes": "207826"
+        },
+        {
+          ".id": "*E0B41",
+          "src-address": "198.51.100.200",
+          "dst-address": "198.51.100.93",
+          "protocol": "tcp",
+          "dst-port": "8883",
+          "orig-bytes": "205221",
+          "repl-bytes": "135757"
+        },
+        {
+          ".id": "*EDD96",
+          "src-address": "198.51.100.103",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "687730",
+          "repl-bytes": "1042924"
+        },
+        {
+          ".id": "*EDE30",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.58",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "210177",
+          "repl-bytes": "324211"
+        },
+        {
+          ".id": "*1031DC",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "2909",
+          "repl-bytes": "6080"
+        },
+        {
+          ".id": "*106DAC",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.25",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "12158",
+          "repl-bytes": "60635"
+        },
+        {
+          ".id": "*10D9A7",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.119",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "438412",
+          "repl-bytes": "733456"
+        },
+        {
+          ".id": "*10D9DF",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "1939842",
+          "repl-bytes": "11981671"
+        },
+        {
+          ".id": "*113DE9",
+          "src-address": "198.51.100.132",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "292539",
+          "repl-bytes": "627296"
+        },
+        {
+          ".id": "*1141BB",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4064",
+          "repl-bytes": "8697"
+        },
+        {
+          ".id": "*1141D2",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3532",
+          "repl-bytes": "7647"
+        },
+        {
+          ".id": "*11B0CB",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.48",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6336404",
+          "repl-bytes": "5931555"
+        },
+        {
+          ".id": "*123063",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.120",
+          "protocol": "tcp",
+          "dst-port": "1883",
+          "orig-bytes": "4171785",
+          "repl-bytes": "795423"
+        },
+        {
+          ".id": "*1261DF",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.228",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "283232",
+          "repl-bytes": "415783"
+        },
+        {
+          ".id": "*126D45",
+          "src-address": "198.51.100.91",
+          "dst-address": "198.51.100.104",
+          "protocol": "icmp",
+          "orig-bytes": "840",
+          "repl-bytes": "840"
+        },
+        {
+          ".id": "*12903F",
+          "src-address": "198.51.100.171",
+          "dst-address": "198.51.100.126",
+          "protocol": "tcp",
+          "dst-port": "6021",
+          "orig-bytes": "56136",
+          "repl-bytes": "24460"
+        },
+        {
+          ".id": "*12ABCD",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "42677",
+          "repl-bytes": "80979"
+        },
+        {
+          ".id": "*12B7D3",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.157",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "210164",
+          "repl-bytes": "211397"
+        },
+        {
+          ".id": "*12B7DC",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.1",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1510068",
+          "repl-bytes": "1774032"
+        },
+        {
+          ".id": "*12B7E0",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.1",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1471816",
+          "repl-bytes": "1505547"
+        },
+        {
+          ".id": "*12B7ED",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.129",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "271310",
+          "repl-bytes": "943029"
+        },
+        {
+          ".id": "*12B827",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.1",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "2032888",
+          "repl-bytes": "2429947"
+        },
+        {
+          ".id": "*12C638",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "8565",
+          "repl-bytes": "55553"
+        },
+        {
+          ".id": "*12CC1C",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.86",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1995442",
+          "repl-bytes": "1581853"
+        },
+        {
+          ".id": "*12CC20",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.86",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1229920",
+          "repl-bytes": "853203"
+        },
+        {
+          ".id": "*12CC23",
+          "src-address": "198.51.100.86",
+          "dst-address": "198.51.100.76",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "105228",
+          "repl-bytes": "105660"
+        },
+        {
+          ".id": "*12CC35",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.86",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1229055",
+          "repl-bytes": "853215"
+        },
+        {
+          ".id": "*12CC63",
+          "src-address": "198.51.100.86",
+          "dst-address": "198.51.100.5",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "251034",
+          "repl-bytes": "907857"
+        },
+        {
+          ".id": "*12CC85",
+          "src-address": "198.51.100.86",
+          "dst-address": "198.51.100.76",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "67712",
+          "repl-bytes": "102936"
+        },
+        {
+          ".id": "*12D5DD",
+          "src-address": "198.51.100.183",
+          "dst-address": "198.51.100.182",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "12423",
+          "repl-bytes": "73883"
+        },
+        {
+          ".id": "*130BC1",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3496",
+          "repl-bytes": "7775"
+        },
+        {
+          ".id": "*13280E",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.165",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "5413520",
+          "repl-bytes": "117633270"
+        },
+        {
+          ".id": "*132810",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.165",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "5493315",
+          "repl-bytes": "117669235"
+        },
+        {
+          ".id": "*132824",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.165",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "4832557",
+          "repl-bytes": "116556411"
+        },
+        {
+          ".id": "*132A31",
+          "src-address": "198.51.100.152",
+          "dst-address": "198.51.100.76",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "1719",
+          "repl-bytes": "7429"
+        },
+        {
+          ".id": "*132A33",
+          "src-address": "198.51.100.152",
+          "dst-address": "198.51.100.76",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "1614",
+          "repl-bytes": "6424"
+        },
+        {
+          ".id": "*132C13",
+          "src-address": "198.51.100.152",
+          "dst-address": "198.51.100.76",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "93629",
+          "repl-bytes": "94220"
+        },
+        {
+          ".id": "*132C1B",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.152",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1152173",
+          "repl-bytes": "888673"
+        },
+        {
+          ".id": "*132C24",
+          "src-address": "198.51.100.152",
+          "dst-address": "198.51.100.76",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "60966",
+          "repl-bytes": "92094"
+        },
+        {
+          ".id": "*132C28",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.152",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1795486",
+          "repl-bytes": "1521766"
+        },
+        {
+          ".id": "*132C2F",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.152",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1142857",
+          "repl-bytes": "890865"
+        },
+        {
+          ".id": "*132C55",
+          "src-address": "198.51.100.152",
+          "dst-address": "198.51.100.139",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "229709",
+          "repl-bytes": "873582"
+        },
+        {
+          ".id": "*135728",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.86",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "208113",
+          "repl-bytes": "207544"
+        },
+        {
+          ".id": "*135F6A",
+          "src-address": "198.51.100.90",
+          "dst-address": "198.51.100.223",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4960",
+          "repl-bytes": "9187"
+        },
+        {
+          ".id": "*136DA6",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.79",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "201645",
+          "repl-bytes": "201444"
+        },
+        {
+          ".id": "*13ACE2",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "54974",
+          "repl-bytes": "652511"
+        },
+        {
+          ".id": "*13BF16",
+          "src-address": "198.51.100.29",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "153692",
+          "repl-bytes": "326198"
+        },
+        {
+          ".id": "*13C3D1",
+          "src-address": "198.51.100.91",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1739571",
+          "repl-bytes": "2009610"
+        },
+        {
+          ".id": "*13C743",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "28446",
+          "repl-bytes": "51923"
+        },
+        {
+          ".id": "*13DFBF",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.179",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "168699",
+          "repl-bytes": "169524"
+        },
+        {
+          ".id": "*14118E",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.237",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "5788",
+          "repl-bytes": "18858"
+        },
+        {
+          ".id": "*145811",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "65016",
+          "repl-bytes": "90496"
+        },
+        {
+          ".id": "*145B80",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.126",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "132677",
+          "repl-bytes": "211534"
+        },
+        {
+          ".id": "*145DFE",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.231",
+          "protocol": "tcp",
+          "dst-port": "8883",
+          "orig-bytes": "11306",
+          "repl-bytes": "10145"
+        },
+        {
+          ".id": "*145E80",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "130120",
+          "repl-bytes": "209296"
+        },
+        {
+          ".id": "*1460E4",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.56",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "34031",
+          "repl-bytes": "27978"
+        },
+        {
+          ".id": "*147223",
+          "src-address": "198.51.100.56",
+          "dst-address": "198.51.100.126",
+          "protocol": "tcp",
+          "dst-port": "6021",
+          "orig-bytes": "49580",
+          "repl-bytes": "15436"
+        },
+        {
+          ".id": "*14728C",
+          "src-address": "198.51.100.107",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "155959",
+          "repl-bytes": "292888"
+        },
+        {
+          ".id": "*149676",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.245",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "5245",
+          "repl-bytes": "26302"
+        },
+        {
+          ".id": "*14BE7B",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.81",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "6917",
+          "repl-bytes": "25939"
+        },
+        {
+          ".id": "*14D51C",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.245",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "101956",
+          "repl-bytes": "103876"
+        },
+        {
+          ".id": "*14D52D",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.129",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "139939",
+          "repl-bytes": "796259"
+        },
+        {
+          ".id": "*14D538",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.20",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "858005",
+          "repl-bytes": "1023075"
+        },
+        {
+          ".id": "*14D53F",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.20",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "828879",
+          "repl-bytes": "859954"
+        },
+        {
+          ".id": "*14D561",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.20",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "989597",
+          "repl-bytes": "1255004"
+        },
+        {
+          ".id": "*14E4E2",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.9",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "363600",
+          "repl-bytes": "504539"
+        },
+        {
+          ".id": "*14E714",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1615097",
+          "repl-bytes": "498696"
+        },
+        {
+          ".id": "*14E7DA",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.173",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "13835059",
+          "repl-bytes": "13106196"
+        },
+        {
+          ".id": "*14E807",
+          "src-address": "198.51.100.64",
+          "dst-address": "198.51.100.126",
+          "protocol": "tcp",
+          "dst-port": "6021",
+          "orig-bytes": "26720",
+          "repl-bytes": "10532"
+        },
+        {
+          ".id": "*14F2CF",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.223",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "11872",
+          "repl-bytes": "21449"
+        },
+        {
+          ".id": "*1501A0",
+          "src-address": "198.51.100.209",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "2692",
+          "repl-bytes": "6602"
+        },
+        {
+          ".id": "*1501AF",
+          "src-address": "198.51.100.209",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "8123",
+          "orig-bytes": "5833971",
+          "repl-bytes": "44253489"
+        },
+        {
+          ".id": "*151FAB",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "26706",
+          "repl-bytes": "47286"
+        },
+        {
+          ".id": "*151FE0",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "8123",
+          "orig-bytes": "2309339",
+          "repl-bytes": "640941"
+        },
+        {
+          ".id": "*1594C5",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.223",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "14978",
+          "repl-bytes": "28973"
+        },
+        {
+          ".id": "*1594CC",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.179",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "80773",
+          "repl-bytes": "58644"
+        },
+        {
+          ".id": "*1594D1",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.179",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "80679",
+          "repl-bytes": "57550"
+        },
+        {
+          ".id": "*1594E7",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.179",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "45945",
+          "repl-bytes": "85000"
+        },
+        {
+          ".id": "*15951F",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.223",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "32131",
+          "repl-bytes": "106806"
+        },
+        {
+          ".id": "*15C65B",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.185",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "114800",
+          "repl-bytes": "95021"
+        },
+        {
+          ".id": "*15E02A",
+          "src-address": "198.51.100.143",
+          "dst-address": "198.51.100.161",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "17640",
+          "repl-bytes": "12030"
+        },
+        {
+          ".id": "*15E08E",
+          "src-address": "198.51.100.222",
+          "dst-address": "198.51.100.126",
+          "protocol": "tcp",
+          "dst-port": "6021",
+          "orig-bytes": "16848",
+          "repl-bytes": "6100"
+        },
+        {
+          ".id": "*1613D4",
+          "src-address": "198.51.100.183",
+          "dst-address": "198.51.100.251",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "9010",
+          "repl-bytes": "59477"
+        },
+        {
+          ".id": "*1613D8",
+          "src-address": "198.51.100.183",
+          "dst-address": "198.51.100.26",
+          "protocol": "udp",
+          "dst-port": "4500",
+          "orig-bytes": "59517",
+          "repl-bytes": "45632"
+        },
+        {
+          ".id": "*16147A",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3471855",
+          "repl-bytes": "2247384"
+        },
+        {
+          ".id": "*1614B2",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6810",
+          "repl-bytes": "11940"
+        },
+        {
+          ".id": "*1614BB",
+          "src-address": "198.51.100.176",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5756665",
+          "repl-bytes": "24020118"
+        },
+        {
+          ".id": "*1614BF",
+          "src-address": "198.51.100.19",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5765897",
+          "repl-bytes": "24040488"
+        },
+        {
+          ".id": "*1614D6",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4505293",
+          "repl-bytes": "22640817"
+        },
+        {
+          ".id": "*1614E6",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4563605",
+          "repl-bytes": "22743758"
+        },
+        {
+          ".id": "*1616E3",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.245",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "18490",
+          "repl-bytes": "182841"
+        },
+        {
+          ".id": "*161715",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.33",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "16974",
+          "repl-bytes": "11306"
+        },
+        {
+          ".id": "*1619AC",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2229871",
+          "repl-bytes": "33680146"
+        },
+        {
+          ".id": "*1619AF",
+          "src-address": "198.51.100.23",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5534626",
+          "repl-bytes": "36010505"
+        },
+        {
+          ".id": "*1621D5",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.48",
+          "protocol": "udp",
+          "dst-port": "4500",
+          "orig-bytes": "27366",
+          "repl-bytes": "16734"
+        },
+        {
+          ".id": "*162804",
+          "src-address": "198.51.100.138",
+          "dst-address": "198.51.100.182",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "4580",
+          "repl-bytes": "13691"
+        },
+        {
+          ".id": "*162D30",
+          "src-address": "198.51.100.143",
+          "dst-address": "198.51.100.193",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3030",
+          "repl-bytes": "4178"
+        },
+        {
+          ".id": "*163059",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.140",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "84134",
+          "repl-bytes": "131086"
+        },
+        {
+          ".id": "*163060",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "247616",
+          "repl-bytes": "973111"
+        },
+        {
+          ".id": "*163064",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.161",
+          "protocol": "tcp",
+          "dst-port": "8443",
+          "orig-bytes": "100794",
+          "repl-bytes": "147060"
+        },
+        {
+          ".id": "*163066",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.132",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "74157",
+          "repl-bytes": "109193"
+        },
+        {
+          ".id": "*16306B",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.103",
+          "protocol": "tcp",
+          "dst-port": "23682",
+          "orig-bytes": "83813",
+          "repl-bytes": "130376"
+        },
+        {
+          ".id": "*16369B",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.182",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "47848",
+          "repl-bytes": "81920"
+        },
+        {
+          ".id": "*1636DC",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "4562",
+          "repl-bytes": "14985"
+        },
+        {
+          ".id": "*1636E4",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.131",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "2933780",
+          "repl-bytes": "71444123"
+        },
+        {
+          ".id": "*1636E7",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.131",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "3323025",
+          "repl-bytes": "71438785"
+        },
+        {
+          ".id": "*163773",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.131",
+          "protocol": "tcp",
+          "dst-port": "6466",
+          "orig-bytes": "482857",
+          "repl-bytes": "764862"
+        },
+        {
+          ".id": "*163811",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "240773",
+          "repl-bytes": "953335"
+        },
+        {
+          ".id": "*163817",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "240825",
+          "repl-bytes": "953251"
+        },
+        {
+          ".id": "*16391E",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.131",
+          "protocol": "tcp",
+          "dst-port": "8009",
+          "orig-bytes": "1893051",
+          "repl-bytes": "70373018"
+        },
+        {
+          ".id": "*163927",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.140",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "80690",
+          "repl-bytes": "121879"
+        },
+        {
+          ".id": "*163A28",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.132",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "87599",
+          "repl-bytes": "105907"
+        },
+        {
+          ".id": "*163B2E",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.5",
+          "protocol": "tcp",
+          "dst-port": "8443",
+          "orig-bytes": "95729",
+          "repl-bytes": "136343"
+        },
+        {
+          ".id": "*163B6F",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.103",
+          "protocol": "tcp",
+          "dst-port": "23682",
+          "orig-bytes": "80423",
+          "repl-bytes": "120823"
+        },
+        {
+          ".id": "*166212",
+          "src-address": "198.51.100.4",
+          "dst-address": "198.51.100.38",
+          "protocol": "tcp",
+          "dst-port": "8883",
+          "orig-bytes": "19863",
+          "repl-bytes": "16176"
+        },
+        {
+          ".id": "*166268",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.117",
+          "protocol": "udp",
+          "dst-port": "7844",
+          "orig-bytes": "860876",
+          "repl-bytes": "453117"
+        },
+        {
+          ".id": "*166269",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.71",
+          "protocol": "udp",
+          "dst-port": "7844",
+          "orig-bytes": "736983",
+          "repl-bytes": "444371"
+        },
+        {
+          ".id": "*16626C",
+          "src-address": "198.51.100.180",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2371717",
+          "repl-bytes": "42231361"
+        },
+        {
+          ".id": "*166273",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.170",
+          "protocol": "udp",
+          "dst-port": "7844",
+          "orig-bytes": "811879",
+          "repl-bytes": "450588"
+        },
+        {
+          ".id": "*16627A",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.123",
+          "protocol": "udp",
+          "dst-port": "7844",
+          "orig-bytes": "667375",
+          "repl-bytes": "436036"
+        },
+        {
+          ".id": "*166331",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "8729",
+          "orig-bytes": "10495071",
+          "repl-bytes": "109313344"
+        },
+        {
+          ".id": "*16742D",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "8536",
+          "repl-bytes": "12035"
+        },
+        {
+          ".id": "*1674AB",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.162",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2143473",
+          "repl-bytes": "280607"
+        },
+        {
+          ".id": "*167FB7",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.179",
+          "protocol": "tcp",
+          "dst-port": "5222",
+          "orig-bytes": "51775",
+          "repl-bytes": "86728"
+        },
+        {
+          ".id": "*1683F9",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.198",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "17379",
+          "repl-bytes": "18142"
+        },
+        {
+          ".id": "*16857D",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.129",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "53466",
+          "repl-bytes": "84508"
+        },
+        {
+          ".id": "*168592",
+          "src-address": "198.51.100.129",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "31777",
+          "repl-bytes": "61824"
+        },
+        {
+          ".id": "*1685DF",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.129",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "31864",
+          "repl-bytes": "61851"
+        },
+        {
+          ".id": "*1686B2",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.129",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "53117",
+          "repl-bytes": "83744"
+        },
+        {
+          ".id": "*168785",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.129",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "52884",
+          "repl-bytes": "78195"
+        },
+        {
+          ".id": "*1693ED",
+          "src-address": "198.51.100.226",
+          "dst-address": "198.51.100.48",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "12705",
+          "repl-bytes": "8433"
+        },
+        {
+          ".id": "*169665",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "8729",
+          "orig-bytes": "7507034",
+          "repl-bytes": "28378627"
+        },
+        {
+          ".id": "*16A9F0",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.46",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "15145",
+          "repl-bytes": "17465"
+        },
+        {
+          ".id": "*16A9F7",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "189930",
+          "repl-bytes": "170967"
+        },
+        {
+          ".id": "*16AA67",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.123",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "38809",
+          "repl-bytes": "64739"
+        },
+        {
+          ".id": "*16AA68",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.22",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "17140",
+          "repl-bytes": "19037"
+        },
+        {
+          ".id": "*16B188",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.181",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "45045",
+          "repl-bytes": "53718"
+        },
+        {
+          ".id": "*16B2E2",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.11",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "17705",
+          "repl-bytes": "18508"
+        },
+        {
+          ".id": "*16B762",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.94",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "11857",
+          "repl-bytes": "12970"
+        },
+        {
+          ".id": "*16B7FE",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "8123",
+          "orig-bytes": "325657",
+          "repl-bytes": "93647"
+        },
+        {
+          ".id": "*16B8CA",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.118",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "15880",
+          "repl-bytes": "9882"
+        },
+        {
+          ".id": "*16BBC3",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.241",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "36531",
+          "repl-bytes": "139328"
+        },
+        {
+          ".id": "*16BD77",
+          "src-address": "198.51.100.152",
+          "dst-address": "198.51.100.118",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "24146",
+          "repl-bytes": "11893"
+        },
+        {
+          ".id": "*16BEB5",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.118",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "14726",
+          "repl-bytes": "9218"
+        },
+        {
+          ".id": "*16C29B",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.73",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "44042",
+          "repl-bytes": "42287"
+        },
+        {
+          ".id": "*16C475",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "52616",
+          "repl-bytes": "64415"
+        },
+        {
+          ".id": "*16C647",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.9",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "586413",
+          "repl-bytes": "201014"
+        },
+        {
+          ".id": "*16C9D2",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.166",
+          "protocol": "udp",
+          "dst-port": "4500",
+          "orig-bytes": "14723",
+          "repl-bytes": "11620"
+        },
+        {
+          ".id": "*16C9F9",
+          "src-address": "198.51.100.120",
+          "dst-address": "198.51.100.45",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "29648",
+          "repl-bytes": "25016"
+        },
+        {
+          ".id": "*16CA83",
+          "src-address": "198.51.100.120",
+          "dst-address": "198.51.100.253",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "7558",
+          "repl-bytes": "11047"
+        },
+        {
+          ".id": "*16CBA8",
+          "src-address": "198.51.100.152",
+          "dst-address": "198.51.100.169",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "18022",
+          "repl-bytes": "13613"
+        },
+        {
+          ".id": "*16CC68",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.141",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "155827",
+          "repl-bytes": "98880"
+        },
+        {
+          ".id": "*16CE3A",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.7",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "8052",
+          "repl-bytes": "103780"
+        },
+        {
+          ".id": "*16CE56",
+          "src-address": "198.51.100.138",
+          "dst-address": "198.51.100.76",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "57661",
+          "repl-bytes": "4305148"
+        },
+        {
+          ".id": "*16CE70",
+          "src-address": "198.51.100.226",
+          "dst-address": "198.51.100.111",
+          "protocol": "tcp",
+          "dst-port": "8883",
+          "orig-bytes": "11132",
+          "repl-bytes": "9458"
+        },
+        {
+          ".id": "*16CF13",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.129",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "14349",
+          "repl-bytes": "15051"
+        },
+        {
+          ".id": "*16D210",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "13044",
+          "repl-bytes": "28639"
+        },
+        {
+          ".id": "*16D2C8",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "11892",
+          "repl-bytes": "22903"
+        },
+        {
+          ".id": "*16D2EF",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "10093899",
+          "repl-bytes": "463390"
+        },
+        {
+          ".id": "*16D435",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.193",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "6551",
+          "repl-bytes": "45903"
+        },
+        {
+          ".id": "*16D995",
+          "src-address": "198.51.100.138",
+          "dst-address": "198.51.100.5",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "240758",
+          "repl-bytes": "186300"
+        },
+        {
+          ".id": "*16DA85",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.182",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "3262",
+          "repl-bytes": "8427"
+        },
+        {
+          ".id": "*16DC9D",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.66",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "416814",
+          "repl-bytes": "355946"
+        },
+        {
+          ".id": "*16DD0E",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.115",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "38885",
+          "repl-bytes": "144631"
+        },
+        {
+          ".id": "*16DD32",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.164",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "7900",
+          "repl-bytes": "11063"
+        },
+        {
+          ".id": "*16DF0E",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.118",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "8302",
+          "repl-bytes": "5124"
+        },
+        {
+          ".id": "*16DF7E",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.234",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "11579",
+          "repl-bytes": "16924"
+        },
+        {
+          ".id": "*16DFDD",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.139",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2970",
+          "repl-bytes": "8802"
+        },
+        {
+          ".id": "*16E105",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.9",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "607700",
+          "repl-bytes": "455393"
+        },
+        {
+          ".id": "*16E9A8",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.183",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6604",
+          "repl-bytes": "7497"
+        },
+        {
+          ".id": "*16EBD5",
+          "src-address": "198.51.100.86",
+          "dst-address": "198.51.100.118",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "9500",
+          "repl-bytes": "4680"
+        },
+        {
+          ".id": "*16EBEC",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.94",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "8841",
+          "repl-bytes": "8911"
+        },
+        {
+          ".id": "*16EE9F",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.245",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "3576",
+          "repl-bytes": "8839"
+        },
+        {
+          ".id": "*16EEA2",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.245",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "3544",
+          "repl-bytes": "8780"
+        },
+        {
+          ".id": "*16EEA3",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.47",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "9944",
+          "repl-bytes": "12045"
+        },
+        {
+          ".id": "*16F044",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.145",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "93386",
+          "repl-bytes": "24274"
+        },
+        {
+          ".id": "*16F0F0",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.135",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "25165",
+          "repl-bytes": "13589"
+        },
+        {
+          ".id": "*16F157",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "425954",
+          "repl-bytes": "93883836"
+        },
+        {
+          ".id": "*16F18B",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "24054",
+          "repl-bytes": "28908"
+        },
+        {
+          ".id": "*16F2DF",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "172315",
+          "repl-bytes": "104195"
+        },
+        {
+          ".id": "*16F2E0",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.118",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "4784",
+          "repl-bytes": "2976"
+        },
+        {
+          ".id": "*16F4FA",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.26",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "469240",
+          "repl-bytes": "147003"
+        },
+        {
+          ".id": "*16F5F5",
+          "src-address": "198.51.100.120",
+          "dst-address": "198.51.100.148",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "352",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*16F668",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "15326",
+          "repl-bytes": "9659"
+        },
+        {
+          ".id": "*16F728",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.66",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "10021",
+          "repl-bytes": "6418"
+        },
+        {
+          ".id": "*16F8A9",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "647498",
+          "repl-bytes": "60993"
+        },
+        {
+          ".id": "*16F9F7",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.72",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "15375",
+          "repl-bytes": "8320"
+        },
+        {
+          ".id": "*16FA01",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "8883",
+          "orig-bytes": "4658",
+          "repl-bytes": "6559"
+        },
+        {
+          ".id": "*16FB9D",
+          "src-address": "198.51.100.37",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "75683",
+          "repl-bytes": "217969"
+        },
+        {
+          ".id": "*16FBA3",
+          "src-address": "198.51.100.96",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "9329",
+          "repl-bytes": "85595"
+        },
+        {
+          ".id": "*16FBA9",
+          "src-address": "198.51.100.209",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "74490",
+          "repl-bytes": "201875"
+        },
+        {
+          ".id": "*16FBFB",
+          "src-address": "198.51.100.1",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6919",
+          "repl-bytes": "13982"
+        },
+        {
+          ".id": "*16FBFC",
+          "src-address": "198.51.100.79",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6826",
+          "repl-bytes": "16314"
+        },
+        {
+          ".id": "*16FBFD",
+          "src-address": "198.51.100.239",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6930",
+          "repl-bytes": "27405"
+        },
+        {
+          ".id": "*16FBFE",
+          "src-address": "198.51.100.241",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "8462",
+          "repl-bytes": "74281"
+        },
+        {
+          ".id": "*16FC02",
+          "src-address": "198.51.100.244",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "9502",
+          "repl-bytes": "66788"
+        },
+        {
+          ".id": "*16FC16",
+          "src-address": "198.51.100.25",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "11257",
+          "repl-bytes": "41146"
+        },
+        {
+          ".id": "*16FC33",
+          "src-address": "198.51.100.105",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "42149",
+          "repl-bytes": "1221899"
+        },
+        {
+          ".id": "*16FC56",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.159",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "17131",
+          "repl-bytes": "8831"
+        },
+        {
+          ".id": "*16FD3B",
+          "src-address": "198.51.100.160",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "26661",
+          "repl-bytes": "14687"
+        },
+        {
+          ".id": "*16FEDE",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.77",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5118",
+          "repl-bytes": "27701"
+        },
+        {
+          ".id": "*16FFF3",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.207",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "39087",
+          "repl-bytes": "35192"
+        },
+        {
+          ".id": "*170160",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.37",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "28196",
+          "repl-bytes": "5143"
+        },
+        {
+          ".id": "*170229",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.145",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "13530",
+          "repl-bytes": "4916"
+        },
+        {
+          ".id": "*1702B0",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.236",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "32873",
+          "repl-bytes": "15652"
+        },
+        {
+          ".id": "*1702CD",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1266706",
+          "repl-bytes": "46724"
+        },
+        {
+          ".id": "*170304",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.198",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3536",
+          "repl-bytes": "6721"
+        },
+        {
+          ".id": "*170314",
+          "src-address": "198.51.100.138",
+          "dst-address": "198.51.100.61",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "107442",
+          "repl-bytes": "10994904"
+        },
+        {
+          ".id": "*170324",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.14",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5884",
+          "repl-bytes": "5645"
+        },
+        {
+          ".id": "*17042D",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "36704",
+          "repl-bytes": "19840"
+        },
+        {
+          ".id": "*170434",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.27",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1597",
+          "repl-bytes": "1721"
+        },
+        {
+          ".id": "*170457",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6201851",
+          "repl-bytes": "205248"
+        },
+        {
+          ".id": "*1704B6",
+          "src-address": "198.51.100.4",
+          "dst-address": "198.51.100.146",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2429",
+          "repl-bytes": "5088"
+        },
+        {
+          ".id": "*170542",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.69",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4010",
+          "repl-bytes": "5723"
+        },
+        {
+          ".id": "*170558",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.117",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "12201",
+          "repl-bytes": "12992"
+        },
+        {
+          ".id": "*170564",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.41",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "24333",
+          "repl-bytes": "9578"
+        },
+        {
+          ".id": "*1705B9",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.123",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "18430",
+          "repl-bytes": "11095"
+        },
+        {
+          ".id": "*170615",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.104",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "29441",
+          "repl-bytes": "23885"
+        },
+        {
+          ".id": "*1706AB",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.185",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2442455",
+          "repl-bytes": "81620"
+        },
+        {
+          ".id": "*170841",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.36",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "12463",
+          "repl-bytes": "12983"
+        },
+        {
+          ".id": "*170880",
+          "src-address": "198.51.100.138",
+          "dst-address": "198.51.100.172",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3782",
+          "repl-bytes": "3787"
+        },
+        {
+          ".id": "*17088A",
+          "src-address": "198.51.100.91",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4234",
+          "repl-bytes": "6789"
+        },
+        {
+          ".id": "*1708A0",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.234",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5694",
+          "repl-bytes": "101282"
+        },
+        {
+          ".id": "*1708E2",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.81",
+          "protocol": "tcp",
+          "dst-port": "5228",
+          "orig-bytes": "2925",
+          "repl-bytes": "7855"
+        },
+        {
+          ".id": "*17097B",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.167",
+          "protocol": "udp",
+          "dst-port": "3478",
+          "orig-bytes": "1408",
+          "repl-bytes": "552"
+        },
+        {
+          ".id": "*170980",
+          "src-address": "198.51.100.183",
+          "dst-address": "198.51.100.126",
+          "protocol": "udp",
+          "dst-port": "3478",
+          "orig-bytes": "1740",
+          "repl-bytes": "600"
+        },
+        {
+          ".id": "*170981",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.126",
+          "protocol": "udp",
+          "dst-port": "3478",
+          "orig-bytes": "1360",
+          "repl-bytes": "504"
+        },
+        {
+          ".id": "*170986",
+          "src-address": "198.51.100.183",
+          "dst-address": "198.51.100.167",
+          "protocol": "udp",
+          "dst-port": "3478",
+          "orig-bytes": "1360",
+          "repl-bytes": "504"
+        },
+        {
+          ".id": "*170987",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.29",
+          "protocol": "udp",
+          "dst-port": "3478",
+          "orig-bytes": "1360",
+          "repl-bytes": "504"
+        },
+        {
+          ".id": "*170988",
+          "src-address": "198.51.100.183",
+          "dst-address": "198.51.100.29",
+          "protocol": "udp",
+          "dst-port": "3478",
+          "orig-bytes": "1360",
+          "repl-bytes": "504"
+        },
+        {
+          ".id": "*1709A4",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "368",
+          "repl-bytes": "192"
+        },
+        {
+          ".id": "*1709B0",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "424",
+          "repl-bytes": "442"
+        },
+        {
+          ".id": "*1709B7",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "381",
+          "repl-bytes": "197"
+        },
+        {
+          ".id": "*1709C3",
+          "src-address": "198.51.100.91",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2430",
+          "repl-bytes": "4920"
+        },
+        {
+          ".id": "*1709DF",
+          "src-address": "198.51.100.183",
+          "dst-address": "198.51.100.5",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "12683",
+          "repl-bytes": "184067"
+        },
+        {
+          ".id": "*1709F3",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "429",
+          "repl-bytes": "331"
+        },
+        {
+          ".id": "*1709F8",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.101",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "13501",
+          "repl-bytes": "5157"
+        },
+        {
+          ".id": "*170A04",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "359",
+          "repl-bytes": "259"
+        },
+        {
+          ".id": "*170A97",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.191",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2976",
+          "repl-bytes": "5471"
+        },
+        {
+          ".id": "*170AA1",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "429",
+          "repl-bytes": "765"
+        },
+        {
+          ".id": "*170AA8",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.36",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "9083",
+          "repl-bytes": "9570"
+        },
+        {
+          ".id": "*170AD1",
+          "src-address": "198.51.100.86",
+          "dst-address": "198.51.100.167",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "793",
+          "repl-bytes": "830"
+        },
+        {
+          ".id": "*170AF2",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "514",
+          "repl-bytes": "821"
+        },
+        {
+          ".id": "*170B05",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "1104",
+          "repl-bytes": "1555"
+        },
+        {
+          ".id": "*170B1B",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.198",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "7824",
+          "repl-bytes": "269594"
+        },
+        {
+          ".id": "*170B46",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.47",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "11285",
+          "repl-bytes": "6792"
+        },
+        {
+          ".id": "*170BF3",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.104",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2414",
+          "repl-bytes": "528"
+        },
+        {
+          ".id": "*170BFA",
+          "src-address": "198.51.100.200",
+          "dst-address": "198.51.100.146",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1552",
+          "repl-bytes": "4747"
+        },
+        {
+          ".id": "*170BFB",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "667",
+          "repl-bytes": "1195"
+        },
+        {
+          ".id": "*170C39",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "344",
+          "repl-bytes": "244"
+        },
+        {
+          ".id": "*170C58",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "369",
+          "repl-bytes": "193"
+        },
+        {
+          ".id": "*170C5A",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.23",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1424",
+          "repl-bytes": "3946"
+        },
+        {
+          ".id": "*170C5F",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.19",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2498",
+          "repl-bytes": "7165"
+        },
+        {
+          ".id": "*170C75",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.101",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "13570",
+          "repl-bytes": "5208"
+        },
+        {
+          ".id": "*170C77",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "327",
+          "repl-bytes": "179"
+        },
+        {
+          ".id": "*170C84",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "515",
+          "repl-bytes": "299"
+        },
+        {
+          ".id": "*170C99",
+          "src-address": "198.51.100.138",
+          "dst-address": "198.51.100.88",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4407",
+          "repl-bytes": "3037"
+        },
+        {
+          ".id": "*170CB2",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "380",
+          "repl-bytes": "196"
+        },
+        {
+          ".id": "*170CCB",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "329",
+          "repl-bytes": "189"
+        },
+        {
+          ".id": "*170CCF",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "356",
+          "repl-bytes": "256"
+        },
+        {
+          ".id": "*170CD6",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "198",
+          "repl-bytes": "132"
+        },
+        {
+          ".id": "*170CDF",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "300",
+          "repl-bytes": "170"
+        },
+        {
+          ".id": "*170CE3",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "2440",
+          "repl-bytes": "2934"
+        },
+        {
+          ".id": "*170CF0",
+          "src-address": "198.51.100.108",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6666",
+          "repl-bytes": "22114"
+        },
+        {
+          ".id": "*170CF6",
+          "src-address": "198.51.100.219",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5846",
+          "repl-bytes": "7495"
+        },
+        {
+          ".id": "*170D04",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.161",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1709",
+          "repl-bytes": "1503"
+        },
+        {
+          ".id": "*170D24",
+          "src-address": "198.51.100.120",
+          "dst-address": "198.51.100.219",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1925",
+          "repl-bytes": "5942"
+        },
+        {
+          ".id": "*170D34",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.130",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2328",
+          "repl-bytes": "9867"
+        },
+        {
+          ".id": "*170D3C",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.244",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2430",
+          "repl-bytes": "5130"
+        },
+        {
+          ".id": "*170D52",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.101",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "19174",
+          "repl-bytes": "7077"
+        },
+        {
+          ".id": "*170D58",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.18",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2961",
+          "repl-bytes": "8807"
+        },
+        {
+          ".id": "*170D5D",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.252",
+          "protocol": "tcp",
+          "dst-port": "32400",
+          "orig-bytes": "17947",
+          "repl-bytes": "34968"
+        },
+        {
+          ".id": "*170D76",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.18",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "11080",
+          "repl-bytes": "10689"
+        },
+        {
+          ".id": "*170D8D",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.152",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5558",
+          "repl-bytes": "5263"
+        },
+        {
+          ".id": "*170D9E",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.6",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3605",
+          "repl-bytes": "5487"
+        },
+        {
+          ".id": "*170DA3",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.6",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4550",
+          "repl-bytes": "31243"
+        },
+        {
+          ".id": "*170DE4",
+          "src-address": "198.51.100.20",
+          "dst-address": "198.51.100.73",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3959",
+          "repl-bytes": "3553"
+        },
+        {
+          ".id": "*170DE5",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.174",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5407",
+          "repl-bytes": "35819"
+        },
+        {
+          ".id": "*170DF4",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.109",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1911",
+          "repl-bytes": "59017"
+        },
+        {
+          ".id": "*170E26",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "600",
+          "repl-bytes": "987"
+        },
+        {
+          ".id": "*170E32",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.127",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1793",
+          "repl-bytes": "9623"
+        },
+        {
+          ".id": "*170E39",
+          "src-address": "198.51.100.165",
+          "dst-address": "198.51.100.101",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "13570",
+          "repl-bytes": "5154"
+        },
+        {
+          ".id": "*170E3B",
+          "src-address": "198.51.100.86",
+          "dst-address": "198.51.100.243",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1233",
+          "repl-bytes": "1634"
+        },
+        {
+          ".id": "*170E5D",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.46",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3552",
+          "repl-bytes": "9700"
+        },
+        {
+          ".id": "*170E62",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.58",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1437",
+          "repl-bytes": "10655"
+        },
+        {
+          ".id": "*170E67",
+          "src-address": "198.51.100.148",
+          "dst-address": "198.51.100.126",
+          "protocol": "tcp",
+          "dst-port": "6021",
+          "orig-bytes": "6822",
+          "repl-bytes": "796"
+        },
+        {
+          ".id": "*170E6F",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.159",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1381",
+          "repl-bytes": "1091"
+        },
+        {
+          ".id": "*170E91",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "278",
+          "repl-bytes": "162"
+        },
+        {
+          ".id": "*170E95",
+          "src-address": "198.51.100.158",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "6457",
+          "repl-bytes": "21965"
+        },
+        {
+          ".id": "*170E98",
+          "src-address": "198.51.100.211",
+          "dst-address": "198.51.100.91",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5431",
+          "repl-bytes": "7082"
+        },
+        {
+          ".id": "*170EAD",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.169",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2865",
+          "repl-bytes": "113602"
+        },
+        {
+          ".id": "*170EAF",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.101",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "13454",
+          "repl-bytes": "5146"
+        },
+        {
+          ".id": "*170EBE",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "502",
+          "repl-bytes": "434"
+        },
+        {
+          ".id": "*170EC0",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.169",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1641",
+          "repl-bytes": "61571"
+        },
+        {
+          ".id": "*170EC5",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.226",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1913",
+          "repl-bytes": "4155"
+        },
+        {
+          ".id": "*170EC6",
+          "src-address": "198.51.100.207",
+          "dst-address": "198.51.100.226",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "1960",
+          "repl-bytes": "4699"
+        },
+        {
+          ".id": "*170ED2",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.236",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3424",
+          "repl-bytes": "5933"
+        },
+        {
+          ".id": "*170EDE",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.36",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2167",
+          "repl-bytes": "2680"
+        },
+        {
+          ".id": "*170EE3",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "369",
+          "repl-bytes": "193"
+        },
+        {
+          ".id": "*170EE9",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.66",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "467",
+          "repl-bytes": "399"
+        },
+        {
+          ".id": "*170EEA",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.43",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "464",
+          "repl-bytes": "990"
+        },
+        {
+          ".id": "*170EED",
+          "src-address": "198.51.100.152",
+          "dst-address": "198.51.100.5",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2561",
+          "repl-bytes": "21509"
+        },
+        {
+          ".id": "*170EF5",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2515",
+          "repl-bytes": "6457"
+        },
+        {
+          ".id": "*170EF7",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2507",
+          "repl-bytes": "5981"
+        },
+        {
+          ".id": "*170EF8",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2507",
+          "repl-bytes": "5706"
+        },
+        {
+          ".id": "*170EF9",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2511",
+          "repl-bytes": "5712"
+        },
+        {
+          ".id": "*170EFA",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "296",
+          "repl-bytes": "166"
+        },
+        {
+          ".id": "*170EFC",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2511",
+          "repl-bytes": "5876"
+        },
+        {
+          ".id": "*170EFF",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2441",
+          "repl-bytes": "5650"
+        },
+        {
+          ".id": "*170F01",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.218",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5468",
+          "repl-bytes": "9036"
+        },
+        {
+          ".id": "*170F05",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "449",
+          "repl-bytes": "499"
+        },
+        {
+          ".id": "*170F07",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.198",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "5000",
+          "repl-bytes": "18176"
+        },
+        {
+          ".id": "*170F08",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.86",
+          "protocol": "tcp",
+          "dst-port": "8443",
+          "orig-bytes": "2412",
+          "repl-bytes": "5433"
+        },
+        {
+          ".id": "*170F09",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2571",
+          "repl-bytes": "12209"
+        },
+        {
+          ".id": "*170F0A",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2509",
+          "repl-bytes": "5673"
+        },
+        {
+          ".id": "*170F0B",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2509",
+          "repl-bytes": "5660"
+        },
+        {
+          ".id": "*170F0C",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2571",
+          "repl-bytes": "6336"
+        },
+        {
+          ".id": "*170F0D",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "2828",
+          "orig-bytes": "881",
+          "repl-bytes": "807"
+        },
+        {
+          ".id": "*170F0E",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.123",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2567",
+          "repl-bytes": "7041"
+        },
+        {
+          ".id": "*170F0F",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2509",
+          "repl-bytes": "6008"
+        },
+        {
+          ".id": "*170F10",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "2828",
+          "orig-bytes": "860",
+          "repl-bytes": "892"
+        },
+        {
+          ".id": "*170F11",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F12",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2513",
+          "repl-bytes": "5949"
+        },
+        {
+          ".id": "*170F13",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "2828",
+          "orig-bytes": "893",
+          "repl-bytes": "801"
+        },
+        {
+          ".id": "*170F14",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.123",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2565",
+          "repl-bytes": "7306"
+        },
+        {
+          ".id": "*170F15",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2513",
+          "repl-bytes": "5666"
+        },
+        {
+          ".id": "*170F16",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "2828",
+          "orig-bytes": "905",
+          "repl-bytes": "818"
+        },
+        {
+          ".id": "*170F17",
+          "src-address": "198.51.100.254",
+          "dst-address": "198.51.100.254",
+          "protocol": "udp",
+          "dst-port": "5246",
+          "orig-bytes": "2348286",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*170F18",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.86",
+          "protocol": "udp",
+          "dst-port": "1900",
+          "orig-bytes": "129",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*170F19",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.152",
+          "protocol": "tcp",
+          "dst-port": "8443",
+          "orig-bytes": "2381",
+          "repl-bytes": "3618"
+        },
+        {
+          ".id": "*170F1A",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.238",
+          "protocol": "udp",
+          "dst-port": "5678",
+          "orig-bytes": "196",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*170F1B",
+          "src-address": "198.51.100.175",
+          "dst-address": "198.51.100.238",
+          "protocol": "udp",
+          "dst-port": "5678",
+          "orig-bytes": "204",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*170F1C",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.123",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2569",
+          "repl-bytes": "9085"
+        },
+        {
+          ".id": "*170F1D",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "8729",
+          "orig-bytes": "3901",
+          "repl-bytes": "11412"
+        },
+        {
+          ".id": "*170F1E",
+          "src-address": "198.51.100.64",
+          "dst-address": "198.51.100.252",
+          "protocol": "udp",
+          "dst-port": "39545",
+          "orig-bytes": "273",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*170F1F",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.152",
+          "protocol": "tcp",
+          "dst-port": "8443",
+          "orig-bytes": "2454",
+          "repl-bytes": "5526"
+        },
+        {
+          ".id": "*170F20",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F21",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.86",
+          "protocol": "tcp",
+          "dst-port": "8443",
+          "orig-bytes": "2353",
+          "repl-bytes": "3526"
+        },
+        {
+          ".id": "*170F22",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.123",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2565",
+          "repl-bytes": "8719"
+        },
+        {
+          ".id": "*170F23",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "455",
+          "repl-bytes": "642"
+        },
+        {
+          ".id": "*170F24",
+          "src-address": "198.51.100.222",
+          "dst-address": "198.51.100.117",
+          "protocol": "udp",
+          "dst-port": "5353",
+          "orig-bytes": "1040",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*170F25",
+          "src-address": "198.51.100.64",
+          "dst-address": "198.51.100.252",
+          "protocol": "udp",
+          "dst-port": "514",
+          "orig-bytes": "1590",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*170F26",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F27",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.65",
+          "protocol": "tcp",
+          "dst-port": "80",
+          "orig-bytes": "156",
+          "repl-bytes": "0"
+        },
+        {
+          ".id": "*170F28",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.198",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4782",
+          "repl-bytes": "14442"
+        },
+        {
+          ".id": "*170F29",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.234",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "23366",
+          "repl-bytes": "17153"
+        },
+        {
+          ".id": "*170F2A",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "8729",
+          "orig-bytes": "4305",
+          "repl-bytes": "12018"
+        },
+        {
+          ".id": "*170F2B",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F2C",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.72",
+          "protocol": "udp",
+          "dst-port": "443",
+          "orig-bytes": "6243",
+          "repl-bytes": "7235"
+        },
+        {
+          ".id": "*170F2D",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "8729",
+          "orig-bytes": "3194",
+          "repl-bytes": "16617"
+        },
+        {
+          ".id": "*170F2E",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.80",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3153",
+          "repl-bytes": "7099"
+        },
+        {
+          ".id": "*170F2F",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "tcp",
+          "dst-port": "8729",
+          "orig-bytes": "2256",
+          "repl-bytes": "2503"
+        },
+        {
+          ".id": "*170F30",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F31",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F32",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.123",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2730",
+          "repl-bytes": "4788"
+        },
+        {
+          ".id": "*170F33",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.220",
+          "protocol": "udp",
+          "dst-port": "21116",
+          "orig-bytes": "43",
+          "repl-bytes": "30"
+        },
+        {
+          ".id": "*170F34",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.123",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2507",
+          "repl-bytes": "5541"
+        },
+        {
+          ".id": "*170F35",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.209",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "73",
+          "repl-bytes": "89"
+        },
+        {
+          ".id": "*170F36",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F37",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2403",
+          "repl-bytes": "5607"
+        },
+        {
+          ".id": "*170F38",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F39",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "80",
+          "repl-bytes": "96"
+        },
+        {
+          ".id": "*170F3A",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2407",
+          "repl-bytes": "5697"
+        },
+        {
+          ".id": "*170F3B",
+          "src-address": "198.51.100.131",
+          "dst-address": "198.51.100.209",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "65",
+          "repl-bytes": "81"
+        },
+        {
+          ".id": "*170F3C",
+          "src-address": "198.51.100.216",
+          "dst-address": "198.51.100.134",
+          "protocol": "icmp",
+          "orig-bytes": "50",
+          "repl-bytes": "50"
+        },
+        {
+          ".id": "*170F3D",
+          "src-address": "198.51.100.12",
+          "dst-address": "198.51.100.76",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "4817",
+          "repl-bytes": "1663"
+        },
+        {
+          ".id": "*170F3E",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2469",
+          "repl-bytes": "5978"
+        },
+        {
+          ".id": "*170F3F",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2403",
+          "repl-bytes": "5594"
+        },
+        {
+          ".id": "*170F40",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2465",
+          "repl-bytes": "6314"
+        },
+        {
+          ".id": "*170F41",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "80",
+          "repl-bytes": "108"
+        },
+        {
+          ".id": "*170F42",
+          "src-address": "198.51.100.176",
+          "dst-address": "198.51.100.122",
+          "protocol": "icmp",
+          "orig-bytes": "50",
+          "repl-bytes": "50"
+        },
+        {
+          ".id": "*170F43",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2407",
+          "repl-bytes": "5592"
+        },
+        {
+          ".id": "*170F44",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "90",
+          "repl-bytes": "106"
+        },
+        {
+          ".id": "*170F45",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F46",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "3275",
+          "repl-bytes": "35473"
+        },
+        {
+          ".id": "*170F47",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.171",
+          "protocol": "tcp",
+          "dst-port": "443",
+          "orig-bytes": "2405",
+          "repl-bytes": "5503"
+        },
+        {
+          ".id": "*170F48",
+          "src-address": "198.51.100.54",
+          "dst-address": "198.51.100.64",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "90",
+          "repl-bytes": "118"
+        },
+        {
+          ".id": "*170F49",
+          "src-address": "198.51.100.191",
+          "dst-address": "198.51.100.7",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "66",
+          "repl-bytes": "66"
+        },
+        {
+          ".id": "*170F4A",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "icmp",
+          "orig-bytes": "52",
+          "repl-bytes": "52"
+        },
+        {
+          ".id": "*170F4B",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "101",
+          "repl-bytes": "101"
+        },
+        {
+          ".id": "*170F4C",
+          "src-address": "198.51.100.252",
+          "dst-address": "198.51.100.64",
+          "protocol": "udp",
+          "dst-port": "53",
+          "orig-bytes": "101",
+          "repl-bytes": "117"
+        }
+      ]
+    }
+  ]
+}

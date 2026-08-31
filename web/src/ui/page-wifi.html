@@ -1,0 +1,74 @@
+  <div class="page-view" id="page-wifi">
+    <div class="wl-summary-row">
+      <!-- fa-stat-val, not a class of this page's own: it is what every other
+           summary tile in the app uses, and inventing a second one is how this
+           row ended up rendering at body size while the rest of the app did not. -->
+      <div class="wl-summary-card">
+        <div class="wl-summary-title">Radios</div>
+        <!-- The primary metric of the page, so it carries the accent colour. -->
+        <div class="fa-stat-val" id="wnRadioCount" style="color:var(--accent-rx)">&mdash;</div>
+        <div class="muted-note" id="wnStackNote" style="margin-top:.3rem"></div>
+      </div>
+      <div class="wl-summary-card">
+        <div class="wl-summary-title">Networks</div>
+        <div class="fa-stat-val" id="wnNetCount">&mdash;</div>
+        <div class="muted-note" id="wnVirtualNote" style="margin-top:.3rem"></div>
+      </div>
+      <div class="wl-summary-card">
+        <div class="wl-summary-title">Connected Clients</div>
+        <div class="fa-stat-val" id="wnClientCount">&mdash;</div>
+        <div class="muted-note" id="wnCapNote" style="margin-top:.3rem"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <!-- d-flex + gap-2 is the house header layout. Without it the title, the
+           count and the note butt up against each other. -->
+      <div class="card-header d-flex align-items-center flex-wrap gap-2">
+        <h3 class="card-title mb-0">Wifi Networks</h3>
+        <span class="card-badge" id="wnBadge">0</span>
+        <span class="muted-note" id="wnNote"></span>
+        <!-- Which resource this means follows the stack the router has. Both are
+             named, and res:schema withholds the one whose menu does not answer
+             (requiresMenu), so exactly one Add button ever renders. -->
+        <div class="hdr-actions" id="wnActions">
+          <span data-res-add="wifiNet,wlNet" data-res-add-dynamic="wifiNet,wlNet"></span>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="data-scroll">
+          <table class="table table-vcenter mb-0">
+            <!-- Measured, not guessed. At 1186px the SSID cell needs 339px for a
+                 long name plus its Virtual AP / Provisioned badges but had 285,
+                 so it wrapped; Security, Clients and Band were each carrying
+                 ~100px of slack for a badge, a single digit and a short pill.
+                 SSID takes it, leaving every other column clear of both its
+                 content and its own header text. -->
+            <colgroup><col style="width:36%"><col style="width:12%"><col style="width:9%"><col style="width:14%"><col style="width:7%"><col style="width:8%"><col style="width:14%"></colgroup>
+            <thead><tr><th>SSID</th><th>Interface</th><th>Band</th><th>Security</th><th>VLAN</th><th>Clients</th><th>State</th></tr></thead>
+            <tbody id="wnTable" data-res-rows="wifiNet"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legacy stack only: on /interface/wireless the passphrase lives in a
+         separate menu, so the profile is a first-class row rather than a field. -->
+    <div class="card" id="wnSecCard" style="margin-top:.85rem;display:none">
+      <div class="card-header d-flex align-items-center flex-wrap gap-2">
+        <h3 class="card-title mb-0">Security Profiles</h3>
+        <span class="card-badge" id="wnSecBadge">0</span>
+        <span class="muted-note">Legacy wireless keeps the passphrase here, not on the interface.</span>
+        <div class="hdr-actions" id="wnSecActions"><span data-res-add="wlSecProfile"></span></div>
+      </div>
+      <div class="card-body p-0">
+        <div class="data-scroll">
+          <table class="table table-vcenter mb-0">
+            <colgroup><col style="width:30%"><col style="width:25%"><col style="width:45%"></colgroup>
+            <thead><tr><th>Name</th><th>Mode</th><th>Authentication</th></tr></thead>
+            <tbody id="wnSecTable" data-res-rows="wlSecProfile"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>

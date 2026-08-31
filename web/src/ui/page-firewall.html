@@ -1,0 +1,84 @@
+  <div class="page-view" id="page-firewall">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <!-- Summary row -->
+      <div class="fw-summary-row">
+
+        <!-- Rule Counts -->
+        <div class="fw-scard" style="display:flex;flex-direction:column">
+          <div class="fw-scard-title">Rule Counts</div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center">
+            <div style="display:flex;gap:1.2rem;align-items:center;justify-content:center">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+                <span class="fw-rc-num" id="fwCntFilter">—</span>
+                <span class="fw-rc-dis" id="fwCntFilterDis"></span>
+                <span class="fw-rc-lbl">Filter</span>
+              </div>
+              <div class="fw-rc-divider"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+                <span class="fw-rc-num" id="fwCntNat">—</span>
+                <span class="fw-rc-dis" id="fwCntNatDis"></span>
+                <span class="fw-rc-lbl">NAT</span>
+              </div>
+              <div class="fw-rc-divider"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+                <span class="fw-rc-num" id="fwCntMangle">—</span>
+                <span class="fw-rc-dis" id="fwCntMangleDis"></span>
+                <span class="fw-rc-lbl">Mangle</span>
+              </div>
+              <div class="fw-rc-divider"></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:.15rem">
+                <span class="fw-rc-num" id="fwCntRaw">—</span>
+                <span class="fw-rc-dis" id="fwCntRawDis"></span>
+                <span class="fw-rc-lbl">Raw</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Breakdown -->
+        <div class="fw-scard">
+          <div class="fw-scard-title">Action Breakdown</div>
+          <div class="fw-action-list" id="fwActionList">
+            <div class="fw-action-row"><span class="fw-action-name" style="color:var(--text-muted)">—</span></div>
+          </div>
+        </div>
+
+        <!-- Chain Count -->
+        <div class="fw-scard" style="display:flex;flex-direction:column">
+          <div class="fw-scard-title">Chain Count</div>
+          <div id="fwChainCount" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
+        </div>
+
+      </div>
+
+      <!-- Rules card -->
+      <div class="card" id="firewallCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="card-body p-0">
+          <div class="fw-tabs">
+            <div class="fw-tab active" data-fw="filter">Filter</div>
+            <div class="fw-tab" data-fw="nat">NAT</div>
+            <div class="fw-tab" data-fw="mangle">Mangle</div>
+            <div class="fw-tab" data-fw="raw">Raw</div>
+            <!-- Which resource this means follows the active tab: app.js rewrites
+                 data-res-add and fires mikrodash:resmount. data-res-add-dynamic
+                 declares the whole range it can become, so the mount is
+                 greppable and a resource reachable only after a tab change is
+                 still visibly mounted. -->
+            <span data-res-add="fwFilter"
+                  data-res-add-dynamic="fwFilter,fwNat,fwMangle,fwRaw"></span>
+          </div>
+          <div class="fw-search-wrap">
+            <input id="fwSearch" type="text" placeholder="Search chain, action, address, comment…" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="table-responsive">
+            <table class="table table-vcenter mb-0">
+              <thead><tr><th class="fw-dragcell"></th><th class="fw-movecell"></th><th class="fw-pos" title="Position in the chain — a rule below the final drop never runs">#</th><th>Chain</th><th>Action</th><th>Src &#8594; Dst</th><th>Comment</th><th class="text-end">Packets</th><th class="text-end">Bytes</th></tr></thead>
+              <tbody id="firewallTable" data-res-rows="fwFilter"><tr><td colspan="9" class="empty-state">Waiting&#8230;</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

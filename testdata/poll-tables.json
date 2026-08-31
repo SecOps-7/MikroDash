@@ -1,0 +1,285 @@
+{
+  "_generated": "tools/poll-tables.js — do not edit",
+  "sliders": [
+    {
+      "key": "pollSystem",
+      "label": "System / Gauges",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollConns",
+      "label": "Connections",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollTalkers",
+      "label": "Top Talkers",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollIfstatus",
+      "label": "Interface Rates",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollBandwidth",
+      "label": "Bandwidth",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollVpn",
+      "label": "VPN / WireGuard",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollFirewall",
+      "label": "Firewall",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollPing",
+      "label": "Ping",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollVlans",
+      "label": "VLANs",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollBridges",
+      "label": "Bridges",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollPpp",
+      "label": "PPP",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollWan",
+      "label": "WAN",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollCapsman",
+      "label": "CAPsMAN",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollDns",
+      "label": "DNS",
+      "min": 1000,
+      "max": 30000,
+      "step": 1000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollWireless",
+      "label": "Wireless",
+      "min": 10000,
+      "max": 600000,
+      "step": 10000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollIfaces",
+      "label": "Interface Status",
+      "min": 10000,
+      "max": 600000,
+      "step": 10000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollDhcp",
+      "label": "DHCP Networks",
+      "min": 10000,
+      "max": 600000,
+      "step": 10000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollTopology",
+      "label": "Network Topology",
+      "min": 10000,
+      "max": 600000,
+      "step": 10000,
+      "unit": "ms"
+    },
+    {
+      "key": "pollPackages",
+      "label": "Packages",
+      "min": 10000,
+      "max": 600000,
+      "step": 10000,
+      "unit": "ms"
+    }
+  ],
+  "profiles": {
+    "fast": {
+      "pollSystem": 1000,
+      "pollConns": 1000,
+      "pollTalkers": 1000,
+      "pollIfstatus": 1000,
+      "pollBandwidth": 1000,
+      "pollVpn": 1000,
+      "pollFirewall": 1000,
+      "pollPing": 1000,
+      "pollWireless": 10000,
+      "pollWifi": 10000,
+      "pollIfaces": 10000,
+      "pollDhcp": 10000,
+      "pollTopology": 10000,
+      "pollVlans": 2000,
+      "pollPpp": 2000,
+      "pollBridges": 2000,
+      "pollDns": 5000,
+      "pollCapsman": 5000,
+      "pollPackages": 30000,
+      "pollWan": 2000
+    },
+    "faster": {
+      "pollSystem": 5000,
+      "pollConns": 5000,
+      "pollTalkers": 5000,
+      "pollIfstatus": 5000,
+      "pollBandwidth": 5000,
+      "pollVpn": 5000,
+      "pollFirewall": 5000,
+      "pollPing": 5000,
+      "pollWireless": 60000,
+      "pollWifi": 60000,
+      "pollIfaces": 60000,
+      "pollDhcp": 60000,
+      "pollTopology": 60000,
+      "pollVlans": 10000,
+      "pollPpp": 10000,
+      "pollBridges": 10000,
+      "pollDns": 20000,
+      "pollCapsman": 20000,
+      "pollPackages": 120000,
+      "pollWan": 5000
+    },
+    "standard": {
+      "pollSystem": 2000,
+      "pollConns": 3000,
+      "pollTalkers": 3000,
+      "pollIfstatus": 1000,
+      "pollBandwidth": 3000,
+      "pollVpn": 5000,
+      "pollFirewall": 5000,
+      "pollPing": 5000,
+      "pollWireless": 30000,
+      "pollWifi": 30000,
+      "pollIfaces": 60000,
+      "pollDhcp": 290000,
+      "pollTopology": 30000,
+      "pollVlans": 5000,
+      "pollPpp": 5000,
+      "pollBridges": 5000,
+      "pollDns": 10000,
+      "pollCapsman": 10000,
+      "pollPackages": 60000,
+      "pollWan": 10000
+    },
+    "slow": {
+      "pollSystem": 10000,
+      "pollConns": 10000,
+      "pollTalkers": 10000,
+      "pollIfstatus": 10000,
+      "pollBandwidth": 10000,
+      "pollVpn": 10000,
+      "pollFirewall": 10000,
+      "pollPing": 10000,
+      "pollWireless": 300000,
+      "pollWifi": 300000,
+      "pollIfaces": 300000,
+      "pollDhcp": 300000,
+      "pollTopology": 120000,
+      "pollVlans": 20000,
+      "pollPpp": 20000,
+      "pollBridges": 20000,
+      "pollDns": 30000,
+      "pollCapsman": 30000,
+      "pollPackages": 180000,
+      "pollWan": 30000
+    },
+    "slower": {
+      "pollSystem": 30000,
+      "pollConns": 30000,
+      "pollTalkers": 30000,
+      "pollIfstatus": 30000,
+      "pollBandwidth": 30000,
+      "pollVpn": 30000,
+      "pollFirewall": 30000,
+      "pollPing": 30000,
+      "pollWireless": 600000,
+      "pollWifi": 600000,
+      "pollIfaces": 600000,
+      "pollDhcp": 600000,
+      "pollTopology": 300000,
+      "pollVlans": 30000,
+      "pollPpp": 30000,
+      "pollBridges": 30000,
+      "pollDns": 30000,
+      "pollCapsman": 30000,
+      "pollPackages": 300000,
+      "pollWan": 30000
+    }
+  },
+  "profileKey": "mkd_poll_profile",
+  "offeredProfiles": [
+    "custom",
+    "fast",
+    "faster",
+    "slow",
+    "slower",
+    "standard"
+  ],
+  "uncoveredByProfile": {
+    "fast": [],
+    "faster": [],
+    "standard": [],
+    "slow": [],
+    "slower": []
+  }
+}

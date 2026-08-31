@@ -1,0 +1,120 @@
+{
+  "collector": "dns",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/ip/dns/static/print",
+      "params": [
+        "=.proplist=.id,name,address,type,ttl,disabled,comment,regexp,cname,forward-to,text,mx-exchange,ns,srv-target"
+      ],
+      "rows": [
+        {
+          ".id": "*1",
+          "name": "name-b2d8",
+          "address": "endpoint-0ed5",
+          "type": "A",
+          "ttl": "1d",
+          "disabled": "false",
+          "comment": "comment-c17f"
+        },
+        {
+          ".id": "*4",
+          "name": "name-9129",
+          "address": "198.51.100.219",
+          "type": "A",
+          "ttl": "1d",
+          "disabled": "false",
+          "comment": "comment-c17f"
+        },
+        {
+          ".id": "*5",
+          "name": "name-5963",
+          "address": "198.51.100.219",
+          "type": "A",
+          "ttl": "1d",
+          "disabled": "false",
+          "comment": "comment-c17f"
+        },
+        {
+          ".id": "*6",
+          "name": "name-2768",
+          "address": "198.51.100.54",
+          "type": "A",
+          "ttl": "1d",
+          "disabled": "false"
+        },
+        {
+          ".id": "*7",
+          "name": "name-ea2a",
+          "address": "198.51.100.252",
+          "type": "A",
+          "ttl": "1d",
+          "disabled": "false"
+        },
+        {
+          ".id": "*8",
+          "name": "name-b563",
+          "type": "FWD",
+          "ttl": "1d",
+          "disabled": "false",
+          "comment": "comment-c8e4"
+        },
+        {
+          ".id": "*A",
+          "name": "name-963a",
+          "type": "FWD",
+          "ttl": "1d",
+          "disabled": "false",
+          "comment": "comment-c8e4"
+        },
+        {
+          ".id": "*B",
+          "name": "name-3c3f",
+          "type": "FWD",
+          "ttl": "1d",
+          "disabled": "false",
+          "comment": "comment-c8e4"
+        },
+        {
+          ".id": "*C",
+          "name": "name-562f",
+          "type": "FWD",
+          "ttl": "1d",
+          "disabled": "false",
+          "comment": "comment-c8e4"
+        }
+      ]
+    },
+    {
+      "cmd": "/ip/dns/print",
+      "params": [],
+      "rows": [
+        {
+          "servers": "",
+          "dynamic-servers": "",
+          "use-doh-server": "use-doh-server-c80d",
+          "verify-doh-cert": "true",
+          "doh-max-server-connections": "5",
+          "doh-max-concurrent-queries": "50",
+          "doh-timeout": "5s",
+          "allow-remote-requests": "true",
+          "max-udp-packet-size": "4096",
+          "query-server-timeout": "2s",
+          "query-total-timeout": "10s",
+          "max-concurrent-queries": "100",
+          "max-concurrent-tcp-sessions": "20",
+          "cache-size": "2048",
+          "cache-max-ttl": "1w",
+          "address-list-extra-time": "0s",
+          "vrf": "main",
+          "mdns-repeat-ifaces": "IoT,Home",
+          "cache-used": "391"
+        }
+      ]
+    }
+  ]
+}

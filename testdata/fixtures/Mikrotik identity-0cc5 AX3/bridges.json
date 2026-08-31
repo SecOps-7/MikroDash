@@ -1,0 +1,901 @@
+{
+  "collector": "bridges",
+  "router": {
+    "model": "identity-0cc5 ax^3",
+    "osVersion": "7.24"
+  },
+  "note": "Captured from live hardware and anonymised. See tools/capture-fixtures.js.",
+  "exchanges": [
+    {
+      "cmd": "/interface/bridge/port/print",
+      "params": [
+        "=.proplist=.id,bridge,interface,pvid,role,edge,learn,horizon,path-cost,frame-types,disabled,inactive,dynamic"
+      ],
+      "rows": [
+        {
+          ".id": "*0",
+          "bridge": "Bridge",
+          "interface": "ether2",
+          "pvid": "5",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "path-cost": "10",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*1",
+          "bridge": "Bridge",
+          "interface": "ether3",
+          "pvid": "5",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "path-cost": "10",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*2",
+          "bridge": "Bridge",
+          "interface": "ether4",
+          "pvid": "5",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "path-cost": "10",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*3",
+          "bridge": "Bridge",
+          "interface": "ether5",
+          "pvid": "5",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "path-cost": "10",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "false"
+        },
+        {
+          ".id": "*6",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi2",
+          "pvid": "20",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*7",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi3",
+          "pvid": "10",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*8",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi4",
+          "pvid": "5",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*C",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi2",
+          "pvid": "20",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*D",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi3",
+          "pvid": "10",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*E",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi5",
+          "pvid": "20",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*F",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi6",
+          "pvid": "10",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*4D",
+          "bridge": "Bridge",
+          "interface": "5GHz WiFi",
+          "pvid": "5",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*51",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi4",
+          "pvid": "5",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*52",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi5",
+          "pvid": "20",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "true",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*53",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi6",
+          "pvid": "10",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        },
+        {
+          ".id": "*55",
+          "bridge": "Bridge",
+          "interface": "2.4GHz WiFi",
+          "pvid": "5",
+          "role": "designated-port",
+          "edge": "auto",
+          "learn": "auto",
+          "horizon": "none",
+          "frame-types": "admit-all",
+          "disabled": "false",
+          "inactive": "false",
+          "dynamic": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/bridge/print",
+      "params": [
+        "=.proplist=.id,name,protocol-mode,vlan-filtering,igmp-snooping,dhcp-snooping,fast-forward,priority,ageing-time,mac-address,actual-mtu,mtu,running,disabled,comment"
+      ],
+      "rows": [
+        {
+          ".id": "*8",
+          "name": "Bridge",
+          "protocol-mode": "rstp",
+          "vlan-filtering": "true",
+          "igmp-snooping": "true",
+          "dhcp-snooping": "false",
+          "fast-forward": "true",
+          "priority": "0x1000",
+          "ageing-time": "5m",
+          "mac-address": "02:B9:0A:1D:56:33",
+          "actual-mtu": "1500",
+          "mtu": "auto",
+          "running": "true",
+          "disabled": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "/interface/bridge/host/print",
+      "params": [
+        "=.proplist=mac-address,on-interface,bridge,vid,dynamic,local,external,age"
+      ],
+      "rows": [
+        {
+          "mac-address": "02:B9:0A:1D:56:33",
+          "on-interface": "Bridge",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:D5:B3:50:2E:2D",
+          "on-interface": "ether3",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:04:13:2E:26:09",
+          "on-interface": "ether4",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:68:5F:34:E0:10",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:21:12:F9:6F:D4",
+          "on-interface": "5GHz WiFi",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:CA:65:80:7F:1F",
+          "on-interface": "2.4GHz WiFi",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:60:E0:D4:C8:C7",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:68:1B:A8:93:C6",
+          "on-interface": "5GHz WiFi2",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:38:0D:AC:A3:8A",
+          "on-interface": "5GHz WiFi3",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:45:D0:A8:59:DB",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:75:80:E6:5F:AF",
+          "on-interface": "5GHz WiFi5",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:A6:8B:36:7E:AD",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:A4:AB:76:65:2F",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:B9:0A:1D:56:33",
+          "on-interface": "Bridge",
+          "bridge": "Bridge",
+          "vid": "1",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:5D:57:D5:69:77",
+          "on-interface": "ether3",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:7C:8B:10:49:58",
+          "on-interface": "5GHz WiFi",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:37:FB:7E:4F:24",
+          "on-interface": "ether2",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:59:56:B0:B2:DF",
+          "on-interface": "ether4",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:C1:CA:94:8E:4D",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:A0:05:E1:6E:3C",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:F8:B6:24:79:32",
+          "on-interface": "2.4GHz WiFi",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:C8:23:46:F1:23",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:B9:0A:1D:56:33",
+          "on-interface": "Bridge",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:D5:B3:50:2E:2D",
+          "on-interface": "ether3",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:04:13:2E:26:09",
+          "on-interface": "ether4",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:68:5F:34:E0:10",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:21:12:F9:6F:D4",
+          "on-interface": "5GHz WiFi",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:CA:65:80:7F:1F",
+          "on-interface": "2.4GHz WiFi",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:31:48:F6:C4:AF",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:60:E0:D4:C8:C7",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:EC:08:20:44:48",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:3A:F8:3D:AA:AF",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:68:45:32:38:85",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:24:7A:52:3D:BA",
+          "on-interface": "5GHz WiFi4",
+          "bridge": "Bridge",
+          "vid": "5",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:C1:CA:94:8E:4D",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:37:B4:D5:A8:AB",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:EB:0A:9A:37:20",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:09:B4:E1:91:05",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:DB:D2:E6:78:22",
+          "on-interface": "5GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:DA:CC:8F:66:41",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:B9:0A:1D:56:33",
+          "on-interface": "Bridge",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:68:5F:34:E0:10",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:38:0D:AC:A3:8A",
+          "on-interface": "5GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:45:D0:A8:59:DB",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:A6:8B:36:7E:AD",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:A4:AB:76:65:2F",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:FF:D8:4E:A5:C1",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:AD:73:D7:5B:19",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:50:21:2A:C4:D0",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:45:6C:57:CB:DF",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:73:C0:10:31:1E",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:5E:39:46:89:48",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:59:19:A8:5F:97",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:3A:CB:73:0B:2C",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:05:27:35:06:3D",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:96:D1:8A:A2:CA",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:0E:A6:51:B0:5A",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:E7:41:72:83:33",
+          "on-interface": "2.4GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:04:FF:43:D1:42",
+          "on-interface": "2.4GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:AA:E9:10:76:06",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:8F:38:9C:3F:5D",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:16:1C:3A:E1:12",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:B7:EF:BB:12:EE",
+          "on-interface": "5GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:0C:F4:BB:57:67",
+          "on-interface": "5GHz WiFi6",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:63:BA:83:16:02",
+          "on-interface": "5GHz WiFi3",
+          "bridge": "Bridge",
+          "vid": "10",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:B9:0A:1D:56:33",
+          "on-interface": "Bridge",
+          "bridge": "Bridge",
+          "vid": "20",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:68:5F:34:E0:10",
+          "on-interface": "ether5",
+          "bridge": "Bridge",
+          "vid": "20",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:68:1B:A8:93:C6",
+          "on-interface": "5GHz WiFi2",
+          "bridge": "Bridge",
+          "vid": "20",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:75:80:E6:5F:AF",
+          "on-interface": "5GHz WiFi5",
+          "bridge": "Bridge",
+          "vid": "20",
+          "dynamic": "true",
+          "local": "true",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:94:09:27:4F:23",
+          "on-interface": "5GHz WiFi2",
+          "bridge": "Bridge",
+          "vid": "20",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        },
+        {
+          "mac-address": "02:F1:85:EB:A7:3A",
+          "on-interface": "5GHz WiFi5",
+          "bridge": "Bridge",
+          "vid": "20",
+          "dynamic": "true",
+          "local": "false",
+          "external": "false"
+        }
+      ]
+    }
+  ]
+}

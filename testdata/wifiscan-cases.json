@@ -1,0 +1,503 @@
+{
+  "durations": [
+    30,
+    60,
+    120
+  ],
+  "maxChannels": 200,
+  "fleetCap": 3,
+  "freqs": [
+    {
+      "mhz": 2412,
+      "ch": 1
+    },
+    {
+      "mhz": 2417,
+      "ch": 2
+    },
+    {
+      "mhz": 2437,
+      "ch": 6
+    },
+    {
+      "mhz": 2472,
+      "ch": 13
+    },
+    {
+      "mhz": 2484,
+      "ch": 14
+    },
+    {
+      "mhz": 2400,
+      "ch": null
+    },
+    {
+      "mhz": 2414,
+      "ch": null
+    },
+    {
+      "mhz": 2473,
+      "ch": null
+    },
+    {
+      "mhz": 2477,
+      "ch": null
+    },
+    {
+      "mhz": 5160,
+      "ch": 32
+    },
+    {
+      "mhz": 5180,
+      "ch": 36
+    },
+    {
+      "mhz": 5500,
+      "ch": 100
+    },
+    {
+      "mhz": 5885,
+      "ch": 177
+    },
+    {
+      "mhz": 5155,
+      "ch": null
+    },
+    {
+      "mhz": 5163,
+      "ch": null
+    },
+    {
+      "mhz": 5890,
+      "ch": null
+    },
+    {
+      "mhz": 5000,
+      "ch": null
+    },
+    {
+      "mhz": 5955,
+      "ch": 1
+    },
+    {
+      "mhz": 5960,
+      "ch": 2
+    },
+    {
+      "mhz": 6000,
+      "ch": 10
+    },
+    {
+      "mhz": 7115,
+      "ch": 233
+    },
+    {
+      "mhz": 5950,
+      "ch": null
+    },
+    {
+      "mhz": 7120,
+      "ch": null
+    },
+    {
+      "mhz": 5957,
+      "ch": null
+    },
+    {
+      "mhz": 0,
+      "ch": null
+    },
+    {
+      "mhz": -1,
+      "ch": null
+    },
+    {
+      "mhz": "NaN",
+      "ch": null
+    },
+    {
+      "mhz": "Infinity",
+      "ch": null
+    },
+    {
+      "mhz": 1.5,
+      "ch": null
+    },
+    {
+      "mhz": 2412.5,
+      "ch": null
+    }
+  ],
+  "rows": [
+    {
+      "name": "a full row",
+      "row": {
+        "channel": 2437,
+        "networks": "3",
+        "load": "10",
+        "nf": "-95",
+        "max-signal": "-40",
+        "min-signal": "-80"
+      },
+      "want": {
+        "ch": 2437,
+        "chNum": 6,
+        "chRaw": "2437",
+        "nets": 3,
+        "load": 10,
+        "nf": -95,
+        "maxSig": -40,
+        "minSig": -80,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "a compound channel",
+      "row": {
+        "channel": "2427/ax/Ce",
+        "networks": "1"
+      },
+      "want": {
+        "ch": 2427,
+        "chNum": 4,
+        "chRaw": "2427/ax/Ce",
+        "nets": 1,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "a compound with no slash parts",
+      "row": {
+        "channel": "5180/ac"
+      },
+      "want": {
+        "ch": 5180,
+        "chNum": 36,
+        "chRaw": "5180/ac",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "freq instead of channel",
+      "row": {
+        "freq": 5500
+      },
+      "want": {
+        "ch": 5500,
+        "chNum": 100,
+        "chRaw": "5500",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "both channel and freq — channel wins",
+      "row": {
+        "channel": 2412,
+        "freq": 5500
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "a channel that will not parse",
+      "row": {
+        "channel": "abc"
+      },
+      "want": null
+    },
+    {
+      "name": "an empty channel",
+      "row": {
+        "channel": ""
+      },
+      "want": null
+    },
+    {
+      "name": "a null channel",
+      "row": {
+        "channel": null
+      },
+      "want": null
+    },
+    {
+      "name": "no channel at all",
+      "row": {
+        "networks": "2"
+      },
+      "want": null
+    },
+    {
+      "name": "not an object",
+      "row": "nope",
+      "want": null
+    },
+    {
+      "name": "null",
+      "row": null,
+      "want": null
+    },
+    {
+      "name": "primary true",
+      "row": {
+        "channel": 2412,
+        "primary": true
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": true,
+        "secondary": false
+      }
+    },
+    {
+      "name": "primary \"true\"",
+      "row": {
+        "channel": 2412,
+        "primary": "true"
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": true,
+        "secondary": false
+      }
+    },
+    {
+      "name": "primary \"yes\"",
+      "row": {
+        "channel": 2412,
+        "primary": "yes"
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": true,
+        "secondary": false
+      }
+    },
+    {
+      "name": "primary \"1\"",
+      "row": {
+        "channel": 2412,
+        "primary": "1"
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "primary \"false\"",
+      "row": {
+        "channel": 2412,
+        "primary": "false"
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "secondary yes",
+      "row": {
+        "channel": 2412,
+        "secondary": "yes"
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": true
+      }
+    },
+    {
+      "name": "blank numerics",
+      "row": {
+        "channel": 2412,
+        "networks": "",
+        "load": null
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "negative signals",
+      "row": {
+        "channel": 5180,
+        "max-signal": "-40",
+        "min-signal": "-90"
+      },
+      "want": {
+        "ch": 5180,
+        "chNum": 36,
+        "chRaw": "5180",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": -40,
+        "minSig": -90,
+        "primary": false,
+        "secondary": false
+      }
+    },
+    {
+      "name": "a non-numeric load",
+      "row": {
+        "channel": 2412,
+        "load": "busy"
+      },
+      "want": {
+        "ch": 2412,
+        "chNum": 1,
+        "chRaw": "2412",
+        "nets": null,
+        "load": null,
+        "nf": null,
+        "maxSig": null,
+        "minSig": null,
+        "primary": false,
+        "secondary": false
+      }
+    }
+  ],
+  "traps": [
+    {
+      "msg": "not enough privileges",
+      "code": "permission-denied"
+    },
+    {
+      "msg": "permission denied",
+      "code": "permission-denied"
+    },
+    {
+      "msg": "cannot run this command",
+      "code": "permission-denied"
+    },
+    {
+      "msg": "no such command prefix",
+      "code": "unsupported-stack"
+    },
+    {
+      "msg": "unknown command",
+      "code": "unsupported-stack"
+    },
+    {
+      "msg": "no such item",
+      "code": "no-such-interface"
+    },
+    {
+      "msg": "not found",
+      "code": "no-such-interface"
+    },
+    {
+      "msg": "unknown parameter",
+      "code": "bad-parameter"
+    },
+    {
+      "msg": "no such argument",
+      "code": "bad-parameter"
+    },
+    {
+      "msg": "invalid value",
+      "code": "bad-parameter"
+    },
+    {
+      "msg": "something nobody predicted",
+      "code": "router-error"
+    },
+    {
+      "msg": "",
+      "code": "router-error"
+    },
+    {
+      "msg": null,
+      "code": "router-error"
+    },
+    {
+      "msg": "no such command prefix (not found)",
+      "code": "unsupported-stack"
+    },
+    {
+      "msg": "NOT ENOUGH PRIVILEGES",
+      "code": "permission-denied"
+    }
+  ]
+}

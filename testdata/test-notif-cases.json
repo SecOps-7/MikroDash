@@ -1,0 +1,268 @@
+{
+  "_generated": "tools/test-notif-cases.js — do not edit",
+  "note": "Every credential in this file is synthetic. See the header of CLAUDE.md.",
+  "stored": {
+    "telegramBotToken": "stored-tg-token",
+    "telegramChatId": "stored-chat",
+    "pushbulletApiKey": "stored-pb-key",
+    "smtpHost": "stored.mail.invalid",
+    "smtpPort": 25,
+    "smtpSecure": false,
+    "smtpUser": "stored-user",
+    "smtpPass": "stored-pass",
+    "smtpFrom": "from@stored.invalid",
+    "smtpTo": "to@stored.invalid",
+    "ntfyUrl": "https://ntfy.invalid/stored",
+    "ntfyToken": "stored-ntfy",
+    "unrelated": "must survive the merge untouched"
+  },
+  "cases": [
+    {
+      "why": "an empty body changes nothing",
+      "body": {},
+      "stored": null,
+      "changed": {}
+    },
+    {
+      "why": "a telegram token typed but not saved",
+      "body": {
+        "botToken": "typed-token"
+      },
+      "stored": null,
+      "changed": {
+        "telegramBotToken": "typed-token"
+      }
+    },
+    {
+      "why": "an EMPTY telegram token falls back to the stored one",
+      "body": {
+        "botToken": ""
+      },
+      "stored": null,
+      "changed": {}
+    },
+    {
+      "why": "a null token falls back too",
+      "body": {
+        "botToken": null
+      },
+      "stored": null,
+      "changed": {}
+    },
+    {
+      "why": "both telegram fields",
+      "body": {
+        "botToken": "typed-token",
+        "chatId": "typed-chat"
+      },
+      "stored": null,
+      "changed": {
+        "telegramBotToken": "typed-token",
+        "telegramChatId": "typed-chat"
+      }
+    },
+    {
+      "why": "a pushbullet key",
+      "body": {
+        "apiKey": "typed-pb"
+      },
+      "stored": null,
+      "changed": {
+        "pushbulletApiKey": "typed-pb"
+      }
+    },
+    {
+      "why": "an over-long token is CAPPED",
+      "body": {
+        "botToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "stored": null,
+      "changed": {
+        "telegramBotToken": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "why": "an over-long chat id is capped SHORTER",
+      "body": {
+        "chatId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "stored": null,
+      "changed": {
+        "telegramChatId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "why": "an over-long smtp host is capped",
+      "body": {
+        "smtpHost": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "stored": null,
+      "changed": {
+        "smtpHost": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "why": "an over-long smtp pass is capped",
+      "body": {
+        "smtpPass": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "stored": null,
+      "changed": {
+        "smtpPass": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "why": "an over-long ntfy url is capped",
+      "body": {
+        "ntfyUrl": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "stored": null,
+      "changed": {
+        "ntfyUrl": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    },
+    {
+      "why": "a full smtp form",
+      "body": {
+        "smtpHost": "mail.typed.invalid",
+        "smtpPort": 465,
+        "smtpSecure": true,
+        "smtpUser": "typed-user",
+        "smtpPass": "typed-pass",
+        "smtpFrom": "from@typed.invalid",
+        "smtpTo": "to@typed.invalid"
+      },
+      "stored": null,
+      "changed": {
+        "smtpHost": "mail.typed.invalid",
+        "smtpPort": 465,
+        "smtpSecure": true,
+        "smtpUser": "typed-user",
+        "smtpPass": "typed-pass",
+        "smtpFrom": "from@typed.invalid",
+        "smtpTo": "to@typed.invalid"
+      }
+    },
+    {
+      "why": "smtpPort 0 becomes 587, not 0",
+      "body": {
+        "smtpPort": 0
+      },
+      "stored": null,
+      "changed": {
+        "smtpPort": 587
+      }
+    },
+    {
+      "why": "smtpPort as a numeric string",
+      "body": {
+        "smtpPort": "2525"
+      },
+      "stored": null,
+      "changed": {
+        "smtpPort": 2525
+      }
+    },
+    {
+      "why": "smtpPort that is not a number becomes 587",
+      "body": {
+        "smtpPort": "abc"
+      },
+      "stored": null,
+      "changed": {
+        "smtpPort": 587
+      }
+    },
+    {
+      "why": "smtpPort null becomes 587",
+      "body": {
+        "smtpPort": null
+      },
+      "stored": null,
+      "changed": {
+        "smtpPort": 587
+      }
+    },
+    {
+      "why": "smtpSecure FALSE overrides a stored true",
+      "body": {
+        "smtpSecure": false
+      },
+      "stored": {
+        "telegramBotToken": "stored-tg-token",
+        "telegramChatId": "stored-chat",
+        "pushbulletApiKey": "stored-pb-key",
+        "smtpHost": "stored.mail.invalid",
+        "smtpPort": 25,
+        "smtpSecure": true,
+        "smtpUser": "stored-user",
+        "smtpPass": "stored-pass",
+        "smtpFrom": "from@stored.invalid",
+        "smtpTo": "to@stored.invalid",
+        "ntfyUrl": "https://ntfy.invalid/stored",
+        "ntfyToken": "stored-ntfy",
+        "unrelated": "must survive the merge untouched"
+      },
+      "changed": {
+        "smtpSecure": false
+      }
+    },
+    {
+      "why": "smtpSecure as the string \"true\"",
+      "body": {
+        "smtpSecure": "true"
+      },
+      "stored": null,
+      "changed": {
+        "smtpSecure": true
+      }
+    },
+    {
+      "why": "smtpSecure as the string \"yes\" is NOT true",
+      "body": {
+        "smtpSecure": "yes"
+      },
+      "stored": null,
+      "changed": {}
+    },
+    {
+      "why": "smtpSecure as 1 is NOT true",
+      "body": {
+        "smtpSecure": 1
+      },
+      "stored": null,
+      "changed": {}
+    },
+    {
+      "why": "ntfy url and token",
+      "body": {
+        "ntfyUrl": "https://ntfy.typed.invalid/t",
+        "ntfyToken": "typed-ntfy"
+      },
+      "stored": null,
+      "changed": {
+        "ntfyUrl": "https://ntfy.typed.invalid/t",
+        "ntfyToken": "typed-ntfy"
+      }
+    },
+    {
+      "why": "a number where a string is expected",
+      "body": {
+        "chatId": 12345
+      },
+      "stored": null,
+      "changed": {
+        "telegramChatId": "12345"
+      }
+    },
+    {
+      "why": "a key the route does not destructure is ignored",
+      "body": {
+        "channel": "telegram",
+        "somethingElse": "ignored"
+      },
+      "stored": null,
+      "changed": {}
+    }
+  ]
+}

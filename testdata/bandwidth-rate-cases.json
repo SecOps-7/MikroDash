@@ -1,0 +1,185 @@
+{
+  "generatedFrom": "public/app.js _splitRate",
+  "cases": [
+    {
+      "input": 1000,
+      "inputIsUndefined": false,
+      "num": "1.00",
+      "unit": "Gbps"
+    },
+    {
+      "input": 999.999,
+      "inputIsUndefined": false,
+      "num": "1000.00",
+      "unit": "Mbps"
+    },
+    {
+      "input": 1,
+      "inputIsUndefined": false,
+      "num": "1.00",
+      "unit": "Mbps"
+    },
+    {
+      "input": 0.999,
+      "inputIsUndefined": false,
+      "num": "999.0",
+      "unit": "Kbps"
+    },
+    {
+      "input": 0.001,
+      "inputIsUndefined": false,
+      "num": "1.0",
+      "unit": "Kbps"
+    },
+    {
+      "input": 0.0009,
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": 0,
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": 0.5,
+      "inputIsUndefined": false,
+      "num": "500.0",
+      "unit": "Kbps"
+    },
+    {
+      "input": 12.5,
+      "inputIsUndefined": false,
+      "num": "12.50",
+      "unit": "Mbps"
+    },
+    {
+      "input": 137.04,
+      "inputIsUndefined": false,
+      "num": "137.04",
+      "unit": "Mbps"
+    },
+    {
+      "input": 2500,
+      "inputIsUndefined": false,
+      "num": "2.50",
+      "unit": "Gbps"
+    },
+    {
+      "input": 10000,
+      "inputIsUndefined": false,
+      "num": "10.00",
+      "unit": "Gbps"
+    },
+    {
+      "input": 1.005,
+      "inputIsUndefined": false,
+      "num": "1.00",
+      "unit": "Mbps"
+    },
+    {
+      "input": 0.0015,
+      "inputIsUndefined": false,
+      "num": "1.5",
+      "unit": "Kbps"
+    },
+    {
+      "input": 1234.567,
+      "inputIsUndefined": false,
+      "num": "1.23",
+      "unit": "Gbps"
+    },
+    {
+      "input": null,
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": null,
+      "inputIsUndefined": true,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": "",
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": "abc",
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": "NaN",
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": "12.5",
+      "inputIsUndefined": false,
+      "num": "12.50",
+      "unit": "Mbps"
+    },
+    {
+      "input": "0.0005",
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": "1000",
+      "inputIsUndefined": false,
+      "num": "1.00",
+      "unit": "Gbps"
+    },
+    {
+      "input": -1,
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": -0.5,
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": -1000,
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": 1000000000,
+      "inputIsUndefined": false,
+      "num": "1000000.00",
+      "unit": "Gbps"
+    },
+    {
+      "input": 1e-9,
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    },
+    {
+      "input": "Infinity",
+      "inputIsUndefined": false,
+      "num": "Infinity",
+      "unit": "Gbps"
+    },
+    {
+      "input": "-Infinity",
+      "inputIsUndefined": false,
+      "num": "—",
+      "unit": ""
+    }
+  ]
+}

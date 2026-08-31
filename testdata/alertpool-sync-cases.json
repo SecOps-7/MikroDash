@@ -1,0 +1,368 @@
+{
+ "cases": {
+  "emptyFleet": {
+   "input": {
+    "live": {},
+    "active": "",
+    "excluded": null,
+    "all": []
+   },
+   "result": {
+    "built": [],
+    "stopped": [],
+    "after": []
+   }
+  },
+  "oneRouterNoActive": {
+   "input": {
+    "live": {},
+    "active": "",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [
+     "a"
+    ],
+    "stopped": [],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "activeIsExcluded": {
+   "input": {
+    "live": {},
+    "active": "a",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     },
+     {
+      "id": "b",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [
+     "b"
+    ],
+    "stopped": [],
+    "after": [
+     "b"
+    ]
+   }
+  },
+  "poolOwnedExcluded": {
+   "input": {
+    "live": {},
+    "active": "",
+    "excluded": [
+     "b"
+    ],
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     },
+     {
+      "id": "b",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [
+     "a"
+    ],
+    "stopped": [],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "bothExclusions": {
+   "input": {
+    "live": {},
+    "active": "a",
+    "excluded": [
+     "b"
+    ],
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     },
+     {
+      "id": "b",
+      "alertsEnabled": false
+     },
+     {
+      "id": "c",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [
+     "c"
+    ],
+    "stopped": [],
+    "after": [
+     "c"
+    ]
+   }
+  },
+  "alreadyRunning": {
+   "input": {
+    "live": {
+     "a": false
+    },
+    "active": "",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [],
+    "stopped": [],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "routerRemoved": {
+   "input": {
+    "live": {
+     "a": false,
+     "b": false
+    },
+    "active": "",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [],
+    "stopped": [
+     "b"
+    ],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "becameActive": {
+   "input": {
+    "live": {
+     "a": false,
+     "b": false
+    },
+    "active": "b",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     },
+     {
+      "id": "b",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [],
+    "stopped": [
+     "b"
+    ],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "becamePoolOwned": {
+   "input": {
+    "live": {
+     "a": false,
+     "b": false
+    },
+    "active": "",
+    "excluded": [
+     "b"
+    ],
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     },
+     {
+      "id": "b",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [],
+    "stopped": [
+     "b"
+    ],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "alertsTurnedOn": {
+   "input": {
+    "live": {
+     "a": false
+    },
+    "active": "",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": true
+     }
+    ]
+   },
+   "result": {
+    "built": [
+     "a"
+    ],
+    "stopped": [
+     "a"
+    ],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "alertsTurnedOff": {
+   "input": {
+    "live": {
+     "a": true
+    },
+    "active": "",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [
+     "a"
+    ],
+    "stopped": [
+     "a"
+    ],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "alertsUnchangedOn": {
+   "input": {
+    "live": {
+     "a": true
+    },
+    "active": "",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": true
+     }
+    ]
+   },
+   "result": {
+    "built": [],
+    "stopped": [],
+    "after": [
+     "a"
+    ]
+   }
+  },
+  "emptyActiveId": {
+   "input": {
+    "live": {},
+    "active": "",
+    "excluded": null,
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     },
+     {
+      "id": "b",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [
+     "a",
+     "b"
+    ],
+    "stopped": [],
+    "after": [
+     "a",
+     "b"
+    ]
+   }
+  },
+  "mixed": {
+   "input": {
+    "live": {
+     "a": true,
+     "gone": false
+    },
+    "active": "",
+    "excluded": [],
+    "all": [
+     {
+      "id": "a",
+      "alertsEnabled": false
+     },
+     {
+      "id": "b",
+      "alertsEnabled": false
+     }
+    ]
+   },
+   "result": {
+    "built": [
+     "a",
+     "b"
+    ],
+    "stopped": [
+     "a",
+     "gone"
+    ],
+    "after": [
+     "a",
+     "b"
+    ]
+   }
+  }
+ }
+}

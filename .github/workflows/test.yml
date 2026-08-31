@@ -1,17 +1,19 @@
 name: Tests
 
-# Runs the suite on every PR and on pushes to main. Tests execute inside a
-# built image rather than on a bare runner, so a PR that breaks the Dockerfile,
-# the node-routeros patch step or a native build fails here too.
-# test/ is excluded from every image, so it is mounted in.
+# Runs on every PR and on pushes to main.
 #
-# TWO images are built, and the distinction matters. The suite runs in the
-# `test` stage, which is the runtime image plus devDependencies: the runtime
-# install is --omit=dev, so a test needing a dev-only tool (espree to parse
-# app.js) does not fail there, it fails to LOAD and takes its whole file with
-# it — a suite quietly reporting fewer tests than it has. The smoke test needs
-# the real runtime image, since that is the artefact users run. They share the
-# `base` layer, so building both costs almost nothing.
+# This used to build TWO images and run the suite inside one of them, because
+# npm has a dev/prod dependency split: the runtime install was --omit=dev, so a
+# test needing a dev-only tool did not fail there, it failed to LOAD and took its
+# whole file with it. Go has no such split and the Dockerfile has no `test`
+# stage, so the checks run directly and the image is built once, for the smoke
+# test, which is the artefact users actually run.
+#
+# The gate sweep is the interesting half. `tools/verify.sh` discovers what to run
+# by globbing rather than by reading a list, which is why it cannot forget a
+# category, and it reports a SKIP as a skip rather than folding it into green.
+# Since the 2026-08-31 cutover the 105 generator --check runs skip permanently:
+# they regenerate FROM the Node implementation, and there is none.
 
 on:
   pull_request:
@@ -30,28 +32,67 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # Must match the Dockerfile. golang.org/x/crypto will not build on 1.23.
+          go-version: '1.25'
+          cache: true
+
+      # gofmt is checked rather than applied: a formatting difference in a PR is
+      # a review distraction, and `-l` names the files without touching them.
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then echo "not gofmt'd:"; echo "$out"; exit 1; fi
+
+      - name: go vet
+        run: go vet ./...
+
+      # Unit tests plus the differential gates that compare Go payloads against
+      # the recorded Node ones, and the proplist drift gate. Both read committed
+      # recordings, so neither needs the old implementation present.
+      - name: go test
+        run: go test ./...
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # Node is not a runtime dependency and never runs in production. It is
+      # needed for exactly two development-time things: `tsc --noEmit`, which
+      # emits nothing, and the ~300 gate and audit scripts, which bundle frontend
+      # TypeScript through esbuild. Testing TypeScript needs a JavaScript
+      # runtime, and that is not a dependency this repo can decide away.
+      - name: Install frontend dev tooling
+        run: npm ci --no-audit --no-fund
+        working-directory: web
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+        working-directory: web
+
+      # The frontend has to exist before the gates run: several compare a built
+      # bundle against a recorded renderer. This is the same builder the image
+      # uses, so what CI checks is what ships.
+      - name: Build frontend
+        run: go run ./cmd/webbuild -dir web
+
+      # --no-docker skips the twelve generators that need a container, and says
+      # so loudly rather than counting them as passed.
+      - name: Gate sweep
+        run: sh tools/verify.sh --no-docker
+
       # amd64 only — this job verifies behaviour, not multi-arch packaging.
-      # docker-publish.yml covers arm64 on tagged releases.
-      - name: Build images
-        run: |
-          docker build --target test -t mikrodash:ci-test .
-          docker build -t mikrodash:ci .
+      # docker-publish.yml covers the other architectures on tagged releases.
+      - name: Build image
+        run: docker build -t mikrodash:ci .
 
-      # $PWD is the checkout dir; avoids interpolating a ${{ }} expression
-      # into a shell command, which is the workflow-injection footgun.
-      # No --entrypoint override: the test stage's own CMD carries the quoted
-      # glob (Node 24's runner treats a bare directory as a module to load and
-      # dies with MODULE_NOT_FOUND), so running the default exercises the same
-      # command the Dockerfile documents.
-      - name: Run test suite
-        run: |
-          docker run --rm -v "$PWD/test:/app/test:ro" mikrodash:ci-test
-
-      # Catches startup-only failures the suite cannot see: src/index.js is not
-      # covered by any test, so a bad config value or a dependency behaviour
-      # change (e.g. body-parser's limit validation) would otherwise reach main.
-      # 503 with {"starting":true} is a pass here — no router is configured, so
-      # the app never reaches ready; we only assert that it serves HTTP.
+      # Catches startup-only failures no unit test sees: a bad default, a missing
+      # runtime package, a flag that stopped parsing. 503 with {"starting":true}
+      # is a pass — no router is configured, so the app never reaches ready; we
+      # assert only that it serves HTTP.
       - name: Smoke-test startup
         run: |
           cid=$(docker run -d --rm --tmpfs /data -p 3099:3081 \

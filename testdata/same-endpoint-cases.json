@@ -1,0 +1,537 @@
+{
+  "stored": {
+    "host": "router.example.net",
+    "port": 8729,
+    "username": "example-user",
+    "tls": true,
+    "tlsInsecure": false
+  },
+  "cases": {
+    "identical": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "hostDiffersOnlyInCase": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "ROUTER.EXAMPLE.NET",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "hostHasSurroundingSpace": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "  router.example.net  ",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "portAsAString": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": "8729",
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "portAbsentDefaultsTo8729": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "portZeroAlsoDefaults": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 0,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "portEmptyStringAlsoDefaults": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": "",
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "tlsAbsentDefaultsToOn": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "tlsAsTheStringFalse": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": false,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": "false",
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "tlsAsTheStringTrue": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": "true",
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "laxAbsentDefaultsToOff": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true
+      },
+      "same": true
+    },
+    "laxAsTheStringTrue": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": true
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": "true"
+      },
+      "same": true
+    },
+    "laxAsTheStringFalseMatchesBooleanFalse": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": "false"
+      },
+      "same": true
+    },
+    "laxAsAnUnrelatedString": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": "yes"
+      },
+      "same": true
+    },
+    "laxAsTheStringOne": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": "1"
+      },
+      "same": true
+    },
+    "laxBothTheStringFalse": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": "false"
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": "false"
+      },
+      "same": true
+    },
+    "usernameHasSurroundingSpace": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": " example-user ",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": true
+    },
+    "aDifferentHost": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "elsewhere.example.com",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "aSubdomain": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "a.router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "aDifferentPort": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8728,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "aDifferentUser": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "someone-else",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "usernameCaseDiffers": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "Example-User",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "tlsTurnedOff": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": false,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "tlsInsecureTurnedOn": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": true
+      },
+      "same": false
+    },
+    "bothHostsEmpty": {
+      "a": {
+        "host": "",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "bothHostsWhitespace": {
+      "a": {
+        "host": "   ",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "   ",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "storedHostEmpty": {
+      "a": {
+        "host": "",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "submittedHostEmpty": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "host": "",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "bothHostsAbsent": {
+      "a": {
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": {
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "storedIsNull": {
+      "a": null,
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    },
+    "submittedIsNull": {
+      "a": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "b": null,
+      "same": false
+    },
+    "bothNull": {
+      "a": null,
+      "b": null,
+      "same": false
+    },
+    "storedIsUndefined": {
+      "a": null,
+      "b": {
+        "host": "router.example.net",
+        "port": 8729,
+        "username": "example-user",
+        "tls": true,
+        "tlsInsecure": false
+      },
+      "same": false
+    }
+  }
+}

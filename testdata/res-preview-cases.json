@@ -1,0 +1,288 @@
+{
+  "generatedFrom": "src/routeros/resources.js previewCommand",
+  "cases": [
+    {
+      "name": "a create with no secret",
+      "key": "wgPeer",
+      "values": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32"
+      },
+      "id": null,
+      "command": "/interface/wireguard/peers/add =interface=wg0 =public-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4= =allowed-address=10.0.0.2/32 =disabled=no",
+      "validated": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "disabled": "no"
+      },
+      "editing": false
+    },
+    {
+      "name": "an edit with no secret",
+      "key": "wgPeer",
+      "values": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32"
+      },
+      "id": "*7",
+      "command": "/interface/wireguard/peers/set =.id=*7 =interface=wg0 =public-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4= =allowed-address=10.0.0.2/32 =comment= =disabled=no",
+      "validated": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "a create WITH a secret",
+      "key": "wgPeer",
+      "values": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "presharedKey": "hunter2"
+      },
+      "id": null,
+      "command": "/interface/wireguard/peers/add =interface=wg0 =public-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4= =allowed-address=10.0.0.2/32 =preshared-key=«set» =disabled=no",
+      "validated": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "presharedKey": "hunter2",
+        "disabled": "no"
+      },
+      "editing": false
+    },
+    {
+      "name": "an edit with a secret",
+      "key": "wgPeer",
+      "values": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "presharedKey": "hunter2"
+      },
+      "id": "*7",
+      "command": "/interface/wireguard/peers/set =.id=*7 =interface=wg0 =public-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4= =allowed-address=10.0.0.2/32 =preshared-key=«set» =comment= =disabled=no",
+      "validated": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "presharedKey": "hunter2",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "a NON-secret field holding the secret's value",
+      "key": "wgPeer",
+      "values": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "comment": "hunter2",
+        "presharedKey": "hunter2"
+      },
+      "id": "*7",
+      "command": "/interface/wireguard/peers/set =.id=*7 =interface=wg0 =public-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4= =allowed-address=10.0.0.2/32 =preshared-key=«set» =comment=hunter2 =disabled=no",
+      "validated": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "presharedKey": "hunter2",
+        "comment": "hunter2",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "an EMPTY secret is dropped, not masked",
+      "key": "wgPeer",
+      "values": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "presharedKey": ""
+      },
+      "id": "*7",
+      "command": "/interface/wireguard/peers/set =.id=*7 =interface=wg0 =public-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4= =allowed-address=10.0.0.2/32 =comment= =disabled=no",
+      "validated": {
+        "interface": "wg0",
+        "publicKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4=",
+        "allowedAddress": "10.0.0.2/32",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "a create with clearables left out",
+      "key": "dnsStatic",
+      "values": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1"
+      },
+      "id": null,
+      "command": "/ip/dns/static/add =name=a.lan =type=A =address=10.0.0.1 =match-subdomain=no =disabled=no",
+      "validated": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1",
+        "matchSubdomain": "no",
+        "disabled": "no"
+      },
+      "editing": false
+    },
+    {
+      "name": "an EDIT with clearables left out",
+      "key": "dnsStatic",
+      "values": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1"
+      },
+      "id": "*3",
+      "command": "/ip/dns/static/set =.id=*3 =name=a.lan =type=A =address=10.0.0.1 =match-subdomain=no =comment= =disabled=no",
+      "validated": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1",
+        "matchSubdomain": "no",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "a value containing spaces",
+      "key": "dnsStatic",
+      "values": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1",
+        "comment": "two words"
+      },
+      "id": "*3",
+      "command": "/ip/dns/static/set =.id=*3 =name=a.lan =type=A =address=10.0.0.1 =match-subdomain=no =comment=two words =disabled=no",
+      "validated": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1",
+        "matchSubdomain": "no",
+        "comment": "two words",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "a value containing an equals sign",
+      "key": "dnsStatic",
+      "values": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1",
+        "comment": "a=b"
+      },
+      "id": "*3",
+      "command": "/ip/dns/static/set =.id=*3 =name=a.lan =type=A =address=10.0.0.1 =match-subdomain=no =comment=a=b =disabled=no",
+      "validated": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1",
+        "matchSubdomain": "no",
+        "comment": "a=b",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "a bool clearable set true",
+      "key": "dnsStatic",
+      "values": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1",
+        "disabled": true
+      },
+      "id": "*3",
+      "command": "/ip/dns/static/set =.id=*3 =name=a.lan =type=A =address=10.0.0.1 =match-subdomain=no =comment= =disabled=yes",
+      "validated": {
+        "name": "a.lan",
+        "type": "A",
+        "address": "10.0.0.1",
+        "matchSubdomain": "no",
+        "disabled": "yes"
+      },
+      "editing": true
+    },
+    {
+      "name": "a route create",
+      "key": "route",
+      "values": {
+        "dstAddress": "0.0.0.0/0",
+        "gateway": "10.0.0.1"
+      },
+      "id": null,
+      "command": "/ip/route/add =dst-address=0.0.0.0/0 =gateway=10.0.0.1 =disabled=no",
+      "validated": {
+        "dstAddress": "0.0.0.0/0",
+        "gateway": "10.0.0.1",
+        "disabled": "no"
+      },
+      "editing": false
+    },
+    {
+      "name": "a route edit",
+      "key": "route",
+      "values": {
+        "dstAddress": "0.0.0.0/0",
+        "gateway": "10.0.0.1"
+      },
+      "id": "*1",
+      "command": "/ip/route/set =.id=*1 =dst-address=0.0.0.0/0 =gateway=10.0.0.1 =comment= =disabled=no",
+      "validated": {
+        "dstAddress": "0.0.0.0/0",
+        "gateway": "10.0.0.1",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "an id containing a quote",
+      "key": "route",
+      "values": {
+        "dstAddress": "0.0.0.0/0",
+        "gateway": "10.0.0.1"
+      },
+      "id": "*\"1",
+      "command": "/ip/route/set =.id=*\"1 =dst-address=0.0.0.0/0 =gateway=10.0.0.1 =comment= =disabled=no",
+      "validated": {
+        "dstAddress": "0.0.0.0/0",
+        "gateway": "10.0.0.1",
+        "disabled": "no"
+      },
+      "editing": true
+    },
+    {
+      "name": "a route with a distance",
+      "key": "route",
+      "values": {
+        "dstAddress": "0.0.0.0/0",
+        "gateway": "10.0.0.1",
+        "distance": 5
+      },
+      "id": "*1",
+      "command": "/ip/route/set =.id=*1 =dst-address=0.0.0.0/0 =gateway=10.0.0.1 =distance=5 =comment= =disabled=no",
+      "validated": {
+        "dstAddress": "0.0.0.0/0",
+        "gateway": "10.0.0.1",
+        "distance": "5",
+        "disabled": "no"
+      },
+      "editing": true
+    }
+  ]
+}

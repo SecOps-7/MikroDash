@@ -1,0 +1,166 @@
+{
+  "generatedFrom": "src/routers.js:loadAll",
+  "cases": [
+    {
+      "name": "every field supplied",
+      "settings": {
+        "routerHost": "203.0.113.7",
+        "routerPort": 8729,
+        "routerUser": "operator",
+        "routerPass": "not-a-real-secret",
+        "routerTls": true,
+        "routerTlsInsecure": true,
+        "defaultIf": "sfp-sfpplus1",
+        "pingTarget": "203.0.113.1"
+      },
+      "seeded": true,
+      "record": {
+        "label": "My Router",
+        "host": "203.0.113.7",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": true,
+        "username": "operator",
+        "defaultIf": "sfp-sfpplus1",
+        "pingTarget": "203.0.113.1"
+      },
+      "password": {
+        "suppliedInSettings": true,
+        "writtenNonEmpty": false,
+        "writtenIsPlaintext": false
+      },
+      "idIsUuid": true,
+      "addedAtIsNumber": true
+    },
+    {
+      "name": "only the host, so every default applies",
+      "settings": {
+        "routerHost": "203.0.113.8"
+      },
+      "seeded": true,
+      "record": {
+        "label": "My Router",
+        "host": "203.0.113.8",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1"
+      },
+      "password": {
+        "suppliedInSettings": false,
+        "writtenNonEmpty": false,
+        "writtenIsPlaintext": false
+      },
+      "idIsUuid": true,
+      "addedAtIsNumber": true
+    },
+    {
+      "name": "the booleans as STRINGS, which is how a form submits them",
+      "settings": {
+        "routerHost": "203.0.113.9",
+        "routerTls": "false",
+        "routerTlsInsecure": "true"
+      },
+      "seeded": true,
+      "record": {
+        "label": "My Router",
+        "host": "203.0.113.9",
+        "port": 8729,
+        "tls": false,
+        "tlsInsecure": true,
+        "username": "admin",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1"
+      },
+      "password": {
+        "suppliedInSettings": false,
+        "writtenNonEmpty": false,
+        "writtenIsPlaintext": false
+      },
+      "idIsUuid": true,
+      "addedAtIsNumber": true
+    },
+    {
+      "name": "tlsInsecure as the string \"false\"",
+      "settings": {
+        "routerHost": "203.0.113.10",
+        "routerTlsInsecure": "false"
+      },
+      "seeded": true,
+      "record": {
+        "label": "My Router",
+        "host": "203.0.113.10",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1"
+      },
+      "password": {
+        "suppliedInSettings": false,
+        "writtenNonEmpty": false,
+        "writtenIsPlaintext": false
+      },
+      "idIsUuid": true,
+      "addedAtIsNumber": true
+    },
+    {
+      "name": "no routerHost key — seeded at the default address anyway",
+      "settings": {
+        "defaultIf": "ether5"
+      },
+      "seeded": true,
+      "record": {
+        "label": "My Router",
+        "host": "192.168.88.1",
+        "port": 8729,
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "defaultIf": "ether5",
+        "pingTarget": "1.1.1.1"
+      },
+      "password": {
+        "suppliedInSettings": false,
+        "writtenNonEmpty": false,
+        "writtenIsPlaintext": false
+      },
+      "idIsUuid": true,
+      "addedAtIsNumber": true
+    },
+    {
+      "name": "port as a string",
+      "settings": {
+        "routerHost": "203.0.113.11",
+        "routerPort": "8728"
+      },
+      "seeded": true,
+      "record": {
+        "label": "My Router",
+        "host": "203.0.113.11",
+        "port": "8728",
+        "tls": true,
+        "tlsInsecure": false,
+        "username": "admin",
+        "defaultIf": "ether1",
+        "pingTarget": "1.1.1.1"
+      },
+      "password": {
+        "suppliedInSettings": false,
+        "writtenNonEmpty": false,
+        "writtenIsPlaintext": false
+      },
+      "idIsUuid": true,
+      "addedAtIsNumber": true
+    },
+    {
+      "name": "settings.json absent entirely — the only refusal",
+      "settings": {},
+      "seeded": false,
+      "noSettingsFile": true
+    }
+  ]
+}
