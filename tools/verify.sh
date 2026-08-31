@@ -417,9 +417,17 @@ else
         unformatted=$(gofmt -l .)
         if [ -n "$unformatted" ]; then echo "gofmt: $unformatted"; exit 1; fi
         go vet ./...
-        go test ./...' 2>&1)
+        go test ./...
+        # ── THE ONLY GENERATOR CHECK THAT STILL RUNS ────────────────────────
+        #
+        # All 105 corpus generators read the deleted Node source, so every one
+        # of their --check runs reports a skip and the section above says so.
+        # This one reads internal/, which is here, so it checks on any clone
+        # with nothing mounted -- and it fails when a payload struct changes
+        # without web/src/gen/payloads.ts being regenerated.
+        go run ./cmd/tsgen -check' 2>&1)
     if [ $? -eq 0 ]; then
-      note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s))"
+      note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); tsgen current"
     else
       fail=$((fail + 1))
       note '  FAIL go'

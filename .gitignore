@@ -74,3 +74,8 @@ testdata/.accept-meta.json
 testdata/.rs-runs.cjs
 testdata/.rt.cjs
 testdata/.seam.cjs
+
+# Build-time Go tools, if one is compiled into the tree by mistake.
+/tsgen
+/webbuild
+/geogen

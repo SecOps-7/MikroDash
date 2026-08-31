@@ -78,14 +78,14 @@ map-labels-check.js 19
 map-tooltip-check.js 15
 map-zoom-check.js 22
 modals-check.js 33
-module-reachability-audit.js 114
+module-reachability-audit.js 115
 nav-check.js 45
 netwatch-render-check.js 19
 networks-card-check.js 15
 notes-rules-check.js 8
 notif-bell-check.js 58
 notif-test-check.js 171
-orphan-check.js 114
+orphan-check.js 115
 orphaned-consumer-audit.js 7
 packages-page-check.js 45
 pagechange-audit.js 6
