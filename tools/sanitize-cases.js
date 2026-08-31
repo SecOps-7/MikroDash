@@ -57,7 +57,7 @@ const CASES = [
   'a /xy is two and goes',
   // Credentials that reach an error message through a provider.
   'SMTP auth failed for operator@example.com',
-  'telegram: REDACTED-ROTATED-TOKEN rejected',
+  'telegram: 000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA rejected',
   'both operator@example.com and 10.0.0.2 in one line',
   // Empty, whitespace and unicode.
   '',

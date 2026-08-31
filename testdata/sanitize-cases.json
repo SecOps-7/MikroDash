@@ -75,7 +75,7 @@
       "want": "SMTP auth failed for [email]"
     },
     {
-      "input": "telegram: REDACTED-ROTATED-TOKEN rejected",
+      "input": "telegram: 000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA rejected",
       "want": "telegram: [token] rejected"
     },
     {
