@@ -136,8 +136,8 @@ func auditQueryFor(r *http.Request, includeApp bool, permitted []string) db.Quer
 		Action:  clip(q.Get("action"), 60),
 		Search:  clip(q.Get("search"), 100),
 		Outcome: outcomeFilter(q.Get("outcome")),
-		Limit:   int(reports.LeadingInt(q.Get("limit"))),
-		Offset:  int(reports.LeadingInt(q.Get("offset"))),
+		Limit:   reports.ClampInt(reports.LeadingInt(q.Get("limit"))),
+		Offset:  reports.ClampInt(reports.LeadingInt(q.Get("offset"))),
 	}
 }
 

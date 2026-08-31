@@ -134,7 +134,9 @@ for (const f of fs.readdirSync(path.join(ROOT, 'tools'))) {
       if (STRUCTURAL.has(k)) continue;
       keysExamined++;
       // `.k`, `'k'`, `"k"` or `k:` anywhere an implementation could read it.
-      const q = k.replace(/\$/g, '\\$');
+      // Escape every metacharacter. A fixture key is usually a plain identifier,
+      // but it comes from captured router data and nothing here guarantees that.
+      const q = k.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
       const re = new RegExp('\\.' + q + '\\b|[\'"`]' + q + '[\'"`]|\\b' + q + '\\s*:');
       if (re.test(haystack)) continue;
       dead.push({ gate: f, builder: m[1], key: k });

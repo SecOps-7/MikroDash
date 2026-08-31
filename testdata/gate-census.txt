@@ -19,7 +19,7 @@ canfail-audit.js 26
 caps-check.js 92
 capsman-page-check.js 35
 case-name-audit.js 1371
-citation-audit.js 297
+citation-audit.js 298
 city-picker-check.js 49
 class-hook-audit.js 35
 collector-coverage-check.js 26
@@ -28,6 +28,7 @@ connections-lists-page-check.js 34
 connflow-card-check.js 13
 connlists-cards-check.js 34
 connmap-card-check.js 22
+credential-audit.js 1267
 dashboard-wiring-check.js 31
 dashcards-util-check.js 81
 dash-coverage-check.js 122
@@ -136,7 +137,7 @@ sites-card-check.js 24
 stale-check.js 112
 storage-key-audit.js 17
 stream-health-check.js 37
-stub-audit.js 296
+stub-audit.js 297
 system-card-check.js 99
 talkers-render-check.js 22
 template-id-audit.js 16

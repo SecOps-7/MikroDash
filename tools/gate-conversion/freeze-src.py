@@ -72,7 +72,11 @@ def main():
     # THE BARE FORM: `const X = src.slice(i, j);`, with the anchor indexes and
     # their `=== -1` assertions on separate lines above. This is what the last
     # dozen gates actually use, and no lifter name appears anywhere in it.
-    bare = re.compile(r'^const (\w+) = (src\.slice\((?:[^;]|\n)*?\));$', re.M)
+    # `[^;]` ALREADY MATCHES A NEWLINE, so the old `(?:[^;]|\n)*?` had two ways
+    # to match the same character. That ambiguity is what makes the engine
+    # backtrack polynomially on a long non-matching line; the alternation added
+    # nothing to what it accepted.
+    bare = re.compile(r'^const (\w+) = (src\.slice\([^;]*?\));$', re.M)
     def sub_bare(m):
         name, call = m.group(1), m.group(2)
         names.append(name)

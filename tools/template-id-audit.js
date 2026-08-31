@@ -55,8 +55,11 @@ for (const f of files) {
   }
 }
 
+// Escape every metacharacter, not just `-`. Sufficient for an element id, but
+// that is a fact about the caller rather than about this line.
+const reEsc = (v) => v.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
 const boundBy = (id) => {
-  const q = id.replace(/[-]/g, '\\-');
+  const q = reEsc(id);
   return new RegExp(
     "\\bel\\('" + q + "'\\)"            // el('x')
     + "|\\bel<[^>]*>\\('" + q + "'\\)"  // el<T>('x')

@@ -204,8 +204,31 @@ func LabelFor(alertType string) string {
 //
 // The floor of 1 is not cosmetic: capacity is a divisor, and a router record
 // carrying 0 would otherwise produce an infinite utilisation.
+// ClampInt narrows an int64 to an int WITHOUT WRAPPING.
+//
+// On a 64-bit build this is the identity and none of this matters. On 32-bit it
+// does: `int` is 32 bits there, and a plain conversion of a query parameter like
+// ?limit=4294967296 wraps, sometimes to a negative. This project publishes
+// linux/arm/v7, so that is a real target rather than a theoretical one.
+//
+// Every current caller happens to be saved by a clamp further down -- Limit is
+// bounded to 1..1000 in the db layer, CapacityOr floors at 1, and SQLite reads a
+// negative OFFSET as zero. That makes this a PARITY fix rather than a security
+// one: the same request should produce the same answer on every architecture,
+// and relying on a downstream clamp to absorb a wrap is the kind of accident
+// that stops being true when somebody adds a caller.
+func ClampInt(n int64) int {
+	if n > int64(math.MaxInt) {
+		return math.MaxInt
+	}
+	if n < int64(math.MinInt) {
+		return math.MinInt
+	}
+	return int(n)
+}
+
 func CapacityOr(v string) int {
-	n := int(LeadingInt(v))
+	n := ClampInt(LeadingInt(v))
 	if n == 0 {
 		n = 1000
 	}

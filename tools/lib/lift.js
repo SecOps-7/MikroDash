@@ -234,7 +234,12 @@ function fileScopeVars(src, body, skip) {
   const seen = new Set(skip || []);
   for (const [name, decl] of declared) {
     if (seen.has(name)) continue;
-    if (!new RegExp('(?:^|[^.\\w$])' + name.replace(/\$/g, '\\$') + '\\b').test(body)) continue;
+    // Escape EVERY metacharacter, not just `$`. A JavaScript identifier can only
+    // contain [A-Za-z0-9_$] so escaping `$` alone was sufficient for this input,
+    // but the completeness is an accident of the caller rather than a property of
+    // this line, and the next caller will not know that.
+    const esc = name.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+    if (!new RegExp('(?:^|[^.\\w$])' + esc + '\\b').test(body)) continue;
     out.push(decl);
   }
   return out.join('\n');

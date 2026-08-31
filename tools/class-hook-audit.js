@@ -104,16 +104,21 @@ for (const f of ts) {
   }
 }
 
+// Escape every regex metacharacter. These three sites escaped only `-`, which
+// happened to be enough for a CSS class name and is not a property of the
+// expression -- `-` outside a character class does not even need escaping.
+const reEsc = (v) => v.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+
 const styled = (c) => liveClasses.has(c)
-  || new RegExp('\\.' + c.replace(/-/g, '\\-') + '(?![\\w-])').test(css);
+  || new RegExp('\\.' + reEsc(c) + '(?![\\w-])').test(css);
 const readBack = (c) => {
-  const q = c.replace(/-/g, '\\-');
+  const q = reEsc(c);
   return new RegExp("classList\\.contains\\(\\s*'" + q + "'"
     + "|querySelector\\w*\\(\\s*'[^']*\\." + q + "(?![\\w-])"
     + "|matches\\(\\s*'[^']*\\." + q + "(?![\\w-])"
     + "|closest\\(\\s*'[^']*\\." + q + "(?![\\w-])").test(tsAll);
 };
-const inMarkup = (c) => new RegExp('class="[^"]*\\b' + c.replace(/-/g, '\\-') + '\\b').test(markup);
+const inMarkup = (c) => new RegExp('class="[^"]*\\b' + reEsc(c) + '\\b').test(markup);
 
 // class -> why toggling it with nothing responding is nonetheless correct.
 // Empty is the goal: unlike lookup-audit's orphans, there is no live behaviour

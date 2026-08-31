@@ -96,7 +96,12 @@ export class Socket {
       } catch (e) {
         // One page's renderer throwing must not stop the others from being
         // told: a single bad payload should cost one card, not the session.
-        console.error('[socket] handler for ' + event + ' threw', e);
+        // `event` is passed as an ARGUMENT, not concatenated into the message.
+        // console.error does %-substitution, so building the string from a
+        // server-supplied event name makes a format string out of remote input:
+        // an event called `%s` would swallow the error object instead of
+        // printing it. Cosmetic, but the fix is shorter than the concatenation.
+        console.error('[socket] handler threw for event', event, e);
       }
     }
   }
