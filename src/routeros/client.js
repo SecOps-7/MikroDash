@@ -317,6 +317,21 @@ class ROS extends EventEmitter {
   }
 
   stop() {
+    // Idempotent, and that is load-bearing rather than tidiness.
+    //
+    // stop() closes the connection; closing emits 'close'; the 'close' handler
+    // calls _safeEmit('close'), which runs every listener the CALLER attached.
+    // So a caller who stops the client when it closes — the obvious thing to
+    // write, and what test/collector-lifecycle.test.js does — re-enters here and
+    // recurses synchronously until the stack gives out. It does not throw
+    // anywhere useful: the process simply stops making progress, which is how
+    // this presented for months as a test that "timed out after 1000ms" and read
+    // as flakiness under load.
+    //
+    // Nothing in this repo stops a ROS client from its own close handler today,
+    // so this was not reachable in production. It is guarded because the shape
+    // is one a caller is entitled to write, not because someone did.
+    if (this._stopping) return;
     this._stopping = true;
     // Lower `connected` HERE, not when the socket's close event eventually
     // lands. teardownSession calls stop() and then yields only 150 ms; any

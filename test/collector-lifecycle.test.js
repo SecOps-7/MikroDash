@@ -377,6 +377,47 @@ test('ROS client connectLoop retries failures and resets backoff after a success
   assert.equal(ros.connected, false);
 });
 
+// stop() closes the connection, closing emits 'close', and _safeEmit('close')
+// runs every listener the CALLER attached. So a caller who stops the client when
+// it closes re-enters stop() and, without a guard, recurses synchronously until
+// the stack gives out — the process stops making progress rather than throwing
+// anywhere useful.
+//
+// That is not hypothetical: the connectLoop test below DOES stop from a close
+// handler, and it spent months reported as "timed out after 1000ms", read as
+// flakiness under load, and even survived an interleaved A/B that correctly
+// showed it was nobody's recent change. Run alone it failed 10 times out of 10.
+//
+// Modelled here as a re-entrant conn.close() rather than through the full
+// emit chain, because the property being pinned belongs to stop(): it must
+// tolerate being called again from inside its own close. The realistic path is
+// the connectLoop test.
+test('ROS client stop() is idempotent, so closing may re-enter it', () => {
+  const ros = new ROS({});
+  let closeCalls = 0;
+  ros.conn = { close: () => { closeCalls++; ros.stop(); } };
+
+  ros.stop();
+
+  assert.equal(closeCalls, 1, 'the connection must be closed once, not once per re-entry');
+  assert.equal(ros._stopping, true);
+});
+
+test('ROS client stop() still closes the connection on the first call', () => {
+  // The believability twin. A guard placed one line too early would return
+  // before closing anything, and every test above would still pass while the
+  // socket was left open.
+  const ros = new ROS({});
+  let closeCalls = 0;
+  ros.conn = { close: () => { closeCalls++; } };
+
+  ros.stop();
+  ros.stop();
+
+  assert.equal(closeCalls, 1);
+  assert.equal(ros.connected, false);
+});
+
 test('ROS client connectLoop does not schedule another retry after stop is requested', { timeout: 1000 }, async () => {
   const ros = new ROS({});
   ros._buildConn = () => mockConn({
