@@ -2,6 +2,49 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.7.40] - The last Node release, and the fixes the Go port found
+
+The final release of MikroDash on Node.js. Everything below was found by comparing this app against
+the Go and TypeScript port endpoint by endpoint, which is a check no test on either side could
+perform: a round trip through one implementation agrees with itself whatever it does.
+
+### Fixed
+
+- **Turning off "accept self-signed certificate" could turn it on.** A client that sends the value as
+  text rather than as a boolean had it read backwards, so a router saved with certificate checking
+  ON accepted a forged certificate on every later connection. Four places did this; one was fixed in
+  0.7.37 and the other three, including the Test Connection button, were not.
+- **Enabling a disabled router could disable it.** The same reading applied to the enabled/disabled
+  switch, and to the per-router alert toggle. Values stored by an earlier version are now corrected
+  when they are read, so a router already saved the wrong way rights itself.
+- **The router list gave away each device's public IP address.** `/api/routers` returned the WAN
+  address that three other paths deliberately withhold, so anyone who could see a router at all
+  could read it, including read-only accounts.
+- **A user could be renamed to "null".** Sending an empty username as JSON null renamed the account
+  to those four characters instead of being refused, and later alert acknowledgements were recorded
+  against it.
+- **Error messages could reveal internal hostnames.** The "Test" button on personal notification
+  channels is available to every account, and a failure named the host it had tried to reach, so an
+  ordinary user could learn which internal names resolve. Addresses were already hidden; names now
+  are too.
+- **A disabled router's status badge said "Offline", or briefly "Online".** The row stayed dimmed
+  with an Enable button beside it, which read as a contradiction until the page was refreshed.
+- **The Traffic dropdown lost the selected interface after a reconnect.** The list stopped emptying
+  in 0.7.38, but the chosen interface still reverted to the default. Choosing an interface now
+  survives a dropped connection, and still resets when a different router is selected.
+  ([#119](https://github.com/SecOps-7/MikroDash/issues/119))
+- **The connection test named the wrong service.** A failure over api-ssl could be reported as a
+  plain `api` problem and the other way round, and the commonest failure of all, a wrong username or
+  password, was reported as a raw driver message.
+
+### Internal
+
+- 1,670 tests, up from 1,628. Every fix above was proved by reintroducing the defect and watching a
+  named test fail, rather than by reading the code.
+- Checks that scan the source now cover the whole file or the whole tree instead of a window near
+  the code they describe. Two of them had been passing without reaching the line they were written
+  for.
+
 ## [0.7.38] - Release notes in the Update dialog, and the Traffic dropdown fix that actually works
 
 ### New
