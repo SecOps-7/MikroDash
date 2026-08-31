@@ -218,6 +218,18 @@ func (s *Session) ResumeCollector(key string) {
 	if !s.CollectorEnabled(key) {
 		return
 	}
+	// REMEMBERED WHEN THE LINK IS NOT UP YET, because every collector's Resume()
+	// opens with `if ros.Connected()` and would otherwise drop this on the floor
+	// with nothing to ask again. Recorded rather than returned early: if a
+	// collector's resume ever does useful work while disconnected, it still runs.
+	if !s.Connected() {
+		s.mu.Lock()
+		if s.pendingResume == nil {
+			s.pendingResume = map[string]bool{}
+		}
+		s.pendingResume[key] = true
+		s.mu.Unlock()
+	}
 	// A DORMANT COLLECTOR IS NOT REFUSED HERE — IT IS WOKEN.
 	//
 	// The live app splits these: `_resumeCollector` refuses, and `_wakeForFocus`
@@ -270,4 +282,32 @@ func (s *Session) DormantCollectors() []string {
 		return []string{}
 	}
 	return s.dormancy.Dormant()
+}
+
+// replayResumes re-applies the page-focus resumes that arrived before the router
+// connection was up.
+//
+// Drained rather than kept: a replayed resume either takes effect now or the
+// collector is no longer wanted, and in the second case the dormancy supervisor
+// is what puts it back to sleep -- the same safety net the reconnect path relies
+// on when it restarts every page-gated collector unconditionally.
+func (s *Session) replayResumes() {
+	s.mu.Lock()
+	keys := make([]string, 0, len(s.pendingResume))
+	for k := range s.pendingResume {
+		keys = append(keys, k)
+	}
+	s.pendingResume = nil
+	s.mu.Unlock()
+
+	// Deterministic order, so a failure names the same collector twice. Sorted in
+	// place rather than importing sort for one call in a file that has no imports.
+	for i := 1; i < len(keys); i++ {
+		for j := i; j > 0 && keys[j] < keys[j-1]; j-- {
+			keys[j], keys[j-1] = keys[j-1], keys[j]
+		}
+	}
+	for _, k := range keys {
+		s.ResumeCollector(k)
+	}
 }

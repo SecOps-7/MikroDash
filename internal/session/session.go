@@ -93,6 +93,10 @@ type Session struct {
 	conns        *collect.Connections
 	connTable    *collect.ConnTable
 
+	// pendingResume holds page-focus resumes that arrived BEFORE the router
+	// connection came up. Guarded by mu. See ResumeCollector and replayResumes.
+	pendingResume map[string]bool
+
 	// writeMu serialises read-modify-write sequences against this router.
 	writeMu sync.Mutex
 }
@@ -914,6 +918,33 @@ func (s *Session) connectLoop() {
 			if s.eff.Enabled["ping"] {
 				s.ping.Start()
 			}
+			// ── AND THE RESUMES THAT ARRIVED TOO EARLY ──────────────────
+			//
+			// The page-gated collectors are deliberately absent from the block
+			// above: they start when somebody opens their page or dashboard
+			// card, not on connect. But the browser asks for that BEFORE this
+			// point. `dashcard:focus` is sent as the grid lays out, and
+			// `selectRouter` calls `rejoinCards()` immediately after `Acquire`,
+			// which returns as soon as the session exists rather than when it
+			// has dialled. Every collector's `Resume()` begins `if
+			// ros.Connected()`, so those requests were silently dropped and
+			// nothing ever asked again.
+			//
+			// MEASURED 2026-08-31, after the operator reported the Connections
+			// card stale with no data after a container rebuild: on a fresh
+			// session the card showed "— total" indefinitely, and visiting the
+			// Connections page (a resume that arrives when the link IS up) filled
+			// it in at once. Connection Flow, Top Countries, Top Ports, Routes by
+			// Protocol and BGP Peers were empty for the same reason.
+			//
+			// The reconnect branch below never had this, which is why the card
+			// "eventually recovered": any drop and return restores everything.
+			//
+			// The live app has no first/reconnect split to get wrong -- its
+			// `ros.on('connected')` always ends with `_updateAllPageStreams`,
+			// "restore page-aware streams for any pages still open"
+			// (src/index.js:685). This is that, for the connect it was missing on.
+			s.replayResumes()
 			first = false
 		} else {
 			// #105: GATED LIKE THE STARTS, and for a sharper reason.
