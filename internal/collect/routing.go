@@ -670,7 +670,23 @@ func (r *Routing) emitPayload(peers []Peer) {
 		Summary:     sum,
 	}
 	r.last = payload
-	r.emit("page-routing", "routing:update", payload)
+	// ── ALSO THE DASHBOARD, WHICH IS A DELIBERATE DEPARTURE ─────────────────
+	//
+	// `dc-card-routes` and `dc-card-bgp` are dashboard cards fed by this event,
+	// and `dashboard.ts` has always listened for it. They rendered em dashes
+	// because the payload only ever reached `page-routing` -- so a viewer saw
+	// the cards fill by opening the Routing page and never otherwise.
+	//
+	// The Node app had the identical gap: `emit-rooms-audit`'s recorded ledger
+	// has this event at `page-routing` twice and nowhere else. This is therefore
+	// NOT a port defect being repaired but a behaviour being changed on purpose,
+	// which is allowed now that the port is over and was not while it ran.
+	//
+	// `page-dashboard` rather than a card room because these two cards have no
+	// entry in `CARD_ROOMS` -- the grid never sends `dashcard:focus` for them, so
+	// there is no room to join. It is the same channel `netwatch:update`,
+	// `ping:update` and `talkers:update` already use to reach dashboard cards.
+	r.emit("page-routing,page-dashboard", "routing:update", payload)
 }
 
 // SetPollMs applies a new poll period to a running collector.

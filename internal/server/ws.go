@@ -709,6 +709,21 @@ func (cn *conn) resumePage(page string) {
 				cn.srv.hub.Send(cn.c, "ping:update", last)
 			}
 		}
+		// ── ROUTES AND BGP PEERS ────────────────────────────────────────────
+		//
+		// Unlike the three above, `routing` does NOT run from connect: it is
+		// page-gated, and its only gate was the Routing page. So the Dashboard
+		// has to wake it the way a card focus wakes a card's collector -- and
+		// then replay, or both cards show em dashes until the next tick, which
+		// is up to 60s.
+		//
+		// `ResumeCollector` is the right funnel rather than touching the loop
+		// directly: it honours the operator's per-collector enable switch, and
+		// it latches when the router is not connected yet.
+		cn.rsession.ResumeCollector("routing")
+		if last := cn.rsession.Routing().Last(); last != nil {
+			cn.srv.hub.Send(cn.c, "routing:update", last)
+		}
 		if p := cn.rsession.Ping(); p != nil {
 			hist := p.History()
 			// Empty is not sent, as the original does not send it: an empty
@@ -941,7 +956,13 @@ func (cn *conn) pageBlur(page string) {
 	case "packages":
 		cn.rsession.Packages().Suspend()
 	case "routing":
-		cn.rsession.Routing().Suspend()
+		// The dashboard's Routes and BGP Peers cards read this collector as of
+		// 2026-08-31, so a Routing-page blur no longer means nobody is watching.
+		// `blur-suspend-audit` caught this the moment the second room was added,
+		// which is the third time it has caught exactly this consequence
+		// (dhcpNetworks, bandwidth, vpn, firewall before it).
+		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
+			[]string{"page-dashboard"}, cn.rsession.Routing().Suspend)
 	case "dhcp":
 		// dhcpNetworks also feeds the dashboard's Network card AND the
 		// router-wide `lan:wan` chip, which is on every page — so it is
@@ -956,6 +977,20 @@ func (cn *conn) pageBlur(page string) {
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
 			[]string{"dash-card-network"}, cn.rsession.DHCPNetworks().Suspend)
 		cn.rsession.DHCPLeases().Suspend()
+	case "dashboard":
+		// ── THE OTHER HALF OF THE ROUTING GUARD ─────────────────────────────
+		//
+		// pageBlur had NO dashboard case, and did not need one: every collector
+		// feeding a dashboard card ran from CONNECT, so there was nothing a blur
+		// could usefully stop.
+		//
+		// `routing` broke that assumption. It is page-gated, and the Dashboard
+		// now wakes it for the Routes and BGP Peers cards -- so without this, a
+		// viewer who glanced at the dashboard once left it polling the router
+		// forever, on a box where concurrent channels are the documented
+		// bottleneck. Suspended only when the Routing page is not also open.
+		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
+			[]string{"page-routing"}, cn.rsession.Routing().Suspend)
 	case "ppp":
 		cn.rsession.PPP().Suspend()
 	case "vpn":

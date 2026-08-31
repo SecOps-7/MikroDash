@@ -13,7 +13,7 @@ bandwidth-chart-check.js 28
 bandwidth-page-check.js 49
 bandwidth-rate-check.js 30
 banners-check.js 35
-blur-suspend-audit.js 13
+blur-suspend-audit.js 21
 bridges-page-check.js 53
 canfail-audit.js 26
 caps-check.js 92

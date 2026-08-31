@@ -137,5 +137,21 @@ if (problems.length) {
   for (const p of problems) console.error('  - ' + p);
   process.exit(1);
 }
-console.log(`blur-suspend-audit: ${checked} direct suspends, all single-room; `
-  + 'every multi-room collector is behind an occupancy guard');
+// ── WHY THE TOTAL IS PRINTED, AND PRINTED LARGEST ───────────────────────────
+//
+// The gate census (`tools/verify.sh`) ratchets on the LARGEST number a gate
+// prints, on the assumption that it measures how much the gate checked. For a
+// while that number here was `checked` -- the count of DIRECT suspends -- which
+// falls every time a collector is correctly moved behind an occupancy guard.
+//
+// So the census fired on an improvement: moving `routing` behind a guard on
+// 2026-08-31 took it from 13 to 12 and failed the sweep, for a change that made
+// pageBlur MORE correct, not less. Same shape as `credential-audit`, whose number
+// measured the repository rather than the check.
+//
+// The total is the honest measure of coverage: every suspend in pageBlur is
+// either direct or guarded, so it only falls if this audit stops SEEING them --
+// which is exactly what the census should fire on.
+const guarded = (blur.match(/suspendIfNoRoomOccupied|suspendConnsIfIdle/g) || []).length;
+console.log(`blur-suspend-audit: ${checked + guarded} suspends in pageBlur (${checked} direct, `
+  + `all single-room; ${guarded} behind an occupancy guard)`);

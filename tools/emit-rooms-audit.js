@@ -85,12 +85,62 @@ if (Object.keys(live).length < 10) {
   process.exit(1);
 }
 
+// ── EVENTS THIS APP DELIBERATELY SENDS FURTHER THAN NODE DID ────────────────
+//
+// Three dashboard cards -- Routes, BGP Peers and Connection Flow -- were fed by
+// events that only ever reached a PAGE room, so they rendered em dashes and
+// "Waiting for connection data…" to anyone who did not open the owning page. The
+// Node app had the identical gap; the recorded ledger below is the proof, which
+// is why this is a change rather than a repair. It was made on 2026-08-31, after
+// the port's "nothing user-visible may change" rule was retired.
+//
+// DECLARED, NOT SUPPRESSED, and the difference is asserted in BOTH directions:
+// the port must send exactly these rooms, AND it must still differ from live. An
+// entry that starts agreeing with the recording again FAILS, which forces the
+// declaration to be deleted rather than left lying about a departure that no
+// longer exists -- the same reason `nodecheck`'s KNOWN_INCOMPLETE asserts its
+// gaps still exist.
+//
+// Anything NOT listed here is compared exactly as before, so an accidental
+// fourth widening still fails.
+const WIDENED = {
+  'routing:update': {
+    rooms: 'page-dashboard,page-routing',
+    why: 'dc-card-routes and dc-card-bgp are dashboard cards with no CARD_ROOMS entry, so page-dashboard is the only channel that reaches them',
+  },
+  'conn:country-data': {
+    rooms: 'dash-card-connections,page-connections',
+    why: 'the Connection Flow Sankey needs the country indexes and is blank without them',
+  },
+  'conn:source-data': {
+    rooms: 'dash-card-connections,page-connections',
+    why: 'the same card needs the source indexes',
+  },
+};
+
 let compared = 0;
+let declared = 0;
 for (const ev of Object.keys(port).sort()) {
   if (!live[ev]) continue; // ported-only event; nothing to compare against
   compared++;
   const l = [...new Set(live[ev])].sort().join(' | ');
   const p = [...new Set(port[ev])].sort().join(' | ');
+  // `rooms` is the extractor's own form -- a single comma-joined string, exactly
+  // as the recorded ledger stores `conn:update` -- not a re-sorted set. Declaring
+  // it in any other shape silently never matches.
+  const w = WIDENED[ev];
+  if (w) {
+    declared++;
+    if (p !== w.rooms) {
+      problems.push(`${ev} is DECLARED as a deliberate widening but does not match it`
+        + `\n      declared: ${w.rooms}\n      port:     ${p}\n      (${w.why})`);
+    } else if (p === l) {
+      problems.push(`${ev} is DECLARED as a deliberate widening but now matches live again`
+        + `\n      both: ${l}\n      Remove it from WIDENED — a declaration for a difference that`
+        + `\n      no longer exists is a note that has stopped being true.`);
+    }
+    continue;
+  }
   if (l !== p) {
     problems.push(`${ev}\n      live: ${l}\n      port: ${p}`);
   }
@@ -104,4 +154,5 @@ if (problems.length) {
   console.error('  a consumer somewhere else.');
   process.exit(1);
 }
-console.log('emit-rooms-audit: %d shared payload(s), all reaching the same rooms as live', compared);
+console.log('emit-rooms-audit: %d shared payload(s), %d reaching the same rooms as live, '
+  + '%d deliberately widened and still widened', compared, compared - declared, declared);

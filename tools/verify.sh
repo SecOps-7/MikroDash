@@ -83,10 +83,10 @@
 # and "documented in CLAUDE.md on its own" is exactly that. Nor does the container
 # argument distinguish it: THREE generators already run here through `docker`.
 #
-# It was found the way the original was — by looking. `PORT-QUEUE.md` defines a
-# green iteration as `gofmt -l .` silent, `go vet`, `go test ./...` with the live
-# repo mounted read-only, AND the JS side; a whole session ran this sweep, called
-# it green, and never once compiled the Go.
+# It was found the way the original was — by looking. A green iteration was
+# defined during the port as `gofmt -l .` silent, `go vet`, `go test ./...` AND
+# the JS side; a whole session ran this sweep, called it green, and never once
+# compiled the Go.
 #
 # The Go run is SLOW (about a minute; `internal/db` alone takes eleven seconds),
 # so the module cache lives in a named docker volume rather than being downloaded

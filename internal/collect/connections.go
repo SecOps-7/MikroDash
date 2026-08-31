@@ -779,10 +779,27 @@ func (c *Connections) Tick() {
 		c.emit("page-connections,dash-card-connections", "conn:update", connsLight{&light})
 	}
 	if detailChanged {
-		c.emit("page-connections", "conn:country-data", map[string]any{
+		// ── THE CARD ROOM TOO, AND IT COSTS SOMETHING ───────────────────────
+		//
+		// The dashboard's Connection Flow card (the Sankey) needs both of these
+		// and received neither, so it sat on "Waiting for connection data…"
+		// forever. The Node app did the same -- the recorded ledger has both
+		// events at `page-connections` alone -- so this is a deliberate change,
+		// not a repair.
+		//
+		// BE CLEAR ABOUT THE TRADE. These are the four heavy indexes
+		// `connsLight` strips from the card broadcast precisely BECAUSE they are
+		// heavy, so sending them here gives back weight that was deliberately
+		// saved. It is justified only because the card is useless without them:
+		// the alternative is not a lighter card, it is a blank one.
+		//
+		// `conn:update` is deliberately NOT changed. It still goes out light, so
+		// the cost lands only on the two events that carry these indexes anyway
+		// and only when `detailChanged`.
+		c.emit("page-connections,dash-card-connections", "conn:country-data", map[string]any{
 			"ts": payload.TS, "countryDests": payload.CountryDests, "countryPorts": payload.CountryPorts,
 		})
-		c.emit("page-connections", "conn:source-data", map[string]any{
+		c.emit("page-connections,dash-card-connections", "conn:source-data", map[string]any{
 			"ts": payload.TS, "sourceDests": payload.SourceDests, "sourcePorts": payload.SourcePorts,
 		})
 	}
