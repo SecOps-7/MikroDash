@@ -1,0 +1,47 @@
+# What the language bar should say
+#
+# MikroDash is a Go binary serving a TypeScript frontend. Without this file
+# GitHub reported it as 44% Go / 36% JavaScript / 13% TypeScript, because
+# Linguist counts every .js file that is not marked, and this repository carries
+# 4.1 MB of JavaScript that is never shipped and never runs in production:
+#
+#   3.7 MB  tools/            the verification harness -- 136 gates, 34 audits and
+#                             105 corpus generators. 124 of the gates bundle the
+#                             frontend TypeScript through esbuild and 86 drive a
+#                             DOM to compare rendered HTML, which is why they are
+#                             JavaScript and not Go: Go has no DOM, and testing
+#                             TypeScript needs a JavaScript runtime.
+#   205 KB  chart.umd.min.js  third-party, self-hosted because this project
+#                             serves no CDN assets.
+#   136 KB  recordings        frozen captures of the Node implementation that the
+#                             gates compare against. Data wearing a .js extension.
+#    35 KB  nodecheck/        three differential tests.
+#    33 KB  retired checks    kept as record, cannot run.
+#
+# The runtime image contains no node or npm binary and no JavaScript except the
+# compiled frontend bundle, which is built from TypeScript.
+#
+# NOTE THIS IS PRESENTATION, NOT REMOVAL. Every file below is still in the tree,
+# still maintained, and still runs on every push. `linguist-vendored` here means
+# "not the product", not "not ours" -- CONTRIBUTING.md points contributors at
+# tools/ on their first read, and `sh tools/verify.sh` is the documented check.
+
+# ── The verification harness ──────────────────────────────────────────────
+tools/**            linguist-vendored
+nodecheck/**        linguist-vendored
+
+# ── Genuinely third-party, vendored to avoid a CDN ────────────────────────
+web/public/vendor/** linguist-vendored
+
+# ── Recordings and build output, not hand-written source ──────────────────
+#
+# testdata/golden-gates/ is 127 recordings of the Node implementation;
+# internal/resource/testdata/live-resources.js is a verbatim copy of the old
+# resources.js frozen as a gate's oracle; web/dist/ is build output apart from
+# the two lifted renderers, which are also recordings.
+testdata/**         linguist-generated
+internal/*/testdata/** linguist-generated
+web/dist/**         linguist-generated
+
+# ── The port's own record ─────────────────────────────────────────────────
+docs/port-history/** linguist-documentation
