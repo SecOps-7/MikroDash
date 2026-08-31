@@ -55,13 +55,13 @@ With the reference present each recording is **re-derived and compared against i
 
 These are deliberate constraints rather than style preferences:
 
-- **Gates are generated, never transcribed.** `tools/*-cases.js` build their corpora by RUNNING or LIFTING the reference implementation, and `--check` fails when one goes stale. A table retyped by hand is a fork with no update path, and it will be wrong the first time the thing it copied changes.
+- **Gates are generated, never transcribed.** `tools/*-cases.js` built their corpora by RUNNING or LIFTING the Node implementation. That source was removed at the cutover, so those corpora are now frozen artefacts and their `--check` runs report a skip. A table retyped by hand is a fork with no update path — if one needs re-deriving, check out `v0.7.40` rather than editing the corpus.
 - **A check that cannot fail is worse than no check.** Anything that scans a set asserts it actually found something. An audit that silently measures zero reads exactly like one that passed.
 - **Self-hosted assets.** Everything the browser loads lives in `web/public/vendor/`, so the dashboard works on an isolated network with no internet access. No CDN references.
 - **A small dependency footprint.** There are seven Go dependencies and each has a reason beyond convenience — the newest, `esbuild`, is there because it *removed* a runtime: the frontend build no longer needs Node. New ones are worth discussing first.
 - **Streaming-first.** Prefer RouterOS `/listen` or `=interval=N` streams over polling, so the router does the work of noticing change rather than being asked repeatedly. Concurrent API channels, not data volume, are what strain small hardware.
 - **Errors are sanitised.** Anything reaching the browser goes through `safe.Message()` first.
-- **Nothing user-visible changes without meaning to.** The frontend reuses the original stylesheet, class names, element ids and DOM shape. A page that renders differently is a regression, however correct its data.
+- **Nothing user-visible changes by accident.** The gates compare the rendered page against a recording of how it looked at cutover, so a change to markup or interaction will fail one. That is the point: a deliberate change is welcome and needs the gate re-aimed and the reason written down; an unnoticed one is a bug. The recording cannot be regenerated, so re-aiming is the only route -- deleting the gate is not.
 
 Collectors follow established patterns — inflight guards, idle-gating, dirty-check fingerprinting. You do not need to know these before starting: **[AI_CONTEXT.md](AI_CONTEXT.md)** documents each one with examples, and copying the closest existing collector in `internal/collect/` is a perfectly good way to begin.
 

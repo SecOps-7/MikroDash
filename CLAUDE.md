@@ -116,9 +116,11 @@ docker run --rm --network host -v "$PWD":/src -w /src -v /path/to/data:/data:ro 
 docker run --rm -v mikrodash_data:/data:ro -v "$PWD":/src -w /src \
   golang:1.25-alpine go run ./cmd/compat -data /data
 
-# Corpora. Each `tools/*-cases.js` RUNS or LIFTS the reference implementation and
-# `--check` fails when one is stale. NEVER retype what one of these generates:
-# a hand-copied table is a fork with no update path.
+# Corpora. Each `tools/*-cases.js` RAN or LIFTED the Node implementation to build
+# its corpus. That source is gone, so all 105 `--check` runs now SKIP and say so —
+# the corpora are frozen artefacts. NEVER retype what one of these generated: a
+# hand-copied table is a fork with no update path. To re-derive one, check out
+# `v0.7.40` into a scratch tree and point `MIKRODASH_SRC` at it.
 node tools/make-golden.js            # --check fails if stale
 node tools/extract-ui.js             # lifts markup verbatim
 node tools/api-surface.js            # regenerates the API surface
@@ -181,17 +183,26 @@ documented in the package header: the scrypt salt is a **string** not decoded by
 array, which is a security property rather than a preference.
 
 **`testdata/fixtures/`** is what stops this code re-deriving RouterOS behaviour: real captures from
-live hardware, replayed into the reference collectors by `nodecheck/` and into the Go ones by
-`internal/collect`.
+live hardware, replayed into the Go collectors by `internal/collect`. `nodecheck/` replayed them
+into the Node collectors too until cutover; its three surviving tests record their own live half.
 
 ---
 
 ## Hard constraints
 
-- **Nothing user-visible may change.** The frontend reuses the existing stylesheet, class names,
-  element ids and DOM shape verbatim; only the logic producing the DOM is rewritten. A page that
-  renders differently is a regression, however correct its data. Backend mechanics may change where
-  that buys efficiency.
+- **The app may now change, and the gates tell you when it does.** "Nothing user-visible may
+  change" was the PORT's acceptance criterion, and it was retired at cutover: this is the product
+  now, not a reproduction of one, and it has to evolve.
+
+  What the 136 gates mean changed with it. They no longer prove parity with an implementation that
+  exists; they compare against a frozen RECORDING of one that does not. So a failing gate is not
+  "you broke it" any more, it is **"you changed the rendering — did you mean to?"** That is still
+  worth having, because the expensive defects in this repo have always been the silent ones.
+
+  The cost moved rather than vanished. **The recordings cannot be regenerated**, so a deliberate
+  change means re-aiming or retiring the gate that guarded the old behaviour, and saying so in the
+  commit. Never delete a gate to make a change quiet: a gate removed without a reason reads exactly
+  like one that never existed.
 
 - **"More efficient" means fewer router channels, not faster payload assembly.** The documented
   bottleneck is concurrent API channels on the MikroTik, not CPU.
@@ -255,8 +266,9 @@ token the tool minted — because a denylist would not have caught the first lea
 ## Versioning rule
 
 **Do not bump a version or write release notes during a working session.** This project has no
-released version yet; when it gains one it follows the live repo's rule — a bump happens only when
-the user says "package it up", and one bump covers the entire session.
+released three: 0.8.0 (tagged, never published — its build failed on 32-bit ARM), 0.8.1 (the first
+published Go image) and 0.8.2. A bump happens only when the user says "package it up", and one bump
+covers the entire session.
 
 ---
 
@@ -449,8 +461,9 @@ trade. Build explicitly when you need a binary.
 - Append to `Changes.md` after every file edit (not in a batch at the end).
 - Always confirm before `git push` or Docker push.
   Build here explicitly when you need a binary.
-- Re-run `tools/api-surface.js --check` after the live repo changes — a stale surface means the port
-  checklist is wrong.
+- `tools/api-surface.js --check` regenerated `docs/routeros-api-surface.md` from the Node source and
+  now skips with the other 104 generators. The committed surface is frozen; extend it by hand from
+  the RouterOS documentation (see the mikrotik-docs skill) rather than expecting the tool to.
 
 ---
 
@@ -484,14 +497,16 @@ Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, sim
 
 **Touch only what you must. Clean up only your own mess.**
 
-When porting:
-- Reproduce the old behaviour, including its quirks. A quirk you "improve" silently is a regression
-  the fixtures will catch and the user will not.
-- **Do** redesign the backend where it can be made more efficient without changing what the app
-  does. A more direct data path, fewer router channels, a simpler internal shape: all welcome.
-  Efficiency is a reason to depart from the old design; taste alone is not.
-- The line that must not move is the user-visible one. Redesign the mechanism, never the behaviour,
-  the payload contract or the rendered page.
+- **A quirk is not automatically worth keeping, but it is worth understanding first.** Plenty of
+  this app's behaviour was inherited verbatim because reproducing it was the job. Some of that is
+  deliberate and load-bearing; some is an accident nobody has questioned since. Find out which
+  before changing it, and say which one you concluded.
+- **Deliberate changes are fine. Silent ones are not.** If a change moves the rendered page, the
+  payload contract or an interaction, that belongs in the commit message and in `Changes.md` --
+  along with which gate you re-aimed, if any.
+- **Efficiency remains a reason to depart from the old design; taste alone still is not.** A more
+  direct data path, fewer router channels, a simpler internal shape: all welcome. "I would have
+  written it differently" is not.
 - Match this repo's Go style, even if you'd do it differently.
 
 ## 4. Goal-Driven Execution
@@ -499,9 +514,9 @@ When porting:
 **Define success criteria. Loop until verified.**
 
 Transform tasks into verifiable goals:
-- "Port the DNS collector" → "the Go payload matches the fixture replay, field for field"
-- "Add the client" → "conformance passes on all three routers"
-- "Read settings" → "compat accepts a password hashed by Node"
+- "Fix the DNS collector" → "the Go payload matches the fixture replay, field for field"
+- "Change what the card shows" → "the gate fails, I re-aimed it deliberately, and said why"
+- "Speed up the router reads" → "concurrent reads never exceed the cap, measured"
 
 For multi-step tasks, state a brief plan:
 ```

@@ -218,10 +218,16 @@ func (s *Session) ResumeCollector(key string) {
 	if !s.CollectorEnabled(key) {
 		return
 	}
-	// REMEMBERED WHEN THE LINK IS NOT UP YET, because every collector's Resume()
-	// opens with `if ros.Connected()` and would otherwise drop this on the floor
-	// with nothing to ask again. Recorded rather than returned early: if a
-	// collector's resume ever does useful work while disconnected, it still runs.
+	// REMEMBERED WHEN THE LINK IS NOT UP YET. THIRTEEN of the twenty-six
+	// collectors open Resume() with `if ros.Connected()` and drop the request on
+	// the floor with nothing to ask again -- measured, after an earlier version of
+	// this comment claimed "every collector" on no evidence.
+	//
+	// The latch is unconditional anyway, and deliberately so: which thirteen is an
+	// implementation detail of twenty-six separate files, and a collector that
+	// grows such a guard later must not silently re-open this hole. Recorded
+	// rather than returned early, so a resume that does useful work while
+	// disconnected still runs.
 	if !s.Connected() {
 		s.mu.Lock()
 		if s.pendingResume == nil {
