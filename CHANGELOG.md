@@ -2,22 +2,69 @@
 
 All notable changes to MikroDash will be documented in this file.
 
-## [0.8.1] - The cutover release, now building on 32-bit ARM
+## [0.8.1] - MikroDash is now Go and TypeScript
 
-**0.8.0 was tagged but never published.** Its image build failed on `linux/arm/v7`,
-the architecture that release restored, so no image reached the registry. 0.8.1 is
-that same cutover with the 32-bit fix. Everything described under 0.8.0 applies.
+The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114) replaces the
+Node.js implementation. It has been serving in production since 2026-08-30, and this is the first
+published image of it.
+
+**Nothing about the dashboard changed, and that was the point.** Every page, colour, keyboard
+shortcut and setting is where you left it. The frontend reuses the original stylesheet, class names,
+element ids and DOM shape verbatim; only the logic producing them was rewritten. That was the
+acceptance criterion throughout, enforced by 136 checks that drive both implementations from one
+payload and compare the rendered HTML character for character.
+
+### What you get
+
+- **ARMv7 support is back.** It was dropped at 0.5.54 because the Node base image published no
+  32-bit ARM build, which stranded anyone on older hardware two years behind. `linux/arm/v7` is
+  published again alongside amd64 and arm64, so a Raspberry Pi 2/3, an older NanoPi or a 32-bit
+  router-adjacent box can run current MikroDash.
+- **The image is 180 MB instead of 775 MB.** A single static binary on Alpine: no Node runtime, no
+  `node_modules`, no native compilation at install time. Faster to pull, faster to start, and far
+  less surface to patch.
+- **Nothing to migrate.** Point the new image at your existing volume and it picks up every history
+  sample, alert, audit row, saved layout, user and encrypted setting exactly as they are.
+- **Geolocation needs no account.** The city database is DB-IP City Lite, fetched fresh when the
+  image is built: no sign-up, no licence key, no token that expires and quietly breaks the map
+  months later. Point `-geo` at a volume if you would rather supply your own.
+- **A type-checked frontend.** A whole class of bug that used to surface as a button that silently
+  did nothing is now caught before the code ships.
+- **Rollback is one command.** The Node release is still there: `docker run` the `0.7.40` image
+  against the same volume. Anything the Go release wrote, the Node release can still read.
+
+### Upgrading
+
+Pull and restart. Your `docker-compose.yml` needs no change, and the volume is used as-is.
+
+One thing worth knowing: **`docker restart` is not a redeploy.** It keeps the image the container
+was created from, so a newly pulled image is ignored while the app comes back looking perfectly
+healthy. Use `docker compose up -d`, or `docker rm -f` then `docker run`.
 
 ### Fixed
 
-- **ARMv7 builds again, and is correct rather than merely compiling.** On 32-bit
-  ARM a plain `int` is 32 bits, and three constants overflowed it. Two were
-  compile errors; the third was a real defect that would have shipped silently on
-  that architecture — an AS number is 32-bit *unsigned*, so a 4-byte private ASN
-  could not be parsed at all and a private BGP peer would have been labelled
-  upstream.
+- Everything in 0.7.40 is included, including the certificate-check and router-enable fixes and the
+  read-only account that could read a device's public IP address.
+- **0.8.0 was tagged but never published.** Its image build failed on the 32-bit ARM target it had
+  just restored: an AS number is 32-bit unsigned, and on a 32-bit build a large private ASN could
+  not be parsed at all, so a private BGP peer would have been labelled upstream. Two related
+  constants would not compile there either. Fixed and verified on all three architectures.
+- Two defects the cutover itself surfaced: a migration flag that made the app proxy some routes to
+  itself and silently disable background polling and history retention, and twelve verification
+  checks that would have become a permanent silent skip.
 
-## [0.8.0] - MikroDash is now Go and TypeScript
+### Internal
+
+- The Node implementation is removed from the tree. It remains in this repository's history and at
+  the `v0.7.40` tag.
+- The verification travels with the repo: every check compares against a committed recording of the
+  old implementation, so a fresh clone can run `sh tools/verify.sh` and get a meaningful answer. The
+  final comparison against the real Node source ran immediately before deletion and was green.
+
+## [0.8.0] - MikroDash is now Go and TypeScript (tagged, never published)
+
+> **No image was published for this version.** The build failed on 32-bit ARM; 0.8.1 is the
+> same cutover with that fix and is the release to use. This entry is kept as the record.
 
 The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114) replaces the
 Node.js implementation. It has been serving in production since 2026-08-30.
