@@ -41,7 +41,21 @@ const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { maxBuffer: 6
   .toString('utf8').split('\0').filter(Boolean);
 
 // Text only, and not the places a match is meaningless.
-const SKIP = /^(web\/public\/vendor\/|docs\/port-history\/|CHANGELOG\.md$)/;
+//
+// ENUMERATED, AND EACH ONE IS COUNTED IN THE OUTPUT. A widened skip is the one
+// way this audit can go quiet while still reporting "full coverage" -- both
+// `scanned` and `eligible` fall together, so the ratio cannot see it. Printing
+// what each prefix cost makes the widening visible in the sweep log and in the
+// diff, which is where a deliberate one belongs.
+const SKIP_RULES = [
+  ['web/public/vendor/', 'third-party, self-hosted to avoid a CDN'],
+  ['docs/port-history/', 'the port record: quotes old code, including old test strings'],
+  ['CHANGELOG.md', 'release prose quoting fixes, not a place credentials live'],
+];
+const SKIP = new RegExp(
+  '^(' + SKIP_RULES.map(([p]) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + (p.endsWith('/') ? '' : '$')).join('|') + ')'
+);
+const skipCounts = new Map(SKIP_RULES.map(([p]) => [p, 0]));
 const TEXT = /\.(js|cjs|mjs|ts|go|json|md|ya?ml|sh|py|html|css|txt)$/;
 
 const RULES = [
@@ -87,16 +101,36 @@ function stripComments(s, file) {
 }
 
 const findings = [];
+const unreadable = [];
+const oversize = [];
 let scanned = 0;
+let eligible = 0;
 
 for (const rel of files) {
-  if (SKIP.test(rel) || !TEXT.test(rel)) continue;
+  if (SKIP.test(rel)) {
+    for (const [pre] of SKIP_RULES) {
+      if (rel === pre || rel.startsWith(pre)) { skipCounts.set(pre, skipCounts.get(pre) + 1); break; }
+    }
+    continue;
+  }
+  if (!TEXT.test(rel)) continue;
+  eligible++;
   const abs = path.join(ROOT, rel);
   let raw;
   try {
-    if (fs.statSync(abs).size > 8 << 20) continue;
+    // OVERSIZE IS REPORTED, NOT SWALLOWED. Nothing tracked is near 8 MB today
+    // (the largest is a 5.4 MB recording), so this is a guard against a future
+    // file, and a guard nobody hears about is not one.
+    if (fs.statSync(abs).size > 8 << 20) { oversize.push(rel); continue; }
     raw = fs.readFileSync(abs, 'utf8');
-  } catch { continue; }
+  } catch (e) {
+    // A FILE THAT CANNOT BE READ IS A FAILURE, not a skip. This was `catch
+    // { continue }`, which is exactly the shape that hides the thing this audit
+    // exists to find: a file present in the index, unreadable here, and
+    // therefore never checked for a credential -- silently.
+    unreadable.push(`${rel}: ${e.code || e.message}`);
+    continue;
+  }
   scanned++;
 
   const body = stripComments(raw, rel);
@@ -109,6 +143,27 @@ for (const rel of files) {
       findings.push({ rel, line, id: rule.id });
     }
   }
+}
+
+// ── COVERAGE IS THE INVARIANT, AND IT IS ASSERTED HERE ──────────────────────
+//
+// This audit used to be in the gate census (`tools/verify.sh`), which fails when
+// a gate's number drops. That was the wrong guard: the number is how many files
+// the REPOSITORY has, so deleting `CUTOVER.md` on 2026-08-31 "shrank" it from
+// 1268 to 1267 and turned a green tree red.
+//
+// The property actually worth holding does not move when a file is deleted:
+// every eligible file was opened and scanned. If that stops being true -- a
+// widened SKIP, an unreadable path, a file grown past the size cap -- it is
+// reported HERE, where the reason is known, instead of as a number that dropped.
+if (unreadable.length || oversize.length) {
+  console.error(`credential-audit: ${unreadable.length + oversize.length} eligible file(s) were NOT scanned\n`);
+  for (const u of unreadable) console.error(`  UNREADABLE  ${u}`);
+  for (const o of oversize) console.error(`  OVER 8 MB   ${o}`);
+  console.error(`
+An eligible file that goes unscanned is a file no credential check ever saw.
+Fix the cause; do not widen SKIP to make this quiet.`);
+  process.exit(1);
 }
 
 if (findings.length) {
@@ -125,4 +180,12 @@ isPlaceholder() rather than narrowing the rule.`);
   process.exit(1);
 }
 
-console.log(`credential-audit: ${scanned} committed files scanned, no credential shapes found`);
+// The file count is printed LAST and deliberately reads as context rather than a
+// score: it is the size of the repository, not of this check. `verify.sh` names
+// this gate in CENSUS_NOT_CORPUS for that reason.
+console.log(
+  `credential-audit: ${RULES.length} rules, full coverage (${scanned}/${eligible} eligible files), ` +
+  'no credential shapes found');
+console.log(
+  '  excluded: ' +
+  SKIP_RULES.map(([p]) => `${p} (${skipCounts.get(p)})`).join(', '));

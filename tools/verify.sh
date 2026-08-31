@@ -119,6 +119,33 @@ note() { printf '%s\n' "$*"; }
 # identical passes produced byte-identical counts — no timestamps, no ids, no
 # run-to-run drift. A ratchet on an unstable number would be a gate that cries
 # wolf until it is deleted.
+# ── ONE GATE'S NUMBER IS NOT A CORPUS SIZE ────────────────────────────────
+#
+# The ratchet assumes the largest number a gate prints measures HOW MUCH IT
+# CHECKED. That holds for 159 of them. `credential-audit.js` prints how many
+# TRACKED FILES EXIST, which measures the repository instead -- so deleting any
+# committed text file makes it "shrink" and fails the sweep, for a change that
+# took nothing away from the check.
+#
+# It failed exactly that way on 2026-08-31: `CUTOVER.md` was deleted, the count
+# went 1268 -> 1267, and CI went red on a green tree. The stability measurement
+# that admitted this gate to the census asked whether two runs agreed, and they
+# did; it never asked whether the number tracks the gate or the repo.
+#
+# So it is excluded here, BY NAME AND WITH THE REASON, rather than by loosening
+# the ratchet for everyone. The check itself is not left unguarded: the audit now
+# asserts its own coverage -- every eligible file scanned, and an unreadable one
+# is a FAILURE rather than a silent skip -- which is the invariant the census was
+# standing in for, and it does not move when a file is deleted.
+CENSUS_NOT_CORPUS='credential-audit.js'
+
+census_is_corpus() {
+  for _n in $CENSUS_NOT_CORPUS; do
+    [ "$1" = "$_n" ] && return 1
+  done
+  return 0
+}
+
 CENSUS_FILE=testdata/gate-census.txt
 CENSUS_TMP=$(mktemp)
 CENSUS_FAILED=$(mktemp)
@@ -151,7 +178,9 @@ run_group() {
         printf '%s\n' "${f##*/}" >>"$CENSUS_SKIPPED"
       fi
       cnt=$(printf '%s' "$out" | grep -oE '[0-9]+' | sort -rn | head -1)
-      [ -n "$cnt" ] && printf '%s %s\n' "${f##*/}" "$cnt" >>"$CENSUS_TMP"
+      if [ -n "$cnt" ] && census_is_corpus "${f##*/}"; then
+        printf '%s %s\n' "${f##*/}" "$cnt" >>"$CENSUS_TMP"
+      fi
     fi
   done
   note "$label: $n run, $bad failed"
@@ -199,6 +228,8 @@ else
     # The census reads counts, so a skip is indistinguishable from silence unless
     # the gate is recorded as having skipped at the point it ran.
     if grep -qxF "$cname" "$CENSUS_SKIPPED" 2>/dev/null; then continue; fi
+    # NOR ONE WHOSE NUMBER MEASURES THE REPOSITORY RATHER THAN ITSELF.
+    census_is_corpus "$cname" || continue
     cnow=$(awk -v n="$cname" '$1 == n { print $2; exit }' "$CENSUS_TMP")
     if [ -z "$cnow" ]; then
       note "  FAIL $cname ran before and reports no count now — it is gone, renamed, or has stopped saying what it checked"

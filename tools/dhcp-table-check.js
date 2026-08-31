@@ -10,7 +10,7 @@
  * agrees. Until this file, nothing consumed that bundle, so the DHCP table was
  * a SHIPPED page (`dhcp` is in `main.ts`'s PORTED) whose entire table no gate
  * had ever looked at. The lift had also rotted unnoticed for that reason; see
- * `docs/port-history/retired/lift-audit.js`.
+ * the lift-audit, retired with the reference it audited (git history, pre-v0.8.2).
  *
  * Both sides are driven from ONE `leases:list` payload and their `dhcpTable`
  * innerHTML compared, which is what catches an attribute a screenshot would

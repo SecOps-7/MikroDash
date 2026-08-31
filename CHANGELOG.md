@@ -17,7 +17,7 @@ All notable changes to MikroDash will be documented in this file.
 
 ### Internal
 
-- `docs/port-history/ARCHITECTURE-NEXT.md` re-measured against the Go tree: of the three changes
+- `docs/architecture-next.md` re-measured against the Go tree: of the three changes
   proposed before the port, one shipped with it, one is half done, and one is still open. The
   numbers behind each are now the current ones rather than the JavaScript app's.
 

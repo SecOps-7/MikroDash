@@ -28,7 +28,6 @@ connections-lists-page-check.js 34
 connflow-card-check.js 13
 connlists-cards-check.js 34
 connmap-card-check.js 22
-credential-audit.js 1268
 dashboard-wiring-check.js 31
 dashcards-util-check.js 81
 dash-coverage-check.js 122

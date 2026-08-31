@@ -16,7 +16,6 @@
 #   136 KB  recordings        frozen captures of the Node implementation that the
 #                             gates compare against. Data wearing a .js extension.
 #    35 KB  nodecheck/        three differential tests.
-#    33 KB  retired checks    kept as record, cannot run.
 #
 # The runtime image contains no node or npm binary and no JavaScript except the
 # compiled frontend bundle, which is built from TypeScript.

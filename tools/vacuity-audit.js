@@ -82,7 +82,7 @@ const EXPECTED_THIN = {
   // it checked that `live-renderer.js` could still lift each page, and
   // live-renderer lifts FROM the reference, so it had no subject without one. It
   // was retired on 2026-08-31 with the other five — see
-  // `docs/port-history/retired/README.md`.
+  // the retired checks' README, deleted 2026-08-31 (git history, pre-v0.8.2).
   //
   // Kept as a mechanism rather than deleted: the next gate that legitimately
   // cannot check the same either way needs somewhere to say so, and an audit

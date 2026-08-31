@@ -3,8 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > **This IS MikroDash.** It was a Node.js application until 2026-08-30, when this Go + TypeScript
-> implementation replaced it (`CUTOVER.md`), and the Node source was removed from the tree at the
-> v0.8.0 cutover on 2026-08-31.
+> implementation replaced it, and the Node source was removed from the tree at the v0.8.0 cutover on
+> 2026-08-31. (`CUTOVER.md` recorded that changeover and was deleted on 2026-08-31 with the other
+> finished port documents; it is in git history.)
 >
 > **There is no reference repository any more.** Every gate compares against a RECORDING of the old
 > implementation, committed under `testdata/`, `internal/*/testdata/` and `nodecheck/testdata/`.
@@ -12,9 +13,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > generator `--check` runs detect that and report a skip. The Node source remains in this repo's own
 > history and at the `v0.7.40` tag if it is ever needed.
 
-> **The rewrite's own working documents are in `docs/port-history/`** — the plan, the decision
-> record, the work list and the hardware results. Read them for "why is it like this", not for "how
-> does it work". They describe a job that is finished.
+> **Two documents from the rewrite survive in `docs/port-history/`** — `gate-conversion.md` (the
+> rules for re-aiming a gate, which `tools/gate-conversion/*.py` implement) and `test-results.md`
+> (the RouterOS 7.24 hardware results). Both carry knowledge the code still depends on. The plan,
+> the work list and the handover were deleted on 2026-08-31: they described a job that is finished,
+> and they are in git history if ever needed.
 
 ---
 
@@ -95,11 +98,10 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine go test ./...
 
 # Node-side differential tests. THREE FILES REMAIN and none needs the reference:
 # `topojson-decode`, `reports-presets` and `conn-tables` all record their live
-# half. Two others were RETIRED to `docs/port-history/retired/` on 2026-08-31 —
-# they replayed fixtures into the live collectors and had no port side, so
-# freezing them would have produced a recording compared with itself. That cost
-# 122 assertions; their result is the committed fixtures, which
-# `internal/collect` compares against on every run.
+# half. Two others were RETIRED on 2026-08-31 — they replayed fixtures into the
+# live collectors and had no port side, so freezing them would have produced a
+# recording compared with itself. That cost 122 assertions; their result is the
+# committed fixtures, which `internal/collect` compares against on every run.
 # The GLOB, not the directory: `node --test nodecheck/` tries to require the
 # directory itself and dies with MODULE_NOT_FOUND before running anything.
 node --test nodecheck/*.test.js
@@ -330,8 +332,9 @@ Note which resources need **no** guard, so their write paths are unblocked alrea
 **THE CUTOVER BLOCKERS ARE ALL CLOSED.** This section used to carry a numbered list of them, and
 several stayed on it after they were closed — long enough that a session summarised one back to the
 operator as remaining work. They are gone rather than struck through here, because the list is no
-longer about anything: `CUTOVER.md` records what closed them, and `docs/port-history/PORT-QUEUE.md`
-keeps the reasoning.
+longer about anything, and `docs/port-history/PORT-QUEUE.md` keeps the reasoning. **62 comments in shipped code cite that queue by name**, which is why it
+survived the 2026-08-31 deletion of the other port documents — and why a comment saying "blocker 5 is
+the reason" describes a blocker that is CLOSED. Read the queue for why, never for what is true now.
 
 The one durable lesson from that list is worth keeping, because it is this file's most expensive
 recurring defect: **a blocker that has been closed reads exactly like one that never was, and nothing
