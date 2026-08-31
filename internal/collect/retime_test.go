@@ -290,7 +290,7 @@ var retunable = map[string]string{
 // notRetunable is the live target with no Go counterpart, and why.
 var notRetunable = map[string]string{
 	"arp": "this port has NO ARP collector. The live one exists to fill a cache that " +
-		"other collectors read through getByIP/getByMAC — PORT-QUEUE.md records it " +
+		"other collectors read through getByIP/getByMAC — the port record notes it " +
 		"alongside `conns` and `traffic` as collectors that 'fill a cache and emit " +
 		"elsewhere'. There is nothing here to re-tune, and inventing one so this table " +
 		"could be complete would be a collector with no caller.",

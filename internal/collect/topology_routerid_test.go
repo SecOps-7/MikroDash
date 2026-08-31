@@ -20,7 +20,7 @@ package collect
 // flight. The port emits one immediately instead.
 //
 // That difference is not settled here — it is a fidelity question with its own
-// entry in PORT-QUEUE.md. This test pins only that WHILE the port emits that
+// entry in the port record. This test pins only that WHILE the port emits that
 // payload, it stamps the router id on it, because a payload a client cannot
 // attribute to a router is worse than the divergence it already represents.
 

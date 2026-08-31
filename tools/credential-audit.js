@@ -49,7 +49,6 @@ const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { maxBuffer: 6
 // diff, which is where a deliberate one belongs.
 const SKIP_RULES = [
   ['web/public/vendor/', 'third-party, self-hosted to avoid a CDN'],
-  ['docs/port-history/', 'the port record: quotes old code, including old test strings'],
   ['CHANGELOG.md', 'release prose quoting fixes, not a place credentials live'],
 ];
 const SKIP = new RegExp(

@@ -135,7 +135,7 @@ func TestBothTeardownPathsFlushHistory(t *testing.T) {
 }
 
 // TestTheConnectBlockStartsFourteenCollectors is the number CLAUDE.md and
-// PORT-QUEUE.md both quote for the coexistence argument ("Session STARTS 14
+// the port record both quote for the coexistence argument ("Session STARTS 14
 // collectors on connect where the live pool runs 3").
 //
 // It is pinned SEPARATELY from the test above on purpose: that one asserts the
@@ -146,7 +146,7 @@ func TestTheConnectBlockStartsFourteenCollectors(t *testing.T) {
 	started := namesIn(blockBetween(t, sessionSource(t), "if first {", "\n\t\t}"), "Start")
 	if len(started) != 14 {
 		t.Errorf("the connect block starts %d collectors, not 14: %v\n"+
-			"CLAUDE.md and PORT-QUEUE.md both quote 14 and derive the 4.7x "+
+			"CLAUDE.md and the port record both quote 14 and derive the 4.7x "+
 			"coexistence ratio from it. Update BOTH if this is deliberate.",
 			len(started), started)
 	}

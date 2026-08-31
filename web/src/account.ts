@@ -8,7 +8,7 @@
 //
 // Four functions that take data and write DOM. The loader and the four write
 // actions — change password, revoke other sessions, sign out, log out — are not
-// ported yet; see PORT-QUEUE.md. Splitting on that line is deliberate: these
+// ported yet. Splitting on that line is deliberate: these
 // four can be compared against the live ones by DOM equality, which is the
 // strongest gate available, and the writes cannot.
 

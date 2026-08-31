@@ -17,6 +17,9 @@
 #                             gates compare against. Data wearing a .js extension.
 #    35 KB  nodecheck/        three differential tests.
 #
+# (The port's own working documents were another ~700 KB of Markdown until they
+# were deleted on 2026-08-31; they never counted toward the JavaScript bar.)
+#
 # The runtime image contains no node or npm binary and no JavaScript except the
 # compiled frontend bundle, which is built from TypeScript.
 #
@@ -41,6 +44,3 @@ web/public/vendor/** linguist-vendored
 testdata/**         linguist-generated
 internal/*/testdata/** linguist-generated
 web/dist/**         linguist-generated
-
-# ── The port's own record ─────────────────────────────────────────────────
-docs/port-history/** linguist-documentation

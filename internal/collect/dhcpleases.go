@@ -33,8 +33,8 @@ package collect
 // The live collector prefers `/ip/dhcp-server/lease/listen` and falls back to
 // polling (issue #105 made that a setting). This side polls only. The parsing is
 // the same code either way — `_applyLease` there, applyLease here — so adding
-// the stream later changes delivery and not the payload. Recorded in
-// PORT-QUEUE.md rather than left to be discovered.
+// the stream later changes delivery and not the payload. Recorded here
+// rather than left to be discovered.
 
 import (
 	"log"

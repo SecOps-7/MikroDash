@@ -71,7 +71,6 @@ web/src/            TypeScript frontend; web/public/ the vendored assets
 tools/              corpus generators (*-cases.js), gates (*-check.js), audits
 nodecheck/          fixtures replayed into the REFERENCE collectors
 testdata/           fixtures and generated corpora
-docs/port-history/  the rewrite's working documents
 ```
 
 ---

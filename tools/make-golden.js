@@ -107,7 +107,7 @@ async function main() {
     // dhcpNetworks". Only ONE of those five is still in that state: the run
     // reports `arp, conns, traffic`, and netwatch, system, topology and
     // dhcpNetworks all have goldens on disk. The stale list was read as
-    // authoritative one tick earlier and produced a wrong claim in PORT-QUEUE
+    // authoritative one tick earlier and produced a wrong claim in the port record
     // ("system has no golden") that had to be retracted — so the names are gone
     // and the RUN is the authority. It prints the current set every time.
     if (!payload) { noPayload.push(label); continue; }

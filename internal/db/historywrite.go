@@ -19,7 +19,7 @@ import (
 // processes bucketing the same samples into one SQLite file would DOUBLE every
 // row, and during coexistence Node is the one doing it.
 //
-// `PORT-QUEUE.md`'s cutover checklist lists starting them as step 0: code that
+// the port record's cutover checklist lists starting them as step 0: code that
 // must exist and be tested BEFORE the window rather than discovered inside it.
 // This is that code's other half.
 //

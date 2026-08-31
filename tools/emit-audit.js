@@ -22,7 +22,7 @@
  * ---- WHAT COUNTS AS AN ANSWER -----------------------------------------------
  *
  * Not every live event belongs here. Most are for pages this port has not
- * reached, and listing them one by one would be a second copy of PORT-QUEUE.md
+ * reached, and listing them one by one would be a second copy of the port record itself
  * that goes stale on its own schedule. So the record is by EVENT PREFIX — the
  * feature — and a prefix is either:
  *

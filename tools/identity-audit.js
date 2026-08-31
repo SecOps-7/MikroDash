@@ -132,7 +132,7 @@ const UNWRITTEN = {
     + 'views on a generation counter this process cannot advance.',
   'user_notify_config.user_id':
     'the per-user notification settings. The transports are ported and their caller '
-    + 'is not; wiring it is a cutover step, recorded in PORT-QUEUE.md item 11.',
+    + 'is not; wiring it is a cutover step, recorded in cutover item 11.',
   'report_schedules.created_by':
     'a schedule is created through the Reports page, which this port serves — but the '
     + 'column is carried from the STORED ROW on an update and left to the database on '

@@ -19,7 +19,7 @@ import (
 // re-reads the file, so during coexistence a write from this side was invisible
 // to the running Node app AND silently reverted by its next save. That reasoning
 // held while both processes owned the file. The operator lifted the strangler
-// rule (PORT-QUEUE.md, 2026-08-25) — everything remaining cuts over — so Go owns
+// rule (the port record, 2026-08-25) — everything remaining cuts over — so Go owns
 // settings and the hazard does not arise.
 //
 // ── FOUR THINGS HAPPEN HERE AND THE ORDER MATTERS ───────────────────────────

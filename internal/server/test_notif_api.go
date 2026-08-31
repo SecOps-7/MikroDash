@@ -23,7 +23,7 @@ import (
 //
 // ── WHY IT IS SAFE DURING COEXISTENCE, UNLIKE THE ALERTER ──────────────────
 //
-// `PORT-QUEUE.md` blocker 5 keeps the notification transports unwired while Node
+// cutover blocker 5 keeps the notification transports unwired while Node
 // runs, because both apps would evaluate the same conditions and send every
 // alert twice. That reasoning does not reach this route: a test is ONE message,
 // sent because a human pressed a button in one of the two apps. Nothing here is

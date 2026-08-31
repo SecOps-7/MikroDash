@@ -121,7 +121,7 @@ func Merge(stored Settings, env func(string) (string, bool), dec Decrypter) (Set
 			// failed decrypt does there. The original ALSO stashes the original
 			// ciphertext so a later save cannot overwrite the credential with
 			// nothing; that belongs with the write path, not here, and is noted
-			// in PORT-QUEUE.md.
+			// in the port record.
 			s, _ := v.(string)
 			merged[k] = ""
 			if s == "" {

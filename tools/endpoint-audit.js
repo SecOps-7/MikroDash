@@ -14,7 +14,7 @@
  * stays `'ZZ'`, no arc is drawn, and the code handles that gracefully — "no
  * arcs; the rest of the page is unaffected". So the failure at cutover is not an
  * error in a log. It is a map that draws countries and no connections, which
- * `PORT-QUEUE.md` already records as looking "exactly like a geo defect".
+ * the port record notes as looking "exactly like a geo defect".
  *
  * The cutover checklist said "every page DOM-verified" and nothing about
  * endpoints. A page can be DOM-identical and still lose its data.
@@ -376,7 +376,7 @@ const PROXIED = {
   // AN EMPTY LIST IS NOT A FINISHED PORT, and this audit cannot tell the
   // difference: it compares the URLs pages FETCH against the routes Go
   // registers, so a page nobody has ported contributes no URLs and is invisible.
-  // Dashboard, Devices and Settings are in exactly that state. `PORT-QUEUE.md`
+  // Dashboard, Devices and Settings are in exactly that state. The port record
   // is the ledger for pages; this one is only for endpoints.
   // `/api/settings` WAS here: "the port serves settings under its staging prefix
   // (`/next/api/settings`); `account.ts` still calls the LIVE one. The prefix

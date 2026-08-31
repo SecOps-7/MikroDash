@@ -183,7 +183,7 @@ function makeChartObj(): void {
 // the moment either happened. Returning it per call cannot.
 //
 // The alternative — a second buffer fed from the same `traffic:update` — is the
-// thing PORT-QUEUE warns against: two arrays pruned by two rules drift apart,
+// thing the port record warns against: two arrays pruned by two rules drift apart,
 // and the drift only shows up as two charts disagreeing about the same second.
 export function sharedPoints(): TrafficSample[] { return allPoints; }
 

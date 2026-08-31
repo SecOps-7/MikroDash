@@ -4,7 +4,7 @@
 // ── IT IS OFF UNLESS SWITCHED ON, AND THAT IS NOT A DEFAULT-CHOICE ─────────
 //
 // `New` takes `enabled bool` and the server passes false unless the operator
-// asks. `PORT-QUEUE.md` blocker 5 is the reason, and it is the one blocker whose
+// asks. cutover blocker 5 is the reason, and it is the one blocker whose
 // reasoning did not change when the port went standalone:
 //
 //	Both engines evaluate the same conditions against the same physical

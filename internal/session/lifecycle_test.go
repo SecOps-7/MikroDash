@@ -177,7 +177,7 @@ func TestTheNotPolledListIsStillTrue(t *testing.T) {
 //
 // ── WHY A COUNT IS WORTH A TEST ─────────────────────────────────────────────
 //
-// It is the number the Routers-page decision rests on. `PORT-QUEUE.md` compares
+// It is the number the Routers-page decision rests on. The port record compares
 // it against the live overview pool's THREE (`overviewSessions.js:102-114`:
 // system, interfaceStatus, dhcpLeases) to say how much heavier a Go background
 // pool would be on every router in a fleet — and the documented bottleneck is
@@ -232,7 +232,7 @@ func TestTheBackgroundCollectorCountIsRecorded(t *testing.T) {
 		sort.Strings(names)
 		t.Errorf("a Session starts %d collectors on connect, recorded %d: %v\n"+
 			"If that is deliberate, update this constant AND the two places that quote it "+
-			"(PORT-QUEUE.md's Routers item and CLAUDE.md's cutover blockers) — the number is the "+
+			"(the port record's Routers item and CLAUDE.md's cutover blockers) — the number is the "+
 			"basis of the background-pool decision, and it went stale once already.",
 			len(starts), recorded, names)
 	}

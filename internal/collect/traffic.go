@@ -21,8 +21,8 @@ package collect
 //
 // `internal/routeros.Stream` ends when go-routeros closes the listen channel,
 // which it does on `!done` — so if this command sent one per cycle, the chart
-// would stop after one second. It does not. Measured on the hAP AC2 under 7.24
-// and recorded in test-results.md under Claim 4, for an unrelated reason:
+// would stop after one second. It does not. Measured on the hAP AC2 under 7.24,
+// while investigating something else entirely:
 //
 //	[   5.248ms] !re | =.section=0
 //	[1009.879ms] !re | =.section=1

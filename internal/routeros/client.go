@@ -9,8 +9,8 @@
 // The port began with a hand-written client. The stated reason was that four
 // "protocol realities" made a general-purpose library unsafe, and that
 // go-routeros got two of them wrong. That argument was tested against the three
-// routers this project targets, on RouterOS 7.24; the evidence is in
-// test-results.md. In short:
+// routers this project targets, on RouterOS 7.24. THE VERSION QUALIFIES EVERY
+// CLAIM BELOW: "not reproduced" is not "never true". The evidence, in short:
 //
 //  1. `!empty` NOT followed by `!done`, hanging a client that waits for one.
 //     NOT REPRODUCED. 16 of 16 empty replies across three routers sent `!done`

@@ -44,8 +44,7 @@ const PAGES = ['dashboard', 'dns', 'bridges', 'vlans', 'wan', 'packages', 'routi
                'rosusers', 'queues', 'firewall', 'wifi', 'capsman', 'interfaces', 'logs',
                'topology', 'wireless', 'bandwidth', 'connections', 'reports', 'audit', 'backups',
                // Renamed upstream from 'routers' to 'devices' (#117) — a fleet holds
-               // switches too. The KEY moved as well as the title; see the drift
-               // entry in PORT-QUEUE.md.
+               // switches too. The KEY moved as well as the title; recorded as a drift               // entry during the port.
                'devices', 'settings'];
 
 function sliceStyle(html) {

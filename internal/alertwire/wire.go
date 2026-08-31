@@ -6,7 +6,7 @@
 //
 // IT DOES NOT DISPATCH. No Telegram message, no email, no ntfy push. That is
 // step 2 of the plan in `LOOP.md`, and the switch is the operator's, for the
-// reason `PORT-QUEUE.md` blocker 5 gives — the one blocker whose reasoning did
+// reason cutover blocker 5 gives — the one blocker whose reasoning did
 // NOT change when the port went standalone:
 //
 //	Both engines evaluate the same conditions against the same physical

@@ -61,7 +61,7 @@ fs.rmSync(ENTRY, { force: true });
 // ── THE `/next/` PREFIX IS AN INTENDED DIFFERENCE ───────────────────────────
 //
 // The port stages its endpoints under `/next/` while it runs beside the Node app
-// — `PORT-QUEUE.md` records it for Audit, Reports and Settings, and says the
+// — the port record notes it for Audit, Reports and Settings, and says the
 // prefix comes off at cutover. So the URLs are compared with that prefix
 // normalised away: everything else about the query string still has to match,
 // which is the part a DOM comparison cannot see.

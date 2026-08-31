@@ -115,7 +115,7 @@ const DASHBOARD = 'the Dashboard is not ported, and this feeds one of its cards'
 // The scheduler half is NOT a gap and must not be recorded as one: `NewScheduler`
 // is written and tested but deliberately never constructed, because a Go
 // scheduler running beside the Node one would back up the same fleet twice.
-// PORT-QUEUE.md carries that as a cutover step. An entry here would read as work
+// the port record carries that as a cutover step. An entry here would read as work
 // outstanding and quietly invite someone to start it.
 
 // A. Emitted by Go, never mentioned in the TypeScript.
@@ -124,7 +124,7 @@ const UNCONSUMED = {
   // the card's wiring. Closed 2026-08-26: `main.ts` subscribes and
   // `onSitesUpdate` re-renders the table. A short-lived entry is the system
   // working -- the gap was real, visible, and closed by the audit refusing it.
-  // `setup:required` WAS here — "the FIRST-RUN SETUP WIZARD is PORT-QUEUE.md
+  // `setup:required` WAS here — "the FIRST-RUN SETUP WIZARD is the port record
   // item 17 and is not ported, so nothing in the TypeScript can act on this
   // yet". Closed 2026-08-29: `web/src/pages/setup-overlay-wire.ts` handles it.
   //

@@ -21,7 +21,7 @@ package notify
 // cannot un-receive two of every alert from the system that exists to tell them
 // when something is wrong.
 //
-// PORT-QUEUE.md Part 25 records it; CLAUDE.md carries it as cutover blocker 5.
+// The port record notes it; CLAUDE.md carries it as cutover blocker 5.
 
 import (
 	"bytes"

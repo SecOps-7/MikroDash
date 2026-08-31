@@ -11,7 +11,7 @@ package routers
 // ── CONSTRUCTED BY NOBODY, ON PURPOSE ───────────────────────────────────────
 //
 // Whether a Go pool may run DURING COEXISTENCE is an operator decision, recorded
-// in PORT-QUEUE.md: Node already runs this pool against the same fleet, so both
+// in the port record: Node already runs this pool against the same fleet, so both
 // would hold a connection to every router at once. The code is needed under
 // every option including "wait for cutover", so it is written and pinned now and
 // wired by nothing — the same arrangement as `internal/history.Bucketer`.

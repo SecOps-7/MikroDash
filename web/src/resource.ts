@@ -329,7 +329,7 @@ function show(schema: Schema, values: Record<string, unknown> | null,
  * `res:history`. This port serves schemas over HTTP, where the selected router
  * — which `permitted` depends on — is not known, and has not ported
  * `res:history` at all. So a viewer with read-only access sees Add buttons that
- * the server then refuses, and nobody sees undo/redo. Tracked in PORT-QUEUE.md;
+ * the server then refuses, and nobody sees undo/redo. Tracked during the port;
  * it is the same on every ported page and is not introduced here.
  */
 function histButton(kind: 'undo' | 'redo', key: string, on: boolean, label: string): string {

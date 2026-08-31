@@ -63,8 +63,8 @@ var ViewerFields = []string{
 // THE INPUT MUST ALREADY BE MERGED over the defaults and the environment. The
 // original's `getPublic` calls `load()`, which does that merge; this takes the
 // merged map so the disclosure rule stays separate from where the values came
-// from. `Store.Settings()` reads the FILE ONLY and is therefore not that map —
-// see the note in PORT-QUEUE.md.
+// from. `Store.Settings()` reads the FILE ONLY and is therefore not that map, so
+// passing its result here would disclose an unmerged view.
 func (s Settings) Public() Settings {
 	out := make(Settings, len(s))
 	for k, v := range s {

@@ -12,7 +12,7 @@
  * `switchRouter`, and none of it is visible in the response.
  *
  * The route also WRITES settings.json, which Node caches and would revert
- * (PORT-QUEUE.md blocker 3) — so the wiring waits for cutover and the decisions
+ * (cutover blocker 3) — so the wiring waits for cutover and the decisions
  * are pinned now, the same order the overlay's own gate used.
  *
  * ---- SLICED AND STUBBED, AND THE STUBS ARE THE RECORDER -------------------

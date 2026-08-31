@@ -13,11 +13,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > generator `--check` runs detect that and report a skip. The Node source remains in this repo's own
 > history and at the `v0.7.40` tag if it is ever needed.
 
-> **Two documents from the rewrite survive in `docs/port-history/`** — `gate-conversion.md` (the
-> rules for re-aiming a gate, which `tools/gate-conversion/*.py` implement) and `test-results.md`
-> (the RouterOS 7.24 hardware results). Both carry knowledge the code still depends on. The plan,
-> the work list and the handover were deleted on 2026-08-31: they described a job that is finished,
-> and they are in git history if ever needed.
+> **The rewrite's working documents were deleted on 2026-08-31** — the plan, the queue, the work
+> list, the handover and the hardware results. They described a job that is finished. What the code
+> still depends on was moved into the code and into this file before they went; everything else is
+> in git history at `v0.8.2` and before.
 
 ---
 
@@ -171,8 +170,9 @@ RouterOS binary API (TCP/TLS)
 1. **ASYNC MODE IS MANDATORY.** `Dial` calls `Async()`. That is what gives the client a tag map, and
    therefore somewhere to discard a sentence addressed to a cancelled tag. Sync mode keeps no tag map
    and nothing catches it, and the failure takes down a connection every collector shares.
-2. **The hardware claims are version-qualified.** `docs/port-history/test-results.md` recorded them on
-   RouterOS 7.24. "Not reproduced" is not "never true".
+2. **The hardware claims are version-qualified.** They were measured on RouterOS **7.24**, against
+   the three routers this project targets; `internal/routeros/client.go` carries them in full.
+   "Not reproduced" is not "never true".
 
 **What is knowingly accepted:** go-routeros returns on the first `!done` and this side cannot see
 block boundaries. `cmd/conformance` therefore tests COMPLETENESS instead — the bulk registration-table
@@ -332,7 +332,7 @@ Note which resources need **no** guard, so their write paths are unblocked alrea
 **THE CUTOVER BLOCKERS ARE ALL CLOSED.** This section used to carry a numbered list of them, and
 several stayed on it after they were closed — long enough that a session summarised one back to the
 operator as remaining work. They are gone rather than struck through here, because the list is no
-longer about anything, and `docs/port-history/PORT-QUEUE.md` keeps the reasoning. **62 comments in shipped code cite that queue by name**, which is why it
+longer about anything, and the port record keeps the reasoning. **62 comments in shipped code cite that queue by name**, which is why it
 survived the 2026-08-31 deletion of the other port documents — and why a comment saying "blocker 5 is
 the reason" describes a blocker that is CLOSED. Read the queue for why, never for what is true now.
 
@@ -411,8 +411,9 @@ separate ways** — a crash exiting non-zero read as a detection, a broken gate
 making every mutation look caught, and a swallowed rejection reading as a pass.
 Judge a gate by what it SAYS it checked.
 
-`docs/port-history/gate-conversion.md` is the full record, including the failures
-these rules came from.
+The rules above ARE the record now: the long-form account they were distilled from was deleted with
+the other port documents on 2026-08-31, and is in git history at `v0.8.2`. `tools/gate-conversion/`
+implements them.
 
 ## Testing
 

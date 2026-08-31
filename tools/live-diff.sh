@@ -33,7 +33,7 @@
 # standalone — `server.go` builds the background pool from `srv.standalone &&
 # !opts.NoPool`, so it would open and HOLD a connection to every enabled router
 # while the live app is already watching them. That is the arrangement
-# `PORT-QUEUE.md` blocker 2 exists to prevent, and it was measured happening for
+# cutover blocker 2 exists to prevent, and it was measured happening for
 # most of 2026-08-29: established sockets to 10.0.0.4:8728 and 10.0.0.53:8729
 # that nobody had a page open on.
 #

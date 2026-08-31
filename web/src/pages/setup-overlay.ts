@@ -3,7 +3,7 @@
 // ── WHICH WIZARD THIS IS ────────────────────────────────────────────────────
 //
 // The live app calls two different screens "the first-run setup wizard", and
-// PORT-QUEUE.md item 17 conflated them until 2026-08-28. This is the ROUTER one:
+// cutover item 17 conflated them until 2026-08-28. This is the ROUTER one:
 // `#setupOverlay` in index.html, fifteen ids, shown on `setup:required` when
 // there are no routers. The ACCOUNT one is `firstRunView` in login.html and is
 // already complete, server and browser.

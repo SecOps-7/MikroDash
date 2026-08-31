@@ -20,7 +20,7 @@
 // `-data` reads the router's host, port, TLS settings, username and password
 // out of the live store — the same AES-256-GCM envelope `cmd/compat` proves this
 // port can open — and nothing is printed, passed on a command line or written
-// down. That matters beyond convenience: `PORT-QUEUE.md` recorded this gate as
+// down. That matters beyond convenience: the port recorded this gate as
 // "still needs the operator" for as long as it existed, on the grounds that no
 // session here holds plaintext credentials. It does not need to. The store is
 // the authority the app itself uses, and reading it is exactly what the port is

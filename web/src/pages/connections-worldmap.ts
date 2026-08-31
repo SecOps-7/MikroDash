@@ -39,8 +39,7 @@ export interface MapCountry {
  * function is an arc-delta decode — quantised integer deltas accumulated along
  * each arc, then assembled into rings — and it is thirty lines. Reimplementing
  * it removes a script tag from the page and a dependency from the port, and it
- * is verified against the live output rather than trusted: see the note in
- * PORT-QUEUE.md.
+ * is verified against the live output rather than trusted.
  */
 interface Topology {
   arcs: number[][][];

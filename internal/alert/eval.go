@@ -24,7 +24,7 @@ package alert
 // Wiring an evaluator to the notification transports is a CUTOVER step: both
 // apps would evaluate the same conditions against the same routers, and the
 // cooldown is an in-memory map rather than a shared row, so every alert would be
-// sent twice. `internal/notify/send.go` carries the reasoning; PORT-QUEUE.md
+// sent twice. `internal/notify/send.go` carries the reasoning; the port record
 // Part 25 records it.
 
 import "strconv"

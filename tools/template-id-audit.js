@@ -10,7 +10,7 @@
  * it carries no attribute — so a control created by a template and never wired
  * is invisible to both.
  *
- * `PORT-QUEUE.md` named that gap when `rptSchedNew` was dead. It is wired now,
+ * the port record named that gap when `rptSchedNew` was dead. It is wired now,
  * and the note had outlived it; this audit is so the next one is found by
  * running something rather than by remembering.
  *

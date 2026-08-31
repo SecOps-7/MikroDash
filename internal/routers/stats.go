@@ -11,7 +11,7 @@
 //
 // So this takes ROWS IN and gives a payload out. Where a row's numbers came
 // from — an interactive session or a background one — is the caller's problem,
-// and is the part that is still a cutover decision: see PORT-QUEUE.md.
+// and is the part that is still a cutover decision.
 //
 // ── ABSENT IS null, NOT ZERO, AND THE PAGE CAN TELL ────────────────────────
 //

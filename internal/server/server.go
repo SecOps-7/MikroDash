@@ -67,7 +67,7 @@ type Options struct {
 	//
 	// The evaluator and the database writes run regardless: they are idempotent
 	// within this install's own history, and they are what make the Alerts page
-	// and the Devices alert counts real. Sending is different. `PORT-QUEUE.md`
+	// and the Devices alert counts real. Sending is different. The port record
 	// blocker 5:
 	//
 	//	Both engines evaluate the same conditions against the same physical

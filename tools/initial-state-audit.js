@@ -144,7 +144,7 @@ const anywhere = new Set(
 // NOR on page focus needs a reason. Each was traced to source.
 const EXPLAINED = {
   'ros:status': 'MERGED into this port\'s single room-scoped `router:status`, which the handshake '
-    + 'does send. Decided; see PORT-QUEUE.md Part 28.',
+    + 'does send. Decided during the port.',
   'interfaces:list': 'REPLACED by `ifstatus:names`, which the ifStatus collector emits router-wide.',
   'routers:update': 'The router list is loaded over HTTP by `loadRouters()`; the socket carries '
     + 'only CHANGES. Nothing user-visible differs.',

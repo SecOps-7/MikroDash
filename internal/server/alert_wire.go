@@ -17,7 +17,7 @@ import (
 //
 // This wires the EVALUATOR and the DATABASE WRITES. It does not dispatch: no
 // Telegram message, no email, no ntfy push. `internal/alertwire` has no code
-// that could, and that is deliberate — `PORT-QUEUE.md` blocker 5 is the one
+// that could, and that is deliberate — cutover blocker 5 is the one
 // blocker whose reasoning did not change when the port went standalone:
 //
 //	Both engines evaluate the same conditions against the same physical

@@ -16,7 +16,7 @@
  * the narrowest slice — a note citing a file that no longer exists. A rename
  * leaves every note that named it pointing at nothing, and nothing else notices.
  *
- * 200 paths are cited across `tools/`, `PORT-QUEUE.md` and `CLAUDE.md`, and all
+ * 200 paths are cited across `tools/`, the port record and `CLAUDE.md`, and all
  * 200 exist today. This is here to keep that true, not because it is failing.
  *
  * ── WHAT IT DELIBERATELY DOES NOT DO ────────────────────────────────────────
@@ -55,18 +55,18 @@ const SOURCES = [
 // mean the same thing everywhere it runs, or the thing guarding it is measuring
 // the machine rather than the code.
 
-// `docs/port-history/PORT-QUEUE.md` was scanned until the 2026-08-31 cutover and
+// the port record was scanned until the 2026-08-31 cutover and
 // is deliberately not any more.
 //
 // The premise of this audit is that a note citing a missing file has gone stale.
-// That holds for LIVE documentation. `docs/port-history/` is a RECORD of a job
+// That holds for LIVE documentation. The port record was a RECORD of a job
 // that finished — CLAUDE.md calls it "a record rather than a queue" — and the
 // cutover deleted the entire Node implementation those notes were written about.
 // A record of the past is SUPPOSED to name things that no longer exist; marking
 // that as decay would either produce permanent noise or, worse, invite someone
 // to edit the history so the checker goes quiet.
 //
-// The first casualty was real and is the worked example: PORT-QUEUE.md cites the
+// The first casualty was real and is the worked example: the port record cites the
 // hook selftest under tools/, which pinned the contract of a hook that guarded
 // the old reference repo. Both were correct to delete, and the note describing
 // them is correct to keep.

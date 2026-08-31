@@ -156,7 +156,7 @@ const TYPES_ONLY = ['pages/routing-types', 'pages/topology-types'];
 // LAYOUT ARITHMETIC only — the SVG construction, the drag handlers and the
 // animation need a browser. `element-coverage-audit.js` is the finer measure,
 // but it counts `el('id')` lookups and topology has none: it builds its nodes.
-// So for that page the honest record is in PORT-QUEUE.md and in the gate's own
+// So for that page the honest record was kept during the port and in the gate's own
 // header, not in a number here.
 const UNGATED = new Set([
   // `pages/routers-map` was ADDED here on 2026-08-29 and removed the same

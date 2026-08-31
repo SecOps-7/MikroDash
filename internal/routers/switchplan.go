@@ -33,7 +33,7 @@ package routers
 // ── NO CALLER YET, AND IT CANNOT HAVE ONE ───────────────────────────────────
 //
 // `POST /api/routers/:id/activate` writes settings.json, which Node caches and
-// would silently revert — PORT-QUEUE.md blocker 3. So the route waits for
+// would silently revert — cutover blocker 3. So the route waits for
 // cutover and the decision is pinned now. Same arrangement as `pool.go` here.
 
 import "strings"

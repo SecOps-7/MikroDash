@@ -21,7 +21,7 @@ package server
 // the live app. Nothing logs, and nothing on either screen explains it.
 //
 // This is the same family as the two decisions already recorded in
-// PORT-QUEUE.md — the backup scheduler and the routers background pool — and it
+// the port record — the backup scheduler and the routers background pool — and it
 // lands the same way: the write is a CUTOVER step. The read is not, and is here.
 
 import (

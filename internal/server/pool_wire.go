@@ -5,7 +5,7 @@ package server
 //
 // ── WHAT WAS BLOCKING IT, AND WHAT LIFTED ───────────────────────────────────
 //
-// `PORT-QUEUE.md` item 2: the Devices page's rows need numbers for routers
+// cutover item 2: the Devices page's rows need numbers for routers
 // nobody has open, and Node runs the same pool against the same fleet. Two pools
 // mean two connections to every router at once, and the documented bottleneck on
 // a MikroTik is concurrent API channels, not CPU (`../MikroDash/src/collection.js:8`).

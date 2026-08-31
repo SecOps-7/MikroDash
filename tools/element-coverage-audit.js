@@ -167,7 +167,7 @@ for (const g of gaps) {
 // the count, so the audit fails if a module gets WORSE, if a NEW one drops below
 // half, or if one is fixed and the entry outlives it.
 //
-// These are real gaps, queued in PORT-QUEUE.md. A narrow gate exists for each —
+// These are real gaps, queued during the port. A narrow gate exists for each —
 // `fw-tabs-check` covers the firewall's tabs, `ifports-panel-check` the
 // Interfaces ports panel, `sched-*-check` two Reports dialogs — and a narrow gate
 // passing is exactly what makes the rest invisible.

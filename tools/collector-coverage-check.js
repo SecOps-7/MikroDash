@@ -4,7 +4,7 @@
  *
  * ── WHY THIS EXISTS ─────────────────────────────────────────────────────────
  *
- * PORT-QUEUE.md said talkers was "the only unported collector" and it stopped
+ * the port record said talkers was "the only unported collector" and it stopped
  * being true without anyone noticing, because nothing checked it: `ping.js`
  * (248 lines) has no Go counterpart and emits `ping:update`, which the Dashboard
  * needs. A sentence in a document is not a check.

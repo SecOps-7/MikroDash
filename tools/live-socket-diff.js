@@ -151,7 +151,7 @@ const EXPECTED_LIVE_ONLY = {
   'ros:status':
     'MERGED. This port emits ONE room-scoped `router:status` doing the work the live '
     + 'app splits between `ros:status` (session state, carries `reason`) and a global '
-    + '`router:status` (list reachability). Decided; see PORT-QUEUE.md Part 28. It is '
+    + '`router:status` (list reachability). Decided during the port. It is '
     + 'why `router:status` also shows a payload-shape difference below.',
   'interfaces:list':
     'REPLACED by `ifstatus:names`, which BOTH servers send — so it is in the common '

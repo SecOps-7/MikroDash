@@ -37,7 +37,7 @@
 // It is unprefixed, so it reaches Node through the proxy, which serves it from
 // the same SQLite the port would read. That is the same arrangement
 // `/api/nav-prefs` and `/api/topology-layout` are in, and it is recorded in
-// PORT-QUEUE.md as a cutover item rather than a gap: during coexistence it
+// the port record as a cutover item rather than a gap: during coexistence it
 // works, and duplicating it in Go before cutover would mean two writers.
 
 import { el } from '../dom';

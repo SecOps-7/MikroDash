@@ -9,7 +9,7 @@ package server
 // So a write from HERE is invisible to the running Node app, and is silently
 // REVERTED by its next save. That is the settings blocker (`src/settings.js:366`)
 // applied to a second file; it was found on 2026-08-26 and is recorded in
-// PORT-QUEUE.md as the fourth cutover blocker.
+// the port record as the fourth cutover blocker.
 //
 // The routes are complete and tested. What they wait on is CUTOVER, not code.
 

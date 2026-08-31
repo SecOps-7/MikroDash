@@ -11,7 +11,7 @@
  * wired was invisible, and an action the port INVENTED was equally invisible.
  *
  * Both were real. `backups:run` was wired while `internal/server/backups.go`'s
- * own header went on saying it was not, and `PORT-QUEUE.md` repeated that for
+ * own header went on saying it was not, and the port record repeated that for
  * several iterations. In the other direction the port emits `router:select`
  * where the live app emits `router:switch` — a rename nothing was watching.
  *
@@ -94,7 +94,7 @@ const UNPORTED = {
   // entry stand once it was fixed.
 
   // `packages:upgrade` WAS here — the live app's fifth Packages action, which
-  // this port lacked while PORT-QUEUE said Packages shipped "all four". The
+  // this port lacked while the port record said Packages shipped "all four". The
   // HANDLER landed 2026-08-25 (`packagesUpgrade`); the DIALOG that drives it is
   // still unported and is recorded in wiring-audit's `upgrade dialog` group, so
   // nothing in this port emits the event yet. That is why it is not listed as

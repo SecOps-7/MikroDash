@@ -23,7 +23,7 @@ package routers
 //
 // Whether a Go pool may run DURING COEXISTENCE is open — Node already runs one
 // against the same fleet, so both would connect to every router at once. That
-// decision is recorded in PORT-QUEUE.md and is not made here. The code is needed
+// decision is recorded during the port and is not made here. The code is needed
 // under every option, including "wait for cutover", so it is written and pinned
 // now and constructed by nobody — the same arrangement as
 // `internal/history.Bucketer`.

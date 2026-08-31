@@ -142,7 +142,7 @@ const EXPECTED = {
   //
   // The strangler rule is that a page and its endpoints cut over together, so a
   // page that is finished but not shipped is a normal state, not a defect. Each
-  // is blocked on something recorded in PORT-QUEUE.md, and each entry names it —
+  // is blocked on something recorded during the port, and each entry names it —
   // an unreachable module with no reason is the thing this audit is for.
   // `pages/backups` and `pages/bandwidth` WERE here and are now SHIPPED
   // (2026-08-25). Backups waited on `backups:restore`, whose base-URL question
@@ -159,7 +159,7 @@ const EXPECTED = {
   // usual. The Routers PAGE is still unwired and still blocked on the
   // background-sessions decision; the settings WRITE path is still blocked on
   // `src/settings.js` caching its object. Both reasons are recorded in
-  // PORT-QUEUE.md, which is where they belong — this audit answers "is a
+  // the port record, which is where they belong — this audit answers "is a
   // module in the bundle", and all three now are. Deleting the entries rather
   // than rewording them, because a reason kept past its question is how this
   // file's own `pages/routers` entry stayed wrong for weeks.

@@ -20,7 +20,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 > payload and compare the rendered HTML.
 >
 > What did change: a single static binary in a **180 MB image instead of 775 MB**, no Node runtime,
-> ARMv7 support back, and type checking over the frontend. `docs/port-history/` records how it was
+> ARMv7 support back, and type checking over the frontend. The CHANGELOG records how it was
 > done and what it cost.
 
 ---
@@ -547,7 +547,9 @@ MikroDash is an independent, community-built project and is **not affiliated wit
 The code for MikroDash was written with the assistance of [Claude](https://claude.ai) by [Anthropic](https://anthropic.com).
 
 The Go + TypeScript rewrite was carried out the same way, largely by an autonomous
-loop working against generated corpora: every gate compares this implementation
+loop working against generated corpora: every gate compared this implementation
 against the Node one by RUNNING or LIFTING the original rather than by
-transcribing it, because a retyped table is a fork with no update path.
-`docs/port-history/` has the full account, including the parts that went wrong.
+transcribing it, because a retyped table is a fork with no update path. Those
+corpora are now frozen recordings — the Node source went at the v0.8.0 cutover —
+and `testdata/gate-census.txt` is what stops one quietly checking less than it
+used to.

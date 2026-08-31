@@ -24,8 +24,7 @@ package server
 //
 // Creating a group, editing a role or issuing a grant all mutate the database
 // Node owns, and Node holds `Rbac.bump()` to invalidate its own caches — a write
-// from this side would leave that stale. Same family as the settings write; see
-// PORT-QUEUE.md.
+// from this side would leave that stale. Same family as the settings write.
 
 import (
 	_ "embed"

@@ -9,7 +9,7 @@
 // not even into its own in-memory buckets, so turning it on later starts from a
 // clean minute rather than flushing a backlog of samples nobody wrote.
 //
-// `PORT-QUEUE.md`'s checklist lists this as step 0: code that must exist and be
+// the port record's checklist lists this as step 0: code that must exist and be
 // tested BEFORE the window rather than discovered inside it.
 //
 // ── BOTH SAMPLES COME FROM THE EMIT SEAM, AND THAT IS DELIBERATE ───────────

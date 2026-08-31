@@ -345,7 +345,7 @@ func TestTheAlertPoolIsResyncedWhenASessionTakesOrReleasesARouter(t *testing.T) 
 // and never read. So a fired alert reaches no transport: rows are written, and
 // nothing is sent.
 //
-// That is the correct state — PORT-QUEUE blocker 5, the caller is not ported —
+// That is the correct state — cutover blocker 5, the caller is not ported —
 // but `-alert-dispatch` announced "notifications will be SENT" next to
 // `buildAlertWire`'s "NOTHING is dispatched", one line apart, at every startup
 // for as long as the flag existed. Both were printed all week and the

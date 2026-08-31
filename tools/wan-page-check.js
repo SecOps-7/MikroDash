@@ -202,7 +202,7 @@ const U = (o) => Object.assign({ wans: [] }, o);
 // The live page subscribes four events; the port subscribes one. That is a
 // RECORDED state, not a defect: `wanGuard` is the single unported guard, so the
 // WAN page is ported read-only and deliberately never asks for caps
-// (`PORT-QUEUE.md`, and the header of `web/src/pages/wan.ts` says the same).
+// (the port record, and the header of `web/src/pages/wan.ts` says the same).
 //
 // Driving `wan:caps` with `permitted: true` on the live side would compare a
 // page that offers actions against one that cannot, and report the difference as
