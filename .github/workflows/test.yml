@@ -28,6 +28,29 @@ jobs:
     permissions:
       contents: read
 
+    env:
+      # PINNED, AND NOT A WORKAROUND.
+      #
+      # Nine gates compare rendered HTML that contains local-time output -- an
+      # uptime of "up 6h", a scheduled-run list, report period labels. Their
+      # recordings were generated on a machine in Europe/Berlin, and a recording
+      # carries the environment that produced it whether or not anyone wrote that
+      # down. Run them under UTC and exactly those nine fail; run them under
+      # Europe/Berlin and all 136 pass. Confirmed both ways on 2026-08-31, and
+      # the first CI run after cutover is what surfaced it: until then the gates
+      # had only ever run in one timezone.
+      #
+      # The right fix would be to make the gates timezone-independent and
+      # re-record. That is no longer possible: the recordings derive from the
+      # Node implementation, which was deleted at the v0.8.0 cutover, so they are
+      # frozen as they are. Reproducing the environment they were made in is
+      # therefore the only correct option, not the convenient one.
+      #
+      # If a gate is ever rewritten to be timezone-independent, this can go --
+      # but check all nine, because removing it while one still renders local
+      # time turns a deterministic pass into a silent regional failure.
+      TZ: Europe/Berlin
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
