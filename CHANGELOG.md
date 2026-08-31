@@ -2,6 +2,54 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.0] - MikroDash is now Go and TypeScript
+
+The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114) replaces the
+Node.js implementation. It has been serving in production since 2026-08-30.
+
+**Nothing user-visible changed, by design.** The frontend reuses the original stylesheet, class
+names, element ids and DOM shape verbatim — only the logic producing them was rewritten. That was
+the acceptance criterion throughout, checked by gates that drive both implementations from one
+payload and compare the rendered HTML.
+
+### New
+
+- **ARMv7 is back.** It was dropped at 0.5.54 because `node:24-alpine` published no 32-bit ARM
+  variant, which stranded users on older hardware. The image is now a static Go binary on Alpine,
+  so `linux/arm/v7` is published again alongside amd64 and arm64.
+- **A much smaller image**: 180 MB against 775 MB, with no Node runtime, no `node_modules` and no
+  native compilation step. `/data` is still the only mount.
+- **Type checking over the whole frontend.** A class of bug that used to fail at click time now
+  fails at build time.
+- **Geolocation no longer depends on an npm package.** The city database is DB-IP City Lite,
+  fetched fresh at image build — no account, no licence key, no expiring token. Point `-geo` at a
+  volume to supply your own.
+
+### Changed
+
+- The container is `mikrodash-go` and the image is built from the same `docker-compose.yml` as
+  before. **Your existing `mikrodash_data` volume is used unchanged** — history, alerts, audit
+  rows, settings and users all carry over, and the Node release can still read anything the Go
+  release writes.
+- **`docker restart` is not a redeploy.** It keeps the image the container was created from, so a
+  rebuilt image is silently ignored while the app comes back looking healthy. Use `docker compose
+  up -d` after a build, or `docker rm -f` then `docker run`.
+
+### Fixed
+
+Everything in 0.7.40 is included. Two defects the cutover itself found were fixed before release: a
+migration flag that made the app proxy un-ported routes to itself and silently disabled the
+background pool and the retention sweep, and twelve verification checks that would have become a
+permanent silent skip.
+
+### Internal
+
+- The Node implementation is removed from the tree. It remains in this repository's history and at
+  the `v0.7.40` tag.
+- Verification travels with the repo: every gate compares against a committed recording of the old
+  implementation, so a fresh clone can run `sh tools/verify.sh` meaningfully. The final comparison
+  against the real Node source ran immediately before deletion and was green.
+
 ## [0.7.40] - The last Node release, and the fixes the Go port found
 
 The final release of MikroDash on Node.js. Everything below was found by comparing this app against

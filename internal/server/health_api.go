@@ -78,18 +78,21 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 //
 // ── SET TO MATCH THE LIVE APP, ON THE OPERATOR'S INSTRUCTION (2026-08-29) ──
 //
-// The live app reads it from `package.json` (`src/index.js:38`) and reports it
-// as `version` on /healthz; `web/src/pages/settings.ts` and `web/src/account.ts`
-// render `'v' + d.version`, so this is the bare number with no `v`.
+// Reported as `version` on /healthz; `web/src/pages/settings.ts` and
+// `web/src/account.ts` render `'v' + d.version`, so this is the bare number with
+// no `v`.
 //
-// It is a CONSTANT here rather than read from a file, because this port has no
-// package.json of its own to read and inventing one to hold a version would be a
-// release-management decision. CLAUDE.md's rule still stands — "a bump happens
-// only when the user says package it up" — and this is that instruction, for
-// parity with 0.7.38 rather than a bump.
+// It is a CONSTANT rather than read from a file. The Node app read it from
+// package.json, which no longer exists, and inventing a file to hold one number
+// would add a build input for nothing. CLAUDE.md's rule still applies: a bump
+// happens only when the operator says package it up, and one bump covers the
+// whole session.
+//
+// 0.8.0 is the cutover release — the first on Go and TypeScript. 0.7.40 was the
+// last on Node.
 //
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.7.38"
+const AppVersion = "0.8.0"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.
