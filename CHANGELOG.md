@@ -2,6 +2,21 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.1] - The cutover release, now building on 32-bit ARM
+
+**0.8.0 was tagged but never published.** Its image build failed on `linux/arm/v7`,
+the architecture that release restored, so no image reached the registry. 0.8.1 is
+that same cutover with the 32-bit fix. Everything described under 0.8.0 applies.
+
+### Fixed
+
+- **ARMv7 builds again, and is correct rather than merely compiling.** On 32-bit
+  ARM a plain `int` is 32 bits, and three constants overflowed it. Two were
+  compile errors; the third was a real defect that would have shipped silently on
+  that architecture — an AS number is 32-bit *unsigned*, so a 4-byte private ASN
+  could not be parsed at all and a private BGP peer would have been labelled
+  upstream.
+
 ## [0.8.0] - MikroDash is now Go and TypeScript
 
 The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114) replaces the
