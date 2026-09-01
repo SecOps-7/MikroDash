@@ -1,7 +1,7 @@
 package sites
 
 // `ParseSiteBody` against the LIVE `_parseSiteBody`, lifted and run by
-// `tools/site-body-cases.js`.
+// The site-body corpus.
 
 import (
 	"encoding/json"

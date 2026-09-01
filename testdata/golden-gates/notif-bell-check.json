@@ -1,4 +1,0 @@
-{
- "value:MAX_ALERTS": "100",
- "value:the live esc() source": "\"function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\\"/g,'&quot;').replace(/'/g,'&#039;');}\""
-}

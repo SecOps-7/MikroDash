@@ -27,7 +27,7 @@
 // `pollable` and a collector silently loses its poll path.
 //
 // `collection_tables.json` is GENERATED from the live module by
-// `tools/collection-cases.js` and embedded here, the same arrangement
+// The collection corpus and embedded here, the same arrangement
 // `internal/store` uses for `settings_tables.json`. `--check` fails when it
 // drifts, so the registry cannot rot quietly.
 //
@@ -244,7 +244,7 @@ func Resolve(settings map[string]any, r *Router) Resolved {
 	// of its own and reads the table only `conns` fills.
 	//
 	// The loop matters even though today's registry is one edge deep — see
-	// `tools/collection-cases.js`, which records that a single pass would pass
+	// The collection corpus, which records that a single pass would pass
 	// every case, and that a second edge is a one-line registry change away.
 	for changed := true; changed; {
 		changed = false

@@ -28,7 +28,7 @@ import (
 //
 // ── THE MAPPING IS LIFTED, NOT RETYPED ────────────────────────────────────
 //
-// `tools/db-prune-cases.js` reads the six DELETEs and three cutoffs out of the
+// The db-prune corpus reads the six DELETEs and three cutoffs out of the
 // live `prune()`, and `prune_test.go` asserts this file against them. Two of the
 // six are exactly the sort a retyped table gets wrong:
 //

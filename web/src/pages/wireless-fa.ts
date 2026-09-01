@@ -234,7 +234,7 @@ interface FaState {
 /**
  * Wire the Frequency Analyser.
  *
- * Everything above this line is pure and gated by `tools/fa-dialog-check.js`
+ * Everything above this line is pure and gated by the fa-dialog check
  * against the live renderers. This part is the wiring: which element each string
  * lands in, and which events move the state.
  */
@@ -325,7 +325,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
     // way until something forces a resize.
     //
     // The two legend callbacks are the ones `spectrumConfig` declares and
-    // `tools/fa-chart-check.js` pins: the band has no dataset, so its item is
+    // The fa-chart check pins: the band has no dataset, so its item is
     // appended by hand, and the default click handler would throw on an item
     // with no `datasetIndex`.
     makeSpectrumChart({
@@ -440,7 +440,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
   // button waited for an answer that only a click on the button could request.
   //
   // Live asks in three places and this port had one of them. Nothing failed:
-  // every pure renderer here is gated by `tools/fa-dialog-check.js` against the
+  // every pure renderer here is gated by the fa-dialog check against the
   // live originals and all of it passes, because the defect is not in any of
   // them — it is that the entry point is never shown. Found by driving both
   // apps and diffing the visible buttons, which is the check that sees a

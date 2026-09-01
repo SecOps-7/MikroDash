@@ -19,7 +19,7 @@ package db
 //     EVERYTHING regardless of age. A port using `>= 0` would compare against
 //     "now" and keep the rows it was asked to remove.
 //
-// `tools/purge-cases.js` lifts both from the live source and records what they
+// The purge corpus lifts both from the live source and records what they
 // produce, including the empty-predicate case.
 //
 // ── `events` IS TWO TABLES WITH DIFFERENT TIMESTAMP COLUMNS ─────────────────

@@ -2,7 +2,7 @@ package store
 
 // PublicRouters, against what the LIVE getPublic disclosed.
 //
-// `tools/routers-public-cases.js` runs the live module over a throwaway
+// The routers-public corpus runs the live module over a throwaway
 // routers.json and records what came back.
 //
 // ── THE CORPUS IS REPLAYED IN TWO HALVES, AND THE SPLIT IS HONEST ───────────

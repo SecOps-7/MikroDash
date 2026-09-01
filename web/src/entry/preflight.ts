@@ -27,7 +27,7 @@
  * `web/public/preflight.js` was a byte-for-byte copy of `../MikroDash/public/preflight.js`,
  * shipped as a static asset. The operator's instruction — "the port should stand
  * on its own without any lingering JS from the live repo" — is what moved it
- * here. `tools/preflight-check.js` drives THIS module and the live file from one
+ * here. The preflight check drives THIS module and the live file from one
  * harness and compares what each leaves on the document, so the copy could be
  * deleted without taking the behaviour on trust.
  */

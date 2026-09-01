@@ -5,7 +5,7 @@
  *
  * `web/public/login.js` was a byte-for-byte copy of `../MikroDash/public/login.js`.
  * The operator: "the port should stand on its own without any lingering JS from
- * the live repo." `tools/login-page-check.js` drives this module and the live
+ * the live repo." the login-page check drives this module and the live
  * file from one harness against the same DOM and compares what each does, so the
  * copy could be deleted rather than trusted.
  *

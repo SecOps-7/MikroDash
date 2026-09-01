@@ -8,7 +8,7 @@
  *
  * ── THE TABLES ARE GENERATED, NOT RETYPED ───────────────────────────────────
  *
- * `../gen/poll-tables` is lifted by `tools/poll-tables.js`. Three ways these
+ * `../gen/poll-tables` is lifted by the poll table generator. Three ways these
  * drift silently, all in the generator's header: a slider missing from the table
  * is simply not drawn (the interval stays live and uneditable), a key missing
  * from a profile is skipped rather than defaulted, and a profile button with no
@@ -18,7 +18,7 @@
  *
  * No row currently carries it — measured, and the generator records it. The
  * branch is reproduced anyway because the live app has it and a row could gain
- * the flag at any time; `tools/poll-sliders-check.js` injects a synthetic table
+ * the flag at any time; the poll-sliders check injects a synthetic table
  * so BOTH sides actually execute it rather than both skipping it.
  */
 
@@ -91,7 +91,7 @@ export function applyPollProfile(
       if (cfg.streamed) return;
       // A profile with no value for this slider LEAVES IT ALONE rather than
       // writing undefined into it — the live "belt and braces behind the drift
-      // test". The drift test is `tools/poll-tables.js`, which records the
+      // test". The drift test is the poll table generator, which records the
       // coverage gaps per profile.
       if (p[cfg.key] === undefined) return;
       const slider = el<HTMLInputElement>('s_' + cfg.key);

@@ -4,7 +4,7 @@ package server
 //
 // ── THE OPTIONS HALF IS DRIVEN BY THE LIVE CORPUS ──────────────────────────
 //
-// `tools/purge-cases.js` runs the live `_purgeScope` and `_purgeOpts` and
+// The purge corpus runs the live `_purgeScope` and `_purgeOpts` and
 // records what each request resolves to, INCLUDING which refusal it earns and in
 // what order. `TestPurgeOptsMatchTheLiveRoute` replays the half this harness can
 // drive; the permission half needs a real RBAC resolver and is covered by

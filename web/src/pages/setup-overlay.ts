@@ -21,10 +21,10 @@
 // So the overlay cannot be exercised while Node runs, whatever this module does.
 // What CAN be done now is the part that drifts — the field defaults, the port
 // flip and the list of fields that re-lock the save button — pinned by
-// `tools/setup-overlay-check.js` against the live handler.
+// The setup-overlay check against the live handler.
 //
 // The DOM is not rebuilt: `web/src/ui/shell.html` already carries all fifteen
-// ids, extracted verbatim by `tools/extract-ui.js`. Markup is never retyped.
+// ids, extracted verbatim by the extract-ui tool. Markup is never retyped.
 //
 // ── NOT router-form.ts, AND THE DIFFERENCE IS REAL ──────────────────────────
 //

@@ -174,7 +174,7 @@ func (s *Server) grantCreate(w http.ResponseWriter, r *http.Request, sess *Sessi
 	}
 
 	// `createdBy` is the SESSION'S USER ID, not the username.
-	// `tools/identity-audit.js` records that this column takes the id where
+	// The identity audit records that this column takes the id where
 	// `audit_events.actor_name` takes the name, and that reaching for the wrong
 	// one is invisible to any test — a round trip through one implementation
 	// agrees with itself whatever it wrote. Two such bugs were found on

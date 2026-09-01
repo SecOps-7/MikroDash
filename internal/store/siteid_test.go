@@ -2,7 +2,7 @@ package store
 
 // `cleanSiteIDs` against the live `_cleanSiteIds`.
 //
-// `tools/siteid-cases.js` slices `_SITE_ID_RE`, `_cleanSiteId` and
+// The siteid corpus slices `_SITE_ID_RE`, `_cleanSiteId` and
 // `_cleanSiteIds` out of `src/routers.js` and runs them.
 //
 // ── COMPARED AS A SEQUENCE ──────────────────────────────────────────────────

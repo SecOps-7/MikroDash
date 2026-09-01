@@ -40,7 +40,7 @@ import (
 // `pollRouting` validates at 500..300000 and `pollWifi` at 10000..600000. The
 // second clamp exists because the stored value may predate the current bounds.
 //
-// Pinned by `tools/settings-apply-cases.js`, whose table is LIFTED from the
+// Pinned by the settings-apply corpus, whose table is LIFTED from the
 // route. That table is the part with a history: the live source records that
 // `pollTopology`, `pollVlans` and `pollPpp` were once missing from it, so "the
 // sliders existed and the bounds existed, but with no entry here the value was

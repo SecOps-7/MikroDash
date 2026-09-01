@@ -26,7 +26,7 @@
  *     to attach to. Rather than making them reopen the form, switch it to edit
  *     mode on the returned record and render the editor in place."
  *
- * Splitting the decision out is what lets `tools/principal-forms-check.js` drive
+ * Splitting the decision out is what lets the principal-forms check drive
  * these and the live functions from one harness and compare — the DOM half needs
  * a browser, and this half needs nothing.
  */
@@ -243,7 +243,7 @@ export function rolePagesFrom(rows: { page: string; level: string }[]): RolePage
 // is TRUNCATED at the first one. Reproduced rather than fixed: ids here are
 // generated (`crypto.randomUUID` for a site, the router's own id) and none has
 // ever contained a colon, so changing it would be a divergence with no
-// observable benefit. `tools/principal-forms-check.js` carries the case, which
+// observable benefit. The principal-forms check carries the case, which
 // is what stops it being quietly "corrected" later.
 
 /** What the Add button sends, or the message it shows instead. */

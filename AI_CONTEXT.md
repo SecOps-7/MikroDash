@@ -210,7 +210,7 @@ Two rules that have each caused a real defect:
 - **A setting that is rendered, validated and persisted but never READ is the most
   common defect class in this codebase.** Four have been found:
   `topN`, `topTalkersN`, the retention settings and `rosDebug`. Each looked
-  complete from the UI. `tools/settings-consumer-audit.js` now checks the class —
+  complete from the UI. The settings-consumer audit now checks the class —
   but read its own note: a mutation survived it, so it is a net beneath a
   call-site test, not a substitute for one.
 - **Coercion is deliberate and asymmetric.** A boolean arriving from a form may be

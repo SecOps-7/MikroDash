@@ -1,7 +1,7 @@
 package alert
 
 // `Evaluator` against the LIVE `createEvaluator`, lifted and run by
-// `tools/alert-eval-cases.js`.
+// The alert-eval corpus.
 
 import (
 	"encoding/json"

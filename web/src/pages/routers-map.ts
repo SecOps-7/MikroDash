@@ -6,7 +6,7 @@
  * The map splits cleanly in two, and the split is by what can be CHECKED. The
  * arithmetic — `project`, `layout`, `popHtml`, `groupPopHtml`, `renderTray`,
  * `clampTranslate`, `fitToMarkers` — produces strings and numbers, so it was
- * ported first and is gated by `tools/routers-grid-check.js` against the live
+ * ported first and is gated by the routers-grid check against the live
  * functions. What is here builds SVG elements, reads `getBoundingClientRect`
  * and listens for pointer events; none of that survives a headless harness
  * faithfully, so it is verified in a browser instead.
@@ -408,7 +408,7 @@ function resize(): void {
   // previous screen size, which is the one thing the constant-size arithmetic
   // exists to prevent.
   //
-  // `tools/announcement-audit.js` is what said so, by flagging a `window.` read
+  // The announcement audit is what said so, by flagging a `window.` read
   // with no matching writer anywhere in the port. It was not visible in a
   // browser either, because markers at a slightly wrong radius still look like
   // markers.

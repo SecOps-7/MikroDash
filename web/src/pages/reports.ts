@@ -40,7 +40,7 @@ import { loadSchedules, wireScheduleActions, wireScheduleForm } from './reports-
 //
 // A storage key is a CONTRACT WITH THE PAST, not an internal name. The live
 // app's spelling wins even where it is inconsistent — `mkd_` here, `mikrodash_`
-// two lines below in `RPT_CAP_KEY`. `tools/storage-key-audit.js` compares every
+// two lines below in `RPT_CAP_KEY`. The storage-key audit compares every
 // key against the live source for exactly this reason.
 const RPT_PRESET_KEY = 'mkd_rpt_preset';
 
@@ -351,7 +351,7 @@ function getJSON<T>(url: string): Promise<Envelope<T>> {
  * `sel.value` rather than the caller's guess is what makes those two cases the
  * same code path.
  *
- * Exported for `tools/reports-iface-check.js`; the page calls it internally.
+ * Exported for the reports-iface check; the page calls it internally.
  */
 export function fillIfaceSelect(id: string, ifaces: string[]): string {
   const sel = el<HTMLSelectElement>(id);

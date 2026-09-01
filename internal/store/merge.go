@@ -6,7 +6,7 @@ package store
 // ── THE TABLES ARE GENERATED, NOT RETYPED ──────────────────────────────────
 //
 // 113 defaults, 41 environment overrides and 24 clamped intervals, embedded
-// from `settings_tables.json`, which `tools/settings-tables.js` captures from
+// from `settings_tables.json`, which the settings table generator captures from
 // the live module. CLAUDE.md is explicit that a hand-written mirror of this is
 // the thing the port exists to avoid — and a missing default would not look like
 // a bug, it would look like an operator who never set the value.

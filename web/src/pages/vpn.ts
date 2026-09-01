@@ -2,7 +2,7 @@
 //
 // NOT AN IIFE over there either, and the same shape as DHCP: one top-level
 // handler draws BOTH this page and the dashboard's VPN card, with two helpers
-// above it. `tools/live-renderer.js` lifts the lot as one range.
+// above it. The live-renderer tool lifts the lot as one range.
 //
 // This module renders only the page. The dashboard mini-card the same live
 // handler also writes is left alone — that element is not in the ported shell,

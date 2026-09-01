@@ -13,7 +13,7 @@ export interface ValueDefault {
   fallback?: number;
   /**
    * The assignment expression as the live populate() writes it, kept verbatim.
-   * The renderer does NOT read this — `tools/settings-populate-check.js`
+   * The renderer does NOT read this — the settings-populate check
    * evaluates it, so the comparison is against the original text rather than a
    * retyped copy of it.
    */

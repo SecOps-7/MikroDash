@@ -9,7 +9,7 @@ import (
 )
 
 // `PollRetunes` against the LIVE rule, whose table is lifted from the route by
-// `tools/settings-apply-cases.js`.
+// The settings-apply corpus.
 
 type retuneCorpus struct {
 	PollMap map[string]string `json:"pollMap"`

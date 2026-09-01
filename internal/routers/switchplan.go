@@ -27,7 +27,7 @@ package routers
 //   - rooms are left BY PREFIX, so `router-r1:wifi` goes with `router-r1`;
 //   - the synthetic status is `true` ONLY (#118).
 //
-// `tools/switchrouter-cases.js` runs the live function with all twelve stubbed
+// The switchrouter corpus runs the live function with all twelve stubbed
 // and records the ordered operations; this reproduces that list.
 //
 // ── NO CALLER YET, AND IT CANNOT HAVE ONE ───────────────────────────────────

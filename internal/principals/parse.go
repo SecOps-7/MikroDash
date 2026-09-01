@@ -9,8 +9,8 @@ package principals
 // `_parseSiteBody`. The obvious move is one shared parser, and it is the wrong
 // one: two corpora lifted from two originals catch upstream changing ONE of
 // them, where a single shared function would apply the change to both or to
-// neither and stay green either way. `tools/name-cases.js` pins this one;
-// `tools/site-body-cases.js` pins the other.
+// neither and stay green either way. The name corpus pins this one;
+// The site-body corpus pins the other.
 //
 // ── ABSENT VERSUS NULL VERSUS SET ───────────────────────────────────────────
 //
@@ -108,7 +108,7 @@ func ParseName(body map[string]any, partial bool) (Fields, error) {
 // a cleared form field serialises to, so it was reachable from the UI rather
 // than only from curl. Filed as `ToDo.md` §6 and FIXED upstream on 2026-08-27;
 // this port follows the fix rather than keeping the quirk, and
-// `tools/name-cases.js` pins it.
+// The name corpus pins it.
 //
 // The `present` argument is still needed and is NOT the null question: it
 // carries "the key was absent", which on a partial edit means do not write the

@@ -1,9 +1,0 @@
-{
- "no pick at all": "false",
- "the pick is what arrived": "false",
- "the default arrived and the pick is selectable": "true",
- "the pick has left the list": "false",
- "the pick returns to the list": "true",
- "an empty options list": "false",
- "arriving name is undefined": "true"
-}

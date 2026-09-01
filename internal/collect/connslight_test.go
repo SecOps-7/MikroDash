@@ -10,7 +10,7 @@ package collect
 // the live app sends no key at all.
 //
 // The port therefore had ONE conn:update key set where the live app has TWO, which
-// is exactly what `tools/live-socket-diff.js` reported on 2026-08-28 as "a second
+// is exactly what the live-socket-diff tool reported on 2026-08-28 as "a second
 // payload shape on the live side that the port does not produce".
 //
 // ── WHY THE OBVIOUS FIX IS WRONG ────────────────────────────────────────────

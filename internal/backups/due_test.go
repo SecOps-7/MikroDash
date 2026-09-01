@@ -8,7 +8,7 @@ import (
 
 // The differential gate for IsDue.
 //
-// The cases come from `tools/backup-due-cases.js`, which RUNS the live
+// The cases come from the backup-due corpus, which RUNS the live
 // implementation rather than describing it — so the expectations here are the
 // live app's answers, not a second reading of the same source.
 //

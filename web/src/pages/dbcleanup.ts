@@ -25,7 +25,7 @@
  * ── WHAT IS PURE AND WHAT IS NOT ────────────────────────────────────────────
  *
  * Everything with a decision in it is exported and driven by
- * `tools/dbcleanup-check.js`, which runs the LIVE IIFE and this module against
+ * The dbcleanup check, which runs the LIVE IIFE and this module against
  * one shared fake DOM and diffs what each wrote. What is left unexported is the
  * fetching and the listener registration.
  */

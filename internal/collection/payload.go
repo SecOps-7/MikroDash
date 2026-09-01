@@ -7,9 +7,9 @@ package collection
 // The port resolved per-router collection config from the day #105 landed and
 // never told the browser about it. The client-side consumer
 // (`applyCollectionConfig` in `web/src/stale.ts`) was written, pinned against the
-// live implementation by `tools/stale-check.js`, and called by nothing — the
+// live implementation by the stale check, and called by nothing — the
 // event that would feed it was never emitted. Found 2026-08-28 by
-// `tools/live-socket-diff.js`; `tools/orphaned-consumer-audit.js` now watches
+// The live-socket-diff tool; the orphaned-consumer audit now watches
 // that class so a gated-but-unreachable consumer fails a sweep.
 //
 // The visible consequence until now: a collector an operator turned off on a

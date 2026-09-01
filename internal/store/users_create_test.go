@@ -2,7 +2,7 @@ package store
 
 // CreateUser, against a corpus produced by RUNNING the live `createUser`.
 //
-// `tools/users-create-cases.js` points `src/users.js` at a throwaway directory
+// The users-create corpus points `src/users.js` at a throwaway directory
 // and calls it for real, then reads back the file it wrote. So the expectations
 // here are not a description of what `users.js` is believed to do.
 //

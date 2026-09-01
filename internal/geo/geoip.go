@@ -177,7 +177,7 @@ var (
 // PREFERS DB-IP, FALLS BACK TO geoip-lite. The fallback is not politeness: an
 // operator who points `-geo` at a volume of `.dat` files should keep working
 // rather than lose their country flags to an upgrade, and the legacy reader is
-// still the only thing `tools/geo-cases.js` can check against the Node app.
+// still the only thing the geo corpus can check against the Node app.
 func Load(dir string) (*DB, error) {
 	if p, ok := mmdbPath(dir); ok {
 		r, err := openMMDB(p)

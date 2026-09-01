@@ -1,7 +1,7 @@
 package store
 
 // `AddRouter` against the LIVE `Routers.add`, recorded by
-// `tools/router-add-cases.js`.
+// The router-add corpus.
 //
 // The cases run IN ORDER against one growing store, because the label is a
 // function of the fleet rather than of the body: two routers called "Depot"

@@ -107,7 +107,7 @@ func TestDispatchFiredIsInertWithoutADispatcher(t *testing.T) {
 // ── HOW THE KEYS GOT HERE ─────────────────────────────────────────────────
 //
 // Live's key is `fire()`'s first argument and never travels on the fired alert.
-// `tools/alert-eval-cases.js` now captures it from its `_deliver` stub, which is
+// The alert-eval corpus now captures it from its `_deliver` stub, which is
 // what makes this checkable at all.
 //
 // Recording them immediately found a defect: the update-supersede case EMITS

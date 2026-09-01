@@ -825,7 +825,7 @@ function wire(socket: Socket): void {
   //
   // This port announced it three times and listened nowhere, so the Add button
   // on a swapped tab kept the PREVIOUS tab's resource: pressing Add on the NAT
-  // table opened the filter-rule form. Found by `tools/announcement-audit.js`,
+  // table opened the filter-rule form. Found by the announcement audit,
   // which recorded it as one-sided until now.
   //
   // Schemas are NOT cleared, unlike `refreshAll`. The router has not changed —

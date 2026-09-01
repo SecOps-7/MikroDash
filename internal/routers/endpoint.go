@@ -137,7 +137,7 @@ func endpointTLS(v any) bool {
 // stored password was refused, and the admin was asked to retype it. Wrong in a
 // safe direction is still wrong. Found by this port, filed in `ToDo.md`, and
 // FIXED UPSTREAM in 2af8164 — this side follows rather than keeping the quirk,
-// because the quirk is gone and `tools/same-endpoint-cases.js` regenerates from
+// because the quirk is gone and the same-endpoint corpus regenerates from
 // the live implementation.
 //
 // A bare `bool` is all this ever needs from a stored record; the `any` is for

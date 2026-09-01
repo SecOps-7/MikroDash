@@ -1,7 +1,7 @@
 package db
 
 // `GlobalAdminUserIDs` against the LIVE query, run by
-// `tools/global-admin-cases.js` over the LIVE schema.
+// The global-admin corpus over the LIVE schema.
 
 import (
 	"database/sql"

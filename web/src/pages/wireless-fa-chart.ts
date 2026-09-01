@@ -4,8 +4,8 @@
  * ── THIS IS GLUE, AND THAT IS THE WHOLE POINT ──────────────────────────────
  *
  * Every decision belongs to `wireless-fa.ts` and is gated there: `spectrumConfig`
- * and `spectrumData` against the live `makeChart` (`tools/fa-chart-check.js`),
- * the tooltip body and the band geometry (`tools/fa-spectrum-check.js`). What is
+ * and `spectrumData` against the live `makeChart` (the fa-chart check),
+ * the tooltip body and the band geometry (the fa-spectrum check). What is
  * left — and what stayed unported longest — is constructing a Chart.js instance
  * against an element and registering a plugin. That needs a browser and a
  * charting library rather than a decision, which is why it is here and why it is

@@ -1,7 +1,7 @@
 package jsval
 
 // `ToNumber` against V8's own `Number(v)`, recorded by
-// `tools/jsval-number-cases.js`.
+// The jsval-number corpus.
 //
 // This package had no test files at all until this one. A shared coercion with
 // no gate is worse than a private copy: every caller inherits the same mistake,

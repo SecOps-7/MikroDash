@@ -2,7 +2,7 @@ package server
 
 // suspendIfNoRoomOccupied — the guard the source audit cannot check.
 //
-// `tools/blur-suspend-audit.js` verifies that every multi-room collector is
+// The blur-suspend audit verifies that every multi-room collector is
 // suspended THROUGH this helper. It cannot verify that the helper works: a
 // version that stopped consulting the hub would pass the audit and freeze every
 // dashboard card the moment its page was left. That mutation survived, which is

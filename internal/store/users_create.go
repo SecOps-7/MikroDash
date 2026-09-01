@@ -24,7 +24,7 @@ package store
 // disk in exactly the order `users.js` writes them. This is the one place the
 // port can close that gap for free, so it is closed.
 //
-// The order is neither decorative nor guessed: `tools/users-create-cases.js`
+// The order is neither decorative nor guessed: the users-create corpus
 // RUNS the live `createUser` against a throwaway directory and records the key
 // order of the file it produced.
 //

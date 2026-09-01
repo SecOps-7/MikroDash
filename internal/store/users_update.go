@@ -37,7 +37,7 @@ package store
 // or cleared. In Go the pointer already carries "absent", and the array-ness is
 // the HTTP layer's job: a JSON body sending `"allowedRouterIds": "rtr-1"` must
 // decode to a nil pointer here, not to an error and not to a one-element list.
-// `internal/server` owns that; `tools/userwrite-cases.js` pins the three shapes.
+// `internal/server` owns that; the userwrite corpus pins the three shapes.
 //
 // ── AN INVALID ROLE RAISES; IT DOES NOT CLAMP ───────────────────────────────
 //

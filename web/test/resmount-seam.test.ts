@@ -1,4 +1,4 @@
-// Moved from `tools/resmount-seam-check.js` when the port-parity harness was retired.
+// Moved from the resmount-seam check when the port-parity harness was retired.
 //
 // The body is VERBATIM apart from its imports and the path to the repository
 // root: this test drives the port's OWN TypeScript and asserts what it does, so

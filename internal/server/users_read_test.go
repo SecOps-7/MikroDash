@@ -3,7 +3,7 @@ package server
 // `GET /api/users` — the Users card's one fetch.
 //
 // The STRIP is `store.PublicUsers`, pinned against the live `_toPublic` by
-// `tools/users-public-cases.js`. What is pinned here is the ROUTE: that it
+// The users-public corpus. What is pinned here is the ROUTE: that it
 // strips at all, that it joins each user's grants, that a broken file is an
 // error rather than an empty list, and that only an administrator sees any of it.
 

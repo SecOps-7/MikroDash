@@ -2,7 +2,7 @@ package db
 
 // The purge predicate and the table resolution, against the live originals.
 //
-// The corpus is `tools/purge-cases.js`, which lifts `_purgeWhere` and
+// The corpus is the purge corpus, which lifts `_purgeWhere` and
 // `_purgeTargets` out of `src/db.js` by content anchor and runs them with the
 // clock FROZEN — the live function calls `Date.now()` inline, so without that
 // the recorded params would differ on every run and nothing could be compared.

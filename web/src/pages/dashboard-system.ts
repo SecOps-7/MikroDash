@@ -47,7 +47,7 @@ import { gauge } from './dashboard-gauge';
  * the value did not pass through an `any`.
  *
  * Exporting it from the producer and importing it in the consumer at least makes
- * both sides name one type; `tools/update-seam-check.js` covers what the
+ * both sides name one type; the update-seam check covers what the
  * compiler still cannot.
  */
 export interface UpdInfo { installed: string; latest: string; channel: string }

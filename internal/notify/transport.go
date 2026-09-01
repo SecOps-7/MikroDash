@@ -12,7 +12,7 @@ import (
 //
 // Split from the sending so the SHAPE can be compared against the live app
 // without either side opening a socket — which is what
-// `tools/notify-transport-cases.js` does. The details below are the ones that
+// The notify-transport corpus does. The details below are the ones that
 // are not cosmetic, and each is a place a plausible implementation goes wrong.
 type Request struct {
 	Scheme  string

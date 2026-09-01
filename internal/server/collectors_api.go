@@ -55,7 +55,7 @@ func (s *Server) collectorsGet(w http.ResponseWriter, r *http.Request) {
 		// `Requires` IS NEVER NIL, and no guard is written here for it.
 		//
 		// The live route says `c.requires || []` because a registry row may omit
-		// the field. The generated tables cannot: `tools/collection-cases.js`
+		// the field. The generated tables cannot: the collection corpus
 		// emits `(c.requires || []).slice()`, so every row carries an array and a
 		// JSON `[]` decodes to an empty non-nil slice. A `if req == nil` here was
 		// unreachable — the mutation that removed it killed nothing, which is how

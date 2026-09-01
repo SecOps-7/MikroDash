@@ -52,7 +52,7 @@ function level(attr: string): number {
 }
 function factor(table: number[], lvl: number): number {
   // The `!` is safe by construction, not by hope: the index is clamped into
-  // [0, len-1] and `tools/appearance-tables.js` refuses to emit a factor array
+  // [0, len-1] and the appearance table generator refuses to emit a factor array
   // shorter than the slider that indexes it.
   return table[Math.max(0, Math.min(table.length - 1, lvl - 1))]!;
 }

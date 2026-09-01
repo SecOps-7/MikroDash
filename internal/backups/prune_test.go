@@ -13,7 +13,7 @@ import (
 // feature exists to produce, and loses it quietly — a pruned pair looks exactly
 // like one that was never taken.
 //
-// Cases come from `tools/backup-prune-cases.js`, which RUNS the live
+// Cases come from the backup-prune corpus, which RUNS the live
 // implementation, so the expectations are its answers rather than a second
 // reading of the same source.
 

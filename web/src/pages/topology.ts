@@ -3,7 +3,7 @@
 // THE FIRST PAGE WHOSE RENDERER IS NOT IN app.js. The live app loads
 // `/js/topology.js` after app.js so it can close over `socket`, `esc`, `$`,
 // `fmtMbps` and `pageVisible` as globals; here those are ordinary imports, and
-// `tools/live-renderer.js` learned to lift a whole file so the DOM comparison
+// The live-renderer tool learned to lift a whole file so the DOM comparison
 // still has something to compare against.
 //
 // Three design choices carried over intact, each of which has a cheaper wrong

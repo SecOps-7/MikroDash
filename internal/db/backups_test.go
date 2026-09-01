@@ -12,7 +12,7 @@ import (
 
 // The differential gate for the backup history reads.
 //
-// The corpus is built by `tools/backup-history-cases.js`, which SEEDS a
+// The corpus is built by the backup-history corpus, which SEEDS a
 // throwaway database through the live `recordBackup` and `markBackupPruned` and
 // records what the live queries then answer. This test rebuilds the same rows
 // and must produce the same numbers.

@@ -90,7 +90,7 @@ type TrafficHistory struct {
 	// two. It is carried anyway because the payload contract is the line a port
 	// may not move, and "no consumer today" is a statement about today.
 	//
-	// Found missing by `tools/live-socket-diff.js` on 2026-08-28, which compares
+	// Found missing by the live-socket-diff tool on 2026-08-28, which compares
 	// the payload SHAPES both servers actually emit — no static audit could see
 	// it, because the field is absent from a struct rather than from a list
 	// anything checks.

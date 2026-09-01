@@ -1,7 +1,7 @@
 package principals
 
 // `ParseName` against the LIVE `_parseName`, lifted and run by
-// `tools/name-cases.js`.
+// The name corpus.
 
 import (
 	"encoding/json"

@@ -19,7 +19,7 @@
 //   Edit         WIRED. This said "NOT wired ... this port has no
 //                `openSchedModal`" and was stale: `openSchedModal` is defined
 //                below and fills every field, the delegated handler calls it
-//                with the row, and `tools/sched-form-check.js` covers the form
+//                with the row, and the sched-form check covers the form
 //                across five cases including edit and the reopen paths. Corrected
 //                2026-08-25 — a stale blocker invites the next session to "fix"
 //                working code.
@@ -31,7 +31,7 @@
 //                `internal/reportpdf` and `internal/mailer` behind it. The
 //                button was the only half still missing, and the two "options"
 //                this used to weigh — hide it or leave it dead — were both moot.
-//                Pinned by `tools/sched-run-check.js`, 11 mutations.
+//                Pinned by the sched-run check, 11 mutations.
 //
 //                THE THIRD STALE CLAIM IN THIS HEADER, after `rptSchedNew` and
 //                the edit-modal note above it. All three were notes about
@@ -250,7 +250,7 @@ export function wireScheduleActions(): void {
       // sends `POST …//run` and lets the endpoint answer. An empty id is
       // unreachable — the attribute is drawn from the row this page rendered —
       // but a silent return where the original makes a request is a divergence
-      // with nothing to buy it, and `tools/sched-run-check.js` compares the
+      // with nothing to buy it, and the sched-run check compares the
       // empty-id case for exactly that reason.
       const id = run.getAttribute('data-rs-run') ?? '';
       const router = el<HTMLSelectElement>('rptRouter');

@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// The corpus, as `tools/alertwrite-cases.js` writes it.
+// The corpus, as the alertwrite corpus writes it.
 //
 // Timestamps are LABELS, not numbers: every one of these functions stamps the
 // wall clock, so the literal values differ on every run. 'seeded' means the

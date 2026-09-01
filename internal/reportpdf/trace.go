@@ -5,7 +5,7 @@ import (
 )
 
 // Op is one recorded drawing call: the pdfkit method name and its arguments, in
-// the shape `tools/pdf-render-cases.js` records them.
+// the shape the pdf-render corpus records them.
 type Op struct {
 	Op   string `json:"op"`
 	Args []any  `json:"args"`

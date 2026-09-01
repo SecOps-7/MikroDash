@@ -10,7 +10,7 @@ import (
 	"mikrodash/internal/db"
 )
 
-// The corpus `tools/alert-row-check.js` writes, every expected value produced by
+// The corpus the alert-row check writes, every expected value produced by
 // the LIVE `_alertRow` lifted out of `src/index.js`.
 
 type alertRowCorpus struct {

@@ -16,7 +16,7 @@ package session
 //     they cannot see what the CALL SITE passes. A test that builds the object
 //     itself is a seam that bypasses the path it stands in for.
 //
-// It was found by `tools/live-socket-diff.js`, watching what the two servers
+// It was found by the live-socket-diff tool, watching what the two servers
 // actually send. That tool needs a login, two running servers and a router, so
 // it cannot be a gate. This can.
 //

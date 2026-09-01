@@ -426,7 +426,7 @@ type TopologyPayload struct {
 	// tag hid the missing constructor argument: with it, an unset field looks
 	// like a deliberate omission rather than a bug.
 	//
-	// Found by `tools/live-socket-diff.js` on 2026-08-28, comparing the payload
+	// Found by the live-socket-diff tool on 2026-08-28, comparing the payload
 	// shapes both servers actually emit.
 	RouterID         string         `json:"routerId"`
 	PollMs           int            `json:"pollMs"`

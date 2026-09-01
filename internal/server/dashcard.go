@@ -38,7 +38,7 @@ var dashCardKeyRe = regexp.MustCompile(`^[a-z]{2,20}$`)
 //
 // Written as an explicit map rather than a lookup through a page registry this
 // port does not have, and checked against the live resolution by
-// `tools/grid-tables.js` — so a room added over there fails here rather than
+// The grid table generator — so a room added over there fails here rather than
 // silently resolving to `dashboard` and being gated on the wrong page.
 var dashCardPages = map[string]string{
 	"firewall":    "firewall",

@@ -475,7 +475,7 @@ func (cn *conn) selectRouter(id string) {
 	// UNCONDITIONAL, even when nothing is asleep. The port emitted only on a
 	// CHANGE, so a viewer attaching after a collector went dormant never learned
 	// it and that card was never dimmed. Found 2026-08-28 by
-	// `tools/live-socket-diff.js`, which showed the live app sending this event
+	// The live-socket-diff tool, which showed the live app sending this event
 	// and the port not — on a router where nothing was dormant, so the emit was
 	// the whole difference.
 	cn.srv.hub.Send(cn.c, "collection:status", map[string]any{
@@ -491,7 +491,7 @@ func (cn *conn) selectRouter(id string) {
 	// for netwatch and talkers is up to a minute of empty chrome.
 	//
 	// The live app sends all four in `sendInitialState`. Found 2026-08-28 by
-	// `tools/initial-state-audit.js`, written after `collection:status` turned
+	// The initial-state audit, written after `collection:status` turned
 	// out to have exactly this shape — correct on every change, absent on the
 	// one path that matters most.
 	//
@@ -566,7 +566,7 @@ func (cn *conn) sendPageSettings() {
 	// has never changed is simply ABSENT from the payload. The live
 	// `Settings.load()` merges DEFAULTS first, so those keys are always present.
 	//
-	// Found by `tools/live-socket-diff.js` on 2026-08-28: six keys short on this
+	// Found by the live-socket-diff tool on 2026-08-28: six keys short on this
 	// install — `pageBackups`, `pageDevices`, `pageWifi`, `notifBackupDrift`,
 	// `notifBackupFail`, `notifReportFail`. The three `page*` ones are nav
 	// visibility flags, so the client read `undefined` and those entries were
@@ -696,7 +696,7 @@ func (cn *conn) resumePage(page string) {
 		// netwatch and talkers is up to a minute. The live app sends all three
 		// in `sendInitialState`.
 		//
-		// Found by `tools/initial-state-audit.js`, alongside the four
+		// Found by the initial-state audit, alongside the four
 		// router-wide chrome events replayed on the handshake.
 		if last := cn.rsession.Netwatch().Last(); last != nil {
 			cn.srv.hub.Send(cn.c, "netwatch:update", last)
@@ -997,7 +997,7 @@ func (cn *conn) pageBlur(page string) {
 		// The dashboard's VPN card reads the same collector — the live
 		// `_updatePageStream` counts occupancy across ALL of a collector's
 		// stream rooms, which is why the live app never had this. Found by
-		// `tools/blur-suspend-audit.js` on its first run, after the same defect
+		// The blur-suspend audit on its first run, after the same defect
 		// was fixed by hand for dhcpNetworks and bandwidth.
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
 			[]string{"dash-card-vpn"}, cn.rsession.VPN().Suspend)
@@ -1007,7 +1007,7 @@ func (cn *conn) pageBlur(page string) {
 		cn.rsession.Queues().Suspend()
 	case "firewall":
 		// The dashboard card reads the same collector. Its room was added on
-		// 2026-08-29 when `tools/emit-rooms-audit.js` found this payload reaching
+		// 2026-08-29 when the emit-rooms audit found this payload reaching
 		// one room where live sends it to two — and `blur-suspend-audit` caught
 		// the consequence immediately: a page blur says nothing about whether the
 		// CARD is still watching, so suspending here would starve it.
@@ -1021,7 +1021,7 @@ func (cn *conn) pageBlur(page string) {
 		cn.rsession.Topology().Suspend()
 	case "wireless":
 		// The dashboard card reads the same collector. Its room was added on
-		// 2026-08-29 when `tools/emit-rooms-audit.js` found this payload reaching
+		// 2026-08-29 when the emit-rooms audit found this payload reaching
 		// one room where live sends it to two — and `blur-suspend-audit` caught
 		// the consequence immediately: a page blur says nothing about whether the
 		// CARD is still watching, so suspending here would starve it.

@@ -9,11 +9,11 @@ package store
 // `server.listen()` at require time and cannot be loaded by a test [...] So the
 // RULES below are read-ported and covered by hand-written tests."
 //
-// The premise was true and stopped being true. `tools/alert-row-check.js` lifts
+// The premise was true and stopped being true. The alert-row check lifts
 // a PRIVATE function out of that same file with `lib/lift.js` — the module is
 // READ, never required, so `server.listen()` never runs — and the same technique
 // works on a block that is not a function at all.
-// `tools/settings-validate-check.js` slices the validator between two asserted
+// The settings-validate check slices the validator between two asserted
 // anchors, evaluates it with `body` bound, and drives 63 bodies through it;
 // `settings_validate_test.go` compares this function against those answers.
 //
@@ -21,7 +21,7 @@ package store
 // author's reading. They agree with what the live code DOES. Fifteen mutations
 // were injected against that gate and all fifteen died.
 //
-// The TABLES are still generated (`tools/settings-write-tables.js`), because a
+// The TABLES are still generated (the settings-write table generator), because a
 // page added means a new `page*` boolean and a hand-copied list would quietly
 // stop accepting it.
 //

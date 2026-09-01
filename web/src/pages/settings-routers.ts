@@ -141,7 +141,7 @@ export function deleteRouterPrompt(label: string): string {
  * text selection or focus inside the table. The live app updates the one badge;
  * `data-rtr-conn` carries the router id for exactly this lookup, and porting the
  * attribute without this reader is what left the port rendering it and reading
- * nothing — `tools/attr-audit.js` is what said so.
+ * nothing — the attr audit is what said so.
  *
  * ── IT DOES NOT PAINT A DISABLED ROW ───────────────────────────────────────
  *

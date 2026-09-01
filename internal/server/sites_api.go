@@ -12,7 +12,7 @@ package server
 // decision, and only one of them may be reachable without administration.
 //
 // The DECISION is `routers.SiteMembership`, pinned against the live loop by
-// `tools/site-membership-cases.js`. What is here is the parts that are not the
+// The site-membership corpus. What is here is the parts that are not the
 // decision: the gate, the 404, the writes, the audit rows and the broadcasts.
 
 // ── COEXISTENCE: THESE WRITES CANNOT RUN WHILE NODE IS RUNNING ─────────────

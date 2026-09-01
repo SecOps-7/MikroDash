@@ -235,7 +235,7 @@ func (s *Server) backupRecord(routerID string) backupRecord {
 // read that treated it as absent would substitute 30 — quietly keeping backups
 // an operator asked to stop keeping. The mirror is worse: a nil that read as 0
 // would DELETE every restore point on a router that never configured retention.
-// `tools/backup-normalize-cases.js` pins the same distinction on the write side.
+// The backup-normalize corpus pins the same distinction on the write side.
 func retentionFor(rec backupRecord) backups.Retention {
 	keep := backups.Retention{
 		KeepCount: backups.DefaultKeepCount, KeepDays: backups.DefaultKeepDays,

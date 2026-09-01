@@ -74,7 +74,7 @@ export function initRouterModal(opts: {
   // its own copy for as long as it was the only caller; the site form made a
   // second one, and two implementations of one thing drift.
   //
-  // The migration waited for `tools/router-modal-picker-check.js`, which was
+  // The migration waited for the router-modal-picker check, which was
   // written and passing against the INLINE version first — six mutations killed
   // — so this change had something to be checked against rather than being an
   // unverifiable refactor of working code.

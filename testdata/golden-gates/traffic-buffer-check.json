@@ -1,9 +1,0 @@
-{
- "value:windowedPoints source": "\"function windowedPoints(){\\n  var cutoff = Date.now()-(windowSecs*1000)-RIGHT_BUFFER_MS, out=[];\\n  for(var i=0;i<allPoints.length;i++){if(allPoints[i].ts>=cutoff)out.push(allPoints[i]);}\\n  return out;\\n}\"",
- "value:MAX_CLIENT_POINTS line": "\"var MAX_CLIENT_POINTS = 1800; // 30 min at 1 Hz — matches server HISTORY_MINUTES default\"",
- "value:server-offset EMA line": "\"_serverOffset=_serverOffset?_serverOffset+(_rawOffset-_serverOffset)*0.1:_rawOffset;\"",
- "value:anchor formula line": "\"var anchor=_lastSampleTs?Date.now()+_serverOffset:(pts.length?pts[pts.length-1].ts:Date.now());\"",
- "value:prune slack line": "\"while(rd.length>0&&rd[0].x<vl-3000){rd.shift();td.shift();}\"",
- "value:y-max EMA line": "\"_yMaxCurrent+=(_yMaxTarget-_yMaxCurrent)*0.08;\"",
- "value:redraw gap rule line": "\"if(!rx.length||p.ts-rx[rx.length-1].x>2000){redrawChart();return;}\""
-}

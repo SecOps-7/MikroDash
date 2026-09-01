@@ -17,7 +17,7 @@ import (
 // Adding a router: twelve defaults, three validators, and one field that is not
 // a function of the request at all.
 //
-// Pinned by `tools/router-add-cases.js` → `routeradd_test.go`, which runs the
+// Pinned by the router-add corpus → `routeradd_test.go`, which runs the
 // LIVE `Routers.add` against 29 bodies. Every default below is what that
 // recorded rather than what this file's author believed — and one WAS wrong in a
 // draft before the corpus said so: the duplicate-label suffix is ` - [2]`, not
@@ -222,7 +222,7 @@ func cleanSiteIDs(raw any) []string {
 		// ORDER MATTERS BECAUSE OF THAT. The first surviving id is the primary —
 		// it supplies the map's site geo tier and is what the `siteId` mirror
 		// stores — so dropping an invalid FIRST entry promotes the second.
-		// `tools/siteid-cases.js` carries that case.
+		// The siteid corpus carries that case.
 		//
 		// Until now the READ path filtered on top (`normalizeSites`), so nothing
 		// was visibly broken, but the file on disk could hold an id the live app
@@ -338,7 +338,7 @@ func jsString(v any) string {
 		// `String(["site-a"])` is `site-a`, and the live `_cleanSiteId` accepts a
 		// nested single-element array that this port was dropping.
 		//
-		// Found 2026-08-28 by `tools/siteid-cases.js`: the live function returned
+		// Found 2026-08-28 by the siteid corpus: the live function returned
 		// `["site-a"]` for `[["site-a"]]` where this returned nothing. Absurd
 		// input, reachable only from a hand-edited routers.json — and exactly the
 		// class this project keeps finding, so it is reproduced rather than

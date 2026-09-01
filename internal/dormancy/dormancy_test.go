@@ -2,7 +2,7 @@ package dormancy
 
 // Every step of every sequence, against what the LIVE state machine did.
 //
-// `tools/dormancy-cases.js` drives the real `createDormancyState` and records,
+// The dormancy corpus drives the real `createDormancyState` and records,
 // after each step, the verdict AND all five getters — so a port that reaches the
 // right answer through the wrong internal state fails on the step after.
 

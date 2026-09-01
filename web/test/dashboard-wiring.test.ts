@@ -1,4 +1,4 @@
-// Moved from `tools/dashboard-wiring-check.js` when the port-parity harness was retired.
+// Moved from the dashboard-wiring check when the port-parity harness was retired.
 //
 // The body is VERBATIM apart from its imports and the path to the repository
 // root: this test drives the port's OWN TypeScript and asserts what it does, so
@@ -134,7 +134,7 @@ const HELPERS = new Set([
   'dashboard-grid-resize',
   // The grid's own wiring module. Not a CARD: it subscribes to no socket event
   // — the grid is the page's LAYOUT, and its inputs are pointer events, a
-  // MutationObserver and a ResizeObserver. `tools/grid-wiring-check.js` is what
+  // MutationObserver and a ResizeObserver. The grid-wiring check is what
   // holds it to account, the way this file does for the cards.
   'dashboard-grid',
   // Shared helpers for the fourteen EXTRA cards — escaping, flags, rate

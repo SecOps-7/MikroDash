@@ -81,7 +81,7 @@ const ALLOWED = new Set([
   // shape the fixture exists to exercise.
   'raw.githubusercontent.com',
   // A VALIDATOR BOUNDARY CASE, not a captured value. `a@b.co` is one of the
-  // e-mail shapes `tools/report-history-cases.js` puts to the LIVE validator to
+  // e-mail shapes the report-history corpus puts to the LIVE validator to
   // pin where it draws the line on TLD length — `a@b.c` and `a@b` sit either
   // side of it. It has to be a two-character TLD to test that boundary, and
   // every two-character TLD is a real ccTLD by definition, so there is no

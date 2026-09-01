@@ -2,7 +2,7 @@ package dormancy
 
 // The supervisor's tick, against the LIVE block from `src/index.js`.
 //
-// `tools/dormancy-tick-cases.js` lifts the whole `// ── Collector dormancy ──`
+// The dormancy-tick corpus lifts the whole `// ── Collector dormancy ──`
 // region contiguously and runs it with its five free names supplied — the real
 // registry, the real state machine, the real `payloadEmpty`, and spies for `io`
 // and the collectors. Every decision under test runs as the original; nothing in

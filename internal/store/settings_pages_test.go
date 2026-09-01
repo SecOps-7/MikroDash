@@ -1,7 +1,7 @@
 package store
 
 // `PageSettings` against the LIVE `_pageSettings`, whose key list and projection
-// are both lifted by `tools/settings-pages-cases.js`.
+// are both lifted by the settings-pages corpus.
 
 import (
 	"encoding/json"
@@ -86,7 +86,7 @@ func TestTheEmbeddedKeyListIsTheLiveOne(t *testing.T) {
 // browser.
 //
 // Asserted here as well as in the generator because the two fail differently:
-// the generator checks the LIVE list, and this checks what THIS port would send
+// The generator checks the LIVE list, and this checks what THIS port would send
 // if the embed were ever replaced by hand.
 func TestNoNotificationTextIsBroadcast(t *testing.T) {
 	src := Settings{}

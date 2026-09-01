@@ -8,7 +8,7 @@ import (
 
 // The differential gate for normalize / fingerprint / diff.
 //
-// Cases come from `tools/backup-diff-cases.js`, which RUNS the live module.
+// Cases come from the backup-diff corpus, which RUNS the live module.
 // The FINGERPRINT half matters most: it is an interoperability contract with the
 // archive already on disk, so a hash differing by one byte of normalisation
 // makes every existing backup read as drift on the first run after cutover.

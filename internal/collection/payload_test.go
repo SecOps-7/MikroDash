@@ -2,7 +2,7 @@ package collection
 
 // Payload against what the LIVE `_collectionPayload` produced.
 //
-// `tools/collection-payload-cases.js` slices the function out of `src/index.js`
+// The collection-payload corpus slices the function out of `src/index.js`
 // and feeds it a resolution taken from the live `resolveCollection`, so both
 // halves are the originals. The corpus records the payload and, separately, the
 // ORDER of `eff.enabled`'s keys — which is what `off` is ordered by.

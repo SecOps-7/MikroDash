@@ -166,7 +166,7 @@ func TestTrafficHistoryRing(t *testing.T) {
 // TestTheHistoryPayloadCarriesItsWindow.
 //
 // The live emit is `{ifName, windowMinutes, points}` and this port sent
-// `{ifName, points}` — found by `tools/live-socket-diff.js`, which compares the
+// `{ifName, points}` — found by the live-socket-diff tool, which compares the
 // shapes both servers actually emit. No static audit could have: the field was
 // absent from a struct, not from any list something checks.
 //

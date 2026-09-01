@@ -5,7 +5,7 @@
 // sort, and a doughnut of routes-by-protocol.
 //
 // THE CHART IS NOT COVERED BY THE DOM COMPARISON, and that is worth saying
-// rather than letting a green diff imply otherwise. `tools/live-renderer.js`
+// rather than letting a green diff imply otherwise. The live-renderer tool
 // compares innerHTML, and a Chart.js doughnut is pixels on a canvas. What the
 // port guarantees instead is the same library driven by the same configuration:
 // the dataset, the colours, the cutout, the centre-label plugin and the

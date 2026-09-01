@@ -1,4 +1,4 @@
-// Moved from `tools/notes-rules-check.js` when the port-parity harness was retired.
+// Moved from the notes-rules check when the port-parity harness was retired.
 //
 // The body is VERBATIM apart from its imports and the path to the repository
 // root: this test drives the port's OWN TypeScript and asserts what it does, so

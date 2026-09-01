@@ -418,7 +418,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// The interval is the scheduler's own default, which is the live `TICK_MS`
 	// of five minutes (`src/backups/index.js:36`). The tick only ASKS whether a
 	// router is due; `IsDue` is what decides, and it is pinned against the live
-	// implementation by `tools/backup-due-cases.js`.
+	// implementation by the backup-due corpus.
 	//
 	// Nil when the flag is off, and `Start` on a nil scheduler would panic — so
 	// the guard is not decoration.

@@ -2,7 +2,7 @@ package routers
 
 // PlanRouterSwitch, against what the LIVE switchRouter actually did.
 //
-// `tools/switchrouter-cases.js` slices the function out of `src/index.js` and
+// The switchrouter corpus slices the function out of `src/index.js` and
 // runs it with all twelve of its module-level dependencies stubbed. What those
 // stubs recorded IS the expectation: the ORDERED operations.
 //

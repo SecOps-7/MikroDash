@@ -24,7 +24,7 @@ export const KEYS = {
 } as const;
 
 /** Order is load-bearing: the `<select>` renders the labels in this order and
- *  `tools/appearance-tables.js` pins the two against each other. */
+ *  The appearance table generator pins the two against each other. */
 export const FONTS: { id: string; family: string }[] = [
   {
     "id": "system",

@@ -2,7 +2,7 @@ package store
 
 // The bytes this package writes, against the bytes Node writes.
 //
-// `tools/jsonwrite-cases.js` RUNS `JSON.stringify(value, null, 2)` and records
+// The jsonwrite corpus RUNS `JSON.stringify(value, null, 2)` and records
 // its output. Nobody typed the expectations, which matters here more than usual:
 // the escaping defect these tests were written for produced output that looked
 // like JSON, parsed as JSON, and round-tripped through Node correctly. Only a

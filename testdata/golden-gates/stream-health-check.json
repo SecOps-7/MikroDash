@@ -1,5 +1,0 @@
-{
- "value:tableSrc": "\"var STREAM_WARN_CARDS = { traffic: 'trafficCard', connections: 'connCard' };\"",
- "value:healthBody": "\"\\n  if (!h || !STREAM_WARN_CARDS[h.collector]) return;\\n  var card = $(STREAM_WARN_CARDS[h.collector]);\\n  var warn = $(STREAM_WARN_CARDS[h.collector] + 'Warn');\\n  if (!card || !warn) return;\\n  if (h.degraded) {\\n    warn.textContent = '⚠ Data incomplete — stream restarted '\\n      + h.restarts + ' times without recovering';\\n    card.classList.add('is-degraded');\\n  } else {\\n    warn.textContent = '';\\n    card.classList.remove('is-degraded');\\n  }\\n\"",
- "value:wanSrc": "\"function renderWanStatus(s){\\n  wanStatusBadge.className='wan-badge';\\n  if(s.disabled){wanStatusBadge.className+=' wan-disabled';wanStatusBadge.textContent=(s.ifName||'?')+' · disabled';}\\n  else if(s.running){wanStatusBadge.className+=' wan-up';wanStatusBadge.textContent=(s.ifName||'?')+' · up';}\\n  else{wanStatusBadge.className+=' wan-down';wanStatusBadge.textContent=(s.ifName||'?')+' · down';}\\n}\""
-}

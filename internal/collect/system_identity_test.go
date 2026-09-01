@@ -2,7 +2,7 @@ package collect
 
 // WHEN the system collector reports a router's identity.
 //
-// The corpus is `tools/identity-hook-cases.js`, which lifts the live
+// The corpus is the identity-hook corpus, which lifts the live
 // `identityKey` dedupe out of `src/collectors/system.js` by content anchor and
 // replays SEQUENCES of ticks through it. Sequences, because the rule is
 // stateful: a corpus of independent inputs would pass an implementation that

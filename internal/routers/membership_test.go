@@ -1,7 +1,7 @@
 package routers
 
 // `SiteMembership` against the LIVE route's loop, lifted and run by
-// `tools/site-membership-cases.js`.
+// The site-membership corpus.
 
 import (
 	"encoding/json"

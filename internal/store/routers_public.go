@@ -31,7 +31,7 @@ package store
 //	}
 //
 // Spread, keep everything, mask one field and fold one nested one. So this must
-// not grow a field list either: `tools/routers-public-cases.js` pins that a key
+// not grow a field list either: the routers-public corpus pins that a key
 // no struct declares survives, which is the property that would be lost first.
 //
 // ── THE MASK IS ON THE DECRYPTED VALUE, NOT THE CIPHERTEXT ──────────────────
@@ -111,7 +111,7 @@ func normalizeSites(pub map[string]any) {
 	//
 	// It used to, and the note here said why: widening the write-path helper was
 	// "a separate decision with its own tests". The operator made that decision;
-	// the helper was widened, `tools/siteid-cases.js` pins it against the live
+	// the helper was widened, the siteid corpus pins it against the live
 	// functions, and the compensating filter that lived here is gone rather than
 	// left as a second implementation of the same rule.
 	ids := cleanSiteIDs(src)

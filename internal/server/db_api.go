@@ -225,7 +225,7 @@ func (s *Server) dbPurge(w http.ResponseWriter, r *http.Request, sess *Session) 
 // or the message explaining why it is refused.
 //
 // THE ORDER IS THE LIVE ONE — scope, then types, then age — so a request that is
-// wrong in more than one way reports the FIRST, and `tools/purge-cases.js`
+// wrong in more than one way reports the FIRST, and the purge corpus
 // carries a case that pins exactly that.
 func (s *Server) purgeOpts(body map[string]any, sess *Session) (db.PurgeOpts, string) {
 	// `String((req.body && req.body.routerId) || '').trim()` — an absent key, a

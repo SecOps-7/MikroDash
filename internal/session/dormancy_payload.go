@@ -24,7 +24,7 @@ package session
 //
 // The decision is NOT duplicated. `collection.PayloadEmptyBy` holds the rule and
 // this supplies a different lookup; the map-based lookup beside it is pinned by
-// the live corpus, and `TestEveryEligibleCollectorsPayloadHasItsEmptyKey` pins
+// The live corpus, and `TestEveryEligibleCollectorsPayloadHasItsEmptyKey` pins
 // that every key the registry names actually resolves here.
 
 import (

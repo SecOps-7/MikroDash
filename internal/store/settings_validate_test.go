@@ -1,7 +1,7 @@
 package store
 
 // `SettingsUpdate` against the LIVE validator, lifted and run by
-// `tools/settings-validate-check.js`.
+// The settings-validate check.
 //
 // ── THIS FILE EXISTS TO RETIRE A CAVEAT ─────────────────────────────────────
 //
@@ -9,7 +9,7 @@ package store
 // "Every other differential gate here RUNS the live implementation. This handler
 // is inline in `src/index.js`, which calls `server.listen()` at require time and
 // cannot be loaded by a test." True when written; not true since
-// `tools/alert-row-check.js` showed that a block can be SLICED out of that file
+// The alert-row check showed that a block can be SLICED out of that file
 // and evaluated without requiring it.
 //
 // A read-port is a rewrite that agrees with its author's reading. These 63 cases

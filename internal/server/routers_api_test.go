@@ -287,7 +287,7 @@ func TestTheAuditRowCarriesNoPassword(t *testing.T) {
 	}
 	// ROUTER-SCOPED, so the query needs the router in its allow-list.
 	// `auditActions` asks only for app-scope rows and returned nothing — which
-	// the believability check caught rather than passing vacuously.
+	// The believability check caught rather than passing vacuously.
 	page, err := s.auditDB.QueryAuditEvents(db.Query{
 		RouterIDs: []string{"r1", "r2"}, IncludeApp: true, Limit: 50,
 	})

@@ -237,7 +237,7 @@ func TestTheTablesCoverTheRealSurface(t *testing.T) {
 
 // TestEverySpecialCaseIsActuallyHandled closes the loop the generator opens.
 //
-// `tools/settings-write-tables.js` refuses to write its file if the handler
+// The settings-write table generator refuses to write its file if the handler
 // names a setting that is in neither a table nor its SPECIAL_CASES list. That
 // stops a new one being dropped silently — but it says nothing about whether
 // THIS side implements the ones already listed. A key could sit in that list,

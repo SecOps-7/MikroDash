@@ -9,7 +9,7 @@ import "errors"
 // `alerts.go` records it: "a read nothing calls is a read nothing gates", and
 // warns that porting a query ahead of its caller adds code no corpus drives and
 // no gate covers. That rule is not waived here — it is satisfied. These land
-// WITH `tools/alertfeed-cases.js`, which seeds a database, runs the LIVE queries
+// WITH the alertfeed corpus, which seeds a database, runs the LIVE queries
 // against it and records both the rows and the answers, so there is no window in
 // which they exist and nothing exercises them. The bell (queue item 14) is the
 // production caller and follows.

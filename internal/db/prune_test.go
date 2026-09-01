@@ -210,7 +210,7 @@ func TestPruneDeletesOnlyWhatIsOlderThanItsOwnPolicy(t *testing.T) {
 func openTestDB(t *testing.T) *DB {
 	t.Helper()
 	// `historyDDL` and `schemaDDL` are this package's EXISTING fixture schemas,
-	// reused rather than copied: `tools/schema-audit.js` validates every fixture
+	// reused rather than copied: the schema audit validates every fixture
 	// DDL against the real one, and a seventh copy of these tables is a seventh
 	// thing that can drift from it.
 	dir := newDB(t, MinSchema, true)

@@ -90,7 +90,7 @@ export function testPayload(channel: string): Record<string, unknown> {
  * The live code is `data.ok ? … : …` with no guard, so a reply body of literal
  * `null` throws a TypeError and lands in the request's `.catch` — which prints
  * the TypeError as the result line. A guarded version showing "✗ failed" is
- * NICER and is a different app: `tools/notif-test-check.js` drives a null reply
+ * NICER and is a different app: the notif-test check drives a null reply
  * through both and compares, and the guard was what it caught.
  *
  * Recorded rather than silently matched, because the temptation to re-add the

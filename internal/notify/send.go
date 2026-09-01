@@ -71,7 +71,7 @@ const bodyLimit = 64 << 10
 //
 // The live side has since fixed it — `sendNtfy` appends `_reason(buf)` like the
 // other two — so the flag had one value left, and a flag with one value is not a
-// flag. `tools/notify-send-cases.js` now READS which branch the live source
+// flag. The notify-send corpus now READS which branch the live source
 // takes rather than encoding a transcription of it, which is how this stayed
 // wrong quietly: every other generator lifts, and that one had a hand-written
 // exception.

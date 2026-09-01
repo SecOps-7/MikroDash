@@ -10,7 +10,7 @@ package collect
 // ── WHY THIS IS A SEPARATE FILE FROM THE COLLECTOR ──────────────────────────
 //
 // Every function here is pure: rows in, view out, no router and no clock. That
-// is what lets `tools/wifiguard-cases.js`'s sibling generator drive them
+// is what lets the wifiguard corpus's sibling generator drive them
 // directly — and it has to, because **no router in this fleet runs the legacy
 // stack.** The AX3, the cAP AX and the AC2 all answer on `/interface/wifi`, so
 // `BuildWirelessView` can never be reached by a fixture, and a golden that

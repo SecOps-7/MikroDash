@@ -488,9 +488,9 @@ function refreshHeaders(): void {
 //
 // The map is two things in one IIFE. Building and moving the SVG — markers,
 // zoom, drag, the popover's position — needs a browser and is gated by
-// `tools/live-renderer.js` against a running stack. Deciding WHERE a marker
+// The live-renderer tool against a running stack. Deciding WHERE a marker
 // goes, WHICH routers share a place, and WHAT the popover and tray say is
-// arithmetic and string building, gated by `tools/routers-grid-check.js`
+// arithmetic and string building, gated by the routers-grid check
 // against the live functions themselves.
 //
 // This is that second half. The first is not ported yet.
@@ -688,7 +688,7 @@ export function lastRows(): RouterStatsRow[] { return lastRtrRows; }
 //
 // The zoom and pan arithmetic, ported ahead of the SVG construction it serves,
 // because this is where a subtle error hides and it can be verified NOW: the
-// transform it produces is an observable string, so `tools/routers-grid-check.js`
+// transform it produces is an observable string, so the routers-grid check
 // compares it against the live function's. The marker building, the drag and the
 // popover positioning are not ported yet and can only be checked in a browser.
 
@@ -834,7 +834,7 @@ export function mountRouters(socket: { on(ev: string, cb: (d: unknown) => void):
   // dependency runs the other way (that module imports this one), so a static
   // import back would be a cycle — and the dynamic form that avoided the cycle
   // resolved on a later microtask, so the map mounted at an unpredictable time
-  // relative to the first `routers:stats`. `tools/routers-grid-check.js` is what
+  // relative to the first `routers:stats`. The routers-grid check is what
   // exposed it, by finishing its run and tearing down its fake `document` before
   // the import's `.then` fired.
   //

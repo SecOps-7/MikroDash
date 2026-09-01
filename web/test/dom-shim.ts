@@ -1,6 +1,6 @@
 // THE DOCUMENT SHIM THE WEB TESTS SHARE.
 //
-// Moved from `tools/lib/dom-shim.js` when the port-parity harness was retired.
+// Moved from the shared gate library when the port-parity harness was retired.
 // Its body is VERBATIM: every lesson in it (IDL type coercion, ids realised from
 // innerHTML, delegated listener recording) is about simulating a browser
 // correctly, not about the implementation this app replaced, so none of it went

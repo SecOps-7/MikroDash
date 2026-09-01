@@ -7,7 +7,7 @@ package alert
 // Every rule compares a reading against a threshold AND against its own previous
 // verdict, firing only on the TRANSITION. `system:update` arrives about every
 // two seconds, so a rule that fired on the LEVEL would page the operator
-// continuously while a CPU stayed busy. `tools/alert-eval-cases.js` pins it:
+// continuously while a CPU stayed busy. The alert-eval corpus pins it:
 // `cpuGoesHighAndStaysHigh` fires once across four readings, and a level-testing
 // port passes every other CPU case.
 //
@@ -84,7 +84,7 @@ type Fired struct {
 	// `fire` runs the loop once for the alert it was called with and the
 	// supersede resolution is not one of those calls.
 	//
-	// MEASURED by `tools/alert-eval-cases.js` once it began recording cooldown
+	// MEASURED by the alert-eval corpus once it began recording cooldown
 	// keys: the update-supersede case emits THREE alerts and delivers TWO. A port
 	// that notified on everything `Evaluate` returned would send an extra "up"
 	// message every time a router's available version changed.
@@ -394,7 +394,7 @@ type Interface struct {
 // TYPE. Both are install-wide first: the live comment says the Interface Alert
 // Filter "is expected to filter the bell, not merely the push". The type key is
 // computed by `IfaceTypeKey(IfaceType(name, type))`, both already ported and
-// pinned by `tools/alerter-cases.js` -- so an explicit type wins over the name,
+// pinned by the alerter corpus -- so an explicit type wins over the name,
 // and a name ending `.10` is a vlan.
 //
 // The FIRST sighting never fires, as with netwatch: the guard is `prev !==
@@ -601,7 +601,7 @@ func (e *Evaluator) SystemUpdate(r Router, cpuLoad *float64,
 // ── WHY A SEPARATE METHOD RATHER THAN A FLAG ──────────────────────────────
 //
 // `SystemUpdate` is gated against the live evaluator by
-// `tools/alert-eval-cases.js`. Adding an argument live does not have would make
+// The alert-eval corpus. Adding an argument live does not have would make
 // every case in that corpus a port-specific shape. This is a port-specific
 // SPLIT, so the port-specific decision lives in `internal/alertwire`, which
 // chooses between the two — and the rule this file gates stays exactly live's.

@@ -1,4 +1,4 @@
-// Moved from `nodecheck/conn-tables.test.js` when the port-parity harness was retired.
+// Moved from the differential tests (now `web/test/`) when the port-parity harness was retired.
 //
 // KEPT, because it is not a parity check. It compares the port against an
 // objectively correct answer -- a real library's output, or a table of values

@@ -47,7 +47,7 @@ func TestReadFileReassemblesExactly(t *testing.T) {
 }
 
 // TestShortReadIsAnErrorNotAShorterFile is the safety property. The length is
-// the only check available, and a truncated backup that restores is worse than
+// The only check available, and a truncated backup that restores is worse than
 // one that refuses to.
 func TestShortReadIsAnErrorNotAShorterFile(t *testing.T) {
 	payload := bytes.Repeat([]byte{0xAB}, chunkSize*2)

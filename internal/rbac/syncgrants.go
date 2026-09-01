@@ -88,7 +88,7 @@ type GrantPlan struct {
 //
 // liveRouterIDs is `new Set(Routers.loadAll().map(r => r.id))`. It is passed in
 // rather than read here so the decision has no I/O, which is what lets
-// `tools/syncgrants-cases.js` drive both sides from one corpus.
+// The syncgrants corpus drive both sides from one corpus.
 func PlanUserGrants(u UserForGrants, liveRouterIDs map[string]bool) GrantPlan {
 	// A refusal that does NOTHING, delete included. A port that deleted first and
 	// then checked the id would wipe a real user's grants on a malformed call.

@@ -126,7 +126,7 @@ func ParseSiteBody(body map[string]any, partial bool) (Patch, error) {
 // a cleared form field serialises to, so it was reachable from the UI rather
 // than only from curl. Filed as `ToDo.md` §6 and FIXED upstream on 2026-08-27;
 // this port follows the fix rather than keeping the quirk, and
-// `tools/site-body-cases.js` pins it.
+// The site-body corpus pins it.
 //
 // The `present` argument is still needed and is NOT the null question: it
 // carries "the key was absent", which on a partial edit means do not write the

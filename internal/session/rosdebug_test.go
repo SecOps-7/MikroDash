@@ -15,7 +15,7 @@ import (
 //
 // It was rendered, validated and persisted, and read by nobody — the same shape
 // as `topN` and the three retention settings, and found by the audit written
-// after those (`tools/settings-consumer-audit.js`).
+// after those (the settings-consumer audit).
 //
 // Two claims, tested separately, because the second is the one that was wrong:
 // the value resolves correctly, AND the dial config is actually given it.

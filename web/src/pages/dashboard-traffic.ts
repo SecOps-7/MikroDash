@@ -409,7 +409,7 @@ export function onTrafficHistory(data: { ifName?: string; points?: TrafficSample
  * It IS cleared on a router switch, because a different router has different
  * interfaces and carrying a name across would be meaningless.
  *
- * Ported from upstream `d7548b0`, found by `tools/reset-contract-audit.js` on
+ * Ported from upstream `d7548b0`, found by the reset-contract audit on
  * 2026-08-28 — the audit noticed the live `router:switching` handler clearing a
  * variable this port had nothing to map onto.
  */

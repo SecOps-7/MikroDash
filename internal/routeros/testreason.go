@@ -42,7 +42,7 @@ package routeros
 //
 // ── TWO DEFECTS THIS PORT FOUND HERE, BOTH FIXED UPSTREAM ──────────────────
 //
-// `tools/test-reason-cases.js` lifts the live handler into a `vm` and runs it.
+// The test-reason corpus lifts the live handler into a `vm` and runs it.
 // That route needs a live server stack, so neither side had ever EXECUTED this
 // classifier in a test — it had only been read. Two things fell out of the first
 // run, both fixed in f4ade9e, and this port follows the fix rather than
@@ -153,7 +153,7 @@ func TestConnReason(err error, tls bool) (string, bool) {
 //	         plain connection was blamed on a handshake that never happened.
 //
 // Both were wrong in the same way — the sentence named a service the attempt
-// did not use, and the operator went and checked it. `tools/test-reason-cases.js`
+// did not use, and the operator went and checked it. The test-reason corpus
 // fails if `body.tls` reappears in that branch, so this note cannot outlive the
 // behaviour it describes.
 //

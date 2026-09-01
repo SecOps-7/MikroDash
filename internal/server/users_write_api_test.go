@@ -5,7 +5,7 @@ package server
 // ── WHAT IS WORTH TESTING HERE AND WHAT IS NOT ─────────────────────────────
 //
 // The store writers beneath these are already pinned against the live functions
-// by `tools/userwrite-cases.js` and `internal/store/users_update_test.go` — 22
+// by the userwrite corpus and `internal/store/users_update_test.go` — 22
 // update cases, 3 delete cases, 13 mutations. What those cannot see is the
 // HTTP layer's own decisions, and every one of them is a rule whose failure is
 // SILENT:

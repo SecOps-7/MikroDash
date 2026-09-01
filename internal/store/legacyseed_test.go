@@ -34,7 +34,7 @@ type seedCorpus struct {
 // THE SEED MATCHES THE LIVE ONE, FIELD FOR FIELD.
 //
 // The corpus is produced by RUNNING `src/routers.js:loadAll()` against a
-// throwaway DATA_DIR — `tools/router-seed-cases.js` — so these expectations are
+// throwaway DATA_DIR — the router-seed corpus — so these expectations are
 // what the live function did, not what its source appeared to say. That
 // distinction earned its place here: reading the guard suggested a router with
 // no `routerHost` would be refused, and running it seeded one at the settings

@@ -145,7 +145,7 @@ export async function loadGroups(): Promise<void> {
 // ── The three forms ────────────────────────────────────────────────────────
 //
 // The DECISIONS are `pages/principal-forms.ts`, gated against the live
-// `saveUser`/`saveGroup`/`saveRole` by `tools/principal-forms-check.js`. What is
+// `saveUser`/`saveGroup`/`saveRole` by the principal-forms check. What is
 // here is the DOM: reading the fields, opening and closing the wrapper, and
 // sending what the decision produced.
 

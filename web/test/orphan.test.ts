@@ -1,4 +1,4 @@
-// Moved from `tools/orphan-check.js` when the port-parity harness was retired.
+// Moved from the orphan check when the port-parity harness was retired.
 //
 // The body is VERBATIM apart from its imports and the path to the repository
 // root: this test drives the port's OWN TypeScript and asserts what it does, so
@@ -26,7 +26,7 @@
  * ── AND THE GO SIDE DOES NOT GET THIS FREE ──────────────────────────────────
  *
  * The reply warned: the Go compiler rejects unused LOCALS, not package-level
- * state that is assigned and never read. `tools/orphan-check.js` covers the
+ * state that is assigned and never read. The orphan check covers the
  * TypeScript; `TestNoOrphanedPackageState` in internal/collect covers the Go.
  *
  * ── CONSERVATIVE ON PURPOSE ─────────────────────────────────────────────────

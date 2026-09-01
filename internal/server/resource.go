@@ -138,7 +138,7 @@ func (cn *conn) resolve(raw json.RawMessage, auditDenied bool) (*resource.Resour
 		// The action names the verb the user attempted, not the check that
 		// refused it — a trail of "denied" rows says nothing about what was
 		// being tried. Matches index.js, which derives it the same way before
-		// the permission check rather than after.
+		// The permission check rather than after.
 		if auditDenied {
 			what := "create"
 			if req.ID != "" {

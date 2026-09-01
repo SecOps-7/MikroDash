@@ -38,7 +38,7 @@ package store
 // `String.prototype.slice(0, 64)`, not bytes. Go's `s[:64]` is bytes, so the two
 // part company on the first non-ASCII character: forty accented characters are
 // eighty bytes and forty code units — untouched by the live function and
-// truncated by a byte slice. `tools/identity-fields-cases.js` carries the
+// truncated by a byte slice. The identity-fields corpus carries the
 // accented and CJK cases that separate them.
 //
 // A CAP THAT LANDS MID-SURROGATE-PAIR is left to `utf16.Decode`, which yields

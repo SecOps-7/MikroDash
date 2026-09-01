@@ -548,7 +548,7 @@ func (s *Server) reportSchedules(w http.ResponseWriter, _ *http.Request, q repor
 // to be corrected by hand.
 //
 // The button itself was drawn and unbound until the same date; it is wired now
-// and pinned by `tools/sched-run-check.js` (11 mutations).
+// and pinned by the sched-run check (11 mutations).
 //
 // Its rate limiter: the live app caps Send now at 5 per minute against 30 for
 // the others, because that one endpoint actually sends mail.

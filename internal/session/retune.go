@@ -31,7 +31,7 @@ func (s *Session) pollTargets() map[string]interface{ SetPollMs(int) } {
 		// that happens to be nil into an interface gives a non-nil interface
 		// holding a nil pointer — which would pass a `!= nil` test here and
 		// panic on the call. Each caller below passes the concrete pointer and
-		// the nil check happens there, where the type is still concrete.
+		// The nil check happens there, where the type is still concrete.
 		out[name] = c
 	}
 	if s.bandwidth != nil {

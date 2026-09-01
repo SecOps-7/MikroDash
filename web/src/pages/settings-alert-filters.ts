@@ -3,7 +3,7 @@
  *
  * ── THE DEFAULTS ARE GENERATED, AND THE GENERATOR CHECKS THEM ──────────────
  *
- * `../gen/alert-filters` is lifted by `tools/alert-filters-tables.js`, which
+ * `../gen/alert-filters` is lifted by the alert-filters table generator, which
  * ASSERTS that every default matches the one `src/settings.js` uses. The live
  * source only says so in a comment — and that comment records four toggles that
  * had already drifted, defaulting on in the browser while the server had them

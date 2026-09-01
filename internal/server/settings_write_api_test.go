@@ -447,7 +447,7 @@ func TestTheSaveBroadcastsPageSettingsToEveryone(t *testing.T) {
 // operator has never changed was ABSENT from the payload. The live
 // `Settings.load()` merges DEFAULTS first, so they are always present.
 //
-// Found by `tools/live-socket-diff.js` against the operator's own install: six
+// Found by the live-socket-diff tool against the operator's own install: six
 // keys short, three of them (`pageBackups`, `pageDevices`, `pageWifi`) nav
 // visibility flags, so the client read `undefined` and hid those entries. On a
 // FRESH install, where settings.json is nearly empty, almost every page flag

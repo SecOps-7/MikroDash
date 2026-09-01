@@ -9,7 +9,7 @@ import (
 
 // The differential gate for the backup settings normaliser.
 //
-// Cases come from `tools/backup-normalize-cases.js`, which RUNS the live
+// Cases come from the backup-normalize corpus, which RUNS the live
 // `_normalizeBackup`. The password is compared as none / carried / generated
 // rather than by value: it is random and never leaves the server.
 

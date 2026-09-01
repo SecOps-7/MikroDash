@@ -9,7 +9,7 @@ import (
 
 // THE MIGRATION MATCHES THE LIVE `planMigration`, BRANCH FOR BRANCH.
 //
-// The corpus is produced by RUNNING the live function — `tools/collection-cases.js`
+// The corpus is produced by RUNNING the live function — the collection corpus
 // — over the same fleet, so these are the plans live actually made rather than
 // what its source appeared to say.
 //

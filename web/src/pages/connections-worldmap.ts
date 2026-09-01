@@ -398,7 +398,7 @@ export function attachMapZoom(
     // refuses the same way and says why — "don't swallow their events"
     // (`../MikroDash/public/app.js:4467`).
     //
-    // Found on 2026-08-25 by `tools/map-zoom-check.js`, which had to give its
+    // Found on 2026-08-25 by the map-zoom check, which had to give its
     // event target a `tagName` and a `closest` before the live slice would run
     // at all — the guard was invisible until the shim was real enough to reach it.
     const t = e.target as HTMLElement | null;

@@ -2,7 +2,7 @@ package collection
 
 // PayloadEmpty and DormancyEligible, against the live functions.
 //
-// `tools/payload-empty-cases.js` runs `payloadEmpty` from
+// The payload-empty corpus runs `payloadEmpty` from
 // `src/collectors/util.js` and filters the live `COLLECTORS` with the
 // supervisor's own expression.
 

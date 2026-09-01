@@ -2,7 +2,7 @@ package principals
 
 // `ParseRolePages` against the LIVE `_parseRolePages`, executed.
 //
-// The corpus is `tools/rolepages-cases.js`, which lifts the function out of
+// The corpus is the rolepages corpus, which lifts the function out of
 // `src/index.js` by content anchor — walking to its closing brace rather than
 // taking a fixed number of lines — and drives it with the REAL page registry, so
 // "unknown page" means what it means in the app.

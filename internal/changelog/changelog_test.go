@@ -2,7 +2,7 @@ package changelog
 
 // The version whitelist, against the live `VERSION_RE`.
 //
-// `tools/changelog-cases.js` runs the live regex over 36 inputs, most of them
+// The changelog corpus runs the live regex over 36 inputs, most of them
 // attempts on it — the live header calls it "the single most important line in
 // this file", because the version arrives from a SOCKET PAYLOAD and is
 // interpolated into a URL PATH.

@@ -17,7 +17,7 @@ package db
 // with no way round it short of editing the database by hand. Too MANY and it
 // hands out the last administrator's access and locks everybody out. Neither is
 // recoverable through the UI, which is why the query is pinned against the live
-// one by `tools/global-admin-cases.js` rather than read and reimplemented.
+// one by the global-admin corpus rather than read and reimplemented.
 
 import (
 	"database/sql"

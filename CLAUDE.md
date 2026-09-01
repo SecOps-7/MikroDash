@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 > finished port documents; it is in git history.)
 >
 > **There is no reference repository any more.** Every gate compares against a RECORDING of the old
-> implementation, committed under `testdata/`, `internal/*/testdata/` and `nodecheck/testdata/`.
+> implementation, committed under `testdata/`, `internal/*/testdata/` and the differential tests (now `web/test/`).
 > `MIKRODASH_SRC` still exists and still defaults to `../MikroDash`, but nothing is there: the 105
 > generator `--check` runs detect that and report a skip. The Node source remains in this repo's own
 > history and at the `v0.7.40` tag if it is ever needed.
@@ -136,7 +136,7 @@ node tools/identity-audit.js      # which identity goes in which column
 # and exits 0 whether or not the port agrees with what it lifted.
 node tools/live-renderer.js dns
 # STEP TWO is a gate that CONSUMES the bundle and drives both from ONE payload,
-# comparing innerHTML — `tools/routers-grid-check.js` is the worked example.
+# comparing innerHTML — the routers-grid check is the worked example.
 ```
 
 ---
@@ -234,7 +234,7 @@ into the Node collectors too until cutover; its three surviving tests record the
 
 - **No credential is ever written to a fixture, and nothing identifying either.** The exposure vector
   is FILE CONTENT: this repo is public, so anything in a committed file is public. `assertClean()` and
-  the anonymisation in `tools/capture-fixtures.js` enforce exactly that. See "Fixtures" below.
+  the anonymisation in the capture-fixtures tool enforce exactly that. See "Fixtures" below.
 
 - **`MIKRODASH_SRC`** was how every tool found the Node source. It is vestigial: the source is gone,
   the variable still defaults to `../MikroDash`, and the tools detect its absence and skip. Do not
@@ -244,7 +244,7 @@ into the Node collectors too until cutover; its three surviving tests record the
 
 ## Fixtures
 
-Captures are anonymised at source by `tools/capture-fixtures.js`. Every rule below was learned by
+Captures are anonymised at source by the capture-fixtures tool. Every rule below was learned by
 watching a real capture leak:
 
 - **Preserved** (structural): interface and profile names, bridge names, VLAN ids, RouterOS ids, and
@@ -294,7 +294,7 @@ already exists.
   than through a resource: `queueGuard` (`internal/guard/queueguard.go`, 308 lines, 5 tests, used by
   `internal/server/queues.go`), `selfGuard` and `wifiGuard`. Do not re-port these.
 - **ALL SIX ARE NOW PORTED.** `wanGuard` was the last one and landed on 2026-08-24
-  (`internal/guard/wanguard.go`, pinned by `tools/wanguard-cases.js` → `wanguard_test.go`, 91
+  (`internal/guard/wanguard.go`, pinned by the wanguard corpus → `wanguard_test.go`, 91
   verdicts, eight mutations killed). It is NOT in `portedGuards` and does not belong there: no
   resource declares it, and like `queueGuard` it is called directly by a page handler. ~~**Wiring it
   into the WAN page's renew/release is a separate step and has not been done**~~ **IT IS DONE —
@@ -338,7 +338,7 @@ the reason" describes a blocker that is CLOSED. Read the queue for why, never fo
 
 The one durable lesson from that list is worth keeping, because it is this file's most expensive
 recurring defect: **a blocker that has been closed reads exactly like one that never was, and nothing
-fails when a premise expires.** That is why `tools/doc-claim-audit.js` exists — it re-measures the
+fails when a premise expires.** That is why the doc-claim audit exists — it re-measures the
 numbers this file claims, and it caught three that were wrong on the day it was written.
 
 Both go/no-go gates passed on 2026-08-30 and both are re-runnable — see Commands. `cmd/conformance`
@@ -367,7 +367,7 @@ Enumerated values deserve the closest reading for exactly that reason.
 
 Every gate and audit compares against a RECORDING of the Node implementation
 rather than reading its source. The recordings live in `testdata/golden-gates/`
-(JS), `internal/*/testdata/` (Go) and `nodecheck/testdata/`.
+(JS), `internal/*/testdata/` (Go) and the differential tests (now `web/test/`).
 
 While the source existed, each recording was re-derived and compared on every
 run, which is what kept it honest. That ended at the v0.8.0 cutover: the last
@@ -395,10 +395,10 @@ shape each takes.
 
 | Tool | Asks |
 |---|---|
-| `tools/canfail-audit.js` | would this gate tell us if it failed **at all**? |
+| the canfail audit | would this gate tell us if it failed **at all**? |
 | the gate census (`tools/verify.sh`) | did this gate check **less than it used to**? |
-| `tools/vacuity-audit.js` | does it check the same **with and without** the reference? |
-| `tools/gate-conversion/accept.py` | does it still catch a **port defect** without one? |
+| the vacuity audit | does it check the same **with and without** the reference? |
+| the gate-conversion toolchain | does it still catch a **port defect** without one? |
 
 Run `vacuity-audit` after converting anything. This session found three gates
 going quietly vacuous — all three were PASSING, and each was caught by a
@@ -444,7 +444,7 @@ hooks and the memories are project knowledge — only the personal half (`settin
 | `.claude/hooks/gateguard-serena.js` | Bridges Serena's MCP editors into ECC's fact-forcing gate, which only matched `Edit|Write`. |
 | `.claude/hooks/changes-reminder.sh` | Stop hook: nudges when a source file is newer than `Changes.md`. Build output is excluded so it stays signal. |
 | `.claude/skills/mikrotik-docs/SKILL.md` | Look up RouterOS documentation before guessing a command or path. **THE PATH IS THE POINT: it was a loose `mikrotik-docs.md` for its first six days and therefore never loaded** — skills are discovered as `<name>/SKILL.md`, and a loose file is skipped silently. No error, no warning; the only tell is absence from the available-skills list. Fixed 2026-08-27. Its content was stale too, predating rosetta and telling an agent to `WebFetch` an index. |
-| `tools/identity-audit.js` | **WHICH IDENTITY** this port writes into each column of the shared database. There is no blanket rule — `grants.principal_id`, `audit_events.actor_id` and `user_layouts.user_id` hold the user ID, while `alert_events.acknowledged_by` and `audit_events.actor_name` hold the USERNAME. Two bugs on 2026-08-27 were a writer reaching for the other one, and neither was visible to any test: a round trip through one implementation agrees with itself whatever it wrote. Both were found by reading the real table. |
+| the identity audit | **WHICH IDENTITY** this port writes into each column of the shared database. There is no blanket rule — `grants.principal_id`, `audit_events.actor_id` and `user_layouts.user_id` hold the user ID, while `alert_events.acknowledged_by` and `audit_events.actor_name` hold the USERNAME. Two bugs on 2026-08-27 were a writer reaching for the other one, and neither was visible to any test: a round trip through one implementation agrees with itself whatever it wrote. Both were found by reading the real table. |
 
 **Serena's language server here is `typescript`, not `go`, and that is not a mistake.** Its servers
 run on the host, this host has no Go toolchain, and declaring `go` fails the whole language-server

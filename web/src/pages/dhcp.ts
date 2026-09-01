@@ -4,7 +4,7 @@
 // top-level code in two places: the subnet table and the utilisation gauge live
 // inside the `lan:overview` handler — which also draws the dashboard's LAN card,
 // so one handler serves two pages — and the leases table is a separate block a
-// thousand lines further down. `tools/live-renderer.js` grew a range mode to
+// thousand lines further down. The live-renderer tool grew a range mode to
 // lift them; this file puts them back together as one page module.
 //
 // The markup strings, class names, em dashes and ellipses are the live app's.

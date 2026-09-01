@@ -8,7 +8,7 @@
  * corpus cannot hold: the two fetches, the listeners, and the lock.
  *
  * That module has been complete and UNREACHABLE — recorded in
- * `tools/reachable-audit.js` — for the same reason the router modal was: nothing
+ * The reachable audit — for the same reason the router modal was: nothing
  * mounted it. This is the mount.
  *
  * ── SAVE IS LOCKED UNTIL A TEST PASSES, AND ANY CHANGE RE-LOCKS IT ─────────

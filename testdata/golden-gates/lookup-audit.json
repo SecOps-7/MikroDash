@@ -1,4 +1,0 @@
-{
- "value:how many live scripts the page loads": "3",
- "value:ids produced by the live loaded scripts": "[\"arc\",\"bar\",\"bkDelete\",\"bkRestore\",\"bkRun\",\"bkSave\",\"bubble\",\"category\",\"doughnut\",\"line\",\"linear\",\"logarithmic\",\"navBoot\",\"noAccessNotice\",\"pie\",\"point\",\"polarArea\",\"qf_warnCancel\",\"qf_warnGo\",\"radar\",\"radialLinear\",\"res_warnCancel\",\"res_warnGo\",\"rptSchedNew\",\"rtrColl_\",\"s_\",\"scatter\",\"sv_\",\"sysMetaTemp\",\"sysUpdateAction\",\"sysUpdateBtn\",\"time\",\"timeseries\"]"
-}

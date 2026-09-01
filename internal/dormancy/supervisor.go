@@ -66,7 +66,7 @@ const (
 // They do not each own the rule: `collection.PayloadEmptyBy` is the rule, and
 // both supply it a lookup. `TestTheLookupAgreesWithTheMapLookup` drives one
 // payload through both and fails if they ever disagree, which is what carries
-// the live corpus across to the struct side.
+// The live corpus across to the struct side.
 type Collector struct {
 	Key string
 	// Enabled is the operator's per-router switch. A collector turned off is

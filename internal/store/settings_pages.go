@@ -19,7 +19,7 @@ import (
 // and a page the operator can enable in the form stays hidden with nothing
 // logged.
 //
-// So the list is EMBEDDED from `pagekeys.json`, which `tools/settings-pages-cases.js`
+// So the list is EMBEDDED from `pagekeys.json`, which the settings-pages corpus
 // lifts out of the live source.
 //
 // ── THE BOOLEAN FILTER IS A DISCLOSURE BOUNDARY, NOT A TIDINESS RULE ────────

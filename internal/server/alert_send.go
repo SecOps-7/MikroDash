@@ -92,7 +92,7 @@ func (s *Server) dispatchFired(routerID, routerLabel string, fired []alert.Fired
 //
 // ── AND THE DERIVATION IS VERIFIED, NOT ASSUMED ───────────────────────────
 //
-// `tools/alert-eval-cases.js` now captures the key live actually delivered with,
+// The alert-eval corpus now captures the key live actually delivered with,
 // and `TestTheDerivedCooldownKeysPartitionLikeLive` compares the two schemes on
 // the property that matters: which alerts share a bucket.
 // **250,042 pairs across 113 cases, zero disagreements** — including netwatch,

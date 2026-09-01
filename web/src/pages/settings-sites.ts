@@ -4,8 +4,8 @@
  * ── EVERY DECISION HERE IS SOMEWHERE ELSE ───────────────────────────────────
  *
  * The renderers and the two request shapes live in `settings.ts` and are gated
- * against the live implementations by `tools/access-summary-check.js` and
- * `tools/site-save-check.js`. What is in THIS file is only the parts a gate
+ * against the live implementations by the access-summary check and
+ * The site-save check. What is in THIS file is only the parts a gate
  * cannot drive: the fetches, the cache, the listeners and the socket
  * subscription. Keeping it that thin is deliberate — anything with a decision in
  * it belongs where it can be compared.

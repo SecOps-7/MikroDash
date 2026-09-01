@@ -1,4 +1,4 @@
-// Moved from `tools/lib/tree-shim.js`: a stricter shim for renderers that
+// Moved from the shared gate library: a stricter shim for renderers that
 // preserve node identity. Body verbatim; see dom-shim.ts on typing.
 
 /**

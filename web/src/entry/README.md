@@ -31,7 +31,7 @@ always asking about.
 ## Both were the live repo's files
 
 `web/public/login.js` and `web/public/preflight.js` shipped verbatim from
-`../MikroDash/public/` until 2026-08-28. `tools/login-page-check.js` and
-`tools/preflight-check.js` drive the live file and this port's BUILT bundle
+`../MikroDash/public/` until 2026-08-28. The login-page check and
+the preflight check drive the live file and this port's BUILT bundle
 through the same stub DOM and compare operation for operation; that is what let
 the copies be deleted rather than trusted.

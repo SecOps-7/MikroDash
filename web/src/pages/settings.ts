@@ -16,7 +16,7 @@
  * ── THE FIELD TABLE IS GENERATED ───────────────────────────────────────────
  *
  * `web/src/gen/settings-form-map.ts` comes from the live `populate()` via
- * `tools/settings-form-map.js`. ~100 inputs, and three defaults for an absent
+ * The settings-form-map tool. ~100 inputs, and three defaults for an absent
  * value that look identical on screen when the setting IS set:
  *
  *   checkOn   `data[f] !== false`  — ABSENT MEANS ON

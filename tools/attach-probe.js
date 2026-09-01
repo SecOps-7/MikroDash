@@ -4,7 +4,7 @@
  *
  * ---- THE QUESTION NO OTHER CHECK ASKS -------------------------------------
  *
- * `tools/initial-state-audit.js` reads the source and asks whether an event is
+ * The initial-state audit reads the source and asks whether an event is
  * sent on the handshake. This runs the server and asks whether it ARRIVES, on a
  * session whose collectors have already ticked — which is the case the defects
  * of 2026-08-28 all lived in. Socket A opens the session and holds it; socket B
@@ -40,7 +40,7 @@
  * and are never written anywhere.
  */
 // `ws` from the app container's node_modules, because this repo has no node
-// dependencies of its own — the same arrangement `tools/live-socket-diff.js`
+// dependencies of its own — the same arrangement the live-socket-diff tool
 // uses, and WS_PATH points at a copy.
 //
 // NOT the global `WebSocket`. Node has had one built in since 22, so omitting

@@ -22,7 +22,7 @@ package principals
 // ── THE ERROR STRINGS ARE THE CONTRACT ──────────────────────────────────────
 //
 // They are rendered verbatim in the role editor, and two of them interpolate the
-// offending key. `tools/rolepages-cases.js` compares them exactly rather than
+// offending key. The rolepages corpus compares them exactly rather than
 // asserting "an error was returned".
 //
 // ── IT VALIDATES THE WHOLE LIST OR NONE OF IT ───────────────────────────────

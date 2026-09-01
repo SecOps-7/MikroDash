@@ -171,7 +171,7 @@ func TestTheCollectionMigrationIsStandaloneOnly(t *testing.T) {
 //
 // ── THE CLASS, WRITTEN DOWN AFTER TWO INSTANCES IN THREE DAYS ─────────────
 //
-// `tools/live-diff.sh` and `tools/live-socket-diff.js` stand a Go server up
+// `tools/live-diff.sh` and the live-socket-diff tool stand a Go server up
 // against the LIVE `/data` to compare payloads. Anything `New` does at startup,
 // that server does too — to production.
 //

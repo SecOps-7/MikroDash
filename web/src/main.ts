@@ -558,7 +558,7 @@ async function main(): Promise<void> {
   // page (`web/src/ui/page-settings.html`). An earlier version of this file
   // wired `initRouterModal` from here anyway, complete with a
   // `[data-edit-router]` handler for an attribute nothing in the app produces —
-  // `tools/selector-audit.js` is what said so.
+  // The selector audit is what said so.
   //
   // THE OPENER NOW EXISTS: `settings-routers.ts` renders the Edit button the
   // live app opens the modal from, and is wired below. The page still does not

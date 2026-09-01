@@ -419,7 +419,7 @@ func (s *IfStatus) Tick() {
 //
 // EXTRACTED so the emit above and the handshake replay in `ws.go` share one
 // implementation. It was inline, and the replay — added when
-// `tools/initial-state-audit.js` found that a viewer attaching to a running
+// The initial-state audit found that a viewer attaching to a running
 // session never received this — would otherwise have been a second copy of the
 // same three-field projection, which is a defect with a delay fuse.
 func NamesOf(payload *IfStatusPayload) *IfNamesPayload {

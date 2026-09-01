@@ -149,7 +149,7 @@ func TestWanGuardMatchesTheLiveModule(t *testing.T) {
 		})
 	}
 	// The corpus generator already refuses to write an all-none corpus; this is
-	// the same check on the consuming side, so a corpus swapped for a weaker one
+	// The same check on the consuming side, so a corpus swapped for a weaker one
 	// cannot quietly turn this suite into a no-op.
 	if warned == 0 {
 		t.Fatal("no case warned — this suite cannot tell a working guard from a silent one")

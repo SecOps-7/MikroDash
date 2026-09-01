@@ -53,7 +53,7 @@ export interface NavHost {
    *
    * A page this build cannot serve is not hidden because it is forbidden or
    * switched off; it is hidden because it is NOT HERE YET. Both remaining ones —
-   * Settings and Devices — are recorded in `tools/page-mount-audit.js` with what
+   * Settings and Devices — are recorded in the page-mount audit with what
    * blocks them, and both reappear the moment they mount.
    */
   serves(page: string): boolean;

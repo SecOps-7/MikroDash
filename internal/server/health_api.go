@@ -18,7 +18,7 @@ import (
 //	                of an error.
 //
 // Found on 2026-08-29 by listing live's modules and asking which have no port
-// equivalent. `tools/endpoint-audit.js` could not have found it twice over: it
+// equivalent. The endpoint audit could not have found it twice over: it
 // only looked at `/api` paths, and its wildcard matcher treated Go's `{$}`
 // end-of-path anchor as a segment wildcard, so `/{$}` "served" every
 // single-segment path. Both are fixed.

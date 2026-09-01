@@ -72,7 +72,7 @@ func (s *Server) buildPruneScheduler(enabled bool) *pruneScheduler {
 
 	// IMMEDIATELY, THEN DAILY — live's `run(); _pruneTimer = setInterval(run, …)`.
 	// The immediate run is what stops a process restarted every few hours from
-	// never pruning at all, and `tools/db-prune-cases.js` asserts that the live
+	// never pruning at all, and the db-prune corpus asserts that the live
 	// side still does it rather than assuming.
 	go func() {
 		s.runPrune()
