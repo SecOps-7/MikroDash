@@ -456,6 +456,15 @@ func (cn *conn) ruRemove(raw json.RawMessage, spec removeSpec) {
 		}
 		target := ruRow(spec.rows(st), req.ID, req.ExpectedName)
 		if target == nil {
+			// AND THE PAGE IS ACTUALLY REFRESHED, because the client says it was:
+			// "That row changed on the router — the page has been refreshed".
+			// It was not. `ruRead` above re-read the router into `st`, but that is
+			// this handler's private copy; nothing pushed it to the browser, so the
+			// operator was told to look at fresh data they had not been sent, and
+			// the next click failed the same way.
+			if cn.rsession.CollectorEnabled("rosusers") {
+				cn.rsession.RosUsers().RefreshNow()
+			}
 			cn.ruErr("stale-row", nil)
 			return nil
 		}

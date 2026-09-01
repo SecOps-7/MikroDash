@@ -152,10 +152,46 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       '&#128274; in use by MikroDash</span>';
   }
 
+  /**
+   * Which TABLE an action belongs to, for the busy key.
+   *
+   * `.id` values are per-menu: `/user`, `/user/group` and `/user/active` each
+   * mint their own `*N` sequence, so `*3` names three unrelated rows. `busy` was
+   * a bare id, which meant ending session `*3` also disabled the USER whose id
+   * happened to be `*3` -- a row on a different tab, greyed out for no reason
+   * the operator could see.
+   */
+  function tableOf(act: string): string {
+    if (act.indexOf('group-') === 0) return 'group';
+    if (act.indexOf('session-') === 0) return 'session';
+    return 'user';
+  }
+
+  function busyKey(act: string, id: string): string { return tableOf(act) + '|' + id; }
+
+  /**
+   * What a button says while its write is in flight.
+   *
+   * THE POINT IS THAT SOMETHING VISIBLY HAPPENS AT THE CURSOR. Before this the
+   * only feedback was a `disabled` attribute, and the outcome went to a
+   * muted-note span in the card header -- so on a slow router, clicking End
+   * Session looked exactly like clicking a dead button. The row is deliberately
+   * NOT removed optimistically: it disappears when the router confirms, via the
+   * refreshed payload, because a row that vanishes and comes back is worse than
+   * one that takes a moment to go.
+   */
+  const PENDING: Record<string, string> = {
+    'session-remove': 'Closing\u2026',
+    'user-remove': 'Removing\u2026',
+    'group-remove': 'Removing\u2026',
+  };
+
   function btn(act: string, id: string, name: string, label: string, cls?: string): string {
+    const pending = busy === busyKey(act, id);
     return '<button class="ru-act' + (cls ? ' ' + cls : '') + '" data-act="' + act +
       '" data-id="' + esc(id) + '" data-name="' + esc(name) + '"' +
-      (busy === id ? ' disabled' : '') + '>' + label + '</button>';
+      (pending ? ' disabled' : '') + '>' +
+      (pending ? (PENDING[act] || label) : label) + '</button>';
   }
 
   function renderUsers(): void {
@@ -418,7 +454,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     if (act === 'user-toggle') {
       const u = ((data && data.users) || []).find((x) => x.id === id);
       if (!u) return;
-      busy = id;
+      busy = busyKey(act, id);
       render();
       // A FULL SAVE, not a disable-only action: one write path is one place for
       // the guard to be called from.
@@ -439,7 +475,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     };
     if (!prompts[act]) return;
     if (!window.confirm(prompts[act])) return;
-    busy = id;
+    busy = busyKey(act, id);
     render();
     const ev = act === 'user-remove' ? 'rosuser:remove'
       : act === 'group-remove' ? 'rosgroup:remove' : 'rossession:remove';
@@ -457,7 +493,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     if (!name) return formError('ruf_error', 'A username is required');
     if (!group) return formError('ruf_error', 'Pick a group');
     const id = el<HTMLInputElement>('ruf_id')?.value || '';
-    busy = id;
+    busy = busyKey('user-save', id);
     // `undefined` rather than '' for the three optional fields: the server reads
     // `id` to decide create-or-edit and `password` to decide whether one was
     // set, and JSON.stringify drops an undefined key entirely — which is what
@@ -480,7 +516,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
       document.querySelectorAll<HTMLInputElement>('#rgf_policies .rgf-pol:checked'),
       (c) => c.value);
     const id = el<HTMLInputElement>('rgf_id')?.value || '';
-    busy = id;
+    busy = busyKey('group-save', id);
     socket.emit('rosgroup:save', {
       id: id || undefined,
       expectedName: el<HTMLInputElement>('rgf_expectedName')?.value || undefined,
@@ -526,6 +562,13 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
         'MikroDash cannot identify its own account on this router, so changes are refused',
       'router-write-policy': 'The RouterOS user needs the "policy" permission for this',
       unsupported: 'This router does not support that command',
+      // MEASURED on RouterOS 7.24, 2026-09-01: `/user/active/remove` on a
+      // `via=rest-api` row answers `action failed (6)`. The router will not end
+      // a REST API session, so no amount of retrying here helps -- and those
+      // rows can sit in /user/active for weeks, which is what made this look
+      // like a broken button rather than a refusal.
+      'write-failed': 'The router refused that. REST API sessions in particular ' +
+        'cannot be ended from here — RouterOS answers "action failed" and keeps them.',
     };
     const text = (code && msg[code]) || (d && d.message) || 'Action failed';
     // A refusal belongs in the dialog that caused it; everything else is a row
