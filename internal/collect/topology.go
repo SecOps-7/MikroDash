@@ -1201,6 +1201,10 @@ type Topology struct {
 	vlanNames map[int]string
 	seen      map[string]*TopoSeen
 	ping      map[string]*TopoPing
+	// lastIn is the last input Tick built a payload from, so the ping loop can
+	// rebuild the graph without re-reading the router. Nil until the first
+	// successful Tick.
+	lastIn *TopoInput
 	// pingCursor walks the target list one device per step rather than pinging
 	// everything at once: a burst of two dozen pings is exactly the kind of
 	// concurrent work small hardware does badly.
@@ -1336,12 +1340,12 @@ func (t *Topology) pingNext() {
 			t.pingDenied = true
 			t.mu.Unlock()
 			t.pingLoop.stop()
-			t.Tick()
+			t.republish()
 			return
 		}
 		// A single unreachable host must never stop the loop.
 		t.recordPing(tgt.key, false, nil)
-		t.Tick()
+		t.republish()
 		return
 	}
 
@@ -1354,7 +1358,7 @@ func (t *Topology) pingNext() {
 	// the reply was not usable either way.
 	replied := rtt != nil && row["received"] != "0"
 	t.recordPing(tgt.key, replied, rtt)
-	t.Tick()
+	t.republish()
 }
 
 // recordPing folds one result into the device's window.
@@ -1509,7 +1513,7 @@ func (t *Topology) Tick() {
 	seen, ping, pingDenied := t.seen, t.ping, t.pingDenied
 	t.mu.Unlock()
 
-	payload := BuildTopology(TopoInput{
+	in := TopoInput{
 		Now: time.Now().UnixMilli(), Rows: rows,
 		Hosts: hosts, HostVlan: hostVlan, Assoc: assoc,
 		IfaceRadio: ifaceRadio, CapByPrefix: capByPrefix,
@@ -1518,11 +1522,75 @@ func (t *Topology) Tick() {
 		Discovery: discovery, PingDenied: pingDenied,
 		Seen: seen, Ping: ping,
 		LeaseName: t.leaseName, Core: t.coreInfo(),
-	})
+	}
+	payload := BuildTopology(in)
+
+	// KEPT SO THE PING LOOP CAN REBUILD WITHOUT ASKING THE ROUTER AGAIN.
+	// `BuildTopology` is pure, and `rows`, `hosts` and the wifi tables above are
+	// the only parts of this input that cost a command -- everything else is
+	// already in memory. See `republish`.
+	t.mu.Lock()
+	t.lastIn = &in
+	t.mu.Unlock()
 
 	// SET HERE rather than inside BuildTopology, which is pure and takes only what
 	// the topology itself is built from. The router id is the COLLECTOR's, not
 	// the graph's.
+	payload.RouterID = t.routerID
+
+	t.mu.Lock()
+	t.last = payload
+	t.mu.Unlock()
+	t.emit("page-network-topology", "topology:update", payload)
+}
+
+// republish rebuilds the graph from the LAST READ and emits it, without asking
+// the router for anything.
+//
+// ── WHY THIS EXISTS ─────────────────────────────────────────────────────────
+//
+// `pingNext` used to call `Tick()`, and Tick is five commands: /ip/neighbor, the
+// bridge host table and the wifi registration tables. At `topoPingStep` that ran
+// every THREE SECONDS while the page was open, against a collector whose
+// configured interval is thirty. The operator set 30s and got 3s, and the
+// expensive reads were the ones being repeated.
+//
+// The ping result still has to reach the browser promptly -- a map whose
+// latency and up/down state lagged by half a minute would be a worse page. So
+// the split is by COST rather than by data: the structure comes from the router
+// on the poll interval, and everything derived in memory is republished as often
+// as the ping loop turns.
+//
+// `BuildTopology` is pure, so this is honest rather than a cache trick: it is
+// the same function over the same rows, with fresh ping state, `Seen` and clock.
+// Status included -- `topoStatusFor` runs inside the build, so a device going
+// quiet still flips within one ping step.
+//
+// LINK RATES ARE NOT HERE, and do not need to be. They already reach the page
+// independently on `ifstatus:update`, which the browser receives router-wide;
+// `web/src/pages/topology.ts` keeps its own `rates` map and re-renders on it.
+// That is the fast, independently-governed half, and it costs no extra command
+// because ifStatus reads every interface in ONE bulk call.
+func (t *Topology) republish() {
+	t.mu.Lock()
+	if t.lastIn == nil {
+		// No successful Tick yet: nothing to rebuild from. The first Tick will
+		// publish, so dropping this is right rather than merely tolerable.
+		t.mu.Unlock()
+		return
+	}
+	in := *t.lastIn // a copy, so the fresh fields below cannot race the next Tick
+	in.Now = time.Now().UnixMilli()
+	in.Seen, in.Ping, in.PingDenied = t.seen, t.ping, t.pingDenied
+	t.mu.Unlock()
+
+	// Re-read in memory, because both can move between structure polls: uptime
+	// ticks, and an interface can go down.
+	in.Core = t.coreInfo()
+	in.Bridges = t.bridgeNames()
+	in.PollMs = t.pollMs.ms()
+
+	payload := BuildTopology(in)
 	payload.RouterID = t.routerID
 
 	t.mu.Lock()
