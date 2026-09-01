@@ -34,8 +34,11 @@ type Page struct {
 	// Key is the URL path, the markup id and the room name. Lower case, and
 	// hyphenated where it needs more than one word.
 	Key string
-	// Title is what the header shows. Empty means the key itself is good enough
-	// to display, which is true wherever the two already agree.
+	// Title is what the header shows.
+	//
+	// Every page has one. Three did not until 2026-09-01 and fell through to the
+	// raw key, so the header read a lower-case "dashboard" -- inherited from a
+	// map that simply had no entry for them.
 	Title string
 	// Path is the URL segment when it differs from the key. Empty means the key
 	// IS the URL, which is true of 25 of the 26 pages.
@@ -58,7 +61,7 @@ type Page struct {
 // ORDER MATTERS: cmd/webbuild composes the markup in this order, and the digit
 // shortcuts address the first nine.
 var All = []Page{
-	{Key: "dashboard", Path: "home"},
+	{Key: "dashboard", Title: "Dashboard", Path: "home"},
 	{Key: "dns", Title: "DNS"},
 	{Key: "bridges", Title: "Bridges"},
 	{Key: "vlans", Title: "VLANs"},
@@ -82,8 +85,8 @@ var All = []Page{
 	{Key: "reports", Title: "Reports"},
 	{Key: "audit-trail", Title: "Audit Trail"},
 	{Key: "backups", Title: "Backups"},
-	{Key: "devices"},
-	{Key: "settings"},
+	{Key: "devices", Title: "Devices"},
+	{Key: "settings", Title: "Settings"},
 }
 
 // URL is the path this page is served at, without the leading slash.

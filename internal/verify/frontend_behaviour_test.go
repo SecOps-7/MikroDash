@@ -37,14 +37,17 @@ func TestAppLandsOnTheDashboard(t *testing.T) {
 	root := repoRoot(t)
 	body := uncomment(mustRead(t, filepath.Join(root, "web", "src", "main.ts")))
 
-	land := regexp.MustCompile(`showPage\(socket,\s*currentPage \|\| '([a-z]+)'\)`).FindStringSubmatch(body)
+	// The landing call now names the fallback inside `initialPage(...)`, because
+	// the URL decides the first page and the fallback is only reached when it
+	// names none. The pattern follows it rather than pinning the old shape.
+	land := regexp.MustCompile(`initialPage\(PORTED, '([a-z-]+)'\)`).FindStringSubmatch(body)
 	if land == nil {
-		t.Fatal("the landing-page call could not be found — it is " +
-			"`showPage(socket, currentPage || '<page>')` in select()")
+		t.Fatal("the landing-page fallback could not be found — it is " +
+			"`initialPage(PORTED, '<page>')` in select()")
 	}
 	if land[1] != "dashboard" {
-		t.Errorf("the app lands on %q. The landing page is `home` — renamed from `dashboard` on "+
-			"2026-09-01 so the key matches the URL and the room.", land[1])
+		t.Errorf("the app falls back to %q. It is `dashboard` — the URL decides the page, and "+
+			"this is only reached when the URL names none.", land[1])
 	}
 	// PORTED and webbuild's PAGES both read `internal/pages` now, so the two
 	// regexes this used to run against their literals are gone. Asking the

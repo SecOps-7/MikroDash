@@ -48,7 +48,7 @@ was retired on 2026-09-01. What runs now reads only this repository:
 | | |
 |---|---|
 | `internal/verify/` | 23 Go tests — static checks over the current source. Picked up by `go test ./...`; nothing lists them. |
-| `web/test/` | 14 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test`. |
+| `web/test/` | 15 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test`. |
 
 Both are discovered by glob, so adding a check needs no edit to `verify.sh`.
 

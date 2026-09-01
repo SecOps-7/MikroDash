@@ -35,6 +35,7 @@ import (
 	"mikrodash/internal/db"
 	"mikrodash/internal/historywire"
 	"mikrodash/internal/hub"
+	"mikrodash/internal/pages"
 	"mikrodash/internal/rbac"
 	"mikrodash/internal/routers"
 	"mikrodash/internal/session"
@@ -601,6 +602,25 @@ func (s *Server) Handler() http.Handler {
 		mux.Handle("/app.js", s.requireSession(s.spa()))
 		mux.Handle("/app.css", s.requireSession(s.spa()))
 
+		// ── A URL PER PAGE ─────────────────────────────────────────────────
+		//
+		// `spa()` already rewrites an extensionless path to `/` and serves the
+		// built document, so every page gets the same shell and the frontend
+		// router decides what to show from the path.
+		//
+		// REGISTERED ONE BY ONE, not as a catch-all, and that is the whole
+		// point: an unknown path still reaches `/` and answers an honest 404
+		// instead of the shell. A catch-all would also have to re-derive the
+		// reserved list -- /api, /ws, /healthz, /login, /preflight.js, /vendor,
+		// /css, /fonts -- that this gets for free from the mux preferring the
+		// more specific pattern.
+		//
+		// Inside `s.standalone` deliberately: with a proxy target configured,
+		// these paths must still fall through to it.
+		for _, p := range pages.All {
+			mux.Handle("/"+p.URL(), s.requireSession(s.spa()))
+		}
+
 		// ── THE LOGIN DOCUMENT AND THE TWO CLASSIC SCRIPTS ─────────────────
 		//
 		// NOT session-gated, and that is the point: `/login` is where an
@@ -654,11 +674,34 @@ func (s *Server) distFile(name string) http.Handler {
 func (s *Server) requireSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, err := s.auth.Validate(r.Header.Get("Cookie")); err != nil {
-			http.Redirect(w, r, "/login", http.StatusFound)
+			http.Redirect(w, r, loginFor(r), http.StatusFound)
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// loginFor is where an unauthenticated request is sent, carrying where it was
+// going.
+//
+// Deep links only became possible on 2026-09-01, and without this every one of
+// them landed the operator on the dashboard after signing in -- having asked for
+// `/logs`. The login page already reads `?next=`, validates it is same-origin and
+// falls back to `/`, so nothing new is needed on the other side.
+//
+// THE ROOT IS EXEMPT, and not incidentally: `/` is where an unauthenticated
+// visitor arrives anyway, so `?next=/` would be noise on the commonest redirect
+// in the app -- and `TestStandaloneServesTheAppFromTheRoot` pins the bare
+// `/login` that visitor gets.
+func loginFor(r *http.Request) string {
+	if r.URL.Path == "/" {
+		return "/login"
+	}
+	dest := r.URL.Path
+	if r.URL.RawQuery != "" {
+		dest += "?" + r.URL.RawQuery
+	}
+	return "/login?next=" + url.QueryEscape(dest)
 }
 
 // Shutdown releases everything this process holds, in the order that loses the

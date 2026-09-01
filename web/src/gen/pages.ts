@@ -18,7 +18,7 @@ export interface Page {
 }
 
 export const PAGES: readonly Page[] = [
-  { key: "dashboard", title: "", path: "home" },
+  { key: "dashboard", title: "Dashboard", path: "home" },
   { key: "dns", title: "DNS", path: "dns" },
   { key: "bridges", title: "Bridges", path: "bridges" },
   { key: "vlans", title: "VLANs", path: "vlans" },
@@ -42,8 +42,8 @@ export const PAGES: readonly Page[] = [
   { key: "reports", title: "Reports", path: "reports" },
   { key: "audit-trail", title: "Audit Trail", path: "audit-trail" },
   { key: "backups", title: "Backups", path: "backups" },
-  { key: "devices", title: "", path: "devices" },
-  { key: "settings", title: "", path: "settings" },
+  { key: "devices", title: "Devices", path: "devices" },
+  { key: "settings", title: "Settings", path: "settings" },
 ];
 
 /** Every page key, in nav order. */

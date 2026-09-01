@@ -28,6 +28,7 @@ import {
 } from './stale';
 import { STALE_CARDS } from './gen/stale-tables';
 import { PAGE_KEY_SET, pageTitle } from './gen/pages';
+import { initialPage, initRouting, sync, type NavMode } from './routing';
 import { initDnsPage } from './pages/dns';
 import { initBridgesPage } from './pages/bridges';
 import { initVlansPage } from './pages/vlans';
@@ -83,7 +84,7 @@ function pageVisible(name: string): boolean {
   return currentPage === name && !document.hidden;
 }
 
-function showPage(socket: Socket, name: string): void {
+function showPage(socket: Socket, name: string, mode: NavMode = 'push'): void {
   // Hiding the nav link was never a block — showPage('settings') from the
   // console opened the whole admin page for anyone. The server refused every
   // write, but the page had no business rendering. Defence in depth, not the
@@ -116,6 +117,16 @@ function showPage(socket: Socket, name: string): void {
     if (svg) icon.appendChild(svg.cloneNode(true));
   }
 
+  // THE BAR LAST, and with the name AFTER the settings rewrite above — so a
+  // deep link to a page the operator may not see corrects the URL instead of
+  // leaving it describing a page that is not on screen.
+  //
+  // The dispatch below is deliberately NOT guarded on `prev !== name`. It fires
+  // on every reconnect today and around twenty page modules are built against
+  // that; adding a guard here would quietly change a contract they rely on. The
+  // double-fire hazard belongs to the popstate path, and `initRouting` handles
+  // it there.
+  sync(name, mode);
   document.dispatchEvent(new CustomEvent('mikrodash:pagechange', { detail: name }));
   if (prev && prev !== name) socket.emit('page:blur', prev);
   socket.emit('page:focus', name);
@@ -837,11 +848,20 @@ async function main(): Promise<void> {
     // the ONLY ported page and landing anywhere else meant landing on nothing.
     // It outlived that by twenty-two pages, and the operator met it as "I land
     // on the DNS page".
-    showPage(socket, currentPage || 'dashboard');
+    // THE URL DECIDES THE FIRST PAGE, and `currentPage` every time after — so a
+    // refresh keeps the operator where they were, and a reconnect does not move
+    // them. The first paint REPLACES: the load's own entry is the one being
+    // corrected, and pushing would leave a phantom behind it.
+    const firstPaint = currentPage === '';
+    showPage(socket, currentPage || initialPage(PORTED, 'dashboard'),
+      firstPaint ? 'replace' : 'push');
   };
   // Re-sent on every connect, because the server holds the selection on the
   // CONNECTION: a socket that has just reconnected knows nothing about which
   // router this browser was watching.
+  // Back and forward. 'skip' because the browser has already moved the entry;
+  // writing another would fight it.
+  initRouting((key) => showPage(socket, key, 'skip'), () => currentPage);
   socket.on('connect', select);
   // And once now if the socket is already up. The router list is fetched over
   // HTTP while the socket opens in parallel, so 'connect' has usually already

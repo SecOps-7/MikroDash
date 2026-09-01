@@ -343,6 +343,33 @@ that, because the captured router had no MX record.
 
 Enumerated values deserve the closest reading for exactly that reason.
 
+## Page keys — one word, five meanings
+
+`internal/pages` is the list. A key is not just a label; the same string is used
+as **five** different things, and they do not all move together:
+
+| as | where | renaming it |
+|---|---|---|
+| URL path | `internal/server` registers one route per page | changes a public link |
+| markup id | `#page-<key>` in `web/src/ui/page-<key>.html` | must move with the file |
+| room name | collectors emit to `page-<key>` | a PROTOCOL change, both sides at once |
+| **permission key** | `rbac.PageKeys`, and `role_pages.page` in the operator's database | **an unknown key is DENIED before any role is consulted** |
+| pagechange detail | `detail === '<key>'` in ~20 page modules | a missed one stops that page loading |
+
+The fourth is the dangerous one. On 2026-09-01 six keys were renamed and
+`rbac.PageKeys` was missed: four pages showed nothing at all, for everyone
+including administrators, with a green build and no error anywhere. `PageKeys`
+reads `internal/pages` now, so it cannot drift again.
+
+**What is NOT a page key, though it looks identical:** `Layout(user,
+"dashboard")` and `Layout(user, "topology")` in `internal/server/layouts_api.go`
+are ROW KEYS in `user_layouts`, holding every layout an operator has saved.
+Renaming those orphans their data silently. The permission check beside them is a
+page key and does move. Read which question is being asked before touching either.
+
+**The dashboard is served at `/home`** — the one page whose URL differs from its
+key, declared as `Path` on that entry. Everything else is served at its key.
+
 ## Verification — where the checks live now
 
 The port-parity harness was retired on 2026-09-01. It was 136 gates, 35 audits and
@@ -355,7 +382,7 @@ replaced? That question died with the port, and 25 MB of recordings went with it
 | | |
 |---|---|
 | `internal/verify/` | 23 Go tests. Static checks over the CURRENT source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, fixture schemas. |
-| `web/test/` | 14 test files that bundle the app's TypeScript and run it against a DOM shim (18 cases). |
+| `web/test/` | 15 test files that bundle the app's TypeScript and run it against a DOM shim (25 cases). |
 
 **Two rules carried across, and both are load-bearing:**
 
