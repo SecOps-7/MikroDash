@@ -31,7 +31,7 @@ is where symbolic navigation earns its keep.
 | Find callers before changing a signature | `find_referencing_symbols` | `Grep` |
 | Know what RouterOS commands exist | `docs/routeros-api-surface.md` (generated) | grepping by hand |
 | Know what a RouterOS menu *can* hold | **rosetta** (MCP, `.mcp.json`), or `WebFetch` on `help.mikrotik.com` | inferring the property set from a fixture |
-| Know what a collector returns | replay a fixture (`nodecheck/`) | reading the collector and guessing |
+| Know what a collector returns | replay a fixture (`internal/collect` tests) | reading the collector and guessing |
 
 - `Glob` and `Grep` are fine for **discovery**; follow up with a symbolic read rather than a whole-file one.
 
@@ -54,29 +54,18 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine sh -c "go vet ./... &&
 # geoip tables are copied from it — see the Dockerfile's own note.
 docker build -t mikrodash-go:latest .
 
-# EVERYTHING THIS REPO CAN CHECK, discovered rather than listed. Run this before
-# claiming a session is green: it globs the gates, the audits, the `--check`
-# generators and nodecheck, so a category cannot be forgotten the way
-# `endpoint-audit` was (red for an unknown number of sessions, because every
-# sweep ran a list of audit names typed from memory).
+# EVERYTHING THIS REPO CAN CHECK, discovered rather than listed.
 #
-# It reports a SKIP as a skip. **12** generators need `better-sqlite3` or
-# `pdfkit` and run in a throwaway container from the `mikrodash` IMAGE — it used
-# to need that container RUNNING, which turned twelve gates into a permanent skip
-# the moment cutover stopped it. ASK THE SWEEP: it prints
-# "container generators: N checked".
+# It runs the Go side (gofmt, vet, `go test ./...`, and `cmd/tsgen -check`), the
+# TypeScript type checker, and the frontend's own tests. Nothing is named in the
+# script: `go test ./...` finds anything new under `internal/verify/`, and
+# `web/test/run.mjs` globs `*.test.ts`.
 #
-# It also runs the Go side (gofmt, vet, test) and tsc. That was once excluded on
-# the grounds that "Go runs in a container and CLAUDE.md documents it
-# separately", which is precisely the leave-it-to-be-remembered arrangement that
-# let `endpoint-audit` go red. A whole session ran this sweep, called it green,
-# and never compiled the Go.
-#
-# It ALSO ratchets a per-gate census (`testdata/gate-census.txt`) and fails when
-# a gate shrinks. "136 run, 0 failed" cannot otherwise tell a gate that compared
-# forty cases from one that compared none.
+# THAT DISCOVERY IS THE POINT, and it is inherited. The old sweep globbed
+# `tools/*-check.js` because `endpoint-audit` had been red for an unknown number
+# of sessions while sweeps ran a list of names typed from memory.
 sh tools/verify.sh
-sh tools/verify.sh --no-docker   # skip docker-dependent generators
+sh tools/verify.sh --no-docker   # skip the Go half, which needs a container
 
 # Go unit tests + the differential gate (Go payload vs the Node golden) + the
 # PROPLIST DRIFT gate.
@@ -95,15 +84,10 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine go test ./...
 #   -e MIKRODASH_PROPLIST_FREEZE=1   (internal/collect)
 #   -e MIKRODASH_RESOURCES_FREEZE=1  (internal/resource)
 
-# Node-side differential tests. THREE FILES REMAIN and none needs the reference:
-# `topojson-decode`, `reports-presets` and `conn-tables` all record their live
-# half. Two others were RETIRED on 2026-08-31 — they replayed fixtures into the
-# live collectors and had no port side, so freezing them would have produced a
-# recording compared with itself. That cost 122 assertions; their result is the
-# committed fixtures, which `internal/collect` compares against on every run.
-# The GLOB, not the directory: `node --test nodecheck/` tries to require the
-# directory itself and dies with MODULE_NOT_FOUND before running anything.
-node --test nodecheck/*.test.js
+# The frontend's own tests: 18 of them, bundling the app's TypeScript with
+# esbuild and running it against a DOM shim. See web/test/README.md for why they
+# are executed rather than type-checked.
+cd web && npm test
 
 # THE GO/NO-GO GATES. Both passed on 2026-08-30 and both are re-runnable.
 #
@@ -185,8 +169,7 @@ documented in the package header: the scrypt salt is a **string** not decoded by
 array, which is a security property rather than a preference.
 
 **`testdata/fixtures/`** is what stops this code re-deriving RouterOS behaviour: real captures from
-live hardware, replayed into the Go collectors by `internal/collect`. `nodecheck/` replayed them
-into the Node collectors too until cutover; its three surviving tests record their own live half.
+live hardware, replayed into the Go collectors by `internal/collect`.
 
 ---
 
@@ -196,15 +179,12 @@ into the Node collectors too until cutover; its three surviving tests record the
   change" was the PORT's acceptance criterion, and it was retired at cutover: this is the product
   now, not a reproduction of one, and it has to evolve.
 
-  What the 136 gates mean changed with it. They no longer prove parity with an implementation that
-  exists; they compare against a frozen RECORDING of one that does not. So a failing gate is not
-  "you broke it" any more, it is **"you changed the rendering — did you mean to?"** That is still
-  worth having, because the expensive defects in this repo have always been the silent ones.
+  The gates that enforced that rule are gone (2026-09-01) along with the recordings they compared
+  against. What replaced them checks this app against ITSELF — see "Verification" below — so a
+  failing test now means "you broke an invariant", not "you changed the rendering".
 
-  The cost moved rather than vanished. **The recordings cannot be regenerated**, so a deliberate
-  change means re-aiming or retiring the gate that guarded the old behaviour, and saying so in the
-  commit. Never delete a gate to make a change quiet: a gate removed without a reason reads exactly
-  like one that never existed.
+  **Never delete a check to make a change quiet.** A check removed without a reason reads exactly
+  like one that never existed, and that is how this repository has lost coverage before.
 
 - **"More efficient" means fewer router channels, not faster payload assembly.** The documented
   bottleneck is concurrent API channels on the MikroTik, not CPU.
@@ -221,8 +201,8 @@ into the Node collectors too until cutover; its three surviving tests record the
   orchestrating Go. `cmd/webbuild` does the same work through esbuild's Go API and its output
   is BYTE-IDENTICAL, verified file by file before the Node stage was deleted. The image no
   longer pulls `node:22-alpine`. What Node is still needed for is `tsc --noEmit`, which emits
-  nothing, and the 132 gates that bundle frontend TypeScript — testing TypeScript needs a
-  JavaScript runtime, and that is not a dependency this repo can decide away.
+  nothing, and the tests in `web/test/` that bundle frontend TypeScript — testing TypeScript
+  needs a JavaScript runtime, and that is not a dependency this repo can decide away.
 
   fpdf earned its place on a property **measured before it was chosen**: its Helvetica metrics ARE
   pdfkit's, and they agree to 2e-13 pt across 792 measurements. Two things it does NOT do, both found by
@@ -363,57 +343,40 @@ that, because the captured router had no MX record.
 
 Enumerated values deserve the closest reading for exactly that reason.
 
-## Gate conversion — the rules, and the three tools
+## Verification — where the checks live now
 
-Every gate and audit compares against a RECORDING of the Node implementation
-rather than reading its source. The recordings live in `testdata/golden-gates/`
-(JS), `internal/*/testdata/` (Go) and the differential tests (now `web/test/`).
+The port-parity harness was retired on 2026-09-01. It was 136 gates, 35 audits and
+96 corpus generators under `tools/`, and nearly all of it asked one question: does
+this app still reproduce a frozen recording of the Node implementation it
+replaced? That question died with the port, and 25 MB of recordings went with it.
 
-While the source existed, each recording was re-derived and compared on every
-run, which is what kept it honest. That ended at the v0.8.0 cutover: the last
-such comparison ran immediately before deletion and was green. The recordings are
-now frozen artefacts, and the census in `tools/verify.sh` — which fails when a
-gate checks LESS than it used to — is what guards them from here.
+**The checks that asked a different question moved rather than died:**
 
-**When a gate touches the reference, what it touches is one of four things, and
-the wrong treatment is silent in every direction:**
-
-| What it is | Treatment | If treated wrongly |
-|---|---|---|
-| A question about the SOURCE TEXT — "is the handler still at this anchor" | **GUARD** with `LIFT.hasReference(ROOT)` | The gate dies at module scope |
-| A VALUE the comparison consumes — `MAX_ALERTS`, a case table, a lifted `esc()` | **FREEZE** with `G.value`, plus a sanity assertion on the recording | Guarding leaves it undefined and every comparison passes vacuously |
-| A BEHAVIOUR assertion — "a tooltip is built", "the centre draws the total" | **RE-AIM at the port** | Guarding silently deletes a real check |
-| A DECLARED DIFFERENCE — "the live app sends, the port returns early" | **FREEZE the live half**, keep every assertion | Guarding deletes the only proof the difference still holds |
-
-Where a gate EXECUTES lifted text (`vm.runInContext`, `new Function`), freeze the
-SOURCE and not the outputs: the recording is a fraction of the size and the live
-half still runs, so a case added later still gets a live answer. Freeze the
-JOINED program rather than each lift — that covers every lift inside it whatever
-shape each takes.
-
-**The three tools, and what each sees that the others cannot:**
-
-| Tool | Asks |
+| | |
 |---|---|
-| the canfail audit | would this gate tell us if it failed **at all**? |
-| the gate census (`tools/verify.sh`) | did this gate check **less than it used to**? |
-| the vacuity audit | does it check the same **with and without** the reference? |
-| the gate-conversion toolchain | does it still catch a **port defect** without one? |
+| `internal/verify/` | 23 Go tests. Static checks over the CURRENT source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, fixture schemas. |
+| `web/test/` | 14 test files that bundle the app's TypeScript and run it against a DOM shim (18 cases). |
 
-Run `vacuity-audit` after converting anything. This session found three gates
-going quietly vacuous — all three were PASSING, and each was caught by a
-different one of those four.
+**Two rules carried across, and both are load-bearing:**
 
-**A mutation is evidence only if it applies, compiles, lands in the module the
-gate BUNDLES, and does the forbidden thing.** Six ways one can prove nothing were
-seen here; `accept.py` catches four mechanically. **Exit 0 has been wrong three
-separate ways** — a crash exiting non-zero read as a detection, a broken gate
-making every mutation look caught, and a swallowed rejection reading as a pass.
-Judge a gate by what it SAYS it checked.
+1. **A ledger fails in BOTH directions.** An unrecorded gap is a failure, and a
+   recorded gap that has CLOSED is also a failure. Without the second half a
+   ledger becomes folklore — a list of excuses nobody re-measures.
+2. **A check must not read itself.** `internal/verify/` ledgers quote the very
+   event names, settings keys and paths they look for, so a scan that included
+   them would prove anything it names is present. `isTestSource` exists for that,
+   after the trap was hit three times in one migration — once by a gate reading a
+   ledger written minutes earlier.
 
-The rules above ARE the record now: the long-form account they were distilled from was deleted with
-the other port documents on 2026-08-31, and is in git history at `v0.8.2`. `tools/gate-conversion/`
-implements them.
+**What was knowingly given up:** nothing now compares this app's rendering against
+anything external. The surviving tests assert its behaviour against itself, which
+is real but a weaker claim than "matches what shipped". That is the deliberate
+trade — the app has to be free to change — and it is written here rather than left
+to be discovered as a silent gap.
+
+`docs/unwired-elements.md` preserves the one piece of knowledge that had no
+mechanism to move to: the annotated record of which element ids are deliberately
+inert.
 
 ## Testing
 
@@ -421,11 +384,15 @@ implements them.
 - **The two gates are not unit tests.** `cmd/conformance` and `cmd/compat` run against live hardware
   and the live `/data`. They are the go/no-go checks, and a green unit suite does not substitute for
   them.
-- **`nodecheck/` runs under `node --test`** and replays fixtures into the OLD collectors. It is how a
-  fixture is proved faithful before the Go side is asked to reproduce it.
-- **A gap is documented, never hidden.** `nodecheck` carries a `KNOWN_INCOMPLETE` list; the test
-  asserts the gap *still exists*, so closing it fails the suite and forces the note to be removed
-  rather than left lying.
+- **`internal/verify/`** holds the repository's static self-checks as Go tests — 22 of them. They
+  read the CURRENT source and assert properties still worth holding: no committed credential, every
+  cited path present, every emitted event consumed, every multi-room collector behind an occupancy
+  guard. They are test-only, so nothing can link them into the binary.
+- **`web/test/`** holds 18 frontend tests that bundle the app's TypeScript and run it against a DOM
+  shim. JavaScript-hosted because testing TypeScript needs a JavaScript runtime.
+- **A gap is documented, never hidden.** Every ledger in those tests fails in BOTH directions: an
+  unrecorded gap is a failure, and a recorded gap that has CLOSED is also a failure, so a note cannot
+  outlive the situation it describes.
 - **Live verification is mandatory.** A green suite hid four real bugs in the last feature shipped on
   the Node side, two of which only appeared when a write was actually executed against a router.
 
@@ -449,7 +416,7 @@ hooks and the memories are project knowledge — only the personal half (`settin
 **Serena's language server here is `typescript`, not `go`, and that is not a mistake.** Its servers
 run on the host, this host has no Go toolchain, and declaring `go` fails the whole language-server
 manager — Serena's symbolic tools then stop working for *every* file, including the TypeScript ones.
-The typescript server indexes `.ts` and `.js`, which covers `web/`, `tools/` and `nodecheck/`. Go
+The typescript server indexes `.ts` and `.js`, which covers `web/` and `tools/`. Go
 files are read whole, as the navigation table above already says. Changing `.serena/project.yml`
 takes effect at the next session start.
 

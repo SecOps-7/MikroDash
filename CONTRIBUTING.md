@@ -36,18 +36,23 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine sh -c "go vet ./... &&
 
 ```sh
 go test ./...        # unit tests and the differential gates
-sh tools/verify.sh   # everything: gates, audits, generators, nodecheck, Go, tsc
+sh tools/verify.sh   # everything: Go (gofmt, vet, tests, tsgen), tsc, web tests
 ```
 
 `tools/verify.sh` is the one to run before opening a PR. It **discovers** what to check rather than working from a list, so a category cannot be forgotten — that rule exists because an audit once sat red for an unknown number of sessions while every sweep ran a list of names typed from memory.
 
-**You do not need the original Node implementation.** Every gate and audit compares against a recording of it, committed under `testdata/`, so `sh tools/verify.sh` is meaningful on a fresh clone. That was not true until recently: the gates read `../MikroDash` directly, and a contributor without it saw most of the sweep skip.
+**You do not need the original Node implementation, and there is nothing to point
+at.** The verification harness that compared this app against a recording of it
+was retired on 2026-09-01. What runs now reads only this repository:
 
-If you *do* have it, point at it and the sweep does more:
+| | |
+|---|---|
+| `internal/verify/` | 23 Go tests — static checks over the current source. Picked up by `go test ./...`; nothing lists them. |
+| `web/test/` | 14 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test`. |
 
-```sh
-sh tools/verify.sh
-```
+Both are discovered by glob, so adding a check needs no edit to `verify.sh`.
+
+
 
 With the reference present each recording is **re-derived and compared against it**, which is the only thing that stops a recording drifting from the source it claims to describe. The generator `--check` runs also need it — they regenerate their corpora from the reference — and the sweep reports them as a skip, saying so, when it is absent.
 

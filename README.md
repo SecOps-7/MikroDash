@@ -550,6 +550,6 @@ The Go + TypeScript rewrite was carried out the same way, largely by an autonomo
 loop working against generated corpora: every gate compared this implementation
 against the Node one by RUNNING or LIFTING the original rather than by
 transcribing it, because a retyped table is a fork with no update path. Those
-corpora are now frozen recordings — the Node source went at the v0.8.0 cutover —
-and `testdata/gate-census.txt` is what stops one quietly checking less than it
-used to.
+That harness was retired on 2026-09-01, once the app was free to evolve: the
+checks worth keeping became Go tests in `internal/verify/` and TypeScript tests in
+`web/test/`, and 25 MB of recordings left with the rest.

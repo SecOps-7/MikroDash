@@ -1,46 +1,40 @@
 # What the language bar should say
 #
-# MikroDash is a Go binary serving a TypeScript frontend. Without this file
-# GitHub reported it as 44% Go / 36% JavaScript / 13% TypeScript, because
-# Linguist counts every .js file that is not marked, and this repository carries
-# 4.1 MB of JavaScript that is never shipped and never runs in production:
+# MikroDash is a Go binary serving a TypeScript frontend.
 #
-#   3.7 MB  tools/            the verification harness -- 136 gates, 34 audits and
-#                             105 corpus generators. 124 of the gates bundle the
-#                             frontend TypeScript through esbuild and 86 drive a
-#                             DOM to compare rendered HTML, which is why they are
-#                             JavaScript and not Go: Go has no DOM, and testing
-#                             TypeScript needs a JavaScript runtime.
-#   205 KB  chart.umd.min.js  third-party, self-hosted because this project
-#                             serves no CDN assets.
-#   136 KB  recordings        frozen captures of the Node implementation that the
-#                             gates compare against. Data wearing a .js extension.
-#    35 KB  nodecheck/        three differential tests.
+# This file used to explain away 4.1 MB of JavaScript: a 136-gate verification
+# harness that compared the app against a frozen recording of the Node
+# implementation it replaced. That harness was retired on 2026-09-01 -- the checks
+# worth keeping became Go tests in `internal/verify/` and TypeScript tests in
+# `web/test/` -- so there is very little left to explain.
 #
-# (The port's own working documents were another ~700 KB of Markdown until they
-# were deleted on 2026-08-31; they never counted toward the JavaScript bar.)
+# What remains is 15 tracked .js files, 136 KB in total:
+#
+#   tools/        capture and generation utilities. `capture-fixtures.js` reads a
+#                 live router, `make-golden.js` builds the collector goldens Go
+#                 tests replay, and the `*-ts.js` transforms regenerate
+#                 `web/src/gen/` from committed tables.
+#   web/test/     the frontend's own tests, plus the runner. JavaScript-hosted
+#                 because testing TypeScript needs a JavaScript runtime.
+#   vendor        chart.umd.min.js, third-party, self-hosted because this project
+#                 serves no CDN assets.
 #
 # The runtime image contains no node or npm binary and no JavaScript except the
 # compiled frontend bundle, which is built from TypeScript.
 #
-# NOTE THIS IS PRESENTATION, NOT REMOVAL. Every file below is still in the tree,
-# still maintained, and still runs on every push. `linguist-vendored` here means
-# "not the product", not "not ours" -- CONTRIBUTING.md points contributors at
-# tools/ on their first read, and `sh tools/verify.sh` is the documented check.
+# NOTE THIS IS PRESENTATION, NOT REMOVAL. Everything below is still in the tree,
+# still maintained, and still runs.
 
 # ── The verification harness ──────────────────────────────────────────────
 tools/**            linguist-vendored
-nodecheck/**        linguist-vendored
 
 # ── Genuinely third-party, vendored to avoid a CDN ────────────────────────
 web/public/vendor/** linguist-vendored
 
 # ── Recordings and build output, not hand-written source ──────────────────
 #
-# testdata/golden-gates/ is 127 recordings of the Node implementation;
-# internal/resource/testdata/live-resources.js is a verbatim copy of the old
-# resources.js frozen as a gate's oracle; web/dist/ is build output apart from
-# the two lifted renderers, which are also recordings.
+# `internal/resource/testdata/live-resources.js` is a frozen oracle a Go test
+# replays; `web/dist/` is build output.
 testdata/**         linguist-generated
 internal/*/testdata/** linguist-generated
 web/dist/**         linguist-generated
