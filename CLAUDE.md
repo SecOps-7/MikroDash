@@ -361,6 +361,23 @@ The fourth is the dangerous one. On 2026-09-01 six keys were renamed and
 including administrators, with a green build and no error anywhere. `PageKeys`
 reads `internal/pages` now, so it cannot drift again.
 
+**The fourth has a SECOND failure the first fix did not touch, and it is quieter.**
+`rbac.PageKeys` is source; `role_pages.page` is DATA, in the operator's database.
+A renamed key leaves every stored grant naming the old one pointing at nothing,
+and an orphaned grant is not an error anywhere — the role just stops conferring
+that page. Administrators are structural and never read the table, so whoever is
+most likely to be testing cannot see the loss. Later that same day this install
+was found still holding `topology` and `wireless`, so the readonly and operator
+roles had silently lost two pages, plus `routers`, dead since the Node cutover
+and unnoticed for a day.
+
+**`pages.Renamed` is the fix and it is APPEND-ONLY** — a promise to installed
+databases, not a note about this source. `(*db.DB).RenamePageGrants` applies it
+once at startup from `cmd/mikrodash`, deliberately NOT from `db.Open`, because
+`cmd/compat` opens a real `/data` through a read-only mount. Rename a key and add
+the entry in the same commit; `internal/pages`' own test fails a value that is not
+a current key, a key that still is one, and a chain left uncollapsed.
+
 **What is NOT a page key, though it looks identical:** `Layout(user,
 "dashboard")` and `Layout(user, "topology")` in `internal/server/layouts_api.go`
 are ROW KEYS in `user_layouts`, holding every layout an operator has saved.

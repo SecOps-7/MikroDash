@@ -28,7 +28,7 @@ export const PAGES: readonly Page[] = [
   { key: "dhcp", title: "DHCP", path: "dhcp" },
   { key: "ppp", title: "PPP", path: "ppp" },
   { key: "vpn", title: "VPN", path: "vpn" },
-  { key: "router-users", title: "Router Users", path: "router-users" },
+  { key: "users", title: "Users", path: "users" },
   { key: "queues", title: "Queues", path: "queues" },
   { key: "firewall", title: "Firewall", path: "firewall" },
   { key: "wifi-networks", title: "Wifi Networks", path: "wifi-networks" },

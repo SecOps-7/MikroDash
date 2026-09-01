@@ -21,7 +21,7 @@ export const PAGE_NAV_MAP: Record<string, string> = {
   "pageBridges": "bridges",
   "pageDns": "dns",
   "pagePackages": "packages",
-  "pageRosusers": "router-users",
+  "pageRosusers": "users",
   "pageQueues": "queues",
   "pageWan": "wan",
   "pageDevices": "devices",

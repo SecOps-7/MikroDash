@@ -147,6 +147,16 @@ func main() {
 		if v, verr := adb.SchemaVersion(); verr == nil {
 			log.Printf("[mikrodash] audit trail open (schema v%d)", v)
 		}
+		// Page keys are also permission keys, so renaming one strands every
+		// grant naming the old one -- silently, and invisibly to the
+		// administrator most likely to be looking, because administrators are
+		// structural and never consult the table. Not fatal: a database that
+		// refuses this is still perfectly able to serve the app.
+		if n, rerr := adb.RenamePageGrants(); rerr != nil {
+			log.Printf("[mikrodash] WARNING: could not update renamed page grants: %v", rerr)
+		} else if n > 0 {
+			log.Printf("[mikrodash] moved %d page grant(s) onto renamed pages", n)
+		}
 	}
 
 	srv, err := server.New(st, server.Options{

@@ -71,7 +71,7 @@ var All = []Page{
 	{Key: "dhcp", Title: "DHCP"},
 	{Key: "ppp", Title: "PPP"},
 	{Key: "vpn", Title: "VPN"},
-	{Key: "router-users", Title: "Router Users"},
+	{Key: "users", Title: "Users"},
 	{Key: "queues", Title: "Queues"},
 	{Key: "firewall", Title: "Firewall"},
 	{Key: "wifi-networks", Title: "Wifi Networks"},
@@ -87,6 +87,46 @@ var All = []Page{
 	{Key: "backups", Title: "Backups"},
 	{Key: "devices", Title: "Devices"},
 	{Key: "settings", Title: "Settings"},
+}
+
+// Renamed maps a page key this app USED to use to the key it uses now.
+//
+// ── WHY A RENAME NEEDS A TABLE AT ALL ───────────────────────────────────────
+//
+// A page key is also a PERMISSION key, stored in `role_pages.page` in the
+// operator's database. Renaming a key therefore orphans every grant naming the
+// old one, and an orphaned grant is not an error anywhere: the role simply stops
+// conferring that page. Administrators are structural and keep working, so the
+// loss is invisible to whoever is most likely to be testing.
+//
+// That is not hypothetical. On 2026-09-01 this install was found holding grants
+// for `topology` and `wireless` -- renamed hours earlier -- so the readonly and
+// operator roles had silently lost Network Topology and Wifi Clients. It also
+// still held `routers`, dead since the Node cutover, which nobody had noticed in
+// the intervening day because nothing looks.
+//
+// ── RULES ───────────────────────────────────────────────────────────────────
+//
+// APPEND-ONLY. An entry is a promise to an installed database, not a note about
+// this source, so it outlives everyone's memory of the rename. Removing one
+// re-orphans exactly the grants it was added to rescue.
+//
+// Every value must be a current key and every key must NOT be one, which
+// `internal/pages`'s own test asserts in both directions -- so a chain like
+// rosusers -> router-users -> users has to be collapsed to its final destination
+// rather than left as a hop through a key that no longer exists.
+var Renamed = map[string]string{
+	// Node-era, dead since the v0.8.0 cutover.
+	"routers": "devices",
+	// Renamed 2026-09-01, all in one commit.
+	"topology": "network-topology",
+	"wireless": "wifi-clients",
+	"wifi":     "wifi-networks",
+	"audit":    "audit-trail",
+	// `rosusers` became `router-users` and then `users` the same day. Only the
+	// last hop ever reached a release, but a dev build could hold either.
+	"rosusers":     "users",
+	"router-users": "users",
 }
 
 // URL is the path this page is served at, without the leading slash.

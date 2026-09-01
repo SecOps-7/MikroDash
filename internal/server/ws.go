@@ -797,13 +797,13 @@ func (cn *conn) resumePage(page string) {
 			replay.TS = time.Now().UnixMilli()
 			cn.srv.hub.Send(cn.c, "vpn:update", replay)
 		}
-	case "router-users":
+	case "users":
 		cn.rsession.ResumeCollector("rosusers")
 		// The caps go FIRST. The page draws its buttons from `permitted`, and a
 		// payload arriving before them renders a read-only table that then has to
 		// be redrawn — visible as a flicker on every visit.
 		cn.srv.hub.Send(cn.c, "rosusers:caps", map[string]any{
-			"permitted":  cn.canPage("router-users", "write"),
+			"permitted":  cn.canPage("users", "write"),
 			"routerName": cn.rsession.Label,
 		})
 		if last := cn.rsession.RosUsers().Last(); last != nil {
@@ -1001,7 +1001,7 @@ func (cn *conn) pageBlur(page string) {
 		// was fixed by hand for dhcpNetworks and bandwidth.
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
 			[]string{"dash-card-vpn"}, cn.rsession.VPN().Suspend)
-	case "router-users":
+	case "users":
 		cn.rsession.RosUsers().Suspend()
 	case "queues":
 		cn.rsession.Queues().Suspend()

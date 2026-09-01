@@ -74,7 +74,7 @@ func (cn *conn) ruReady() bool {
 	return true
 }
 
-func (cn *conn) ruMayWrite() bool { return cn.canPage("router-users", "write") }
+func (cn *conn) ruMayWrite() bool { return cn.canPage("users", "write") }
 
 // ruPageDenied records the page-level refusal and answers. The guard's own
 // refusals are recorded at their call sites, because only there is the row —
