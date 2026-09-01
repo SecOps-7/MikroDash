@@ -37,21 +37,21 @@ export const PAGE_NAV_MAP: Record<string, string> = {
  */
 export const VIEW_PRESETS: Record<string, string[]> = {
   "home": [
-    "wifi",
-    "wireless",
+    "wifi-networks",
+    "wifi-clients",
     "interfaces",
     "dhcp",
     "connections",
     "bandwidth"
   ],
   "standard": [
-    "wifi",
-    "wireless",
+    "wifi-networks",
+    "wifi-clients",
     "interfaces",
     "dhcp",
     "connections",
     "bandwidth",
-    "topology",
+    "network-topology",
     "dns",
     "vlans",
     "vpn",

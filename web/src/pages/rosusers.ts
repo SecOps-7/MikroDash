@@ -535,7 +535,7 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     const open = el('ruUserFormWrap')?.classList.contains('open') ? 'ruf_error'
       : el('ruGroupFormWrap')?.classList.contains('open') ? 'rgf_error' : '';
     if (open) formError(open, text); else setStatus(text);
-    if (isVisible('rosusers')) render();
+    if (isVisible('users')) render();
   });
 
   socket.on('rosusers:update', (d: RosUsersPayload) => {
@@ -545,13 +545,13 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
     // The summary updates whether or not the page is showing; the tables only
     // when it is. The asymmetry is the original's.
     renderSummary();
-    if (isVisible('rosusers')) render();
+    if (isVisible('users')) render();
   });
 
   socket.on('rosusers:caps', (d: RosUsersCaps) => {
     if (!d) return;
     caps = d;
-    if (isVisible('rosusers')) render();
+    if (isVisible('users')) render();
   });
 
   const search = el<HTMLInputElement>('ruSearch');

@@ -92,7 +92,7 @@
       "settingsKey": "pageFirewall"
     },
     {
-      "key": "router-users",
+      "key": "users",
       "title": "Device Users",
       "settingsKey": "pageRosusers"
     },
@@ -165,8 +165,8 @@
   "pageKeys": [
     "dashboard",
     "wan",
-    "wifi",
-    "wireless",
+    "wifi-networks",
+    "wifi-clients",
     "capsman",
     "interfaces",
     "dhcp",
@@ -182,8 +182,8 @@
     "logs",
     "packages",
     "queues",
-    "rosusers",
-    "audit"
+    "users",
+    "audit-trail"
   ],
   "allNavPages": [
     "dashboard",
@@ -191,9 +191,9 @@
     "interfaces",
     "vlans",
     "bridges",
-    "topology",
-    "wifi",
-    "wireless",
+    "network-topology",
+    "wifi-networks",
+    "wifi-clients",
     "capsman",
     "dhcp",
     "dns",
@@ -204,12 +204,12 @@
     "queues",
     "connections",
     "firewall",
-    "rosusers",
+    "users",
     "logs",
     "packages",
     "devices",
     "reports",
-    "audit",
+    "audit-trail",
     "backups",
     "settings"
   ],

@@ -355,6 +355,7 @@ as **five** different things, and they do not all move together:
 | room name | collectors emit to `page-<key>` | a PROTOCOL change, both sides at once |
 | **permission key** | `rbac.PageKeys`, and `role_pages.page` in the operator's database | **an unknown key is DENIED before any role is consulted** |
 | pagechange detail | `detail === '<key>'` in ~20 page modules | a missed one stops that page loading |
+| **visibility guard** | `isVisible('<key>')` / `pageVisible('<key>')` | **a stale one is permanently false: the page renders once and never updates** |
 
 The fourth is the dangerous one. On 2026-09-01 six keys were renamed and
 `rbac.PageKeys` was missed: four pages showed nothing at all, for everyone
@@ -378,6 +379,24 @@ once at startup from `cmd/mikrodash`, deliberately NOT from `db.Open`, because
 the entry in the same commit; `internal/pages`' own test fails a value that is not
 a current key, a key that still is one, and a chain left uncollapsed.
 
+**The sixth is the quietest, and it is not a fifth-and-a-half.** A visibility
+guard asks "is this page the one on screen?" by comparing a literal against
+`currentPage`. Rename the key anywhere else and the comparison simply stops
+matching: the socket still delivers, the collector still emits, the room is still
+joined, and the handler declines to render. On 2026-09-01 that left the Users
+page sitting on "Waiting for user data…" and stopped Network Topology scheduling
+live frames. Grepping the pagechange spelling does not find these, which is how
+they survived a rename that was otherwise thorough.
+`TestVisibilityGuardsNameRealPages` now fails on one.
+
+**And the frozen tables cannot be reached by a rename at all.** `web/src/gen/`
+is generated from JSON in `testdata/` whose own generators read the Node app and
+were deleted, so `PAGE_KEYS` (the digit shortcuts) and `VIEW_PRESETS` went on
+naming pages that no longer existed. **Edit the JSON, not the `.ts`** — a
+hand-edited `.ts` is ahead of its source and the next regeneration reverts it,
+which is the state this repository was actually in.
+`TestFrozenPageTablesNameRealPages` checks the JSON for that reason.
+
 **What is NOT a page key, though it looks identical:** `Layout(user,
 "dashboard")` and `Layout(user, "topology")` in `internal/server/layouts_api.go`
 are ROW KEYS in `user_layouts`, holding every layout an operator has saved.
@@ -398,7 +417,7 @@ replaced? That question died with the port, and 25 MB of recordings went with it
 
 | | |
 |---|---|
-| `internal/verify/` | 23 Go tests. Static checks over the CURRENT source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, fixture schemas. |
+| `internal/verify/` | 26 Go tests. Static checks over the CURRENT source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, fixture schemas, and that every page-key literal still names a real page. |
 | `web/test/` | 15 test files that bundle the app's TypeScript and run it against a DOM shim (25 cases). |
 
 **Two rules carried across, and both are load-bearing:**
@@ -428,7 +447,7 @@ inert.
 - **The two gates are not unit tests.** `cmd/conformance` and `cmd/compat` run against live hardware
   and the live `/data`. They are the go/no-go checks, and a green unit suite does not substitute for
   them.
-- **`internal/verify/`** holds the repository's static self-checks as Go tests — 22 of them. They
+- **`internal/verify/`** holds the repository's static self-checks as Go tests — 26 of them. They
   read the CURRENT source and assert properties still worth holding: no committed credential, every
   cited path present, every emitted event consumed, every multi-room collector behind an occupancy
   guard. They are test-only, so nothing can link them into the binary.

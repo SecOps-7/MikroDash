@@ -1238,7 +1238,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && sel && isVisible('topology')) selectNode(null);
+      if (e.key === 'Escape' && sel && isVisible('network-topology')) selectNode(null);
     });
   }
 
@@ -1256,7 +1256,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   }
 
   function syncAnimations(): void {
-    setAnimations(!document.hidden && isVisible('topology'));
+    setAnimations(!document.hidden && isVisible('network-topology'));
   }
 
   // ── boot ──────────────────────────────────────────────────────────────────
@@ -1280,7 +1280,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       clearFlow();
       loadSaved();
     }
-    if (isVisible('topology')) {
+    if (isVisible('network-topology')) {
       render();
       if (firstForRouter) setTimeout(fitView, 40);
     }
@@ -1296,7 +1296,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
         next[i.name] = { rx: Number(i.rxMbps) || 0, tx: Number(i.txMbps) || 0, running: !!i.running };
       });
       rates = next;
-      if (isVisible('topology')) scheduleFrame(renderLive);
+      if (isVisible('network-topology')) scheduleFrame(renderLive);
     });
 
   document.addEventListener('mikrodash:pagechange', (e) => {
@@ -1311,7 +1311,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   socket.on('disconnect', () => setAnimations(false));
   socket.on('connect', syncAnimations);
   window.addEventListener('resize', () => {
-    if (isVisible('topology')) scheduleFrame(applyView);
+    if (isVisible('network-topology')) scheduleFrame(applyView);
   });
 
   syncAnimations();

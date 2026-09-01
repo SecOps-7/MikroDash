@@ -16,8 +16,8 @@
 export const PAGE_KEYS: readonly string[] = [
   "dashboard",
   "wan",
-  "wifi",
-  "wireless",
+  "wifi-networks",
+  "wifi-clients",
   "capsman",
   "interfaces",
   "dhcp",
@@ -33,8 +33,8 @@ export const PAGE_KEYS: readonly string[] = [
   "logs",
   "packages",
   "queues",
-  "rosusers",
-  "audit"
+  "users",
+  "audit-trail"
 ];
 
 /**
@@ -52,9 +52,9 @@ export const ALL_NAV_PAGES: readonly string[] = [
   "interfaces",
   "vlans",
   "bridges",
-  "topology",
-  "wifi",
-  "wireless",
+  "network-topology",
+  "wifi-networks",
+  "wifi-clients",
   "capsman",
   "dhcp",
   "dns",
@@ -65,12 +65,12 @@ export const ALL_NAV_PAGES: readonly string[] = [
   "queues",
   "connections",
   "firewall",
-  "rosusers",
+  "users",
   "logs",
   "packages",
   "devices",
   "reports",
-  "audit",
+  "audit-trail",
   "backups",
   "settings"
 ];
