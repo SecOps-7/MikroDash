@@ -932,15 +932,38 @@ func (cn *conn) resumePage(page string) {
 		// draw a gauge against a pool size of zero until the next tick.
 		cn.rsession.ResumeCollector("dhcpNetworks")
 		cn.rsession.ResumeCollector("dhcpLeases")
+		// ── NOTHING TO REPLAY MEANS READ, NOT WAIT ────────────────────────
+		//
+		// `Resume` above is `poll.start()`, which waits out the REMAINDER of the
+		// interval rather than firing -- deliberately, so page navigation cannot
+		// generate a request per visit. Both these collectors poll every 600s,
+		// so when there is no last payload to replay that gate turns into a TEN
+		// MINUTE blank page: "Waiting for network data…" until the tick comes
+		// round, or until a reconnect calls Tick directly. The operator saw the
+		// second one -- a disconnected banner, then the subnets appearing.
+		//
+		// The refresh is conditional on having nothing to show, which keeps the
+		// "gentle on the router" property the poll loop is protecting: a page
+		// with data replays it and reads nothing.
+		//
+		// GATED ON CollectorEnabled, and called DIRECTLY rather than in a
+		// goroutine: `TestEveryCollectorEntryPointIsGated` requires the guard to
+		// sit immediately above its call, and every other entry point in this
+		// file reads synchronously on this goroutine. An operator who turned a
+		// collector off has not consented to a page visit turning it back on.
 		if last := cn.rsession.DHCPNetworks().Last(); last != nil {
 			replay := *last
 			replay.TS = time.Now().UnixMilli()
 			cn.srv.hub.Send(cn.c, "lan:overview", replay)
+		} else if cn.rsession.CollectorEnabled("dhcpNetworks") {
+			cn.rsession.DHCPNetworks().RefreshNow()
 		}
 		if last := cn.rsession.DHCPLeases().Last(); last != nil {
 			replay := *last
 			replay.TS = time.Now().UnixMilli()
 			cn.srv.hub.Send(cn.c, "leases:list", replay)
+		} else if cn.rsession.CollectorEnabled("dhcpLeases") {
+			cn.rsession.DHCPLeases().RefreshNow()
 		}
 	}
 }

@@ -237,6 +237,15 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
   function renderSubnets(nets: LanNetwork[]): void {
     const host = el('dhcpSubnetTable');
     if (!host) return;
+    // A ROUTER WITH NO DHCP NETWORKS SAYS SO. An access point is the ordinary
+    // case -- it serves no DHCP at all -- and it must not be left reading
+    // "Waiting for network data…" for ever, nor showing the subnets of whichever
+    // router was selected before it.
+    if (!nets.length) {
+      host.innerHTML = '<div class="empty-state" style="font-size:.75rem;padding:.5rem 0">' +
+        'No DHCP networks on this device</div>';
+      return;
+    }
     const rows = nets.map((n) => {
       const used = n.leaseCount || 0;
       const pool = n.poolSize || 0;
@@ -285,18 +294,22 @@ export function initDhcpPage(socket: Socket, isVisible: (page: string) => boolea
 
   socket.on('lan:overview', (d: LanPayload) => {
     const nets = (d && d.networks) ? d.networks : [];
-    // AN EMPTY PAYLOAD RETURNS EARLY, and this is the live behaviour rather than
-    // an oversight in the port. Over there the handler bails before it reaches
-    // the DHCP page at all — it clears the dashboard's LAN card and returns — so
-    // a router with no DHCP networks leaves the subnet table showing "Waiting
-    // for network data…" and the gauge untouched, indefinitely. The branch
-    // inside the subnet block that renders "No DHCP networks" is unreachable for
-    // exactly that reason.
+    // ── THIS USED TO RETURN EARLY ON AN EMPTY PAYLOAD ──────────────────────
     //
-    // It is reproduced because it is visible: rendering the empty state here
-    // would be a page that differs from the live one, which is the single thing
-    // this port may not do. Reported in ../MikroDash/ToDo.md.
-    if (!nets.length) return;
+    // Faithfully, and the old comment here said why: the live app bailed before
+    // it reached this page, so a router with no DHCP networks left the subnet
+    // table reading "Waiting for network data…" indefinitely and the gauge
+    // showing whatever it last held. That was reproduced deliberately, because
+    // "a page that differs from the live one" was then "the single thing this
+    // port may not do", and it was filed as a ToDo rather than fixed.
+    //
+    // THAT RULE WAS RETIRED AT CUTOVER. The bug it protected is real and has two
+    // faces: an access point serves no DHCP, so its DHCP page never populated at
+    // all; and switching to such a device LEFT THE PREVIOUS ROUTER'S SUBNETS ON
+    // SCREEN, which is worse -- measured 2026-09-01, a cAP AX showing the hAP
+    // ax3's 10.0.0.0/24 at 6%.
+    //
+    // So an empty payload is now rendered as empty, which also resets the gauge.
     renderSubnets(nets);
     totalPoolSize = d.totalPoolSize || 0;
     // `typeof === number` and not `|| 0`: a legitimately ZERO count must not

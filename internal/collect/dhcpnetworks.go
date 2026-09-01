@@ -389,6 +389,17 @@ func (d *DHCPNetworks) Reconnected() {
 	d.poll.start()
 }
 
+// RefreshNow reads now, whatever the poll loop was about to do.
+//
+// Its sibling DHCPLeases has always had one; this collector did not, and the
+// asymmetry mattered because `Resume` is `poll.start()`, which WAITS OUT THE
+// REMAINDER of the interval rather than firing (collect.go:188-194). At this
+// collector's 600s that is up to ten minutes, so a page opening with nothing to
+// replay had nothing to show until either the tick came round or a reconnect
+// forced one -- which is exactly how the operator saw it: an orange
+// disconnected banner, and the subnets appearing straight after.
+func (d *DHCPNetworks) RefreshNow() { d.Tick() }
+
 func (d *DHCPNetworks) Suspend() { d.poll.stop() }
 func (d *DHCPNetworks) Resume()  { d.poll.start() }
 func (d *DHCPNetworks) Stop()    { d.poll.stop() }
