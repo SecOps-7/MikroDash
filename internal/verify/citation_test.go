@@ -48,6 +48,17 @@ func TestCitedPathsExist(t *testing.T) {
 		if strings.HasPrefix(rel, "web/public/vendor/") || strings.HasPrefix(rel, "testdata/") {
 			return false
 		}
+		// `Changes.md` IS EXCLUDED, and the JavaScript original excluded it for
+		// the same reason: it is GITIGNORED and transient, reset to a bare
+		// header after every push, and on a fresh clone it does not exist at
+		// all. Scanning it also makes this check fail on its own subject matter
+		// -- a note SAYING "x.js was deleted" reads as a citation OF x.js. That
+		// is the same trap `stripComments` exists to avoid in the credential
+		// scan: a checker that fails on its own explanation teaches the next
+		// reader to weaken it.
+		if rel == "Changes.md" {
+			return false
+		}
 		return hasExt(rel, ".md", ".go", ".ts", ".js", ".sh")
 	})
 
