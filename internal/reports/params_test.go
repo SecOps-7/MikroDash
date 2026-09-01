@@ -11,6 +11,73 @@ import (
 	"time"
 )
 
+// ── THE 32-BIT NARROWING, RUN RATHER THAN ARGUED ───────────────────────────
+//
+// CodeQL alert 157 (`go/incorrect-integer-conversion`, high) points at
+// `return int(n)` in ClampInt and says the ParseInt result is narrowed "without
+// an upper bound check". There IS one, immediately above it — but it compares
+// against `math.MaxInt`, which on the 64-bit platform the analysis runs against
+// is `MaxInt64`, so the guard is tautologically false there and the checker
+// cannot see it as a bound.
+//
+// Whether that reasoning is right is not a thing to settle by reading. The
+// property that matters is SATURATION RATHER THAN WRAPPING, and it only has
+// teeth where `int` is 32 bits — which this project really ships, as
+// linux/arm/v7. So run it there:
+//
+//	GOARCH=386 go test ./internal/reports/ -run ClampInt
+//
+// On a 64-bit build these assertions are nearly free, because the conversion is
+// the identity. On a 32-bit one they are the whole question, and a plain
+// `int(n)` fails them.
+func TestClampIntSaturatesInsteadOfWrapping(t *testing.T) {
+	for _, c := range []struct {
+		why string
+		in  int64
+	}{
+		{"the int64 ceiling, which LeadingInt saturates to", math.MaxInt64},
+		{"the int64 floor", math.MinInt64},
+		{"just past a 32-bit int", 4294967296},
+		{"?limit=2147483648, one past MaxInt32", 2147483648},
+		{"and one below MinInt32", -2147483649},
+	} {
+		got := ClampInt(c.in)
+		// THE BUG THIS NAMES: a wrap does not merely lose magnitude, it flips
+		// the sign — 4294967296 becomes 0 and 2147483648 becomes a large
+		// negative. A negative Limit or Offset is a different query, not a
+		// clamped one.
+		if c.in > 0 && got <= 0 {
+			t.Errorf("%s: ClampInt(%d) = %d — a positive input came back non-positive, "+
+				"which is a wrap", c.why, c.in, got)
+		}
+		if c.in < 0 && got >= 0 {
+			t.Errorf("%s: ClampInt(%d) = %d — a negative input came back non-negative",
+				c.why, c.in, got)
+		}
+		// And saturation is exactly what it should saturate TO.
+		if c.in > int64(math.MaxInt) && got != math.MaxInt {
+			t.Errorf("%s: ClampInt(%d) = %d, want MaxInt %d", c.why, c.in, got, math.MaxInt)
+		}
+		if c.in < int64(math.MinInt) && got != math.MinInt {
+			t.Errorf("%s: ClampInt(%d) = %d, want MinInt %d", c.why, c.in, got, math.MinInt)
+		}
+	}
+
+	// Inside the range it is the identity, or the clamp would be a bug of its own.
+	for _, n := range []int64{0, 1, 1000, -1000, 2147483647} {
+		if got := ClampInt(n); int64(got) != n {
+			t.Errorf("ClampInt(%d) = %d, want it unchanged", n, got)
+		}
+	}
+
+	// The caller that made this worth pinning: an absurd ?capacity= must not
+	// come back as a divisor of zero or a negative.
+	if got := CapacityOr("99999999999999999999"); got < 1 {
+		t.Errorf("CapacityOr(absurd) = %d, which is a divisor that produces "+
+			"infinite or negative utilisation", got)
+	}
+}
+
 type helperCases struct {
 	Helpers struct {
 		ParseInts []struct {
