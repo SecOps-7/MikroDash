@@ -28,17 +28,17 @@ import (
 	"strings"
 
 	"github.com/evanw/esbuild/pkg/api"
+
+	"mikrodash/internal/pages"
 )
 
-// PAGES is every page with a renderer behind it. Kept in step with PAGES in
-// tools/extract-ui.js; a page listed in one and not the other fails the build
-// below rather than shipping a nav entry that leads nowhere.
-var PAGES = []string{
-	"dashboard", "dns", "bridges", "vlans", "wan", "packages", "routing", "dhcp", "ppp", "vpn",
-	"rosusers", "queues", "firewall", "wifi", "capsman", "interfaces", "logs",
-	"topology", "wireless", "bandwidth", "connections", "reports", "audit",
-	"backups", "devices", "settings",
-}
+// PAGES is every page with a renderer behind it, read from the one list.
+//
+// It was a literal here until 2026-09-01, which made it one of five places the
+// same 26 keys were written down. `internal/pages` is the source now: a page
+// missing there has no markup composed, no URL registered and no TypeScript
+// entry, all from the same edit.
+var PAGES = pages.Keys()
 
 // head mirrors the live app's <head>. The external stylesheets and Chart.js are
 // VENDORED in `web/public/`, served by the Go binary itself.

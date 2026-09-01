@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"sort"
 	"testing"
+
+	"mikrodash/internal/pages"
 )
 
 // pagesNotMounted: extracted page markup deliberately mounted nowhere.
@@ -21,48 +23,60 @@ var pagesNotMounted = map[string]string{}
 func TestPagesAreFullyMounted(t *testing.T) {
 	root := repoRoot(t)
 
-	composed := stringSetFrom(t,
-		mustRead(t, filepath.Join(root, "cmd", "webbuild", "main.go")),
-		`var PAGES = \[\]string\{([\s\S]*?)\}`, "cmd/webbuild's PAGES")
-	ported := stringSetFrom(t,
-		mustRead(t, filepath.Join(root, "web", "src", "main.ts")),
-		`const PORTED = new Set\(\[([\s\S]*?)\]\)`, "main.ts's PORTED")
+	// ── ONE LIST NOW, SO THE QUESTION CHANGED ───────────────────────────────
+	//
+	// This used to diff `cmd/webbuild`'s PAGES literal against `main.ts`'s
+	// PORTED literal, because they were two hand-written copies that could
+	// disagree. Both now read `internal/pages`, so that comparison would be
+	// asking whether a list equals itself.
+	//
+	// What is still worth asking is whether the list matches the MARKUP: a key
+	// with no `page-<key>.html` composes an empty shell, and a file with no key
+	// is markup nothing can reach. Neither shows up as an error at runtime --
+	// the page simply renders blank.
+	keys := map[string]bool{}
+	for _, k := range pages.Keys() {
+		keys[k] = true
+	}
+	if len(keys) < 20 {
+		t.Fatalf("internal/pages lists only %d pages — the list is truncated", len(keys))
+	}
 
 	ents, err := os.ReadDir(filepath.Join(root, "web", "src", "ui"))
 	if err != nil {
 		t.Fatalf("reading web/src/ui: %v", err)
 	}
-	pageFile := regexp.MustCompile(`^page-([a-z]+)\.html$`)
-	var extracted []string
+	pageFile := regexp.MustCompile(`^page-([a-z][a-z0-9-]*)\.html$`)
+	markup := map[string]bool{}
 	for _, e := range ents {
 		if m := pageFile.FindStringSubmatch(e.Name()); m != nil {
-			extracted = append(extracted, m[1])
+			markup[m[1]] = true
 		}
-	}
-	sort.Strings(extracted)
-	if len(extracted) < 15 {
-		t.Fatalf("only %d extracted page bodies found — the scan broke", len(extracted))
 	}
 
-	mounted := 0
-	for _, key := range extracted {
-		inBuild, inPorted := composed[key], ported[key]
-		switch {
-		case inBuild && inPorted:
-			mounted++
-		case !inBuild && !inPorted:
-			if _, ok := pagesNotMounted[key]; !ok {
-				t.Errorf("page-%s.html is extracted and mounted NOWHERE. Mount it in both "+
-					"webbuild's PAGES and main.ts's PORTED, or record what blocks it.", key)
-			}
-		default:
-			t.Errorf("%s is HALF-MOUNTED: %s but %s.", key,
-				pick(inBuild, "composed into index.html", "NOT composed"),
-				pick(inPorted, "in PORTED", "NOT in PORTED"))
+	var missingMarkup, orphanMarkup []string
+	for k := range keys {
+		if !markup[k] {
+			missingMarkup = append(missingMarkup, k)
 		}
 	}
-	t.Logf("%d extracted bodies — %d fully mounted, %d recorded as blocked",
-		len(extracted), mounted, len(pagesNotMounted))
+	for k := range markup {
+		if !keys[k] {
+			orphanMarkup = append(orphanMarkup, k)
+		}
+	}
+	sort.Strings(missingMarkup)
+	sort.Strings(orphanMarkup)
+
+	for _, k := range missingMarkup {
+		t.Errorf("internal/pages lists %q but there is no web/src/ui/page-%s.html — the page "+
+			"composes an empty shell", k, k)
+	}
+	for _, k := range orphanMarkup {
+		t.Errorf("web/src/ui/page-%s.html exists but %q is not in internal/pages — the markup is "+
+			"unreachable: no URL, no nav entry, never composed", k, k)
+	}
+	t.Logf("%d pages, each with its markup", len(keys))
 }
 
 // TestEveryLookupHasAProducer: an id the port looks up is an id something in the

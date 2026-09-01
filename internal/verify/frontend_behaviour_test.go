@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"mikrodash/internal/pages"
 )
 
 // ── Behaviour pinned by reading the source, not by driving a DOM ────────────
@@ -44,15 +46,12 @@ func TestAppLandsOnTheDashboard(t *testing.T) {
 		t.Errorf("the app lands on %q. Anything but the dashboard is the first-vertical-slice "+
 			"default outliving the slice.", land[1])
 	}
-	if !regexp.MustCompile(`PORTED = new Set\(\[[^\]]*'dashboard'`).MatchString(body) {
-		t.Error("'dashboard' is not in PORTED, so navigating to it hands the browser to Node — " +
-			"which in standalone does not exist, and the redirect lands back on the default page.")
-	}
-	build := mustRead(t, filepath.Join(root, "cmd", "webbuild", "main.go"))
-	if !regexp.MustCompile(`(?s)var PAGES = \[\]string\{[^}]*"dashboard"`).MatchString(build) {
-		t.Error("'dashboard' is not in webbuild's PAGES, so its extracted markup is never composed " +
-			"into index.html. Its modules then initialise against a DOM that does not contain " +
-			"them and every one no-ops in silence.")
+	// PORTED and webbuild's PAGES both read `internal/pages` now, so the two
+	// regexes this used to run against their literals are gone. Asking the
+	// package directly is the same question with no pattern to rot.
+	if !pages.Has("dashboard") {
+		t.Error("'dashboard' is not in internal/pages, so it has no markup composed, no URL " +
+			"registered and no nav entry — the landing page would not exist.")
 	}
 	t.Log("the app lands on a mounted dashboard")
 }

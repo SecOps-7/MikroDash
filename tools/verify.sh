@@ -46,10 +46,11 @@ note() { printf '%s\n' "$*"; }
 #
 # `go test ./...` covers internal/verify automatically -- see the note above.
 #
-# `cmd/tsgen -check` is the only corpus generator left. All 105 of the others read
-# the deleted Node source and reported a permanent skip; this one reads
-# `internal/`, so it checks on any clone with nothing mounted, and it fails when a
-# payload struct changes without `web/src/gen/payloads.ts` being regenerated.
+# TWO GENERATORS STILL CHECK. All 105 corpus generators read the deleted Node
+# source and reported a permanent skip; these read `internal/`, so they check on
+# any clone with nothing mounted. `tsgen` fails when a payload struct changes
+# without `web/src/gen/payloads.ts` being regenerated; `pagesgen` fails when the
+# page list changes without `web/src/gen/pages.ts` following it.
 note '== go =='
 if [ ! -f go.mod ]; then
   note '  no go.mod — nothing to check'
@@ -69,9 +70,10 @@ else
       if [ -n "$unformatted" ]; then echo "gofmt: $unformatted"; exit 1; fi
       go vet ./...
       go test ./...
-      go run ./cmd/tsgen -check' 2>&1)
+      go run ./cmd/tsgen -check
+      go run ./cmd/pagesgen -check' 2>&1)
   if [ $? -eq 0 ]; then
-    note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); tsgen current"
+    note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); tsgen + pagesgen current"
   else
     fail=$((fail + 1))
     note '  FAIL go'

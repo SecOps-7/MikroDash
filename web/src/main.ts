@@ -27,6 +27,7 @@ import {
   applyCollectionConfig, applyCollectionStatus,
 } from './stale';
 import { STALE_CARDS } from './gen/stale-tables';
+import { PAGE_KEY_SET, pageTitle } from './gen/pages';
 import { initDnsPage } from './pages/dns';
 import { initBridgesPage } from './pages/bridges';
 import { initVlansPage } from './pages/vlans';
@@ -68,23 +69,13 @@ import { initDashboard, resetSysMeta, resetConnCaches, resetTraffic, resetPing, 
 import { initIpTip } from './iptip';
 import { initDashboardGrid } from './pages/dashboard-grid';
 
-// Ported pages. Kept in step with PAGES in build.mjs and tools/extract-ui.js.
-// `bandwidth` and `backups` joined on 2026-08-25, when the operator lifted the
-// strangler rule: a page no longer waits for its endpoints to be owned, because
-// everything remaining cuts over. Bandwidth was complete and unshipped only for
-// want of live verification, which is now a queue item of its own rather than a
-// gate on shipping; Backups was waiting on its restore handler, which landed.
-const PORTED = new Set(['dashboard', 'dns', 'bridges', 'vlans', 'wan', 'packages', 'routing', 'dhcp', 'ppp',
-                        'vpn', 'rosusers', 'queues', 'firewall', 'wifi', 'capsman', 'interfaces',
-                        'logs', 'topology', 'wireless', 'connections', 'reports', 'audit',
-                        'bandwidth', 'backups', 'devices', 'settings']);
-const PAGE_TITLES: Record<string, string> = {
-  dns: 'DNS', bridges: 'Bridges', vlans: 'VLANs', wan: 'WAN', packages: 'Packages',
-  routing: 'Routing', dhcp: 'DHCP', ppp: 'PPP', vpn: 'VPN', rosusers: 'Router Users',
-  queues: 'Queues', firewall: 'Firewall', wifi: 'Wifi Networks', capsman: 'CAPsMAN',
-  interfaces: 'Interfaces', logs: 'Logs', topology: 'Network Topology', wireless: 'Wifi Clients', connections: 'Connections', reports: 'Reports',
-  audit: 'Audit Trail', bandwidth: 'Bandwidth', backups: 'Backups',
-};
+// The pages this bundle can render, and their header text — both from
+// `internal/pages` via cmd/pagesgen, so they cannot drift from the markup
+// cmd/webbuild composes or the URLs internal/server registers.
+//
+// They were two hand-written literals here until 2026-09-01, which made this one
+// of five places the same 26 keys were spelled out.
+const PORTED = PAGE_KEY_SET;
 
 let currentPage = '';
 
@@ -117,7 +108,7 @@ function showPage(socket: Socket, name: string): void {
   }
 
   const title = el('pageTitle');
-  if (title) title.textContent = PAGE_TITLES[name] || name;
+  if (title) title.textContent = pageTitle(name);
   const icon = el('pageTitleIcon');
   if (icon) {
     icon.innerHTML = '';
