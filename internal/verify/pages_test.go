@@ -1,12 +1,10 @@
 package verify
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 	"testing"
 )
 
@@ -199,6 +197,3 @@ func pick(b bool, yes, no string) string {
 	}
 	return no
 }
-
-var _ = json.Marshal
-var _ = strings.TrimSpace
