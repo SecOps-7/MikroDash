@@ -1172,12 +1172,54 @@ func (s *Server) suspendIfNoRoomOccupied(rs *session.Session, routerID string,
 	if rs == nil || routerID == "" || suspend == nil {
 		return
 	}
-	for _, r := range rooms {
-		if s.hub.Occupants("router-"+routerID+"-"+r) > 0 {
+	if s.roomsOccupied(routerID, rooms) {
+		return
+	}
+	// ── THE SAME GRACE THE SESSION GETS, AND FOR THE SAME EVENT ───────────
+	//
+	// A page refresh empties every room this viewer was in and refills them a
+	// second later. Suspending on the empty moment stops the collector's stream
+	// and starts it again immediately — churn on the one resource this project
+	// conserves, API channels, to save one second of polling.
+	//
+	// THE OCCUPANCY IS RE-READ WHEN THE TIMER FIRES, which is what makes this
+	// safe to do without tracking timers: a viewer who came back is simply seen,
+	// and the suspend is skipped. A viewer who did not is suspended late rather
+	// than never. Several timers may be in flight after rapid page switching;
+	// each re-reads, and all but the last find an occupied room and do nothing.
+	time.AfterFunc(s.graceFor(), func() {
+		if s.roomsOccupied(routerID, rooms) {
 			return
 		}
+		// NO "IS THE SESSION STILL LIVE?" CHECK HERE, deliberately. One was
+		// written and removed: suspending a collector on a torn-down session is
+		// inert, so it guarded nothing, and it could not even shorten the
+		// closure's reach -- `suspend` is a method value on the collector, so
+		// the session is retained by this timer either way. What it did do was
+		// dereference the Manager on a TIMER GOROUTINE, where a nil is a dead
+		// process rather than a failed request. The race suite found that
+		// immediately, on the server tests that build no Manager at all.
+		suspend()
+	})
+}
+
+// graceFor is the page-level idle window, matching the session's. Zero means
+// the default, so only a test has to know the field exists.
+func (s *Server) graceFor() time.Duration {
+	if s.idleGrace > 0 {
+		return s.idleGrace
 	}
-	suspend()
+	return session.DefaultIdleGrace
+}
+
+// roomsOccupied reports whether any of a collector's rooms still has a viewer.
+func (s *Server) roomsOccupied(routerID string, rooms []string) bool {
+	for _, r := range rooms {
+		if s.hub.Occupants("router-"+routerID+"-"+r) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (cn *conn) releaseRouter() {

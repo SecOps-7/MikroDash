@@ -78,6 +78,16 @@ func namesIn(src, verb string) []string {
 // fourteen after Release was fixed on 2026-08-29. A test naming one function
 // cannot see its sibling, and the sibling is the path every container restart
 // takes.
+// ── RE-AIMED 2026-09-01: THE RELEASE PATH'S TEARDOWN IS NOW `idleOut` ─────
+//
+// `Release` no longer tears anything down. It decrements the refcount and, when
+// the last viewer goes, arms the idle grace; the teardown itself runs in
+// `idleOut` when that grace expires with nobody having come back.
+//
+// So these anchors follow the teardown rather than the name. Pointing them at
+// `Release` after the move measured a function that stops nothing and flushes
+// nothing -- which is exactly what they reported, and exactly the right
+// failure: a check whose subject moves must go red, not quietly pass.
 func TestBothTeardownPathsStopEveryCollector(t *testing.T) {
 	src := sessionSource(t)
 	started := namesIn(blockBetween(t, src, "if first {", "\n\t\t}"), "Start")
@@ -86,7 +96,7 @@ func TestBothTeardownPathsStopEveryCollector(t *testing.T) {
 	}
 
 	for _, path := range []struct{ name, anchor string }{
-		{"Release", "func (m *Manager) Release("},
+		{"idleOut", "func (m *Manager) idleOut("},
 		{"Shutdown", "func (m *Manager) Shutdown("},
 	} {
 		t.Run(path.name, func(t *testing.T) {
@@ -123,7 +133,7 @@ func TestBothTeardownPathsStopEveryCollector(t *testing.T) {
 func TestBothTeardownPathsFlushHistory(t *testing.T) {
 	src := sessionSource(t)
 	for _, path := range []struct{ name, anchor string }{
-		{"Release", "func (m *Manager) Release("},
+		{"idleOut", "func (m *Manager) idleOut("},
 		{"Shutdown", "func (m *Manager) Shutdown("},
 	} {
 		body := blockBetween(t, src, path.anchor, "\n}")

@@ -59,9 +59,12 @@ type Session struct {
 	h   *hub.Hub
 	cfg routeros.Config
 
-	mu        sync.Mutex
-	client    *routeros.Client
-	refs      int
+	mu     sync.Mutex
+	client *routeros.Client
+	refs   int
+	// linger is the pending idle teardown, armed when the last viewer leaves and
+	// stopped when one comes back. Non-nil only while the grace is running.
+	linger    *time.Timer
 	closed    bool
 	connected bool
 	lastErr   string
@@ -320,12 +323,29 @@ func (notConnected) Error() string { return "routeros: not connected" }
 var errNotConnected = notConnected{}
 
 // Manager hands out sessions and keeps at most one per router.
+// DefaultIdleGrace is how long a router's session stays warm after its last
+// viewer leaves.
+//
+// TWO MINUTES IS A JUDGEMENT, not a measurement: long enough that a refresh, a
+// tab switch or a short walk away costs nothing, short enough that a browser
+// closed and forgotten frees the channel while the operator is still at the
+// desk. The cost of being wrong in one direction is one held API channel for two
+// minutes; in the other it is the dashboard charts starting from nothing.
+const DefaultIdleGrace = 2 * time.Minute
+
 type Manager struct {
 	store *store.Store
 	h     *hub.Hub
 
 	mu   sync.Mutex
 	live map[string]*Session
+
+	// idleGrace is how long a session outlives its last viewer. Zero means
+	// DefaultIdleGrace; tests set it small.
+	idleGrace time.Duration
+	// onIdle fires after a session has actually been torn down, so the caller
+	// can hand the router to the pool at that moment rather than at Release.
+	onIdle func(routerID string)
 
 	// alerts evaluates collector payloads into alert rows. NIL WHEN NO HISTORY
 	// DATABASE IS CONFIGURED, and nil is inert — `Wire.Evaluate` guards on the
@@ -400,6 +420,14 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	if s, ok := m.live[routerID]; ok {
 		s.mu.Lock()
 		s.refs++
+		// SOMEBODY CAME BACK inside the grace. Stopping the timer is what makes
+		// the session survive a refresh with its history intact; without it the
+		// teardown still fires and takes the collectors out from under the viewer
+		// who just arrived.
+		if s.linger != nil {
+			s.linger.Stop()
+			s.linger = nil
+		}
 		s.mu.Unlock()
 		m.mu.Unlock()
 		return s, nil
@@ -429,6 +457,10 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	if s, ok := m.live[routerID]; ok {
 		s.mu.Lock()
 		s.refs++
+		if s.linger != nil {
+			s.linger.Stop()
+			s.linger = nil
+		}
 		s.mu.Unlock()
 		return s, nil
 	}
@@ -654,9 +686,32 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	return s, nil
 }
 
-// Release drops a reference and tears the connection down when the last viewer
-// of a router goes away — the idle gate, and the reason a fleet does not hold
-// one channel per router for ever.
+// Release drops a reference and, when the last viewer of a router goes away,
+// starts the idle grace rather than tearing the connection down on the spot.
+//
+// ── WHY A GRACE AT ALL ──────────────────────────────────────────────────────
+//
+// The idle gate is what stops a fleet holding one channel per router for ever,
+// and that is still its job. But "the last viewer left" and "nobody is looking
+// any more" are not the same event, and A PAGE REFRESH IS THE DIFFERENCE: the
+// socket closes, the refcount hits zero, and a new socket arrives about a second
+// later wanting exactly what was just thrown away.
+//
+// What was thrown away is not cheap. Traffic and ping accumulate their history
+// INSIDE the collector, so tearing the session down is what makes the dashboard
+// charts restart from nothing — the router can be re-read, but the last five
+// minutes cannot be re-derived from anything.
+//
+// So the session outlives its last viewer by `idleGrace`. Return inside that
+// window and Acquire finds the same Session, with its history, its connection
+// and its collectors still warm; stay away and it goes exactly as before.
+//
+// ── IT STAYS IN `m.live`, AND THAT IS LOAD-BEARING ──────────────────────────
+//
+// A lingering session is still a live one. `syncAlertPool` excludes routers that
+// appear in `Live()`, so leaving it there is what stops the alert pool opening a
+// SECOND connection to a router this session has not let go of yet. The pool
+// picks it up when the grace expires, via `onIdle`.
 func (m *Manager) Release(routerID string) {
 	m.mu.Lock()
 	s, ok := m.live[routerID]
@@ -666,18 +721,63 @@ func (m *Manager) Release(routerID string) {
 	}
 	s.mu.Lock()
 	s.refs--
-	last := s.refs <= 0
-	if last {
-		s.closed = true
-		delete(m.live, routerID)
+	if s.refs <= 0 {
+		// One timer per session: a second Release cannot arrive without an
+		// intervening Acquire, which stops this one, but resetting is cheap and
+		// makes the invariant local rather than argued.
+		if s.linger != nil {
+			s.linger.Stop()
+		}
+		s.linger = time.AfterFunc(m.grace(), func() { m.idleOut(routerID, s) })
 	}
+	s.mu.Unlock()
+	m.mu.Unlock()
+}
+
+// grace is the idle window. Zero means the default, so a Manager built by any
+// caller that does not care gets the real behaviour.
+func (m *Manager) grace() time.Duration {
+	if m.idleGrace > 0 {
+		return m.idleGrace
+	}
+	return DefaultIdleGrace
+}
+
+// SetIdleGrace overrides the window. For tests, which cannot wait two minutes.
+func (m *Manager) SetIdleGrace(d time.Duration) { m.idleGrace = d }
+
+// SetOnIdle registers what to do once a session has actually gone. The server
+// points it at `syncAlertPool`, so the pool reclaims a router at the moment the
+// session stops covering it and not a moment before.
+func (m *Manager) SetOnIdle(fn func(routerID string)) { m.onIdle = fn }
+
+// idleOut is the deferred half of Release: the teardown, once the grace has
+// passed with nobody coming back.
+func (m *Manager) idleOut(routerID string, s *Session) {
+	m.mu.Lock()
+	// THREE WAYS THIS IS ALREADY MOOT, all of them ordinary. The session may
+	// have been shut down, or replaced by a later Acquire that built a fresh one
+	// under the same id; and the timer may simply have lost the race with an
+	// Acquire that took a reference. Identity is compared, not just presence,
+	// because a replacement is a different Session that must not be torn down by
+	// its predecessor's timer.
+	if cur, ok := m.live[routerID]; !ok || cur != s {
+		m.mu.Unlock()
+		return
+	}
+	s.mu.Lock()
+	if s.refs > 0 {
+		s.linger = nil
+		s.mu.Unlock()
+		m.mu.Unlock()
+		return
+	}
+	s.closed = true
+	s.linger = nil
+	delete(m.live, routerID)
 	c := s.client
 	s.mu.Unlock()
 	m.mu.Unlock()
-
-	if !last {
-		return
-	}
 
 	// ── THE LAST MINUTE, BEFORE THE COLLECTORS STOP ───────────────────────
 	//
@@ -730,6 +830,13 @@ func (m *Manager) Release(routerID string) {
 		_ = c.Close()
 	}
 	log.Printf("[session] %s released; connection closed", s.Label)
+
+	// LAST, and outside every lock. The router is uncovered from this instant,
+	// so this is the moment the pool has to hear about it -- not Release, which
+	// is up to a grace period earlier and finds the session still in `Live()`.
+	if m.onIdle != nil {
+		m.onIdle(routerID)
+	}
 }
 
 // Shutdown closes every live connection.
@@ -744,6 +851,14 @@ func (m *Manager) Shutdown() {
 	for _, s := range all {
 		s.mu.Lock()
 		s.closed = true
+		// A session lingering out its idle grace still has a timer armed. It
+		// would find itself gone from `m.live` and return harmlessly, but
+		// stopping it here keeps SIGTERM from leaving a timer holding a whole
+		// Session alive until it fires.
+		if s.linger != nil {
+			s.linger.Stop()
+			s.linger = nil
+		}
 		c := s.client
 		s.mu.Unlock()
 

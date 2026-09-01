@@ -43,8 +43,13 @@ func TestTheHistoryRecorderSitsOnTheOneEmitSeam(t *testing.T) {
 	}
 }
 
+// RE-AIMED 2026-09-01 from `Release` to `idleOut`, which is where the release
+// path's teardown moved when the idle grace was added. Release now only arms a
+// timer; the ORDERING this asserts -- flush before the collectors stop, so a
+// sample can still roll the open bucket over -- is a property of the teardown,
+// and follows it.
 func TestTheLastMinuteIsFlushedBeforeTheCollectorsStop(t *testing.T) {
-	rel := blockBetween(t, sessionSource(t), "func (m *Manager) Release(", "\n}")
+	rel := blockBetween(t, sessionSource(t), "func (m *Manager) idleOut(", "\n}")
 	flush := strings.Index(rel, "m.history.Flush(")
 	if flush < 0 {
 		t.Fatal("Release does not flush the history buckets: every session would " +

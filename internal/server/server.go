@@ -149,6 +149,10 @@ type Server struct {
 	proxy          *httputil.ReverseProxy
 	web            http.Handler
 	originPatterns []string
+	// idleGrace is how long a page-level suspend waits after the last viewer
+	// leaves a collector's rooms. Zero means session.DefaultIdleGrace; only
+	// tests set it, because two minutes is not a thing a test can wait for.
+	idleGrace time.Duration
 
 	// changelog fetches RouterOS release notes for the Update dialog. One per
 	// server so its cache is shared across sockets — a changelog is immutable
@@ -393,6 +397,15 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// still known to be up and still has its alerts evaluated, which is a claim
 	// about the whole uptime of the process.
 	srv.syncAlertPool()
+	// ── AND AGAIN WHEN A SESSION FINALLY GOES ─────────────────────────────
+	//
+	// A session now outlives its last viewer by `session.DefaultIdleGrace`, so
+	// "the browser closed" and "this router is uncovered" are two moments up to
+	// two minutes apart. The pool must reclaim the router at the SECOND one:
+	// `syncAlertPool` excludes anything in `sessions.Live()`, so calling it at
+	// Release time skips the very router that is about to need covering, and
+	// nothing would call it again.
+	srv.sessions.SetOnIdle(func(string) { srv.syncAlertPool() })
 	// The alert evaluator, for the same reason and in the same place: it needs
 	// the settings and the history database, both of which exist only now.
 	//
