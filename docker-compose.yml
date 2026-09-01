@@ -9,11 +9,17 @@ name: mikrodash
 services:
   mikrodash:
     build: .
-    image: mikrodash-go
-    # NAMED FOR THE PRODUCT, not the language. It was `mikrodash-go` only to tell
-    # it apart from the Node container during coexistence, and that ended at the
-    # v0.8.0 cutover. The project name above stays `mikrodash`, so the data volume
-    # is still `mikrodash_data` and a rename cannot orphan it.
+    # NAMED FOR THE PRODUCT, not the language. Both were `mikrodash-go` only to
+    # tell them apart from the Node image and container during coexistence, and
+    # that ended at the v0.8.0 cutover.
+    #
+    # The local name had also drifted from the PUBLISHED one, which has always
+    # been `ghcr.io/secops-7/mikrodash` — see .github/workflows/docker-publish.yml.
+    # These now agree.
+    #
+    # The compose PROJECT name above stays `mikrodash`, so the data volume is
+    # still `mikrodash_data` and neither rename can orphan it.
+    image: mikrodash
     container_name: MikroDash
     ports:
       - "3081:3081"

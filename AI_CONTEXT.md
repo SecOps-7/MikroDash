@@ -337,9 +337,9 @@ go build ./cmd/mikrodash
 ./mikrodash -data ./devdata -web web/dist -static web/public
 
 # Or the production image
-docker build -t mikrodash-go:latest .
+docker build -t mikrodash:latest .
 docker run -d --name MikroDash --restart unless-stopped \
-  -p 3081:3081 -v mikrodash_data:/data mikrodash-go:latest
+  -p 3081:3081 -v mikrodash_data:/data mikrodash:latest
 ```
 
 The feature switches — `-history`, `-backup-scheduler`, `-retention`,

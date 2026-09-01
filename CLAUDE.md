@@ -52,7 +52,7 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine sh -c "go vet ./... &&
 # fetched fresh from DB-IP by the `geodata` stage. It used to be copied out of
 # the Node `mikrodash` image, which was the last build-time tie to it, and the
 # geoip tables are copied from it — see the Dockerfile's own note.
-docker build -t mikrodash-go:latest .
+docker build -t mikrodash:latest .
 
 # EVERYTHING THIS REPO CAN CHECK, discovered rather than listed.
 #
