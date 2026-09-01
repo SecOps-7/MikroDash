@@ -60,8 +60,8 @@ var (
 func TestWebSocketVocabulary(t *testing.T) {
 	root := repoRoot(t)
 
-	goSrc := joined(readFiles(t, root, "internal/", func(r string) bool { return hasExt(r, ".go") }))
-	tsSrc := joined(readFiles(t, root, "web/src/", func(r string) bool { return hasExt(r, ".ts") }))
+	goSrc := joined(readFiles(t, root, "internal/", func(r string) bool { return hasExt(r, ".go") && !isTestSource(r) }))
+	tsSrc := joined(readFiles(t, root, "web/src/", func(r string) bool { return hasExt(r, ".ts") && !isTestSource(r) }))
 
 	emits := map[string]bool{}
 	for _, m := range goEmit.FindAllStringSubmatch(goSrc, -1) {

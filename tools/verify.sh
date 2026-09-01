@@ -444,6 +444,25 @@ else
   note '  FAIL tsc'
 fi
 
+# ── THE FRONTEND'S OWN TESTS ───────────────────────────────────────────────
+#
+# They bundle the app's TypeScript and run it against a DOM shim, which is why
+# they are JavaScript-hosted and not Go: testing TypeScript needs a JavaScript
+# runtime, and Go has no DOM.
+#
+# DISCOVERED, NOT LISTED, like everything else here: `web/test/run.mjs` globs
+# `*.test.ts`, so a new test is picked up with no list to update.
+note '== web tests =='
+if [ ! -f web/package.json ]; then
+  note '  no web/package.json — nothing to run'
+elif out=$( (cd web && npm test --silent) 2>&1 ); then
+  note "  $(printf '%s\n' "$out" | grep -aoE '(tests|pass|fail) [0-9]+' | tr '\n' ' ')"
+else
+  fail=$((fail + 1))
+  note '  FAIL web tests'
+  printf '%s\n' "$out" | grep -E '^(not ok|✖|  Error|AssertionError)' | head -6 | sed 's/^/        /'
+fi
+
 note ''
 if [ "$fail" -ne 0 ]; then
   note "verify: $fail failing"

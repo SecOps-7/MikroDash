@@ -38,6 +38,12 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 			strings.HasPrefix(r, "web/public/vendor/") {
 			return false
 		}
+		// NOT THE TESTS. `web/test/` fetches invented URLs like `/api/anything`
+		// as fixtures; reading them as if the app called them reported a route
+		// the server rightly does not serve.
+		if isTestSource(r) {
+			return false
+		}
 		return hasExt(r, ".ts", ".html", ".js")
 	})
 	fetchCall := regexp.MustCompile("fetch\\(\\s*['\"`]([^'\"`]+)['\"`]")

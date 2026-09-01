@@ -40,7 +40,10 @@ function goFiles(dir, acc = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) goFiles(p, acc);
-    else if (/\.go$/.test(e.name)) acc.push(p);
+    // NOT TEST FILES. `internal/verify/` holds ledgers that quote the very
+    // event names this gate looks for, so reading them proved every recorded
+    // gap was "served".
+    else if (/\.go$/.test(e.name) && !/_test\.go$/.test(e.name)) acc.push(p);
   }
   return acc;
 }

@@ -134,6 +134,20 @@ func readFiles(t *testing.T, root, dir string, keep func(string) bool) map[strin
 	return out
 }
 
+// isTestSource: a file that exists to CHECK the app rather than to be it.
+//
+// Every scan below is asking about the application, so test files must not be
+// read as if they were it -- and this package is the sharpest case: its ledgers
+// quote the very event names, settings keys and paths it checks for, so scanning
+// itself would prove anything it names is "present". That trap has now been hit
+// three times in this migration, once by a JavaScript gate reading a ledger I had
+// just written.
+func isTestSource(rel string) bool {
+	return strings.HasSuffix(rel, "_test.go") ||
+		strings.HasPrefix(rel, "internal/verify/") ||
+		strings.HasPrefix(rel, "web/test/")
+}
+
 func hasExt(rel string, exts ...string) bool {
 	for _, e := range exts {
 		if strings.HasSuffix(rel, e) {

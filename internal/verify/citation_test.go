@@ -59,7 +59,7 @@ func TestCitedPathsExist(t *testing.T) {
 		if rel == "Changes.md" {
 			return false
 		}
-		return hasExt(rel, ".md", ".go", ".ts", ".js", ".sh")
+		return !isTestSource(rel) && hasExt(rel, ".md", ".go", ".ts", ".js", ".sh")
 	})
 
 	cited := map[string]map[string]bool{}

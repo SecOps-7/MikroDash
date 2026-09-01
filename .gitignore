@@ -79,3 +79,6 @@ testdata/.seam.cjs
 /tsgen
 /webbuild
 /geogen
+
+# Bundled web tests — build output, not fixtures.
+web/test-out/
