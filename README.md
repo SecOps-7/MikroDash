@@ -115,7 +115,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 | Routing | Route count summary by protocol with doughnut chart (total displayed in chart centre) and a BGP session summary, both above the tabs since they describe the page rather than one protocol. Tabbed tables, opening on **Routes**: static and dynamic routes (event-driven via `/ip/route/listen`), and **BGP** — peer table with state badges, prefix trend sparklines, and session flap detection (event-driven via `/routing/bgp/session/listen`) |
 | Logs | Live router log stream with historical log import on connect, severity filter and text search |
 | Queues | Simple queues and queue trees on one tabbed card, in the router's own order — simple queues are first-match-wins, so position changes behaviour and the table never sorts that away. Limits, priority, live rates with sparklines, bytes shaped and drop counts; queues created by Kid Control or a DHCP lease are marked and left alone. With write access: create, edit, enable, disable, reorder, reset counters and remove. A queue that covers MikroDash's own address at a throttling limit prompts before it is written. A FastTrack banner appears when one is active and a queue is affected, because FastTracked connections bypass simple queues entirely — the usual reason a queue looks configured and does nothing |
-| Router Users | RouterOS's own accounts, not MikroDash's: users, groups with the full 17-permission matrix, and the sessions logged in right now. With write access, create, edit, enable, disable and remove users and groups, and end a session. The account MikroDash connects with, and its group, are structurally protected — they cannot be edited, moved, renamed or disconnected from this page, because that is the one change that could lock the dashboard out of the router with no way back |
+| Users | RouterOS's own accounts, not MikroDash's: users, groups with the full 17-permission matrix, and the sessions logged in right now. With write access, create, edit, enable, disable and remove users and groups, and end a session. The account MikroDash connects with, and its group, are structurally protected — they cannot be edited, moved, renamed or disconnected from this page, because that is the one change that could lock the dashboard out of the router with no way back |
 | Audit | Every write action, in one searchable trail: who did it, from where, what changed and whether it was allowed. Covers MikroDash's own configuration (routers, users, roles, grants, sites, settings, layouts) and every write reaching a router. Refusals are recorded as well as successes, so an attempt that was denied leaves a trace. Filterable by actor, action, router, outcome and date, with CSV export. Credential values are never stored — the field name and the fact it changed are, which is the useful part |
 | Packages | The package inventory — installed, disabled, and the extras MikroTik offers but that are not on the router — with versions, sizes and build dates, plus a firmware panel (current, upgrade, minimum) and the RouterOS update channel and status. With write access on the page it can also **schedule** changes: install, enable, disable or uninstall. RouterOS does not act on these immediately, it records them and applies them on the next reboot, so the page leads with a pending-changes banner, offers Undo on every scheduled row, and keeps "Apply changes & reboot" as a separate action that requires the router's name typed back. Account credentials and configuration are never touched |
 | Reports | Historical data viewer with configurable date range and aggregation. Six tabs: **Ping** (RTT chart + sortable table), **Traffic** (per-interface RX/TX chart + table), **Bandwidth** (usage chart + table), **Alerts** (alert event history), **Connectivity** (router up/down event history). CSV and PDF export on every tab, plus **Scheduled** — email a report daily, weekly or monthly to a list of addresses that need no MikroDash account. Periods are real calendar periods in your timezone, so a monthly report covers a month rather than a rolling thirty days; recipients go in Bcc so they cannot see each other. Reading the list needs read on Reports; creating a schedule needs **write**, because it mails router history to third parties indefinitely. Needs SMTP configured |
@@ -182,7 +182,7 @@ recent release rather than unreleased work on `main`. Each release is a multi-ar
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.8.0
+docker pull ghcr.io/secops-7/mikrodash:0.8.10
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -297,7 +297,7 @@ Several pages can change router configuration, and each needs more than `read`:
 | **Firewall** | `write` | Add, edit, remove, enable, disable and **reorder** rules across Filter, NAT, Mangle and Raw, with undo and redo |
 | **Packages** | `write` | Schedule a package enable/disable/uninstall, and reboot to apply |
 | **Queues** | `write` | Create, edit and remove simple queues and queue trees |
-| **Router Users** | `write` **and** `policy` | Create, edit and remove RouterOS users, groups and sessions |
+| **Users** | `write` **and** `policy` | Create, edit and remove RouterOS users, groups and sessions |
 | **Backups** | `write` **and** `ftp` | Take configuration backups, and restore one (which reboots the router) |
 
 `ftp` is the policy that governs writing and reading files on the router, which is what `/export file=`
@@ -323,7 +323,7 @@ above rather than failing silently. Each page also has an install-wide toggle un
 **Settings → Visible Pages**, and per-user access is controlled by roles.
 
 MikroDash will not let you edit the account it signs in with, or that account's group, from the
-Router Users page — that is the one change that could lock the dashboard out of the router with no
+Users page — that is the one change that could lock the dashboard out of the router with no
 way back. Use WinBox for those.
 
 ### Enabling TLS (API-SSL)
@@ -499,7 +499,7 @@ Users are poll-only by design — see `internal/collection/` for why.
 | Packages | 60 s | Package inventory, firmware versions and update status. Slow by design — an inventory changes on a reboot, not on a tick |
 | WAN | 10 s | Internet-connected uplinks, their addresses, default routes and DHCP leases; rates reused from the interface stream |
 | Queues | 5 s | Simple queues and queue trees with limits and counters; rates derived from the byte counters over the poll window |
-| Router Users | 60 s | RouterOS users, groups and active sessions. Slow by design — a user list changes when somebody edits it, not on a tick |
+| Users | 60 s | RouterOS users, groups and active sessions. Slow by design — a user list changes when somebody edits it, not on a tick |
 | DHCP Networks | ~10 min | LAN subnets, pool sizes, WAN IP, internet-facing interfaces |
 
 All collectors run **concurrently** on a single TCP connection — no serial queuing. All intervals are adjustable in the Settings page and apply immediately without restart.

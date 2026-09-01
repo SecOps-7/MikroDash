@@ -2,6 +2,48 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.10] - Every page has its own URL
+
+### New
+
+- **Every page now has a real URL.** `/logs`, `/firewall`, `/wifi-clients`, `/settings` and the
+  rest. Pages can be bookmarked and linked, the back and forward buttons move between them, and a
+  refresh keeps you where you were instead of returning to the dashboard. The dashboard is served
+  at `/home`.
+- **Open a link while signed out and you land on it after signing in**, rather than on the
+  dashboard.
+- **The "Device Users" page is now "Users"**, at `/users`. It was called three different things
+  depending on where you looked.
+
+### Fixed
+
+- **The Traffic graph no longer restarts from nothing.** Any brief router reconnect, which happens
+  routinely on an upgrade or a short drop, threw away the accumulated history and the chart began
+  again from an empty axis.
+- **The Traffic and Ping cards survive a page refresh.** Closing the last browser tab used to tear
+  the router session down immediately, taking both charts' history with it, so a refresh started
+  both from scratch. A session now stays warm for two minutes after the last viewer leaves. Walk
+  away for longer and it still closes, so an unwatched router still costs nothing.
+- **The Backups page shows one "No change" row instead of one per run.** On a stable router with a
+  daily schedule these accumulated one a day and buried the entries that are real restore points.
+  The runs are still recorded; only the table is filtered.
+- **Routes, BGP Peers and Connection Flow now fill on the dashboard.** All three showed dashes
+  unless you had opened the page that owns them.
+
+### Internal
+
+- Concurrent commands to a single router are capped at eight, across the viewing session, the
+  background pool and the alert pool together. Nothing bounded them before, and the documented
+  bottleneck on a MikroTik is concurrent API channels.
+- The port-parity harness is retired. It compared this app against a recording of the Node
+  implementation it replaced, which is a question that ended with the port. The checks that asked
+  something else became 26 Go tests and 25 frontend tests.
+- Page keys now come from one list in `internal/pages` instead of five hand-maintained copies, and
+  each key matches the page's name.
+- The TypeScript payload types are generated from the Go structs.
+- Both open code scanning alerts resolved as false positives, one of them pinned by a new test that
+  runs on 32-bit as well as 64-bit.
+
 ## [0.8.2] - The Connections card fills straight away again
 
 ### Fixed

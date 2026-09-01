@@ -248,8 +248,8 @@ token the tool minted — because a denylist would not have caught the first lea
 ## Versioning rule
 
 **Do not bump a version or write release notes during a working session.** This project has no
-released three: 0.8.0 (tagged, never published — its build failed on 32-bit ARM), 0.8.1 (the first
-published Go image) and 0.8.2. A bump happens only when the user says "package it up", and one bump
+released four: 0.8.0 (tagged, never published — its build failed on 32-bit ARM), 0.8.1 (the first
+published Go image), 0.8.2 and 0.8.10. **0.8.10 follows 0.8.2**: these are numbers, not decimals. A bump happens only when the user says "package it up", and one bump
 covers the entire session.
 
 ---

@@ -93,8 +93,12 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 // 0.8.1 is that same cutover with the 32-bit fix, and was the first published
 // Go image. 0.7.40 was the last on Node.
 //
+// 0.8.10 SORTS AFTER 0.8.2, and the jump is deliberate rather than a typo: these
+// are numbers, not decimals, so ten follows two. Docker tags are strings and
+// sort lexically, which is a good reason to be sure the next one is 0.8.11.
+//
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.2"
+const AppVersion = "0.8.10"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.
