@@ -10,7 +10,11 @@ services:
   mikrodash:
     build: .
     image: mikrodash-go
-    container_name: mikrodash-go
+    # NAMED FOR THE PRODUCT, not the language. It was `mikrodash-go` only to tell
+    # it apart from the Node container during coexistence, and that ended at the
+    # v0.8.0 cutover. The project name above stays `mikrodash`, so the data volume
+    # is still `mikrodash_data` and a rename cannot orphan it.
+    container_name: MikroDash
     ports:
       - "3081:3081"
     volumes:
