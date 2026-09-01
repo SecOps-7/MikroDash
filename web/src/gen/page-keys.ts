@@ -1,5 +1,9 @@
 // GENERATED from testdata/pages-table.json — do not edit.
-// Regenerate with `node tools/pages-table.js` then `node tools/pages-table-ts.js`.
+// Rebuild with `node tools/pages-table-ts.js` from the committed JSON.
+// The JSON it reads is a FROZEN artefact: the generator that produced it read the
+// Node app and was deleted with the port-parity harness on 2026-09-01. This
+// transform still runs, so the .ts can be rebuilt from the committed JSON --
+// but the JSON itself can only change by hand, or from `v0.7.40` in git history.
 
 /**
  * Digit -> page: pressing 3 opens PAGE_KEYS[2].

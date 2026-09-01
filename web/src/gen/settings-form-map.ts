@@ -1,7 +1,8 @@
 // GENERATED from testdata/settings-form-map.json — do not edit.
 //
-// Regenerate the JSON with `node tools/settings-form-map.js`, then this file
-// with `node tools/settings-form-map-ts.js`. It exists so the renderer is driven
+// Rebuild this file from the committed JSON, which is frozen (its generator
+// read the Node app and was deleted on 2026-09-01): `node tools/settings-form-map-ts.js`.
+// It exists so the renderer is driven
 // by the SAME table the generator captured from the live populate(), rather than
 // by a second copy that can drift.
 

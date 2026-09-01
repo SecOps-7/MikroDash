@@ -6,7 +6,8 @@ const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'modal-list.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'modals.ts');
 const body = `// GENERATED from testdata/modal-list.json — do not edit.
-// Regenerate with \`node tools/modal-list.js\` then \`node tools/modal-list-ts.js\`.
+// Rebuild with \`node tools/modal-list-ts.js\` from the committed JSON, which is frozen:
+// the generator that produced it read the Node app and was deleted on 2026-09-01.
 
 /**
  * Every dialog that closes on Escape and on a backdrop click.

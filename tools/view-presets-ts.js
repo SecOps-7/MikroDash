@@ -6,7 +6,8 @@ const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'view-presets.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'view-presets.ts');
 const body = `// GENERATED from testdata/view-presets.json — do not edit.
-// Regenerate with \`node tools/view-presets.js\` then \`node tools/view-presets-ts.js\`.
+// Rebuild with \`node tools/view-presets-ts.js\` from the committed JSON, which is frozen:
+// the generator that produced it read the Node app and was deleted on 2026-09-01.
 
 /** settings key -> page key. \`pageWifi\` is the checkbox; \`wifi\` is what a preset names. */
 export const PAGE_NAV_MAP: Record<string, string> = ${JSON.stringify(d.navMap, null, 2)};

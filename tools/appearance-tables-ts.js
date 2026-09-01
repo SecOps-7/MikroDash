@@ -6,7 +6,8 @@ const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'appearance-tables.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'appearance-tables.ts');
 const body = `// GENERATED from testdata/appearance-tables.json — do not edit.
-// Regenerate with \`node tools/appearance-tables.js\` then \`node tools/appearance-tables-ts.js\`.
+// Rebuild with \`node tools/appearance-tables-ts.js\` from the committed JSON, which is frozen:
+// the generator that produced it read the Node app and was deleted on 2026-09-01.
 
 /** r, g, b, a — the alpha is carried through brightness scaling unchanged. */
 export type RGBA = [number, number, number, number];

@@ -6,7 +6,8 @@ const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'pages-table.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'page-keys.ts');
 const body = `// GENERATED from testdata/pages-table.json — do not edit.
-// Regenerate with \`node tools/pages-table.js\` then \`node tools/pages-table-ts.js\`.
+// Rebuild with \`node tools/pages-table-ts.js\` from the committed JSON, which is frozen:
+// the generator that produced it read the Node app and was deleted on 2026-09-01.
 
 /**
  * Digit -> page: pressing 3 opens PAGE_KEYS[2].

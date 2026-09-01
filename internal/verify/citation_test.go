@@ -29,8 +29,13 @@ import (
 // scope: the citations that broke on 2026-08-31 were in shipped Go and
 // TypeScript comments, which it never read. This reads the documents AND the
 // source.
+// The optional `(?:[a-z]+ )*` prefix matters more than it looks. Citations are
+// often written as a COMMAND -- `node tools/x.js`, `sh tools/verify.sh` -- and a
+// pattern anchored to the backtick misses every one of them. That gap hid five
+// dangling references to deleted generators until it was widened, which is
+// exactly the failure this check exists to prevent, committed by the check.
 var citePattern = regexp.MustCompile(
-	"`((?:web/src|internal|tools|cmd|testdata|docs)/[A-Za-z0-9_./-]+\\.(?:ts|go|js|mjs|json|md|sh|css|html))`")
+	"`(?:[a-z]+ )*((?:web/src|internal|tools|cmd|testdata|docs)/[A-Za-z0-9_./-]+\\.(?:ts|go|js|mjs|json|md|sh|css|html))`")
 
 // isIllustrative: a path written as a shape rather than a location, e.g.
 // `internal/.../thing.go`. Nothing is claimed to exist, so nothing is checked.
