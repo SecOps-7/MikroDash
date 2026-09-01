@@ -77,8 +77,32 @@ func (d *DB) ListBackups(routerID string, limit int) ([]BackupRow, error) {
 	if limit > 1000 {
 		limit = 1000
 	}
-	rows, err := d.sql.Query(`SELECT `+backupCols+` FROM config_backups WHERE router_id = ?
-                ORDER BY taken_at DESC LIMIT ?`, routerID, limit)
+	// ── ALL BUT THE NEWEST `unchanged` RUN ARE LEFT OUT ─────────────────────
+	//
+	// A run that found the configuration identical stores no pair, so each one
+	// is a table row offering nothing to restore. On a stable router with a
+	// daily schedule they arrive one per day and crowd out the rows that ARE
+	// restore points. One is kept, because it answers "did the schedule actually
+	// fire?" — which nothing else on the page shows when nothing ever changes.
+	//
+	// FILTERED HERE RATHER THAN IN THE CALLER, because the LIMIT has to apply to
+	// what is displayed. Fetching 200 runs and dropping the unchanged ones
+	// afterwards would hide genuine backups behind a year of no-ops.
+	//
+	// A VIEW CONCERN ONLY — the rows stay in the table. `LastBackupRun` reads the
+	// newest run of ANY outcome and is what gates the scheduler, so an unchanged
+	// run must still record or a stable router would re-export on every tick.
+	// That was the 0.7.33 bug.
+	//
+	// This filter shipped on the Node side and the port did not carry it, so the
+	// page went back to a row per no-op.
+	rows, err := d.sql.Query(`SELECT `+backupCols+` FROM config_backups
+                WHERE router_id = ?
+                  AND (outcome != 'unchanged' OR id = (
+                        SELECT id FROM config_backups
+                        WHERE router_id = ? AND outcome = 'unchanged'
+                        ORDER BY taken_at DESC LIMIT 1))
+                ORDER BY taken_at DESC LIMIT ?`, routerID, routerID, limit)
 	if err != nil {
 		return []BackupRow{}, err
 	}

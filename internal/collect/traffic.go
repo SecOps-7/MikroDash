@@ -313,13 +313,37 @@ func (t *Traffic) Stop() {
 	}
 }
 
-// Reconnected drops the stream and the history. A reconnect may be a different
-// router, and a chart that carried the previous one's samples across the gap
-// would draw a line nobody's network ever produced.
+// Reconnected drops the stream and the WAN badge's last value, and KEEPS the
+// sample history.
+//
+// ── THE PREMISE THAT WAS WRONG ──────────────────────────────────────────────
+//
+// This used to empty `hist` too, on the stated grounds that "a reconnect may be
+// a different router". It cannot be. `Reconnected` is called from one place --
+// `connectLoop`, inside a Session -- and a Session is built per router ID and
+// held in `Manager.live` under that key. A DIFFERENT router is a different
+// Session, reached by releasing this one and acquiring that one, which discards
+// this history by discarding the whole collector.
+//
+// So the clear never protected against the thing it named, and it cost the
+// operator the chart: a router reconnect is routine (an upgrade, a brief drop,
+// and `connectLoop` retries every 5s), and each one restarted the traffic graph
+// from nothing. That is what "clears and starts drawing from scratch" was.
+//
+// ── WHAT IS GIVEN UP, DELIBERATELY ──────────────────────────────────────────
+//
+// The samples either side of the gap are now both in the ring, so the chart
+// draws one straight segment across however long the router was away. That is a
+// visible artefact and it is the better trade: it is honest about time, it is
+// bounded by the ring's own window, and it costs one misleading segment instead
+// of every point the operator was looking at.
+//
+// `lastWan` is still cleared. It is a STATUS, not a series -- a stale "up" for a
+// router that just came back is a claim about right now, and wrong until the
+// next read replaces it.
 func (t *Traffic) Reconnected() {
 	t.Stop()
 	t.mu.Lock()
-	t.hist = map[string][]TrafficPoint{}
 	t.lastWan = nil
 	t.mu.Unlock()
 	t.syncStream()

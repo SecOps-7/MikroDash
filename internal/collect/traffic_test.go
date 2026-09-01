@@ -163,6 +163,42 @@ func TestTrafficHistoryRing(t *testing.T) {
 	}
 }
 
+// A RECONNECT KEEPS THE CHART, and this is the regression it pins.
+//
+// `Reconnected` used to empty the ring, so every router reconnect -- routine,
+// and retried every 5s by connectLoop -- restarted the traffic graph from
+// nothing. The reason given was that the router might be a different one, which
+// a Session makes impossible: it is built per router ID, so a different router
+// is a different Session and a different collector.
+func TestReconnectKeepsTheTrafficHistory(t *testing.T) {
+	tr := NewTraffic(fakeReader{}, func(string, string, any) {}, "WAN1", 1)
+	for i := 0; i < 10; i++ {
+		tr.onPacket(routeros.Reply{"name": "WAN1", "rx-bits-per-second": "1000000",
+			"tx-bits-per-second": "2000000"})
+	}
+	before := len(tr.History("WAN1").Points)
+	if before != 10 {
+		t.Fatalf("history holds %d points before the reconnect, want 10", before)
+	}
+
+	tr.Reconnected()
+
+	if got := len(tr.History("WAN1").Points); got != before {
+		t.Errorf("history holds %d points after a reconnect, want the same %d", got, before)
+	}
+	// The samples must still be the samples, not zeroed placeholders of the
+	// right length.
+	if p := tr.History("WAN1").Points[0]; p.RxMbps != 1 || p.TxMbps != 2 {
+		t.Errorf("first surviving point = %+v, want 1/2 Mbps", p)
+	}
+	// AND THE OTHER HALF, which is not symmetric: lastWan is a status, not a
+	// series. Keeping "up" across a reconnect would assert something about right
+	// now on the strength of a reading from before the drop.
+	if w := tr.LastWan(); w != nil {
+		t.Errorf("wan status survived the reconnect: %+v", w)
+	}
+}
+
 // TestTheHistoryPayloadCarriesItsWindow.
 //
 // The live emit is `{ifName, windowMinutes, points}` and this port sent

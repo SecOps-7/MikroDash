@@ -286,6 +286,92 @@ func TestListBackupsClampIsUnreachableFromTheCorpus(t *testing.T) {
 	}
 }
 
+// THE BACKUPS TABLE SHOWS ONE `unchanged` ROW, NOT ONE PER DAY.
+//
+// An unchanged run stores no pair, so every one of them was a row offering
+// nothing to restore; on a stable router with a daily schedule they arrive one
+// per day and bury the rows that ARE restore points. The Node side filtered
+// these out in SQL and the port did not carry it.
+//
+// The corpus cannot catch this: it holds exactly one unchanged row, so a
+// filtered and an unfiltered query return the same six rows.
+func TestListBackupsKeepsOnlyTheNewestUnchangedRun(t *testing.T) {
+	dir := newDB(t, 14, true)
+	h, err := sql.Open("sqlite", filepath.Join(dir, "mikrodash.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Exec(`CREATE TABLE config_backups (
+		id INTEGER PRIMARY KEY AUTOINCREMENT, router_id TEXT NOT NULL,
+		taken_at INTEGER NOT NULL, outcome TEXT NOT NULL,
+		source TEXT NOT NULL DEFAULT 'schedule', actor TEXT, stem TEXT, dir TEXT,
+		fingerprint TEXT, rsc_bytes INTEGER NOT NULL DEFAULT 0,
+		backup_bytes INTEGER NOT NULL DEFAULT 0, model TEXT, serial TEXT,
+		os_version TEXT, ms INTEGER NOT NULL DEFAULT 0, pruned_at INTEGER, error TEXT);`); err != nil {
+		t.Fatal(err)
+	}
+	const base = int64(1767225600000)
+	// A real stable router: one genuine backup, then a fortnight of no-ops.
+	if _, err := h.Exec(`INSERT INTO config_backups (router_id, taken_at, outcome, stem)
+		VALUES ('r', ?, 'changed', 'cfg-2026-01-01')`, base); err != nil {
+		t.Fatal(err)
+	}
+	newestUnchanged := base
+	for i := 1; i <= 14; i++ {
+		newestUnchanged = base + int64(i)*86_400_000
+		if _, err := h.Exec(`INSERT INTO config_backups (router_id, taken_at, outcome)
+			VALUES ('r', ?, 'unchanged')`, newestUnchanged); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A second router must be unaffected by the first one's newest run.
+	if _, err := h.Exec(`INSERT INTO config_backups (router_id, taken_at, outcome)
+		VALUES ('other', ?, 'unchanged')`, base+99); err != nil {
+		t.Fatal(err)
+	}
+	h.Close()
+	d := openTest(t, dir)
+
+	got, err := d.ListBackups("r", 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("ListBackups returned %d rows, want 2 (one changed, one unchanged)", len(got))
+	}
+	// Newest first, so the surviving no-op sits on top — which is where it
+	// answers "did the schedule fire?".
+	if got[0].Outcome != "unchanged" || got[0].TakenAt != newestUnchanged {
+		t.Errorf("top row = %s at %d, want the newest unchanged at %d",
+			got[0].Outcome, got[0].TakenAt, newestUnchanged)
+	}
+	if got[1].Outcome != "changed" {
+		t.Errorf("second row = %s, want the real restore point", got[1].Outcome)
+	}
+
+	// PER ROUTER, not globally: `other`'s only run is older than `r`'s newest,
+	// and a filter written against one router's maximum would drop it.
+	other, err := d.ListBackups("other", 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(other) != 1 {
+		t.Errorf("the other router returned %d rows, want its own 1", len(other))
+	}
+
+	// AND THE ROWS ARE STILL THERE. This is a view filter; LastBackupRun reads
+	// the newest run of any outcome and gates the scheduler, so if the filter
+	// had deleted anything a stable router would re-export on every tick.
+	last, err := d.LastBackupRun("r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last != newestUnchanged {
+		t.Errorf("LastBackupRun = %d, want %d — the unchanged runs must stay recorded",
+			last, newestUnchanged)
+	}
+}
+
 // TestRecordBackupRoundTripsEveryOutcome pins the write against the reads.
 //
 // The three shapes a run can take are all ordinary states, and the reads treat
