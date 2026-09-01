@@ -15,8 +15,9 @@ package server
 // this wrong is worse than leaving them proxied: an empty list is a confident
 // wrong answer, where the proxy gives the right one.
 //
-// `/api/account/access` and `/api/account/password` are NOT here. See the notes
-// at the foot of this file.
+// `/api/account/access` and `/api/account/password` register in their own
+// functions rather than here, for reasons given at each. See the notes at the
+// foot of this file.
 
 import (
 	"encoding/json"
@@ -143,12 +144,16 @@ func (s *Server) webUserID(sess *Session) string {
 // entries whose site or router has been deleted, and a port that rendered
 // "null" at somebody instead would pass any test written from the happy path.
 //
-// `POST /api/account/password` WRITES users.json, and that is the reason it is
-// not here. `src/users.js` caches the file on first load exactly as
-// `settings.js` and `routers.js` do — `tools/coexistence-audit.js` covers all
-// three — so a change written from this side would be invisible to the running
-// Node app and reverted by its next save. Worse than useless for a password: the
-// operator would be told their password had changed, and it would not have.
+// `POST /api/account/password` WRITES users.json, and that is why it registers
+// separately. The Node app cached that file on first load and never re-read it,
+// so while both processes ran, a change written from this side was invisible to
+// it and reverted by its next save — the operator would be told their password
+// had changed when it had not.
+//
+// THAT HAZARD IS HISTORICAL: there is no Node process any more, `-node` defaults
+// to empty, and `standalone` is therefore always true. The split registration is
+// kept because it costs nothing and still says which routes depend on this
+// process owning the file.
 //
 // It is a CUTOVER step, not a port step, and it stays proxied until then.
 
@@ -186,14 +191,14 @@ func (s *Server) authPermissions(w http.ResponseWriter, r *http.Request) {
 //
 // ── STANDALONE ONLY, LIKE THE SESSION ROUTES ABOVE, AND FOR A HARDER REASON ─
 //
-// It WRITES users.json, and `src/users.js` caches the file on first load and
-// never re-reads it — so while Node is running, a change written here is
-// invisible to it AND reverted by its next save. The operator would be told
-// their password had changed when it had not, which is worse than the endpoint
-// being absent.
+// It WRITES users.json, which the Node app cached on first load and never
+// re-read — so while Node ran, a change written here was invisible to it AND
+// reverted by its next save. The operator would be told their password had
+// changed when it had not, which is worse than the endpoint being absent.
 //
-// The hazard is coexistence and nothing else, so the route registers exactly
-// where that hazard does not exist.
+// The hazard was coexistence and nothing else. It cannot occur now (there is no
+// Node to run), and the route registers unconditionally in practice because
+// `standalone` is always true.
 func (s *Server) registerAccountPassword(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/account/password", s.accountPassword)
 }
