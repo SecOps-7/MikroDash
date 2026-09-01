@@ -734,6 +734,38 @@ func (p *Pool) Close() {
 	}
 }
 
+// Drop tears down ONE router's background session and leaves the rest alone.
+//
+// ── WHY THIS EXISTS RATHER THAN A Sync CALL ─────────────────────────────────
+//
+// It is the imperative form of Sync's own rule that a router which is both
+// tracked and excluded gets stopped. A browser has just selected this router, an
+// interactive Session is dialling it, and the socket this pool has held since
+// the Devices page was last open is now a SECOND connection to one device --
+// `Suspend` keeps its sockets deliberately, so navigating away does not release
+// it and nothing re-syncs until a router edit or a return to Devices.
+//
+// **NOT `Sync`.** `SyncPool` computes Start as "every router that is neither
+// excluded nor already tracked" (overview.go:69-74), so calling it from a socket
+// handler on a pool that has never run -- `p.sessions` empty, so `tracked` empty
+// -- would START a background session for the entire fleet and dial every
+// router. That is the opposite of the fix, and it is the obvious wrong turn
+// here, which is why this method exists to make the right one easy.
+//
+// Membership is not tracked twice: the next `Sync` re-derives it from the store
+// and the live-session set, and re-adds this router once its Session has gone.
+func (p *Pool) Drop(routerID string) {
+	p.mu.Lock()
+	s := p.sessions[routerID]
+	delete(p.sessions, routerID)
+	p.mu.Unlock()
+	// OUTSIDE THE POOL LOCK, for the reason Sync gives at its own destroy call:
+	// destroy reaches a session goroutine that takes the session's lock.
+	if s != nil {
+		s.destroy()
+	}
+}
+
 // Tracked reports which routers the pool currently holds a session for.
 // Suspended reports whether the pool is holding its collectors stopped.
 //

@@ -734,6 +734,49 @@ func (m *Manager) Release(routerID string) {
 	m.mu.Unlock()
 }
 
+// CloseNow tears a session down AT ONCE, whoever is still holding it.
+//
+// ── WHY Release CANNOT SERVE BOTH CALLERS ───────────────────────────────────
+//
+// `Release` answers "one viewer left". The idle grace is right for that: a
+// refresh is a viewer leaving and coming back a second later.
+//
+// Disabling or deleting a router is a different question with a different
+// answer. It is an administrative fact, not an absence, and the router must stop
+// being polled immediately -- `routers_api.go`'s own comment says so: "A
+// disabled router must stop being polled at once rather than at the next idle
+// sweep." Those two callers used Release when Release WAS a teardown, and the
+// grace silently turned them into a two-minute delay against a router the
+// operator had just switched off.
+//
+// Refs are zeroed rather than decremented, because the question is not how many
+// viewers remain. A browser still in the room is told separately
+// (`router:disabled`), and its own `releaseRouter` later finds the session gone
+// and returns harmlessly.
+//
+// The teardown itself is `idleOut`, not a copy of it: there is exactly one place
+// that flushes history, stops all fourteen collectors, closes the client and
+// hands the router back to the pool, and `TestBothTeardownPaths*` reads that one
+// place.
+func (m *Manager) CloseNow(routerID string) {
+	m.mu.Lock()
+	s, ok := m.live[routerID]
+	if !ok {
+		m.mu.Unlock()
+		return
+	}
+	s.mu.Lock()
+	if s.linger != nil {
+		s.linger.Stop()
+		s.linger = nil
+	}
+	s.refs = 0
+	s.mu.Unlock()
+	m.mu.Unlock()
+
+	m.idleOut(routerID, s)
+}
+
 // grace is the idle window. Zero means the default, so a Manager built by any
 // caller that does not care gets the real behaviour.
 func (m *Manager) grace() time.Duration {
@@ -1210,6 +1253,30 @@ func (s *Session) connectLoop() {
 		s.client = nil
 		s.connected = false
 		s.mu.Unlock()
+
+		// ── CLOSE THE CLIENT WE ARE ABANDONING ────────────────────────────
+		//
+		// Dropping the pointer is not closing the socket, and for most of this
+		// port's life that is all this loop did. `Connected()` reports
+		// `!closed && fatal == nil`, and in go-routeros v3.0.1 a failing
+		// `asyncLoop` calls `closeTags` and NEVER touches the socket. So a
+		// protocol error, a parse error or a read error sets `fatal`, this loop
+		// redials -- and the previous connection is still established, still
+		// logged in, and now unreachable: an fd, two Async goroutines, and a
+		// `/user/active` entry the router has no reason to reap.
+		//
+		// UNCONDITIONAL, AND ON BOTH PATHS, because of a race with `idleOut`:
+		// it captures `c := s.client` under the lock, so if the line above has
+		// already nil'd it, idleOut closes nothing and the client is orphaned
+		// even on a clean teardown. Whoever gets there first wins; `Close` is
+		// idempotent (internal/routeros/client.go:386 guards on `c.closed`), so
+		// closing twice is a no-op rather than an error.
+		//
+		// Safe here because `waitUntilDown` returns only when the connection is
+		// already down or the session is closing. Any collector still mid-command
+		// fails the same way it would have anyway, and every Suspend/Stop below
+		// follows immediately.
+		_ = c.Close()
 		s.dns.Suspend()
 		s.bridges.Suspend()
 		s.vlans.Suspend()

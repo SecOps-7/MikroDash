@@ -441,6 +441,27 @@ func (cn *conn) selectRouter(id string) {
 	//
 	// It also means two connections and two sets of collectors on the one router
 	// anybody is actually looking at.
+	// ── AND THE OVERVIEW POOL MUST LET GO TOO ─────────────────────────────
+	//
+	// Everything below applies word for word to `internal/routers`, and it was
+	// simply never added. It is worse there, because `Pool.Suspend` keeps its
+	// sockets deliberately -- "Suspension is 'stop collecting', not 'drop the
+	// sockets'". So opening the Devices page once and navigating away leaves a
+	// connection to EVERY router, and selecting one then adds a second to it
+	// that never goes away: a permanent extra `/user/active` entry on the one
+	// router the operator is actually looking at.
+	//
+	// `Drop`, NOT `syncPool`. This was written as `syncPool()` first and that is
+	// a fleet-wide dial: `SyncPool` starts every router that is neither excluded
+	// nor already tracked (routers/overview.go:69-74), and on a process where
+	// nobody has opened Devices `tracked` is empty -- so a socket handler would
+	// have connected to every router in the fleet to fix one duplicate.
+	//
+	// BEFORE syncAlertPool, so the alert pool computes its exclusion set from
+	// `Summaries()` after this router has left the overview pool.
+	if cn.srv.pool != nil {
+		cn.srv.pool.Drop(id)
+	}
 	cn.srv.syncAlertPool()
 
 	// The stacks describe rows on the router being LEFT, and a `.id` from one

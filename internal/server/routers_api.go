@@ -292,9 +292,15 @@ func (s *Server) routerUpdate(w http.ResponseWriter, r *http.Request) {
 	// at once rather than at the next idle sweep, and the browsers watching it
 	// have to be told — they are in its room and would otherwise sit on a page
 	// that never updates again.
+	//
+	// `CloseNow`, NOT `Release`: this said Release when Release WAS a teardown,
+	// and the 2026-09-01 idle grace turned it into a two-minute delay against a
+	// router the operator had just switched off. `Release` now means "one viewer
+	// left" and grants the grace; this is an administrative fact and takes
+	// effect at once.
 	if disabled, _ := body["disabled"].(bool); disabled {
 		if s.sessions != nil {
-			s.sessions.Release(id)
+			s.sessions.CloseNow(id)
 		}
 		s.hub.Broadcast("router-"+id, "router:disabled", map[string]any{"routerId": id})
 	}
@@ -382,8 +388,11 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	s.hub.BroadcastAll("perms:changed", map[string]any{})
 
+	// `CloseNow` for the same reason as the disable path above: a deleted router
+	// must stop being polled now, not when a grace meant for page refreshes
+	// happens to expire.
 	if s.sessions != nil {
-		s.sessions.Release(id)
+		s.sessions.CloseNow(id)
 	}
 	if s.auditDB != nil {
 		if err := s.auditDB.DeleteRouterData(id); err != nil {
