@@ -165,8 +165,7 @@ func (s *Server) buildAlertDispatch(enabled bool) *alertdispatch.Dispatcher {
 		// `TestTheDispatchBannerMatchesTheWiring` is what forces the two to agree:
 		// it failed the moment the caller landed, which is how this line came
 		// back rather than being forgotten.
-		log.Printf("[alert] DISPATCH IS ON — notifications will be SENT. " +
-			"If another MikroDash is watching these routers, both are sending.")
+		log.Printf("[alert] dispatch on — notifications will be SENT")
 	} else {
 		log.Printf("[alert] dispatch is off; rows are written, nothing is sent " +
 			"(pass -alert-dispatch to send)")

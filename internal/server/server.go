@@ -743,8 +743,17 @@ func (s *Server) Shutdown() {
 // EXTENSIONLESS AND `/api` ONLY: page loads and API calls, which is the traffic
 // worth reading. The asset tree — the stylesheet, the vendor bundles, the logo —
 // is dozens of lines per page load and would bury it.
+//
+// AND NOT `/healthz`. The container healthcheck probes it every 30 seconds, which
+// is 2,880 identical lines a day — the same burying, by a caller that is not a
+// user. A probe answering is not news; a probe FAILING shows up as the container
+// going unhealthy, which is where an operator would look for it anyway.
 func logRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			next.ServeHTTP(w, r)
+			return
+		}
 		if path.Ext(r.URL.Path) == "" || strings.HasPrefix(r.URL.Path, "/api") {
 			log.Printf("[http] %s %s", r.Method, r.URL.Path)
 		}

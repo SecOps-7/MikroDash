@@ -34,7 +34,6 @@ func (s *Server) buildHistoryWire(enabled bool) *historywire.Wire {
 			"will not be written (pass -history to enable)")
 		return historywire.New(false, s.auditDB)
 	}
-	log.Printf("[history] RECORDING IS ON. If another MikroDash is watching these " +
-		"routers, every minute is being written twice.")
+	log.Printf("[history] recording on — traffic, ping and connectivity history is being written")
 	return historywire.New(true, s.auditDB)
 }

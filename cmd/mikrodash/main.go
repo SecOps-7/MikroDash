@@ -178,18 +178,19 @@ func main() {
 	}
 
 	go func() {
-		// STANDALONE SAYS SO, rather than claiming to proxy to nothing. With
-		// `-node ""` this printed "proxying the rest to " with an empty target,
-		// which is the one line an operator reads to confirm WHICH MODE the
-		// cutover just started in. Found on 2026-08-28 by re-running the
-		// standalone dry run against the current binary.
+		// `-node` NAMES A PROXY TARGET AND DEFAULTS TO EMPTY, which is the only
+		// configuration that exists now. The branch is kept because the flag is:
+		// pointing it somewhere still proxies, and a banner that did not say so
+		// would be the one line an operator reads to confirm the mode, printing
+		// a comfortable lie.
+		//
+		// It once printed "proxying the rest to " with an empty target, which is
+		// how an empty flag came to look like a configured one.
 		if *node == "" {
-			log.Printf("[mikrodash] serving %s STANDALONE — no Node to proxy to; "+
-				"this process is the whole app", *listen)
+			log.Printf("[mikrodash] serving %s", *listen)
 		} else {
 			log.Printf("[mikrodash] serving %s, proxying the rest to %s", *listen, *node)
 		}
-		log.Print("[mikrodash] serving the ported app at /")
 		if err := hs.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
 		}

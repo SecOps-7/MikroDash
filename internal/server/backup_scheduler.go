@@ -46,8 +46,7 @@ func (s *Server) buildBackupScheduler(enabled bool) *backups.Scheduler {
 		log.Printf("[backup] scheduler needs the store and the history database; not started")
 		return nil
 	}
-	log.Printf("[backup] SCHEDULER IS ON — scheduled backups will be taken. " +
-		"If another MikroDash is watching these routers, both are taking them.")
+	log.Printf("[backup] scheduler on — scheduled backups will be taken")
 
 	return backups.NewScheduler(backups.SchedDeps{
 		Routers:  s.schedRouters,
