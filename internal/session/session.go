@@ -1062,11 +1062,32 @@ func (s *Session) connectLoop() {
 			// meant a viewer who never opened it got a Connections page with no
 			// sources at all — every address looked external because nothing
 			// had said what "internal" was.
-			if s.eff.Enabled["dhcpNetworks"] {
-				s.dhcpNetworks.Start()
-			}
+			// ── LEASES FIRST, AND THE ORDER IS THE BEHAVIOUR ──────────
+			//
+			// `dhcpNetworks.Tick` counts each subnet's used addresses by asking
+			// `dhcpLeases.UsedLeaseIPs()`. Started the other way round -- which
+			// is how this stood until 2026-09-01 -- that call returns nil,
+			// because the leases collector has not read anything yet. Nothing
+			// errors: every subnet simply gets a lease count of ZERO.
+			//
+			// AND IT STICKS FOR TEN MINUTES, because both poll every 600s and
+			// `Last()` is what a page focus replays. The DHCP page then showed
+			// subnet rows and a full lease table with every count reading 0%,
+			// which is exactly how the operator described it.
+			//
+			// The RECONNECT path below already had this right (leases, then
+			// networks), which is why a dropped connection "fixed" the page and
+			// was the clue that found this: an orange disconnected banner, and
+			// correct percentages straight after.
+			//
+			// The registry cannot express it -- `requires: []` for both, and
+			// `requires` gates ENABLEMENT rather than start order -- so the
+			// ordering lives here, with a test that reads it.
 			if s.eff.Enabled["dhcpLeases"] {
 				s.dhcpLeases.Start()
+			}
+			if s.eff.Enabled["dhcpNetworks"] {
+				s.dhcpNetworks.Start()
 			}
 			// THE TWO DASHBOARD-ONLY COLLECTORS. Neither has a page, so neither
 			// is reachable from `page:focus` — which meant netwatch was
