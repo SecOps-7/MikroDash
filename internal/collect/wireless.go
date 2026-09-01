@@ -468,7 +468,7 @@ func (w *Wireless) Tick() {
 	w.last = payload
 	w.mu.Unlock()
 
-	w.emit("page-wireless,dash-card-wireless", "wireless:update", payload)
+	w.emit("page-wifi-clients,dash-card-wireless", "wireless:update", payload)
 }
 
 func modeOrNone(mode string) string {

@@ -423,7 +423,7 @@ func (r *RosUsers) Tick() {
 		return
 	}
 	r.lastFP = fp.String()
-	r.emit("page-rosusers", "rosusers:update", payload)
+	r.emit("page-router-users", "rosusers:update", payload)
 }
 
 func (r *RosUsers) Last() *RosUsersPayload {

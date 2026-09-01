@@ -1,14 +1,11 @@
 // GENERATED from testdata/view-presets.json — do not edit.
-// Rebuild with `node tools/view-presets-ts.js` from the committed JSON.
-// The JSON it reads is a FROZEN artefact: the generator that produced it read the
-// Node app and was deleted with the port-parity harness on 2026-09-01. This
-// transform still runs, so the .ts can be rebuilt from the committed JSON --
-// but the JSON itself can only change by hand, or from `v0.7.40` in git history.
+// Rebuild with `node tools/view-presets-ts.js` from the committed JSON, which is frozen:
+// the generator that produced it read the Node app and was deleted on 2026-09-01.
 
 /** settings key -> page key. `pageWifi` is the checkbox; `wifi` is what a preset names. */
 export const PAGE_NAV_MAP: Record<string, string> = {
-  "pageWifi": "wifi",
-  "pageWireless": "wireless",
+  "pageWifi": "wifi-networks",
+  "pageWireless": "wifi-clients",
   "pageInterfaces": "interfaces",
   "pageDhcp": "dhcp",
   "pageVpn": "vpn",
@@ -17,18 +14,18 @@ export const PAGE_NAV_MAP: Record<string, string> = {
   "pageLogs": "logs",
   "pageBandwidth": "bandwidth",
   "pageRouting": "routing",
-  "pageTopology": "topology",
+  "pageTopology": "network-topology",
   "pageVlans": "vlans",
   "pagePpp": "ppp",
   "pageCapsman": "capsman",
   "pageBridges": "bridges",
   "pageDns": "dns",
   "pagePackages": "packages",
-  "pageRosusers": "rosusers",
+  "pageRosusers": "router-users",
   "pageQueues": "queues",
   "pageWan": "wan",
   "pageDevices": "devices",
-  "pageAudit": "audit",
+  "pageAudit": "audit-trail",
   "pageBackups": "backups"
 };
 

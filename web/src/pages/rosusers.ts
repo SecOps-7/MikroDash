@@ -590,6 +590,6 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
   });
 
   document.addEventListener('mikrodash:pagechange', (e) => {
-    if ((e as CustomEvent).detail === 'rosusers' && data) render();
+    if ((e as CustomEvent).detail === 'router-users' && data) render();
   });
 }

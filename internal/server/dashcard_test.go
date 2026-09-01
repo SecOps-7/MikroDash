@@ -18,12 +18,12 @@ func TestDashCardPageResolvesEveryRoom(t *testing.T) {
 			t.Errorf("dashCardPage(%q) is empty — that gates the card on a page nobody has", room)
 		}
 	}
-	if got := dashCardPage("somethingelse"); got != "dashboard" {
-		t.Errorf("an unknown card key resolved to %q, want dashboard", got)
+	if got := dashCardPage("somethingelse"); got != "home" {
+		t.Errorf("an unknown card key resolved to %q, want home", got)
 	}
 	// diagnostics is neither a page nor a collector in the live registry.
-	if got := dashCardPage("diagnostics"); got != "dashboard" {
-		t.Errorf("dashCardPage(diagnostics) = %q, want dashboard", got)
+	if got := dashCardPage("diagnostics"); got != "home" {
+		t.Errorf("dashCardPage(diagnostics) = %q, want home", got)
 	}
 }
 

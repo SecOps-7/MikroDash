@@ -45,10 +45,10 @@ var dashCardPages = map[string]string{
 	"logs":        "logs",
 	"vpn":         "vpn",
 	"connections": "connections",
-	"wireless":    "wireless",
+	"wireless":    "wifi-clients",
 	"interfaces":  "interfaces",
 	"dhcp":        "dhcp",
-	"diagnostics": "dashboard",
+	"diagnostics": "home",
 }
 
 // dashCardPage resolves a card room key to the page that gates it. An unknown
@@ -57,7 +57,7 @@ func dashCardPage(key string) string {
 	if p, ok := dashCardPages[key]; ok {
 		return p
 	}
-	return "dashboard"
+	return "home"
 }
 
 // dashCardRooms maps a card's room KEY to the room its collector actually emits

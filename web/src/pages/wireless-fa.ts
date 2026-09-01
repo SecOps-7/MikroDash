@@ -450,7 +450,7 @@ export function initFrequencyAnalyser(socket: Socket): void {
   // router may be CAPsMAN-managed on the next — which is why live re-asks on
   // entry rather than once at startup.
   document.addEventListener('mikrodash:pagechange', (e) => {
-    if ((e as CustomEvent<string>).detail === 'wireless') socket.emit('wifiscan:interfaces');
+    if ((e as CustomEvent<string>).detail === 'wifi-clients') socket.emit('wifiscan:interfaces');
   });
 }
 

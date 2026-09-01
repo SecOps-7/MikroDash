@@ -313,6 +313,6 @@ export function initAuditPage(): void {
   el('auNext')?.addEventListener('click', () => { offset = offset + PAGE; load(); });
 
   document.addEventListener('mikrodash:pagechange', (e) => {
-    if ((e as CustomEvent).detail === 'audit') { offset = 0; load(); }
+    if ((e as CustomEvent).detail === 'audit-trail') { offset = 0; load(); }
   });
 }

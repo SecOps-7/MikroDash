@@ -42,15 +42,15 @@ func TestAppLandsOnTheDashboard(t *testing.T) {
 		t.Fatal("the landing-page call could not be found — it is " +
 			"`showPage(socket, currentPage || '<page>')` in select()")
 	}
-	if land[1] != "dashboard" {
-		t.Errorf("the app lands on %q. Anything but the dashboard is the first-vertical-slice "+
-			"default outliving the slice.", land[1])
+	if land[1] != "home" {
+		t.Errorf("the app lands on %q. The landing page is `home` — renamed from `dashboard` on "+
+			"2026-09-01 so the key matches the URL and the room.", land[1])
 	}
 	// PORTED and webbuild's PAGES both read `internal/pages` now, so the two
 	// regexes this used to run against their literals are gone. Asking the
 	// package directly is the same question with no pattern to rot.
-	if !pages.Has("dashboard") {
-		t.Error("'dashboard' is not in internal/pages, so it has no markup composed, no URL " +
+	if !pages.Has("home") {
+		t.Error("'home' is not in internal/pages, so it has no markup composed, no URL " +
 			"registered and no nav entry — the landing page would not exist.")
 	}
 	t.Log("the app lands on a mounted dashboard")
@@ -180,7 +180,7 @@ var dashboardIDsUnwritten = map[string]string{
 func TestDashboardMarkupIsDriven(t *testing.T) {
 	root := repoRoot(t)
 
-	html := mustRead(t, filepath.Join(root, "web", "src", "ui", "page-dashboard.html"))
+	html := mustRead(t, filepath.Join(root, "web", "src", "ui", "page-home.html"))
 	css := mustRead(t, filepath.Join(root, "web", "public", "app.css"))
 	ts := joined(readFiles(t, root, "web/src/", func(r string) bool { return hasExt(r, ".ts") }))
 

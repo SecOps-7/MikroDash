@@ -1486,7 +1486,7 @@ func (t *Topology) Tick() {
 			}
 			t.last = denied
 			t.mu.Unlock()
-			t.emit("page-topology", "topology:update", denied)
+			t.emit("page-network-topology", "topology:update", denied)
 		}
 		return
 	}
@@ -1528,7 +1528,7 @@ func (t *Topology) Tick() {
 	t.mu.Lock()
 	t.last = payload
 	t.mu.Unlock()
-	t.emit("page-topology", "topology:update", payload)
+	t.emit("page-network-topology", "topology:update", payload)
 }
 
 // readHosts is the bridge MAC table.

@@ -410,7 +410,7 @@ func (s *IfStatus) Tick() {
 	// are chrome on every page — so it must not be withheld from a viewer who
 	// has opened none of those three, and it must not disclose anything a denied
 	// page would have shown.
-	s.emit("page-interfaces,page-topology,dash-card-physports", "ifstatus:update", payload)
+	s.emit("page-interfaces,page-network-topology,dash-card-physports", "ifstatus:update", payload)
 
 	s.emit("", "ifstatus:names", NamesOf(payload))
 }

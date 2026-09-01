@@ -1300,7 +1300,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     });
 
   document.addEventListener('mikrodash:pagechange', (e) => {
-    if ((e as CustomEvent).detail === 'topology') {
+    if ((e as CustomEvent).detail === 'network-topology') {
       render();
       if (data) setTimeout(fitView, 40);
     }

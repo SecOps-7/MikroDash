@@ -18,7 +18,7 @@
     </div>
   </div>
   <div class="nav-items">
-    <a class="nav-item active" data-page="dashboard" href="#">
+    <a class="nav-item active" data-page="home" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
       <span class="nav-label">Dashboard</span>
     </a>
@@ -46,7 +46,7 @@
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 17V9"/><path d="M21 17V9"/><path d="M3 12h18"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/></svg></span>
           <span class="nav-label">Bridges</span>
         </a>
-        <a class="nav-item" data-page="topology" data-cat="network" href="#">
+        <a class="nav-item" data-page="network-topology" data-cat="network" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.6"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><line x1="10.2" y1="10.4" x2="5.5" y2="6.4"/><line x1="13.8" y1="10.4" x2="18.5" y2="6.4"/><line x1="10.2" y1="13.6" x2="5.5" y2="17.6"/><line x1="13.8" y1="13.6" x2="18.5" y2="17.6"/></svg></span>
           <span class="nav-label">Topology</span>
         </a>
@@ -64,11 +64,11 @@
         <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
       </button>
       <div class="nav-group-body" id="navgrp-wireless" role="group" aria-label="Wireless">
-        <a class="nav-item" data-page="wifi" data-cat="wireless" href="#">
+        <a class="nav-item" data-page="wifi-networks" data-cat="wireless" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="currentColor" stroke="none"/><circle cx="18.5" cy="6.5" r="3"/><path d="M18.5 4.9v3.2M16.9 6.5h3.2"/></svg></span>
           <span class="nav-label">Wifi Networks</span>
         </a>
-        <a class="nav-item" data-page="wireless" data-cat="wireless" href="#">
+        <a class="nav-item" data-page="wifi-clients" data-cat="wireless" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 20v-4"/><path d="M9 20v-8"/><path d="M14 20v-12"/><path d="M19 20v-16"/></svg></span>
           <span class="nav-label">Wifi Clients</span>
         </a>
@@ -152,7 +152,7 @@
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
           <span class="nav-label">Firewall</span>
         </a>
-        <a class="nav-item" data-page="rosusers" data-cat="security" href="#">
+        <a class="nav-item" data-page="router-users" data-cat="security" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11l-3 3-1.5-1.5"/></svg></span>
           <span class="nav-label">Device Users</span>
         </a>
@@ -185,7 +185,7 @@
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
       <span class="nav-label">Reports</span>
     </a>
-    <a class="nav-item" data-page="audit" href="#">
+    <a class="nav-item" data-page="audit-trail" href="#">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/><rect x="9" y="2.5" width="6" height="3.5" rx="1"/><path d="M8 12h5"/><path d="M8 16h8"/></svg></span>
       <span class="nav-label">Audit</span>
     </a>
@@ -283,7 +283,7 @@
 
   <!-- WIRELESS -->
   <!-- Wifi Networks — what this router broadcasts. The configuration side of
-       wireless; who is connected to it lives on #page-wireless below. -->
+       wireless; who is connected to it lives on #page-wifi-clients below. -->
 
   <!-- DHCP -->
 
@@ -321,7 +321,7 @@
        that container is display:none unless the Settings page is active, so a
        modal nested inside it could never be shown. -->
   <!-- Frequency Analyzer. Body-level for the same reason as the account modal
-       below: a modal nested inside #page-wireless is display:none whenever that
+       below: a modal nested inside #page-wifi-clients is display:none whenever that
        page is not the active one, and could never be shown. -->
   <div class="rtr-modal-bg" id="faModal">
     <div class="rtr-modal fa-modal">

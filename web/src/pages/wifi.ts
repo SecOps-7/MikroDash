@@ -276,7 +276,7 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
   });
 
   document.addEventListener('mikrodash:pagechange', (ev) => {
-    if ((ev as CustomEvent).detail === 'wifi') render();
+    if ((ev as CustomEvent).detail === 'wifi-networks') render();
   });
 
   socket.on('router:switched', () => {

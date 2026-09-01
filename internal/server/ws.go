@@ -687,10 +687,10 @@ func (cn *conn) resumePage(page string) {
 	// `ping:update` needs no replay: the collector emits on its own cadence and
 	// the card fills within a tick. The HISTORY is different — it is the chart's
 	// entire backlog, and without it the chart starts empty every visit.
-	case "dashboard":
+	case "home":
 		// ── THE DASHBOARD CARDS, REPLAYED ───────────────────────────────────
 		//
-		// These three are emitted to `page-dashboard` by collectors that run
+		// These three are emitted to `page-home` by collectors that run
 		// from CONNECT, not from focus — so opening the Dashboard replayed
 		// nothing and the cards stayed empty until the next tick, which for
 		// netwatch and talkers is up to a minute. The live app sends all three
@@ -797,7 +797,7 @@ func (cn *conn) resumePage(page string) {
 			replay.TS = time.Now().UnixMilli()
 			cn.srv.hub.Send(cn.c, "vpn:update", replay)
 		}
-	case "rosusers":
+	case "router-users":
 		cn.rsession.ResumeCollector("rosusers")
 		// The caps go FIRST. The page draws its buttons from `permitted`, and a
 		// payload arriving before them renders a read-only table that then has to
@@ -836,7 +836,7 @@ func (cn *conn) resumePage(page string) {
 	// reads this collector, and it holds a ping loop as well as a poll, so a
 	// viewer who is not looking at the map should not be making the router ping
 	// two dozen devices.
-	case "topology":
+	case "network-topology":
 		cn.rsession.ResumeCollector("topology")
 		if last := cn.rsession.Topology().Last(); last != nil {
 			replay := *last
@@ -865,7 +865,7 @@ func (cn *conn) resumePage(page string) {
 			replay.TS = time.Now().UnixMilli()
 			cn.srv.hub.Send(cn.c, "bandwidth:update", replay)
 		}
-	case "wireless":
+	case "wifi-clients":
 		cn.rsession.ResumeCollector("wireless")
 		if last := cn.rsession.Wireless().Last(); last != nil {
 			replay := *last
@@ -876,7 +876,7 @@ func (cn *conn) resumePage(page string) {
 		if last := cn.rsession.Logs().Last(); last != nil {
 			cn.srv.hub.Send(cn.c, "logs:history", last)
 		}
-	case "wifi":
+	case "wifi-networks":
 		cn.rsession.ResumeCollector("wifi")
 		if last := cn.rsession.Wifi().Last(); last != nil {
 			replay := *last
@@ -962,7 +962,7 @@ func (cn *conn) pageBlur(page string) {
 		// which is the third time it has caught exactly this consequence
 		// (dhcpNetworks, bandwidth, vpn, firewall before it).
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
-			[]string{"page-dashboard"}, cn.rsession.Routing().Suspend)
+			[]string{"page-home"}, cn.rsession.Routing().Suspend)
 	case "dhcp":
 		// dhcpNetworks also feeds the dashboard's Network card AND the
 		// router-wide `lan:wan` chip, which is on every page — so it is
@@ -977,7 +977,7 @@ func (cn *conn) pageBlur(page string) {
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
 			[]string{"dash-card-network"}, cn.rsession.DHCPNetworks().Suspend)
 		cn.rsession.DHCPLeases().Suspend()
-	case "dashboard":
+	case "home":
 		// ── THE OTHER HALF OF THE ROUTING GUARD ─────────────────────────────
 		//
 		// pageBlur had NO dashboard case, and did not need one: every collector
@@ -1001,7 +1001,7 @@ func (cn *conn) pageBlur(page string) {
 		// was fixed by hand for dhcpNetworks and bandwidth.
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
 			[]string{"dash-card-vpn"}, cn.rsession.VPN().Suspend)
-	case "rosusers":
+	case "router-users":
 		cn.rsession.RosUsers().Suspend()
 	case "queues":
 		cn.rsession.Queues().Suspend()
@@ -1013,13 +1013,13 @@ func (cn *conn) pageBlur(page string) {
 		// CARD is still watching, so suspending here would starve it.
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
 			[]string{"dash-card-firewall"}, cn.rsession.Firewall().Suspend)
-	case "wifi":
+	case "wifi-networks":
 		cn.rsession.Wifi().Suspend()
 	case "capsman":
 		cn.rsession.Capsman().Suspend()
-	case "topology":
+	case "network-topology":
 		cn.rsession.Topology().Suspend()
-	case "wireless":
+	case "wifi-clients":
 		// The dashboard card reads the same collector. Its room was added on
 		// 2026-08-29 when the emit-rooms audit found this payload reaching
 		// one room where live sends it to two — and `blur-suspend-audit` caught
