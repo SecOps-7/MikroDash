@@ -277,7 +277,7 @@ CREATE TABLE audit_events (
   outcome     TEXT, detail TEXT);
 INSERT INTO roles (id, name) VALUES ('viewer', 'Read only');
 INSERT INTO role_pages (role_id, page, access) VALUES
-  ('viewer', 'dashboard', 'read'), ('viewer', 'topology', 'read'),
+  ('viewer', 'dashboard', 'read'), ('viewer', 'network-topology', 'read'),
   ('viewer', 'router', 'read');
 `
 

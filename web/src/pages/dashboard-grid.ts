@@ -16,7 +16,7 @@
 //
 // ── LEAVING THE PAGE DISCARDS, IT DOES NOT SAVE ─────────────────────────────
 //
-// The MutationObserver watching `page-home`'s class is what notices a
+// The MutationObserver watching `page-dashboard`'s class is what notices a
 // navigation away, and it calls `exitEditMode(false)`. Navigating away mid-edit
 // therefore throws the changes away rather than committing them silently — the
 // conservative reading, and the live one.
@@ -98,7 +98,7 @@ export function initDashboardGrid(): GridEditor | null {
     if (btn && editor.isEditing()) editor.removeCard(btn.dataset.card || '');
   });
 
-  const pageDash = el('page-home');
+  const pageDash = el('page-dashboard');
   if (typeof MutationObserver !== 'undefined' && pageDash) {
     new MutationObserver(() => {
       const active = pageDash.classList.contains('active');

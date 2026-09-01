@@ -13,35 +13,37 @@ export interface Page {
   key: string;
   /** Header text. Empty where the key already reads correctly on its own. */
   title: string;
+  /** URL segment. Equal to the key for all but the dashboard, served at /home. */
+  path: string;
 }
 
 export const PAGES: readonly Page[] = [
-  { key: "home", title: "" },
-  { key: "dns", title: "DNS" },
-  { key: "bridges", title: "Bridges" },
-  { key: "vlans", title: "VLANs" },
-  { key: "wan", title: "WAN" },
-  { key: "packages", title: "Packages" },
-  { key: "routing", title: "Routing" },
-  { key: "dhcp", title: "DHCP" },
-  { key: "ppp", title: "PPP" },
-  { key: "vpn", title: "VPN" },
-  { key: "router-users", title: "Router Users" },
-  { key: "queues", title: "Queues" },
-  { key: "firewall", title: "Firewall" },
-  { key: "wifi-networks", title: "Wifi Networks" },
-  { key: "capsman", title: "CAPsMAN" },
-  { key: "interfaces", title: "Interfaces" },
-  { key: "logs", title: "Logs" },
-  { key: "network-topology", title: "Network Topology" },
-  { key: "wifi-clients", title: "Wifi Clients" },
-  { key: "bandwidth", title: "Bandwidth" },
-  { key: "connections", title: "Connections" },
-  { key: "reports", title: "Reports" },
-  { key: "audit-trail", title: "Audit Trail" },
-  { key: "backups", title: "Backups" },
-  { key: "devices", title: "" },
-  { key: "settings", title: "" },
+  { key: "dashboard", title: "", path: "home" },
+  { key: "dns", title: "DNS", path: "dns" },
+  { key: "bridges", title: "Bridges", path: "bridges" },
+  { key: "vlans", title: "VLANs", path: "vlans" },
+  { key: "wan", title: "WAN", path: "wan" },
+  { key: "packages", title: "Packages", path: "packages" },
+  { key: "routing", title: "Routing", path: "routing" },
+  { key: "dhcp", title: "DHCP", path: "dhcp" },
+  { key: "ppp", title: "PPP", path: "ppp" },
+  { key: "vpn", title: "VPN", path: "vpn" },
+  { key: "router-users", title: "Router Users", path: "router-users" },
+  { key: "queues", title: "Queues", path: "queues" },
+  { key: "firewall", title: "Firewall", path: "firewall" },
+  { key: "wifi-networks", title: "Wifi Networks", path: "wifi-networks" },
+  { key: "capsman", title: "CAPsMAN", path: "capsman" },
+  { key: "interfaces", title: "Interfaces", path: "interfaces" },
+  { key: "logs", title: "Logs", path: "logs" },
+  { key: "network-topology", title: "Network Topology", path: "network-topology" },
+  { key: "wifi-clients", title: "Wifi Clients", path: "wifi-clients" },
+  { key: "bandwidth", title: "Bandwidth", path: "bandwidth" },
+  { key: "connections", title: "Connections", path: "connections" },
+  { key: "reports", title: "Reports", path: "reports" },
+  { key: "audit-trail", title: "Audit Trail", path: "audit-trail" },
+  { key: "backups", title: "Backups", path: "backups" },
+  { key: "devices", title: "", path: "devices" },
+  { key: "settings", title: "", path: "settings" },
 ];
 
 /** Every page key, in nav order. */
@@ -51,4 +53,15 @@ export const PAGE_KEY_SET: ReadonlySet<string> = new Set(PAGES.map((p) => p.key)
  *  whose key already reads correctly needs no second spelling of it. */
 export function pageTitle(key: string): string {
   return PAGES.find((p) => p.key === key)?.title || key;
+}
+
+/** The URL path for a page key, with its leading slash. */
+export function pagePath(key: string): string {
+  return '/' + (PAGES.find((p) => p.key === key)?.path || key);
+}
+
+/** The page key served at a URL segment, or '' when nothing matches. */
+export function pageForPath(pathname: string): string {
+  const seg = pathname.replace(/^\/+/, '').replace(/\/.*$/, '');
+  return PAGES.find((p) => p.path === seg)?.key || '';
 }

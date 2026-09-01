@@ -57,6 +57,8 @@ func (s *Server) dashboardLayoutGet(w http.ResponseWriter, r *http.Request) {
 	// their own yet — fall back to the shared one so the client's localStorage
 	// cache is refreshed rather than left stale from a previous user." Answering
 	// null instead would leave the previous user's arrangement on screen.
+	// "dashboard" is a STORAGE key here — the row in `user_layouts` — and stays
+	// put though the page is now `home`. See the note on the topology layout.
 	own, err := s.auditDB.Layout(s.layoutUser(sess), "dashboard")
 	if err == nil && own != nil {
 		writeRawJSON(w, own)
@@ -136,6 +138,12 @@ func permitted(ok bool, err error) bool { return err == nil && ok }
 // one, then an empty map — the same fallback the dashboard uses.
 func (s *Server) topoLayoutRow(sess *Session) map[string]json.RawMessage {
 	out := map[string]json.RawMessage{}
+	// "topology" HERE IS A STORAGE KEY, NOT A PAGE KEY, and it deliberately did
+	// not move when the page was renamed to `network-topology` on 2026-09-01.
+	// It names a row in `user_layouts`; renaming it would orphan every layout an
+	// operator has saved. The PERMISSION check above uses the page key, because
+	// that is looked up in rbac.PageKeys — the two are different questions that
+	// happened to share a word.
 	blob, err := s.auditDB.Layout(s.layoutUser(sess), "topology")
 	if err != nil || blob == nil {
 		blob, err = s.auditDB.Layout(db.SharedLayoutUser, "topology")
@@ -233,7 +241,7 @@ func (s *Server) topologyLayoutSave(w http.ResponseWriter, r *http.Request) {
 // "were a cross-router probe — any authenticated session could confirm a
 // router's existence and read its saved node positions".
 func (s *Server) mayUseTopology(w http.ResponseWriter, sess *Session, routerID string) bool {
-	if !permitted(s.rbac.CanPage(s.userIDFor(sess.Username), "topology", "read", routerID)) {
+	if !permitted(s.rbac.CanPage(s.userIDFor(sess.Username), "network-topology", "read", routerID)) {
 		writeJSONErr(w, http.StatusForbidden, "Not permitted")
 		return false
 	}

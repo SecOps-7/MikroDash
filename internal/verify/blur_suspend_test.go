@@ -25,7 +25,7 @@ import (
 // the guarded form.
 //
 // It has caught the same defect four times -- dhcpNetworks, bandwidth, vpn,
-// firewall -- and a fifth on 2026-09-01, when `routing` gained `page-home`
+// firewall -- and a fifth on 2026-09-01, when `routing` gained `page-dashboard`
 // as a second room so the Routes and BGP cards could be fed.
 func TestBlurSuspendGuards(t *testing.T) {
 	root := repoRoot(t)

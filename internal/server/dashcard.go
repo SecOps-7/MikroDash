@@ -48,7 +48,7 @@ var dashCardPages = map[string]string{
 	"wireless":    "wifi-clients",
 	"interfaces":  "interfaces",
 	"dhcp":        "dhcp",
-	"diagnostics": "home",
+	"diagnostics": "dashboard",
 }
 
 // dashCardPage resolves a card room key to the page that gates it. An unknown
@@ -57,7 +57,7 @@ func dashCardPage(key string) string {
 	if p, ok := dashCardPages[key]; ok {
 		return p
 	}
-	return "home"
+	return "dashboard"
 }
 
 // dashCardRooms maps a card's room KEY to the room its collector actually emits

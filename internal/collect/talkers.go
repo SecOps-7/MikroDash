@@ -223,7 +223,7 @@ func (t *Talkers) markUnavailable() {
 	t.emit(talkersRoom, "talkers:update", p)
 }
 
-const talkersRoom = "page-home"
+const talkersRoom = "page-dashboard"
 
 // commit turns rows into the payload. Split from Tick so the differential gate
 // can drive it from a fixture without a router.

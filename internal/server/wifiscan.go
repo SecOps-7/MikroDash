@@ -32,14 +32,14 @@ func (cn *conn) scanErr(code string, extra map[string]any) {
 
 // mayScan is BOTH gates, deliberately.
 //
-// `canPage("wireless", …)` carries the install-wide Wireless toggle — a
+// `canPage("wifi-clients", …)` carries the install-wide Wireless toggle — a
 // deployment that turned the page off must not have a working scan endpoint —
 // and `router:scan` keeps the capability a named, greppable thing rather than
 // something implied by a page. Either alone would be a hole: the page toggle
 // says nothing about who may disrupt a radio, and the capability says nothing
 // about whether the feature is switched on at all.
 func (cn *conn) mayScan() bool {
-	if !cn.canPage("wireless", "write") {
+	if !cn.canPage("wifi-clients", "write") {
 		return false
 	}
 	if cn.sess == nil {
@@ -71,7 +71,7 @@ func (cn *conn) wifiscanInterfaces() {
 		cn.scanErr("unavailable", nil)
 		return
 	}
-	if !cn.canPage("wireless", "read") {
+	if !cn.canPage("wifi-clients", "read") {
 		cn.scanErr("denied", nil)
 		return
 	}

@@ -122,7 +122,7 @@ function makeDom() {
 
 /** A dashboard page with `n` cards, each with a drag handle, resize handles and a remove button. */
 function buildPage(dom, layout) {
-  const page = dom.node('div', 'page-home', 'page-view active');
+  const page = dom.node('div', 'page-dashboard', 'page-view active');
   const root = dom.node('div', 'dash-grid-root', 'dash-grid');
   root._rect = { left: GRID.left, top: GRID.top, width: GRID.width, height: GRID.height, right: GRID.width, bottom: GRID.height };
   page.appendChild(root);
@@ -224,8 +224,8 @@ function must(cond, msg) { if (!cond) problems.push(msg); }
 {
   const b = boot();
   must(b.editor, 'initDashboardGrid returned null on a page that HAS a grid root');
-  must(b.mutations.includes('page-home'),
-    'no MutationObserver on page-home — the Edit button never appears or hides, and ' +
+  must(b.mutations.includes('page-dashboard'),
+    'no MutationObserver on page-dashboard — the Edit button never appears or hides, and ' +
     'leaving the page mid-edit would silently keep the changes');
   must(b.resizes.includes('dash-grid-root'), 'no ResizeObserver on the grid root');
   must(b.dom.docListeners.some((l) => l.t === 'socket:reconnect'),

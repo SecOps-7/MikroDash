@@ -1,27 +1,23 @@
 package rbac
 
-// PageKeys is Pages.KEYS from src/pages.js, in the same order.
+import "mikrodash/internal/pages"
+
+// PageKeys is every page the permission system knows, read from `internal/pages`.
 //
-// IT EXISTS BECAUSE canPage REFUSES AN UNKNOWN PAGE BEFORE CONSULTING THE GRAPH,
-// and that guard is load-bearing rather than defensive. A builtin role confers
-// every page structurally —
-// `for (const pg of Pages.KEYS) def.pages.set(pg, 'write')` — so without a key
-// set to check against, an administrator would be granted any string a caller
-// happened to pass: a typo, or a page this build does not have.
+// ── IT WAS A HAND-WRITTEN COPY, AND THAT COST AN OUTAGE ─────────────────────
 //
-// A COPY, AND COPIES ROT. pages.js is the authority and this is 26 strings
-// duplicated out of it, so pages_test.go reads the live file and fails when the
-// two disagree. That test SKIPS without MIKRODASH_SRC, exactly like the proplist
-// drift gate, which is why the green check mounts the live repo read-only: a
-// gate that never runs is not a gate.
+// This was a literal list guarded by `TestPageKeysMatchLive`, which compared it
+// against the Node app's `pages.js`. That test SKIPS without `MIKRODASH_SRC`, and
+// `MIKRODASH_SRC` has pointed at a deleted repository since the v0.8.0 cutover —
+// so the guard has not run for anything in months.
 //
-// Deliberately NOT generated. A fifth generator to maintain a list that changes
-// about once a release is more machinery than the problem deserves, and the
-// drift test gives the same guarantee — it fails loudly, names the difference,
-// and costs nothing while the list is right.
-var PageKeys = []string{
-	"dashboard", "wan", "interfaces", "vlans", "bridges", "topology",
-	"wifi", "wireless", "capsman", "dhcp", "dns", "routing", "ppp", "vpn",
-	"bandwidth", "queues", "connections", "firewall", "rosusers", "logs",
-	"packages", "devices", "reports", "audit", "backups", "settings",
-}
+// On 2026-09-01 six page keys were renamed and this list was missed. Nothing went
+// red: the build was green, every test passed, and four pages silently showed
+// nothing at all, because `CanPage` denies an unknown page BEFORE it looks at any
+// role — even for an administrator. A page key is not only a URL, a markup id and
+// a room name; it is also a PERMISSION key, and an unrecognised one is a locked
+// door.
+//
+// Reading the same list the rest of the app reads makes that drift impossible
+// rather than merely detectable.
+var PageKeys = pages.Keys()

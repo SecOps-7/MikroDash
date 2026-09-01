@@ -53,7 +53,7 @@ export interface GridEditor {
 }
 
 function dashActive(): boolean {
-  const p = el('page-home');
+  const p = el('page-dashboard');
   return !!p && p.classList.contains('active');
 }
 

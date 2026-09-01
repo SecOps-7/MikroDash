@@ -251,7 +251,7 @@ func TestOnlyTheOldDefaultsFollowersMove(t *testing.T) {
 		c := hub.NewClient(name, 8)
 		s.hub.Add(c)
 		s.hub.Join(c, "router-"+router)
-		s.hub.Join(c, "router-"+router+"-page-home")
+		s.hub.Join(c, "router-"+router+"-page-dashboard")
 		cn := &conn{srv: s, c: c, sess: &Session{AuthMode: "none"}, routerID: router}
 		s.connsMu.Lock()
 		s.conns[c] = cn

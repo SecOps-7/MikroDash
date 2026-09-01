@@ -682,11 +682,11 @@ func (r *Routing) emitPayload(peers []Peer) {
 	// NOT a port defect being repaired but a behaviour being changed on purpose,
 	// which is allowed now that the port is over and was not while it ran.
 	//
-	// `page-home` rather than a card room because these two cards have no
+	// `page-dashboard` rather than a card room because these two cards have no
 	// entry in `CARD_ROOMS` -- the grid never sends `dashcard:focus` for them, so
 	// there is no room to join. It is the same channel `netwatch:update`,
 	// `ping:update` and `talkers:update` already use to reach dashboard cards.
-	r.emit("page-routing,page-home", "routing:update", payload)
+	r.emit("page-routing,page-dashboard", "routing:update", payload)
 }
 
 // SetPollMs applies a new poll period to a running collector.

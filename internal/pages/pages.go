@@ -37,6 +37,20 @@ type Page struct {
 	// Title is what the header shows. Empty means the key itself is good enough
 	// to display, which is true wherever the two already agree.
 	Title string
+	// Path is the URL segment when it differs from the key. Empty means the key
+	// IS the URL, which is true of 25 of the 26 pages.
+	//
+	// ── THE ONE EXCEPTION, AND WHY IT IS ONE ────────────────────────────────
+	//
+	// `dashboard` is served at `/home`. The page is called Dashboard everywhere
+	// it is named -- in the nav, in its markup id, in its room, in the grants
+	// stored in the operator's database -- and only the URL says `home`.
+	//
+	// This field exists so that ONE difference is declared in one place instead
+	// of being a rule the router carries. Adding a second entry is cheap; adding
+	// a general key-to-slug mapping was rejected, because a table everything
+	// must consult is a table everything can disagree with.
+	Path string
 }
 
 // All is every page with a renderer behind it, in nav order.
@@ -44,7 +58,7 @@ type Page struct {
 // ORDER MATTERS: cmd/webbuild composes the markup in this order, and the digit
 // shortcuts address the first nine.
 var All = []Page{
-	{Key: "home"},
+	{Key: "dashboard", Path: "home"},
 	{Key: "dns", Title: "DNS"},
 	{Key: "bridges", Title: "Bridges"},
 	{Key: "vlans", Title: "VLANs"},
@@ -70,6 +84,26 @@ var All = []Page{
 	{Key: "backups", Title: "Backups"},
 	{Key: "devices"},
 	{Key: "settings"},
+}
+
+// URL is the path this page is served at, without the leading slash.
+func (p Page) URL() string {
+	if p.Path != "" {
+		return p.Path
+	}
+	return p.Key
+}
+
+// ForURL resolves a URL segment to its page key, or "" when nothing matches.
+// The server routes on it and refuses anything else, so an unknown path stays an
+// honest 404 rather than quietly serving the shell.
+func ForURL(seg string) string {
+	for _, p := range All {
+		if p.URL() == seg {
+			return p.Key
+		}
+	}
+	return ""
 }
 
 // Keys returns every page key, in order.

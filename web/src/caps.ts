@@ -170,7 +170,7 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
     // Move off a page that just became hidden. NOT always to the dashboard — a
     // role can deny that too, so fall back to whatever is still reachable.
     if (!visible && host && host.current() === pageName) {
-      host.go(firstVisible || 'home');
+      host.go(firstVisible || 'dashboard');
     }
   }
 
@@ -236,7 +236,7 @@ export function applyCaps(c: Caps | null | undefined): void {
 
   // Caps arrive after the first paint, so someone may already be standing on
   // Settings by the time we learn they may not be.
-  if (host && host.current() === 'settings' && !settingsAllowed()) host.go('home');
+  if (host && host.current() === 'settings' && !settingsAllowed()) host.go('dashboard');
 }
 
 /**

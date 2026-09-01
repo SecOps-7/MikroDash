@@ -88,7 +88,7 @@ function showPage(socket: Socket, name: string): void {
   // console opened the whole admin page for anyone. The server refused every
   // write, but the page had no business rendering. Defence in depth, not the
   // boundary. Unknown caps PERMIT; see caps.ts.
-  if (name === 'settings' && !settingsAllowed()) name = 'home';
+  if (name === 'settings' && !settingsAllowed()) name = 'dashboard';
   const prev = currentPage;
   currentPage = name;
   document.querySelectorAll('.page-view').forEach((p) => p.classList.remove('active'));
@@ -831,13 +831,13 @@ async function main(): Promise<void> {
     // — needs somewhere with a longer life than the socket. The browser is that
     // place, because the page has not reloaded.
     // THE LANDING PAGE IS THE DASHBOARD, as the live app's is: `_currentPage =
-    // 'dashboard'` and `<div class="page-view active" id="page-home">`.
+    // 'dashboard'` and `<div class="page-view active" id="page-dashboard">`.
     //
     // This said 'dns' — a leftover from the first vertical slice, when DNS was
     // the ONLY ported page and landing anywhere else meant landing on nothing.
     // It outlived that by twenty-two pages, and the operator met it as "I land
     // on the DNS page".
-    showPage(socket, currentPage || 'home');
+    showPage(socket, currentPage || 'dashboard');
   };
   // Re-sent on every connect, because the server holds the selection on the
   // CONNECTION: a socket that has just reconnected knows nothing about which

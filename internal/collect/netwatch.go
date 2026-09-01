@@ -6,7 +6,7 @@ package collect
 //
 // ── THIS HAS NO PAGE ─────────────────────────────────────────────────────────
 //
-// It emits to `page-home`, not to a page of its own: NetWatch is a card on
+// It emits to `page-dashboard`, not to a page of its own: NetWatch is a card on
 // the Dashboard, and `public/index.html` has no `page-netwatch` at all. So this
 // queue item is the collector, and the card that renders the payload arrives
 // with the Dashboard.
@@ -183,7 +183,7 @@ func (n *Netwatch) Tick() {
 	n.last = payload
 	n.mu.Unlock()
 
-	n.emit("page-home", "netwatch:update", payload)
+	n.emit("page-dashboard", "netwatch:update", payload)
 }
 
 func (n *Netwatch) Last() *NetwatchPayload {

@@ -307,13 +307,13 @@ func (p *Ping) startStream() {
 			return
 		}
 		if payload := p.ProcessRow(row, time.Now().UnixMilli()); payload != nil {
-			p.emit("page-home", "ping:update", payload)
+			p.emit("page-dashboard", "ping:update", payload)
 		}
 	})
 	if err != nil {
 		if pingDenied.MatchString(err.Error()) {
 			log.Printf("[ping] test policy not granted — ping disabled. Add \"test\" to this API user's group to enable it.")
-			p.emit("page-home", "ping:update", p.noteDenied(time.Now().UnixMilli()))
+			p.emit("page-dashboard", "ping:update", p.noteDenied(time.Now().UnixMilli()))
 			return
 		}
 		log.Printf("[ping] stream error (target=%s): %v", p.target, err)

@@ -687,10 +687,10 @@ func (cn *conn) resumePage(page string) {
 	// `ping:update` needs no replay: the collector emits on its own cadence and
 	// the card fills within a tick. The HISTORY is different — it is the chart's
 	// entire backlog, and without it the chart starts empty every visit.
-	case "home":
+	case "dashboard":
 		// ── THE DASHBOARD CARDS, REPLAYED ───────────────────────────────────
 		//
-		// These three are emitted to `page-home` by collectors that run
+		// These three are emitted to `page-dashboard` by collectors that run
 		// from CONNECT, not from focus — so opening the Dashboard replayed
 		// nothing and the cards stayed empty until the next tick, which for
 		// netwatch and talkers is up to a minute. The live app sends all three
@@ -803,7 +803,7 @@ func (cn *conn) resumePage(page string) {
 		// payload arriving before them renders a read-only table that then has to
 		// be redrawn — visible as a flicker on every visit.
 		cn.srv.hub.Send(cn.c, "rosusers:caps", map[string]any{
-			"permitted":  cn.canPage("rosusers", "write"),
+			"permitted":  cn.canPage("router-users", "write"),
 			"routerName": cn.rsession.Label,
 		})
 		if last := cn.rsession.RosUsers().Last(); last != nil {
@@ -962,7 +962,7 @@ func (cn *conn) pageBlur(page string) {
 		// which is the third time it has caught exactly this consequence
 		// (dhcpNetworks, bandwidth, vpn, firewall before it).
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
-			[]string{"page-home"}, cn.rsession.Routing().Suspend)
+			[]string{"page-dashboard"}, cn.rsession.Routing().Suspend)
 	case "dhcp":
 		// dhcpNetworks also feeds the dashboard's Network card AND the
 		// router-wide `lan:wan` chip, which is on every page — so it is
@@ -977,7 +977,7 @@ func (cn *conn) pageBlur(page string) {
 		cn.srv.suspendIfNoRoomOccupied(cn.rsession, cn.routerID,
 			[]string{"dash-card-network"}, cn.rsession.DHCPNetworks().Suspend)
 		cn.rsession.DHCPLeases().Suspend()
-	case "home":
+	case "dashboard":
 		// ── THE OTHER HALF OF THE ROUTING GUARD ─────────────────────────────
 		//
 		// pageBlur had NO dashboard case, and did not need one: every collector

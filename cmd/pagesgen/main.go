@@ -78,12 +78,15 @@ export interface Page {
   key: string;
   /** Header text. Empty where the key already reads correctly on its own. */
   title: string;
+  /** URL segment. Equal to the key for all but the dashboard, served at /home. */
+  path: string;
 }
 
 export const PAGES: readonly Page[] = [
 `)
 	for _, p := range pages.All {
-		fmt.Fprintf(&b, "  { key: %s, title: %s },\n", strconv.Quote(p.Key), strconv.Quote(p.Title))
+		fmt.Fprintf(&b, "  { key: %s, title: %s, path: %s },\n",
+			strconv.Quote(p.Key), strconv.Quote(p.Title), strconv.Quote(p.URL()))
 	}
 	b.WriteString(`];
 
@@ -94,6 +97,17 @@ export const PAGE_KEY_SET: ReadonlySet<string> = new Set(PAGES.map((p) => p.key)
  *  whose key already reads correctly needs no second spelling of it. */
 export function pageTitle(key: string): string {
   return PAGES.find((p) => p.key === key)?.title || key;
+}
+
+/** The URL path for a page key, with its leading slash. */
+export function pagePath(key: string): string {
+  return '/' + (PAGES.find((p) => p.key === key)?.path || key);
+}
+
+/** The page key served at a URL segment, or '' when nothing matches. */
+export function pageForPath(pathname: string): string {
+  const seg = pathname.replace(/^\/+/, '').replace(/\/.*$/, '');
+  return PAGES.find((p) => p.path === seg)?.key || '';
 }
 `)
 	return []byte(b.String())
