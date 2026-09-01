@@ -562,13 +562,19 @@ export function initRosUsersPage(socket: Socket, isVisible: (page: string) => bo
         'MikroDash cannot identify its own account on this router, so changes are refused',
       'router-write-policy': 'The RouterOS user needs the "policy" permission for this',
       unsupported: 'This router does not support that command',
-      // MEASURED on RouterOS 7.24, 2026-09-01: `/user/active/remove` on a
-      // `via=rest-api` row answers `action failed (6)`. The router will not end
-      // a REST API session, so no amount of retrying here helps -- and those
-      // rows can sit in /user/active for weeks, which is what made this look
-      // like a broken button rather than a refusal.
-      'write-failed': 'The router refused that. REST API sessions in particular ' +
-        'cannot be ended from here — RouterOS answers "action failed" and keeps them.',
+      // MEASURED on RouterOS 7.24 and 7.24.1, 2026-09-01: `/user/active/remove`
+      // answers `action failed (6)` for BOTH `via=rest-api` and `via=api` rows,
+      // issued by a full-group user, with `numbers=[find ...]` as well as a bare
+      // id -- so it is a refusal by the router rather than a syntax mistake or a
+      // permission gap. Such rows can then sit in /user/active for weeks, which
+      // is what made this look like a dead button rather than a refusal.
+      //
+      // NOT claimed here: that every session type is refused. winbox and ssh
+      // were not tested, because the only ones available were the operator's own
+      // and this session's. The wording says what was seen and no more.
+      'write-failed': 'The router refused to end that session ("action failed"). ' +
+        'RouterOS keeps some session types — API and REST API sessions among them — ' +
+        'and they have to be cleared from the router itself.',
     };
     const text = (code && msg[code]) || (d && d.message) || 'Action failed';
     // A refusal belongs in the dialog that caused it; everything else is a row

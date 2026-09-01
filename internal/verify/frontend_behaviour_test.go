@@ -286,3 +286,49 @@ func TestTrafficPickSurvivesReconnect(t *testing.T) {
 	}
 	t.Log("the pick survives a reconnect and is cleared only on a router switch")
 }
+
+// ── THE USERS PAGE'S BUSY KEY, AND ITS PENDING LABEL ───────────────────────
+//
+// A STRUCTURAL CHECK, DELIBERATELY, and it is worth saying why rather than
+// letting the weaker form pass for the intended one. Both properties live inside
+// `initRosUsersPage`, an IIFE-shaped closure, and `web/test`'s shim builds
+// documents from id lists rather than parsing markup -- so mounting the three
+// tables and clicking a rendered button is not something that harness can do
+// today. `principals-wiring` records the same limit in its own words: "glue has
+// no seam to lift". This catches a regression, not a divergence.
+//
+// WHAT IT PREVENTS, both measured on 2026-09-01:
+//
+//  1. `busy` was a bare `.id`. `/user`, `/user/group` and `/user/active` each
+//     mint their own `*N` sequence, so ending session `*3` also disabled the
+//     USER whose id was `*3` -- a greyed-out row on a different tab, with no
+//     visible cause.
+//  2. There was no pending label at all. The only feedback was a `disabled`
+//     attribute while the outcome went to a muted span in the card header, so on
+//     a router that REFUSES the write -- which RouterOS does for api and
+//     rest-api sessions -- clicking End Session looked identical to clicking a
+//     dead button.
+func TestTheUsersPageBusyKeyIsQualifiedAndShowsProgress(t *testing.T) {
+	src := uncomment(mustRead(t, filepath.Join(repoRoot(t), "web", "src", "pages", "rosusers.ts")))
+
+	// The collision, in the one place it was expressible: btn() comparing a bare
+	// id. Anything table-qualified is fine; `busy === id` is not.
+	if regexp.MustCompile(`busy\s*===\s*id\b`).MatchString(src) {
+		t.Error("rosusers.ts compares `busy === id`, so one *N disables the same id in all " +
+			"three tables — ending a session greys out an unrelated user row")
+	}
+	if !strings.Contains(src, "busyKey(") {
+		t.Fatal("no busyKey() in rosusers.ts — the busy state is no longer table-qualified, " +
+			"and this check has stopped measuring anything")
+	}
+
+	// And the pending label, which is the whole of what the operator sees while
+	// the write is in flight.
+	if !strings.Contains(src, "Closing") {
+		t.Error("no pending label for session-remove: the button stays on 'End Session' " +
+			"while the write runs, which is what made a refusal look like a dead button")
+	}
+	if !regexp.MustCompile(`'session-remove'\s*:`).MatchString(src) {
+		t.Error("the PENDING table has no session-remove entry")
+	}
+}
