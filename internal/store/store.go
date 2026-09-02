@@ -405,6 +405,21 @@ type Router struct {
 	// `collection.ParseRouter` decodes it leniently, in the package that owns
 	// what the values mean.
 	Collection json.RawMessage `json:"collection"`
+	// Geo is the record's location block: `place` when somebody picked a town,
+	// `auto` when it was derived from the WAN address.
+	//
+	// READ BY NOTHING UNTIL 2026-09-02, and the Devices map is what noticed. The
+	// map plots a device from `Geo`, but the STATS payload is assembled from this
+	// struct while the router LIST is assembled from the raw record map — so the
+	// list carried `geo` and the stats did not. Every row reached the map with a
+	// nil location, and every device fell into the "No location" tray however it
+	// had been placed.
+	//
+	// RAW, for `Collection`'s reason above: the block is operator-editable and
+	// `geoplace.ResolveLocation` already validates it field by field, treating
+	// anything unusable as absent. A typed field here would turn one malformed
+	// `geo` into a total failure to load the fleet.
+	Geo json.RawMessage `json:"geo"`
 	// PingTarget is the host this router's latency checks use.
 	//
 	// WRITTEN BY `AddRouter` AND, UNTIL 2026-08-29, READ BY NOTHING: the struct

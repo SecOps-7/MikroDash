@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"time"
@@ -31,6 +32,24 @@ import (
 // second source of truth about who is watching what is exactly the thing that
 // drifts.
 
+// decodeGeo turns the record's raw `geo` block into the map ResolveLocation
+// validates, and answers nil for anything it cannot read.
+//
+// LENIENT ON PURPOSE, matching why the field is stored raw: the block is
+// operator-editable, and `geoplace.ResolveLocation` already checks every value
+// it uses. A router with a malformed `geo` loses its pin; it must not take the
+// rest of the fleet's rows down with it, which a hard failure here would do.
+func decodeGeo(raw json.RawMessage) map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil
+	}
+	return m
+}
+
 // buildStatsSources gathers everything `routers.BuildStats` needs.
 //
 // Assembled HERE rather than in `internal/routers` so that package keeps no
@@ -58,6 +77,20 @@ func (s *Server) buildStatsSources(sess *Session) routers.StatsSources {
 		out.Routers = append(out.Routers, routers.StatsRouter{
 			ID: r.ID, Label: r.Label, Host: r.Host, Disabled: r.Disabled,
 			SiteIDs: store.RouterSiteIDs(r),
+			// ── WITHOUT THIS THE MAP PLOTS NOTHING ────────────────────────
+			//
+			// `BuildStats` copies this into the row's `Geo`, and
+			// `geoplace.ResolveLocation` reads it for both the manual place and
+			// the automatic fix. It was never set, so every device arrived with a
+			// nil location and the map dropped ALL of them into the "No location"
+			// tray — including ones whose town somebody had picked by hand.
+			//
+			// Only a site location survived, because that tier resolves from a
+			// different source. The router LIST payload was fine throughout: it
+			// is built from the raw record map, which kept `geo` all along, so
+			// the data was on disk and reaching the browser on one path and not
+			// the other.
+			Geo: decodeGeo(r.Geo),
 		})
 	}
 
