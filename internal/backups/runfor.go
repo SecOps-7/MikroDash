@@ -74,6 +74,41 @@ type RunForConfig struct {
 	WritePair func(dir, stem, rsc string, binary []byte) (rscBytes, backupBytes int64, err error)
 	Now       func() int64
 	Log       func(string)
+
+	// Notify tells someone about a run, and only about the two outcomes worth
+	// interrupting for. Nil sends nothing, which is what every caller without a
+	// dispatcher wants. See notifyRun.
+	Notify func(kind, title, body string)
+}
+
+// notifyRun is the live `_notify`, and its restraint is the design.
+//
+// ── ONLY TWO OUTCOMES ARE WORTH A MESSAGE ──────────────────────────────────
+//
+// "Backup succeeded, nothing changed" is deliberately NOT notifiable, and the
+// live comment says why -- it is the whole reason this is a filter rather than a
+// send: "On a daily schedule that is a message every day that says nothing, and
+// a channel that cries wolf daily is one people mute -- including for the two
+// below."
+//
+// DRIFT NEEDS A PREVIOUS FINGERPRINT. The first backup of a router is not drift,
+// it is a baseline, and announcing it as a change would be wrong on the one run
+// where the operator already knows what they just did.
+func notifyRun(cfg RunForConfig, res RunResult, previous string) {
+	if cfg.Notify == nil {
+		return
+	}
+	switch {
+	case res.Outcome == OutcomeChanged && previous != "":
+		cfg.Notify("drift", "Configuration changed: "+cfg.Label,
+			cfg.Label+" drifted from its last backup. A new restore point was stored.")
+	case res.Outcome == OutcomeFailed:
+		reason := res.Error
+		if reason == "" {
+			reason = "unknown error"
+		}
+		cfg.Notify("fail", "Backup failed: "+cfg.Label, cfg.Label+" — "+reason)
+	}
 }
 
 // RunFor takes one backup and records it.
@@ -150,5 +185,9 @@ func RunFor(cfg RunForConfig) (RunResult, int64, error) {
 			log(fmt.Sprintf("retention sweep failed: %v", err))
 		}
 	}
+	// AFTER the record and the sweep, which is where live puts it: a message
+	// saying a restore point was stored must not go out before the row that
+	// proves it. Inert when no dispatcher was supplied.
+	notifyRun(cfg, res, previous)
 	return res, id, nil
 }

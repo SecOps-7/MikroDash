@@ -366,6 +366,13 @@ func (cn *conn) backupsRun() {
 			DataDir: cn.srv.store.Dir, Source: "manual", Actor: actor,
 			Recorder: bkRecorder{db: cn.srv.auditDB, routerID: cn.routerID},
 			Pruner:   bkPruner{db: cn.srv.auditDB}, Retention: keep,
+			// The live `runFor` notifies whatever the source, so a manual run
+			// that FAILS says so too. A drift from a manual run is rarer, since
+			// the operator is usually the one who changed the config -- but
+			// `notifyRun` decides that, not the call site.
+			Notify: func(kind, title, body string) {
+				cn.srv.dispatchBackup(cn.routerID, kind, title, body)
+			},
 			Connect: func() (backups.Writer, func(), error) {
 				return cn.bkWriter(), func() {}, nil
 			},

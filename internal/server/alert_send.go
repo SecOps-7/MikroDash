@@ -74,6 +74,45 @@ func (s *Server) dispatchFired(routerID, routerLabel string, fired []alert.Fired
 	}()
 }
 
+// dispatchBackup sends one backup notification: a drift or a failure.
+//
+// ── WHY IT IS NOT AN ALERT ─────────────────────────────────────────────────
+//
+// It goes out through the same recipients, settings and cooldown as an alert,
+// but it is not one and does not pretend to be. `alert.Fired` carries a rule, a
+// direction and a subject that the Alerts page renders and the database records;
+// a backup result has none of those. Building a synthetic Fired to reuse
+// `dispatchFired` would put rows on the Alerts page for something that is not an
+// alert, which is worse than two short functions.
+//
+// The COOLDOWN KEY is per router and kind, so a router failing every night is
+// rate-limited like anything else, and a drift on one router never suppresses a
+// failure on another.
+//
+// Non-blocking, for the reason `dispatchFired` gives: this runs on the backup
+// path, and delivery talks to Telegram, SMTP and ntfy over the network.
+func (s *Server) dispatchBackup(routerID, kind, title, body string) {
+	if s.dispatch == nil || !s.dispatch.Enabled() || title == "" {
+		return
+	}
+	recipients := s.dispatch.Recipients(routerID, s.perUserRecipients)
+	if len(recipients) == 0 {
+		return
+	}
+	msg := alertdispatch.Message{Title: title, Body: body}
+	key := "backup:" + kind + ":" + routerID
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		for i := range recipients {
+			// Per recipient, result ignored: `Deliver` logs its own failure, and
+			// one unreachable destination must not stop the others.
+			s.dispatch.Deliver(ctx, &recipients[i], key, msg)
+		}
+	}()
+}
+
 // cooldownKey is the per-alert cooldown bucket.
 //
 // ── AN APPROXIMATION OF LIVE'S KEY, AND THE DIFFERENCE IS NAMED ───────────

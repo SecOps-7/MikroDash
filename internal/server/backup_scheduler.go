@@ -198,6 +198,11 @@ func (s *Server) runScheduledBackup(r backups.SchedRouter) error {
 		DataDir: s.store.Dir, Source: "schedule",
 		Recorder: bkRecorder{db: s.auditDB, routerID: r.ID},
 		Pruner:   bkPruner{db: s.auditDB}, Retention: keep,
+		// DRIFT AND FAILURE REACH THE OPERATOR AGAIN. The live app notified on
+		// both and the port carried neither, so a scheduled backup has been
+		// silent since cutover -- including when it FAILED, which is the one a
+		// dashboard cannot show you because nobody is looking at it.
+		Notify: func(kind, title, body string) { s.dispatchBackup(r.ID, kind, title, body) },
 		Connect: func() (backups.Writer, func(), error) {
 			return func(cmd string, args ...string) ([]map[string]string, error) {
 				replies, err := sess.Exec(routeros.Cmd{Path: cmd, Args: args})
