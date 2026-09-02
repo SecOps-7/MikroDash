@@ -67,7 +67,9 @@ type Session struct {
 	linger    *time.Timer
 	closed    bool
 	connected bool
-	lastErr   string
+	// observed is whether the two fields above are an ANSWER yet. See Observed.
+	observed bool
+	lastErr  string
 
 	dns      *collect.DNS
 	bridges  *collect.Bridges
@@ -112,6 +114,19 @@ func (s *Session) Connected() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.connected
+}
+
+// Observed reports whether `Connected` and `LastError` are an ANSWER rather than
+// Go's zero values.
+//
+// A Session exists from `Acquire`, before its first dial returns, and the
+// Devices page reads it for the router being watched. Without this, that router
+// spends its first moments claiming to be offline for no stated reason — the
+// same defect `routers.OverviewSession.observed` records at length.
+func (s *Session) Observed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.observed
 }
 
 func (s *Session) LastError() string {
@@ -968,6 +983,7 @@ func (s *Session) connectLoop() {
 		if err != nil {
 			s.mu.Lock()
 			s.connected = false
+			s.observed = true
 			// SANITISED AT THE POINT OF STORAGE, not at the point of sending.
 			// `lastErr` reaches a browser through `announce` as `router:status`'s
 			// reason, and the shell renders that as the banner text — so storing
@@ -990,6 +1006,7 @@ func (s *Session) connectLoop() {
 		s.client = c
 		s.connected = true
 		s.lastErr = ""
+		s.observed = true
 		s.mu.Unlock()
 		log.Printf("[session] %s connected", s.Label)
 		s.announce()

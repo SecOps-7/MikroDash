@@ -316,7 +316,9 @@ function apply(rows: RouterStatsRow[] | null): void {
     // THE WORST STATE IN THE GROUP. A site with one router down is a site with a
     // problem, and a green dot hiding a red one would defeat the only thing the
     // map is really for.
-    const anyDown = g.routers.some((r) => !r.connected);
+    // A router nobody has checked yet is NOT down — `known` carries that, and
+    // without this test every marker on the map went red on first paint.
+    const anyDown = g.routers.some((r) => r.known && !r.connected);
     const colour = anyDown ? 'var(--accent-red,#f87171)' : 'var(--accent-green,#2fb344)';
     const n = g.routers.length;
     // SQUARE-ROOT growth, because area is what the eye judges, and capped so one

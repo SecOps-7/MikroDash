@@ -532,3 +532,58 @@ func TestADisabledCollectorIsNeverStarted(t *testing.T) {
 		t.Error("system stopped polling too — turning one collector off disabled another")
 	}
 }
+
+// ── WHAT `Summaries` SAYS ABOUT A SESSION THAT HAS NOT DIALLED YET ──────────
+//
+// This is where the operator's "two devices show offline for a few seconds" came
+// from, and it is why `Summary` carries `Known`. Sync builds a session and
+// Summaries reports it AT ONCE, with `Connected` at Go's zero value and no error
+// to explain it. The Devices page cannot tell that from a router that answered
+// and said no.
+//
+// A dialler held open keeps the session in exactly that state for as long as the
+// test wants, so nothing here is a race.
+func TestASummaryIsNotKnownUntilTheSessionHasReported(t *testing.T) {
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	letDialFinish := func() { releaseOnce.Do(func() { close(release) }) }
+	defer letDialFinish() // so a failure part-way cannot wedge the pool
+
+	dialling := make(chan struct{})
+	var reached sync.Once
+	p := NewPool(func(routeros.Config) (Conn, error) {
+		reached.Do(func() { close(dialling) })
+		<-release
+		return &fakeConn{up: true}, nil
+	}, time.Hour, nil, nil)
+	defer p.Close()
+
+	p.Sync([]RouterConfig{{ID: "a", Host: "198.51.100.1"}}, nil)
+	<-dialling
+
+	sums := p.Summaries()
+	if len(sums) != 1 {
+		t.Fatalf("want one summary for the session Sync built, got %d", len(sums))
+	}
+	if sums[0].Known {
+		t.Error("Known is true for a session still inside its first dial; the " +
+			"Devices page renders that as a red Offline for a router nothing " +
+			"has heard from")
+	}
+	if sums[0].Connected {
+		t.Error("Connected must still be false — this fix must not paper over a " +
+			"router that really is down by claiming it is up")
+	}
+
+	// AND IT MUST BECOME AN ANSWER. Half a ledger is folklore: without this the
+	// field could be hardcoded false and the assertion above would still pass.
+	letDialFinish()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if s := p.Summaries(); len(s) == 1 && s[0].Known && s[0].Connected {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Error("the summary never became known-and-connected after the dial returned")
+}

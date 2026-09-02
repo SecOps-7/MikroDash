@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"mikrodash/internal/alertpool"
+	"mikrodash/internal/collect"
 	"mikrodash/internal/db"
 	"mikrodash/internal/hub"
 	"mikrodash/internal/rbac"
@@ -166,6 +168,13 @@ func (stubConn) Stream(routeros.Cmd, func(routeros.Reply)) (func(), error) {
 
 func (stubConn) Connected() bool { return false }
 func (stubConn) Close() error    { return nil }
+
+// connectedStub is the same stub that reports itself UP. `stubConn` never
+// connects, which is right for the tests that only ask which routers are
+// tracked, and useless for one asserting what a pool REPORTS about them.
+type connectedStub struct{ stubConn }
+
+func (connectedStub) Connected() bool { return true }
 
 // devicesServerWithPool gives the server a real pool and a store holding three
 // routers: one ordinary, one DISABLED, and one that an interactive session is
@@ -782,5 +791,156 @@ func TestDevicesFocusStartsTheTick(t *testing.T) {
 			"numbers, so without it the table freezes on the payload it received when the page " +
 			"opened — and it freezes at the worst moment, before the background pool has " +
 			"connected, so every router nobody is watching reads OFFLINE and stays that way.")
+	}
+}
+
+// ── THE ALERT POOL AS A SECOND SOURCE FOR THE DEVICES PAGE ──────────────────
+//
+// The alert pool is synced at startup and already holds the fleet; the overview
+// pool is synced from this page and takes seconds to dial. Reading the first
+// where the second has nothing is what stops every card claiming "Offline" on
+// first paint.
+//
+// The property worth pinning is that it FILLS and does not OVERWRITE. A snapshot
+// carries no DHCP leases, so a snapshot winning would blank the Clients count on
+// a card that already had one — not a crash, and not visible in a green suite.
+func TestTheAlertPoolFillsOnlyWhatTheOverviewPoolLeftEmpty(t *testing.T) {
+	leases := &collect.LeasesPayload{Leases: []collect.Lease{{}, {}}}
+	bg := map[string]routers.Summary{
+		// ANSWERED: richer than a snapshot, and must survive.
+		"r1": {RouterID: "r1", Connected: true, Known: true, DHCPLeases: leases},
+		// PRESENT BUT UNANSWERED — the session exists and its dial has not
+		// returned. This is the case the first version of this function got
+		// wrong: it skipped on presence alone, so the alert pool's real answer
+		// was thrown away and the card drew a red Offline.
+		"r2": {RouterID: "r2", Connected: false, Known: false},
+	}
+	// r1 is CONTRADICTED on purpose: a wrong precedence then shows up as a
+	// changed value, not merely as a missing one.
+	fillFromAlertPool(bg, []alertpool.Snapshot{
+		{RouterID: "r1", Connected: false},
+		{RouterID: "r2", Connected: true},
+		{RouterID: "r3", Connected: true},
+	})
+
+	if got := bg["r1"]; !got.Connected || got.DHCPLeases == nil {
+		t.Errorf("r1 = %+v; the overview pool ANSWERED for it, so its richer "+
+			"summary must survive rather than being replaced by a snapshot", got)
+	}
+	if got := bg["r2"]; !got.Connected || !got.Known {
+		t.Errorf("r2 = %+v; the overview pool holds it but has not heard from "+
+			"it, so the alert pool's answer must WIN — skipping on presence "+
+			"alone is what left the page drawing Offline cards", got)
+	}
+	if got := bg["r3"]; !got.Connected || !got.Known {
+		t.Errorf("r3 = %+v; the overview pool has nothing for it and the alert "+
+			"pool does, which is the whole point of reading the alert pool", got)
+	}
+	if len(bg) != 3 {
+		t.Errorf("%d entries, want 3 — the fill invented a router", len(bg))
+	}
+}
+
+// And the same thing end to end: a server whose ONLY source is the alert pool
+// still produces rows that say `known`, which is what the card reads.
+func TestAlertPoolOnlyCoverageStillMarksRowsKnown(t *testing.T) {
+	s := devicesServerWithPool(t)
+	s.alertPool = alertpool.New(
+		func(routeros.Config) (alertpool.Conn, error) { return connectedStub{}, nil },
+		time.Hour, nil, nil, nil,
+	)
+	t.Cleanup(s.alertPool.Close)
+
+	// NOT `syncPool()`: the overview pool stays empty, which is the state the
+	// Devices page is in for the first seconds after it opens.
+	all, _ := s.store.Routers()
+	fleet := make([]alertpool.Router, 0, len(all))
+	for _, r := range all {
+		fleet = append(fleet, alertpool.Router{ID: r.ID, Label: r.Label, Host: r.Host,
+			Disabled: r.Disabled})
+	}
+	s.alertPool.Sync(fleet, "", nil)
+
+	// WAIT FOR ALL OF THEM, not the first. Each session dials on its own
+	// goroutine, so breaking as soon as one row is known reads the others
+	// mid-sweep — which failed intermittently and looked like the bug this test
+	// is about.
+	allKnown := func(rows []routers.Row) bool {
+		for _, r := range rows {
+			if !r.Known {
+				return false
+			}
+		}
+		return len(rows) > 0
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	var rows []routers.Row
+	for time.Now().Before(deadline) {
+		rows = routers.BuildStats(s.buildStatsSources(&Session{AuthMode: "none"}))
+		if allKnown(rows) {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if len(rows) == 0 {
+		t.Fatal("no rows")
+	}
+	for _, row := range rows {
+		if !row.Known || !row.Connected {
+			t.Errorf("%s: known=%v connected=%v; the alert pool holds this "+
+				"router and reports it up, so the card must not draw Offline",
+				row.ID, row.Known, row.Connected)
+		}
+	}
+}
+
+// ── THE HANDOVER BETWEEN THE TWO POOLS ──────────────────────────────────────
+//
+// `syncPool` builds an overview session per router and `syncAlertPool` runs
+// immediately after it. If the alert pool excluded on the mere EXISTENCE of an
+// overview session, it would tear down a live connected session and hand the
+// router to one that has not dialled — leaving the Devices page with nothing to
+// report and, worse, leaving the router's alerts unevaluated for the gap.
+//
+// So: a router the overview pool holds but has not heard from stays with the
+// alert pool, and moves across only once the overview session has ANSWERED.
+func TestTheAlertPoolKeepsARouterUntilTheOverviewPoolHasAnswered(t *testing.T) {
+	s := devicesServerWithPool(t)
+
+	// A dialler that never returns: every overview session stays un-answered,
+	// which is the state this test is about, held indefinitely and without a race.
+	block := make(chan struct{})
+	defer close(block)
+	s.pool = routers.NewPool(
+		func(routeros.Config) (routers.Conn, error) { <-block; return stubConn{}, nil },
+		time.Hour, nil, nil,
+	)
+	t.Cleanup(s.pool.Close)
+	s.syncPool()
+
+	// r1 and r3 are the enabled routers in this fixture; r2 is disabled.
+	waitFor := time.Now().Add(3 * time.Second)
+	for time.Now().Before(waitFor) && len(s.pool.Summaries()) < 2 {
+		time.Sleep(5 * time.Millisecond)
+	}
+	sums := s.pool.Summaries()
+	if len(sums) < 2 {
+		t.Fatalf("the overview pool built %d sessions, want 2", len(sums))
+	}
+	for _, sum := range sums {
+		if sum.Known {
+			t.Fatalf("%s answered despite a blocked dialler; the test is not "+
+				"exercising the un-answered state it claims to", sum.RouterID)
+		}
+	}
+
+	excluded := s.alertPoolExclusions()
+	for _, sum := range sums {
+		if excluded[sum.RouterID] {
+			t.Errorf("%s was taken from the alert pool while the overview pool "+
+				"had only just started dialling it; that is the coverage gap, "+
+				"and it is what left the Devices page with nothing to show",
+				sum.RouterID)
+		}
 	}
 }

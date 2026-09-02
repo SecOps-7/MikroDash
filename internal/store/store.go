@@ -38,6 +38,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -263,6 +264,32 @@ type User struct {
 func (s *Store) Users() ([]User, error) {
 	b, err := os.ReadFile(filepath.Join(s.Dir, "users.json"))
 	if err != nil {
+		// ── AN ABSENT FILE IS "NO USERS YET", AND NOTHING ELSE IS ──────────
+		//
+		// A brand-new /data has no users.json, and that is the FIRST RUN state,
+		// not a failure. `GET /api/auth/status` computes `firstRun` from
+		// `len(users) == 0`; returning the raw ENOENT here made it answer 500,
+		// the login page fell back to its Sign In form, and the setup wizard
+		// never appeared. So a fresh install showed a username and password box
+		// for an account that could not exist and could not be created —
+		// reported as "it doesn't ask for user/password and the space where to
+		// fill these informations aren't working" (issue #124), and reproduced
+		// on an empty volume with no environment variables set.
+		//
+		// ── ONLY `not exist`. THIS IS A SECURITY BOUNDARY, NOT A CONVENIENCE ─
+		//
+		// An empty user list means `firstRun`, and `firstRun` is what lets a
+		// caller create the first administrator WITHOUT AUTHENTICATING. So a
+		// users.json that exists but cannot be read — permissions, a short read,
+		// a corrupt mount — must stay an ERROR. Swallowing those would turn a
+		// transient read failure into "this install has no accounts", and hand
+		// the next visitor an admin account on a populated system.
+		//
+		// The malformed-JSON case below is loud for exactly the same reason, and
+		// says so.
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var out []User

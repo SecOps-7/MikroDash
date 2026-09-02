@@ -71,7 +71,11 @@ type StatsRouter struct {
 type MainSession struct {
 	// Connected is the live `mainEntry.rosConnected`, not "a session object
 	// exists" — a session is created before it connects.
-	Connected  bool
+	Connected bool
+	// Known is whether `Connected` has been ANSWERED yet, which is the other
+	// half of the sentence above: a session created and not yet connected reads
+	// false here and must not be rendered as offline.
+	Known      bool
 	LastError  string
 	System     *collect.SystemPayload
 	IfStatus   *collect.IfStatusPayload
@@ -140,16 +144,29 @@ func BuildStats(src StatsSources) []Row {
 		// uptime.
 		switch {
 		case isActive:
+			in.Known = main.Known
 			in.Connected = main.Connected
 			in.LastError = main.LastError
 			in.System, in.IfStatus, in.DHCPLeases = main.System, main.IfStatus, main.DHCPLeases
 		case hasBG:
+			// FROM THE SUMMARY, not hardcoded. A pool session exists before it
+			// has dialled; see Input.Known.
+			in.Known = bg.Known
 			in.Connected = bg.Connected
 			in.LastError = bg.LastError
 			in.System, in.IfStatus, in.DHCPLeases = bg.System, bg.IfStatus, bg.DHCPLeases
 		default:
-			// Known to the fleet, served by neither pool: offline with nothing
-			// to say. The original produces `connected: false, lastError: null`.
+			// Known to the fleet, served by NEITHER pool — so nothing has asked
+			// this router anything yet, and `Connected = false` is the zero
+			// value rather than an observation.
+			//
+			// `Known` is what carries that difference to the page. The original
+			// produces `connected: false, lastError: null` here and the card
+			// rendered it as a red "Offline", which is a claim the server is in
+			// no position to make: on first open of the Devices page every
+			// router but the selected one lands in this branch until the
+			// overview pool has dialled it.
+			in.Known = false
 			in.Connected = false
 		}
 

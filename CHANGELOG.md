@@ -2,6 +2,44 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.12] - Fresh installs, the Devices page, and two long-standing map bugs
+
+### Fixed
+
+- **A brand new install still could not create its first account.** The setup wizard never
+  appeared: the login page offered a Sign In form while the Create Admin Account form stayed
+  hidden, so there was no account to sign in with and no way to make one. A missing user file was
+  being reported as a read error instead of as "no users yet". 0.8.11 created the files a new
+  install needs; this is the same issue one layer up, and it is now tested end to end on an empty
+  volume with no environment variables set. Issue #124.
+- **No site location could be saved, on any install.** Picking a town answered "Pick a town from
+  the list, or clear the location", which is what the user had just done. The town search returned
+  full region names ("North Rhine-Westphalia") while the validator still expected the three letter
+  codes the old geo database used, so the app was refusing places its own search had offered.
+  99.6% of towns were affected. Issue #120.
+- **The Connections map, Top Countries, Connection Flow, Top Ports and Top Destinations were all
+  empty** for anyone whose router has a catch all `0.0.0.0/0` DHCP network. Every destination was
+  being treated as local and dropped. The connection count, the client picker and Top Sources kept
+  working, which is why it looked like a display problem rather than a filter. Issue #120.
+- **Devices showed every device as offline for the first few seconds.** The page now reports what
+  it actually knows: a device nothing has reached yet reads "Checking" rather than a red Offline,
+  and rows are filled from the always-on pool so real state is there on the first paint. Returning
+  to the page is instant instead of re-dialling the fleet.
+- **The Devices map stopped plotting devices**, because their location was not being sent to the
+  page.
+- **The notification bell would not close when you clicked away.** The only way to dismiss it was
+  to find the bell and click it again.
+- **The Devices page sat in a narrow column on wide screens**, and its cards stopped getting wider
+  past 1200px. Issue #122.
+
+### Internal
+
+- The town search and the place validator are now checked against each other, so the app cannot
+  offer a location it will refuse to store.
+- A pool session that has not finished its first dial is no longer reported as offline anywhere.
+- Handing a router between the two connection pools no longer leaves a gap where neither is
+  watching it.
+
 ## [0.8.11] - A new install can be set up again
 
 ### Fixed

@@ -196,3 +196,62 @@ func TestTheConnectionsTopNDefaultMatchesLive(t *testing.T) {
 		t.Error("a positive count was ignored — this is the wiring the operator's report was about")
 	}
 }
+
+// ── ISSUE #120: A CATCH-ALL DHCP NETWORK KILLED THE DESTINATION HALF ────────
+//
+// `LanCidrs` comes from `/ip/dhcp-server/network`, and `guard.InCIDRs` returns
+// TRUE for a zero-length prefix — deliberately, because it reproduces the live
+// `matchCIDR`. So one `0.0.0.0/0` row made every address local, and every
+// destination hit the `continue` in BuildConns.
+//
+// This asserts the SHAPE OF THE REPORT, not just the fix: the symptoms the
+// operator saw are one-sided, and that asymmetry is why nobody suspected the
+// LAN list. Sources, the total and the protocol split all keep working, so the
+// page looks alive while the whole destination half is silently empty.
+//
+// `isLanCidr` is what stops the /0 ever reaching this list; this test pins what
+// happens if one does, so the two ends cannot drift apart.
+func TestACatchAllLanCidrSwallowsEveryDestination(t *testing.T) {
+	rows := []routeros.Reply{
+		{".id": "*1", "src-address": "192.168.88.10", "dst-address": "1.1.1.1",
+			"dst-port": "443", "protocol": "tcp"},
+		{".id": "*2", "src-address": "192.168.88.11", "dst-address": "9.9.9.9",
+			"dst-port": "53", "protocol": "udp"},
+	}
+	build := func(cidrs []string) *ConnsPayload {
+		return BuildConns(ConnsInput{Rows: rows, LanCidrs: cidrs, TopN: 10,
+			MaxConns: 100, Detailed: true, PollMs: 3000,
+			Geo: func(string) (string, string) { return "DE", "Berlin" }})
+	}
+
+	// THE BUG, reproduced exactly.
+	bad := build([]string{"192.168.88.0/24", "0.0.0.0/0"})
+	if len(bad.TopDestinations) != 0 || len(bad.TopPorts) != 0 || len(bad.TopCountries) != 0 {
+		t.Fatalf("the /0 no longer swallows destinations, so this test has "+
+			"stopped reproducing issue #120 and must be re-aimed rather than "+
+			"left passing: dests=%v ports=%v countries=%v",
+			bad.TopDestinations, bad.TopPorts, bad.TopCountries)
+	}
+	// ...and the half that kept working, which is what made it so confusing.
+	if len(bad.TopSources) == 0 || bad.ProtoCounts.TCP != 1 || bad.ProtoCounts.UDP != 1 {
+		t.Errorf("sources/protocols also broke; the report says these still "+
+			"worked, so a fix that changes them is fixing the wrong thing: "+
+			"sources=%v proto=%+v", bad.TopSources, bad.ProtoCounts)
+	}
+
+	// WITHOUT THE /0 — which is what `isLanCidr` now guarantees — everything
+	// the operator listed as missing comes back.
+	good := build([]string{"192.168.88.0/24"})
+	if len(good.TopDestinations) != 2 {
+		t.Errorf("TopDestinations = %v, want both", good.TopDestinations)
+	}
+	if len(good.TopPorts) != 2 {
+		t.Errorf("TopPorts = %v, want 443 and 53", good.TopPorts)
+	}
+	if len(good.TopCountries) != 1 {
+		t.Errorf("TopCountries = %v, want one", good.TopCountries)
+	}
+	if len(good.TopSources) != 2 {
+		t.Errorf("TopSources = %v, want both LAN hosts", good.TopSources)
+	}
+}

@@ -396,3 +396,52 @@ func TestTheHistoryRouterIsDialledOnlyOnce(t *testing.T) {
 		t.Errorf("the other router was dialled %d times, want 1", n)
 	}
 }
+
+// ── THE DEVICES PAGE'S FIRST PAINT DEPENDS ON THIS ────────────────────────
+//
+// `Snapshots` is what lets the Devices page show real state the moment it opens,
+// instead of a fleet of red "Offline" cards waiting on the overview pool to
+// dial. Two properties, and the second is the one that is easy to lose:
+//
+//  1. A router this pool has an opinion about is reported, with that opinion.
+//  2. A router it does NOT yet have an opinion about is OMITTED, not reported
+//     as down. Emitting `Connected: false` for it would push the same
+//     zero-value-as-observation bug down one layer.
+func TestSnapshotsReportOnlyWhatThePoolHasObserved(t *testing.T) {
+	d := &fakeDial{}
+	rec := &recorder{}
+	p := New(d.dial, 10*time.Millisecond, rec.hook, nil, nil)
+	defer p.Close()
+
+	// No sessions at all: nothing to report, and no panic on the empty maps.
+	if got := p.Snapshots(); len(got) != 0 {
+		t.Fatalf("Snapshots() = %v on an unsynced pool, want none", got)
+	}
+
+	p.Sync([]Router{{ID: "a", Label: "Alpha", Host: "198.51.100.1"}}, "", nil)
+	waitFor(t, "the first observation", func() bool { return len(p.Snapshots()) == 1 })
+
+	got := p.Snapshots()
+	if got[0].RouterID != "a" || !got[0].Connected {
+		t.Errorf("Snapshots() = %+v, want a connected", got[0])
+	}
+
+	// A SESSION WITH NO OBSERVATION IS NOT A SNAPSHOT. Built directly rather
+	// than raced into existence, because the window between "session exists" and
+	// "first dial returned" is exactly what this guards and is too short to hit
+	// reliably from the outside.
+	// `stop` is made because `teardown` closes it; the deferred `Close` reaches
+	// every session in the map, this one included.
+	p.mu.Lock()
+	p.sessions["pending"] = &poolSession{
+		r: Router{ID: "pending"}, stop: make(chan struct{}),
+	}
+	p.mu.Unlock()
+
+	for _, s := range p.Snapshots() {
+		if s.RouterID == "pending" {
+			t.Error("a session whose first dial has not returned was reported; " +
+				"the caller cannot tell that from a router that is genuinely down")
+		}
+	}
+}

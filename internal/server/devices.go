@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"mikrodash/internal/alertpool"
 	"mikrodash/internal/collection"
 	"mikrodash/internal/routers"
 	"mikrodash/internal/store"
@@ -108,7 +109,9 @@ func (s *Server) buildStatsSources(sess *Session) routers.StatsSources {
 	// connects.
 	if s.sessions != nil {
 		for id, sn := range s.sessions.Live() {
-			m := routers.MainSession{Connected: sn.Connected(), LastError: sn.LastError()}
+			m := routers.MainSession{
+				Connected: sn.Connected(), Known: sn.Observed(), LastError: sn.LastError(),
+			}
 			if c := sn.System(); c != nil {
 				m.System = c.Last()
 			}
@@ -124,6 +127,23 @@ func (s *Server) buildStatsSources(sess *Session) routers.StatsSources {
 
 	for _, sum := range s.poolSummaries() {
 		out.Background[sum.RouterID] = sum
+	}
+
+	// ── THEN THE ALERT POOL, FOR ROUTERS NEITHER OF THE ABOVE COVERS ────────
+	//
+	// FILL, NOT OVERWRITE. The overview pool's summary is the richer one — it
+	// carries DHCP leases and this does not — so an id it already answered for
+	// keeps its entry. A router with an interactive session ignores `Background`
+	// entirely (`routers.BuildStats` picks one source per row, `Main` first), so
+	// nothing here can mix two connections' readings into one card.
+	//
+	// This is what stops the page opening with a fleet of red "Offline" cards:
+	// the alert pool is synced at startup and already holds a connection to
+	// every enabled router, while the overview pool is synced from this page and
+	// takes a few seconds to dial. See alertpool.Snapshot for the full argument
+	// and for what a snapshot does NOT carry.
+	if s.alertPool != nil {
+		fillFromAlertPool(out.Background, s.alertPool.Snapshots())
 	}
 
 	if s.auditDB != nil {
@@ -148,6 +168,40 @@ func (s *Server) buildStatsSources(sess *Session) routers.StatsSources {
 	out.MaySeeWanIp = s.maySaveSettings(sess)
 	out.Visible = s.visibleRouters(sess)
 	return out
+}
+
+// fillFromAlertPool adds a summary for every snapshotted router the overview
+// pool did not answer for, and leaves the ones it did alone.
+//
+// A free function over the map rather than a method, so the precedence can be
+// asserted without a pool, a store or a socket — the same argument
+// `internal/routers` makes for being pure. The precedence is the part worth
+// testing: getting it backwards is not a crash, it is a card that quietly loses
+// its Clients count.
+func fillFromAlertPool(bg map[string]routers.Summary, snaps []alertpool.Snapshot) {
+	for _, snap := range snaps {
+		// PRESENT IS NOT THE SAME AS ANSWERED, and getting that wrong is what
+		// made the first version of this fix do nothing at all. `Summaries`
+		// returns an entry for every session the overview pool HOLDS, including
+		// one built moments ago whose dial has not returned. So on first open of
+		// the Devices page the key was ALWAYS already here, this loop always
+		// skipped, and the alert pool's real answer was discarded in favour of a
+		// zero value that rendered as a red "Offline" — the exact symptom the
+		// merge was added to remove.
+		if cur, have := bg[snap.RouterID]; have && cur.Known {
+			continue
+		}
+		bg[snap.RouterID] = routers.Summary{
+			RouterID:  snap.RouterID,
+			Connected: snap.Connected,
+			// A snapshot is only ever built from an observation — see
+			// alertpool.Pool.Snapshots, which omits a session that has not
+			// answered rather than reporting it as down.
+			Known:    true,
+			System:   snap.System,
+			IfStatus: snap.IfStatus,
+		}
+	}
 }
 
 // The router list ONE principal may see, in TWO shapes — because the live app
@@ -499,19 +553,48 @@ func (cn *conn) devicesBlur() {
 	cn.srv.devicesMu.Unlock()
 
 	if last && cn.srv.pool != nil {
-		// ── RELEASE, NOT JUST SUSPEND, AND THEN HAND THE FLEET BACK ───────
+		// ── STOP COLLECTING NOW, LET THE SOCKETS GO AFTER A GRACE ─────────
 		//
-		// `Suspend` kept the sockets, and `syncAlertPool` excludes every router
-		// this pool still lists — so leaving the Devices page used to stop the
-		// overview pool collecting while it went on OWNING the fleet, locking
-		// the alert pool out of all of it. No alert evaluation and no continuous
-		// history for any router until something else re-ran the sync.
+		// Suspending is the part that must be immediate: it is what stops
+		// costing the routers anything the moment nobody is looking.
 		//
-		// Both halves are needed: releasing without the re-sync would leave
-		// those routers covered by nothing at all, which is worse than the bug.
-		cn.srv.pool.ReleaseAll()
-		cn.srv.syncAlertPool()
+		// RELEASING is what hands the fleet back to the alert pool, and it was
+		// immediate too until this grace. That was correct and too eager. The
+		// overview pool's whole reason for keeping its sockets is that returning
+		// to the page should be instant, and dropping them on every blur made
+		// each visit re-dial the fleet — which is exactly the several-second
+		// wait where the page has no data and reports every device offline.
+		//
+		// So the same shape as the session's idle grace: leave and come back
+		// inside the window and the sockets are still there; stay away and the
+		// alert pool takes the fleet, which is the coverage half that mattered.
+		// Re-checked when the timer fires, so a viewer who returned keeps them.
+		cn.srv.pool.Suspend()
+		cn.srv.scheduleDevicesRelease()
 	}
+}
+
+// scheduleDevicesRelease hands the fleet to the alert pool once the Devices page
+// has been unwatched for a whole grace period.
+//
+// Several timers can be in flight after repeated visits; each re-reads the
+// watcher set, so all but the last find somebody watching and do nothing. That
+// is the same reasoning `suspendIfNoRoomOccupied` uses, and it is why this needs
+// no timer bookkeeping of its own.
+func (s *Server) scheduleDevicesRelease() {
+	time.AfterFunc(s.graceFor(), func() {
+		s.devicesMu.Lock()
+		gone := len(s.devicesWatchers) == 0
+		s.devicesMu.Unlock()
+		if !gone || s.pool == nil {
+			return
+		}
+		// BOTH HALVES, still: releasing without the re-sync would leave these
+		// routers covered by nothing at all, which is worse than the bug this
+		// release exists to fix.
+		s.pool.ReleaseAll()
+		s.syncAlertPool()
+	})
 }
 
 // sendRoutersStats builds and sends this viewer's rows.

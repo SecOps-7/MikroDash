@@ -101,8 +101,13 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 // fresh /data had no `.secret` (so the process exited before serving a page) and
 // no database (so the first administrator held no grants). See issue #124.
 //
+// 0.8.12 finishes that job. 0.8.11 created the files and STILL could not be set
+// up: a missing users.json was reported as a read error rather than as "no users
+// yet", so `firstRun` never went true and the login page offered a Sign In form
+// for an account that could not exist. Same issue, one layer up.
+//
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.11"
+const AppVersion = "0.8.12"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.

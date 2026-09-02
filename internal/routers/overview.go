@@ -91,7 +91,26 @@ type OverviewSession struct {
 
 	destroyed bool
 	suspended bool
+	// observed is whether this session has ever REPORTED anything.
+	//
+	// ── FALSE IS NOT "DISCONNECTED" ────────────────────────────────────────
+	//
+	// A session exists from the moment `Sync` builds it, and `Summaries` reports
+	// it immediately — but `Connected` is Go's zero value until the first dial
+	// returns, and `LastError` is empty because there has been no error either.
+	// The Devices page read that as "offline, with no reason to give" and drew a
+	// red card for every router the pool had only just started dialling, which is
+	// the several-second flash of Offline the operator kept seeing on first open.
+	//
+	// Set by the three methods below that carry an actual answer. Never cleared:
+	// a session that has once reported stays a session whose readings mean
+	// something, including across a reconnect.
+	observed bool
 }
+
+// Observed reports whether `Connected` and `LastError` are an ANSWER rather than
+// a pair of zero values. See the field.
+func (s *OverviewSession) Observed() bool { return s.observed }
 
 // OnConnected reports whether the three collectors should be started.
 //
@@ -107,12 +126,13 @@ func (s *OverviewSession) OnConnected() bool {
 	}
 	s.Connected = true
 	s.LastError = ""
+	s.observed = true
 	return !s.suspended
 }
 
 // OnClosed marks the link down. It does NOT clear LastError: the reason a
 // session failed is what the page has to show while it is down.
-func (s *OverviewSession) OnClosed() { s.Connected = false }
+func (s *OverviewSession) OnClosed() { s.Connected = false; s.observed = true }
 
 // OnError records why, taking the classified reason or the generic fallback.
 //
@@ -120,6 +140,7 @@ func (s *OverviewSession) OnClosed() { s.Connected = false }
 // so no raw driver text, path or address can reach the browser (#92).
 func (s *OverviewSession) OnError(reason string, classified bool) {
 	s.Connected = false
+	s.observed = true
 	if classified {
 		s.LastError = reason
 		return

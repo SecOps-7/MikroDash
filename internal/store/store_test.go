@@ -1,6 +1,8 @@
 package store
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -95,5 +97,83 @@ func TestAMissingUserCostsTheSameAsARealOne(t *testing.T) {
 			"faster, so login timing reveals whether a username exists. The live "+
 			"verifyPassword hashes against _DUMMY_SALT and discards it for exactly this reason",
 			missD, realD)
+	}
+}
+
+// ── FIRST RUN IS AN ABSENT FILE, NOT A FAILED READ (issue #124) ─────────────
+//
+// `GET /api/auth/status` computes `firstRun` from `len(users) == 0`, and
+// `firstRun` is what puts the setup wizard on screen INSTEAD of the login form.
+// A brand-new /data has no users.json, so returning the raw ENOENT made a fresh
+// install answer 500, fall back to Sign In, and offer a username and password
+// box for an account that could not exist and could not be created.
+//
+// The second half is the one that matters more, and it is why this is not simply
+// "ignore the error": an empty user list means anyone can claim the first
+// administrator account WITHOUT AUTHENTICATING. A users.json that exists and
+// cannot be read must therefore stay loud, or a transient read failure on a
+// populated system hands the next visitor an admin account.
+func TestUsersTreatsOnlyAnAbsentFileAsFirstRun(t *testing.T) {
+	t.Run("absent is first run", func(t *testing.T) {
+		s := &Store{Dir: t.TempDir()}
+		users, err := s.Users()
+		if err != nil {
+			t.Fatalf("a fresh /data reported %v; the setup wizard never appears "+
+				"and the operator is shown a login form for an account that "+
+				"cannot exist", err)
+		}
+		if len(users) != 0 {
+			t.Errorf("got %d users from an empty directory", len(users))
+		}
+	})
+
+	t.Run("empty array is first run too", func(t *testing.T) {
+		dir := t.TempDir()
+		mustWrite(t, dir, "users.json", "[]")
+		s := &Store{Dir: dir}
+		users, err := s.Users()
+		if err != nil || len(users) != 0 {
+			t.Errorf("users=%v err=%v; a bare empty array is a legitimate "+
+				"no-accounts state", users, err)
+		}
+	})
+
+	// ── THE BOUNDARY ───────────────────────────────────────────────────────
+	t.Run("an unreadable path is NOT first run", func(t *testing.T) {
+		// A DIRECTORY, not a chmod. The suite runs as root in the build
+		// container, where a 0000 file is still readable — so a permission-based
+		// case SKIPS, and a skipped security test is not a gate. Reading a
+		// directory fails with EISDIR for every uid, which exercises the same
+		// branch: the path exists and cannot be read.
+		dir := t.TempDir()
+		if err := os.Mkdir(filepath.Join(dir, "users.json"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		s := &Store{Dir: dir}
+		if _, err := s.Users(); err == nil {
+			t.Error("a users.json that EXISTS and could not be read reported no " +
+				"error, so the install looks account-less: `firstRun` goes true " +
+				"and the next visitor can create an administrator on a " +
+				"populated system")
+		}
+	})
+
+	t.Run("malformed content is NOT first run", func(t *testing.T) {
+		dir := t.TempDir()
+		// The object-instead-of-array shape the bare-array rule exists for.
+		mustWrite(t, dir, "users.json", `{"users":[]}`)
+		s := &Store{Dir: dir}
+		if _, err := s.Users(); err == nil {
+			t.Error("a users.json that is not a bare array reported no error; " +
+				"silently seeing zero users is the exact failure that rule " +
+				"exists to prevent")
+		}
+	})
+}
+
+func mustWrite(t *testing.T, dir, name, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }

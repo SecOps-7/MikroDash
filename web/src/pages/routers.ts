@@ -28,6 +28,15 @@ export interface RouterStatsRow {
   host: string;
   isActive: boolean;
   connected: boolean;
+  /**
+   * Whether either pool has actually LOOKED at this router yet.
+   *
+   * `connected` is a bool and cannot express "not asked". Rendering its zero
+   * value as a red "Offline" is a claim the server never made, and on first
+   * open of this page that was every device but the selected one. Treat
+   * `!known` as a third state everywhere `connected` is displayed.
+   */
+  known: boolean;
   lastError: string | null;
   openAlerts: number;
   cpu: number | null;
@@ -214,15 +223,21 @@ export function renderRoutersSummary(rows: RouterStatsRow[] | null): void {
   if (!total$ || !online$ || !offline$ || !alerting$) return;
 
   const total = rows ? rows.length : 0;
-  let online = 0, alerting = 0;
+  // OFFLINE IS COUNTED, NOT DERIVED. It used to be `total - online`, which
+  // silently classified every not-yet-checked router as down: open the page and
+  // the Offline tile read the size of the fleet for as long as the pool took to
+  // dial. Counting both means the two can legitimately sum to less than Total
+  // while the first sweep is still running, which is the honest picture.
+  let online = 0, offline = 0, alerting = 0;
   (rows || []).forEach((r) => {
     if (r.connected) online++;
+    else if (r.known) offline++;
     if (r.openAlerts > 0) alerting++;
   });
 
   total$.textContent = String(total);
   online$.textContent = String(online);
-  offline$.textContent = String(total - online);
+  offline$.textContent = String(offline);
   alerting$.textContent = String(alerting);
 
   // SITES THE FLEET IS SPREAD ACROSS, not sites that exist (#117). A device in
@@ -263,7 +278,9 @@ export function rtrMatches(r: RouterStatsRow, q: string): boolean {
   const hay = [r.label, r.host, r.boardName, r.version].join(' ').toLowerCase();
   return q.split(/\s+/).every((term) => {
     if (term === 'online') return !!r.connected;
-    if (term === 'offline') return !r.connected;
+    // Unknown is not offline: searching `offline` must not list every router
+    // the first sweep has yet to reach.
+    if (term === 'offline') return r.known && !r.connected;
     if (term === 'alerting') return r.openAlerts > 0;
     return hay.indexOf(term) !== -1;
   });
@@ -376,13 +393,15 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
       // visibly taller than its neighbours — measured at 297px against 275px.
       + '<div class="card h-100">'
       + '<div class="card-header" style="align-items:flex-start">'
-      + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (r.connected ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
+      + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="' + (!r.known ? '#6c7a91' : r.connected ? '#2fb344' : '#d63939') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2" style="flex-shrink:0"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>'
       + '<div class="me-auto">'
       + '<div class="d-flex align-items-center"><strong class="card-title mb-0 me-1" style="color:inherit">' + esc(r.label) + '</strong>' + activeBadge + '</div>'
       + hostSub
       + '</div>'
-      + '<span class="badge ms-2 ' + (r.connected ? 'bg-green-lt' : 'bg-red-lt') + '">'
-      + (r.connected ? 'Online' : 'Offline') + '</span>'
+      // THREE STATES, not two. `!known` means no pool has reached this router
+      // yet, and saying "Offline" about it in red was alarming and wrong.
+      + '<span class="badge ms-2 ' + (!r.known ? 'bg-secondary-lt' : r.connected ? 'bg-green-lt' : 'bg-red-lt') + '">'
+      + (!r.known ? 'Checking…' : r.connected ? 'Online' : 'Offline') + '</span>'
       + '</div>'
       + '<div class="card-body">'
       + offlineWhy
@@ -465,9 +484,11 @@ function renderRoutersList(rows: RouterStatsRow[]): void {
     const alerts = r.openAlerts > 0
       ? '<span style="color:var(--accent-amber,#f59f00);font-weight:600">' + r.openAlerts + '</span>'
       : dash;
-    return '<tr class="rtl-row' + (r.connected ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
-      + '<td><span class="rtl-dot" style="background:' + (r.connected ? '#34d399' : '#f87171') + '" title="'
-        + (r.connected ? 'Online' : 'Offline') + '"></span></td>'
+    // `rtl-offline` DIMS THE ROW, so an unchecked router must not carry it —
+    // see the three states on the card badge above.
+    return '<tr class="rtl-row' + (r.connected || !r.known ? '' : ' rtl-offline') + '" data-router-id="' + esc(r.id) + '">'
+      + '<td><span class="rtl-dot" style="background:' + (!r.known ? '#6c7a91' : r.connected ? '#34d399' : '#f87171') + '" title="'
+        + (!r.known ? 'Checking…' : r.connected ? 'Online' : 'Offline') + '"></span></td>'
       + '<td>' + esc(r.label) + (r.isActive ? ' <span class="badge badge-outline text-blue">active</span>' : '') + '</td>'
       + '<td class="text-muted">' + esc(r.host || '') + '</td>'
       + '<td>' + (r.boardName ? esc(r.boardName) : dash) + '</td>'
@@ -562,6 +583,19 @@ function canManage(id: string): boolean {
 }
 
 /** One router's popover. */
+/**
+ * The status dot's colour, in the map's CSS variables.
+ *
+ * THREE STATES. Grey is "no pool has reached this router yet" — see
+ * `RouterStatsRow.known`. Both popovers used a red/green ternary on `connected`
+ * alone, so opening the map before the overview pool had dialled painted the
+ * whole fleet red.
+ */
+export function dotColour(r: RouterStatsRow): string {
+  if (!r.known) return 'var(--accent-muted,#6c7a91)';
+  return r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)';
+}
+
 export function popHtml(r: RouterStatsRow): string {
   const g = r.geo || ({} as NonNullable<RouterStatsRow['geo']>);
   const up = r.uptime ? String(r.uptime) : '—';
@@ -572,8 +606,7 @@ export function popHtml(r: RouterStatsRow): string {
     : (g.wanIp ? 'from ' + esc(g.wanIp) : 'from its WAN address');
   const loc = esc(g.label || 'Unknown')
     + ' <span class="text-muted">(' + from + ')</span>';
-  return '<div class="rmp-name"><span class="rtl-dot" style="background:'
-    + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
+  return '<div class="rmp-name"><span class="rtl-dot" style="background:' + dotColour(r)
     + '"></span>' + esc(r.label) + '</div>'
     + '<div class="rmp-grid">'
     + '<span>Host</span><b>' + esc(r.host) + '</b>'
@@ -598,7 +631,9 @@ export function groupPopHtml(g: MapGroup): string {
   const first = g.routers[0] as RouterStatsRow;
   if (g.routers.length === 1) return popHtml(first);
   const place = (first.geo && first.geo.label) || 'this location';
-  const down = g.routers.filter((r) => !r.connected).length;
+  // KNOWN and not connected. Counting `!connected` made a cluster announce
+  // "3 offline" the instant the map opened, before anything had been asked.
+  const down = g.routers.filter((r) => r.known && !r.connected).length;
   return '<div class="rmp-name">' + g.routers.length + ' routers</div>'
     + '<div class="rmp-loc" style="margin-top:.2rem;padding-top:0;border-top:0">'
     + esc(place)
@@ -607,8 +642,7 @@ export function groupPopHtml(g: MapGroup): string {
     + '<div class="rmp-list">' + g.routers.map((r) => {
         const can = canManage(r.id);
         return '<div class="rmp-row"' + (can ? ' data-open-router="' + esc(r.id) + '"' : '')
-          + '><span class="rtl-dot" style="background:'
-          + (r.connected ? 'var(--accent-green,#2fb344)' : 'var(--accent-red,#f87171)')
+          + '><span class="rtl-dot" style="background:' + dotColour(r)
           + '"></span><span class="rmp-rl">' + esc(r.label) + '</span>'
           + '<span class="rmp-rh">' + esc(r.host) + '</span></div>';
       }).join('') + '</div>';

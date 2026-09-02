@@ -168,8 +168,12 @@ type RouterConfig struct {
 // Summary is one router's contribution to `routers:stats`, matching what the
 // live `getSummaries()` returns.
 type Summary struct {
-	RouterID   string
-	Connected  bool
+	RouterID  string
+	Connected bool
+	// Known is whether this session has ever reported. A summary exists as soon
+	// as `Sync` builds the session, so `Connected: false` here is the zero value
+	// until the first dial returns — see OverviewSession.observed.
+	Known      bool
 	LastError  string
 	System     *collect.SystemPayload
 	IfStatus   *collect.IfStatusPayload
@@ -679,6 +683,7 @@ func (p *Pool) Summaries() []Summary {
 		sum := Summary{
 			RouterID:  s.cfg.ID,
 			Connected: s.sess.Connected,
+			Known:     s.sess.Observed(),
 			LastError: s.sess.LastError,
 		}
 		s.mu.Unlock()

@@ -182,7 +182,7 @@ recent release rather than unreleased work on `main`. Each release is a multi-ar
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.8.11
+docker pull ghcr.io/secops-7/mikrodash:0.8.12
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -397,15 +397,40 @@ MikroDash watching its fleet. If you run a second instance against the same rout
 
 Credentials at rest are encrypted with a key derived from `/data/.secret`, generated on first run.
 
+### Installing from the RouterOS App section
+
+The **App** section of RouterOS installs MikroDash from MikroTik's own catalogue
+copy, not from this repository, and MikroTik decide when that copy is refreshed.
+If the version shown on the Settings page is behind the latest release, that is
+why, and `Update` will only fetch whatever they have published.
+
+To run the current release before their copy catches up, add it as an ordinary
+**Container** instead and pull `ghcr.io/secops-7/mikrodash:latest` directly, with
+a `/data` mount and a veth as usual.
+
+You do **not** need to set `ROUTER_USER` or `ROUTER_PASS`, whatever the App
+section's parameter list offers. Start the container, open it, create your admin
+account in the first-run wizard, then add the router from inside the app.
+
 ### Environment variables
 
-Three are read, and they behave as they did before:
+**A new install needs none of these.** MikroDash is configured through its
+first-run wizard and its Settings page; every variable below is optional.
+
+Three are read directly by the server:
 
 | Variable | What it does |
 |---|---|
 | `DATA_SECRET` | the encryption key for credentials at rest. Takes priority over the auto-generated `/data/.secret` |
 | `FORCE_HTTPS` | `true` marks session cookies Secure, for running behind a TLS-terminating proxy |
 | `LOG_HISTORY_SIZE` | how many router log lines to retain in memory for the Logs page |
+
+A further set is still read into **settings** as startup defaults, carried over
+from the single-router era: `ROUTER_HOST`, `ROUTER_PORT`, `ROUTER_USER`,
+`ROUTER_PASS`, `ROUTER_TLS`, `ROUTER_TLS_INSECURE`, `DEFAULT_IF`, `PING_TARGET`
+and the `*_POLL_MS` intervals. They no longer create a router: on a new install
+the fleet is empty until you add one, so the `ROUTER_*` variables have no effect
+there and can be left unset.
 
 **Five that the Node version read are gone**, and they fail silently rather than
 loudly, so check your `.env` when upgrading:

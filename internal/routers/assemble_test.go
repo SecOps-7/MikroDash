@@ -300,3 +300,104 @@ func TestNoSitesSendsAnEmptyArrayNotNull(t *testing.T) {
 		t.Errorf("siteId = %v, want null when there are no sites", f["siteId"])
 	}
 }
+
+// `known` is the difference between "we asked and it is down" and "nobody has
+// asked". Both render `connected: false`, and the page drew both in red until
+// this flag existed.
+//
+// It fails in both directions on purpose: a source-fed row asserting true is
+// what stops a later change zeroing the field and quietly restoring the bug.
+func TestKnownSeparatesUnaskedFromOffline(t *testing.T) {
+	got := BuildStats(StatsSources{
+		Routers: []StatsRouter{sr("unasked"), sr("bg"), sr("main"), sr("down")},
+		// `Known: true` is STATED on each source, because holding a session is
+		// not the same as having heard from one — see
+		// TestAPoolSessionThatHasNotDialledYetIsNotOffline, which is the case
+		// that distinction exists for.
+		Main: map[string]MainSession{"main": {Connected: true, Known: true}},
+		Background: map[string]Summary{
+			"bg": {RouterID: "bg", Connected: true, Known: true},
+			"down": {RouterID: "down", Connected: false, Known: true,
+				LastError: "dial: refused"},
+		},
+	})
+	want := map[string]struct{ known, connected bool }{
+		"unasked": {false, false},
+		"bg":      {true, true},
+		"main":    {true, true},
+		// SERVED AND GENUINELY DOWN. This is the only row entitled to the red
+		// "Offline", and it is the one the flag must not suppress.
+		"down": {true, false},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("want %d rows, got %d", len(want), len(got))
+	}
+	for _, row := range got {
+		f := fields(t, row)
+		w := want[row.ID]
+		if f["known"] != w.known {
+			t.Errorf("%s: known = %v, want %v", row.ID, f["known"], w.known)
+		}
+		if f["connected"] != w.connected {
+			t.Errorf("%s: connected = %v, want %v", row.ID, f["connected"], w.connected)
+		}
+	}
+}
+
+// ── THE BUG THE FIRST ATTEMPT AT `known` DID NOT FIX ────────────────────────
+//
+// The operator's report, twice: open Devices and the devices that are not the
+// selected one show Offline for a few seconds, then all come online at once.
+//
+// Adding `known` was not enough, because the flag was being set from "a source
+// answered for this router" — and `Pool.Summaries` returns an entry for every
+// session it HOLDS, including one built moments ago whose dial has not returned.
+// That entry reads `Connected: false, LastError: ""`, so the row said
+// known-and-down and the card drew the same red Offline as before.
+//
+// This is the exact shape of that summary, asserted directly. It is
+// deterministic: no timing, no pool, no browser.
+func TestAPoolSessionThatHasNotDialledYetIsNotOffline(t *testing.T) {
+	got := BuildStats(StatsSources{
+		Routers: []StatsRouter{sr("dialling"), sr("answered")},
+		Background: map[string]Summary{
+			// What Summaries returns for a session Sync built a moment ago.
+			"dialling": {RouterID: "dialling", Connected: false, Known: false},
+			// And one that has actually reported.
+			"answered": {RouterID: "answered", Connected: false, Known: true,
+				LastError: "Connection failed"},
+		},
+	})
+	by := map[string]Row{}
+	for _, r := range got {
+		by[r.ID] = r
+	}
+	if by["dialling"].Known {
+		t.Error("a session whose first dial has not returned reported known=true; " +
+			"the card draws a red Offline for a router nothing has heard from yet, " +
+			"which is the bug the operator reported twice")
+	}
+	if !by["answered"].Known {
+		t.Error("a session that reported a failure must stay known=true — " +
+			"suppressing a real offline is the opposite failure and just as bad")
+	}
+	if by["answered"].LastError == nil {
+		t.Error("the observed-down router lost the reason it is down")
+	}
+}
+
+// The same for the INTERACTIVE session, which has the identical shape and whose
+// own field comment already said so: "a session is created before it connects".
+func TestAnInteractiveSessionThatHasNotDialledYetIsNotOffline(t *testing.T) {
+	got := BuildStats(StatsSources{
+		Routers: []StatsRouter{sr("a")},
+		Main:    map[string]MainSession{"a": {Connected: false, Known: false}},
+	})
+	if got[0].Known {
+		t.Error("the watched router claims a known-offline state before its " +
+			"session has dialled")
+	}
+	if !got[0].IsActive {
+		t.Error("isActive is presence and must be unaffected by this")
+	}
+}

@@ -213,7 +213,7 @@
         }
       },
       {
-        "note": "a region at 4 is rejected",
+        "note": "RE-AIMED 2026-09-02, issue #120: a region at 4 is now ACCEPTED. This recorded geoip-lite's fixed 3-byte region field, which the DB-IP gazetteer replaced with full subdivision names — 99.6% of its rows are longer than 3 — so the app's own /api/cities returned places its own validator refused. See geoplace.isRegion.",
         "input": {
           "name": "Paris",
           "region": "IDFX",
@@ -221,10 +221,16 @@
           "lat": 48.85,
           "lon": 2.35
         },
-        "want": null
+        "want": {
+          "name": "Paris",
+          "region": "IDFX",
+          "cc": "FR",
+          "lat": 48.85,
+          "lon": 2.35
+        }
       },
       {
-        "note": "a region with punctuation is rejected",
+        "note": "RE-AIMED 2026-09-02, issue #120: punctuation is now ACCEPTED. The gazetteer holds \"Baden-Württemberg\" and \"Provence-Alpes-Côte d'Azur\"; a punctuation-free rule rejects real places. See geoplace.isRegion.",
         "input": {
           "name": "Paris",
           "region": "I-F",
@@ -232,7 +238,13 @@
           "lat": 48.85,
           "lon": 2.35
         },
-        "want": null
+        "want": {
+          "name": "Paris",
+          "region": "I-F",
+          "cc": "FR",
+          "lat": 48.85,
+          "lon": 2.35
+        }
       },
       {
         "note": "no region at all",
@@ -478,6 +490,45 @@
       {
         "note": "an empty object",
         "input": {},
+        "want": null
+      },
+      {
+        "note": "ADDED 2026-09-02, issue #120: the exact place GET /api/cities returns for \"Marl\", which the 3-byte rule refused. This is the reported bug, pinned at the boundary it crossed.",
+        "input": {
+          "name": "Marl",
+          "region": "North Rhine-Westphalia",
+          "cc": "DE",
+          "lat": 51.6567,
+          "lon": 7.09038
+        },
+        "want": {
+          "name": "Marl",
+          "region": "North Rhine-Westphalia",
+          "cc": "DE",
+          "lat": 51.6567,
+          "lon": 7.09038
+        }
+      },
+      {
+        "note": "ADDED 2026-09-02: the cap still bites. 65 bytes is over RegionMax, so an untrusted caller cannot store an unbounded subdivision.",
+        "input": {
+          "name": "X",
+          "region": "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
+          "cc": "DE",
+          "lat": 1.0,
+          "lon": 2.0
+        },
+        "want": null
+      },
+      {
+        "note": "ADDED 2026-09-02: a control character is still refused.",
+        "input": {
+          "name": "X",
+          "region": "A\tB",
+          "cc": "DE",
+          "lat": 1.0,
+          "lon": 2.0
+        },
         "want": null
       }
     ],

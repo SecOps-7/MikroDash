@@ -139,6 +139,50 @@ func ipInCIDR(ip, cidr string) bool {
 	return network.Contains(addr)
 }
 
+// isLanCidr reports whether a DHCP network address can answer "is this address
+// on my LAN?".
+//
+// ── A /0 IS NOT A SUBNET, AND SAYING YES TO EVERYTHING IS NOT AN ANSWER ─────
+//
+// `cidrs` becomes `LanCidrs`, which is the ONLY thing that decides local from
+// remote. `internal/collect/connections.go` uses it twice, and the two uses are
+// not symmetric:
+//
+//	srcIsLan := guard.InCIDRs(src, in.LanCidrs)          // counts a source
+//	if dst == "" || guard.InCIDRs(dst, in.LanCidrs) {    // DISCARDS a destination
+//		continue
+//	}
+//
+// `guard.InCIDRs` returns true for a zero-length prefix — deliberately, because
+// it reproduces the live `matchCIDR`, whose `while (cidrBits > 0)` loop never
+// runs and falls through to true. That is correct for a firewall rule, which is
+// what the guard is for, and catastrophic here: one `0.0.0.0/0` row in
+// `/ip/dhcp-server/network` makes EVERY address local, so every destination hits
+// the `continue` above.
+//
+// The failure is silent and one-sided, which is why it survived so long. Sources
+// keep working (everything is "local", so everything counts), the total keeps
+// working (counted before the filter), and the client picker keeps working (it
+// filters on source). What dies is the whole destination half — the connections
+// map, Top Countries, Top Ports, Connection Flow and Top Destinations — with no
+// error anywhere. Reported as issue #120, against both the Node build and the Go
+// one, because the port reproduced the behaviour faithfully.
+//
+// A catch-all row is legitimate configuration: it is how DNS, NTP and other
+// options are handed to clients on every subnet at once. So it is dropped from
+// this list rather than rejected, and it still appears on the DHCP page.
+func isLanCidr(addr string) bool {
+	_, network, err := net.ParseCIDR(strings.TrimSpace(addr))
+	if err != nil {
+		// Unparseable: it cannot answer the question either way. `guard.InCIDRs`
+		// skips it too, so dropping it here changes nothing except that the
+		// number the DHCP page reports as "LAN subnets" stops counting it.
+		return false
+	}
+	ones, _ := network.Mask.Size()
+	return ones > 0
+}
+
 // firstIPOfRange takes the first address of the first range in a RouterOS ranges
 // string — "198.51.100.100-198.51.100.200,198.51.100.240".
 func firstIPOfRange(ranges string) string {
@@ -264,7 +308,11 @@ func (d *DHCPNetworks) Tick() {
 		if n["address"] == "" {
 			continue
 		}
-		cidrs = append(cidrs, n["address"])
+		// THE NETWORK IS ALWAYS DISPLAYED; only `cidrs` is filtered. A catch-all
+		// entry is real configuration and belongs on the DHCP page.
+		if isLanCidr(n["address"]) {
+			cidrs = append(cidrs, n["address"])
+		}
 
 		leaseCount := 0
 		for _, ip := range leaseIPs {

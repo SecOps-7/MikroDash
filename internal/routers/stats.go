@@ -39,6 +39,17 @@ type Input struct {
 	// someone is currently looking at.
 	IsActive  bool
 	Connected bool
+	// Known is whether `Connected` is an OBSERVATION or just its zero value. See
+	// the Row field of the same name for why the page needs to be able to tell.
+	//
+	// HOLDING A SESSION IS NOT AN OBSERVATION. This was set from "some source
+	// answered for this router", which is a different and much weaker claim: a
+	// pool session exists the instant `Sync` builds it and reports
+	// `Connected: false` until its first dial returns. That is what put a red
+	// Offline on every card for the first seconds of the Devices page even after
+	// the flag was added — the flag was there, and it was being told yes by a
+	// source that had not looked.
+	Known bool
 	// LastError explains why it is offline, so the card can speak for itself.
 	// Ignored while connected, exactly as the original ignores it.
 	LastError string
@@ -67,11 +78,27 @@ type Input struct {
 // The JSON names and the null-versus-zero behaviour are the contract: this is
 // rendered by a page that must not change.
 type Row struct {
-	ID        string  `json:"id"`
-	Label     string  `json:"label"`
-	Host      string  `json:"host"`
-	IsActive  bool    `json:"isActive"`
-	Connected bool    `json:"connected"`
+	ID        string `json:"id"`
+	Label     string `json:"label"`
+	Host      string `json:"host"`
+	IsActive  bool   `json:"isActive"`
+	Connected bool   `json:"connected"`
+	// Known is whether anything has actually LOOKED at this router yet.
+	//
+	// ── FALSE IS NOT THE SAME CLAIM AS OFFLINE ──────────────────────────────
+	//
+	// `Connected` is a bool, so a router nothing has reached yet is
+	// indistinguishable from one that is genuinely down — and the page said
+	// "Offline", in red, about devices it had simply not asked about. On first
+	// open that is every device except the selected one, for as long as the pool
+	// takes to dial, which is where "they all go online at once after three
+	// seconds" comes from.
+	//
+	// A separate flag rather than making `Connected` tri-state: the client
+	// filters on `connected` in four places and validates the payload shape, so
+	// widening a boolean everything already reads is a larger change than adding
+	// a field old code ignores.
+	Known     bool    `json:"known"`
 	LastError *string `json:"lastError"`
 	// OpenAlerts is a plain int: the original spells it `openAlerts[r.id] || 0`,
 	// so a router with nothing open reports 0 rather than null. Independent of
@@ -132,7 +159,7 @@ type Site struct {
 func BuildRow(in Input, openAlerts map[string]int, sites map[string]Site, maySeeWanIp bool) Row {
 	r := Row{
 		ID: in.ID, Label: in.Label, Host: in.Host,
-		IsActive: in.IsActive, Connected: in.Connected,
+		IsActive: in.IsActive, Connected: in.Connected, Known: in.Known,
 		OpenAlerts: openAlerts[in.ID],
 	}
 	if !in.Connected && in.LastError != "" {

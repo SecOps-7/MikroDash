@@ -103,14 +103,53 @@ func str(m map[string]any, k string) string {
 	return ""
 }
 
-// isAlnum3 is `/^[A-Za-z0-9]{0,3}$/`.
-func isAlnum3(s string) bool {
-	if len(s) > 3 {
+// RegionMax is the cap on a subdivision string.
+//
+// 64, the same as NameMax. The longest region in the shipped gazetteer is
+// "Municipality of Sveti Andraž v Slovenskih Goricah" at 50 bytes, measured
+// across its 3,772 distinct regions, so this clears the real data with room and
+// still bounds what an untrusted caller can store.
+const RegionMax = 64
+
+// isRegion accepts a subdivision as the app's OWN gazetteer spells it.
+//
+// ── THIS WAS `/^[A-Za-z0-9]{0,3}$/`, AND THE DATA MOVED OUT FROM UNDER IT ───
+//
+// Three characters was right for geoip-lite, whose location record carries a
+// fixed 3-byte region field — see `internal/geo/geoip.go`, which still reads
+// exactly `rec[locRegion : locRegion+3]`. The live app validated against the
+// same data it searched, and the two agreed.
+//
+// The DB-IP migration replaced that source. `cmd/geogen` writes the English
+// subdivision NAME (falling back to the ISO code only when the name is missing),
+// so the gazetteer now says "North Rhine-Westphalia" where geoip-lite said "NW".
+// 193,366 of its 194,077 rows — 99.6% — carry a region longer than three
+// characters.
+//
+// Nothing connected the two halves, so `GET /api/cities` began handing the
+// picker places that `NormalizePlace` refused. Choosing any town and saving a
+// site answered 400 "Pick a town from the list, or clear the location", which is
+// advice the user had already followed. Issue #120.
+//
+// The failure has a QUIETER twin, and it is the reason this is validated rather
+// than merely tolerated: the router record's `geo` is stored as raw JSON and is
+// NOT validated on write, so the device form saved happily and
+// `ResolveLocation` — which normalises on READ — dropped the place again. That
+// path reports nothing at all; the location simply never takes effect.
+//
+// So the rule now bounds the string instead of describing geoip-lite's encoding:
+// a length cap, and no control characters. Regions are display metadata, never a
+// key, and `FormatPlace` already decides which ones are worth showing.
+func isRegion(s string) bool {
+	if len(s) > RegionMax {
 		return false
 	}
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') {
+	for _, r := range s {
+		// C0 and DEL. Everything else is somebody's alphabet: the gazetteer
+		// holds "Baden-Württemberg", "Provence-Alpes-Côte d'Azur" and
+		// "Sveti Andraž v Slovenskih Goricah", so a Latin-only or
+		// punctuation-free rule would reject real places all over again.
+		if r < 0x20 || r == 0x7f {
 			return false
 		}
 	}
@@ -157,11 +196,13 @@ func NormalizePlace(input any) *Place {
 		return nil
 	}
 
-	// Region is geoip's 3-byte subdivision field. Optional — several hundred
-	// places have none — and it may be NUMERIC (Japan's Hiroshima is "34").
-	// That is valid data; FormatPlace decides whether it is worth showing.
+	// Region is the subdivision. Optional — several hundred places have none —
+	// and it may be NUMERIC (Japan's Hiroshima is "34") or a full name
+	// ("North Rhine-Westphalia"). All of that is valid data; FormatPlace decides
+	// whether it is worth showing. See isRegion for why this is no longer the
+	// 3-byte test the geoip-lite era needed.
 	region := str(m, "region")
-	if !isAlnum3(region) {
+	if !isRegion(region) {
 		return nil
 	}
 

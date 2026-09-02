@@ -97,6 +97,52 @@ func (s *Server) alertPoolEvent(r alertpool.Router, event string, payload any) {
 	s.dispatchFired(r.ID, r.Label, fired)
 }
 
+// alertPoolExclusions is the set of routers the alert pool must NOT hold,
+// because something else already does.
+//
+// A method rather than a local, so the handover rule below can be asserted
+// without driving a whole sync against a fleet.
+func (s *Server) alertPoolExclusions() map[string]bool {
+	excluded := map[string]bool{}
+
+	// ── THE OVERVIEW POOL'S ROUTERS — ONCE IT HAS ANSWERED FOR THEM ─────────
+	//
+	// Excluded when the overview session has ANSWERED, not merely when it
+	// exists. `syncPool` builds a session per router and `syncAlertPool` runs
+	// immediately after it, so excluding on existence tore down a live, connected
+	// alert session and handed the router to one that had not dialled yet. Two
+	// consequences, and the second is the worse one:
+	//
+	//  1. The Devices page lost the only source that could answer for those
+	//     routers, so they showed as not-yet-known for the ~2s the overview pool
+	//     took to connect — measured on this install, cold open, 130ms to
+	//     2150ms. Before `Known` existed they showed as OFFLINE, in red, which
+	//     is the defect the operator reported twice.
+	//  2. A COVERAGE GAP: for those two seconds the router was held by NEITHER
+	//     pool, so nothing was evaluating its alerts. That is the same hole the
+	//     `activeID` note in syncAlertPool exists to avoid, reached from the
+	//     other direction.
+	//
+	// The overlap this costs is bounded and short. `Known` goes true on the first
+	// connect AND on the first error, so a router that is genuinely down is
+	// excluded as soon as the overview pool finds that out, rather than being
+	// held by both for ever.
+	if s.pool != nil {
+		for _, sum := range s.pool.Summaries() {
+			if sum.Known {
+				excluded[sum.RouterID] = true
+			}
+		}
+	}
+	// ...and every router with an interactive session, which already has one.
+	if s.sessions != nil {
+		for id := range s.sessions.Live() {
+			excluded[id] = true
+		}
+	}
+	return excluded
+}
+
 // syncAlertPool is `_syncAlertSessions()`: every non-disabled router except the
 // active one and those the overview pool holds.
 //
@@ -137,19 +183,7 @@ func (s *Server) syncAlertPool() {
 	// the rule stays tested for the day a persistent session exists.
 	const activeID = ""
 
-	// The overview pool's routers, so the two do not both connect to one device.
-	excluded := map[string]bool{}
-	if s.pool != nil {
-		for _, sum := range s.pool.Summaries() {
-			excluded[sum.RouterID] = true
-		}
-	}
-	// ...and every router with an interactive session, which already has one.
-	if s.sessions != nil {
-		for id := range s.sessions.Live() {
-			excluded[id] = true
-		}
-	}
+	excluded := s.alertPoolExclusions()
 
 	out := make([]alertpool.Router, 0, len(all))
 	for _, r := range all {

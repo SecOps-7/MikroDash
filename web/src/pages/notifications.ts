@@ -182,6 +182,31 @@ export function initNotifications(socket: Socket, activeRouterId: () => string):
       // about something from an hour ago.
       if (panel.classList.contains('open')) render();
     });
+
+    // ── CLICKING AWAY CLOSES IT ───────────────────────────────────────────
+    //
+    // There was no dismissal at all: the only way to close the panel was to
+    // find the bell again and click it a second time, which leaves an opaque
+    // overlay sitting over the page in the meantime.
+    //
+    // ON `.notif-wrap`, WHICH CONTAINS BOTH THE BUTTON AND THE PANEL. That
+    // containment is what makes this need no `stopPropagation`:
+    //
+    //  - the toggle's own click is inside the wrap, so this listener returns
+    //    early and does not undo the open that just happened;
+    //  - Acknowledge and Clear all are inside the panel, so acting on an alert
+    //    does not make the panel vanish underneath the pointer.
+    //
+    // `router-dropdown.ts` solves the first of those with `stopPropagation` on
+    // its toggle instead. Not copied: swallowing the event stops it reaching
+    // every OTHER document listener too, and this panel sits in a topbar beside
+    // several of them.
+    document.addEventListener('click', (e) => {
+      if (!panel.classList.contains('open')) return;
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest && t.closest('.notif-wrap')) return;
+      panel.classList.remove('open');
+    });
   }
 
   // ── THE TWO WRITE ACTIONS ARE HTTP, AND THAT WAS A CORRECTION ─────────────

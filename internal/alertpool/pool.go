@@ -246,6 +246,81 @@ func (p *Pool) Status() map[string]bool {
 	return out
 }
 
+// Snapshot is what the Devices page can learn from THIS pool, for a router the
+// overview pool has not reached.
+//
+// ── WHY THE DEVICES PAGE READS THE ALERT POOL AT ALL ────────────────────────
+//
+// This pool is always on: `server.go` syncs it at startup, so it already holds a
+// connection to every enabled router before anybody opens a browser. The
+// overview pool (`internal/routers`) is synced from the Devices page and idles
+// until somebody looks — so on first open, every router but the selected one had
+// no source at all and its card claimed "Offline" until the overview pool
+// finished dialling, about three seconds later.
+//
+// Everything here is ALREADY BEING COLLECTED. Reading it costs no extra router
+// channel, which is the measure that matters (see CLAUDE.md's "more efficient").
+//
+// TWO FIELDS, NOT `routers.Summary`'s SIX. `Connected` is available for every
+// router the pool holds, including a status-only one; `System` and `IfStatus`
+// exist only where alerting is enabled, because a status-only session
+// deliberately runs no collectors. There is no `DHCPLeases` — this pool has no
+// leases collector — so a card fed from here shows its Clients count as "—"
+// until the overview pool arrives, which is the honest rendering of "not read
+// yet" and exactly what a null already means on this page.
+type Snapshot struct {
+	RouterID  string
+	Connected bool
+	System    *collect.SystemPayload
+	IfStatus  *collect.IfStatusPayload
+}
+
+// Snapshots is one entry per router this pool holds a session for.
+//
+// Keyed off `sessions` rather than `state`, because `state` deliberately
+// OUTLIVES a torn-down session (see Sync) and reporting a router this pool no
+// longer watches would be a stale claim rather than a live one.
+func (p *Pool) Snapshots() []Snapshot {
+	p.mu.Lock()
+	sess := make([]*poolSession, 0, len(p.sessions))
+	ids := make([]string, 0, len(p.sessions))
+	for id, s := range p.sessions {
+		ids = append(ids, id)
+		sess = append(sess, s)
+	}
+	state := make(map[string]bool, len(p.state))
+	for k, v := range p.state {
+		state[k] = v
+	}
+	p.mu.Unlock()
+
+	out := make([]Snapshot, 0, len(sess))
+	for i, s := range sess {
+		up, seen := state[ids[i]]
+		if !seen {
+			// NO OPINION YET. `note` records the first observation whatever it
+			// is, including the first `false`, so a missing entry means this
+			// session has not finished its first dial — not that the router is
+			// down. Reporting `Connected: false` here would put the caller back
+			// where it started, calling a router offline on the strength of a
+			// zero value.
+			continue
+		}
+		snap := Snapshot{RouterID: ids[i], Connected: up}
+		// The collector pointers are set once when the session is BUILT and are
+		// not written again, so reading them without the pool lock is safe;
+		// `Last()` does its own locking.
+		if s.system != nil {
+			snap.System = s.system.Last()
+		}
+		if s.ifStatus != nil {
+			snap.IfStatus = s.ifStatus.Last()
+		}
+		out = append(out, snap)
+	}
+	return out
+}
+
 // note records a status and reports whether it CHANGED.
 //
 // A router with no entry yet is "unknown", and the first observation is always a
