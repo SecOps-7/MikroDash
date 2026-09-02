@@ -106,8 +106,15 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 // yet", so `firstRun` never went true and the login page offered a Sign In form
 // for an account that could not exist. Same issue, one layer up.
 //
+// 0.8.13 is the LAST step of that same walk, found by the same reporter getting
+// one screen further each time: the wizard worked, and then Add Device did
+// nothing, because `#rtrAddBtn` had no listener bound to it anywhere. A new
+// install could create its administrator and still not add a router. Three
+// releases to make a first run work end to end is worth remembering when the
+// next port lands.
+//
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.12"
+const AppVersion = "0.8.13"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.

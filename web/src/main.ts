@@ -803,14 +803,30 @@ async function main(): Promise<void> {
     dropdown.refresh();
   });
 
+  // ── AN EMPTY FLEET IS A STATE, NOT AN EXIT ────────────────────────────────
+  //
+  // This used to `return` here, which skipped everything below it: `initRouting`,
+  // the `connect` handler, and the `showPage` that honours the URL. So on an
+  // install with no routers the PAGE ROUTER WAS NEVER INITIALISED. The view
+  // stayed on whatever `page-view active` the static markup ships, a deep link
+  // to /settings silently landed on the dashboard, and back and forward did
+  // nothing. Only the sidebar worked, because nav clicks are wired elsewhere.
+  //
+  // That is precisely the state a NEW INSTALL is in, and it is the state in
+  // which an operator most needs to reach Settings — it is where routers are
+  // added. Found while fixing the unbound Add Device button on issue #124, which
+  // is the same new-install blind spot one layer up.
+  //
+  // The fleet-dependent work is guarded individually below instead. Warning
+  // still logged: an account that can read NO router on an install that HAS
+  // routers is a permissions problem worth seeing.
   const first = routers[0];
-  if (!first) {
-    console.warn('no routers are readable by this account');
-    return;
-  }
+  if (!first) console.warn('no routers are readable by this account');
   const select = () => {
-    const id = sel?.value || first.id;
-    switchRouter(socket, id);
+    const id = sel?.value || (first ? first.id : '');
+    // NOTHING TO SELECT is not the same as selecting nothing: `switchRouter`
+    // with an empty id would ask the server to make '' the active router.
+    if (id) switchRouter(socket, id);
     // THE DROPDOWN'S LABEL COMES FROM HERE, and nowhere else did.
     //
     // `activeRouterId` was assigned ONLY in the dropdown's own `onChoose`, so
@@ -825,7 +841,9 @@ async function main(): Promise<void> {
     // from that handler is a temporal-dead-zone hazard if the event ever landed
     // early. `select()` runs after both, on first load AND on every reconnect,
     // which is exactly when the label needs to be right.
-    activeRouterId = id;
+    if (id) activeRouterId = id;
+    // REFRESHED EITHER WAY, so an empty fleet renders the picker's own empty
+    // state rather than a stale label.
     dropdown.refresh();
     // THE PAGE THE OPERATOR IS ON, not the landing page.
     //

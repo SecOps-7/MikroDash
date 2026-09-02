@@ -193,6 +193,37 @@ export function renderRoutersInto(): void {
 
 export function initSettingsRoutersTable(d: RouterTableDeps): void {
   deps = d;
+
+  // ── THE ADD BUTTON, WHICH WAS BOUND NOWHERE AT ALL ────────────────────────
+  //
+  // `#rtrAddBtn` is rendered by `page-settings.html` and SHOWN by `caps.ts`
+  // (`addRtr.style.display = cur.createRouters ? '' : 'none'`), so it sat on the
+  // Devices tab enabled and inviting with no listener on it. Clicking it did
+  // nothing and logged nothing.
+  //
+  // That made a NEW INSTALL A DEAD END. The setup overlay is the only other way
+  // into the router modal, so an operator who dismissed it, or who reached
+  // Settings before it appeared, had no route to adding their first router at
+  // all. Reported on issue #124: "the button DOESNT work. cannot add any
+  // device!!" — from someone who had just got the container running and created
+  // an account.
+  //
+  // It was not a deliberate omission either: `docs/unwired-elements.md` is the
+  // record of ids this app renders and knowingly does not wire, and this was
+  // never among them. The audit that would have caught it computed its answer by
+  // reading the old implementation directly, and was retired with that source on
+  // 2026-09-01.
+  //
+  // BOUND BEFORE THE `rtrTbody` GUARD BELOW, deliberately: Add does not need the
+  // table, and the early return would otherwise take the button with it on any
+  // markup where the tbody is absent.
+  el('rtrAddBtn')?.addEventListener('click', () => {
+    // NULL IS THE ADD FORM. `router-modal.ts` branches on exactly this: an edit
+    // calls `gate.pass()` because its stored credentials already worked, while
+    // an add must pass Test before Save is allowed.
+    d.openModal(null);
+  });
+
   const tbody = el('rtrTbody');
   if (!tbody) return;
 

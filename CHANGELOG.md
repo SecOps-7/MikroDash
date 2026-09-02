@@ -2,6 +2,22 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.13] - A new install can add its first router
+
+### Fixed
+
+- **The Add Device button did nothing.** On the Settings page it rendered, it was enabled, and
+  nothing at all was listening for a click on it, so the dialog never opened and no error appeared
+  anywhere. On an install that already has routers this was an annoyance; on a new one it was a
+  dead end, because the first-run overlay was the only other way into that dialog. Anyone who
+  dismissed it, or who reached Settings before it appeared, had no way to add their first router.
+  Issue #124.
+- **Page navigation did not work at all until a router existed.** On an install with no routers
+  the page router was never started, so a link straight to `/settings` quietly landed on the
+  dashboard and the browser's back and forward buttons did nothing. The sidebar still worked,
+  which is what made it look like a settings problem rather than a navigation one. Same new
+  install blind spot as the button above.
+
 ## [0.8.12] - Fresh installs, the Devices page, and two long-standing map bugs
 
 ### Fixed
