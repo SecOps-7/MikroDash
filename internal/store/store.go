@@ -63,16 +63,75 @@ type Store struct {
 	key []byte
 }
 
+// loadOrCreateSecret reads <dir>/.secret, and GENERATES it when it is not there.
+//
+// ── THE PORT READ THIS FILE AND NEVER WROTE IT ─────────────────────────────
+//
+// `settings.js` says what it is in its own header: "/data/.secret file
+// (auto-generated on first run, survives restarts)". `_loadOrCreateSecret` mints
+// 32 random bytes, base64, mode 0600, the first time a /data has none.
+//
+// This port only ever READ it, so `Open` failed on a fresh /data and
+// `cmd/mikrodash` turns that into `log.Fatalf`. **Every new install was dead on
+// arrival unless the operator happened to set DATA_SECRET** -- the app exited
+// before serving a page, so there was no UI in which to discover why.
+//
+// It was invisible here because an upgraded install carries a `.secret` written
+// by the Node app years earlier; only somebody starting fresh could hit it.
+// Reported as issue #124 by a user installing from the RouterOS container
+// catalogue, where the /data volume is new and the environment is whatever the
+// catalogue entry declares.
+//
+// ── ONE DELIBERATE DIVERGENCE: A FAILED WRITE IS FATAL ─────────────────────
+//
+// Live swallowed the write error and carried on with the generated value. That
+// makes the key EPHEMERAL: every restart mints a new one, and everything
+// encrypted under the old one -- the router passwords, the notification tokens --
+// becomes permanently unreadable. Failing here says so once, loudly, instead of
+// destroying credentials quietly at the next restart. A /data this cannot write
+// to could not hold routers.json or the database either.
+func loadOrCreateSecret(dir string) (string, error) {
+	path := filepath.Join(dir, ".secret")
+	if b, err := os.ReadFile(path); err == nil {
+		if s := strings.TrimSpace(string(b)); s != "" {
+			return s, nil
+		}
+		// An EMPTY file is not a secret. Treating it as one would derive a key
+		// from "" and silently share it with every other broken install.
+	} else if !os.IsNotExist(err) {
+		return "", fmt.Errorf("store: reading %s: %w", path, err)
+	}
+
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("store: generating a data secret: %w", err)
+	}
+	secret := base64.StdEncoding.EncodeToString(buf)
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("store: creating %s: %w", dir, err)
+	}
+	// 0600, as live writes it: the file IS the key to every stored credential.
+	if err := os.WriteFile(path, []byte(secret), 0o600); err != nil {
+		return "", fmt.Errorf("store: writing %s (a data secret that cannot be saved "+
+			"would be regenerated on every restart, making stored credentials "+
+			"unreadable): %w", path, err)
+	}
+	log.Printf("[store] generated a new data secret at %s — keep this file; "+
+		"losing it makes stored router passwords unreadable", path)
+	return secret, nil
+}
+
 // Open resolves the encryption key the way settings.js does: DATA_SECRET if set,
-// otherwise the contents of <dir>/.secret, trimmed.
+// otherwise the contents of <dir>/.secret, generated on first run.
 func Open(dir string) (*Store, error) {
 	secret := os.Getenv("DATA_SECRET")
 	if secret == "" {
-		b, err := os.ReadFile(filepath.Join(dir, ".secret"))
+		var err error
+		secret, err = loadOrCreateSecret(dir)
 		if err != nil {
-			return nil, fmt.Errorf("store: no DATA_SECRET and no .secret in %s: %w", dir, err)
+			return nil, err
 		}
-		secret = strings.TrimSpace(string(b))
 	}
 	// Reality 1: the salt is the UTF-8 bytes of the string, not a decoded value.
 	key, err := scrypt.Key([]byte(secret), []byte(settingsSalt), scryptN, scryptR, scryptP, settingsKeyLen)
