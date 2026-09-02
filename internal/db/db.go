@@ -8,13 +8,19 @@
 // than corrupting — but "supported" is doing a lot of work in that sentence, and
 // two things have to be true for it to hold.
 //
-// FIRST: THIS SIDE NEVER MIGRATES. src/db.js carries fourteen numbered
-// migrations and runs them at open. If this package ran them too, two processes
-// could apply the same migration concurrently, and a migration is exactly the
-// operation that cannot survive being run twice. Worse, the Go side would then
-// be asserting a schema the Node side has not agreed to — and Node is still the
-// product. So Open() asserts a MINIMUM schema version and refuses below it.
-// Node creates tables; this appends rows to them.
+// FIRST: THIS SIDE NEVER MIGRATES. src/db.js carried fifteen numbered migrations
+// and ran them at open. If this package ran them too, two processes could apply
+// the same migration concurrently, and a migration is exactly the operation that
+// cannot survive being run twice. So Open() asserts a MINIMUM schema version and
+// refuses below it.
+//
+// **IT DOES NOW CREATE, THOUGH, AND ONLY WHEN THERE IS NOTHING THERE.** "Node
+// creates tables; this appends rows to them" was true while Node ran and became
+// false at cutover — nothing created them afterwards, so a fresh install had no
+// database at all and its first administrator held no grants (issue #124). An
+// ABSENT file is now built from `freshSchemaDDL`; an EXISTING one below
+// MinSchema is still refused, because that is a migration this port cannot
+// perform and inventing tables beside it would be worse than saying so.
 //
 // SECOND: A BUSY TIMEOUT, NOT A BUSY ERROR. Without one, a write landing while
 // Node holds the write lock fails at once with SQLITE_BUSY. With one, it waits.
@@ -30,6 +36,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,10 +73,26 @@ func Open(dataDir string) (*DB, error) {
 	// is the wrong /data.
 	if st, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("%s does not exist — is this the right /data? "+
-				"(the Node app creates and migrates it)", path)
+			// ── A FRESH INSTALL CREATES IT ────────────────────────────────
+			//
+			// This used to refuse, on the grounds that "the Node app creates and
+			// migrates it". True until cutover and false ever since: nothing
+			// creates it now, so a new install ran with no audit, no history and
+			// no reports — and, because `grantFirstAdmin` needs the grants
+			// table, with a first administrator who held no grants and could not
+			// add a router at all. Issue #124.
+			//
+			// ONLY WHEN ABSENT. A database that EXISTS but is older than
+			// MinSchema still fails below: that is a /data wanting a migration
+			// this port cannot perform, and creating tables beside it would be a
+			// far worse answer than saying so.
+			if cerr := createSchema(path); cerr != nil {
+				return nil, cerr
+			}
+			log.Printf("[db] created a new database at %s (schema v%d)", path, schemaVersion)
+		} else {
+			return nil, err
 		}
-		return nil, err
 	} else if st.IsDir() {
 		return nil, fmt.Errorf("%s is a directory", path)
 	}

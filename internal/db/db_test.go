@@ -71,9 +71,51 @@ func openTest(t *testing.T, dir string) *DB {
 
 // ── Open refuses what it cannot safely use ───────────────────────────────────
 
-func TestOpenRefusesMissingFile(t *testing.T) {
-	if _, err := Open(t.TempDir()); err == nil {
-		t.Fatal("opened a directory with no database; the driver would have created one")
+// ── RE-AIMED 2026-09-02, DELIBERATELY ──────────────────────────────────────
+//
+// This asserted that an absent database is REFUSED, and it was right while the
+// Node app owned the schema: a missing file meant the wrong /data, and creating
+// an empty one would have hidden that.
+//
+// Node is gone, and the refusal outlived its reason. Nothing created the file
+// any more, so a fresh install ran with no audit, no history and no reports —
+// and, because `grantFirstAdmin` needs the grants table, with a first
+// administrator who held no grants and could not add a router at all. That is
+// issue #124, reported by users installing from the RouterOS container
+// catalogue, where /data is new by definition.
+//
+// The question this test asks is inverted; the two either side of it are not.
+// `TestOpenRefusesOldSchema` still guards the case this port genuinely cannot
+// handle — a database that EXISTS and is too old to use.
+func TestOpenCreatesAMissingDatabase(t *testing.T) {
+	dir := t.TempDir()
+	d, err := Open(dir)
+	if err != nil {
+		t.Fatalf("a fresh /data failed to open, which is an install that cannot be "+
+			"configured at all: %v", err)
+	}
+	defer d.Close()
+
+	// USABLE, not merely present: below MinSchema, Open would have refused the
+	// database it had just written.
+	v, err := d.SchemaVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v < MinSchema {
+		t.Errorf("created a database at schema v%d, below the v%d floor", v, MinSchema)
+	}
+
+	// And the tables the first administrator's grant needs are really there —
+	// the ones whose absence made the account exist and be able to do nothing.
+	if _, err := d.sql.Exec(
+		`INSERT INTO roles (id, name, builtin, created_at) VALUES ('r1','Test',0,0)`); err != nil {
+		t.Fatalf("roles is missing or unusable: %v", err)
+	}
+	if _, err := d.sql.Exec(
+		`INSERT INTO grants (id, principal_type, principal_id, role_id, scope_type, scope_id, created_at)
+		 VALUES ('g1','user','u1','r1','global','',0)`); err != nil {
+		t.Errorf("grants is missing or unusable — grantFirstAdmin would fail: %v", err)
 	}
 }
 
