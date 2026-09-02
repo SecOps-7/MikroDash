@@ -1,5 +1,11 @@
   <div class="page-view" id="page-devices">
-    <div class="container-xl">
+    <!-- container-FLUID, as every other page uses. This was the one page on
+         `container-xl`, which Tabler caps at max-width:1140px — so on a wide
+         screen the fleet sat in a narrow column with empty space either side
+         while every other page filled the window (issue #122). The horizontal
+         padding is unchanged: both containers set the same gutter, and
+         `.page-view` supplies 1.25rem regardless. -->
+    <div class="container-fluid">
       <!-- Fleet summary. Online + Offline account for every device; Alerting
            overlaps both, since a reachable router can still have something
            wrong on it. -->

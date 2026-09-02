@@ -358,7 +358,19 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
 
     // Compact fits four across where Comfortable fits three — the same cards,
     // more of them in view.
-    html += (rtrView === 'compact' ? '<div class="col-md-4 col-xl-3">' : '<div class="col-md-6 col-xl-4">')
+    // ── AND A TIER ABOVE `xl`, WHICH IS ONLY 1200px ───────────────────────
+    //
+    // Removing the page's `container-xl` cap (issue #122) let the grid have the
+    // whole window, but the columns stopped at `xl` — so a 2500px screen still
+    // drew three cards, each about 800px wide and mostly empty. Full width and
+    // responsive are not the same thing, and the reporter asked for the second.
+    //
+    // Tabler carries `xxl` (>=1400px) and nothing used it. Comfortable goes to
+    // four per row and compact to six, which is where a card stops gaining
+    // anything from the extra width.
+    html += (rtrView === 'compact'
+      ? '<div class="col-md-4 col-xl-3 col-xxl-2">'
+      : '<div class="col-md-6 col-xl-4 col-xxl-3">')
       // h-100 so cards in a row match height. Without it a card is only as tall
       // as its content, and one whose identity pills wrap to a second row sat
       // visibly taller than its neighbours — measured at 297px against 275px.
