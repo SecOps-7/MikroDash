@@ -190,6 +190,10 @@ type Client struct {
 	// fatal records an error that ended the connection, so Connected() stops
 	// claiming a session that is gone.
 	fatal error
+	// cancel ends the context async mode was started with. See Dial: without it
+	// go-routeros parks a goroutine on context.Background() for the life of the
+	// process, once per client ever dialled.
+	cancel context.CancelFunc
 }
 
 // Dial connects, logs in and starts async mode.
@@ -237,7 +241,21 @@ func Dial(cfg Config) (*Client, error) {
 	// map, and therefore somewhere for a sentence addressed to a cancelled tag
 	// to be discarded. In sync mode there is no map, and protocol reality 4 has
 	// nothing catching it.
-	errC := inner.Async()
+	// ── AND IT IS STARTED WITH A CONTEXT WE CAN CANCEL ────────────────────
+	//
+	// `Async()` is `AsyncContext(context.Background())`, and `asyncLoop` opens
+	// with `go func() { <-ctx.Done(); c.r.Cancel() }()`. On Background that
+	// goroutine parks FOR EVER, holding a reference to the client -- so every
+	// connection this process ever dialled stayed reachable from a live
+	// goroutine stack, and the socket's finalizer could never run even after
+	// Close.
+	//
+	// One parked goroutine per dial is small; unbounded over an uptime measured
+	// in weeks, across reconnects, is not. Cancelling in Close ends it and also
+	// unblocks the reader, which is the tidier shutdown anyway.
+	ctx, cancel := context.WithCancel(context.Background())
+	cl.cancel = cancel
+	errC := inner.AsyncContext(ctx)
 	go func() {
 		// Async() closes this channel when the read loop ends. A closed channel
 		// with no value is a clean shutdown; a value is what ended it.
@@ -390,7 +408,14 @@ func (c *Client) Close() error {
 		return nil
 	}
 	c.closed = true
+	cancel := c.cancel
 	c.mu.Unlock()
+	// FIRST, so async mode's parked `<-ctx.Done()` goroutine ends and releases
+	// its reference to the client. Idempotent: the `closed` guard above means
+	// this runs once, and a CancelFunc is safe to call twice anyway.
+	if cancel != nil {
+		cancel()
+	}
 	return c.c.Close()
 }
 

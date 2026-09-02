@@ -208,6 +208,45 @@ func TestPoolConnectsAndReportsSummaries(t *testing.T) {
 	}
 }
 
+// ── ReleaseAll GIVES THE FLEET BACK, WHICH Suspend DOES NOT ────────────────
+//
+// `syncAlertPool` excludes every router this pool reports in `Summaries()`, and
+// a SUSPENDED session is still reported — so once anybody had opened the Devices
+// page, the overview pool owned the whole fleet, stopped collecting the moment
+// they left, and the alert pool was locked out of all of it. No alert evaluation
+// and no continuous history for any router until something else re-ran the sync.
+//
+// The distinction pinned here is the one the Suspend test asserts in the other
+// direction: Suspend keeps its sockets on purpose, so ReleaseAll has to exist
+// rather than Suspend quietly changing meaning.
+func TestReleaseAllGivesUpEveryRouter(t *testing.T) {
+	d := &dialLog{}
+	p := NewPool(d.dial, 10*time.Millisecond, nil, nil)
+	defer p.Close()
+
+	p.Sync([]RouterConfig{cfg("a"), cfg("b")}, nil)
+	waitFor(t, "two tracked", func() bool { return len(p.Tracked()) == 2 })
+
+	p.ReleaseAll()
+
+	// BOTH, because they answer different questions: Tracked is what the pool
+	// thinks it holds, and Summaries is what `syncAlertPool` reads to decide
+	// whether a router is already covered. A release that emptied one and not
+	// the other would leave the alert pool still locked out.
+	if n := len(p.Tracked()); n != 0 {
+		t.Errorf("%d router(s) still tracked after ReleaseAll", n)
+	}
+	if n := len(p.Summaries()); n != 0 {
+		t.Errorf("%d router(s) still in Summaries — syncAlertPool would keep excluding them", n)
+	}
+
+	// And the pool is still USABLE: returning to the Devices page re-dials,
+	// which is what the first visit does anyway.
+	p.Resume()
+	p.Sync([]RouterConfig{cfg("a"), cfg("b")}, nil)
+	waitFor(t, "two tracked again", func() bool { return len(p.Tracked()) == 2 })
+}
+
 // A router the MAIN pool takes over must be STOPPED, not left running: the live
 // teardown fires when a router is excluded OR gone, and the two loops are not
 // symmetrical. This is the case that separates them.

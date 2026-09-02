@@ -466,7 +466,18 @@ func (cn *conn) devicesBlur() {
 	cn.srv.devicesMu.Unlock()
 
 	if last && cn.srv.pool != nil {
-		cn.srv.pool.Suspend()
+		// ── RELEASE, NOT JUST SUSPEND, AND THEN HAND THE FLEET BACK ───────
+		//
+		// `Suspend` kept the sockets, and `syncAlertPool` excludes every router
+		// this pool still lists — so leaving the Devices page used to stop the
+		// overview pool collecting while it went on OWNING the fleet, locking
+		// the alert pool out of all of it. No alert evaluation and no continuous
+		// history for any router until something else re-ran the sync.
+		//
+		// Both halves are needed: releasing without the re-sync would leave
+		// those routers covered by nothing at all, which is worse than the bug.
+		cn.srv.pool.ReleaseAll()
+		cn.srv.syncAlertPool()
 	}
 }
 

@@ -706,6 +706,40 @@ func (p *Pool) Suspend() {
 	}
 }
 
+// ReleaseAll drops every background session, leaving the pool usable.
+//
+// ── WHY SUSPENDING IS NOT ENOUGH ────────────────────────────────────────────
+//
+// `Suspend` stops collecting and KEEPS the sockets, deliberately, so returning
+// to the Devices page is instant. The cost of that was invisible and fleet-wide:
+// `syncAlertPool` excludes every router this pool lists in `Summaries()`, and a
+// suspended session is still listed -- so once anybody opened Devices, the
+// overview pool owned the whole fleet, stopped collecting the moment they left,
+// and the alert pool was locked out of all of it.
+//
+// The result was no alert evaluation and no continuous history for ANY router
+// until something else happened to re-run `syncAlertPool`. That contradicts the
+// reason the alert pool exists, which `server.go` states plainly: a router
+// nobody is watching "is still known to be up and still has its alerts
+// evaluated, which is a claim about the whole uptime of the process".
+//
+// So leaving the page now RELEASES the routers rather than merely going quiet on
+// them, and the alert pool takes them back. Returning to Devices re-dials, which
+// is what the first visit does anyway -- a cost paid by the person looking at
+// the page, instead of a gap in coverage paid by everyone who is not.
+func (p *Pool) ReleaseAll() {
+	p.mu.Lock()
+	p.suspended = true
+	list := sessionsOf(p)
+	p.sessions = map[string]*poolSession{}
+	p.mu.Unlock()
+	// Outside the lock, as `Sync` and `Drop` do: destroy reaches a session
+	// goroutine that takes the session's own lock.
+	for _, s := range list {
+		s.destroy()
+	}
+}
+
 // Resume starts collecting again on every session that is still connected.
 func (p *Pool) Resume() {
 	p.mu.Lock()
