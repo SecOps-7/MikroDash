@@ -2,6 +2,46 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.11] - A new install can be set up again
+
+### Fixed
+
+- **A fresh install could not be set up at all, and this release is the fix.** On a new `/data`
+  MikroDash exited before serving a page, because it expected an encryption key file that only the
+  old Node version ever created. Even past that, it had no database, so the first administrator
+  account was created holding no permissions and could not add a router. Anyone upgrading was
+  unaffected, which is why it went unnoticed: the missing files were already in their `/data`.
+  Reported as issue #124 by users installing from the RouterOS container catalogue, where the
+  volume is empty by definition.
+- **Backup notifications work again.** Drift ("Configuration changed") and failure ("Backup
+  failed") were sent by the Node version and were lost in the rewrite, so scheduled backups have
+  been silent, including when they failed. An unchanged backup still says nothing, deliberately:
+  a daily message that reports nothing is a channel people mute.
+- **The DHCP page showed 0% for every subnet.** Lease counts and the IP Utilisation gauge read
+  zero while the subnet rows and the lease table were populated, because the two collectors
+  started in the wrong order and the result was then held for a ten minute poll interval.
+- **The DHCP page on a device with no DHCP server** kept showing the previously selected router's
+  subnets instead of saying it has none.
+- **Network Topology re-read the router every 3 seconds** regardless of its configured interval.
+  The map still updates at the same rate; it just stops asking the router for the parts that have
+  not changed.
+- **Stale API sessions on the router.** A reconnect abandoned its connection without closing it, a
+  router that was open in the Devices page kept a second connection for as long as the app ran,
+  and disabling or deleting a router left it polled for two more minutes.
+- **Alert checks and history stopped for every router after opening the Devices page**, until
+  something else happened to restart them.
+- **"End Session" on the Users page** now shows "Closing..." while it works, and says so plainly
+  when RouterOS refuses. RouterOS will not end API or REST API sessions; that refusal was
+  previously invisible.
+
+### Internal
+
+- Router CPU measured across four states before changing anything. The spikes reported were
+  present with MikroDash stopped, so no collector was altered.
+- The database schema is now created by MikroDash rather than inherited from the Node version.
+- One goroutine per router connection was being leaked for the lifetime of the process.
+- New checks for first run, page keys, collector ordering and backup notification rules.
+
 ## [0.8.10] - Every page has its own URL
 
 ### New

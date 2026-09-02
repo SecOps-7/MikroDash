@@ -95,10 +95,14 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 //
 // 0.8.10 SORTS AFTER 0.8.2, and the jump is deliberate rather than a typo: these
 // are numbers, not decimals, so ten follows two. Docker tags are strings and
-// sort lexically, which is a good reason to be sure the next one is 0.8.11.
+// sort lexically, which is why the next one is 0.8.11 and not 0.8.3.
+//
+// 0.8.11 is the first release a NEW install can complete at all: until it, a
+// fresh /data had no `.secret` (so the process exited before serving a page) and
+// no database (so the first administrator held no grants). See issue #124.
 //
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.10"
+const AppVersion = "0.8.11"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.

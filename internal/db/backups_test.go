@@ -258,9 +258,16 @@ func TestListBackupsClampIsUnreachableFromTheCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	tx, _ := h.Begin()
+	// int64 BEFORE the arithmetic, not after. `1767225600000 + i*1000` folds as
+	// an untyped constant into `int`, which is 32 bits on the linux/arm/v7 image
+	// this project publishes, so the package failed to COMPILE there and
+	// `GOARCH=386 go test ./internal/db/` could not run at all. Present since the
+	// cutover commit; the production build was always fine, only the tests could
+	// not be run on the architecture that ships.
 	for i := 0; i < 1500; i++ {
+		ts := int64(1767225600000) + int64(i)*1000
 		if _, err := tx.Exec(`INSERT INTO config_backups (router_id, taken_at, outcome)
-			VALUES ('r', ?, 'changed')`, int64(1767225600000+i*1000)); err != nil {
+			VALUES ('r', ?, 'changed')`, ts); err != nil {
 			t.Fatal(err)
 		}
 	}
