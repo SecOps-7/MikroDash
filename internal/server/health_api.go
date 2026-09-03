@@ -118,8 +118,14 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 // all along and was shown on ONE trigger — the last router being deleted — so it
 // could never appear on a first run, which is the only case it is for.
 //
+// 0.8.15 is the one where the Settings page can save. `#settingsSaveBtn` was
+// bound to nothing at all, so no server-side setting could be written from any
+// tab — the third control found unwired in a week, after the Add Device button
+// and the first-run wizard. `TestInteractiveControlsAreBoundBeyondCaps` is the
+// gate that would have caught all three.
+//
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.14"
+const AppVersion = "0.8.15"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.

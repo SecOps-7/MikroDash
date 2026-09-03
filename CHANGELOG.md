@@ -2,6 +2,25 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.15] - Settings can be saved again
+
+### Fixed
+
+- **The Save button on the Settings page did nothing.** It was drawn, it was enabled, and nothing
+  at all was listening for a click on it, so no setting could be saved from any tab — poll
+  intervals, notification channels, alert thresholds, which pages are shown, session timeout.
+  Reset beside it worked, which is what made the page look normal. Reported as "Appearance Save
+  not working", which was simply where it was noticed. Issue #126.
+- **The "Require sign-in" toggle always showed as off**, whatever the install was actually set to,
+  because nothing ever read the real value into it. It now shows the truth.
+
+### Internal
+
+- A new check refuses any button that only the permissions layer touches. That is the exact shape
+  of the last three broken controls: enabled and disabled correctly, wired to nothing, and each
+  one found by somebody clicking it rather than by a test.
+- Saving a form no longer sends blank password fields, which the server reads as "clear this".
+
 ## [0.8.14] - A new install is shown how to add its router
 
 ### Fixed
