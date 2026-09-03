@@ -418,8 +418,8 @@ replaced? That question died with the port, and 25 MB of recordings went with it
 
 | | |
 |---|---|
-| `internal/verify/` | 27 Go tests. Static checks over the CURRENT source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, fixture schemas, and that every page-key literal still names a real page. |
-| `web/test/` | 18 test files that bundle the app's TypeScript and run it against a DOM shim (28 cases). |
+| `internal/verify/` | 28 Go tests. Static checks over the CURRENT source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, fixture schemas, and that every page-key literal still names a real page. |
+| `web/test/` | 19 test files that bundle the app's TypeScript and run it against a DOM shim (29 cases). |
 
 **Two rules carried across, and both are load-bearing:**
 
@@ -448,11 +448,11 @@ inert.
 - **The two gates are not unit tests.** `cmd/conformance` and `cmd/compat` run against live hardware
   and the live `/data`. They are the go/no-go checks, and a green unit suite does not substitute for
   them.
-- **`internal/verify/`** holds the repository's static self-checks as Go tests — 27 of them. They
+- **`internal/verify/`** holds the repository's static self-checks as Go tests — 28 of them. They
   read the CURRENT source and assert properties still worth holding: no committed credential, every
   cited path present, every emitted event consumed, every multi-room collector behind an occupancy
   guard. They are test-only, so nothing can link them into the binary.
-- **`web/test/`** holds 18 frontend tests that bundle the app's TypeScript and run it against a DOM
+- **`web/test/`** holds 19 frontend tests that bundle the app's TypeScript and run it against a DOM
   shim. JavaScript-hosted because testing TypeScript needs a JavaScript runtime.
 - **A gap is documented, never hidden.** Every ledger in those tests fails in BOTH directions: an
   unrecorded gap is a failure, and a recorded gap that has CLOSED is also a failure, so a note cannot

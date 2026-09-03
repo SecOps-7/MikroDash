@@ -515,6 +515,22 @@ type BackupBlock struct {
 func (s *Store) Routers() ([]Router, []error) {
 	b, err := os.ReadFile(filepath.Join(s.Dir, "routers.json"))
 	if err != nil {
+		// AN ABSENT FILE IS AN EMPTY FLEET, and only an absent one — the same
+		// rule `Users` applies to users.json and for the same reason. A brand
+		// new /data has no routers.json, and reporting that as a problem made
+		// every caller treat a first run as a fault: the log carried an error on
+		// every start, and `announceSetupIfNoRouters` could not tell "no routers
+		// yet" from "the fleet could not be read", so the first-run wizard stayed
+		// hidden on the one install that needed it.
+		//
+		// A file that EXISTS and cannot be read stays a problem. The distinction
+		// matters less here than it does for users.json — an empty fleet grants
+		// nobody anything — but reporting a populated install as empty would
+		// still show the setup wizard over a working dashboard and offer to
+		// create a router that already exists.
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
 		return nil, []error{err}
 	}
 	var problems []error

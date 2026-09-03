@@ -117,6 +117,32 @@ function setBusy(busy: boolean): void {
 
 export interface SetupSocket { on(event: string, cb: () => void): void }
 
+/**
+ * Show the first-run router wizard now, without waiting for a socket event.
+ *
+ * ── WHY THE EVENT ALONE IS NOT ENOUGH ───────────────────────────────────────
+ *
+ * `setup:required` is broadcast when the LAST router is deleted, which reaches
+ * every browser already open. It says nothing to a browser that arrives at an
+ * install which never had a router — and that is a first run, the one case this
+ * overlay exists for. A new operator got the dashboard instead, drawn in full
+ * with every card empty and nothing on screen saying a router was needed or
+ * where to add one (issue #124).
+ *
+ * Emitting the event on connect instead was tried and RACES: the server sends it
+ * as the socket registers, while the browser only subscribes once `main()` has
+ * finished its awaited fetches, so the frame lands before the listener exists.
+ * The overlay stayed hidden, which is the same silence with more moving parts.
+ *
+ * The caller already has the answer. `main()` fetches `/api/routers` before it
+ * gets here, so "is the fleet empty" is a value in hand rather than something to
+ * be told, and calling this directly has no timing to get wrong.
+ */
+export function showSetupOverlayNow(): void {
+  if (!el('setupOverlay')) return;
+  showOverlay();
+}
+
 export function initSetupOverlay(socket: SetupSocket): void {
   const ov = el('setupOverlay');
   // The live guard. On an install that HAS routers this markup is present but

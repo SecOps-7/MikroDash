@@ -2,6 +2,17 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.14] - A new install is shown how to add its router
+
+### Fixed
+
+- **A new install landed on an empty dashboard with no way to know what to do.** MikroDash has a
+  first-run wizard that asks for a router's address and credentials, and it could only ever be
+  triggered by deleting your last router — so it never appeared on a genuinely new install, which
+  is the one situation it exists for. New installs now open it straight away. Issue #124.
+- **A missing `routers.json` was treated as a fault rather than as an empty fleet**, which logged
+  an error on every start of a new install and was what kept the wizard hidden.
+
 ## [0.8.13] - A new install can add its first router
 
 ### Fixed

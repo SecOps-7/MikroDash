@@ -332,3 +332,51 @@ func TestTheUsersPageBusyKeyIsQualifiedAndShowsProgress(t *testing.T) {
 		t.Error("the PENDING table has no session-remove entry")
 	}
 }
+
+// TestAnEmptyFleetShowsTheSetupWizard: `main()` shows the first-run router
+// overlay when the fleet it just fetched is empty.
+//
+// ── WHY THIS IS CHECKED IN THE SOURCE ───────────────────────────────────────
+//
+// `web/test/setup-overlay-firstrun.test.ts` drives `showSetupOverlayNow()` and
+// proves the overlay opens. It cannot prove anything CALLS it: deleting the call
+// from `main()` leaves that suite entirely green, verified by mutation. That is
+// the same shape as the Add Device button in this release, which rendered
+// perfectly and was bound to nothing — a thing that works in isolation and is
+// never reached.
+//
+// The `if (!first)` branch is the only place the browser knows the fleet is
+// empty, since it is the fleet it fetched over HTTP a few lines earlier.
+//
+// ── AND WHY NOT THE SOCKET EVENT ────────────────────────────────────────────
+//
+// `setup:required` exists and stays wired, but it is broadcast when the LAST
+// router is DELETED and so only reaches browsers already open. Emitting it on
+// connect was tried and RACES: the frame lands while `main()` is still awaiting
+// its fetches, before anything has subscribed. A first run is the one case the
+// overlay exists for, and it must not depend on a message arriving at the right
+// moment.
+func TestAnEmptyFleetShowsTheSetupWizard(t *testing.T) {
+	root := repoRoot(t)
+	body := uncomment(mustRead(t, filepath.Join(root, "web", "src", "main.ts")))
+
+	i := strings.Index(body, "if (!first)")
+	if i < 0 {
+		t.Fatal("the empty-fleet branch could not be found — it is `if (!first)` " +
+			"in main(), just before select() is defined. If it was renamed, " +
+			"re-aim this check rather than deleting it.")
+	}
+	// The branch is short; look only at it, so an unrelated later call cannot
+	// satisfy this.
+	end := i + 400
+	if end > len(body) {
+		end = len(body)
+	}
+	if !strings.Contains(body[i:end], "showSetupOverlayNow()") {
+		t.Error("main() does not show the setup overlay when the fleet is empty. " +
+			"A new install then lands on a fully drawn dashboard with every card " +
+			"blank and nothing saying a router is needed or where to add one — " +
+			"which is what issue #124 reported, with a screenshot.")
+	}
+	t.Log("an empty fleet reaches the first-run router wizard")
+}

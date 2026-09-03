@@ -113,8 +113,13 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 // releases to make a first run work end to end is worth remembering when the
 // next port lands.
 //
+// 0.8.14 is the one after that, and it stops the walk: a new install now lands
+// on the router wizard instead of an empty dashboard. The overlay had existed
+// all along and was shown on ONE trigger — the last router being deleted — so it
+// could never appear on a first run, which is the only case it is for.
+//
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.13"
+const AppVersion = "0.8.14"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.

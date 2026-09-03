@@ -59,7 +59,7 @@ import { initSitesCard, onSitesUpdate, sitesById } from './pages/settings-sites'
 import { initPrincipalsCard, refreshPrincipalsVisibility } from './pages/settings-principals';
 import { initDbCleanup } from './pages/dbcleanup';
 import { initRoutersMap } from './pages/routers-map';
-import { initSetupOverlay } from './pages/setup-overlay-wire';
+import { initSetupOverlay, showSetupOverlayNow } from './pages/setup-overlay-wire';
 import { initPollAndBanner, applyPollSettings } from './pages/settings-poll';
 import { initSettingsRoutersTable, renderRoutersInto, updateRouterStatusBadge } from './pages/settings-routers';
 import { initRouterModal } from './pages/router-modal';
@@ -821,7 +821,21 @@ async function main(): Promise<void> {
   // still logged: an account that can read NO router on an install that HAS
   // routers is a permissions problem worth seeing.
   const first = routers[0];
-  if (!first) console.warn('no routers are readable by this account');
+  if (!first) {
+    console.warn('no routers are readable by this account');
+    // ── A FIRST RUN GETS THE WIZARD, NOT AN EMPTY DASHBOARD ─────────────────
+    //
+    // Shown from HERE because this is where the answer already is: the fleet has
+    // been fetched, and it is empty. The `setup:required` event covers the OTHER
+    // way a fleet empties — someone deleting their last router in another tab —
+    // and reaches browsers that are already open. It cannot cover this one,
+    // because a browser arriving at an install that never had a router is never
+    // told anything.
+    //
+    // `initSetupOverlay` is mounted below and stays mounted: this shows the
+    // overlay, it does not replace the wiring that makes its buttons work.
+    showSetupOverlayNow();
+  }
   const select = () => {
     const id = sel?.value || (first ? first.id : '');
     // NOTHING TO SELECT is not the same as selecting nothing: `switchRouter`
