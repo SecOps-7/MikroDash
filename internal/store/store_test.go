@@ -177,3 +177,104 @@ func mustWrite(t *testing.T, dir, name, body string) {
 		t.Fatal(err)
 	}
 }
+
+// ── A FRESH /data IS A STATE, NOT A FAULT (issues #124, #127) ───────────────
+//
+// Every reader that answers "what is configured" must survive its file being
+// absent, because on a brand-new install none of them exist. Three releases in
+// one week shipped a failure caused by one of these returning a raw ENOENT, and
+// each was fixed where it happened to surface:
+//
+//	users.json     the setup wizard never appeared (0.8.12)
+//	routers.json   the first-run router wizard stayed hidden (0.8.14)
+//	settings.json  Connect saved the router, then said "could not read the
+//	               settings" (issue #127)
+//
+// So they are checked together. A FOURTH reader added without this rule is the
+// thing this test exists to catch, and the empty directory is the whole fixture.
+func TestEveryConfigReaderSurvivesAFreshInstall(t *testing.T) {
+	s := &Store{Dir: t.TempDir()}
+
+	t.Run("Settings", func(t *testing.T) {
+		cfg, err := s.Settings()
+		if err != nil {
+			t.Fatalf("Settings() = %v; POST /api/routers/{id}/activate turns this "+
+				"into a 500 'could not read the settings', so the first-run "+
+				"wizard saves the router and then reports a failure", err)
+		}
+		if cfg == nil {
+			t.Error("a nil map — callers index it directly, and Merge layers the " +
+				"defaults under it")
+		}
+	})
+
+	t.Run("Users", func(t *testing.T) {
+		u, err := s.Users()
+		if err != nil || len(u) != 0 {
+			t.Errorf("Users() = %v, %v; no file means no users, which is what "+
+				"puts the setup wizard on screen", u, err)
+		}
+	})
+
+	t.Run("Routers", func(t *testing.T) {
+		r, problems := s.Routers()
+		if len(problems) != 0 || len(r) != 0 {
+			t.Errorf("Routers() = %v, %v; no file means an empty fleet", r, problems)
+		}
+	})
+
+	t.Run("PublicUsers", func(t *testing.T) {
+		u, err := s.PublicUsers()
+		if err != nil {
+			t.Fatalf("PublicUsers() = %v", err)
+		}
+		if u == nil {
+			t.Error("nil rather than an empty slice — the card renders the two " +
+				"differently, which is why the contract is `[]` and not null")
+		}
+	})
+
+	t.Run("PublicRouters", func(t *testing.T) {
+		r, err := s.PublicRouters()
+		if err != nil || r == nil {
+			t.Errorf("PublicRouters() = %v, %v", r, err)
+		}
+	})
+}
+
+// And the other half of the rule: a file that EXISTS and cannot be read is still
+// an error. For users.json that is a security boundary — an empty user list
+// means `firstRun`, which lets a caller create the first administrator without
+// authenticating — and the shared helper applies the same discipline to all of
+// them.
+func TestAnUnreadableConfigFileIsStillAnError(t *testing.T) {
+	for _, name := range []string{"settings.json", "users.json", "routers.json"} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			// A DIRECTORY, not a chmod: the suite runs as root, where a 0000
+			// file is still readable and the case would silently skip.
+			if err := os.Mkdir(filepath.Join(dir, name), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			s := &Store{Dir: dir}
+			var err error
+			switch name {
+			case "settings.json":
+				_, err = s.Settings()
+			case "users.json":
+				_, err = s.Users()
+			case "routers.json":
+				var problems []error
+				_, problems = s.Routers()
+				if len(problems) > 0 {
+					err = problems[0]
+				}
+			}
+			if err == nil {
+				t.Errorf("%s exists and could not be read, and that was reported "+
+					"as an ordinary empty state. For users.json that hands the "+
+					"next visitor an admin account on a populated system", name)
+			}
+		})
+	}
+}

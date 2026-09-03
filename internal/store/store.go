@@ -237,10 +237,55 @@ func (s *Store) gcm() (cipher.AEAD, error) {
 // creating. Typed accessors come later, generated from one definition.
 type Settings map[string]any
 
+// readIfPresent reads a store file, telling an ABSENT one apart from an
+// UNREADABLE one.
+//
+// ── THREE RELEASES IN ONE WEEK WENT OUT ON THIS ─────────────────────────────
+//
+// A brand-new /data has none of these files, and every reader that returned the
+// raw ENOENT turned an ordinary first run into a failure somewhere far away
+// from the cause:
+//
+//	users.json     `firstRun` never went true, so the setup wizard never
+//	               appeared and the login page asked for an account that could
+//	               not exist (0.8.12, issue #124)
+//	routers.json   an error on every start, and the first-run router wizard
+//	               stayed hidden (0.8.14, issue #124)
+//	settings.json  the wizard's Connect button saved the router and then
+//	               answered "could not read the settings" (issue #127)
+//
+// Each was fixed where it was found, which is why there were three. The rule
+// belongs in one place: absence is a state these readers must answer for.
+//
+// ── ONLY ABSENCE, AND FOR users.json THAT IS A SECURITY BOUNDARY ────────────
+//
+// A file that EXISTS and cannot be read — permissions, a short read, a corrupt
+// mount — stays an error. An empty user list means `firstRun`, and `firstRun`
+// lets a caller create the first administrator WITHOUT AUTHENTICATING, so
+// swallowing a read failure there would hand the next visitor an admin account
+// on a populated system. The same discipline is kept for all of them because
+// the distinction is what makes the rule safe to apply widely.
+func readIfPresent(path string) (data []byte, missing bool, err error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, true, nil
+		}
+		return nil, false, err
+	}
+	return b, false, nil
+}
+
 func (s *Store) Settings() (Settings, error) {
-	b, err := os.ReadFile(filepath.Join(s.Dir, "settings.json"))
+	b, missing, err := readIfPresent(filepath.Join(s.Dir, "settings.json"))
 	if err != nil {
 		return nil, err
+	}
+	if missing {
+		// EVERY DEFAULT, not a failure. `Merge` layers the defaults under
+		// whatever is stored, so an empty map is a complete install that has
+		// simply never been saved.
+		return Settings{}, nil
 	}
 	var out Settings
 	if err := json.Unmarshal(b, &out); err != nil {
@@ -262,35 +307,17 @@ type User struct {
 // Users reads the bare array. See reality 3 in the package comment for why the
 // shape matters more than it looks.
 func (s *Store) Users() ([]User, error) {
-	b, err := os.ReadFile(filepath.Join(s.Dir, "users.json"))
+	b, missing, err := readIfPresent(filepath.Join(s.Dir, "users.json"))
 	if err != nil {
-		// ── AN ABSENT FILE IS "NO USERS YET", AND NOTHING ELSE IS ──────────
-		//
-		// A brand-new /data has no users.json, and that is the FIRST RUN state,
-		// not a failure. `GET /api/auth/status` computes `firstRun` from
-		// `len(users) == 0`; returning the raw ENOENT here made it answer 500,
-		// the login page fell back to its Sign In form, and the setup wizard
-		// never appeared. So a fresh install showed a username and password box
-		// for an account that could not exist and could not be created —
-		// reported as "it doesn't ask for user/password and the space where to
-		// fill these informations aren't working" (issue #124), and reproduced
-		// on an empty volume with no environment variables set.
-		//
-		// ── ONLY `not exist`. THIS IS A SECURITY BOUNDARY, NOT A CONVENIENCE ─
-		//
-		// An empty user list means `firstRun`, and `firstRun` is what lets a
-		// caller create the first administrator WITHOUT AUTHENTICATING. So a
-		// users.json that exists but cannot be read — permissions, a short read,
-		// a corrupt mount — must stay an ERROR. Swallowing those would turn a
-		// transient read failure into "this install has no accounts", and hand
-		// the next visitor an admin account on a populated system.
-		//
-		// The malformed-JSON case below is loud for exactly the same reason, and
-		// says so.
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
 		return nil, err
+	}
+	if missing {
+		// NO users.json IS "NO USERS YET", which is the FIRST RUN state: it is
+		// what makes `GET /api/auth/status` answer `firstRun` and put the setup
+		// wizard on screen instead of a login form for an account that cannot
+		// exist (issue #124). `readIfPresent` carries why only ABSENCE may be
+		// treated this way — the security half of the rule is there.
+		return nil, nil
 	}
 	var out []User
 	if err := json.Unmarshal(b, &out); err != nil {
@@ -513,25 +540,15 @@ type BackupBlock struct {
 // router in the list with an empty password and records the failure, because one
 // router encrypted under an old key must not hide the other five.
 func (s *Store) Routers() ([]Router, []error) {
-	b, err := os.ReadFile(filepath.Join(s.Dir, "routers.json"))
-	if err != nil {
-		// AN ABSENT FILE IS AN EMPTY FLEET, and only an absent one — the same
-		// rule `Users` applies to users.json and for the same reason. A brand
-		// new /data has no routers.json, and reporting that as a problem made
-		// every caller treat a first run as a fault: the log carried an error on
-		// every start, and `announceSetupIfNoRouters` could not tell "no routers
-		// yet" from "the fleet could not be read", so the first-run wizard stayed
-		// hidden on the one install that needed it.
-		//
-		// A file that EXISTS and cannot be read stays a problem. The distinction
-		// matters less here than it does for users.json — an empty fleet grants
-		// nobody anything — but reporting a populated install as empty would
-		// still show the setup wizard over a working dashboard and offer to
-		// create a router that already exists.
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, []error{err}
+	b, missing, rerr := readIfPresent(filepath.Join(s.Dir, "routers.json"))
+	if rerr != nil {
+		return nil, []error{rerr}
+	}
+	if missing {
+		// AN ABSENT FILE IS AN EMPTY FLEET. Reporting it as a problem made every
+		// caller treat a first run as a fault: an error on every start, and the
+		// first-run router wizard hidden on the one install that needed it.
+		return nil, nil
 	}
 	var problems []error
 	var out []Router

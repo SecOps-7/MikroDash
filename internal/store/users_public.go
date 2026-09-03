@@ -21,7 +21,6 @@ package store
 
 import (
 	"encoding/json"
-	"os"
 	"path/filepath"
 )
 
@@ -39,9 +38,15 @@ var UserSecretFields = []string{"passwordHash", "salt"}
 // Returns an empty slice rather than nil for an empty file, so the payload is
 // `[]` and not `null` — the card renders the two differently.
 func (s *Store) PublicUsers() ([]map[string]any, error) {
-	b, err := os.ReadFile(filepath.Join(s.Dir, "users.json"))
+	b, missing, err := readIfPresent(filepath.Join(s.Dir, "users.json"))
 	if err != nil {
 		return nil, err
+	}
+	if missing {
+		// `[]`, not null, and not an error — the same first-run rule `Users`
+		// follows. The card renders an empty list and a null differently, and a
+		// fresh install has neither users nor a file.
+		return []map[string]any{}, nil
 	}
 	var raw []map[string]any
 	if err := json.Unmarshal(b, &raw); err != nil {
