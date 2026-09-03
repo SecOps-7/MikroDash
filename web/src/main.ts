@@ -61,6 +61,7 @@ import { initDbCleanup } from './pages/dbcleanup';
 import { initRoutersMap } from './pages/routers-map';
 import { initSetupOverlay, showSetupOverlayNow } from './pages/setup-overlay-wire';
 import { initPollAndBanner, applyPollSettings } from './pages/settings-poll';
+import { initSettingsSave } from './pages/settings-save';
 import { initSettingsRoutersTable, renderRoutersInto, updateRouterStatusBadge } from './pages/settings-routers';
 import { initRouterModal } from './pages/router-modal';
 import { initAlertFilters } from './pages/settings-alert-filters';
@@ -710,6 +711,10 @@ async function main(): Promise<void> {
   });
 
   initPollAndBanner(loadSettings);
+  // The Save button beside Reset, which was bound to nothing at all until
+  // 0.8.15 — so no server-side setting could be saved from any tab. Given the
+  // SAME loader as Reset, so the two refresh the page identically.
+  initSettingsSave(loadSettings);
 
   // THE MOBILE CONTROL. `#navRouterWrap` is display:none until the mobile media
   // query, so on a desktop browser this select is invisible — which is why

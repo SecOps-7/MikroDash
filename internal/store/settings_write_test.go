@@ -281,3 +281,48 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		}
 	}
 }
+
+// ── THE TWO HALVES THE BROWSER'S SAVE BUTTON DEPENDS ON ─────────────────────
+//
+// `web/test/settings-save.test.ts` pins what the form SENDS. These pin what the
+// server does with it. Each half is harmless alone and the pair is what keeps a
+// Save from destroying something.
+func TestTheFormsSaveCannotClearSmtpUserOrOpenTheDoor(t *testing.T) {
+	t.Run("the smtpUser mask is dropped, not stored", func(t *testing.T) {
+		// The collector sends `smtpUser` unconditionally, because it is an
+		// ordinary value field rather than one of the blanked credentials. What
+		// makes that safe is a three-module invariant nothing else asserts:
+		// `disclose.go` masks it on read, `populateSettings` writes the mask into
+		// the visible box, and this drops it again. Break any link and every Save
+		// clears the SMTP username.
+		updates, reset := SettingsUpdate(map[string]any{"smtpUser": Mask})
+		if reset {
+			t.Fatal("a plain body was read as a reset")
+		}
+		if _, ok := updates["smtpUser"]; ok {
+			t.Errorf("smtpUser = %q reached the updates; handing the mask back "+
+				"must be a no-op, or opening Settings and pressing Save wipes "+
+				"the stored username", updates["smtpUser"])
+		}
+	})
+
+	t.Run("authMode none is accepted, so the browser must never send it blind",
+		func(t *testing.T) {
+			// This is not a wish, it is the hazard written down. The server takes
+			// `none` without argument, and once the mode is none `maySaveSettings`
+			// returns true for everyone. The guard has to live in the browser: the
+			// sign-in box is populated from `authModeOf` before anything collects
+			// it, so the value posted is the one the operator can see.
+			updates, _ := SettingsUpdate(map[string]any{"authMode": "none"})
+			if updates["authMode"] != "none" {
+				t.Fatalf("authMode = %v; the whitelist changed and the browser-side "+
+					"reasoning about it needs revisiting", updates["authMode"])
+			}
+			// And a value outside the whitelist is refused rather than stored.
+			bad, _ := SettingsUpdate(map[string]any{"authMode": "off"})
+			if _, ok := bad["authMode"]; ok {
+				t.Errorf("authMode = %v was accepted; only none and modern are valid",
+					bad["authMode"])
+			}
+		})
+}

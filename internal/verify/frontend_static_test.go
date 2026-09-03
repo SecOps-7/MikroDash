@@ -163,3 +163,127 @@ func TestTemplateIDsAreBound(t *testing.T) {
 	t.Logf("%d ids created by port templates, %d bound, %d recorded as unbound",
 		len(made), nBound, len(unbound))
 }
+
+// capsOnlyButtons: buttons the capability layer touches and no feature binds.
+//
+// EMPTY, AND THAT IS THE POINT. An entry here says "this control is enabled and
+// disabled and does nothing when pressed", which is never a state to settle for
+// — so a new one has to be argued for in writing rather than merged quietly.
+var capsOnlyButtons = map[string]string{}
+
+// TestInteractiveControlsAreBoundBeyondCaps: a button referenced ONLY by the
+// capability layer is a button nothing has wired.
+//
+// ── THE SHAPE THAT SHIPPED TWICE IN ONE WEEK ────────────────────────────────
+//
+// `caps.ts` looks up a control to enable, disable or hide it. That reference
+// makes the id look bound to any check that asks "is this id named anywhere",
+// which is why `TestTemplateIDsAreBound` never saw either of these:
+//
+//	rtrAddBtn         Add Device rendered, enabled, no listener. A new install
+//	                  could create an account and then not add a router at all.
+//	settingsSaveBtn   Save Settings rendered, enabled, no listener. NO
+//	                  server-side setting could be saved from any tab.
+//
+// Both were found by a person clicking, months apart, and both were reported as
+// something else — "cannot add any device", "Appearance Save not working". The
+// wiring audit that would have caught them read the deleted Node source and was
+// retired with it.
+//
+// ── WHY BUTTONS, AND WHY THIS RULE AND NOT A STRICTER ONE ───────────────────
+//
+// Measured against the tree when this was written: 92 buttons with ids, 91
+// referenced from a feature module, exactly one — `settingsSaveBtn` — from
+// `caps.ts` alone. Zero false positives, and it catches both known instances.
+//
+// Two stricter rules were measured and rejected. Requiring every id in the
+// markup to be bound gives 240 failures, nearly all labels and layout wrappers:
+// a ledger that size is one nobody reads. Requiring an `addEventListener` near
+// the id gives 23, of which 22 are legitimate table-driven or delegated wiring —
+// a 96% false-positive rate.
+//
+// Inputs and selects are deliberately out of scope: the ~78 `s_*` fields are
+// bound generically through `el('s_' + key)`, which `templateIDsUnbound` already
+// records under the `s_` prefix.
+func TestInteractiveControlsAreBoundBeyondCaps(t *testing.T) {
+	root := repoRoot(t)
+
+	ts := readFiles(t, root, "web/src/", func(r string) bool {
+		// EVERY module EXCEPT the capability layer. Reading caps.ts here would
+		// make the check answer its own question.
+		return hasExt(r, ".ts") && !strings.HasSuffix(r, "caps.ts")
+	})
+	bound := joined(ts)
+
+	ui := readFiles(t, root, "web/src/ui/", func(r string) bool { return hasExt(r, ".html") })
+	if len(ui) == 0 {
+		t.Fatal("no markup found under web/src/ui — this check would pass over nothing")
+	}
+
+	btn := regexp.MustCompile(`(?s)<button\b[^>]*>`)
+	idOf := regexp.MustCompile(`id\s*=\s*"([^"]+)"`)
+	// DELEGATION IS BINDING TOO. A tab button carries `data-brtab` and is wired
+	// by `closest('[data-brtab]')`; its id is never named and never needs to be.
+	// Treating that as unbound would put thirteen honest controls in the ledger
+	// and teach the reader to skim it.
+	dataAttr := regexp.MustCompile(`\b(data-[a-z0-9-]+)\s*=`)
+
+	// `closest('#rs_save')` binds by id through a selector, so the quoted form to
+	// look for carries the hash.
+	isBound := func(id, tag string) bool {
+		for _, form := range []string{"'" + id + "'", `"` + id + `"`,
+			"'#" + id + "'", `"#` + id + `"`} {
+			if strings.Contains(bound, form) {
+				return true
+			}
+		}
+		for _, m := range dataAttr.FindAllStringSubmatch(tag, -1) {
+			if strings.Contains(bound, m[1]) {
+				return true
+			}
+		}
+		return false
+	}
+
+	var orphans []string
+	seen, checked := map[string]bool{}, 0
+	for _, body := range ui {
+		for _, tag := range btn.FindAllString(body, -1) {
+			g := idOf.FindStringSubmatch(tag)
+			if g == nil || seen[g[1]] {
+				continue
+			}
+			seen[g[1]] = true
+			checked++
+			id := g[1]
+			if isBound(id, tag) {
+				continue
+			}
+			if _, ok := capsOnlyButtons[id]; ok {
+				continue
+			}
+			orphans = append(orphans, id)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no buttons with ids were found — the markup moved and this check " +
+			"is scanning nothing, which would pass for ever")
+	}
+	sort.Strings(orphans)
+	if len(orphans) != 0 {
+		t.Errorf("buttons named only by caps.ts, so enabled and disabled but never "+
+			"bound: %s\nA control the capability layer can grey out and nothing "+
+			"listens to renders perfectly and does nothing when pressed. That is "+
+			"rtrAddBtn (#124) and settingsSaveBtn (#126). Bind it, or record it in "+
+			"capsOnlyButtons with the reason.", strings.Join(orphans, ", "))
+	}
+
+	// FAILS IN BOTH DIRECTIONS. An entry that has since been bound is a stale
+	// excuse, and stale excuses are how a ledger becomes folklore.
+	for id := range capsOnlyButtons {
+		if strings.Contains(bound, `'`+id+`'`) || strings.Contains(bound, `"`+id+`"`) {
+			t.Errorf("%s is recorded as caps-only and IS now bound — delete the entry", id)
+		}
+	}
+	t.Logf("%d buttons with ids, all bound beyond caps.ts", checked)
+}

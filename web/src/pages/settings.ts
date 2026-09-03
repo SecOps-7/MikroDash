@@ -137,6 +137,21 @@ export function populateSettings(data: SettingsPayload): void {
     if (label) label.textContent = String(data[key]) + suffix;
   }
 
+  // ── THE SIGN-IN TOGGLE, WHICH NOTHING SET UNTIL 0.8.15 ───────────────────
+  //
+  // `s_authEnabled` has no `checked` attribute, so an unpopulated box reads OFF
+  // on every load whatever the install actually does. That was merely a wrong
+  // label while nothing collected the form; the moment a Save button exists it
+  // becomes an install-wide open-access switch, because the collector would post
+  // `authMode: 'none'` from a control the operator never touched — and once the
+  // mode is `none`, `maySaveSettings` returns true for everyone.
+  //
+  // `authModeOf` was written for exactly this line and was never called, the
+  // same shape as the Save button itself. ABSENT MEANS MODERN there, so a fresh
+  // install ticks the box rather than offering to switch sign-in off.
+  const auth = el<HTMLInputElement>('s_authEnabled');
+  if (auth) auth.checked = authModeOf(data) !== 'none';
+
   // The credentials that are never pre-filled. The MASK is a presence signal,
   // not a value: the input stays empty and the placeholder carries the meaning,
   // so an operator who saves without touching the field sends nothing at all.

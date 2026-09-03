@@ -380,3 +380,35 @@ func TestAnEmptyFleetShowsTheSetupWizard(t *testing.T) {
 	}
 	t.Log("an empty fleet reaches the first-run router wizard")
 }
+
+// TestTheSettingsSaveIsMounted: `main()` calls `initSettingsSave`.
+//
+// ── THE HALF THE OTHER TWO CHECKS CANNOT SEE ────────────────────────────────
+//
+// `web/test/settings-save.test.ts` proves the collector builds the right body
+// and that the button, once bound, fires exactly one POST.
+// `TestInteractiveControlsAreBoundBeyondCaps` proves some module names the
+// button. All of them stay green if `main.ts` never mounts the module — a thing
+// that works perfectly and is never reached, which is precisely how the setup
+// overlay and the Add Device button each shipped broken.
+//
+// So the mount is asserted where it lives. Same shape as
+// `TestAnEmptyFleetShowsTheSetupWizard` above, and for the same reason.
+func TestTheSettingsSaveIsMounted(t *testing.T) {
+	root := repoRoot(t)
+	body := uncomment(mustRead(t, filepath.Join(root, "web", "src", "main.ts")))
+
+	if !strings.Contains(body, "initSettingsSave(") {
+		t.Error("main() never calls initSettingsSave, so the Settings page's Save " +
+			"button is bound by a module nothing mounts. Every setting on every " +
+			"tab silently fails to save, which is what issue #126 reported.")
+	}
+	// THE SAME LOADER AS RESET. Save and Reset must repaint the page identically;
+	// handing Save a different reloader is how the two drift.
+	if !strings.Contains(body, "initSettingsSave(loadSettings)") {
+		t.Error("initSettingsSave is not given `loadSettings` — Save and Reset " +
+			"would refresh the form differently, and the reload after a save is " +
+			"what re-blanks the credential inputs")
+	}
+	t.Log("the Settings save is mounted, with the same loader as Reset")
+}
