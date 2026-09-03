@@ -13,6 +13,8 @@ import (
 	"testing"
 
 	"mikrodash/internal/geo"
+	"mikrodash/internal/store"
+	"path/filepath"
 )
 
 func getLocalCC(t *testing.T, h http.Handler, token string) (int, map[string]any) {
@@ -104,7 +106,7 @@ func TestTheAddressIsWithheldAndTheCountryIsNot(t *testing.T) {
 	const ip = "203.0.113.7"
 	country := func(string) string { return "ZA" }
 
-	viewer := localCCPayload(ip, false, country)
+	viewer := localCCPayload(ip, false, country, "")
 	if viewer["cc"] != "ZA" {
 		t.Errorf("a viewer was denied the COUNTRY (%v). It is the world-map arc origin and is "+
 			"for everyone; the ADDRESS is the part that is withheld", viewer["cc"])
@@ -113,7 +115,7 @@ func TestTheAddressIsWithheldAndTheCountryIsNot(t *testing.T) {
 		t.Errorf("a viewer was given the WAN address %v", viewer["wanIp"])
 	}
 
-	admin := localCCPayload(ip, true, country)
+	admin := localCCPayload(ip, true, country, "")
 	if admin["wanIp"] != ip {
 		t.Errorf("system:settings was denied the address: %v", admin["wanIp"])
 	}
@@ -123,7 +125,7 @@ func TestTheAddressIsWithheldAndTheCountryIsNot(t *testing.T) {
 
 	// BOTH KEYS, ALWAYS. A missing key is `undefined` in the client where the
 	// live app sends "".
-	for _, m := range []map[string]any{viewer, admin, localCCPayload("", true, country)} {
+	for _, m := range []map[string]any{viewer, admin, localCCPayload("", true, country, "")} {
 		for _, k := range []string{"cc", "wanIp"} {
 			if _, ok := m[k]; !ok {
 				t.Errorf("the answer has no %q key: %v", k, m)
@@ -134,7 +136,7 @@ func TestTheAddressIsWithheldAndTheCountryIsNot(t *testing.T) {
 	// NO ADDRESS MEANS NO LOOKUP EITHER. Asking a geo database about "" is a
 	// read that can only answer nothing.
 	asked := 0
-	empty := localCCPayload("", true, func(string) string { asked++; return "ZA" })
+	empty := localCCPayload("", true, func(string) string { asked++; return "ZA" }, "")
 	if asked != 0 {
 		t.Error("the country was looked up for an empty address")
 	}
@@ -224,4 +226,143 @@ func readSource(t *testing.T, name string) string {
 		t.Fatal(err)
 	}
 	return string(b)
+}
+
+// ── THE ARC ORIGIN FOR A ROUTER BEHIND ANOTHER ROUTER (issue #120) ──────────
+//
+// The Connections map draws every arc FROM the local country, and that country
+// came only from a live geo lookup of the WAN address. A router whose WAN is
+// private geolocates to nothing, so the map coloured countries, counted them,
+// and drew no arcs at all — with no setting that helped, because the town the
+// operator had picked was never consulted.
+//
+// The fallback is STRICTLY ADDITIVE: it may only fill in an answer that was
+// already empty. That is the property worth pinning, because the tempting
+// version — prefer the configured place, as the Devices map does — would change
+// what every install with a public address already sees.
+func TestTheConfiguredPlaceOnlyFillsInAnEmptyCountry(t *testing.T) {
+	public := func(string) string { return "DE" }
+	none := func(string) string { return "" }
+
+	t.Run("a WAN that geolocates wins", func(t *testing.T) {
+		got := localCCPayload("203.0.113.7", false, public, "GB")
+		if got["cc"] != "DE" {
+			t.Errorf("cc = %v, want DE — a live lookup of the real address must "+
+				"not be overridden by a stored place", got["cc"])
+		}
+	})
+
+	t.Run("a private WAN falls back to the configured place", func(t *testing.T) {
+		got := localCCPayload("192.168.0.50", false, none, "GB")
+		if got["cc"] != "GB" {
+			t.Errorf("cc = %v, want GB — this is the whole bug: a router behind "+
+				"another router has no geolocatable address, so without the "+
+				"fallback the map draws no arcs and nothing the operator sets "+
+				"can change that", got["cc"])
+		}
+	})
+
+	t.Run("no WAN and no place is still empty", func(t *testing.T) {
+		got := localCCPayload("", true, public, "")
+		if got["cc"] != "" || got["wanIp"] != "" {
+			t.Errorf("got %v, want two empty strings", got)
+		}
+	})
+
+	t.Run("a place answers even before a session exists", func(t *testing.T) {
+		// The record and the sites table are on disk, so this needs no router
+		// connection — an operator who picked a town gets arcs on a fresh tab
+		// rather than after the first poll.
+		got := localCCPayload("", true, public, "GB")
+		if got["cc"] != "GB" {
+			t.Errorf("cc = %v, want GB", got["cc"])
+		}
+		if got["wanIp"] != "" {
+			t.Errorf("wanIp = %v; there is no address to disclose", got["wanIp"])
+		}
+	})
+
+	t.Run("the address is still withheld from a viewer", func(t *testing.T) {
+		got := localCCPayload("192.168.0.50", false, none, "GB")
+		if got["wanIp"] != "" {
+			t.Errorf("wanIp = %v leaked to a viewer through the fallback path",
+				got["wanIp"])
+		}
+	})
+}
+
+// activeRouterPlaceCC is the half `localCCPayload` cannot test: the pure
+// function takes the country as an argument, so every case above passes even if
+// nothing ever reads a router record. This drives the resolver itself.
+func TestTheActiveRoutersTownSuppliesTheCountry(t *testing.T) {
+	newServer := func(t *testing.T, geo string) *Server {
+		t.Helper()
+		dir := t.TempDir()
+		routers := `[{"id":"r1","label":"One","host":"192.168.0.50","port":8728,
+		  "username":"u","password":""` + geo + `}]`
+		for name, body := range map[string]string{
+			".secret":       "test-secret",
+			"settings.json": `{"activeRouterId":"r1"}`,
+			"routers.json":  routers,
+		} {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		st, err := store.Open(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &Server{store: st}
+	}
+
+	t.Run("a town picked on the device", func(t *testing.T) {
+		s := newServer(t, `,"geo":{"place":{"name":"Marl",
+		  "region":"North Rhine-Westphalia","cc":"DE","lat":51.6567,"lon":7.09038}}`)
+		if cc := s.activeRouterPlaceCC(); cc != "DE" {
+			t.Errorf("activeRouterPlaceCC() = %q, want DE — the town the operator "+
+				"picked is the only thing that can give a router behind another "+
+				"router an arc origin", cc)
+		}
+	})
+
+	t.Run("no location at all", func(t *testing.T) {
+		s := newServer(t, ``)
+		if cc := s.activeRouterPlaceCC(); cc != "" {
+			t.Errorf("activeRouterPlaceCC() = %q, want empty", cc)
+		}
+	})
+
+	t.Run("no active router", func(t *testing.T) {
+		s := newServer(t, ``)
+		// Overwrite the settings so nothing is selected.
+		if err := os.WriteFile(filepath.Join(s.store.Dir, "settings.json"),
+			[]byte(`{}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if cc := s.activeRouterPlaceCC(); cc != "" {
+			t.Errorf("activeRouterPlaceCC() = %q with no active router", cc)
+		}
+	})
+
+	t.Run("no store is not a panic", func(t *testing.T) {
+		if cc := (&Server{}).activeRouterPlaceCC(); cc != "" {
+			t.Errorf("got %q", cc)
+		}
+	})
+}
+
+// And that the handler actually asks. Both suites above pass with the resolver
+// never called — the shape that shipped three times this week.
+func TestTheLocalCCHandlerConsultsTheConfiguredPlace(t *testing.T) {
+	// Read by name from the package directory, as the ws.go wiring check does.
+	b, err := os.ReadFile("localcc_api.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "activeRouterPlaceCC()") {
+		t.Error("the localCC handler never calls activeRouterPlaceCC, so the " +
+			"fallback exists and is unreachable — a router behind another router " +
+			"still gets no arcs")
+	}
 }

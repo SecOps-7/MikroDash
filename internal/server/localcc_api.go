@@ -12,7 +12,10 @@ import (
 	"net/http"
 	"strings"
 
+	"mikrodash/internal/db"
 	"mikrodash/internal/geo"
+	"mikrodash/internal/geoplace"
+	"mikrodash/internal/store"
 )
 
 func (s *Server) registerLocalCC(mux *http.ServeMux) {
@@ -51,7 +54,7 @@ func (s *Server) localCC(w http.ResponseWriter, r *http.Request) {
 		// break it.
 		maySeeIP = disclosureAllowed(s.rbac.Can(s.userIDFor(sess.Username), "system:settings", ""))
 	}
-	writeJSON(w, localCCPayload(wanIP, maySeeIP, countryOf))
+	writeJSON(w, localCCPayload(wanIP, maySeeIP, countryOf, s.activeRouterPlaceCC()))
 }
 
 // countryOf is the default lookup: the shared geo database, or "" when it could
@@ -112,14 +115,43 @@ func disclosureAllowed(may bool, err error) bool {
 //
 // BOTH KEYS ARE ALWAYS PRESENT. The client reads `d.cc` and `d.wanIp` directly,
 // and a missing key is `undefined` where the live app sends "".
-func localCCPayload(wanIP string, maySeeIP bool, country func(string) string) map[string]any {
+// `placeCC` is the country of the router's own configured location, used ONLY
+// when the WAN address geolocates to nothing. See the fallback note below.
+func localCCPayload(wanIP string, maySeeIP bool, country func(string) string,
+	placeCC string) map[string]any {
 	// `if (!s) return res.json({ cc: '', wanIp: '' })` — no session, no answer,
 	// and NOT an error. Nobody having opened a router yet is an ordinary state
 	// on a fresh load, and a 500 would put a red line in every new tab.
+	//
+	// THE CONFIGURED PLACE STILL ANSWERS HERE, because it does not need a
+	// session: it is read from the router record and the sites table, both of
+	// which are on disk. An operator who has picked a town gets their arcs on a
+	// fresh tab rather than after the first poll.
 	if wanIP == "" {
-		return map[string]any{"cc": "", "wanIp": ""}
+		return map[string]any{"cc": placeCC, "wanIp": ""}
 	}
-	out := map[string]any{"cc": country(wanIP), "wanIp": ""}
+	cc := country(wanIP)
+	// ── THE FALLBACK, AND WHY IT IS SECOND RATHER THAN FIRST ────────────────
+	//
+	// A router behind another router has a PRIVATE WAN address, which geolocates
+	// to nothing — so `cc` came back empty, `localCC` stayed "ZZ", and the
+	// Connections map drew no arcs at all while still colouring countries and
+	// counting them. It read as a rendering fault, and nothing an operator could
+	// set made any difference: the town they picked was never consulted here.
+	// Reported on issue #120 by someone whose hAP ax3 sits behind a fibre
+	// router.
+	//
+	// `ResolveLocation` puts the manual place FIRST, because on a map the
+	// operator's own choice should decide where their router is drawn. This
+	// deliberately does not: a LIVE lookup of the real WAN address is at least
+	// as good an answer for "which country are these connections leaving from",
+	// and preferring the stored place would change what every install with a
+	// public address already sees. So the fallback is strictly additive — it
+	// only ever fills in an answer that was previously empty.
+	if cc == "" {
+		cc = placeCC
+	}
+	out := map[string]any{"cc": cc, "wanIp": ""}
 	if maySeeIP {
 		out["wanIp"] = wanIP
 	}
@@ -178,4 +210,94 @@ func (s *Server) activeWanIP() string {
 // instead of the prefix survived on exactly that.
 func addressOfCIDR(v string) string {
 	return strings.SplitN(v, "/", 2)[0]
+}
+
+// activeRouterPlaceCC is the country of the ACTIVE router's configured location,
+// or "" when it has none.
+//
+// ── IT GOES THROUGH ResolveLocation, NOT AROUND IT ──────────────────────────
+//
+// The precedence — a town picked on the device, then a stored automatic fix,
+// then the device's primary site — lives in one function, and reading the
+// record's `geo.place` directly here would be a second copy of it that agrees
+// until somebody changes one. `Location.CC` exists so that resolver can answer
+// this question too.
+//
+// ── NOTHING HERE OPENS A CONNECTION ─────────────────────────────────────────
+//
+// Both reads are from disk: the router record and the sites table. That matters
+// because this runs on an HTTP GET any browser makes on page load, and
+// `activeWanIP` above carries the same warning for the same reason — the
+// obvious spelling of "get the active router" dials it.
+func (s *Server) activeRouterPlaceCC() string {
+	if s.store == nil {
+		return ""
+	}
+	cfg, err := s.store.Settings()
+	if err != nil {
+		return ""
+	}
+	activeID, _ := cfg["activeRouterId"].(string)
+	if activeID == "" {
+		return ""
+	}
+	all, problems := s.store.Routers()
+	if len(problems) != 0 {
+		// A fleet that would not read is not a fleet with no location. Answering
+		// "" here is the same as before this fallback existed.
+		return ""
+	}
+	var rec *store.Router
+	for i := range all {
+		if all[i].ID == activeID {
+			rec = &all[i]
+			break
+		}
+	}
+	if rec == nil {
+		return ""
+	}
+	loc := geoplace.ResolveLocation(decodeGeo(rec.Geo), s.primarySiteRow(rec))
+	if loc == nil {
+		return ""
+	}
+	return loc.CC
+}
+
+// primarySiteRow is the device's FIRST site, as `routers.BuildRow` reads it —
+// the same "primary site supplies the geo tier" rule the Devices map uses, so a
+// device in several sites is placed by the one the operator listed first.
+//
+// Nil whenever the sites table cannot be read or the id names nothing: a missing
+// site is an absent tier, not a failure.
+func (s *Server) primarySiteRow(rec *store.Router) *geoplace.SiteRow {
+	ids := store.RouterSiteIDs(*rec)
+	if len(ids) == 0 || s.auditDB == nil {
+		return nil
+	}
+	sites, err := s.auditDB.ListSites()
+	if err != nil {
+		return nil
+	}
+	for _, st := range sites {
+		if st.ID != ids[0] {
+			continue
+		}
+		str := func(p *string) string {
+			if p == nil {
+				return ""
+			}
+			return *p
+		}
+		return &geoplace.SiteRow{
+			// `db.Coord`, never a direct assignment: a nil *float64 put into an
+			// `any` is a NON-nil interface holding a nil pointer, which the
+			// resolver's `case nil` does not match — so an unset coordinate
+			// would fall through and place the site at 0,0.
+			Name: st.Name, Lat: db.Coord(st.Lat), Lon: db.Coord(st.Lon),
+			PlaceName: str(st.PlaceName), PlaceRegion: str(st.PlaceRegion),
+			PlaceCC: str(st.PlaceCC),
+		}
+	}
+	return nil
 }

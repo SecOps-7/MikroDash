@@ -272,6 +272,20 @@ type Location struct {
 	Label      string
 	AccuracyKm *float64
 	WanIP      string
+	// CC is the resolved country, and it is NOT part of the JSON — see
+	// MarshalJSON, which enumerates its keys rather than reflecting the struct.
+	//
+	// It exists because the Connections map draws every arc FROM the local
+	// country, and its only source was a live geo lookup of the WAN address. A
+	// router behind another router has a private WAN, which geolocates to
+	// nothing, so `localCC` stayed "ZZ" and the map coloured countries and drew
+	// no arcs at all — with no setting that helped, because the town an operator
+	// picked was never consulted. Issue #120.
+	//
+	// The label already carries the country as text ("Marl, North
+	// Rhine-Westphalia, DE"), and parsing it back out would be a second,
+	// lossier answer to a question this function has already answered.
+	CC string
 }
 
 // MarshalJSON emits exactly the keys the original emits.
@@ -326,7 +340,7 @@ type SiteRow struct {
 func ResolveLocation(geo map[string]any, site *SiteRow) *Location {
 	if manual := NormalizePlace(mapAt(geo, "place")); manual != nil {
 		return &Location{
-			Lat: manual.Lat, Lon: manual.Lon,
+			Lat: manual.Lat, Lon: manual.Lon, CC: manual.CC,
 			Source: SourceManual, Label: FormatPlace(manual),
 		}
 	}
@@ -335,7 +349,7 @@ func ResolveLocation(geo map[string]any, site *SiteRow) *Location {
 		if a := NormalizePlace(autoRaw); a != nil {
 			am, _ := autoRaw.(map[string]any)
 			loc := &Location{
-				Lat: a.Lat, Lon: a.Lon,
+				Lat: a.Lat, Lon: a.Lon, CC: a.CC,
 				Source: SourceAuto, Label: FormatPlace(a),
 			}
 			// `Number.isFinite(km) && km > 0 ? km : null` — zero, negative and
@@ -367,10 +381,12 @@ func ResolveLocation(geo map[string]any, site *SiteRow) *Location {
 			// may carry coordinates with no place name — the label then falls
 			// back to the site's own name rather than being empty.
 			label := site.Name
+			cc := ""
 			if sp != nil {
 				label = FormatPlace(sp)
+				cc = sp.CC
 			}
-			return &Location{Lat: lat, Lon: lon, Source: SourceSite, Label: label}
+			return &Location{Lat: lat, Lon: lon, CC: cc, Source: SourceSite, Label: label}
 		}
 	}
 
