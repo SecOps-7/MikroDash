@@ -124,8 +124,14 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 // and the first-run wizard. `TestInteractiveControlsAreBoundBeyondCaps` is the
 // gate that would have caught all three.
 //
+// 0.8.16 fixes the THIRD instance of one class in a week: a config file that
+// does not exist yet reported as a failure. users.json in 0.8.12, routers.json
+// in 0.8.14, settings.json here — where it stopped a clean install activating
+// its first router. `readIfPresent` is the rule in one place, and
+// `TestEveryConfigReaderSurvivesAFreshInstall` is what stops a fourth.
+//
 // ONE DEFINITION. Anything else needing the app version reads this.
-const AppVersion = "0.8.15"
+const AppVersion = "0.8.16"
 
 // healthStartupGrace matches the live `STARTUP_GRACE_MS`: a container that has
 // not finished its first dial is starting, not broken.

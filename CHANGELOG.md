@@ -2,6 +2,26 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.16] - A new install can connect its first router
+
+### Fixed
+
+- **A clean install could not connect its first router.** The setup wizard saved the device and
+  then reported "could not read the settings". The router really was saved, which made it look
+  like it had half worked — the failure was the step immediately after, which could not cope with
+  a settings file that does not exist yet on a brand new install. Issue #127.
+- **The Connections map drew no arcs for a router behind another router.** The arcs start from
+  your own location, which was only ever worked out from the WAN address — and a router behind
+  another router has a private address that cannot be placed. The map coloured countries and
+  counted them and drew nothing between them, with no setting that helped. It now falls back to
+  the location set on the device, so picking a town gives you your arcs. Issue #120.
+
+### Internal
+
+- The rule that a missing configuration file means "not set up yet" rather than "broken" now lives
+  in one place, with a check covering every reader at once. This was the third release in a week
+  to fix one instance of it.
+
 ## [0.8.15] - Settings can be saved again
 
 ### Fixed
