@@ -75,6 +75,10 @@ var (
 	// Upstream `51aac86`, reported from this port.
 	sanHost  = regexp.MustCompile(`(?i)\b(?:[a-z0-9-]+\.)+[a-z]{2,}\b`)
 	sanToken = regexp.MustCompile(`\b\d{6,}:[A-Za-z0-9_-]{20,}\b`)
+	// A Go format verb that could not be rendered — `%!w(<nil>)` and friends —
+	// together with the `; close ` that precedes the one go-routeros emits. See
+	// Message for the whole story.
+	sanFmtVerb = regexp.MustCompile(`(;\s*close\s*)?%![a-zA-Z]\([^)]*\)`)
 )
 
 // Message redacts anything identifying from an error bound for a browser.
@@ -89,6 +93,28 @@ func Message(msg string) string {
 	if msg == "" {
 		return ""
 	}
+	// ── AN UPSTREAM FORMATTING BUG, STRIPPED BEFORE IT IS SHOWN ──────────
+	//
+	// go-routeros v3.0.1 builds its login failure as
+	//
+	//	fmt.Errorf("could not login: %w; close %w", err, c.Close())   client.go:128
+	//
+	// and `Close()` returns nil on a clean close, so `%w` renders the literal
+	// `%!w(<nil>)`. The operator on issue #126 was shown
+	//
+	//	could not login: from RouterOS device: invalid user name or password
+	//	(6); close %!w(<nil>)
+	//
+	// across the top of the page. The useful half of that sentence is the half
+	// they need; the tail is Go telling itself off, and it makes a clear message
+	// look like a crash.
+	//
+	// Removed HERE because this is the one chokepoint every error crosses on its
+	// way to a browser, and because the fix belongs upstream: patching the
+	// driver's string here would be a fork, while dropping a known-empty
+	// fragment is presentation. If a future driver stops emitting it this stops
+	// matching and changes nothing.
+	msg = sanFmtVerb.ReplaceAllString(msg, "")
 	msg = sanPath.ReplaceAllString(msg, "[path]")
 	msg = sanAddr.ReplaceAllString(msg, "[addr]")
 	msg = sanMail.ReplaceAllString(msg, "[email]")

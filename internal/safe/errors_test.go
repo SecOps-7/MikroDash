@@ -181,3 +181,28 @@ func TestOrdinaryWordsAreNotRedactedAsHosts(t *testing.T) {
 		}
 	}
 }
+
+// The exact banner from issue #126, and what an operator should have seen.
+//
+// go-routeros v3.0.1 writes `fmt.Errorf("could not login: %w; close %w", err,
+// c.Close())`, and a clean Close returns nil, so the rendered string carries
+// `%!w(<nil>)`. The message underneath it is the useful one and is kept intact:
+// the operator needs to know the router rejected the credentials.
+func TestMessageDropsAnUnrenderedFormatVerb(t *testing.T) {
+	got := Message("could not login: from RouterOS device: invalid user name " +
+		"or password (6); close %!w(<nil>)")
+	want := "could not login: from RouterOS device: invalid user name or password (6)"
+	if got != want {
+		t.Errorf("Message() = %q\n            want %q", got, want)
+	}
+	// The REASON must survive. Stripping the noise must never take the sentence
+	// with it, or an operator is told nothing at all.
+	if !strings.Contains(got, "invalid user name or password") {
+		t.Error("the reason the login failed was stripped along with the artefact")
+	}
+	// And an ordinary message is untouched.
+	plain := "dial tcp: connection refused"
+	if Message(plain) != plain {
+		t.Errorf("an ordinary message was altered: %q", Message(plain))
+	}
+}
