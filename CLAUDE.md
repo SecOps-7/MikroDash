@@ -494,7 +494,19 @@ trade. Build explicitly when you need a binary.
 ## Workflow rules
 
 - Append to `Changes.md` after every file edit (not in a batch at the end).
-- Always confirm before `git push` or Docker push.
+- **Commit freely; never push or release without being asked for THAT push.**
+  Committing is local and revisable. A push publishes, and a `v*.*.*` tag makes
+  GitHub Actions build and publish an image people pull — those are the
+  irreversible half, and they are the operator's call every time.
+
+  **APPROVAL DOES NOT CARRY FORWARD.** On 2026-09-02 an approval to package and
+  push 0.8.13 was followed by a request to work one more fix in; that was read as
+  covering the release which followed, and 0.8.14 went out unasked. One approval
+  covers one push. A follow-up fix, however obviously related, is a new release
+  and a new ask.
+
+  "Package it up" means bump the version, write the release notes, check the
+  README and commit. It does not mean push.
   Build here explicitly when you need a binary.
 - `tools/api-surface.js --check` regenerated `docs/routeros-api-surface.md` from the Node source and
   now skips with the other 104 generators. The committed surface is frozen; extend it by hand from
