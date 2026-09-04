@@ -2,6 +2,47 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.18] - An empty dashboard after a restart, and history that keeps itself
+
+### Fixed
+
+- **Signing in after a restart sometimes gave a dashboard of empty, stale cards.** The router showed
+  in the corner with a green dot and the connection was genuinely fine, which is what made it so
+  confusing — everything that still worked was something that did not need the page. A refresh fixed
+  it, and that was the only cure. The browser sends two messages as it starts up and their order is
+  not guaranteed; if they arrived the less common way round, the page was left subscribed to nothing
+  for as long as that tab stayed open. Reported twice. Verified against live routers by forcing the
+  bad order: the affected cards received nothing before, and everything after.
+- **A traffic graph that silently stopped was never restarted.** RouterOS pushes traffic readings
+  and never acknowledges them, so a router that stops sending leaves an open connection, a healthy
+  status, and a chart that has simply stopped. Nothing errored, so nothing retried. MikroDash now
+  notices a stream that has gone quiet for ten seconds and reopens it, and says so on the card when
+  a stream keeps failing.
+- **Test email failed against Microsoft 365 and Outlook** with "504 5.7.4 Unrecognized authentication
+  type". MikroDash only ever offered one sign-in method, and those servers do not accept it. It now
+  uses whichever method the server actually advertises. Other providers are unaffected.
+- **Bandwidth and traffic history was only recorded while somebody had the Dashboard open.** Which
+  interfaces got written to history depended on which ones a browser happened to be watching, so a
+  report covered a series full of holes and presented the total as if it were complete. History is
+  now a property of the device: an interface is recorded continuously or not at all.
+- **The install-wide "default interface" setting was ignored.** It was read under the wrong name, so
+  changing it did nothing anywhere. It also had three different fallbacks in three places; a device
+  with no interface of its own recorded no history at all in the background.
+
+### Changed
+
+- **A router that rejects the sign-in is retried far less often.** A wrong password used to put a
+  failed login into the router's own log every five seconds for as long as MikroDash ran; it now
+  backs off to at most five minutes. A router that is unreachable or rebooting is unaffected and
+  still retried quickly, and correcting the password takes effect immediately.
+
+### Internal
+
+- Three new checks for the class of bug behind two of the fixes above: that the router-select
+  handler re-establishes every subscription it drops, that every entry point on the history recorder
+  is actually called by the shipped binary, and that URLs built into links are covered by the
+  endpoint audit rather than only ones passed to `fetch`.
+
 ## [0.8.17] - Editing a device no longer forgets its password
 
 ### Fixed

@@ -182,7 +182,7 @@ recent release rather than unreleased work on `main`. Each release is a multi-ar
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.8.17
+docker pull ghcr.io/secops-7/mikrodash:0.8.18
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
