@@ -2,6 +2,51 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.17] - Editing a device no longer forgets its password
+
+### Fixed
+
+- **Saving the Add/Edit Device dialog wiped that router's password.** Not on an unusual path: open
+  the dialog, change anything, press Save. The device then failed to authenticate for good, while
+  Test Connection carried on passing — which is what made it look like the app rather than the
+  stored credential. On disk the sealed password and the dialog's own password box share one name,
+  and the box's contents were written straight over the credential. A blank box, which is the
+  normal case because the dialog clears it and promises "leave blank to keep current", replaced it
+  with nothing. Issue #124.
+- **Correcting a password did not reach the running connection.** It was written to the file and
+  nothing else: the app kept presenting the old credential until the container was restarted, so
+  the obvious way to recover from the bug above did not work either. Changing a device's address,
+  port, username or TLS settings had the same problem.
+- **The Gbps/Mbps buttons in the device dialog did nothing.** They were drawn and connected to
+  nothing at all. Opening a device stored in Mbps also highlighted "Gbps" over a field that meant
+  Mbps, so the control disagreed with the value it was showing. Issue #124.
+- **The .rsc and .backup download links on the Backups page returned "404 page not found".** Both
+  routes were missing from the server entirely, so every download link on the page led nowhere.
+  Downloading needs write access to that device, as the page already assumed.
+- **Reports → Connectivity reported every router down.** Connection up and down events had not been
+  recorded since the Go changeover, so the page was reading a table that stopped being written and
+  showing the last thing in it: a permanent outage and about 2% uptime. Recording is back.
+  Historical ranges covering the gap will still show that stretch as one long outage, because the
+  missing data cannot be recovered; from this release onward the figures are real again.
+
+### Changed
+
+- **A router that rejects the login is retried more slowly.** The interval was a flat five seconds
+  whatever the reason, so a wrong password put a failed login into the router's own log every five
+  seconds for as long as MikroDash ran. It now backs off to at most five minutes. A router that is
+  unreachable, rebooting or simply slow is unaffected and still retried quickly, and correcting the
+  credential takes effect immediately rather than waiting out the backoff.
+
+### Internal
+
+- The store now refuses a router password that has not been sealed, so the mistake behind the first
+  fix cannot be repeated by a future caller.
+- The endpoint audit reads URLs built into links, not only ones passed to `fetch`. That gap is why
+  two missing routes shipped unnoticed.
+- A new check requires every entry point on the history recorder to have a caller in the shipped
+  binary. Both halves of connectivity recording were correct, fully tested and simply not connected
+  to each other, which no unit test could see.
+
 ## [0.8.16] - A new install can connect its first router
 
 ### Fixed
