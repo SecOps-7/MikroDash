@@ -259,8 +259,16 @@ func Send(cfg Config, m Message) error {
 	// `(settings.smtpUser || settings.smtpPass) ? {...} : undefined`. Offering
 	// credentials to a relay that did not ask is how they end up in a log.
 	if cfg.User != "" || cfg.Pass != "" {
-		if ok, _ := c.Extension("AUTH"); ok {
-			if err := c.Auth(smtp.PlainAuth("", cfg.User, cfg.Pass, cfg.Host)); err != nil {
+		// THE ADVERTISED LIST IS USED, not discarded. `Extension` returns the
+		// mechanisms after the AUTH keyword; this asked for them and then always
+		// sent PLAIN, which Microsoft 365 answers with "504 5.7.4 Unrecognized
+		// authentication type" because it offers LOGIN and XOAUTH2. See pickAuth.
+		if ok, mechs := c.Extension("AUTH"); ok {
+			auth, err := pickAuth(mechs, cfg.User, cfg.Pass, cfg.Host)
+			if err != nil {
+				return err
+			}
+			if err := c.Auth(auth); err != nil {
 				return err
 			}
 		}

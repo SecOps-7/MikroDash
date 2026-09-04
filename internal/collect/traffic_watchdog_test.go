@@ -82,19 +82,33 @@ func wdTraffic(t *testing.T) (*wdReader, *Traffic, *[]map[string]any) {
 		mu.Unlock()
 	}
 	tr := NewTraffic(r, emit, "ether1", 1)
-	// A tick this test drives by hand; the timer must not also fire.
 	tr.wdEvery = time.Hour
 	tr.wdStaleMs = 10_000
 	t.Cleanup(tr.Stop)
 	return r, tr, &health
 }
 
+// openStream starts the stream WITHOUT arming the watchdog timer.
+//
+// ── WHY NOT `Start` ─────────────────────────────────────────────────────────
+//
+// `pollLoop.start()` fires its first tick IMMEDIATELY — `lastRun` is the zero
+// time, so a whole interval has always "already elapsed" — and a long `wdEvery`
+// does not prevent that first one. So a test that called `Start`, aged the
+// clocks and then called `watchdogTick` by hand was racing a background tick
+// that could consume the stall first, leaving the manual tick to find a stream
+// it had just restarted.
+//
+// It passed alone and failed under the full package, which is the signature of
+// exactly this. These tests own every tick instead.
+func openStream(tr *Traffic) { tr.syncStream() }
+
 // TestAStalledStreamIsRestarted is the bug.
 func TestAStalledStreamIsRestarted(t *testing.T) {
 	r, tr, _ := wdTraffic(t)
-	tr.Start()
+	openStream(tr)
 	if r.openCount() != 1 {
-		t.Fatalf("Start opened %d streams", r.openCount())
+		t.Fatalf("opening the stream made %d streams", r.openCount())
 	}
 	r.deliver()
 
@@ -122,7 +136,7 @@ func TestAStalledStreamIsRestarted(t *testing.T) {
 // collector with no stream and nothing to start one.
 func TestAStreamThatFailedToOpenIsRetried(t *testing.T) {
 	r, tr, _ := wdTraffic(t)
-	tr.Start()
+	openStream(tr)
 	tr.stopStream() // as a failed open leaves it: no stream, watchdog still on
 	if r.openCount() != 1 {
 		t.Fatalf("%d opens before the retry", r.openCount())
@@ -137,7 +151,7 @@ func TestAStreamThatFailedToOpenIsRetried(t *testing.T) {
 // restarting a stream on a dead client would fail on every tick for ever.
 func TestADisconnectedRouterIsLeftAlone(t *testing.T) {
 	r, tr, _ := wdTraffic(t)
-	tr.Start()
+	openStream(tr)
 	// BOTH clocks aged, or the tick is not looking at a stale stream at all:
 	// the watchdog compares against whichever of the two is LATER, so a fresh
 	// `streamStart` alone keeps it healthy. Ageing only `lastData` made this
@@ -205,7 +219,7 @@ func TestSuspendStopsTheWatchdog(t *testing.T) {
 // Dashboard has always been able to render and never received.
 func TestThreeRestartsReportDegraded(t *testing.T) {
 	r, tr, health := wdTraffic(t)
-	tr.Start()
+	openStream(tr)
 
 	for i := 0; i < 3; i++ {
 		tr.mu.Lock()
@@ -231,7 +245,7 @@ func TestThreeRestartsReportDegraded(t *testing.T) {
 // outages must not add up to a degraded stream that is working.
 func TestReconnectResetsTheCount(t *testing.T) {
 	_, tr, _ := wdTraffic(t)
-	tr.Start()
+	openStream(tr)
 	tr.mu.Lock()
 	tr.health.RecordRestart(1)
 	tr.health.RecordRestart(2)
