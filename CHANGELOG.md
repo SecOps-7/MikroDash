@@ -2,6 +2,50 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.19] - Choose which devices are reported on, and a crash on the Devices page
+
+### Added
+
+- **A Reporting switch on each device**, beside Alert Monitoring. Turn it on for the devices whose
+  history you actually want and MikroDash records traffic, bandwidth, ping and uptime for them; turn
+  it off and nothing is written to disk for that device at all.
+
+  Until now exactly one device was recorded — whichever one was currently selected — and there was no
+  way to see that, let alone change it. Several devices can now be recorded at once, and the cost is
+  a data stream rather than a new connection, so a device you are not reporting on still shows its
+  online state instantly.
+
+  **Nothing changes when you upgrade.** On first start each existing device is given the setting it
+  effectively had: on for the currently selected device, off for the rest. Data already recorded is
+  kept, and turning reporting back on simply resumes.
+
+  A device with reporting off still alerts and still sends notifications; what it does not do is keep
+  a history, so it will not appear in Reports and its past alerts are not listed.
+
+### Fixed
+
+- **Leaving the Devices page could crash the whole application.** A frame sent to a browser that had
+  just disconnected took the server down with it, restarting every connection, the history recorder
+  and alerting. Observed on a live install. The Devices page made it likely rather than special: its
+  two-second refresh could still be running as the page closed.
+- **Reports → Connectivity showed devices flapping online and offline.** A routine reconnect takes
+  about five seconds, and every one of them was being written down as an outage. There is a delay
+  before an outage is recorded now — the device's own "offline threshold", 30 seconds by default — so
+  a brief blip no longer appears as one. This corrects a regression introduced in 0.8.18.
+- **The health check could report the active device as disconnected while it was up**, which on some
+  setups is enough for the container to be restarted automatically. It consulted two of the three
+  places a device connection can live.
+- **Editing a device left a connection open to every other device**, for as long as the application
+  ran, whether or not anyone was looking at them.
+
+### Internal
+
+- The single hidden "history device" is gone rather than generalised: recording is a property of each
+  device, so the mechanism that tracked one, and the leak guard it needed, went with it.
+- A device with reporting off keeps its alert de-duplication in memory. The database was doing that
+  job, so simply not writing rows would have produced repeat notifications for ever and no recovery
+  notifications at all.
+
 ## [0.8.18] - An empty dashboard after a restart, and history that keeps itself
 
 ### Fixed
