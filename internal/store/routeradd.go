@@ -158,6 +158,19 @@ func (s *Store) AddRouter(body map[string]any) (*Router, error) {
 		"addedAt":              time.Now().UnixMilli(),
 	}
 
+	// ── WRITTEN ONLY WHEN THE CALLER SAID SOMETHING ───────────────────────
+	//
+	// Outside the literal above, and conditional, so a body that does not
+	// mention reporting produces a record without the key — which is what the
+	// migration reads as "never set" and what keeps the frozen add corpus
+	// passing. `testdata/router-add-cases.json` compares the produced record
+	// with `reflect.DeepEqual` across ~35 cases, and its generator reads the
+	// deleted Node source and now skips, so an unconditional key here would
+	// break every case with no way to regenerate.
+	if v, ok := body["reportingEnabled"]; ok {
+		rec["reportingEnabled"] = jsIsTrue(v)
+	}
+
 	if err := s.appendRouter(rec); err != nil {
 		return nil, err
 	}

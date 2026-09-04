@@ -159,6 +159,27 @@ func main() {
 		}
 	}
 
+	// ── PER-ROUTER REPORTING: ANSWER ONCE FOR AN UPGRADING INSTALL ────────
+	//
+	// Before the toggle existed, exactly one router recorded history — the
+	// active one. This writes that fact down for records that predate the flag,
+	// so an upgrade changes nothing: on for the router that is recording, off
+	// for the rest. Idempotent, so after the first start it writes nothing.
+	//
+	// HERE RATHER THAN IN `store.Open`, and the reason is `cmd/compat`: it opens
+	// a real /data through a READ-ONLY mount, and a migration in Open would fail
+	// on the one tool whose job is to read a production directory untouched.
+	// Same placement, and the same reason, as `RenamePageGrants` above.
+	//
+	// NOT FATAL. A /data this cannot rewrite is still perfectly able to serve
+	// every page; the consequence is that reporting stays off until the operator
+	// sets it, which is visible in the UI rather than silent.
+	if n, merr := st.MigrateReportingDefaults(st.ActiveRouterID()); merr != nil {
+		log.Printf("[mikrodash] WARNING: could not set reporting defaults: %v", merr)
+	} else if n > 0 {
+		log.Printf("[mikrodash] set the reporting default on %d router(s)", n)
+	}
+
 	srv, err := server.New(st, server.Options{
 		NodeURL:         *node,
 		WebDir:          *webDir,

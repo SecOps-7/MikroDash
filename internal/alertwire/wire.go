@@ -82,13 +82,29 @@ func (s *store) Record(routerID, alertType, subject, detail string) int64 {
 	return s.h.InsertAlertEvent(routerID, alertType, subject, detail, s.now)
 }
 
+func (s *store) setNow(now int64) { s.now = now }
+
+// timedStore is an `alert.Store` whose clock this wire sets once per event.
+//
+// The interface exists so the database store and the in-memory one are
+// interchangeable per router — see `memStore` and `SetPersisting`. It is the
+// smallest thing that lets a reporting-off router keep working alerts without
+// writing a row.
+type timedStore interface {
+	alert.Store
+	setNow(int64)
+}
+
 // Wire holds one evaluator per router.
 type Wire struct {
 	mu     sync.Mutex
 	hist   History
 	set    alert.Settings
 	evals  map[string]*alert.Evaluator
-	stores map[string]*store
+	stores map[string]timedStore
+	// persist is, per router, whether alerts reach the database. Undeclared
+	// persists — see `persists`. Guarded by `mu`, like the three maps above.
+	persist map[string]bool
 	// locks serialises evaluation PER ROUTER. See Evaluate.
 	locks map[string]*sync.Mutex
 	// now is the clock, injectable so a test can assert that one event stamps
@@ -100,7 +116,7 @@ func New(hist History, set alert.Settings) *Wire {
 	return &Wire{
 		hist: hist, set: set,
 		evals:  map[string]*alert.Evaluator{},
-		stores: map[string]*store{},
+		stores: map[string]timedStore{},
 		locks:  map[string]*sync.Mutex{},
 		now:    func() int64 { return time.Now().UnixMilli() },
 	}
@@ -141,12 +157,22 @@ func (w *Wire) forRouter(routerID string, now int64) (*alert.Evaluator, *sync.Mu
 	defer w.mu.Unlock()
 	st := w.stores[routerID]
 	if st == nil {
-		st = &store{h: w.hist}
+		// ── WHICH MEMORY THIS ROUTER'S ALERTS USE ──────────────────────────
+		//
+		// A router whose report data is not kept still needs de-duplication and
+		// recovery to work, and both are answered by the store. So it gets one
+		// that lives in memory instead of one backed by `alert_events`. See
+		// memstore.go for what that costs.
+		if w.persists(routerID) {
+			st = &store{h: w.hist}
+		} else {
+			st = newMemStore()
+		}
 		w.stores[routerID] = st
 		w.evals[routerID] = alert.NewEvaluator(w.set, st)
 		w.locks[routerID] = &sync.Mutex{}
 	}
-	st.now = now
+	st.setNow(now)
 	return w.evals[routerID], w.locks[routerID]
 }
 
@@ -353,4 +379,55 @@ func peers(in []collect.Peer) []alert.BGPPeer {
 		})
 	}
 	return out
+}
+
+// SetPersisting says whether this router's alerts are written to the database.
+//
+// ── IT DROPS THE EVALUATOR, AND THAT IS THE POINT ──────────────────────────
+//
+// The store IS the evaluator's memory of what is open, so swapping stores means
+// swapping memories. Keeping the evaluator across the change would leave it
+// consulting a store that has never seen the conditions it opened — an outage
+// filed in the database would look closed to the memory store, and a recovery
+// would fire for something it never recorded.
+//
+// `Drop` is the same operation and has NO production caller, so in practice an
+// evaluator lives for the process — which is why this is the only thing that
+// resets one. The observable cost is that the first event after the toggle is
+// treated as a first sighting.
+//
+// NO-OP WHEN NOTHING CHANGED, so the fleet syncs can call it on every pass
+// without resetting every router's edge state twice a second.
+func (w *Wire) SetPersisting(routerID string, persist bool) {
+	if w == nil || routerID == "" {
+		return
+	}
+	w.mu.Lock()
+	if w.persist == nil {
+		w.persist = map[string]bool{}
+	}
+	was, known := w.persist[routerID]
+	if known && was == persist {
+		w.mu.Unlock()
+		return
+	}
+	w.persist[routerID] = persist
+	// The evaluator and its store go together; `forRouter` rebuilds both on the
+	// next event, choosing the store this flag now names.
+	delete(w.evals, routerID)
+	delete(w.stores, routerID)
+	w.mu.Unlock()
+}
+
+// persists reports whether this router's alerts reach the database.
+//
+// UNDECLARED PERSISTS, matching every other per-router switch in this codebase:
+// a router seen before the first fleet sync — or a deployment that never calls
+// `SetPersisting` — keeps the behaviour it had. Silence is never a reason to
+// start throwing data away.
+//
+// Callers hold `w.mu`.
+func (w *Wire) persists(routerID string) bool {
+	on, ok := w.persist[routerID]
+	return !ok || on
 }

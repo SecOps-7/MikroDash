@@ -107,6 +107,12 @@ func (w *Wire) apply(routerID string, threshMs int64,
 	if w == nil || !w.enabled || routerID == "" {
 		return nil
 	}
+	// CONNECTIVITY IS REPORT DATA TOO. A router with reporting off keeps its
+	// live Online/Offline status — that comes from the pool's own hook and the
+	// `router:status` frame — but nothing about it is written down.
+	if !w.Reporting(routerID) {
+		return nil
+	}
 	w.connMu.Lock()
 	st := w.conns[routerID]
 	if st == nil {
@@ -150,7 +156,14 @@ func (w *Wire) TickAll(now int64) {
 	}
 	w.connMu.Lock()
 	states := make([]*connState, 0, len(w.conns))
-	for _, st := range w.conns {
+	for id, st := range w.conns {
+		// CHECKED HERE TOO, because this does not go through `apply`. A router
+		// that was reporting when its debounce armed, and was switched off
+		// before it expired, would otherwise have that one outage written after
+		// the operator turned recording off.
+		if !w.Reporting(id) {
+			continue
+		}
 		states = append(states, st)
 	}
 	w.connMu.Unlock()

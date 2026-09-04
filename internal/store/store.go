@@ -438,6 +438,23 @@ type Router struct {
 	// could read it. Recording connectivity with a hardcoded zero threshold is
 	// what put a down/up pair into the report for every routine reconnect.
 	ConnDownThresholdSec *int `json:"connDownThresholdSec"`
+	// ReportingEnabled is per-router history recording: traffic, bandwidth, ping
+	// and connectivity. Off means this router keeps NO report data and runs no
+	// collector for it.
+	//
+	// ── A POINTER, AND THAT IS FORCED ──────────────────────────────────────
+	//
+	// Unlike `AlertsEnabled` above, absent and false must be told apart, because
+	// the one-time migration has to know whether it has ever run for a record.
+	// A plain bool would make every existing router look explicitly disabled and
+	// the migration would rewrite the file on every start.
+	//
+	// nil is OFF, read through `ReportingOn`. That is the safe direction for the
+	// FIELD; what preserves an upgrading install's behaviour is the migration,
+	// which writes `true` for the router that is recording today. Relying on a
+	// nil default to mean "on" would silently start recording every router in
+	// the fleet the moment this shipped.
+	ReportingEnabled *bool `json:"reportingEnabled"`
 	// SiteID is site membership (#78); empty means no site. Read because a
 	// router INHERITS its site's grant — see internal/rbac. Without it every
 	// site-scoped grant would be invisible to the port, and a principal whose
@@ -619,6 +636,13 @@ func (s *Store) Routers() ([]Router, []error) {
 		}
 	}
 	return out, problems
+}
+
+// ReportingOn is whether this router records history. Absent is OFF; see the
+// field, and see the migration that gives an upgrading install the answer it
+// had before the flag existed.
+func ReportingOn(r Router) bool {
+	return r.ReportingEnabled != nil && *r.ReportingEnabled
 }
 
 // RouterSiteIDs normalises a record's site membership.

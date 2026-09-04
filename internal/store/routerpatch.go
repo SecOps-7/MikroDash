@@ -79,6 +79,9 @@ func CoerceRouterPatch(patch map[string]any) map[string]any {
 	if v, ok := out["alertsEnabled"]; ok {
 		out["alertsEnabled"] = jsIsTrue(v)
 	}
+	if v, ok := out["reportingEnabled"]; ok {
+		out["reportingEnabled"] = jsIsTrue(v)
+	}
 	// `parseInt(data.port, 10)`. An unparseable port becomes 0 on the live side
 	// too — `parseInt('abc')` is NaN and JSON.stringify writes it as null — so
 	// this is not made stricter than the thing it mirrors.
@@ -130,7 +133,11 @@ func normalizeStoredRouterBools(b []byte) ([]byte, bool) {
 		if r == nil {
 			continue
 		}
-		for _, k := range []string{"disabled", "alertsEnabled", "tlsInsecure"} {
+		// `reportingEnabled` is here for the reason the header gives: a key
+		// MISSING from this list is not a dropped field, it is a stored string
+		// that fails the whole-file decode with no repair pass — which returns
+		// ZERO routers, not one bad one.
+		for _, k := range []string{"disabled", "alertsEnabled", "reportingEnabled", "tlsInsecure"} {
 			v, ok := r[k]
 			if !ok {
 				continue

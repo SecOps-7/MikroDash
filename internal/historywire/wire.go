@@ -61,6 +61,9 @@ type Wire struct {
 	// See SetRecordedInterfaces: an absent or empty entry records everything.
 	recMu    sync.Mutex
 	recorded map[string]map[string]bool
+	// reporting is, per router, whether ANY history is written for it at all.
+	// See SetReporting; an absent entry records, like `recorded` above.
+	reporting map[string]bool
 }
 
 func New(enabled bool, store Store) *Wire {
@@ -82,6 +85,14 @@ func (w *Wire) Enabled() bool { return w != nil && w.enabled }
 // payload of the wrong type records nothing rather than being coerced.
 func (w *Wire) Record(routerID, event string, payload any) {
 	if w == nil || !w.enabled || routerID == "" {
+		return
+	}
+	// ── PER-ROUTER REPORTING, CHECKED FOR EVERY PAYLOAD TYPE ──────────────
+	//
+	// At the top rather than inside the traffic branch, which is where it went
+	// first — and ping sailed straight past it. One gate above the type switch
+	// cannot be outflanked by a payload kind added later.
+	if !w.Reporting(routerID) {
 		return
 	}
 	var rows []history.Row
@@ -220,4 +231,42 @@ func (w *Wire) Records(routerID, ifName string) bool {
 		return true // nothing declared: record everything, as before
 	}
 	return set[ifName]
+}
+
+// SetReporting turns history recording on or off for one router.
+//
+// ── WHY THIS IS NOT ENOUGH ON ITS OWN, AND IS STILL NECESSARY ──────────────
+//
+// The pools decide whether to BUILD a router's traffic and ping collectors, so
+// a router with reporting off normally produces nothing to record. This is the
+// second half, and it exists because of a path the pools do not own: the
+// INTERACTIVE session records for any router a browser has open, through its
+// own emit seam, and has never been gated by the history-router set at all.
+// Without this, opening a reporting-off router would write rows for as long as
+// somebody looked at it.
+//
+// ── AN UNDECLARED ROUTER RECORDS ───────────────────────────────────────────
+//
+// Same rule as `SetRecordedInterfaces`, and the same reason: this is set from
+// the fleet syncs, so a router seen before the first sync — or a deployment
+// that never calls it — must keep the old behaviour rather than silently go
+// dark. Turning recording OFF is always an explicit statement.
+func (w *Wire) SetReporting(routerID string, on bool) {
+	if w == nil || routerID == "" {
+		return
+	}
+	w.recMu.Lock()
+	if w.reporting == nil {
+		w.reporting = map[string]bool{}
+	}
+	w.reporting[routerID] = on
+	w.recMu.Unlock()
+}
+
+// Reporting reports whether this router's history is wanted. Undeclared is yes.
+func (w *Wire) Reporting(routerID string) bool {
+	w.recMu.Lock()
+	defer w.recMu.Unlock()
+	on, ok := w.reporting[routerID]
+	return !ok || on
 }
