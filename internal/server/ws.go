@@ -90,6 +90,27 @@ type conn struct {
 	// of any router: the grid subscribes before `router:select` arrives, and the
 	// rooms are per router so a switch must rejoin them. See dashcard.go.
 	cards map[string]bool
+	// page is the page this browser has focused, kept for the SAME reason and
+	// guarded by the same mutex.
+	//
+	// ── THE CARD PATH LEARNED THIS AND THE PAGE PATH DID NOT ────────────────
+	//
+	// `dashCardFocus` records its key BEFORE testing `routerID` and
+	// `rejoinCards` replays it from `selectRouter`; that was added on
+	// 2026-08-29 for "cards with no data". `pageFocus` kept returning silently
+	// when the frame arrived first, and nothing remembered it — so the page room
+	// was never joined and the page's collectors were never woken.
+	//
+	// The client cannot recover either: its `router:active` handler skips the
+	// FIRST event on the stated grounds that "the room has already been joined
+	// by the code that opened the page", which is exactly what did not happen.
+	//
+	// Reported twice — "sometimes when I sign in, some of the cards on the
+	// dashboard dont have any data", and again on 2026-09-04 with the router
+	// present, the dot green, and every card stale for two hours. The server
+	// showed a healthy select, a connected session and collectors emitting; the
+	// frames were going to a room this socket had never joined.
+	page string
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -477,6 +498,10 @@ func (cn *conn) selectRouter(id string) {
 	// The card subscriptions the grid sent before a router existed — see
 	// dashcard.go:rejoinCards.
 	cn.rejoinCards()
+	// AND THE PAGE, for the same reason and from the same cause. Without this
+	// the page room is joined only if `page:focus` happened to arrive after this
+	// handler ran, which is a race the client cannot see and does not retry.
+	cn.rejoinPage()
 	cn.sendOpenAlerts(id)
 	cn.sendPageSettings()
 	// ── THE PER-ROUTER COLLECTION CONFIG ────────────────────────────────────
@@ -666,7 +691,27 @@ func (cn *conn) sendOpenAlerts(routerID string) {
 // gating only the join would still hand the caller a full payload for a page
 // they cannot see, so the check returns before either.
 func (cn *conn) pageFocus(page string) {
-	if cn.routerID == "" || !cn.canPage(page, "read") {
+	// ── RECORDED BEFORE THE GUARD, exactly as `dashCardFocus` records its key.
+	//
+	// `page:focus` and `router:select` are two frames from one bootstrap and
+	// their order is not guaranteed. Arriving first, this used to return in
+	// silence: no room, no wake, and nothing kept to replay. `selectRouter` then
+	// left every room and joined only its own, so the page room stayed unjoined
+	// for the life of the socket.
+	cn.mu.Lock()
+	cn.page = page
+	cn.mu.Unlock()
+
+	if cn.routerID == "" {
+		// SAID OUT LOUD. The 2026-08-30 change made every refusal in
+		// `selectRouter` name itself for this reason, and this is the sibling it
+		// did not cover: the next occurrence should not cost another
+		// reproduction. Not an error — `selectRouter` replays it.
+		log.Printf("[ws] %s: page:focus %s deferred — no router selected yet",
+			cn.c.ID, page)
+		return
+	}
+	if !cn.canPage(page, "read") {
 		return
 	}
 	cn.srv.hub.Join(cn.c, "router-"+cn.routerID+"-page-"+page)
@@ -678,6 +723,21 @@ func (cn *conn) pageFocus(page string) {
 		cn.devicesFocus()
 	}
 	cn.resumePage(page)
+}
+
+// rejoinPage re-applies this browser's page focus to the CURRENT router.
+//
+// The page twin of `rejoinCards`, called from the same place and for the same
+// two reasons: the client can focus a page before any router is selected, and
+// the room is per router so a switch has to rejoin it against the new one.
+func (cn *conn) rejoinPage() {
+	cn.mu.Lock()
+	page := cn.page
+	cn.mu.Unlock()
+	if page == "" {
+		return
+	}
+	cn.pageFocus(page)
 }
 
 // resumePage wakes a page's collectors and replays their last payloads.
@@ -977,6 +1037,15 @@ func (cn *conn) pageBlur(page string) {
 	if page == "devices" {
 		cn.devicesBlur()
 	}
+	// FORGOTTEN HERE TOO, or a later `router:select` would replay a page this
+	// viewer has left and re-wake its collectors. Only when it is the page we
+	// are holding: a blur for some other page says nothing about this one.
+	cn.mu.Lock()
+	if cn.page == page {
+		cn.page = ""
+	}
+	cn.mu.Unlock()
+
 	if cn.routerID == "" {
 		return
 	}
