@@ -8,6 +8,7 @@ import (
 
 	"mikrodash/internal/alertpool"
 	"mikrodash/internal/collection"
+	"mikrodash/internal/historywire"
 	"mikrodash/internal/routers"
 	"mikrodash/internal/store"
 )
@@ -422,6 +423,7 @@ func (s *Server) syncPool() {
 			continue // a disabled router is not connected to at all
 		}
 		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
+		s.noteConnThreshold(r.ID, r.ConnDownThresholdSec)
 		cfgs = append(cfgs, routers.RouterConfig{
 			ID: r.ID, Label: r.Label, Host: r.Host, Port: r.Port,
 			TLS: r.TLS, InsecureTLS: r.TLSInsecure,
@@ -487,6 +489,38 @@ func (s *Server) globalDefaultIf() string {
 // to say which ones.
 func (s *Server) declareRecordedInterfaces(routerID, defaultIf string) {
 	s.historyWire.SetRecordedInterfaces(routerID, []string{defaultIf})
+}
+
+// noteConnThreshold remembers this router's outage debounce, in milliseconds.
+//
+// ── CACHED, BECAUSE THE READER IS A STATUS HOOK ───────────────────────────
+//
+// `alertPoolStatus` is handed a router id and a bool and nothing else, and
+// reading the record there would mean `store.Routers()` — which decrypts every
+// router's password with scrypt — on every connect and drop. The fleet syncs
+// already walk every record, so the value is picked up where it is free.
+func (s *Server) noteConnThreshold(routerID string, sec *int) {
+	ms := historywire.ThresholdMs(0, false) // the live default when unset
+	if sec != nil {
+		ms = historywire.ThresholdMs(*sec, true)
+	}
+	s.connThreshMu.Lock()
+	if s.connThresh == nil {
+		s.connThresh = map[string]int64{}
+	}
+	s.connThresh[routerID] = ms
+	s.connThreshMu.Unlock()
+}
+
+// connThresholdMs is this router's debounce, or the live default for a router
+// no sync has seen yet.
+func (s *Server) connThresholdMs(routerID string) int64 {
+	s.connThreshMu.Lock()
+	defer s.connThreshMu.Unlock()
+	if ms, ok := s.connThresh[routerID]; ok {
+		return ms
+	}
+	return historywire.ThresholdMs(0, false)
 }
 
 // devicesFocus is what a browser opening the Devices page sets in motion.

@@ -90,11 +90,15 @@ func (s *Server) alertPoolStatus(routerID string, connected bool) {
 	//
 	// The threshold is zero for the reason given there, and the returned status
 	// is discarded because the two broadcasts below already send it.
+	// THE ROUTER'S OWN DEBOUNCE, not zero. A hardcoded zero is its own branch —
+	// record every close at once — and it turned every routine reconnect into an
+	// outage in the Reports page. See `noteConnThreshold`.
 	now := time.Now().UnixMilli()
+	thresh := s.connThresholdMs(routerID)
 	if connected {
-		s.historyWire.Connected(routerID, 0, now)
+		s.historyWire.Connected(routerID, thresh, now)
 	} else {
-		s.historyWire.Disconnected(routerID, 0, now)
+		s.historyWire.Disconnected(routerID, thresh, now)
 	}
 	s.hub.Broadcast("router-"+routerID, "router:status",
 		map[string]any{"routerId": routerID, "connected": connected})
@@ -216,6 +220,7 @@ func (s *Server) syncAlertPool() {
 	out := make([]alertpool.Router, 0, len(all))
 	for _, r := range all {
 		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
+		s.noteConnThreshold(r.ID, r.ConnDownThresholdSec)
 		out = append(out, alertpool.Router{
 			ID: r.ID, Label: r.Label, Host: r.Host, Port: r.Port,
 			TLS: r.TLS, InsecureTLS: r.TLSInsecure,

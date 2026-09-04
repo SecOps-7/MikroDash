@@ -126,3 +126,44 @@ func (w *Wire) apply(routerID string, threshMs int64,
 	w.persist(e.Rows)
 	return e.Status
 }
+
+// TickAll advances every tracked router's debounce.
+//
+// ── THE DEBOUNCE NEEDS A CLOCK, AND HAD NONE ───────────────────────────────
+//
+// `history.Connectivity` holds no timer of its own — deliberately, so its rules
+// are testable without one — and `Tick` is how the caller supplies the passage
+// of time. Nothing called it, so a non-zero threshold could never fire and the
+// only workable setting was zero: record every close, immediately.
+//
+// That is what made a routine six-second reconnect appear in the Reports page
+// as an outage. The live app debounces with `connDownThresholdSec`, default 30
+// seconds, and a blip shorter than that never reaches the database at all.
+//
+// Ticking EVERY router rather than the ones with a pending timer: the state
+// machine returns nothing for a router with no timer running, the map is one
+// entry per router, and a filter would be a second place to decide what is
+// pending.
+func (w *Wire) TickAll(now int64) {
+	if w == nil || !w.enabled {
+		return
+	}
+	w.connMu.Lock()
+	states := make([]*connState, 0, len(w.conns))
+	for _, st := range w.conns {
+		states = append(states, st)
+	}
+	w.connMu.Unlock()
+
+	var rows []history.Row
+	for _, st := range states {
+		st.mu.Lock()
+		e := st.c.Tick(now)
+		st.mu.Unlock()
+		rows = append(rows, e.Rows...)
+	}
+	// ONE persist for the whole sweep. Each row is its own INSERT inside the
+	// store's transaction, and a fleet-wide tick that opened one transaction per
+	// router would be the same work in more of them.
+	w.persist(rows)
+}

@@ -80,6 +80,10 @@ type Session struct {
 	// built. Nil-safe: every method on it guards its own receiver, so an install
 	// with no history database simply records nothing.
 	history *historywire.Wire
+	// connThreshMs is this router's outage debounce, from its own record. Zero
+	// is a real setting — record every close at once — so it is resolved through
+	// `historywire.ThresholdMs` at build time rather than defaulted here.
+	connThreshMs int64
 
 	// wake interrupts the connect loop's retry sleep.
 	//
@@ -309,6 +313,16 @@ func (s *Session) APIPort() int {
 // reader adapts the session to collect.Reader. The indirection matters: the
 // client is REPLACED on a reconnect, and a collector holding the old pointer
 // would read from a closed connection for ever.
+// connDownSecOf reads a router's outage debounce, keeping "unset" distinct from
+// a deliberate zero — `ThresholdMs` gives the live 30s default for the first and
+// records every close at once for the second.
+func connDownSecOf(rec *store.Router) (int, bool) {
+	if rec == nil || rec.ConnDownThresholdSec == nil {
+		return 0, false
+	}
+	return *rec.ConnDownThresholdSec, true
+}
+
 // globalDefaultIf is the install-wide default interface, the middle rung of the
 // precedence `routers.DefaultIfFor` resolves. Read straight off the settings map
 // rather than through `store.Merge`: the environment overlay is the server's
@@ -557,6 +571,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		alertsEnabled: rec.AlertsEnabled,
 		h:             m.h,
 		history:       m.history,
+		connThreshMs:  historywire.ThresholdMs(connDownSecOf(rec)),
 		refs:          1,
 		wake:          make(chan struct{}, 1),
 		cfg: routeros.Config{
@@ -1204,7 +1219,7 @@ func (s *Session) connectLoop() {
 			s.announce()
 			if !reportedDown {
 				reportedDown = true
-				s.history.Disconnected(s.RouterID, 0, time.Now().UnixMilli())
+				s.history.Disconnected(s.RouterID, s.connThreshMs, time.Now().UnixMilli())
 			}
 			wait := authBackoff.Delay(err, retry)
 			// WRITTEN WITHOUT AN else BRANCH, deliberately.
@@ -1247,7 +1262,7 @@ func (s *Session) connectLoop() {
 		// The status this returns is discarded: `announce` below already sends
 		// `router:status` on every connect, including the reconnects that write
 		// no row, and a second emit would double every badge update.
-		s.history.Connected(s.RouterID, 0, time.Now().UnixMilli())
+		s.history.Connected(s.RouterID, s.connThreshMs, time.Now().UnixMilli())
 		log.Printf("[session] %s connected", s.Label)
 		s.announce()
 
@@ -1537,7 +1552,7 @@ func (s *Session) connectLoop() {
 		// moment the link went rather than five seconds later.
 		if down && !reportedDown {
 			reportedDown = true
-			s.history.Disconnected(s.RouterID, 0, time.Now().UnixMilli())
+			s.history.Disconnected(s.RouterID, s.connThreshMs, time.Now().UnixMilli())
 		}
 
 		// ── CLOSE THE CLIENT WE ARE ABANDONING ────────────────────────────

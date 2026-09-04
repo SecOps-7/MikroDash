@@ -426,6 +426,18 @@ type Router struct {
 	// and it is not a judgement call: a router whose record predates the flag
 	// gets no alerts, exactly as it gets none from the app being replaced.
 	AlertsEnabled bool `json:"alertsEnabled"`
+	// ConnDownThresholdSec is how long a connection must stay down before the
+	// outage is RECORDED — the debounce that stops a six-second blip becoming
+	// an entry in the connectivity report.
+	//
+	// A POINTER, because 0 is a real value with its own branch: it means record
+	// every close immediately, and it is not the same as "unset". Unset takes
+	// the live default of 30s through `historywire.ThresholdMs`.
+	//
+	// The file has always carried this key; nothing modelled it, so nothing
+	// could read it. Recording connectivity with a hardcoded zero threshold is
+	// what put a down/up pair into the report for every routine reconnect.
+	ConnDownThresholdSec *int `json:"connDownThresholdSec"`
 	// SiteID is site membership (#78); empty means no site. Read because a
 	// router INHERITS its site's grant — see internal/rbac. Without it every
 	// site-scoped grant would be invisible to the port, and a principal whose

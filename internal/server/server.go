@@ -180,6 +180,13 @@ type Server struct {
 	// historyWire is built early, because the always-on pool must be given it
 	// BEFORE its first Sync — see New.
 	historyWire *historywire.Wire
+	// connThresh is each router's outage debounce in ms, cached by the fleet
+	// syncs so the status hook does not have to read (and decrypt) the store.
+	connThreshMu sync.Mutex
+	connThresh   map[string]int64
+	// connTick drives the debounce. See historywire.Wire.TickAll.
+	connTick *time.Ticker
+	connStop chan struct{}
 	// startedAt is when this process began serving, for /healthz's uptime and
 	// its starting-vs-failing distinction.
 	startedAt time.Time
@@ -397,6 +404,18 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// still known to be up and still has its alerts evaluated, which is a claim
 	// about the whole uptime of the process.
 	srv.syncAlertPool()
+	// ── AND THE CLOCK THE DEBOUNCE NEEDS ──────────────────────────────────
+	//
+	// `history.Connectivity` holds no timer: the caller supplies the passage of
+	// time, which is what makes its rules testable without one. Nothing supplied
+	// it, so a non-zero `connDownThresholdSec` could never fire and the only
+	// workable threshold was zero — record every close, at once. A routine
+	// six-second reconnect then appeared in the Reports page as an outage.
+	//
+	// ONE SECOND, for the whole fleet. The threshold is measured in seconds and
+	// the sweep is a map walk plus a comparison per router; a finer tick would
+	// buy nothing a report can show.
+	srv.startConnTicker()
 	// ── AND AGAIN WHEN A SESSION FINALLY GOES ─────────────────────────────
 	//
 	// A session now outlives its last viewer by `session.DefaultIdleGrace`, so
@@ -738,7 +757,39 @@ func loginFor(r *http.Request) string {
 //	sessions next    they FLUSH the open history minute, which needs the db.
 //	pools after      nothing else depends on them; they only hold sockets.
 //	database last    everything above may still write.
+//
+// startConnTicker drives the connectivity debounce.
+//
+// Nil-safe on a disabled wire — `TickAll` returns immediately — but the ticker
+// is only started when recording is on, so a deployment without `-history` pays
+// nothing for it.
+func (s *Server) startConnTicker() {
+	if !s.historyWire.Enabled() {
+		return
+	}
+	s.connTick = time.NewTicker(time.Second)
+	s.connStop = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-s.connStop:
+				return
+			case t := <-s.connTick.C:
+				s.historyWire.TickAll(t.UnixMilli())
+			}
+		}
+	}()
+}
+
 func (s *Server) Shutdown() {
+	// STOPPED FIRST, and this is the sibling of the retention sweep below: a
+	// ticker assigned and never stopped outlives the server, which is harmless
+	// at process exit and a goroutine leak in every test that builds one.
+	if s.connTick != nil {
+		s.connTick.Stop()
+		close(s.connStop)
+		s.connTick = nil
+	}
 	if s.backupSched != nil {
 		s.backupSched.Stop()
 	}
