@@ -208,7 +208,26 @@ docker compose up -d
 Open `http://localhost:3081` — the first-run setup wizard will guide you through adding your router.
 No `.env` file is required.
 
-### Option 2 — Build from source
+### Option 2 — On the router itself, as a RouterOS container
+
+MikroDash can run directly on the MikroTik it monitors, using RouterOS's own container
+support:
+
+```routeros
+/container/add remote-image=ghcr.io/secops-7/mikrodash:latest \
+  interface=veth_mikrodash root-dir=usb1/mikrodash \
+  mountlists=mikrodash_data start-on-boot=yes comment="MikroDash"
+```
+
+**See [`docs/routeros-container-install.md`](docs/routeros-container-install.md) for the full
+walkthrough**, which covers enabling container mode, the veth and bridge setup, the `input`-chain
+firewall rule (its absence is the usual cause of a bare "timed out" when adding the router), and the
+`/data` mount, without which every `repull` silently discards your database.
+
+Prefer this to the RouterOS **Apps** menu: MikroTik maintain that catalogue themselves, so the entry
+there can lag a long way behind the current release.
+
+### Option 3 — Build from source
 
 ```bash
 git clone https://github.com/SecOps-7/MikroDash.git
@@ -237,7 +256,8 @@ docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t mikrodash
   unreachable `defaultIf` returns `503`)
 
 For a production-style deployment on an external Docker host such as an R5S that connects to a
-MikroTik hEX S over the RouterOS API, see `docs/deploy-r5s.md`.
+MikroTik hEX S over the RouterOS API, see [`docs/deploy-r5s.md`](docs/deploy-r5s.md). To run MikroDash
+on the router itself, see [`docs/routeros-container-install.md`](docs/routeros-container-install.md).
 
 ---
 
