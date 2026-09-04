@@ -131,7 +131,10 @@ func (s *Server) routerActivate(w http.ResponseWriter, r *http.Request) {
 	// The pool's history pair follows the active router. Without this the port
 	// would keep recording the OLD router's traffic and ping after a switch, and
 	// write nothing for the new one until a restart.
-	s.syncHistoryRouter()
+	// `syncHistoryRouter` used to live here: activating a router moved the
+	// single history target onto it. Recording is each router's own setting now,
+	// and `syncPool` applies a changed flag to live sessions, so an activation
+	// no longer decides who records.
 	s.broadcastRouterList()
 	s.hub.Broadcast("router-"+id, "router:active", map[string]any{"activeId": id})
 }

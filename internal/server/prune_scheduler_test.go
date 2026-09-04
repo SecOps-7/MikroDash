@@ -253,7 +253,12 @@ func TestBothHistoryRecordersAreFlushedOnShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !regexp.MustCompile(`historyWire\.Flush\(s\.alertPool\.HistoryRouter\(\)\)`).Match(srv) {
+	// `FlushAll`, not `Flush(HistoryRouter())`. That spelling named the ONE
+	// router that recorded, back when reporting was whichever router was active.
+	// With reporting a per-router setting there are several, and naming one
+	// would lose the open minute for every other on each restart — the same data
+	// loss this test exists for, narrowed to one router by accident.
+	if !regexp.MustCompile(`historyWire\.FlushAll\(\)`).Match(srv) {
 		t.Error("Shutdown does not flush the alertpool's history. That pool is the " +
 			"recorder whenever no browser is open — almost always — so every restart " +
 			"loses the minute in progress.")
@@ -263,7 +268,7 @@ func TestBothHistoryRecordersAreFlushedOnShutdown(t *testing.T) {
 	// COMMENT above the flush, which says "BEFORE `alertPool.Close()`" — so the
 	// first version of this test reported the order was wrong when the code was
 	// right, and would have had somebody "fix" correct code.
-	flush := regexp.MustCompile(`s\.historyWire\.Flush\(`).FindIndex(srv)
+	flush := regexp.MustCompile(`s\.historyWire\.FlushAll\(`).FindIndex(srv)
 	closed := regexp.MustCompile(`s\.alertPool\.Close\(\)`).FindIndex(srv)
 	if flush == nil || closed == nil {
 		t.Fatal("could not locate both the flush and the close")

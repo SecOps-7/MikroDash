@@ -139,16 +139,3 @@ func (s *Server) persistRouterIdentity(routerID string, id collect.Identity) {
 	// EVERY viewer, each filtered for its own principal — see broadcastRouterList.
 	s.broadcastRouterList()
 }
-
-// syncHistoryRouter points the pool's history pair at the ACTIVE router.
-//
-// Called at startup and after every activation. `setActiveRouter` writes a
-// settings key and returns — it does not re-sync the pool, and `Pool.Sync` does
-// not rebuild a session that already exists — so without this a pool built while
-// router A was active would go on recording A after the operator switched to B.
-func (s *Server) syncHistoryRouter() {
-	if s.pool == nil || s.store == nil {
-		return
-	}
-	s.pool.SetHistoryRouter(s.activeRouterID())
-}

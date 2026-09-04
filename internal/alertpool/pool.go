@@ -63,8 +63,8 @@ type Pool struct {
 	// effective collection config (#105).
 	settings map[string]any
 
-	// record is where continuous history goes, and historyID names the ONE
-	// router whose traffic and ping are recorded. Both zero unless wired.
+	// record is where continuous history goes. WHICH routers it covers is each
+	// router's own `ReportingEnabled`, read at build time. Zero unless wired.
 	//
 	// ── WHY HERE AND NOT ON `internal/routers.Pool` ───────────────────────
 	//
@@ -73,10 +73,10 @@ type Pool struct {
 	// `routers.Pool` is synced from the Devices page and the routers API only,
 	// so it idles until somebody looks at something — measured 2026-08-30, when
 	// history wired there recorded nothing after a restart with no browser.
-	record    RecordHook
-	historyID string
-	// pendingRebuild names routers whose history role changed and whose sessions
-	// must therefore be rebuilt on the next Sync.
+	record RecordHook
+	// pendingRebuild names routers whose ENDPOINT changed and whose sessions must
+	// therefore be rebuilt on the next Sync. A flag change does not come through
+	// here — `PlanSync` sees those in the record and plans the rebuild itself.
 	pendingRebuild map[string]bool
 
 	mu       sync.Mutex
@@ -113,7 +113,7 @@ type poolSession struct {
 	system *collect.System
 	ping   *collect.Ping
 	// traffic is continuous history's only added collector, built for the
-	// router `SetHistoryRouter` names and for no other.
+	// router whose own `ReportingEnabled` says so, and for no other.
 	traffic  *collect.Traffic
 	ifStatus *collect.IfStatus
 	vpn      *collect.VPN
@@ -142,7 +142,8 @@ func (p *Pool) Sync(all []Router, activeID string, excluded map[string]bool) {
 	p.mu.Lock()
 	live := Live{}
 	for id, s := range p.sessions {
-		live[id] = s.r.AlertsEnabled
+		live[id] = LiveSession{AlertsEnabled: s.r.AlertsEnabled,
+			ReportingEnabled: s.r.ReportingEnabled}
 	}
 	byID := map[string]Router{}
 	for _, r := range all {
@@ -172,9 +173,8 @@ func (p *Pool) Sync(all []Router, activeID string, excluded map[string]bool) {
 	// `p.sessions` and LEAKED, still dialling with nothing able to stop it.
 	for id, sess := range p.sessions {
 		if nw, ok := byID[id]; ok && !sameConnection(sess.r, nw) {
-			// LAZILY BUILT. `pendingRebuild` is only created by
-			// `SetHistoryRouter`, so on an install where that has never run the
-			// map is nil and a bare write panics.
+			// LAZILY BUILT: on an install where nothing has yet marked a
+			// router for rebuild the map is nil, and a bare write panics.
 			if p.pendingRebuild == nil {
 				p.pendingRebuild = map[string]bool{}
 			}
@@ -230,7 +230,14 @@ func (p *Pool) Sync(all []Router, activeID string, excluded map[string]bool) {
 		// #105: the router's own resolved config, so a collector the operator
 		// turned off for this router is never built or started.
 		s.eff = collection.Resolve(p.settings, collection.ParseRouter(r.Collection))
-		buildCollectors(s, s.eff, p.on, p.record, p.record != nil && r.ID == p.historyID)
+		// ── RECORDING IS THE ROUTER'S OWN SETTING NOW ─────────────────────
+		//
+		// This was `r.ID == p.historyID`: one router in the fleet recorded, and
+		// it was whichever one happened to be active. `PlanSync` rebuilds on a
+		// change to the flag, so the whole `SetHistoryRouter` mechanism — the
+		// id, its setter, and the both-ends `pendingRebuild` marking it needed —
+		// is gone rather than generalised.
+		buildCollectors(s, s.eff, p.on, p.record, p.record != nil && r.ReportingEnabled)
 		p.sessions[r.ID] = s
 		starting = append(starting, s)
 	}
@@ -534,49 +541,6 @@ func (p *Pool) WithHistory(rec RecordHook) *Pool {
 	p.record = rec
 	p.mu.Unlock()
 	return p
-}
-
-// SetHistoryRouter names the router whose traffic and ping are recorded.
-//
-// ── IT REPORTS WHETHER THE CALLER MUST RE-SYNC ────────────────────────────
-//
-// Unlike `internal/routers.Pool`'s equivalent, this does NOT start and stop
-// collectors on live sessions. The pair is built inside `buildCollectors`, which
-// runs once per session, and a session that was built history-off has no
-// `traffic` collector to start — there is nothing to switch on.
-//
-// So this records the new target and returns true when it CHANGED, leaving the
-// caller to `Sync` and let the normal rebuild path do the work. That keeps one
-// construction path rather than two that must agree, which is the mistake the
-// `res:move` and `stripWanIP` entries both record.
-func (p *Pool) SetHistoryRouter(id string) (changed bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.historyID == id {
-		return false
-	}
-	if p.pendingRebuild == nil {
-		p.pendingRebuild = map[string]bool{}
-	}
-	// BOTH ends of the switch: the router that stops recording and the one that
-	// starts. Marking only the new one would leave the old session recording a
-	// router the operator is no longer looking at.
-	if p.historyID != "" {
-		p.pendingRebuild[p.historyID] = true
-	}
-	if id != "" {
-		p.pendingRebuild[id] = true
-	}
-	p.historyID = id
-	return true
-}
-
-// HistoryRouter is the router currently being recorded. For tests and for the
-// rebuild decision in `sync.go`.
-func (p *Pool) HistoryRouter() string {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.historyID
 }
 
 // buildsRouter reports whether the plan already builds this router.

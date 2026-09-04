@@ -513,7 +513,9 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	if hw.Enabled() {
 		if srv.pool != nil {
 			srv.pool.WithHistory(hw.Record)
-			srv.syncHistoryRouter()
+			// `syncHistoryRouter` was here. Recording is each router's own
+			// setting now, applied by `Pool.Sync` itself, so there is nothing
+			// to push separately at startup.
 		}
 	}
 	return srv, nil
@@ -826,7 +828,10 @@ func (s *Server) Shutdown() {
 	// BEFORE `alertPool.Close()`, so the collectors are still there to have
 	// produced what is being flushed.
 	if s.historyWire.Enabled() && s.alertPool != nil {
-		s.historyWire.Flush(s.alertPool.HistoryRouter())
+		// EVERY RECORDING ROUTER, not one. This was `Flush(HistoryRouter())`
+		// back when a single router recorded; with several, naming one would
+		// lose the open minute for all the others on every restart.
+		s.historyWire.FlushAll()
 	}
 	if s.alertPool != nil {
 		s.alertPool.Close()

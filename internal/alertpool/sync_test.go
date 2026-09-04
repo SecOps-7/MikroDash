@@ -57,7 +57,9 @@ func TestPlanSyncMatchesLive(t *testing.T) {
 			}
 			live := Live{}
 			for k, v := range tc.Input.Live {
-				live[k] = v
+				// The corpus predates per-router reporting and knows only the
+				// alerts bit, which is exactly what it should still assert.
+				live[k] = LiveSession{AlertsEnabled: v}
 			}
 
 			p := PlanSync(all, tc.Input.Active, excl)(live)
@@ -146,7 +148,7 @@ func TestADisabledRouterGetsNoSession(t *testing.T) {
 // A running session for a router that has just been disabled must be dropped,
 // not merely left out of Build.
 func TestDisablingARouterDropsItsSession(t *testing.T) {
-	p := PlanSync([]Router{{ID: "a", Disabled: true}}, "", nil)(Live{"a": false})
+	p := PlanSync([]Router{{ID: "a", Disabled: true}}, "", nil)(Live{"a": {}})
 	if len(p.Drop) != 1 || p.Drop[0] != "a" {
 		t.Errorf("Drop = %v, want [a]: a disabled router keeps its connection open", p.Drop)
 	}

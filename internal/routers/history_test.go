@@ -18,6 +18,18 @@ func hcfg(id string) RouterConfig {
 	return c
 }
 
+// rec is hcfg with reporting on.
+//
+// These tests used to call `p.SetHistoryRouter(id)` — one router recorded, and
+// it was whichever one was active. Recording is each router's own setting now,
+// so the choice travels in the config the pool is synced with. Every property
+// below is unchanged; only how the choice arrives is.
+func rec(id string) RouterConfig {
+	c := hcfg(id)
+	c.ReportingEnabled = true
+	return c
+}
+
 // recorder captures what the pool sent to the history wire.
 type recorder struct {
 	mu   sync.Mutex
@@ -63,8 +75,7 @@ func TestOnlyTheHistoryRouterRunsTheHistoryCollectors(t *testing.T) {
 	p := NewPool(d.dial, 10*time.Millisecond, nil, nil).WithHistory(r.rec)
 	defer p.Close()
 
-	p.SetHistoryRouter("a")
-	p.Sync([]RouterConfig{hcfg("a"), hcfg("b")}, nil)
+	p.Sync([]RouterConfig{rec("a"), hcfg("b")}, nil)
 	waitFor(t, "both connected", func() bool { return len(p.Summaries()) == 2 })
 
 	waitFor(t, "the chosen router opened a ping stream", func() bool {
@@ -83,8 +94,7 @@ func TestAPoolWithoutARecorderRunsNoHistoryCollectors(t *testing.T) {
 	p := NewPool(d.dial, 10*time.Millisecond, nil, nil) // no WithHistory
 	defer p.Close()
 
-	p.SetHistoryRouter("a")
-	p.Sync([]RouterConfig{hcfg("a")}, nil)
+	p.Sync([]RouterConfig{rec("a")}, nil)
 	waitFor(t, "connected", func() bool { return len(p.Summaries()) == 1 })
 	time.Sleep(80 * time.Millisecond)
 
@@ -93,27 +103,28 @@ func TestAPoolWithoutARecorderRunsNoHistoryCollectors(t *testing.T) {
 	}
 }
 
-// THE TARGET FOLLOWS AN ACTIVATION, on sessions that already exist.
+// A TOGGLED FLAG TAKES EFFECT ON SESSIONS THAT ALREADY EXIST.
 //
-// `setActiveRouter` writes a settings key and returns; it does not re-sync the
-// pool, and `Sync` does not rebuild a session it already has. So a pool built
-// while `a` was active would go on recording `a` for ever. This is the case that
-// separates "read the active router once" from "react to it changing".
-func TestTheHistoryTargetFollowsAnActivation(t *testing.T) {
+// `Sync` does not rebuild a session it already has, so a pool built while `a`
+// was recording would go on recording `a` for ever — the toggle would appear to
+// save and do nothing until something unrelated rebuilt the session. This is the
+// case that separates "read the flag once" from "react to it changing", and it
+// is why `applyReporting` runs on every Sync.
+func TestAToggledReportingFlagTakesEffect(t *testing.T) {
 	d := &dialLog{}
 	r := newRecorder()
 	p := NewPool(d.dial, 10*time.Millisecond, nil, nil).WithHistory(r.rec)
 	defer p.Close()
 
-	p.SetHistoryRouter("a")
-	p.Sync([]RouterConfig{hcfg("a"), hcfg("b")}, nil)
+	p.Sync([]RouterConfig{rec("a"), hcfg("b")}, nil)
 	waitFor(t, "both connected", func() bool { return len(p.Summaries()) == 2 })
 	waitFor(t, "a is streaming", func() bool {
 		return d.conn("198.51.100.1") != nil && d.conn("198.51.100.1").sawStream("/tool/ping")
 	})
 
-	// The operator activates b. No re-Sync: exactly what the route does.
-	p.SetHistoryRouter("b")
+	// The operator moves reporting from a to b. A re-Sync with the new flags is
+	// exactly what `routerUpdate` produces.
+	p.Sync([]RouterConfig{hcfg("a"), rec("b")}, nil)
 	waitFor(t, "b took over", func() bool {
 		return d.conn("198.51.100.2") != nil && d.conn("198.51.100.2").sawStream("/tool/ping")
 	})
@@ -127,24 +138,25 @@ func TestTheHistoryTargetFollowsAnActivation(t *testing.T) {
 	})
 }
 
-// AND IT IS IDEMPOTENT: naming the router already recording restarts nothing.
-func TestSettingTheSameHistoryRouterTwiceIsANoOp(t *testing.T) {
+// AND IT IS IDEMPOTENT: re-syncing an unchanged fleet restarts nothing. `Sync`
+// runs on every routers change, so a stream restarted each time would be a
+// stream permanently restarting.
+func TestReSyncingAnUnchangedFleetIsANoOp(t *testing.T) {
 	d := &dialLog{}
 	r := newRecorder()
 	p := NewPool(d.dial, 10*time.Millisecond, nil, nil).WithHistory(r.rec)
 	defer p.Close()
 
-	p.SetHistoryRouter("a")
-	p.Sync([]RouterConfig{hcfg("a")}, nil)
+	p.Sync([]RouterConfig{rec("a")}, nil)
 	waitFor(t, "connected", func() bool { return len(p.Summaries()) == 1 })
 	waitFor(t, "streaming", func() bool {
 		return d.conn("198.51.100.1") != nil && d.conn("198.51.100.1").sawStream("/tool/ping")
 	})
 	before := len(d.conn("198.51.100.1").streams)
-	p.SetHistoryRouter("a")
+	p.Sync([]RouterConfig{rec("a")}, nil)
 	time.Sleep(50 * time.Millisecond)
 	if after := len(d.conn("198.51.100.1").streams); after > before+1 {
-		t.Errorf("re-naming the same router opened %d more streams; it must be a no-op",
+		t.Errorf("re-syncing an unchanged fleet opened %d more streams; it must be a no-op",
 			after-before)
 	}
 }

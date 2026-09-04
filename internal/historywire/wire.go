@@ -270,3 +270,23 @@ func (w *Wire) Reporting(routerID string) bool {
 	on, ok := w.reporting[routerID]
 	return !ok || on
 }
+
+// FlushAll writes every open bucket, for every router.
+//
+// Shutdown's flush used to name the single recording router. With reporting a
+// per-router setting there are several, and naming one would lose the open
+// minute for all the rest on every restart — the same data loss `Flush` exists
+// to prevent, narrowed to one router by accident.
+//
+// `history.Writer.Flush("")` already means "every router"; this is the wire's
+// name for it, kept separate so `Flush(id)`'s empty-id guard stays a real guard
+// rather than a second meaning.
+func (w *Wire) FlushAll() {
+	if w == nil || !w.enabled {
+		return
+	}
+	w.mu.Lock()
+	rows := w.w.Flush("")
+	w.mu.Unlock()
+	w.persist(rows)
+}

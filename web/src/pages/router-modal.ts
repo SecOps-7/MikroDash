@@ -252,6 +252,7 @@ export function initRouterModal(opts: {
     set('rtrModalIf', f.defaultIf); set('rtrModalPing', f.pingTarget);
     check('rtrModalTls', f.tls); check('rtrModalTlsInsecure', f.tlsInsecure);
     check('rtrModalAlertsEnabled', f.alertsEnabled);
+    check('rtrModalReportingEnabled', f.reportingEnabled);
     set('rtrModalDownThresh', String(f.downThreshold));
     // THROUGH `setBwUnit`, not `set`: the hidden input and the highlighted button
     // must move together, and writing the hidden one alone is the bug above.
@@ -327,6 +328,7 @@ export function initRouterModal(opts: {
       bwUpRaw: input('rtrModalBwUp')?.value || '',
       bwUpUnit: input('rtrModalBwUpUnit')?.value || 'mbps',
       alertsEnabled: !!input('rtrModalAlertsEnabled')?.checked,
+      reportingEnabled: !!input('rtrModalReportingEnabled')?.checked,
       downThresholdRaw: input('rtrModalDownThresh')?.value || '',
       mode: input('rtrModalMode')?.value || 'stream',
       toggles: readGrid(),

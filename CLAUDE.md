@@ -84,7 +84,7 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25-alpine go test ./...
 #   -e MIKRODASH_PROPLIST_FREEZE=1   (internal/collect)
 #   -e MIKRODASH_RESOURCES_FREEZE=1  (internal/resource)
 
-# The frontend's own tests: 21 of them, bundling the app's TypeScript with
+# The frontend's own tests: 22 of them, bundling the app's TypeScript with
 # esbuild and running it against a DOM shim. See web/test/README.md for why they
 # are executed rather than type-checked.
 cd web && npm test
@@ -419,7 +419,7 @@ replaced? That question died with the port, and 25 MB of recordings went with it
 | | |
 |---|---|
 | `internal/verify/` | 33 Go tests. Static checks over the CURRENT source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, fixture schemas, and that every page-key literal still names a real page. |
-| `web/test/` | 21 test files that bundle the app's TypeScript and run it against a DOM shim (31 cases). |
+| `web/test/` | 22 test files that bundle the app's TypeScript and run it against a DOM shim (32 cases). |
 
 **Two rules carried across, and both are load-bearing:**
 
@@ -452,7 +452,7 @@ inert.
   read the CURRENT source and assert properties still worth holding: no committed credential, every
   cited path present, every emitted event consumed, every multi-room collector behind an occupancy
   guard. They are test-only, so nothing can link them into the binary.
-- **`web/test/`** holds 21 frontend tests that bundle the app's TypeScript and run it against a DOM
+- **`web/test/`** holds 22 frontend tests that bundle the app's TypeScript and run it against a DOM
   shim. JavaScript-hosted because testing TypeScript needs a JavaScript runtime.
 - **A gap is documented, never hidden.** Every ledger in those tests fails in BOTH directions: an
   unrecorded gap is a failure, and a recorded gap that has CLOSED is also a failure, so a note cannot

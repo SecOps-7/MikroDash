@@ -100,7 +100,7 @@ function makeToggle(hiddenId, activeVal) {
 const IDS = [
   'rtrModalBg', 'rtrModalCollectors', 'rtrModalGeoClear', 'rtrModalGeoHint', 'rtrModalGeoList',
   'rtrModalId', 'rtrModalModeWrap', 'rtrModalPrimarySite', 'rtrModalTitle', 'rtrTestResult',
-  'rtrModalAlertsEnabled', 'rtrModalBwDown', 'rtrModalBwDownUnit', 'rtrModalBwUp',
+  'rtrModalAlertsEnabled', 'rtrModalReportingEnabled', 'rtrModalBwDown', 'rtrModalBwDownUnit', 'rtrModalBwUp',
   'rtrModalBwUpUnit', 'rtrModalDownThresh', 'rtrModalGeo', 'rtrModalHost', 'rtrModalIf',
   'rtrModalLabel', 'rtrModalMode', 'rtrModalPass', 'rtrModalPing', 'rtrModalPort',
   'rtrModalSaveBtn', 'rtrModalTestBtn', 'rtrModalTls', 'rtrModalTlsInsecure', 'rtrModalUser',

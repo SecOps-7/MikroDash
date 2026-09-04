@@ -55,6 +55,12 @@ var recorderUnwired = map[string]string{
 	// actually matters, IS called from the fleet syncs and is checked here.
 	"Records": "a predicate consulted by Record inside the package; exported for " +
 		"callers to ask rather than to be driven",
+	// Same shape as `Records` directly above: `Record`, `apply` and `TickAll`
+	// all consult it from inside the package, which the scan cannot see because
+	// it excludes the recorder's own source. `SetReporting` is the entry point
+	// that matters here, and it IS called from both fleet syncs.
+	"Reporting": "a predicate consulted by Record, apply and TickAll inside the " +
+		"package; exported for callers to ask rather than to be driven",
 }
 
 func TestEveryRecorderEntryPointHasAProductionCaller(t *testing.T) {

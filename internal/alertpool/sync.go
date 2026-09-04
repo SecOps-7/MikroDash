@@ -47,12 +47,17 @@ type Router struct {
 	Password    string
 	PingTarget  string
 	// DefaultIf is carried ONLY for continuous history's traffic collector, and
-	// only the router named by `SetHistoryRouter` uses it. Same field the page
+	// only a router with `ReportingEnabled` uses it. Same field the page
 	// session passes to `NewTraffic`, so a pooled recording and a page-driven
 	// one measure the same interface rather than producing two histories.
 	DefaultIf     string
 	AlertsEnabled bool
-	Disabled      bool
+	// ReportingEnabled is per-router history recording. It replaced the single
+	// `historyID` this pool used to carry: recording was whichever router was
+	// ACTIVE, so exactly one router in the fleet had traffic and ping collected
+	// and nobody could choose which.
+	ReportingEnabled bool
+	Disabled         bool
 	// Collection is the router's own #105 block, as stored (raw JSON). Resolved
 	// against the install settings when the session is built.
 	Collection []byte
@@ -79,9 +84,24 @@ type Plan struct {
 	Rebuild []string
 }
 
-// Live is the pool's current state, as the planner needs it: id → whether that
-// session was built with alerts enabled.
-type Live map[string]bool
+// LiveSession is what a running session was BUILT with — the flags that decide
+// which collectors exist, and therefore what has to be rebuilt when one changes.
+//
+// ── IT CARRIED ONE BIT AND NEEDED TWO ──────────────────────────────────────
+//
+// `Live` was `map[string]bool`, holding only `AlertsEnabled`. A second flag
+// that also decides what gets constructed cannot be represented in that, and
+// the failure is quiet in the worst way: the toggle saves, the record changes,
+// the plan says nothing needs doing, and the session keeps the collectors it
+// was built with until the process restarts. The operator sees a setting that
+// appears to work and does not.
+type LiveSession struct {
+	AlertsEnabled    bool
+	ReportingEnabled bool
+}
+
+// Live is the pool's current state, as the planner needs it.
+type Live map[string]LiveSession
 
 // PlanSync is `syncSessions`, as a pure function.
 //
@@ -123,13 +143,17 @@ func PlanSync(all []Router, activeID string, excluded map[string]bool) func(Live
 		}
 
 		p := Plan{}
-		for id, hadAlerts := range live {
+		for id, had := range live {
 			r, ok := want[id]
 			if !ok {
 				p.Drop = append(p.Drop, id)
 				continue
 			}
-			if hadAlerts != r.AlertsEnabled {
+			// EITHER FLAG. Both decide which collectors `buildCollectors`
+			// constructs, and a session is only ever built once — so a change to
+			// either has to tear it down and make it again.
+			if had.AlertsEnabled != r.AlertsEnabled ||
+				had.ReportingEnabled != r.ReportingEnabled {
 				p.Rebuild = append(p.Rebuild, id)
 			}
 		}

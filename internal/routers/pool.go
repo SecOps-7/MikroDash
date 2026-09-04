@@ -157,12 +157,16 @@ type RouterConfig struct {
 	Collection *collection.Router
 
 	// DefaultIf and PingTarget are carried ONLY for the history collectors —
-	// see `SetHistoryRouter`. They are the same two values `Session` passes to
+	// see `applyReporting`. They are the same two values `Session` passes to
 	// `NewTraffic` and `NewPing`, so a pooled recording and a page-driven one
 	// measure the same interface and the same target rather than quietly
 	// producing two different histories for one router.
 	DefaultIf  string
 	PingTarget string
+	// ReportingEnabled is per-router history recording. It replaced the single
+	// `historyID` this pool carried, which named whichever router was active —
+	// so exactly one router in the fleet recorded and nobody could choose which.
+	ReportingEnabled bool
 }
 
 // sameConnection reports whether two records reach the same router the same way.
@@ -235,7 +239,7 @@ type poolSession struct {
 	ifStatus   *collect.IfStatus
 	dhcpLeases *collect.DHCPLeases
 	// traffic and ping are the HISTORY pair, nil unless a recorder was
-	// installed. See `SetHistoryRouter`.
+	// installed. See `applyReporting`.
 	traffic *collect.Traffic
 	ping    *collect.Ping
 	// historyOn is whether THIS session is the one recording. Held here rather
@@ -306,10 +310,10 @@ type Pool struct {
 	// Read once per Sync rather than per router, as the live builder does.
 	settings map[string]any
 
-	// record is where the history collectors' payloads go, and historyID names
+	// record is where the history collectors' payloads go; each router's own
+	// `ReportingEnabled` names
 	// the ONE router they run for. Both nil/empty unless the server wired them.
-	record    func(routerID, event string, payload any)
-	historyID string
+	record func(routerID, event string, payload any)
 
 	mu        sync.Mutex
 	sessions  map[string]*poolSession
@@ -326,24 +330,29 @@ func (p *Pool) WithHistory(rec func(routerID, event string, payload any)) *Pool 
 	return p
 }
 
-// SetHistoryRouter names the router whose traffic and ping this pool records.
+// applyReporting starts or stops the history pair on the sessions that already
+// exist, from each router's own `ReportingEnabled`.
 //
-// ── WHY THIS IS A CALL AND NOT A FIELD READ AT BUILD TIME ─────────────────
+// ── WHAT THIS REPLACED ─────────────────────────────────────────────────────
 //
-// `setActiveRouter` does not re-sync the pool — it writes a settings key and
-// returns — and `Sync` does not rebuild a session that already exists. So a
-// session built while router A was active would go on recording A forever.
-// This starts and stops the two collectors on the sessions that already exist,
-// which is the only thing that reacts to an activation in time.
+// `SetHistoryRouter(id)`: one router recorded, always the active one, and an
+// activation had to push the change into live sessions because the pair is
+// built for every pooled router and STARTED for one. That second half is still
+// true, so the mechanism survives — it just reads a flag per router instead of
+// comparing against a single id.
 //
-// Idempotent: naming the router that is already recording does nothing.
-func (p *Pool) SetHistoryRouter(id string) {
+// Called from `Sync`, so a toggled flag takes effect on the next fleet sync
+// without tearing the session down: unlike the alert pool, this pool builds the
+// pair for everyone, so there is something to switch on.
+//
+// Idempotent by construction — `setHistoryCollectors` starts what is already
+// started and stops what is already stopped.
+func (p *Pool) applyReporting(byID map[string]RouterConfig) {
 	p.mu.Lock()
-	if p.closed || p.historyID == id {
+	if p.closed {
 		p.mu.Unlock()
 		return
 	}
-	p.historyID = id
 	suspended := p.suspended
 	list := make([]*poolSession, 0, len(p.sessions))
 	for _, s := range p.sessions {
@@ -361,7 +370,10 @@ func (p *Pool) SetHistoryRouter(id string) {
 		// killed. The existing connect path has always released `s.mu` before
 		// calling `startCollectors` (see `run`), for the same reason.
 		s.mu.Lock()
-		s.historyOn = s.cfg.ID == id
+		cfg, known := byID[s.cfg.ID]
+		if known {
+			s.historyOn = cfg.ReportingEnabled
+		}
 		on := s.historyOn && !suspended
 		s.mu.Unlock()
 		s.setHistoryCollectors(on)
@@ -468,6 +480,15 @@ func (p *Pool) Sync(all []RouterConfig, excluded map[string]bool) PoolAction {
 		}
 		go s.run(p)
 	}
+	// ── AND A TOGGLED REPORTING FLAG TAKES EFFECT ─────────────────────────
+	//
+	// A session that is neither started nor stopped here keeps the `historyOn`
+	// it was BUILT with, so turning reporting on or off would otherwise do
+	// nothing until the session was rebuilt for some unrelated reason. This
+	// pool builds the history pair for every router and starts it for some, so
+	// there is something to switch — unlike the alert pool, which has to
+	// rebuild.
+	p.applyReporting(byID)
 	return act
 }
 
@@ -501,7 +522,7 @@ func (p *Pool) build(cfg RouterConfig) *poolSession {
 	// CONSTRUCTED for every pooled router, STARTED for one. Building a
 	// collector allocates a struct and a timer that is not running; it opens
 	// nothing. Starting one is what costs a command channel, and that happens
-	// only for the router `SetHistoryRouter` names.
+	// only for the routers whose own `ReportingEnabled` says so.
 	//
 	// They exist at all because `internal/historywire` records exactly two
 	// payload types — `*collect.TrafficSample` and `*collect.PingPayload` — and
@@ -510,10 +531,10 @@ func (p *Pool) build(cfg RouterConfig) *poolSession {
 	// what happened: live wrote 60 traffic rows an hour and this port wrote
 	// between 5 and 44, tracking whether anyone was looking.
 	if p.record != nil {
-		// Set at BUILD time as well as in SetHistoryRouter: a router that joins
+		// Set at BUILD time as well as in `applyReporting`: a router that joins
 		// the pool later — reconnecting, or re-enabled — would otherwise never
-		// learn it is the one recording until the next activation.
-		s.historyOn = cfg.ID == p.historyID
+		// learn it is recording until the next fleet sync.
+		s.historyOn = cfg.ReportingEnabled
 		id := cfg.ID
 		rec := p.record
 		emit := func(_, event string, payload any) { rec(id, event, payload) }

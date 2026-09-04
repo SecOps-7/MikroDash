@@ -53,7 +53,7 @@ export interface StoredRouter {
   host?: string; port?: number | string; username?: string;
   defaultIf?: string; pingTarget?: string;
   tls?: boolean; tlsInsecure?: boolean;
-  alertsEnabled?: boolean; connDownThresholdSec?: number;
+  alertsEnabled?: boolean; reportingEnabled?: boolean; connDownThresholdSec?: number;
   bwDownMbps?: number; bwUpMbps?: number;
   collection?: { mode?: string; off?: string[] };
 }
@@ -66,7 +66,7 @@ export interface RouterFormValues {
   passPlaceholder: string;
   defaultIf: string; pingTarget: string;
   tls: boolean; tlsInsecure: boolean;
-  alertsEnabled: boolean; downThreshold: number;
+  alertsEnabled: boolean; reportingEnabled: boolean; downThreshold: number;
   bwDown: BwField; bwUp: BwField;
   mode: string; off: string[];
 }
@@ -119,6 +119,17 @@ export function routerFormValues(
     tls: r ? !!r.tls : true,
     tlsInsecure: r ? !!r.tlsInsecure : false,
     alertsEnabled: r ? !!r.alertsEnabled : false,
+    // ── ON BY DEFAULT WHEN ADDING, OFF FOR A RECORD THAT SAYS NOTHING ──────
+    //
+    // `r` is null on Add, and a device somebody is adding almost certainly wants
+    // its history kept — the Reports page is empty without it.
+    //
+    // For an EDIT the record decides, and absent is off: that is what
+    // `store.ReportingOn` answers server-side, and the startup migration is what
+    // gives an upgrading install the value it had before the flag existed. A
+    // `!== undefined` dance here would disagree with the server about a router
+    // the migration has not reached.
+    reportingEnabled: r ? !!r.reportingEnabled : true,
     downThreshold: r ? (r.connDownThresholdSec !== undefined ? r.connDownThresholdSec : 30) : 30,
     bwDown: splitBw(r ? (r.bwDownMbps || 1000) : 1000),
     bwUp: splitBw(r ? (r.bwUpMbps || 1000) : 1000),
@@ -219,7 +230,7 @@ export interface RouterFormInput {
   tls: boolean; tlsInsecure: boolean;
   bwDownRaw: string; bwDownUnit: string;
   bwUpRaw: string; bwUpUnit: string;
-  alertsEnabled: boolean; downThresholdRaw: string;
+  alertsEnabled: boolean; reportingEnabled: boolean; downThresholdRaw: string;
   mode: string;
   /** The grid's checkboxes, or an empty list when it has not loaded yet. */
   toggles: readonly { key: string; checked: boolean }[];
@@ -379,6 +390,10 @@ export function collectRouterForm(f: RouterFormInput): Record<string, unknown> {
     bwDownMbps: joinBw(f.bwDownRaw, f.bwDownUnit),
     bwUpMbps: joinBw(f.bwUpRaw, f.bwUpUnit),
     alertsEnabled: !!f.alertsEnabled,
+    // SEEDED AND COLLECTED, both. A field seeded above and missing here is
+    // shown to the operator, edited, and thrown away on save — the silent-loss
+    // shape this file's own history records.
+    reportingEnabled: !!f.reportingEnabled,
     connDownThresholdSec: (thresh >= 0 && thresh <= 300) ? thresh : 30,
   };
   if (f.toggles.length) {

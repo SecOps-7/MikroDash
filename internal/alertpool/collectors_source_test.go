@@ -199,49 +199,41 @@ func TestTrafficIsBuiltOnlyForTheHistoryRouter(t *testing.T) {
 	}
 }
 
-// THE RECORDED ROUTER FOLLOWS AN ACTIVATION, and both ends are rebuilt.
+// CHANGING WHICH ROUTERS RECORD REBUILDS THE AFFECTED SESSIONS.
 //
-// The pair is built inside `buildCollectors`, which runs once per session, so a
-// session built history-off has no traffic collector to switch on later.
-// `SetHistoryRouter` therefore reports that it changed and marks BOTH the old
-// and the new router for rebuild; `Sync` does the work through the single
-// construction path.
+// ── WHAT THIS REPLACED, AND WHY ────────────────────────────────────────────
 //
-// Marking only the new one would leave the previous session recording a router
-// the operator has stopped looking at — two histories at once, which reads as
-// duplicate rows rather than as an error.
-func TestSwitchingTheHistoryRouterRebuildsBothEnds(t *testing.T) {
-	p := &Pool{}
-	if p.SetHistoryRouter("a") != true {
-		t.Fatal("the first call reported no change")
-	}
-	if got := p.HistoryRouter(); got != "a" {
-		t.Fatalf("HistoryRouter() = %q, want a", got)
-	}
-	// Only the new one on the first call — there is no old one.
-	if len(p.pendingRebuild) != 1 || !p.pendingRebuild["a"] {
-		t.Fatalf("pendingRebuild = %v, want just a", p.pendingRebuild)
-	}
-	p.pendingRebuild = map[string]bool{}
+// This was `TestSwitchingTheHistoryRouterRebuildsBothEnds`, which drove
+// `SetHistoryRouter` — a single id naming the ONE router that recorded, always
+// whichever one was active. That mechanism is gone: recording is now each
+// router's own `ReportingEnabled`, so the id, its setter and the both-ends
+// `pendingRebuild` marking it needed all went with it.
+//
+// The PROPERTY survives and is what this asserts, one layer down where it now
+// lives: a session is built once, so a change to a flag that decides which
+// collectors exist must tear it down and make it again. The old test's real
+// subject was never the setter — it was that both ends of a change get
+// rebuilt, and that is exactly what `Rebuild` carries here.
+func TestChangingReportingRebuildsTheSession(t *testing.T) {
+	rec := Router{ID: "a", Host: "198.51.100.1"}
+	on := rec
+	on.ReportingEnabled = true
 
-	if p.SetHistoryRouter("b") != true {
-		t.Fatal("switching reported no change")
+	// Recording starts.
+	p := PlanSync([]Router{on}, "", nil)(Live{"a": {}})
+	if len(p.Rebuild) != 1 || p.Rebuild[0] != "a" {
+		t.Errorf("turning reporting ON planned %+v, want a rebuild of a", p)
 	}
-	if !p.pendingRebuild["a"] {
-		t.Error("the OLD router was not marked for rebuild; it would keep recording")
+	// Recording stops.
+	p = PlanSync([]Router{rec}, "", nil)(Live{"a": {ReportingEnabled: true}})
+	if len(p.Rebuild) != 1 || p.Rebuild[0] != "a" {
+		t.Errorf("turning reporting OFF planned %+v, want a rebuild of a", p)
 	}
-	if !p.pendingRebuild["b"] {
-		t.Error("the NEW router was not marked for rebuild; it would never start")
-	}
-
-	// IDEMPOTENT. Re-naming the same router must not churn sessions: `Sync` runs
-	// on every routers change, and a rebuild drops and re-dials a connection.
-	p.pendingRebuild = map[string]bool{}
-	if p.SetHistoryRouter("b") != false {
-		t.Error("re-naming the same router reported a change")
-	}
-	if len(p.pendingRebuild) != 0 {
-		t.Errorf("re-naming the same router marked %v for rebuild", p.pendingRebuild)
+	// IDEMPOTENT. `Sync` runs on every routers change, and a rebuild drops and
+	// re-dials a connection — so an unchanged flag must plan nothing.
+	p = PlanSync([]Router{on}, "", nil)(Live{"a": {ReportingEnabled: true}})
+	if len(p.Rebuild) != 0 || len(p.Build) != 0 || len(p.Drop) != 0 {
+		t.Errorf("an unchanged fleet planned %+v", p)
 	}
 }
 

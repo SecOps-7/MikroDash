@@ -352,10 +352,16 @@ func TestCollectorsStopWhenTheConnectionDrops(t *testing.T) {
 // second overwrites the first in the map and the first is LEAKED — still
 // dialled, still collecting, tracked by nothing that can stop it.
 //
-// It happened on every start. The first `SetHistoryRouter` always moves the
-// history target from "" to the active router and marks it for rebuild, and the
-// first `Sync` is also the one that BUILDS it. Measured on the running process:
-// two established sockets to the active router, one each to the other two.
+// It happened on every start, through the `SetHistoryRouter` mechanism that has
+// since been removed: its first call always moved the history target from "" to
+// the active router and marked it for rebuild, and the first `Sync` was also
+// the one that BUILT it. Measured on the running process: two established
+// sockets to the active router, one each to the other two.
+//
+// The setter is gone — recording is each router's own `ReportingEnabled` now —
+// but `pendingRebuild` is not: an ENDPOINT change still feeds it. So the
+// hazard is still reachable and this still guards it, driven through the flag
+// instead of the setter.
 //
 // FOUND BY A LOG LINE — "Mikrotik hAP AX3 connected" twice in the same second —
 // and NOT by the first test written for it, which re-implemented the merge
@@ -368,10 +374,11 @@ func TestTheHistoryRouterIsDialledOnlyOnce(t *testing.T) {
 	defer p.Close()
 	p.WithHistory(func(string, string, any) {})
 
-	// Exactly the order `syncAlertPool` uses on a cold start.
-	p.SetHistoryRouter("active")
+	// Exactly the shape `syncAlertPool` produces on a cold start: one router
+	// recording, built for the first time in the same Sync.
 	p.Sync([]Router{
-		{ID: "active", Label: "Active", Host: "198.51.100.1", AlertsEnabled: true},
+		{ID: "active", Label: "Active", Host: "198.51.100.1",
+			AlertsEnabled: true, ReportingEnabled: true},
 		{ID: "other", Label: "Other", Host: "198.51.100.2", AlertsEnabled: true},
 	}, "", nil)
 

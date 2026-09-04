@@ -424,6 +424,7 @@ func (s *Server) syncPool() {
 		}
 		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
 		s.noteConnThreshold(r.ID, r.ConnDownThresholdSec)
+		s.declareReporting(r)
 		cfgs = append(cfgs, routers.RouterConfig{
 			ID: r.ID, Label: r.Label, Host: r.Host, Port: r.Port,
 			TLS: r.TLS, InsecureTLS: r.TLSInsecure,
@@ -442,6 +443,9 @@ func (s *Server) syncPool() {
 			// "no data unless I have the Dashboard open".
 			DefaultIf:  routers.DefaultIfFor(r.DefaultIf, global),
 			PingTarget: r.PingTarget,
+			// See the note in `syncAlertPool`: a hand-written field list, so a
+			// flag left out here is invisible to the pool.
+			ReportingEnabled: store.ReportingOn(r),
 		})
 	}
 
@@ -489,6 +493,24 @@ func (s *Server) globalDefaultIf() string {
 // to say which ones.
 func (s *Server) declareRecordedInterfaces(routerID, defaultIf string) {
 	s.historyWire.SetRecordedInterfaces(routerID, []string{defaultIf})
+}
+
+// declareReporting tells the two recorders what this router's reporting setting
+// means for them.
+//
+// TWO CONSUMERS, ONE SETTING. The history wire stops writing traffic, ping and
+// connectivity rows; the alert wire stops writing alert rows and keeps its
+// de-duplication in memory instead, so alerts still notify. Declared together
+// here so the pair cannot drift — a router recording no history but still
+// filing alert rows would be a half-applied setting nobody asked for.
+//
+// Called from BOTH fleet syncs, because either pool may hold a given router.
+func (s *Server) declareReporting(r store.Router) {
+	on := store.ReportingOn(r)
+	s.historyWire.SetReporting(r.ID, on)
+	if s.alerts != nil {
+		s.alerts.SetPersisting(r.ID, on)
+	}
 }
 
 // noteConnThreshold remembers this router's outage debounce, in milliseconds.

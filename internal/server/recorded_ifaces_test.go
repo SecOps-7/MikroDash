@@ -114,11 +114,14 @@ func (r *rowSink) PersistHistoryLogged(rows []history.Row) int { r.n += len(rows
 
 // threshFixture: r1 leaves the debounce unset (live default 30s), r2 asks for
 // zero, which is a deliberate setting rather than an absence.
+// REPORTING ON, EXPLICITLY. Connectivity is report data, so a router with
+// reporting off writes no row whatever its debounce — which is the correct new
+// behaviour and would make every case below pass for the wrong reason.
 const threshFixture = `[
   {"id":"r1","label":"One","host":"198.51.100.1","port":8728,"username":"u","password":"",
-   "defaultIf":"ether1"},
+   "defaultIf":"ether1","reportingEnabled":true},
   {"id":"r2","label":"Two","host":"198.51.100.2","port":8728,"username":"u","password":"",
-   "defaultIf":"ether1","connDownThresholdSec":0}
+   "defaultIf":"ether1","connDownThresholdSec":0,"reportingEnabled":true}
 ]`
 
 func threshServer(t *testing.T) (*Server, *rowSink) {

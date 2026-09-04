@@ -221,6 +221,7 @@ func (s *Server) syncAlertPool() {
 	for _, r := range all {
 		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
 		s.noteConnThreshold(r.ID, r.ConnDownThresholdSec)
+		s.declareReporting(r)
 		out = append(out, alertpool.Router{
 			ID: r.ID, Label: r.Label, Host: r.Host, Port: r.Port,
 			TLS: r.TLS, InsecureTLS: r.TLSInsecure,
@@ -228,7 +229,11 @@ func (s *Server) syncAlertPool() {
 			PingTarget:    r.PingTarget,
 			DefaultIf:     routers.DefaultIfFor(r.DefaultIf, global),
 			AlertsEnabled: r.AlertsEnabled,
-			Disabled:      r.Disabled, Collection: collectionRaw(r),
+			// PER-ROUTER RECORDING, replacing the single history id below.
+			// `alertpool.Router` is a hand-written field list, so a flag left
+			// out of it is invisible to the whole pool.
+			ReportingEnabled: store.ReportingOn(r),
+			Disabled:         r.Disabled, Collection: collectionRaw(r),
 		})
 	}
 	// ── THE HISTORY TARGET IS THE REAL ACTIVE ROUTER, NOT `activeID` ──────
@@ -238,11 +243,14 @@ func (s *Server) syncAlertPool() {
 	// opposite of what is wanted — it is the router that most needs covering
 	// when no browser is open.
 	//
-	// History needs the actual id, and reusing that constant set the recorded
-	// router to "none". Measured: with the two conflated, four minutes with no
-	// browser produced zero rows while the pool was connected to all three
-	// routers. Two different questions, two different values.
-	s.alertPool.SetHistoryRouter(s.activeRouterID())
+	// History used to need the actual id here, because ONE router recorded and
+	// it was the active one. Conflating the two values with the constant above
+	// set the recorded router to "none": measured, four minutes with no browser
+	// produced zero rows while the pool was connected to all three routers.
+	//
+	// That whole question is gone. Recording is each router's own
+	// `ReportingEnabled`, carried in the projection above, and `PlanSync`
+	// rebuilds a session whose flag changed. `activeID` is still the constant.
 	s.alertPool.Sync(out, activeID, excluded)
 }
 
@@ -261,9 +269,10 @@ var _ = collection.Resolve
 
 // activeRouterID reads the install's active router.
 //
-// Its own function because two callers now need it for two unrelated reasons —
-// the history target here, and `syncHistoryRouter` for the overview pool — and a
-// second inline settings read is a second thing to get wrong.
+// Its own function because more than one caller needs it, and a second inline
+// settings read is a second thing to get wrong. It no longer decides who
+// records — that was `SetHistoryRouter`, and it is each router's own setting
+// now — but it still answers "which router is this install pointed at".
 func (s *Server) activeRouterID() string {
 	if s.store == nil {
 		return ""
