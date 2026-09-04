@@ -456,6 +456,24 @@ func (s *Server) syncPool() {
 		}
 	}
 	s.pool.Sync(cfgs, excluded)
+	// ── AND HAND IT BACK IF NOBODY IS WATCHING ────────────────────────────
+	//
+	// `Sync` DIALS. Most callers here are not the Devices page — a router edit,
+	// a create, a delete, a site change — and each one woke the overview pool
+	// against the whole fleet and left it there for the life of the process,
+	// because a release is only ever scheduled when somebody stops watching a
+	// page they never started watching.
+	//
+	// Two costs, and the second is the one that was reported: a connection to
+	// every router nobody asked for, and `/healthz` reporting the active router
+	// disconnected — `alertPoolExclusions` hands those routers to the overview
+	// pool and the alert pool forgets their status. Measured against 0.8.18: one
+	// router edit, then `ok:false` for as long as the process ran.
+	//
+	// `scheduleDevicesRelease` re-reads the watcher set when it fires, so this
+	// is a no-op while the Devices page IS open — which is why it can live here,
+	// once, rather than at each of the five callers.
+	s.scheduleDevicesRelease()
 }
 
 // globalDefaultIf is the install-wide default interface, the low half of the
