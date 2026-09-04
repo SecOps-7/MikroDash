@@ -15,6 +15,7 @@ package session
 
 import (
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -74,6 +75,16 @@ type Session struct {
 
 	h   *hub.Hub
 	cfg routeros.Config
+
+	// wake interrupts the connect loop's retry sleep.
+	//
+	// BUFFERED, AND SENT TO WITHOUT BLOCKING, so a signal raised while the loop
+	// is dialling rather than sleeping is remembered instead of lost, and no
+	// caller can ever block on it. It exists because the auth backoff makes that
+	// sleep up to five minutes long: without it, correcting a password would
+	// leave the operator waiting out the rest of a sleep, and a teardown would
+	// leave the goroutine parked for the same time.
+	wake chan struct{}
 
 	mu     sync.Mutex
 	client *routeros.Client
@@ -530,6 +541,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		alertsEnabled: rec.AlertsEnabled,
 		h:             m.h,
 		refs:          1,
+		wake:          make(chan struct{}, 1),
 		cfg: routeros.Config{
 			Host: rec.Host, Port: rec.Port,
 			Username: rec.Username, Password: rec.Password,
@@ -857,6 +869,15 @@ func (m *Manager) Reconfigure(routerID string, cfg routeros.Config) bool {
 	if c != nil {
 		_ = c.Close()
 	}
+	// ── AND THE LOOP IS WOKEN, WHICH IS THE WHOLE POINT ON THIS PATH ──────
+	//
+	// Closing the socket is enough when the loop is CONNECTED, because
+	// `waitUntilDown` notices. It is not enough when the loop is between dials,
+	// which is exactly where a session with a rejected credential spends its
+	// time — and with the auth backoff that sleep reaches five minutes. Without
+	// this nudge, correcting a password would appear to do nothing for up to
+	// five minutes, on the one screen whose entire purpose is fixing it.
+	s.nudge()
 	log.Printf("[session] %s: endpoint or credentials changed, reconnecting", s.Label)
 	s.announce()
 	return true
@@ -949,6 +970,11 @@ func (m *Manager) idleOut(routerID string, s *Session) {
 	c := s.client
 	s.mu.Unlock()
 	m.mu.Unlock()
+
+	// The connect loop reads `closed` when it wakes, so a session torn down
+	// mid-sleep leaves its goroutine parked for the rest of the interval. That
+	// was five seconds and is now up to five minutes.
+	s.nudge()
 
 	// ── THE LAST MINUTE, BEFORE THE COLLECTORS STOP ───────────────────────
 	//
@@ -1083,6 +1109,16 @@ var errUnknownRouter = unknownRouter{}
 // after the device is answering.
 func (s *Session) connectLoop() {
 	const retry = 5 * time.Second
+	// ── EXCEPT WHEN THE ROUTER IS REJECTING THE CREDENTIAL ────────────────
+	//
+	// The flat interval above is right for a connection that fails to arrive,
+	// for the reason this comment already gives. It is wrong when the router
+	// answers and says no: a wrong password does not come right on its own, and
+	// every attempt writes a failed login into the router's own log. See
+	// routeros.AuthBackoff.
+	//
+	// Owned by this goroutine alone, which is what lets it be lock-free.
+	var authBackoff routeros.AuthBackoff
 	first := true
 	for {
 		s.mu.Lock()
@@ -1110,8 +1146,26 @@ func (s *Session) connectLoop() {
 			s.lastErr = safe.Message(err.Error())
 			s.mu.Unlock()
 			s.announce()
-			log.Printf("[session] %s: %v; retrying in %s", s.Label, err, retry)
-			time.Sleep(retry)
+			wait := authBackoff.Delay(err, retry)
+			// WRITTEN WITHOUT AN else BRANCH, deliberately.
+			// TestEverythingSuspendedOnDisconnectIsResumedOnReconnect locates the
+			// reconnect block by finding the FIRST closing-brace-else-brace in
+			// this file, so an earlier one re-aims it at the wrong block. It
+			// failed closed and said "the anchors have moved", which is the check
+			// working.
+			//
+			// And the anchor cannot be spelled out here either: `strings.Index`
+			// does not care that it is inside a comment. Writing it out to
+			// explain the rule broke the rule, which is the same trap
+			// `isTestSource` exists for one level up.
+			rejected := ""
+			if n := authBackoff.Failures(); n > 1 {
+				rejected = " (rejected " + strconv.Itoa(n) + " times)"
+			}
+			log.Printf("[session] %s: %v%s; retrying in %s", s.Label, err, rejected, wait)
+			if !s.sleepOrWake(wait) {
+				return
+			}
 			continue
 		}
 
@@ -1126,6 +1180,9 @@ func (s *Session) connectLoop() {
 		s.lastErr = ""
 		s.observed = true
 		s.mu.Unlock()
+		// THE RUN IS OVER. Without this a router that was rejecting logins keeps
+		// its climb, so the next unrelated drop waits out a five-minute sleep.
+		authBackoff.Reset()
 		log.Printf("[session] %s connected", s.Label)
 		s.announce()
 
@@ -1462,6 +1519,37 @@ func (s *Session) connectLoop() {
 		s.announce()
 		log.Printf("[session] %s disconnected; retrying in %s", s.Label, retry)
 		time.Sleep(retry)
+	}
+}
+
+// sleepOrWake waits out a retry interval, and reports whether the loop should
+// carry on. False means the session is closed and the goroutine must leave.
+//
+// A PLAIN `time.Sleep` WAS ENOUGH AT FIVE SECONDS AND IS NOT AT FIVE MINUTES.
+// It made teardown wait out the remainder — harmless at 5s, a goroutine parked
+// on a dead session for minutes once the auth backoff climbed — and it made a
+// corrected password wait for the same. Both wake this.
+func (s *Session) sleepOrWake(d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+	case <-s.wake:
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.closed
+}
+
+// nudge wakes the connect loop if it is sleeping, and never blocks.
+//
+// The buffered channel is what makes a signal raised while the loop is BUSY
+// still count: it is taken on the next sleep rather than dropped. A second
+// nudge before the first is consumed is redundant and correctly discarded.
+func (s *Session) nudge() {
+	select {
+	case s.wake <- struct{}{}:
+	default:
 	}
 }
 

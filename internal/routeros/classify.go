@@ -57,6 +57,23 @@ type Classification struct {
 	// browser without passing it through safe.Message or substituting its own
 	// generic string — the live header carries the same warning.
 	Classified bool
+	// Auth is whether the ROUTER REJECTED THE CREDENTIAL, as opposed to the
+	// connection failing to arrive.
+	//
+	// It is a field rather than a second matcher because the distinction decides
+	// how hard to retry, and a separate predicate would be free to disagree with
+	// the branch below. See AuthBackoff: a timeout is worth retrying every five
+	// seconds, and a rejected password is not — it cannot come right on its own,
+	// and every attempt writes a failed login into the router's own log.
+	Auth bool
+}
+
+// IsAuthFailure reports whether an error is the router refusing the credential.
+//
+// Delegates to ClassifyError so there is ONE set of strings deciding this. The
+// host, port and user only shape the operator hint, which this discards.
+func IsAuthFailure(err error) bool {
+	return ClassifyError(err, "", "", "", false).Auth
 }
 
 // ClassifyError maps a dial or read failure onto a reason and an operator hint.
@@ -114,8 +131,10 @@ func ClassifyError(err error, host, port, user string, tls bool) Classification 
 	// the live branch's own alternatives, kept so a differently-worded driver
 	// still lands here.
 	case has("cannot log in", "authentication", "login", "invalid user", "wrong password"):
-		return out("Authentication failed — check username and password",
+		c := out("Authentication failed — check username and password",
 			`Confirm user "`+user+`" exists on the router and has API access: /user print`)
+		c.Auth = true
+		return c
 	}
 
 	// The device answered with an error — node's RosException branch.

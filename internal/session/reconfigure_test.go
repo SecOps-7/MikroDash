@@ -116,3 +116,89 @@ func TestReconfigureOnARouterNobodyIsWatchingIsHarmless(t *testing.T) {
 		t.Error("reported a change for an unknown router")
 	}
 }
+
+// ── THE BACKOFF'S ESCAPE HATCH ──────────────────────────────────────────────
+//
+// `connectLoop` waits out its retry in `sleepOrWake`, and with the auth backoff
+// that wait reaches five minutes. Two things must be able to cut it short, or
+// the backoff turns a bounded annoyance into an outage:
+//
+//   a corrected credential — otherwise the operator fixes the password on the
+//   one screen that exists for it and watches nothing happen for five minutes;
+//   and a teardown — otherwise the goroutine sits on a dead session for the
+//   rest of the interval.
+//
+// A plain `time.Sleep` was fine at five seconds and is not at five minutes,
+// which is why this is tested rather than assumed.
+
+func TestASleepingLoopIsWokenByANudge(t *testing.T) {
+	m := graceManager(t, time.Hour)
+	s, err := m.Acquire("r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Release("r1")
+
+	done := make(chan bool, 1)
+	go func() { done <- s.sleepOrWake(3 * time.Second) }()
+	// Let the sleeper actually park before waking it, or this passes by racing.
+	time.Sleep(20 * time.Millisecond)
+	s.nudge()
+
+	select {
+	case carryOn := <-done:
+		if !carryOn {
+			t.Error("the loop was told to stop rather than to redial")
+		}
+	// SHORTER THAN THE SLEEP, so a dropped nudge FAILS here rather than passing
+	// three seconds later. A killed mutation that hangs is nearly as bad as one
+	// that survives: it reads as a broken test run.
+	case <-time.After(time.Second):
+		t.Fatal("a nudge did not interrupt the retry sleep, so a corrected " +
+			"credential waits out the whole auth backoff")
+	}
+}
+
+func TestAWokenLoopLeavesWhenTheSessionIsClosed(t *testing.T) {
+	m := graceManager(t, time.Hour)
+	s, err := m.Acquire("r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan bool, 1)
+	go func() { done <- s.sleepOrWake(3 * time.Second) }()
+	time.Sleep(20 * time.Millisecond)
+	m.CloseNow("r1")
+
+	select {
+	case carryOn := <-done:
+		if carryOn {
+			t.Error("the loop was told to carry on dialling a torn-down session")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("teardown did not interrupt the retry sleep; the goroutine " +
+			"would sit on a dead session for the rest of the backoff")
+	}
+}
+
+// TestANudgeRaisedWhileBusyIsNotLost — the channel is buffered for this. A
+// signal raised while the loop is dialling rather than sleeping must be taken on
+// the next sleep, not dropped.
+func TestANudgeRaisedWhileBusyIsNotLost(t *testing.T) {
+	m := graceManager(t, time.Hour)
+	s, err := m.Acquire("r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Release("r1")
+
+	s.nudge() // nobody is sleeping yet
+	start := time.Now()
+	if !s.sleepOrWake(3 * time.Second) {
+		t.Fatal("reported the session closed")
+	}
+	if d := time.Since(start); d > time.Second {
+		t.Errorf("the sleep ran for %s — the earlier nudge was dropped", d)
+	}
+}

@@ -375,6 +375,13 @@ func (p *Pool) report(id string, up bool) {
 // run is the connect loop: dial, watch, re-dial.
 func (s *poolSession) run(p *Pool) {
 	defer close(s.done)
+	// See routeros.AuthBackoff. This pool dials every router with alerting on,
+	// including ones nobody has looked at in weeks, so a rejected credential
+	// here is the least likely of the three to be noticed and the most likely to
+	// fill a router's log. `sleepOrStop` already returns early on teardown, and
+	// a credential change rebuilds the session (see Sync), so nothing else is
+	// needed to interrupt it.
+	var authBackoff routeros.AuthBackoff
 	for {
 		select {
 		case <-s.stop:
@@ -393,7 +400,7 @@ func (s *poolSession) run(p *Pool) {
 			// buries everything else in the log. The status transition is the
 			// record that it went down.
 			p.report(s.r.ID, false)
-			if !sleepOrStop(s.stop, p.retry) {
+			if !sleepOrStop(s.stop, authBackoff.Delay(err, p.retry)) {
 				return
 			}
 			continue
@@ -408,6 +415,7 @@ func (s *poolSession) run(p *Pool) {
 		s.conn = c
 		s.mu.Unlock()
 		log.Printf("[alertpool] %s connected", s.r.Label)
+		authBackoff.Reset() // the run of rejections is over
 		p.report(s.r.ID, true)
 		// STARTED ON EVERY CONNECT, including a reconnect: the collectors were
 		// stopped when the socket dropped, and a session that reconnected

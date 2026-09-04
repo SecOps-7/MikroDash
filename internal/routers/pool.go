@@ -565,6 +565,15 @@ func (s *poolSession) setHistoryCollectors(on bool) {
 // run is one session's connect loop: dial, serve, retry.
 func (s *poolSession) run(p *Pool) {
 	defer close(s.done)
+	// A REJECTED CREDENTIAL IS NOT RETRIED LIKE AN UNREACHABLE ROUTER. See
+	// routeros.AuthBackoff: this pool holds every router nobody is watching, so
+	// a fleet with one bad password writes a failed login into that router's log
+	// every five seconds for the life of the process. Owned by this goroutine.
+	//
+	// NO WAKE CHANNEL IS NEEDED HERE, unlike the interactive session: a changed
+	// credential DESTROYS this session and builds a new one (see Sync), and
+	// `destroy` closes `s.stop`, which the select below is already waiting on.
+	var authBackoff routeros.AuthBackoff
 	for {
 		select {
 		case <-s.stop:
@@ -591,7 +600,7 @@ func (s *poolSession) run(p *Pool) {
 			select {
 			case <-s.stop:
 				return
-			case <-time.After(p.retry):
+			case <-time.After(authBackoff.Delay(err, p.retry)):
 			}
 			continue
 		}
@@ -608,6 +617,7 @@ func (s *poolSession) run(p *Pool) {
 		s.conn = conn
 		start := s.sess.OnConnected()
 		s.mu.Unlock()
+		authBackoff.Reset() // the run of rejections is over
 
 		if start {
 			s.startCollectors()
