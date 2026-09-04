@@ -76,6 +76,11 @@ type Session struct {
 	h   *hub.Hub
 	cfg routeros.Config
 
+	// history is the recorder, captured from the Manager when this session is
+	// built. Nil-safe: every method on it guards its own receiver, so an install
+	// with no history database simply records nothing.
+	history *historywire.Wire
+
 	// wake interrupts the connect loop's retry sleep.
 	//
 	// BUFFERED, AND SENT TO WITHOUT BLOCKING, so a signal raised while the loop
@@ -540,6 +545,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		Label:         rec.Label,
 		alertsEnabled: rec.AlertsEnabled,
 		h:             m.h,
+		history:       m.history,
 		refs:          1,
 		wake:          make(chan struct{}, 1),
 		cfg: routeros.Config{
@@ -1119,6 +1125,30 @@ func (s *Session) connectLoop() {
 	//
 	// Owned by this goroutine alone, which is what lets it be lock-free.
 	var authBackoff routeros.AuthBackoff
+	// ── CONNECTIVITY IS RECORDED ON TRANSITIONS, AND THAT IS A DIVERGENCE ──
+	//
+	// `historywire.Wire.Connected` / `.Disconnected` had NO production caller
+	// anywhere in this port. `connectivity_events` therefore stopped being
+	// written at the cutover while ping and traffic kept going, and the Reports
+	// page — reading a table frozen mid-outage — showed every router Down with
+	// ~2% uptime. The state machine and its corpus were ported; only the two
+	// calls that drive them were missing. `internal/history/connectivity.go`
+	// says so in its own header: "NOTHING CONSTRUCTS THIS YET."
+	//
+	// THE THRESHOLD IS ZERO, deliberately, and that decides the shape of this.
+	// Rule 4 of that file makes a zero threshold its own branch which writes on
+	// EVERY close and needs no `Tick` — and no ticker exists to drive one, while
+	// `connDownThresholdSec` is not even modelled on `store.Router`. Zero is the
+	// only value with a complete path behind it.
+	//
+	// But "every close" is what a dial loop produces most of: a router down for a
+	// day would write thousands of identical rows. The live app did exactly that
+	// — the frozen tail in this install's database is 248 consecutive `connected
+	// =0` rows, 30 seconds apart, from the Node app's own shutdown loop. So this
+	// reports a TRANSITION rather than an event, giving one row per outage and
+	// one per recovery. Rule 1 already does this on the way up; `reportedDown` is
+	// the same idea on the way down.
+	reportedDown := false
 	first := true
 	for {
 		s.mu.Lock()
@@ -1146,6 +1176,10 @@ func (s *Session) connectLoop() {
 			s.lastErr = safe.Message(err.Error())
 			s.mu.Unlock()
 			s.announce()
+			if !reportedDown {
+				reportedDown = true
+				s.history.Disconnected(s.RouterID, 0, time.Now().UnixMilli())
+			}
 			wait := authBackoff.Delay(err, retry)
 			// WRITTEN WITHOUT AN else BRANCH, deliberately.
 			// TestEverythingSuspendedOnDisconnectIsResumedOnReconnect locates the
@@ -1183,6 +1217,11 @@ func (s *Session) connectLoop() {
 		// THE RUN IS OVER. Without this a router that was rejecting logins keeps
 		// its climb, so the next unrelated drop waits out a five-minute sleep.
 		authBackoff.Reset()
+		reportedDown = false
+		// The status this returns is discarded: `announce` below already sends
+		// `router:status` on every connect, including the reconnects that write
+		// no row, and a second emit would double every badge update.
+		s.history.Connected(s.RouterID, 0, time.Now().UnixMilli())
 		log.Printf("[session] %s connected", s.Label)
 		s.announce()
 
@@ -1466,6 +1505,14 @@ func (s *Session) connectLoop() {
 		s.client = nil
 		s.connected = false
 		s.mu.Unlock()
+
+		// A DROP IS A TRANSITION whether or not anybody is watching. Recorded
+		// here rather than only on the failed redial, so an outage's start is the
+		// moment the link went rather than five seconds later.
+		if down && !reportedDown {
+			reportedDown = true
+			s.history.Disconnected(s.RouterID, 0, time.Now().UnixMilli())
+		}
 
 		// ── CLOSE THE CLIENT WE ARE ABANDONING ────────────────────────────
 		//

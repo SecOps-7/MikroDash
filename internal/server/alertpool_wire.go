@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"os"
+	"time"
 
 	"mikrodash/internal/alert"
 	"mikrodash/internal/alertpool"
@@ -74,6 +75,26 @@ func dialForAlertPool(cfg routeros.Config) (alertpool.Conn, error) {
 // event for pooled routers would mean a second reader, and the Settings table
 // would show one kind of router and not the other.
 func (s *Server) alertPoolStatus(routerID string, connected bool) {
+	// ── AND IT IS RECORDED, WHICH NOTHING DID ─────────────────────────────
+	//
+	// `historywire.Wire.Connected` / `.Disconnected` had no production caller in
+	// this port at all, so `connectivity_events` stopped being written at the
+	// cutover while ping and traffic carried on. The Reports page read the
+	// frozen table and reported every router Down. See the longer note in
+	// `session.connectLoop`, which covers the other half of the fleet.
+	//
+	// NO TRANSITION GUARD IS NEEDED HERE, unlike the session: `alertpool.report`
+	// consults `note()` and calls this hook ONLY when the state actually
+	// changed, so one row per outage falls out of the existing contract.
+	//
+	// The threshold is zero for the reason given there, and the returned status
+	// is discarded because the two broadcasts below already send it.
+	now := time.Now().UnixMilli()
+	if connected {
+		s.historyWire.Connected(routerID, 0, now)
+	} else {
+		s.historyWire.Disconnected(routerID, 0, now)
+	}
 	s.hub.Broadcast("router-"+routerID, "router:status",
 		map[string]any{"routerId": routerID, "connected": connected})
 	// The fleet-wide room too: the Settings and Devices tables show every router,

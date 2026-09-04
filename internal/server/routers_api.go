@@ -456,6 +456,13 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 	if s.sessions != nil {
 		s.sessions.CloseNow(id)
 	}
+	// THE CONNECTIVITY STATE GOES WITH THE ROUTER, and only here. Its own
+	// header is explicit that this must never happen on a disconnect: the state
+	// is what distinguishes "never observed" from "was up, now down", and
+	// dropping it mid-life would make the next connect look like a first
+	// sighting and write a spurious "up" row. A removed router is the one case
+	// where forgetting is right, and it had no caller either.
+	s.historyWire.Forget(id)
 	if s.auditDB != nil {
 		if err := s.auditDB.DeleteRouterData(id); err != nil {
 			log.Printf("[routers] purge %s: %v", id, err)
