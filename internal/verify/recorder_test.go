@@ -45,6 +45,16 @@ var recorderUnwired = map[string]string{
 	// somebody does.
 	"Tick": "no ticker: both callers use a zero threshold, which is its own " +
 		"branch in internal/history and needs no debounce",
+	// `Records` is a PREDICATE, not a writer, and this check is about writers:
+	// its question is "does a table stop being written because nothing calls
+	// this". `Record` consults it on every traffic sample from inside the
+	// package, which the scan cannot see because it excludes the recorder's own
+	// source. It is exported so a caller can ask what a declaration means
+	// without reproducing the empty-list rule — which is the half that is easy
+	// to get backwards — and `SetRecordedInterfaces`, the entry point that
+	// actually matters, IS called from the fleet syncs and is checked here.
+	"Records": "a predicate consulted by Record inside the package; exported for " +
+		"callers to ask rather than to be driven",
 }
 
 func TestEveryRecorderEntryPointHasAProductionCaller(t *testing.T) {

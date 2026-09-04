@@ -309,6 +309,17 @@ func (s *Session) APIPort() int {
 // reader adapts the session to collect.Reader. The indirection matters: the
 // client is REPLACED on a reconnect, and a collector holding the old pointer
 // would read from a closed connection for ever.
+// globalDefaultIf is the install-wide default interface, the middle rung of the
+// precedence `routers.DefaultIfFor` resolves. Read straight off the settings map
+// rather than through `store.Merge`: the environment overlay is the server's
+// business, and this only needs the stored value to stop being the odd one out.
+func globalDefaultIf(cfg store.Settings) string {
+	// `defaultIf` — the key the settings table declares. `defaultInterface` is
+	// not one, and reading it returned "" on every install.
+	v, _ := cfg["defaultIf"].(string)
+	return v
+}
+
 // defaultIfOr is index.js's fallback: a router record that names no default
 // interface still needs one, because the WAN badge reads it.
 func defaultIfOr(v, fallback string) string {
@@ -743,7 +754,22 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// The default interface is what the WAN badge watches, so it is always in
 	// the stream even when nobody has selected it. Five minutes of history, as
 	// the live app keeps.
-	s.traffic = collect.NewTraffic(reader{s}, emit, defaultIfOr(rec.DefaultIf, "WAN1"), 5)
+	//
+	// ── THE FALLBACK IS "ether1", NOT "WAN1" ────────────────────────────────
+	//
+	// This was the third of three answers to one question. The Devices page
+	// resolves router → global setting → "ether1"; both background pools took
+	// the router's value RAW and streamed nothing without one; and this
+	// substituted "WAN1", an interface name that exists on some MikroTik
+	// defaults and not on most.
+	//
+	// So a router with no default interface recorded nothing in the background
+	// and, the moment a browser attached, streamed an interface that probably
+	// does not exist — which looks identical to a router that is simply quiet.
+	// The global setting is honoured here now too, so the badge, the history and
+	// the page all name the same interface.
+	s.traffic = collect.NewTraffic(reader{s}, emit,
+		defaultIfOr(rec.DefaultIf, defaultIfOr(globalDefaultIf(cfgSettings), "ether1")), 5)
 
 	m.live[routerID] = s
 	go s.connectLoop()

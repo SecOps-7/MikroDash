@@ -9,6 +9,7 @@ import (
 	"mikrodash/internal/alertpool"
 	"mikrodash/internal/collection"
 	"mikrodash/internal/routeros"
+	"mikrodash/internal/routers"
 	"mikrodash/internal/store"
 )
 
@@ -206,13 +207,21 @@ func (s *Server) syncAlertPool() {
 
 	excluded := s.alertPoolExclusions()
 
+	// THE SAME RESOLUTION THE POOL AND THE PAGE USE. Taken raw, a router with
+	// no default interface gave this pool an empty traffic stream — and this
+	// pool is the one that runs when nobody is watching, so its history simply
+	// did not exist. See `syncPool`.
+	global := s.globalDefaultIf()
+
 	out := make([]alertpool.Router, 0, len(all))
 	for _, r := range all {
+		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
 		out = append(out, alertpool.Router{
 			ID: r.ID, Label: r.Label, Host: r.Host, Port: r.Port,
 			TLS: r.TLS, InsecureTLS: r.TLSInsecure,
 			Username: r.Username, Password: r.Password,
-			PingTarget: r.PingTarget, DefaultIf: r.DefaultIf,
+			PingTarget:    r.PingTarget,
+			DefaultIf:     routers.DefaultIfFor(r.DefaultIf, global),
 			AlertsEnabled: r.AlertsEnabled,
 			Disabled:      r.Disabled, Collection: collectionRaw(r),
 		})

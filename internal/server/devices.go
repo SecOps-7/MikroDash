@@ -97,12 +97,18 @@ func (s *Server) buildStatsSources(sess *Session) routers.StatsSources {
 
 	// The GLOBAL default interface, the low half of the precedence a row
 	// resolves. `BuildStats` falls back again to "ether1" after it.
-	if cfg, err := s.store.Settings(); err == nil {
-		merged, _ := store.Merge(cfg, os.LookupEnv, s.store)
-		if v, ok := merged["defaultInterface"].(string); ok {
-			out.DefaultIf = v
-		}
-	}
+	//
+	// ── THE KEY IS `defaultIf`, AND IT WAS `defaultInterface` HERE ─────────
+	//
+	// `Merge` DROPS a key that is not in the defaults table — deliberately, so a
+	// retired setting left on disk cannot reappear — so this read returned
+	// nothing on every install and the global setting was silently ignored. It
+	// looked harmless because the table's default for `defaultIf` is "ether1"
+	// and so is `DefaultIfFor`'s fallback, so the two agreed by accident
+	// wherever nobody had changed the setting. An operator who DID change it was
+	// overruled, everywhere, with no error. Found while wiring the same read
+	// into the recorders (#126).
+	out.DefaultIf = s.globalDefaultIf()
 
 	// INTERACTIVE sessions. Presence decides which rows read a main payload;
 	// `Connected()` decides what the row says, because a session exists before it
@@ -409,11 +415,13 @@ func (s *Server) syncPool() {
 		return
 	}
 	all, _ := s.store.Routers()
+	global := s.globalDefaultIf()
 	cfgs := make([]routers.RouterConfig, 0, len(all))
 	for _, r := range all {
 		if r.Disabled {
 			continue // a disabled router is not connected to at all
 		}
+		s.declareRecordedInterfaces(r.ID, routers.DefaultIfFor(r.DefaultIf, global))
 		cfgs = append(cfgs, routers.RouterConfig{
 			ID: r.ID, Label: r.Label, Host: r.Host, Port: r.Port,
 			TLS: r.TLS, InsecureTLS: r.TLSInsecure,
@@ -425,7 +433,12 @@ func (s *Server) syncPool() {
 			// For the history pair only — the same two values Session passes to
 			// NewTraffic and NewPing, so a pooled recording and a page-driven one
 			// measure the same interface and target.
-			DefaultIf:  r.DefaultIf,
+			// RESOLVED, not raw. A router with no default interface produced an
+			// EMPTY stream here — `syncStream` opens nothing for an empty
+			// interface list — so the background recorder wrote no traffic at
+			// all until a browser attached and added one. That is the reported
+			// "no data unless I have the Dashboard open".
+			DefaultIf:  routers.DefaultIfFor(r.DefaultIf, global),
 			PingTarget: r.PingTarget,
 		})
 	}
@@ -437,6 +450,43 @@ func (s *Server) syncPool() {
 		}
 	}
 	s.pool.Sync(cfgs, excluded)
+}
+
+// globalDefaultIf is the install-wide default interface, the low half of the
+// precedence `routers.DefaultIfFor` resolves. Empty when unset or unreadable,
+// which lets the fallback take over rather than making settings a hard
+// dependency of recording.
+func (s *Server) globalDefaultIf() string {
+	if s.store == nil {
+		return ""
+	}
+	cfg, err := s.store.Settings()
+	if err != nil {
+		return ""
+	}
+	merged, _ := store.Merge(cfg, os.LookupEnv, s.store)
+	// `defaultIf`, the key the settings table actually declares. See the note in
+	// `devicesSource`: `defaultInterface` is not in the defaults table, so Merge
+	// dropped it and this returned "" for every install.
+	v, _ := merged["defaultIf"].(string)
+	return v
+}
+
+// declareRecordedInterfaces tells the recorder which interfaces this router's
+// history covers.
+//
+// ONE INTERFACE TODAY — the resolved default. The point of declaring it is not
+// the number but the INDEPENDENCE: before this, the recorded set was whatever
+// happened to be in the traffic stream, which is the default plus every
+// interface a browser was watching. History therefore appeared and disappeared
+// with a browser tab. See `historywire.Wire.SetRecordedInterfaces`.
+//
+// Widening this to several interfaces — which a multi-WAN router needs, and
+// which costs no extra router channel because `/interface/monitor-traffic`
+// takes a comma list — is a separate change needing somewhere for the operator
+// to say which ones.
+func (s *Server) declareRecordedInterfaces(routerID, defaultIf string) {
+	s.historyWire.SetRecordedInterfaces(routerID, []string{defaultIf})
 }
 
 // devicesFocus is what a browser opening the Devices page sets in motion.

@@ -57,6 +57,10 @@ type Wire struct {
 	// debounce.
 	connMu sync.Mutex
 	conns  map[string]*connState
+	// recorded is, per router, the interfaces whose traffic reaches history.
+	// See SetRecordedInterfaces: an absent or empty entry records everything.
+	recMu    sync.Mutex
+	recorded map[string]map[string]bool
 }
 
 func New(enabled bool, store Store) *Wire {
@@ -85,6 +89,25 @@ func (w *Wire) Record(routerID, event string, payload any) {
 	switch p := payload.(type) {
 	case *collect.TrafficSample:
 		if event != "traffic:update" || p == nil {
+			return
+		}
+		// ── WHAT IS RECORDED IS A PROPERTY OF THE ROUTER, NOT OF WHO IS
+		//    LOOKING ─────────────────────────────────────────────────────────
+		//
+		// This seam sees every interface in the `monitor-traffic` stream, and
+		// that stream is `defaultIf` PLUS whatever interfaces browsers are
+		// currently watching. So opening the Dashboard and picking ether3 began
+		// writing ether3 into the history, and closing the tab stopped it: the
+		// browser was not displaying history, it was deciding what got written.
+		//
+		// The result was a Bandwidth report summing an interface whose history
+		// had holes wherever nobody happened to be looking, presented as an
+		// authoritative total. Reported on issue #126 as totals that "do not
+		// match the actual traffic passing through the router".
+		//
+		// An interface is now recorded because the ROUTER is configured to
+		// record it, so its series is continuous or absent — never partial.
+		if !w.Records(routerID, p.IfName) {
 			return
 		}
 		w.mu.Lock()
@@ -150,4 +173,51 @@ func (w *Wire) persist(rows []history.Row) {
 	if n := w.store.PersistHistoryLogged(rows); n != len(rows) {
 		log.Printf("[history] persisted %d of %d rows", n, len(rows))
 	}
+}
+
+// SetRecordedInterfaces names the interfaces whose traffic is written to
+// history for one router.
+//
+// ── AN EMPTY LIST RECORDS EVERYTHING, AND THAT IS THE SAFE DEFAULT ─────────
+//
+// A router the caller has said nothing about keeps the old behaviour rather
+// than silently recording nothing. That matters because this is set from the
+// pool syncs: a router seen by the recorder before the first sync, or on a
+// deployment that never calls this at all, must not lose its history to a
+// default nobody chose.
+//
+// Called on every fleet sync, so it is the place a changed default interface
+// takes effect. Cheap enough to call unconditionally: it replaces a small slice
+// under a mutex.
+func (w *Wire) SetRecordedInterfaces(routerID string, names []string) {
+	if w == nil || routerID == "" {
+		return
+	}
+	set := make(map[string]bool, len(names))
+	for _, n := range names {
+		if n != "" {
+			set[n] = true
+		}
+	}
+	w.recMu.Lock()
+	if w.recorded == nil {
+		w.recorded = map[string]map[string]bool{}
+	}
+	w.recorded[routerID] = set
+	w.recMu.Unlock()
+}
+
+// Records reports whether this router's samples for `ifName` are wanted.
+//
+// Exported so a caller — and a test — can ask what the declaration means
+// without reproducing the empty-list rule, which is the part that is easy to
+// get backwards.
+func (w *Wire) Records(routerID, ifName string) bool {
+	w.recMu.Lock()
+	defer w.recMu.Unlock()
+	set, ok := w.recorded[routerID]
+	if !ok || len(set) == 0 {
+		return true // nothing declared: record everything, as before
+	}
+	return set[ifName]
 }

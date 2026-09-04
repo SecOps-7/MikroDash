@@ -136,7 +136,7 @@ func BuildStats(src StatsSources) []Row {
 			IsActive:  isActive,
 			SiteIDs:   r.SiteIDs,
 			Geo:       r.Geo,
-			DefaultIf: defaultIfFor(r.DefaultIf, src.DefaultIf),
+			DefaultIf: DefaultIfFor(r.DefaultIf, src.DefaultIf),
 		}
 
 		// ONE SOURCE PER ROW, chosen by whether a session EXISTS — see the
@@ -175,9 +175,15 @@ func BuildStats(src StatsSources) []Row {
 	return out
 }
 
-// defaultIfFor is `r.defaultIf || cfg.defaultIf || 'ether1'` — the router's
+// DefaultIfFor is `r.defaultIf || cfg.defaultIf || 'ether1'` — the router's
 // choice, then the global setting, then the fallback.
-func defaultIfFor(router, global string) string {
+//
+// EXPORTED because the background recorders need the SAME answer the Devices
+// page shows. They took `r.DefaultIf` raw, so a router with none streamed
+// nothing at all when no browser was attached, while the interactive session
+// substituted "WAN1" and the page displayed "ether1" — three answers to one
+// question, and the two that mattered were invisible. See `syncPool`.
+func DefaultIfFor(router, global string) string {
 	if router != "" {
 		return router
 	}
