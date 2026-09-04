@@ -48,6 +48,10 @@ type Client struct {
 	mu      sync.Mutex
 	rooms   map[string]bool
 	dropped int
+	// closed is set by `Hub.Remove` before it closes `Send`, under the same
+	// mutex `deliver` takes. See deliver: without it, a frame delivered to a
+	// client that has just been removed panics and takes the PROCESS down.
+	closed bool
 }
 
 func NewClient(id string, queue int) *Client {
@@ -73,11 +77,53 @@ func (c *Client) Dropped() int {
 	return c.dropped
 }
 
+// deliver queues one frame, or drops it if this client is not keeping up.
+//
+// ── SENDING ON A CLOSED CHANNEL PANICS, AND IT KILLED THE PROCESS ──────────
+//
+// `Remove` closes `Send`, and NOTHING held a lock across the two. `Send` takes
+// no hub lock at all, and `Broadcast` releases it before delivering —
+// deliberately, so one slow client cannot block the fan-out. So any goroutine
+// holding a `*Client` could deliver into a channel that had just been closed,
+// and a send on a closed channel is not an error in Go: it panics, unrecovered,
+// and the whole server goes down with it — every session, the history recorder,
+// the alert dispatcher.
+//
+// OBSERVED on the operator's install, 2026-09-04:
+//
+//	panic: send on closed channel
+//	  hub.(*Client).deliver          hub.go:78
+//	  hub.(*Hub).Send                hub.go:295
+//	  server.(*conn).sendRoutersStats  devices.go:656
+//	  server.(*conn).startDevicesTick.func1
+//
+// The Devices page makes it likely rather than special: its refresh fires every
+// two seconds from its own goroutine, and `stopDevicesTick` only SIGNALS the
+// stop — it does not wait for the tick to leave. A tick already past its select
+// and inside `syncPool` (store reads, database queries, sockets closing) is a
+// wide window for teardown to run ahead of it. Every other broadcast path has
+// the same race with a narrower window.
+//
+// ── THE WHOLE SEND IS UNDER THE LOCK, AND THAT IS SAFE HERE ────────────────
+//
+// `Remove` sets `closed` and closes the channel while holding this same mutex,
+// so no send can be in flight when the close happens. Holding a lock across a
+// channel send would normally be a deadlock waiting to happen; it is not here
+// because the send is in a `select` with a `default` and therefore cannot
+// block.
 func (c *Client) deliver(b []byte) {
+	c.mu.Lock()
+	if c.closed {
+		// Not a dropped frame: there is no longer anybody to deliver to, and
+		// counting it would report a disconnected browser as a slow one.
+		c.mu.Unlock()
+		return
+	}
 	select {
 	case c.Send <- b:
+		c.mu.Unlock()
+		return
 	default:
-		c.mu.Lock()
 		c.dropped++
 		n := c.dropped
 		c.mu.Unlock()
@@ -121,8 +167,18 @@ func (h *Hub) Remove(c *Client) {
 		h.dropFromRoom(r, c)
 	}
 	c.rooms = map[string]bool{}
-	c.mu.Unlock()
+	// ── THE FLAG AND THE CLOSE, BOTH UNDER THE CLIENT'S OWN LOCK ──────────
+	//
+	// `deliver` takes this mutex around its send, so holding it here means no
+	// frame can be in flight while the channel closes. The close used to happen
+	// AFTER this unlock, which is the race that panicked the process.
+	//
+	// `Remove` already holds `h.mu` and takes `c.mu` second; `deliver` is
+	// reached from `Send` and `Broadcast`, which hold no hub lock or have
+	// released it. There is no path that takes them in the other order.
+	c.closed = true
 	close(c.Send)
+	c.mu.Unlock()
 }
 
 // dropFromRoom must be called with h.mu held.
