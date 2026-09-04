@@ -98,6 +98,20 @@ type Live map[string]bool
 // AN EMPTY activeID IS NOT A WILDCARD. A fresh install has no active router, and
 // reading "" as "exclude the router whose id is empty" is correct only because
 // no router has an empty id — asserted by a test rather than left to luck.
+// sameConnection reports whether two records reach the same router the same way.
+//
+// The six fields that decide the CONNECTION. `AlertsEnabled` is deliberately
+// absent: `PlanSync` already rebuilds on it, and it changes what a session DOES
+// rather than where it dials. `Collection` is absent for the opposite reason —
+// it is resolved when the session is built, so it needs a rebuild this
+// comparison would not give it. That gap is recorded on `Session.eff` in
+// internal/session rather than half-closed here.
+func sameConnection(a, b Router) bool {
+	return a.Host == b.Host && a.Port == b.Port &&
+		a.Username == b.Username && a.Password == b.Password &&
+		a.TLS == b.TLS && a.InsecureTLS == b.InsecureTLS
+}
+
 func PlanSync(all []Router, activeID string, excluded map[string]bool) func(Live) Plan {
 	return func(live Live) Plan {
 		want := map[string]Router{}

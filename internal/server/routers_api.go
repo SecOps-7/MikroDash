@@ -23,6 +23,7 @@ import (
 
 	"mikrodash/internal/audit"
 	"mikrodash/internal/rbac"
+	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
 	"mikrodash/internal/store"
 )
@@ -244,6 +245,38 @@ func (s *Server) routerUpdate(w http.ResponseWriter, r *http.Request) {
 	// `!!`, refuses it.
 	body = store.CoerceRouterPatch(body)
 
+	// ── THE PASSWORD IS SEALED HERE, OR IT IS DROPPED ─────────────────────
+	//
+	// `Router.Encrypted` is tagged `json:"password"`: on disk, `password` holds
+	// the SEALED credential. The dialog posts a field of the same name holding
+	// whatever is in the box. Passing the body through to `UpdateRouter` wrote
+	// one over the other, so EVERY Save from the Edit dialog destroyed the
+	// router's credential — blank (the normal case, since the dialog clears the
+	// box and promises "leave blank to keep current") replaced it with nothing,
+	// and a typed one wrote the operator's password to disk in clear where
+	// ciphertext belongs, which `Decrypt` then rejected. Either way the device
+	// stopped authenticating at once and retried for ever. Issue #124.
+	//
+	// BLANK AND THE MASK BOTH MEAN "KEEP CURRENT", which is the contract the
+	// placeholder states and the same rule the settings credentials follow. So
+	// there is no way to CLEAR a router password from this dialog, exactly as
+	// there is none for a notification token; clearing needs its own control
+	// rather than a blank box that cannot be told from an untouched one.
+	if raw, ok := body["password"]; ok {
+		plain := strings.TrimSpace(jsStringOf(raw))
+		if plain == "" || store.IsMasked(raw) {
+			delete(body, "password")
+		} else {
+			sealed, err := s.store.Encrypt(plain)
+			if err != nil {
+				log.Printf("[routers] sealing the password for %s: %v", id, err)
+				writeJSONErr(w, http.StatusInternalServerError, "could not save the router")
+				return
+			}
+			body["password"] = sealed
+		}
+	}
+
 	// DISABLING THE ROUTER SOMEBODY IS LOOKING AT IS REFUSED, before anything is
 	// written. The live message names the remedy rather than the rule, because an
 	// operator who hits this needs to know what to do next.
@@ -318,9 +351,38 @@ func (s *Server) routerUpdate(w http.ResponseWriter, r *http.Request) {
 	// `broadcastRouterList` — `BroadcastAll` here would hand a restricted viewer
 	// the whole fleet because somebody else made an edit.
 	s.broadcastRouterList()
+	// ── AND THE RUNNING CONNECTION IS REPOINTED ───────────────────────────
+	//
+	// The two syncs below rebuild a POOL session whose endpoint moved. An
+	// INTERACTIVE session is not theirs to touch — it belongs to whoever is
+	// watching — so it is repointed in place. Without this, correcting a
+	// password wrote the file and changed nothing: the session went on dialling
+	// the old credential every five seconds. See `Manager.Reconfigure`.
+	s.reconfigureLiveSession(id)
 	s.syncPool()
 	s.syncAlertPool()
 	writeJSON(w, map[string]any{"ok": true})
+}
+
+// reconfigureLiveSession hands a router's CURRENT endpoint to its live session.
+//
+// The record is re-read rather than derived from the patch: a patch carries only
+// what changed, and the connection needs all six fields. `Reconfigure` compares
+// them and does nothing when they match, so calling this on every edit costs a
+// map lookup and a comparison.
+func (s *Server) reconfigureLiveSession(id string) {
+	if s.sessions == nil || s.store == nil {
+		return
+	}
+	rec := s.routerRecord(id)
+	if rec == nil {
+		return
+	}
+	s.sessions.Reconfigure(id, routeros.Config{
+		Host: rec.Host, Port: rec.Port,
+		Username: rec.Username, Password: rec.Password,
+		TLS: rec.TLS, InsecureTLS: rec.TLSInsecure,
+	})
 }
 
 // routerDelete removes a router and everything that only made sense with it.

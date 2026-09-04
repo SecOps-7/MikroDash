@@ -165,6 +165,30 @@ type RouterConfig struct {
 	PingTarget string
 }
 
+// sameConnection reports whether two records reach the same router the same way.
+//
+// ── NOT `SameEndpoint`, WHICH IS IN THIS PACKAGE AND ANSWERS SOMETHING ELSE ──
+//
+// `endpoint.go`'s `SameEndpoint` decides whether a STORED PASSWORD MAY BE
+// REUSED for a connection test, so it compares where the secret would go and
+// deliberately does NOT compare the secret itself. This asks whether a live
+// connection is still correct, and the password is the whole point: changing it
+// is exactly the case that has to redial. Two questions, two functions, and
+// borrowing either for the other is a security bug in one direction and this
+// bug in the other.
+//
+// The six fields that decide the CONNECTION, and nothing else. `Label`,
+// `Collection`, `DefaultIf` and `PingTarget` all change what a session does once
+// it is up; redialling for them would drop a working connection — and the
+// collection block in particular is resolved at build time, so it needs a
+// rebuild rather than a reconnect. That is a separate gap, recorded on
+// `Session.eff` in internal/session.
+func sameConnection(a, b RouterConfig) bool {
+	return a.Host == b.Host && a.Port == b.Port &&
+		a.User == b.User && a.Password == b.Password &&
+		a.TLS == b.TLS && a.InsecureTLS == b.InsecureTLS
+}
+
 // Summary is one router's contribution to `routers:stats`, matching what the
 // live `getSummaries()` returns.
 type Summary struct {
@@ -384,6 +408,35 @@ func (p *Pool) Sync(all []RouterConfig, excluded map[string]bool) PoolAction {
 		tracked[id] = true
 	}
 	act := SyncPool(ids, excluded, tracked)
+
+	// ── AND A TRACKED ROUTER WHOSE ENDPOINT MOVED IS REBUILT ──────────────
+	//
+	// `SyncPool` decides on IDs alone — it answers "which routers should this
+	// pool hold", which is the right question and not the only one. A session
+	// captures `cfg` in `build` and nothing re-read it, so correcting a
+	// password, moving a router to a new address or turning TLS on left this
+	// pool dialling the OLD values every five seconds for as long as the process
+	// lived. Each attempt is a rejected login in the router's own log, which is
+	// how it was noticed (issue #124).
+	//
+	// Appended to BOTH lists rather than folded into `SyncPool`: that function
+	// is pure and pinned by its own tests, and the comparison needs the live
+	// session's config, which it has no business holding. A tracked, known,
+	// unexcluded id is in neither list already, so this cannot duplicate an
+	// entry — and the loops below stop every session before starting any, so the
+	// rebuild never runs two connections to one router.
+	var changed []string
+	for id, sess := range p.sessions {
+		if nw, ok := byID[id]; ok && !excluded[id] && !sameConnection(sess.cfg, nw) {
+			changed = append(changed, id)
+		}
+	}
+	if len(changed) > 0 {
+		act.Stop = append(act.Stop, changed...)
+		act.Start = append(act.Start, changed...)
+		sort.Strings(act.Stop)
+		sort.Strings(act.Start)
+	}
 
 	stopping := make([]*poolSession, 0, len(act.Stop))
 	for _, id := range act.Stop {

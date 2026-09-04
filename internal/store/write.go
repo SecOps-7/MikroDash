@@ -37,7 +37,9 @@ package store
 // load.
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -162,6 +164,9 @@ func (s *Store) UpdateRouter(id string, patch map[string]any) error {
 	// `jsIsTrue` is `true`, an `int` through `jsInt` is itself. The route still
 	// coerces because its active-router guard reads the value BEFORE this runs.
 	patch = CoerceRouterPatch(patch)
+	if err := checkSealedPassword(patch); err != nil {
+		return err
+	}
 	applyPatch(rec, patch)
 	normalizeSiteMirror(rec, patch)
 
@@ -178,6 +183,67 @@ func (s *Store) UpdateRouter(id string, patch map[string]any) error {
 	// NO TRAILING NEWLINE: `JSON.stringify` does not write one and neither does
 	// the file on disk. See internal/store/jsonwrite.go.
 	return writeAtomic(path, out)
+}
+
+// checkSealedPassword refuses a patch that would write a PLAINTEXT credential.
+//
+// ── ONE KEY MEANS TWO THINGS, AND THAT COST A USER HIS ROUTER ──────────────
+//
+// `Router.Encrypted` is tagged `json:"password"`, because that is the key the
+// Node file format uses: routers.json holds the SEALED credential under
+// `password`. The Add/Edit dialog also posts a field called `password`, holding
+// whatever is in the box. Those are not the same value, and nothing said so.
+//
+// `routerUpdate` handed the browser body straight to `UpdateRouter`, so every
+// Save from the Edit dialog overwrote the sealed credential with the raw
+// contents of that box:
+//
+//   - blank, which is the NORMAL case — the dialog clears the field on open and
+//     its placeholder promises "leave blank to keep current" — replaced the
+//     credential with "". The router could never authenticate again.
+//   - typed, wrote the operator's password to disk IN CLEAR under a key that is
+//     supposed to be ciphertext, and `Decrypt` then failed on it, which lands in
+//     the same place: an empty password, retried every five seconds for ever.
+//
+// Reported on issue #124 as "suddenly it doesn't work anymore", by a user who
+// had opened that dialog for an unrelated reason. `Test Connection` kept
+// passing, because it uses the password TYPED INTO THE FORM.
+//
+// The route is fixed, but `SetRouterPassword` already carried a comment warning
+// that "a caller assembling map[string]any{\"password\": ...} by hand" is the
+// hazard — and a comment is what six call sites were relying on. This is the
+// same invariant with a mechanism behind it.
+//
+// ── WHY EMPTY IS STILL ALLOWED ─────────────────────────────────────────────
+//
+// `Encrypt("")` returns "", so an empty string IS a well-formed sealed value
+// meaning "no credential", and `SetRouterPassword(id, "")` legitimately clears
+// one. The guard therefore catches the case that destroys data silently — a
+// real password in clear — and leaves the deliberate clear alone. The route
+// drops a blank field before it ever gets here.
+func checkSealedPassword(patch map[string]any) error {
+	raw, ok := patch["password"]
+	if !ok || raw == nil {
+		return nil
+	}
+	v, isStr := raw.(string)
+	if !isStr {
+		return fmt.Errorf("store: router password patch must be a sealed string, got %T", raw)
+	}
+	if v == "" || looksSealed(v) {
+		return nil
+	}
+	return errors.New("store: refusing to write a router password that is not sealed — " +
+		"seal it with Encrypt, or call SetRouterPassword. See checkSealedPassword")
+}
+
+// looksSealed reports whether a string has the SHAPE Encrypt produces: base64 of
+// at least a 12-byte IV and a 16-byte tag. It is a structural check, not a
+// cryptographic one — enough to tell ciphertext from somebody's password, which
+// is the only distinction this needs to make.
+func looksSealed(v string) bool {
+	b, err := base64.StdEncoding.DecodeString(v)
+	return err == nil && len(b) >= 28
 }
 
 // applyPatch merges `patch` into `rec`, one level deep for `backup`.

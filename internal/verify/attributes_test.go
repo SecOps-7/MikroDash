@@ -24,11 +24,24 @@ var attrsExpectedUnread = map[string]string{
 	"router-id":       attrUnshipped,
 	"bulk":            attrMarkup,
 	"role-preset":     attrMarkup,
-	"val":             attrMarkup,
 	"res-add-dynamic": attrMarkup,
 	"sev":             attrMarkup,
-	"unit-for":        attrMarkup,
 }
+
+// ── `val` AND `unit-for` LEFT THIS LIST ON 2026-09-04, AND HOW THEY GOT ON
+//    IT IS THE POINT ────────────────────────────────────────────────────────
+//
+// Both were filed as `attrMarkup`: "in extracted markup for a feature this port
+// has not taken on". That reason was FALSE when it was written. They are the
+// Gbps/Mbps toggle in the Add/Edit Router dialog — a shipped page, rendered on
+// every open — and nothing read them because the toggle had simply never been
+// wired. Clicking it did nothing, which a user reported on issue #124.
+//
+// So the ledger was not recording a gap; it was excusing a bug, in the exact
+// words that stop anyone looking again. The entry is what a reader would have
+// trusted. Worth keeping the note: this check fails in both directions
+// precisely so an entry cannot outlive its reason, and here the reason was
+// never true rather than having expired.
 
 // TestRenderedAttributesAreRead: a `data-` attribute the port writes into the DOM
 // is read by something -- TypeScript, or a stylesheet selector.

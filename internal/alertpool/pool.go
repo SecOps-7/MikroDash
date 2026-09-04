@@ -158,6 +158,30 @@ func (p *Pool) Sync(all []Router, activeID string, excluded map[string]bool) {
 	// starting and stopping collectors on a live session would be a second one,
 	// and two paths that must agree is the shape `stripWanIP` and `res:move`
 	// both record as a mistake.
+	// ── AND ANY ROUTER WHOSE ENDPOINT OR CREDENTIALS CHANGED ──────────────
+	//
+	// `PlanSync` decides from the ID set and the per-router alert switch, so a
+	// session it already holds keeps the `Router` it was BUILT with. Correcting
+	// a password therefore never reached this pool: it went on dialling the old
+	// one every five seconds, and every attempt is a rejected login in the
+	// router's own log — which is how it was found (issue #124).
+	//
+	// Fed through `pendingRebuild` rather than as a second list, so it inherits
+	// the double-listing guard below verbatim. That guard is not decoration: a
+	// router in both `Build` and `Rebuild` had its first session overwritten in
+	// `p.sessions` and LEAKED, still dialling with nothing able to stop it.
+	for id, sess := range p.sessions {
+		if nw, ok := byID[id]; ok && !sameConnection(sess.r, nw) {
+			// LAZILY BUILT. `pendingRebuild` is only created by
+			// `SetHistoryRouter`, so on an install where that has never run the
+			// map is nil and a bare write panics.
+			if p.pendingRebuild == nil {
+				p.pendingRebuild = map[string]bool{}
+			}
+			p.pendingRebuild[id] = true
+		}
+	}
+
 	for id := range p.pendingRebuild {
 		// ── `plan.Build` IS IN THIS GUARD, AND LEAVING IT OUT COST A SOCKET ──
 		//

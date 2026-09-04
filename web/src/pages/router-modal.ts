@@ -172,6 +172,50 @@ export function initRouterModal(opts: {
     setMode(b.getAttribute('data-mode') || 'stream');
   });
 
+  // ── bandwidth units ───────────────────────────────────────────────────────
+  //
+  // ── THE PAIR OF TOGGLES WAS DRAWN AND BOUND TO NOTHING ────────────────────
+  //
+  // `.bw-unit-btn`, `.bw-unit-toggle`, `data-unit-for` and `data-val` appeared
+  // in `shell.html` and in NO TypeScript file at all, so clicking Gbps or Mbps
+  // did nothing: the hidden input kept whatever it had and the highlight never
+  // moved. Reported on issue #124.
+  //
+  // TWO FAILURES, and the second is the quieter one. Clicking did nothing, which
+  // is visible. But `open()` also writes the seeded unit into the hidden input
+  // WITHOUT moving the highlight — so editing a router stored as 1500 Mbps drew
+  // "Gbps" highlighted over a field that meant Mbps. The control disagreed with
+  // the value it was displaying, and saving without touching it was correct
+  // while the screen said otherwise. `setBwUnit` is therefore called from
+  // `open()` as well as from the click, so one function owns both.
+  //
+  // Modelled on `setMode` directly below-ish: same delegated-click shape, same
+  // `active` class, same hidden input carrying the value the collector reads.
+  function setBwUnit(hiddenId: string, unit: string): void {
+    // ANYTHING THAT IS NOT `mbps` IS `gbps`, matching `joinBw`, which multiplies
+    // by 1000 only on an exact "gbps". A third value would otherwise highlight
+    // nothing and save as Mbps.
+    const val = unit === 'mbps' ? 'mbps' : 'gbps';
+    const hidden = input(hiddenId);
+    if (hidden) hidden.value = val;
+    const wrap = document.querySelector<HTMLElement>(
+      '.bw-unit-toggle[data-unit-for="' + hiddenId + '"]');
+    wrap?.querySelectorAll<HTMLElement>('[data-val]').forEach((b) => {
+      b.classList.toggle('active', b.getAttribute('data-val') === val);
+    });
+  }
+  document.querySelectorAll<HTMLElement>('.bw-unit-toggle').forEach((wrap) => {
+    wrap.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement | null)?.closest?.('[data-val]') as HTMLElement | null;
+      // `closest` climbs past this wrapper, so a click in one toggle could match
+      // a `[data-val]` ancestor elsewhere. `contains` keeps each toggle to its own
+      // buttons.
+      if (!b || !wrap.contains(b)) return;
+      e.preventDefault();
+      setBwUnit(wrap.getAttribute('data-unit-for') || '', b.getAttribute('data-val') || 'gbps');
+    });
+  });
+
   // ── open ──────────────────────────────────────────────────────────────────
   function open(router: StoredRouter | null): void {
     const f = routerFormValues(router, opts.sites());
@@ -209,8 +253,12 @@ export function initRouterModal(opts: {
     check('rtrModalTls', f.tls); check('rtrModalTlsInsecure', f.tlsInsecure);
     check('rtrModalAlertsEnabled', f.alertsEnabled);
     set('rtrModalDownThresh', String(f.downThreshold));
-    set('rtrModalBwDown', String(f.bwDown.value)); set('rtrModalBwDownUnit', f.bwDown.unit);
-    set('rtrModalBwUp', String(f.bwUp.value)); set('rtrModalBwUpUnit', f.bwUp.unit);
+    // THROUGH `setBwUnit`, not `set`: the hidden input and the highlighted button
+    // must move together, and writing the hidden one alone is the bug above.
+    set('rtrModalBwDown', String(f.bwDown.value));
+    setBwUnit('rtrModalBwDownUnit', f.bwDown.unit);
+    set('rtrModalBwUp', String(f.bwUp.value));
+    setBwUnit('rtrModalBwUpUnit', f.bwUp.unit);
     setMode(f.mode);
 
     const site = (router && router.siteId) ? (opts.sites()[router.siteId] || null) : null;

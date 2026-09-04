@@ -39,9 +39,22 @@ import (
 // Session is one router's connection and collectors.
 type Session struct {
 	// eff is this router's resolved collection config (#105): per-router poll
-	// intervals and which collectors may run at all. Resolved once in Acquire —
-	// a live edit rebuilds the session, which is what the live
-	// `collectionFingerprint` exists to decide.
+	// intervals and which collectors may run at all. Resolved once in Acquire.
+	//
+	// ── AND NOT RE-RESOLVED, WHICH IS A REAL GAP ────────────────────────────
+	//
+	// This said "a live edit rebuilds the session, which is what the live
+	// `collectionFingerprint` exists to decide". THAT MECHANISM WAS NEVER
+	// PORTED — there is no fingerprint anywhere in this tree — so editing a
+	// router's collection block does not reach a session somebody is watching;
+	// it takes effect when the last viewer leaves and the session is rebuilt.
+	//
+	// `Reconfigure` closes the half of this that silently breaks a router: the
+	// ENDPOINT AND CREDENTIALS. The collection block is left, deliberately and
+	// visibly, because it needs the collectors restarting rather than the socket
+	// redialling, and because a wrong poll interval is not a device that stops
+	// answering. Recorded here rather than left as a comment describing
+	// something that does not exist.
 	eff collection.Resolved
 
 	// dormancy decides which collectors are asleep. Nil until Acquire builds it,
@@ -52,8 +65,11 @@ type Session struct {
 	Label    string
 	// alertsEnabled is this router's per-device alert switch, captured when the
 	// session is built. The live app RE-READS it on every event "in case it was
-	// toggled after session creation" — and this port gets that for free, since
-	// a change to the record rebuilds the session (`collectionFingerprint`).
+	// toggled after session creation"; this said the port "gets that for free,
+	// since a change to the record rebuilds the session
+	// (`collectionFingerprint`)" — and nothing here rebuilds it, because that
+	// fingerprint does not exist. Same gap as `eff` above: toggling alerts on a
+	// router somebody is watching takes effect when the session is next built.
 	alertsEnabled bool
 
 	h   *hub.Hub
@@ -244,20 +260,35 @@ func (s *Session) Conns() *collect.Connections { return s.conns }
 
 // Username is the RouterOS account this process logs in as. selfPath matches
 // /user/active rows by it to find where the router sees us from.
-func (s *Session) Username() string { return s.cfg.Username }
+//
+// UNDER THE LOCK, as the two below are: `Reconfigure` swaps `cfg` while this
+// session is running, so an unsynchronised read here is a data race.
+func (s *Session) Username() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cfg.Username
+}
 
 // Host is the address this session was configured to reach the router at.
 //
 // A RESTORE binds its capability token to it, so a token that leaks off the box
 // cannot be redeemed from anywhere else — see internal/backups/restoretoken.go.
-func (s *Session) Host() string { return s.cfg.Host }
+func (s *Session) Host() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cfg.Host
+}
 
 // APIPort is the port this router is actually reached on, not a guess.
 //
 // fwGuard needs it exactly: a filter rule that spares 8729 still locks us out of
 // a router we talk to on 8728, and a guard that assumed the default would stay
 // silent on the rule that mattered.
-func (s *Session) APIPort() int { return s.cfg.Port }
+func (s *Session) APIPort() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.cfg.Port
+}
 
 // reader adapts the session to collect.Reader. The indirection matters: the
 // client is REPLACED on a reconnect, and a collector holding the old pointer
@@ -749,6 +780,88 @@ func (m *Manager) Release(routerID string) {
 	m.mu.Unlock()
 }
 
+// sameConnection reports whether two configs reach the same router the same way.
+//
+// Named to stay clear of `routers.SameEndpoint`, which looks similar and answers
+// a different question: that one decides whether a stored password may be reused
+// for a connection test, and therefore compares everything EXCEPT the password.
+// Here the password is the field that matters most.
+//
+// `Debug` and `Label` are deliberately NOT compared: neither changes where the
+// connection goes or whether it is accepted, and redialling a working router
+// because somebody renamed it would drop every collector for nothing.
+func sameConnection(a, b routeros.Config) bool {
+	return a.Host == b.Host && a.Port == b.Port &&
+		a.Username == b.Username && a.Password == b.Password &&
+		a.TLS == b.TLS && a.InsecureTLS == b.InsecureTLS
+}
+
+// Reconfigure points a LIVE session at changed credentials or a changed address,
+// and reports whether anything had to move.
+//
+// ── WHY THIS EXISTS ─────────────────────────────────────────────────────────
+//
+// `Acquire` reads the router record once and captures `cfg`; nothing re-read it
+// afterwards. Two comments in this file asserted that a live edit rebuilt the
+// session "which is what the live `collectionFingerprint` exists to decide", and
+// that mechanism was never ported. So correcting a router's password did not
+// reach the connection that was failing on the old one: the session went on
+// dialling the stale credential every five seconds, and the only cure was
+// restarting the container or deleting the device.
+//
+// That mattered most at exactly the wrong moment. Issue #124's credential was
+// destroyed by a separate bug in `routerUpdate`; the operator's way out is to
+// retype the password — and without this, retyping it changed the file and
+// nothing else.
+//
+// ── SWAP AND DROP, RATHER THAN TEAR DOWN AND REBUILD ────────────────────────
+//
+// `CloseNow` would be the blunt version, and it strands whoever is watching:
+// the collectors stop, the room stays joined, and the page sits on numbers that
+// never change again. Instead this replaces `cfg` and closes the socket.
+// `connectLoop` re-reads `cfg` on every pass, so its next turn dials the new
+// endpoint and takes the ordinary reconnect path — the same one a router reboot
+// produces, which already restarts the streams. Nobody is disconnected and no
+// collector is rebuilt.
+//
+// A session that is already closed, or that is not live at all, is not an error:
+// the record was still written, and the next `Acquire` reads it.
+func (m *Manager) Reconfigure(routerID string, cfg routeros.Config) bool {
+	m.mu.Lock()
+	s, ok := m.live[routerID]
+	m.mu.Unlock()
+	if !ok {
+		return false
+	}
+
+	s.mu.Lock()
+	if s.closed || sameConnection(s.cfg, cfg) {
+		s.mu.Unlock()
+		return false
+	}
+	// THE FIELDS THAT DECIDE THE CONNECTION, and only those. `Debug` and `Label`
+	// are this session's own — `Debug` comes from the settings file rather than
+	// the router record, and copying the caller's would turn RouterOS tracing on
+	// or off as a side effect of an unrelated edit.
+	s.cfg.Host, s.cfg.Port = cfg.Host, cfg.Port
+	s.cfg.Username, s.cfg.Password = cfg.Username, cfg.Password
+	s.cfg.TLS, s.cfg.InsecureTLS = cfg.TLS, cfg.InsecureTLS
+	c := s.client
+	s.client = nil
+	s.connected = false
+	s.mu.Unlock()
+
+	// OUTSIDE THE LOCK. Close talks to the driver, and `waitUntilDown` polls
+	// `Connected()` from the connect goroutine; holding the session lock across
+	// it is the deadlock this ordering avoids.
+	if c != nil {
+		_ = c.Close()
+	}
+	log.Printf("[session] %s: endpoint or credentials changed, reconnecting", s.Label)
+	s.announce()
+	return true
+}
+
 // CloseNow tears a session down AT ONCE, whoever is still holding it.
 //
 // ── WHY Release CANNOT SERVE BOTH CALLERS ───────────────────────────────────
@@ -977,9 +1090,14 @@ func (s *Session) connectLoop() {
 			s.mu.Unlock()
 			return
 		}
+		// COPIED UNDER THE LOCK, and re-read on EVERY pass rather than captured
+		// once outside the loop. That is what makes `Reconfigure` work: it swaps
+		// `cfg` and drops the socket, and this next turn of the loop dials the
+		// new endpoint. Hoisting this out would silently restore the bug.
+		cfg := s.cfg
 		s.mu.Unlock()
 
-		c, err := routeros.Dial(s.cfg)
+		c, err := routeros.Dial(cfg)
 		if err != nil {
 			s.mu.Lock()
 			s.connected = false

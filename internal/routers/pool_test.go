@@ -117,6 +117,17 @@ type dialLog struct {
 	// what ONE router did. Added with continuous history, where the whole
 	// question is which router opened a stream and which did not.
 	byHost map[string]*fakeConn
+	cfgs   []routeros.Config
+}
+
+// lastCfg is the most recent config handed to the dialler, or the zero value.
+func (d *dialLog) lastCfg() routeros.Config {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if len(d.cfgs) == 0 {
+		return routeros.Config{}
+	}
+	return d.cfgs[len(d.cfgs)-1]
 }
 
 // conn returns the connection dialled for the given host, or nil.
@@ -130,6 +141,10 @@ func (d *dialLog) dial(cfg routeros.Config) (Conn, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.calls++
+	// EVERY CONFIG, in order. "which credential was sent" is not answerable from
+	// the connection alone, and it is the whole question when a stale one is
+	// being retried.
+	d.cfgs = append(d.cfgs, cfg)
 	if d.err != nil {
 		return nil, d.err
 	}
