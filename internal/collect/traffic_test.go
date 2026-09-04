@@ -97,7 +97,7 @@ func TestTrafficWatchRefcount(t *testing.T) {
 	tr.Watch("ether2")
 	tr.Watch("ether2")
 	tr.mu.Lock()
-	list := tr.ifaceList()
+	list := tr.ifaceListLocked()
 	tr.mu.Unlock()
 	if len(list) != 2 {
 		t.Fatalf("watching = %v, want the default and ether2", list)
@@ -105,7 +105,7 @@ func TestTrafficWatchRefcount(t *testing.T) {
 
 	tr.Unwatch("ether2")
 	tr.mu.Lock()
-	list = tr.ifaceList()
+	list = tr.ifaceListLocked()
 	tr.mu.Unlock()
 	if len(list) != 2 {
 		t.Errorf("one viewer left and the interface was dropped for the other: %v", list)
@@ -113,7 +113,7 @@ func TestTrafficWatchRefcount(t *testing.T) {
 
 	tr.Unwatch("ether2")
 	tr.mu.Lock()
-	list = tr.ifaceList()
+	list = tr.ifaceListLocked()
 	tr.mu.Unlock()
 	// The DEFAULT interface always remains: the WAN badge reads it on every page.
 	if len(list) != 1 || list[0] != "WAN1" {

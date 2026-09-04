@@ -37,14 +37,16 @@ var eventsUnconsumed = map[string]string{
 }
 
 // eventsUnserved: a page listens, deliberately nothing emits it.
+// `stream:health` LEFT THIS LIST ON 2026-09-04, and the entry was right when it
+// was written: nothing reported stream health, so the Dashboard's warning
+// element stayed empty, which is honest. What the note could not say is that the
+// MECHANISM behind it was missing too — the traffic stream had no watchdog, so a
+// stream that silently stalled was never restarted and never reported. The
+// entry described the quiet half of a real fault. Both halves are ported now.
 var eventsUnserved = map[string]string{
 	"alert:fired": "the alerter holds per-router evaluator state and SENDS; the bell renders the " +
 		"stored feed without it.",
 	"alert:resolved": "as alert:fired.",
-	"stream:health": "no collector reports stream health on this side. It is a fact about the " +
-		"SERVING PROCESS, so a Go version would report on Go's streams rather than mirror the " +
-		"old ones. The warning element stays empty, which is honest — a stale one would say the " +
-		"wrong thing.",
 	"diagnostics:update": "there is no diagnostics collector. Same reasoning: it reports on the " +
 		"server, so it would describe this process, not the old one. The card renders empty.",
 }

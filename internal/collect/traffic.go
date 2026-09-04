@@ -49,6 +49,7 @@ package collect
 // Only the per-viewer emit is gated on somebody being there.
 
 import (
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -210,6 +211,22 @@ type Traffic struct {
 	lastWan   *WanStatus
 	streamKey string
 	stop      func()
+
+	// ── THE WATCHDOG'S STATE ────────────────────────────────────────────────
+	//
+	// `lastData` is when a row last arrived; `streamStart` is when the stream
+	// was opened. The watchdog compares against whichever is later, so a stream
+	// that has just been opened is not immediately judged stale for never having
+	// produced anything.
+	lastData    int64
+	streamStart int64
+	health      StreamHealth
+	wd          *pollLoop
+	// wdEvery and wdStaleMs are the live watchdog's 5s tick and 10s staleness.
+	// Fields rather than constants so a test can drive them in milliseconds
+	// instead of waiting out real time.
+	wdEvery   time.Duration
+	wdStaleMs int64
 }
 
 // TrafficSub is the room suffix one interface's samples are delivered to.
@@ -236,11 +253,16 @@ func NewTraffic(ros Reader, emit Emit, defaultIf string, historyMinutes int) *Tr
 	if points < 60 {
 		points = 60
 	}
-	return &Traffic{
+	t := &Traffic{
 		ros: ros, emit: emit, defaultIf: defaultIf, maxPoints: points,
 		watching: map[string]int{}, available: map[string]bool{},
-		hist: map[string][]TrafficPoint{},
+		hist:    map[string][]TrafficPoint{},
+		wdEvery: 5 * time.Second, wdStaleMs: 10_000,
 	}
+	// BUILT HERE, STARTED BY Start. `pollLoop` is inert until `start()`, so a
+	// collector that is constructed and never started holds no timer.
+	t.wd = newPollLoop(t.watchdogTick, func() time.Duration { return t.wdEvery })
+	return t
 }
 
 // SetAvailable records which interfaces exist, for validating what a browser
@@ -301,12 +323,31 @@ func (t *Traffic) Unwatch(ifName string) {
 	t.syncStream()
 }
 
-func (t *Traffic) Start() { t.syncStream() }
+func (t *Traffic) Start() {
+	t.syncStream()
+	t.wd.start()
+}
 
 func (t *Traffic) Stop() {
+	// THE WATCHDOG GOES FIRST. Stopping the stream and leaving the watchdog
+	// running would have it find no stream a moment later and start one, which
+	// is the opposite of what Stop means — and `Suspend` is Stop, so a
+	// suspended collector would resurrect its own stream every five seconds.
+	t.wd.stop()
+	t.stopStream()
+}
+
+// stopStream closes the stream and clears the key WITHOUT touching the
+// watchdog, which is what makes it usable from the watchdog's own restart.
+//
+// The key is cleared as well as the stop func: `syncStream` returns early when
+// the interface set is unchanged, so a restart that left the key in place would
+// close the stream and decline to reopen it.
+func (t *Traffic) stopStream() {
 	t.mu.Lock()
 	stop := t.stop
 	t.stop, t.streamKey = nil, ""
+	t.streamStart, t.lastData = 0, 0
 	t.mu.Unlock()
 	if stop != nil {
 		stop()
@@ -345,13 +386,22 @@ func (t *Traffic) Reconnected() {
 	t.Stop()
 	t.mu.Lock()
 	t.lastWan = nil
+	// THE RESTART COUNT DESCRIBED THE OLD CONNECTION. Carrying it across a
+	// reconnect would let three restarts spread over three separate outages
+	// report a degraded stream that is working perfectly well — the live helper
+	// resets here for the same reason.
+	t.health.Reset()
 	t.mu.Unlock()
 	t.syncStream()
+	t.wd.start()
 }
 
 func (t *Traffic) Suspend() { t.Stop() }
 
-func (t *Traffic) Resume() { t.syncStream() }
+func (t *Traffic) Resume() {
+	t.syncStream()
+	t.wd.start()
+}
 
 // LastWan is the badge's last value, for replay when a page opens.
 func (t *Traffic) LastWan() *WanStatus {
@@ -370,7 +420,8 @@ func (t *Traffic) History(ifName string) TrafficHistory {
 // ifaceList is the interfaces the stream must cover: everything being watched,
 // plus the default. Sorted, so the key it produces is stable and a restart is
 // triggered by a real change rather than by map iteration order.
-func (t *Traffic) ifaceList() []string {
+// ifaceListLocked is ifaceList's body for a caller already holding the lock.
+func (t *Traffic) ifaceListLocked() []string {
 	names := []string{}
 	seen := map[string]bool{}
 	if t.defaultIf != "" {
@@ -397,7 +448,7 @@ func (t *Traffic) syncStream() {
 	}
 
 	t.mu.Lock()
-	names := t.ifaceList()
+	names := t.ifaceListLocked()
 	key := strings.Join(names, ",")
 	if key == t.streamKey {
 		t.mu.Unlock()
@@ -423,7 +474,111 @@ func (t *Traffic) syncStream() {
 	}
 	t.mu.Lock()
 	t.stop, t.streamKey = stop, key
+	t.streamStart = time.Now().UnixMilli()
 	t.mu.Unlock()
+}
+
+// watchdogTick is the silent-death recovery the live app has and this port did
+// not: `_startWatchdog` in src/collectors/traffic.js, added in PR #91 for the
+// symptoms in issues #55 and #90.
+//
+// ── WHY A STREAM NEEDS WATCHING AT ALL ──────────────────────────────────────
+//
+// `/interface/monitor-traffic` pushes a row a second and nothing acknowledges
+// it. A router that stops sending — after an upgrade, a CPU spike, a menu
+// briefly disappearing — leaves a connection that is open, a client that
+// reports Connected, and a chart that simply stops moving. Nothing errors, so
+// nothing retries, and the only cure was for the operator to force a reconnect.
+// Reported on issue #126 as a router that "disconnects" and comes back only
+// when the device is deleted and added again.
+//
+// This is deliberately about ONE STREAM rather than the connection. A stalled
+// stream is the failure that was actually seen, the connection has its own
+// retry loop, and restarting a stream costs one command where restarting a
+// connection costs every collector's state.
+//
+// ── THREE CASES, IN THE LIVE ORDER ──────────────────────────────────────────
+//
+//	not connected      do nothing; connectLoop owns that, and restarting a
+//	                   stream on a dead client would fail every tick.
+//	no stream          open one. `syncStream` gives up silently when Stream
+//	                   returns an error, so this is also how a failed open is
+//	                   retried at all.
+//	stale              close and reopen, and count it.
+//
+// Anything else is a healthy tick, which is what eventually clears a degraded
+// stream — see StreamHealth for why that needs the stream to have been up a
+// while rather than merely to have produced a packet.
+func (t *Traffic) watchdogTick() {
+	if !t.ros.Connected() {
+		return
+	}
+	if _, ok := t.ros.(Streamer); !ok {
+		return
+	}
+
+	t.mu.Lock()
+	running := t.stop != nil
+	last := t.lastData
+	if t.streamStart > last {
+		last = t.streamStart
+	}
+	start := t.streamStart
+	wanted := len(t.ifaceListLocked()) > 0
+	stale := t.wdStaleMs
+	t.mu.Unlock()
+
+	now := time.Now().UnixMilli()
+
+	if !running {
+		if wanted {
+			t.syncStream()
+		}
+		return
+	}
+	if last > 0 && now-last > stale {
+		t.mu.Lock()
+		degraded, changed := t.health.RecordRestart(now)
+		restarts := t.health.Restarts()
+		t.mu.Unlock()
+		log.Printf("[traffic] watchdog: no data for %ds — restarting the stream",
+			(now-last)/1000)
+		// STOPPED AND REOPENED, not `Stop`: that would take the watchdog down
+		// with it and this is the watchdog.
+		t.stopStream()
+		t.syncStream()
+		if changed {
+			t.emitHealth(degraded, restarts)
+		}
+		return
+	}
+	if start > 0 {
+		t.mu.Lock()
+		degraded, changed := t.health.RecordHealthy(now - start)
+		restarts := t.health.Restarts()
+		t.mu.Unlock()
+		if changed {
+			t.emitHealth(degraded, restarts)
+		}
+	}
+}
+
+// emitHealth sends `stream:health`, which the Dashboard has always listened for
+// — `renderStreamHealth` tints the traffic card and names the restart count.
+//
+// ROUTER-WIDE (an empty room), matching the live `io.emit`: the warning belongs
+// to the card rather than to one interface's room, and a viewer watching some
+// other interface still needs to know the data is incomplete.
+//
+// ONLY ON A TRANSITION. `StreamHealth` reports whether the flag changed, so a
+// stream that stays degraded does not push a frame to every browser every five
+// seconds.
+func (t *Traffic) emitHealth(degraded bool, restarts int) {
+	t.emit("", "stream:health", map[string]any{
+		"collector": "traffic",
+		"degraded":  degraded,
+		"restarts":  restarts,
+	})
 }
 
 // onPacket is the whole delivery path for one reading.
@@ -434,6 +589,10 @@ func (t *Traffic) onPacket(row routeros.Reply) {
 	sample := parseTrafficSample(row, time.Now().UnixMilli())
 
 	t.mu.Lock()
+	// THE WATCHDOG'S EVIDENCE THAT THE STREAM IS ALIVE. Set for every row, not
+	// only the WAN interface's: the stream carries them all, and one interface
+	// going quiet is not the stream stalling.
+	t.lastData = sample.TS
 	// The ring is filled whether anyone is watching or not, so a browser that
 	// connects gets history immediately instead of a blank chart.
 	h := append(t.hist[sample.IfName], TrafficPoint{
