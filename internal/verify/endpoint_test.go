@@ -48,8 +48,34 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 	})
 	fetchCall := regexp.MustCompile("fetch\\(\\s*['\"`]([^'\"`]+)['\"`]")
 	constURL := regexp.MustCompile(`(?:API|URL|ENDPOINT)\s*=\s*['"]([^'"]+)`)
+	// ── AND A URL BUILT INTO AN href, WHICH IS HOW TWO ROUTES WENT MISSING ──
+	//
+	// The Backups page draws its .rsc and .backup download links as plain
+	// `<a href>` — deliberately, so the browser saves the file rather than the
+	// page holding several MB in memory — and builds the URL by concatenation:
+	//
+	//	'... href="/api/backups/' + r.id + '/rsc' + q + '">'
+	//
+	// That is neither a `fetch(` nor a NAME = '...' constant, so this scan did
+	// not see it. Both routes were never ported, both links answered Go's own
+	// "404 page not found" for the whole life of the port, and the check that
+	// exists to catch exactly this looked straight past them. Issue #124.
+	//
+	// ── THE CONCATENATION HAS TO BE COLLAPSED FIRST ─────────────────────────
+	//
+	// Capturing up to the first quote yields `/api/backups/`, and `isServed`
+	// treats a prefix of a registered route as covered — so the naive version of
+	// this passed against the missing routes. The interpolations are folded into
+	// `{}` so the whole path survives, and wildcards are compared shape-to-shape
+	// against the `{id}` in the registration.
 	called := map[string]bool{}
+
 	for _, body := range front {
+		for _, u := range hrefRoutes(body) {
+			if inAPIScope(u) {
+				called[u] = true
+			}
+		}
 		for _, re := range []*regexp.Regexp{fetchCall, constURL} {
 			for _, m := range re.FindAllStringSubmatch(body, -1) {
 				u := normaliseRoute(m[1])
@@ -99,7 +125,7 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 			parts = append(parts, q[1])
 		}
 		if r := normaliseRoute(strings.Join(parts, "")); r != "" {
-			served[r] = true
+			served[collapseWildcards(r)] = true
 		}
 	}
 	for _, e := range endpointsExtra {
@@ -160,6 +186,41 @@ func TestEveryCalledEndpointIsServed(t *testing.T) {
 }
 
 // inAPIScope: this test is about registered API routes, not static files.
+
+// collapseWildcards reduces every `{name}` to `{}`, so a route's SHAPE can be
+// compared with a URL the frontend builds by interpolation. `/api/x/{id}/y` and
+// `/api/x/{}/y` are the same route asked about from two directions.
+func collapseWildcards(s string) string {
+	return regexp.MustCompile(`\{[^}]*\}`).ReplaceAllString(s, "{}")
+}
+
+// jsConcat is `' + expr + '` inside a single-quoted JS string: the shape an
+// interpolated path segment takes. Deliberately refuses a quote inside the
+// expression, so it cannot run past the end of the string it is inside.
+var jsConcat = regexp.MustCompile(`['"]\s*\+[^'"+]+\+\s*['"]`)
+
+var hrefLiteral = regexp.MustCompile(`href=\\?["']([^"'>]*)`)
+
+// hrefRoutes pulls API paths out of `<a href>` attributes built by string
+// concatenation. See the note at the call site for why this is a separate pass.
+func hrefRoutes(body string) []string {
+	folded := jsConcat.ReplaceAllString(body, "{}")
+	var out []string
+	for _, m := range hrefLiteral.FindAllStringSubmatch(folded, -1) {
+		u := m[1]
+		// A TRAILING INTERPOLATION THAT IS NOT ITS OWN SEGMENT is a query string
+		// or a fragment appended to the last segment — `'/rsc' + q` — not part of
+		// the path. `/api/x/{}` keeps its wildcard; `/api/x/rsc{}` loses it.
+		for strings.HasSuffix(u, "{}") && !strings.HasSuffix(u, "/{}") {
+			u = strings.TrimSuffix(u, "{}")
+		}
+		if r := normaliseRoute(u); r != "" {
+			out = append(out, collapseWildcards(r))
+		}
+	}
+	return out
+}
+
 func inAPIScope(u string) bool {
 	if strings.HasPrefix(u, "/api") {
 		return true

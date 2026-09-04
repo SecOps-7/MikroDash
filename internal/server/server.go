@@ -512,6 +512,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerAudit(mux)
 	s.registerCollectors(mux)
 	s.registerBackupRaw(mux)
+	s.registerBackupDownloads(mux)
 	// ── ONLY WITHOUT A NODE TO PROXY TO ─────────────────────────────────
 	//
 	// See auth_login.go. Registering these while Node runs would stop
