@@ -302,7 +302,25 @@ function wireBanners(socket: Socket): void {
  * name until that router's first payload replaces them — indefinitely if the
  * collector feeding it is slow or switched off.
  */
+// The router this browser is watching. THE ONE PLACE IT IS WRITTEN is
+// `switchRouter` below.
+//
+// Every switch goes through that function, and each caller used to record the
+// id for itself: the desktop dropdown and `select()` did, the mobile select and
+// the `router:disabled` move did not. Nothing noticed while the banner painted
+// every router's frame — and the moment it started trusting this, those two
+// paths began dropping the NEW router's frames instead, leaving the banner lit
+// over a healthy router. Found by review of the commit that added the guard.
+let activeRouterId = '';
+
 function switchRouter(socket: Socket, id: string): void {
+  activeRouterId = id;
+  // The mobile select is the other control that says which router this is; the
+  // desktop dropdown reads `activeRouterId` through a thunk. Kept in step here,
+  // so a switch from anywhere — a nav choice, or a disabled router moving the
+  // browser on — leaves both controls agreeing with the guard.
+  const navSel = el<HTMLSelectElement>('navRouterSelect');
+  if (navSel && navSel.value !== id) navSel.value = id;
   clearDashboardData();
   resetStaleTimers();
   // The new router is another board. The System card's meta line is written
@@ -769,20 +787,20 @@ async function main(): Promise<void> {
   // AND THE DESKTOP ONE, which is the visible control on any screen wide enough
   // to hide the sidenav row. Both drive the same `switchRouter`; only the
   // control differs, exactly as in the live app.
-  let activeRouterId = '';
   const routerStatus: Record<string, boolean | undefined> = {};
   // The Settings routers table, and with it the ONLY opener the router modal
   // has. The fleet, the active id and the live status map are all passed as
   // thunks so a `routers:update` reassigning `routers` is seen rather than
   // snapshotted.
   //
-  // ── IT IS MOUNTED *HERE*, BELOW THOSE TWO DECLARATIONS, AND MUST STAY ────
+  // ── IT IS MOUNTED *HERE*, BELOW THAT DECLARATION, AND MUST STAY ──────────
   //
   // A thunk defers a READ, not a reference, and `initSettingsRoutersTable` ends
   // by rendering once — so the thunk fires synchronously during init. Mounted
-  // above `let activeRouterId`, that read hits the temporal dead zone and the
-  // whole of `main()` dies with "Cannot access 'activeRouterId' before
-  // initialization": no dashboard, no sockets, nothing.
+  // above `const routerStatus`, that read hits the temporal dead zone and the
+  // whole of `main()` dies with "Cannot access 'routerStatus' before
+  // initialization": no dashboard, no sockets, nothing. `activeRouterId` was the
+  // same hazard until it moved to module scope beside `switchRouter`.
   //
   // Nothing in the type system says so and no gate caught it — the gate supplies
   // its own thunks, which are initialised. It was found by opening the page.
@@ -799,10 +817,9 @@ async function main(): Promise<void> {
     () => activeRouterId,
     () => routerStatus,
     (id) => {
-      // Keep the hidden select in step, so switching on desktop and then
-      // narrowing the window does not show a stale selection.
-      if (sel) sel.value = id;
-      activeRouterId = id;
+      // `switchRouter` records the id and keeps the hidden mobile select in
+      // step, so switching on desktop and then narrowing the window does not
+      // show a stale selection.
       overlay = overlayOnSwitch();
       const r = routers.find((x) => x.id === id);
       paintOverlay(r ? (r.label || r.name || r.id) : 'router');
@@ -901,15 +918,11 @@ async function main(): Promise<void> {
     // until the operator picked a router by hand it stayed '' — and
     // `refreshLabel` renders '—' when no router matches. The top-right control
     // showed a dash on every fresh load, which is what the operator reported as
-    // "not displaying the active router".
+    // "not displaying the active router". `switchRouter` records it now, for
+    // this caller and every other.
     //
-    // The server's `router:active` does arrive, but its only handler manages
-    // ROOM membership and does not touch this. It also cannot: both
-    // `activeRouterId` and `dropdown` are declared below it, so referencing them
-    // from that handler is a temporal-dead-zone hazard if the event ever landed
-    // early. `select()` runs after both, on first load AND on every reconnect,
-    // which is exactly when the label needs to be right.
-    if (id) activeRouterId = id;
+    // `select()` runs on first load AND on every reconnect, which is exactly
+    // when the label needs to be right, so the refresh below stays here.
     // REFRESHED EITHER WAY, so an empty fleet renders the picker's own empty
     // state rather than a stale label.
     dropdown.refresh();

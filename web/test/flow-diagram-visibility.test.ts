@@ -259,5 +259,45 @@ check('router:status reaches the banner only for the router on screen', () => {
     'no router:status handler calls setRosBanner, so a RouterOS outage no longer shows');
 });
 
+// ── AND THAT GUARD IS ONLY AS GOOD AS `activeRouterId` ──────────────────────
+//
+// The guard above compares against `activeRouterId`, so every path that changes
+// router must move it. Two did not: the mobile router select and the
+// `router:disabled` move both called `switchRouter` and left it on the old
+// router, so the new router's frames were dropped and the old router's outages
+// still lit the banner (found by review of the guard's own commit). So it is
+// written in ONE place, `switchRouter`, which every switch goes through, and
+// nowhere else.
+check('activeRouterId is written only by switchRouter', () => {
+  const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
+  const mainPath = path.join(ROOT, 'web', 'src', 'main.ts');
+  const sf = ts.createSourceFile(mainPath, fs.readFileSync(mainPath, 'utf8'),
+    ts.ScriptTarget.ES2022, true);
+
+  const enclosingFn = (n: any): string => {
+    for (let p = n.parent; p; p = p.parent) {
+      if (ts.isFunctionDeclaration(p)) return p.name ? p.name.text : '<anonymous>';
+    }
+    return '<module>';
+  };
+  const writers: string[] = [];
+  let inSwitch = 0;
+  const walk = (n: any) => {
+    if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken
+        && ts.isIdentifier(n.left) && n.left.text === 'activeRouterId') {
+      const fn = enclosingFn(n);
+      if (fn === 'switchRouter') inSwitch++;
+      else writers.push(fn + ' at main.ts:' + (sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1));
+    }
+    ts.forEachChild(n, walk);
+  };
+  walk(sf);
+  assert.ok(inSwitch > 0,
+    'switchRouter does not set activeRouterId, so a switch leaves the banner guard on the old router');
+  assert.deepEqual(writers, [],
+    'activeRouterId is also written outside switchRouter: ' + writers.join(', ') +
+    '. Every switch goes through switchRouter; a second writer is how a path gets missed.');
+});
+
 if (failed) { say('\n' + failed + ' failed'); process.exit(1); }
 say('\nall passed');
