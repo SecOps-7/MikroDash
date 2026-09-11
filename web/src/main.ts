@@ -279,13 +279,6 @@ function wireBanners(socket: Socket): void {
   // nothing else in this file can notice. See verifySessionAfterFailure.
   socket.on('connect_error', () => verifySessionAfterFailure());
 
-  // This port's server emits ONE room-scoped `router:status` where the live one
-  // emits `ros:status` for the session and a global `router:status` for the
-  // Routers list. Room-scoped, it answers the first question — see banners.ts.
-  socket.on('router:status', (d) => {
-    setRosBanner(!!(d && d.connected), d && d.reason);
-  });
-
   socket.on('session:expired', () => { window.location.href = '/login'; });
   socket.on('access:revoked', () => { window.location.href = '/'; });
   // Not a RouterOS outage, but it uses the same banner to say so: there is
@@ -840,6 +833,19 @@ async function main(): Promise<void> {
     // table keeps whatever status it was rendered with until the next
     // `routers:update` — a router that went offline still reading "Online".
     updateRouterStatusBadge(d.routerId, !!d.connected);
+    // The dropdown's per-router dots, which are about every router.
+    dropdown.refresh();
+
+    // ── EVERYTHING BELOW IS ABOUT THE ROUTER ON SCREEN ─────────────────────
+    //
+    // The server sends every router's status to every browser — the Settings
+    // and Devices tables show the fleet — and the banner, the two dots and the
+    // switching overlay took ANY router's frame as the watched router's own.
+    // CHR Test dropping for six seconds lit the orange "RouterOS not connected"
+    // banner over a hAP AX3 that never went down; reported by the operator.
+    // `flow-diagram-visibility.test.ts` holds this guard in place.
+    if (d.routerId !== activeRouterId) return;
+    setRosBanner(!!d.connected, d.reason);
     // BOTH dots, because there are two: the topbar one and the mobile nav's.
     // The live app updates them together from the same event, and wiring only
     // the visible-on-desktop one would leave a permanently green dot on a phone
@@ -849,7 +855,6 @@ async function main(): Promise<void> {
     }
     overlay = overlayOnStatus(overlay, !!d.connected);
     paintOverlay('');
-    dropdown.refresh();
   });
 
   // ── AN EMPTY FLEET IS A STATE, NOT AN EXIT ────────────────────────────────

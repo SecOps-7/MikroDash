@@ -187,5 +187,77 @@ check('wireBanners initialises the visibility handler', () => {
     'visibilitychange and the diagram has no way to resume after a hidden outage');
 });
 
+// ── THE ROUTEROS BANNER DESCRIBES THE ROUTER ON SCREEN, AND NO OTHER ────────
+//
+// The server sends every router's `router:status` to every browser: the
+// Settings and Devices tables show the whole fleet. Taken as-is, CHR Test
+// dropping for six seconds lit the orange "RouterOS not connected" banner over
+// a hAP AX3 that never went down, reported by the operator. So every
+// `router:status` handler in main.ts that touches the banner, the status dots or
+// the switching overlay must first return for a frame whose `routerId` is not
+// `activeRouterId`. Source-level, for the reason given above.
+check('router:status reaches the banner only for the router on screen', () => {
+  const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
+  const mainPath = path.join(ROOT, 'web', 'src', 'main.ts');
+  const sf = ts.createSourceFile(mainPath, fs.readFileSync(mainPath, 'utf8'),
+    ts.ScriptTarget.ES2022, true);
+
+  const handlers: any[] = [];
+  const findOn = (n: any) => {
+    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression)
+        && n.expression.name.text === 'on' && n.arguments.length === 2
+        && ts.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'router:status') {
+      handlers.push(n.arguments[1]);
+    }
+    ts.forEachChild(n, findOn);
+  };
+  ts.forEachChild(sf, findOn);
+  assert.ok(handlers.length > 0, 'main.ts has no router:status handler');
+
+  // What describes the router on screen: the banner, the two dots, the overlay.
+  const onScreen = (n: any): string | null => {
+    if (!ts.isCallExpression(n)) return null;
+    const callee = n.expression;
+    if (ts.isIdentifier(callee) && (callee.text === 'setRosBanner' || callee.text === 'overlayOnStatus')) {
+      return callee.text;
+    }
+    if (ts.isPropertyAccessExpression(callee) && callee.name.text === 'toggle'
+        && n.arguments.length > 0 && ts.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'offline') {
+      return "classList.toggle('offline')";
+    }
+    return null;
+  };
+  // A guard is `if (<names routerId and activeRouterId>) return;`.
+  const isGuard = (n: any) => ts.isIfStatement(n)
+    && /\brouterId\b/.test(n.expression.getText(sf))
+    && /\bactiveRouterId\b/.test(n.expression.getText(sf))
+    && (ts.isReturnStatement(n.thenStatement)
+      || (ts.isBlock(n.thenStatement) && n.thenStatement.statements.some((s: any) => ts.isReturnStatement(s))));
+
+  let bannerSeen = false;
+  for (const h of handlers) {
+    let guardAt = Infinity;
+    const uses: Array<{ what: string; at: number }> = [];
+    const walk = (n: any) => {
+      if (isGuard(n)) guardAt = Math.min(guardAt, n.getStart(sf));
+      const what = onScreen(n);
+      if (what) uses.push({ what, at: n.getStart(sf) });
+      ts.forEachChild(n, walk);
+    };
+    walk(h);
+    const line = sf.getLineAndCharacterOfPosition(h.getStart(sf)).line + 1;
+    for (const u of uses) {
+      if (u.what === 'setRosBanner') bannerSeen = true;
+      assert.ok(u.at > guardAt,
+        'the router:status handler at main.ts:' + line + ' calls ' + u.what +
+        " without first returning for another router's frame, so one router dropping " +
+        'shows as the router on screen dropping');
+    }
+  }
+  // BELIEVABILITY: the banner must still be driven by router:status at all.
+  assert.ok(bannerSeen,
+    'no router:status handler calls setRosBanner, so a RouterOS outage no longer shows');
+});
+
 if (failed) { say('\n' + failed + ' failed'); process.exit(1); }
 say('\nall passed');

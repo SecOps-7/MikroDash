@@ -30,10 +30,11 @@
 // The live server emits TWO events: `ros:status` — this session's RouterOS
 // reachability, which drives this banner — and `router:status`, a global
 // per-router announcement for the Routers list. This port's server emits one
-// ROOM-SCOPED `router:status` carrying `{routerId, connected, reason}`, which
-// answers the first question for the router this browser is watching. That is a
-// mechanism change of the kind the port allows; the rendered result is what must
-// not move, and that is what the gate compares.
+// `router:status` carrying `{routerId, connected, reason}` for EVERY router, to
+// every browser, and main.ts shows it here only when `routerId` is the router on
+// screen. It was once room-scoped and answered this banner's question alone;
+// the fleet-wide broadcast added later made an ungated banner report other
+// routers' outages as this one's.
 
 import { el } from './dom.js';
 import { getDisplayTimezone } from './caps.js';
