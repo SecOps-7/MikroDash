@@ -401,6 +401,24 @@ func (c *Client) err() error {
 	return c.fatal
 }
 
+// Err is WHY this connection stopped being usable: the transport failure `wrap`
+// recorded — a read error, a reset, a protocol or parse failure — or nil if none
+// was. A router's `!trap` is not one of these, and neither is a command timeout.
+//
+// ── IT DELIBERATELY IGNORES `closed`, UNLIKE err() ─────────────────────────
+//
+// `err()` answers "may I use this connection", so a locally closed one reports
+// "connection closed" and the cause is lost. This answers "what happened to it",
+// and the caller is the session's connect loop, which CLOSES the client it is
+// abandoning — see internal/session. Reporting the local close there would
+// overwrite the very thing the line is trying to say, and make the reading
+// order load-bearing.
+func (c *Client) Err() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.fatal
+}
+
 func (c *Client) Close() error {
 	c.mu.Lock()
 	if c.closed {

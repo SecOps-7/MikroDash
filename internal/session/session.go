@@ -2152,6 +2152,10 @@ func (s *Session) connectLoop() {
 		// already down or the session is closing. Any collector still mid-command
 		// fails the same way it would have anyway, and every Suspend/Stop below
 		// follows immediately.
+		// WHY THE LINK WENT, for the log line at the bottom of this block.
+		// `Err()` reports the transport failure and nothing else, so reading it
+		// on either side of the Close below gives the same answer.
+		reason := c.Err()
 		_ = c.Close()
 		s.dns.Suspend()
 		s.bridges.Suspend()
@@ -2180,7 +2184,24 @@ func (s *Session) connectLoop() {
 			return
 		}
 		s.announce()
-		log.Printf("[session] %s disconnected; retrying in %s", s.Label, retry)
+		// ── THE REASON IS THE POINT OF THIS LINE ──────────────────────────
+		//
+		// It read "disconnected; retrying in 5s" and nothing else. Three drops
+		// across two routers in one afternoon could not be told apart by it: a
+		// router closing the session, a reset in the path between, and a
+		// protocol error all produce the same sentence, and the router's own log
+		// says only that the API user logged out. The operator asked what caused
+		// one and the honest answer was that this app had not written it down —
+		// it HAD the error, in `Client.Err()`, and threw it away here.
+		//
+		// A nil reason is not a gap in the record: it means nothing marked the
+		// connection failed, so the close came from this side.
+		if reason != nil {
+			log.Printf("[session] %s disconnected: %v; retrying in %s", s.Label, reason, retry)
+		} else {
+			log.Printf("[session] %s disconnected (closed locally, no transport error); retrying in %s",
+				s.Label, retry)
+		}
 		time.Sleep(retry)
 	}
 }
