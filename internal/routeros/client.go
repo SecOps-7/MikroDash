@@ -194,6 +194,10 @@ type Client struct {
 	// go-routeros parks a goroutine on context.Background() for the life of the
 	// process, once per client ever dialled.
 	cancel context.CancelFunc
+
+	// watch is the connection's `!fatal` watcher: the reason a router gave for
+	// ending the session, if it gave one. Nil on a Client not built by Dial.
+	watch *fatalWatch
 }
 
 // Dial connects, logs in and starts async mode.
@@ -204,24 +208,45 @@ func Dial(cfg Config) (*Client, error) {
 	}
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 
+	// ── THE CONNECTION IS OPENED HERE, NOT BY THE LIBRARY ─────────────────
+	//
+	// `ros.DialTimeout` / `ros.DialTLSTimeout` are exactly a dial, `NewClient`
+	// and `LoginContext` under one deadline (client.go in go-routeros v3.0.1).
+	// Doing those three here is what lets `fatalWatch` wrap the connection, which
+	// is the only place the router's `!fatal` reason can still be seen — the
+	// library's async loop discards it. The error text keeps the library's
+	// prefixes, "could not connect to router os" and "could not login", so
+	// TestConnReason and safe.Message read it as before.
+	dialCtx, dialCancel := context.WithTimeout(context.Background(), timeout)
+	defer dialCancel()
 	var (
-		inner *ros.Client
-		err   error
+		conn net.Conn
+		err  error
 	)
 	if cfg.TLS {
 		// RouterOS ships a self-signed certificate. InsecureSkipVerify mirrors
 		// the Node deployment's rejectUnauthorized:false rather than inventing a
 		// stricter policy every existing router would fail.
-		inner, err = ros.DialTLSTimeout(addr, cfg.Username, cfg.Password,
-			&tls.Config{InsecureSkipVerify: cfg.InsecureTLS}, timeout) //nolint:gosec // see above
+		conn, err = (&tls.Dialer{Config: &tls.Config{InsecureSkipVerify: cfg.InsecureTLS}}). //nolint:gosec // see above
+													DialContext(dialCtx, "tcp", addr)
 	} else {
-		inner, err = ros.DialTimeout(addr, cfg.Username, cfg.Password, timeout)
+		conn, err = new(net.Dialer).DialContext(dialCtx, "tcp", addr)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not connect to router os: %w", err)
+	}
+	watch := newFatalWatch(conn)
+	inner, err := ros.NewClient(watch)
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("could not connect to router os: %w", err)
+	}
+	if err := inner.LoginContext(dialCtx, cfg.Username, cfg.Password); err != nil {
+		_ = inner.Close()
+		return nil, fmt.Errorf("could not login: %w", err)
 	}
 
-	cl := &Client{cfg: cfg, c: inner}
+	cl := &Client{cfg: cfg, c: inner, watch: watch}
 
 	// ── PROTOCOL TRACING, OFF UNLESS THE OPERATOR ASKED ───────────────────
 	//
@@ -260,11 +285,7 @@ func Dial(cfg Config) (*Client, error) {
 		// Async() closes this channel when the read loop ends. A closed channel
 		// with no value is a clean shutdown; a value is what ended it.
 		if e, ok := <-errC; ok && e != nil {
-			cl.mu.Lock()
-			if cl.fatal == nil {
-				cl.fatal = e
-			}
-			cl.mu.Unlock()
+			cl.record(e)
 		}
 	}()
 
@@ -384,13 +405,57 @@ func (c *Client) wrap(err error) error {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return fmt.Errorf("routeros: timed out: %w", err)
 	}
+	c.record(err)
+	return err
+}
+
+// record keeps the FIRST failure that ended this connection, told with the
+// reason the router gave, if it gave one. Both writers of `fatal` — `wrap`, for a
+// command that failed, and the async loop's end — come through here, so which of
+// the two gets there first does not decide what the log says.
+func (c *Client) record(err error) {
+	err = c.explain(err)
 	c.mu.Lock()
 	if c.fatal == nil {
 		c.fatal = err
 	}
 	c.mu.Unlock()
+}
+
+// explain attaches what the watcher saw to a failure. By the time a read has
+// failed, every byte before it has passed the watcher, so its answer is final.
+func (c *Client) explain(err error) error {
+	if c.watch == nil {
+		return err
+	}
+	if reason, seen := c.watch.Fatal(); seen {
+		return &SessionEnded{Reason: reason, Err: err}
+	}
+	if errors.Is(err, io.EOF) {
+		// Worth saying rather than leaving as a bare EOF: RouterOS always sends
+		// `!fatal` before closing a session itself, so a close without one came
+		// from somewhere else — the path between, or the TCP connection going.
+		return fmt.Errorf("connection closed without a !fatal from the router: %w", err)
+	}
 	return err
 }
+
+// SessionEnded is a connection the ROUTER ended, with the reason it sent.
+type SessionEnded struct {
+	Reason string
+	Err    error
+}
+
+func (e *SessionEnded) Error() string {
+	if e.Reason == "" {
+		return fmt.Sprintf("router ended the session without giving a reason (%v)", e.Err)
+	}
+	// %q, because the reason is router-supplied text on its way into a log line:
+	// a newline in it must not be able to start a line of its own.
+	return fmt.Sprintf("router ended the session: %q (%v)", e.Reason, e.Err)
+}
+
+func (e *SessionEnded) Unwrap() error { return e.Err }
 
 func (c *Client) err() error {
 	c.mu.Lock()
@@ -401,9 +466,11 @@ func (c *Client) err() error {
 	return c.fatal
 }
 
-// Err is WHY this connection stopped being usable: the transport failure `wrap`
-// recorded — a read error, a reset, a protocol or parse failure — or nil if none
-// was. A router's `!trap` is not one of these, and neither is a command timeout.
+// Err is WHY this connection stopped being usable: the transport failure recorded
+// — a read error, a reset, a protocol or parse failure — or nil if none was. When
+// the router ended the session it is a *SessionEnded carrying the reason it sent;
+// an EOF with no `!fatal` before it says so. A router's `!trap` is not one of
+// these, and neither is a command timeout.
 //
 // ── IT DELIBERATELY IGNORES `closed`, UNLIKE err() ─────────────────────────
 //
