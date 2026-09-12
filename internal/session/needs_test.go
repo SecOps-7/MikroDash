@@ -225,14 +225,18 @@ func TestTheConnectPruneIsNotDeferred(t *testing.T) {
 // check, because every resume in the app goes through it.
 func TestResumeCollectorRefusesWhatTheSessionHasNoReasonToRun(t *testing.T) {
 	src := readSource(t, "dormancy_targets.go")
-	if !contains(src, "why := s.reasonsLocked()") || !contains(src, "if !Needs(key, why) { return }") {
+	// RE-AIMED 2026-09-12: the rule moved into `mayRun`, which the dormancy probe
+	// now asks too, so it is stated once rather than copied beside the probe.
+	if !contains(src, "if !s.mayRun(key) { return }") ||
+		!contains(src, "why := s.reasonsLocked()") || !contains(src, "return Needs(key, why)") ||
+		!contains(src, "if !s.CollectorEnabled(key) { return false }") {
 		t.Error("ResumeCollector no longer refuses a collector the session has no reason " +
-			"to run, so the dormancy probe resumes whatever it likes on a held session " +
-			"and the prune is undone within a minute")
+			"to run (via mayRun), so a resume talks a held session back into running what " +
+			"the prune stopped")
 	}
 	// Beside the enabled check, not after the work: a refusal that happens later
 	// has already started something.
-	if indexOf(src, "if !Needs(key, why) { return }") > indexOf(src, "if !s.Connected() {") {
+	if indexOf(src, "if !s.mayRun(key) { return }") > indexOf(src, "if !s.Connected() {") {
 		t.Error("the Needs veto is after the not-connected latch, so a refused resume is " +
 			"still remembered and replayed when the link comes up")
 	}
@@ -284,6 +288,23 @@ func min(a, b int) int {
 // `readSource` returns.
 func indexOf(src, want string) int {
 	return strings.Index(src, strings.Join(strings.Fields(want), " "))
+}
+
+// TestAWokenCollectorIsAlsoResumed.
+//
+// `ResumeCollector` used to return straight after `WakeForFocus`, relying on the
+// dormancy probe's second pass through the funnel to do the resume. The probe no
+// longer resumes — it reads — so an early return here would wake a collector a
+// page has just asked for and leave it stopped.
+func TestAWokenCollectorIsAlsoResumed(t *testing.T) {
+	src := readSource(t, "dormancy_targets.go")
+	if !contains(src, "s.WakeForFocus(key)") {
+		t.Fatal("ResumeCollector no longer wakes a dormant collector at all — this check reads nothing")
+	}
+	if contains(src, "s.WakeForFocus(key) return") {
+		t.Error("ResumeCollector returns after waking a dormant collector, so a page focus " +
+			"wakes it and never resumes it: the probe no longer does that half")
+	}
 }
 
 // TestWantsAsksTheHoldsWhenNobodyIsWatching.

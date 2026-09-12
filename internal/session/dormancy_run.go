@@ -201,7 +201,19 @@ func (s *Session) probe(key string, t collectorTarget) {
 		p.Probe()
 		return
 	}
-	// The fallback: resume THROUGH THE FUNNEL, then ask for a reading now.
+	// ── A PROBE IS ONE READING. IT DOES NOT RESUME, AND IT DOES NOT WAKE ─────
+	//
+	// It used to resume THROUGH THE FUNNEL and then ask for a reading. On a router
+	// somebody was viewing, the funnel handed the sleeping collector to
+	// `WakeForFocus`, which reset its dormancy state — so every probe put the
+	// backoff back to 60s and the collector re-slept ~108s later, for ever. And a
+	// probe that resumed would, on an empty result, leave the collector polling
+	// while the supervisor believed it asleep.
+	//
+	// A reading is what a probe is for. Empty: the collector stays suspended and
+	// the supervisor backs off, 60s doubling to 600s. Data: the supervisor wakes
+	// it through its own wake path, which resumes it. `mayRun` keeps the funnel's
+	// refusal — a probe must not read what this session has no reason to run.
 	//
 	// THE SECOND HALF USED TO BE A TYPE ASSERTION THAT COULD NEVER PASS. It
 	// asked whether the TARGET STRUCT implemented a refresher interface --
@@ -213,7 +225,9 @@ func (s *Session) probe(key string, t collectorTarget) {
 	// prime_test.go scans this file for it, and quoting it made that gate fail
 	// against its own explanation -- the same trap CLAUDE.md records for the
 	// credential scanner reading a comment about proplists.
-	s.ResumeCollector(key)
+	if !s.mayRun(key) {
+		return
+	}
 	if t.refresh != nil {
 		t.refresh()
 	}
