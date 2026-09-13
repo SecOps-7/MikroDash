@@ -163,9 +163,35 @@ func debugHandler(cfg Config, w io.Writer) slog.Handler {
 type Cmd struct {
 	Path string
 	Args []string
-	// Timeout bounds a one-shot call. Zero means no bound, which is correct for
-	// a stream and wrong for everything else.
+	// Timeout bounds how long Do WAITS for a one-shot call. Zero means no bound,
+	// which is correct for a stream and wrong for everything else. It does not
+	// cancel the command: see Do.
 	Timeout time.Duration
+	// Finished, if set, runs exactly once when the command is really over — its
+	// reply arrived, it failed, or the connection went — which after a timeout
+	// is later than Do returning. A router slot is released here. Chain onto it
+	// with OnFinished rather than assigning, so an earlier hook is kept.
+	Finished func()
+}
+
+// OnFinished returns the command with f added to what runs when it is over.
+func (c Cmd) OnFinished(f func()) Cmd {
+	prev := c.Finished
+	c.Finished = func() {
+		f()
+		if prev != nil {
+			prev()
+		}
+	}
+	return c
+}
+
+// Finish runs the Finished hooks, for a caller that returns before issuing the
+// command at all.
+func (c Cmd) Finish() {
+	if c.Finished != nil {
+		c.Finished()
+	}
 }
 
 // words is the sentence go-routeros wants: the path, then each argument.
@@ -293,23 +319,71 @@ func Dial(cfg Config) (*Client, error) {
 }
 
 // Do issues a command and returns every row of the reply.
+//
+// ── A TIMEOUT ENDS THE WAIT, NEVER THE COMMAND ──────────────────────────────
+//
+// It used to give the library a context with the deadline. go-routeros's async
+// RunArgsContext answers a finished context with `c.r.Cancel()` (run.go) — on
+// the reader the WHOLE connection shares — and a cancelled read returns io.EOF
+// (proto/io_context.go). So ONE command past its deadline ended EVERY command on
+// the connection, and the session logged "connection closed without a !fatal
+// from the router: EOF". On 2026-09-13 the cAP AX and CHR Test both dropped 15 s
+// after a restart, the session's default deadline, while every collector made
+// its first read at once.
+//
+// So the library gets a context nothing cancels, and the deadline is this
+// function's own timer. When it fires the caller gets a timeout at once, and the
+// command runs on until its reply arrives or the connection goes, which ends it
+// either way. `cmd.Finished` marks that moment, exactly once, on every path.
 func (c *Client) Do(cmd Cmd) ([]Reply, error) {
+	finish := sync.OnceFunc(cmd.Finish)
 	if err := c.err(); err != nil {
+		finish()
 		return nil, err
 	}
 
-	ctx := context.Background()
-	if cmd.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, cmd.Timeout)
-		defer cancel()
+	if cmd.Timeout <= 0 {
+		defer finish()
+		reply, err := c.c.RunArgsContext(context.Background(), cmd.words())
+		if err != nil {
+			return nil, c.wrap(err)
+		}
+		return rowsOf(reply), nil
 	}
 
-	reply, err := c.c.RunArgsContext(ctx, cmd.words())
-	if err != nil {
-		return nil, c.wrap(err)
+	type result struct {
+		reply *ros.Reply
+		err   error
 	}
+	out := make(chan result, 1)
+	go func() {
+		defer finish()
+		reply, err := c.c.RunArgsContext(context.Background(), cmd.words())
+		if err != nil {
+			// Wrapped even when nobody is waiting: a transport failure still
+			// has to be recorded as what ended the connection.
+			err = c.wrap(err)
+		}
+		out <- result{reply, err}
+	}()
 
+	timer := time.NewTimer(cmd.Timeout)
+	defer timer.Stop()
+	select {
+	case r := <-out:
+		if r.err != nil {
+			return nil, r.err
+		}
+		return rowsOf(r.reply), nil
+	case <-timer.C:
+		// NOT through wrap: a timeout is not a connection failure, and the
+		// connection is, by construction, still up.
+		return nil, fmt.Errorf("routeros: timed out: %w", context.DeadlineExceeded)
+	}
+}
+
+// rowsOf turns a library reply into this package's rows.
+func rowsOf(reply *ros.Reply) []Reply {
 	out := make([]Reply, 0, len(reply.Re))
 	for _, sen := range reply.Re {
 		if sen == nil {
@@ -322,7 +396,7 @@ func (c *Client) Do(cmd Cmd) ([]Reply, error) {
 		// 500-row connection table for no gain.
 		out = append(out, Reply(sen.Map))
 	}
-	return out, nil
+	return out
 }
 
 // Stream subscribes to a /listen or an `=interval=` print, calling onRow for

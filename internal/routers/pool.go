@@ -97,6 +97,8 @@ package routers
 //   Duplicating that assertion here would test the same line twice.
 
 import (
+	"context"
+	"errors"
 	"log"
 	"mikrodash/internal/hub"
 	"sort"
@@ -269,15 +271,22 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	up := r.s.sess.Connected
 	r.s.mu.Unlock()
 	if c == nil || !up {
+		cmd.Finish()
 		return nil, errNotConnected{}
 	}
 	// The same per-router budget the viewing session and the held ones take.
 	// This pool reaches routers nobody is watching, but it reaches the SAME
 	// routers, so a cap that skipped it would not be a cap on the device.
+	//
+	// Released when the command is OVER, as the session's reader.Do does and for
+	// the same reason: a timed-out command keeps running on the router.
 	roslimit.Note(r.s.cfg.ID, cmd.Path)
-	done := roslimit.Acquire(r.s.cfg.ID)
-	defer done()
-	return c.Do(cmd)
+	release := sync.OnceFunc(roslimit.Acquire(r.s.cfg.ID))
+	rows, err := c.Do(cmd.OnFinished(release))
+	if !errors.Is(err, context.DeadlineExceeded) {
+		release()
+	}
+	return rows, err
 }
 
 // Stream mirrors Do's guard: a stream opened on a dead connection would sit

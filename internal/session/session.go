@@ -14,6 +14,7 @@ package session
 // occupant and is suspended when the last viewer leaves.
 
 import (
+	"context"
 	"errors"
 	"log"
 	"sort"
@@ -68,6 +69,8 @@ type Session struct {
 	// prime.go.
 	primedSys *collect.SystemPayload
 	priming   bool
+	// primeInflight counts prime reads still with the router. See primeStats.
+	primeInflight atomic.Int32
 
 	// sched is the router's ONE scheduler, phase 3.2. It services the cache's
 	// demand set, so a collector that has subscribed does not own a timer. Nil
@@ -464,6 +467,7 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	c := r.s.client
 	r.s.mu.Unlock()
 	if c == nil {
+		cmd.Finish()
 		return nil, errNotConnected
 	}
 	if cmd.Timeout == 0 {
@@ -473,12 +477,23 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	//
 	// Taken AFTER the connection check and the timeout default, so a call that
 	// was never going to reach the router does not hold a slot while it fails.
-	// Deferred immediately, so an early return or a panic inside Do cannot leak
-	// one -- a leaked slot never comes back.
+	//
+	// ── RELEASED WHEN THE COMMAND IS OVER, NOT WHEN DO RETURNS ──────────────
+	//
+	// This was `defer done()`. A command past its deadline is still running on
+	// the router — Client.Do no longer cancels it, because cancelling ended the
+	// whole connection — so releasing on return would let the cap be exceeded by
+	// exactly the commands a slow router is struggling with. The release rides
+	// `Cmd.OnFinished`, and also runs the moment Do returns WITHOUT a timeout: the
+	// command is over then, and a Do that never calls Finished still cannot leak
+	// the slot. The OnceFunc makes the two one release.
 	roslimit.Note(r.s.RouterID, cmd.Path)
-	done := roslimit.Acquire(r.s.RouterID)
-	defer done()
-	return c.Do(cmd)
+	release := sync.OnceFunc(roslimit.Acquire(r.s.RouterID))
+	rows, err := c.Do(cmd.OnFinished(release))
+	if !errors.Is(err, context.DeadlineExceeded) {
+		release()
+	}
+	return rows, err
 }
 
 type notConnected struct{}
