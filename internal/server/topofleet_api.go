@@ -26,13 +26,15 @@ package server
 // bug to fix: a discovery protocol that is forwarded carries no hop information
 // to recover.
 //
-// ── ON DEMAND, ONE HOLD AT A TIME ───────────────────────────────────────────
+// ── ON DEMAND ───────────────────────────────────────────────────────────────
 //
-// Same shape as the DNS fleet read: `Retain` builds a session if there is not
-// one, two reads, `Drop`. Nothing here is polled — the merge is something an
-// operator turns on while looking at the map.
+// Same shape as the DNS fleet read, through the same helpers in fleet.go: a hold
+// that WAITS for the connection, every router at once, one deadline. Nothing
+// here is polled — the merge is something an operator turns on while looking at
+// the map.
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -74,23 +76,22 @@ func (s *Server) topoPeersGet(w http.ResponseWriter, r *http.Request) {
 	targets := s.fleetTargets(sess, ids, "network-topology", "read")
 
 	now := time.Now().UnixMilli()
-	out := make([]topoPeer, 0, len(targets))
-	for _, t := range targets {
-		out = append(out, s.topoPeerOne(t.ID, t.Label, now))
-	}
+	out := fleetEach(r.Context(), targets, func(ctx context.Context, t fleetTarget) topoPeer {
+		return s.topoPeerOne(ctx, t, now)
+	})
 	writeJSON(w, map[string]any{"peers": out})
 }
 
-func (s *Server) topoPeerOne(routerID, label string, now int64) topoPeer {
-	peer := topoPeer{ID: routerID, Label: label,
+func (s *Server) topoPeerOne(ctx context.Context, t fleetTarget, now int64) topoPeer {
+	peer := topoPeer{ID: t.ID, Label: t.Label,
 		MACs: []string{}, Neighbors: []collect.TopoNeighbor{}}
 
-	sn, err := s.sessions.Retain(routerID, topoFleetHold)
-	if err != nil || sn == nil {
+	sn, drop, ok := s.fleetSession(ctx, t.ID, topoFleetHold)
+	if !ok {
 		peer.Error = "unreachable"
 		return peer
 	}
-	defer s.sessions.Drop(routerID, topoFleetHold)
+	defer drop()
 
 	rows, rerr := sn.Exec(collect.NeighborCmd())
 	if rerr != nil {

@@ -29,6 +29,7 @@ package server
 // write anything else: the resource is named here, not taken from the request.
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"sort"
@@ -39,17 +40,11 @@ import (
 	"mikrodash/internal/resource"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
-	"mikrodash/internal/topology"
 )
 
 // dnsFleetHold is the reason this endpoint's session holds carry, so a stuck
 // one can be explained by name — see session.Manager.Retain.
 const dnsFleetHold = "dns-fleet"
-
-// fleetMaxRouters bounds one request. A fleet larger than this is a fine thing
-// to have and not a thing to read serially in one HTTP call. Shared with the
-// topology's peer merge, which reads the same way for the same reason.
-const fleetMaxRouters = 16
 
 // dnsFleetEntry is one record, with everything needed to COPY it.
 //
@@ -83,52 +78,6 @@ func (s *Server) registerDNSFleet(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/dns/fleet-add", s.dnsFleetAdd)
 }
 
-// fleetTargets resolves the requested ids against the stored fleet, keeping only
-// those this caller may reach the named page on.
-//
-// ── A ROUTER THE CALLER MAY NOT SEE IS DROPPED, NOT REFUSED ─────────────────
-//
-// Refusing the whole request would tell the caller that an id they guessed
-// exists, which is the cross-router probe issue #108 closed elsewhere. Dropping
-// it answers about exactly the routers they already have access to.
-//
-// THE PAGE IS THE PERMISSION. A caller allowed to read DNS across the fleet is
-// not thereby allowed to read everybody's neighbour tables, so each endpoint
-// names its own page and the grant is checked per router.
-func (s *Server) fleetTargets(sess *Session, ids []string, page, access string) []struct{ ID, Label string } {
-	known := map[string]string{}
-	all, _ := s.store.Routers()
-	for _, r := range all {
-		if !r.Disabled {
-			// THE ADDRESS WHEN THERE IS NO LABEL. A router nobody named reached
-			// the fleet table's column heading and the Add dialog's picker as its
-			// UUID, which says nothing about which box is about to be written to.
-			known[r.ID] = firstNonEmpty(r.Label, firstNonEmpty(r.Host, r.ID))
-		}
-	}
-	uid := s.userIDFor(sess.Username)
-	out := []struct{ ID, Label string }{}
-	seen := map[string]bool{}
-	for _, id := range ids {
-		if id == "" || seen[id] || !topology.IsValidRouterID(id) {
-			continue
-		}
-		seen[id] = true
-		label, ok := known[id]
-		if !ok {
-			continue
-		}
-		if !permitted(s.rbac.CanPage(uid, page, access, id)) {
-			continue
-		}
-		if len(out) >= fleetMaxRouters {
-			break
-		}
-		out = append(out, struct{ ID, Label string }{id, label})
-	}
-	return out
-}
-
 func (s *Server) dnsFleetGet(w http.ResponseWriter, r *http.Request) {
 	sess := s.layoutSession(w, r)
 	if sess == nil {
@@ -136,28 +85,26 @@ func (s *Server) dnsFleetGet(w http.ResponseWriter, r *http.Request) {
 	}
 	ids := strings.Split(r.URL.Query().Get("routers"), ",")
 	targets := s.fleetTargets(sess, ids, "dns", "read")
-
-	out := make([]dnsFleetRouter, 0, len(targets))
-	for _, t := range targets {
-		row := dnsFleetRouter{ID: t.ID, Label: t.Label, Entries: []dnsFleetEntry{}}
-		sn, err := s.sessions.Retain(t.ID, dnsFleetHold)
-		if err != nil || sn == nil {
-			row.Error = "unreachable"
-			out = append(out, row)
-			continue
-		}
-		rows, rerr := sn.Exec(collect.DNSStaticCmd())
-		s.sessions.Drop(t.ID, dnsFleetHold)
-		if rerr != nil {
-			row.Error = safe.Message(rerr.Error())
-			out = append(out, row)
-			continue
-		}
-		row.OK = true
-		row.Entries = dnsFleetEntries(rows)
-		out = append(out, row)
-	}
+	out := fleetEach(r.Context(), targets, s.dnsFleetReadOne)
 	writeJSON(w, map[string]any{"routers": out})
+}
+
+func (s *Server) dnsFleetReadOne(ctx context.Context, t fleetTarget) dnsFleetRouter {
+	row := dnsFleetRouter{ID: t.ID, Label: t.Label, Entries: []dnsFleetEntry{}}
+	sn, drop, ok := s.fleetSession(ctx, t.ID, dnsFleetHold)
+	if !ok {
+		row.Error = "unreachable"
+		return row
+	}
+	defer drop()
+	rows, err := sn.Exec(collect.DNSStaticCmd())
+	if err != nil {
+		row.Error = safe.Message(err.Error())
+		return row
+	}
+	row.OK = true
+	row.Entries = dnsFleetEntries(rows)
+	return row
 }
 
 type dnsFleetAddResult struct {
@@ -196,22 +143,25 @@ func (s *Server) dnsFleetAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results := make([]dnsFleetAddResult, 0, len(targets))
-	for _, t := range targets {
-		results = append(results, s.dnsFleetAddOne(r, sess, res, validated, name, t.ID))
-	}
+	results := fleetEach(r.Context(), targets, func(ctx context.Context, t fleetTarget) dnsFleetAddResult {
+		return s.dnsFleetAddOne(ctx, r, sess, res, validated, name, t.ID)
+	})
 	writeJSON(w, map[string]any{"ok": true, "results": results})
 }
 
 // dnsFleetAddOne writes one record to one router, and records what happened.
-func (s *Server) dnsFleetAddOne(r *http.Request, sess *Session, res *resource.Resource,
-	validated resource.Validated, name, routerID string) dnsFleetAddResult {
+//
+// EVERY ROUTER AT ONCE, from dnsFleetAdd: the writes are independent, each runs
+// in its own session's write queue, and serially a fleet of sixteen would hold
+// the request for the sum of their round trips.
+func (s *Server) dnsFleetAddOne(ctx context.Context, r *http.Request, sess *Session,
+	res *resource.Resource, validated resource.Validated, name, routerID string) dnsFleetAddResult {
 
-	sn, err := s.sessions.Retain(routerID, dnsFleetHold)
-	if err != nil || sn == nil {
+	sn, drop, ok := s.fleetSession(ctx, routerID, dnsFleetHold)
+	if !ok {
 		return dnsFleetAddResult{ID: routerID, Code: "unreachable"}
 	}
-	defer s.sessions.Drop(routerID, dnsFleetHold)
+	defer drop()
 
 	out := dnsFleetAddResult{ID: routerID}
 	werr := sn.InWriteQueue(func() error {

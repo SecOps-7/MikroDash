@@ -66,11 +66,11 @@ function radio(over) {
 // One dual-band CAP: two radios, the same SSID on both, plus a guest network
 // riding the 2.4 GHz one.
 const NETWORKS = [
-  net({ id: '*1', name: 'cap24', radio: 'cap24', ssid: 'guest', band: '2.4GHz',
+  net({ id: '*1', name: 'cap24', radio: 'cap24', ssid: 'Office', band: '2.4GHz',
     ap: 'hap-ax2', clients: 3 }),
   net({ id: '*2', name: 'cap24-guest', radio: 'cap24', master: 'cap24', isVirtual: true,
     ssid: 'Guest', band: '2.4GHz', ap: 'hap-ax2', clients: 1, security: 'Open' }),
-  net({ id: '*3', name: 'cap5', radio: 'cap5', ssid: 'guest', band: '5GHz',
+  net({ id: '*3', name: 'cap5', radio: 'cap5', ssid: 'Office', band: '5GHz',
     ap: 'hap-ax2', clients: 5 }),
   // A radio this router owns, so the AP view has a second group and the "" key
   // is exercised.
@@ -161,8 +161,8 @@ const ifaces = (html: string): string[] =>
     'the SSID view still draws group headings:\n' + html);
   const rows = (html.match(/<tr>/g) || []).length;
   assert.strictEqual(rows, 3,
-    'expected one row per SSID (guest, Guest, Home), got ' + rows + ':\n' + html);
-  // guest is on both bands and both must show, or the aggregate has silently
+    'expected one row per SSID (Office, Guest, Home), got ' + rows + ':\n' + html);
+  // Office is on both bands and both must show, or the aggregate has silently
   // picked one.
   assert.ok(html.includes('2.4GHz') && html.includes('5GHz'),
     'the aggregated row does not show both of its bands:\n' + html);

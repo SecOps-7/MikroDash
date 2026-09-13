@@ -222,6 +222,42 @@ func (s *Session) Observed() bool {
 	return s.observed
 }
 
+// WaitConnected blocks until this session has a live connection, the context is
+// done, or the session is closed. It reports whether it is connected.
+//
+// ── WHY IT EXISTS ──────────────────────────────────────────────────────
+//
+// `Retain` returns as soon as the DIAL STARTS, which is right for a hold taken
+// to keep a router polled and wrong for one taken to read from it now: the read
+// runs against a session with no client and answers `not connected`. The fleet
+// endpoints hit exactly that, and only routers already kept connected for
+// alerting or history ever answered them.
+//
+// ── WHY A POLL AND NOT A SIGNAL ──────────────────────────────────────
+//
+// A channel closed on connect has to be re-armed on every reconnect, by the
+// connect loop, for one caller that does not otherwise exist in its world. This
+// costs a mutex read every 25ms on a request that is already waiting on a TCP
+// dial and a RouterOS login.
+func (s *Session) WaitConnected(ctx context.Context) bool {
+	for {
+		s.mu.Lock()
+		up, gone := s.connected, s.closed
+		s.mu.Unlock()
+		if up {
+			return true
+		}
+		if gone {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(25 * time.Millisecond):
+		}
+	}
+}
+
 func (s *Session) LastError() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()

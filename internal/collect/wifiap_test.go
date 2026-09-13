@@ -21,17 +21,17 @@ func TestBuildWifiViewReadsTheAccessPointFromCap(t *testing.T) {
 	// interface — which is the whole reason the chase exists.
 	nets, radios := BuildWifiView(WifiViewInput{
 		Ifaces: []routeros.Reply{
-			{".id": "*1", "name": "cap24", "radio-mac": "AA:BB:CC:DD:EE:01",
-				"cap":                "cap-hall@AA:BB:CC:DD:EE:00%1",
-				"configuration.ssid": "service", "channel.band": "2ghz-ax", "running": "true"},
+			{".id": "*1", "name": "cap24", "radio-mac": "02:00:00:00:0C:02",
+				"cap":                "cap-hall@02:00:00:00:0C:00%1",
+				"configuration.ssid": "office", "channel.band": "2ghz-ax", "running": "true"},
 			{".id": "*2", "name": "cap24-guest", "master-interface": "cap24",
 				"configuration.ssid": "guest", "running": "true"},
-			{".id": "*3", "name": "cap5", "radio-mac": "AA:BB:CC:DD:EE:02",
-				"cap":                "cap-hall@AA:BB:CC:DD:EE:00%2",
-				"configuration.ssid": "service", "channel.band": "5ghz-ax", "running": "true"},
+			{".id": "*3", "name": "cap5", "radio-mac": "02:00:00:00:0C:04",
+				"cap":                "cap-hall@02:00:00:00:0C:00%2",
+				"configuration.ssid": "office", "channel.band": "5ghz-ax", "running": "true"},
 			// A LOCAL radio: no `cap` at all, which must read as "this router"
 			// rather than as an access point called "".
-			{".id": "*4", "name": "wifi1", "radio-mac": "AA:BB:CC:DD:EE:10",
+			{".id": "*4", "name": "wifi1", "radio-mac": "02:00:00:00:0D:02",
 				"configuration.ssid": "home", "channel.band": "5ghz-ax", "running": "true"},
 		},
 	})
@@ -81,17 +81,21 @@ func TestCapsLegacyAPsJoinsThroughTheRadio(t *testing.T) {
 	// ── THE ROWS ARE SHAPED LIKE THE ROUTER'S, AND THAT IS THE POINT ────────
 	//
 	// A master answers `master-interface=none`, not an empty string, and a SLAVE
-	// carries a `radio-mac` of its own — the master's with the
-	// locally-administered bit set (`6E:` against `6C:`), which belongs to no
-	// radio. Both were got wrong on the first pass, and between them they made
-	// every legacy interface read as a virtual AP: no radios in the payload, an
-	// empty access-point tray on the Wi-Fi map, and every slave grouped under
-	// "This router". Written as the router writes them so that cannot recur.
+	// carries a `radio-mac` of its own that belongs to no radio — RouterOS derives
+	// it from the master's by setting the locally-administered bit. Every address
+	// here is in the 02: range, where that bit is already set, so the slave's is
+	// simply a DIFFERENT address matching no `/caps-man/radio` row, which is the
+	// property under test.
+	//
+	// Both were got wrong on the first pass, and between them they made every
+	// legacy interface read as a virtual AP: no radios in the payload, an empty
+	// access-point tray on the Wi-Fi map, and every slave grouped under "This
+	// router". Shaped the way the router shapes them so that cannot recur.
 	ifaces := []routeros.Reply{
 		{"name": "cap-north-1", "master-interface": "none", "radio-mac": "02:00:00:00:0A:02"},
 		{"name": "cap-north-1-1", "master-interface": "cap-north-1",
 			"radio-mac": "02:00:00:00:0A:03"},
-		{"name": "orphan-1", "master-interface": "none", "radio-mac": "00:00:00:00:00:99"},
+		{"name": "orphan-1", "master-interface": "none", "radio-mac": "02:00:00:00:0F:02"},
 	}
 	radios := []routeros.Reply{
 		{"radio-mac": "02:00:00:00:0A:02", "remote-cap-identity": "cap-north"},

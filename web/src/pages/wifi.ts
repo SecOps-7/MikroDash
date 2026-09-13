@@ -18,7 +18,7 @@
 // ── FOUR VIEWS OF ONE LIST ──────────────────────────────────────────────────
 //
 // One row per interface is RouterOS's model and stays the default, but it is the
-// wrong shape for two ordinary questions. "Is guest up everywhere?" is a
+// wrong shape for two ordinary questions. "Is the guest network up everywhere?" is a
 // question about an SSID, which this table splits across a dozen rows; "what is
 // that hAP doing?" is a question about a piece of hardware, and the radio
 // grouping splits one AP into its two bands. So the same rows are drawn four

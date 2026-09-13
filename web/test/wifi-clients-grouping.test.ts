@@ -16,7 +16,7 @@
  *
  * ── THE ADDRESS CASE THAT SEPARATES A REAL SORT FROM A STRING ONE ───────────
  *
- * `192.168.10.9` and `192.168.10.100`. Alphabetically the .100 comes first,
+ * `198.51.100.9` and `198.51.100.100`. Alphabetically the .100 comes first,
  * which is the bug this column would otherwise have and which a test built from
  * .1/.2/.3 cannot see. The addressless client is the second discriminator: it is
  * unknown rather than lowest, so it belongs at the END ascending — the same rule
@@ -89,9 +89,9 @@ const names = (html: string): string[] =>
 // values would leave the order decided by the input — which proves nothing about
 // where the grouping put each client.
 const TWO_APS = [
-  client({ mac: '02:00:00:00:00:01', name: 'a-one', iface: 'ap-one', signal: -40, ip: '192.168.10.9' }),
-  client({ mac: '02:00:00:00:00:02', name: 'b-one', iface: 'ap-one', signal: -50, ip: '192.168.10.100' }),
-  client({ mac: '02:00:00:00:00:03', name: 'c-two', iface: 'ap-two', signal: -60, ip: '192.168.10.2' }),
+  client({ mac: '02:00:00:00:00:01', name: 'a-one', iface: 'ap-one', signal: -40, ip: '198.51.100.9' }),
+  client({ mac: '02:00:00:00:00:02', name: 'b-one', iface: 'ap-one', signal: -50, ip: '198.51.100.100' }),
+  client({ mac: '02:00:00:00:00:03', name: 'c-two', iface: 'ap-two', signal: -60, ip: '198.51.100.2' }),
 ];
 
 // ── 1. grouped is the default, and every group carries a fold control ───────
@@ -191,10 +191,10 @@ const TWO_APS = [
   // One interface, so the grouping — which has ordering behaviour of its own —
   // cannot be what produces the result.
   send([
-    client({ mac: '02:00:00:00:00:01', name: 'c-100', iface: 'ap', ip: '192.168.10.100' }),
+    client({ mac: '02:00:00:00:00:01', name: 'c-100', iface: 'ap', ip: '198.51.100.100' }),
     client({ mac: '02:00:00:00:00:02', name: 'x-none', iface: 'ap', ip: '' }),
-    client({ mac: '02:00:00:00:00:03', name: 'a-9', iface: 'ap', ip: '192.168.10.9' }),
-    client({ mac: '02:00:00:00:00:04', name: 'b-20', iface: 'ap', ip: '192.168.10.20' }),
+    client({ mac: '02:00:00:00:00:03', name: 'a-9', iface: 'ap', ip: '198.51.100.9' }),
+    client({ mac: '02:00:00:00:00:04', name: 'b-20', iface: 'ap', ip: '198.51.100.20' }),
   ]);
   sortBy('ip');
   const got = names(body());
@@ -216,9 +216,9 @@ const TWO_APS = [
 {
   const { send, sortBy, body, restore } = boot();
   send([
-    client({ mac: '02:00:00:00:00:01', name: 'c-100', iface: 'ap', ip: '192.168.10.100' }),
-    client({ mac: '02:00:00:00:00:02', name: 'a-9', iface: 'ap', ip: '192.168.10.9' }),
-    client({ mac: '02:00:00:00:00:03', name: 'b-20', iface: 'ap', ip: '192.168.10.20' }),
+    client({ mac: '02:00:00:00:00:01', name: 'c-100', iface: 'ap', ip: '198.51.100.100' }),
+    client({ mac: '02:00:00:00:00:02', name: 'a-9', iface: 'ap', ip: '198.51.100.9' }),
+    client({ mac: '02:00:00:00:00:03', name: 'b-20', iface: 'ap', ip: '198.51.100.20' }),
   ]);
 
   sortBy('ip');

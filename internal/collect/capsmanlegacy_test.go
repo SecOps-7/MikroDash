@@ -16,9 +16,9 @@ import (
 // reach any of this, and a golden that cannot reach a builder is not a gate over
 // it — the same reasoning `wifiview.go`'s header records for the legacy stack.
 //
-// The rows below are shaped after a real RB5009 running both trees: twelve
-// RB951s on `/caps-man` alongside three wifi-qcom CAPs, `name-format=identity`,
-// and channel profiles reading `2ghz-onlyn` and `5ghz-onlyac`.
+// The rows below are shaped the way a manager running both trees answers:
+// `name-format=identity`, so an interface is `<identity>-<n>`, and channel
+// profiles reading `2ghz-onlyn` and `5ghz-onlyac`. The values are invented.
 
 // capsV1Iface builds one `/caps-man/interface` row.
 //
@@ -99,11 +99,11 @@ func TestCapsLegacyBandsWalksTheManagersConfiguration(t *testing.T) {
 func TestParseWirelessClientTakesItsBandFromTheManager(t *testing.T) {
 	row := routeros.Reply{
 		"mac-address": "02:00:00:00:00:01", "interface": "cap-north-1",
-		"ssid": "service", "rx-signal": "-55", "tx-rate": "72.2Mbps", "uptime": "1d",
+		"ssid": "office", "rx-signal": "-55", "tx-rate": "72.2Mbps", "uptime": "1d",
 	}
 	band := CapsBand{Raw: "2ghz-onlyn", Frequency: "2437"}
 
-	c := parseWirelessClient(row, true, "192.168.10.82", "kitchen-pi", band)
+	c := parseWirelessClient(row, true, "198.51.100.82", "kitchen-pi", band)
 	if c.Band != "2.4GHz" {
 		t.Errorf("band = %q, want 2.4GHz — a /caps-man row carries none of its own", c.Band)
 	}
@@ -158,13 +158,13 @@ func TestBuildCapsmanLegacyViewJoinsClientsThroughTheRadio(t *testing.T) {
 	}
 	reg := []routeros.Reply{
 		{"mac-address": "02:00:00:00:00:01", "interface": "cap-north-1",
-			"ssid": "service", "rx-signal": "-31", "uptime": "1d2h"},
+			"ssid": "office", "rx-signal": "-31", "uptime": "1d2h"},
 		// On the VIRTUAL AP, which carries no radio-mac of its own: without the
 		// master chase this client is attributed to nobody.
 		{"mac-address": "02:00:00:00:00:02", "interface": "cap-north-2",
 			"ssid": "guest", "rx-signal": "-70"},
 		{"mac-address": "02:00:00:00:00:03", "interface": "cap-south-1",
-			"ssid": "service", "rx-signal": "-55"},
+			"ssid": "office", "rx-signal": "-55"},
 		// An interface no CAP owns — a stale row, or a radio that has gone.
 		{"mac-address": "02:00:00:00:00:04", "interface": "ghost-1"},
 	}
@@ -226,7 +226,7 @@ func TestBuildCapsLegacyNetworksAreReadOnlyAndCarryTheirBand(t *testing.T) {
 				"configuration": "cfg-guest", "running": "true"},
 		},
 		Configs: []routeros.Reply{
-			{"name": "cfg-office", "ssid": "service", "channel": "channel24",
+			{"name": "cfg-office", "ssid": "office", "channel": "channel24",
 				"security": "security3", "datapath": "datapath2"},
 			{"name": "cfg-guest", "ssid": "guest", "security": "security1",
 				"datapath": "datapath3"},
@@ -236,7 +236,7 @@ func TestBuildCapsLegacyNetworksAreReadOnlyAndCarryTheirBand(t *testing.T) {
 			{"name": "security1", "authentication-types": "wpa2-psk"},
 		},
 		Channels:  []routeros.Reply{{"name": "channel24", "band": "2ghz-onlyn", "frequency": "2437"}},
-		Datapaths: []routeros.Reply{{"name": "datapath2", "bridge": "bridge-home", "vlan-id": "20"}},
+		Datapaths: []routeros.Reply{{"name": "datapath2", "bridge": "bridge1", "vlan-id": "20"}},
 		Reg: []routeros.Reply{
 			{"interface": "cap-north-1"}, {"interface": "cap-north-1"},
 			{"interface": "cap-north-2"},
@@ -249,8 +249,8 @@ func TestBuildCapsLegacyNetworksAreReadOnlyAndCarryTheirBand(t *testing.T) {
 	}
 	master, slave := nets[0], nets[1]
 
-	if master.SSID != "service" || slave.SSID != "guest" {
-		t.Errorf("ssids = %q / %q, want service / guest", master.SSID, slave.SSID)
+	if master.SSID != "office" || slave.SSID != "guest" {
+		t.Errorf("ssids = %q / %q, want office / guest", master.SSID, slave.SSID)
 	}
 	if master.Band != "2.4GHz" {
 		t.Errorf("band = %q, want 2.4GHz", master.Band)
@@ -262,7 +262,7 @@ func TestBuildCapsLegacyNetworksAreReadOnlyAndCarryTheirBand(t *testing.T) {
 	if master.Security != "WPA2/WPA" {
 		t.Errorf("security = %q, want WPA2/WPA", master.Security)
 	}
-	if master.VlanID != "20" || master.Bridge != "bridge-home" {
+	if master.VlanID != "20" || master.Bridge != "bridge1" {
 		t.Errorf("datapath did not resolve: vlan=%q bridge=%q", master.VlanID, master.Bridge)
 	}
 	if master.Clients != 2 || slave.Clients != 1 {
