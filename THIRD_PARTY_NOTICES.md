@@ -165,6 +165,21 @@ credentials could run.
 
 ---
 
+## go-routeros — MIT
+
+`third_party/go-routeros/`, github.com/go-routeros/routeros v3.0.1,
+https://github.com/go-routeros/routeros. Its non-test sources, used through a
+`replace` in `go.mod`, with one fix described in `third_party/go-routeros/PATCHES.md`.
+
+The licence shipped with v3.0.1 is kept beside the sources as
+`third_party/go-routeros/LICENSE`, and carries:
+
+    The MIT License (MIT)
+
+    Copyright (c) 2016 André Luiz dos Santos
+
+---
+
 ## Not third-party
 
 For the avoidance of doubt, these are MikroDash's own and are not covered above:

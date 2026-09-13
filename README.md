@@ -213,7 +213,7 @@ recent release rather than unreleased work on `main`. Each release is a multi-ar
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.8.53
+docker pull ghcr.io/secops-7/mikrodash:0.8.54
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -504,7 +504,8 @@ loudly, so check your `.env` when upgrading:
 ```
 RouterOS binary API (TCP/TLS)
         |
-  internal/routeros/     an adapter over github.com/go-routeros/routeros/v3.
+  internal/routeros/     an adapter over github.com/go-routeros/routeros/v3,
+                         a patched copy in third_party/go-routeros.
                          Async mode is mandatory: it is what gives the client a
                          tag map, and therefore somewhere to discard a sentence
                          addressed to a cancelled tag.
@@ -533,8 +534,8 @@ lookup service: no telemetry leaves the machine for either.
 Five dependencies, each with a reason beyond convenience: `golang.org/x/crypto`
 (scrypt, because the user store's key derivation demands it), `modernc.org/sqlite`
 (pure Go, no cgo, so the binary stays static), `github.com/coder/websocket`,
-`github.com/go-routeros/routeros/v3`, and `github.com/go-pdf/fpdf` for the PDF
-reports.
+`github.com/go-routeros/routeros/v3` (kept as a patched copy in `third_party/go-routeros`,
+see its `PATCHES.md`), and `github.com/go-pdf/fpdf` for the PDF reports.
 
 
 ### Streamed (router pushes continuously — no poll overhead)

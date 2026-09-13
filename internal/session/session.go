@@ -481,9 +481,9 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	// ── RELEASED WHEN THE COMMAND IS OVER, NOT WHEN DO RETURNS ──────────────
 	//
 	// This was `defer done()`. A command past its deadline is still running on
-	// the router — Client.Do no longer cancels it, because cancelling ended the
-	// whole connection — so releasing on return would let the cap be exceeded by
-	// exactly the commands a slow router is struggling with. The release rides
+	// the router until Client.Do's `/cancel` ends it, so releasing on return
+	// would let the cap be exceeded by exactly the commands a slow router is
+	// struggling with. The release rides
 	// `Cmd.OnFinished`, and also runs the moment Do returns WITHOUT a timeout: the
 	// command is over then, and a Do that never calls Finished still cannot leak
 	// the slot. The OnceFunc makes the two one release.

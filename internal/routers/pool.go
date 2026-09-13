@@ -279,7 +279,8 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	// routers, so a cap that skipped it would not be a cap on the device.
 	//
 	// Released when the command is OVER, as the session's reader.Do does and for
-	// the same reason: a timed-out command keeps running on the router.
+	// the same reason: a timed-out command runs on the router until it is
+	// cancelled.
 	roslimit.Note(r.s.cfg.ID, cmd.Path)
 	release := sync.OnceFunc(roslimit.Acquire(r.s.cfg.ID))
 	rows, err := c.Do(cmd.OnFinished(release))
@@ -617,6 +618,8 @@ func (s *poolSession) run(p *Pool) {
 			Host: s.cfg.Host, Port: s.cfg.Port,
 			Username: s.cfg.User, Password: s.cfg.Password,
 			TLS: s.cfg.TLS, InsecureTLS: s.cfg.InsecureTLS,
+			// What the client's own log lines call this router.
+			Label: s.cfg.Label,
 		})
 		if err != nil {
 			// CLASSIFIED AT THE POINT OF STORAGE. `LastError` reaches a browser

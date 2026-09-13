@@ -109,13 +109,18 @@ RouterOS binary API (TCP/TLS)
 The collector layer — acquisition, derivation, views — is described in full in
 `Collector-Architecture.md`.
 
-**Two things about `internal/routeros` are load-bearing:**
+**Three things about `internal/routeros` are load-bearing:**
 
 1. **Async mode is mandatory.** `Dial` calls `Async()`, which gives the client a tag map and
    therefore somewhere to discard a sentence addressed to a cancelled tag. Sync mode keeps no tag
    map, and the failure takes down a connection every collector shares.
 2. **The hardware claims are version-qualified.** They were measured on RouterOS 7.24;
    `internal/routeros/client.go` carries them in full. "Not reproduced" is not "never true".
+3. **go-routeros is patched.** `go.mod` replaces it with `third_party/go-routeros`, whose
+   `RunArgsContext` registers a command's tag before sending it. v3.0.1 did it after, and a reply
+   arriving in between was lost for ever, holding a `roslimit` slot; eight of those stopped every
+   poll on a router. Drop the copy only for a release that passes
+   `TestNoReplyIsLostBeforeItsTagIsRegistered`. `PATCHES.md` there has the rest.
 
 **Knowingly accepted:** go-routeros returns on the first `!done`, so block boundaries are invisible
 here. `cmd/conformance` tests completeness instead — the bulk registration-table read against the
@@ -144,7 +149,8 @@ table.
 - **Go stdlib first, but not stdlib-only.** A dependency needs a reason better than convenience.
   Seven are in: `golang.org/x/crypto` (scrypt, which the user store's key derivation demands),
   `modernc.org/sqlite` (pure Go, no cgo, so the binary stays static), `github.com/coder/websocket`,
-  `github.com/go-routeros/routeros/v3`, `github.com/go-pdf/fpdf`,
+  `github.com/go-routeros/routeros/v3` (a patched copy, `third_party/go-routeros`: see
+  "Three things about `internal/routeros`"), `github.com/go-pdf/fpdf`,
   `github.com/oschwald/maxminddb-golang` (the DB-IP geo reader) and `github.com/evanw/esbuild`.
   - **esbuild runs through its Go API** in `cmd/webbuild`, so the image needs no JavaScript
     runtime. Node is a development dependency only: `tsc --noEmit` and the tests in `web/test/`.

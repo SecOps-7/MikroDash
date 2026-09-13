@@ -298,6 +298,15 @@ appears to work while never removing anything. `collect.BuildPolicy` therefore
 always emits the full 17-policy vocabulary with explicit negations, correct for
 both verbs. Verified on RouterOS 7.24.
 
+### A reply that arrives before its tag is registered: patched in the library
+
+go-routeros v3.0.1's `RunArgsContext` sent a command and only then registered its tag,
+so a reply arriving in between was discarded by the tag map and the call waited for ever.
+Each one held a `roslimit` slot, and on 2026-09-13 eight of them stopped every poll on a
+hAP ax3. `go.mod` replaces the library with `third_party/go-routeros`, which registers
+first (see its `PATCHES.md`), and `internal/routeros` cancels a command that still times
+out, with `/cancel =tag=`.
+
 ### `!empty` and cancelled tags — handled by the adapter, not by you
 
 RouterOS 7.18+ sends `!empty` when a command returns zero results. The Node

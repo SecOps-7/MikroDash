@@ -2,6 +2,26 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.54] - Dashboard cards stop freezing, and routers stop dropping their connection
+
+A fixes release on top of 0.8.53.
+
+### Fixed
+
+- **Dashboard cards no longer freeze on a router after a few hours.** On 0.8.53
+  System, Connections, Bandwidth, Talkers and other cards could stop updating
+  until MikroDash was restarted, and switching routers could stop working too.
+- **Routers stop briefly dropping and reconnecting.** The same underlying cause
+  made older versions disconnect from a router every so often.
+- **The NetWatch and Firewall cards stay fresh on a quiet router.** They went
+  stale whenever nothing on the router had changed.
+
+### Internal
+
+- MikroDash now uses a patched copy of the go-routeros library, which could lose
+  a router's reply to a command. A command that still gets no reply is cancelled
+  on the router and named in the log.
+
 ## [0.8.53] - Saving settings no longer crashes, and a slow router stops dropping its connection
 
 A fixes release on top of 0.8.52, including a contributed fix for settings saves.

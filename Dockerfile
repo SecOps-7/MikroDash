@@ -75,6 +75,8 @@ FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
 ARG TARGETOS TARGETARCH TARGETVARIANT
 WORKDIR /src
 COPY go.mod go.sum ./
+# The patched go-routeros go.mod points at; `go mod download` needs it present.
+COPY third_party ./third_party
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} \
