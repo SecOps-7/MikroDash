@@ -51,6 +51,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"net"
 	"os"
@@ -133,6 +134,16 @@ type Config struct {
 	Label string
 }
 
+// name is what a log line calls this router: its label, or its host. Live tags
+// the client `routerCfg.label || routerCfg.host`, because three routers tracing
+// at once are unreadable without it.
+func (cfg Config) name() string {
+	if cfg.Label != "" {
+		return cfg.Label
+	}
+	return cfg.Host
+}
+
 const defaultDialTimeout = 15 * time.Second
 
 // debugHandler is the slog handler to install, or NIL when tracing is off.
@@ -149,12 +160,7 @@ func debugHandler(cfg Config, w io.Writer) slog.Handler {
 	if !cfg.Debug {
 		return nil
 	}
-	label := cfg.Label
-	if label == "" {
-		// Live tags the client `routerCfg.label || routerCfg.host`. Three routers
-		// tracing at once are unreadable without it.
-		label = cfg.Host
-	}
+	label := cfg.name()
 	h := slog.NewTextHandler(w, &slog.HandlerOptions{Level: slog.LevelDebug})
 	return h.WithAttrs([]slog.Attr{slog.String("router", label)})
 }
@@ -164,8 +170,8 @@ type Cmd struct {
 	Path string
 	Args []string
 	// Timeout bounds how long Do WAITS for a one-shot call. Zero means no bound,
-	// which is correct for a stream and wrong for everything else. It does not
-	// cancel the command: see Do.
+	// which is correct for a stream and wrong for everything else. Past it the
+	// command is cancelled on the router: see Do.
 	Timeout time.Duration
 	// Finished, if set, runs exactly once when the command is really over — its
 	// reply arrived, it failed, or the connection went — which after a timeout
@@ -224,6 +230,12 @@ type Client struct {
 	// watch is the connection's `!fatal` watcher: the reason a router gave for
 	// ending the session, if it gave one. Nil on a Client not built by Dial.
 	watch *fatalWatch
+
+	// tags reads the tag each command goes out with, which `/cancel` needs. Nil
+	// on a Client not built by Dial, which then cannot cancel a command.
+	tags *tagWatch
+	// issuing is held while one command is written. See send.
+	issuing sync.Mutex
 }
 
 // Dial connects, logs in and starts async mode.
@@ -262,7 +274,9 @@ func Dial(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("could not connect to router os: %w", err)
 	}
 	watch := newFatalWatch(conn)
-	inner, err := ros.NewClient(watch)
+	// And the write side, for the tag each command goes out with: see tagWatch.
+	tags := newTagWatch(watch)
+	inner, err := ros.NewClient(tags)
 	if err != nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("could not connect to router os: %w", err)
@@ -272,7 +286,7 @@ func Dial(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("could not login: %w", err)
 	}
 
-	cl := &Client{cfg: cfg, c: inner, watch: watch}
+	cl := &Client{cfg: cfg, c: inner, watch: watch, tags: tags}
 
 	// ── PROTOCOL TRACING, OFF UNLESS THE OPERATOR ASKED ───────────────────
 	//
@@ -320,7 +334,7 @@ func Dial(cfg Config) (*Client, error) {
 
 // Do issues a command and returns every row of the reply.
 //
-// ── A TIMEOUT ENDS THE WAIT, NEVER THE COMMAND ──────────────────────────────
+// ── A TIMEOUT ENDS THE WAIT AT ONCE, AND THE COMMAND SOON AFTER ─────────────
 //
 // It used to give the library a context with the deadline. go-routeros's async
 // RunArgsContext answers a finished context with `c.r.Cancel()` (run.go) — on
@@ -333,8 +347,8 @@ func Dial(cfg Config) (*Client, error) {
 //
 // So the library gets a context nothing cancels, and the deadline is this
 // function's own timer. When it fires the caller gets a timeout at once, and the
-// command runs on until its reply arrives or the connection goes, which ends it
-// either way. `cmd.Finished` marks that moment, exactly once, on every path.
+// command is cancelled ON THE ROUTER, by its tag (see abandon). `cmd.Finished`
+// marks the moment it is really over, exactly once, on every path.
 func (c *Client) Do(cmd Cmd) ([]Reply, error) {
 	finish := sync.OnceFunc(cmd.Finish)
 	if err := c.err(); err != nil {
@@ -342,43 +356,143 @@ func (c *Client) Do(cmd Cmd) ([]Reply, error) {
 		return nil, err
 	}
 
-	if cmd.Timeout <= 0 {
-		defer finish()
-		reply, err := c.c.RunArgsContext(context.Background(), cmd.words())
-		if err != nil {
-			return nil, c.wrap(err)
-		}
-		return rowsOf(reply), nil
-	}
-
 	type result struct {
 		reply *ros.Reply
 		err   error
 	}
 	out := make(chan result, 1)
-	go func() {
-		defer finish()
-		reply, err := c.c.RunArgsContext(context.Background(), cmd.words())
-		if err != nil {
-			// Wrapped even when nobody is waiting: a transport failure still
-			// has to be recorded as what ended the connection.
-			err = c.wrap(err)
-		}
-		out <- result{reply, err}
-	}()
+	ended := make(chan struct{})
+	tag := c.send(func() <-chan struct{} {
+		go func() {
+			// `ended` closes AFTER the Finished hooks, so whatever waits on it sees
+			// the router slot already given back.
+			defer close(ended)
+			defer finish()
+			reply, err := c.c.RunArgsContext(context.Background(), cmd.words())
+			if err != nil {
+				// Wrapped even when nobody is waiting: a transport failure still
+				// has to be recorded as what ended the connection.
+				err = c.wrap(err)
+			}
+			out <- result{reply, err}
+		}()
+		return ended
+	})
 
-	timer := time.NewTimer(cmd.Timeout)
-	defer timer.Stop()
+	// No timeout, no timer: a nil channel never fires.
+	var expired <-chan time.Time
+	if cmd.Timeout > 0 {
+		timer := time.NewTimer(cmd.Timeout)
+		defer timer.Stop()
+		expired = timer.C
+	}
 	select {
 	case r := <-out:
 		if r.err != nil {
 			return nil, r.err
 		}
 		return rowsOf(r.reply), nil
-	case <-timer.C:
+	case <-expired:
+		go c.abandon(cmd, tag, ended)
 		// NOT through wrap: a timeout is not a connection failure, and the
 		// connection is, by construction, still up.
 		return nil, fmt.Errorf("routeros: timed out: %w", context.DeadlineExceeded)
+	}
+}
+
+// send issues one command sentence and returns the tag it went out with.
+//
+// `write` starts a library call that writes exactly one sentence, and returns a
+// channel that closes once that call has returned.
+//
+// ── ONE COMMAND IS WRITTEN AT A TIME ────────────────────────────────────────
+//
+// go-routeros picks each tag itself and does not say which, and `/cancel` needs
+// it. The tag watcher sees every sentence written, in order, but not whose it
+// is. EVERY writer in this file holds `issuing` until its sentence is on the
+// wire, so the next sentence the watcher frames is this one. The lock is let go
+// as soon as the sentence is written, not when its reply comes, so a slow
+// command holds nobody else up.
+//
+// "" means no tag was seen: a client with no watcher, or a call that ended
+// without writing anything.
+func (c *Client) send(write func() <-chan struct{}) string {
+	c.issuing.Lock()
+	defer c.issuing.Unlock()
+	if c.tags == nil {
+		write()
+		return ""
+	}
+	c.tags.forget()
+	ended := write()
+	select {
+	case tag := <-c.tags.sent:
+		return tag
+	case <-ended:
+		// The call is over. If it wrote, its tag is already waiting.
+		select {
+		case tag := <-c.tags.sent:
+			return tag
+		default:
+			return ""
+		}
+	}
+}
+
+// alreadyEnded is a closed channel, for a `send` whose call has returned by the
+// time it hands the channel back.
+var alreadyEnded = func() chan struct{} {
+	ch := make(chan struct{})
+	close(ch)
+	return ch
+}()
+
+// cancelGrace is how long a cancelled command has to end before the connection
+// is given up on. A variable so a test need not wait it out.
+var cancelGrace = 5 * time.Second
+
+// abandon cancels a command whose caller has stopped waiting for it.
+//
+// ── WHY IT IS NOT LEFT TO RUN ON ────────────────────────────────────────────
+//
+// 0.8.53 left it running until its reply came, and on a live router some never
+// came. On 2026-09-13 the hAP AX3 held all eight of its router slots with
+// commands it had not answered, gathered at about one every 26 minutes — the
+// rate the EOF drops had run at — and every poll on that router then waited for
+// a slot for ever, with nothing in the log.
+//
+// A cancelled command ends with a `!trap` (category 2, "interrupted"), which
+// closes it in the library: its Finished hooks run and its slot comes back. If
+// it has not ended within cancelGrace, the connection is marked failed. The
+// session's and the Devices pool's connect loops see Connected() go false and
+// redial, and closing the old client ends every command still open on it.
+func (c *Client) abandon(cmd Cmd, tag string, ended <-chan struct{}) {
+	select {
+	case <-ended:
+		return // the reply came as the timer fired
+	default:
+	}
+	how := "could not be cancelled"
+	if tag != "" {
+		how = "did not end when cancelled"
+		log.Printf("[routeros] %s: %s had no reply in %s; cancelling it", c.cfg.name(), cmd.Path, cmd.Timeout)
+		// In a goroutine of its own: `send` waits its turn to write, and a
+		// connection whose writes are stuck must still reach the grace timer.
+		go c.send(func() <-chan struct{} {
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				_, _ = c.c.RunArgsContext(context.Background(), []string{"/cancel", "=tag=" + tag})
+			}()
+			return done
+		})
+	}
+	grace := time.NewTimer(cancelGrace)
+	defer grace.Stop()
+	select {
+	case <-ended:
+	case <-grace.C:
+		c.record(fmt.Errorf("%s had no reply in %s and %s", cmd.Path, cmd.Timeout+cancelGrace, how))
 	}
 }
 
@@ -424,7 +538,11 @@ func (c *Client) StreamUntilDone(cmd Cmd, onRow func(Reply), onDone func()) (sto
 		return nil, err
 	}
 
-	lr, err := c.c.ListenArgs(cmd.words())
+	var lr *ros.ListenReply
+	c.send(func() <-chan struct{} {
+		lr, err = c.c.ListenArgs(cmd.words())
+		return alreadyEnded
+	})
 	if err != nil {
 		return nil, c.wrap(err)
 	}
@@ -454,7 +572,15 @@ func (c *Client) StreamUntilDone(cmd Cmd, onRow func(Reply), onDone func()) (sto
 			// the connection may already be gone — and a stop that reported that
 			// would make every teardown path handle an error it can do nothing
 			// about.
-			_, _ = lr.Cancel()
+			cancelled := make(chan struct{})
+			c.send(func() <-chan struct{} {
+				go func() {
+					defer close(cancelled)
+					_, _ = lr.Cancel()
+				}()
+				return cancelled
+			})
+			<-cancelled
 			<-done
 		})
 	}, nil

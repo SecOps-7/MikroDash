@@ -23,3 +23,7 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+// go-routeros v3.0.1 loses a reply that arrives before its tag is registered.
+// The patched copy, and why, are in third_party/go-routeros/PATCHES.md.
+replace github.com/go-routeros/routeros/v3 => ./third_party/go-routeros

@@ -48,8 +48,8 @@ import (
 // It used to: the deadline cancelled the read, which freed the router's
 // `roslimit` slot. But go-routeros cancels a command by cancelling the reader
 // the whole connection shares, so a prime read slower than this ended the
-// connection, and every collector's command with it. A timed-out read now runs
-// on to its reply and keeps its slot until then (reader.Do), and `primeStats`
+// connection, and every collector's command with it. A timed-out read now keeps
+// its slot until Client.Do's `/cancel` ends it (reader.Do), and `primeStats`
 // skips a session whose earlier prime read is still out — so a slow router
 // collects one outstanding prime read, not one every two seconds.
 const primeDeadline = 1500 * time.Millisecond
