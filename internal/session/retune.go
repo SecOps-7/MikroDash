@@ -143,6 +143,23 @@ func (s *Session) ApplyPollRetunes(updates, saved store.Settings) []string {
 //
 // Each resolves against its OWN overrides, so a router that pinned an interval
 // keeps it while the rest of the fleet moves.
+// ApplyPingTarget points a live session's ping at a router's current target.
+//
+// Called on every router save (`reconfigureLiveSession`), so an edit to
+// `pingTarget` reaches a Dashboard session without rebuilding it. Ping ignores
+// a target that has not changed, which is what makes calling this on every
+// save free. A router with no live session is not an error: the next session
+// is built from the record.
+func (m *Manager) ApplyPingTarget(routerID, target string) {
+	m.mu.Lock()
+	s, ok := m.live[routerID]
+	m.mu.Unlock()
+	if !ok || s.ping == nil {
+		return
+	}
+	s.ping.SetTarget(target)
+}
+
 func (m *Manager) ApplyPollRetunes(updates, saved store.Settings) map[string][]string {
 	m.mu.Lock()
 	all := make([]*Session, 0, len(m.live))

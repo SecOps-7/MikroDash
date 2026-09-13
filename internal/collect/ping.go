@@ -443,7 +443,7 @@ func (p *Ping) pollOnce() {
 		return
 	}
 	rows, err := doer.Do(routeros.Cmd{Path: "/tool/ping", Args: []string{
-		"=address=" + p.target,
+		"=address=" + p.currentTarget(),
 		"=count=1",
 		"=.proplist=time,response-time,status,min-rtt,max-rtt",
 	}})
@@ -488,7 +488,7 @@ func (p *Ping) startStream() {
 	// different host. The menu alone was never the key.
 	sec := pingIntervalSec(p.pollMs.ms())
 	cmd := routeros.Cmd{Path: "/tool/ping", Args: []string{
-		"=address=" + p.target,
+		"=address=" + p.currentTarget(),
 		"=interval=" + strconv.Itoa(sec),
 		"=.proplist=time,response-time,status,min-rtt,max-rtt",
 	}}
@@ -514,7 +514,7 @@ func (p *Ping) startStream() {
 			EvPingUpdate.Emit(p.emit, pingRooms.Join(), *p.noteDenied(time.Now().UnixMilli()))
 			return
 		}
-		log.Printf("[ping] stream error (target=%s): %v", p.target, err)
+		log.Printf("[ping] stream error (target=%s): %v", p.currentTarget(), err)
 		return
 	}
 	p.mu.Lock()
@@ -609,7 +609,7 @@ func (p *Ping) watchdogTick() {
 	}
 	if running {
 		log.Printf("[ping] no reading from the stream to %s for %ds; reopening it",
-			p.target, (now-last)/1000)
+			p.currentTarget(), (now-last)/1000)
 		p.stopStream()
 	}
 	p.startStream()
@@ -658,6 +658,45 @@ func (p *Ping) Reconnected() {
 // and `startStream` returns early if the client is not connected or the menu was
 // denied. Both matter, because a settings save re-tunes every collector
 // including ones nobody is watching.
+// SetTarget points ping at a different host while it runs.
+//
+// ── WHY A RUNNING PING NEEDS THIS ────────────────────────────────────────────
+//
+// The router form edits `pingTarget`, and a Dashboard session is held for as
+// long as its router has alerting or recording on — the hAP AX3's, for good —
+// so a target read only when the session was built would never change on it.
+//
+// THE HISTORY GOES WITH THE OLD HOST. Its readings are not the new host's, and
+// keeping them would chart one host's latency and loss under another's name.
+// An empty target means the default, as NewPing's does.
+func (p *Ping) SetTarget(target string) {
+	if target == "" {
+		target = pingDefaultTgt
+	}
+	p.mu.Lock()
+	if target == p.target {
+		p.mu.Unlock()
+		return
+	}
+	p.target = target
+	p.history, p.window, p.lastFP, p.last = nil, nil, "", nil
+	running := p.stop != nil
+	p.mu.Unlock()
+	if !running {
+		return // a polling ping reads the new target on its next tick
+	}
+	p.stopStream()
+	p.startStream()
+}
+
+// currentTarget is the host being pinged, read under the lock: SetTarget can
+// change it while a stream or a poll is being set up.
+func (p *Ping) currentTarget() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.target
+}
+
 func (p *Ping) SetPollMs(ms int) {
 	p.pollMs.set(ms)
 	p.mu.Lock()

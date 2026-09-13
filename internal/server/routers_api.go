@@ -383,6 +383,10 @@ func (s *Server) reconfigureLiveSession(id string) {
 		Username: rec.Username, Password: rec.Password,
 		TLS: rec.TLS, InsecureTLS: rec.TLSInsecure,
 	})
+	// AND THE PING TARGET, which is not part of the connection and so does not
+	// redial. A router held for alerting or recording never has its session
+	// rebuilt, so without this an edited target waited for a restart.
+	s.sessions.ApplyPingTarget(id, rec.PingTarget)
 }
 
 // routerDelete removes a router and everything that only made sense with it.

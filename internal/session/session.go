@@ -885,10 +885,16 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	s.talkers = collect.NewTalkers(reader{s}, emit, s.eff.Poll["talkers"],
 		topSetting(cfgSettings, "topTalkersN"))
 	// Same again: the latency block is part of the Dashboard's network card, so
-	// there is no page to gate on. The target is the live default — the settings
-	// write that would let an operator change it is a cutover item, so passing
-	// anything else here would imply a choice that cannot yet be made.
-	s.ping = collect.NewPing(reader{s}, emit, s.eff.Poll["ping"], "")
+	// there is no page to gate on.
+	//
+	// THE ROUTER'S OWN TARGET. This passed "" — "the live default", on the
+	// grounds that nothing could set another — and went on doing so after the
+	// router form began writing `pingTarget`. The hAP AX3's record said 9.9.9.9
+	// and it pinged 1.1.1.1, while the Devices pool beside it passed
+	// `cfg.PingTarget` under a comment calling the two the same value. An empty
+	// record still means 1.1.1.1: NewPing's default. A later edit arrives
+	// through Manager.ApplyPingTarget.
+	s.ping = collect.NewPing(reader{s}, emit, s.eff.Poll["ping"], rec.PingTarget)
 	// THE USERNAME WE ACTUALLY CONNECT AS is what the lockout guard protects, so
 	// it comes from the live config rather than from anything the page sends.
 	// The live app also passes whatever routers.json separately holds, because
