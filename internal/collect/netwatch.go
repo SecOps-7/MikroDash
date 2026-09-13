@@ -96,11 +96,27 @@ type Netwatch struct {
 	hosts  map[string]routeros.Reply
 	lastFP string
 	last   *NetwatchPayload
+	// lastEmit is when a payload last went out, for netwatchHeartbeat.
+	lastEmit time.Time
+	now      func() time.Time
 	// denied latches when the router says this user may not read netwatch. A
 	// permission answer will not change on the next tick, and asking every
 	// minute for ever would be noise in the log and load on the router.
 	denied bool
 }
+
+// netwatchHeartbeat is how long an unchanged `netwatch:update` may be suppressed.
+//
+// There was none: an unchanged host table was not sent at all, so on a quiet
+// router the Dashboard's NetWatch card, whose stale threshold is a fixed 90s
+// (testdata/stale-tables.json), went stale after the first reading. Ten seconds,
+// as connections, bandwidth, talkers and dhcpNetworks use. The table is read
+// every 60s, so any heartbeat under that makes every read a send, and 60s sits
+// inside the 90s threshold.
+//
+// Safe for alerts: `alert.NetwatchUpdate` fires on a host's status CHANGING, so
+// the same table sent again fires nothing.
+const netwatchHeartbeat = 10 * time.Second
 
 func NewNetwatch(ros Reader, emit Emit, pollMs int) *Netwatch {
 	// The original computes a clamped interval from its argument and then
@@ -112,7 +128,7 @@ func NewNetwatch(ros Reader, emit Emit, pollMs int) *Netwatch {
 	_ = clampPoll(pollMs, 30000, 500, 600000)
 	const ms = 60000
 
-	n := &Netwatch{ros: ros, emit: emit, hosts: map[string]routeros.Reply{}}
+	n := &Netwatch{ros: ros, emit: emit, hosts: map[string]routeros.Reply{}, now: time.Now}
 	n.poll = newPollLoop(func() { n.Tick() },
 		func() time.Duration { return time.Duration(ms) * time.Millisecond })
 	n.sched = scheduled{
@@ -197,11 +213,13 @@ func (n *Netwatch) apply(rows []routeros.Reply, err error) {
 	for _, h := range hosts {
 		fp.WriteString(h.ID + ":" + h.Status + ";")
 	}
-	if fp.String() == n.lastFP && n.last != nil {
+	now := n.now()
+	if fp.String() == n.lastFP && n.last != nil && now.Sub(n.lastEmit) < netwatchHeartbeat {
 		n.mu.Unlock()
 		return
 	}
 	n.lastFP = fp.String()
+	n.lastEmit = now
 	payload := &NetwatchPayload{Hosts: hosts, TS: time.Now().UnixMilli()}
 	n.last = payload
 	n.mu.Unlock()

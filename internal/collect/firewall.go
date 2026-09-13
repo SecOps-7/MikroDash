@@ -147,6 +147,9 @@ type Firewall struct {
 	activeTable string
 	lastFP      string
 	last        *FirewallPayload
+	// lastEmit is when a payload last went out, for firewallHeartbeat.
+	lastEmit time.Time
+	now      func() time.Time
 
 	// wantV6 is a LATCH, not a refcount.
 	//
@@ -170,6 +173,17 @@ type Firewall struct {
 	sched scheduled
 }
 
+// firewallHeartbeat is how long an unchanged `firewall:update` may be suppressed.
+//
+// There was none: on a quiet ruleset, where no rule changed and no counter
+// moved, nothing was sent after the first reading, so the Dashboard's Firewall
+// card went stale. The card is retuned to the payload's poll interval plus
+// STALE_GRACE (20s, testdata/stale-tables.json), and both Tick and the counter
+// poll end in buildAndEmit, so any heartbeat under 20.5s keeps it fresh at every
+// interval this collector allows. Ten seconds, as connections, bandwidth,
+// talkers and dhcpNetworks use.
+const firewallHeartbeat = 10 * time.Second
+
 func NewFirewall(ros Reader, emit Emit, pollMs int) *Firewall {
 	// The Node signature is clampPoll(raw, def, hi) with no lower bound in this
 	// caller: clampPoll(pollMs, 10000, 30000). Reordered for this side's
@@ -180,6 +194,7 @@ func NewFirewall(ros Reader, emit Emit, pollMs int) *Firewall {
 		tables:      map[string][]FirewallRule{},
 		prevCounts:  map[string]fwCount{},
 		activeTable: "filter",
+		now:         time.Now,
 	}
 	// f.pollMs, not the captured `ms`: SetPollMs stores into the interval and
 	// then calls retime(), so a cadence closed over the constructor's value made
@@ -412,8 +427,12 @@ func (f *Firewall) buildAndEmit() {
 	}
 	f.last = payload
 	fp := f.fingerprint(payload)
-	changed := fp != f.lastFP
+	now := f.now()
+	changed := fp != f.lastFP || now.Sub(f.lastEmit) >= firewallHeartbeat
 	f.lastFP = fp
+	if changed {
+		f.lastEmit = now
+	}
 	f.mu.Unlock()
 
 	if changed {
