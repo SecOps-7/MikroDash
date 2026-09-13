@@ -1,0 +1,160 @@
+package collect
+
+// A PING STREAM THAT STOPS PRODUCING IS REOPENED.
+//
+// `/tool/ping` streams one row per interval — a lost ping is a row too — so a
+// stream that has gone several intervals without one is dead. On the hAP AX3 the
+// stream ended at 2026-09-13 04:19:40 with no error and no disconnect, and
+// nothing noticed: `Stream` reports no end, and `startStream` refuses while an
+// old handle is set. The Dashboard's Networks card, kept fresh by ping, went
+// stale minutes after every page load for the rest of the morning.
+
+import (
+	"errors"
+	"sync"
+	"testing"
+	"time"
+
+	"mikrodash/internal/hub"
+	"mikrodash/internal/routeros"
+)
+
+// watchedStreamer counts opens and stops, keeps the latest row callback so a test
+// can deliver rows, and can be told to fail the next open.
+type watchedStreamer struct {
+	mu    sync.Mutex
+	opens int
+	stops int
+	fail  bool
+	onRow func(routeros.Reply)
+}
+
+func (w *watchedStreamer) Connected() bool { return true }
+
+func (w *watchedStreamer) Stream(_ routeros.Cmd, onRow func(routeros.Reply)) (func(), error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.opens++
+	if w.fail {
+		return nil, errors.New("routeros: connection reset by peer")
+	}
+	w.onRow = onRow
+	return func() {
+		w.mu.Lock()
+		w.stops++
+		w.mu.Unlock()
+	}, nil
+}
+
+func (w *watchedStreamer) counts() (opens, stops int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.opens, w.stops
+}
+
+// goQuiet makes the stream look silent for longer than the watchdog allows.
+func goQuiet(p *Ping) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.wdStaleMs = 1000
+	past := time.Now().Add(-5 * time.Second).UnixMilli()
+	p.streamStart, p.lastRow = past, past
+}
+
+func TestASilentPingStreamIsReopened(t *testing.T) {
+	s := &watchedStreamer{}
+	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
+	p.Start()
+	defer p.Stop()
+
+	goQuiet(p)
+	p.watchdogTick()
+
+	opens, stops := s.counts()
+	if opens != 2 {
+		t.Errorf("%d stream open(s), want 2: a ping stream silent past its window was not reopened, "+
+			"so the Dashboard's ping block and Networks card stay stale until a reconnect", opens)
+	}
+	if stops != 1 {
+		t.Errorf("%d stop(s), want 1: the dead channel must be given up before a new one is opened", stops)
+	}
+}
+
+func TestALivePingStreamIsLeftAlone(t *testing.T) {
+	s := &watchedStreamer{}
+	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
+	p.Start()
+	defer p.Stop()
+
+	// The stream is old enough to be judged — and a row has JUST arrived, so it
+	// is alive. Without the row this would reopen; that is what makes the row
+	// the thing under test.
+	goQuiet(p)
+	s.mu.Lock()
+	onRow := s.onRow
+	s.mu.Unlock()
+	onRow(routeros.Reply{"seq": "4", "time": "11ms", "status": ""})
+	p.watchdogTick()
+
+	if opens, stops := s.counts(); opens != 1 || stops != 0 {
+		t.Errorf("a stream that just delivered a row was reopened (%d opens, %d stops)", opens, stops)
+	}
+}
+
+func TestAPingStreamThatFailedToOpenIsRetried(t *testing.T) {
+	s := &watchedStreamer{fail: true}
+	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
+	p.Start()
+	defer p.Stop()
+
+	s.mu.Lock()
+	s.fail = false
+	s.mu.Unlock()
+	// A retry waits out the window from the failed attempt, so a persistent
+	// error is retried once a window rather than on every tick.
+	goQuiet(p)
+	p.watchdogTick()
+
+	p.mu.Lock()
+	running := p.stop != nil
+	p.mu.Unlock()
+	if opens, _ := s.counts(); opens != 2 || !running {
+		t.Errorf("after a failed open the watchdog did not retry (%d opens, running=%v): one "+
+			"transient error would leave ping dead until the next reconnect", opens, running)
+	}
+}
+
+func TestASuspendedPingIsNotReopened(t *testing.T) {
+	s := &watchedStreamer{}
+	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
+	p.Start()
+	p.Suspend()
+	defer p.Stop()
+
+	goQuiet(p)
+	p.watchdogTick()
+
+	if opens, _ := s.counts(); opens != 1 {
+		t.Errorf("the watchdog reopened a ping stream the session had suspended (%d opens)", opens)
+	}
+}
+
+func TestThePingWatchdogRunsOnlyWhileStreaming(t *testing.T) {
+	s := &watchedStreamer{}
+	p := NewPing(s, hub.Relay{}, 5000, "1.1.1.1")
+	p.Start()
+	if p.wd == nil || p.wd.stopped {
+		t.Fatal("a streaming ping started without its watchdog")
+	}
+	p.Stop()
+	if !p.wd.stopped {
+		t.Error("Stop left the ping watchdog running")
+	}
+
+	polled := NewPing(&watchedStreamer{}, hub.Relay{}, 30000, "1.1.1.1")
+	polled.Start()
+	defer polled.Stop()
+	if polled.wd != nil && !polled.wd.stopped {
+		t.Error("a polling ping runs a stream watchdog; its poll loop already takes a fresh reading every tick")
+	}
+}

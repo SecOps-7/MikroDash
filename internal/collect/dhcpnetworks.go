@@ -113,9 +113,22 @@ type DHCPNetworks struct {
 	lanCidrs []string
 	last     *LanPayload
 	// lastFP gates the emit: the four tables are re-read on a timer and almost
-	// never change, so an unchanged payload is not sent at all.
-	lastFP string
+	// never change, so an unchanged payload is not sent more often than
+	// dhcpNetworksHeartbeat.
+	lastFP   string
+	lastEmit time.Time
+	now      func() time.Time
 }
+
+// dhcpNetworksHeartbeat is how long an unchanged `lan:overview` may be suppressed.
+//
+// There was none: an unchanged payload was not sent at all. The Dashboard's
+// Networks card was then kept fresh only by ping, and when the ping stream died
+// silently on the hAP AX3 (2026-09-13 04:19) the card went stale minutes after
+// every page load. Ten seconds, as connections, bandwidth and talkers use: the
+// card's threshold is the payload's poll interval plus 20s, so any heartbeat
+// under 20.5s keeps it fresh at every interval this collector allows.
+const dhcpNetworksHeartbeat = 10 * time.Second
 
 // NewDHCPNetworks builds the collector. wanIface names the interface whose
 // address is reported as the WAN IP; empty falls back to "WAN1", as index.js
@@ -125,7 +138,8 @@ func NewDHCPNetworks(ros Reader, emit Emit, leases LeaseIPs, wanIface string, po
 		wanIface = "WAN1"
 	}
 	ms := clampPoll(pollMs, 30000, 500, 600000)
-	d := &DHCPNetworks{ros: ros, emit: emit, leases: leases, wanIface: wanIface, pollMs: newPollInterval(ms)}
+	d := &DHCPNetworks{ros: ros, emit: emit, leases: leases, wanIface: wanIface, pollMs: newPollInterval(ms),
+		now: time.Now}
 	d.poll = newPollLoop(func() { d.Tick() },
 		func() time.Duration { return time.Duration(ms) * time.Millisecond })
 	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
@@ -294,9 +308,10 @@ func (d *DHCPNetworks) apply(netRows []routeros.Reply, err error) {
 		leaseIPs = d.leases.UsedLeaseIPs()
 	}
 
+	now := d.now()
 	payload := BuildLanOverview(LanInput{
 		Nets: netRows, Addrs: addrRows, Pools: poolRows, Detect: detectRows,
-		LeaseIPs: leaseIPs, WanIface: d.wanIface, PollMs: d.pollMs.ms(), Now: time.Now(),
+		LeaseIPs: leaseIPs, WanIface: d.wanIface, PollMs: d.pollMs.ms(), Now: now,
 	})
 	lanCidrs, wanIP, networks, internet := payload.LanCidrs, payload.WanIP, payload.Networks, payload.InternetIface
 
@@ -318,8 +333,11 @@ func (d *DHCPNetworks) apply(netRows []routeros.Reply, err error) {
 	d.mu.Lock()
 	d.lanCidrs = lanCidrs
 	d.last = payload
-	changed := fp.String() != d.lastFP
+	changed := fp.String() != d.lastFP || now.Sub(d.lastEmit) >= dhcpNetworksHeartbeat
 	d.lastFP = fp.String()
+	if changed {
+		d.lastEmit = now
+	}
 	d.mu.Unlock()
 
 	if !changed {
