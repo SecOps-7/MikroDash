@@ -49,7 +49,17 @@
               <button class="wl-sort-btn" data-sort="txRate">TX Rate</button>
               <button class="wl-sort-btn" data-sort="uptime">Uptime</button>
               <button class="wl-sort-btn" data-sort="name">Name</button>
+              <!-- IP has no column of its own: the address is rendered under the
+                   device name, so there is no header to click and the button is
+                   the only way to ask for it. -->
+              <button class="wl-sort-btn" data-sort="ip">IP</button>
             </div>
+            <!-- The label IS the state, so the button says what the table is
+                 doing rather than what pressing it would do. wireless.ts rewrites
+                 it; this is the pre-render value and matches the default. -->
+            <button class="wl-sort-btn active" id="wlGroupBtn" type="button" aria-pressed="true"
+                    title="Group the table by access point, or list every client flat"
+              >Grouped by AP</button>
             <button class="wl-sort-btn fa-open-btn" id="faOpenBtn" type="button"
                     title="Scan the RF environment — interrupts clients on the chosen radio"
                     style="display:none">&#9678; Frequency Analyzer</button>

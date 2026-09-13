@@ -115,12 +115,21 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 			noToggle++
 		}
 	}
-	// `settingsKey` IS NULL FOR THREE PAGES and that is meaningful: dashboard,
-	// reports and settings cannot be hidden, and the card uses the absence to
-	// know it must not draw a toggle. An omitted field would look the same as an
-	// empty one in JSON, which is why the generator writes an explicit null.
-	if noToggle != 3 {
-		t.Errorf("%d pages have no settings toggle, want 3 (dashboard, reports, settings)", noToggle)
+	// `settingsKey` IS NULL FOR FOUR PAGES and that is meaningful: the card uses
+	// the absence to know it must not draw a toggle. An omitted field would look
+	// the same as an empty one in JSON, which is why the generator writes an
+	// explicit null.
+	//
+	// Three of them cannot be hidden because they are structural — dashboard,
+	// reports and settings. WIFI MAP IS THE FOURTH AND IT IS DIFFERENT: it has no
+	// toggle because `pageWifiMap` does not exist in the settings schema, and
+	// adding a key there means editing five frozen corpora under `testdata/` by
+	// hand. RBAC still governs the page, so it is reachable only by a role that
+	// holds it. Recorded rather than left as a surprise; the day a settings key
+	// is added, this goes back to three.
+	if noToggle != 4 {
+		t.Errorf("%d pages have no settings toggle, want 4 (dashboard, reports, "+
+			"settings, wifi-map)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

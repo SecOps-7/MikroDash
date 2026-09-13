@@ -542,6 +542,12 @@ type Manager struct {
 	// onIdentity writes what a router reports about ITSELF onto its record.
 	// Nil until the server attaches it, and nil is inert. See SetOnIdentity.
 	onIdentity func(routerID string, id collect.Identity)
+
+	// docs reads the OPERATOR'S own documents for a router — the declared uplink
+	// list, the pinned cabling, the site plan. Nil until the server attaches it,
+	// and nil is inert: a collector with no source behaves as it always did.
+	// See SetDocSource and internal/sitedoc.
+	docs func(routerID, kind string) []byte
 }
 
 func NewManager(st *store.Store, h *hub.Hub) *Manager {
@@ -585,6 +591,26 @@ func (m *Manager) SetHistoryWire(w *historywire.Wire) { m.history = w }
 // is built (`identityFor`, in Acquire), and a held session is built by the
 // server's first fleet sync — a writer attached after that reaches none of them.
 func (m *Manager) SetOnIdentity(fn func(routerID string, id collect.Identity)) { m.onIdentity = fn }
+
+// SetDocSource attaches the reader for the operator's own documents.
+//
+// ── ATTACH IT BEFORE THE FIRST SESSION IS BUILT ─────────────────────────────
+//
+// A session takes the reader when it is BUILT, exactly like the identity writer,
+// so one attached later reaches no session that already exists — and the held
+// sessions are built by the server's first fleet sync. The consequence is quiet:
+// a router whose operator declared its uplinks by hand would keep reporting
+// whatever `detect-internet` says, with nothing to explain why.
+func (m *Manager) SetDocSource(fn func(routerID, kind string) []byte) { m.docs = fn }
+
+// docsFor binds the document reader to one router, or returns nil.
+func (m *Manager) docsFor(routerID string) collect.DocSource {
+	fn := m.docs
+	if fn == nil {
+		return nil
+	}
+	return func(kind string) []byte { return fn(routerID, kind) }
+}
 
 // identityFor binds the identity writer to one router, or returns nil.
 func (m *Manager) identityFor(routerID string) collect.IdentityFunc {
@@ -808,7 +834,8 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// to VLANs is the vlans page's question, not this one's, so the column keeps
 	// degrading to 0 until someone answers it.
 	s.vlans = collect.NewVlans(reader{s}, emit, s.ifStatus, nil, s.eff.Poll["vlans"])
-	s.wan = collect.NewWan(reader{s}, emit, s.ifStatus, s.eff.Poll["wan"])
+	s.wan = collect.NewWan(reader{s}, emit, s.ifStatus, s.eff.Poll["wan"]).
+		WithDocs(m.docsFor(rec.ID))
 
 	// ── ONE COALESCING CACHE PER ROUTER ────────────────────────────────────
 	//
@@ -919,6 +946,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// identity and gauges. Each is optional — a nil one costs exactly the field
 	// it feeds, which is what the live app does when a collector is disabled.
 	s.topology = collect.NewTopology(reader{s}, emit, s.ifStatus, rec.ID, rec.Label, s.eff.Poll["topology"]).
+		WithDocs(m.docsFor(rec.ID)).
 		WithSources(s.dhcpLeases, s.system).
 		// Fills `TopoInput.ARPIP`, which was declared and used at two sites from
 		// the port and never set: a neighbour whose own row carries no address

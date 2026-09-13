@@ -28,12 +28,16 @@ import (
 	"mikrodash/internal/wifiscan"
 )
 
+// The four legacy CAPsMAN menus this collector reads are DECLARED IN capsman.go,
+// not here. `capsV1RegCmd` was declared in this file until the band join needed
+// three more of them, and two files declaring the same menu is how a proplist
+// drifts apart from itself — the modern profile menus have sat in wifi.go and
+// been read from capsman.go for the same reason.
 var (
-	wlRegWifiCmd    = routeros.Cmd{Path: "/interface/wifi/registration-table/print"}
-	wlRegLegacyCmd  = routeros.Cmd{Path: "/interface/wireless/registration-table/print"}
-	wlRegCapsmanCmd = routeros.Cmd{Path: "/caps-man/registration-table/print"}
-	wlIfaceWifiCmd  = routeros.Cmd{Path: "/interface/wifi/print"}
-	wlIfaceLegacy   = routeros.Cmd{Path: "/interface/wireless/print"}
+	wlRegWifiCmd   = routeros.Cmd{Path: "/interface/wifi/registration-table/print"}
+	wlRegLegacyCmd = routeros.Cmd{Path: "/interface/wireless/registration-table/print"}
+	wlIfaceWifiCmd = routeros.Cmd{Path: "/interface/wifi/print"}
+	wlIfaceLegacy  = routeros.Cmd{Path: "/interface/wireless/print"}
 )
 
 // WirelessClient is one associated station.
@@ -51,6 +55,14 @@ type WirelessClient struct {
 	Uptime   string `json:"uptime"`
 	SSID     string `json:"ssid"`
 	Name     string `json:"name"`
+	// Comment is what the operator wrote against this MAC on the DHCP server.
+	//
+	// A SECOND STRING BECAUSE IT ANSWERS A SECOND QUESTION. `Name` is what the
+	// device calls itself — a lease hostname, or a PTR record when there is no
+	// lease — while the comment is what somebody decided to call it. The Wi-Fi
+	// map offers them as separate lines for that reason, and a device whose
+	// hostname is `android-4f2c` is the case the comment exists for.
+	Comment string `json:"comment"`
 	// Source marks a CAPsMAN row. Absent on local clients, because the live
 	// payload omits it there rather than sending an empty string.
 	Source string `json:"source,omitempty"`
@@ -190,7 +202,7 @@ func wlBandOf(row routeros.Reply, iface string, capsman bool) string {
 // The field names differ per stack — `signal` on modern wifi, `signal-strength`
 // on the legacy one, `rx-signal` on CAPsMAN — so each is tried in turn rather
 // than branching on the mode, which would have to be right in three places.
-func parseWirelessClient(row routeros.Reply, capsman bool, ip, name string) WirelessClient {
+func parseWirelessClient(row routeros.Reply, capsman bool, ip, name string, cb CapsBand) WirelessClient {
 	mac := firstNonEmptyStr(row["mac-address"], row["mac"])
 	signal := 0
 	if v := jsParseInt(firstNonEmptyStr(row["signal"], row["signal-strength"], row["rx-signal"], "0")); v != nil {
@@ -212,6 +224,25 @@ func parseWirelessClient(row routeros.Reply, capsman bool, ip, name string) Wire
 	}
 	if capsman {
 		c.Source = "capsman"
+		// ── WHERE A LEGACY CAPsMAN CLIENT'S BAND COMES FROM ────────────────
+		//
+		// Not from the row: `/caps-man/registration-table` carries no band, and
+		// the interface-name fallback in wlBandOf is no use on v1 either,
+		// because `name-format=identity` names an interface after the access
+		// point. So the manager's own configuration answers it — see
+		// CapsLegacyBands — and the page's Band and Standard columns stopped
+		// being empty for every client on a v1 CAP.
+		//
+		// The generation follows the CHANNEL's band list, which is the same
+		// trade WifiStandard already documents for a slash list: the highest
+		// token wins, because a client on a radio offering `5ghz-n/ac`
+		// negotiated the best both ends support.
+		if c.Band == "" {
+			c.Band = firstNonEmpty(BandLabel(cb.Raw), BandFromFrequency(cb.Frequency))
+		}
+		if c.Standard == "" {
+			c.Standard = WifiStandard(cb.Raw)
+		}
 	}
 	return c
 }
@@ -591,18 +622,32 @@ func (w *Wireless) renameFromPTR() {
 	EvWirelessUpdate.Emit(w.emit, wirelessRooms.Join(), next)
 }
 
-func (w *Wireless) leaseName(mac string) string {
+func (w *Wireless) lease(mac string) *Lease {
 	if w.leases == nil {
-		return ""
+		return nil
 	}
 	p := w.leases.Last()
 	if p == nil {
-		return ""
+		return nil
 	}
-	for _, l := range p.Leases {
-		if strings.EqualFold(l.MAC, mac) {
-			return firstNonEmptyStr(l.Name, l.HostName)
+	for i := range p.Leases {
+		if strings.EqualFold(p.Leases[i].MAC, mac) {
+			return &p.Leases[i]
 		}
+	}
+	return nil
+}
+
+func (w *Wireless) leaseName(mac string) string {
+	if l := w.lease(mac); l != nil {
+		return firstNonEmptyStr(l.Name, l.HostName)
+	}
+	return ""
+}
+
+func (w *Wireless) leaseComment(mac string) string {
+	if l := w.lease(mac); l != nil {
+		return l.Comment
 	}
 	return ""
 }
@@ -621,7 +666,7 @@ func (w *Wireless) Tick() {
 	mode := w.mode
 	w.mu.Unlock()
 
-	add := func(rows []routeros.Reply, capsman bool) {
+	add := func(rows []routeros.Reply, capsman bool, bands map[string]CapsBand) {
 		for _, row := range rows {
 			if !isWirelessRow(row) {
 				continue
@@ -639,7 +684,10 @@ func (w *Wireless) Tick() {
 			// chain needs it: reverse DNS is the last fallback and it resolves
 			// an address, not a MAC.
 			ip := w.ipOf(mac)
-			clients = append(clients, parseWirelessClient(row, capsman, ip, w.nameOf(mac, ip)))
+			iface := firstNonEmptyStr(row["interface"], row["ap-interface"])
+			c := parseWirelessClient(row, capsman, ip, w.nameOf(mac, ip), bands[iface])
+			c.Comment = w.leaseComment(mac)
+			clients = append(clients, c)
 		}
 	}
 
@@ -647,22 +695,22 @@ func (w *Wireless) Tick() {
 	case "wifi":
 		rows, err := readVia(w.cache, w.ros, wlRegWifiCmd, w.pollMs.duration())
 		if err == nil {
-			add(rows, false)
+			add(rows, false, nil)
 		}
 	case "wireless":
 		rows, err := readVia(w.cache, w.ros, wlRegLegacyCmd, w.pollMs.duration())
 		if err == nil {
-			add(rows, false)
+			add(rows, false, nil)
 		}
 	default:
 		// Probe. The modern stack first: on RouterOS 7.2x every board in this
 		// fleet answered it, including one still on 802.11ac.
 		if rows, err := readVia(w.cache, w.ros, wlRegWifiCmd, w.pollMs.duration()); err == nil {
 			mode = "wifi"
-			add(rows, false)
+			add(rows, false, nil)
 		} else if rows, err := readVia(w.cache, w.ros, wlRegLegacyCmd, w.pollMs.duration()); err == nil {
 			mode = "wireless"
-			add(rows, false)
+			add(rows, false, nil)
 		} else {
 			mode = "none"
 		}
@@ -686,9 +734,14 @@ func (w *Wireless) Tick() {
 
 	capsOK := false
 	if probed {
-		if rows, err := w.ros.Do(wlRegCapsmanCmd); err == nil {
+		if rows, err := readVia(w.cache, w.ros, capsV1RegCmd, w.pollMs.duration()); err == nil {
 			capsOK = true
-			add(rows, true)
+			// The band join costs three more reads, so it is asked for only when
+			// there is a client to label. A manager whose legacy CAPs are idle
+			// answers this menu with nothing, and nothing is what it costs.
+			if len(rows) > 0 {
+				add(rows, true, w.capsV1Bands())
+			}
 		}
 	}
 
@@ -725,6 +778,29 @@ func modeOrNone(mode string) string {
 		return "none"
 	}
 	return mode
+}
+
+// capsV1Bands asks the legacy manager what band each of its CAP interfaces is
+// on.
+//
+// THREE MENUS, ALL CONFIGURATION, ALL SHARED. They change when somebody edits
+// the manager and not otherwise, and the CAPsMAN collector reads the same three
+// — so through the cache they cost this collector nothing on a tick the other
+// one has already served, and one read per cache window when it has not. That is
+// the trade CLAUDE.md sets: concurrent channels are the bottleneck, and a menu
+// two collectors share is one command either way.
+//
+// Only reached once `/caps-man/registration-table` has answered, so a router
+// with no legacy manager never asks.
+func (w *Wireless) capsV1Bands() map[string]CapsBand {
+	ttl := w.pollMs.duration()
+	ifaces, err := readVia(w.cache, w.ros, capsV1IfaceCmd, ttl)
+	if err != nil {
+		return nil
+	}
+	configs, _ := readVia(w.cache, w.ros, capsV1ConfigCmd, ttl)
+	channels, _ := readVia(w.cache, w.ros, capsV1ChannelCmd, ttl)
+	return CapsLegacyBands(ifaces, configs, channels)
 }
 
 // refreshSSIDs re-reads the broadcast networks.

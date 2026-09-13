@@ -27,8 +27,11 @@
 // `initTopologyPage`; the sentence that used to sit here saying it was not wired
 // yet outlived the slice it described.
 
-import { esc, el as byId, fmtMbps } from '../dom';
+import { esc, el as byId, fmtMbps, svgEl, attr, text, lsGet, lsSet } from '../dom';
+import { mergePeers } from './topo-merge';
+import type { TopoPeer } from './topo-merge';
 import type { Socket } from '../socket';
+import type { RouterRecord } from '../events-hand';
 import type { TopoEdge, TopologyPayload, TopoClient } from '../gen/payloads';
 
 // A node is one of three Go structs: the core carries gauges, a neighbour
@@ -38,8 +41,6 @@ import type { TopoEdge, TopologyPayload, TopoClient } from '../gen/payloads';
 // n` for the core, `'clientCount' in n` for the core or a neighbour. Each sits
 // beside the `kind` test it narrows for, so the runtime test is still the kind.
 type TopoNode = TopologyPayload['nodes'][number];
-
-export const NS = 'http://www.w3.org/2000/svg';
 
 /** A node position on the canvas. */
 export interface Pos { x: number; y: number }
@@ -87,35 +88,6 @@ export const TYPE_LABEL: Record<string, string> = {
   phone: 'VoIP phone', modem: 'Modem', repeater: 'Repeater',
   other: 'Other device', unknown: 'Unidentified',
 };
-
-/** An SVG element with attributes, the one shape this file builds constantly. */
-export function svgEl(tag: string, attrs?: Record<string, string | number>): SVGElement {
-  const e = document.createElementNS(NS, tag) as SVGElement;
-  if (attrs) for (const k of Object.keys(attrs)) e.setAttribute(k, String(attrs[k]));
-  return e;
-}
-
-/** Set an attribute only when it CHANGED — the keyed diff's inner loop. */
-export function attr(e: Element | null, k: string, v: string | number): void {
-  if (e && e.getAttribute(k) !== String(v)) e.setAttribute(k, String(v));
-}
-
-export function text(e: Element | null, v: string | number): void {
-  if (e && e.textContent !== String(v)) e.textContent = String(v);
-}
-
-export function lsGet<T>(key: string, fallback: T): T {
-  try {
-    const v = localStorage.getItem(key);
-    return v ? (JSON.parse(v) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-export function lsSet(key: string, val: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* private mode */ }
-}
 
 // ── layout ──────────────────────────────────────────────────────────────────
 
@@ -291,6 +263,8 @@ export function fmtShort(mbps: number): string {
  */
 export function initTopologyPage(socket: Socket, isVisible: (page: string) => boolean): void {
   let data: TopologyPayload | null = null;
+  /** What the socket last sent, before the fleet merge. */
+  let livePayload: TopologyPayload | null = null;
   let rates: Record<string, Rate> = {};
   let pos: Record<string, Pos> = {};
   const saved: Record<string, Pos> = {};
@@ -548,6 +522,12 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   }
 
   function edgeTooltip(e: TopoEdge, r: Rate | null): string {
+    if (e.pinned) {
+      let tip = 'pinned by hand: this device was told to hang off that one';
+      if (e.viaPort) tip += '\non ' + e.viaPort;
+      if (e.remoteIface) tip += '\nits port: ' + e.remoteIface;
+      return tip;
+    }
     if (e.inferred) {
       // Say plainly that this link is DEDUCED, and from what: the router can see
       // that the device is behind this switch, but not which switch port.
@@ -578,6 +558,11 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       let cls = 'topo-edge';
       if (e.shared) cls += ' is-shared';
       if (e.inferred) cls += ' is-inferred';
+      // A PIN IS NOT AN INFERENCE, and the two must not share a colour: purple
+      // means "this app worked it out and could be wrong", amber means
+      // "somebody told it". Reading a declared link as a guess is what would
+      // send the next person checking it.
+      if (e.pinned) cls += ' is-pinned';
       if (e.gone) cls += ' is-gone';
       attr(rec.path, 'class', cls);
 
@@ -780,11 +765,26 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
         '<span class="topo-swatch"></span>' + p[0] + '</span>').join('');
     // Say which links are OBSERVED and which are DEDUCED, rather than presenting
     // the whole map as equally certain.
-    const inferred = ((data && data.edges) || []).filter((e) => e.inferred).length;
-    const note = inferred
-      ? '<span style="color:var(--accent-alt)">' + inferred + ' link' +
-        (inferred === 1 ? '' : 's') + ' inferred</span> &middot; LLDP/CDP/MNDP'
-      : 'LLDP/CDP/MNDP';
+    const edges = (data && data.edges) || [];
+    const pinnedN = edges.filter((e) => e.pinned).length;
+    const inferred = edges.filter((e) => e.inferred).length;
+    const bits: string[] = [];
+    if (inferred) {
+      bits.push('<span style="color:var(--accent-alt)">' + inferred + ' link' +
+        (inferred === 1 ? '' : 's') + ' inferred</span>');
+    }
+    if (pinnedN) {
+      bits.push('<span style="color:var(--accent-warn)">' + pinnedN + ' pinned</span>');
+    }
+    if (fleetOn && fleetStat.answered) {
+      bits.push('<span style="color:var(--accent-rx)">merged from ' + fleetStat.answered +
+        ' router' + (fleetStat.answered === 1 ? '' : 's') +
+        (fleetStat.added ? ', +' + fleetStat.added : '') +
+        (fleetStat.moved ? ', ' + fleetStat.moved + ' moved' : '') +
+        (fleetStat.failed ? ', ' + fleetStat.failed + ' unreachable' : '') + '</span>');
+    }
+    bits.push('LLDP/CDP/MNDP');
+    const note = bits.join(' &middot; ');
     footEl.innerHTML = legend +
       '<span style="margin-left:auto;text-align:right">' + parts.join(' &middot; ') +
       (parts.length ? ' &middot; ' : '') + note + '</span>';
@@ -848,9 +848,246 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       '</dl>';
   }
 
+  // ── the rest of the fleet ────────────────────────────────────────────
+  //
+  // One router's graph is one router's horizon. With the switch on, every other
+  // router the operator added is read once and folded in — see pages/topo-merge.ts
+  // for the rule and for what it deliberately does not claim.
+  //
+  // READ ON DEMAND. The payload on the socket stays the live one; the merge is
+  // recomputed from it on every tick, against peer tables that are a snapshot.
+
+  let fleetRouters: RouterRecord[] = [];
+  let peers: TopoPeer[] = [];
+  let fleetOn = lsGet('mkd_topo_fleet', false);
+  let fleetBusy = false;
+  let fleetStat = { added: 0, moved: 0, answered: 0, failed: 0 };
+  /** Which peer contributed or moved a node, by key — shown in its panel. */
+  let fleetOwner: Record<string, string> = {};
+
+  function applyData(): void {
+    if (!livePayload || !fleetOn || !peers.length) {
+      data = livePayload;
+      fleetStat = { added: 0, moved: 0, answered: 0, failed: 0 };
+      fleetOwner = {};
+      return;
+    }
+    const m = mergePeers(livePayload, peers, Date.now());
+    data = { ...livePayload, nodes: m.nodes, edges: m.edges };
+    fleetStat = { added: m.added, moved: m.moved, answered: m.answered, failed: m.failed };
+    fleetOwner = m.owner;
+  }
+
+  /** The fleet, fetched. `routers:update` is a CHANGE notification and is not
+   *  sent on connect, so waiting for it leaves this with nothing to merge. */
+  function ensureFleet(): Promise<void> {
+    if (fleetRouters.length) return Promise.resolve();
+    return fetch('/api/routers', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { fleetRouters = ((j && j.routers) || []) as RouterRecord[]; })
+      .catch(() => { /* nothing to merge is a working state */ });
+  }
+
+  function loadPeers(): void {
+    void ensureFleet().then(askPeers);
+  }
+
+  function askPeers(): void {
+    const ids = fleetRouters
+      .filter((r) => !r.disabled && String(r.id) !== rid)
+      .map((r) => String(r.id));
+    if (!ids.length) {
+      peers = [];
+      applyData(); syncFleetBtn(); render();
+      return;
+    }
+    fleetBusy = true;
+    syncFleetBtn();
+    fetch('/api/topology/peers?routers=' + encodeURIComponent(ids.join(',')),
+      { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { peers = (d && d.peers) || []; })
+      .catch(() => { peers = []; })
+      .then(() => {
+        fleetBusy = false;
+        applyData(); syncFleetBtn(); render();
+      });
+  }
+
+  function syncFleetBtn(): void {
+    const b = byId('topoFleetBtn');
+    if (!b) return;
+    b.classList.toggle('is-on', fleetOn);
+    b.textContent = fleetBusy ? 'Fleet…'
+      : (fleetOn && fleetStat.answered ? 'Fleet ' + fleetStat.answered : 'Fleet');
+  }
+
+  // ── the operator's own cabling ────────────────────────────────────────────
+  //
+  // Stored per router through `/api/router-doc`, kind `topology-links`, and
+  // applied by the COLLECTOR rather than here: a pin changes which device hangs
+  // off which, and the layout, the edges and the client attribution all read
+  // that. Drawing it browser-side would mean re-deriving three things this page
+  // is handed.
+  //
+  // See internal/sitedoc.TopologyLinks for the shape, and `resolveParents` in
+  // internal/collect/topology.go for what a pin overrides.
+  let pins: Record<string, string> = {};
+  let pinsEnabled = true;
+  let pinsLoadedFor = '';
+
+  function loadPins(): void {
+    if (!rid || pinsLoadedFor === rid) return;
+    pinsLoadedFor = rid;
+    fetch('/api/router-doc?kind=topology-links&routerId=' + encodeURIComponent(rid),
+      { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const doc = d && d.doc;
+        pins = (doc && doc.parents) || {};
+        pinsEnabled = !doc || doc.enabled !== false;
+        syncPinsBtn();
+        renderPanel();
+      })
+      .catch(() => { /* no pins is a working state */ });
+  }
+
+  function savePins(): void {
+    if (!rid) return;
+    fetch('/api/router-doc', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        routerId: rid, kind: 'topology-links',
+        doc: { enabled: pinsEnabled, parents: pins },
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        // The server's copy wins: `sitedoc.CleanTopologyLinks` drops a pin that
+        // names a loop or an empty half, and this browser must not go on drawing
+        // one the store does not hold.
+        const doc = d && d.doc;
+        if (doc) {
+          pins = doc.parents || {};
+          pinsEnabled = doc.enabled !== false;
+        }
+        syncPinsBtn();
+        renderPanel();
+      })
+      .catch(() => { /* nothing stored; the next update redraws what is real */ });
+  }
+
+  function syncPinsBtn(): void {
+    const b = byId('topoPinsBtn');
+    if (!b) return;
+    b.classList.toggle('is-on', pinsEnabled);
+    const n = Object.keys(pins).length;
+    b.textContent = n ? 'Pins ' + n : 'Pins';
+  }
+
+  /**
+   * The picker: every infrastructure node this one could hang off.
+   *
+   * CLIENTS ARE NOT OFFERED. A client is a leaf the graph attributes to whatever
+   * it is associated with; hanging a switch off a laptop is not a shape this
+   * models, and offering it would be offering a pin that reads as nonsense.
+   */
+  function pinPicker(key: string): string {
+    const rows = (data?.nodes || [])
+      .filter((m) => m.kind === 'neighbor' && m.key !== key)
+      .map((m) => ({ key: m.key, name: m.name || m.key }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const cur = pins[key] || '';
+    const opt = (v: string, label: string): string =>
+      '<option value="' + esc(v) + '"' + (cur === v ? ' selected' : '') + '>' +
+      esc(label) + '</option>';
+    return '<div class="topo-panel-sec">Cabling</div>' +
+      '<div class="topo-pin">' +
+        '<select class="rt-sel" id="topoPinSel" aria-label="What this device hangs off">' +
+          opt('', 'Work it out (' + esc(parentName(
+            (data?.nodes || []).find((m) => m.key === key)!) || 'directly attached') + ')') +
+          opt('core', 'Directly attached to this router') +
+          rows.map((r) => opt(r.key, 'Behind ' + r.name)).join('') +
+        '</select>' +
+        (pins[key]
+          ? '<div class="topo-pin-note">Pinned by hand.' +
+            (pinsEnabled ? '' : ' Pins are switched off, so it is not being applied.') +
+            '</div>'
+          : '<div class="topo-pin-note">Discovery cannot see through a switch that ' +
+            'forwards no LLDP. Set this when the graph puts a device in the wrong place.</div>') +
+        pinPortBtn(key) +
+      '</div>';
+  }
+
+  /**
+   * Everything sharing this device's port, which is the shape a dumb switch
+   * leaves behind.
+   *
+   * A SwOS box forwards the discovery protocols and answers no API, so the map
+   * gets one flat row of devices on one port with the switch among them, and
+   * nothing readable says which of them is behind it. Pinning them one at a
+   * time is the same knowledge typed six times.
+   */
+  function portSiblings(key: string): TopoNode[] {
+    const me = (data?.nodes || []).find((m) => m.key === key);
+    const port = (me && 'port' in me ? me.port : '') || '';
+    if (!port) return [];
+    return (data?.nodes || []).filter((m) =>
+      m.kind === 'neighbor' && m.key !== key && 'port' in m && m.port === port);
+  }
+
+  function pinPortBtn(key: string): string {
+    const sib = portSiblings(key);
+    if (!sib.length) return '';
+    const me = (data?.nodes || []).find((m) => m.key === key);
+    const port = (me && 'port' in me ? me.port : '') || '';
+    const allMine = sib.every((m) => pins[m.key] === key);
+    return '<button class="topo-btn topo-pin-port" id="topoPinPort" type="button">' +
+      (allMine
+        ? 'Put the ' + sib.length + ' back on the router'
+        : 'Everything else on ' + esc(port) + ' (' + sib.length + ') is behind this') +
+      '</button>';
+  }
+
+  function wirePinPortBtn(key: string): void {
+    byId('topoPinPort')?.addEventListener('click', () => {
+      const sib = portSiblings(key);
+      if (!sib.length) return;
+      const allMine = sib.every((m) => pins[m.key] === key);
+      sib.forEach((m) => {
+        if (allMine) delete pins[m.key];
+        else pins[m.key] = key;
+      });
+      savePins();
+    });
+  }
+
+  function wirePinPicker(key: string): void {
+    const selEl = byId<HTMLSelectElement>('topoPinSel');
+    if (!selEl) return;
+    selEl.addEventListener('change', () => {
+      const v = selEl.value;
+      if (v) pins[key] = v; else delete pins[key];
+      savePins();
+    });
+  }
+
   function renderPanel(): void {
     const panel = byId('topoPanel');
     if (!panel) return;
+    // ── NEVER REBUILD A PANEL SOMEBODY IS USING ────────────────────────────
+    //
+    // The graph republishes between structure polls — the ping loop rebuilds and
+    // emits every few seconds — and a full render replaces this panel's markup.
+    // With the cabling picker open that destroys the `<select>` mid-choice, so
+    // the dropdown snapped shut every couple of seconds and the control was
+    // unusable. Reported, and it is the same hazard any future input here would
+    // have.
+    //
+    // Focus is the honest test for "in use": nothing else in the panel takes it,
+    // and the next render after the operator tabs or clicks away catches up.
+    if (panel.contains(document.activeElement)) return;
     if (!sel || !data) { panel.className = 'topo-panel'; return; }
     const n = data.nodes.find((m) => m.key === sel);
     if (!n) { panel.className = 'topo-panel'; return; }
@@ -922,18 +1159,23 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       (live ? '<div class="topo-panel-sec">Live</div><dl class="topo-kv">' + live + '</dl>' : '') +
       '<div class="topo-panel-sec">Discovery</div>' +
       '<dl class="topo-kv">' +
-        row('Behind', parentName(n)) +
+        row('Behind', parentName(n) +
+          ('pinned' in n && n.pinned ? ' (pinned)' : '')) +
         row('Router port', n.port || (n.ifaces || []).join(', ')) +
         row('Remote port', n.remoteIface) +
         row('Seen via', (n.via || []).join(', ')) +
+        row('Reported by', fleetOwner[n.key]) +
         row('Age', n.ageSec !== null && isFinite(n.ageSec) ? n.ageSec + ' s'
           : (n.gone ? 'no longer advertising' : '')) +
         row('Capabilities', caps || (n.kind === 'core' ? '' : 'none advertised')) +
         row('Description', n.description) +
-      '</dl>';
+      '</dl>' +
+      // The core has nothing to hang off, so it gets no picker.
+      (n.kind === 'neighbor' ? pinPicker(n.key) : '');
 
     panel.className = 'topo-panel open';
     closeBtn();
+    if (n.kind === 'neighbor') { wirePinPicker(n.key); wirePinPortBtn(n.key); }
   }
 
   // ── viewport ──────────────────────────────────────────────────────────────
@@ -1246,6 +1488,28 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       setTimeout(fitView, 60);
     });
 
+    byId('topoFleetBtn')?.addEventListener('click', () => {
+      fleetOn = !fleetOn;
+      lsSet('mkd_topo_fleet', fleetOn);
+      if (fleetOn) {
+        loadPeers();
+        return;
+      }
+      peers = [];
+      applyData(); syncFleetBtn(); render();
+    });
+
+    const elPinsBtn = byId('topoPinsBtn');
+    elPinsBtn?.addEventListener('click', () => {
+      pinsEnabled = !pinsEnabled;
+      syncPinsBtn();
+      // SAVED, not kept in this browser: whether the pins apply is a property of
+      // the site, and two operators looking at one graph must see one answer.
+      // The collector re-reads the document on every build, so the map redraws
+      // on the next tick without this page recomputing anything.
+      savePins();
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && sel && isVisible('network-topology')) selectNode(null);
     });
@@ -1279,16 +1543,22 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     // A ROUTER SWITCH resets the layout, not just the data: positions are saved
     // per router, and keeping them would draw one network with another's map.
     const firstForRouter = rid !== (p.routerId || null);
-    data = p;
+    livePayload = p;
     if (firstForRouter) {
       rid = p.routerId || null;
+      // THE PEERS ARE PER ROUTER. The merge excludes whichever one is being
+      // viewed, so the set to read changes with it.
+      peers = [];
+      loadPins();
       pos = {};
       for (const k of Object.keys(saved)) delete saved[k];
       for (const k of Object.keys(placed)) delete placed[k];
       for (const k of Object.keys(expanded)) delete expanded[k];
       clearFlow();
       loadSaved();
+      if (fleetOn) loadPeers();
     }
+    applyData();
     if (isVisible('network-topology')) {
       render();
       if (firstForRouter) setTimeout(fitView, 40);
@@ -1317,6 +1587,11 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   });
 
   document.addEventListener('visibilitychange', syncAnimations);
+  socket.on('routers:update', (d) => {
+    fleetRouters = d || [];
+    if (fleetOn && !peers.length && rid) loadPeers();
+  });
+
   socket.on('disconnect', () => setAnimations(false));
   socket.on('connect', syncAnimations);
   window.addEventListener('resize', () => {

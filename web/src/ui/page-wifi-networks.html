@@ -28,6 +28,21 @@
         <h3 class="card-title mb-0">Wifi Networks</h3>
         <span class="card-badge" id="wnBadge">0</span>
         <span class="muted-note" id="wnNote"></span>
+        <!-- Four readings of one list. The default is unchanged: one row per
+             interface, grouped by radio, which is RouterOS's own model. -->
+        <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+          <span style="font-size:.7rem;color:var(--text-muted)">View:</span>
+          <div class="d-flex gap-1" id="wnViewBtns">
+            <button class="wl-sort-btn active" type="button" data-wnview="radio"
+                    title="One group per radio, virtual APs beneath it">Radio</button>
+            <button class="wl-sort-btn" type="button" data-wnview="ap"
+                    title="One group per access point, both bands together">AP</button>
+            <button class="wl-sort-btn" type="button" data-wnview="ssid"
+                    title="One row per network, aggregated across every radio">SSID</button>
+            <button class="wl-sort-btn" type="button" data-wnview="flat"
+                    title="Every interface, no grouping">Flat</button>
+          </div>
+        </div>
         <!-- Which resource this means follows the stack the router has. Both are
              named, and res:schema withholds the one whose menu does not answer
              (requiresMenu), so exactly one Add button ever renders. -->
@@ -45,7 +60,11 @@
                  SSID takes it, leaving every other column clear of both its
                  content and its own header text. -->
             <colgroup><col style="width:36%"><col style="width:12%"><col style="width:9%"><col style="width:14%"><col style="width:7%"><col style="width:8%"><col style="width:14%"></colgroup>
-            <thead><tr><th>SSID</th><th>Interface</th><th>Band</th><th>Security</th><th>VLAN</th><th>Clients</th><th>State</th></tr></thead>
+            <!-- id required by renderSortHeader, which rewrites this row per
+                 view to add the sort indicators and click handlers. The static
+                 contents are the pre-render fallback and must match the Radio
+                 view's column list. -->
+            <thead><tr id="wnThead"><th>SSID</th><th>Interface</th><th>Band</th><th>Security</th><th>VLAN</th><th>Clients</th><th>State</th></tr></thead>
             <tbody id="wnTable" data-res-rows="wifiNet"></tbody>
           </table>
         </div>

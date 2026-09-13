@@ -1,11 +1,17 @@
 package collect
 
-// Wifi collector — whichever wireless stack this router has.
+// Wifi collector — whichever wireless stack this router has, plus what a legacy
+// CAPsMAN manager presents on top of it.
 //
 // A router runs EITHER `/interface/wifi` (modern) or `/interface/wireless`
 // (legacy), never both, and which one is not knowable without asking. The stack
 // is probed once and latched, and RESET on reconnect, because a package can be
 // installed and the router rebooted underneath us.
+//
+// `/caps-man` is a THIRD source and not a third stack: its interfaces are remote
+// CAPs' radios, presented on the manager, and they appear in neither local menu.
+// A manager showed a page listing none of them until 2026-09-13. See
+// readLegacyCaps, and BuildCapsLegacyNetworks next door.
 //
 // ── WHAT IS ABSENT FROM EVERY PROPLIST IS THE SECURITY PROPERTY ─────────────
 //
@@ -32,6 +38,13 @@ import (
 // The modern stack's reads. The proplists are copied from src/routeros/wifiMenus.js
 // rather than re-derived, so the shared ones cannot drift.
 var (
+	// `cap` IS IN IT SINCE THE PAGE LEARNED TO GROUP BY ACCESS POINT. It reads
+	// `identity@base-mac%id` on a CAP-provisioned interface and is absent on a
+	// local one, which is exactly the distinction "which AP is this network on"
+	// needs — `capField` in capsman.go already parses it, and deriving the
+	// identity from the interface NAME instead would depend on the manager's
+	// `name-format`, which is the operator's to change.
+	//
 	// `master` IS DELIBERATELY NOT IN THIS PROPLIST, and the round trip is worth
 	// recording. It was added on 2026-08-29 because the Frequency Analyser's
 	// catalogue was built here and `wifiscan.ParseCatalogue` reads `master` —
@@ -43,7 +56,7 @@ var (
 	// back out rather than being left as a property nobody consumes.
 	wifiIfaceCmd = routeros.Cmd{Path: "/interface/wifi/print", Args: []string{
 		"=.proplist=.id,name,default-name,disabled,running,master-interface,radio-mac,mac-address," +
-			"configuration,configuration.ssid,configuration.mode,configuration.hide-ssid," +
+			"cap,configuration,configuration.ssid,configuration.mode,configuration.hide-ssid," +
 			"configuration.country,configuration.manager,security,security.authentication-types," +
 			"channel,channel.band,channel.frequency,channel.width,datapath,datapath.bridge," +
 			"datapath.vlan-id,comment,dynamic"}}
@@ -92,8 +105,9 @@ type WifiPayload struct {
 	TS     int64  `json:"ts"`
 	PollMs int    `json:"pollMs"`
 	Stack  string `json:"stack"`
-	// Available says a wireless menu answered at all, as opposed to this being
-	// a router with no radios.
+	// Available says there is something on this page: a wireless menu answered,
+	// or a legacy CAPsMAN manager has interfaces to show. Not the same question
+	// as "does this router have radios" since v1 networks joined the table.
 	Available   bool             `json:"available"`
 	Radios      []WifiRadio      `json:"radios"`
 	Networks    []WifiNetwork    `json:"networks"`
@@ -140,6 +154,12 @@ type Wifi struct {
 	dirty  bool
 	lastFP string
 	last   *WifiPayload
+
+	// v1Avail latches the LEGACY CAPsMAN tree: nil while unprobed, false on a
+	// router that has no `/caps-man` menu. It is a third source of networks and
+	// orthogonal to `stack` — a manager can present a dozen CAP interfaces while
+	// running either local stack, or neither.
+	v1Avail *bool
 
 	// MECHANISM B: the menu this wants is whichever STACK the router turned out
 	// to have, which is not known until it answers. `load` latches it and then
@@ -261,6 +281,66 @@ func clientInterfaces(reg []routeros.Reply) []string {
 	return out
 }
 
+// readLegacyCaps is the `/caps-man` tree's contribution to this page.
+//
+// LATCHED LIKE A STACK, not asked every load: a modern board has none of these
+// menus, and a refusal per menu per config cycle on every router in a fleet is
+// the kind of cost nothing ever reports.
+//
+// THE INTERFACE MENU IS THE PROBE, and it comes first so a board without it
+// costs one refusal rather than six. The other five enrich its rows, and a build
+// missing one costs a column — the same trade `soft` makes for the modern
+// profile menus.
+func (w *Wifi) readLegacyCaps() ([]WifiNetwork, []WifiRadio) {
+	if !MenuAvailable(w.v1Avail) {
+		return nil, nil
+	}
+	ifaces, err := readVia(w.cache, w.ros, capsV1IfaceCmd, w.pollMs.duration())
+	if err != nil {
+		if isAbsentMenu(err) {
+			no := false
+			w.v1Avail = &no
+		}
+		return nil, nil
+	}
+	yes := true
+	w.v1Avail = &yes
+	configs, _ := readVia(w.cache, w.ros, capsV1ConfigCmd, w.pollMs.duration())
+	channels, _ := readVia(w.cache, w.ros, capsV1ChannelCmd, w.pollMs.duration())
+	reg, _ := readVia(w.cache, w.ros, capsV1RegCmd, w.pollMs.duration())
+	return BuildCapsLegacyNetworks(CapsLegacyViewInput{
+		Ifaces: ifaces, Configs: configs, Channels: channels,
+		Security: w.soft(capsV1SecurityCmd), Datapaths: w.soft(capsV1DatapathCmd),
+		Radios: w.soft(capsV1RadioCmd), Reg: reg,
+	})
+}
+
+// withLegacyCaps appends the legacy manager's networks to whichever local stack
+// answered — including none of them, which is a real configuration: a router
+// with no radios of its own can still be a v1 manager.
+//
+// BY NAME, AND THE LOCAL ROW WINS. A manager that also runs its own radios as a
+// CAP sees them twice: once in `/interface/wireless` as dynamic interfaces and
+// once in `/caps-man/interface`. The local row is the one that carries an `.id`
+// the write path could use, so it is the one kept.
+func withLegacyCaps(v wifiView, nets []WifiNetwork, radios []WifiRadio) wifiView {
+	local := map[string]bool{}
+	for _, n := range v.networks {
+		local[n.Name] = true
+	}
+	for _, n := range nets {
+		if !local[n.Name] {
+			v.networks = append(v.networks, n)
+		}
+	}
+	for _, r := range radios {
+		if !local[r.Name] {
+			v.radios = append(v.radios, r)
+		}
+	}
+	return v
+}
+
 func (w *Wifi) readWireless() (wifiView, error) {
 	ifaces, err := w.ros.Do(wlIfaceCmd)
 	if err != nil {
@@ -290,6 +370,11 @@ func (w *Wifi) load() {
 	}
 	w.mu.Unlock()
 
+	// Read ONCE, before the stack probe, and folded into whichever view wins.
+	// Doing it per branch would read the same five menus two or three times on a
+	// load that falls through.
+	capsNets, capsRadios := w.readLegacyCaps()
+
 	var lastErr error
 	for _, which := range order {
 		var view wifiView
@@ -315,7 +400,7 @@ func (w *Wifi) load() {
 		}
 		w.mu.Lock()
 		w.stack = which
-		w.view = view
+		w.view = withLegacyCaps(view, capsNets, capsRadios)
 		w.mu.Unlock()
 		return
 	}
@@ -330,7 +415,7 @@ func (w *Wifi) load() {
 	if w.stack == "" {
 		w.stack = "none"
 	}
-	w.view = wifiView{}
+	w.view = withLegacyCaps(wifiView{}, capsNets, capsRadios)
 	w.mu.Unlock()
 }
 
@@ -379,8 +464,11 @@ func (w *Wifi) emitPayload() {
 
 	payload := &WifiPayload{
 		TS: time.Now().UnixMilli(), PollMs: w.pollMs.ms(),
-		Stack:     stack,
-		Available: stack == "wifi" || stack == "wireless",
+		Stack: stack,
+		// A v1 manager with no radios of its own has networks to show and no
+		// stack at all, so "did a wireless menu answer" is no longer the same
+		// question as "is there anything on this page".
+		Available: stack == "wifi" || stack == "wireless" || len(networks) > 0,
 		Radios:    radios, Networks: networks, SecProfiles: secs,
 		Totals: totals,
 	}
@@ -440,6 +528,7 @@ func (w *Wifi) Reconnected() {
 	// installed and the router rebooted under us, and a latched answer would
 	// keep this reading the menu that used to be there.
 	w.stack = ""
+	w.v1Avail = nil
 	w.lastFP = ""
 	w.dirty = true
 	w.view = wifiView{}

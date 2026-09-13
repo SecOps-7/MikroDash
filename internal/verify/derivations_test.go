@@ -45,7 +45,7 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 		// ── extracted ──
 		"bandwidth.go":   "BuildBandwidth",
 		"bridges.go":     "BuildBridgeRows",
-		"capsman.go":     "BuildCapsmanView",
+		"capsman.go":     "BuildCapsmanView, BuildCapsmanLegacyView",
 		"connections.go": "BuildConns",
 		"dns.go":         "ParseDNSSettings,ParseStaticEntries",
 		"ifstatus.go":    "BuildIfStatus",
@@ -61,7 +61,7 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 		// Both live in wifiview.go, which is the point of that file: one view
 		// builder serving the modern and legacy stacks. A derivation need not sit
 		// in its collector's file, so this gate looks package-wide.
-		"wifi.go":     "BuildWifiView",
+		"wifi.go":     "BuildWifiView, BuildCapsLegacyNetworks",
 		"wireless.go": "BuildWirelessView",
 
 		// ── set B: not in scope for 4.1 ──

@@ -424,6 +424,23 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// took nil and no version was ever written. See session.Manager.SetOnIdentity;
 	// TestTheSessionManagersIdentityWriterIsAttached holds the ordering.
 	srv.sessions.SetOnIdentity(srv.persistRouterIdentity)
+	// ── AND THE OPERATOR'S OWN DOCUMENTS, FOR THE SAME REASON ─────────────
+	//
+	// The declared uplink list reaches the WAN collector through this. Attached
+	// HERE rather than lower down because a session captures it at build time
+	// and `syncFleetHolds` below builds every held one — see
+	// session.Manager.SetDocSource.
+	//
+	// A READ FAILURE IS NIL, which the collector reads as "nothing declared" and
+	// falls back to the router's own detection. That is the right way round: a
+	// database blip must not empty the page.
+	srv.sessions.SetDocSource(func(routerID, kind string) []byte {
+		blob, err := srv.auditDB.Doc(routerID, kind)
+		if err != nil {
+			return nil
+		}
+		return blob
+	})
 	// SYNCED AT STARTUP. `New` connects to nothing; `Sync` does. The overview
 	// pool can wait for `devicesFocus` because its rows are only wanted while
 	// that page is open — this one exists so a router nobody is watching is
@@ -617,6 +634,9 @@ func (s *Server) Handler() http.Handler {
 	s.registerAuthPermissions(mux)
 	s.registerCities(mux)
 	s.registerLayouts(mux)
+	s.registerRouterDocs(mux)
+	s.registerDNSFleet(mux)
+	s.registerTopologyFleet(mux)
 	s.registerAlerts(mux)
 	s.registerRouters(mux)
 	s.registerRouterTest(mux)

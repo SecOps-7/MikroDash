@@ -23,6 +23,14 @@
           <div class="d-flex align-items-center gap-2">
             <h3 class="card-title mb-0">Static Entries</h3>
             <span id="dnsStaticBadge" class="card-badge">0</span>
+            <!-- One router, or the same records read across several. The second
+                 is a question no collector can answer: a collector belongs to a
+                 session and a session belongs to one router. -->
+            <span class="topo-tools" role="group" aria-label="Scope">
+              <button class="topo-chip is-on" id="dnsScopeOne" type="button">This router</button>
+              <button class="topo-chip" id="dnsScopeFleet" type="button"
+                      title="Compare these records across several routers">Fleet</button>
+            </span>
           </div>
           <div class="hdr-actions">
             <input id="dnsStaticSearch" class="form-control form-control-sm"
@@ -37,6 +45,38 @@
               <thead><tr id="dnsStaticThead"></tr></thead>
               <tbody id="dnsStaticTable" data-res-rows="dnsStatic">
                 <tr><td colspan="5" class="empty-state">Waiting for static entries&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- The fleet comparison. Its own card rather than a second mode of the
+           table above: the columns are different — one per router — and a
+           colgroup cannot be two shapes at once. -->
+      <div class="card" id="dnsFleetCard" style="margin-top:.85rem;display:none">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Across the fleet</h3>
+            <span id="dnsFleetBadge" class="card-badge">0</span>
+          </div>
+          <div class="hdr-actions">
+            <span class="muted-note" id="dnsFleetNote"></span>
+            <button class="topo-btn" id="dnsFleetAddBtn" type="button"
+                    title="Open the Add form with a router picker under its fields">+ Add entry</button>
+            <button class="topo-btn" id="dnsFleetReload" type="button"
+                    title="Read every selected router again">Reload</button>
+            <button class="topo-btn" id="dnsFleetSyncAll" type="button"
+                    title="Copy every record to every router that is missing it">Sync all missing</button>
+          </div>
+        </div>
+        <div class="dns-fleet-pick" id="dnsFleetPick"></div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:460px;overflow:auto">
+            <table class="table table-vcenter mb-0" style="width:100%;min-width:720px">
+              <thead><tr id="dnsFleetThead"></tr></thead>
+              <tbody id="dnsFleetTable">
+                <tr><td class="empty-state">Pick the routers to compare.</td></tr>
               </tbody>
             </table>
           </div>

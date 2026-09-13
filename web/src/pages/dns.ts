@@ -9,6 +9,7 @@ import { esc, el, resRow, debounce, renderSortHeader, sortMul,
          type SortCol, type SortState } from '../dom';
 import type { Socket } from '../socket';
 import { mountAdds, mountRows } from '../resource';
+import { initDnsFleet } from './dns-fleet';
 import type { DNSStaticEntry, DNSPayload } from '../gen/payloads';
 
 const COLS_S: SortCol[] = [
@@ -134,4 +135,8 @@ export function initDnsPage(socket: Socket, isVisible: (page: string) => boolean
   // server refuse a write against a row that has changed underneath.
   mountAdds(socket);
   mountRows(socket);
+
+  // The fleet comparison is its own module: a different source, a different
+  // cadence and a different table shape. See its header.
+  initDnsFleet(socket, isVisible);
 }

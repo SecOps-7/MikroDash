@@ -72,6 +72,10 @@
           <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 20v-4"/><path d="M9 20v-8"/><path d="M14 20v-12"/><path d="M19 20v-16"/></svg></span>
           <span class="nav-label">Wifi Clients</span>
         </a>
+        <a class="nav-item" data-page="wifi-map" data-cat="wireless" href="#">
+          <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg></span>
+          <span class="nav-label">Wifi Map</span>
+        </a>
         <a class="nav-item" data-page="capsman" data-cat="wireless" href="#">
           <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="17" r="2"/><path d="M8.5 13.5a5 5 0 0 1 7 0"/><path d="M5.5 10.5a9 9 0 0 1 13 0"/><rect x="10" y="3" width="4" height="4" rx="1"/></svg></span>
           <span class="nav-label">CAPsMAN</span>
@@ -925,6 +929,9 @@
     </div>
     <div class="rtr-modal-body">
       <div id="res_fields"></div>
+      <!-- A page's own section, under the fields. The DNS page puts the fleet's
+           router picker here, so one window creates the record everywhere. -->
+      <div id="res_extra" style="display:none"></div>
       <div class="login-error" id="res_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
       <!-- The self-cutoff prompt lives inside the dialog rather than in a
            window.confirm, so it can name the interface and the address the
@@ -939,6 +946,11 @@
     </div>
     <div class="rtr-modal-footer">
       <button class="sbtn sbtn-danger" id="res_delete" style="margin-right:auto;display:none">Delete</button>
+      <!-- Start a NEW row from the one on screen. It only refills the form:
+           nothing is written until Add is pressed, which is what makes it safe
+           to offer beside Delete. -->
+      <button class="sbtn sbtn-outline" id="res_dup" style="display:none"
+              title="Fill a new entry from this one">Duplicate</button>
       <!-- Verbs a row still offers when it cannot be edited — "make static" on
            a dynamic DHCP lease is the case this exists for. Filled from the
            action list the server sends, which it re-checks against a fresh

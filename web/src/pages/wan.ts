@@ -11,6 +11,20 @@
 // action is dangerous: the page sends, the server answers `self-cutoff` with a
 // fingerprint, and this fills the dialog from that answer and sends it back. A
 // page that made the judgement itself could be talked out of it by a browser.
+//
+// ── AUTO OR MANUAL, AND WHY THE SECOND ONE EXISTS ───────────────────────────
+//
+// The uplink set is RouterOS's by default: an interface reporting
+// `state=internet` to `/interface/detect-internet`. That is the right default
+// and it is empty on most routers, because `detect-interface-list` ships as
+// `none` — so the page has spent its life explaining a command the operator has
+// to run on the ROUTER before a DASHBOARD will show anything.
+//
+// Manual mode is the other answer: the operator names the interfaces, MikroDash
+// stores that per router (`/api/router-doc`, kind `wan-uplinks`), and every join
+// below the set — address, lease, which default route is live, rates — is
+// unchanged. The router's own opinion is still shown on each row, so a declared
+// uplink RouterOS does not call `internet` is visible as exactly that.
 
 import { esc, el, renderSortHeader, type SortCol, type SortState } from '../dom';
 import type { Socket } from '../socket';
@@ -96,9 +110,80 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
   }
   const headerSort: SortState = { col: '', dir: 'asc' };
 
+  // ── the uplink source ─────────────────────────────────────────────────────
+  //
+  // Edited locally and written on Apply rather than on every click: each write
+  // is an audited change to what this page calls an uplink, and a checkbox that
+  // files an audit row per tick is noise in the trail.
+  let routerID = '';
+  let srcMode: 'auto' | 'manual' = 'auto';
+  let srcNames: string[] = [];
+  let srcDirty = false;
+
+  function syncSource(): void {
+    const bar = el('wanSrcBtns');
+    const canWrite = !!caps.permitted;
+    if (bar) bar.style.display = canWrite ? '' : 'none';
+    el('wanSrcAuto')?.classList.toggle('is-on', srcMode === 'auto');
+    el('wanSrcManual')?.classList.toggle('is-on', srcMode === 'manual');
+
+    const picker = el('wanPicker');
+    if (picker) picker.style.display = (canWrite && srcMode === 'manual') ? '' : 'none';
+    const note = el('wanPickerNote');
+    if (note) {
+      note.textContent = srcDirty ? 'not applied yet'
+        : srcNames.length + ' selected';
+    }
+    const apply = el('wanPickerApply');
+    if (apply) apply.classList.toggle('is-dirty', srcDirty);
+  }
+
+  function renderPicker(): void {
+    const list = el('wanPickerList');
+    if (!list) return;
+    const ifaces = (data && data.interfaces) || [];
+    if (!ifaces.length) {
+      list.innerHTML = '<span class="muted-note">No interfaces reported yet.</span>';
+      return;
+    }
+    list.innerHTML = ifaces.map((i) =>
+      '<label class="wan-pick' + (srcNames.indexOf(i.name) !== -1 ? ' is-on' : '') + '">' +
+        '<input type="checkbox" data-wanpick="' + esc(i.name) + '"' +
+          (srcNames.indexOf(i.name) !== -1 ? ' checked' : '') + '>' +
+        '<span class="wan-pick-name">' + esc(i.name) + '</span>' +
+        '<span class="wan-pick-type">' + esc(i.type || '') + '</span>' +
+        (i.running ? '<span class="wan-pick-up">up</span>' : '') +
+      '</label>').join('');
+  }
+
+  /** Write the document, then let the collector's refresh redraw the table. */
+  function applySource(): void {
+    if (!routerID) return;
+    fetch('/api/router-doc', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        routerId: routerID, kind: 'wan-uplinks',
+        doc: { mode: srcMode, names: srcNames },
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('refused'))))
+      .then(() => {
+        srcDirty = false;
+        setStatus(srcMode === 'manual'
+          ? 'Using the uplinks you declared'
+          : 'Back to the router\'s own detection');
+        syncSource();
+      })
+      .catch(() => setStatus('Could not save the uplink list'));
+  }
+
   function emptyState(): string {
     if (!data) return 'Waiting for WAN data&hellip;';
     if (data.denied) return 'This router\'s MikroDash account cannot read the internet-detection state.';
+    if (data.uplinkSource === 'manual') {
+      return 'No interfaces are declared as uplinks. Tick the ones that carry the internet.';
+    }
     if (!data.detectionEnabled) return 'Internet detection is not enabled on this router.';
     return 'No uplink currently reports an internet connection.';
   }
@@ -128,8 +213,14 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
       const age = since(w.since);
       return '<tr' + (w.running === false ? ' style="opacity:.62"' : '') + '>' +
         '<td>' + esc(w.name) +
+        (w.manual
+          ? '<span class="badge bg-orange-lt" style="margin-left:.35rem;font-size:.6rem"' +
+            ' title="You declared this an uplink. RouterOS ' +
+            (w.state === 'internet' ? 'agrees.' : 'does NOT report it as an internet link.') +
+            '">declared</span>' : '') +
         '<div class="muted-note">' + esc(w.isTunnel ? 'tunnel · ' + w.type : w.type || 'interface') +
-        (age ? ' · up ' + esc(age) : '') + '</div></td>' +
+        (age ? ' · up ' + esc(age) : '') +
+        (w.manual && w.state !== 'internet' ? ' · router does not agree' : '') + '</div></td>' +
         '<td>' + (w.address ? esc(w.address) : dash()) +
         (w.isPublic === true ? '<div class="muted-note" style="color:var(--accent-rx)">public</div>'
           : w.isPublic === false ? '<div class="muted-note">private</div>' : '') + '</td>' +
@@ -153,12 +244,20 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     }
     renderNotice();
     renderSummary();
+    syncSource();
+    if (srcMode === 'manual') renderPicker();
   }
 
   function renderNotice(): void {
     const card = el('wanNoticeCard'), body = el('wanNotice');
     if (!card || !body) return;
-    if (!data || data.detectionEnabled || data.denied) { card.style.display = 'none'; return; }
+    // A DECLARED LIST ANSWERS THE NOTICE. Telling somebody to switch detection
+    // on, when they have just told this page not to use it, is advice about a
+    // decision they already made.
+    if (!data || data.detectionEnabled || data.denied || data.uplinkSource === 'manual') {
+      card.style.display = 'none';
+      return;
+    }
     card.style.display = '';
     // The default is detect-interface-list=none, so this is the common case
     // rather than a fault. Say what to run.
@@ -227,6 +326,13 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     if (!d) return;
     data = d;
     busy = '';
+    // THE SERVER'S COPY WINS UNLESS THERE ARE UNAPPLIED EDITS. Adopting it
+    // mid-edit would wipe the boxes somebody is ticking; ignoring it for ever
+    // would leave this browser showing a list another one has changed.
+    if (!srcDirty) {
+      srcMode = d.uplinkSource === 'manual' ? 'manual' : 'auto';
+      srcNames = (d.manualNames || []).slice();
+    }
     renderSummary();
     if (isVisible('wan')) render();
   });
@@ -300,6 +406,44 @@ export function initWanPage(socket: Socket, isVisible: (page: string) => boolean
     };
     setStatus((code && msg[code]) || (d && d.message) || 'Action failed');
     if (isVisible('wan')) render();
+  });
+
+  el('wanSrcAuto')?.addEventListener('click', () => {
+    if (srcMode === 'auto') return;
+    srcMode = 'auto'; srcDirty = false;
+    syncSource();
+    applySource();
+  });
+  el('wanSrcManual')?.addEventListener('click', () => {
+    if (srcMode === 'manual') return;
+    srcMode = 'manual';
+    // NOT APPLIED YET: switching to Manual with an empty list would report zero
+    // uplinks, which reads as the router having gone down. The Apply button is
+    // what commits it, once there is something to commit.
+    srcDirty = true;
+    syncSource();
+    renderPicker();
+  });
+  el('wanPickerApply')?.addEventListener('click', applySource);
+
+  document.addEventListener('change', (e) => {
+    const t = e.target as HTMLInputElement | null;
+    const name = t?.getAttribute?.('data-wanpick');
+    if (!name) return;
+    srcNames = t!.checked
+      ? srcNames.concat([name])
+      : srcNames.filter((n) => n !== name);
+    srcDirty = true;
+    syncSource();
+    renderPicker();
+  });
+
+  socket.on('router:active', (d) => { routerID = (d && d.activeId) || routerID; });
+  socket.on('router:switched', (d) => {
+    routerID = (d && d.activeId) || '';
+    // Another router's declared uplinks are not this one's.
+    srcMode = 'auto'; srcNames = []; srcDirty = false;
+    syncSource();
   });
 
   document.addEventListener('mikrodash:pagechange', (e) => {

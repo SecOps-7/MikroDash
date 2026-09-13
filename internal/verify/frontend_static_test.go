@@ -126,12 +126,18 @@ func TestTemplateIDsAreBound(t *testing.T) {
 		t.Fatal("no ids were found in any template — the pattern stopped matching")
 	}
 
+	// ── THE TYPE ARGUMENT IS OPTIONAL ON BOTH SPELLINGS ────────────────────
+	//
+	// `el` and `byId` are the same function — `topology.ts` imports it under the
+	// second name — and either may be called with a type argument. This pattern
+	// allowed one on `el` and not on `byId`, so `byId<HTMLSelectElement>('x')`
+	// read as an unbound id: a control that IS wired, reported as one that is
+	// not. Found on 2026-09-13 by the topology map's cabling picker, which is
+	// bound exactly that way.
 	bound := func(id string) bool {
 		q := regexp.QuoteMeta(id)
 		return regexp.MustCompile(
-			`\bel\('` + q + `'\)` +
-				`|\bel<[^>]*>\('` + q + `'\)` +
-				`|\bbyId\('` + q + `'\)` +
+			`\b(?:el|byId)(?:<[^>]*>)?\('` + q + `'\)` +
 				`|getElementById\('` + q + `'\)` +
 				`|closest\('#` + q + `'\)` +
 				`|querySelector\w*\('#` + q + `'\)`).MatchString(all)

@@ -24,8 +24,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"mikrodash/internal/routeros"
@@ -375,15 +377,143 @@ func (r *replayReader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 // describes. That is the rule the surviving ledgers in internal/verify carry and
 // it is the reason this one is safe to add.
 //
-// Paths are `field` or `list[].field`; one level of list is all any entry has
-// needed, and a form nothing uses is a form nothing tests.
-var addedSinceNode = map[string][]string{
+// Paths are `field`, `list[].field`, or either with a dotted prefix naming the
+// objects to descend through first — `profiles.channel[].legacy`. The prefix
+// arrived with the legacy CAPsMAN rows, which sit two levels down; a flat name
+// resolved to nothing and the strip silently did nothing, which is the direction
+// that looks like a pass.
+type addedField struct {
+	Spec string
+	// ProvenBy names a test in this package that shows the field is still
+	// produced, for an addition THIS CORPUS CANNOT EXERCISE.
+	//
+	// ── WHY THE ESCAPE HATCH EXISTS, AND WHY IT IS NOT A HOLE ───────────────
+	//
+	// The default rule is that at least one row must carry a non-empty value,
+	// because presence alone proves nothing: the struct field has no `omitempty`,
+	// so deleting its assignment still marshals `"ap": ""` and the ledger would
+	// see a happy row. That rule assumes the corpus can reach the field at all.
+	//
+	// `wifi.networks[].ap` is the case where it cannot: the AX3's radios are its
+	// own, so a correct implementation reports "" on every row, and no capture in
+	// this repository has a CAP-provisioned interface. The header above says what
+	// to do — "the entry needs a fixture that does" — and there is none to have,
+	// so the proof moves to a named unit test instead of being quietly dropped.
+	//
+	// IT FAILS IN BOTH DIRECTIONS LIKE EVERYTHING ELSE HERE: the named test must
+	// exist in this package, so deleting it takes the exemption with it.
+	ProvenBy string
+}
+
+func added(spec string) addedField { return addedField{Spec: spec} }
+
+var addedSinceNode = map[string][]addedField{
 	// The 802.11 generation a client negotiated. Added 2026-09-07 for the WiFi
 	// Clients page's Standard column: the Node app read the registration table's
 	// `band` and kept only the frequency half, so the generation was collected
 	// and discarded. Purely additive — no existing field changed.
-	"wireless": {"clients[].standard"},
+	// `comment` joined it on 2026-09-13, for the Wi-Fi map's per-field client
+	// labels: the hostname and the operator's own note are two different
+	// answers and the map lets either be switched off. No capture in this
+	// repository has a lease comment — the capture tool drops the field — so
+	// the proof is a named test. See `ProvenBy`.
+	"wireless": {
+		added("clients[].standard"),
+		{Spec: "clients[].comment", ProvenBy: "TestWirelessClientCarriesTheLeaseComment"},
+	},
+	// The legacy CAPsMAN tree, added 2026-09-13. The Node app read
+	// `/interface/wifi/capsman` and nothing else, so a manager also running
+	// `/caps-man` showed none of those CAPs at all. Purely additive: `legacy`
+	// marks which tree a row came from and is false on every row the Node app
+	// produced, and the two payload flags are false on a router without the
+	// menus.
+	//
+	// `legacyAvailable` reads TRUE against this fixture and that is the replay
+	// harness rather than the router: `replayReader.Do` answers an unrecorded
+	// menu with no rows and no error, which is how a collector latches a menu as
+	// present. The AX3 itself refuses `/caps-man`. Nothing downstream of the
+	// flag is exercised here — the recorded tables are empty, so no legacy CAP,
+	// rule or profile is produced — which is why the entry is a strip rather
+	// than a fixture.
+	"capsman": {
+		added("caps[].legacy"), added("provisioning[].legacy"),
+		added("legacyAvailable"), added("legacyManager"),
+		added("profiles.configuration[].legacy"), added("profiles.security[].legacy"),
+		added("profiles.channel[].legacy"), added("profiles.datapath[].legacy"),
+	},
+	// The operator's own cabling, added 2026-09-13. A discovery protocol cannot
+	// see through a switch that forwards none of it, so everything behind a SwOS
+	// box looks directly attached to the port it arrives on — and nothing the
+	// manager can read says otherwise. `pinned` is on every node and every edge,
+	// false throughout this fixture because no pin is declared, and `pinsEnabled`
+	// says whether the switch is on at all.
+	"topology": {
+		added("pinsEnabled"), added("edges[].pinned"),
+		// The node list is a union of three shapes and only the neighbour one
+		// carries this, so the corpus cannot show a non-empty value on every row
+		// — `stripAdded` counts rows that HAVE the key, and the core and the
+		// clients do not.
+		{Spec: "nodes[].pinned", ProvenBy: "TestPinnedParentsOverrideTheInference"},
+	},
+	// The uplink SET became a choice on 2026-09-13. `detect-interface-list` ships
+	// as `none`, so the honest reading of most routers is zero uplinks — and the
+	// page has spent its life explaining a command somebody has to run on the
+	// ROUTER before a DASHBOARD shows anything. `uplinkSource` says which answer
+	// is in force, `manualNames` is the declared list whether or not it is, and
+	// `interfaces` is the picker's options, read off the `/interface/print` this
+	// collector already had in hand. Every row gains `manual`, false on this
+	// fixture because the set is still the router's.
+	"wan": {
+		added("uplinkSource"), added("manualNames"), added("interfaces"),
+		added("wans[].manual"),
+	},
+	// Which ACCESS POINT a network is broadcast by, added 2026-09-13 so the Wifi
+	// Networks page can group by hardware and the Wi-Fi map can pin one box
+	// rather than one radio. Read from `cap` on the interface, which the Node app
+	// never asked for — so no capture in this repository has the field at all,
+	// and on the AX3 it would read "" anyway: its radios are its own rather than
+	// a CAP's. See `ProvenBy`.
+	"wifi": {
+		{Spec: "networks[].ap", ProvenBy: "TestBuildWifiViewReadsTheAccessPointFromCap"},
+		{Spec: "radios[].ap", ProvenBy: "TestBuildWifiViewReadsTheAccessPointFromCap"},
+	},
 }
+
+// collectDeclares reports whether this package declares a function by that name.
+//
+// READ FROM SOURCE, because a test cannot call a test. Reflection sees no test
+// functions and `go test` will not hand out its own list, so the only way to ask
+// "does that proof still exist" is to look at the files. Cached per run: the
+// ledger asks it once per entry and the directory is small either way.
+func collectDeclares(t *testing.T, fn string) bool {
+	t.Helper()
+	declaredOnce.Do(func() {
+		declared = map[string]bool{}
+		entries, err := os.ReadDir(".")
+		if err != nil {
+			return
+		}
+		re := regexp.MustCompile(`(?m)^func ([A-Za-z_]\w*)\(`)
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") {
+				continue
+			}
+			b, rerr := os.ReadFile(e.Name())
+			if rerr != nil {
+				continue
+			}
+			for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+				declared[m[1]] = true
+			}
+		}
+	})
+	return declared[fn]
+}
+
+var (
+	declaredOnce sync.Once
+	declared     map[string]bool
+)
 
 // stripAdded removes one recorded field from the payload.
 //
@@ -402,6 +532,21 @@ func stripAdded(payload any, spec string) (filled, possible int) {
 	root, ok := payload.(map[string]any)
 	if !ok {
 		return 0, 0
+	}
+	// Descend the dotted prefix first, so `profiles.channel[].legacy` reaches the
+	// list it names. A prefix that resolves to nothing returns 0,0 — the same
+	// answer as an absent list, which is what an addition to a collector this
+	// fixture does not exercise looks like.
+	for {
+		head, rest, found := strings.Cut(spec, ".")
+		if !found || strings.Contains(head, "[]") {
+			break
+		}
+		next, ok := root[head].(map[string]any)
+		if !ok {
+			return 0, 0
+		}
+		root, spec = next, rest
 	}
 	listName, field, isList := strings.Cut(spec, "[].")
 	nonEmpty := func(v any) bool {
@@ -473,18 +618,28 @@ func TestGoldenPayloads(t *testing.T) {
 			// Recorded additions come out before the comparison, and each one
 			// must actually have been there — see addedSinceNode.
 			gotAny := normaliseTS(toAny(t, got))
-			for _, spec := range addedSinceNode[g.collector] {
-				filled, possible := stripAdded(gotAny, spec)
+			for _, add := range addedSinceNode[g.collector] {
+				filled, possible := stripAdded(gotAny, add.Spec)
+				if add.ProvenBy != "" {
+					// The corpus cannot show this one. What it CAN still show is
+					// that the field is in the payload at all, and the named test
+					// carries the rest.
+					if possible > 0 && !collectDeclares(t, add.ProvenBy) {
+						t.Errorf("addedSinceNode points %q at %q, which internal/collect "+
+							"does not declare. The proof was renamed or deleted and the "+
+							"exemption outlived it.", add.Spec, add.ProvenBy)
+					}
+					continue
+				}
 				if possible > 0 && filled == 0 {
 					t.Errorf("addedSinceNode records %q for %s, and not one of the "+
 						"%d row(s) carries a value for it. Either the addition was "+
 						"removed and this entry must go with it, or it was renamed "+
 						"and the entry must follow — a ledger that outlives its "+
 						"change is how a difference stops being re-measured.\n"+
-						"If a fixture legitimately has nothing to report here, it is "+
-						"also not proving anything about the addition, and the entry "+
-						"needs a fixture that does.",
-						spec, g.collector, possible)
+						"If a fixture legitimately has nothing to report here, name "+
+						"the test that proves it instead, in ProvenBy.",
+						add.Spec, g.collector, possible)
 				}
 			}
 

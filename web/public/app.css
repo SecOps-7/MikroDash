@@ -1320,6 +1320,10 @@
     .wl-sort-btn{background:rgba(99,130,190,.08);border:1px solid var(--border);border-radius:4px;color:var(--text-muted);font-family:var(--font-mono);font-size:.63rem;padding:2px 7px;cursor:pointer;transition:background .15s,color .15s}
     .wl-sort-btn:hover{background:rgba(56,189,248,.12);color:var(--accent-rx)}
     .wl-sort-btn.active{background:rgba(56,189,248,.15);border-color:rgba(56,189,248,.35);color:var(--accent-rx)}
+    /* The same two glyphs the sortable column headers use, so the bar and the
+       header say the same thing about the same sort. */
+    .wl-sort-btn.active[data-dir="asc"]::after{content:' 91'}
+    .wl-sort-btn.active[data-dir="desc"]::after{content:' 93'}
     /* Wireless summary row */
     .wl-summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem;margin-bottom:.85rem}
     @media(max-width:1100px){.wl-summary-row{grid-template-columns:1fr 1fr}}
@@ -1525,9 +1529,18 @@
     .wl-band-item{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
     .wl-band-pill{font-family:var(--font-mono);font-size:.65rem;border-radius:10px;padding:2px 9px;white-space:nowrap}
     .wl-band-num{font-size:1.35rem;font-weight:700;font-family:var(--font-mono);line-height:1}
-    .wl-group-row td{background:rgba(56,189,248,.04);border-top:1px solid rgba(56,189,248,.15)!important;padding:.3rem .75rem!important}
+    /* A CAP row expands to its CLIENT list, so only a CAP with clients has
+       anything to expand to. The class is what the handler binds to as well. */
+    .cap-open{cursor:pointer}
+    .wl-group-row td{background:rgba(56,189,248,.04);border-top:1px solid rgba(56,189,248,.15)!important;padding:0!important}
     .wl-group-label{font-family:var(--font-mono);font-size:.68rem;font-weight:700;color:var(--accent-rx);letter-spacing:.03em}
     .wl-group-sub{font-size:.62rem;color:var(--text-muted);margin-left:.5rem}
+    /* The whole group header is the fold control. A real button, so it is
+       reachable by keyboard; stripped back to look like the row it replaced. */
+    .wl-group-toggle{display:flex;align-items:center;width:100%;text-align:left;
+      background:none;border:0;padding:.3rem .75rem;cursor:pointer;font:inherit;color:inherit}
+    .wl-group-toggle:hover .wl-group-label{color:var(--text-main)}
+    .wl-group-caret{font-size:.6rem;color:var(--text-muted);margin-right:.4rem;width:.7rem;flex-shrink:0}
     /* One panel per CAPsMAN configuration tab. `hidden` does the hiding; this
        only stops the visible one collapsing when its table is empty. */
     .capstab-panel[hidden]{display:none}
@@ -1803,3 +1816,43 @@
        until "pushed" wrapped mid-word to two lines. */
     .diag-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)}
   
+
+/* ── The WAN uplink picker ───────────────────────────────────────────────────
+   Shown only in Manual mode: in Auto it would be a list of checkboxes that
+   change nothing. */
+.wan-picker{border-top:1px solid var(--border);padding:.6rem .85rem}
+.wan-picker-hdr{display:flex;align-items:center;gap:.6rem;font-size:.74rem;
+  color:var(--text-main);margin-bottom:.5rem}
+.wan-picker-hdr .topo-btn{margin-left:auto}
+.wan-picker-hdr .topo-btn.is-dirty{border-color:var(--accent-rx);color:var(--accent-rx)}
+.wan-picker-list{display:flex;flex-wrap:wrap;gap:.35rem}
+.wan-pick{display:flex;align-items:center;gap:.35rem;padding:.2rem .5rem;
+  border:1px solid var(--border);border-radius:5px;cursor:pointer;
+  background:rgba(99,130,190,.06)}
+.wan-pick.is-on{border-color:rgba(56,189,248,.45);background:rgba(56,189,248,.12)}
+.wan-pick-name{font-family:var(--font-mono);font-size:.7rem;color:var(--text-main)}
+.wan-pick-type{font-size:.62rem;color:var(--text-muted)}
+.wan-pick-up{font-size:.58rem;color:rgba(52,211,153,.9)}
+
+/* ── The DNS fleet comparison ────────────────────────────────────────────────
+   One column per router. A tick means the record is there and says the same
+   thing; ≠ means it is there and does not. */
+.dns-fleet-pick{display:flex;flex-wrap:wrap;gap:.35rem;padding:.5rem .85rem;
+  border-top:1px solid var(--border)}
+.dns-fleet-router{display:flex;align-items:center;gap:.3rem;padding:.15rem .5rem;
+  border:1px solid var(--border);border-radius:5px;cursor:pointer;font-size:.7rem;
+  background:rgba(99,130,190,.06)}
+.dns-fleet-router.is-on{border-color:rgba(56,189,248,.45);background:rgba(56,189,248,.12)}
+.dns-fleet-col{text-align:center;width:5.5rem}
+.dns-fleet-yes{color:rgba(52,211,153,.9);font-weight:700}
+.dns-fleet-yes.is-odd{color:var(--accent-warn)}
+.dns-fleet-copy{background:rgba(99,130,190,.1);border:1px solid var(--border);border-radius:4px;
+  color:var(--text-muted);font-family:var(--font-mono);font-size:.6rem;padding:1px 5px;cursor:pointer}
+.dns-fleet-copy:hover{border-color:rgba(56,189,248,.45);color:var(--accent-rx)}
+.dns-fleet-copy[disabled]{opacity:.45;cursor:default}
+#dnsFleetTable tr.is-partial td:first-child{border-left:2px solid var(--accent-warn)}
+.dns-extra{margin-top:.7rem;padding:.55rem .7rem;border:1px solid var(--border);
+  border-radius:6px;background:rgba(99,130,190,.05)}
+.dns-extra-title{font-size:.72rem;font-weight:600;color:var(--text-main);margin-bottom:.4rem}
+.dns-extra-pick{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.35rem}
+.dns-extra-host{font-family:var(--font-mono);font-size:.62rem;color:var(--text-muted)}

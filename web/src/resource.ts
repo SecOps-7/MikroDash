@@ -36,6 +36,45 @@ let sock: Socket | null = null;
 // The undo/redo state per resource, as the server last reported it.
 const hist = new Map<string, HistState>();
 let current: { key: string; id: string | null; identity: string | null } | null = null;
+// What `show` last drew, so Duplicate can redraw the same form as a new row.
+// The OPTIONS are the half that cannot be recovered otherwise: they are the
+// router's own picker lists, fetched with the row, and a duplicate drawn without
+// them would offer a text box where the original offered a list.
+let shown: { schema: Schema; options: Record<string, string[]> } | null = null;
+
+/**
+ * An extra section a page hangs under the dialog's fields.
+ *
+ * ── WHY THE DIALOG HAS A SLOT AND NOT A SECOND FORM ─────────────────────────
+ *
+ * The DNS page's fleet mode needs "and write it to these routers too", and that
+ * belongs on the form where the record is typed rather than in a second form
+ * beside it: the dialog is generated from the resource descriptor and knows
+ * which property each record type puts its value in, and a hand-rolled copy of
+ * that table is a fork of the one fact that matters.
+ *
+ * The dialog itself learns nothing about routers. A page registers a renderer,
+ * gets a div under the fields, and is told what was written once the ACTIVE
+ * router has accepted it.
+ */
+export interface ResourceExtra {
+  /** Markup for the slot, or '' to render nothing on this form. */
+  render(mode: 'add' | 'edit'): string;
+  /** Wire what `render` just returned. */
+  wire?(): void;
+  /** The active router accepted a write, with these values. */
+  saved?(values: Record<string, string>): void;
+}
+
+const extras = new Map<string, ResourceExtra>();
+
+export function registerExtra(key: string, extra: ResourceExtra): void {
+  extras.set(key, extra);
+}
+
+/** What the last save sent, so `res:ok` can hand it to the extra. Cleared on
+ *  every other path out of the dialog, because a delete answers `res:ok` too. */
+let lastSave: { key: string; values: Record<string, string> } | null = null;
 // The submission to repeat once a warning is acknowledged. A guard answers by
 // refusing the write and describing what it saw, so the retry is the same
 // request plus the fingerprint of the warning that was read.
@@ -189,6 +228,7 @@ function close(): void {
   if (warn) warn.style.display = 'none';
   current = null;
   retry = null;
+  lastSave = null;
 }
 
 /**
@@ -257,10 +297,20 @@ function show(schema: Schema, values: Record<string, unknown> | null,
               row: { id: string; identity: string } | null, readOnly: boolean,
               options?: Record<string, string[]>, actions?: string[]): void {
   current = { key: schema.key, id: row ? row.id : null, identity: row ? row.identity : null };
+  shown = { schema, options: options || {} };
   const title = el('res_title');
   if (title) title.textContent = (readOnly ? '' : row ? 'Edit ' : 'Add ') + schema.title;
   buildForm(schema, values, options);
   actionBar(schema, actions || []);
+  lastSave = null;
+  const slot = el('res_extra');
+  if (slot) {
+    const extra = readOnly ? undefined : extras.get(schema.key);
+    const html = extra ? extra.render(row ? 'edit' : 'add') : '';
+    slot.innerHTML = html;
+    slot.style.display = html ? '' : 'none';
+    if (html) extra!.wire?.();
+  }
   if (readOnly) {
     // Shown, not hidden: the operator clicked the row to see it, and the values
     // are the answer to that even when they cannot be changed.
@@ -271,6 +321,10 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   const warn = el('res_warn'); if (warn) warn.style.display = 'none';
   const prev = el('res_preview'); if (prev) prev.style.display = 'none';
   const del = el('res_delete'); if (del) del.style.display = (row && !readOnly) ? '' : 'none';
+  // Duplicate is offered on the same rows Delete is: an existing row somebody
+  // may write to. On a new form it would copy a blank, and on a read-only one it
+  // would offer a write the server refuses.
+  const dup = el('res_dup'); if (dup) dup.style.display = (row && !readOnly) ? '' : 'none';
   const save = el('res_save');
   if (save) {
     save.style.display = readOnly ? 'none' : '';
@@ -821,7 +875,12 @@ function wire(socket: Socket): void {
     show(schema, null, null, false, d.options || {}, []);
   });
 
-  socket.on('res:ok', () => close());
+  socket.on('res:ok', () => {
+    const done = lastSave;
+    lastSave = null;
+    close();
+    if (done) extras.get(done.key)?.saved?.(done.values);
+  });
 
   socket.on('res:error', (d) => {
     if (d && (d.code === 'self-cutoff' || d.code === 'stale-warning')) {
@@ -885,12 +944,34 @@ function wire(socket: Socket): void {
       expectedIdentity: current.identity || '',
       values: readValues(schema),
     };
+    lastSave = { key: body.resource, values: body.values };
     retry = (ack: string) => socket.emit('res:save', { ...body, ack });
     socket.emit('res:save', body);
   });
 
+  /**
+   * Start a new row from the one on screen.
+   *
+   * ── IT WRITES NOTHING ───────────────────────────────────────────────────
+   *
+   * It redraws the SAME dialog in Add mode with the values that were in the
+   * fields, so the operator edits what differs and presses Add themselves. That
+   * was the requirement — a copy that saved itself would be a second row nobody
+   * reviewed, on a page where the identity is usually the thing you meant to
+   * change.
+   *
+   * The values are read out of the FORM rather than kept from the payload, so an
+   * edit made before pressing Duplicate is carried into the copy. That is what
+   * the button looks like it does.
+   */
+  el('res_dup')?.addEventListener('click', () => {
+    if (!shown) return;
+    show(shown.schema, readValues(shown.schema), null, false, shown.options, []);
+  });
+
   el('res_delete')?.addEventListener('click', () => {
     if (!current || !current.id) return;
+    lastSave = null;
     const body = {
       resource: current.key,
       id: current.id,

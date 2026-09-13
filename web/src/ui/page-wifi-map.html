@@ -1,0 +1,97 @@
+  <div class="page-view" id="page-wifi-map">
+    <div class="container-fluid px-0" style="width:100%">
+
+      <div class="topo-stats" id="wmStats">
+        <div class="topo-stat"><span class="topo-stat-num" id="wmStatAps">&mdash;</span><span class="topo-stat-lbl">Placed APs</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="wmStatClients">&mdash;</span><span class="topo-stat-lbl">Clients on the map</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="wmStatUnplaced">&mdash;</span><span class="topo-stat-lbl">Unplaced</span></div>
+        <div class="topo-stat"><span class="topo-stat-num" id="wmStatScale">&mdash;</span><span class="topo-stat-lbl">Scale</span></div>
+      </div>
+
+      <div class="card" id="wifiMapCard">
+        <div class="stale-overlay">&#9679; stale</div>
+        <div class="rt-toolbar">
+          <span class="rt-card-title" style="margin-bottom:0;flex-shrink:0">Wifi Map</span>
+
+          <!-- Two modes, and the map is read-only in one of them. Drawing and
+               watching want different pointer behaviour on the same canvas: in
+               View a drag pans, in Edit a drag on an object moves it. -->
+          <span class="topo-tools" role="group" aria-label="Mode">
+            <button class="topo-chip is-on" id="wmModeView" type="button">View</button>
+            <button class="topo-chip" id="wmModeEdit" type="button">Edit</button>
+          </span>
+
+          <!-- Where a client is drawn. See the header of pages/wifi-map.ts for
+               why neither of these is a position. -->
+          <span class="topo-tools" id="wmClientModes" role="group" aria-label="Client placement">
+            <button class="topo-chip is-on" id="wmClientOrbit" type="button"
+                    title="Clients ring their access point at a fixed radius">Orbit</button>
+            <button class="topo-chip" id="wmClientRing" type="button"
+                    title="Radius estimates the distance from the signal. Needs a scale.">Signal ring</button>
+          </span>
+
+          <!-- What each client's label says. One line per field, and which ones
+               are worth the ink depends on the site. -->
+          <span class="topo-tools" id="wmLabelFields" role="group" aria-label="Client labels">
+            <button class="topo-chip is-on" id="wmLblName" type="button"
+                    title="The DHCP host name, or reverse DNS where there is no lease">Name</button>
+            <button class="topo-chip" id="wmLblComment" type="button"
+                    title="The comment on the DHCP lease">Comment</button>
+            <button class="topo-chip" id="wmLblIp" type="button" title="The address">IP</button>
+            <button class="topo-chip" id="wmLblMac" type="button" title="The hardware address">MAC</button>
+            <button class="topo-chip" id="wmLblSignal" type="button" title="The signal, in dBm">Signal</button>
+          </span>
+
+          <!-- Zoomed out to fit a site, a 9px label is under two pixels tall.
+               With this on, the names, the access points and the clients keep
+               their size on screen while the plan zooms under them. -->
+          <button class="topo-chip is-on" id="wmFixedSize" type="button"
+                  title="Keep names, access points and clients the same size on screen at any zoom">Fixed size</button>
+
+          <select class="rt-sel" id="wmFloor" aria-label="Floor" title="Which storey to draw">
+            <option value="0">All floors</option>
+          </select>
+
+          <span class="topo-tools" id="wmEditTools" style="display:none" role="group" aria-label="Drawing tools">
+            <button class="topo-btn" id="wmAddBuilding" type="button" title="Add a building">+ Building</button>
+            <button class="topo-btn" id="wmAddArea" type="button"
+                    title="Draw an area by clicking its corners. Double-click or Enter to close it.">+ Area</button>
+            <button class="topo-btn" id="wmAddWall" type="button" title="Add a wall or fence">+ Wall</button>
+            <button class="topo-btn" id="wmAddLabel" type="button" title="Add a text label">+ Label</button>
+            <!-- The scale, measured rather than typed. Click the two ends of
+                 something you know the length of and say what it is. -->
+            <button class="topo-btn" id="wmMeasure" type="button"
+                    title="Set the scale by measuring a known distance">Measure</button>
+          </span>
+
+          <span class="topo-tools">
+            <button class="topo-btn" id="wmZoomOut" type="button" title="Zoom out" aria-label="Zoom out">&minus;</button>
+            <button class="topo-btn" id="wmZoomIn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+            <button class="topo-btn" id="wmFit" type="button" title="Fit to view">Fit</button>
+          </span>
+
+          <span class="topo-tools" id="wmSaveTools" style="display:none" role="group" aria-label="Save">
+            <button class="topo-btn" id="wmDiscard" type="button" title="Throw away every unsaved change">Discard</button>
+            <button class="topo-btn wm-save" id="wmSave" type="button" title="Save the plan for everyone">Save</button>
+          </span>
+        </div>
+
+        <div class="topo-stage" id="wmStage">
+          <svg id="wmSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Wi-Fi site map">
+            <g id="wmViewport">
+              <g id="wmObjects"></g>
+              <g id="wmMeasureLayer"></g>
+              <g id="wmDraft"></g>
+              <g id="wmAps"></g>
+              <g id="wmClients"></g>
+            </g>
+          </svg>
+          <div class="topo-empty" id="wmEmpty"></div>
+          <aside class="topo-panel" id="wmPanel" aria-live="polite"></aside>
+        </div>
+
+        <div class="topo-foot" id="wmFoot"></div>
+      </div>
+
+    </div><!-- /container -->
+  </div><!-- /page-wifi-map -->

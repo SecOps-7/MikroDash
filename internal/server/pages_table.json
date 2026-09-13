@@ -42,6 +42,11 @@
       "settingsKey": "pageWireless"
     },
     {
+      "key": "wifi-map",
+      "title": "Wifi Map",
+      "settingsKey": null
+    },
+    {
       "key": "capsman",
       "title": "CAPsMAN",
       "settingsKey": "pageCapsman"

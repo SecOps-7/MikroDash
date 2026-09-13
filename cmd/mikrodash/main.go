@@ -176,6 +176,22 @@ func main() {
 		if v, verr := adb.SchemaVersion(); verr == nil {
 			log.Printf("[mikrodash] audit trail open (schema v%d)", v)
 		}
+		// ── THE SCHEMA STEPS THIS PORT OWNS ──────────────────────────────
+		//
+		// Versions 16 and up: tables the Node app never had. Here rather than in
+		// `db.Open` for the reason `cmd/compat` exists — it opens a production
+		// /data read-only, and a migration in Open would fail on the one tool
+		// whose job is to touch nothing.
+		//
+		// NOT FATAL. A /data this cannot migrate still serves every page; what
+		// stops working is whatever the new tables back, and those say so.
+		if n, merr := adb.Migrate(); merr != nil {
+			log.Printf("[mikrodash] WARNING: schema migration failed, some features "+
+				"will be unavailable: %v", merr)
+		} else if n > 0 {
+			log.Printf("[mikrodash] applied %d schema migration(s)", n)
+		}
+
 		// Page keys are also permission keys, so renaming one strands every
 		// grant naming the old one -- silently, and invisibly to the
 		// administrator most likely to be looking, because administrators are

@@ -196,3 +196,25 @@ func TestParseWirelessSSIDsAggregates(t *testing.T) {
 		t.Errorf("Home ifaces = %v, want both", ssids[1].Ifaces)
 	}
 }
+
+// TestWirelessClientCarriesTheLeaseComment. The fleet's captures carry no lease
+// comment at all — `tools/capture-fixtures.js` drops the field — so the golden
+// cannot show this one, and `addedSinceNode` names this test instead.
+//
+// The comment is a SECOND name and not a fallback for the first: a device whose
+// hostname is `android-4f2c` has a perfectly good `Name` and is still unreadable
+// without what somebody wrote on the lease.
+func TestWirelessClientCarriesTheLeaseComment(t *testing.T) {
+	w := &Wireless{leases: stubLeases{&LeasesPayload{Leases: []Lease{
+		{MAC: "AA:BB:CC:DD:EE:FF", Name: "android-4f2c", Comment: "Kitchen tablet"},
+	}}}}
+	if got := w.leaseComment("aa:bb:cc:dd:ee:ff"); got != "Kitchen tablet" {
+		t.Errorf("leaseComment = %q, want Kitchen tablet", got)
+	}
+	if got := w.leaseName("AA:BB:CC:DD:EE:FF"); got != "android-4f2c" {
+		t.Errorf("the comment displaced the name: %q", got)
+	}
+	if got := w.leaseComment("02:00:00:00:00:99"); got != "" {
+		t.Errorf("a MAC with no lease answered %q", got)
+	}
+}

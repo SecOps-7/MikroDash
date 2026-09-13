@@ -2,18 +2,55 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 )
 
 // schemaVersion is the version a database created by `schemaDDL` is stamped at.
 //
-// It is the version the Node app's fifteen migrations END at, because the DDL is
-// their final shape rather than a replay of them. Stamping anything lower would
-// make `Open` refuse the database it had just written; stamping higher would
-// claim migrations that never ran.
-const schemaVersion = 15
+// ── 1..15 ARE THE NODE APP'S, 16 ONWARD ARE THIS PORT'S ─────────────────────
+//
+// Fifteen is where the Node app's migrations end, and the DDL is their final
+// shape rather than a replay of them. Everything above it is a migration this
+// port owns and applies itself, from `portMigrations` — the Node app is gone, so
+// "Node owns migrations" stopped being a reason and became a reason nothing
+// could ever be added.
+//
+// Stamping anything lower would make `Open` refuse the database it had just
+// written; stamping higher than the migrations listed would claim ones that
+// never ran.
+const schemaVersion = 16
+
+// portMigrations are the schema steps this port owns, keyed by the version they
+// take a database TO.
+//
+// ── EVERY STATEMENT MUST BE SAFE TO RUN TWICE ───────────────────────────────
+//
+// The version row is what normally stops a replay, but a database that was
+// created by `freshSchemaDDL` already HAS everything here and is stamped at the
+// current version, so the two paths must agree. `IF NOT EXISTS` makes them
+// agree without the two lists having to be compared.
+//
+// ── AND THEY RUN FROM cmd/mikrodash, NOT FROM Open ──────────────────────────
+//
+// `cmd/compat` opens a production /data through a READ-ONLY mount to prove this
+// build can still read it. A migration inside `Open` would fail on the one tool
+// whose job is to touch nothing. Same placement, and the same reason, as
+// `RenamePageGrants`.
+var portMigrations = map[int][]string{
+	// 16: the operator's own documents — declared uplinks, pinned cabling, the
+	// Wi-Fi site plan. See internal/db/routerdocs.go.
+	16: {`CREATE TABLE IF NOT EXISTS router_docs (
+          router_id  TEXT NOT NULL,
+          kind       TEXT NOT NULL,
+          data       TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (router_id, kind)
+        )`},
+}
 
 // createSchema builds a new database at `path`.
 //
@@ -68,6 +105,57 @@ func createSchemaIn(h *sql.DB) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+// Migrate applies every port-owned migration this database has not run.
+//
+// Returns how many it applied, so a start that changes nothing says nothing.
+// NOT FATAL at the call site: a /data this cannot write is still perfectly able
+// to serve every page — the features the new tables back are what stop working,
+// and they say so in the UI rather than silently.
+func (d *DB) Migrate() (int, error) {
+	if d == nil || d.sql == nil {
+		return 0, errors.New("db not open")
+	}
+	have, err := d.schemaVersion()
+	if err != nil {
+		return 0, err
+	}
+	applied := 0
+	// ORDERED, because a later step may depend on an earlier one. A map alone
+	// would apply them in whatever order Go felt like.
+	versions := make([]int, 0, len(portMigrations))
+	for v := range portMigrations {
+		versions = append(versions, v)
+	}
+	sort.Ints(versions)
+
+	for _, v := range versions {
+		if v <= have {
+			continue
+		}
+		tx, terr := d.sql.Begin()
+		if terr != nil {
+			return applied, terr
+		}
+		for _, stmt := range portMigrations[v] {
+			if _, eerr := tx.Exec(stmt); eerr != nil {
+				_ = tx.Rollback()
+				return applied, fmt.Errorf("migration v%d: %w", v, eerr)
+			}
+		}
+		if _, eerr := tx.Exec(
+			`INSERT INTO schema_version (version, applied_at) VALUES (?, ?)`,
+			v, time.Now().UnixMilli()); eerr != nil {
+			_ = tx.Rollback()
+			return applied, fmt.Errorf("migration v%d: recording it: %w", v, eerr)
+		}
+		if cerr := tx.Commit(); cerr != nil {
+			return applied, cerr
+		}
+		applied++
+	}
+	return applied, nil
 }
 
 // builtinRoles is what migration 7 inserted, verbatim.

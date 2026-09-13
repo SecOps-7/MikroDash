@@ -35,6 +35,7 @@ import (
 
 	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
+	"mikrodash/internal/sitedoc"
 )
 
 var (
@@ -73,12 +74,27 @@ type WANDhcp struct {
 	Invalid      bool   `json:"invalid"`
 }
 
+// WANCandidate is one interface the operator could declare an uplink, for the
+// picker. Read off the same `/interface/print` the rows are built from, so the
+// list costs nothing extra.
+type WANCandidate struct {
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Running bool   `json:"running"`
+}
+
 // WAN is one uplink.
 type WAN struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	IsTunnel bool   `json:"isTunnel"`
-	State    string `json:"state"`
+	// State is what `/interface/detect-internet` says, and it is EMPTY on a
+	// manually declared uplink the router does not consider connected. That is
+	// the honest reading: the operator said this carries the internet, and the
+	// router has not agreed.
+	State string `json:"state"`
+	// Manual marks a row that is here because the operator said so.
+	Manual bool `json:"manual"`
 	// The router's own words. Rendered as a duration by the page, which knows
 	// the display timezone; converting here would bake in the server's.
 	Since         string `json:"since"`
@@ -116,6 +132,15 @@ type WANPayload struct {
 	DetectionEnabled bool `json:"detectionEnabled"`
 	Available        bool `json:"available"`
 	Denied           bool `json:"denied"`
+	// UplinkSource is "detect" when the set is RouterOS's, "manual" when it is
+	// the operator's. See BuildWanRows.
+	UplinkSource string `json:"uplinkSource"`
+	// ManualNames is the declared list, WHETHER OR NOT it is in force: the page
+	// edits it while the toggle is off, and throwing it away on every switch back
+	// to detection would make the toggle destructive.
+	ManualNames []string `json:"manualNames"`
+	// Interfaces is every interface this router has, for the picker.
+	Interfaces []WANCandidate `json:"interfaces"`
 }
 
 // isPublicV4 reports whether an address is routable on the public internet.
@@ -152,8 +177,24 @@ func isPublicV4(cidr string) *bool {
 
 // BuildWanRows joins the five tables. Pure and exported so every join here is
 // testable without a router.
+//
+// ── `manual` DECIDES WHICH INTERFACES ARE UPLINKS, AND NOTHING ELSE ─────────
+//
+// Everything below the set — the address, the lease, which default route is
+// carrying traffic, the rates — is the same join either way. Only the question
+// "which interfaces am I joining for" has two answers, and this is the one place
+// it is asked. A second code path would have been a second set of join rules to
+// keep in step.
+//
+// WHY THE OPERATOR IS ALLOWED TO OVERRULE ROUTEROS. `detect-interface-list`
+// defaults to `none`, so the honest answer on a router nobody has configured is
+// zero uplinks — and the page then explains how to switch detection on, which
+// is a change to the ROUTER for the sake of a dashboard. Some operators will
+// not make it, and some routers answer wrongly: a tunnel that reaches the
+// internet through another uplink reports `internet` too. Saying so here costs
+// nothing and is undone by a toggle.
 func BuildWanRows(detectRows, dhcpRows, routeRows, addrRows, ifaceRows []routeros.Reply,
-	rates RateSource) WANPayload {
+	rates RateSource, manual []string) WANPayload {
 
 	var byName map[string]Rate
 	ratesAvailable := false
@@ -225,12 +266,39 @@ func BuildWanRows(detectRows, dhcpRows, routeRows, addrRows, ifaceRows []routero
 		return nil
 	}
 
-	wans := []WAN{}
+	// The set, and where it came from.
+	detectByName := map[string]routeros.Reply{}
 	for _, d := range detectRows {
-		if d["name"] == "" || d["state"] != "internet" {
-			continue
+		if d["name"] != "" {
+			detectByName[d["name"]] = d
 		}
-		name := d["name"]
+	}
+	type pick struct {
+		name   string
+		manual bool
+	}
+	picks := []pick{}
+	if len(manual) > 0 {
+		seen := map[string]bool{}
+		for _, n := range manual {
+			if n == "" || seen[n] {
+				continue
+			}
+			seen[n] = true
+			picks = append(picks, pick{n, true})
+		}
+	} else {
+		for _, d := range detectRows {
+			if d["name"] != "" && d["state"] == "internet" {
+				picks = append(picks, pick{d["name"], false})
+			}
+		}
+	}
+
+	wans := []WAN{}
+	for _, p := range picks {
+		name := p.name
+		d := detectByName[name]
 		m := meta[name]
 		typ := m["type"]
 		address := addrByIface[name]
@@ -241,8 +309,12 @@ func BuildWanRows(detectRows, dhcpRows, routeRows, addrRows, ifaceRows []routero
 
 		w := WAN{
 			Name: name, Type: typ, IsTunnel: tunnelTypes[typ],
+			// The router's own opinion is still reported on a manual row, and
+			// the difference is worth seeing: a declared uplink RouterOS does
+			// not call `internet` is either a detection list nobody set or a
+			// link that is genuinely down.
 			State: d["state"], Since: d["state-change-time"],
-			Address: address,
+			Manual: p.manual, Address: address,
 		}
 		if raw, present := m["running"]; present {
 			b := boolOf(raw)
@@ -289,7 +361,24 @@ func BuildWanRows(detectRows, dhcpRows, routeRows, addrRows, ifaceRows []routero
 		return Collate(a.Name, b.Name) < 0
 	})
 
-	out := WANPayload{Wans: wans, RatesAvailable: ratesAvailable}
+	out := WANPayload{Wans: wans, RatesAvailable: ratesAvailable,
+		UplinkSource: "detect", ManualNames: []string{},
+		Interfaces: []WANCandidate{}}
+	if len(manual) > 0 {
+		out.UplinkSource = "manual"
+		out.ManualNames = append(out.ManualNames, manual...)
+	}
+	for _, i := range ifaceRows {
+		if i["name"] == "" {
+			continue
+		}
+		out.Interfaces = append(out.Interfaces, WANCandidate{
+			Name: i["name"], Type: i["type"], Running: boolOf(i["running"]),
+		})
+	}
+	sort.SliceStable(out.Interfaces, func(a, b int) bool {
+		return Collate(out.Interfaces[a].Name, out.Interfaces[b].Name) < 0
+	})
 	for _, w := range wans {
 		if w.RouteActive {
 			out.ActiveDefaultWan = w.Name
@@ -342,6 +431,12 @@ type Wan struct {
 	// nil = unprobed, false = this router has no such menu, stop asking.
 	detectAvailable *bool
 	denied          bool
+	// docs reads the operator's uplink list. Nil outside a live session.
+	docs DocSource
+	// manual is that list as of the last slow lane. Re-read there rather than
+	// every tick: it changes when somebody presses a button, and the button's
+	// handler calls RefreshNow.
+	manual []string
 
 	last    *WANPayload
 	lastErr string
@@ -359,6 +454,17 @@ func NewWan(ros Reader, emit Emit, rates RateSource, pollMs int) *Wan {
 	w.sched = scheduled{loop: w.poll, menu: wanDetectCmd.Path, fields: fieldsOf(wanDetectCmd), apply: w.apply,
 		cadence: w.pollMs.duration}
 	return w
+}
+
+// WithDocs attaches the operator's own uplink list. Set once, before Start.
+func (w *Wan) WithDocs(d DocSource) *Wan {
+	w.docs = d
+	return w
+}
+
+// readManual re-reads the declared uplinks. Called from the slow lane only.
+func (w *Wan) readManual() {
+	w.manual = sitedoc.CleanWANUplinks(w.docs.Doc(sitedoc.KindWANUplinks)).Manual()
 }
 
 // read latches separately on "absent" and "denied", because the page says
@@ -420,6 +526,7 @@ func (w *Wan) Tick() {
 		w.ifaces, _ = readVia(w.cache, w.ros, wanIfaceCmd, w.pollMs.duration())
 		w.dhcp = w.read(wanDhcpCmd, nil)
 		w.addrs = w.read(wanAddrCmd, nil)
+		w.readManual()
 	}
 	w.ticks++
 
@@ -457,6 +564,7 @@ func (w *Wan) apply(detect []routeros.Reply, err error) {
 		w.ifaces, _ = readVia(w.cache, w.ros, wanIfaceCmd, w.pollMs.duration())
 		w.dhcp = w.read(wanDhcpCmd, nil)
 		w.addrs = w.read(wanAddrCmd, nil)
+		w.readManual()
 	}
 	w.ticks++
 	w.applyLocked(detect)
@@ -466,7 +574,7 @@ func (w *Wan) apply(detect []routeros.Reply, err error) {
 func (w *Wan) applyLocked(detect []routeros.Reply) {
 	routes := w.read(wanRouteCmd, nil)
 
-	built := BuildWanRows(detect, w.dhcp, routes, w.addrs, w.ifaces, w.rates)
+	built := BuildWanRows(detect, w.dhcp, routes, w.addrs, w.ifaces, w.rates, w.manual)
 	built.TS = time.Now().UnixMilli()
 	built.PollMs = w.pollMs.ms()
 	built.DetectionEnabled = len(detect) > 0
@@ -501,10 +609,13 @@ func (w *Wan) applyLocked(detect []routeros.Reply) {
 		rows = append(rows, r)
 	}
 	fp, _ := json.Marshal(struct {
-		W []fpRow `json:"w"`
-		D bool    `json:"d"`
-		R bool    `json:"r"`
-	}{rows, built.DetectionEnabled, built.RatesAvailable})
+		W []fpRow  `json:"w"`
+		D bool     `json:"d"`
+		R bool     `json:"r"`
+		S string   `json:"s"`
+		M []string `json:"m"`
+	}{rows, built.DetectionEnabled, built.RatesAvailable,
+		built.UplinkSource, built.ManualNames})
 	if string(fp) == w.lastFp {
 		return
 	}

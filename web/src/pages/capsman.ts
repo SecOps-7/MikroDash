@@ -62,6 +62,24 @@ const COLSPAN: Record<string, number> = {
 
 const MUTED = 'style="color:var(--text-muted)"';
 
+/**
+ * The mark on everything that came from `/caps-man` rather than from
+ * `/interface/wifi/capsman`.
+ *
+ * ── WHY THE PILL AND NOT A SEPARATE TABLE ───────────────────────────────────
+ *
+ * A fleet is read by identity, not by which of the two managers happens to hold
+ * each access point, and a manager running both would otherwise show two of
+ * every card. What the mark has to carry is the one thing that genuinely
+ * differs: a v1 row cannot be edited here, and the title says why so nobody
+ * spends a minute clicking one.
+ */
+const V1_PILL = '<span class="badge bg-orange-lt" style="margin-left:.35rem;font-size:.6rem"' +
+  ' title="Legacy CAPsMAN (/caps-man) — shown here, configured on the router">v1</span>';
+
+/** The v1 pill, or nothing. */
+function v1(on: boolean): string { return on ? V1_PILL : ''; }
+
 export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boolean): void {
   const tbodyEl = el('capsmanTable');
   const theadEl = el('capsmanThead');
@@ -90,7 +108,10 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
   }
 
   function stateBadge(state: string): string {
-    const ok = /^ok$/i.test(state || '');
+    // BOTH TREES' WORD FOR "WORKING". `/interface/wifi/capsman/remote-cap` says
+    // `ok`; `/caps-man/remote-cap` says `Run`. Matching only the first painted
+    // every legacy CAP amber on a fleet that was entirely healthy.
+    const ok = /^(ok|run)$/i.test((state || '').trim());
     return '<span class="wl-band ' + (ok ? 'wl-band-6' : 'wl-band-24') + '">' +
            esc(state || 'unknown') + '</span>';
   }
@@ -144,7 +165,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
       // ToDo #20; the fix landed live on 2026-08-25 and is adopted here, in the
       // same order.
       const msg = !st.available
-        ? 'This router runs the legacy wireless package, which has no CAPsMAN here.'
+        ? 'This router has neither CAPsMAN menu — no manager and no CAP mode here.'
         : (st.role === 'cap'
           ? 'This router is a CAP, not a manager — it has no CAPs of its own.'
           : (q ? 'No CAPs match that search.'
@@ -153,13 +174,25 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     } else {
       tbody.innerHTML = rows.map((c) => {
         const isOpen = !!open[c.identity];
-        const head = '<tr class="cap-row" data-cap="' + esc(c.identity) + '" style="cursor:pointer">' +
-          '<td>' + (c.clientCount ? (isOpen ? '▾ ' : '▸ ') : '') + esc(c.identity) + '</td>' +
+        // ONLY A ROW WITH CLIENTS OPENS, and only it looks like it does. What a
+        // row expands to IS its client list, so a CAP with nobody on it has
+        // nothing to show — but every row carried `cursor:pointer` and invited
+        // the click anyway, which reads as a row that is broken rather than a
+        // row that is empty. The caret was already the honest marker; the cursor
+        // now agrees with it.
+        const opens = c.clientCount > 0;
+        const head = '<tr' + (opens ? ' class="cap-open"' : '') +
+            ' data-cap="' + esc(c.identity) + '">' +
+          '<td>' + (opens ? (isOpen ? '▾ ' : '▸ ') : '') + esc(c.identity) +
+            v1(c.legacy) + '</td>' +
           '<td>' + esc(c.boardName) + '</td>' +
           '<td>' + esc(c.version) + '</td>' +
           '<td>' + esc(c.serial) + '</td>' +
           '<td>' + stateBadge(c.state) + '</td>' +
-          '<td>' + esc(c.connectedTime) + '</td>' +
+          // A dash, not a blank. The legacy tree reports no connected time at
+          // all, and an empty cell in a column the row next to it fills reads as
+          // a rendering failure.
+          '<td>' + dash(c.connectedTime) + '</td>' +
           '<td>' + (c.radios.length
             ? c.radios.map((r) => '<span class="wl-band wl-band-5">' + esc(r.interface) + '</span>').join(' ')
             : '<span ' + MUTED + '>&mdash;</span>') + '</td>' +
@@ -167,7 +200,11 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
         '</tr>';
         return head + (isOpen ? c.clients.map(clientRow).join('') : '');
       }).join('');
-      tbody.querySelectorAll('.cap-row').forEach((tr) => {
+      // ONE CLASS SAYS THE WHOLE THING. `cap-open` is what the stylesheet gives
+      // the pointer cursor and what this binds the handler to, so the two cannot
+      // come to disagree about which rows are clickable. It replaced `cap-row`,
+      // which every row carried and nothing styled.
+      tbody.querySelectorAll('.cap-open').forEach((tr) => {
         tr.addEventListener('click', () => {
           const id = tr.getAttribute('data-cap') || '';
           open[id] = !open[id];
@@ -213,7 +250,13 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
       manager: 'Manager', cap: 'CAP', both: 'Manager + CAP', none: 'Off',
     };
     const set = (id: string, v: string) => { const e = el(id); if (e) e.textContent = v; };
-    set('capSumMode', data.available ? (modes[data.role] || '—') : 'Unsupported');
+    // WHICH MANAGERS ARE ON, not just that one is. A router running both trees
+    // reads "Manager (v1 + v2)"; one running only the old one reads
+    // "Manager (v1)", which is the answer that used to be "Off".
+    const trees = data.legacyManager
+      ? (data.manager.enabled ? ' (v1 + v2)' : ' (v1)')
+      : '';
+    set('capSumMode', data.available ? ((modes[data.role] || '—') + trees) : 'Unsupported');
     set('capSumCaps', t.caps === undefined ? '—' : String(t.caps));
     set('capSumRadios', t.radios === undefined ? '—' : String(t.radios));
     set('capSumClients', t.clients === undefined ? '—' : String(t.clients));
@@ -245,9 +288,16 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
       ? '<button class="fw-move" data-res-move="up" title="Move up"' + (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
         '<button class="fw-move" data-res-move="down" title="Move down"' + (at === last ? ' disabled' : '') + '>&#9660;</button>'
       : '';
+    // A LEGACY ROW CARRIES NO ID and therefore no `data-id`, which is what makes
+    // it read-only without a branch here: the resource engine only opens a row
+    // that has one. See mergeLegacy in internal/collect/capsman.go.
+    // THE v1 MARK GOES IN THE HANDLE COLUMN, not in Bands. That column holds the
+    // reorder arrows, which a v1 rule does not have, so it is empty on exactly
+    // the rows the mark belongs to — and Bands stays one kind of thing instead of
+    // a pill and a badge jammed against each other.
     return '<tr' + resRow(p.id, p.identity, 'capsProvisioning') +
              (p.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + move + '</td>' +
+      '<td class="fw-movecell">' + (p.legacy ? v1(true) : move) + '</td>' +
       '<td>' + ((p.supportedBands || []).map((b) =>
         '<span class="wl-band wl-band-24" style="margin-right:.2rem">' + esc(b) + '</span>').join('') ||
         '<span class="muted-note">any</span>') + '</td>' +
@@ -261,7 +311,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
 
   function configRow(c: CapsConfigProfile): string {
     return '<tr' + resRow(c.id, c.name, 'capsConfig') + (c.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(c.name) +
+      '<td>' + esc(c.name) + v1(c.legacy) +
         // A profile carrying `manager` is the CAP-side setting MikroTik warns
         // must never be provisioned onward. Worth flagging where it appears.
         (c.manager ? '<span class="badge bg-yellow-lt" style="margin-left:.35rem">manager</span>' : '') + '</td>' +
@@ -279,7 +329,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     // value that gets a colour rather than plain text.
     const isOpen = !String(s.authTypes || '').trim();
     return '<tr' + resRow(s.id, s.name, 'capsSecurity') + (s.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(s.name) + '</td>' +
+      '<td>' + esc(s.name) + v1(s.legacy) + '</td>' +
       '<td><span class="badge ' + (isOpen ? 'bg-red-lt' : 'bg-azure-lt') + '">' +
         esc(isOpen ? 'Open' : s.authTypes) + '</span></td>' +
       '<td>' + dash(s.wps) + '</td>' +
@@ -289,7 +339,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
 
   function channelRow(c: CapsChannelProfile): string {
     return '<tr' + resRow(c.id, c.name, 'capsChannel') + (c.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(c.name) + '</td>' +
+      '<td>' + esc(c.name) + v1(c.legacy) + '</td>' +
       '<td>' + dash(c.band) + '</td>' +
       '<td>' + dash(c.frequency) + '</td>' +
       '<td>' + dash(c.width) + '</td>' +
@@ -299,7 +349,7 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
 
   function datapathRow(d: CapsDatapathProfile): string {
     return '<tr' + resRow(d.id, d.name, 'capsDatapath') + (d.disabled ? ' style="opacity:.5"' : '') + '>' +
-      '<td>' + esc(d.name) + '</td>' +
+      '<td>' + esc(d.name) + v1(d.legacy) + '</td>' +
       '<td>' + dash(d.bridge) + '</td>' +
       '<td>' + dash(d.vlanId) + '</td>' +
       '<td>' + yesNo(d.clientIsolation) + '</td>' +
@@ -319,10 +369,15 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     }
 
     if (t === 'provisioning') {
+      // THE MOVE BOUNDS ARE THE EDITABLE ROWS', not the table's. A v1 rule is
+      // appended to the same table and cannot be reordered from here, so
+      // counting it would disable the arrow on the last rule that can be.
       const canMove = !!writable['capsProvisioning'];
-      const last = rows.length - 1;
-      tbody.innerHTML = (rows as CapsProvisioning[])
-        .map((p, i) => provRow(p, i, last, canMove)).join('');
+      const all = rows as CapsProvisioning[];
+      const editable = all.filter((p) => !p.legacy);
+      const last = editable.length - 1;
+      tbody.innerHTML = all
+        .map((p) => provRow(p, editable.indexOf(p), last, canMove && !p.legacy)).join('');
       return;
     }
 
@@ -340,7 +395,10 @@ export function initCapsmanPage(socket: Socket, isVisible: (page: string) => boo
     // rather than showing five empty tables that look like a failure.
     if (note) {
       note.textContent = (data && data.role === 'cap')
-        ? 'This router is a CAP — these are set on its manager.' : '';
+        ? 'This router is a CAP — these are set on its manager.'
+        : (data && data.legacyManager
+          ? 'Rows marked v1 belong to the legacy /caps-man tree and are read-only here.'
+          : '');
     }
   }
 
