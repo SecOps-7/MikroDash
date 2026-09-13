@@ -282,9 +282,6 @@ func (s *Session) targets() map[string]collectorTarget {
 // An unknown key is a no-op rather than a panic: `ws.go` names pages, and a page
 // with no collector behind it is a normal thing.
 func (s *Session) ResumeCollector(key string) {
-	if !s.CollectorEnabled(key) {
-		return
-	}
 	// ── AND NOTHING THIS SESSION HAS NO REASON TO RUN ─────────────────────
 	//
 	// Phase 4.3c. A session held only for alerting must not be talked back into
@@ -299,10 +296,7 @@ func (s *Session) ResumeCollector(key string) {
 	//
 	// A viewer is unaffected: `Needs` returns true for everything while one is
 	// present, which is the existing behaviour that page gating narrows.
-	s.mu.Lock()
-	why := s.reasonsLocked()
-	s.mu.Unlock()
-	if !Needs(key, why) {
+	if !s.mayRun(key) {
 		return
 	}
 	// REMEMBERED WHEN THE LINK IS NOT UP YET. THIRTEEN of the twenty-six
@@ -323,27 +317,51 @@ func (s *Session) ResumeCollector(key string) {
 		s.pendingResume[key] = true
 		s.mu.Unlock()
 	}
-	// A DORMANT COLLECTOR IS NOT REFUSED HERE — IT IS WOKEN.
+	// A DORMANT COLLECTOR IS NOT REFUSED HERE — IT IS WOKEN, AND THEN RESUMED.
 	//
 	// The live app splits these: `_resumeCollector` refuses, and `_wakeForFocus`
-	// is called separately by the page-focus path to pre-empt the backoff. This
-	// port has ONE caller of the funnel — page focus — so the two collapse: a
+	// is called separately by the page-focus path to pre-empt the backoff. Here
+	// the two collapse, because everything that reaches this funnel wants the
+	// collector running now — a page focus, demand, a replayed resume — and a
 	// focus on a sleeping collector is precisely the "cheapest and most timely
 	// re-probe there is".
 	//
-	// The veto still exists and still matters: `WakeForFocus` returns an empty
-	// plan for a collector that is awake, and the supervisor's own wake path
-	// calls this AFTER clearing the flag, so it falls through. What cannot
-	// happen is the thing the live comment warns about — a resume that neither
-	// consults nor clears the dormancy state, leaving the supervisor to
-	// re-suspend on its next tick.
+	// ── THE DORMANCY PROBE MUST NOT COME THROUGH HERE ────────────────────────
+	//
+	// It used to, and on a router somebody was viewing this branch reset the
+	// dormancy state on every probe: backoff and all. The collector re-slept
+	// about 108s later and was reset again, for ever — the viewed hAP AX3 logged
+	// "queues asleep" 497 times in one day. `probe` now takes a reading and
+	// leaves the state alone; see dormancy_run.go.
+	//
+	// AND THIS NO LONGER RETURNS after waking. It relied on the probe's second
+	// pass through here to do the resume; with the probe gone, returning would
+	// wake a collector a page has just asked for and leave it stopped.
 	if s.dormancy != nil && s.dormancy.IsDormant(key) {
 		s.WakeForFocus(key)
-		return
 	}
 	if t, ok := s.targets()[key]; ok {
 		t.resume()
 	}
+}
+
+// mayRun is whether this session may run a collector at all: the operator has not
+// switched it off for this router, and something this session exists for wants
+// it (see `Needs`).
+//
+// ONE STATEMENT OF THE RULE, for its two askers. `ResumeCollector` asks before
+// starting a collector; the dormancy `probe` asks before taking a reading. The
+// probe used to borrow the funnel for this, which is how it came to wake sleeping
+// collectors — and a copy of the check beside it would be the second form of one
+// rule that eventually drifts.
+func (s *Session) mayRun(key string) bool {
+	if !s.CollectorEnabled(key) {
+		return false
+	}
+	s.mu.Lock()
+	why := s.reasonsLocked()
+	s.mu.Unlock()
+	return Needs(key, why)
 }
 
 // SuspendCollector stops one collector by key, the mirror of ResumeCollector.

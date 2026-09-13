@@ -1,10 +1,9 @@
 package collection
 
 import (
+	_ "embed"
 	"encoding/json"
 	"math"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"mikrodash/internal/jsval"
@@ -60,32 +59,36 @@ type Retune struct {
 	KeepCurrent bool
 }
 
+// pollMap is EMBEDDED from `pollmap.json`, colocated with this file rather than
+// read from `testdata/` at runtime, so PollRetunes -- production code -- does not
+// depend on the repository or the process's working directory being intact. The
+// production image contains the binary but no `testdata/` directory, and this
+// table used to be loaded from `testdata/settings-apply-cases.json` on first use:
+// the first settings save in production panicked reaching for a file that was
+// never shipped.
+//
+// The settings-apply corpus remains the independent source that
+// `TestThePollMapIsTheGeneratedOne` compares this file against, so adding or
+// dropping a key still fails the suite -- the same split `internal/store` uses
+// for `pagekeys.json` against the settings-pages corpus.
+//
+//go:embed pollmap.json
+var pollMapJSON []byte
+
 var (
 	pollMapOnce sync.Once
 	pollMap     map[string]string
 )
 
-// PollMap is the settings key → collector name table, loaded from the generated
-// file so a poll key added upstream cannot be silently missing here.
+// PollMap returns the settings key → collector name table.
 func PollMap() map[string]string {
 	pollMapOnce.Do(func() {
-		b, err := os.ReadFile(filepath.Join("testdata", "settings-apply-cases.json"))
-		if err != nil {
-			b, err = os.ReadFile(filepath.Join("..", "..", "testdata", "settings-apply-cases.json"))
+		if err := json.Unmarshal(pollMapJSON, &pollMap); err != nil {
+			panic("collection: pollmap.json: " + err.Error())
 		}
-		if err != nil {
-			panic("collection: settings-apply-cases.json is unreadable: " + err.Error())
-		}
-		var doc struct {
-			PollMap map[string]string `json:"pollMap"`
-		}
-		if err := json.Unmarshal(b, &doc); err != nil {
-			panic("collection: settings-apply-cases.json: " + err.Error())
-		}
-		if len(doc.PollMap) == 0 {
+		if len(pollMap) == 0 {
 			panic("collection: the poll map is empty")
 		}
-		pollMap = doc.PollMap
 	})
 	return pollMap
 }

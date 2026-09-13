@@ -131,6 +131,30 @@ type Ping struct {
 	// loop drives the polled path. Nil while streaming, which is every install
 	// whose ping interval is five seconds or less. See Start.
 	loop *pollLoop
+
+	// ── THE STREAM WATCHDOG ─────────────────────────────────────────────────
+	//
+	// `/tool/ping` streams one row per interval, and a LOST ping is a row too, so
+	// a stream that has gone several intervals without one is dead. On the hAP
+	// AX3 the stream ended at 2026-09-13 04:19:40 with no error and no
+	// disconnect: `Stream` reports no end, `startStream` refuses while an old
+	// handle is set, and nothing else was looking. The Dashboard's Networks card,
+	// which ping keeps fresh, went stale minutes after every page load, and a
+	// refresh only replayed the hours-old last reading.
+	//
+	// `streaming` is whether ping SHOULD be streaming — set by Start, cleared by
+	// Suspend and Stop — so a tick can never reopen what the session stopped.
+	// `lastRow` is when a row last arrived, `streamStart` when an open was last
+	// attempted; the watchdog measures from whichever is later.
+	streaming   bool
+	lastRow     int64
+	streamStart int64
+	wd          *pollLoop
+	// wdEvery and wdStaleMs are fields rather than constants so a test can drive
+	// them without waiting out real time. A zero wdStaleMs means "derived from
+	// the interval" — see staleMsLocked.
+	wdEvery   time.Duration
+	wdStaleMs int64
 }
 
 func NewPing(ros Streamer, emit Emit, pollMs int, target string) *Ping {
@@ -140,7 +164,12 @@ func NewPing(ros Streamer, emit Emit, pollMs int, target string) *Ping {
 	if pollMs <= 0 {
 		pollMs = 5000
 	}
-	return &Ping{ros: ros, emit: emit, target: target, pollMs: newPollInterval(pollMs)}
+	p := &Ping{ros: ros, emit: emit, target: target, pollMs: newPollInterval(pollMs),
+		wdEvery: 5 * time.Second}
+	// BUILT HERE, STARTED WITH THE STREAM. `pollLoop` is inert until `start()`, so
+	// a ping that polls, or is never started, holds no timer.
+	p.wd = newPollLoop(p.watchdogTick, func() time.Duration { return p.wdEvery })
+	return p
 }
 
 // pingIntervalSec is the interval RouterOS is asked for.
@@ -357,7 +386,11 @@ func (p *Ping) Start() {
 		p.startPolling()
 		return
 	}
+	p.mu.Lock()
+	p.streaming = true
+	p.mu.Unlock()
 	p.startStream()
+	p.wd.start()
 }
 
 // pollsRatherThanStreams reports whether the configured interval is one only a
@@ -410,7 +443,7 @@ func (p *Ping) pollOnce() {
 		return
 	}
 	rows, err := doer.Do(routeros.Cmd{Path: "/tool/ping", Args: []string{
-		"=address=" + p.target,
+		"=address=" + p.currentTarget(),
 		"=count=1",
 		"=.proplist=time,response-time,status,min-rtt,max-rtt",
 	}})
@@ -455,11 +488,19 @@ func (p *Ping) startStream() {
 	// different host. The menu alone was never the key.
 	sec := pingIntervalSec(p.pollMs.ms())
 	cmd := routeros.Cmd{Path: "/tool/ping", Args: []string{
-		"=address=" + p.target,
+		"=address=" + p.currentTarget(),
 		"=interval=" + strconv.Itoa(sec),
 		"=.proplist=time,response-time,status,min-rtt,max-rtt",
 	}}
+	// Stamped per ATTEMPT, success or not: the watchdog measures a failed open's
+	// retry from here too, so a persistent error is retried once a window rather
+	// than on every tick.
+	p.mu.Lock()
+	p.streamStart = time.Now().UnixMilli()
+	p.mu.Unlock()
 	stop, err := p.ros.Stream(cmd, func(row routeros.Reply) {
+		// ANY row is a sign of life, the summary sentence included.
+		p.noteRow()
 		if !pingIsResult(row) {
 			return
 		}
@@ -473,7 +514,7 @@ func (p *Ping) startStream() {
 			EvPingUpdate.Emit(p.emit, pingRooms.Join(), *p.noteDenied(time.Now().UnixMilli()))
 			return
 		}
-		log.Printf("[ping] stream error (target=%s): %v", p.target, err)
+		log.Printf("[ping] stream error (target=%s): %v", p.currentTarget(), err)
 		return
 	}
 	p.mu.Lock()
@@ -507,6 +548,9 @@ func (p *Ping) stopStream() {
 // dormant asymmetry into a live bug, which is why this is fixed in the same
 // commit and not after it.
 func (p *Ping) Suspend() {
+	// THE WATCHDOG GOES FIRST, as traffic's does: stopping the stream and
+	// leaving the watchdog running would have it reopen what was just closed.
+	p.stopWatchdog()
 	p.stopStream()
 	p.stopPolling()
 }
@@ -520,8 +564,55 @@ func (p *Ping) Resume() {
 }
 
 func (p *Ping) Stop() {
+	p.stopWatchdog()
 	p.stopStream()
 	p.stopPolling()
+}
+
+func (p *Ping) stopWatchdog() {
+	p.mu.Lock()
+	p.streaming = false
+	p.mu.Unlock()
+	p.wd.stop()
+}
+
+func (p *Ping) noteRow() {
+	p.mu.Lock()
+	p.lastRow = time.Now().UnixMilli()
+	p.mu.Unlock()
+}
+
+// staleMsLocked is how long the stream may go without a row before it is
+// judged dead: three intervals, plus five seconds for a slow reply. Twenty
+// seconds at the default five-second interval. The caller holds p.mu.
+func (p *Ping) staleMsLocked() int64 {
+	if p.wdStaleMs > 0 {
+		return p.wdStaleMs
+	}
+	return int64(pingIntervalSec(p.pollMs.ms()))*3000 + 5000
+}
+
+// watchdogTick reopens a ping stream that has stopped producing rows, and
+// retries one that failed to open.
+func (p *Ping) watchdogTick() {
+	if c, ok := p.ros.(interface{ Connected() bool }); ok && !c.Connected() {
+		return
+	}
+	now := time.Now().UnixMilli()
+	p.mu.Lock()
+	streaming, running, denied := p.streaming, p.stop != nil, p.denied
+	last := max(p.lastRow, p.streamStart)
+	stale := p.staleMsLocked()
+	p.mu.Unlock()
+	if !streaming || denied || now-last < stale {
+		return
+	}
+	if running {
+		log.Printf("[ping] no reading from the stream to %s for %ds; reopening it",
+			p.currentTarget(), (now-last)/1000)
+		p.stopStream()
+	}
+	p.startStream()
 }
 
 func (p *Ping) stopPolling() {
@@ -542,8 +633,15 @@ func (p *Ping) Reconnected() {
 	p.denied = false
 	p.lastFP = ""
 	p.stop = nil
+	streams := !p.pollsRatherThanStreams()
+	if streams {
+		p.streaming = true
+	}
 	p.mu.Unlock()
 	p.startStream()
+	if streams {
+		p.wd.start()
+	}
 }
 
 // SetPollMs applies a new poll period to a running collector.
@@ -560,6 +658,45 @@ func (p *Ping) Reconnected() {
 // and `startStream` returns early if the client is not connected or the menu was
 // denied. Both matter, because a settings save re-tunes every collector
 // including ones nobody is watching.
+// SetTarget points ping at a different host while it runs.
+//
+// ── WHY A RUNNING PING NEEDS THIS ────────────────────────────────────────────
+//
+// The router form edits `pingTarget`, and a Dashboard session is held for as
+// long as its router has alerting or recording on — the hAP AX3's, for good —
+// so a target read only when the session was built would never change on it.
+//
+// THE HISTORY GOES WITH THE OLD HOST. Its readings are not the new host's, and
+// keeping them would chart one host's latency and loss under another's name.
+// An empty target means the default, as NewPing's does.
+func (p *Ping) SetTarget(target string) {
+	if target == "" {
+		target = pingDefaultTgt
+	}
+	p.mu.Lock()
+	if target == p.target {
+		p.mu.Unlock()
+		return
+	}
+	p.target = target
+	p.history, p.window, p.lastFP, p.last = nil, nil, "", nil
+	running := p.stop != nil
+	p.mu.Unlock()
+	if !running {
+		return // a polling ping reads the new target on its next tick
+	}
+	p.stopStream()
+	p.startStream()
+}
+
+// currentTarget is the host being pinged, read under the lock: SetTarget can
+// change it while a stream or a poll is being set up.
+func (p *Ping) currentTarget() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.target
+}
+
 func (p *Ping) SetPollMs(ms int) {
 	p.pollMs.set(ms)
 	p.mu.Lock()

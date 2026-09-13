@@ -37,15 +37,21 @@ import (
 // `applyReasons` suspends them, so a warm session may well have taken a reading
 // on its own -- and when it has, this correctly does nothing.
 
-// primeDeadline bounds how long PrimeStats will hold its caller up, AND how long
-// the read it starts may stay outstanding.
+// primeDeadline bounds how long PrimeStats will hold its caller up.
 //
 // A read on an open socket comes back in tens of milliseconds; this is the
 // allowance for a router that has stopped answering without its connection
-// having dropped yet. THE SAME BOUND ON BOTH, deliberately: with the wait alone
-// bounded, the read ran on `context.Background`, held the router's `roslimit`
-// slot for as long as that took, and outlived the call that started it. A
-// router switch is three focus calls, so the slots went in threes.
+// having dropped yet.
+//
+// ── IT NO LONGER BOUNDS THE READ ITSELF, AND THAT IS DELIBERATE ─────────────
+//
+// It used to: the deadline cancelled the read, which freed the router's
+// `roslimit` slot. But go-routeros cancels a command by cancelling the reader
+// the whole connection shares, so a prime read slower than this ended the
+// connection, and every collector's command with it. A timed-out read now runs
+// on to its reply and keeps its slot until then (reader.Do), and `primeStats`
+// skips a session whose earlier prime read is still out — so a slow router
+// collects one outstanding prime read, not one every two seconds.
 const primeDeadline = 1500 * time.Millisecond
 
 // primeReader is the session's `reader` with a deadline stamped on every
@@ -61,7 +67,9 @@ type primeReader struct {
 
 func (r primeReader) Do(c routeros.Cmd) ([]routeros.Reply, error) {
 	c.Timeout = r.within
-	return r.reader.Do(c)
+	s := r.reader.s
+	s.primeInflight.Add(1)
+	return r.reader.Do(c.OnFinished(func() { s.primeInflight.Add(-1) }))
 }
 
 // PrimeStats fills in a one-shot system reading for every live session that
@@ -89,6 +97,12 @@ func (m *Manager) primeStats(within time.Duration, unreadOnly bool) {
 			continue
 		}
 		if unreadOnly && s.primedSystem() != nil {
+			continue
+		}
+		// A PRIME READ FROM AN EARLIER CALL IS STILL WITH THE ROUTER. It holds a
+		// slot until its reply comes, so starting another would stack reads on
+		// exactly the router too slow to answer the last one.
+		if s.primeInflight.Load() > 0 {
 			continue
 		}
 		// The claim is what stops a focus from stacking reads on a router that

@@ -14,6 +14,7 @@ package session
 // occupant and is suspended when the last viewer leaves.
 
 import (
+	"context"
 	"errors"
 	"log"
 	"sort"
@@ -68,6 +69,8 @@ type Session struct {
 	// prime.go.
 	primedSys *collect.SystemPayload
 	priming   bool
+	// primeInflight counts prime reads still with the router. See primeStats.
+	primeInflight atomic.Int32
 
 	// sched is the router's ONE scheduler, phase 3.2. It services the cache's
 	// demand set, so a collector that has subscribed does not own a timer. Nil
@@ -464,6 +467,7 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	c := r.s.client
 	r.s.mu.Unlock()
 	if c == nil {
+		cmd.Finish()
 		return nil, errNotConnected
 	}
 	if cmd.Timeout == 0 {
@@ -473,12 +477,23 @@ func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
 	//
 	// Taken AFTER the connection check and the timeout default, so a call that
 	// was never going to reach the router does not hold a slot while it fails.
-	// Deferred immediately, so an early return or a panic inside Do cannot leak
-	// one -- a leaked slot never comes back.
+	//
+	// ── RELEASED WHEN THE COMMAND IS OVER, NOT WHEN DO RETURNS ──────────────
+	//
+	// This was `defer done()`. A command past its deadline is still running on
+	// the router — Client.Do no longer cancels it, because cancelling ended the
+	// whole connection — so releasing on return would let the cap be exceeded by
+	// exactly the commands a slow router is struggling with. The release rides
+	// `Cmd.OnFinished`, and also runs the moment Do returns WITHOUT a timeout: the
+	// command is over then, and a Do that never calls Finished still cannot leak
+	// the slot. The OnceFunc makes the two one release.
 	roslimit.Note(r.s.RouterID, cmd.Path)
-	done := roslimit.Acquire(r.s.RouterID)
-	defer done()
-	return c.Do(cmd)
+	release := sync.OnceFunc(roslimit.Acquire(r.s.RouterID))
+	rows, err := c.Do(cmd.OnFinished(release))
+	if !errors.Is(err, context.DeadlineExceeded) {
+		release()
+	}
+	return rows, err
 }
 
 type notConnected struct{}
@@ -912,10 +927,16 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	s.talkers = collect.NewTalkers(reader{s}, emit, s.eff.Poll["talkers"],
 		topSetting(cfgSettings, "topTalkersN"))
 	// Same again: the latency block is part of the Dashboard's network card, so
-	// there is no page to gate on. The target is the live default — the settings
-	// write that would let an operator change it is a cutover item, so passing
-	// anything else here would imply a choice that cannot yet be made.
-	s.ping = collect.NewPing(reader{s}, emit, s.eff.Poll["ping"], "")
+	// there is no page to gate on.
+	//
+	// THE ROUTER'S OWN TARGET. This passed "" — "the live default", on the
+	// grounds that nothing could set another — and went on doing so after the
+	// router form began writing `pingTarget`. The hAP AX3's record said 9.9.9.9
+	// and it pinged 1.1.1.1, while the Devices pool beside it passed
+	// `cfg.PingTarget` under a comment calling the two the same value. An empty
+	// record still means 1.1.1.1: NewPing's default. A later edit arrives
+	// through Manager.ApplyPingTarget.
+	s.ping = collect.NewPing(reader{s}, emit, s.eff.Poll["ping"], rec.PingTarget)
 	// THE USERNAME WE ACTUALLY CONNECT AS is what the lockout guard protects, so
 	// it comes from the live config rather than from anything the page sends.
 	// The live app also passes whatever routers.json separately holds, because
@@ -2180,6 +2201,10 @@ func (s *Session) connectLoop() {
 		// already down or the session is closing. Any collector still mid-command
 		// fails the same way it would have anyway, and every Suspend/Stop below
 		// follows immediately.
+		// WHY THE LINK WENT, for the log line at the bottom of this block.
+		// `Err()` reports the transport failure and nothing else, so reading it
+		// on either side of the Close below gives the same answer.
+		reason := c.Err()
 		_ = c.Close()
 		s.dns.Suspend()
 		s.bridges.Suspend()
@@ -2208,7 +2233,24 @@ func (s *Session) connectLoop() {
 			return
 		}
 		s.announce()
-		log.Printf("[session] %s disconnected; retrying in %s", s.Label, retry)
+		// ── THE REASON IS THE POINT OF THIS LINE ──────────────────────────
+		//
+		// It read "disconnected; retrying in 5s" and nothing else. Three drops
+		// across two routers in one afternoon could not be told apart by it: a
+		// router closing the session, a reset in the path between, and a
+		// protocol error all produce the same sentence, and the router's own log
+		// says only that the API user logged out. The operator asked what caused
+		// one and the honest answer was that this app had not written it down —
+		// it HAD the error, in `Client.Err()`, and threw it away here.
+		//
+		// A nil reason is not a gap in the record: it means nothing marked the
+		// connection failed, so the close came from this side.
+		if reason != nil {
+			log.Printf("[session] %s disconnected: %v; retrying in %s", s.Label, reason, retry)
+		} else {
+			log.Printf("[session] %s disconnected (closed locally, no transport error); retrying in %s",
+				s.Label, retry)
+		}
 		time.Sleep(retry)
 	}
 }
