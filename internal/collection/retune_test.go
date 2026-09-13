@@ -3,6 +3,7 @@ package collection
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"reflect"
 	"sort"
 	"testing"
@@ -37,6 +38,27 @@ func loadRetuneCorpus(t *testing.T) retuneCorpus {
 		t.Fatal("corpus is empty -- these tests would pass against nothing")
 	}
 	return c
+}
+
+// TestPollMapWorksOutsideTheSourceTree reproduces the production image's
+// working directory. The image contains the binary but no testdata directory;
+// production code must therefore be able to construct this table without
+// reaching back into the repository.
+func TestPollMapWorksOutsideTheSourceTree(t *testing.T) {
+	const child = "MIKRODASH_TEST_POLL_MAP_OUTSIDE_SOURCE_TREE"
+	if os.Getenv(child) == "1" {
+		if len(PollMap()) == 0 {
+			t.Fatal("poll map is empty")
+		}
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestPollMapWorksOutsideTheSourceTree$")
+	cmd.Dir = t.TempDir()
+	cmd.Env = append(os.Environ(), child+"=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("poll map depends on the source tree: %v\n%s", err, out)
+	}
 }
 
 func TestPollRetunesMatchesLive(t *testing.T) {
