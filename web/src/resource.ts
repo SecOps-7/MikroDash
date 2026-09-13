@@ -553,6 +553,11 @@ function doHist(kind: string, key: string, ack: string): void {
   sock?.emit('res:' + kind, ack ? { resource: key, ack } : { resource: key });
 }
 
+// Whether a router has been selected on this connection. Schemas are per router
+// and the server answers `unavailable` until one is, so nothing asks for one
+// before `router:switched`. See refreshAll.
+let routerSelected = false;
+
 function mountAddSlots(): void {
   document.querySelectorAll('[data-res-add]').forEach((host) => {
     const keys = (host.getAttribute('data-res-add') || '')
@@ -578,10 +583,14 @@ function mountAddSlots(): void {
 export function mountAdds(socket: Socket): void {
   sock = socket;
   wire(socket);
-  document.querySelectorAll('[data-res-add]').forEach((host) => {
-    (host.getAttribute('data-res-add') || '').split(',')
-      .forEach((k) => { const key = k.trim(); if (key) schemaFor(key); });
-  });
+  // Pages mount before any router is selected, and a schema asked for then is
+  // refused: `refreshAll` asks for every slot when `router:switched` arrives.
+  if (routerSelected) {
+    document.querySelectorAll('[data-res-add]').forEach((host) => {
+      (host.getAttribute('data-res-add') || '').split(',')
+        .forEach((k) => { const key = k.trim(); if (key) schemaFor(key); });
+    });
+  }
   mountAddSlots();
   if (addsWired) return;
   addsWired = true;
@@ -780,6 +789,7 @@ function wire(socket: Socket): void {
   // `router:switched` and not `router:active` — the permissions that matter are
   // the ones for the router we have arrived at.
   const refreshAll = (): void => {
+    routerSelected = true;
     schemas.clear();
     waiting.clear();
     mountAddSlots();                       // clear the last router's buttons
@@ -788,8 +798,15 @@ function wire(socket: Socket): void {
         .forEach((k) => { const key = k.trim(); if (key) schemaFor(key); });
     });
   };
-  socket.on('connect', refreshAll);
+  // ── ONLY ON router:switched ──────────────────────────────────────────────────
+  //
+  // It also ran on `connect`, before any router was selected, so every page load
+  // asked for every schema twice more than it needed, and the server refused
+  // both sets: 28 `res:error unavailable` replies. The server sends
+  // `router:switched` on every select, a reconnect included (a new connection
+  // has no router), so this one listener covers every case the other did.
   socket.on('router:switched', refreshAll);
+  socket.on('disconnect', () => { routerSelected = false; });
 
   // ── A CARD WHOSE ADD SLOT CHANGES RESOURCE SAYS SO ────────────────────────
   //

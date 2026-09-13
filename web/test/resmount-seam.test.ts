@@ -158,6 +158,46 @@ const labels = (html) => [...html.matchAll(/data-res-addbtn="([^"]*)"/g)].map((m
   }
 }
 
+// ── SCHEMAS ARE ASKED FOR ONCE, AFTER A ROUTER IS SELECTED ──────────────────
+//
+// They are per router, and the server answers `unavailable` until one is
+// selected. The mount-time requests and a second set on `connect` were all
+// refused — 28 `res:error` replies on every page load — and `router:switched`,
+// which the server sends on every select including after a reconnect, asked
+// for them all again anyway.
+{
+  const doc = makeDoc(['fwAddSlot'], { query: { '[data-res-add]': [{ id: 'fwAddSlot', value: 'fwFilter' }] } });
+  doc.queryNodes['[data-res-add]'][0].getAttribute = (k) => (k === 'data-res-add' ? 'fwFilter' : null);
+  const emits = [];
+  const handlers = {};
+  const prev = { doc: globalThis.document, win: globalThis.window };
+  globalThis.document = doc;
+  globalThis.window = {};
+  try {
+    delete require.cache[require.resolve(OUT)];
+    const mod = require(OUT);
+    mod.mountAdds({ on: (ev, fn) => { handlers[ev] = fn; }, emit: (ev, p) => { emits.push({ ev, p }); } });
+    const asked = () => emits.filter((e) => e.ev === 'res:schema').length;
+    if (asked() !== 0) {
+      problems.push('mountAdds asked for ' + asked() + ' schema(s) before any router was selected; the server refuses them');
+    }
+    if (handlers['connect']) {
+      problems.push('a connect handler still re-asks for schemas; router:switched follows every connect and does it');
+    }
+    if (!handlers['router:switched']) {
+      problems.push('nothing asks for schemas on router:switched, so no Add button would ever appear');
+    } else {
+      handlers['router:switched']({ activeId: 'r1' });
+      if (asked() !== 1) {
+        problems.push('router:switched asked for ' + asked() + ' schema(s) for a one-resource slot, want 1');
+      }
+    }
+  } finally {
+    if (prev.doc === undefined) delete globalThis.document; else globalThis.document = prev.doc;
+    if (prev.win === undefined) delete globalThis.window; else globalThis.window = prev.win;
+  }
+}
+
 fs.rmSync(OUT, { force: true });
 if (problems.length) {
   for (const p of problems) console.error('  ' + p);

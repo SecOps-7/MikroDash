@@ -110,13 +110,28 @@ export function initDashboard(socket: Socket): void {
   // Already published? Then initialise now — the event has been and gone.
   if ((window as unknown as { _worldMapPathDs?: unknown })._worldMapPathDs) connMap.init();
 
+  // ── EACH CARD ROOM IS SENT ONCE PER CONNECTION ─────────────────────────────
+  //
+  // The grid re-syncs its rooms on first paint, on every connect and whenever
+  // the dashboard becomes active, and the server replays a card's latest payload
+  // on every `dashcard:focus` — so a page load subscribed each card three times
+  // and received three replays. The server remembers the subscriptions for the
+  // connection (`conn.cards`) and re-joins them on a router select, so one send
+  // per connection is all it needs. A disconnect ends that connection's
+  // subscriptions, so the record goes with it; a blur ends one room's.
+  const sentRooms = new Set<string>();
+  socket.on('disconnect', () => sentRooms.clear());
   document.addEventListener('dashcard:room:focus', (e) => {
     const room = (e as CustomEvent).detail;
-    if (typeof room === 'string') socket.emit('dashcard:focus', room);
+    if (typeof room !== 'string' || sentRooms.has(room)) return;
+    sentRooms.add(room);
+    socket.emit('dashcard:focus', room);
   });
   document.addEventListener('dashcard:room:blur', (e) => {
     const room = (e as CustomEvent).detail;
-    if (typeof room === 'string') socket.emit('dashcard:blur', room);
+    if (typeof room !== 'string') return;
+    sentRooms.delete(room);
+    socket.emit('dashcard:blur', room);
   });
 
   // The chart owns two events and two selects, so it wires itself.

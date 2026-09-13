@@ -313,7 +313,10 @@ for (const [m, entry] of Object.entries(CARDS)) {
 }
 
 for (const event of subscribed.keys()) {
-  if (event === 'connect') continue; // lifecycle, asserted separately below
+  // LIFECYCLE, asserted separately below. `disconnect` joined 2026-09-13: the
+  // card-room relay forgets its once-per-connection record on it, and the
+  // 'A CARD ROOM IS SUBSCRIBED ONCE PER CONNECTION' case drives that handler.
+  if (event === 'connect' || event === 'disconnect') continue;
   if (EXTRA_EVENTS[event]) continue;
   if (!Object.values(CARDS).flatMap(cardEvents).includes(event)) {
     problems.push('the port subscribes ' + event + ', which is not in the card table');
@@ -353,6 +356,45 @@ for (const event of subscribed.keys()) {
     handler.fn({ type: dispatched, detail: { not: 'a string' } });
     if (emitted.length) {
       problems.push(dispatched + ' relayed a non-string detail: ' + JSON.stringify(emitted));
+    }
+  }
+}
+
+// ── A CARD ROOM IS SUBSCRIBED ONCE PER CONNECTION ──────────────────────────
+//
+// The grid re-syncs its rooms on first paint, on every connect and when the
+// dashboard becomes active, and the server replays each card's latest payload
+// on every `dashcard:focus` — so a page load sent each subscription three times
+// and received three replays. The server already remembers the subscriptions
+// for the connection and re-joins them on a router select, so one send per
+// connection is all it needs; a disconnect starts a new connection.
+{
+  const focus = docEvents.find((e) => e.type === 'dashcard:room:focus');
+  const blur = docEvents.find((e) => e.type === 'dashcard:room:blur');
+  const sends = () => emitted.filter((x) => x[0] === 'dashcard:focus' && x[1] === 'ping').length;
+  if (!focus || !blur) {
+    problems.push('the room relay is missing, so the once-per-connection rule reads nothing');
+  } else {
+    emitted.length = 0;
+    focus.fn({ type: 'dashcard:room:focus', detail: 'ping' });
+    focus.fn({ type: 'dashcard:room:focus', detail: 'ping' });
+    if (sends() !== 1) {
+      problems.push('a card room focused twice on one connection was sent ' + sends() + ' times, want 1');
+    }
+    const disconnect = subscribed.get('disconnect');
+    if (!disconnect) {
+      problems.push('nothing clears the sent rooms on disconnect, so a reconnect would never re-subscribe');
+    } else {
+      disconnect(null);
+      focus.fn({ type: 'dashcard:room:focus', detail: 'ping' });
+      if (sends() !== 2) {
+        problems.push('after a disconnect the room was not sent again (' + sends() + ' sends, want 2)');
+      }
+    }
+    blur.fn({ type: 'dashcard:room:blur', detail: 'ping' });
+    focus.fn({ type: 'dashcard:room:focus', detail: 'ping' });
+    if (sends() !== 3) {
+      problems.push('a room blurred and focused again was not re-sent (' + sends() + ' sends, want 3)');
     }
   }
 }
