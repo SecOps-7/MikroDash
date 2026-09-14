@@ -73,6 +73,9 @@ port_drift_notes.md
 # working session has somewhere to put them that is not next to the source.
 # ROOT-ANCHORED so it cannot swallow a directory of that name deeper in the tree.
 /.temp/
+# Internal notes: design ideas, parked plans and working notes that are not
+# part of the product. Kept beside the code, never committed.
+/notes/
 
 # ── Transient gate bundles ────────────────────────────────────────────────
 #
