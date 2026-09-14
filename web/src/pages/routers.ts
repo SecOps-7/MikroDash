@@ -44,6 +44,17 @@ type View = 'comfortable' | 'compact' | 'list' | 'map';
 
 let rtrView: View = 'comfortable';
 let lastRtrRows: RouterStatsRow[] = [];
+// Whether any `routers:stats` has arrived. Until one has, an empty row set means
+// "not told yet", not "no routers": the page renders once at mount, from the
+// empty list above, and a WebSocket that never connected read as an install
+// with no devices (issue #129).
+let haveRtrRows = false;
+
+/** What an empty grid or list says. */
+function emptyText(q: string): string {
+  if (q) return 'No routers match that search.';
+  return haveRtrRows ? 'No routers configured.' : 'Waiting for the router list\u2026';
+}
 
 /**
  * The sortable columns.
@@ -316,7 +327,7 @@ function renderGrid(rows: RouterStatsRow[], q: string): void {
   if (!grid) return;
   if (!rows.length) {
     grid.innerHTML = '<div class="col-12 text-muted text-center py-4">'
-      + (q ? 'No routers match that search.' : 'No routers configured.') + '</div>';
+      + emptyText(q) + '</div>';
     return;
   }
 
@@ -460,7 +471,7 @@ function renderRoutersList(rows: RouterStatsRow[]): void {
 
   if (!list.length) {
     body.innerHTML = '<tr><td colspan="13" class="text-muted text-center py-3">'
-      + (rtrQuery() ? 'No routers match that search.' : 'No routers configured.') + '</td></tr>';
+      + emptyText(rtrQuery()) + '</td></tr>';
     refreshHeaders();
     return;
   }
@@ -670,8 +681,15 @@ export function renderTray(unlocated: RouterStatsRow[]): void {
  * would stop answering "how many routers do I have".
  */
 export function renderRoutersStats(rows: RouterStatsRow[] | null): void {
-  if (rows) lastRtrRows = rows;
-  const all = rows || [];
+  if (rows) {
+    lastRtrRows = rows;
+    haveRtrRows = true;
+  }
+  // NULL IS A REPAINT FROM WHAT IS HELD, as `refreshRouters` in main.ts documents.
+  // It drew `[]`, blanking the page for up to two seconds after every
+  // `routers:update`. The page's own repaints pass null too, so only a real
+  // payload counts as the server having answered.
+  const all = rows || lastRtrRows;
 
   renderRoutersSummary(all);
 
@@ -861,7 +879,7 @@ export function applyView(v: string): void {
   if (mapw) mapw.hidden = !isMap;
   const sel = el<HTMLSelectElement>('routersView');
   if (sel) sel.value = v;
-  renderRoutersStats(lastRtrRows);
+  renderRoutersStats(null);
 }
 
 /**
@@ -907,12 +925,12 @@ export function mountRouters(socket: Socket): void {
   }
 
   const search = el<HTMLInputElement>('routersSearch');
-  if (search) search.addEventListener('input', () => renderRoutersStats(lastRtrRows));
+  if (search) search.addEventListener('input', () => renderRoutersStats(null));
 
   // The site filter re-renders exactly as the search box does. It had no
   // listener at all, which is half of why selecting a site did nothing.
   const siteSel = el<HTMLSelectElement>('routersSiteFilter');
-  if (siteSel) siteSel.addEventListener('change', () => renderRoutersStats(lastRtrRows));
+  if (siteSel) siteSel.addEventListener('change', () => renderRoutersStats(null));
 
   const sel = el<HTMLSelectElement>('routersView');
   if (sel) {
