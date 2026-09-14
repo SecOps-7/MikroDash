@@ -120,16 +120,31 @@ func (s *Server) alertSettings() alert.Settings {
 	}
 }
 
-// refreshAlertSettings re-reads them after a settings save.
+// refreshAlertSettings re-reads them after a settings save, for BOTH halves.
 //
 // IN PLACE, never a rebuild: see `alert.Evaluator.SetSettings`. Rebuilding would
 // clear the edge state, so ticking one checkbox would re-fire every condition
 // that was already true.
+//
+// ── NOTHING CALLED THIS UNTIL 2026-09-14 ──────────────────────────────────
+//
+// Only a test did, so every alert setting was frozen at startup while the save
+// answered `requiresRestart: false`: thresholds and per-type toggles here, and in
+// the dispatcher the channels, their tokens, the cooldown and the per-user switch.
+// Turning Telegram off kept sending to it until a restart. Found investigating
+// issue #130.
+//
+// The dispatcher gets the MERGED settings, as `buildAlertDispatch` does: the raw
+// file holds the tokens sealed.
 func (s *Server) refreshAlertSettings() {
-	if s.alerts == nil {
-		return
+	if s.alerts != nil {
+		s.alerts.SetSettings(s.alertSettings())
 	}
-	s.alerts.SetSettings(s.alertSettings())
+	if s.dispatch != nil {
+		if cfg, err := s.mergedSettings(); err == nil {
+			s.dispatch.SetSettings(notify.Settings(cfg))
+		}
+	}
 }
 
 // buildAlertDispatch constructs the notification sender.
@@ -170,6 +185,6 @@ func (s *Server) buildAlertDispatch(enabled bool) *alertdispatch.Dispatcher {
 		log.Printf("[alert] dispatch is off; rows are written, nothing is sent " +
 			"(pass -alert-dispatch to send)")
 	}
-	return alertdispatch.New(enabled, notify.Settings(cfg), notify.DefaultClient, nil,
+	return alertdispatch.New(enabled, notify.Settings(cfg), notify.DefaultClient, s.alertMailer,
 		func() int64 { return time.Now().UnixMilli() })
 }

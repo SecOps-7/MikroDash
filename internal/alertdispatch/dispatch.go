@@ -112,21 +112,28 @@ type Dispatcher struct {
 	cooldowns map[string]int64
 	settings  notify.Settings
 	client    notify.Doer
-	mailer    notify.Mailer
-	now       func() int64
+	// mailFor builds the mail transport for ONE recipient's settings: the
+	// install's own, or a user's with the install's mail server folded in. Per
+	// recipient because the address differs, and nil when there is no mail server.
+	mailFor func(notify.Settings) notify.Mailer
+	now     func() int64
 	// sendFn is the transport, injectable so the tests can assert what WOULD
 	// have gone without a network.
 	sendFn func(ctx context.Context, s notify.Settings, title, body string) error
 }
 
-func New(enabled bool, settings notify.Settings, client notify.Doer, mail notify.Mailer,
+func New(enabled bool, settings notify.Settings, client notify.Doer, mailFor func(notify.Settings) notify.Mailer,
 	now func() int64) *Dispatcher {
 	d := &Dispatcher{
 		enabled: enabled, cooldowns: map[string]int64{}, settings: settings,
-		client: client, mailer: mail, now: now,
+		client: client, mailFor: mailFor, now: now,
 	}
 	d.sendFn = func(ctx context.Context, s notify.Settings, title, body string) error {
-		return notify.Send(ctx, d.client, s, d.mailer, title, body)
+		var mail notify.Mailer
+		if d.mailFor != nil {
+			mail = d.mailFor(s)
+		}
+		return notify.Send(ctx, d.client, s, mail, title, body)
 	}
 	return d
 }

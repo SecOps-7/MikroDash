@@ -248,3 +248,33 @@ func TestAFailingPerUserLookupKeepsTheInstallRecipient(t *testing.T) {
 			"one an operator actually relies on", got)
 	}
 }
+
+// AN EMAIL ALERT GOES THROUGH A MAILER BUILT FOR ITS RECIPIENT.
+//
+// The server handed `New` a nil mailer, so every alert to an email channel
+// failed with "no mailer configured" while the Test button, which builds its
+// own, worked. Driven through the real transport, not `sendFn`.
+func TestAnEmailAlertReachesTheMailer(t *testing.T) {
+	s := notify.Settings{"smtpEnabled": true, "smtpHost": "mail.example",
+		"smtpFrom": "md@example.com", "smtpTo": "ops@example.com"}
+	var builtFor any
+	var got Message
+	mailFor := func(set notify.Settings) notify.Mailer {
+		builtFor = set["smtpTo"]
+		return func(title, body string) error {
+			got = Message{Title: title, Body: body}
+			return nil
+		}
+	}
+	d := New(true, s, nil, mailFor, func() int64 { return realInstant })
+	if !d.Deliver(context.Background(), &Recipient{ID: "_install", Settings: s}, "cpu",
+		Message{Title: "T", Body: "B"}) {
+		t.Fatal("an email alert did not send")
+	}
+	if builtFor != "ops@example.com" {
+		t.Errorf("the mailer was built for %v, not the recipient's settings", builtFor)
+	}
+	if got.Title != "T" || got.Body != "B" {
+		t.Errorf("the mailer received %+v", got)
+	}
+}

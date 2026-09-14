@@ -7,6 +7,7 @@ import (
 
 	"mikrodash/internal/alert"
 	"mikrodash/internal/alertdispatch"
+	"mikrodash/internal/mailer"
 	"mikrodash/internal/notify"
 )
 
@@ -189,9 +190,14 @@ func (s *Server) perUserRecipients(routerID string) ([]alertdispatch.Recipient, 
 		// actually relies on.
 		return nil, err
 	}
+	// ONE read of the install, for every user's email opt-in.
+	install, err := s.mergedSettings()
+	if err != nil {
+		return nil, err
+	}
 	out := make([]alertdispatch.Recipient, 0, len(configs))
 	for userID, cfg := range configs {
-		set := notify.Settings(cfg)
+		set := s.userRecipientSettings(cfg, notify.Settings(install))
 		if !notify.HasConfigured(set) {
 			continue
 		}
@@ -202,6 +208,39 @@ func (s *Server) perUserRecipients(routerID string) ([]alertdispatch.Recipient, 
 		out = append(out, alertdispatch.Recipient{ID: "user:" + userID, Settings: set})
 	}
 	return out, nil
+}
+
+// userRecipientSettings turns one stored row into what the sender reads, by the
+// same three steps the My Alerts Test button takes (`userNotifyLoad`, then the
+// email branch of `userNotifyTest`): the allowlist, the credentials decrypted,
+// and an email opt-in folded onto the install's mail server.
+//
+// ── THE RAW ROW WAS HANDED OVER UNTIL 2026-09-14 ──────────────────────────
+//
+// Found investigating issue #130. The tokens were still sealed, so every
+// personal Telegram, Pushbullet and ntfy alert failed to authenticate; the
+// allowlist `notify.Pick` calls a security boundary was skipped, so a row naming
+// its own `smtpHost` reached the sender; and `WithInstallMail` had no caller, so
+// an email opt-in was never a channel.
+func (s *Server) userRecipientSettings(row map[string]any, install notify.Settings) notify.Settings {
+	return notify.WithInstallMail(notify.Pick(notify.Settings(row), s.decryptSetting), install)
+}
+
+// alertMailer is the mail transport for one alert recipient's settings, or nil
+// when they name no mail server and address.
+//
+// `buildAlertDispatch` passed nil here until 2026-09-14, so every alert to an
+// email channel failed with "no mailer configured" while the Test button, which
+// builds its own, reported the same settings working. It sends the way that
+// button does, so what the operator tested is what an alert uses.
+func (s *Server) alertMailer(set notify.Settings) notify.Mailer {
+	cfg, to := smtpFromSettings(set)
+	if cfg.Host == "" || cfg.From == "" || to == "" {
+		return nil
+	}
+	return func(title, text string) error {
+		return mailer.Send(cfg, mailer.Message{To: []string{to}, Subject: title, Text: text})
+	}
 }
 
 // routerLabelFor names the router in the notification body.

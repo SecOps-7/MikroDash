@@ -84,6 +84,8 @@ func (s *Server) settingsSave(w http.ResponseWriter, r *http.Request) {
 			writeJSONErr(w, http.StatusInternalServerError, "could not save the settings")
 			return
 		}
+		// The alert rules and the sender read settings too; see refreshAlertSettings.
+		s.refreshAlertSettings()
 		EvSettingsPages.BroadcastAll(s.hub, store.PageSettings(store.Defaults()))
 		writeJSON(w, map[string]any{"ok": true, "requiresRestart": false})
 		return
@@ -130,6 +132,11 @@ func (s *Server) settingsSave(w http.ResponseWriter, r *http.Request) {
 	if s.sessions != nil {
 		s.sessions.ApplyPollRetunes(updates, next)
 	}
+
+	// AND THE ALERTS, which kept their startup settings until this call existed:
+	// thresholds, toggles, channels, tokens and the cooldown. See
+	// refreshAlertSettings.
+	s.refreshAlertSettings()
 
 	EvSettingsPages.BroadcastAll(s.hub, store.PageSettings(next))
 	writeJSON(w, map[string]any{"ok": true, "requiresRestart": false})
