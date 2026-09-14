@@ -241,10 +241,7 @@
     .brand-preview-name{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .brand-preview-name span{color:var(--accent-rx)}
     .brand-hint{font-size:.72rem;color:var(--text-muted);margin:.35rem 0 .55rem}
-    .brand-actions{display:flex;gap:.5rem;margin-top:.2rem}
-    .brand-icon-row{display:flex;gap:.85rem;align-items:flex-start}
-    .brand-icon-preview{width:52px;height:52px;object-fit:contain;border:1px solid var(--border);border-radius:8px;padding:5px;flex-shrink:0}
-    .brand-icon-controls{flex:1;min-width:0}
+    .brand-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.35rem}
     .brand-status{font-size:.74rem;min-height:1.1rem;margin-top:.7rem;color:var(--text-muted)}
     .brand-status.is-ok{color:rgba(52,211,153,.9)}
     .brand-status.is-error{color:rgba(248,113,113,.9)}

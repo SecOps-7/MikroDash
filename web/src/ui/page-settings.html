@@ -691,19 +691,16 @@
             <select id="brandFont" class="sform-input">
               <option value="">Default (Syne)</option>
             </select>
-            <p class="brand-hint">PDF reports keep their standard font, so a few characters may not appear there.</p>
             <div class="brand-actions">
-              <button type="button" class="sbtn" id="brandSaveBtn">Save Name</button>
+              <button type="button" class="sbtn sbtn-primary" id="brandSaveBtn">Save Name</button>
             </div>
-            <label class="sform-label" for="brandIconFile" style="margin-top:1rem">App Icon</label>
-            <div class="brand-icon-row">
-              <img id="brandIconPreview" class="brand-icon-preview" src="/logo.png" alt="Current app icon">
-              <div class="brand-icon-controls">
-                <input type="file" id="brandIconFile" class="sform-input" accept="image/png,image/jpeg">
-                <p class="brand-hint">PNG or JPEG, square, 64 to 512 px, up to 512 KB. A transparent PNG of 256 px or more looks best; it is shown at 24 px.</p>
-                <button type="button" class="sbtn" id="brandIconReset" disabled>Use Default Icon</button>
-              </div>
+            <div class="sform-label" style="margin-top:1rem">App Icon</div>
+            <div class="brand-actions">
+              <button type="button" class="sbtn sbtn-ghost" id="brandIconPick">Upload Icon…</button>
+              <button type="button" class="sbtn sbtn-ghost" id="brandIconReset" disabled>Use Default Icon</button>
+              <input type="file" id="brandIconFile" accept="image/png,image/jpeg" hidden>
             </div>
+            <p class="brand-hint">PNG or JPEG, square, 64 to 512 px, up to 512 KB. A transparent PNG of 256 px or more looks best; it is shown at 24 px.</p>
             <div class="brand-status" id="brandStatus" role="status" aria-live="polite"></div>
           </div>
         </div>

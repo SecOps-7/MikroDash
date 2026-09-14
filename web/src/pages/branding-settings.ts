@@ -56,7 +56,7 @@ export function initBrandingSettings(): void {
   if (!nameIn || !fontSel || !saveBtn || !fileIn || !resetBtn) return;
   const preview = el('brandPreviewName');
   const previewIcon = el<HTMLImageElement>('brandPreviewIcon');
-  const iconPreview = el<HTMLImageElement>('brandIconPreview');
+  const pickBtn = el<HTMLButtonElement>('brandIconPick');
   const status = el('brandStatus');
 
   // The fonts the Appearance card offers, under the labels it shows them with.
@@ -84,7 +84,6 @@ export function initBrandingSettings(): void {
     fontSel.value = b.font;
     if (preview) renderWordmark(preview, b.name, b.font);
     if (previewIcon) previewIcon.src = b.icon;
-    if (iconPreview) iconPreview.src = b.icon;
     resetBtn.disabled = !b.customIcon;
   };
   const settle = (r: Response): Promise<Branding> =>
@@ -124,6 +123,9 @@ export function initBrandingSettings(): void {
       .catch((e: Error) => say(e.message, 'error'))
       .finally(() => { saveBtn.disabled = false; });
   });
+
+  // The file input is hidden; this themed button opens it.
+  pickBtn?.addEventListener('click', () => fileIn.click());
 
   fileIn.addEventListener('change', () => {
     const file = fileIn.files && fileIn.files[0];
