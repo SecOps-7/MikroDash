@@ -120,7 +120,8 @@ The collector layer — acquisition, derivation, views — is described in full 
    `RunArgsContext` registers a command's tag before sending it. v3.0.1 did it after, and a reply
    arriving in between was lost for ever, holding a `roslimit` slot; eight of those stopped every
    poll on a router. Drop the copy only for a release that passes
-   `TestNoReplyIsLostBeforeItsTagIsRegistered`. `PATCHES.md` there has the rest.
+   `TestNoReplyIsLostBeforeItsTagIsRegistered`. Its debug trace also masks credentials, which
+   `TestTracingNeverLogsACredential` pins. `PATCHES.md` there has the rest.
 
 **Knowingly accepted:** go-routeros returns on the first `!done`, so block boundaries are invisible
 here. `cmd/conformance` tests completeness instead — the bulk registration-table read against the

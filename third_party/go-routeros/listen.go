@@ -68,7 +68,8 @@ func (c *Client) ListenArgsQueue(sentence []string, queueSize int) (*ListenReply
 
 // ListenArgsQueueContext sends a sentence to the RouterOS device and returns immediately.
 func (c *Client) ListenArgsQueueContext(ctx context.Context, sentence []string, queueSize int) (*ListenReply, error) {
-	c.logger().Debug("ListenArgsQueueContext", slog.Any("sentences", sentence))
+	// MIKRODASH PATCH (see PATCHES.md): credentials masked, see redact.go.
+	c.logger().Debug("ListenArgsQueueContext", slog.Any("sentences", redactSentence(sentence)))
 
 	if !c.IsAsync() {
 		c.AsyncContext(ctx)

@@ -30,7 +30,8 @@ func (c *Client) RunArgs(sentences []string) (*Reply, error) {
 
 // RunArgsContext sends a sentence to the RouterOS device and waits for the reply.
 func (c *Client) RunArgsContext(ctx context.Context, sentences []string) (*Reply, error) {
-	c.logger().Debug("RunArgsContext", slog.Any("sentences", sentences))
+	// MIKRODASH PATCH (see PATCHES.md): credentials masked, see redact.go.
+	c.logger().Debug("RunArgsContext", slog.Any("sentences", redactSentence(sentences)))
 
 	c.w.BeginSentence()
 	for _, sentence := range sentences {
