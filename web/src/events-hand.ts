@@ -102,7 +102,7 @@ export type RouterRecord = Record<string, unknown> & {
  */
 export interface PageSettings {
   pageWan: boolean; pageInterfaces: boolean; pageVlans: boolean; pageBridges: boolean;
-  pageTopology: boolean; pageWifi: boolean; pageWireless: boolean; pageCapsman: boolean;
+  pageTopology: boolean; pageWifi: boolean; pageWireless: boolean; pageWifiMap: boolean; pageCapsman: boolean;
   pageDhcp: boolean; pageDns: boolean; pageRouting: boolean; pagePpp: boolean;
   pageVpn: boolean; pageBandwidth: boolean; pageQueues: boolean; pageConnections: boolean;
   pageFirewall: boolean; pageRosusers: boolean; pageLogs: boolean; pagePackages: boolean;

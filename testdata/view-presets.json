@@ -4,6 +4,7 @@
   "navMap": {
     "pageWifi": "wifi-networks",
     "pageWireless": "wifi-clients",
+    "pageWifiMap": "wifi-map",
     "pageInterfaces": "interfaces",
     "pageDhcp": "dhcp",
     "pageVpn": "vpn",

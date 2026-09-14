@@ -107,6 +107,7 @@ export const BOOL_FIELDS: readonly string[] = [
   "pageVpn",
   "pageWan",
   "pageWifi",
+  "pageWifiMap",
   "pageWireless",
   "pingEnabled",
   "pushbulletEnabled",

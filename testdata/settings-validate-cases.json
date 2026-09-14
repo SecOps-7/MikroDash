@@ -7,6 +7,7 @@
     "pageTopology",
     "pageWifi",
     "pageWireless",
+    "pageWifiMap",
     "pageCapsman",
     "pageDhcp",
     "pageDns",

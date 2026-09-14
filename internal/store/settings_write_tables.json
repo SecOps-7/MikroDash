@@ -203,6 +203,7 @@
     "pageVpn",
     "pageWan",
     "pageWifi",
+    "pageWifiMap",
     "pageWireless",
     "pingEnabled",
     "pushbulletEnabled",

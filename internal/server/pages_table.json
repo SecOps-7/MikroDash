@@ -44,7 +44,7 @@
     {
       "key": "wifi-map",
       "title": "Wifi Map",
-      "settingsKey": null
+      "settingsKey": "pageWifiMap"
     },
     {
       "key": "capsman",

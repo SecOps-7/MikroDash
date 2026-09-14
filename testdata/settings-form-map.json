@@ -42,6 +42,7 @@
       "pageVpn",
       "pageWan",
       "pageWifi",
+      "pageWifiMap",
       "pageWireless",
       "pingEnabled"
     ],

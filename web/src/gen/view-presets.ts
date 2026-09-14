@@ -6,6 +6,7 @@
 export const PAGE_NAV_MAP: Record<string, string> = {
   "pageWifi": "wifi-networks",
   "pageWireless": "wifi-clients",
+  "pageWifiMap": "wifi-map",
   "pageInterfaces": "interfaces",
   "pageDhcp": "dhcp",
   "pageVpn": "vpn",
