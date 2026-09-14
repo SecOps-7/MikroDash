@@ -230,6 +230,10 @@
     .sform-group{margin-bottom:.9rem}
     .stoggle-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
     @media(max-width:500px){.stoggle-grid{grid-template-columns:1fr}}
+    /* Visible Pages spans the whole tab, so its toggles take as many columns as
+       fit rather than two stretched ones; it is still one column on a phone. */
+    #visiblePagesGrid{grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))}
+    @media(max-width:500px){#visiblePagesGrid{grid-template-columns:1fr}}
     .stoggle{display:flex;align-items:center;justify-content:space-between;padding:.55rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);cursor:pointer;user-select:none;gap:.5rem}
     .stoggle-label{font-size:.8rem;color:var(--text-main);font-weight:500}
     .stoggle-switch{position:relative;width:34px;height:18px;flex-shrink:0}
