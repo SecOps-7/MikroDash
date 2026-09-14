@@ -857,8 +857,8 @@ async function main(): Promise<void> {
 
     // ── EVERYTHING BELOW IS ABOUT THE ROUTER ON SCREEN ─────────────────────
     //
-    // The server sends every router's status to every browser — the Settings
-    // and Devices tables show the fleet — and the banner, the two dots and the
+    // The server sends a browser the status of every router it may read — the
+    // Settings and Devices tables show them all — and the banner, the two dots and the
     // switching overlay took ANY router's frame as the watched router's own.
     // CHR Test dropping for six seconds lit the orange "RouterOS not connected"
     // banner over a hAP AX3 that never went down; reported by the operator.

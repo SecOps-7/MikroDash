@@ -350,7 +350,7 @@ const wait = (ms) => ['wait', ms];
   check('connected before it went down', r, { open: true });
 }
 {
-  // ANOTHER ROUTER'S RETURN IS NOT THIS ONE'S: `router:status` is fleet-wide.
+  // ANOTHER ROUTER'S RETURN IS NOT THIS ONE'S: `router:status` covers every router the browser may read.
   const r = run(P({}), { frames: [['packages:ok', OK], st('r2', false), st('r2', true), wait(5000)] });
   check('a different router came back', r, { open: true });
 }

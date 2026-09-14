@@ -189,8 +189,8 @@ check('wireBanners initialises the visibility handler', () => {
 
 // ── THE ROUTEROS BANNER DESCRIBES THE ROUTER ON SCREEN, AND NO OTHER ────────
 //
-// The server sends every router's `router:status` to every browser: the
-// Settings and Devices tables show the whole fleet. Taken as-is, CHR Test
+// The server sends a browser `router:status` for every router it may read: the
+// Settings and Devices tables show them all. Taken as-is, CHR Test
 // dropping for six seconds lit the orange "RouterOS not connected" banner over
 // a hAP AX3 that never went down, reported by the operator. So every
 // `router:status` handler in main.ts that touches the banner, the status dots or

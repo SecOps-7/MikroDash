@@ -1427,3 +1427,21 @@ func (cn *conn) sendPooledStatus() {
 			"routerId": id, "connected": up})
 	}
 }
+
+// sendFleetStatus is the fleet-wide half of `router:status`: one frame per
+// socket whose principal may read the router, as broadcastRouterList does for
+// the router list and sendPooledStatus for the statuses sent on a select.
+//
+// NOT `BroadcastAll`, which sent every router's state and last error to every
+// signed-in browser, including one whose role grants none of those routers. A
+// socket's grants are read here, at send time, so a permission change reaches it
+// on its next revalidation.
+func (s *Server) sendFleetStatus(frame map[string]any) {
+	id, _ := frame["routerId"].(string)
+	for _, cn := range s.connections() {
+		if visible := s.visibleRouters(cn.sess); visible != nil && !visible[id] {
+			continue
+		}
+		session.EvRouterStatus.Send(s.hub, cn.c, frame)
+	}
+}

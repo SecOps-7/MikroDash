@@ -102,8 +102,11 @@ type Session struct {
 	// router somebody is watching takes effect when the session is next built.
 	alertsEnabled bool
 
-	h   *hub.Hub
-	cfg routeros.Config
+	h *hub.Hub
+	// fleet is the manager's fleet-wide status send; see Manager.SetFleetStatus.
+	// Nil on a Session not built by a Manager.
+	fleet *atomic.Pointer[func(frame map[string]any)]
+	cfg   routeros.Config
 
 	// history is the recorder, captured from the Manager when this session is
 	// built. Nil-safe: every method on it guards its own receiver, so an install
@@ -556,6 +559,10 @@ type Manager struct {
 	mu   sync.Mutex
 	live map[string]*Session
 
+	// fleetStatus sends a router's `router:status` to every browser that may
+	// read that router. See SetFleetStatus and Session.announce.
+	fleetStatus atomic.Pointer[func(frame map[string]any)]
+
 	// idleGrace is how long a session outlives its last viewer. Zero means
 	// DefaultIdleGrace; tests set it small.
 	idleGrace time.Duration
@@ -653,6 +660,14 @@ func (m *Manager) SetOnIdentity(fn func(routerID string, id collect.Identity)) {
 // a router whose operator declared its uplinks by hand would keep reporting
 // whatever `detect-internet` says, with nothing to explain why.
 func (m *Manager) SetDocSource(fn func(routerID, kind string) []byte) { m.docs = fn }
+
+// SetFleetStatus attaches the fleet-wide half of `router:status`: the server's
+// per-socket send to every browser that may read the router.
+//
+// READ WHEN A STATUS IS ANNOUNCED, NOT CAPTURED WHEN A SESSION IS BUILT, so a
+// held session built before this is attached still uses it. Unset, no status
+// leaves a router's own room.
+func (m *Manager) SetFleetStatus(fn func(frame map[string]any)) { m.fleetStatus.Store(&fn) }
 
 // docsFor binds the document reader to one router, or returns nil.
 func (m *Manager) docsFor(routerID string) collect.DocSource {
@@ -769,6 +784,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		Label:         rec.Label,
 		alertsEnabled: rec.AlertsEnabled,
 		h:             m.h,
+		fleet:         &m.fleetStatus,
 		history:       m.history,
 		identity:      m.identityFor(rec.ID),
 		connThreshMs:  historywire.ThresholdMs(connDownSecOf(rec)),
@@ -2358,19 +2374,29 @@ func (s *Session) announce() {
 		"reason":    s.LastError(),
 	}
 	EvRouterStatus.Broadcast(s.h, "router-"+s.RouterID, frame)
-	// ── AND THE FLEET-WIDE ROOM, WHICH IS NOT THE SAME AUDIENCE ──────────
+	// ── AND EVERY OTHER BROWSER THAT MAY READ THIS ROUTER ────────────────
 	//
-	// The Settings and Devices tables show EVERY router, not only the one whose
-	// room a browser happens to be in. `alertPoolStatus` sent both frames for
-	// the routers the alert pool held; when that pool was deleted and its
-	// routers became warm-held sessions, this was the only remaining sender and
-	// it reached one room. A non-active router going down would then have
-	// updated nothing an operator was looking at.
+	// The Settings and Devices tables show every router a principal may read, not
+	// only the one whose room a browser happens to be in, so a non-active router
+	// going down has to reach them too. `alertPoolStatus` sent both frames for the
+	// routers the alert pool held; when that pool was deleted, this became the only
+	// sender.
 	//
-	// A browser in this router's room receives both, which the pool did too:
-	// `main.ts` records the state into `routerStatus` by id, so a repeat is a
-	// second write of the same value rather than a visible event.
-	EvRouterStatus.BroadcastAll(s.h, frame)
+	// IT WAS `BroadcastAll`, which sent every router's state and last error to
+	// every signed-in browser, including a viewer whose role grants none of those
+	// routers. The hub knows nothing about principals, so the audience is the
+	// server's to decide: `fleet` is `Server.sendFleetStatus`, a send per socket
+	// whose `visibleRouters` holds this id, as `broadcastRouterList` does for the
+	// list. Unset, nothing goes fleet-wide; the room above still reaches this
+	// router's own viewers.
+	//
+	// A browser in this router's room receives both. `main.ts` records the state
+	// into `routerStatus` by id, so the repeat is a second write of the same value.
+	if s.fleet != nil {
+		if fn := s.fleet.Load(); fn != nil {
+			(*fn)(frame)
+		}
+	}
 }
 
 // InWriteQueue serialises writes to one router.
@@ -2450,7 +2476,7 @@ func rosDebugOn(cfg store.Settings) bool {
 	return v
 }
 
-// EvRouterStatus is a router's connection state, sent to its own room and to
-// every client for the device picker. A map rather than a struct, so its
+// EvRouterStatus is a router's connection state, sent to its own room and,
+// through Manager.SetFleetStatus, to every client that may read the router. A map rather than a struct, so its
 // TypeScript type is hand-written in web/src/events-hand.ts.
 var EvRouterStatus = hub.Declare[map[string]any]("router:status")

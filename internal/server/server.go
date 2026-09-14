@@ -424,6 +424,9 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// took nil and no version was ever written. See session.Manager.SetOnIdentity;
 	// TestTheSessionManagersIdentityWriterIsAttached holds the ordering.
 	srv.sessions.SetOnIdentity(srv.persistRouterIdentity)
+	// `router:status` beyond a router's own room goes only to the browsers that
+	// may read that router. See Server.sendFleetStatus.
+	srv.sessions.SetFleetStatus(srv.sendFleetStatus)
 	// ── AND THE OPERATOR'S OWN DOCUMENTS, FOR THE SAME REASON ─────────────
 	//
 	// The declared uplink list reaches the WAN collector through this. Attached
