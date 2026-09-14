@@ -22,6 +22,7 @@ import (
 	"mikrodash/internal/websession"
 	"net/http"
 	"net/http/httputil"
+	"net/netip"
 	"net/url"
 	"os"
 	"path"
@@ -141,6 +142,12 @@ type Options struct {
 	// with -origins / MIKRODASH_ORIGINS, and never inferred from a forwarded
 	// header a client could forge.
 	OriginPatterns []string
+
+	// TrustedProxies are the peers whose X-Forwarded-For is believed, from
+	// `-trusted-proxies` / MIKRODASH_TRUSTED_PROXIES. Empty trusts none. A
+	// deployment fact rather than a setting, so an admin session cannot widen it.
+	// See internal/trustedproxy and issue #111.
+	TrustedProxies []netip.Prefix
 	// AuthTTL bounds how long a validated session is cached.
 	AuthTTL time.Duration
 	// AuditDB is the shared SQLite trail. Nil disables audit recording.
@@ -478,6 +485,11 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	srv.alerts = srv.buildAlertWire()
 	srv.sessions.SetAlertWire(srv.alerts)
 	srv.dispatch = srv.buildAlertDispatch(opts.AlertDispatch)
+	// The trusted proxy list, before anything serves a request: the rate limiters
+	// and the audit trail resolve clients through clientIPOf. A copy, so nothing
+	// the caller does to its slice afterwards changes who is trusted.
+	trusted := append([]netip.Prefix(nil), opts.TrustedProxies...)
+	trustedProxies.Store(&trusted)
 	// AND THE SINK THAT ACTUALLY USES IT. Attached unconditionally: the
 	// dispatcher itself is the switch — `Deliver` returns false when disabled and
 	// leaves no cooldown trace — so a build with the flag off wires an inert

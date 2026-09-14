@@ -1,6 +1,7 @@
 package server
 
 import (
+	"mikrodash/internal/trustedproxy"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -190,11 +191,18 @@ func TestAckExtra(t *testing.T) {
 // ── client address ───────────────────────────────────────────────────────────
 
 func TestClientIPOf(t *testing.T) {
+	// The trusted list is package state; this sets it for the test and puts it back.
+	prev := trustedProxies.Load()
+	trusted, _ := trustedproxy.Parse("10.0.0.0/8")
+	trustedProxies.Store(&trusted)
+	t.Cleanup(func() { trustedProxies.Store(prev) })
+
 	for _, tc := range []struct{ name, xff, remote, want string }{
 		{"remote addr with port", "", "198.51.100.7:51234", "198.51.100.7"},
 		{"ipv4-mapped ipv6 is normalised", "", "[::ffff:198.51.100.7]:51234", "198.51.100.7"},
-		{"forwarded-for wins", "203.0.113.9", "10.0.0.1:9999", "203.0.113.9"},
-		{"only the first forwarded entry", "203.0.113.9, 10.0.0.1", "10.0.0.1:9999", "203.0.113.9"},
+		{"a trusted proxy forwards its client", "203.0.113.9", "10.0.0.1:9999", "203.0.113.9"},
+		{"a forged leftmost entry is not believed", "6.6.6.6, 203.0.113.9", "10.0.0.1:9999", "203.0.113.9"},
+		{"an untrusted peer cannot forward", "203.0.113.9", "198.51.100.7:51234", "198.51.100.7"},
 		{"remote addr without a port", "", "203.0.113.9", "203.0.113.9"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

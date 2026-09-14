@@ -13,7 +13,9 @@ import (
 func hit(t *testing.T, h http.HandlerFunc, ip string) *httptest.ResponseRecorder {
 	t.Helper()
 	r := httptest.NewRequest(http.MethodGet, "/x", nil)
-	r.Header.Set("X-Forwarded-For", ip)
+	// THE PEER ADDRESS, not X-Forwarded-For: a forwarded address is believed only
+	// from a trusted proxy (internal/trustedproxy), and none is configured here.
+	r.RemoteAddr = ip + ":51234"
 	w := httptest.NewRecorder()
 	h(w, r)
 	return w

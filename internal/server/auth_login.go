@@ -66,7 +66,13 @@ func (s *Server) sessionTimeout() time.Duration {
 }
 
 func (s *Server) registerAuthLogin(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/auth/login", s.authLogin)
+	// TEN A MINUTE PER CLIENT, the Node app's `loginLimiter`. The Go port
+	// registered this route with no limiter at all, while first-time setup kept
+	// its five a minute, so password guessing was bounded only by scrypt. Found
+	// through issue #111: a login page reachable over a tunnel makes that a real
+	// threat rather than a LAN one.
+	login := newRateLimiter(10, time.Minute).limit
+	mux.HandleFunc("POST /api/auth/login", login(s.authLogin))
 	mux.HandleFunc("GET /api/auth/logout", s.authLogout)
 }
 

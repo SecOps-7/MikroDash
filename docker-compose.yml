@@ -55,6 +55,12 @@ services:
       # you are signed in to. `X-Forwarded-Host` is deliberately NOT trusted,
       # because any client can send one.
       - MIKRODASH_ORIGINS=${MIKRODASH_ORIGINS:-}
+      # Behind a reverse proxy or a cloudflared sidecar, the address range of that
+      # proxy (IPs or CIDRs, comma separated). Its X-Forwarded-For is then believed,
+      # so the login limit and the audit trail see visitors rather than the proxy.
+      # Empty trusts nobody, which is right when browsers connect directly.
+      # Issue #111.
+      - MIKRODASH_TRUSTED_PROXIES=${MIKRODASH_TRUSTED_PROXIES:-}
       # Command-rate instrument for the collectors rewrite. Empty = off.
       - MIKRODASH_CMD_STATS=${MIKRODASH_CMD_STATS:-}
     # The flags are baked into the image's CMD; they are repeated here so the

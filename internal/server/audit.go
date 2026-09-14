@@ -2,14 +2,16 @@ package server
 
 import (
 	"log"
-	"net"
 	"net/http"
+	"net/netip"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"mikrodash/internal/audit"
 	"mikrodash/internal/db"
 	"mikrodash/internal/resource"
+	"mikrodash/internal/trustedproxy"
 )
 
 // auditSink adapts the database to what internal/audit asks for.
@@ -85,28 +87,25 @@ func (s *Server) httpRecorder(r *http.Request, sess *Session) *audit.Recorder {
 // table already holds. Seconds would sort correctly and render as 1970.
 func nowMillis() int64 { return time.Now().UnixMilli() }
 
-// clientIPOf resolves the address to record for a WebSocket upgrade.
+// clientIPOf resolves the address a request came from, for the rate limiters,
+// the audit trail and a WebSocket connection alike.
 //
-// X-Forwarded-For first, because this server is designed to sit behind a reverse
-// proxy and RemoteAddr would then be the proxy for every user in the trail — an
-// audit column saying the same thing for everybody records nothing. Only the
-// FIRST entry is taken; the rest are whatever the client claimed on the way in.
-//
-// This mirrors what index.js does at connect rather than what Express's `trust
-// proxy` does, because a socket's upgrade request never passes through that
-// middleware — the same reason src/audit.js's fromSocket reads the handshake.
+// X-Forwarded-For is believed only from a peer in the trusted proxy list, and is
+// walked from the right: see internal/trustedproxy. It took the first entry from
+// any request, so a client reaching MikroDash directly could rotate past every
+// rate limiter and write any address into the trail (issue #111).
 func clientIPOf(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if first := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0]); first != "" {
-			return audit.NormalizeIP(first)
-		}
+	var trusted []netip.Prefix
+	if p := trustedProxies.Load(); p != nil {
+		trusted = *p
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	return audit.NormalizeIP(host)
+	return trustedproxy.Client(r.RemoteAddr, r.Header.Values("X-Forwarded-For"), trusted)
 }
+
+// trustedProxies is the parsed `trustedProxies` setting. Package level because
+// the rate limiters resolve a client without a Server; replaced whole, never
+// mutated, by refreshTrustedProxies. Empty trusts nothing.
+var trustedProxies atomic.Pointer[[]netip.Prefix]
 
 // auditValues masks every secret-typed field BY TYPE, before anything is diffed.
 //

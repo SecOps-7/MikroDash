@@ -306,3 +306,19 @@ func auditRows(t *testing.T, action string) []auditedActor {
 	}
 	return out
 }
+
+// THE LOGIN IS RATE LIMITED: ten attempts a minute per client, as the Node app's
+// `loginLimiter` was. The Go port served this route with no limiter at all, so
+// password guessing was bounded only by scrypt. Issue #111, where a tunnel puts
+// the login page on the internet.
+func TestLoginIsRateLimited(t *testing.T) {
+	h := newAuthServer(t, "", "correct-horse-battery-staple")
+	for i := 1; i <= 10; i++ {
+		if rec := postLogin(h, "someone", "a-wrong-password"); rec.Code == http.StatusTooManyRequests {
+			t.Fatalf("attempt %d was refused; the limit is ten a minute", i)
+		}
+	}
+	if rec := postLogin(h, "someone", "a-wrong-password"); rec.Code != http.StatusTooManyRequests {
+		t.Errorf("the 11th login attempt in a minute answered %d, want 429", rec.Code)
+	}
+}

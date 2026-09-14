@@ -26,6 +26,7 @@ import (
 	"mikrodash/internal/roslimit"
 	"mikrodash/internal/server"
 	"mikrodash/internal/store"
+	"mikrodash/internal/trustedproxy"
 )
 
 func main() {
@@ -135,6 +136,16 @@ func main() {
 			"comma-separated Origin hosts allowed to open a WebSocket, for "+
 				"reverse-proxied installs (e.g. dash.example.com,10.0.0.5:8443). "+
 				"Empty means same-origin only. Also read from MIKRODASH_ORIGINS")
+		// The proxies whose X-Forwarded-For is believed: IPs or CIDR ranges.
+		// Issue #111. A DEPLOYMENT FACT, so a flag and an environment variable
+		// rather than a Settings field: an admin session, which over a public
+		// tunnel is exactly the one to worry about, must not be able to widen
+		// who may claim to be any client. Empty trusts nobody, which is right for
+		// a direct install.
+		trustedProxiesFlag = flag.String("trusted-proxies", os.Getenv("MIKRODASH_TRUSTED_PROXIES"),
+			"comma-separated IPs or CIDR ranges of reverse proxies whose X-Forwarded-For "+
+				"is believed (e.g. 172.18.0.0/16). Empty trusts none. Also read from "+
+				"MIKRODASH_TRUSTED_PROXIES")
 		geoDir = flag.String("geo", "/app/geo",
 			"geoip-lite's data directory, read for country lookups")
 	)
@@ -244,6 +255,14 @@ func main() {
 	// install that is not being measured.
 	roslimit.StartStats(time.Minute)
 
+	// REFUSED AT START, not ignored: a typo here would otherwise leave every
+	// visitor behind the proxy sharing one rate limit and one audit address,
+	// with nothing saying why.
+	trustedProxies, err := trustedproxy.Parse(*trustedProxiesFlag)
+	if err != nil {
+		log.Fatalf("mikrodash: -trusted-proxies: %v", err)
+	}
+
 	srv, err := server.New(st, server.Options{
 		NodeURL:         *node,
 		WebDir:          *webDir,
@@ -257,6 +276,7 @@ func main() {
 		Retention:       *pruneOn,
 		History:         *historyOn,
 		OriginPatterns:  splitOrigins(*origins),
+		TrustedProxies:  trustedProxies,
 		// A restore has the ROUTER fetch from us, so the URL it is handed must
 		// name this process's port.
 		ListenAddr: *listen,

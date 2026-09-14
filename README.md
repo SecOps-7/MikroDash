@@ -184,11 +184,79 @@ The alternative, if you would rather not list origins, is to have the proxy
 preserve the original `Host` header — `proxy_set_header Host $host;` in Nginx —
 so the two match on their own.
 
+Set the proxy's address in `MIKRODASH_TRUSTED_PROXIES` (or `-trusted-proxies`), as IPs
+or CIDR ranges. `X-Forwarded-For` is believed only from an address listed there, so
+without it the login limit and the audit trail see the proxy for every visitor. List
+only your own proxies: an address in that list can claim to be any client.
+
 **Recommended local hardening:**
 - Enable authentication: switch to `modern` mode and create user accounts in **Settings → Authentication → Access Management**, granting each the narrowest role and scope that suits them
 - Run on a non-default port and bind to your LAN interface only
 - Use a dedicated read-only API user on the router (see RouterOS Setup below)
 - User passwords are scrypt-hashed in `/data/users.json` (mode 0600); the encryption key for stored router credentials is auto-generated and saved to `/data/.secret` (mode 0600) — keep your Docker volume secure
+
+### Remote access through a Cloudflare Tunnel
+
+MikroDash does not ship `cloudflared`. To reach it from outside your network without
+opening a port, run Cloudflare's own `cloudflared` container beside it. This puts the
+login page on the internet, so work through the checklist first.
+
+**Before you expose it**
+
+- Use `modern` authentication. With **Require sign-in** off, anyone who reaches the
+  page controls every router MikroDash manages.
+- Put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/)
+  in front of the hostname, so an unauthenticated request never reaches the login page.
+- Use strong passwords. Sign-in is limited to 10 attempts a minute per client.
+
+**1. Create the tunnel.** In the Cloudflare dashboard (Zero Trust, Networks, Tunnels),
+create a tunnel and copy its token. Add one public hostname, for example
+`dash.example.com`, with the service `http://mikrodash:3081`, and route nothing else
+through it.
+
+**2. Add the sidecar** to the compose file that runs MikroDash, and put the token in
+`.env` as `TUNNEL_TOKEN=...`:
+
+```yaml
+services:
+  mikrodash:
+    # ... your existing service ...
+    environment:
+      - MIKRODASH_ORIGINS=dash.example.com
+      - MIKRODASH_TRUSTED_PROXIES=172.18.0.0/16   # the network the two share; see step 3
+      - FORCE_HTTPS=true
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    restart: unless-stopped
+    depends_on:
+      - mikrodash
+```
+
+The service name in the hostname's `http://mikrodash:3081` must match the MikroDash
+service. `--no-autoupdate` is there because a container updates by pulling:
+`docker compose pull cloudflared && docker compose up -d`.
+
+**3. Tell MikroDash about it.**
+
+- `MIKRODASH_ORIGINS` is the hostname the browser uses. Without it the page loads
+  and stays empty, because the WebSocket is refused (see
+  [Behind a reverse proxy](#behind-a-reverse-proxy)).
+- `FORCE_HTTPS=true` marks the session cookie Secure. A browser does not send a
+  Secure cookie over plain `http://`, so while it is set, signing in directly at
+  `http://<host>:3081` on the LAN no longer works. Use the tunnel hostname
+  everywhere, or leave it off if you need plain LAN access too.
+- `MIKRODASH_TRUSTED_PROXIES` is the Docker network the two containers share, so the
+  login limit and the audit trail see each visitor's address rather than the
+  `cloudflared` container's. MikroDash refuses to start if the value does not parse. For the compose file in this
+  repository that network is `mikrodash_default`:
+  `docker network inspect mikrodash_default --format '{{(index .IPAM.Config 0).Subnet}}'`
+
+The official `cloudflare/cloudflared` image is published for `linux/amd64` and
+`linux/arm64` only, so this does not cover the `linux/arm/v7` MikroDash image.
 
 ---
 
@@ -440,6 +508,7 @@ services:
 | `-geo` | `/app/geo` | directory holding `dbip-city-lite.mmdb` and `cities.json`, both baked into the image. Point it at a volume to supply your own |
 | `-auth-ttl` | `15s` | how long a validated session may be cached |
 | `-node` | empty | proxy un-ported routes to another MikroDash. **Empty means standalone**, which is what a normal install wants; it exists for the migration and refuses a target that is its own listener |
+| `-trusted-proxies` | empty | IPs or CIDR ranges of reverse proxies whose `X-Forwarded-For` is believed. **Empty trusts none**, which is right when browsers connect directly. Also read from `MIKRODASH_TRUSTED_PROXIES` |
 
 **The four feature switches default OFF** because each one is unsafe to run twice against the same
 routers. Two schedulers mean two restore points; two history recorders write every minute twice; and
@@ -475,6 +544,7 @@ Three are read directly by the server:
 |---|---|
 | `DATA_SECRET` | the encryption key for credentials at rest. Takes priority over the auto-generated `/data/.secret` |
 | `FORCE_HTTPS` | `true` marks session cookies Secure, for running behind a TLS-terminating proxy |
+| `MIKRODASH_TRUSTED_PROXIES` | the same as `-trusted-proxies`, for installs where a command array is hard to reach |
 | `LOG_HISTORY_SIZE` | how many router log lines to retain in memory for the Logs page |
 
 A further set is still read into **settings** as startup defaults, carried over
@@ -492,7 +562,7 @@ loudly, so check your `.env` when upgrading:
 | `PORT` | `-listen :3081` |
 | `ROS_DEBUG` | Settings → Diagnostics → RouterOS debug (it was already settable there) |
 | `MAX_SOCKETS` | none. The Go server does not cap browser connections; the limit existed to protect a single-threaded event loop |
-| `TRUSTED_PROXY` | none currently |
+| `TRUSTED_PROXY` | `MIKRODASH_TRUSTED_PROXIES` or `-trusted-proxies`: IP addresses or CIDR ranges. A hop count is no longer accepted |
 | `ROS_WRITE_TIMEOUT_MS` | none currently; the write timeout is not configurable |
 
 
