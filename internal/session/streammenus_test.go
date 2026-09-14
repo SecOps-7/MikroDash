@@ -121,13 +121,13 @@ func TestAPinnedPollRouterIsNotOverriddenByTheTable(t *testing.T) {
 	defer delete(streamableMenus, menu)
 
 	s := &Session{}
-	s.eff.Stream = map[string]bool{key: false} // the operator pinned this router
+	s.eff.Store(&collection.Resolved{Stream: map[string]bool{key: false}}) // the operator pinned this router
 	if s.streamsMenu(menu) {
 		t.Error("a router with the collector set to Poll streamed anyway. The table " +
 			"says a menu CAN be streamed; eff.Stream says whether this router does.")
 	}
 
-	s.eff.Stream = map[string]bool{key: true}
+	s.eff.Store(&collection.Resolved{Stream: map[string]bool{key: true}})
 	if !s.streamsMenu(menu) {
 		t.Error("a router set to Stream, on a menu the table allows, did not stream")
 	}

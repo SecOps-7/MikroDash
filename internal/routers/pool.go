@@ -101,6 +101,7 @@ import (
 	"errors"
 	"log"
 	"mikrodash/internal/hub"
+	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -186,10 +187,9 @@ type RouterConfig struct {
 //
 // The six fields that decide the CONNECTION, and nothing else. `Label`,
 // `Collection`, `DefaultIf` and `PingTarget` all change what a session does once
-// it is up; redialling for them would drop a working connection — and the
-// collection block in particular is resolved at build time, so it needs a
-// rebuild rather than a reconnect. That is a separate gap, recorded on
-// `Session.eff` in internal/session.
+// it is up; redialling for them would drop a working connection. The collection
+// block is resolved at build time, so a change to it rebuilds the pooled session
+// (see `Sync`), which is how this pool applies a saved collector switch.
 func sameConnection(a, b RouterConfig) bool {
 	return a.Host == b.Host && a.Port == b.Port &&
 		a.User == b.User && a.Password == b.Password &&
@@ -451,7 +451,8 @@ func (p *Pool) Sync(all []RouterConfig, excluded map[string]bool) PoolAction {
 	// rebuild never runs two connections to one router.
 	var changed []string
 	for id, sess := range p.sessions {
-		if nw, ok := byID[id]; ok && !excluded[id] && !sameConnection(sess.cfg, nw) {
+		if nw, ok := byID[id]; ok && !excluded[id] && (!sameConnection(sess.cfg, nw) ||
+			!reflect.DeepEqual(sess.cfg.Collection, nw.Collection)) {
 			changed = append(changed, id)
 		}
 	}

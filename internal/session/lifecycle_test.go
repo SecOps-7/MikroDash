@@ -299,7 +299,7 @@ func TestEveryCollectorHonoursTheResolvedConfig(t *testing.T) {
 	// Every started collector must sit inside an Enabled guard naming ITS key.
 	for _, m := range regexp.MustCompile(`s\.(\w+)\.Start\(\)`).FindAllStringSubmatch(block, -1) {
 		name := m[1]
-		guard := `s.eff.Enabled["` + name + `"]`
+		guard := `s.conf().Enabled["` + name + `"]`
 		if !strings.Contains(block, guard) {
 			t.Errorf("%s.Start() is not gated on %s — a collector the operator turned off "+
 				"for this router would still be started", name, guard)
@@ -327,7 +327,7 @@ func TestEveryCollectorHonoursTheResolvedConfig(t *testing.T) {
 		if key == "rosUsers" {
 			key = "rosusers"
 		}
-		if !strings.Contains(rblock, `s.eff.Enabled["`+key+`"]`) {
+		if !strings.Contains(rblock, `s.conf().Enabled["`+key+`"]`) {
 			t.Errorf("%s.Reconnected() is not gated on the enabled set — a disabled collector "+
 				"comes back after any reconnect", name)
 		}
@@ -335,7 +335,7 @@ func TestEveryCollectorHonoursTheResolvedConfig(t *testing.T) {
 
 	// And every constructor must take a RESOLVED interval.
 	//
-	// Asserting `s.eff.Poll[` is present is the right check; an earlier version
+	// Asserting `s.conf().Poll[` is present is the right check; an earlier version
 	// looked for a trailing `, 0)` and flagged `NewTalkers(..., Poll["talkers"],
 	// 0)`, whose final zero is `topN`. Matching on what must BE there beats
 	// matching on what must not.
@@ -349,7 +349,7 @@ func TestEveryCollectorHonoursTheResolvedConfig(t *testing.T) {
 		if _, ok := exempt[m[1]]; ok {
 			continue
 		}
-		if !strings.Contains(m[0], `s.eff.Poll[`) {
+		if !strings.Contains(m[0], `s.conf().Poll[`) {
 			t.Errorf("%s does not take a resolved interval: %s", m[1], strings.TrimSpace(m[0]))
 		}
 	}
@@ -393,11 +393,11 @@ func TestTheRecordsCollectionBlockReachesTheResolution(t *testing.T) {
 	}
 	defer m.Release("r1")
 
-	if s.eff.Enabled["wan"] {
+	if s.conf().Enabled["wan"] {
 		t.Error("`wan` is in the router's off list and resolved as ENABLED — the record's " +
 			"collection block is not reaching Resolve")
 	}
-	if !s.eff.Enabled["dns"] {
+	if !s.conf().Enabled["dns"] {
 		t.Error("`dns` resolved as disabled; only `wan` was turned off")
 	}
 }

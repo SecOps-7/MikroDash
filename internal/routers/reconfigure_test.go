@@ -1,6 +1,7 @@
 package routers
 
 import (
+	"mikrodash/internal/collection"
 	"testing"
 	"time"
 )
@@ -76,8 +77,9 @@ func TestAnUnchangedRouterIsNotRebuilt(t *testing.T) {
 	waitFor(t, "the first connection", func() bool { return d.count() >= 1 })
 	before := d.count()
 
-	// A LABEL CHANGE IS NOT A CONNECTION CHANGE, and neither is a collection
-	// block: both alter what the session does, not where it dials.
+	// A LABEL CHANGE IS NOT A CONNECTION CHANGE, and neither is a default
+	// interface: both alter what the session does, not where it dials. (A
+	// collection block does rebuild; see TestAChangedCollectionRebuildsAPooledSession.)
 	renamed := cfg("a")
 	renamed.Label = "Renamed"
 	renamed.DefaultIf = "ether2"
@@ -88,5 +90,31 @@ func TestAnUnchangedRouterIsNotRebuilt(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	if d.count() != before {
 		t.Errorf("redialled %d extra times after a rename", d.count()-before)
+	}
+}
+
+// TestAChangedCollectionRebuildsAPooledSession. The pool resolves a router's
+// collection block when it builds the session, so a collector switched off in
+// the device dialog kept running here until something else rebuilt it. Its own
+// comment recorded that as a separate gap.
+func TestAChangedCollectionRebuildsAPooledSession(t *testing.T) {
+	d := &dialLog{}
+	p := NewPool(d.dial, 10*time.Millisecond, nil, nil)
+	defer p.Close()
+
+	p.Sync([]RouterConfig{cfg("a")}, nil)
+	waitFor(t, "the first connection", func() bool { return d.count() >= 1 })
+
+	switched := cfg("a")
+	switched.Collection = &collection.Router{Off: []string{"system"}}
+	if act := p.Sync([]RouterConfig{switched}, nil); len(act.Start) != 1 || len(act.Stop) != 1 {
+		t.Fatalf("a changed collection block decided %+v, want the router rebuilt", act)
+	}
+
+	// And the same block again is not a change.
+	again := cfg("a")
+	again.Collection = &collection.Router{Off: []string{"system"}}
+	if act := p.Sync([]RouterConfig{again}, nil); len(act.Start) != 0 || len(act.Stop) != 0 {
+		t.Errorf("an unchanged collection block decided %+v", act)
 	}
 }

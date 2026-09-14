@@ -269,7 +269,7 @@ func TestBothConnectPathsPrune(t *testing.T) {
 	}
 	// The reconnect branch specifically: it restarts every collector, so it is
 	// the one where a missing prune is invisible AND expensive.
-	recon := src[indexOf(src, "if s.eff.Enabled[\"conns\"] { s.conns.Reconnected() }"):]
+	recon := src[indexOf(src, "if s.conf().Enabled[\"conns\"] { s.conns.Reconnected() }"):]
 	if !contains(recon[:min(len(recon), 200)], "s.applyDemand()") {
 		t.Error("the reconnect branch no longer prunes. A held session comes back from " +
 			"any blip running every collector, which is what took this install from 129 " +

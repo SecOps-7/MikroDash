@@ -142,5 +142,5 @@ func (s *Session) streamsMenu(menu string) bool {
 	if !ok {
 		return false
 	}
-	return s.eff.Stream[key]
+	return s.conf().Stream[key]
 }

@@ -45,23 +45,22 @@ import (
 // Session is one router's connection and collectors.
 type Session struct {
 	// eff is this router's resolved collection config (#105): per-router poll
-	// intervals and which collectors may run at all. Resolved once in Acquire.
+	// intervals, stream choices and which collectors may run at all. Read it through
+	// `conf()`.
 	//
-	// ── AND NOT RE-RESOLVED, WHICH IS A REAL GAP ────────────────────────────
+	// ── RESOLVED IN Acquire, AND REPLACED WHEN THE ROUTER IS SAVED ───────────
 	//
-	// This said "a live edit rebuilds the session, which is what the live
-	// `collectionFingerprint` exists to decide". THAT MECHANISM WAS NEVER
-	// PORTED — there is no fingerprint anywhere in this tree — so editing a
-	// router's collection block does not reach a session somebody is watching;
-	// it takes effect when the last viewer leaves and the session is rebuilt.
+	// It was resolved once and never again, so a collector switched off in the
+	// device dialog kept running, and one switched on never started, until the
+	// session was rebuilt: for a router held for alerting or history, a restart.
+	// The dialog said "Saving briefly reconnects this router", and nothing did.
+	// `Manager.ApplyCollection` now swaps it and switches the collectors whose
+	// setting changed, without a reconnect (a redial restarts only the collectors
+	// already enabled, so it could not have done this).
 	//
-	// `Reconfigure` closes the half of this that silently breaks a router: the
-	// ENDPOINT AND CREDENTIALS. The collection block is left, deliberately and
-	// visibly, because it needs the collectors restarting rather than the socket
-	// redialling, and because a wrong poll interval is not a device that stops
-	// answering. Recorded here rather than left as a comment describing
-	// something that does not exist.
-	eff collection.Resolved
+	// AN atomic.Pointer, because the connect loop, the page-focus path, the
+	// stream decision and the save all read or replace it on different goroutines.
+	eff atomic.Pointer[collection.Resolved]
 
 	// primedSys is a one-shot `/system/resource` reading taken for the Devices
 	// page when this session runs no system collector of its own, and `priming`
@@ -371,7 +370,7 @@ func (s *Session) Bandwidth() *collect.Bandwidth { return s.bandwidth }
 // unknown key reads as ENABLED, matching the registry's own default for a
 // collector nobody made disableable.
 func (s *Session) CollectorEnabled(key string) bool {
-	v, ok := s.eff.Enabled[key]
+	v, ok := s.conf().Enabled[key]
 	return !ok || v
 }
 func (s *Session) Traffic() *collect.Traffic   { return s.traffic }
@@ -695,7 +694,7 @@ func (m *Manager) identityFor(routerID string) collect.IdentityFunc {
 // is the only reading it takes. TestEverySessionSystemCollectorIsBuiltWithTheIdentityHook
 // holds the rule.
 func (s *Session) newSystem(r collect.Reader, emit collect.Emit) *collect.System {
-	c := collect.NewSystem(r, emit, s.eff.Poll["system"])
+	c := collect.NewSystem(r, emit, s.conf().Poll["system"])
 	c.SetOnIdentity(s.identity)
 	return c
 }
@@ -778,7 +777,6 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	eff := collection.Resolve(cfgSettings, collection.ParseRouter(rec.Collection))
 
 	s := &Session{
-		eff:           eff,
 		dormancy:      dormancy.NewSupervisor(dormancy.Defaults()),
 		RouterID:      rec.ID,
 		Label:         rec.Label,
@@ -805,6 +803,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 			Label: rec.Label,
 		},
 	}
+	s.eff.Store(&eff)
 	room := "router-" + s.RouterID + "-"
 	// An EMPTY sub means router-wide, the room `router:status` uses. It exists
 	// for chrome: the gauges, the uptime chip and the RouterOS version row are
@@ -876,10 +875,10 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		}
 		m.h.Forward([]string{room + sub}, e, payload)
 	})
-	s.dns = collect.NewDNS(reader{s}, emit, s.eff.Poll["dns"])
+	s.dns = collect.NewDNS(reader{s}, emit, s.conf().Poll["dns"])
 	// Built FIRST, because three other collectors take it as their RateSource.
 	// It is the only one they depend on, and it depends on none of them.
-	s.ifStatus = collect.NewIfStatus(reader{s}, emit, rec.ID, s.eff.Poll["ifStatus"])
+	s.ifStatus = collect.NewIfStatus(reader{s}, emit, rec.ID, s.conf().Poll["ifStatus"])
 	// A REAL RateSource — `s.ifStatus`, built three lines up.
 	//
 	// This comment said "nil RateSource: interfaceStatus is not ported, so the
@@ -892,7 +891,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// Corrected 2026-08-29. A comment that UNDERSTATES what the code does is the
 	// mirror of the `_sendNowLimiter` one fixed the same day: both send a reader
 	// looking for work that is already finished.
-	s.bridges = collect.NewBridges(reader{s}, emit, s.ifStatus, s.eff.Poll["bridges"])
+	s.bridges = collect.NewBridges(reader{s}, emit, s.ifStatus, s.conf().Poll["bridges"])
 	// Rates from `s.ifStatus` here too. STILL nil lease counts, though — and that
 	// half was and remains true, for a reason of its own now that dhcpLeases IS
 	// ported: vlans wants
@@ -900,8 +899,8 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// addresses (`LeaseIPs()`), which is what dhcpNetworks needs. Joining leases
 	// to VLANs is the vlans page's question, not this one's, so the column keeps
 	// degrading to 0 until someone answers it.
-	s.vlans = collect.NewVlans(reader{s}, emit, s.ifStatus, nil, s.eff.Poll["vlans"])
-	s.wan = collect.NewWan(reader{s}, emit, s.ifStatus, s.eff.Poll["wan"]).
+	s.vlans = collect.NewVlans(reader{s}, emit, s.ifStatus, nil, s.conf().Poll["vlans"])
+	s.wan = collect.NewWan(reader{s}, emit, s.ifStatus, s.conf().Poll["wan"]).
 		WithDocs(m.docsFor(rec.ID))
 
 	// ── ONE COALESCING CACHE PER ROUTER ────────────────────────────────────
@@ -940,12 +939,12 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// deliberately describes it instead of quoting it. The test file records the
 	// same trap from the last time somebody hit it.
 	s.sched.Start()
-	s.packages = collect.NewPackages(reader{s}, emit, s.eff.Poll["packages"])
-	s.routing = collect.NewRouting(reader{s}, emit, s.eff.Poll["routing"])
+	s.packages = collect.NewPackages(reader{s}, emit, s.conf().Poll["packages"])
+	s.routing = collect.NewRouting(reader{s}, emit, s.conf().Poll["routing"])
 	// Built BEFORE dhcpNetworks, which takes it as its lease source: a subnet's
 	// client count is the leases that fall inside it, and only this collector
 	// knows what they are. Unlike vlans, this one is no longer nil.
-	s.dhcpLeases = collect.NewDHCPLeases(reader{s}, emit, s.eff.Poll["dhcpLeases"])
+	s.dhcpLeases = collect.NewDHCPLeases(reader{s}, emit, s.conf().Poll["dhcpLeases"])
 	// ── BUILT BEFORE ITS FOUR CONSUMERS, AND IT EMITS NOTHING ──────────────
 	//
 	// The ARP table is the only place the router says which MAC is behind which
@@ -954,18 +953,18 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// registration row and an MNDP neighbour carry no address at all.
 	//
 	// It takes no `emit` because it has no audience — see internal/collect/arp.go.
-	s.arp = collect.NewARP(reader{s}, s.eff.Poll["arp"])
+	s.arp = collect.NewARP(reader{s}, s.conf().Poll["arp"])
 	// The WAN interface name is the record's, falling back to "WAN1" inside the
 	// collector exactly as index.js does.
-	s.dhcpNetworks = collect.NewDHCPNetworks(reader{s}, emit, s.dhcpLeases, "", s.eff.Poll["dhcpNetworks"])
+	s.dhcpNetworks = collect.NewDHCPNetworks(reader{s}, emit, s.dhcpLeases, "", s.conf().Poll["dhcpNetworks"])
 	// Its own poll interval, not the shared default: PPP rates are differences
 	// between byte counters, so the interval IS the measurement window.
-	s.ppp = collect.NewPPP(reader{s}, emit, s.eff.Poll["ppp"])
-	s.vpn = collect.NewVPN(reader{s}, emit, s.eff.Poll["vpn"])
+	s.ppp = collect.NewPPP(reader{s}, emit, s.conf().Poll["ppp"])
+	s.vpn = collect.NewVPN(reader{s}, emit, s.conf().Poll["vpn"])
 	// NOT suspended by page focus, because it has no page: the Dashboard card it
 	// feeds is visible whenever anyone is looking at the router at all. The idle
 	// gate in Manager.Release still stops it when the last viewer leaves.
-	s.netwatch = collect.NewNetwatch(reader{s}, emit, s.eff.Poll["netwatch"])
+	s.netwatch = collect.NewNetwatch(reader{s}, emit, s.conf().Poll["netwatch"])
 	// Same reasoning as netwatch: no page of its own, so no page gate. It feeds
 	// the Dashboard's Top Talkers card, and the idle gate in Manager.Release is
 	// what stops it when the last viewer leaves.
@@ -976,7 +975,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// when item 1 of LOOP.md shipped one on 2026-08-28. Nothing failed when that
 	// premise expired, which is why the operator found its sibling by using the
 	// app: `topN` was hardcoded and "Top Connections N" did nothing.
-	s.talkers = collect.NewTalkers(reader{s}, emit, s.eff.Poll["talkers"],
+	s.talkers = collect.NewTalkers(reader{s}, emit, s.conf().Poll["talkers"],
 		topSetting(cfgSettings, "topTalkersN"))
 	// Same again: the latency block is part of the Dashboard's network card, so
 	// there is no page to gate on.
@@ -988,24 +987,24 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// `cfg.PingTarget` under a comment calling the two the same value. An empty
 	// record still means 1.1.1.1: NewPing's default. A later edit arrives
 	// through Manager.ApplyPingTarget.
-	s.ping = collect.NewPing(reader{s}, emit, s.eff.Poll["ping"], rec.PingTarget)
+	s.ping = collect.NewPing(reader{s}, emit, s.conf().Poll["ping"], rec.PingTarget)
 	// THE USERNAME WE ACTUALLY CONNECT AS is what the lockout guard protects, so
 	// it comes from the live config rather than from anything the page sends.
 	// The live app also passes whatever routers.json separately holds, because
 	// the two can drift — see ResolveSelf. This side has one source today, and
 	// the slice is here so adding the second is a one-line change rather than a
 	// signature change.
-	s.rosUsers = collect.NewRosUsers(reader{s}, emit, []string{s.cfg.Username}, s.eff.Poll["rosusers"])
+	s.rosUsers = collect.NewRosUsers(reader{s}, emit, []string{s.cfg.Username}, s.conf().Poll["rosusers"])
 	// The FIREWALL COLLECTOR IS BUILT FIRST because Queues borrows it by
 	// reference for its FastTrack banner. Only a SUMMARY crosses that boundary —
 	// a reader holding `queues` but not `firewall` learns that FastTrack is on,
 	// which is a fact about the Queues page's own correctness, not a firewall
 	// listing. Until this was ported the banner reported "cannot say", which is
 	// the same degradation the live app applies when Firewall collection is off.
-	s.firewall = collect.NewFirewall(reader{s}, emit, s.eff.Poll["firewall"])
-	s.wifi = collect.NewWifi(reader{s}, emit, s.eff.Poll["wifi"])
-	s.capsman = collect.NewCapsman(reader{s}, emit, s.eff.Poll["capsman"])
-	s.queues = collect.NewQueues(reader{s}, emit, s.firewall, s.eff.Poll["queues"])
+	s.firewall = collect.NewFirewall(reader{s}, emit, s.conf().Poll["firewall"])
+	s.wifi = collect.NewWifi(reader{s}, emit, s.conf().Poll["wifi"])
+	s.capsman = collect.NewCapsman(reader{s}, emit, s.conf().Poll["capsman"])
+	s.queues = collect.NewQueues(reader{s}, emit, s.firewall, s.conf().Poll["queues"])
 	// NOT gated on page focus, for the same reason as netwatch: these are the
 	// dashboard's gauges, and the dashboard is on screen whenever anyone is
 	// looking at the router at all. The idle gate in Manager.Release still stops
@@ -1018,7 +1017,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// bridges, dhcpLeases names the clients, and system fills the core's
 	// identity and gauges. Each is optional — a nil one costs exactly the field
 	// it feeds, which is what the live app does when a collector is disabled.
-	s.topology = collect.NewTopology(reader{s}, emit, s.ifStatus, rec.ID, rec.Label, s.eff.Poll["topology"]).
+	s.topology = collect.NewTopology(reader{s}, emit, s.ifStatus, rec.ID, rec.Label, s.conf().Poll["topology"]).
 		WithDocs(m.docsFor(rec.ID)).
 		WithSources(s.dhcpLeases, s.system).
 		// Fills `TopoInput.ARPIP`, which was declared and used at two sites from
@@ -1029,7 +1028,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// needed: a registration row has a MAC and nothing else, so a client with no
 	// DHCP name shows as its MAC — which is what the live app does on a router
 	// that is not the client's DHCP server either.
-	s.wireless = collect.NewWireless(reader{s}, emit, s.dhcpLeases, s.eff.Poll["wireless"]).
+	s.wireless = collect.NewWireless(reader{s}, emit, s.dhcpLeases, s.conf().Poll["wireless"]).
 		WithARP(s.arp).
 		// The last fallback: reverse DNS on the address ARP found, for a device
 		// with a static address and no lease. One cache per session, cleared on
@@ -1043,7 +1042,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 	// they SUBSCRIBE TO THE SAME MENU with identical proplists, so the demand set
 	// coalesces them. `ConnTable`, the hand-built snapshot that used to do this,
 	// is gone: it was the right mechanism before there was a general one.
-	s.conns = collect.NewConnections(reader{s}, emit, s.dhcpLeases, s.dhcpNetworks, s.eff.Poll["conns"]).
+	s.conns = collect.NewConnections(reader{s}, emit, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["conns"]).
 		// The heavy per-country and per-source indexes are built only when
 		// somebody is on the Connections page. The hub's room occupancy is the
 		// same question the Node side asks its adapter.
@@ -1056,7 +1055,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		// Step 2 of `nameOf`: the lease keyed by the MAC ARP found, when the
 		// lease keyed by the address does not exist.
 		WithARP(s.arp)
-	s.bandwidth = collect.NewBandwidth(reader{s}, emit, s.ifStatus, s.dhcpLeases, s.dhcpNetworks, s.eff.Poll["bandwidth"]).
+	s.bandwidth = collect.NewBandwidth(reader{s}, emit, s.ifStatus, s.dhcpLeases, s.dhcpNetworks, s.conf().Poll["bandwidth"]).
 		WithGeo(geoLookup()).
 		WithOrg(asn.Lookup).
 		WithARP(s.arp)
@@ -1879,26 +1878,26 @@ func (s *Session) connectLoop() {
 			// NO NULL-COLLECTOR STUB IS NEEDED, unlike the live side, where 11
 			// of 16 open their streams from the constructor and skipping start()
 			// is not enough. The Go collectors are inert until Start().
-			if s.eff.Enabled["dns"] {
+			if s.conf().Enabled["dns"] {
 				s.dns.Start()
 			}
-			if s.eff.Enabled["bridges"] {
+			if s.conf().Enabled["bridges"] {
 				s.bridges.Start()
 			}
-			if s.eff.Enabled["vlans"] {
+			if s.conf().Enabled["vlans"] {
 				s.vlans.Start()
 			}
-			if s.eff.Enabled["wan"] {
+			if s.conf().Enabled["wan"] {
 				s.wan.Start()
 			}
-			if s.eff.Enabled["ifStatus"] {
+			if s.conf().Enabled["ifStatus"] {
 				s.ifStatus.Start()
 			}
 			// A ONE-SHOT read, not a poll — see Firewall.Start. It is here
 			// rather than on page focus because the Queues page's FastTrack
 			// banner reads this collector's last payload, and a queues viewer
 			// who never opens Firewall would otherwise be told "cannot say".
-			if s.eff.Enabled["firewall"] {
+			if s.conf().Enabled["firewall"] {
 				s.firewall.Start()
 			}
 			// ── PHASE 4.3b: THE ALERT FEED, STARTED BECAUSE ALERTING IS ON ──
@@ -1913,10 +1912,10 @@ func (s *Session) connectLoop() {
 			// same work the alert pool does for such a router today, moved to the
 			// session that was already doing the other four.
 			if s.alertsEnabled {
-				if s.eff.Enabled["vpn"] {
+				if s.conf().Enabled["vpn"] {
 					s.vpn.Start()
 				}
-				if s.eff.Enabled["routing"] {
+				if s.conf().Enabled["routing"] {
 					// Resume, not Start:  has no Start -- it is a
 					// page-gated collector whose lifecycle begins at focus.
 					// Resuming it here is what gives alerting its own reason.
@@ -1927,16 +1926,16 @@ func (s *Session) connectLoop() {
 			// startup. The check is the only call in the app that leaves the
 			// router, so it is rate limited to twelve hours inside the
 			// collector rather than being scheduled from here.
-			if s.eff.Enabled["system"] {
+			if s.conf().Enabled["system"] {
 				s.system.Start()
 			}
-			if s.eff.Enabled["logs"] {
+			if s.conf().Enabled["logs"] {
 				s.logs.Start()
 			}
 			// Started with the connection, not on page focus: the WAN badge is
 			// chrome on every page, and the history a chart needs has to be
 			// accumulating before somebody opens one.
-			if s.eff.Enabled["traffic"] {
+			if s.conf().Enabled["traffic"] {
 				s.traffic.Start()
 			}
 			// CROSS-PAGE DEPENDENCIES, started with the connection rather than
@@ -1967,7 +1966,7 @@ func (s *Session) connectLoop() {
 			// The registry cannot express it -- `requires: []` for both, and
 			// `requires` gates ENABLEMENT rather than start order -- so the
 			// ordering lives here, with a test that reads it.
-			if s.eff.Enabled["dhcpLeases"] {
+			if s.conf().Enabled["dhcpLeases"] {
 				s.dhcpLeases.Start()
 			}
 			// ── STARTED WITH THE LEASES, AND FOR THE SAME REASON ────────
@@ -1981,10 +1980,10 @@ func (s *Session) connectLoop() {
 			// guard, `CollectorEnabled` resolves an absent key to true, and a
 			// collector exempted here would be the one nobody notices when the
 			// registry changes its mind.
-			if s.eff.Enabled["arp"] {
+			if s.conf().Enabled["arp"] {
 				s.arp.Start()
 			}
-			if s.eff.Enabled["dhcpNetworks"] {
+			if s.conf().Enabled["dhcpNetworks"] {
 				s.dhcpNetworks.Start()
 			}
 			// THE TWO DASHBOARD-ONLY COLLECTORS. Neither has a page, so neither
@@ -1996,13 +1995,13 @@ func (s *Session) connectLoop() {
 			// Found by asking which constructed collectors have no reachable
 			// Start or Resume; `internal/session/lifecycle_test.go` now asks that
 			// on every run.
-			if s.eff.Enabled["netwatch"] {
+			if s.conf().Enabled["netwatch"] {
 				s.netwatch.Start()
 			}
-			if s.eff.Enabled["talkers"] {
+			if s.conf().Enabled["talkers"] {
 				s.talkers.Start()
 			}
-			if s.eff.Enabled["ping"] {
+			if s.conf().Enabled["ping"] {
 				s.ping.Start()
 			}
 			// ── AND THE RESUMES THAT ARRIVED TOO EARLY ──────────────────
@@ -2079,28 +2078,28 @@ func (s *Session) connectLoop() {
 			if s.dormancy != nil {
 				s.applyDormancy(s.dormancy.Reset(), s.targets())
 			}
-			if s.eff.Enabled["dns"] {
+			if s.conf().Enabled["dns"] {
 				s.dns.Reconnected()
 			}
-			if s.eff.Enabled["bridges"] {
+			if s.conf().Enabled["bridges"] {
 				s.bridges.Reconnected()
 			}
-			if s.eff.Enabled["vlans"] {
+			if s.conf().Enabled["vlans"] {
 				s.vlans.Reconnected()
 			}
-			if s.eff.Enabled["ifStatus"] {
+			if s.conf().Enabled["ifStatus"] {
 				s.ifStatus.Reconnected()
 			}
-			if s.eff.Enabled["wan"] {
+			if s.conf().Enabled["wan"] {
 				s.wan.Reconnected()
 			}
-			if s.eff.Enabled["dhcpLeases"] {
+			if s.conf().Enabled["dhcpLeases"] {
 				s.dhcpLeases.Reconnected()
 			}
-			if s.eff.Enabled["arp"] {
+			if s.conf().Enabled["arp"] {
 				s.arp.Reconnected()
 			}
-			if s.eff.Enabled["dhcpNetworks"] {
+			if s.conf().Enabled["dhcpNetworks"] {
 				s.dhcpNetworks.Reconnected()
 			}
 			// ── PACKAGES AND ROUTING WERE THE TWO THAT WERE MISSING ─────
@@ -2124,7 +2123,7 @@ func (s *Session) connectLoop() {
 			// only page-gated collectors left out, which is what made it an
 			// oversight rather than a policy — and the dormancy supervisor is
 			// what puts an unwatched collector back to sleep.
-			if s.eff.Enabled["packages"] {
+			if s.conf().Enabled["packages"] {
 				s.packages.Reconnected()
 			}
 			// RESUME, NOT Reconnected — `Routing` has no `Reconnected` and does
@@ -2133,61 +2132,61 @@ func (s *Session) connectLoop() {
 			// Routing holds no such verdict (see its struct — no `*OK` fields),
 			// only caches its ticks refresh. Resume starts the loop if the
 			// client is up, which it is by this point.
-			if s.eff.Enabled["routing"] {
+			if s.conf().Enabled["routing"] {
 				s.routing.Resume()
 			}
-			if s.eff.Enabled["ppp"] {
+			if s.conf().Enabled["ppp"] {
 				s.ppp.Reconnected()
 			}
-			if s.eff.Enabled["vpn"] {
+			if s.conf().Enabled["vpn"] {
 				s.vpn.Reconnected()
 			}
-			if s.eff.Enabled["netwatch"] {
+			if s.conf().Enabled["netwatch"] {
 				s.netwatch.Reconnected()
 			}
-			if s.eff.Enabled["talkers"] {
+			if s.conf().Enabled["talkers"] {
 				s.talkers.Reconnected()
 			}
-			if s.eff.Enabled["ping"] {
+			if s.conf().Enabled["ping"] {
 				s.ping.Reconnected()
 			}
-			if s.eff.Enabled["rosusers"] {
+			if s.conf().Enabled["rosusers"] {
 				s.rosUsers.Reconnected()
 			}
-			if s.eff.Enabled["queues"] {
+			if s.conf().Enabled["queues"] {
 				s.queues.Reconnected()
 			}
-			if s.eff.Enabled["firewall"] {
+			if s.conf().Enabled["firewall"] {
 				s.firewall.Reconnected()
 			}
-			if s.eff.Enabled["wifi"] {
+			if s.conf().Enabled["wifi"] {
 				s.wifi.Reconnected()
 			}
-			if s.eff.Enabled["capsman"] {
+			if s.conf().Enabled["capsman"] {
 				s.capsman.Reconnected()
 			}
-			if s.eff.Enabled["system"] {
+			if s.conf().Enabled["system"] {
 				s.system.Reconnected()
 			}
 			// Drops the buffer and reloads: the router that came back may have
 			// rebooted, in which case the lines held here describe a different
 			// uptime.
-			if s.eff.Enabled["logs"] {
+			if s.conf().Enabled["logs"] {
 				s.logs.Reconnected()
 			}
-			if s.eff.Enabled["topology"] {
+			if s.conf().Enabled["topology"] {
 				s.topology.Reconnected()
 			}
-			if s.eff.Enabled["wireless"] {
+			if s.conf().Enabled["wireless"] {
 				s.wireless.Reconnected()
 			}
-			if s.eff.Enabled["bandwidth"] {
+			if s.conf().Enabled["bandwidth"] {
 				s.bandwidth.Reconnected()
 			}
-			if s.eff.Enabled["traffic"] {
+			if s.conf().Enabled["traffic"] {
 				s.traffic.Reconnected()
 			}
-			if s.eff.Enabled["conns"] {
+			if s.conf().Enabled["conns"] {
 				s.conns.Reconnected()
 			}
 			// ── AND PRUNE, EXACTLY AS THE FIRST CONNECT DOES ────────────
@@ -2362,7 +2361,16 @@ func (s *Session) waitUntilDown(c *routeros.Client) {
 // layer only reads them. A deep copy per socket select would be three
 // allocations to defend against a caller that does not exist; if one ever does,
 // copy there.
-func (s *Session) Collection() collection.Resolved { return s.eff }
+func (s *Session) Collection() collection.Resolved { return *s.conf() }
+
+// conf is this router's resolved collection config. See the `eff` field; a
+// Session built without one (a test) reads as every collector at its defaults.
+func (s *Session) conf() *collection.Resolved {
+	if p := s.eff.Load(); p != nil {
+		return p
+	}
+	return &collection.Resolved{}
+}
 
 // announce pushes the connection state to everybody watching this router, so a
 // reboot shows up as a status chip rather than as a table that quietly stops

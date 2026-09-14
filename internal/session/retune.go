@@ -122,7 +122,7 @@ func (s *Session) pollTargets() map[string]interface{ SetPollMs(int) } {
 func (s *Session) ApplyPollRetunes(updates, saved store.Settings) []string {
 	targets := s.pollTargets()
 	applied := []string{}
-	for _, r := range collection.PollRetunes(updates, saved, s.eff.Overrides) {
+	for _, r := range collection.PollRetunes(updates, saved, s.conf().Overrides) {
 		c, ok := targets[r.Collector]
 		if !ok {
 			continue

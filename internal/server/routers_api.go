@@ -16,6 +16,7 @@ package server
 import (
 	"encoding/json"
 	"log"
+	"mikrodash/internal/collection"
 	"net/http"
 	"os"
 	"strings"
@@ -387,6 +388,20 @@ func (s *Server) reconfigureLiveSession(id string) {
 	// redial. A router held for alerting or recording never has its session
 	// rebuilt, so without this an edited target waited for a restart.
 	s.sessions.ApplyPingTarget(id, rec.PingTarget)
+
+	// AND THE COLLECTOR SWITCHES AND POLL OVERRIDES, which the device dialog says
+	// take effect on save. They were resolved once when the session was built, so
+	// a collector switched off kept running until a restart. Resolved exactly as
+	// `Acquire` resolves them, from the settings file, and re-announced only on a
+	// real change so the browsers watching this router update their cards.
+	settings, err := s.store.Settings()
+	if err != nil {
+		settings = nil
+	}
+	next := collection.Resolve(settings, collection.ParseRouter(rec.Collection))
+	if s.sessions.ApplyCollection(id, next) && s.hub != nil {
+		EvCollectionConfig.Broadcast(s.hub, "router-"+id, collection.Payload(id, next))
+	}
 }
 
 // routerDelete removes a router and everything that only made sense with it.

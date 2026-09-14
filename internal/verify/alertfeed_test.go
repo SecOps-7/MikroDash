@@ -95,7 +95,7 @@ func TestTheAlertFeedIsStartedBecauseAlertingIsOn(t *testing.T) {
 	src := mustRead(t, filepath.Join(repoRoot(t), "internal", "session", "session.go"))
 	flat := strings.Join(strings.Fields(stripGoComments(src)), " ")
 
-	if !strings.Contains(flat, "if s.alertsEnabled { if s.eff.Enabled[\"vpn\"] { s.vpn.Start() }") {
+	if !strings.Contains(flat, "if s.alertsEnabled { if s.conf().Enabled[\"vpn\"] { s.vpn.Start() }") {
 		t.Error("vpn and routing are no longer started under the alertsEnabled gate, so " +
 			"the alert feed is back to depending on which page somebody opened")
 	}

@@ -42,7 +42,7 @@ func TestApplyPollRetunesReachesTheCollectors(t *testing.T) {
 func TestAPinnedKeyIsNotApplied(t *testing.T) {
 	s := &Session{RouterID: "r1"}
 	s.system = collect.NewSystem(nil, noEmit, 5000)
-	s.eff = collection.Resolved{Overrides: map[string]any{"pollSystem": 3000}}
+	s.eff.Store(&collection.Resolved{Overrides: map[string]any{"pollSystem": 3000}})
 
 	// Believability: unpinned, it IS applied — otherwise the assertion below
 	// holds for a function that applies nothing.
