@@ -137,6 +137,11 @@ func (s *Server) dnsFleetAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	name := validated.Values["name"]
 
+	// A write that cannot be recorded is refused (#97), as it is on the socket.
+	if s.auditDB == nil {
+		writeJSONErr(w, http.StatusForbidden, "Router changes are unavailable: the audit database is not open")
+		return
+	}
 	targets := s.fleetTargets(sess, body.RouterIDs, "dns", "write")
 	if len(targets) == 0 {
 		writeJSONErr(w, http.StatusForbidden, "Not permitted")
@@ -164,6 +169,14 @@ func (s *Server) dnsFleetAddOne(ctx context.Context, r *http.Request, sess *Sess
 	defer drop()
 
 	out := dnsFleetAddResult{ID: routerID}
+	// THE SAME LIMIT AS A WRITE FROM THE PAGE (#97): one allowance per user per
+	// router, so copying a record across the fleet counts once against each.
+	if s.writeLimit != nil {
+		if ok, _, _ := s.writeLimit.take(writeLimitKey(sess.Username, routerID)); !ok {
+			out.Code = "rate-limited"
+			return out
+		}
+	}
 	werr := sn.InWriteQueue(func() error {
 		rows, rerr := sn.Exec(collect.DNSStaticCmd())
 		if rerr != nil {

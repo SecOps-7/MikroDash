@@ -170,6 +170,8 @@ type Server struct {
 	proxy          *httputil.ReverseProxy
 	web            http.Handler
 	originPatterns []string
+	// writeLimit bounds router writes per user per router (#97). See write_limit.go.
+	writeLimit *rateLimiter
 	// idleGrace is how long a page-level suspend waits after the last viewer
 	// leaves a collector's rooms. Zero means session.DefaultIdleGrace; only
 	// tests set it, because two minutes is not a thing a test can wait for.
@@ -366,6 +368,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		proxy:          proxy,
 		web:            http.FileServer(http.Dir(opts.WebDir)),
 		originPatterns: opts.OriginPatterns,
+		writeLimit:     newWriteLimiter(),
 	}
 	// Installed AFTER construction because it closes over the server. In
 	// standalone mode this is the whole of authentication; while Node runs it

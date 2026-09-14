@@ -2,7 +2,9 @@ package session
 
 import (
 	"mikrodash/internal/collect"
+	"mikrodash/internal/collection"
 	"mikrodash/internal/hub"
+	"mikrodash/internal/routeros"
 )
 
 // Which collectors a session runs, given why it is being kept alive.
@@ -159,6 +161,20 @@ func (s *Session) reasonsLocked() Reasons {
 // so that both sides could test it — which is what phase 6.3 exists to undo.
 func NewForTest(h *hub.Hub, routerID string) *Session {
 	return &Session{h: h, RouterID: routerID}
+}
+
+// NewForTestWithExec is NewForTest with every command answered by exec, so a
+// test can drive a write path against a scripted router.
+func NewForTestWithExec(h *hub.Hub, routerID string,
+	exec func(routeros.Cmd) ([]routeros.Reply, error)) *Session {
+	s := &Session{h: h, RouterID: routerID, execForTest: exec}
+	// IT HAS NO COLLECTORS, so it says so: every collector a write path would
+	// refresh reads as switched off, and nothing reaches a nil one.
+	s.eff.Store(&collection.Resolved{Enabled: map[string]bool{
+		"dns": false, "bridges": false, "vlans": false, "firewall": false,
+		"wifi": false, "capsman": false, "ppp": false,
+	}})
+	return s
 }
 
 // Wants is THE collector gate, and there is one of it.

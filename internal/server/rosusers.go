@@ -191,7 +191,7 @@ func (cn *conn) ruUserSave(raw json.RawMessage) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		st, err := cn.ruRead()
 		if err != nil {
 			return err
@@ -347,7 +347,7 @@ func (cn *conn) ruGroupSave(raw json.RawMessage) {
 	// granted list is the whole input.
 	policy := collect.BuildPolicy(req.Policy)
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		st, err := cn.ruRead()
 		if err != nil {
 			return err
@@ -449,7 +449,7 @@ func (cn *conn) ruRemove(raw json.RawMessage, spec removeSpec) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		st, err := cn.ruRead()
 		if err != nil {
 			return err

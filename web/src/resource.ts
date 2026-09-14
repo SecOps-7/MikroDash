@@ -243,6 +243,51 @@ function close(): void {
  * another row or replayed against a later write. A `stale-warning` means the
  * ground moved between the prompt and the answer.
  */
+/**
+ * What a guard warning says, by the guard's CODE. Every guard that warns reaches
+ * this prompt now: only self-cutoff did, so a firewall lockout, an inherited Wi-Fi
+ * setting or a CAPsMAN push was shown as a plain refusal nobody could acknowledge.
+ */
+export function warningText(code: string, w: Record<string, unknown>): { headline: string; why: string } {
+  const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+  const cut = 'This may cut MikroDash off from this router.';
+  switch (code) {
+    case 'self-cutoff':
+      return {
+        headline: cut,
+        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
+          '</code>, which arrives on <code>' + esc(str(w.interface) || '?') + '</code>, the interface this ' +
+          'change ' + (str(w.action) === 'delete' ? 'removes' : 'alters') + '.',
+      };
+    case 'route-cutoff': {
+      const verb = str(w.action) === 'delete' ? 'removes' : str(w.action) === 'create' ? 'adds' : 'changes';
+      return {
+        headline: cut,
+        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
+          '</code>, an address it reaches through a route, and this change ' + verb +
+          ' the route <code>' + esc(str(w.destination) || '?') + '</code> that covers it.',
+      };
+    }
+    case 'route-cutoff-unknown':
+      return {
+        headline: cut,
+        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell ' +
+          'whether changing the route <code>' + esc(str(w.destination) || '?') + '</code> cuts its own connection.',
+      };
+    case 'self-lockout':
+      return { headline: cut, why: 'This firewall rule could match MikroDash\'s own traffic to the router.' };
+    case 'wifi-inherit':
+      return { headline: 'This change needs confirming.', why: 'It overrides a setting this network inherits from a shared configuration profile.' };
+    case 'capsman-push':
+      return { headline: 'This change needs confirming.', why: 'This profile is provisioned to managed access points, so the change will be pushed to them.' };
+    default:
+      return { headline: 'This change needs confirming.', why: 'A safety check flagged it (<code>' + esc(code || '?') + '</code>).' };
+  }
+}
+
+/** The guard code a prompt was first raised with; a stale-warning keeps it. */
+let warnCode = '';
+
 function showWarning(d: HandEvents['res:error']): void {
   const box = el('res_warn');
   if (!box) return;
@@ -250,12 +295,10 @@ function showWarning(d: HandEvents['res:error']): void {
   // so its keys are read by type rather than trusted. For the self-cutoff guard
   // they are all strings, and this renders exactly as before.
   const w = d.warning ?? {};
-  const str = (v: unknown): string => (typeof v === 'string' ? v : '');
-  const why = 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
-    '</code>, which arrives on <code>' + esc(str(w.interface) || '?') + '</code> — the interface this ' +
-    'change ' + (str(w.action) === 'delete' ? 'removes' : 'alters') + '.';
+  if (d.code && d.code !== 'stale-warning') warnCode = d.code;
+  const { headline, why } = warningText(warnCode, w);
   box.innerHTML =
-    '<strong>This may cut MikroDash off from this router.</strong><br>' + why +
+    '<strong>' + headline + '</strong><br>' + why +
     (d.code === 'stale-warning'
       ? '<br><em>The values changed since you were asked, so please confirm again.</em>' : '') +
     '<div style="display:flex;gap:.4rem;justify-content:flex-end;margin-top:.5rem">' +
@@ -900,7 +943,8 @@ function wire(socket: Socket): void {
   });
 
   socket.on('res:error', (d) => {
-    if (d && (d.code === 'self-cutoff' || d.code === 'stale-warning')) {
+    // ANY GUARD WARNING: ackGate always sends a fingerprint with one.
+    if (d && (d.fingerprint || d.code === 'stale-warning')) {
       showWarning(d);
       return;
     }
@@ -913,6 +957,8 @@ function wire(socket: Socket): void {
       'write-failed': 'The router refused the change.',
       'bad-request': 'That request was incomplete.',
       'guard-not-ported': 'This change needs a safety check that is not available yet, so it was refused.',
+      'rate-limited': 'Too many changes to this router in the last minute. Wait a moment and try again.',
+      'outcome-unknown': 'The router accepted the change, but it could not be confirmed. The table has been refreshed; check it before trying again.',
     };
     if (d && d.code === 'invalid' && Array.isArray(d.errors)) {
       setError(d.errors.map((e) => e.message).join('; '));

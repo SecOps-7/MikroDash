@@ -46,7 +46,9 @@ INSERT INTO grants (principal_type, principal_id, scope_type, scope_id, role_id)
 VALUES ('user','u-1','router','r-A','role-w'), ('user','u-1','router','r-B','role-r');
 `
 
-func testResolver(t *testing.T) *rbac.Resolver {
+// rbacTestDB opens a database holding the fixture above: the grant graph for the
+// resolver, and an audit table so a write has somewhere to be recorded.
+func rbacTestDB(t *testing.T) *db.DB {
 	t.Helper()
 	dir := t.TempDir()
 	h, err := sql.Open("sqlite", filepath.Join(dir, "mikrodash.db"))
@@ -62,7 +64,12 @@ func testResolver(t *testing.T) *rbac.Resolver {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { database.Close() })
-	return rbac.New(database, func() []rbac.Router {
+	return database
+}
+
+func testResolver(t *testing.T) *rbac.Resolver {
+	t.Helper()
+	return rbac.New(rbacTestDB(t), func() []rbac.Router {
 		return []rbac.Router{{ID: "r-A"}, {ID: "r-B"}}
 	})
 }
@@ -74,7 +81,9 @@ func testResolver(t *testing.T) *rbac.Resolver {
 func connFor(t *testing.T, resolver *rbac.Resolver, routerID string) *conn {
 	t.Helper()
 	return &conn{
-		srv: &Server{rbac: resolver},
+		// An audit database too: a write that cannot be recorded is refused (#97),
+		// and these cases are about the grant graph, not about that.
+		srv: &Server{rbac: resolver, auditDB: rbacTestDB(t)},
 		sess: &Session{
 			Username: "someone", AuthMode: "modern",
 			Pages:    map[string]string{"dns": "write"},
@@ -124,23 +133,36 @@ func TestCanPageRespectsReadableRouters(t *testing.T) {
 	}
 }
 
-// TestAuthModeNoneShortCircuits mirrors rbac.js's `if (!_isModern()) return true`.
-// In 'none' mode there is no identity, no grant graph and no user id — gating on
-// any of them would lock out an install that has deliberately disabled auth.
+// TestAuthModeNoneShortCircuits mirrors rbac.js's `if (!_isModern()) return true`
+// FOR READS. In 'none' mode there is no identity, no grant graph and no user id,
+// so gating a read on any of them would lock out an install that has deliberately
+// disabled auth.
+//
+// A ROUTER WRITE IS REFUSED THERE (#97). With no identity it could not be
+// attributed, and anyone reaching the page could change the router. This test
+// asserted the opposite until then; the contract changed on purpose.
 func TestAuthModeNoneShortCircuits(t *testing.T) {
 	cn := connFor(t, testResolver(t), "r-B")
 	cn.sess.AuthMode = "none"
 	cn.sess.Pages = map[string]string{}
 	cn.sess.Readable = nil
 	cn.userID = ""
-	if !cn.canPage("dns", "write") {
-		t.Error("'none' auth mode was gated; every request there is implicitly admin")
+	if !cn.canPage("dns", "read") {
+		t.Error("'none' auth mode gated a read; viewing stays open without sign-in")
+	}
+	if cn.canPage("dns", "write") {
+		t.Error("'none' auth mode allowed a router write; writes need sign-in")
 	}
 }
 
 // TestUnavailableResolverFallsBackToTheUnion documents the degradation rather
-// than hiding it: with no database the coarse gate stands alone, which is the
-// pre-existing over-permission. It must not instead deny everything.
+// than hiding it: with no database a READ falls back to the coarse gate, which is
+// the pre-existing over-permission, rather than denying everything.
+//
+// A WRITE FAILS CLOSED (#97). The union says dns:write for a user who may write
+// only on another router, and with no database the write could not be audited
+// either. This test asserted the write was allowed until then; the contract
+// changed on purpose.
 func TestUnavailableResolverFallsBackToTheUnion(t *testing.T) {
 	cn := &conn{
 		srv: &Server{}, // no resolver
@@ -152,9 +174,26 @@ func TestUnavailableResolverFallsBackToTheUnion(t *testing.T) {
 		routerID: "r-B",
 		userID:   "u-1",
 	}
-	if !cn.canPage("dns", "write") {
-		t.Error("with no database the server denied a page the union allowed; " +
+	if !cn.canPage("dns", "read") {
+		t.Error("with no database the server denied a read the union allowed; " +
 			"that locks users out rather than degrading to the documented gap")
+	}
+	if cn.canPage("dns", "write") {
+		t.Error("with no database a router write was allowed on the coarse union")
+	}
+}
+
+// TestAWriteNeedsAnAuditTrail: with the resolver answering but no audit database,
+// a write the grants allow is still refused, because nothing could record it.
+// Reads are unaffected. #97.
+func TestAWriteNeedsAnAuditTrail(t *testing.T) {
+	cn := connFor(t, testResolver(t), "r-A")
+	cn.srv.auditDB = nil
+	if cn.canPage("dns", "write") {
+		t.Error("a router write was allowed with no audit database to record it")
+	}
+	if !cn.canPage("dns", "read") {
+		t.Error("a read was refused for want of an audit database")
 	}
 }
 

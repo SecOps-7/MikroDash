@@ -71,7 +71,7 @@ func (cn *conn) backupsRestore(raw json.RawMessage) {
 		cn.bkErr("denied", nil)
 		return
 	}
-	if err := cn.rsession.InWriteQueue(func() error {
+	if err := cn.inWriteQueue(func() error {
 		cn.restoreLocked(req)
 		return nil
 	}); err != nil {

@@ -177,7 +177,7 @@ func (cn *conn) wanLeaseAction(verb string, raw json.RawMessage) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, path, activeDefault, rerr := cn.wanRead()
 		if rerr != nil {
 			return rerr

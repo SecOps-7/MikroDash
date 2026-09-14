@@ -25,6 +25,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"strings"
 
@@ -85,6 +86,8 @@ func (cn *conn) pkgReady() *collect.Packages {
 func rosWriteFail(err error) string {
 	m := strings.ToLower(err.Error())
 	switch {
+	case errors.Is(err, errWriteRateLimited):
+		return "rate-limited"
 	case strings.Contains(m, "not enough permission"),
 		strings.Contains(m, "permission denied"),
 		strings.Contains(m, "no permissions"):
@@ -160,7 +163,7 @@ func (cn *conn) packagesSchedule(raw json.RawMessage) {
 	// mechanism changes, the behaviour does not, and a write landing on the
 	// wrong router because of a router switch mid-flight is what the queue
 	// prevents.
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		_, e := cn.rsession.Exec(routeros.Cmd{Path: cmd, Args: []string{"=.id=" + target.ID}})
 		return e
 	})
@@ -203,7 +206,7 @@ func (cn *conn) packagesCheck() {
 	}
 	// Reaches MikroTik's servers, so it is a button rather than a poll. The
 	// background check on the System page is unaffected.
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		_, e := cn.rsession.Exec(routeros.Cmd{Path: "/system/package/update/check-for-updates"})
 		return e
 	})
@@ -270,7 +273,7 @@ func (cn *conn) packagesUpgrade(raw json.RawMessage) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, rerr := cn.rsession.Exec(routeros.Cmd{Path: "/system/package/update/print"})
 		if rerr != nil {
 			return rerr
@@ -386,7 +389,7 @@ func (cn *conn) packagesApply(raw json.RawMessage) {
 		Note:  "applied scheduled package changes and rebooted the router",
 	})
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		_, e := cn.rsession.Exec(routeros.Cmd{Path: "/system/package/apply-changes"})
 		return e
 	})

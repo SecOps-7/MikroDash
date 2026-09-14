@@ -297,3 +297,17 @@ func TestOpeningAFormIsNotAnAttemptToWriteOne(t *testing.T) {
 		}
 	}
 }
+
+// stringValuesAsAny lifts the validated form values into the shape Diff takes.
+//
+// The values stay STRINGS, including the "yes"/"no" a bool validates to, and
+// that is not an oversight — see the note at the resSave call site. Converting
+// them here would silently fix a live-app quirk the port is required to
+// reproduce.
+func stringValuesAsAny(v map[string]string) map[string]any {
+	out := make(map[string]any, len(v))
+	for k, s := range v {
+		out[k] = s
+	}
+	return out
+}

@@ -629,6 +629,9 @@ const RESOURCES = Object.freeze([
   {
     key: 'route', page: 'routing', collector: 'routing', label: 'Route',
     title: 'IPv4 Route', menu: '/ip/route', identity: 'dstAddress',
+    // MikroDash (#97): the route lockout guard. Not in the Node app; added to
+    // this recording deliberately when routePath was ported.
+    guard: 'routePath',
     // A route MikroDash did not create, it cannot edit: connected routes belong
     // to an address, dynamic ones to a protocol or a DHCP client, and RouterOS
     // rejects the write anyway. Refusing here says why.
@@ -649,6 +652,7 @@ const RESOURCES = Object.freeze([
   {
     key: 'route6', page: 'routing', collector: 'routing', label: 'IPv6 Route',
     title: 'IPv6 Route', menu: '/ipv6/route', identity: 'dstAddress',
+    guard: 'routePath',
     readOnlyWhen: (r) => r.dynamic === 'true' || r.connect === 'true',
     fields: [
       _f('dstAddress', 'dst-address', 'Destination', 'cidr', { required: true, placeholder: '::/0' }),

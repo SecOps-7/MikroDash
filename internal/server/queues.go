@@ -241,7 +241,7 @@ func (cn *conn) qSave(raw json.RawMessage) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, self, err := cn.qRead(menu)
 		if err != nil {
 			return err
@@ -376,7 +376,7 @@ func (cn *conn) qRemove(raw json.RawMessage) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, _, err := cn.qRead(menu)
 		if err != nil {
 			return err
@@ -445,7 +445,7 @@ func (cn *conn) qToggle(raw json.RawMessage) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, self, err := cn.qRead(menu)
 		if err != nil {
 			return err
@@ -536,7 +536,7 @@ func (cn *conn) qResetCounters(raw json.RawMessage) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, _, err := cn.qRead(menu)
 		if err != nil {
 			return err
@@ -598,7 +598,7 @@ func (cn *conn) qMove(raw json.RawMessage) {
 		return
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, _, err := cn.qRead("simple")
 		if err != nil {
 			return err

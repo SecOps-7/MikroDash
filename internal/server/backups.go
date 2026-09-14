@@ -363,7 +363,7 @@ func (cn *conn) backupsRun() {
 	}
 
 	var res backups.RunResult
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		var runErr error
 		res, _, runErr = backups.RunFor(backups.RunForConfig{
 			RouterID: cn.routerID, Label: cn.rsession.Label, Password: rec.password,

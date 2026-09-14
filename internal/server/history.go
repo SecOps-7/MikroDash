@@ -29,11 +29,6 @@ import (
 
 const histDepth = 20
 
-// errNoRowAppeared is an add that reported success and left nothing behind. It
-// cannot be shrugged off: the entry would keep a stale id and its `remove` half
-// would then address whatever now holds it.
-var errNoRowAppeared = errors.New("the row was added but could not be found again")
-
 type histStack struct {
 	undo []*history.Entry
 	redo []*history.Entry
@@ -147,16 +142,17 @@ func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resour
 			Path: res.Menu + "/add", Args: res.BuildArgs(validated)}); err != nil {
 			return "", nil, err
 		}
+		// CONFIRMED, as every write is (#97): exactly one new row, read back. An add
+		// that left none, or a table another add changed at the same moment, is an
+		// unknown outcome.
 		after, err := cn.readMenu(res)
 		if err != nil {
-			return "", nil, err
+			return "", nil, errOutcomeUnknown
 		}
-		for _, r := range after {
-			if !seen[r[".id"]] {
-				return r[".id"], nil, nil
-			}
+		if r, ok := confirmCreated(seen, after); ok {
+			return r[".id"], nil, nil
 		}
-		return "", nil, errNoRowAppeared
+		return "", nil, errOutcomeUnknown
 
 	case "set":
 		validated, errs := res.Validate(op.Values, true)
@@ -167,12 +163,18 @@ func (cn *conn) applyOp(res *resource.Resource, op history.Op) (string, []resour
 		if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + "/set", Args: args}); err != nil {
 			return "", nil, err
 		}
+		if after, err := cn.readMenu(res); err != nil || rowByID(after, op.ID) == nil {
+			return "", nil, errOutcomeUnknown
+		}
 		return op.ID, nil, nil
 
 	default: // remove
 		if _, err := cn.rsession.Exec(routeros.Cmd{
 			Path: res.Menu + "/remove", Args: []string{"=.id=" + op.ID}}); err != nil {
 			return "", nil, err
+		}
+		if after, err := cn.readMenu(res); err != nil || !confirmRemoved(after, op.ID) {
+			return "", nil, errOutcomeUnknown
 		}
 		return "", nil, nil
 	}
@@ -256,6 +258,18 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 	if len(errs) > 0 {
 		cn.resErr(res.Key, "invalid", "", map[string]any{"errors": errs})
 		return
+	}
+	if errors.Is(err, errOutcomeUnknown) {
+		// The router accepted the undo or redo, but it could not be confirmed, so
+		// this history may no longer describe the table. It goes, as it does for
+		// a stale entry, and the attempt is audited and the table refreshed.
+		cn.histDrop(res.Key)
+		cn.recorder().Record(audit.Event{
+			Action: action, TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: op.ID, TargetName: entry.Identity,
+			Note: "outcome-unknown: " + dir + ": " + entry.Label,
+		})
+		cn.refreshFor(res)
 	}
 	if err != nil {
 		cn.resErr(res.Key, writeFailCode(err), "", map[string]any{"message": safe.Message(err.Error())})

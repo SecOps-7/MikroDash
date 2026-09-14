@@ -908,13 +908,15 @@ var DHCPLease = &Resource{
 // rejects the write anyway. Refusing here says why instead of letting the
 // router answer with a trap.
 //
-// NO GUARD, and that is a considered position rather than an omission. A route
-// change can certainly cut the management path — but `selfPath` answers "which
-// INTERFACE carries us", and a route is not an interface. The guard that would
-// fit does not exist on either side; the live app declares none here either.
+// GUARDED BY routePath (#97). A route change can cut the management path, and
+// `selfPath` answers "which INTERFACE carries us", which a route is not. So a
+// narrower guard answers only what it can prove: does the route, before or after
+// the change, cover the address the router sees us from, when that address is not
+// on a connected subnet. See internal/guard/routeguard.go.
 var Route = &Resource{
 	Key: "route", Page: "routing", Label: "Route",
 	Title: "IPv4 Route", Menu: "/ip/route", Identity: []string{"dstAddress"},
+	Guard: []string{"routePath"},
 	ReadOnlyWhen: func(r map[string]string) bool {
 		return r["dynamic"] == "true" || r["connect"] == "true"
 	},
@@ -940,6 +942,7 @@ var Route = &Resource{
 var Route6 = &Resource{
 	Key: "route6", Page: "routing", Label: "IPv6 Route",
 	Title: "IPv6 Route", Menu: "/ipv6/route", Identity: []string{"dstAddress"},
+	Guard: []string{"routePath"},
 	ReadOnlyWhen: func(r map[string]string) bool {
 		return r["dynamic"] == "true" || r["connect"] == "true"
 	},

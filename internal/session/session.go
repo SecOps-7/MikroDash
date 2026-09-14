@@ -62,6 +62,10 @@ type Session struct {
 	// stream decision and the save all read or replace it on different goroutines.
 	eff atomic.Pointer[collection.Resolved]
 
+	// execForTest, when set, answers every command instead of a connection. Only
+	// NewForTestWithExec sets it.
+	execForTest func(routeros.Cmd) ([]routeros.Reply, error)
+
 	// primedSys is a one-shot `/system/resource` reading taken for the Devices
 	// page when this session runs no system collector of its own, and `priming`
 	// is the claim that stops two focuses reading the same router at once. See
@@ -501,6 +505,10 @@ func (s *Session) StreamUntilDone(
 }
 
 func (r reader) Do(cmd routeros.Cmd) ([]routeros.Reply, error) {
+	if r.s.execForTest != nil {
+		cmd.Finish()
+		return r.s.execForTest(cmd)
+	}
 	r.s.mu.Lock()
 	c := r.s.client
 	r.s.mu.Unlock()

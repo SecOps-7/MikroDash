@@ -142,7 +142,7 @@ MikroDash connects directly to the RouterOS API over a persistent binary TCP con
 
 MikroDash is designed to run **on your local network only**. It has no built-in HTTPS (terminate TLS at a reverse proxy if you need it).
 
-MikroDash supports two authentication modes (**Settings → Authentication**): `none` (open access) and `modern` (cookie sessions with per-user accounts and role-based access control). **`none` mode serves the dashboard with no authentication — the server logs a startup warning in that state.**
+MikroDash supports two authentication modes (**Settings → Authentication**): `none` (open access) and `modern` (cookie sessions with per-user accounts and role-based access control). **`none` mode serves the dashboard with no authentication, and the server logs a startup warning in that state. Router configuration cannot be changed in `none` mode: every write page is read-only until sign-in is turned on.**
 
 In `modern` mode, access is granted as **(role, scope)**: a role says *which pages* someone sees and whether they may act on them, and the scope says *which routers* — everything, one site, or a single router. Roles are editable rather than fixed: **Administrator** is built in and always sees everything, while **Read Only** and **Operator** are ordinary roles you can change, alongside any you create. A grant can go to a user or to a group, and a router can belong to a site so a whole location is granted at once. Managing users, groups, roles and sites is always Administrator-only, and only at global scope — an administrator of one site cannot grant themselves more.
 

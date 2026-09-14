@@ -208,7 +208,7 @@ the cheapest code here to test. A guard is reached one of two ways:
 
 - **Declared by a resource**, and run by the generic resource write path (`verdictFor` in
   `internal/server/resource.go`). Only names in `portedGuards` in that file can be evaluated:
-  `selfPath`, `fwGuard`, `wifiInherit`, `capsmanPush`. **A resource declaring any other guard has
+  `selfPath`, `fwGuard`, `wifiInherit`, `capsmanPush`, `routePath`. **A resource declaring any other guard has
   its writes refused**, not logged and allowed — pinned by `internal/server/guard_test.go`. Adding a
   guard to that path means adding it to the map, deliberately.
 - **Called directly by a page handler**: the queue, user and WAN pages call their guards' `Check…`
@@ -278,7 +278,7 @@ move together:
 | | |
 |---|---|
 | `internal/verify/` | 59 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that every page-key literal names a real page, that `Collector-Architecture.md` describes the collector layer the code has, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
-| `web/test/` | 39 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
+| `web/test/` | 40 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
 **Two rules every check follows:**

@@ -32,6 +32,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"sort"
 	"strconv"
@@ -213,7 +214,7 @@ func (cn *conn) resSave(raw json.RawMessage) {
 		name = req.ExpectedIdentity
 	}
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, err := cn.readMenu(res)
 		if err != nil {
 			return err
@@ -303,18 +304,27 @@ func (cn *conn) resSave(raw json.RawMessage) {
 		// one — so the table is diffed against itself rather than the new row
 		// being assumed last. Only undo needs this, which is why nothing read it
 		// before; the audit row addresses a create by its name.
-		newID := req.ID
-		if !editing {
-			newID = ""
-			if after, rerr := cn.readMenu(res); rerr == nil {
-				for _, r := range after {
-					if !seenIDs[r[".id"]] {
-						newID = r[".id"]
-						break
-					}
-				}
+		// ── CONFIRMED BY READING IT BACK (#97) ─────────────────────────────
+		//
+		// The router's answer says the command was accepted, not what the table
+		// holds, so the menu is read again before anything reports success: an
+		// edited row must still be there, and a create must have produced exactly
+		// one new row. Otherwise the outcome is unknown. See write_verify.go.
+		after, rerr := cn.readMenu(res)
+		var observed routeros.Reply
+		confirmed := false
+		if rerr == nil {
+			if editing {
+				observed = rowByID(after, req.ID)
+				confirmed = observed != nil
+			} else {
+				observed, confirmed = confirmCreated(seenIDs, after)
 			}
 		}
+		if !confirmed {
+			return cn.outcomeUnknown(res, res.Key+"."+action, req.ID, name, req.Ack)
+		}
+		newID := observed[".id"]
 		if newID != "" {
 			var beforeHist map[string]string
 			if before != nil {
@@ -332,10 +342,11 @@ func (cn *conn) resSave(raw json.RawMessage) {
 		}
 		cn.recorder().Record(audit.Event{
 			Action: res.Key + "." + action, TargetType: res.Key, RouterID: cn.routerID,
-			TargetID: req.ID, TargetName: name,
+			TargetID: newID, TargetName: name,
 			Before: beforeVals,
-			After:  auditValues(res, stringValuesAsAny(validated.Values)),
-			Extra:  ackExtra(req.Ack),
+			// OBSERVED, not requested: the row as read back. See write_verify.go.
+			After: auditValues(res, observedValues(res, observed, validated.Values)),
+			Extra: ackExtra(req.Ack),
 		})
 
 		cn.refreshFor(res)
@@ -361,7 +372,7 @@ func (cn *conn) resRemove(raw json.RawMessage) {
 	// the row the SERVER actually found — see below.
 	name := req.ExpectedIdentity
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, err := cn.readMenu(res)
 		if err != nil {
 			return err
@@ -434,6 +445,10 @@ func (cn *conn) resRemove(raw json.RawMessage) {
 			Path: res.Menu + "/remove", Args: []string{"=.id=" + req.ID}}); err != nil {
 			return err
 		}
+		// The row must be GONE before the delete is reported (#97).
+		if after, rerr := cn.readMenu(res); rerr != nil || !confirmRemoved(after, req.ID) {
+			return cn.outcomeUnknown(res, res.Key+".delete", req.ID, name, req.Ack)
+		}
 		// Recorded BEFORE the audit row and from the row as it was, because the
 		// row is gone now and its values are the only way back.
 		cn.histPush(res.Key, history.Build(res.Key, res.Label, "delete",
@@ -481,6 +496,10 @@ func ackExtra(ack string) []audit.KV {
 func writeFailCode(err error) string {
 	m := strings.ToLower(err.Error())
 	switch {
+	case errors.Is(err, errWriteRateLimited):
+		return "rate-limited"
+	case errors.Is(err, errOutcomeUnknown):
+		return "outcome-unknown"
 	case strings.Contains(m, "not connected"):
 		return "unavailable"
 	case strings.Contains(m, "not enough permissions"), strings.Contains(m, "permission denied"):
@@ -579,7 +598,7 @@ func (cn *conn) resAction(raw json.RawMessage) {
 	}
 	action := res.Key + "." + def.Key
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, err := cn.readMenu(res)
 		if err != nil {
 			return err
@@ -622,6 +641,14 @@ func (cn *conn) resAction(raw json.RawMessage) {
 		if _, err := cn.rsession.Exec(routeros.Cmd{
 			Path: res.Menu + "/" + def.Verb, Args: []string{"=.id=" + req.ID}}); err != nil {
 			return err
+		}
+		// The row must show the verb took before it is reported (#97).
+		after, rerr := cn.readMenu(res)
+		if rerr != nil {
+			return cn.outcomeUnknown(res, action, req.ID, name, req.Ack)
+		}
+		if _, ok := confirmAction(after, req.ID, def.Verb); !ok {
+			return cn.outcomeUnknown(res, action, req.ID, name, req.Ack)
 		}
 
 		// enable and disable invert each other, so they are recorded. A verb
@@ -837,6 +864,7 @@ func ackGate(v guard.Verdict, ack string) map[string]any {
 // declaring anything else cannot be written through here — see verdictFor.
 var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
+	"routePath": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -889,6 +917,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "capsmanPush":
 			if v := cn.capsVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "routePath":
+			if v := cn.routeVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		}
@@ -989,6 +1021,58 @@ func (cn *conn) capsVerdict(res *resource.Resource, action string,
 		ProvRows:   soft("/interface/wifi/provisioning/print"),
 		CapCount:   caps,
 	})
+}
+
+// routeVerdict asks the route lockout guard about one route write (#97).
+//
+// Where the router sees us from is read FRESH, in the same tick as the write, as
+// the other guards read it; so are the configured addresses, IPv4 and IPv6, since
+// an address on a connected subnet does not depend on a static route. A menu that
+// cannot be read contributes nothing, and the guard then warns that it cannot
+// tell rather than passing the change as safe.
+func (cn *conn) routeVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	var active, addrs []routeros.Reply
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+		active = rows
+	}
+	for _, menu := range []string{"/ip/address/print", "/ipv6/address/print"} {
+		if rows, err := cn.rsession.Exec(routeros.Cmd{Path: menu}); err == nil {
+			addrs = append(addrs, rows...)
+		}
+	}
+
+	var was, now guard.RouteChange
+	if before != nil {
+		was = routeChangeOf(histValues(res.RowValues(before)), guard.RouteChange{})
+	}
+	if action != "delete" && values != nil {
+		// An EDIT is laid over the stored row: a form that did not send a field has
+		// not changed it, and comparing a blank with the stored value would call a
+		// comment-only edit a forwarding change.
+		now = routeChangeOf(values, was)
+	}
+	return guard.CheckRouteEdit(active, addrs, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// routeChangeOf reads a route in the registry's field names, laid over base.
+func routeChangeOf(v map[string]string, base guard.RouteChange) guard.RouteChange {
+	r := base
+	r.Present = true
+	set := func(dst *string, key string) {
+		if x, ok := v[key]; ok && x != "" {
+			*dst = x
+		}
+	}
+	set(&r.Dst, "dstAddress")
+	set(&r.Gateway, "gateway")
+	set(&r.Distance, "distance")
+	set(&r.Table, "routingTable")
+	if d, ok := v["disabled"]; ok {
+		r.Disabled = d == "true" || d == "yes"
+	}
+	return r
 }
 
 // fwRuleFrom reads a rule in the registry's field names, which is the shape
@@ -1093,7 +1177,7 @@ func (cn *conn) resMove(raw json.RawMessage) {
 	}
 	name := req.ExpectedIdentity
 
-	err := cn.rsession.InWriteQueue(func() error {
+	err := cn.inWriteQueue(func() error {
 		rows, err := cn.readMenu(res)
 		if err != nil {
 			return err
@@ -1186,14 +1270,17 @@ func (cn *conn) resMove(raw json.RawMessage) {
 			return werr
 		}
 
-		nowAt := at
-		if moved, merr := cn.readMenu(res); merr == nil {
-			for i, r := range moved {
-				if r[".id"] == req.ID {
-					nowAt = i
-					break
-				}
-			}
+		// The ORDER must be the one asked for before the move is reported (#97): the
+		// row sits immediately before its destination, or last when there is none.
+		// A read-back that fails, or an order that does not hold, is an unknown
+		// outcome rather than the ordinary success it used to be.
+		moved, merr := cn.readMenu(res)
+		nowAt, placed := -1, false
+		if merr == nil {
+			nowAt, placed = confirmMoved(moved, req.ID, dest)
+		}
+		if !placed {
+			return cn.outcomeUnknown(res, res.Key+".move", req.ID, name, req.Ack)
 		}
 
 		how := "down"

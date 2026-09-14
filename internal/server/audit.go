@@ -169,20 +169,6 @@ func auditValues(res *resource.Resource, values map[string]any) map[string]any {
 	return out
 }
 
-// stringValuesAsAny lifts the validated form values into the shape Diff takes.
-//
-// The values stay STRINGS, including the "yes"/"no" a bool validates to, and
-// that is not an oversight — see the note at the resSave call site. Converting
-// them here would silently fix a live-app quirk the port is required to
-// reproduce.
-func stringValuesAsAny(v map[string]string) map[string]any {
-	out := make(map[string]any, len(v))
-	for k, s := range v {
-		out[k] = s
-	}
-	return out
-}
-
 // ── the page gate ────────────────────────────────────────────────────────────
 
 // canPage is the authorization every write and every page subscription passes
@@ -210,14 +196,28 @@ func (cn *conn) canPage(page, access string) bool {
 	}
 	// 'none' auth mode has no identity and every request is implicitly admin.
 	// rbac.js keeps exactly one copy of this short circuit; so does the port.
+	//
+	// ── EXCEPT A ROUTER WRITE, WHICH NEEDS SIGN-IN (#97) ─────────────────────
+	//
+	// With sign-in off, anyone who can reach the page would change the router
+	// with no identity to audit. Viewing stays open, as the setting promises;
+	// changing router configuration needs an account.
 	if cn.sess.AuthMode == "none" {
-		return true
+		return access != "write"
 	}
 	if !cn.sess.CanPage(page, access, cn.routerID) {
 		return false
 	}
 	if !cn.srv.rbac.Available() {
-		return true // the documented gap, reported at startup
+		// A READ degrades to the coarse union above, the documented gap reported
+		// at startup. A WRITE FAILS CLOSED: the union is broader than the
+		// per-router truth (write on router A plus read on router B is dns:write),
+		// and without the database the write could not be audited either. #97.
+		return access != "write"
+	}
+	// Nothing may change a router that cannot record who changed it. #97.
+	if access == "write" && cn.srv.auditDB == nil {
+		return false
 	}
 	ok, err := cn.srv.rbac.CanPage(cn.userID, page, access, cn.routerID)
 	if err != nil {
