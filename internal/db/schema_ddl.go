@@ -28,9 +28,13 @@ package db
 // hand-copy from db.js would have got wrong -- it would have created a table
 // called `grants_new`.
 //
-// 18 tables and 14 indexes, at schema version schemaVersion. `sqlite_sequence`
+// 19 tables and 14 indexes, at schema version schemaVersion. `sqlite_sequence`
 // is deliberately absent: SQLite maintains it for AUTOINCREMENT tables and
 // refuses an explicit one.
+//
+// `router_docs` is the first table this PORT added rather than inherited — see
+// `portMigrations` in schema.go, which is what gets it into a database the Node
+// app created.
 const freshSchemaDDL = `
 CREATE TABLE alert_events (
           id          INTEGER PRIMARY KEY,
@@ -205,6 +209,14 @@ CREATE TABLE traffic_samples (
           rx_mbps   REAL    NOT NULL,
           tx_mbps   REAL    NOT NULL,
           ts        INTEGER NOT NULL
+        );
+
+CREATE TABLE router_docs (
+          router_id  TEXT NOT NULL,
+          kind       TEXT NOT NULL,
+          data       TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (router_id, kind)
         );
 
 CREATE TABLE "user_layouts" (

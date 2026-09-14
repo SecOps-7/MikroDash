@@ -32,9 +32,14 @@
   border-radius:0 0 10px 10px;background:
     radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent-rx) 6%,transparent),transparent 62%),
     var(--bg-deep)}
-#topoSvg{width:100%;height:100%;display:block;cursor:grab;touch-action:none;
+/* BY THE STAGE, NOT BY THE ID. This was `#topoSvg`, so the Wi-Fi map's canvas —
+   which shares the stage and everything else in this file — had no size at all
+   and fell back to the SVG default of 300x150. Most of the page looked like a
+   stage and was not one: clicks landed on the div behind it, so the drawing
+   tools did nothing. */
+.topo-stage > svg{width:100%;height:100%;display:block;cursor:grab;touch-action:none;
   -webkit-user-select:none;user-select:none}
-#topoSvg.is-panning{cursor:grabbing}
+.topo-stage > svg.is-panning{cursor:grabbing}
 
 /* ── Edges ───────────────────────────────────────────────────────────────── */
 .topo-edge{fill:none;stroke:var(--border);stroke-width:1.5;stroke-linecap:round}
@@ -112,7 +117,10 @@
 }
 
 /* ── Empty / diagnostic state ────────────────────────────────────────────── */
-.topo-empty{position:absolute;inset:0;display:none;flex-direction:column;gap:.5rem;
+/* A MESSAGE, NOT A CONTROL. Without `pointer-events:none` it covers the whole
+   stage and swallows every click meant for the canvas underneath — which is
+   exactly what stopped the Wi-Fi map's first building from being placed. */
+.topo-empty{position:absolute;inset:0;display:none;pointer-events:none;flex-direction:column;gap:.5rem;
   align-items:center;justify-content:center;text-align:center;padding:1.5rem;
   font-family:var(--font-ui);font-size:.78rem;color:var(--text-muted)}
 .topo-empty.show{display:flex}
@@ -160,3 +168,57 @@ html[data-theme="light"] .topo-stage{
   background:
     radial-gradient(circle at 50% 45%,color-mix(in srgb,var(--accent-rx) 9%,transparent),transparent 62%),
     var(--bg-deep)}
+
+/* ── Wi-Fi map ───────────────────────────────────────────────────────────────
+   The site plan shares this stylesheet because it shares the stage, the toolbar
+   and the detail panel with the topology map — one canvas idiom, not two. Only
+   what is genuinely its own is below. */
+/* No font-size here, and none on the three below: the renderer sets it, because
+   with Fixed size on it is divided by the zoom. A rule here would win over the
+   attribute and freeze every label at one size. See FONT in pages/wifi-map.ts. */
+.wm-obj-label{font-family:var(--font-ui);font-weight:600;pointer-events:none}
+.wm-obj-sub{font-family:var(--font-ui);fill:var(--text-muted);pointer-events:none}
+.wm-obj{cursor:default}
+#page-wifi-map .wm-obj:hover rect:first-child{filter:brightness(1.25)}
+.wm-handle{cursor:nwse-resize}
+.wm-placing{cursor:crosshair}
+.wm-ap{cursor:pointer}
+.wm-ap-label{font-family:var(--font-mono);fill:var(--text-main);
+  text-anchor:middle;pointer-events:none}
+.wm-ap-count{font-family:var(--font-mono);font-weight:700;
+  fill:var(--accent-rx);text-anchor:middle;pointer-events:none}
+/* The anchor is set per label: the placement pass moves a label to whichever
+   side is free, and a stylesheet forcing `middle` would win over it. */
+.wm-client-label{font-family:var(--font-mono);fill:var(--text-muted);
+  pointer-events:none}
+/* The panel's own controls. The dialog's `sform-input` is reused so a field on
+   the map looks like a field anywhere else. */
+.wm-panel-title{font-family:var(--font-ui);font-weight:600;font-size:.82rem;color:var(--text-main)}
+.wm-panel-sub{font-family:var(--font-mono);font-size:.7rem;color:var(--accent-rx);word-break:break-all}
+.wm-panel-note{font-size:.68rem;color:var(--text-muted);line-height:1.45}
+.wm-panel-btn{margin-top:.5rem;width:100%}
+.wm-field{display:flex;flex-direction:column;gap:.2rem}
+.wm-field-lbl{font-size:.68rem;color:var(--text-muted)}
+.wm-swatches{display:flex;gap:.3rem}
+.wm-swatch{width:1.3rem;height:1.3rem;border-radius:4px;cursor:pointer;
+  border:1px solid var(--border);background:transparent}
+.wm-swatch.is-on{outline:2px solid var(--accent-rx);outline-offset:1px}
+.wm-tray-row{display:flex;align-items:center;gap:.4rem;justify-content:space-between;
+  padding:.22rem 0;border-bottom:1px solid var(--border)}
+.wm-tray-name{font-family:var(--font-mono);font-size:.7rem;color:var(--text-main);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wm-tray-row.is-on .wm-tray-name{color:var(--text-muted)}
+.wm-tray-note{font-size:.62rem;color:var(--text-muted);flex-shrink:0}
+.wm-save.is-dirty{border-color:var(--accent-rx);color:var(--accent-rx)}
+
+/* The cabling picker in the detail panel. A pinned link is the operator's, and
+   the map draws it differently from one this app inferred. */
+.topo-pin{display:flex;flex-direction:column;gap:.35rem}
+.topo-pin-note{font-size:.66rem;color:var(--text-muted);line-height:1.45}
+.topo-edge.is-pinned{stroke:var(--accent-warn);stroke-width:2;stroke-dasharray:none}
+/* One click for what a dumb switch costs: every device on one port, declared
+   behind the box that is actually on it. */
+.topo-pin-port{width:100%;margin-top:.45rem;font-size:.66rem;line-height:1.3;
+  white-space:normal;text-align:left}
+.wm-measure-label{font-family:var(--font-mono);font-size:10px;fill:var(--accent-warn);
+  text-anchor:middle;pointer-events:none}

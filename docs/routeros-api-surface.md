@@ -4,13 +4,19 @@
 with the port-parity harness on 2026-09-01. This file is now maintained BY HAND from
 the RouterOS documentation; see the mikrotik-docs skill.**
 
+Rows added by hand cite the Go file that declares the command, not the deleted
+Node one. The nine `/caps-man` reads below are the legacy CAPsMAN tree, added on
+2026-09-13 — its property names are the half MikroTik's documentation does not
+enumerate, so the three status menus are read whole and the profile menus carry
+proplists checked against a live manager's own export.
+
 Every RouterOS command MikroDash issues, derived from the source. This is the input list
 for the fixture capture (plan A1), the specification for the Go client, and the checklist
 for what a ported collector has to cover.
 
 | Kind | Count |
 |---|---|
-| read | 66 |
+| read | 75 |
 | stream | 16 |
 | write | 11 |
 | action | 11 |
@@ -21,7 +27,16 @@ for what a ported collector has to cover.
 
 | Command | Used by |
 |---|---|
-| `/caps-man/registration-table/print` | src/collectors/wireless.js |
+| `/caps-man/channel/print` | internal/collect/capsman.go, wifi.go, wireless.go |
+| `/caps-man/configuration/print` | internal/collect/capsman.go, wifi.go, wireless.go |
+| `/caps-man/datapath/print` | internal/collect/capsman.go, wifi.go |
+| `/caps-man/interface/print` | internal/collect/capsman.go, wifi.go, wireless.go |
+| `/caps-man/manager/print` | internal/collect/capsman.go |
+| `/caps-man/provisioning/print` | internal/collect/capsman.go |
+| `/caps-man/radio/print` | internal/collect/capsman.go |
+| `/caps-man/registration-table/print` | internal/collect/capsman.go, wifi.go, wireless.go |
+| `/caps-man/remote-cap/print` | internal/collect/capsman.go |
+| `/caps-man/security/print` | internal/collect/capsman.go, wifi.go |
 | `/file/print` | src/backups/runner.js |
 | `/interface/bridge/host/print` | src/collectors/bridges.js, src/collectors/topology.js |
 | `/interface/bridge/port/print` | src/collectors/bridges.js, src/collectors/vlans.js |

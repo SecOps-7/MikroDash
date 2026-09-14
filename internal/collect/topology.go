@@ -26,6 +26,7 @@ import (
 
 	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
+	"mikrodash/internal/sitedoc"
 )
 
 // TopoNode is one node of the graph — a device, a client, or this router.
@@ -47,6 +48,9 @@ type TopoEdge struct {
 	RemoteIface string `json:"remoteIface"`
 	Shared      bool   `json:"shared"`
 	Inferred    bool   `json:"inferred"`
+	// Pinned is an edge the operator declared. See TopologyLinks in
+	// internal/sitedoc, and `resolveParents` for what a pin overrides.
+	Pinned bool `json:"pinned"`
 	// Only a CLIENT edge carries this key at all: the live payload omits it on
 	// infrastructure edges rather than sending false, and the page tests for
 	// presence.
@@ -380,7 +384,11 @@ type TopoNeighbor struct {
 	Status      string   `json:"status"`
 	Port        string   `json:"port"`
 	Parent      *string  `json:"parent"`
-	ClientCount int      `json:"clientCount"`
+	// Pinned marks a parent the OPERATOR declared rather than one this app
+	// inferred. The two are drawn differently, and they should be: an inference
+	// is a guess and a pin is somebody's knowledge.
+	Pinned      bool `json:"pinned"`
+	ClientCount int  `json:"clientCount"`
 }
 
 // TopoClient is one MAC from the bridge table that is not already a node.
@@ -455,11 +463,14 @@ type TopologyPayload struct {
 	PermissionDenied bool           `json:"permissionDenied"`
 	PingDenied       bool           `json:"pingDenied"`
 	NeighborCount    int            `json:"neighborCount"`
-	Vlans            []TopoVlan     `json:"vlans"`
-	ClientCount      int            `json:"clientCount"`
-	ClientsTruncated int            `json:"clientsTruncated"`
-	Nodes            []any          `json:"nodes"`
-	Edges            []TopoEdge     `json:"edges"`
+	// PinsEnabled is the operator's switch, so the page can say whether the
+	// links it is drawing are being overridden at all.
+	PinsEnabled      bool       `json:"pinsEnabled"`
+	Vlans            []TopoVlan `json:"vlans"`
+	ClientCount      int        `json:"clientCount"`
+	ClientsTruncated int        `json:"clientsTruncated"`
+	Nodes            []any      `json:"nodes"`
+	Edges            []TopoEdge `json:"edges"`
 }
 
 // TopoAssoc is one wireless registration.
@@ -495,6 +506,10 @@ type TopoInput struct {
 	ShowClients bool
 	Discovery   *TopoDiscovery
 	PingDenied  bool
+	// Pins is the operator's own cabling: child node key -> the key it hangs
+	// off, or "core". Empty when nothing is declared or the switch is off, and
+	// empty means every parent is inferred exactly as before.
+	Pins map[string]string
 
 	// Seen and Ping are CARRIED ACROSS BUILDS and are read-write. They are the
 	// only state the graph keeps: which devices have been here and how each
@@ -573,6 +588,76 @@ func pickIfaces(raw string, bridges map[string]bool) []string {
 
 var bridgeNameRe = regexp.MustCompile(`(?i)^(bridge|br[-_])`)
 
+// newTopoNeighbor projects one `/ip/neighbor` row into a node.
+//
+// ── SHARED WITH THE FLEET ENDPOINT ────────────────────────────────────────
+//
+// `/api/topology/peers` asks the same question of ANOTHER router, and the nodes
+// a peer contributes are merged into the same graph. They have to be the same
+// shape and carry the same classification, or the map would render two kinds of
+// neighbour and the device type would depend on which router happened to see it.
+func newTopoNeighbor(r routeros.Reply, key, mac, arpIP string, ifaces []string,
+	now int64) *TopoNeighbor {
+
+	cls := classifyDevice(r)
+	ip := firstNonEmptyStr(r["address"], r["address4"], arpIP)
+	name := firstNonEmptyStr(r["identity"], r["board"], mac, ip, key)
+	return &TopoNeighbor{
+		Key: key, Kind: "neighbor", Name: name,
+		Identity: r["identity"], MAC: mac, IP: ip, IP6: r["address6"],
+		Type: cls.Type, TypeSource: cls.Source,
+		Caps: splitList(r["system-caps"]), CapsEnabled: splitList(r["system-caps-enabled"]),
+		Platform: r["platform"], Board: r["board"], Version: r["version"],
+		SoftwareID: r["software-id"], Description: r["system-description"],
+		Uptime: r["uptime"], AgeSec: parseAgeSec(r["age"]),
+		Via: splitList(r["discovered-by"]), Running: splitList(r["running"]),
+		Ifaces: ifaces, RemoteIface: r["interface-name"],
+		IPv6:      r["ipv6"] == "true",
+		Gone:      false,
+		FirstSeen: now, LastSeen: now,
+		Status: "unknown",
+	}
+}
+
+// PeerNeighbors is what another router can see, as nodes.
+//
+// NO ARP AND NO BRIDGE TABLE, because those belong to the router being read and
+// this is called from an endpoint that takes one hold, reads and gives it back.
+// An address the peer's neighbour table does not carry is simply absent, which
+// is the honest answer rather than this router's ARP for somebody else's segment.
+func PeerNeighbors(rows []routeros.Reply, now int64) []TopoNeighbor {
+	out := make([]TopoNeighbor, 0, len(rows))
+	seen := map[string]int{}
+	for _, r := range rows {
+		mac := strings.ToUpper(strings.TrimSpace(r["mac-address"]))
+		if mac == "" {
+			continue
+		}
+		ifaces := pickIfaces(r["interface"], nil)
+		// A device heard on several of the peer's interfaces is still one device,
+		// and WHICH interfaces is the whole point here: it is what says whether
+		// the device is behind the peer or beside it.
+		if at, ok := seen[mac]; ok {
+			for _, i := range ifaces {
+				if !containsString(out[at].Ifaces, i) {
+					out[at].Ifaces = append(out[at].Ifaces, i)
+				}
+			}
+			continue
+		}
+		seen[mac] = len(out)
+		out = append(out, *newTopoNeighbor(r, mac, mac, "", ifaces, now))
+	}
+	return out
+}
+
+// NeighborCmd and PeerIfaceCmd are what the fleet endpoint reads. Exported
+// beside the collector that owns the menu rather than restated at the route, so
+// `docs/routeros-api-surface.md` still describes one list.
+func NeighborCmd() routeros.Cmd { return topoNeighborCmd }
+
+func PeerIfaceCmd() routeros.Cmd { return topoPeerIfaceCmd }
+
 // BuildTopology is the whole graph, pure.
 //
 // ORDER IS PART OF THE CONTRACT. Nodes come out core-first, then neighbours in
@@ -613,7 +698,6 @@ func BuildTopology(in TopoInput) *TopologyPayload {
 			continue
 		}
 
-		cls := classifyDevice(r)
 		// The neighbour table does not always carry an address — MNDP rows often
 		// have none — so ARP is the fallback. Without it a device is on the map
 		// with no way to ping it, which also costs it its status.
@@ -621,24 +705,7 @@ func BuildTopology(in TopoInput) *TopologyPayload {
 		if in.ARPIP != nil {
 			arpIP = in.ARPIP(mac)
 		}
-		ip := firstNonEmptyStr(r["address"], r["address4"], arpIP)
-		name := firstNonEmptyStr(r["identity"], r["board"], mac, ip, key)
-
-		byKey[key] = &TopoNeighbor{
-			Key: key, Kind: "neighbor", Name: name,
-			Identity: r["identity"], MAC: mac, IP: ip, IP6: r["address6"],
-			Type: cls.Type, TypeSource: cls.Source,
-			Caps: splitList(r["system-caps"]), CapsEnabled: splitList(r["system-caps-enabled"]),
-			Platform: r["platform"], Board: r["board"], Version: r["version"],
-			SoftwareID: r["software-id"], Description: r["system-description"],
-			Uptime: r["uptime"], AgeSec: parseAgeSec(r["age"]),
-			Via: splitList(r["discovered-by"]), Running: splitList(r["running"]),
-			Ifaces: ifaces, RemoteIface: r["interface-name"],
-			IPv6:      r["ipv6"] == "true",
-			Gone:      false,
-			FirstSeen: now, LastSeen: now,
-			Status: "unknown",
-		}
+		byKey[key] = newTopoNeighbor(r, key, mac, arpIP, ifaces, now)
 		order = append(order, key)
 	}
 
@@ -690,7 +757,7 @@ func BuildTopology(in TopoInput) *TopologyPayload {
 	//
 	// Client attribution reads `port` to find the switch fronting a cable, so
 	// this cannot be deferred.
-	resolveParents(byKey, order, in.Hosts)
+	resolveParents(byKey, order, in.Hosts, in.Pins)
 
 	for _, key := range order {
 		n := byKey[key]
@@ -787,7 +854,11 @@ func BuildTopology(in TopoInput) *TopologyPayload {
 				edges = append(edges, TopoEdge{
 					ID: *n.Parent + ">" + n.Key, From: *n.Parent, To: n.Key,
 					ViaPort: n.Port, RemoteIface: n.RemoteIface,
-					Inferred: true, Gone: n.Gone,
+					// A PIN IS NOT AN INFERENCE. Both draw a link the router did
+					// not report, and the page colours them differently because
+					// one is this app's guess and the other is somebody's
+					// knowledge.
+					Inferred: !n.Pinned, Pinned: n.Pinned, Gone: n.Gone,
 				})
 				continue
 			}
@@ -814,7 +885,8 @@ func BuildTopology(in TopoInput) *TopologyPayload {
 			edges = append(edges, TopoEdge{
 				ID: i + "|" + n.Key, From: "core", To: n.Key, Iface: i,
 				ViaPort: n.Port, RemoteIface: n.RemoteIface,
-				Shared: perPort[shared] > 1, Inferred: false, Gone: n.Gone,
+				Shared: perPort[shared] > 1, Inferred: false,
+				Pinned: n.Pinned, Gone: n.Gone,
 			})
 		}
 	}
@@ -875,7 +947,8 @@ var nonAlnum = regexp.MustCompile(`[^A-Za-z0-9]`)
 // With NO LLDP device on the port there is nothing to attribute the others to —
 // an unmanaged switch is invisible by definition — so they stay on the core and
 // the port is flagged `shared` rather than inventing a hierarchy.
-func resolveParents(byKey map[string]*TopoNeighbor, order []string, hosts []hostEntry) {
+func resolveParents(byKey map[string]*TopoNeighbor, order []string, hosts []hostEntry,
+	pins map[string]string) {
 	// The bridge host table wins over the arrival interface: /ip/neighbor reports
 	// the interface a frame arrived on, which for a tagged device is the VLAN,
 	// and two devices on one cable would then never be grouped.
@@ -938,6 +1011,47 @@ func resolveParents(byKey map[string]*TopoNeighbor, order []string, hosts []host
 		}
 	}
 
+	// ── THE OPERATOR'S OWN CABLING, OVER THE INFERENCE ────────────────────
+	//
+	// Applied HERE rather than after this function returns, so the cycle check
+	// below covers pins as well as inferences. A pin is typed by a person into a
+	// picker, which is exactly the input that can name a loop.
+	//
+	// WHY PINNING IS NEEDED AT ALL, and it is not a shortcoming of the rule
+	// above: LLDP is what makes a neighbour provably DIRECT, and a device that
+	// forwards no LLDP is invisible to it. A SwOS switch is the ordinary case —
+	// everything behind one arrives on the port the switch is plugged into and
+	// looks directly attached, and nothing the manager can read says otherwise.
+	// The only sources that could settle it are the neighbour tables of the
+	// devices in between, which means adding them to MikroDash; until then this
+	// is the operator writing down what they can see with their eyes.
+	//
+	// "core" MEANS "NO PARENT", because that is how the graph already says it:
+	// a node with no parent hangs off the core. So a pin to the core is the
+	// useful opposite of a pin — it overrules an inference that put a device
+	// behind something it is not behind.
+	for child, parent := range pins {
+		n, ok := byKey[child]
+		if !ok {
+			continue
+		}
+		if parent == "core" {
+			n.Parent = nil
+			n.Pinned = true
+			continue
+		}
+		if _, ok := byKey[parent]; !ok {
+			// A pin naming a device that is not on the graph right now is kept in
+			// the document and ignored here: the device may come back, and
+			// dropping the pin would lose what somebody wrote down because a
+			// switch was briefly off.
+			continue
+		}
+		p := parent
+		n.Parent = &p
+		n.Pinned = true
+	}
+
 	// A device cannot be its own ancestor. Not reachable from the rule above, but
 	// a stale retained node could carry an old parent, so verify rather than
 	// trust.
@@ -948,6 +1062,7 @@ func resolveParents(byKey map[string]*TopoNeighbor, order []string, hosts []host
 		for p != nil {
 			if seen[*p] {
 				n.Parent = nil
+				n.Pinned = false
 				break
 			}
 			seen[*p] = true
@@ -960,6 +1075,7 @@ func resolveParents(byKey map[string]*TopoNeighbor, order []string, hosts []host
 		if n.Parent != nil {
 			if _, ok := byKey[*n.Parent]; !ok {
 				n.Parent = nil
+				n.Pinned = false
 			}
 		}
 	}
@@ -1196,6 +1312,11 @@ func firstNonEmptyStr(vals ...string) string {
 
 var (
 	topoNeighborCmd = routeros.Cmd{Path: "/ip/neighbor/print"}
+	// The peer's OWN addresses, so the merge can tell which node on the graph it
+	// already is. Every MAC, because a router is discovered by whichever port
+	// faces the discoverer.
+	topoPeerIfaceCmd = routeros.Cmd{Path: "/interface/print",
+		Args: []string{"=.proplist=name,mac-address"}}
 	topoSettingsCmd = routeros.Cmd{Path: "/ip/neighbor/discovery-settings/print"}
 	// THE ROUTER-SIDE FILTER WAS TRADED AWAY FOR A SHARED READ (operator's call,
 	// 2026-09-08). This asked the router for non-local hosts only; `bridges` asks
@@ -1236,6 +1357,12 @@ type Topology struct {
 	mu        sync.Mutex
 	last      *TopologyPayload
 	discovery *TopoDiscovery
+	// docs reads the operator's declared cabling. Nil outside a live session.
+	docs DocSource
+	// v1Absent latches "this router has no /caps-man tree", so a modern-only
+	// board is asked once rather than four times every poll.
+	v1Absent bool
+
 	vlanNames map[int]string
 	seen      map[string]*TopoSeen
 	ping      map[string]*TopoPing
@@ -1295,6 +1422,28 @@ func NewTopology(ros Reader, emit Emit, rates RateSource, routerID, label string
 		menu: topoNeighborCmd.Path, fields: fieldsOf(topoNeighborCmd), apply: t.apply,
 		cadence: t.pollMs.duration}
 	return t
+}
+
+// WithDocs attaches the operator's own cabling. Set once, before Start; nil
+// leaves every parent inferred, which is what this graph did before pins existed.
+func (t *Topology) WithDocs(d DocSource) *Topology {
+	t.docs = d
+	return t
+}
+
+// pins is the declared cabling as of now, or nil when the switch is off.
+//
+// READ PER BUILD rather than cached on a slow lane, and the reason is the
+// cadence: this collector polls every 30 s and `republish` rebuilds between
+// ticks, so a cached copy would make a pin take up to half a minute to appear
+// after somebody saved it. One SQLite point read per build is nothing beside the
+// five router commands a build already costs.
+func (t *Topology) pins() (map[string]string, bool) {
+	doc := sitedoc.CleanTopologyLinks(t.docs.Doc(sitedoc.KindTopologyLinks))
+	if !doc.Enabled {
+		return nil, false
+	}
+	return doc.Parents, true
 }
 
 // WithSources attaches the optional joins: DHCP leases name the clients, and the
@@ -1520,6 +1669,9 @@ func (t *Topology) Reconnected() {
 	t.seen = map[string]*TopoSeen{}
 	t.ping = map[string]*TopoPing{}
 	t.pingDenied = false
+	// The usual reason a connection dropped is an upgrade, and the router that
+	// came back may have gained the package this latch says it does not have.
+	t.v1Absent = false
 	t.mu.Unlock()
 	if !t.sched.scheduling() {
 		t.Tick()
@@ -1628,7 +1780,10 @@ func (t *Topology) apply(rows []routeros.Reply, err error) {
 		Seen: seen, Ping: ping,
 		LeaseName: t.leaseName, Core: t.coreInfo(), ARPIP: t.arpIP,
 	}
+	pinned, pinsOn := t.pins()
+	in.Pins = pinned
 	payload := BuildTopology(in)
+	payload.PinsEnabled = pinsOn
 
 	// KEPT SO THE PING LOOP CAN REBUILD WITHOUT ASKING THE ROUTER AGAIN.
 	// `BuildTopology` is pure, and `rows`, `hosts` and the wifi tables above are
@@ -1694,9 +1849,15 @@ func (t *Topology) republish() {
 	in.Core = t.coreInfo()
 	in.Bridges = t.bridgeNames()
 	in.PollMs = t.pollMs.ms()
+	// RE-READ HERE TOO, and that is what makes a pin appear at once: this path
+	// runs between structure polls, so a rebuild that carried the pins forward
+	// from the last Tick would hold a save back for up to the poll interval.
+	pinned, pinsOn := t.pins()
+	in.Pins = pinned
 
 	payload := BuildTopology(in)
 	payload.RouterID = t.routerID
+	payload.PinsEnabled = pinsOn
 
 	t.mu.Lock()
 	t.last = payload
@@ -1833,7 +1994,91 @@ func (t *Topology) readWifi() (map[string]string, map[string]string, map[string]
 			Uptime: w["uptime"],
 		}
 	}
+
+	t.readLegacyCapsWifi(ifaceRadio, capByPrefix, assoc)
 	return ifaceRadio, capByPrefix, assoc
+}
+
+// readLegacyCapsWifi folds the `/caps-man` tree into the same three joins.
+//
+// ── WHY IT IS A SEPARATE READ AND NOT A THIRD BRANCH ────────────────────────
+//
+// The modern and legacy LOCAL stacks are alternatives — a router has one — so
+// `readWifi` picks between them. `/caps-man` is neither: it runs ALONGSIDE
+// whichever one the manager itself has, and its interfaces appear in no local
+// wireless menu at all. So this adds to the maps rather than choosing.
+//
+// ── WHAT IT FIXES ──────────────────────────────────────────────────────────
+//
+// Without it a client on a legacy CAP has no radio, so `buildTopoClients`
+// attributes it to the router: the graph drew every one of them hanging off the
+// core with `attrib=direct`, labelled "wired client", while the same clients on
+// a wifi-qcom CAP hung off their access point correctly. Reported on a manager
+// running both trees.
+//
+// LATCHED, so a router with no legacy package is asked once. BEST EFFORT
+// throughout, like the rest of readWifi: a refused menu costs the attribution,
+// never the graph.
+func (t *Topology) readLegacyCapsWifi(ifaceRadio, capByPrefix map[string]string,
+	assoc map[string]TopoAssoc) {
+
+	if t.v1Absent {
+		return
+	}
+	ifaces, err := readVia(t.cache, t.ros, capsV1IfaceCmd, t.pollMs.duration())
+	if err != nil {
+		if isAbsentMenu(err) {
+			t.v1Absent = true
+		}
+		return
+	}
+	byName := map[string]routeros.Reply{}
+	for _, i := range ifaces {
+		if n := strings.TrimSpace(i["name"]); n != "" {
+			byName[n] = i
+		}
+	}
+	// A SLAVE'S OWN radio-mac IS NOT A RADIO — it is the master's with the
+	// locally-administered bit set — so the root of the master chain is what
+	// carries the one that matches `/caps-man/radio`. See capsV1Root.
+	for name, row := range byName {
+		if root := capsV1Root(byName, row); root != nil {
+			if mac := strings.ToUpper(root["radio-mac"]); mac != "" {
+				ifaceRadio[name] = mac
+			}
+		}
+	}
+
+	// The CAP behind each radio, by the same five-octet rule the modern path
+	// uses: a CAP's radios sit just above its base MAC.
+	if remote, rerr := t.ros.Do(capsV1RemoteCmd); rerr == nil {
+		for _, c := range remote {
+			base := strings.ToUpper(firstNonEmptyStr(c["base-mac"], c["mac-address"]))
+			if base != "" {
+				capByPrefix[topoMacPrefix(base)] = base
+			}
+		}
+	}
+
+	if reg, rerr := readVia(t.cache, t.ros, capsV1RegCmd, t.pollMs.duration()); rerr == nil {
+		for _, w := range reg {
+			mac := strings.ToUpper(w["mac-address"])
+			if mac == "" {
+				continue
+			}
+			// NOT OVERWRITTEN. A client associated to a LOCAL radio is already in
+			// here from the read above, and the local reading is the one about
+			// the router this graph is of.
+			if _, seen := assoc[mac]; seen {
+				continue
+			}
+			assoc[mac] = TopoAssoc{
+				Iface: w["interface"], SSID: w["ssid"],
+				Signal: firstNonEmptyStr(w["rx-signal"], w["signal"]),
+				Uptime: w["uptime"],
+			}
+		}
+	}
 }
 
 // readDiscovery and readVlans change only when the operator edits the config, so

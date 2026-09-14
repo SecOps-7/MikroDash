@@ -30,6 +30,16 @@ var (
 			"forward-to,text,mx-exchange,ns,srv-target"}}
 )
 
+// DNSStaticCmd is the static-entry read, for the ONE caller outside this
+// collector.
+//
+// `internal/server`'s fleet comparison reads the same menu on several routers at
+// once — a question no session can answer, because a session is one router. It
+// takes the command from here rather than writing its own, so the proplist has
+// one home: a second declaration would drift, and the divergence would show up
+// as a column that is blank on the comparison and filled on the page.
+func DNSStaticCmd() routeros.Cmd { return dnsStaticCmd }
+
 // Static entries are configuration: they change when somebody edits the router,
 // not every tick. The settings row is read every tick because cache-used is live.
 const dnsConfigEvery = 12

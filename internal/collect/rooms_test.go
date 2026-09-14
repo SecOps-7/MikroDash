@@ -108,7 +108,10 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 		{"vpn", []string{"page-vpn", "dash-card-vpn"}},
 		{"routing", []string{"page-routing", "page-dashboard"}},
 		{"dhcpNetworks", []string{"page-dhcp", "dash-card-network"}},
-		{"wireless", []string{"page-wifi-clients", "dash-card-wireless"}},
+		// `page-wifi-map` has been in the audience since the map page landed: it
+		// draws live clients around pinned access points, so the collector has
+		// to keep running for a viewer who is only on that page.
+		{"wireless", []string{"page-wifi-clients", "page-wifi-map", "dash-card-wireless"}},
 		// `page-bandwidth` was a `keepAliveFor` entry on `conns` until
 		// 2026-09-09: `bandwidth` read the connection table `conns` deposited in
 		// `ConnTable`, so suspending `conns` starved a page it never emits to.
@@ -138,7 +141,7 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 		{"dhcpLeases", []string{
 			"page-dhcp", "dash-card-network",
 			"page-connections", "dash-card-connections",
-			"page-wifi-clients", "dash-card-wireless",
+			"page-wifi-clients", "page-wifi-map", "dash-card-wireless",
 			"page-network-topology",
 			"page-bandwidth", "dash-card-bandwidth",
 		}},

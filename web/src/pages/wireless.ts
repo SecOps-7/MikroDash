@@ -12,8 +12,8 @@
 // comparison. Two copies would mean one network wearing two colours depending on
 // which page you were looking at.
 
-import { esc, el, bandBadge, standardBadge, ssidColours, installWifiGlobals,
-  renderSortHeader, type SortState } from '../dom';
+import { esc, el, bandBadge, standardBadge, bandRank, ssidColours, installWifiGlobals,
+  renderSortHeader, lsGet, lsSet, type SortState } from '../dom';
 import type { Socket } from '../socket';
 import { initFrequencyAnalyser } from './wireless-fa';
 import type { WirelessClient, WirelessPayload } from '../gen/payloads';
@@ -82,29 +82,40 @@ function uptimeToSecs(u: string): number {
   return total;
 }
 
-type CmpKey = 'name' | 'signal' | 'txRate' | 'uptime' | 'band' | 'standard';
+type CmpKey = 'name' | 'signal' | 'txRate' | 'uptime' | 'band' | 'standard' | 'ip';
 
 /**
- * Band and Standard sort by RANK, never alphabetically.
+ * An address as a sortable number.
  *
- * Both happen to come out right as strings today — "2.4GHz" < "5GHz" < "6GHz",
- * and "Legacy" < "Wi-Fi 4" < … < "Wi-Fi 6E" < "Wi-Fi 7" — and both are right by
- * LUCK rather than by construction. A 6 GHz band written "6E" or a future
- * "Wi-Fi 10" sorts straight to the wrong place, and nothing would fail: the
- * column would simply be ordered wrongly, which is the quietest kind of bug this
- * table could have.
+ * NOT `localeCompare`, which puts 192.168.1.100 before 192.168.1.9 and reads as
+ * a broken sort rather than as a string sort. The four octets pack into one
+ * integer, which is the whole of it.
  *
- * The vocabularies are closed and owned by the collector — `BandLabel` emits
- * exactly three strings and `WifiStandard` exactly six — so ranking them here is
- * reading a fixed list, not guessing at free text.
- *
- * UNKNOWN RANKS LAST ASCENDING. A client with no band (or a CAPsMAN row, which
- * has no generation at all) is not the lowest of anything; it is unknown, and
- * the dash belongs at the end of the natural order rather than in front of
- * 2.4GHz. Descending reverses the whole array, as every other column here does,
- * so it leads on the way back — the same trade `name` and `signal` already make.
+ * ANYTHING THAT IS NOT DOTTED-QUAD SORTS LAST, the same rule Band and Standard
+ * follow: a client ARP has no address for is unknown, not lowest. That covers
+ * IPv6 too — the ARP join this column comes from is v4 — and an IPv6 client
+ * would sit with the addressless rather than being mangled into a number.
  */
-const WL_BAND_RANK: Record<string, number> = { '2.4GHz': 1, '5GHz': 2, '6GHz': 3 };
+function ipRank(ip: string): number {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(String(ip || '').trim());
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  return ((+m[1]! * 256 + +m[2]!) * 256 + +m[3]!) * 256 + +m[4]!;
+}
+
+/**
+ * Standard sorts by GENERATION, never alphabetically — the same rule `bandRank`
+ * states for bands, and for the same reason: "Legacy" < "Wi-Fi 4" < … <
+ * "Wi-Fi 7" is right by luck today and a future "Wi-Fi 10" breaks it silently.
+ * The vocabulary is closed and owned by the collector: `WifiStandard` emits
+ * exactly these six.
+ *
+ * UNKNOWN RANKS LAST ASCENDING. A CAPsMAN row with no generation is unknown
+ * rather than oldest, so the dash belongs at the end of the natural order.
+ * Descending reverses the whole array, as every other column here does, so it
+ * leads on the way back — the same trade `name` and `signal` already make.
+ *
+ * Bands rank in `dom.ts`, because the Wifi Networks table sorts by them too.
+ */
 const WL_STD_RANK: Record<string, number> = {
   'Legacy': 1, 'Wi-Fi 4': 4, 'Wi-Fi 5': 5, 'Wi-Fi 6': 6, 'Wi-Fi 6E': 7, 'Wi-Fi 7': 8,
 };
@@ -119,8 +130,9 @@ const WL_CMP: Record<CmpKey, (a: WirelessClient, b: WirelessClient) => number> =
   signal: (a, b) => (a.signal || 0) - (b.signal || 0),
   txRate: (a, b) => parseTxRateNum(a.txRate) - parseTxRateNum(b.txRate),
   uptime: (a, b) => uptimeToSecs(a.uptime) - uptimeToSecs(b.uptime),
-  band: (a, b) => rankOf(WL_BAND_RANK, a.band) - rankOf(WL_BAND_RANK, b.band),
+  band: (a, b) => bandRank(a.band) - bandRank(b.band),
   standard: (a, b) => rankOf(WL_STD_RANK, a.standard) - rankOf(WL_STD_RANK, b.standard),
+  ip: (a, b) => ipRank(a.ip) - ipRank(b.ip),
 };
 
 // Preserves what the buttons did before headers existed: strongest signal,
@@ -132,6 +144,9 @@ const WL_DEFAULT_DIR: Record<CmpKey, 'asc' | 'desc'> = {
   // generation is to find the clients holding a network back, not to admire the
   // Wi-Fi 7 ones.
   band: 'asc', standard: 'asc',
+  // Ascending, because an address range read low to high is how an operator
+  // looks for a device: .10 before .200.
+  ip: 'asc',
 };
 
 function sortClients(clients: WirelessClient[], key: string, dir: string): WirelessClient[] {
@@ -140,6 +155,33 @@ function sortClients(clients: WirelessClient[], key: string, dir: string): Wirel
   const c = clients.slice().sort(cmp);
   if (dir === 'desc') c.reverse();
   return c;
+}
+
+/**
+ * What this table remembers between visits: whether it groups by access point,
+ * and which groups are folded away.
+ *
+ * `localStorage`, like `nav.ts`'s sidebar state and for the same reason — it is
+ * a per-browser view preference, not configuration, and nothing on the server
+ * has any business holding it. `lsGet`/`lsSet` carry the guards; see dom.ts.
+ */
+const WL_PREFS_KEY = 'mkd_wifi_clients';
+
+interface WlPrefs {
+  grouped: boolean;
+  collapsed: string[];
+}
+
+function loadPrefs(): WlPrefs {
+  const raw = lsGet<Partial<WlPrefs> | null>(WL_PREFS_KEY, null);
+  return {
+    grouped: raw && typeof raw.grouped === 'boolean' ? raw.grouped : true,
+    collapsed: Array.isArray(raw?.collapsed) ? raw.collapsed.map(String) : [],
+  };
+}
+
+function savePrefs(p: WlPrefs): void {
+  lsSet(WL_PREFS_KEY, p);
 }
 
 export function initWirelessPage(socket: Socket, isVisible: (page: string) => boolean): void {
@@ -151,15 +193,78 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
   const wirelessTabBadge = el('wirelessTabBadge');
   let clients: WirelessClient[] = [];
 
+  // GROUPING IS A VIEW, NOT A FILTER. Off, the table is a flat list in sort
+  // order and the Interface column carries what the group header said; on, it is
+  // the same rows under a header per access point, each foldable. Nothing is
+  // hidden either way except by a fold the viewer asked for.
+  const prefs = loadPrefs();
+  let grouped = prefs.grouped;
+  const collapsed = new Set<string>(prefs.collapsed);
+
   // BOTH CONTROLS DRIVE ONE OBJECT, so whichever you use, the other reflects it.
   const sort: SortState = { col: 'signal', dir: WL_DEFAULT_DIR.signal };
 
+  /**
+   * The button bar, showing which column is sorted AND which way.
+   *
+   * The arrow is `data-dir` plus a stylesheet rule rather than appended text,
+   * because the label lives in the markup: writing into `textContent` would mean
+   * remembering what the button said before the first arrow was added, and a
+   * second sync appending to the first one's output is exactly the bug that
+   * makes a header read "Signal ↓↓".
+   */
   function syncSortBtns(): void {
     const wrap = el('wifiSortBtns');
     if (!wrap) return;
     wrap.querySelectorAll('.wl-sort-btn').forEach((b) => {
-      b.classList.toggle('active', (b as HTMLElement).dataset.sort === sort.col);
+      const btn = b as HTMLElement;
+      const on = btn.dataset.sort === sort.col;
+      btn.classList.toggle('active', on);
+      if (on) btn.setAttribute('data-dir', sort.dir); else btn.removeAttribute('data-dir');
     });
+  }
+
+  /** The state of the grouping toggle, on the button that carries it. */
+  function syncGroupBtn(): void {
+    const btn = el('wlGroupBtn');
+    if (!btn) return;
+    btn.classList.toggle('active', grouped);
+    btn.setAttribute('aria-pressed', grouped ? 'true' : 'false');
+    btn.textContent = grouped ? 'Grouped by AP' : 'Flat list';
+  }
+
+  function persist(): void {
+    savePrefs({ grouped, collapsed: [...collapsed] });
+  }
+
+  /** One client row. Identical grouped or flat — the grouping decides what sits
+   *  ABOVE these rows, not what is in them. */
+  function clientRow(c: WirelessClient): string {
+    const sig = parseInt(String(c.signal), 10) || 0;
+    const ipStr = c.ip
+      ? '<div style="font-size:.62rem;color:var(--accent-rx)">' + esc(c.ip) + '</div>' : '';
+    const macStr = '<div style="font-size:.6rem;color:var(--text-muted)">' + esc(c.mac) + '</div>';
+    return '<tr>' +
+      '<td>' +
+        '<div style="font-weight:600;font-size:.78rem">' + esc(c.name || c.mac) + '</div>' +
+        ipStr + macStr +
+      '</td>' +
+      '<td class="wl-col-iface" style="color:var(--text-muted);font-size:.73rem">' +
+        esc(c.iface || '—') + '</td>' +
+      '<td>' + bandBadge(c.band) + '</td>' +
+      '<td>' + standardBadge(c.standard) + '</td>' +
+      '<td class="text-end">' +
+        signalBars(sig) +
+        '<span style="font-size:.68rem;color:var(--text-muted);margin-left:.3rem">' + sig + ' dBm</span>' +
+        '<div style="font-size:.62rem;margin-top:.1rem">' + sigQuality(sig) + '</div>' +
+      '</td>' +
+      '<td>' +
+        '<div class="wl-rate">' + esc(parseTxRate(c.txRate)) + '</div>' +
+        (c.rxRate ? '<div class="wl-rate-rx">↑ ' + esc(parseTxRate(c.rxRate)) + '</div>' : '') +
+      '</td>' +
+      '<td class="wl-col-uptime" style="color:var(--text-muted);font-size:.73rem">' +
+        esc(c.uptime || '—') + '</td>' +
+    '</tr>';
   }
 
   function renderWireless(): void {
@@ -195,6 +300,11 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
       return;
     }
 
+    if (!grouped) {
+      wirelessTable.innerHTML = rows.map(clientRow).join('');
+      return;
+    }
+
     // Grouped by interface, in the order the sorted list first mentions each.
     const groups: Record<string, { iface: string; ssid: string; clients: WirelessClient[] }> = {};
     const order: string[] = [];
@@ -204,50 +314,52 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
       groups[key]!.clients.push(c);
     });
 
+    // A single group is not a grouping — the header would just repeat the
+    // interface column on every row, and there is nothing to fold it away from.
+    const headers = order.length > 1;
+    // Button id -> the interface it folds, and the state folding it MOVES TO.
+    //
+    // A real <button> rather than a click handler on the <tr>, because it is the
+    // only control in this table and it should be reachable by keyboard; the id
+    // is what lets the handler be attached after the markup is written.
+    //
+    // A TARGET RATHER THAN A FLIP. The button already states which way it goes,
+    // in `aria-expanded`, and a handler that inverted whatever it found could
+    // disagree with what the row it was rendered into says.
+    const byBtn: Record<string, { key: string; shut: boolean }> = {};
+
     let html = '';
-    order.forEach((key) => {
+    order.forEach((key, i) => {
       const g = groups[key]!;
-      // A single group is not a grouping — the header would just repeat the
-      // interface column on every row.
-      if (order.length > 1) {
+      const shut = headers && collapsed.has(key);
+      if (headers) {
+        const btnId = 'wlGrp' + String(i);
+        byBtn[btnId] = { key, shut: !shut };
         const isCapsman = g.clients.some((c) => c.source === 'capsman');
         html += '<tr class="wl-group-row"><td colspan="7">' +
-          '<span class="wl-group-label">' + esc(g.iface) + '</span>' +
-          (isCapsman ? '<span class="badge badge-outline-azure ms-1" style="font-size:.6rem">CAP</span>' : '') +
-          (g.ssid ? '<span class="wl-group-sub">' + esc(g.ssid) + '</span>' : '') +
-          '<span class="wl-group-sub">' + g.clients.length + ' client' +
-            (g.clients.length !== 1 ? 's' : '') + '</span>' +
+          '<button type="button" class="wl-group-toggle" id="' + btnId + '"' +
+            ' aria-expanded="' + (shut ? 'false' : 'true') + '">' +
+            '<span class="wl-group-caret">' + (shut ? '&#9656;' : '&#9662;') + '</span>' +
+            '<span class="wl-group-label">' + esc(g.iface) + '</span>' +
+            (isCapsman ? '<span class="badge badge-outline-azure ms-1" style="font-size:.6rem">CAP</span>' : '') +
+            (g.ssid ? '<span class="wl-group-sub">' + esc(g.ssid) + '</span>' : '') +
+            '<span class="wl-group-sub">' + g.clients.length + ' client' +
+              (g.clients.length !== 1 ? 's' : '') + '</span>' +
+          '</button>' +
         '</td></tr>';
       }
-      g.clients.forEach((c) => {
-        const sig = parseInt(String(c.signal), 10) || 0;
-        const ipStr = c.ip
-          ? '<div style="font-size:.62rem;color:var(--accent-rx)">' + esc(c.ip) + '</div>' : '';
-        const macStr = '<div style="font-size:.6rem;color:var(--text-muted)">' + esc(c.mac) + '</div>';
-        html += '<tr>' +
-          '<td>' +
-            '<div style="font-weight:600;font-size:.78rem">' + esc(c.name || c.mac) + '</div>' +
-            ipStr + macStr +
-          '</td>' +
-          '<td class="wl-col-iface" style="color:var(--text-muted);font-size:.73rem">' +
-            esc(c.iface || '—') + '</td>' +
-          '<td>' + bandBadge(c.band) + '</td>' +
-          '<td>' + standardBadge(c.standard) + '</td>' +
-          '<td class="text-end">' +
-            signalBars(sig) +
-            '<span style="font-size:.68rem;color:var(--text-muted);margin-left:.3rem">' + sig + ' dBm</span>' +
-            '<div style="font-size:.62rem;margin-top:.1rem">' + sigQuality(sig) + '</div>' +
-          '</td>' +
-          '<td>' +
-            '<div class="wl-rate">' + esc(parseTxRate(c.txRate)) + '</div>' +
-            (c.rxRate ? '<div class="wl-rate-rx">↑ ' + esc(parseTxRate(c.rxRate)) + '</div>' : '') +
-          '</td>' +
-          '<td class="wl-col-uptime" style="color:var(--text-muted);font-size:.73rem">' +
-            esc(c.uptime || '—') + '</td>' +
-        '</tr>';
-      });
+      if (!shut) html += g.clients.map(clientRow).join('');
     });
     wirelessTable.innerHTML = html;
+
+    Object.keys(byBtn).forEach((id) => {
+      el(id)?.addEventListener('click', () => {
+        const want = byBtn[id]!;
+        if (want.shut) collapsed.add(want.key); else collapsed.delete(want.key);
+        persist();
+        renderWireless();
+      });
+    });
   }
 
   /**
@@ -357,14 +469,37 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
   // A button press picks the column and resets it to that column's NATURAL
   // direction; toggling is the header's job. Both write the same state, so the
   // header indicator follows the button and vice versa.
+  // A SECOND PRESS ON THE SAME BUTTON REVERSES IT, which is what the column
+  // headers have always done — the bar used to reset to the column's natural
+  // direction on every press, so half the orders it can produce were reachable
+  // from the headers and not from the buttons. Pressing a DIFFERENT button still
+  // starts at that column's natural direction, because that is the order somebody
+  // asking for it means the first time.
   el('wifiSortBtns')?.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement | null)?.closest?.('.wl-sort-btn') as HTMLElement | null;
     if (!btn) return;
-    sort.col = btn.dataset.sort || 'signal';
-    sort.dir = WL_DEFAULT_DIR[sort.col as CmpKey] || 'desc';
+    const key = btn.dataset.sort || 'signal';
+    if (sort.col === key) {
+      sort.dir = sort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sort.col = key;
+      sort.dir = WL_DEFAULT_DIR[key as CmpKey] || 'desc';
+    }
     syncSortBtns();
     renderWireless();
   });
+
+  // FOLDS ARE NOT DISCARDED when grouping is switched off and back on: the
+  // viewer folded a noisy access point away, and switching to a flat list to
+  // find one client is not a statement that they want it back.
+  el('wlGroupBtn')?.addEventListener('click', () => {
+    grouped = !grouped;
+    persist();
+    syncGroupBtn();
+    renderWireless();
+  });
+
+  syncGroupBtn();
 
   void isVisible;
 }

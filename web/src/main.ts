@@ -50,6 +50,7 @@ import { initInterfacesPage } from './pages/interfaces';
 import { initLogsPage } from './pages/logs';
 import { initTopologyPage } from './pages/topology';
 import { initWirelessPage } from './pages/wireless';
+import { initWifiMapPage } from './pages/wifi-map';
 import { initNotifications } from './pages/notifications';
 import { initConnectionsPage } from './pages/connections';
 import { initBandwidthPage } from './pages/bandwidth';
@@ -588,6 +589,7 @@ async function main(): Promise<void> {
   initLogsPage(socket, pageVisible);
   initTopologyPage(socket, pageVisible);
   initWirelessPage(socket, pageVisible);
+  initWifiMapPage(socket, pageVisible);
   // The bell is shell chrome rather than a page: it initialises once, and its
   // feed follows the active router the same way every other subscription does.
   initNotifications(socket, () => activeRouterId);

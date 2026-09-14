@@ -223,6 +223,55 @@ export function parseUptime(raw: unknown): string {
   return parts.length ? parts.join(' ') : (s || '—');
 }
 
+// ── SVG, and the browser's own storage ──────────────────────────────────────
+//
+// These were in `pages/topology.ts`, which was their only caller until the Wi-Fi
+// map needed the same four SVG calls and the same try/catch around
+// `localStorage`. Three pages had grown their own copy of the storage pair by
+// then — each with the same comment about private mode — so they moved here
+// rather than becoming a fourth.
+
+export const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** An SVG element with attributes — the one shape an SVG renderer builds
+ *  constantly. */
+export function svgEl(tag: string, attrs?: Record<string, string | number>): SVGElement {
+  const e = document.createElementNS(SVG_NS, tag) as SVGElement;
+  if (attrs) for (const k of Object.keys(attrs)) e.setAttribute(k, String(attrs[k]));
+  return e;
+}
+
+/** Set an attribute only when it CHANGED — a keyed diff's inner loop. */
+export function attr(e: Element | null, k: string, v: string | number): void {
+  if (e && e.getAttribute(k) !== String(v)) e.setAttribute(k, String(v));
+}
+
+export function text(e: Element | null, v: string | number): void {
+  if (e && e.textContent !== String(v)) e.textContent = String(v);
+}
+
+/**
+ * Read a JSON preference out of `localStorage`.
+ *
+ * BOTH HALVES ARE GUARDED, and not out of habit: a browser with site data
+ * blocked THROWS on access rather than returning null, so an unguarded read
+ * takes down whatever was rendering. A corrupt value is the fallback for the
+ * same reason `db.Layout` returns nil on one — a saved preference must not be
+ * able to cost the page that reads it.
+ */
+export function lsGet<T>(key: string, fallback: T): T {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? (JSON.parse(v) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function lsSet(key: string, val: unknown): void {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch { /* private mode */ }
+}
+
 export function fmtMbps(v: number | null | undefined): string {
   const n = Number(v) || 0;
   if (n >= 1000) return (n / 1000).toFixed(2) + ' Gbps';
@@ -244,6 +293,33 @@ export function bandBadge(band: string): string {
   if (!band) return '';
   const cls = band === '5GHz' ? 'wl-band-5' : band === '6GHz' ? 'wl-band-6' : 'wl-band-24';
   return '<span class="wl-band ' + cls + '">' + band + '</span>';
+}
+
+/**
+ * A band's place in the order 2.4 → 5 → 6, for sorting.
+ *
+ * ── NEVER ALPHABETICAL, EVEN THOUGH IT WOULD WORK TODAY ─────────────────────
+ *
+ * "2.4GHz" < "5GHz" < "6GHz" as strings, and that is luck rather than
+ * construction: a band written "6E" sorts straight to the wrong place and
+ * nothing fails — the column is simply ordered wrongly, which is the quietest
+ * kind of bug a table can have. The vocabulary is closed and owned by the
+ * collector (`BandLabel` emits exactly these three), so ranking is reading a
+ * fixed list rather than guessing at free text.
+ *
+ * UNKNOWN RANKS LAST ASCENDING. A row with no band is not the lowest of
+ * anything; it is unknown, and belongs at the end of the natural order.
+ *
+ * Here rather than on either page, because both sort by it and two copies of an
+ * ordering is two chances to disagree about what comes first.
+ */
+export function bandRank(band: string): number {
+  switch (band) {
+    case '2.4GHz': return 1;
+    case '5GHz': return 2;
+    case '6GHz': return 3;
+  }
+  return 999;
 }
 
 /**

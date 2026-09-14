@@ -451,6 +451,13 @@ func (s *Server) routerDelete(w http.ResponseWriter, r *http.Request) {
 		if _, err := s.auditDB.DeleteReportSchedulesForRouter(id); err != nil {
 			log.Printf("[routers] schedules for %s: %v", id, err)
 		}
+		// The site plan, the declared uplinks and the pinned cabling. NOT part of
+		// `DeleteRouterData`: that list is frozen against the live source and
+		// fails in both directions, and these are not time-series rows. Left
+		// behind they would point at an id a later Add Router could reuse.
+		if _, err := s.auditDB.DeleteRouterDocs(id); err != nil {
+			log.Printf("[routers] docs for %s: %v", id, err)
+		}
 	}
 	EvPermsChanged.BroadcastAll(s.hub, map[string]any{})
 

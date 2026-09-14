@@ -353,3 +353,26 @@ type NetworkSource interface {
 type SystemSource interface {
 	Last() *SystemPayload
 }
+
+// DocSource reads one of this router's OPERATOR-OWNED documents — the uplink
+// list, the pinned cabling, the site plan. See internal/sitedoc for what each
+// holds and internal/db/routerdocs.go for where they live.
+//
+// ── A FUNCTION, NOT A DATABASE HANDLE ───────────────────────────────────────
+//
+// A collector has no router id and no `*db.DB`, and giving it either would mean
+// every fixture harness constructing one. `internal/session` binds the id and
+// the store into a closure at build time, exactly as it does for the identity
+// writer. NIL IS THE NORMAL CASE — every test constructs collectors without one
+// — and nil means "the operator has declared nothing", which is a real answer
+// rather than an error.
+type DocSource func(kind string) []byte
+
+// Doc reads a document, or nil. A nil source and an absent document are the same
+// answer on purpose: both mean nothing was declared.
+func (f DocSource) Doc(kind string) []byte {
+	if f == nil {
+		return nil
+	}
+	return f(kind)
+}

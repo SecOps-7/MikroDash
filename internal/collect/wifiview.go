@@ -7,6 +7,10 @@ package collect
 // menus carry genuinely different rows, so there are two builders — but they
 // produce the SAME shape, because the page renders one table.
 //
+// THERE IS A THIRD BUILDER AND IT IS NOT A THIRD STACK. `/caps-man` interfaces
+// are remote CAPs' radios presented on their manager; they appear in neither
+// local menu and are added to whichever one answered, rather than replacing it.
+//
 // ── WHY THIS IS A SEPARATE FILE FROM THE COLLECTOR ──────────────────────────
 //
 // Every function here is pure: rows in, view out, no router and no clock. That
@@ -58,6 +62,17 @@ type WifiNetwork struct {
 	Editable       bool   `json:"editable"`
 	Removable      bool   `json:"removable"`
 	Resource       string `json:"resource"`
+	// AP is the access point this network is broadcast BY, as the manager names
+	// it, or "" when it is this router's own radio.
+	//
+	// ── WHY IT IS NOT THE RADIO ─────────────────────────────────────────────
+	//
+	// `Radio` is the master INTERFACE, which is one radio of one AP: a dual-band
+	// CAP has two, and grouping by it splits an access point in half. This is the
+	// AP, so "show me everything that hAP is broadcasting" is one group. Read
+	// from `cap` on the modern tree and from `/caps-man/radio` on the legacy one
+	// — never from the interface name, which the operator's `name-format` owns.
+	AP string `json:"ap"`
 }
 
 // WifiInherits names the profile each inheritable group currently follows.
@@ -80,7 +95,10 @@ func strOrNil(s string) *string {
 }
 
 type WifiRadio struct {
-	Name           string `json:"name"`
+	Name string `json:"name"`
+	// AP is the access point this radio belongs to, "" for a local one. See
+	// WifiNetwork.AP.
+	AP             string `json:"ap"`
 	DefaultName    string `json:"defaultName"`
 	Mac            string `json:"mac"`
 	Band           string `json:"band"`
@@ -272,6 +290,30 @@ type WifiViewInput struct {
 
 // BuildWifiView builds the modern view.
 func BuildWifiView(in WifiViewInput) ([]WifiNetwork, []WifiRadio) {
+	// Which AP each interface belongs to. A VIRTUAL AP carries no `cap` of its
+	// own — only the master does — so this is the same master chase the CAPsMAN
+	// collector runs for its client join, and for the same reason.
+	ifaceByName := map[string]routeros.Reply{}
+	for _, r := range in.Ifaces {
+		if n := strings.TrimSpace(r["name"]); n != "" {
+			ifaceByName[n] = r
+		}
+	}
+	apOf := func(r routeros.Reply) string {
+		cur := r
+		for depth := 0; cur != nil && cur["cap"] == "" && cur["master-interface"] != "" && depth < masterDepth; depth++ {
+			cur = ifaceByName[cur["master-interface"]]
+		}
+		if cur == nil {
+			return ""
+		}
+		identity, _, _, ok := capField(cur["cap"])
+		if !ok {
+			return ""
+		}
+		return identity
+	}
+
 	byConfigName := namedRows(in.Configs)
 	bySecName := namedRows(in.Security)
 	byChanName := namedRows(in.Channels)
@@ -362,7 +404,7 @@ func BuildWifiView(in WifiViewInput) ([]WifiNetwork, []WifiRadio) {
 		}
 
 		net := WifiNetwork{
-			ID: r[".id"], Name: name, SSID: ssid,
+			ID: r[".id"], Name: name, SSID: ssid, AP: apOf(r),
 			Radio: firstNonEmpty(master, name), Master: master, IsVirtual: isVirtual,
 			Band: bandText, BandRaw: band,
 			Security: SecurityLabel(authTypes), AuthTypes: authTypes,
@@ -390,7 +432,7 @@ func BuildWifiView(in WifiViewInput) ([]WifiNetwork, []WifiRadio) {
 
 		if !isVirtual {
 			radios = append(radios, WifiRadio{
-				Name: name, DefaultName: r["default-name"],
+				Name: name, AP: net.AP, DefaultName: r["default-name"],
 				Mac:  firstNonEmpty(r["radio-mac"], r["mac-address"]),
 				Band: bandText, BandRaw: band, Frequency: freq, ChannelWidth: width,
 				Country:  r["configuration.country"],
@@ -489,6 +531,93 @@ func BuildWirelessView(in WirelessViewInput) ([]WifiNetwork, []WifiRadio, []Wifi
 		})
 	}
 	return networks, radios, secProfiles
+}
+
+// CapsLegacyViewInput is the `/caps-man` tree's five reads, as this page needs
+// them.
+type CapsLegacyViewInput struct {
+	Ifaces, Configs, Security, Channels, Datapaths, Radios, Reg []routeros.Reply
+}
+
+// BuildCapsLegacyNetworks is the Wifi Networks rows for the interfaces a LEGACY
+// CAPsMAN manager provisions.
+//
+// ── WHY THEY BELONG ON THIS PAGE AT ALL ─────────────────────────────────────
+//
+// A `/caps-man` interface is not a radio this router owns — it is a remote CAP's
+// radio, presented on the manager. But it is a network the manager decides the
+// SSID, the band and the encryption of, and it is invisible in both
+// `/interface/wifi` and `/interface/wireless`, so a manager running a dozen of
+// them showed a page listing none. The page is "what is being broadcast", and
+// these are.
+//
+// EVERY ROW IS READ-ONLY, with no `.id` at all. The write path knows the
+// `/interface/wifi` menus; see the note in capsman.go.
+//
+// The security join is v1's own shape: the interface or its configuration names
+// a `/caps-man/security` profile and the profile holds the authentication types.
+// The configuration may also state them inline, which is why both are read.
+func BuildCapsLegacyNetworks(in CapsLegacyViewInput) ([]WifiNetwork, []WifiRadio) {
+	configs := namedRows(in.Configs)
+	security := namedRows(in.Security)
+	datapaths := namedRows(in.Datapaths)
+	bands := CapsLegacyBands(in.Ifaces, in.Configs, in.Channels)
+	aps := CapsLegacyAPs(in.Ifaces, in.Radios)
+	counts := CountByInterface(in.Reg)
+
+	networks := []WifiNetwork{}
+	radios := []WifiRadio{}
+
+	for _, r := range in.Ifaces {
+		name := strings.TrimSpace(r["name"])
+		if name == "" {
+			continue
+		}
+		cfgName := r["configuration"]
+		cfg := configs[cfgName]
+
+		secName := firstNonEmpty(r["configuration.security"], cfg["security"])
+		authTypes := firstNonEmpty(cfg["security.authentication-types"],
+			security[secName]["authentication-types"])
+		dpName := firstNonEmpty(r["configuration.datapath"], cfg["datapath"])
+		dp := datapaths[dpName]
+
+		band := bands[name]
+		bandText := firstNonEmpty(BandLabel(band.Raw), BandFromFrequency(band.Frequency),
+			BandFromName(name))
+		// `none`, not "" — see capsV1Master. Reading it as a name made every
+		// legacy interface a virtual AP and left the tree with no radios.
+		master := capsV1Master(r)
+		isVirtual := master != ""
+
+		networks = append(networks, WifiNetwork{
+			Name: name, AP: aps[name],
+			SSID:  firstNonEmpty(r["configuration.ssid"], cfg["ssid"]),
+			Radio: firstNonEmpty(master, name), Master: master, IsVirtual: isVirtual,
+			Band: bandText, BandRaw: band.Raw,
+			Security: SecurityLabel(authTypes), AuthTypes: authTypes,
+			Hidden:   boolOf(firstNonEmpty(r["configuration.hide-ssid"], cfg["hide-ssid"])),
+			VlanID:   firstNonEmpty(r["datapath.vlan-id"], dp["vlan-id"]),
+			Bridge:   firstNonEmpty(r["datapath.bridge"], dp["bridge"]),
+			Disabled: boolOf(r["disabled"]), Running: boolOf(r["running"]),
+			Clients: counts[name], Comment: r["comment"],
+			CapsManaged: true, Profile: cfgName,
+			ReadOnlyReason: "capsv1",
+		})
+
+		if !isVirtual {
+			radios = append(radios, WifiRadio{
+				Name: name, AP: aps[name],
+				Mac:  firstNonEmpty(r["radio-mac"], r["mac-address"]),
+				Band: bandText, BandRaw: band.Raw,
+				Frequency: band.Frequency, ChannelWidth: band.Width,
+				Country:  firstNonEmpty(r["configuration.country"], cfg["country"]),
+				Disabled: boolOf(r["disabled"]), Running: boolOf(r["running"]),
+				CapsManaged: true, ReadOnlyReason: "capsv1", Profile: cfgName,
+			})
+		}
+	}
+	return networks, radios
 }
 
 // SortNetworks sorts so each radio's own row leads, with its virtual APs

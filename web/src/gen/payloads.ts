@@ -201,6 +201,7 @@ export interface Cap {
   radios: CapsRadio[];
   clients: CapsClient[];
   clientCount: number;
+  legacy: boolean;
 }
 
 export interface CapsProvisioning {
@@ -215,6 +216,7 @@ export interface CapsProvisioning {
   identityRegexp: string;
   comment: string;
   disabled: boolean;
+  legacy: boolean;
 }
 
 export interface CapsTotals {
@@ -239,6 +241,7 @@ export interface CapsConfigProfile {
   manager: string;
   comment: string;
   disabled: boolean;
+  legacy: boolean;
 }
 
 export interface CapsSecurityProfile {
@@ -249,6 +252,7 @@ export interface CapsSecurityProfile {
   ft: boolean;
   comment: string;
   disabled: boolean;
+  legacy: boolean;
 }
 
 export interface CapsChannelProfile {
@@ -261,6 +265,7 @@ export interface CapsChannelProfile {
   skipDfsChannels: string;
   comment: string;
   disabled: boolean;
+  legacy: boolean;
 }
 
 export interface CapsDatapathProfile {
@@ -273,6 +278,7 @@ export interface CapsDatapathProfile {
   trafficProcessing: string;
   comment: string;
   disabled: boolean;
+  legacy: boolean;
 }
 
 export interface CapsProfiles {
@@ -294,6 +300,8 @@ export interface CapsmanPayload {
   totals: CapsTotals;
   profiles: CapsProfiles;
   available: boolean;
+  legacyAvailable: boolean;
+  legacyManager: boolean;
 }
 
 export interface ConnProtoCounts {
@@ -1081,6 +1089,7 @@ export interface TopoNeighbor {
   status: string;
   port: string;
   parent: string | null;
+  pinned: boolean;
   clientCount: number;
 }
 
@@ -1133,6 +1142,7 @@ export interface TopoEdge {
   remoteIface: string;
   shared: boolean;
   inferred: boolean;
+  pinned: boolean;
   client?: boolean;
   gone: boolean;
 }
@@ -1145,6 +1155,7 @@ export interface TopologyPayload {
   permissionDenied: boolean;
   pingDenied: boolean;
   neighborCount: number;
+  pinsEnabled: boolean;
   vlans: TopoVlan[];
   clientCount: number;
   clientsTruncated: number;
@@ -1297,6 +1308,7 @@ export interface WAN {
   type: string;
   isTunnel: boolean;
   state: string;
+  manual: boolean;
   since: string;
   running: boolean | null;
   address: string;
@@ -1312,6 +1324,12 @@ export interface WAN {
   dhcp: WANDhcp | null;
 }
 
+export interface WANCandidate {
+  name: string;
+  type: string;
+  running: boolean;
+}
+
 export interface WANPayload {
   ts: number;
   pollMs: number;
@@ -1322,10 +1340,14 @@ export interface WANPayload {
   detectionEnabled: boolean;
   available: boolean;
   denied: boolean;
+  uplinkSource: string;
+  manualNames: string[];
+  interfaces: WANCandidate[];
 }
 
 export interface WifiRadio {
   name: string;
+  ap: string;
   defaultName: string;
   mac: string;
   band: string;
@@ -1372,6 +1394,7 @@ export interface WifiNetwork {
   editable: boolean;
   removable: boolean;
   resource: string;
+  ap: string;
 }
 
 export interface WifiSecProfile {
@@ -1414,6 +1437,7 @@ export interface WirelessClient {
   uptime: string;
   ssid: string;
   name: string;
+  comment: string;
   source?: string;
 }
 

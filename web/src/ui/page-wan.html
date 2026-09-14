@@ -20,7 +20,30 @@
             <h3 class="card-title mb-0">Internet Uplinks</h3>
             <span id="wanBadge" class="card-badge">0</span>
           </div>
-          <span id="wanActionNote" class="muted-note"></span>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span id="wanActionNote" class="muted-note"></span>
+            <!-- Where the uplink list comes from. `detect-interface-list`
+                 defaults to none, and a router managed by somebody else is not
+                 always one you may change — so the operator can declare the
+                 list here instead. Hidden entirely without write access. -->
+            <span class="topo-tools" id="wanSrcBtns" style="display:none" role="group"
+                  aria-label="Where the uplink list comes from">
+              <button class="topo-chip is-on" id="wanSrcAuto" type="button"
+                      title="Believe /interface/detect-internet">Auto</button>
+              <button class="topo-chip" id="wanSrcManual" type="button"
+                      title="Use the list below instead">Manual</button>
+            </span>
+          </div>
+        </div>
+        <!-- The picker. Shown only in Manual mode: in Auto it would be a list of
+             checkboxes that change nothing, which is worse than no list. -->
+        <div id="wanPicker" class="wan-picker" style="display:none">
+          <div class="wan-picker-hdr">
+            <span>Interfaces that carry the internet</span>
+            <span class="muted-note" id="wanPickerNote"></span>
+            <button class="topo-btn" id="wanPickerApply" type="button">Apply</button>
+          </div>
+          <div class="wan-picker-list" id="wanPickerList"></div>
         </div>
         <div class="card-body p-0">
           <div class="data-scroll" style="max-height:calc(100vh - 400px);overflow-y:auto">

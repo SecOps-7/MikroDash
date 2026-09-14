@@ -108,6 +108,13 @@ var All = []Page{
 	{Key: "logs", Title: "Logs", Collector: "logs"},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},
+	// NO OWNER, and that is the honest answer rather than a gap. This page draws
+	// what the operator placed on a plan and hangs live clients off it, so it is
+	// fed by `wifi` (which network is on which access point) and by `wireless`
+	// (who is connected), and it exists for neither — turning either off costs it
+	// half its content rather than emptying it. See internal/pages' note on
+	// Collector, and internal/collect/rooms.go for the two declarations.
+	{Key: "wifi-map", Title: "Wifi Map"},
 	{Key: "bandwidth", Title: "Bandwidth", Collector: "bandwidth"},
 	{Key: "connections", Title: "Connections", Collector: "conns"},
 	{Key: "reports", Title: "Reports"},

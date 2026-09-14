@@ -331,7 +331,7 @@ the rooms it emits to, and `—` means router-wide or nothing.
 | `arp` | `/ip/arp/print` | `BuildARP` | — (none at all) |
 | `bandwidth` | `/ip/firewall/connection/print` | `BuildBandwidth` | `page-bandwidth`, `dash-card-bandwidth` |
 | `bridges` | `/interface/bridge/host/print` | `BuildBridgeRows` | `page-bridges` |
-| `capsman` | `/interface/wifi/registration-table/print` | `BuildCapsmanView` | `page-capsman` |
+| `capsman` | `/interface/wifi/registration-table/print` | `BuildCapsmanView`, `BuildCapsmanLegacyView` | `page-capsman` |
 | `conns` | `/ip/firewall/connection/print` | `BuildConns` | `page-connections`, `dash-card-connections` |
 | `dhcpLeases` | `/ip/dhcp-server/lease/print` | `BuildLeases` | — (router-wide) |
 | `dhcpNetworks` | `/ip/dhcp-server/network/print` | `BuildLanOverview` | `page-dhcp`, `dash-card-network` |
@@ -353,7 +353,7 @@ the rooms it emits to, and `—` means router-wide or nothing.
 | `vlans` | `/interface/vlan/print` | `BuildVlanRows` | `page-vlans` |
 | `vpn` | `/ppp/active/print` | `ParsePppSessions`, `ParseIpsecPeers` | `page-vpn`, `dash-card-vpn` |
 | `wan` | `/interface/detect-internet/state/print` | `BuildWanRows` | `page-wan` |
-| `wifi` | `/interface/wifi/print` | `BuildWifiView` | `page-wifi-networks` |
+| `wifi` | `/interface/wifi/print` | `BuildWifiView`, `BuildCapsLegacyNetworks` | `page-wifi-networks` |
 | `wireless` | `/interface/wifi/registration-table/print` | `BuildWirelessView` | `page-wifi-clients`, `dash-card-wireless` |
 
 **Two collectors have no `Start()`.** `packages` and `routing` are page-gated

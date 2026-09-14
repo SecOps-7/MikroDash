@@ -86,8 +86,11 @@ var (
 	vlansRooms       = Rooms{"page-vlans"}
 	vpnRooms         = Rooms{"page-vpn", "dash-card-vpn"}
 	wanRooms         = Rooms{"page-wan"}
-	wifiRooms        = Rooms{"page-wifi-networks"}
-	wirelessRooms    = Rooms{"page-wifi-clients", "dash-card-wireless"}
+	// The Wi-Fi map needs BOTH: `wifi` says which access point each network is
+	// on, and `wireless` says who is connected to it. Neither owns the page —
+	// see internal/pages — and both have to reach it or half of it is blank.
+	wifiRooms     = Rooms{"page-wifi-networks", "page-wifi-map"}
+	wirelessRooms = Rooms{"page-wifi-clients", "page-wifi-map", "dash-card-wireless"}
 )
 
 // RoomsOf is every room a collector feeds, for `internal/server`'s blur guard.
