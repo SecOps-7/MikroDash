@@ -155,7 +155,7 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 			continue
 		}
 		cv, doc := reportpdf.NewFPDFCanvas()
-		reportpdf.Render(cv, build.Title, build.Columns, build.Rows, &build.Meta, tz)
+		reportpdf.Render(cv, build.Title, build.Columns, build.Rows, &build.Meta, tz, s.reportBrand())
 		var buf strings.Builder
 		if err := reportpdf.Output(doc, &buf); err != nil {
 			res.Skipped = append(res.Skipped, reports.MailSkipped{Section: section, Reason: err.Error()})
@@ -203,6 +203,7 @@ func (s *Server) runSchedule(row *db.ReportSchedule, sess *Session) runResult {
 		To: []string{to}, Bcc: bcc,
 		Subject: reports.MailSubject(sch, label, period, tz),
 		Text: reports.MailBody(reports.MailBodyInput{
+			AppName:  s.appName(),
 			Schedule: sch, RouterLabel: label, Period: period,
 			Sections: keptSections, Dropped: dropped, Skipped: res.Skipped,
 			Truncated: truncated, TZ: tz,

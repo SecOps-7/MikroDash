@@ -1005,14 +1005,14 @@ func (s *Server) writePDF(w http.ResponseWriter, kind string, q reportReq, tz st
 		writeJSONErrFrom(w, http.StatusInternalServerError, err)
 		return
 	}
-	writeRenderedPDF(w, build, tz)
+	writeRenderedPDF(w, build, tz, s.reportBrand())
 }
 
 // writeRenderedPDF is the half that needs no database, so it can be tested
 // without one: draw the build, then answer with it.
-func writeRenderedPDF(w http.ResponseWriter, build reports.PDFBuild, tz string) {
+func writeRenderedPDF(w http.ResponseWriter, build reports.PDFBuild, tz string, brand reportpdf.Brand) {
 	cv, doc := reportpdf.NewFPDFCanvas()
-	reportpdf.Render(cv, build.Title, build.Columns, build.Rows, &build.Meta, tz)
+	reportpdf.Render(cv, build.Title, build.Columns, build.Rows, &build.Meta, tz, brand)
 
 	var buf bytes.Buffer
 	if err := reportpdf.Output(doc, &buf); err != nil {

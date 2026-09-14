@@ -1,6 +1,7 @@
 package reportpdf
 
 import (
+	"bytes"
 	"io"
 	"strconv"
 
@@ -45,6 +46,8 @@ type fpdfCanvas struct {
 
 	// Where the previous Text ended, for the one `continued` call in the document.
 	contX, contY float64
+	// brandIcon is set once the header icon is registered with the document.
+	brandIcon bool
 }
 
 type point struct{ x, y float64 }
@@ -216,6 +219,18 @@ func (c *fpdfCanvas) drawText(s string, x, y float64, o TextOpts) {
 	}
 	c.p.Text(tx, y+helveticaAscender*c.fontSize, enc)
 	c.contX, c.contY = tx+w, y
+}
+
+// Image draws the brand icon. It is registered with the document once, under one
+// name, because a report draws the same header on every page.
+func (c *fpdfCanvas) Image(b []byte, x, y, w, h float64) {
+	const name = "brand-icon"
+	opts := fpdf.ImageOptions{ImageType: "PNG"}
+	if !c.brandIcon {
+		c.p.RegisterImageOptionsReader(name, opts, bytes.NewReader(b))
+		c.brandIcon = true
+	}
+	c.p.ImageOptions(name, x, y, w, h, false, opts, 0, "")
 }
 
 func (c *fpdfCanvas) WidthOfString(s string) float64 {

@@ -105,6 +105,9 @@ type MailBodyInput struct {
 	Skipped     []MailSkipped
 	Truncated   bool
 	TZ          string
+	// AppName is what the footer calls the app: the install's own name, or
+	// empty for MikroDash.
+	AppName string
 }
 
 type MailSection struct {
@@ -167,8 +170,12 @@ func MailBody(in MailBodyInput) string {
 			"aggregation, or export the CSV from the Reports page for the full data.")
 	}
 
+	app := in.AppName
+	if app == "" {
+		app = "MikroDash"
+	}
 	lines = append(lines, "",
-		`Sent by MikroDash because a scheduled report named "`+in.Schedule.Name+
+		`Sent by `+app+` because a scheduled report named "`+in.Schedule.Name+
 			`" is configured for this router.`)
 	return strings.Join(lines, "\n")
 }

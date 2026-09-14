@@ -556,7 +556,7 @@
 
       <!-- ── Appearance tab ─────────────────────────────────────────────── -->
       <div class="stab-panel" id="stab-appearance">
-        <div class="scard scard--wide">
+        <div class="scard">
           <div class="scard-header">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><circle cx="12" cy="12" r="3"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
             <span class="scard-title">Theme</span>
@@ -668,6 +668,43 @@
                 <span class="swatch-name">GitHub<br>Light</span>
               </div>
             </div>
+          </div>
+        </div>
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            <span class="scard-title">Branding</span>
+          </div>
+          <div class="scard-body">
+            <!-- Issue #131. NOT s_ ids on purpose: branding is stored beside
+                 settings.json rather than in it, and this card saves through its
+                 own routes, so Save Settings must not collect these controls.
+                 See web/src/pages/branding-settings.ts. -->
+            <p class="brand-hint" style="margin-top:0">Rename this install and give it its own icon. Shown in the top left, the browser tab, the login page, PDF reports and report emails.</p>
+            <div class="brand-preview" aria-hidden="true">
+              <img id="brandPreviewIcon" src="/logo.png" alt="">
+              <span class="brand-preview-name" id="brandPreviewName">Mikro<span>Dash</span></span>
+            </div>
+            <label class="sform-label" for="brandName">App Name</label>
+            <input type="text" id="brandName" class="sform-input" maxlength="40" placeholder="MikroDash" autocomplete="off">
+            <label class="sform-label" for="brandFont" style="margin-top:.75rem">Name Font</label>
+            <select id="brandFont" class="sform-input">
+              <option value="">Default (Syne)</option>
+            </select>
+            <p class="brand-hint">PDF reports keep their standard font, so a few characters may not appear there.</p>
+            <div class="brand-actions">
+              <button type="button" class="sbtn" id="brandSaveBtn">Save Name</button>
+            </div>
+            <label class="sform-label" for="brandIconFile" style="margin-top:1rem">App Icon</label>
+            <div class="brand-icon-row">
+              <img id="brandIconPreview" class="brand-icon-preview" src="/logo.png" alt="Current app icon">
+              <div class="brand-icon-controls">
+                <input type="file" id="brandIconFile" class="sform-input" accept="image/png,image/jpeg">
+                <p class="brand-hint">PNG or JPEG, square, 64 to 512 px, up to 512 KB. A transparent PNG of 256 px or more looks best; it is shown at 24 px.</p>
+                <button type="button" class="sbtn" id="brandIconReset" disabled>Use Default Icon</button>
+              </div>
+            </div>
+            <div class="brand-status" id="brandStatus" role="status" aria-live="polite"></div>
           </div>
         </div>
         <div class="scard">

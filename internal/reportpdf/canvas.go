@@ -38,6 +38,9 @@ type Canvas interface {
 	Text(s string, x, y float64, opts TextOpts)
 	TextContinued(s string, opts TextOpts)
 
+	// Image draws a PNG. Only the header's brand icon uses it; see Brand.
+	Image(png []byte, x, y, w, h float64)
+
 	// Reads. Render's arithmetic depends on all three.
 	WidthOfString(s string) float64
 	PageWidth() float64

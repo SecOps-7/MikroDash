@@ -62,6 +62,8 @@ import { initAuditPage } from './pages/audit';
 import { initSitesCard, onSitesUpdate, sitesById } from './pages/settings-sites';
 import { initPrincipalsCard, refreshPrincipalsVisibility } from './pages/settings-principals';
 import { initDbCleanup } from './pages/dbcleanup';
+import { loadBranding } from './branding';
+import { initBrandingSettings } from './pages/branding-settings';
 import { initRoutersMap } from './pages/routers-map';
 import { initSetupOverlay, showSetupOverlayNow } from './pages/setup-overlay-wire';
 import { initPollAndBanner, applyPollSettings } from './pages/settings-poll';
@@ -384,6 +386,9 @@ async function main(): Promise<void> {
   // read from localStorage and applied to <html>. Everything after this renders
   // once, in the right colours, instead of flashing the defaults first.
   initAppearance();
+  // The install's own name and icon in the wordmark, sidebar, tab title and
+  // favicon (issue #131). Fetched, so the markup's MikroDash shows until it lands.
+  void loadBranding();
 
   wireNav(socket);
   initNav();
@@ -697,6 +702,10 @@ async function main(): Promise<void> {
   // router list, because the names it needs include routers that have been
   // DELETED and are still holding history — ids `routers` no longer carries.
   initDbCleanup();
+
+  // Settings, Appearance, Branding: its own save, upload and reset; not part of
+  // Save Settings. See pages/branding-settings.ts.
+  initBrandingSettings();
 
   // The poll sliders, the preset profiles, the settings banner and Reset.
   //

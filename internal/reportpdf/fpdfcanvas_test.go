@@ -21,7 +21,7 @@ func TestEveryCorpusPayloadProducesAWellFormedPDF(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			cv, p := NewFPDFCanvas()
 			p.SetCompression(false) // so the content stream can be read below
-			Render(cv, c.Title, c.Columns, c.Rows, c.Meta.toMeta(), c.TZ)
+			Render(cv, c.Title, c.Columns, c.Rows, c.Meta.toMeta(), c.TZ, Brand{})
 
 			var buf bytes.Buffer
 			if err := Output(p, &buf); err != nil {
@@ -80,7 +80,7 @@ func TestEveryCorpusPayloadProducesAWellFormedPDF(t *testing.T) {
 func TestTheContinuedLogoResumesWhereTheFirstHalfEnded(t *testing.T) {
 	cv, p := NewFPDFCanvas()
 	p.SetCompression(false)
-	Render(cv, "T", []string{"C"}, nil, nil, "")
+	Render(cv, "T", []string{"C"}, nil, nil, "", Brand{})
 	var buf bytes.Buffer
 	if err := Output(p, &buf); err != nil {
 		t.Fatalf("Output: %v", err)
@@ -173,7 +173,7 @@ func TestGlyphsLandWherePdfkitPutsThem(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			cv, p := NewFPDFCanvas()
 			p.SetCompression(false)
-			Render(cv, c.Title, c.Columns, c.Rows, c.Meta.toMeta(), c.TZ)
+			Render(cv, c.Title, c.Columns, c.Rows, c.Meta.toMeta(), c.TZ, Brand{})
 			var buf bytes.Buffer
 			if err := Output(p, &buf); err != nil {
 				t.Fatalf("Output: %v", err)

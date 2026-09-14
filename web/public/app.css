@@ -133,7 +133,7 @@
     #main{margin-left:var(--nav-w);flex:1;min-width:0;display:flex;flex-direction:column}
     /* topbar */
     #topbar{height:52px;display:flex;align-items:center;padding:0 1.25rem;gap:1rem;background:var(--topbar-bg);border-bottom:1px solid var(--border);flex-shrink:0;position:sticky;top:0;z-index:100}
-    #topbarLogo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap}
+    #topbarLogo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:min(40vw,22rem)}
     #topbarLogo span{color:var(--accent-rx)}
     .topbar-sep{width:1px;height:18px;background:var(--border);flex-shrink:0}
     #pageTitleWrap{display:flex;align-items:center;gap:.45rem;min-width:0}
@@ -234,6 +234,20 @@
        fit rather than two stretched ones; it is still one column on a phone. */
     #visiblePagesGrid{grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))}
     @media(max-width:500px){#visiblePagesGrid{grid-template-columns:1fr}}
+    /* Settings, Appearance, Branding (issue #131). The preview is drawn like the
+       top bar's wordmark, so what is saved is what the corner will show. */
+    .brand-preview{display:flex;align-items:center;gap:.55rem;margin:0 0 .9rem;padding:.55rem .75rem;border:1px solid var(--border);border-radius:8px;min-height:46px;overflow:hidden}
+    .brand-preview img{width:24px;height:24px;object-fit:contain;border-radius:4px;flex-shrink:0}
+    .brand-preview-name{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-.02em;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .brand-preview-name span{color:var(--accent-rx)}
+    .brand-hint{font-size:.72rem;color:var(--text-muted);margin:.35rem 0 .55rem}
+    .brand-actions{display:flex;gap:.5rem;margin-top:.2rem}
+    .brand-icon-row{display:flex;gap:.85rem;align-items:flex-start}
+    .brand-icon-preview{width:52px;height:52px;object-fit:contain;border:1px solid var(--border);border-radius:8px;padding:5px;flex-shrink:0}
+    .brand-icon-controls{flex:1;min-width:0}
+    .brand-status{font-size:.74rem;min-height:1.1rem;margin-top:.7rem;color:var(--text-muted)}
+    .brand-status.is-ok{color:rgba(52,211,153,.9)}
+    .brand-status.is-error{color:rgba(248,113,113,.9)}
     .stoggle{display:flex;align-items:center;justify-content:space-between;padding:.55rem .8rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-deep);cursor:pointer;user-select:none;gap:.5rem}
     .stoggle-label{font-size:.8rem;color:var(--text-main);font-weight:500}
     .stoggle-switch{position:relative;width:34px;height:18px;flex-shrink:0}

@@ -26,6 +26,8 @@
  * administrator" to somebody whose install already has one is the worse mistake.
  */
 
+import { loadBranding } from '../branding';
+
 const byId = (id: string): HTMLElement | null => document.getElementById(id);
 
 function showError(elId: string, msg: string): void {
@@ -84,6 +86,8 @@ function safeNext(): string {
 }
 
 function main(): void {
+  // The install's own name and icon, before anybody signs in (issue #131).
+  void loadBranding(' — Sign In');
   const loginView = byId('loginView');
   const firstRunView = byId('firstRunView');
   const loadingView = byId('loadingView');

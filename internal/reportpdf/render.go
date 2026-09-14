@@ -2,8 +2,11 @@ package reportpdf
 
 import (
 	"fmt"
+	"github.com/go-pdf/fpdf"
 	"math"
 	"math/big"
+	"strings"
+	"sync"
 	"time"
 
 	_ "time/tzdata" // the display timezone is operator-set; alpine carries no zoneinfo
@@ -37,7 +40,80 @@ type (
 // side fetches from `Settings.load().displayTimezone` -- passed in here because
 // this package has no business loading settings, and because the gate needs to
 // drive both timezone paths without touching a file.
-func Render(c Canvas, title string, columns []string, rows []map[string]any, meta *Meta, tz string) {
+// Brand is what the header calls the app. The zero value draws the MikroDash
+// wordmark exactly as it always has, which is what keeps the recorded drawing
+// test unchanged.
+type Brand struct {
+	// Name replaces the two-tone wordmark with the name in one colour. Empty keeps
+	// the wordmark.
+	Name string
+	// Icon is an 8-bit PNG (branding.Icon's output) drawn at the left of the bar.
+	// Nil draws none.
+	Icon []byte
+}
+
+// brandIconSize and brandIconGap place the icon beside the name, centred on it.
+const (
+	brandIconSize = 20.0
+	brandIconGap  = 6.0
+)
+
+// Name fitting. The report title is centred on the page, so a long custom name
+// would run into it: the name shrinks to fit the space before the title, and is
+// shortened with an ellipsis if even the smallest size is too wide.
+const (
+	brandNameMaxSize = 17.0
+	brandNameMinSize = 11.0
+	brandTitleSize   = 13.0
+	brandTitleGap    = 12.0
+)
+
+var (
+	measureMu  sync.Mutex
+	measureDoc *fpdf.Fpdf
+)
+
+// measureBold is the width of s in Helvetica-Bold at size, in points.
+//
+// ITS OWN DOCUMENT, NOT Canvas.WidthOfString. The trace canvas measures only at
+// the legend's Helvetica 7 and records every read for the drawing test to pair
+// with legend labels, so measuring the header through it would be wrong and
+// would shift those pairs. Helvetica is a core font, so these widths are the
+// ones the real document draws with.
+func measureBold(s string, size float64) float64 {
+	measureMu.Lock()
+	defer measureMu.Unlock()
+	if measureDoc == nil {
+		measureDoc = fpdf.New("P", "pt", "A4", "")
+		measureDoc.AddPage()
+	}
+	measureDoc.SetFont("Helvetica", "B", size)
+	return measureDoc.GetStringWidth(EncodeText(s))
+}
+
+// nameFit is the size and text a custom name is drawn with, so that it ends
+// brandTitleGap before the centred title begins.
+func nameFit(name, title string, nameX, pageW float64) (float64, string) {
+	inner := pageW - L - R
+	titleStart := L + (inner-measureBold(title, brandTitleSize))/2
+	room := titleStart - brandTitleGap - nameX
+	for size := brandNameMaxSize; size >= brandNameMinSize; size-- {
+		if measureBold(name, size) <= room {
+			return size, name
+		}
+	}
+	runes := []rune(name)
+	for len(runes) > 1 {
+		runes = runes[:len(runes)-1]
+		short := strings.TrimRight(string(runes), " ") + "\u2026"
+		if measureBold(short, brandNameMinSize) <= room {
+			return brandNameMinSize, short
+		}
+	}
+	return brandNameMinSize, "\u2026"
+}
+
+func Render(c Canvas, title string, columns []string, rows []map[string]any, meta *Meta, tz string, brand Brand) {
 	pw := c.PageWidth()
 	inner := pw - L - R
 
@@ -45,13 +121,31 @@ func Render(c Canvas, title string, columns []string, rows []map[string]any, met
 	const hTop = 30.0
 	c.Rect(0, 0, pw, 52)
 	c.Fill("#0f172a")
-	// Logo text
+	// Logo: the icon, if the install has one, then the name.
+	nameX := L
+	if len(brand.Icon) > 0 {
+		c.Image(brand.Icon, L, hTop-1, brandIconSize, brandIconSize)
+		nameX = L + brandIconSize + brandIconGap
+	}
 	c.Font("Helvetica-Bold")
 	c.FontSize(17)
-	c.FillColor("#38bdf8")
-	c.Text("Mikro", L, hTop, optContinued())
-	c.FillColor("#f8fafc")
-	c.TextContinued("Dash", optNoBreak())
+	if brand.Name == "" {
+		c.FillColor("#38bdf8")
+		c.Text("Mikro", nameX, hTop, optContinued())
+		c.FillColor("#f8fafc")
+		c.TextContinued("Dash", optNoBreak())
+	} else {
+		// ONE COLOUR. The two-tone split belongs to the MikroDash wordmark; an
+		// install's own name has no second half to accent.
+		size, text := nameFit(brand.Name, title, nameX, pw)
+		if size != 17 {
+			c.FontSize(size)
+		}
+		c.FillColor("#f8fafc")
+		// A shrunken name moves down by half the size it lost, so it stays centred
+		// on the icon and the title rather than riding up to their top edge.
+		c.Text(text, nameX, hTop+(brandNameMaxSize-size)/2, optNoBreak())
+	}
 	// Report title centred
 	c.Font("Helvetica-Bold")
 	c.FontSize(13)

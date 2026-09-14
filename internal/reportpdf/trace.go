@@ -57,6 +57,11 @@ func (t *traceCanvas) Text(s string, x, y float64, o TextOpts) {
 }
 func (t *traceCanvas) TextContinued(s string, o TextOpts) { t.push("text", s, o.toMap()) }
 
+// Image records the icon's size in bytes rather than its bytes.
+func (t *traceCanvas) Image(png []byte, x, y, w, h float64) {
+	t.push("image", len(png), r6(x), r6(y), r6(w), r6(h))
+}
+
 // toMap renders the options with EXACTLY the keys pdfkit was given, so a port
 // asking for something the live side never asked for shows up as a difference
 // rather than as a zero value nobody compares.

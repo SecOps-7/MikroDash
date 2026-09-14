@@ -607,6 +607,9 @@ func (s *Server) Handler() http.Handler {
 		mux.HandleFunc("GET /api/auth/status", s.authStatus)
 	}
 	s.registerSettings(mux)
+	// The install's name and icon (issue #131). Its reads are public: the login
+	// page shows them before anybody signs in. See branding_api.go.
+	s.registerBranding(mux)
 	s.registerUserNotify(mux)
 	s.registerPrincipals(mux)
 	if s.standalone {

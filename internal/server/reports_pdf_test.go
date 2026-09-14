@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"io"
+	"mikrodash/internal/reportpdf"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -25,7 +26,7 @@ func TestThePDFResponseIsAPDF(t *testing.T) {
 	}, "Test Router", 1756100000000, 1756100060000, "")
 
 	w := httptest.NewRecorder()
-	writeRenderedPDF(w, build, "")
+	writeRenderedPDF(w, build, "", reportpdf.Brand{})
 
 	if w.Code != 200 {
 		t.Fatalf("status %d, want 200", w.Code)
@@ -68,7 +69,7 @@ func TestAPDFCarriesTheReportsOwnText(t *testing.T) {
 	}, "Router Seven", 1756100000000, 1756100060000, "")
 
 	w := httptest.NewRecorder()
-	writeRenderedPDF(w, build, "")
+	writeRenderedPDF(w, build, "", reportpdf.Brand{})
 
 	// THE STREAMS ARE COMPRESSED, and they should be -- this is the response a
 	// client downloads. So the test inflates them rather than asking the renderer

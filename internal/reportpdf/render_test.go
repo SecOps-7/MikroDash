@@ -113,7 +113,7 @@ func TestRenderDrawsWhatTheLiveRendererDraws(t *testing.T) {
 	for _, c := range loadRenderCases(t) {
 		t.Run(c.Name, func(t *testing.T) {
 			tc := newTraceCanvas()
-			Render(tc, c.Title, c.Columns, c.Rows, c.Meta.toMeta(), c.TZ)
+			Render(tc, c.Title, c.Columns, c.Rows, c.Meta.toMeta(), c.TZ, Brand{})
 
 			if len(tc.ops) != len(c.Ops) {
 				t.Fatalf("drew %d calls, live drew %d\n%s", len(tc.ops), len(c.Ops), firstDiff(tc.ops, c.Ops))
