@@ -2,6 +2,66 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.55] - Legacy CAPsMAN and a Wi-Fi site map, app branding, and history and alerts recording again
+
+A feature release on top of 0.8.54, led by a large community contribution.
+
+### Merged contributions
+
+Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#134](https://github.com/SecOps-7/MikroDash/pull/134).
+
+- **Legacy CAPsMAN.** Access points on the old `/caps-man` now show on the CAPsMAN
+  page, read-only and marked v1, and their clients reach Wifi Clients, Wifi
+  Networks and the topology.
+- **Wifi Map**, a new page under Wifi. Draw your site, pin each access point where
+  it stands, and watch its live clients around it.
+- **Topology across the fleet.** The Fleet chip merges what every managed router
+  sees into one graph, and you can pin cabling that discovery cannot see.
+- **DNS across routers.** A Duplicate button, a fleet view that compares records
+  across routers and copies a missing one over, and a router picker in Add.
+- **Declared WAN uplinks.** The WAN page can use a list you declare instead of
+  `/interface/detect-internet`.
+- **New grouping and views** on Wifi Clients and Wifi Networks.
+
+### New
+
+- **Branding** (Settings, Appearance, Branding). Give the install its own name,
+  name font and icon, shown in the top left, the browser tab, the login page, PDF
+  reports and report emails. Icons are square PNG or JPEG, 64 to 512 px, up to
+  512 KB. Requested in [#131](https://github.com/SecOps-7/MikroDash/issues/131) by
+  [@erion1979-cell](https://github.com/erion1979-cell).
+- **Settings, Appearance is split into cards**, one per section.
+- **Wifi Map can be hidden** from Settings, Appearance, Visible Pages.
+
+### Fixed
+
+- **Traffic, bandwidth and ping history records again.** Since 0.8.52 nothing new
+  was saved, so Reports and Ping Stability stopped gaining data. Reported in
+  [#135](https://github.com/SecOps-7/MikroDash/issues/135) by
+  [@christophergatz-sketch](https://github.com/christophergatz-sketch).
+- **Alerts fire again.** The same fault stopped every alert rule since 0.8.52:
+  CPU, updates, ping, interfaces, VPN, NetWatch and BGP.
+- **Alert settings take effect when you save them.** Thresholds, alert types,
+  channels and tokens used to wait for a restart.
+- **Email alerts send.** They always failed with "no mailer configured", even
+  though the Test button worked, and personal My Alerts channels can deliver too.
+  Found while looking into [#130](https://github.com/SecOps-7/MikroDash/issues/130)
+  from [@quanguet98](https://github.com/quanguet98).
+- **The Dashboard's Wired count shows straight away**, without opening Interfaces
+  first. Reported in [#132](https://github.com/SecOps-7/MikroDash/issues/132) by
+  [@ET1963](https://github.com/ET1963).
+- **Devices waits for the server before saying "No routers configured"**, and no
+  longer blanks for a moment when the router list changes. From
+  [#129](https://github.com/SecOps-7/MikroDash/issues/129), reported by
+  [@erion1979-cell](https://github.com/erion1979-cell) and pinpointed by
+  [@HeisLuka](https://github.com/HeisLuka).
+- **A router's connection status only reaches users allowed to see that router.**
+
+### Internal
+
+- New tests send real collector payloads into the history recorder and the alert
+  rules, so a silent type mismatch like the 0.8.52 one fails the suite.
+
 ## [0.8.54] - Dashboard cards stop freezing, and routers stop dropping their connection
 
 A fixes release on top of 0.8.53.
