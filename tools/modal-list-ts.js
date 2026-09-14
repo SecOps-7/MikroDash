@@ -6,8 +6,11 @@ const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'modal-list.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'modals.ts');
 const body = `// GENERATED from testdata/modal-list.json — do not edit.
-// Rebuild with \`node tools/modal-list-ts.js\` from the committed JSON, which is frozen:
-// the generator that produced it read the Node app and was deleted on 2026-09-01.
+// Rebuild with \`node tools/modal-list-ts.js\` from the committed JSON.
+// The JSON it reads is a FROZEN artefact: the generator that produced it read the
+// Node app and was deleted with the port-parity harness on 2026-09-01. This
+// transform still runs, so the .ts can be rebuilt from the committed JSON --
+// but the JSON itself can only change by hand, or from \`v0.7.40\` in git history.
 
 /**
  * Every dialog that closes on Escape and on a backdrop click.

@@ -131,7 +131,7 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 		{"ifStatus", []string{
 			"page-interfaces", "page-network-topology", "dash-card-physports",
 			"page-bridges", "page-vlans", "page-wan",
-			"page-bandwidth", "dash-card-bandwidth",
+			"page-bandwidth",
 		}},
 		// ── AND THE COLLECTOR WITH NO AUDIENCE AT ALL ──────────────────────
 		//
@@ -143,7 +143,7 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 			"page-connections", "dash-card-connections",
 			"page-wifi-clients", "page-wifi-map", "dash-card-wireless",
 			"page-network-topology",
-			"page-bandwidth", "dash-card-bandwidth",
+			"page-bandwidth",
 		}},
 		// A collector with no keep-alive entry gets its audience back unchanged.
 		{"dns", []string{"page-dns"}},

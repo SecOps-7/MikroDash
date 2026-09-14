@@ -6,8 +6,11 @@ const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'stale-tables.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'stale-tables.ts');
 const body = `// GENERATED from testdata/stale-tables.json — do not edit.
-// Rebuild with \`node tools/stale-tables-ts.js\` from the committed JSON, which is frozen:
-// the generator that produced it read the Node app and was deleted on 2026-09-01.
+// Rebuild with \`node tools/stale-tables-ts.js\` from the committed JSON.
+// The JSON it reads is a FROZEN artefact: the generator that produced it read the
+// Node app and was deleted with the port-parity harness on 2026-09-01. This
+// transform still runs, so the .ts can be rebuilt from the committed JSON --
+// but the JSON itself can only change by hand, or from \`v0.7.40\` in git history.
 
 /** Grace added on top of a collector's reported poll interval. */
 export const STALE_GRACE = ${d.staleGrace};

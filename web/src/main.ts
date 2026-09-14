@@ -428,7 +428,7 @@ async function main(): Promise<void> {
   // point it reappears with no further change here.
   initCaps({
     current: () => currentPage,
-    go: (page) => showPage(socket, page),
+    go: (page, mode) => showPage(socket, page, mode),
     serves: (page) => PORTED.has(page),
   });
   // After initCaps, because the clock reads the install's display timezone and

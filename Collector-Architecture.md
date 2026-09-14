@@ -329,7 +329,7 @@ the rooms it emits to, and `—` means router-wide or nothing.
 | collector | acquisition | derivation | views |
 |---|---|---|---|
 | `arp` | `/ip/arp/print` | `BuildARP` | — (none at all) |
-| `bandwidth` | `/ip/firewall/connection/print` | `BuildBandwidth` | `page-bandwidth`, `dash-card-bandwidth` |
+| `bandwidth` | `/ip/firewall/connection/print` | `BuildBandwidth` | `page-bandwidth` |
 | `bridges` | `/interface/bridge/host/print` | `BuildBridgeRows` | `page-bridges` |
 | `capsman` | `/interface/wifi/registration-table/print` | `BuildCapsmanView`, `BuildCapsmanLegacyView` | `page-capsman` |
 | `conns` | `/ip/firewall/connection/print` | `BuildConns` | `page-connections`, `dash-card-connections` |

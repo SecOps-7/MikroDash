@@ -6,8 +6,11 @@ const ROOT = path.join(__dirname, '..');
 const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'testdata', 'appearance-tables.json'), 'utf8'));
 const OUT = path.join(ROOT, 'web', 'src', 'gen', 'appearance-tables.ts');
 const body = `// GENERATED from testdata/appearance-tables.json — do not edit.
-// Rebuild with \`node tools/appearance-tables-ts.js\` from the committed JSON, which is frozen:
-// the generator that produced it read the Node app and was deleted on 2026-09-01.
+// Rebuild with \`node tools/appearance-tables-ts.js\` from the committed JSON.
+// The JSON it reads is a FROZEN artefact: the generator that produced it read the
+// Node app and was deleted with the port-parity harness on 2026-09-01. This
+// transform still runs, so the .ts can be rebuilt from the committed JSON --
+// but the JSON itself can only change by hand, or from \`v0.7.40\` in git history.
 
 /** r, g, b, a — the alpha is carried through brightness scaling unchanged. */
 export type RGBA = [number, number, number, number];
@@ -24,7 +27,7 @@ export const APPEAR_DEFAULT = ${d.appearDefault};
 export const KEYS = ${JSON.stringify(d.keys, null, 2)} as const;
 
 /** Order is load-bearing: the \`<select>\` renders the labels in this order and
- *  \`tools/appearance-tables.js\` pins the two against each other. */
+ *  The appearance table generator pins the two against each other. */
 export const FONTS: { id: string; family: string }[] = ${JSON.stringify(d.fonts, null, 2)};
 
 /** \`px: null\` is the browser default — the layer REMOVES font-size rather than

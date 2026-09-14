@@ -26,6 +26,7 @@
 // editing this file.
 
 import { PAGE_NAV_MAP } from './gen/view-presets.js';
+import type { NavMode } from './routing';
 import { ALL_NAV_PAGES } from './gen/page-keys.js';
 import { applyMyAlertsTab } from './account.js';
 
@@ -40,7 +41,7 @@ export interface Caps {
 /** How this module reaches the page router, so it owes nothing to main.ts. */
 export interface NavHost {
   current(): string;
-  go(page: string): void;
+  go(page: string, mode: NavMode): void;
   /**
    * Can THIS BUILD serve the page, or does it still belong to Node?
    *
@@ -144,6 +145,7 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
   for (const k of Object.keys(PAGE_NAV_MAP)) settingKeyFor[PAGE_NAV_MAP[k]!] = k;
 
   let firstVisible: string | null = null;
+  let currentHidden = false;
   for (const pageName of ALL_NAV_PAGES) {
     const sKey = settingKeyFor[pageName];
     const byInstall = !sKey || p[sKey] !== false;
@@ -176,12 +178,17 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
     document.querySelectorAll<HTMLElement>('.nav-item[data-page="' + pageName + '"]')
       .forEach((navEl) => { navEl.style.display = visible ? '' : 'none'; });
     if (visible && !firstVisible) firstVisible = pageName;
-    // Move off a page that just became hidden. NOT always to the dashboard — a
-    // role can deny that too, so fall back to whatever is still reachable.
-    if (!visible && host && host.current() === pageName) {
-      host.go(firstVisible || 'dashboard');
-    }
+    if (!visible && host && host.current() === pageName) currentHidden = true;
   }
+
+  // Move off a page that just became hidden, ONCE THE WHOLE LIST IS KNOWN. Not
+  // always to the dashboard: a role can deny that too, so to the first page still
+  // reachable. This ran inside the loop, so a hidden page earlier in the nav than
+  // every visible one fell back to 'dashboard' whether or not it was allowed.
+  //
+  // REPLACE, not push: this is a correction, and a pushed entry left the hidden
+  // page one Back away. See NavMode.
+  if (currentHidden && host) host.go(firstVisible || 'dashboard', 'replace');
 
   // A category with every child hidden is chrome, not navigation. Asked of the
   // DOM rather than recomputed from the map: the loop above has just written
@@ -245,7 +252,7 @@ export function applyCaps(c: Caps | null | undefined): void {
 
   // Caps arrive after the first paint, so someone may already be standing on
   // Settings by the time we learn they may not be.
-  if (host && host.current() === 'settings' && !settingsAllowed()) host.go('dashboard');
+  if (host && host.current() === 'settings' && !settingsAllowed()) host.go('dashboard', 'replace');
 }
 
 /**

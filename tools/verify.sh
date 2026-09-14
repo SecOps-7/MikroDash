@@ -103,6 +103,27 @@ else
   (cd web && npx tsc --noEmit 2>&1 | head -6 | sed 's/^/        /')
 fi
 
+# -- The JavaScript generators: every tools/*-ts.js, found rather than listed --
+#
+# Each writes a web/src/gen/ table from JSON and takes --check to fail when that
+# table is stale. None ran here, so a JSON edit without a regeneration shipped a
+# stale table and nothing failed. Globbed, like everything else in this file, so
+# a new generator is checked without an edit here.
+note '== generated tables =='
+gen_count=0
+gen_stale=''
+for g in tools/*-ts.js; do
+  [ -f "$g" ] || continue
+  gen_count=$((gen_count + 1))
+  node "$g" --check >/dev/null 2>&1 || gen_stale="$gen_stale $(basename "$g")"
+done
+if [ -z "$gen_stale" ]; then
+  note "  $gen_count generator(s) current"
+else
+  fail=$((fail + 1))
+  note "  FAIL stale:$gen_stale (run each with node, without --check, to regenerate)"
+fi
+
 # ── The frontend's own tests ───────────────────────────────────────────────
 note '== web tests =='
 if [ ! -f web/package.json ]; then
