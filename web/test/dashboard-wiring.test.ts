@@ -71,6 +71,10 @@ const CARDS = {
   // report a swallowed payload for behaviour that is correct.
   'dashboard-ping': { event: 'ping:update', also: ['ping:history'] },
   'dashboard-card-wireless': 'wireless:update',
+  // The Network Flow card's Wired count. It renders from `ifstatus:names`, which
+  // every browser receives, because the card's own room never gets
+  // `ifstatus:update` (issue #132).
+  'dashboard-netflow': 'ifstatus:names',
   // Shares `lan:overview` with dashboard-networks; the probe below drives the
   // event once and both must write.
   'dashboard-card-iputil': 'lan:overview',
@@ -283,6 +287,7 @@ const PROBE = {
   // anything — which this gate would then report as a handler that touched no
   // element. One real port is the smallest payload that exercises the card.
   'ifstatus:update': { interfaces: [{ name: 'ether1', type: 'ether', running: true, disabled: false, ips: [] }] },
+  'ifstatus:names': { interfaces: [{ name: 'ether1', type: 'ether', running: true, disabled: false }] },
 };
 for (const [m, entry] of Object.entries(CARDS)) {
   const event = cardEvent(entry);

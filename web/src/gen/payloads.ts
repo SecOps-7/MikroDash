@@ -492,6 +492,7 @@ export interface FirewallPayload {
 
 export interface IfName {
   name: string;
+  type: string;
   running: boolean;
   disabled: boolean;
 }

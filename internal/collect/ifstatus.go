@@ -705,7 +705,7 @@ func NamesOf(payload *IfStatusPayload) *IfNamesPayload {
 	}
 	names := make([]IfName, 0, len(payload.Interfaces))
 	for _, i := range payload.Interfaces {
-		names = append(names, IfName{Name: i.Name, Running: i.Running, Disabled: i.Disabled})
+		names = append(names, IfName{Name: i.Name, Type: i.Type, Running: i.Running, Disabled: i.Disabled})
 	}
 	return &IfNamesPayload{TS: payload.TS, Total: len(payload.Interfaces), Interfaces: names}
 }
@@ -716,7 +716,12 @@ const ifStatusHeartbeat = 60 * time.Second
 // IfName is one interface as the chrome sees it: enough to fill a picker and a
 // badge, and nothing a page grant would have gated.
 type IfName struct {
-	Name     string `json:"name"`
+	Name string `json:"name"`
+	// Type is RouterOS's interface type ("ether", "bridge", "vlan", ...). Added so
+	// the Dashboard's Network Flow card can count wired ports from this event,
+	// which every browser receives, rather than from `ifstatus:update`, which the
+	// card never subscribes to (issue #132).
+	Type     string `json:"type"`
 	Running  bool   `json:"running"`
 	Disabled bool   `json:"disabled"`
 }

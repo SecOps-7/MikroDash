@@ -534,9 +534,6 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       ifaceCount.textContent = String(ifaces.length);
       ifaceCount.className = 'card-badge' + (ifaces.length > 0 ? ' active-blue' : '');
     }
-    const wiredUp = ifaces.filter((i) => i.running && !i.disabled && i.type === 'ether');
-    const ndWired = el('ndWiredCount');
-    if (ndWired) ndWired.textContent = String(wiredUp.length);
 
     // The grid is hidden in list view, so its empty state is not enough — the
     // table would keep showing the previous poll's rows.

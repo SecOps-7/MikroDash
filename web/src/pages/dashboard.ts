@@ -31,6 +31,7 @@ import { onPingUpdate, onPingHistory, resetPing } from './dashboard-ping';
 import { renderWirelessCards } from './dashboard-card-wireless';
 import { renderIpUtilCard } from './dashboard-card-iputil';
 import { renderPhysPortsCard } from './dashboard-card-physports';
+import { renderWiredCount } from './dashboard-netflow';
 import { renderRoutingCards, resetRoutingCards } from './dashboard-card-routing';
 import { renderBandwidthCard, setBwRouters, setBwActiveRouter, resetBandwidthCard }
   from './dashboard-card-bandwidth';
@@ -77,6 +78,11 @@ export function initDashboard(socket: Socket): void {
     renderIpUtilCard(d);
   });
   socket.on('ifstatus:update', (d) => renderPhysPortsCard(d));
+  // The Network Flow card's Wired count, from the names event every browser
+  // receives and gets on router select. It was written by the Interfaces page
+  // from `ifstatus:update`, which this card never subscribes to, so it stayed
+  // empty until Interfaces or Topology had been opened (issue #132).
+  socket.on('ifstatus:names', (d) => renderWiredCount(d));
   socket.on('ping:update', (d) => onPingUpdate(d));
   socket.on('ping:history', (d) => onPingHistory(d));
   // Two EXTRA cards on one event: Signal Health and Band Split.
