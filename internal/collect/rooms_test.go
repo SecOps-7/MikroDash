@@ -131,7 +131,7 @@ func TestDemandRoomsIsTheAudiencePlusTheDependencies(t *testing.T) {
 		{"ifStatus", []string{
 			"page-interfaces", "page-network-topology", "dash-card-physports",
 			"page-bridges", "page-vlans", "page-wan",
-			"page-bandwidth",
+			"page-bandwidth", "dash-card-wireless",
 		}},
 		// ── AND THE COLLECTOR WITH NO AUDIENCE AT ALL ──────────────────────
 		//

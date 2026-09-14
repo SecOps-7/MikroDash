@@ -221,7 +221,15 @@ func RoomsOf(key string) Rooms {
 // which shares it), and the four collectors that take it as a source — conns,
 // wireless, topology and bandwidth, wired in session.go.
 var keepAliveFor = map[string]Rooms{
-	"ifStatus": union(bridgesRooms, vlansRooms, wanRooms, bandwidthRooms),
+	// ALSO THE NETWORK FLOW CARD (issue #132). Its Wired count is drawn from the
+	// router-wide `ifstatus:names`, which only a RUNNING ifStatus sends. On a
+	// router with alerting off and no Physical Ports card, nothing else on the
+	// Dashboard wanted ifStatus, so it slept and the count stayed "—" until the
+	// Interfaces page woke it. `dash-card-wireless` is the only room that card
+	// joins, so ifStatus now polls while a Network Flow card is on a Dashboard,
+	// and sleeps again when none is.
+	"ifStatus": union(bridgesRooms, vlansRooms, wanRooms, bandwidthRooms,
+		Rooms{"dash-card-wireless"}),
 	"dhcpLeases": union(dhcpNetworksRooms, connsRooms, connsDetailRooms,
 		wirelessRooms, topologyRooms, bandwidthRooms),
 	// ── `arp` HAS NO AUDIENCE AT ALL, NOT EVEN A ROUTER-WIDE ONE ───────────

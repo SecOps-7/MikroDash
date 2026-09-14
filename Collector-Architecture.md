@@ -248,7 +248,9 @@ in-process dependency no emit can express:
 
 - **`ifStatus`** is the rate source for five collectors, four of which live on
   pages it sends nothing to. Gating on its own audience alone would blank every
-  throughput column on Bridges, VLANs, WAN and Bandwidth.
+  throughput column on Bridges, VLANs, WAN and Bandwidth. It is also kept awake by
+  the Dashboard's Network Flow card (`dash-card-wireless`), whose Wired count reads
+  the interface list it sends router-wide (issue #132).
 - **`dhcpLeases`** emits *router-wide*, so it has no guardable audience at all,
   while the DHCP and Connections pages render it directly.
 - **`arp`** emits nothing whatsoever. Its rooms are its four consumers'.
