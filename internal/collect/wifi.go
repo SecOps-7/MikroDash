@@ -292,19 +292,29 @@ func clientInterfaces(reg []routeros.Reply) []string {
 // missing one costs a column — the same trade `soft` makes for the modern
 // profile menus.
 func (w *Wifi) readLegacyCaps() ([]WifiNetwork, []WifiRadio) {
-	if !MenuAvailable(w.v1Avail) {
+	// UNDER THE LOCK, for the reason the same latch in topology.go carries: this
+	// runs before `Tick` takes `w.mu`, and `Reconnected` clears the latch while
+	// holding it.
+	w.mu.Lock()
+	avail := w.v1Avail
+	w.mu.Unlock()
+	if !MenuAvailable(avail) {
 		return nil, nil
 	}
 	ifaces, err := readVia(w.cache, w.ros, capsV1IfaceCmd, w.pollMs.duration())
 	if err != nil {
 		if isAbsentMenu(err) {
 			no := false
+			w.mu.Lock()
 			w.v1Avail = &no
+			w.mu.Unlock()
 		}
 		return nil, nil
 	}
 	yes := true
+	w.mu.Lock()
 	w.v1Avail = &yes
+	w.mu.Unlock()
 	configs, _ := readVia(w.cache, w.ros, capsV1ConfigCmd, w.pollMs.duration())
 	channels, _ := readVia(w.cache, w.ros, capsV1ChannelCmd, w.pollMs.duration())
 	reg, _ := readVia(w.cache, w.ros, capsV1RegCmd, w.pollMs.duration())

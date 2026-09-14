@@ -87,9 +87,22 @@ func (cn *conn) resErr(res, code, name string, extra map[string]any) {
 // strValues flattens what the browser sent to the strings the validator works
 // in, matching JavaScript's String() for the shapes that actually arrive.
 // A null becomes "", which validate() then treats as blank.
-func (r *resRequest) strValues() map[string]string {
-	out := make(map[string]string, len(r.Values))
-	for k, v := range r.Values {
+func (r *resRequest) strValues() map[string]string { return flattenValues(r.Values) }
+
+// flattenValues is the ONE place a browser's JSON becomes the strings the
+// validator works in.
+//
+// ── IT WAS TWO, AND THEY DISAGREED ────────────────────────────────────
+//
+// `/api/dns/fleet-add` grew its own copy, which dropped a null and anything that
+// was not a string, bool or number instead of rendering them. Two flatteners for
+// one job is two ways for a value to reach a router differently depending on
+// which button sent it, so the socket's is the one that survived: it is the
+// older, it is what `resSave` has always used, and it renders every shape rather
+// than discarding the ones nobody had thought about.
+func flattenValues(in map[string]any) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
 		switch t := v.(type) {
 		case nil:
 			out[k] = ""

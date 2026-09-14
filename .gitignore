@@ -97,3 +97,5 @@ testdata/.seam.cjs
 
 # Bundled web tests — build output, not fixtures.
 web/test-out/
+.idea/
+.idea/

@@ -338,8 +338,13 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
     });
     colours = ssidColours(unique);
 
+    // THE CALLBACK READS `state`, NOT THIS CALL'S PAYLOAD. The header outlives
+    // the render that drew it — a router switch empties the table but leaves the
+    // header row and its listeners — so closing over `st` meant a click on a
+    // column after switching redrew the PREVIOUS router's networks, with their
+    // row ids live for the resource dialog.
     renderSortHeader('wnThead', view === 'ssid' ? COLS_SSID : COLS_ROW, sort,
-      () => renderTable(st));
+      () => { if (state) renderTable(state); });
 
     const badgeEl = el('wnBadge');
     if (badgeEl) {
@@ -509,6 +514,10 @@ export function initWifiPage(socket: Socket, isVisible: (page: string) => boolea
     state = null;
     const tbody = el('wnTable');
     if (tbody) tbody.innerHTML = '';
+    // The header goes with the rows: its sort listeners are the one thing on
+    // this page that can ask for a redraw with no payload behind it.
+    const thead = el('wnThead');
+    if (thead) thead.innerHTML = '';
     const card = el('wnSecCard');
     if (card) card.style.display = 'none';
   });

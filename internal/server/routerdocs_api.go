@@ -76,13 +76,17 @@ func (s *Server) routerDocGet(w http.ResponseWriter, r *http.Request) {
 	if s.mayUseDoc(w, r, kind, rid, "read") == nil {
 		return
 	}
-	// A READ FAILURE IS AN EMPTY DOCUMENT, NEVER A 500, for the reason the
-	// dashboard layout gives: the page renders its default rather than an error
-	// over a stored preference. `Clean` is total, so nil in is a usable document
-	// out and the client has one shape to handle.
+	// A READ FAILURE IS AN ERROR HERE, unlike the dashboard layout it was modelled
+	// on. A layout is one person's card order and an empty one costs a shrug;
+	// these documents are shared, hand-drawn and not derivable from the router,
+	// and the page that gets an empty one will happily SAVE over the real thing.
+	// "There is no document" still answers as an empty one — `Doc` returns nil
+	// for a missing or unreadable row — so only a database that could not be
+	// asked at all reaches this.
 	blob, err := s.auditDB.Doc(rid, kind)
 	if err != nil {
-		blob = nil
+		writeJSON500OK(w)
+		return
 	}
 	doc, ok := sitedoc.Clean(kind, blob)
 	if !ok {
@@ -105,6 +109,8 @@ func (s *Server) routerDocSave(w http.ResponseWriter, r *http.Request) {
 		writeJSON400OK(w)
 		return
 	}
+	// THE KIND AND THE ROUTER ARE IN THE BODY, so the grant cannot be checked
+	// before it is read. Bounded above for that reason.
 	sess := s.mayUseDoc(w, r, body.Kind, body.RouterID, "write")
 	if sess == nil {
 		return
@@ -132,7 +138,10 @@ func (s *Server) routerDocSave(w http.ResponseWriter, r *http.Request) {
 	// toggle feel like a toggle.
 	if body.Kind == sitedoc.KindWANUplinks {
 		if sn := s.sessions.Live()[body.RouterID]; sn != nil && sn.CollectorEnabled("wan") {
-			sn.Wan().RefreshNow()
+			// NOT ON THE REQUEST'S CLOCK. A refresh is five commands at 15s
+			// apiece; on a slow router the Apply button hung on a response that
+			// had nothing left to say. The page redraws on the emit either way.
+			go sn.Wan().RefreshNow()
 		}
 	}
 	writeJSON(w, map[string]any{"ok": true, "doc": doc})

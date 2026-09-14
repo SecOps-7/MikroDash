@@ -864,6 +864,11 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   let fleetStat = { added: 0, moved: 0, answered: 0, failed: 0 };
   /** Which peer contributed or moved a node, by key — shown in its panel. */
   let fleetOwner: Record<string, string> = {};
+  /** The viewed router's own addresses, which only the endpoint can answer. */
+  let selfMacs: string[] = [];
+  /** Which request is current, so a slow answer for the router we have left
+   *  cannot paint over the one we are on. */
+  let peersSeq = 0;
 
   function applyData(): void {
     if (!livePayload || !fleetOn || !peers.length) {
@@ -872,7 +877,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       fleetOwner = {};
       return;
     }
-    const m = mergePeers(livePayload, peers, Date.now());
+    const m = mergePeers(livePayload, peers, selfMacs, Date.now());
     data = { ...livePayload, nodes: m.nodes, edges: m.edges };
     fleetStat = { added: m.added, moved: m.moved, answered: m.answered, failed: m.failed };
     fleetOwner = m.owner;
@@ -903,12 +908,27 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
     }
     fleetBusy = true;
     syncFleetBtn();
-    fetch('/api/topology/peers?routers=' + encodeURIComponent(ids.join(',')),
+    const seq = ++peersSeq;
+    const forRouter = rid;
+    fetch('/api/topology/peers?self=' + encodeURIComponent(rid || '') +
+      '&routers=' + encodeURIComponent(ids.join(',')),
       { credentials: 'same-origin' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { peers = (d && d.peers) || []; })
-      .catch(() => { peers = []; })
+      .then((d) => {
+        // THE ANSWER TO AN OLDER QUESTION IS NOT AN ANSWER. Switching router
+        // with Fleet on leaves two reads in flight, and the slower one would
+        // otherwise merge one router's peers into another router's map.
+        if (seq !== peersSeq || forRouter !== rid) return;
+        peers = (d && d.peers) || [];
+        selfMacs = (d && d.self) || [];
+      })
+      .catch(() => {
+        if (seq !== peersSeq || forRouter !== rid) return;
+        peers = [];
+        selfMacs = [];
+      })
       .then(() => {
+        if (seq !== peersSeq) return;
         fleetBusy = false;
         applyData(); syncFleetBtn(); render();
       });
@@ -935,25 +955,47 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
   let pins: Record<string, string> = {};
   let pinsEnabled = true;
   let pinsLoadedFor = '';
+  /** Did the last read actually answer? `routerDocGet` reports 500 when the
+   *  database cannot be asked, and "no pins" looks exactly like "could not read
+   *  the pins" — one save after that would store the empty set over them. */
+  let pinsLoaded = false;
 
   function loadPins(): void {
     if (!rid || pinsLoadedFor === rid) return;
+    // MARKED BEFORE THE REQUEST so a second call does not race it, and cleared
+    // again on failure so it is retried rather than leaving the PREVIOUS
+    // router's pins in place for the rest of the session.
+    const want = rid;
     pinsLoadedFor = rid;
     fetch('/api/router-doc?kind=topology-links&routerId=' + encodeURIComponent(rid),
       { credentials: 'same-origin' })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('unreadable'))))
       .then((d) => {
         const doc = d && d.doc;
         pins = (doc && doc.parents) || {};
         pinsEnabled = !doc || doc.enabled !== false;
+        pinsLoaded = true;
         syncPinsBtn();
         renderPanel();
       })
-      .catch(() => { /* no pins is a working state */ });
+      .catch(() => {
+        if (pinsLoadedFor === want) pinsLoadedFor = '';
+        pins = {};
+        pinsLoaded = false;
+        syncPinsBtn();
+      });
   }
 
   function savePins(): void {
     if (!rid) return;
+    // NOT OVER A READ THAT FAILED. An empty `pins` after an unreadable document
+    // is indistinguishable from a router with none, and this would replace the
+    // operator's cabling with nothing.
+    if (!pinsLoaded) {
+      pinsLoadedFor = '';
+      loadPins();
+      return;
+    }
     fetch('/api/router-doc', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
@@ -962,7 +1004,11 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
         doc: { enabled: pinsEnabled, parents: pins },
       }),
     })
-      .then((r) => (r.ok ? r.json() : null))
+      // A REFUSAL IS NOT A SAVE. Without the `r.ok` test a 403 from a read-only
+      // grant left the new pin in this browser's map and on the Pins counter,
+      // while the store held nothing — so the panel's choice silently sprang
+      // back on the next tick and the button stayed toggled.
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('refused'))))
       .then((d) => {
         // The server's copy wins: `sitedoc.CleanTopologyLinks` drops a pin that
         // names a loop or an empty half, and this browser must not go on drawing
@@ -971,11 +1017,17 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
         if (doc) {
           pins = doc.parents || {};
           pinsEnabled = doc.enabled !== false;
+          pinsLoaded = true;
         }
         syncPinsBtn();
         renderPanel();
       })
-      .catch(() => { /* nothing stored; the next update redraws what is real */ });
+      .catch(() => {
+        // BACK TO WHAT THE STORE HOLDS, rather than leaving this browser drawing
+        // a pin nobody else has. The next load re-reads it.
+        pinsLoadedFor = '';
+        loadPins();
+      });
   }
 
   function syncPinsBtn(): void {
@@ -1496,6 +1548,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
         return;
       }
       peers = [];
+      selfMacs = [];
       applyData(); syncFleetBtn(); render();
     });
 
@@ -1549,6 +1602,7 @@ export function initTopologyPage(socket: Socket, isVisible: (page: string) => bo
       // THE PEERS ARE PER ROUTER. The merge excludes whichever one is being
       // viewed, so the set to read changes with it.
       peers = [];
+      selfMacs = [];
       loadPins();
       pos = {};
       for (const k of Object.keys(saved)) delete saved[k];

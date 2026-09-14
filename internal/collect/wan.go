@@ -278,7 +278,11 @@ func BuildWanRows(detectRows, dhcpRows, routeRows, addrRows, ifaceRows []routero
 		manual bool
 	}
 	picks := []pick{}
-	if len(manual) > 0 {
+	// THE MODE, NOT THE LENGTH. See the payload's `UplinkSource` below: an empty
+	// non-nil list is the operator saying "these are the uplinks, and there are
+	// none of them", and taking the router's answer instead contradicted the
+	// source the same payload reports.
+	if manual != nil {
 		seen := map[string]bool{}
 		for _, n := range manual {
 			if n == "" || seen[n] {
@@ -364,7 +368,13 @@ func BuildWanRows(detectRows, dhcpRows, routeRows, addrRows, ifaceRows []routero
 	out := WANPayload{Wans: wans, RatesAvailable: ratesAvailable,
 		UplinkSource: "detect", ManualNames: []string{},
 		Interfaces: []WANCandidate{}}
-	if len(manual) > 0 {
+	// THE MODE, NOT THE LENGTH OF THE LIST. `manual` nil means the operator has
+	// not taken the set over; an EMPTY non-nil list means they have and have
+	// ticked nothing, which is a state the page has a sentence for. Reading the
+	// length collapsed the two, so unticking the last interface and pressing
+	// Apply put the switch back to Auto and filled the table with the router's
+	// own answer.
+	if manual != nil {
 		out.UplinkSource = "manual"
 		out.ManualNames = append(out.ManualNames, manual...)
 	}
@@ -614,8 +624,22 @@ func (w *Wan) applyLocked(detect []routeros.Reply) {
 		R bool     `json:"r"`
 		S string   `json:"s"`
 		M []string `json:"m"`
+		// STATE IS ON THE PAGE AND WAS NOT IN THE PRINT. On the detect branch
+		// every row reads `internet` by construction, but a MANUAL uplink is
+		// drawn with "the router agrees" / "does NOT report it as an internet
+		// link" — and on a static address with no DHCP lease ticking, nothing
+		// else in this fingerprint moves when that answer changes.
+		//
+		// `I` is the picker's options: a newly added interface would otherwise
+		// not appear in Choose uplinks until something unrelated shifted.
+		St []string `json:"st"`
+		A  bool     `json:"a"`
+		De bool     `json:"de"`
+		I  []string `json:"i"`
 	}{rows, built.DetectionEnabled, built.RatesAvailable,
-		built.UplinkSource, built.ManualNames})
+		built.UplinkSource, built.ManualNames,
+		wanStates(built.Wans), built.Available, built.Denied,
+		wanIfaceNames(built.Interfaces)})
 	if string(fp) == w.lastFp {
 		return
 	}
@@ -689,4 +713,20 @@ func (w *Wan) SetPollMs(ms int) {
 func (w *Wan) UseCache(c *roscache.Cache) {
 	w.cache = c
 	w.sched.useCache(c)
+}
+
+func wanStates(wans []WAN) []string {
+	out := make([]string, 0, len(wans))
+	for _, x := range wans {
+		out = append(out, x.State+"|"+x.Since)
+	}
+	return out
+}
+
+func wanIfaceNames(in []WANCandidate) []string {
+	out := make([]string, 0, len(in))
+	for _, i := range in {
+		out = append(out, i.Name)
+	}
+	return out
 }
