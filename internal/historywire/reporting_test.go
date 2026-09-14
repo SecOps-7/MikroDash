@@ -30,9 +30,9 @@ func TestAReportingOffRouterWritesNoPing(t *testing.T) {
 	w, s := on(t)
 	w.SetReporting("r-1", false)
 	rtt, loss := 5.0, 0
-	w.Record("r-1", "ping:update", &collect.PingPayload{
+	w.Record("r-1", "ping:update", collect.PingPayload{
 		Target: "1.1.1.1", RTT: &rtt, Loss: &loss, TS: min1})
-	w.Record("r-1", "ping:update", &collect.PingPayload{
+	w.Record("r-1", "ping:update", collect.PingPayload{
 		Target: "1.1.1.1", RTT: &rtt, Loss: &loss, TS: min2})
 	if len(s.rows) != 0 {
 		t.Errorf("wrote %d ping row(s) for a router with reporting off", len(s.rows))

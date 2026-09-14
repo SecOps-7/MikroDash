@@ -29,15 +29,15 @@ const min2 = min1 + 60_000
 
 func TestTrafficRollsOverOnTheMinute(t *testing.T) {
 	w, s := on(t)
-	w.Record("r-1", "traffic:update", &collect.TrafficSample{
+	w.Record("r-1", "traffic:update", collect.TrafficSample{
 		IfName: "ether1", RxMbps: 8, TxMbps: 4, TS: min1})
-	w.Record("r-1", "traffic:update", &collect.TrafficSample{
+	w.Record("r-1", "traffic:update", collect.TrafficSample{
 		IfName: "ether1", RxMbps: 16, TxMbps: 8, TS: min1 + 1000})
 	if len(s.rows) != 0 {
 		t.Fatalf("samples inside one minute wrote %d rows", len(s.rows))
 	}
 
-	w.Record("r-1", "traffic:update", &collect.TrafficSample{
+	w.Record("r-1", "traffic:update", collect.TrafficSample{
 		IfName: "ether1", RxMbps: 1, TxMbps: 1, TS: min2})
 	if len(s.rows) == 0 {
 		t.Fatal("crossing the minute wrote nothing")
@@ -100,8 +100,8 @@ func TestTrafficRollsOverOnTheMinute(t *testing.T) {
 // perfect connectivity for a router that was unreachable.
 func TestAPingPayloadWithNoLossIsIgnored(t *testing.T) {
 	w, s := on(t)
-	w.Record("r-1", "ping:update", &collect.PingPayload{Target: "8.8.8.8", Loss: nil, TS: min1})
-	w.Record("r-1", "ping:update", &collect.PingPayload{Target: "8.8.8.8", Loss: nil, TS: min2})
+	w.Record("r-1", "ping:update", collect.PingPayload{Target: "8.8.8.8", Loss: nil, TS: min1})
+	w.Record("r-1", "ping:update", collect.PingPayload{Target: "8.8.8.8", Loss: nil, TS: min2})
 	if len(s.rows) != 0 {
 		t.Errorf("a payload with no loss reading wrote %+v", s.rows)
 	}
@@ -111,9 +111,9 @@ func TestAPingPayloadWithNoLossIsIgnored(t *testing.T) {
 func TestALostPingKeepsItsLossAndDropsItsRTT(t *testing.T) {
 	w, s := on(t)
 	lost, rtt := 100, 12.5
-	w.Record("r-1", "ping:update", &collect.PingPayload{
+	w.Record("r-1", "ping:update", collect.PingPayload{
 		Target: "8.8.8.8", Loss: &lost, RTT: nil, TS: min1})
-	w.Record("r-1", "ping:update", &collect.PingPayload{
+	w.Record("r-1", "ping:update", collect.PingPayload{
 		Target: "8.8.8.8", Loss: &lost, RTT: &rtt, TS: min2})
 
 	if len(s.rows) != 1 {
@@ -137,7 +137,7 @@ func TestALostPingKeepsItsLossAndDropsItsRTT(t *testing.T) {
 func TestRoutersAreBucketedSeparately(t *testing.T) {
 	w, s := on(t)
 	for _, id := range []string{"r-a", "r-b"} {
-		w.Record(id, "traffic:update", &collect.TrafficSample{
+		w.Record(id, "traffic:update", collect.TrafficSample{
 			IfName: "ether1", RxMbps: 10, TxMbps: 5, TS: min1})
 	}
 	w.Flush("r-a")
@@ -156,7 +156,7 @@ func TestRoutersAreBucketedSeparately(t *testing.T) {
 // otherwise.
 func TestFlushWritesTheOpenMinute(t *testing.T) {
 	w, s := on(t)
-	w.Record("r-1", "traffic:update", &collect.TrafficSample{
+	w.Record("r-1", "traffic:update", collect.TrafficSample{
 		IfName: "ether1", RxMbps: 10, TxMbps: 5, TS: min1})
 	if len(s.rows) != 0 {
 		t.Fatal("an open minute was written early")
@@ -178,10 +178,10 @@ func TestADisabledWireBucketsNothing(t *testing.T) {
 	s := &fakeStore{}
 	w := New(false, s)
 	for i := 0; i < 3; i++ {
-		w.Record("r-1", "traffic:update", &collect.TrafficSample{
+		w.Record("r-1", "traffic:update", collect.TrafficSample{
 			IfName: "ether1", RxMbps: 10, TxMbps: 5, TS: min1 + int64(i)*1000})
 	}
-	w.Record("r-1", "traffic:update", &collect.TrafficSample{
+	w.Record("r-1", "traffic:update", collect.TrafficSample{
 		IfName: "ether1", RxMbps: 10, TxMbps: 5, TS: min2})
 	w.Flush("r-1")
 	if len(s.rows) != 0 {
@@ -214,7 +214,7 @@ func TestADisabledWireBucketsNothing(t *testing.T) {
 
 func TestANilWireIsInert(t *testing.T) {
 	var w *Wire
-	w.Record("r-1", "traffic:update", &collect.TrafficSample{IfName: "e", TS: min1})
+	w.Record("r-1", "traffic:update", collect.TrafficSample{IfName: "e", TS: min1})
 	w.Flush("r-1")
 	if w.Enabled() {
 		t.Error("a nil wire reports enabled")
@@ -227,10 +227,10 @@ func TestANilWireIsInert(t *testing.T) {
 // name, both record nothing. The type is the guard.
 func TestOnlyTheTwoSampleEventsAreRecorded(t *testing.T) {
 	w, s := on(t)
-	w.Record("r-1", "dns:update", &collect.TrafficSample{IfName: "ether1", TS: min1})
-	w.Record("r-1", "traffic:update", &collect.PingPayload{Target: "x", TS: min1})
+	w.Record("r-1", "dns:update", collect.TrafficSample{IfName: "ether1", TS: min1})
+	w.Record("r-1", "traffic:update", collect.PingPayload{Target: "x", TS: min1})
 	w.Record("r-1", "traffic:update", "not a payload")
-	w.Record("", "traffic:update", &collect.TrafficSample{IfName: "ether1", TS: min1})
+	w.Record("", "traffic:update", collect.TrafficSample{IfName: "ether1", TS: min1})
 	w.Flush("r-1")
 	if len(s.rows) != 0 {
 		t.Errorf("wrote %+v", s.rows)

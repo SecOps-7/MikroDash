@@ -29,7 +29,7 @@ func TestASettingsSaveReachesTheAlerts(t *testing.T) {
 	s.dispatch = s.buildAlertDispatch(true)
 	r := alert.Router{ID: "r-1", AlertsEnabled: true}
 
-	if got := s.alerts.Evaluate(r, "system:update", &collect.SystemPayload{CPULoad: 60}); len(got) != 0 {
+	if got := s.alerts.Evaluate(r, "system:update", collect.SystemPayload{CPULoad: 60}); len(got) != 0 {
 		t.Fatalf("60%% fired %v under the default threshold", got)
 	}
 	if notify.HasConfigured(s.dispatch.Recipients("", nil)[0].Settings) {
@@ -41,7 +41,7 @@ func TestASettingsSaveReachesTheAlerts(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("save: status %d: %s", w.Code, w.Body.String())
 	}
-	if got := s.alerts.Evaluate(r, "system:update", &collect.SystemPayload{CPULoad: 61}); len(got) != 1 {
+	if got := s.alerts.Evaluate(r, "system:update", collect.SystemPayload{CPULoad: 61}); len(got) != 1 {
 		t.Errorf("61%% fired %v after the threshold was saved as 50; the evaluator kept "+
 			"its startup settings", got)
 	}

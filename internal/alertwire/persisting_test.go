@@ -19,8 +19,8 @@ import (
 // extreme. So a reporting-off router gets the same memory in RAM instead.
 
 // cpuHigh and cpuNormal are one rule's two edges, which is all these need.
-func cpuHigh() *collect.SystemPayload   { return &collect.SystemPayload{CPULoad: 99} }
-func cpuNormal() *collect.SystemPayload { return &collect.SystemPayload{CPULoad: 5} }
+func cpuHigh() collect.SystemPayload   { return collect.SystemPayload{CPULoad: 99} }
+func cpuNormal() collect.SystemPayload { return collect.SystemPayload{CPULoad: 5} }
 
 func fired(t *testing.T, got []alert.Fired, why string) {
 	t.Helper()

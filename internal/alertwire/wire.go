@@ -227,8 +227,12 @@ func (w *Wire) Evaluate(r alert.Router, event string, payload any) []alert.Fired
 	// second would let a renamed event silently stop evaluating; this way a
 	// mismatch of either kind produces nothing, and the name is only used to
 	// pick which rule family to run.
+	//
+	// VALUES, as `hub.Declare[T]` sends them. These matched pointers after the
+	// events became typed values (6673154, v0.8.52), so no rule ran on live data
+	// from then on (issue #135). The tests send through `Emit` now.
 	switch p := payload.(type) {
-	case *collect.SystemPayload:
+	case collect.SystemPayload:
 		if event != "system:update" {
 			return nil
 		}
@@ -250,7 +254,7 @@ func (w *Wire) Evaluate(r alert.Router, event string, payload any) []alert.Fired
 			}
 			return e.SystemUpdate(r, &cpu, p.UpdateAvailable, p.LatestVersion, p.Version)
 		}
-	case *collect.PingPayload:
+	case collect.PingPayload:
 		if event != "ping:update" {
 			return nil
 		}
@@ -264,22 +268,22 @@ func (w *Wire) Evaluate(r alert.Router, event string, payload any) []alert.Fired
 		}
 		target := p.Target
 		run = func(e *alert.Evaluator) []alert.Fired { return e.PingUpdate(r, &target, loss, p.RTT) }
-	case *collect.IfStatusPayload:
+	case collect.IfStatusPayload:
 		if event != "ifstatus:update" {
 			return nil
 		}
 		run = func(e *alert.Evaluator) []alert.Fired { return e.IfstatusUpdate(r, ifaces(p.Interfaces)) }
-	case *collect.VPNPayload:
+	case collect.VPNPayload:
 		if event != "vpn:update" {
 			return nil
 		}
 		run = func(e *alert.Evaluator) []alert.Fired { return e.VPNUpdate(r, tunnels(p.Tunnels)) }
-	case *collect.NetwatchPayload:
+	case collect.NetwatchPayload:
 		if event != "netwatch:update" {
 			return nil
 		}
 		run = func(e *alert.Evaluator) []alert.Fired { return e.NetwatchUpdate(r, hosts(p.Hosts)) }
-	case *collect.RoutingPayload:
+	case collect.RoutingPayload:
 		if event != "routing:update" {
 			return nil
 		}

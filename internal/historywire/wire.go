@@ -83,6 +83,14 @@ func (w *Wire) Enabled() bool { return w != nil && w.enabled }
 // Checking the event name alone would let a renamed event stop recording
 // silently — which is the exact failure the live comment above describes. A
 // payload of the wrong type records nothing rather than being coerced.
+//
+// ── VALUES, NOT POINTERS, BECAUSE THAT IS WHAT IS SENT ─────────────────────
+//
+// `hub.Declare[T]` declares these events as values and `Event[T].Emit` passes the
+// T through. These cases matched pointers from before that change (6673154,
+// v0.8.52), so every sample fell to `default` and no traffic, bandwidth or ping
+// history was written from then on (issue #135). The tests now send through
+// `Emit`, not a hand-built payload.
 func (w *Wire) Record(routerID, event string, payload any) {
 	if w == nil || !w.enabled || routerID == "" {
 		return
@@ -98,8 +106,8 @@ func (w *Wire) Record(routerID, event string, payload any) {
 	var rows []history.Row
 
 	switch p := payload.(type) {
-	case *collect.TrafficSample:
-		if event != "traffic:update" || p == nil {
+	case collect.TrafficSample:
+		if event != "traffic:update" {
 			return
 		}
 		// ── WHAT IS RECORDED IS A PROPERTY OF THE ROUTER, NOT OF WHO IS
@@ -125,8 +133,8 @@ func (w *Wire) Record(routerID, event string, payload any) {
 		rows = w.w.RecordTraffic(routerID, p.IfName, p.RxMbps, p.TxMbps, p.TS)
 		w.mu.Unlock()
 
-	case *collect.PingPayload:
-		if event != "ping:update" || p == nil {
+	case collect.PingPayload:
+		if event != "ping:update" {
 			return
 		}
 		// ── A PAYLOAD WITH NO LOSS READING IS NOT A ZERO-LOSS SAMPLE ──────

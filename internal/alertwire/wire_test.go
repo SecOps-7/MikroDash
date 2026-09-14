@@ -94,7 +94,7 @@ var router = alert.Router{ID: "r-1", AlertsEnabled: true}
 func TestAnEventWithNoRuleTouchesNothing(t *testing.T) {
 	w, h := wireOn(t)
 	for _, ev := range []string{"dns:update", "bridges:update", "packages:update"} {
-		if got := w.Evaluate(router, ev, &collect.SystemPayload{CPULoad: 99}); got != nil {
+		if got := w.Evaluate(router, ev, collect.SystemPayload{CPULoad: 99}); got != nil {
 			t.Errorf("%s fired %v", ev, got)
 		}
 	}
@@ -110,7 +110,7 @@ func TestAnEventWithNoRuleTouchesNothing(t *testing.T) {
 // event name evaluates nothing rather than being coerced.
 func TestAMismatchedPayloadEvaluatesNothing(t *testing.T) {
 	w, h := wireOn(t)
-	if got := w.Evaluate(router, "system:update", &collect.PingPayload{}); got != nil {
+	if got := w.Evaluate(router, "system:update", collect.PingPayload{}); got != nil {
 		t.Errorf("a ping payload under system:update fired %v", got)
 	}
 	if got := w.Evaluate(router, "system:update", "not a payload at all"); got != nil {
@@ -127,7 +127,7 @@ func TestAMismatchedPayloadEvaluatesNothing(t *testing.T) {
 func TestARouterWithNoIDIsIgnored(t *testing.T) {
 	w, h := wireOn(t)
 	got := w.Evaluate(alert.Router{AlertsEnabled: true}, "system:update",
-		&collect.SystemPayload{CPULoad: 99})
+		collect.SystemPayload{CPULoad: 99})
 	if got != nil {
 		t.Errorf("fired %v for a router with no id", got)
 	}
@@ -147,7 +147,7 @@ func TestARouterWithNoIDIsIgnored(t *testing.T) {
 func TestCPUCrossingTheThresholdFilesAndResolves(t *testing.T) {
 	w, h := wireOn(t)
 
-	if got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
+	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
 		t.Fatalf("a first reading over the threshold fired %v", got)
 	}
 	if !h.open[storedKey("r-1", "High CPU", "")] {
@@ -157,7 +157,7 @@ func TestCPUCrossingTheThresholdFilesAndResolves(t *testing.T) {
 	// STILL HIGH: no second row. The dedup is the database's answer, and this is
 	// what would break if `subject IS ?` were `= ?` — see internal/db.
 	before := len(h.calls)
-	if got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 95}); len(got) != 0 {
+	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 95}); len(got) != 0 {
 		t.Errorf("a second high reading fired %v", got)
 	}
 	for _, c := range h.calls[before:] {
@@ -167,7 +167,7 @@ func TestCPUCrossingTheThresholdFilesAndResolves(t *testing.T) {
 	}
 
 	// BACK DOWN: resolved.
-	got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 10})
+	got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 10})
 	if len(got) != 1 || !got[0].Up {
 		t.Errorf("coming back under the threshold produced %v", got)
 	}
@@ -181,14 +181,14 @@ func TestCPUCrossingTheThresholdFilesAndResolves(t *testing.T) {
 func TestOneEventStampsOneInstant(t *testing.T) {
 	w, h := wireOn(t)
 	// Two interfaces going down together: two rows, one event.
-	got := w.Evaluate(router, "ifstatus:update", &collect.IfStatusPayload{
+	got := w.Evaluate(router, "ifstatus:update", collect.IfStatusPayload{
 		Interfaces: []collect.Interface{
 			{Name: "ether1", Type: "ether", Running: true},
 			{Name: "ether2", Type: "ether", Running: true},
 		}})
 	_ = got
 	h.nowOf = nil
-	got = w.Evaluate(router, "ifstatus:update", &collect.IfStatusPayload{
+	got = w.Evaluate(router, "ifstatus:update", collect.IfStatusPayload{
 		Interfaces: []collect.Interface{
 			{Name: "ether1", Type: "ether", Running: false},
 			{Name: "ether2", Type: "ether", Running: false},
@@ -224,13 +224,13 @@ func TestOneEventStampsOneInstant(t *testing.T) {
 // port comparing `!= "stale"` misses a peer going to "never".
 func TestTheVPNStateStringSurvivesTheAdapter(t *testing.T) {
 	w, _ := wireOn(t)
-	w.Evaluate(router, "vpn:update", &collect.VPNPayload{
+	w.Evaluate(router, "vpn:update", collect.VPNPayload{
 		Tunnels: []collect.Tunnel{{Name: "wg0", State: "active"}}})
 	for _, state := range []string{"stale", "never"} {
 		w2, h2 := wireOn(t)
-		w2.Evaluate(router, "vpn:update", &collect.VPNPayload{
+		w2.Evaluate(router, "vpn:update", collect.VPNPayload{
 			Tunnels: []collect.Tunnel{{Name: "wg0", State: "active"}}})
-		got := w2.Evaluate(router, "vpn:update", &collect.VPNPayload{
+		got := w2.Evaluate(router, "vpn:update", collect.VPNPayload{
 			Tunnels: []collect.Tunnel{{Name: "wg0", State: state}}})
 		if len(got) != 1 {
 			t.Errorf("active -> %q fired %v, want one alert", state, got)
@@ -251,7 +251,7 @@ func TestANilPingLossDoesNotResolve(t *testing.T) {
 	w, h := wireOn(t)
 	lossy, clean := 60, 0
 
-	if got := w.Evaluate(router, "ping:update", &collect.PingPayload{
+	if got := w.Evaluate(router, "ping:update", collect.PingPayload{
 		Target: "8.8.8.8", Loss: &lossy}); len(got) != 1 {
 		t.Fatalf("60%% loss fired %v", got)
 	}
@@ -261,7 +261,7 @@ func TestANilPingLossDoesNotResolve(t *testing.T) {
 	}
 
 	// NO READING AT ALL. The alert must stay open.
-	if got := w.Evaluate(router, "ping:update", &collect.PingPayload{
+	if got := w.Evaluate(router, "ping:update", collect.PingPayload{
 		Target: "8.8.8.8", Loss: nil}); len(got) != 0 {
 		t.Errorf("a payload with no loss reading fired %v", got)
 	}
@@ -270,7 +270,7 @@ func TestANilPingLossDoesNotResolve(t *testing.T) {
 	}
 
 	// A real zero does resolve it.
-	if got := w.Evaluate(router, "ping:update", &collect.PingPayload{
+	if got := w.Evaluate(router, "ping:update", collect.PingPayload{
 		Target: "8.8.8.8", Loss: &clean}); len(got) != 1 || !got[0].Up {
 		t.Errorf("0%% loss produced %v, want a resolution", got)
 	}
@@ -283,10 +283,10 @@ func TestANilPingLossDoesNotResolve(t *testing.T) {
 // purpose.
 func TestADisabledInterfaceIsNotAnOutage(t *testing.T) {
 	w, h := wireOn(t)
-	w.Evaluate(router, "ifstatus:update", &collect.IfStatusPayload{
+	w.Evaluate(router, "ifstatus:update", collect.IfStatusPayload{
 		Interfaces: []collect.Interface{{Name: "ether1", Type: "ether", Running: true}}})
 
-	got := w.Evaluate(router, "ifstatus:update", &collect.IfStatusPayload{
+	got := w.Evaluate(router, "ifstatus:update", collect.IfStatusPayload{
 		Interfaces: []collect.Interface{
 			{Name: "ether1", Type: "ether", Running: false, Disabled: true},
 		}})
@@ -303,7 +303,7 @@ func TestADisabledInterfaceIsNotAnOutage(t *testing.T) {
 // so the RouterOS-update alert could never fire.
 func TestTheUpdateRuleGetsBothVersions(t *testing.T) {
 	w, h := wireOn(t)
-	got := w.Evaluate(router, "system:update", &collect.SystemPayload{
+	got := w.Evaluate(router, "system:update", collect.SystemPayload{
 		CPULoad: 5, Version: "7.23", LatestVersion: "7.24", UpdateAvailable: true})
 	if len(got) != 1 {
 		t.Fatalf("an available update fired %v; calls were %v", got, h.calls)
@@ -343,12 +343,12 @@ func TestEachRouterHasItsOwnEdgeState(t *testing.T) {
 	a := alert.Router{ID: "r-a", AlertsEnabled: true}
 	b := alert.Router{ID: "r-b", AlertsEnabled: true}
 
-	if got := w.Evaluate(a, "system:update", &collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
+	if got := w.Evaluate(a, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
 		t.Fatalf("router a fired %v", got)
 	}
 	// Router b's FIRST reading is also over the threshold and must alert on its
 	// own account.
-	if got := w.Evaluate(b, "system:update", &collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
+	if got := w.Evaluate(b, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
 		t.Errorf("router b fired %v — its edge state was satisfied by router a", got)
 	}
 	if !h.open[storedKey("r-a", "High CPU", "")] || !h.open[storedKey("r-b", "High CPU", "")] {
@@ -365,7 +365,7 @@ func TestEachRouterHasItsOwnEdgeState(t *testing.T) {
 // it rather than the evaluator.
 func TestADroppedEvaluatorRebuildsButDoesNotDuplicate(t *testing.T) {
 	w, h := wireOn(t)
-	if got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
+	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
 		t.Fatalf("first firing produced %v", got)
 	}
 	w.Drop("r-1")
@@ -374,7 +374,7 @@ func TestADroppedEvaluatorRebuildsButDoesNotDuplicate(t *testing.T) {
 	}
 
 	// The condition is STILL TRUE and the rebuilt evaluator has no memory of it.
-	got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 94})
+	got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 94})
 	if len(got) != 0 {
 		t.Errorf("a rebuilt evaluator fired %v for an already-open alert — the database "+
 			"dedup did not hold", got)
@@ -394,7 +394,7 @@ func TestADroppedEvaluatorRebuildsButDoesNotDuplicate(t *testing.T) {
 // state, or every currently-true condition re-fires on the next save.
 func TestSettingsChangeKeepsTheEdgeState(t *testing.T) {
 	w, _ := wireOn(t)
-	if got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
+	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
 		t.Fatalf("first firing produced %v", got)
 	}
 	before := w.Routers()
@@ -406,7 +406,7 @@ func TestSettingsChangeKeepsTheEdgeState(t *testing.T) {
 			w.Routers(), before)
 	}
 	// With the toggle off the rule is silent, which is the point of the toggle.
-	if got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 10}); len(got) != 0 {
+	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 10}); len(got) != 0 {
 		t.Errorf("the cpu rule fired %v with its toggle off", got)
 	}
 
@@ -416,14 +416,14 @@ func TestSettingsChangeKeepsTheEdgeState(t *testing.T) {
 	// which is the burst this exists to prevent — and the row-count check above
 	// cannot see it, because a rebuild keeps the count identical.
 	w2, h2 := wireOn(t)
-	if got := w2.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
+	if got := w2.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
 		t.Fatalf("setup: first firing produced %v", got)
 	}
 	h2.open = map[string]bool{} // forget the row, so ONLY the edge state can suppress
 	on := onSettings()
 	on.PingLoss = 33 // an unrelated change, so the cpu toggle itself is untouched
 	w2.SetSettings(on)
-	if got := w2.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 95}); len(got) != 0 {
+	if got := w2.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 95}); len(got) != 0 {
 		t.Errorf("a settings change made a still-true condition re-fire (%v) — the "+
 			"evaluators were rebuilt and lost their edge state", got)
 	}
@@ -435,11 +435,11 @@ func TestSettingsChangeKeepsTheEdgeState(t *testing.T) {
 func TestAlertsDisabledIsReReadEachEvent(t *testing.T) {
 	w, h := wireOn(t)
 	off := alert.Router{ID: "r-1", AlertsEnabled: false}
-	if got := w.Evaluate(off, "system:update", &collect.SystemPayload{CPULoad: 94}); len(got) != 0 {
+	if got := w.Evaluate(off, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 0 {
 		t.Errorf("fired %v with alerts disabled", got)
 	}
 	// Now ON, same wire, same evaluator.
-	if got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
+	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 94}); len(got) != 1 {
 		t.Errorf("fired %v after alerts were re-enabled", got)
 	}
 	if !h.open[storedKey("r-1", "High CPU", "")] {
@@ -451,7 +451,7 @@ func TestAlertsDisabledIsReReadEachEvent(t *testing.T) {
 // history is configured.
 func TestANilWireIsInert(t *testing.T) {
 	var w *Wire
-	if got := w.Evaluate(router, "system:update", &collect.SystemPayload{CPULoad: 99}); got != nil {
+	if got := w.Evaluate(router, "system:update", collect.SystemPayload{CPULoad: 99}); got != nil {
 		t.Errorf("a nil wire fired %v", got)
 	}
 }
@@ -492,18 +492,18 @@ func TestOneRoutersRulesAreNotEvaluatedConcurrently(t *testing.T) {
 			for j := 0; j < 60; j++ {
 				switch (n + j) % 4 {
 				case 0:
-					w.Evaluate(r, "system:update", &collect.SystemPayload{CPULoad: cpu})
+					w.Evaluate(r, "system:update", collect.SystemPayload{CPULoad: cpu})
 				case 1:
-					w.Evaluate(r, "ifstatus:update", &collect.IfStatusPayload{
+					w.Evaluate(r, "ifstatus:update", collect.IfStatusPayload{
 						Interfaces: []collect.Interface{
 							{Name: "ether1", Type: "ether", Running: j%2 == 0},
 							{Name: "ether2", Type: "ether", Running: j%3 == 0},
 						}})
 				case 2:
-					w.Evaluate(r, "vpn:update", &collect.VPNPayload{
+					w.Evaluate(r, "vpn:update", collect.VPNPayload{
 						Tunnels: []collect.Tunnel{{Name: "wg0", State: "active"}}})
 				default:
-					w.Evaluate(r, "ping:update", &collect.PingPayload{
+					w.Evaluate(r, "ping:update", collect.PingPayload{
 						Target: "1.1.1.1", Loss: &loss})
 				}
 			}
@@ -538,7 +538,7 @@ func TestAnUncheckedSystemPayloadDoesNotResolveAnUpdateAlert(t *testing.T) {
 	w, _ := wireOn(t)
 
 	// 1. The session's collector: the check has run, an update is available.
-	fired := w.Evaluate(router, "system:update", &collect.SystemPayload{
+	fired := w.Evaluate(router, "system:update", collect.SystemPayload{
 		Version: "7.24", LatestVersion: "7.24.1", UpdateStatus: "New version is available",
 		UpdateAvailable: true,
 	})
@@ -547,7 +547,7 @@ func TestAnUncheckedSystemPayloadDoesNotResolveAnUpdateAlert(t *testing.T) {
 	}
 
 	// 2. The pool's collector: never checked, so NO version and NO status.
-	got := w.Evaluate(router, "system:update", &collect.SystemPayload{
+	got := w.Evaluate(router, "system:update", collect.SystemPayload{
 		Version: "7.24", LatestVersion: "", UpdateStatus: "", UpdateAvailable: false,
 	})
 	for _, f := range got {
@@ -561,7 +561,7 @@ func TestAnUncheckedSystemPayloadDoesNotResolveAnUpdateAlert(t *testing.T) {
 
 	// 3. AND A REAL "up to date" STILL RESOLVES. The fix must not make the
 	//    resolution unreachable — an operator who upgrades has to see it close.
-	got = w.Evaluate(router, "system:update", &collect.SystemPayload{
+	got = w.Evaluate(router, "system:update", collect.SystemPayload{
 		Version: "7.24.1", LatestVersion: "7.24.1", UpdateStatus: "System is already up to date",
 		UpdateAvailable: false,
 	})
@@ -584,13 +584,13 @@ func TestAnUncheckedSystemPayloadDoesNotResolveAnUpdateAlert(t *testing.T) {
 	//    resolution entirely — a mutation doing exactly that survived until this
 	//    case existed.
 	w2, _ := wireOn(t)
-	if f := w2.Evaluate(router, "system:update", &collect.SystemPayload{
+	if f := w2.Evaluate(router, "system:update", collect.SystemPayload{
 		Version: "7.24", LatestVersion: "7.24.1", UpdateStatus: "New version is available",
 		UpdateAvailable: true,
 	}); len(f) != 1 {
 		t.Fatalf("setup: the update alert did not open (%+v)", f)
 	}
-	got = w2.Evaluate(router, "system:update", &collect.SystemPayload{
+	got = w2.Evaluate(router, "system:update", collect.SystemPayload{
 		Version: "7.24.1", LatestVersion: "", UpdateStatus: "System is already up to date",
 		UpdateAvailable: false,
 	})
@@ -615,13 +615,13 @@ func TestAnUncheckedSystemPayloadDoesNotResolveAnUpdateAlert(t *testing.T) {
 		"finding out latest version...", "checking for updates", "Update in progress",
 	} {
 		w3, _ := wireOn(t)
-		if f := w3.Evaluate(router, "system:update", &collect.SystemPayload{
+		if f := w3.Evaluate(router, "system:update", collect.SystemPayload{
 			Version: "7.24", LatestVersion: "7.24.1", UpdateStatus: "New version is available",
 			UpdateAvailable: true,
 		}); len(f) != 1 {
 			t.Fatalf("setup: the update alert did not open (%+v)", f)
 		}
-		for _, f := range w3.Evaluate(router, "system:update", &collect.SystemPayload{
+		for _, f := range w3.Evaluate(router, "system:update", collect.SystemPayload{
 			Version: "7.24", LatestVersion: "", UpdateStatus: transient, UpdateAvailable: false,
 		}) {
 			if f.Up {

@@ -537,7 +537,7 @@ func (p *Pool) build(cfg RouterConfig) *poolSession {
 	// only for the routers whose own `ReportingEnabled` says so.
 	//
 	// They exist at all because `internal/historywire` records exactly two
-	// payload types — `*collect.TrafficSample` and `*collect.PingPayload` — and
+	// payload types — `collect.TrafficSample` and `collect.PingPayload`, by value — and
 	// the pool's other three collectors produce neither. Without these, a
 	// router with no browser attached writes no history, which is measurably
 	// what happened: live wrote 60 traffic rows an hour and this port wrote

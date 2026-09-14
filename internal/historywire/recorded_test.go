@@ -24,9 +24,9 @@ import (
 // samples pushes two minutes of one interface, which is what it takes to roll a
 // minute over and produce rows.
 func samples(w *Wire, routerID, ifName string) {
-	w.Record(routerID, "traffic:update", &collect.TrafficSample{
+	w.Record(routerID, "traffic:update", collect.TrafficSample{
 		IfName: ifName, RxMbps: 8, TxMbps: 4, TS: min1})
-	w.Record(routerID, "traffic:update", &collect.TrafficSample{
+	w.Record(routerID, "traffic:update", collect.TrafficSample{
 		IfName: ifName, RxMbps: 8, TxMbps: 4, TS: min2})
 }
 
