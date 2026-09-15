@@ -3,13 +3,12 @@ import type { City } from './city-picker';
 //
 // ── PART ONE OF THE MODAL: THE VALUE MAPPING ────────────────────────────────
 //
-// The dialog is 32 ids of form, a fetched collector grid, a geo picker and a
-// live connection test. This file is the part that has no DOM in it at all: how
+// The dialog is a form, a geo picker and a live connection test. This file is the part that has no DOM in it at all: how
 // a stored router becomes form values, and how form values become a stored
 // router. Both directions are pure, so both are comparable against the original
 // without a browser.
 //
-// The rest of the modal — the grid, the picker, the test button — comes after,
+// The rest of the modal — the picker and the test button — comes after,
 // and will call these.
 
 /** A bandwidth figure as the form holds it: a number and a unit. */
@@ -55,7 +54,7 @@ export interface StoredRouter {
   tls?: boolean; tlsInsecure?: boolean;
   alertsEnabled?: boolean; reportingEnabled?: boolean; connDownThresholdSec?: number;
   bwDownMbps?: number; bwUpMbps?: number;
-  collection?: { mode?: string; off?: string[] };
+  collection?: { mode?: string };
 }
 
 /** Every value the form shows, for one router or for a fresh Add. */
@@ -68,7 +67,7 @@ export interface RouterFormValues {
   tls: boolean; tlsInsecure: boolean;
   alertsEnabled: boolean; reportingEnabled: boolean; downThreshold: number;
   bwDown: BwField; bwUp: BwField;
-  mode: string; off: string[];
+  mode: string;
 }
 
 /**
@@ -134,86 +133,7 @@ export function routerFormValues(
     bwDown: splitBw(r ? (r.bwDownMbps || 1000) : 1000),
     bwUp: splitBw(r ? (r.bwUpMbps || 1000) : 1000),
     mode: coll.mode || 'stream',
-    // `off` names the collectors NOT to run. The grid's checkboxes are the
-    // inverse — checked means on — which is why the caller inverts rather than
-    // this function: the list is the stored shape and the checkboxes are the
-    // view of it.
-    off: Array.isArray(coll.off) ? coll.off : [],
   };
-}
-
-
-/** One collector checkbox in the dialog's grid. */
-export interface CollToggle {
-  key: string;
-  checked: boolean;
-  /** Keys this collector needs, from the registry's `requires` field. */
-  requires: string[];
-  // THE CURRENT DISABLED STATE IS AN INPUT, because the live pass RE-RUNS on
-  // every change and its elements keep their state between runs. A stateless
-  // version cannot see the difference between "leaves it disabled" and
-  // "re-enables it" — two mutations survived until this was carried through.
-  disabled?: boolean;
-  dimmed?: boolean;
-}
-
-/** What the grid shows for one collector after the dependency pass. */
-export interface CollState {
-  key: string; checked: boolean; disabled: boolean; dimmed: boolean;
-}
-
-/**
- * Apply collector dependencies to the grid.
- *
- * ── THE PAIRS ARE READ, NEVER NAMED ─────────────────────────────────────────
- *
- * The original takes `requires` from the markup rather than hardcoding
- * conns→bandwidth, and its comment says why: that pair was the only one when it
- * was written, `requires` is a registry field, and a second one would have gone
- * unnoticed while the SERVER cascaded it anyway — so the form would have
- * silently disagreed with what actually runs.
- *
- * ── AN UNKNOWN DEPENDENCY IS TREATED AS MET ─────────────────────────────────
- *
- * `dep && !dep.checked` — a `requires` naming a collector that is not in the
- * grid disables nothing. That is the safe direction: a registry entry the form
- * does not know about must not silently switch a collector off, because the
- * operator would have no control to switch it back on.
- *
- * ── AND IT IS A SINGLE PASS, IN ORDER ───────────────────────────────────────
- *
- * The original walks the toggles once, unchecking as it goes, so a CHAIN
- * (A requires B, B requires C) only propagates as far as the order allows: if B
- * comes after A, A is judged against B's value before B is unchecked. Reproduced
- * rather than fixed with a loop-to-fixpoint — the server is what decides which
- * collectors run, and a form that resolved chains more thoroughly than the
- * original would disagree with it in the other direction.
- *
- * ── AND A TOGGLE WITH NO `requires` IS SKIPPED ENTIRELY ─────────────────────
- *
- * Not "processed and found met": the original returns early, so such a toggle
- * never has `disabled = false` written to it. If something else disabled it, it
- * STAYS disabled across every later pass. Observable only because this function
- * takes the current state as input, which is why it does.
- */
-export function syncCollDeps(toggles: readonly CollToggle[]): CollState[] {
-  const state: CollState[] = toggles.map((t) => ({
-    key: t.key, checked: t.checked, disabled: !!t.disabled, dimmed: !!t.dimmed,
-  }));
-  const byKey = new Map<string, CollState>();
-  for (const s of state) byKey.set(s.key, s);
-
-  toggles.forEach((t, i) => {
-    if (!t.requires.length) return;
-    const unmet = t.requires.some((k) => {
-      const dep = byKey.get(k.trim());
-      return dep !== undefined && !dep.checked;
-    });
-    const self = state[i]!;
-    if (unmet) { self.checked = false; self.disabled = true; self.dimmed = true; }
-    else { self.disabled = false; self.dimmed = false; }
-  });
-  return state;
 }
 
 
@@ -232,26 +152,20 @@ export interface RouterFormInput {
   bwUpRaw: string; bwUpUnit: string;
   alertsEnabled: boolean; reportingEnabled: boolean; downThresholdRaw: string;
   mode: string;
-  /** The grid's checkboxes, or an empty list when it has not loaded yet. */
-  toggles: readonly { key: string; checked: boolean }[];
 }
 
 /**
  * The body a save sends.
  *
- * ── THREE RULES HERE ARE LOAD-BEARING, AND TWO PROTECT STORED DATA ──────────
+ * ── THREE RULES HERE ARE LOAD-BEARING, AND ONE PROTECTS STORED DATA ─────────
  *
  * 1. **`geo` carries `place` and NEVER `auto`.** The store reads an absent
  *    `auto` as "keep what you learned", so sending one would let a save race the
  *    background geo refresh and discard what it found.
  *
- * 2. **AN EMPTY COLLECTOR GRID OMITS THE WHOLE `collection` BLOCK.** The grid is
- *    fetched, so it can still be empty when the modal has only just opened — and
- *    an empty grid yields `off: []`, which the server reads as "enable
- *    everything" and which would WIPE the router's disabled collectors.
- *    `undefined` means "keep what is stored", which is what is meant. This is
- *    the difference between saving a form early and silently re-enabling every
- *    collector an operator had switched off.
+ * 2. **`collection` carries the delivery mode only.** Per-router collector
+ *    switching was removed on 2026-09-15, so a save sends no `off` list, and one
+ *    an older install stored is ignored by the server.
  *
  * 3. **`connDownThresholdSec` is clamped to 0..300, falling back to 30.** An
  *    empty box parses to NaN and `NaN >= 0` is false, so it takes the default —
@@ -396,19 +310,14 @@ export function collectRouterForm(f: RouterFormInput): Record<string, unknown> {
     reportingEnabled: !!f.reportingEnabled,
     connDownThresholdSec: (thresh >= 0 && thresh <= 300) ? thresh : 30,
   };
-  if (f.toggles.length) {
-    // Server normalisation drops a block carrying no information, so sending
-    // the defaults is harmless and leaves routers.json unchanged.
-    body.collection = {
-      // `f.mode` VERBATIM, with no `|| 'stream'`. The original's fallback is
-      // `modalMode ? modalMode.value : 'stream'` — for a MISSING ELEMENT, not an
-      // empty value — so an empty mode is sent as ''. I added the guard, the
-      // gate caught it, and it is gone: the caller supplies 'stream' when the
-      // element is absent, which is where the original puts that decision.
-      mode: f.mode,
-      off: f.toggles.filter((t) => !t.checked).map((t) => t.key),
-    };
-  }
+  body.collection = {
+    // `f.mode` VERBATIM, with no `|| 'stream'`. The original's fallback is
+    // `modalMode ? modalMode.value : 'stream'` — for a MISSING ELEMENT, not an
+    // empty value — so an empty mode is sent as ''. The caller supplies
+    // 'stream' when the element is absent, which is where the original puts that
+    // decision.
+    mode: f.mode,
+  };
   return body;
 }
 
@@ -583,33 +492,4 @@ export class TestGate {
 
   /** True when Save can write without testing again. */
   maySaveDirectly(): boolean { return this.passed; }
-}
-
-
-/** A collector as `/api/collectors` describes it. */
-export interface CollectorDef { key: string; label: string; requires?: string[] }
-
-/**
- * The collector grid's markup.
- *
- * `requires` HAS TO SURVIVE INTO THE DOM, because the dependency pass reads it
- * back from `data-requires` rather than being told the pairs. The original notes
- * that it was already on the bandwidth row and then ignored, with conns→bandwidth
- * hardcoded in JavaScript instead — so the attribute existed and lied.
- *
- * Every box renders CHECKED. The caller applies the router's `off` list
- * afterwards, which is why an empty grid means "nothing known yet" rather than
- * "everything off" — the distinction `collectRouterForm` depends on.
- */
-export function collectorGridHtml(defs: readonly CollectorDef[], esc: (s: string) => string): string {
-  return defs.map((c) => {
-    const req = (c.requires && c.requires.length)
-      ? ' data-requires="' + esc(c.requires.join(',')) + '"' : '';
-    return '<label class="stoggle"' + req + '>'
-      + '<span class="stoggle-label">' + esc(c.label) + '</span>'
-      + '<span class="stoggle-switch">'
-      + '<input type="checkbox" id="rtrColl_' + esc(c.key) + '" data-coll="' + esc(c.key) + '" checked>'
-      + '<span class="stoggle-track"></span><span class="stoggle-thumb"></span>'
-      + '</span></label>';
-  }).join('');
 }

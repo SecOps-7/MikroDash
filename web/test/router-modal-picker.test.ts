@@ -122,9 +122,6 @@ function mount(opts) {
       const hold = (o.holdCity || {})[q];
       return hold ? new Promise((r) => { hold.release = () => r(reply); }) : Promise.resolve(reply);
     }
-    if (url === '/api/collectors') {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ collectors: [] }) });
-    }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, router: {} }) });
   };
 

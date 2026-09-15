@@ -473,8 +473,9 @@ type Router struct {
 	// "WAN1", and a port that only ever used the fallback would watch the wrong
 	// link on every router whose WAN is named anything else.
 	DefaultIf string `json:"defaultIf"`
-	// Collection is the per-router collection config (#105) — mode, the off
-	// list and per-collector overrides.
+	// Collection is the per-router collection config (#105) — mode and
+	// per-collector overrides. An `off` list written before 2026-09-15 may still
+	// be here, and is ignored.
 	//
 	// HELD AS RAW JSON, NOT DECODED, and that is a robustness decision rather
 	// than laziness. `Routers()` unmarshals the whole file in one call, so a

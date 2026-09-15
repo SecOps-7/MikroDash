@@ -7,8 +7,10 @@
 // traffic, no DHCP clients and no wireless registrations, yet without this it is
 // asked for the same concurrent channels as a 1 GB hAP ax3 — and the documented
 // bottleneck is concurrent API channels on the MikroTik, not data volume. So
-// per-router intervals, per-router stream-vs-poll, and turning a collector off
-// entirely are the levers that matter (#105).
+// per-router intervals and per-router stream-vs-poll are the levers that matter
+// (#105). Turning a collector off per router was removed on 2026-09-15: every
+// collector is gated by demand and dormancy, so the switch had nothing left to
+// save. The install-wide ping switch is the one thing that still disables one.
 //
 // ── THE PORT HAS BEEN RUNNING WITHOUT IT ────────────────────────────────────
 //
@@ -21,8 +23,8 @@
 //
 // ── THE REGISTRY IS EMBEDDED, NOT TYPED ─────────────────────────────────────
 //
-// Everything derives from the collector registry: intervals, stream keys, the
-// disableable set, the dependency edges. It is 27 rows of data, and a Go literal
+// Everything derives from the collector registry: intervals, stream keys, and the
+// set dormancy may suspend. It is 27 rows of data, and a Go literal
 // copied by hand is a transcription error waiting to happen — one wrong
 // `pollable` and a collector silently loses its poll path.
 //
@@ -39,7 +41,6 @@
 //	a non-pollable collector may poll                 29
 //	pollIfaces takes the wrong default                27
 //	the pingEnabled kill switch is ignored             2
-//	the dependency cascade never runs                  2
 //	the clamp bounds are not applied                   2
 package collection
 
@@ -47,7 +48,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"math"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -59,15 +59,18 @@ var tablesJSON []byte
 // Collector is one registry row, reduced to what a resolver consumes.
 type Collector struct {
 	Key string `json:"key"`
-	// Label is the human name `GET /api/collectors` sends. Carried in the
-	// generated tables rather than typed here, for the same reason as the rest of
-	// the registry: it is the live app's own wording.
+	// Label is the collector's human name, carried in the generated tables rather
+	// than typed here, for the same reason as the rest of the registry: it is the
+	// live app's own wording.
 	Label         string `json:"label"`
 	PollKey       string `json:"pollKey"`
 	DefaultPollMs int    `json:"defaultPollMs"`
 	StreamKey     string `json:"streamKey"`
 	Pollable      bool   `json:"pollable"`
-	Disableable   bool   `json:"disableable"`
+	// Disableable is the registry's name for "may be suspended when it reports
+	// nothing": with EmptyKey it decides dormancy eligibility. It no longer means
+	// an operator can switch the collector off, which was removed on 2026-09-15.
+	Disableable bool `json:"disableable"`
 	// EmptyKey names the payload list(s) whose emptiness means "nothing to
 	// report here". Its PRESENCE, with Disableable, is what makes a collector
 	// eligible for dormancy — the live filter is
@@ -81,8 +84,7 @@ type Collector struct {
 	// SessionProp is the property the collector hangs off on the live session
 	// object. Carried for the same reason as Label: the same names, not a second
 	// set typed here.
-	SessionProp string   `json:"sessionProp"`
-	Requires    []string `json:"requires"`
+	SessionProp string `json:"sessionProp"`
 }
 
 type tables struct {
@@ -128,7 +130,6 @@ type Resolved struct {
 // Router is the record's `collection` block, already decoded.
 type Router struct {
 	Mode      string
-	Off       []string
 	Overrides map[string]any
 }
 
@@ -145,7 +146,6 @@ type Router struct {
 // be unrecoverable from the UI.
 func Resolve(settings map[string]any, r *Router) Resolved {
 	mode := defaultMode
-	var off []string
 	ovr := map[string]any{}
 	if r != nil {
 		// AN UNKNOWN MODE IS NOT HONOURED. `MODES.includes(coll.mode)` on the
@@ -154,7 +154,6 @@ func Resolve(settings map[string]any, r *Router) Resolved {
 		if r.Mode == "stream" || r.Mode == "poll" {
 			mode = r.Mode
 		}
-		off = r.Off
 		if r.Overrides != nil {
 			ovr = r.Overrides
 		}
@@ -214,7 +213,9 @@ func Resolve(settings map[string]any, r *Router) Resolved {
 			out.Stream[c.Key] = false
 		}
 
-		out.Enabled[c.Key] = !c.Disableable || !slices.Contains(off, c.Key)
+		// EVERY COLLECTOR RUNS unless the install-wide ping switch says otherwise
+		// below. A router record's `off` list is ignored: see ParseRouter.
+		out.Enabled[c.Key] = true
 	}
 
 	// `pollIfaces` is interfaceStatus's metadata interval — override-able, but
@@ -231,36 +232,12 @@ func Resolve(settings map[string]any, r *Router) Resolved {
 		out.Poll["ifaces"] = defaultPollIfacesMs
 	}
 
-	// A separate GLOBAL kill switch, applied after the per-router off list and
-	// still winning over it.
+	// The install-wide ping switch (Settings, Ping / Latency), the one thing that
+	// still disables a collector.
 	if v, ok := settings["pingEnabled"]; ok && v == false {
 		out.Enabled["ping"] = false
 	}
 
-	// DEPENDENCIES CASCADE, in a loop.
-	//
-	// Done here rather than in the UI so a hand-edited routers.json cannot
-	// produce a combination that silently breaks a card: bandwidth has no fetch
-	// of its own and reads the table only `conns` fills.
-	//
-	// The loop matters even though today's registry is one edge deep — see
-	// The collection corpus, which records that a single pass would pass
-	// every case, and that a second edge is a one-line registry change away.
-	for changed := true; changed; {
-		changed = false
-		for _, c := range loaded.Registry {
-			if !out.Enabled[c.Key] {
-				continue
-			}
-			for _, dep := range c.Requires {
-				if !out.Enabled[dep] {
-					out.Enabled[c.Key] = false
-					changed = true
-					break
-				}
-			}
-		}
-	}
 	return out
 }
 
@@ -313,10 +290,9 @@ func num(raw any) (float64, bool) {
 // ParseRouter decodes a router record's `collection` block.
 //
 // IT NEVER FAILS, by design. The block is operator-editable and the live side
-// tolerates rubbish in it — a non-array `off` and a non-object `overrides` are
-// both silently ignored rather than honoured — so this mirrors that: anything it
-// cannot make sense of is dropped, and a nil result resolves to the fleet
-// defaults.
+// tolerates rubbish in it — a non-object `overrides` is silently ignored rather
+// than honoured — so this mirrors that: anything it cannot make sense of is
+// dropped, and a nil result resolves to the fleet defaults.
 //
 // The alternative, returning an error, would push the caller into deciding what
 // to do with a router whose config is malformed, and the original has already
@@ -334,15 +310,9 @@ func ParseRouter(raw []byte) *Router {
 	if s, ok := doc["mode"].(string); ok {
 		r.Mode = s
 	}
-	// `off` must be an ARRAY; a bare string names no collector even when it
-	// spells one, because the live `includes` runs on an array.
-	if list, ok := doc["off"].([]any); ok {
-		for _, v := range list {
-			if s, ok := v.(string); ok {
-				r.Off = append(r.Off, s)
-			}
-		}
-	}
+	// A STORED `off` LIST IS IGNORED. Turning a collector off per router was
+	// removed on 2026-09-15; the key may still be on disk from an older install,
+	// and not reading it here is what stops it meaning anything.
 	if m, ok := doc["overrides"].(map[string]any); ok {
 		r.Overrides = m
 	}

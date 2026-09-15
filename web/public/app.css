@@ -895,11 +895,17 @@
     .rtr-modal-close:hover{color:var(--text-main)}
     .rtr-modal-body{padding:1rem 1.1rem}
     /* The router form is ten field groups deep, which made a 520px modal a long
-       scroll on every edit. Above 900px it splits into two columns — connection
-       settings left, monitoring and collection right — so the whole form fits
-       without scrolling. Below that it falls back to the original single column,
-       where a narrow screen has no side space to fill anyway. */
+       scroll on every edit. Above 900px it splits into two columns — device,
+       connection and collection left; location, network and monitoring right —
+       so the whole form fits without scrolling. Below that it falls back to one
+       column, where a narrow screen has no side space to fill anyway. */
     .rtr-modal-col{min-width:0}
+    /* A titled section inside the router form: a small heading with a rule under
+       it, so six groups read as six groups. The first in a column sits flush. */
+    .rtr-sec{font-size:.66rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-main);padding-bottom:.35rem;margin:1.2rem 0 .8rem;border-bottom:1px solid var(--border)}
+    .rtr-modal-col>.rtr-sec:first-child{margin-top:0}
+    @media(max-width:899px){.rtr-modal-col+.rtr-modal-col>.rtr-sec:first-child{margin-top:1.2rem}}
+    .rtr-note{font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0}
     @media(min-width:900px){
       .rtr-modal-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 1.5rem;align-items:start}
       .rtr-modal-col+.rtr-modal-col{border-left:1px solid var(--border);padding-left:1.5rem}

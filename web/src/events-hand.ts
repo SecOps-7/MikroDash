@@ -140,7 +140,7 @@ export interface HandEvents {
   'collection:config': {
     routerId: string; mode: string;
     enabled: Record<string, boolean>; stream: Record<string, boolean>;
-    poll: Record<string, number>; off: string[];
+    poll: Record<string, number>;
   };
   'collection:status': { routerId: string; dormant: string[] };
   // `ts` is always sent here, where ConnsPayload's own is omitempty.

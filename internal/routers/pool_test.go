@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"mikrodash/internal/collection"
 	"mikrodash/internal/routeros"
 )
 
@@ -493,58 +492,6 @@ func TestARouterRemovedMidDialNeverComesUp(t *testing.T) {
 	})
 	if len(p.Summaries()) != 0 {
 		t.Error("a destroyed session still reports a summary")
-	}
-}
-
-// #105: A COLLECTOR THE OPERATOR TURNED OFF IS NEVER STARTED.
-//
-// Observed by what reaches the router rather than by inspecting the session:
-// `ifStatus` polls `/interface/print`, so its absence from the command log is
-// the evidence.
-//
-// THE PREFIX HAS TO BE `/interface/print`, NOT `/interface/`. `dhcpLeases`
-// issues `/interface/vlan/print`, so the broader prefix matches a collector that
-// is still running and the test fails against correct wiring — which is exactly
-// what the first version of it did. `system` and `dhcpLeases` are `disableable: false` in the registry —
-// protected, because other collectors read them — so `ifStatus` is the only one
-// of this pool's three that CAN be turned off, and the guards on the other two
-// are unreachable today by design rather than by accident.
-func TestADisabledCollectorIsNeverStarted(t *testing.T) {
-	withOff := func(off []string) *fakeConn {
-		d := &dialLog{}
-		cfgA := cfg("a")
-		if off != nil {
-			cfgA.Collection = &collection.Router{Off: off}
-		}
-		p := NewPool(d.dial, 10*time.Millisecond, nil, nil)
-		defer p.Close()
-		p.Sync([]RouterConfig{cfgA}, nil)
-		waitFor(t, "connected", func() bool {
-			s := p.Summaries()
-			return len(s) == 1 && s[0].Connected
-		})
-		// The system collector starts unconditionally, so waiting for ITS first
-		// command is a deterministic point at which ifStatus would also have
-		// started if it were going to.
-		waitFor(t, "the first poll", func() bool {
-			c := d.last()
-			return c != nil && c.sawPrefix("/system/")
-		})
-		return d.last()
-	}
-
-	on := withOff(nil)
-	if !on.sawPrefix("/interface/print") {
-		t.Fatal("ifStatus never polled with nothing disabled — the observation is not working, " +
-			"so the disabled case below would prove nothing")
-	}
-
-	off := withOff([]string{"ifStatus"})
-	if off.sawPrefix("/interface/print") {
-		t.Error("ifStatus polled the router after being turned off for this router")
-	}
-	if !off.sawPrefix("/system/") {
-		t.Error("system stopped polling too — turning one collector off disabled another")
 	}
 }
 

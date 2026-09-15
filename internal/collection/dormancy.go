@@ -15,9 +15,10 @@ package collection
 // DormancyEligible is `_COLLECTOR_DEFS.filter(c => c.emptyKey && c.disableable)`.
 //
 // Both halves matter. A collector with no `emptyKey` has no definition of empty,
-// so there is nothing to judge; one the user cannot disable must keep running
-// whatever it reports, because the supervisor's remedy — suspend it — is a thing
-// the operator has not agreed to for that collector.
+// so there is nothing to judge; one the registry does not mark disableable must
+// keep running whatever it reports, because the supervisor's remedy is to suspend
+// it. `disableable` no longer means an operator can switch a collector off (that
+// was removed on 2026-09-15); this is what it is kept for.
 //
 // Returned in REGISTRY ORDER, which is the order the live supervisor walks and
 // therefore the order verdicts are announced in.

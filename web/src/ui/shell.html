@@ -632,19 +632,75 @@
       <div class="rtr-modal-body">
         <input type="hidden" id="rtrModalId">
         <div class="rtr-modal-col">
+
+        <div class="rtr-sec">Device</div>
         <div class="sform-group">
-          <label class="sform-label">Display Name</label>
+          <label class="sform-label" for="rtrModalLabel">Display Name</label>
           <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
         </div>
-        <!-- The router's own name (System Identity), written to the router, not
+        <!-- The device's own name (System Identity), written to the device, not
              to MikroDash. Shown only when editing a device MikroDash can reach. -->
         <div class="sform-group" id="rtrModalIdentityWrap" style="display:none">
-          <label class="sform-label" for="rtrModalIdentity">Router identity</label>
+          <label class="sform-label" for="rtrModalIdentity">Device identity</label>
           <input class="sform-input" id="rtrModalIdentity" type="text" maxlength="255" placeholder="MikroTik" disabled>
           <div class="cpick-hint" id="rtrModalIdentityHint"></div>
         </div>
+
+        <div class="rtr-sec">Connection</div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label" for="rtrModalHost">Host / IP</label>
+            <input class="sform-input" id="rtrModalHost" type="text" placeholder="192.168.88.1">
+          </div>
+          <div>
+            <label class="sform-label" for="rtrModalPort">API Port</label>
+            <input class="sform-input" id="rtrModalPort" type="number" min="1" max="65535" value="8729" placeholder="8729">
+          </div>
+        </div>
+        <div class="sform-row sform-group">
+          <div>
+            <label class="sform-label" for="rtrModalUser">Username</label>
+            <input class="sform-input" id="rtrModalUser" type="text" placeholder="admin">
+          </div>
+          <div>
+            <label class="sform-label" for="rtrModalPass">Password</label>
+            <input class="sform-input" id="rtrModalPass" type="password" placeholder="leave blank to keep current" autocomplete="new-password">
+          </div>
+        </div>
+        <div class="sform-row sform-group" style="margin-bottom:.4rem">
+          <label class="stoggle" id="rtrStogTls">
+            <span class="stoggle-label">Use TLS</span>
+            <span class="stoggle-switch"><input type="checkbox" id="rtrModalTls" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+          <label class="stoggle">
+            <span class="stoggle-label">Allow self-signed cert</span>
+            <span class="stoggle-switch"><input type="checkbox" id="rtrModalTlsInsecure"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
+          </label>
+        </div>
+        <p class="rtr-note">TLS uses port 8729 (API-SSL, recommended) &nbsp;·&nbsp; Plain uses port 8728 (API, unencrypted)</p>
+
+        <!-- Collection (#105). Delivery only: every collector runs, gated by who is
+             watching and by dormancy, so there is nothing per collector to switch
+             off. Poll exists for small routers where persistent streams strain. -->
+        <div class="rtr-sec">Collection</div>
         <div class="sform-group">
-          <label class="sform-label">Primary site</label>
+          <div class="poll-profile-row" id="rtrModalModeWrap" style="display:flex;gap:.35rem;margin-bottom:.5rem">
+            <button type="button" class="poll-profile-btn active" data-mode="stream">Stream</button>
+            <button type="button" class="poll-profile-btn" data-mode="poll">Poll</button>
+          </div>
+          <input type="hidden" id="rtrModalMode" value="stream">
+          <p class="rtr-note">
+            Poll suits lower-end hardware: it replaces persistent API streams with periodic requests,
+            which is what actually strains a small router. Logs and the traffic graph always stream —
+            polling them would drop log lines and cost more than it saves.
+          </p>
+        </div>
+
+        </div><div class="rtr-modal-col">
+
+        <div class="rtr-sec">Location</div>
+        <div class="sform-group">
+          <label class="sform-label" for="rtrModalPrimarySite">Primary site</label>
           <!-- MEMBERSHIP IS NOT EDITED HERE. Which sites a device belongs to is
                an authorization decision — it changes who can reach the device —
                so it lives in Access Management with the rest of them, behind the
@@ -673,50 +729,21 @@
           <div class="cpick-list" id="rtrModalGeoList" role="listbox" hidden></div>
           <div class="cpick-hint" id="rtrModalGeoHint"></div>
         </div>
+
+        <div class="rtr-sec">Network</div>
         <div class="sform-row sform-group">
           <div>
-            <label class="sform-label">Host / IP</label>
-            <input class="sform-input" id="rtrModalHost" type="text" placeholder="192.168.88.1">
-          </div>
-          <div>
-            <label class="sform-label">API Port</label>
-            <input class="sform-input" id="rtrModalPort" type="number" min="1" max="65535" value="8729" placeholder="8729">
-          </div>
-        </div>
-        <div class="sform-row sform-group">
-          <div>
-            <label class="sform-label">Username</label>
-            <input class="sform-input" id="rtrModalUser" type="text" placeholder="admin">
-          </div>
-          <div>
-            <label class="sform-label">Password</label>
-            <input class="sform-input" id="rtrModalPass" type="password" placeholder="leave blank to keep current" autocomplete="new-password">
-          </div>
-        </div>
-        <div class="sform-row sform-group" style="margin-bottom:.4rem">
-          <label class="stoggle" id="rtrStogTls">
-            <span class="stoggle-label">Use TLS</span>
-            <span class="stoggle-switch"><input type="checkbox" id="rtrModalTls" checked><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
-          </label>
-          <label class="stoggle">
-            <span class="stoggle-label">Allow self-signed cert</span>
-            <span class="stoggle-switch"><input type="checkbox" id="rtrModalTlsInsecure"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
-          </label>
-        </div>
-        <p style="font-size:.68rem;color:var(--text-muted);margin:0 0 .6rem">TLS uses port 8729 (API-SSL, recommended) &nbsp;·&nbsp; Plain uses port 8728 (API, unencrypted)</p>
-        <div class="sform-row sform-group">
-          <div>
-            <label class="sform-label">Default WAN Interface</label>
+            <label class="sform-label" for="rtrModalIf">Default WAN Interface</label>
             <input class="sform-input" id="rtrModalIf" type="text" placeholder="ether1">
           </div>
           <div>
-            <label class="sform-label">Ping Target</label>
+            <label class="sform-label" for="rtrModalPing">Ping Target</label>
             <input class="sform-input" id="rtrModalPing" type="text" placeholder="1.1.1.1">
           </div>
         </div>
         <div class="sform-row sform-group">
           <div>
-            <label class="sform-label">Bandwidth Down (capacity)</label>
+            <label class="sform-label" for="rtrModalBwDown">Bandwidth Down (capacity)</label>
             <div style="display:flex;gap:.3rem">
               <input class="sform-input" id="rtrModalBwDown" type="number" min="1" step="1" value="1" style="flex:1" aria-label="Download capacity, Mbps">
               <input type="hidden" id="rtrModalBwDownUnit" value="gbps">
@@ -727,7 +754,7 @@
             </div>
           </div>
           <div>
-            <label class="sform-label">Bandwidth Up (capacity)</label>
+            <label class="sform-label" for="rtrModalBwUp">Bandwidth Up (capacity)</label>
             <div style="display:flex;gap:.3rem">
               <input class="sform-input" id="rtrModalBwUp" type="number" min="1" step="1" value="1" style="flex:1" aria-label="Upload capacity, Mbps">
               <input type="hidden" id="rtrModalBwUpUnit" value="gbps">
@@ -738,58 +765,31 @@
             </div>
           </div>
         </div>
-                <div class="sform-row sform-group" style="margin-bottom:.6rem">
+
+        <div class="rtr-sec">Monitoring</div>
+        <div class="sform-group">
           <label class="stoggle">
             <span class="stoggle-label">Alert Monitoring</span>
             <span class="stoggle-switch"><input type="checkbox" id="rtrModalAlertsEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
           </label>
-          <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Open a background connection for push alerts even when this router is not the active view.</p>
+          <p class="rtr-note">Open a background connection for push alerts even when this router is not the active view.</p>
         </div>
-        <div class="sform-row sform-group" style="margin-bottom:.6rem">
+        <div class="sform-group">
           <label class="stoggle">
             <span class="stoggle-label">Reporting</span>
             <span class="stoggle-switch"><input type="checkbox" id="rtrModalReportingEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
           </label>
-          <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Record traffic, bandwidth, ping and uptime history for this device so it appears in Reports. Off means nothing is written to disk for it — alerts still notify, but leave no history.</p>
+          <p class="rtr-note">Record traffic, bandwidth, ping and uptime history for this device so it appears in Reports. Off means nothing is written to disk for it — alerts still notify, but leave no history.</p>
         </div>
-<div class="sform-group" style="margin-bottom:.6rem">
+        <div class="sform-group">
           <label class="sform-label" for="rtrModalDownThresh">Offline threshold</label>
           <div style="display:flex;align-items:center;gap:.5rem">
             <input class="sform-input" id="rtrModalDownThresh" type="number" min="0" max="300" step="1" value="30" style="width:5rem">
             <span style="font-size:.8rem;color:var(--text-muted)">seconds</span>
           </div>
-          <p style="font-size:.68rem;color:var(--text-muted);margin:.25rem 0 0">Status badge and alerts only change after the router has been unreachable for this long. Set to 0 to react immediately.</p>
+          <p class="rtr-note">Status badge and alerts only change after the router has been unreachable for this long. Set to 0 to react immediately.</p>
         </div>
-        
-        </div><div class="rtr-modal-col">
 
-        <!-- Collection (#105) — per-router, because a fleet is not uniform.
-             An access point has no routed traffic and no Kid Control devices,
-             so running those collectors against it is pure load. -->
-        <div class="sform-group" style="margin-bottom:.6rem;border-top:1px solid var(--border);padding-top:.7rem">
-          <label class="sform-label">Collection method</label>
-          <div class="poll-profile-row" id="rtrModalModeWrap" style="display:flex;gap:.35rem;margin-bottom:.5rem">
-            <button type="button" class="poll-profile-btn active" data-mode="stream">Stream</button>
-            <button type="button" class="poll-profile-btn" data-mode="poll">Poll</button>
-          </div>
-          <input type="hidden" id="rtrModalMode" value="stream">
-          <p style="font-size:.68rem;color:var(--text-muted);margin:0 0 .6rem">
-            Poll suits lower-end hardware: it replaces persistent API streams with periodic requests,
-            which is what actually strains a small router. Logs and the traffic graph always stream —
-            polling them would drop log lines and cost more than it saves.
-          </p>
-
-          <label class="sform-label">Collectors</label>
-          <!-- Built from GET /api/collectors, not written by hand. The hand-written
-               version drifted to 11 toggles against 21 disableable collectors, so ten
-               of them could only be turned off by editing routers.json directly. -->
-          <div class="stoggle-grid" id="rtrModalCollectors"></div>
-          <p style="font-size:.68rem;color:var(--text-muted);margin:.35rem 0 0">
-            Turn off what a router has no data for. Bandwidth needs Connections and follows it.
-            Turning off Interface Rates also stops interface up/down alerts; turning off Ping also
-            stops ping-loss alerts. Changes apply as soon as you save.
-          </p>
-        </div>
         </div>
       </div>
       <div class="rtr-modal-footer">

@@ -97,8 +97,7 @@
           "rosusers": 60000,
           "logs": 0,
           "ifaces": 60000
-        },
-        "off": []
+        }
       },
       "enabledOrder": [
         "traffic",
@@ -131,7 +130,7 @@
       ]
     },
     {
-      "why": "two collectors turned off on this router",
+      "why": "a stored off list of two collectors is ignored",
       "settings": {},
       "router": {
         "collection": {
@@ -155,7 +154,7 @@
           "talkers": true,
           "ifStatus": true,
           "ping": true,
-          "wifi": false,
+          "wifi": true,
           "wireless": true,
           "vpn": true,
           "firewall": true,
@@ -172,7 +171,7 @@
           "wan": true,
           "queues": true,
           "rosusers": true,
-          "logs": false
+          "logs": true
         },
         "stream": {
           "traffic": true,
@@ -233,11 +232,7 @@
           "rosusers": 60000,
           "logs": 0,
           "ifaces": 60000
-        },
-        "off": [
-          "wifi",
-          "logs"
-        ]
+        }
       },
       "enabledOrder": [
         "traffic",
@@ -270,7 +265,7 @@
       ]
     },
     {
-      "why": "a cascade — conns off also disables bandwidth",
+      "why": "a stored off list naming a dependency is ignored, and nothing cascades",
       "settings": {},
       "router": {
         "collection": {
@@ -288,8 +283,8 @@
           "arp": true,
           "dhcpLeases": true,
           "dhcpNetworks": true,
-          "conns": false,
-          "bandwidth": false,
+          "conns": true,
+          "bandwidth": true,
           "talkers": true,
           "ifStatus": true,
           "ping": true,
@@ -371,11 +366,7 @@
           "rosusers": 60000,
           "logs": 0,
           "ifaces": 60000
-        },
-        "off": [
-          "conns",
-          "bandwidth"
-        ]
+        }
       },
       "enabledOrder": [
         "traffic",
@@ -505,10 +496,7 @@
           "rosusers": 60000,
           "logs": 0,
           "ifaces": 60000
-        },
-        "off": [
-          "ping"
-        ]
+        }
       },
       "enabledOrder": [
         "traffic",
@@ -640,8 +628,7 @@
           "rosusers": 60000,
           "logs": 0,
           "ifaces": 60000
-        },
-        "off": []
+        }
       },
       "enabledOrder": [
         "traffic",

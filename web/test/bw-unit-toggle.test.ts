@@ -135,9 +135,6 @@ function mount() {
   };
   global.window = { confirm: () => true };
   global.fetch = (url) => {
-    if (url === '/api/collectors') {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ collectors: [] }) });
-    }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, cities: [] }) });
   };
 

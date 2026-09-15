@@ -100,9 +100,8 @@ func TestRouterStatusRecordsBeforeItPaints(t *testing.T) {
 // literal binding expression can exist for it. Recorded rather than ignored, and
 // an entry that stops being constructed becomes a failure.
 var templateIDsUnbound = map[string]string{
-	"rtrColl_": "constructed: the grid builds `rtrColl_<key>`; the rows are bound by [data-coll]",
-	"s_":       "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",
-	"sv_":      "constructed: `sv_<pollKey>` per slider label, written by the same loop",
+	"s_":  "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",
+	"sv_": "constructed: `sv_<pollKey>` per slider label, written by the same loop",
 }
 
 // TestTemplateIDsAreBound: every id the port's markup creates is looked up

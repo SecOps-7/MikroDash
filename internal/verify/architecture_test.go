@@ -133,7 +133,7 @@ func TestTheArchitectureDocumentsFactsAreTrue(t *testing.T) {
 	actual := map[string]int{
 		"registry rows":                           len(registryKeys(t)),
 		"collectors with a Go implementation":     len(collectorFilesWithALifecycle(t)),
-		"disableable by the operator":             registryCount(t, func(c archCollector) bool { return c.Disableable }),
+		"suspendable when idle (`disableable`)":   registryCount(t, func(c archCollector) bool { return c.Disableable }),
 		"dormancy-eligible":                       registryCount(t, func(c archCollector) bool { return len(c.EmptyKey) > 0 }),
 		"gated by demand (`session.TargetKeys`)":  len(session.TargetKeys()),
 		"menus enabled for stream delivery":       countIn(t, "internal/session/streammenus.go", `(?m)^\s*"(/[a-z0-9/-]+)":\s*"`),

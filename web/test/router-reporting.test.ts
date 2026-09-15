@@ -75,9 +75,6 @@ function mount() {
   global.fetch = (url, init) => {
     calls.push({ url, method: (init && init.method) || 'GET',
       body: init && init.body ? JSON.parse(init.body) : null });
-    if (url === '/api/collectors') {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ collectors: [] }) });
-    }
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, router: {} }) });
   };
   delete require.cache[require.resolve(OUT)];

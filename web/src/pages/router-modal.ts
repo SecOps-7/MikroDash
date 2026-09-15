@@ -3,8 +3,8 @@
 // ── PLUMBING ONLY ───────────────────────────────────────────────────────────
 //
 // Every decision this dialog makes lives in a pinned pure function:
-// `routerFormValues`, `collectRouterForm`, `seedGeoPicker`, `syncCollDeps`,
-// `collectorGridHtml`, `splitBw`/`joinBw`, `TestGate`, `testResultMessage` and
+// `routerFormValues`, `collectRouterForm`, `seedGeoPicker`,
+// `splitBw`/`joinBw`, `TestGate`, `testResultMessage` and
 // `labelAfterTest` in router-form.ts, and the town picker — now mounted from
 // the SHARED `mountCityPicker` in city-picker.ts, as the live app mounts it for
 // this dialog and the site form alike. What is left here is
@@ -28,10 +28,10 @@ import {
   CityPickerState, mountCityPicker,
 } from './city-picker';
 import {
-  TestGate, collectRouterForm, collectorGridHtml, labelAfterTest, routerFormValues,
-  seedGeoPicker, syncCollDeps, testResultMessage,
+  TestGate, collectRouterForm, labelAfterTest, routerFormValues,
+  seedGeoPicker, testResultMessage,
   storedSiteIds,
-  type CollectorDef, type StoredRouter, type SiteRow,
+  type StoredRouter, type SiteRow,
 } from './router-form';
 
 /**
@@ -62,7 +62,6 @@ export function initRouterModal(opts: {
   onSaved: () => void;
 }): { open: (router: StoredRouter | null) => void } {
   const gate = new TestGate();
-  let registry: CollectorDef[] | null = null;
 
   const v = <T extends HTMLElement = HTMLInputElement>(id: string): T | null => el<T>(id);
   const input = (id: string): HTMLInputElement | null => el<HTMLInputElement>(id);
@@ -103,58 +102,6 @@ export function initRouterModal(opts: {
   function paintBox(): void {
     const box = input('rtrModalGeo');
     if (box) box.value = place.text();
-  }
-
-  // ── the collector grid ────────────────────────────────────────────────────
-  function paintGrid(): void {
-    const holder = el('rtrModalCollectors');
-    if (!holder || !registry) return;
-    holder.innerHTML = collectorGridHtml(registry, esc);
-  }
-  function gridToggles(): HTMLInputElement[] {
-    return Array.from(
-      el('rtrModalCollectors')?.querySelectorAll<HTMLInputElement>('[data-coll]') || [],
-    );
-  }
-  function readGrid(): { key: string; checked: boolean; requires: string[]; disabled: boolean; dimmed: boolean }[] {
-    return gridToggles().map((t) => {
-      const lbl = t.closest('.stoggle');
-      const raw = lbl?.getAttribute('data-requires') || '';
-      return {
-        key: t.getAttribute('data-coll') || '',
-        checked: t.checked,
-        requires: raw ? raw.split(',') : [],
-        disabled: t.disabled,
-        dimmed: (lbl as HTMLElement | null)?.style.opacity === '.5',
-      };
-    });
-  }
-  function applyDeps(): void {
-    const next = syncCollDeps(readGrid());
-    gridToggles().forEach((t, i) => {
-      const s = next[i];
-      if (!s) return;
-      t.checked = s.checked;
-      t.disabled = s.disabled;
-      const lbl = t.closest('.stoggle') as HTMLElement | null;
-      if (lbl) lbl.style.opacity = s.dimmed ? '.5' : '';
-    });
-  }
-  el('rtrModalCollectors')?.addEventListener('change', applyDeps);
-
-  async function ensureRegistry(): Promise<void> {
-    if (registry) return;
-    try {
-      const r = await fetch('/api/collectors', { credentials: 'same-origin' });
-      if (!r.ok) return;
-      const d = await r.json() as { collectors?: CollectorDef[] };
-      if (!Array.isArray(d?.collectors)) return;
-      registry = d.collectors;
-      paintGrid();
-    } catch {
-      // The modal still saves; the grid is simply empty — and an empty grid
-      // OMITS the collection block rather than sending `off: []`.
-    }
   }
 
   // ── mode ──────────────────────────────────────────────────────────────────
@@ -260,7 +207,7 @@ export function initRouterModal(opts: {
           : 'The router cannot be reached, so its identity cannot be read or changed now.';
       }
     } catch {
-      if (hint) hint.textContent = 'The router identity could not be read.';
+      if (hint) hint.textContent = 'The device identity could not be read.';
     }
   }
 
@@ -269,13 +216,13 @@ export function initRouterModal(opts: {
       'rate-limited': 'Too many changes to this router in the last minute, so its identity was not changed.',
       'outcome-unknown': 'The router accepted the new identity, but it could not be confirmed. Check the router before trying again.',
       unreachable: 'The router could not be reached, so its identity was not changed.',
-      'read-failed': 'The router identity could not be read, so it was not changed.',
+      'read-failed': 'The device identity could not be read, so it was not changed.',
       'router-denied': 'The router refused the new identity: the API user lacks write permission.',
       'write-failed': 'The router refused the new identity.',
     };
     if (j.error) return '✗ Device saved, identity not changed: ' + j.error;
     return '✗ Device saved. ' + (codes[j.code || ''] ||
-      (status === 403 ? 'You may not change this router.' : 'The router identity was not changed.'));
+      (status === 403 ? 'You may not change this router.' : 'The device identity was not changed.'));
   }
 
   // ── open ──────────────────────────────────────────────────────────────────
@@ -337,13 +284,6 @@ export function initRouterModal(opts: {
     const hint = el('rtrModalGeoHint');
     if (hint) hint.innerHTML = seed.hint;
 
-    const applyOff = (): void => {
-      gridToggles().forEach((t) => {
-        t.checked = f.off.indexOf(t.getAttribute('data-coll') || '') === -1;
-      });
-      applyDeps();
-    };
-    if (registry) applyOff(); else void ensureRegistry().then(applyOff);
 
     hideTestResult();
     // An EDIT starts ready — its stored credentials already worked. An ADD must
@@ -397,7 +337,6 @@ export function initRouterModal(opts: {
       reportingEnabled: !!input('rtrModalReportingEnabled')?.checked,
       downThresholdRaw: input('rtrModalDownThresh')?.value || '',
       mode: input('rtrModalMode')?.value || 'stream',
-      toggles: readGrid(),
     });
   }
 

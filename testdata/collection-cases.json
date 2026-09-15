@@ -1198,7 +1198,7 @@
       "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=false,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=true,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
     },
     {
-      "name": "one collector off",
+      "name": "a stored off list is ignored",
       "settings": {},
       "record": {
         "id": "r1",
@@ -1283,7 +1283,7 @@
           "talkers": true,
           "ifStatus": true,
           "ping": true,
-          "wifi": false,
+          "wifi": true,
           "wireless": true,
           "vpn": true,
           "firewall": true,
@@ -1304,10 +1304,10 @@
         },
         "overrides": {}
       },
-      "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=true,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=false,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
+      "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=true,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
     },
     {
-      "name": "a collector others depend on, off",
+      "name": "a stored off list naming a dependency is ignored, and nothing cascades",
       "settings": {},
       "record": {
         "id": "r1",
@@ -1387,8 +1387,8 @@
           "arp": true,
           "dhcpLeases": true,
           "dhcpNetworks": true,
-          "conns": false,
-          "bandwidth": false,
+          "conns": true,
+          "bandwidth": true,
           "talkers": true,
           "ifStatus": true,
           "ping": true,
@@ -1413,10 +1413,10 @@
         },
         "overrides": {}
       },
-      "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=false,bridges=true,capsman=true,conns=false,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
+      "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=true,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
     },
     {
-      "name": "several off",
+      "name": "a stored off list of several is ignored",
       "settings": {},
       "record": {
         "id": "r1",
@@ -1498,12 +1498,12 @@
           "arp": true,
           "dhcpLeases": true,
           "dhcpNetworks": true,
-          "conns": false,
-          "bandwidth": false,
+          "conns": true,
+          "bandwidth": true,
           "talkers": true,
           "ifStatus": true,
           "ping": true,
-          "wifi": false,
+          "wifi": true,
           "wireless": true,
           "vpn": true,
           "firewall": true,
@@ -1513,7 +1513,7 @@
           "vlans": true,
           "ppp": true,
           "bridges": true,
-          "capsman": false,
+          "capsman": true,
           "dns": true,
           "ipAddresses": true,
           "packages": true,
@@ -1524,10 +1524,10 @@
         },
         "overrides": {}
       },
-      "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=false,bridges=true,capsman=false,conns=false,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=false,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
+      "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=true,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
     },
     {
-      "name": "off names something undisableable",
+      "name": "a stored off list naming an undisableable collector is ignored",
       "settings": {},
       "record": {
         "id": "r1",
@@ -1636,7 +1636,7 @@
       "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=true,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
     },
     {
-      "name": "off names something unknown",
+      "name": "a stored off list naming an unknown collector is ignored",
       "settings": {},
       "record": {
         "id": "r1",
@@ -2686,7 +2686,7 @@
       "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=1500,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=true,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|defaultIf=,pingTarget=|topN=,topTalkersN=,maxConns=,historyMinutes="
     },
     {
-      "name": "off is not an array",
+      "name": "a stored off that is not an array is ignored",
       "settings": {},
       "record": {
         "id": "r1",
@@ -4348,125 +4348,6 @@
         "overrides": {}
       },
       "fingerprint": "mode=stream|poll:arp=30000,bandwidth=5000,bridges=5000,capsman=10000,conns=5000,dhcpLeases=600000,dhcpNetworks=600000,dns=10000,firewall=5000,ifStatus=5000,ifaces=60000,ipAddresses=30000,logs=0,netwatch=30000,packages=60000,ping=5000,ppp=5000,queues=5000,rosusers=60000,routing=10000,system=2000,talkers=3000,topology=30000,traffic=1000,vlans=5000,vpn=10000,wan=10000,wifi=30000,wireless=30000|stream:arp=true,bandwidth=false,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=false,firewall=true,ifStatus=true,ipAddresses=false,logs=true,netwatch=true,packages=false,ping=true,ppp=true,queues=true,rosusers=false,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|enabled:arp=true,bandwidth=true,bridges=true,capsman=true,conns=true,dhcpLeases=true,dhcpNetworks=true,dns=true,firewall=true,ifStatus=true,ipAddresses=true,logs=true,netwatch=true,packages=true,ping=true,ppp=true,queues=true,rosusers=true,routing=true,system=true,talkers=true,topology=true,traffic=true,vlans=true,vpn=true,wan=true,wifi=true,wireless=true|defaultIf=,pingTarget=|topN=false,topTalkersN=,maxConns=,historyMinutes="
-    }
-  ],
-  "apiCollectors": [
-    {
-      "key": "conns",
-      "label": "Connections",
-      "requires": []
-    },
-    {
-      "key": "bandwidth",
-      "label": "Bandwidth",
-      "requires": [
-        "conns"
-      ]
-    },
-    {
-      "key": "talkers",
-      "label": "Top Talkers",
-      "requires": []
-    },
-    {
-      "key": "ifStatus",
-      "label": "Interface Rates",
-      "requires": []
-    },
-    {
-      "key": "ping",
-      "label": "Ping",
-      "requires": []
-    },
-    {
-      "key": "wifi",
-      "label": "Wifi Networks",
-      "requires": []
-    },
-    {
-      "key": "wireless",
-      "label": "Wifi Clients",
-      "requires": []
-    },
-    {
-      "key": "vpn",
-      "label": "VPN",
-      "requires": []
-    },
-    {
-      "key": "firewall",
-      "label": "Firewall",
-      "requires": []
-    },
-    {
-      "key": "routing",
-      "label": "Routing",
-      "requires": []
-    },
-    {
-      "key": "netwatch",
-      "label": "NetWatch",
-      "requires": []
-    },
-    {
-      "key": "topology",
-      "label": "Network Topology",
-      "requires": []
-    },
-    {
-      "key": "vlans",
-      "label": "VLANs",
-      "requires": []
-    },
-    {
-      "key": "ppp",
-      "label": "PPP",
-      "requires": []
-    },
-    {
-      "key": "bridges",
-      "label": "Bridges",
-      "requires": []
-    },
-    {
-      "key": "capsman",
-      "label": "CAPsMAN",
-      "requires": []
-    },
-    {
-      "key": "dns",
-      "label": "DNS",
-      "requires": []
-    },
-    {
-      "key": "ipAddresses",
-      "label": "IP Addresses",
-      "requires": []
-    },
-    {
-      "key": "packages",
-      "label": "Packages",
-      "requires": []
-    },
-    {
-      "key": "wan",
-      "label": "WAN",
-      "requires": []
-    },
-    {
-      "key": "queues",
-      "label": "Queues",
-      "requires": []
-    },
-    {
-      "key": "rosusers",
-      "label": "Router Users",
-      "requires": []
-    },
-    {
-      "key": "logs",
-      "label": "Logs",
-      "requires": []
     }
   ],
   "legacyStreamKeys": {

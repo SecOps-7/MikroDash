@@ -67,9 +67,6 @@ const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) =
     if (url === '/api/routers/r1/identity') {
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ available: true, name: 'office-gw' }) });
     }
-    if (url === '/api/collectors') {
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ collectors: [] }) });
-    }
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ok: true }) });
   };
 

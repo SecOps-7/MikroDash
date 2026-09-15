@@ -49,26 +49,20 @@ func loadCases(t *testing.T) []resolveCase {
 	return doc.Cases
 }
 
-// routerFor rebuilds the Router the live case was given.
+// routerFor rebuilds the Router the case was given.
 //
-// `off` and `overrides` arrive as `any` on purpose: the corpus deliberately
-// carries a case where `off` is a STRING and one where `overrides` is a string,
-// because a hand-edited routers.json can hold either and the live side ignores
-// both. Decoding them into typed fields directly would make those cases
-// unrepresentable — the harness would fix the input the test exists to check.
+// `overrides` arrives as `any` on purpose: the corpus carries a case where it is
+// a STRING, because a hand-edited routers.json can hold one and the resolver
+// ignores it. Decoding it into a typed field would make that case
+// unrepresentable. The cases' `off` lists are deliberately NOT read: a stored off
+// list is ignored since per-router switching was removed, and the cases that
+// carry one now prove exactly that (see also TestAStoredOffListIsIgnored).
 func routerFor(c resolveCase) *Router {
 	if c.Record == nil || c.Record.Collection == nil {
 		return nil
 	}
 	cc := c.Record.Collection
 	r := &Router{Mode: cc.Mode}
-	if list, ok := cc.Off.([]any); ok {
-		for _, v := range list {
-			if s, ok := v.(string); ok {
-				r.Off = append(r.Off, s)
-			}
-		}
-	}
 	if m, ok := cc.Overrides.(map[string]any); ok {
 		r.Overrides = m
 	}
@@ -145,7 +139,7 @@ func TestTheEmbeddedRegistryMatchesTheCorpus(t *testing.T) {
 // with every `pollable` false would make every collector a stream and still
 // satisfy the corpus if the corpus were regenerated from it.
 func TestTheRegistryStillDiscriminates(t *testing.T) {
-	var pollable, streamKeyed, disableable, withDeps int
+	var pollable, streamKeyed, disableable int
 	for _, c := range Collectors() {
 		if c.Pollable {
 			pollable++
@@ -156,9 +150,6 @@ func TestTheRegistryStillDiscriminates(t *testing.T) {
 		if c.Disableable {
 			disableable++
 		}
-		if len(c.Requires) > 0 {
-			withDeps++
-		}
 	}
 	if pollable == 0 || pollable == len(Collectors()) {
 		t.Errorf("%d of %d collectors are pollable — the non-pollable branch is unreachable",
@@ -168,10 +159,7 @@ func TestTheRegistryStillDiscriminates(t *testing.T) {
 		t.Error("no collector has a streamKey — the override branch is unreachable")
 	}
 	if disableable == 0 {
-		t.Error("no collector is disableable — the off list can do nothing")
-	}
-	if withDeps == 0 {
-		t.Error("no collector declares a dependency — the cascade is unreachable")
+		t.Error("no collector is disableable — dormancy can suspend nothing")
 	}
 }
 
@@ -204,5 +192,24 @@ func TestFingerprintMatchesTheLiveModule(t *testing.T) {
 	}
 	if seen["a settings extra that is ZERO"] == seen["defaults: no settings, no record"] {
 		t.Error("a settings extra of 0 fingerprinted as absent")
+	}
+}
+
+// TestAStoredOffListIsIgnored — per-router collector switching was removed on
+// 2026-09-15. A routers.json written before then may still carry `off`, and it
+// must switch nothing off, through the old dependency cascade included, while the
+// rest of the block still counts.
+func TestAStoredOffListIsIgnored(t *testing.T) {
+	got := Resolve(map[string]any{}, ParseRouter([]byte(`{"mode":"poll","off":["wifi","conns"]}`)))
+	for _, c := range Collectors() {
+		if !got.Enabled[c.Key] {
+			t.Errorf("%s resolved as disabled from a stored off list", c.Key)
+		}
+	}
+	if got.Mode != "poll" {
+		t.Errorf("the rest of the block was lost with the off list: mode = %q", got.Mode)
+	}
+	if Resolve(map[string]any{"pingEnabled": false}, nil).Enabled["ping"] {
+		t.Error("the install-wide ping switch no longer disables ping")
 	}
 }

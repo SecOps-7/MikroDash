@@ -369,14 +369,14 @@ func (s *Session) Topology() *collect.Topology   { return s.topology }
 func (s *Session) Wireless() *collect.Wireless   { return s.wireless }
 func (s *Session) Bandwidth() *collect.Bandwidth { return s.bandwidth }
 
-// CollectorEnabled reports whether this router's config (#105) allows a
-// collector to run at all.
+// CollectorEnabled reports whether a collector may run at all. Only the
+// install-wide ping switch (Settings, Ping / Latency) makes this false today:
+// per-router collector switching was removed on 2026-09-15.
 //
 // The page-focus RESUME path needs it as much as the connect path does: a
-// collector the operator turned off must not come back the moment somebody
-// opens its page, which is exactly what an ungated `Resume()` would do. An
-// unknown key reads as ENABLED, matching the registry's own default for a
-// collector nobody made disableable.
+// collector switched off must not come back the moment somebody opens its page,
+// which is exactly what an ungated `Resume()` would do. An unknown key reads as
+// ENABLED.
 func (s *Session) CollectorEnabled(key string) bool {
 	v, ok := s.conf().Enabled[key]
 	return !ok || v

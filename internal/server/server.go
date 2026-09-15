@@ -593,7 +593,6 @@ func (s *Server) Handler() http.Handler {
 	// quietly becomes a 404 page.
 	s.registerReports(mux)
 	s.registerAudit(mux)
-	s.registerCollectors(mux)
 	s.registerBackupRaw(mux)
 	s.registerBackupDownloads(mux)
 	// ── ONLY WITHOUT A NODE TO PROXY TO ─────────────────────────────────

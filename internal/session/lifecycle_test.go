@@ -380,11 +380,12 @@ func TestTheRecordsCollectionBlockReachesTheResolution(t *testing.T) {
 		}
 	}
 	write("settings.json", `{}`)
-	// `wan` is disableable in the registry, so turning it off must reach
-	// `Enabled`. The password is not encrypted, which `Routers()` records as a
-	// problem and carries on from — the router is still returned.
+	// The record says poll, and carries an `off` list from before per-router
+	// collector switching was removed, which must be ignored. The password is not
+	// encrypted, which `Routers()` records as a problem and carries on from — the
+	// router is still returned.
 	write("routers.json", `[{"id":"r1","label":"lab","host":"198.51.100.77","port":8728,
-	  "username":"u","password":"","collection":{"off":["wan"]}}]`)
+	  "username":"u","password":"","collection":{"mode":"poll","off":["wan"]}}]`)
 
 	st, err := store.Open(dir)
 	if err != nil {
@@ -399,11 +400,11 @@ func TestTheRecordsCollectionBlockReachesTheResolution(t *testing.T) {
 	}
 	defer m.Release("r1")
 
-	if s.conf().Enabled["wan"] {
-		t.Error("`wan` is in the router's off list and resolved as ENABLED — the record's " +
-			"collection block is not reaching Resolve")
+	if s.conf().Mode != "poll" {
+		t.Errorf("mode = %q — the record's collection block is not reaching Resolve", s.conf().Mode)
 	}
-	if !s.conf().Enabled["dns"] {
-		t.Error("`dns` resolved as disabled; only `wan` was turned off")
+	if !s.conf().Enabled["wan"] {
+		t.Error("`wan` resolved as disabled from the record's stored off list, which is ignored " +
+			"since per-router collector switching was removed")
 	}
 }

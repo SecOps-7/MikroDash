@@ -362,7 +362,7 @@ Three, layered rather than competing:
 | gate | asks | where |
 |---|---|---|
 | **demand** | is anybody in a room it feeds, or does a hold need it | `Session.Wants`, applied from `internal/server/demand.go` and `Session.applyDemand` |
-| **enablement** | has the operator turned it off for this router | `Session.CollectorEnabled` |
+| **enablement** | has the install-wide ping switch (Settings, Ping / Latency) turned ping off; no other collector can be switched off | `Session.CollectorEnabled` |
 | **dormancy** | has it reported nothing for long enough to back off | `internal/dormancy` |
 
 `ResumeCollector` is the only place a collector starts, precisely so that a gate
@@ -435,7 +435,7 @@ the document quietly lying.
 |---|---|
 | registry rows | 28 |
 | collectors with a Go implementation | 28 |
-| disableable by the operator | 23 |
+| suspendable when idle (`disableable`) | 23 |
 | dormancy-eligible | 19 |
 | gated by demand (`session.TargetKeys`) | 26 |
 | menus enabled for stream delivery | 8 |

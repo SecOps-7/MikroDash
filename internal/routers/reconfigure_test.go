@@ -94,8 +94,8 @@ func TestAnUnchangedRouterIsNotRebuilt(t *testing.T) {
 }
 
 // TestAChangedCollectionRebuildsAPooledSession. The pool resolves a router's
-// collection block when it builds the session, so a collector switched off in
-// the device dialog kept running here until something else rebuilt it. Its own
+// collection block when it builds the session, so a delivery mode changed in the
+// device dialog kept its old value here until something else rebuilt it. Its own
 // comment recorded that as a separate gap.
 func TestAChangedCollectionRebuildsAPooledSession(t *testing.T) {
 	d := &dialLog{}
@@ -106,14 +106,14 @@ func TestAChangedCollectionRebuildsAPooledSession(t *testing.T) {
 	waitFor(t, "the first connection", func() bool { return d.count() >= 1 })
 
 	switched := cfg("a")
-	switched.Collection = &collection.Router{Off: []string{"system"}}
+	switched.Collection = &collection.Router{Mode: "poll"}
 	if act := p.Sync([]RouterConfig{switched}, nil); len(act.Start) != 1 || len(act.Stop) != 1 {
 		t.Fatalf("a changed collection block decided %+v, want the router rebuilt", act)
 	}
 
 	// And the same block again is not a change.
 	again := cfg("a")
-	again.Collection = &collection.Router{Off: []string{"system"}}
+	again.Collection = &collection.Router{Mode: "poll"}
 	if act := p.Sync([]RouterConfig{again}, nil); len(act.Start) != 0 || len(act.Stop) != 0 {
 		t.Errorf("an unchanged collection block decided %+v", act)
 	}
