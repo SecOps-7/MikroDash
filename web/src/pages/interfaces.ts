@@ -22,6 +22,7 @@
 // See internal/collect/ifstatus.go and live issue #108.
 
 import { esc, el, fmtMbps, fmtBytes } from '../dom';
+import { mountRows } from '../resource';
 import type { Socket } from '../socket';
 import { portSvg } from './port-svg';
 import type { Interface } from '../gen/payloads';
@@ -203,6 +204,9 @@ export function renderIfPorts(ifaces: Interface[]): void {
 
 export function initInterfacesPage(socket: Socket, isVisible: (page: string) => boolean): void {
   const ifaceGrid = el('ifaceGrid');
+  // A tile or a list row opens the resource form: its comment, or enabling and
+  // disabling it (#97). Both views carry `data-res-rows="iface"`.
+  mountRows(socket);
   const ifaceCount = el('ifaceCount');
   const ifaceTypeFilter = el<HTMLSelectElement>('ifaceTypeFilter');
   const ifaceSelect = el<HTMLSelectElement>('ifaceSelect');
@@ -295,7 +299,7 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       const cls = i.disabled ? 'disabled' : i.running ? 'up' : 'down';
       const ipStr = i.ips && i.ips.length ? i.ips.join(', ') : '';
       // Rebuild a row only when something it displays actually changed.
-      const fp = [cls, ipStr, i.rxMbps, i.txMbps, i.rxBytes, i.txBytes,
+      const fp = [cls, ipStr, i.comment, i.id, i.rxMbps, i.txMbps, i.rxBytes, i.txBytes,
         i.errors, i.drops, i.errorsDelta, i.dropsDelta, i.linkDowns, i.lastLinkUp].join('|');
       let tr = existing[i.name];
       // Collected in sorted order either way — an unchanged row still needs its
@@ -309,6 +313,8 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       els.push(tr);
       tr.className = cls;
       tr.dataset.fp = fp;
+      tr.dataset.id = i.id;
+      tr.dataset.identity = i.name;
       const dotCls = i.disabled ? 'dis' : i.running ? 'up' : 'down';
       tr.innerHTML =
         '<td class="ifl-name" title="' + esc(i.name + (i.comment ? ' · ' + i.comment : '')) + '">' +
@@ -400,6 +406,8 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
         const div = document.createElement('div');
         div.className = 'iface-tile ' + cls;
         div.dataset.iface = i.name;
+        div.dataset.id = i.id;
+        div.dataset.identity = i.name;
         div.dataset.ifaceType = i.type || '';
         div.innerHTML =
           ifaceSparkSvg(history[i.name] || []) +
@@ -432,6 +440,17 @@ export function initInterfacesPage(socket: Socket, isVisible: (page: string) => 
       // Existing tile — only touch what changed.
       tile.className = 'iface-tile ' + cls;
       tile.dataset.ifaceType = i.type || '';
+      tile.dataset.id = i.id;
+      // The comment rides on this line and can now change from here, so it is
+      // refreshed rather than left as it was when the tile was first drawn.
+      const typeLine = tile.querySelector<HTMLElement>('.iface-type');
+      if (typeLine) {
+        const typeText = i.type + (i.comment ? ' · ' + i.comment : '');
+        if (typeLine.textContent !== typeText) {
+          typeLine.textContent = typeText;
+          typeLine.title = typeText;
+        }
+      }
 
       const sparkEl = tile.querySelector('.iface-spark');
       const newSpark = ifaceSparkSvg(history[i.name] || []);

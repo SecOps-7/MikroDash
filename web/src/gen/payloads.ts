@@ -504,6 +504,7 @@ export interface IfNamesPayload {
 }
 
 export interface Interface {
+  id: string;
   name: string;
   type: string;
   running: boolean;

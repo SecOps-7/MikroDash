@@ -107,7 +107,7 @@ const ifCounterProps = "rx-byte,tx-byte,rx-error,tx-error,rx-drop,tx-drop," +
 
 var (
 	ifStatusIfCmd = routeros.Cmd{Path: "/interface/print", Args: []string{
-		"=.proplist=name,type,running,disabled,comment,mac-address," + ifCounterProps}}
+		"=.proplist=.id,name,type,running,disabled,comment,mac-address," + ifCounterProps}}
 	ifStatusAddrCmd = routeros.Cmd{Path: "/ip/address/print",
 		Args: []string{"=.proplist=interface,address"}}
 	ifStatusEthCmd = routeros.Cmd{Path: "/interface/ethernet/print", Args: []string{
@@ -127,6 +127,8 @@ var (
 
 // Interface is one row of the interfaces payload.
 type Interface struct {
+	// ID is the RouterOS `.id`, so the Interfaces page can edit the row (#97).
+	ID       string   `json:"id"`
 	Name     string   `json:"name"`
 	Type     string   `json:"type"`
 	Running  bool     `json:"running"`
@@ -541,6 +543,24 @@ func (s *IfStatus) Tick() {
 // now keep flowing over one interval of slightly older metadata instead of the
 // page freezing entirely. The first read is the exception — there is nothing to
 // keep, and `base` staying nil is what makes Tick decline to publish.
+// RefreshNow re-reads the interface metadata at once, for a write path: after a
+// comment or an enable/disable the page shows the router's answer instead of
+// waiting out the metadata interval. The cached rows are dropped first, or the
+// re-read would be served the state from before the write.
+func (s *IfStatus) RefreshNow() {
+	if !s.ros.Connected() {
+		return
+	}
+	if s.cache != nil {
+		s.cache.Invalidate(ifStatusIfCmd.Path)
+	}
+	s.mu.Lock()
+	s.refreshMeta()
+	s.metaIn = s.metaTicks()
+	s.mu.Unlock()
+	s.Tick()
+}
+
 // applyMeta is what the scheduler calls with the interface rows. The addresses
 // and the ethernet counters are read here, as before -- see scheduled.go on why a
 // collector subscribes to ONE menu and reads the rest itself.
@@ -670,7 +690,7 @@ func BuildIfStatus(prev map[string]counterSnap, in IfStatusInput) (
 			ips = []string{}
 		}
 		iface := Interface{
-			Name: name, Type: typ,
+			ID: r[".id"], Name: name, Type: typ,
 			Running: r["running"] == "true", Disabled: r["disabled"] == "true",
 			Comment: r["comment"], MacAddr: r["mac-address"],
 			IPs:        ips,
@@ -821,15 +841,15 @@ func (s *IfStatus) Stop() {
 // test: there was nothing to call. See fingerprint_test.go.
 func ifStatusFingerprint(interfaces []Interface) string {
 	type fpRow struct {
-		N, T, C, M string
-		R, D       bool
-		Rx, Tx     float64
-		IPs        []string
-		E, Dr, Ld  *float64
+		I, N, T, C, M string
+		R, D          bool
+		Rx, Tx        float64
+		IPs           []string
+		E, Dr, Ld     *float64
 	}
 	rows := make([]fpRow, 0, len(interfaces))
 	for _, i := range interfaces {
-		rows = append(rows, fpRow{i.Name, i.Type, i.Comment, i.MacAddr, i.Running, i.Disabled,
+		rows = append(rows, fpRow{i.ID, i.Name, i.Type, i.Comment, i.MacAddr, i.Running, i.Disabled,
 			round2(i.RxMbps), round2(i.TxMbps), i.IPs, i.Errors, i.Drops, i.LinkDowns})
 	}
 	b, _ := json.Marshal(rows)

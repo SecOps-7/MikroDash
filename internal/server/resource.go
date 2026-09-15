@@ -208,6 +208,18 @@ func (cn *conn) resSave(raw json.RawMessage) {
 	}
 	editing := req.ID != ""
 
+	// A resource that cannot be created refuses before anything is read. The
+	// browser draws no Add and no Duplicate for it, so arriving here is a
+	// hand-built request, and it is recorded as the refusal it is.
+	if !editing && res.NoCreate {
+		cn.recorder().Denied(audit.Event{
+			Action: res.Key + ".create", TargetType: res.Key, RouterID: cn.routerID,
+			Note: "not-creatable",
+		})
+		cn.resErr(res.Key, "not-creatable", "", nil)
+		return
+	}
+
 	validated, errs := res.Validate(req.strValues(), editing)
 	if len(errs) > 0 {
 		cn.resErr(res.Key, "invalid", "", map[string]any{"errors": errs})
@@ -768,9 +780,11 @@ func (cn *conn) resRow(raw json.RawMessage) {
 		"id":       req.ID,
 		"identity": res.IdentityOf(row),
 		"readOnly": res.ReadOnlyWhen != nil && res.ReadOnlyWhen(row),
-		"actions":  res.ActionsFor(row),
-		"values":   res.RowValues(row),
-		"options":  cn.resOptions(res),
+		// So the form can leave Delete off a row the server would refuse to remove.
+		"removable": res.RemovableWhen == nil || res.RemovableWhen(row),
+		"actions":   res.ActionsFor(row),
+		"values":    res.RowValues(row),
+		"options":   cn.resOptions(res),
 	})
 }
 
@@ -1139,6 +1153,10 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 	case "capsman":
 		if cn.rsession.CollectorEnabled("capsman") {
 			cn.rsession.Capsman().RefreshNow()
+		}
+	case "interfaces":
+		if cn.rsession.CollectorEnabled("ifStatus") {
+			cn.rsession.IfStatus().RefreshNow()
 		}
 	case "ppp":
 		// The PPP collector reads its config tables — profiles, servers and the

@@ -141,6 +141,15 @@ export function checkedValue(value: unknown): boolean {
 function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
   const id = 'resf_' + f.name;
 
+  // SHOWN, NEVER SENT. The server skips a display field in every write path, so
+  // it is drawn as a locked box rather than an input that looks like it counts.
+  if (f.display) {
+    const v = value === undefined || value === null ? '' : String(value);
+    return '<div style="margin-top:.6rem" data-res-field="' + esc(f.name) + '">' +
+      '<label class="sform-label" for="' + id + '">' + esc(f.label) + '</label>' +
+      '<input class="sform-input" id="' + id + '" value="' + esc(v) + '" disabled></div>';
+  }
+
   if (f.input === 'checkbox') {
     // No <label for> on a toggle: the .stoggle markup wraps its own input.
     return '<label class="stoggle" style="margin-top:.7rem" data-res-field="' + esc(f.name) + '">' +
@@ -222,6 +231,7 @@ function buildForm(schema: Schema, values: Record<string, unknown> | null,
 function readValues(schema: Schema): Record<string, string> {
   const out: Record<string, string> = {};
   for (const f of schema.fields) {
+    if (f.display) continue;
     const node = el<HTMLInputElement | HTMLSelectElement>('resf_' + f.name);
     if (!node) continue;
     out[f.name] = f.input === 'checkbox'
@@ -354,7 +364,8 @@ function actionBar(schema: Schema, avail: string[]): void {
 
 function show(schema: Schema, values: Record<string, unknown> | null,
               row: { id: string; identity: string } | null, readOnly: boolean,
-              options?: Record<string, string[]>, actions?: string[]): void {
+              options?: Record<string, string[]>, actions?: string[],
+              removable?: boolean): void {
   current = { key: schema.key, id: row ? row.id : null, identity: row ? row.identity : null };
   shown = { schema, options: options || {} };
   const title = el('res_title');
@@ -379,11 +390,12 @@ function show(schema: Schema, values: Record<string, unknown> | null,
   setError('');
   const warn = el('res_warn'); if (warn) warn.style.display = 'none';
   const prev = el('res_preview'); if (prev) prev.style.display = 'none';
-  const del = el('res_delete'); if (del) del.style.display = (row && !readOnly) ? '' : 'none';
+  const del = el('res_delete'); if (del) del.style.display = (row && !readOnly && removable !== false) ? '' : 'none';
   // Duplicate is offered on the same rows Delete is: an existing row somebody
   // may write to. On a new form it would copy a blank, and on a read-only one it
   // would offer a write the server refuses.
-  const dup = el('res_dup'); if (dup) dup.style.display = (row && !readOnly) ? '' : 'none';
+  // And never on a resource that cannot be created: the copy could only be refused.
+  const dup = el('res_dup'); if (dup) dup.style.display = (row && !readOnly && schema.creatable !== false) ? '' : 'none';
   const save = el('res_save');
   if (save) {
     save.style.display = readOnly ? 'none' : '';
@@ -879,7 +891,7 @@ function wire(socket: Socket): void {
     const schema = schemas.get(d.resource);
     if (!schema) return;
     show(schema, d.values || {}, { id: d.id, identity: d.identity }, !!d.readOnly,
-         d.options || {}, d.actions || []);
+         d.options || {}, d.actions || [], d.removable !== false);
   });
 
   socket.on('res:history', (d) => {
@@ -972,6 +984,8 @@ function wire(socket: Socket): void {
       unavailable: 'The router is not reachable.',
       'stale-row': 'That row changed on the router. Close and reopen it.',
       'read-only-row': 'This entry cannot be edited here.',
+      'not-creatable': 'This cannot be added here.',
+      'not-removable': 'This entry cannot be removed here.',
       'router-denied': 'The router refused the change: the API user lacks permission.',
       'write-failed': 'The router refused the change.',
       'bad-request': 'That request was incomplete.',

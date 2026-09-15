@@ -54,6 +54,8 @@ export interface ResSchemaField {
   showIf: { field: string; in: string[] } | null;
   min: number | null;
   max: number | null;
+  /** Shown in the form and never sent; the server skips it in every write. */
+  display: boolean;
 }
 
 /**
@@ -70,6 +72,8 @@ export interface ResSchema {
   identity: string | string[];
   actions: { key: string; label: string }[];
   fields: ResSchemaField[];
+  /** False for a resource the router only lets you edit, never add. */
+  creatable: boolean;
   permitted: boolean;
   unsupported: boolean;
   ordered: boolean;
@@ -169,7 +173,7 @@ export interface HandEvents {
   'res:ok': { resource: string; action: string; name: string; movedId?: string | null };
   'res:preview': { resource: string; command: string };
   'res:row': {
-    resource: string; id: string; identity: string; readOnly: boolean;
+    resource: string; id: string; identity: string; readOnly: boolean; removable: boolean;
     actions: string[]; values: Record<string, unknown>; options: Record<string, string[]>;
   };
   'res:schema': ResSchema;

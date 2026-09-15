@@ -41,7 +41,7 @@
           <span data-res-add="veth"></span>
         </div>
         <div class="card-body" style="padding:.65rem .75rem">
-          <div class="iface-grid" id="ifaceGrid"><div class="empty-state">Waiting&#8230;</div></div>
+          <div class="iface-grid" id="ifaceGrid" data-res-rows="iface"><div class="empty-state">Waiting&#8230;</div></div>
           <div class="iface-list-wrap" id="ifaceListWrap" hidden>
             <table class="table table-sm iface-list">
               <thead><tr>
@@ -57,7 +57,7 @@
                 <th class="ifl-num" data-sort="linkDowns" title="Times the link has gone down since the counter was last reset">Flaps</th>
                 <th data-sort="lastLinkUp" title="When the link last came up">Last Up</th>
               </tr></thead>
-              <tbody id="ifaceListBody"></tbody>
+              <tbody id="ifaceListBody" data-res-rows="iface"></tbody>
             </table>
           </div>
         </div>

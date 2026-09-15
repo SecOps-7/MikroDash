@@ -203,6 +203,7 @@ surface stays complete.
 
 | Menu | Resource | Page | Verbs |
 |---|---|---|---|
+| `/interface` | iface | interfaces | set (comment, disabled) |
 | `/interface/bridge` | bridge | bridges | add, set, remove |
 | `/interface/bridge/port` | bridgePort | bridges | add, set, remove |
 | `/interface/veth` | veth | interfaces | add, set, remove |

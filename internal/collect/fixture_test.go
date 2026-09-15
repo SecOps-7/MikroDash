@@ -408,6 +408,13 @@ type addedField struct {
 func added(spec string) addedField { return addedField{Spec: spec} }
 
 var addedSinceNode = map[string][]addedField{
+	// Each interface's RouterOS `.id`, added 2026-09-15 so the Interfaces page can
+	// edit a row through the resource engine (#97): its comment, or enabling and
+	// disabling it. Purely additive. The capture's proplist predates the field,
+	// so every replayed row carries an empty id; the proof is a named test.
+	"ifStatus": {
+		{Spec: "interfaces[].id", ProvenBy: "TestAnInterfaceCarriesItsRouterOSID"},
+	},
 	// The 802.11 generation a client negotiated. Added 2026-09-07 for the WiFi
 	// Clients page's Standard column: the Node app read the registration table's
 	// `band` and kept only the frequency half, so the generation was collected

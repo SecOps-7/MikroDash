@@ -90,6 +90,15 @@ type Field struct {
 	ROS   string // the RouterOS property
 	Label string
 	Type  Type
+	// Display is a field the form SHOWS and never sends. Validate drops it, and
+	// every write path builds from Validate's output, so it never reaches the
+	// router through a save, a preview or an undo. It must not be Clearable:
+	// BuildArgs clears an absent clearable field on an edit, which would send
+	// it blank. TestNoDisplayFieldIsClearable holds that. It exists for the field a row is
+	// identified by when that field must not be edited from here: an
+	// interface's name is what WAN uplinks, the traffic pick and topology pins
+	// are keyed on, so renaming one would orphan all three.
+	Display bool
 
 	Required bool
 	// Clearable means "send this even when empty, so the operator can empty it".
@@ -148,6 +157,11 @@ type Resource struct {
 	// ported before wifiNet.
 	RemovableWhen func(row map[string]string) bool
 
+	// NoCreate refuses a create. An interface exists because hardware or another
+	// menu made it; `/interface` has no `add`, so offering one would be a form
+	// that can only fail at the router.
+	NoCreate bool
+
 	// Actions are the named verbs this resource offers. See Action.
 	Actions []Action
 
@@ -184,6 +198,16 @@ type Resource struct {
 	// because it is about the RELATIONSHIP between two fields. It runs after
 	// every field has passed, on the cleaned values.
 	Check func(clean map[string]string) []Error
+}
+
+// isDisplay reports whether the named field is shown and never sent.
+func (r *Resource) isDisplay(name string) bool {
+	for _, f := range r.Fields {
+		if f.Name == name {
+			return f.Display
+		}
+	}
+	return false
 }
 
 // GuardTargets is the interface names a write is about, or none when the edit
@@ -238,12 +262,17 @@ func (r *Resource) GuardTargets(action string, values, before map[string]string)
 	// Validated values carry RouterOS spellings, so a checkbox reads "yes".
 	nowDisabled := values["disabled"] == "yes"
 	renamed := false
-	for i, n := range names {
+	for _, n := range names {
+		// A DISPLAY field is never sent, so its absence from the submission is
+		// not a rename: it is the field the form showed and could not change.
+		// Without this every comment edit on an interface warned.
+		if r.isDisplay(n) {
+			continue
+		}
 		if of(before, n) != values[n] {
 			renamed = true
 			break
 		}
-		_ = i
 	}
 	disruptive := false
 	for _, n := range r.GuardDisruptiveFields {
@@ -401,6 +430,9 @@ func (r *Resource) Validate(values map[string]string, editing bool) (Validated, 
 	clean := map[string]string{}
 
 	for _, f := range r.Fields {
+		if f.Display {
+			continue
+		}
 		if !f.Applies(values) {
 			continue
 		}
@@ -575,7 +607,7 @@ func (r *Resource) Describe() map[string]any {
 		fields = append(fields, map[string]any{
 			"name": f.Name, "label": f.Label, "type": string(f.Type), "input": f.input(),
 			"required": f.Required, "options": opts, "placeholder": f.Placeholder,
-			"help": f.Help, "showIf": showIf, "min": minv, "max": maxv,
+			"help": f.Help, "showIf": showIf, "min": minv, "max": maxv, "display": f.Display,
 		})
 	}
 	actions := make([]map[string]any, 0, len(r.Actions))
@@ -585,6 +617,7 @@ func (r *Resource) Describe() map[string]any {
 	return map[string]any{
 		"key": r.Key, "label": r.Label, "title": r.Title, "page": r.Page,
 		"identity": r.IdentityJSON(), "actions": actions, "fields": fields,
+		"creatable": !r.NoCreate,
 	}
 }
 
@@ -810,6 +843,40 @@ var BridgePort = &Resource{
 	},
 }
 
+// Iface is any interface on the Interfaces page: its comment, and whether it is
+// enabled (#97). New in this port; the Node app had no equivalent.
+//
+// ── THE NAME IS SHOWN AND NEVER SENT ────────────────────────────────────────
+//
+// It identifies the row, so it has to be a field, but renaming an interface
+// from here would orphan everything this app keys on the name. See Display.
+//
+// ── NOT CREATED, NOT REMOVED ────────────────────────────────────────────────
+//
+// `/interface` offers no `add`, and removing a VLAN or a bridge belongs to its
+// own page's resource. A DYNAMIC interface (a PPPoE or L2TP session) belongs to
+// whatever created it and is read-only.
+//
+// ── GUARDED BY selfPath ─────────────────────────────────────────────────────
+//
+// Disabling the interface MikroDash reaches the router over is the Phase 3
+// lockout #97 names. A comment-only edit is not a guard target.
+var Iface = &Resource{
+	Key: "iface", Page: "interfaces", Label: "Interface",
+	Title: "Interface", Menu: "/interface", Identity: []string{"name"},
+	NoCreate:             true,
+	ReadOnlyWhen:         func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason:       "read-only-row",
+	RemovableWhen:        func(map[string]string) bool { return false },
+	Guard:                []string{"selfPath"},
+	GuardInterfaceFields: []string{"name"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Display: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+}
+
 // Vlan mirrors the `vlan` entry in src/routeros/resources.js.
 var Vlan = &Resource{
 	Key: "vlan", Page: "vlans", Label: "VLAN",
@@ -1017,6 +1084,7 @@ var byKey = map[string]*Resource{
 	Bridge.Key:              Bridge,
 	BridgePort.Key:          BridgePort,
 	Vlan.Key:                Vlan,
+	Iface.Key:               Iface,
 	WifiNet.Key:             WifiNet,
 	WlNet.Key:               WlNet,
 	WlSecProfile.Key:        WlSecProfile,
