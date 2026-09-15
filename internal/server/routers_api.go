@@ -71,6 +71,11 @@ func (s *Server) registerRouters(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/routers", rw(s.routerCreate))
 	mux.HandleFunc("PUT /api/routers/{id}", rw(s.routerUpdate))
 	mux.HandleFunc("DELETE /api/routers/{id}", rw(s.routerDelete))
+	// The router's own name, RouterOS's System Identity (#97). A router write
+	// rather than a record edit, so it has its own endpoint: see
+	// routers_identity.go.
+	mux.HandleFunc("GET /api/routers/{id}/identity", s.routerIdentityGet)
+	mux.HandleFunc("PUT /api/routers/{id}/identity", rw(s.routerIdentitySet))
 	// The hot-swap. Registered here rather than in its own block so the four
 	// write routes on this path are declared together and `endpoint-audit` sees
 	// one list — the audit compares METHOD and PATH, and a route registered

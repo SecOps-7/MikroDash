@@ -636,6 +636,13 @@
           <label class="sform-label">Display Name</label>
           <input class="sform-input" id="rtrModalLabel" type="text" placeholder="e.g. Office Router">
         </div>
+        <!-- The router's own name (System Identity), written to the router, not
+             to MikroDash. Shown only when editing a device MikroDash can reach. -->
+        <div class="sform-group" id="rtrModalIdentityWrap" style="display:none">
+          <label class="sform-label" for="rtrModalIdentity">Router identity</label>
+          <input class="sform-input" id="rtrModalIdentity" type="text" maxlength="255" placeholder="MikroTik" disabled>
+          <div class="cpick-hint" id="rtrModalIdentityHint"></div>
+        </div>
         <div class="sform-group">
           <label class="sform-label">Primary site</label>
           <!-- MEMBERSHIP IS NOT EDITED HERE. Which sites a device belongs to is

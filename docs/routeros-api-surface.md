@@ -92,6 +92,7 @@ for what a ported collector has to cover.
 | `/routing/bgp/peer/print` | src/collectors/routing.js |
 | `/routing/bgp/session/print` | src/collectors/routing.js |
 | `/system/health/print` | src/collectors/system.js |
+| `/system/identity/print` | internal/server/routers_identity.go |
 | `/system/license/print` | src/collectors/system.js |
 | `/system/package/print` | src/collectors/packages.js |
 | `/system/package/update/print` | src/collectors/packages.js, src/collectors/system.js, src/index.js |
@@ -146,6 +147,7 @@ for what a ported collector has to cover.
 |---|---|
 | `/file/remove` | src/backups/runner.js |
 | `/queue/simple/move` | src/index.js |
+| `/system/identity/set` | internal/server/routers_identity.go |
 | `/system/package/disable` | src/index.js |
 | `/system/package/enable` | src/index.js |
 | `/user/active/remove` | src/index.js |

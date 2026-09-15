@@ -216,6 +216,56 @@ export function initRouterModal(opts: {
     });
   });
 
+  // ── the router's identity ─────────────────────────────────────────────────
+  //
+  // RouterOS's System Identity, read from and written to the router itself (#97).
+  // NOT the Display Name, which is MikroDash's label and lives in routers.json.
+  // It is loaded when an existing device opens and written only after the device
+  // save succeeds, so a refused name never loses the rest of the dialog's edits.
+  let identityLoaded = '';
+
+  async function loadIdentity(id: string): Promise<void> {
+    const box = input('rtrModalIdentity');
+    const hint = el('rtrModalIdentityHint');
+    identityLoaded = '';
+    if (!box) return;
+    box.value = '';
+    box.disabled = true;
+    if (hint) hint.textContent = 'Reading from the router…';
+    try {
+      const r = await fetch('/api/routers/' + encodeURIComponent(id) + '/identity', { credentials: 'same-origin' });
+      const j = r.ok ? await r.json() as { available?: boolean; name?: string } : null;
+      // The dialog may have moved on to another device while this was in flight.
+      if ((input('rtrModalId')?.value || '') !== id) return;
+      if (j && j.available) {
+        box.value = j.name || '';
+        identityLoaded = j.name || '';
+        box.disabled = false;
+        if (hint) hint.textContent = 'The name the router gives itself. Saving writes it to the router.';
+      } else if (hint) {
+        hint.textContent = r.status === 403
+          ? 'You may not change this router.'
+          : 'The router cannot be reached, so its identity cannot be read or changed now.';
+      }
+    } catch {
+      if (hint) hint.textContent = 'The router identity could not be read.';
+    }
+  }
+
+  function identityMessage(status: number, j: { code?: string; error?: string }): string {
+    const codes: Record<string, string> = {
+      'rate-limited': 'Too many changes to this router in the last minute, so its identity was not changed.',
+      'outcome-unknown': 'The router accepted the new identity, but it could not be confirmed. Check the router before trying again.',
+      unreachable: 'The router could not be reached, so its identity was not changed.',
+      'read-failed': 'The router identity could not be read, so it was not changed.',
+      'router-denied': 'The router refused the new identity: the API user lacks write permission.',
+      'write-failed': 'The router refused the new identity.',
+    };
+    if (j.error) return '✗ Device saved, identity not changed: ' + j.error;
+    return '✗ Device saved. ' + (codes[j.code || ''] ||
+      (status === 403 ? 'You may not change this router.' : 'The router identity was not changed.'));
+  }
+
   // ── open ──────────────────────────────────────────────────────────────────
   function open(router: StoredRouter | null): void {
     const f = routerFormValues(router, opts.sites());
@@ -224,6 +274,9 @@ export function initRouterModal(opts: {
     const title = el('rtrModalTitle');
     if (title) title.textContent = f.title;
     set('rtrModalId', f.id); set('rtrModalLabel', f.label);
+    const identityWrap = el('rtrModalIdentityWrap');
+    if (identityWrap) identityWrap.style.display = f.id ? '' : 'none';
+    if (f.id) void loadIdentity(f.id);
     // THE PRIMARY PICKER OFFERS ONLY THE SITES THIS DEVICE IS ALREADY IN, so it
     // cannot name one it does not belong to and no control here can add or
     // remove a membership by accident.
@@ -377,6 +430,23 @@ export function initRouterModal(opts: {
         credentials: 'same-origin', body: JSON.stringify(data),
       });
       if (!r.ok) { showTestResult(false, '✗ Save failed'); return; }
+      // THE IDENTITY GOES SECOND, and only when it changed and could be read.
+      // A refusal keeps the dialog open with the device already saved.
+      const identityBox = input('rtrModalIdentity');
+      const wanted = (identityBox?.value || '').trim();
+      if (id && identityBox && !identityBox.disabled && wanted && wanted !== identityLoaded) {
+        const ir = await fetch('/api/routers/' + encodeURIComponent(id) + '/identity', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin', body: JSON.stringify({ name: wanted }),
+        });
+        const ij = await ir.json().catch(() => ({})) as { ok?: boolean; code?: string; error?: string };
+        if (!ir.ok || !ij.ok) {
+          showTestResult(false, identityMessage(ir.status, ij));
+          opts.onSaved();
+          return;
+        }
+        identityLoaded = wanted;
+      }
       el('rtrModalBg')?.classList.remove('open');
       opts.onSaved();
     } catch (e) {
