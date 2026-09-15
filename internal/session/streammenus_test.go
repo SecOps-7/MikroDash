@@ -161,42 +161,57 @@ func TestAPinnedPollRouterIsNotOverriddenByTheTable(t *testing.T) {
 // Found 2026-09-15 by checking the IP Addresses line on a live router, where the
 // Diagnostics card listed the menu as polled. `dns`, `rosusers` and `packages`
 // had been in the same state since they were added.
-//
-// A LEDGER, failing both ways: an unrecorded inert line fails, and so does a
-// recorded one whose owner has become able to stream.
 func TestEveryStreamableMenusOwnerCanResolveAStream(t *testing.T) {
-	inert := map[string]string{
-		"dns":         "no streamKey in the registry; making it stream is an open registry decision",
-		"rosusers":    "no streamKey in the registry; making it stream is an open registry decision",
-		"packages":    "no streamKey in the registry; making it stream is an open registry decision",
-		"ipAddresses": "no streamKey in the registry; making it stream is an open registry decision",
-	}
 	rows := map[string]collection.Collector{}
 	for _, c := range collection.Collectors() {
 		rows[c.Key] = c
 	}
-	seen := map[string]bool{}
 	for menu, key := range streamableMenus {
 		c, ok := rows[key]
 		if !ok {
 			continue // TestStreamableMenusAreRealAndOwned reports it
 		}
-		canStream := !c.Pollable || c.StreamKey != ""
-		_, recorded := inert[key]
-		switch {
-		case !canStream && !recorded:
+		if c.Pollable && c.StreamKey == "" {
 			t.Errorf("streamableMenus lists %q for %q, which has no streamKey and can poll, so "+
 				"collection.Resolve never lets it stream. The line changes no delivery.", menu, key)
-		case canStream && recorded:
-			t.Errorf("%q is recorded as unable to stream and now can; remove it from this ledger", key)
-		}
-		if recorded {
-			seen[key] = true
 		}
 	}
-	for key := range inert {
-		if !seen[key] {
-			t.Errorf("%q is recorded here and has no line in streamableMenus; remove the entry", key)
+}
+
+// TestNoMetadataCollectorStreams — the operator's rule: live data may stream,
+// metadata polls.
+//
+// A stream holds a channel open for the life of the subscription. For a
+// collector whose subscribed menu is configuration, that is a channel spent
+// re-sending a table that has not changed, on hardware whose limit is concurrent
+// channels. Three such lines streamed until 2026-09-15.
+//
+// A LEDGER, failing both ways: a metadata collector with a line fails, and so
+// does an entry naming a collector the registry no longer has.
+func TestNoMetadataCollectorStreams(t *testing.T) {
+	metadata := map[string]string{
+		"wifi":         "interface and radio configuration, subscribed as the slow half; the clients are wireless's",
+		"vlans":        "the VLAN interface list, subscribed as the slow half; its rates come from ifStatus",
+		"dhcpNetworks": "DHCP networks, with the addresses and pools read beside them",
+		"dns":          "resolver settings and static entries",
+		"rosusers":     "RouterOS users, groups and sessions",
+		"packages":     "installed packages and firmware",
+		"ipAddresses":  "IPv4 and IPv6 addresses",
+		"topology":     "the neighbour discovery table",
+	}
+	keys := map[string]bool{}
+	for _, c := range collection.Collectors() {
+		keys[c.Key] = true
+	}
+	for key := range metadata {
+		if !keys[key] {
+			t.Errorf("%q is recorded as a metadata collector and the registry has no such key", key)
+		}
+	}
+	for menu, key := range streamableMenus {
+		if why, ok := metadata[key]; ok {
+			t.Errorf("streamableMenus lists %q for %q, which is metadata (%s). A stream would hold a "+
+				"channel open to re-send a table that rarely changes; it polls.", menu, key, why)
 		}
 	}
 }

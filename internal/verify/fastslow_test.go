@@ -19,6 +19,12 @@ import (
 // on the MikroTik, so cost is commands x frequency, and a menu read 51 times a
 // minute that changed once is 50 wasted commands.
 //
+// THE SAME SPLIT DECIDES DELIVERY (2026-09-15). Only live data may stream: a
+// stream holds a channel open for the life of the subscription, which pays for a
+// live read and never for a slow one. A slow lane and a metadata collector poll.
+// `TestNoMetadataCollectorStreams` in internal/session keeps the stream table to
+// that.
+//
 // It is not a new idea here. Seven collectors already hand-rolled it as a
 // `ticks % <x>ConfigEvery` counter, and `system` as a `time.Since` window. What
 // the rule did was find the two that had not: `ifStatus`, which was reading four

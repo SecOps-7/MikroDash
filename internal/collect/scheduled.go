@@ -269,7 +269,7 @@ func (s *scheduled) fillIfStreaming(menu string) {
 		}
 	}
 	// NO `Merge`, WHICH IS THE DECLARATION THAT THIS MENU HAS ONE OWNER. A
-	// second holder is refused rather than merged — fourteen of the fifteen
+	// second holder is refused rather than merged — seven of the eight
 	// streamed menus have exactly one consumer, and two collectors quietly
 	// sharing a channel is a real bug class. `/interface/monitor-traffic` is the
 	// exception and declares a merge rule; see collect/monitortraffic.go.

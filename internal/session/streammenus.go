@@ -46,7 +46,18 @@ package session
 // polling rather than breaking a page. The cost is real and worth naming: a
 // regression in this batch bisects to eleven menus rather than to one.
 //
-// A menu absent from this table polls, which is what every collector does today.
+// ── ONLY LIVE DATA STREAMS ─────────────────────────────────────────────────
+//
+// A stream trades commands for a channel held open for the life of the
+// subscription. That pays for live data: gauges, connections, sessions, clients
+// and state that decides what the page shows now. It never pays for metadata,
+// configuration that changes when somebody edits the router: the stream re-sends
+// an unchanged table every interval on a channel that is open the whole time,
+// while a poll costs one command and holds the channel for the length of the
+// read. It is the operator's fast/slow rule applied to delivery: a collector's
+// live reads may stream, and its slow lane and every metadata collector poll.
+//
+// A menu absent from this table polls.
 var streamableMenus = map[string]string{
 	// menu -> the registry key of the collector that owns it.
 	//
@@ -118,46 +129,25 @@ var streamableMenus = map[string]string{
 	// changed no delivery while claiming to.
 	"/interface/bridge/host/print": "bridges",
 
-	// ── AND THE STABLE CONFIG MENUS ─────────────────────────────────────────
+	// ── AND FAILOVER STATE ──────────────────────────────────────────────────
 	//
-	// Small individually, and they are the class the rolling entry was always
-	// safe for: membership changes when somebody edits the router.
-	"/interface/wifi/print":         "wifi",
-	"/interface/vlan/print":         "vlans",
-	"/ip/dhcp-server/network/print": "dhcpNetworks",
-	//
-	// THESE THREE CHANGE NO DELIVERY, and nor does `/ip/address/print` below:
-	// their owners have no `streamKey` in the registry, so `collection.Resolve`
-	// answers `Stream[key] = false` for every router and `streamsMenu` never
-	// says yes. Found 2026-09-15, when the IP Addresses line was checked on a
-	// live router and read "polled". Making them stream is a registry decision,
-	// recorded as open in TestEveryStreamableMenusOwnerCanResolveAStream.
-	"/ip/dns/print":                          "dns",
-	"/user/print":                            "rosusers",
-	"/system/package/print":                  "packages",
+	// `wan`'s subscribed menu is its FAST half: which uplink detect-internet says
+	// is carrying traffic. Its interface, DHCP and address reads are the slow
+	// lane and poll. See the fast/slow ledger in internal/verify.
 	"/interface/detect-internet/state/print": "wan",
 
-	// ── ADDED 2026-09-15, WITH THE IP ADDRESSES PAGE (#97) ─────────────────
+	// ── METADATA DOES NOT STREAM, AND SEVEN LINES LEFT (2026-09-15) ─────────
 	//
-	// A stable config menu of the class above, and the first line added alone
-	// since the batch. Probed on the CHR (RouterOS 7.24.1) with
-	// `cmd/streamcost -probe` before it was added: 4 rows, the first in 3ms.
-	//
-	// THREE OTHER COLLECTORS READ THIS MENU THROUGH THE CACHE, and a stream-filled
-	// entry answers them from the rows the stream asked for. The stream asks with
-	// this collector's proplist, which holds every field they request: `ifStatus`
-	// wants interface and address, `dhcpNetworks` and `wan` want address,
-	// interface and disabled.
-	//
-	// The IPv6 half, `/ipv6/address/print`, streamed too (10 rows, first in 3ms),
-	// but it is read inside `derive` rather than subscribed, so it has no line here
-	// and keeps polling.
-	//
-	// INERT FOR NOW, like dns, rosusers and packages above: `ipAddresses` has no
-	// `streamKey`, so no router resolves a stream for it. Checked live on the
-	// hAP AX3, set to stream, with the IP Addresses page open: the Diagnostics
-	// card listed this menu as polled.
-	"/ip/address/print": "ipAddresses",
+	// `/interface/wifi/print`, `/interface/vlan/print`,
+	// `/ip/dhcp-server/network/print`, `/ip/dns/print`, `/user/print`,
+	// `/system/package/print` and `/ip/address/print` were here. Each is
+	// configuration. For `wifi` and `vlans` it is the collector's own slow half,
+	// subscribed at ten and twelve times its interval; `dhcpNetworks` polls every
+	// ten minutes by default. The first three streamed, holding a channel open to
+	// re-send an unchanged table. The last four never could (their owners have no
+	// `streamKey`) and changed no delivery. TestNoMetadataCollectorStreams keeps
+	// them out.
+
 }
 
 // streamsMenu answers roscache's question: may this menu be pushed?

@@ -181,7 +181,7 @@ type streamFill struct {
 //
 // `FillFromStream` is single-owner and refuses a second caller, deliberately:
 // two collectors quietly fighting over one channel is a whole class of bug, and
-// fourteen of the fifteen streamed menus have exactly one consumer.
+// seven of the eight streamed menus have exactly one consumer.
 //
 // `/interface/monitor-traffic` has two, and they want different things.
 // `ifStatus` wants every enabled interface at its own cadence and reads a
@@ -209,7 +209,7 @@ type Join struct {
 	//
 	// ── NIL MEANS UNSHARED, AND THAT IS THE WHOLE DECLARATION ──────────────
 	//
-	// Fourteen of the fifteen streamed menus have exactly one consumer, and a
+	// Seven of the eight streamed menus have exactly one consumer, and a
 	// second one arriving is a real bug class: two collectors quietly fighting
 	// over one channel. A nil Merge says "this menu has one owner", and a second
 	// `JoinStream` on it is REFUSED rather than merged.
@@ -616,7 +616,7 @@ func (f *streamFill) absorb(r routeros.Reply) {
 }
 
 // rowHooks copies the holders' row callbacks so `absorb` can call them without
-// holding the lock. Nil for every unshared fill, which is fourteen of fifteen.
+// holding the lock. Nil for every unshared fill, which is seven of eight.
 func (f *streamFill) rowHooks() []func(routeros.Reply) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

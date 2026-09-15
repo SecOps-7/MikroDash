@@ -159,7 +159,7 @@ Two mechanisms make it safe:
   table rather than a broken one.
 
 **One entry point, `JoinStream`, and a `Join` declares whether the menu is
-shared.** A nil `Merge` means single-owner: fourteen of the fifteen streamed
+shared.** A nil `Merge` means single-owner: seven of the eight streamed
 menus have exactly one consumer, and a second holder is *refused* rather than
 merged, because two collectors quietly fighting over one channel is a real bug
 class. A non-nil `Merge` means shared — it combines the holders' commands (the
@@ -170,11 +170,20 @@ channel** between them.
 
 ### The stream/poll duality
 
-Every collector offers both delivery modes, and the operator's per-router
+**Only live data streams.** A stream trades commands for a channel held open for
+the life of the subscription. That pays for live data: gauges, connections,
+sessions, clients, and state that decides what a page shows now. It never pays for
+metadata, configuration that changes when somebody edits the router: the stream
+re-sends an unchanged table every interval on a channel that is open the whole
+time, while a poll costs one command and holds the channel for one read. It is the
+fast/slow rule applied to delivery, so a collector's slow lane polls, and so does
+every metadata collector (`TestNoMetadataCollectorStreams`).
+
+A live collector offers both delivery modes, and the operator's per-router
 Stream/Poll setting chooses. **Both honour the same interval slider** — choosing
 Poll must never silently mean slower. Two conditions are required to stream: this
-project's judgement that the menu is safe (`session.streamableMenus`) *and* the
-operator's setting. Either saying no means poll.
+project's judgement that the menu is live and safe (`session.streamableMenus`)
+*and* the operator's setting. Either saying no means poll.
 
 ### Acquisitions that are not router reads
 
@@ -429,7 +438,7 @@ the document quietly lying.
 | disableable by the operator | 23 |
 | dormancy-eligible | 19 |
 | gated by demand (`session.TargetKeys`) | 26 |
-| menus enabled for stream delivery | 15 |
+| menus enabled for stream delivery | 8 |
 | collectors declaring rooms | 24 |
 | `keepAliveFor` entries | 3 |
 | collectors with an extracted derivation | 25 |

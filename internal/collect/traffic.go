@@ -518,7 +518,7 @@ func (t *Traffic) syncStream() {
 // ── THE RESTARTING MOVED, THE REPORTING DID NOT ────────────────────────────
 //
 // The channel is `roscache`'s now and so is its recovery: `streamFill.watch`
-// reopens a fill that has gone quiet, and it does it for all fifteen streamed
+// reopens a fill that has gone quiet, and it does it for all eight streamed
 // menus instead of this one. Keeping a second watchdog here would mean two
 // things racing to restart one channel, and the loser would find a stream it
 // had not opened.
