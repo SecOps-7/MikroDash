@@ -438,18 +438,40 @@ the document quietly lying.
 
 ## Changing this architecture
 
-Adding or changing a collector touches all three layers, and each has a gate that
-tells you if you missed one:
+Adding or changing a collector touches all three layers, every one of which has
+more than one place to change. The checklist below is the whole list.
 
-1. **Acquisition** — declare the subscription (`scheduled`), or record why it is
-   set B. `internal/verify/scheduled_test.go`, `acquisition_test.go`.
-2. **Derivation** — a package-level `BuildX`/`FoldX`, listed in
-   `internal/verify/derivations_test.go`.
-3. **Views** — rooms in `internal/collect/rooms.go`, or a `keepAliveFor` entry
-   with its reason. `internal/server/demand_test.go` refuses a collector no room
-   can ever want.
-4. **Lifecycle** — `internal/session`: construct it, add it to the `UseCache`
-   list, the dormancy target table, and the connect/reconnect/teardown blocks. The
-   counts in `lifecycle_test.go` and `release_test.go` are pinned.
-5. **This file** — `internal/verify/architecture_test.go` fails until the table
-   and the numbers above match the code.
+### Adding a collector
+
+Each row names where the change goes, when it applies, and what fails if it is
+missed. **"By hand" means nothing fails**, and the row says so rather than
+implying a gate that does not exist.
+
+| # | touchpoint | when | what fails if it is missed |
+|---|---|---|---|
+| 1 | a registry row, with its poll bounds, in `internal/collection/collection_tables.json` | always | `TestTheEmbeddedRegistryMatchesTheCorpus`; "registry rows" below |
+| 2 | the recorded resolutions in `testdata/collection-cases.json` and `testdata/collection-payload-cases.json` | always | `internal/collection/collection_test.go`, `internal/collection/payload_test.go` |
+| 3 | `internal/collection/pollmap.json` and `testdata/settings-apply-cases.json` | it has a poll key | `TestEveryReTunedCollectorHasASetter` |
+| 4 | the collector in `internal/collect`. A table collector embeds `tableCore` and supplies a `tableSpec`, `derive`, `send` and `reset`; any other collector names which reason under "Table collectors: one lifecycle" applies, and subscribes through `scheduled` | always | `internal/collect/table_test.go`, whose re-tune list must gain it; `internal/verify/scheduled_test.go`; `internal/verify/subfields_test.go`; `internal/verify/acquisition_test.go` |
+| 5 | a menu another collector also reads goes through the cache | it shares a menu | `internal/verify/sharedmenu_test.go` |
+| 6 | stream delivery: probe `=interval=` on hardware with `cmd/streamcost`, then add a line to `internal/session/streammenus.go` | the menu streams | `internal/session/streammenus_test.go`; "menus enabled for stream delivery" below |
+| 7 | a package-level `BuildX` or `FoldX`, and its entry in the ledger in `internal/verify/derivations_test.go` | always | `TestEveryCollectorDeclaresItsDerivation` |
+| 8 | a test that every rendered field moves the fingerprint | it sends a payload | by hand: each collector has its own test, and no ledger lists them |
+| 9 | the event, `hub.Declare[T]` in `internal/collect/events.go`, then regenerate `web/src/gen/payloads.ts` | it sends a payload | `internal/verify/event_test.go`; the tsgen check in `tools/verify.sh` |
+| 10 | a builder in `internal/collect/nullarrays_test.go` | it sends a payload | `TestNoPayloadSendsANullArray` |
+| 11 | its rooms in `internal/collect/rooms.go`, or a `keepAliveFor` entry with the reason | always | `internal/collect/rooms_test.go`; `internal/server/demand_test.go` |
+| 12 | `internal/session/session.go`: the field, the accessor, construction, the `UseCache` list, and the connect, reconnect, suspend and both teardown blocks | always | `internal/session/lifecycle_test.go` and `internal/session/release_test.go`, which pin the counts |
+| 13 | a target in `internal/session/dormancy_targets.go`, built from closures rather than method values: a promoted method value dereferences a collector the session did not build | always | `internal/session/prime_test.go`; `TestASavedCollectorSwitchReachesTheLiveSession` panics on a method value |
+| 14 | `internal/session/retune.go` | it has a poll key | `TestEveryReTunedCollectorHasASetter` |
+| 15 | `internal/session/needs.go` | it feeds alerts, history or the Devices page | `internal/verify/holds_test.go` |
+| 16 | an empty key in the registry, or a measured reason in `internal/verify/emptykey_test.go` | it is dormancy-eligible | `TestCollectorsWithoutAnEmptyKeyHaveAMeasuredReason` |
+| 17 | a page: `internal/pages/pages.go`, `internal/server/pages_table.json`, `web/src/ui/page-<key>.html`, `web/src/pages/<key>.ts`, `web/src/main.ts` and the nav in `web/src/ui/shell.html` | it has a page | the pagesgen check in `tools/verify.sh`; `TestVisibilityGuardsNameRealPages` |
+| 18 | settings: `internal/store/settings_tables.json`, `internal/store/settings_write_tables.json`, `internal/store/pagekeys.json`, `internal/store/disclose.go`, the `testdata/settings-*-cases.json` corpora, `testdata/poll-tables.json`, `testdata/settings-form-map.json`, `testdata/view-presets.json` and `web/src/ui/page-settings.html` | it has a page toggle or a poll key | `TestTheEmbeddedKeyListIsTheLiveOne`; the generator checks in `tools/verify.sh` |
+| 19 | every RouterOS command it issues, in `docs/routeros-api-surface.md` | always | by hand: the file is frozen and extended from the RouterOS documentation |
+| 20 | this file: the "Every collector" table, the table-collector list and the measured facts | always | `internal/verify/architecture_test.go`; `internal/verify/checklist_test.go` |
+
+**The checklist is gated too.** `internal/verify/checklist_test.go` fails when a
+file that names every registry collector is missing from this table, which is how
+a new place that lists collectors shows up, and when a path or a test named here
+does not exist. It also holds the table-collector list above to the files that
+embed `tableCore`, in both directions.
