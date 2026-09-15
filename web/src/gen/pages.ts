@@ -35,6 +35,7 @@ export const PAGES: readonly Page[] = [
   { key: "wifi-networks", title: "Wifi Networks", path: "wifi-networks" },
   { key: "capsman", title: "CAPsMAN", path: "capsman" },
   { key: "interfaces", title: "Interfaces", path: "interfaces" },
+  { key: "ip-addresses", title: "IP Addresses", path: "ip-addresses" },
   { key: "logs", title: "Logs", path: "logs" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },
   { key: "wifi-clients", title: "Wifi Clients", path: "wifi-clients" },

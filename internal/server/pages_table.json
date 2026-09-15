@@ -17,6 +17,11 @@
       "settingsKey": "pageInterfaces"
     },
     {
+      "key": "ip-addresses",
+      "title": "IP Addresses",
+      "settingsKey": "pageIpAddresses"
+    },
+    {
       "key": "vlans",
       "title": "VLANs",
       "settingsKey": "pageVlans"

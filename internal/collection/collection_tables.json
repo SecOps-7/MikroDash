@@ -315,6 +315,18 @@
       "sessionProp": "dns"
     },
     {
+      "key": "ipAddresses",
+      "label": "IP Addresses",
+      "pollKey": "pollIpAddresses",
+      "defaultPollMs": 30000,
+      "streamKey": null,
+      "pollable": true,
+      "disableable": true,
+      "requires": [],
+      "emptyKey": [],
+      "sessionProp": "ipAddresses"
+    },
+    {
       "key": "packages",
       "label": "Packages",
       "pollKey": "pollPackages",
@@ -458,6 +470,10 @@
       60000
     ],
     "pollDns": [
+      1000,
+      60000
+    ],
+    "pollIpAddresses": [
       1000,
       60000
     ],

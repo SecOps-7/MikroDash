@@ -39,6 +39,17 @@ assert.ok(unknown.why.includes('could not read') && unknown.why.includes('0.0.0.
   'route-cutoff-unknown says it cannot tell: ' + unknown.why);
 say('ok  route-cutoff-unknown says the guard cannot tell');
 
+const address = warningText('address-cutoff', { address: '10.0.0.5', prefix: '10.0.0.1/24', interface: 'bridge', action: 'delete' });
+assert.ok(address.headline.includes('cut MikroDash off'), 'address-cutoff headline: ' + address.headline);
+assert.ok(address.why.includes('10.0.0.5') && address.why.includes('10.0.0.1/24') && address.why.includes('bridge') &&
+  address.why.includes('removes'), 'address-cutoff names where MikroDash is, the address and the action: ' + address.why);
+say('ok  address-cutoff names where MikroDash is and the address it would cut');
+
+const addressUnknown = warningText('address-cutoff-unknown', { prefix: '10.0.0.1/24', action: 'update' });
+assert.ok(addressUnknown.why.includes('could not read') && addressUnknown.why.includes('10.0.0.1/24'),
+  'address-cutoff-unknown says it cannot tell: ' + addressUnknown.why);
+say('ok  address-cutoff-unknown says the guard cannot tell');
+
 for (const [code, words] of [['self-lockout', 'firewall rule'], ['wifi-inherit', 'inherits'], ['capsman-push', 'pushed']]) {
   const t = warningText(code, {});
   assert.ok(t.why.includes(words), code + ' has its own sentence, not the fallback: ' + t.why);

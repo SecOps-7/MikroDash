@@ -59,6 +59,13 @@ var extraBuilders = map[string]func(Reader) any{
 	"traffic#history": func(r Reader) any {
 		return NewTraffic(r, Emit{}, "ether1", 60).Watch("ether1")
 	},
+	// The IP Addresses page (#97). No capture holds these menus, so it is built
+	// from empty input only.
+	"ipAddresses": func(r Reader) any {
+		c := NewIPAddresses(r, Emit{}, 10000)
+		c.Tick()
+		return c.Last()
+	},
 }
 
 func TestNoPayloadSendsANullArray(t *testing.T) {

@@ -891,7 +891,7 @@ func ackGate(v guard.Verdict, ack string) map[string]any {
 // declaring anything else cannot be written through here — see verdictFor.
 var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
-	"routePath": true,
+	"routePath": true, "addressPath": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -948,6 +948,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "routePath":
 			if v := cn.routeVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "addressPath":
+			if v := cn.addressVerdict(res, action, values, before); v.Warned() {
 				return v, nil
 			}
 		}
@@ -1083,6 +1087,44 @@ func (cn *conn) routeVerdict(res *resource.Resource, action string,
 	return guard.CheckRouteEdit(active, addrs, []string{cn.rsession.Username()}, action, was, now)
 }
 
+// addressVerdict asks the address lockout guard about one IP address write, of
+// either family. /user/active is read fresh, in the same tick as the write, as
+// the route guard reads it.
+func (cn *conn) addressVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	var active []routeros.Reply
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+		active = rows
+	}
+	var was, now guard.AddressChange
+	if before != nil {
+		was = addressChangeOf(histValues(res.RowValues(before)), guard.AddressChange{})
+	}
+	if action != "delete" && values != nil {
+		// Laid over the stored row, as for routes: a form that did not send a
+		// field has not changed it.
+		now = addressChangeOf(values, was)
+	}
+	return guard.CheckAddressEdit(active, []string{cn.rsession.Username()}, action, was, now)
+}
+
+// addressChangeOf reads an address in the registry's field names, laid over base.
+func addressChangeOf(v map[string]string, base guard.AddressChange) guard.AddressChange {
+	r := base
+	r.Present = true
+	if x, ok := v["address"]; ok && x != "" {
+		r.Address = x
+	}
+	if x, ok := v["interface"]; ok && x != "" {
+		r.Interface = x
+	}
+	if d, ok := v["disabled"]; ok {
+		r.Disabled = d == "true" || d == "yes"
+	}
+	return r
+}
+
 // routeChangeOf reads a route in the registry's field names, laid over base.
 func routeChangeOf(v map[string]string, base guard.RouteChange) guard.RouteChange {
 	r := base
@@ -1153,6 +1195,10 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 	case "capsman":
 		if cn.rsession.CollectorEnabled("capsman") {
 			cn.rsession.Capsman().RefreshNow()
+		}
+	case "ip-addresses":
+		if cn.rsession.CollectorEnabled("ipAddresses") {
+			cn.rsession.IPAddresses().RefreshNow()
 		}
 	case "netwatch":
 		// Tick reads the menu directly, so the table shows the router's answer.

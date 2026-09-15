@@ -218,6 +218,7 @@ surface stays complete.
 | `/interface/wireless` | wlNet | wifi | add, set, remove, enable, disable |
 | `/interface/wireless/security-profiles` | wlSecProfile | wifi | add, set, remove |
 | `/ip/dhcp-server/lease` | dhcpLease | dhcp | add, set, remove, make-static |
+| `/ip/address` | ipAddress | ip-addresses | add, set, remove |
 | `/ip/dns/static` | dnsStatic | dns | add, set, remove |
 | `/ip/firewall/filter` | fwFilter | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/mangle` | fwMangle | firewall | add, set, remove, move, enable, disable |
@@ -225,6 +226,7 @@ surface stays complete.
 | `/ip/firewall/raw` | fwRaw | firewall | add, set, remove, move, enable, disable |
 | `/ip/route` | route | routing | add, set, remove |
 | `/tool/netwatch` | netwatch | netwatch | add, set, remove (no scripts, no DNS record type) |
+| `/ipv6/address` | ipv6Address | ip-addresses | add, set, remove |
 | `/ipv6/route` | route6 | routing | add, set, remove |
 
 ## Proplists

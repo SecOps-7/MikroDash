@@ -163,13 +163,14 @@ type Session struct {
 	observed bool
 	lastErr  string
 
-	dns      *collect.DNS
-	bridges  *collect.Bridges
-	vlans    *collect.Vlans
-	wan      *collect.Wan
-	packages *collect.Packages
-	routing  *collect.Routing
-	ifStatus *collect.IfStatus
+	dns         *collect.DNS
+	ipAddresses *collect.IPAddresses
+	bridges     *collect.Bridges
+	vlans       *collect.Vlans
+	wan         *collect.Wan
+	packages    *collect.Packages
+	routing     *collect.Routing
+	ifStatus    *collect.IfStatus
 
 	dhcpLeases   *collect.DHCPLeases
 	dhcpNetworks *collect.DHCPNetworks
@@ -273,6 +274,9 @@ func (s *Session) LastError() string {
 // DNS is the collector, for the replay a page:focus does and for the
 // RefreshNow a write triggers.
 func (s *Session) DNS() *collect.DNS { return s.dns }
+
+// IPAddresses is the IP Addresses page's collector (#97).
+func (s *Session) IPAddresses() *collect.IPAddresses { return s.ipAddresses }
 
 // Bridges is the collector behind the Bridges page.
 func (s *Session) Bridges() *collect.Bridges { return s.bridges }
@@ -884,6 +888,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		m.h.Forward([]string{room + sub}, e, payload)
 	})
 	s.dns = collect.NewDNS(reader{s}, emit, s.conf().Poll["dns"])
+	s.ipAddresses = collect.NewIPAddresses(reader{s}, emit, s.conf().Poll["ipAddresses"])
 	// Built FIRST, because three other collectors take it as their RateSource.
 	// It is the only one they depend on, and it depends on none of them.
 	s.ifStatus = collect.NewIfStatus(reader{s}, emit, rec.ID, s.conf().Poll["ifStatus"])
@@ -1119,7 +1124,7 @@ func (m *Manager) Acquire(routerID string) (*Session, error) {
 		// connection menu `conns` already subscribes to -- one read, two
 		// deliveries -- and `vlans` is mechanism A with a residual half that
 		// reads nothing at all. Every dormancy-eligible collector is now here.
-		s.bandwidth, s.vlans,
+		s.bandwidth, s.vlans, s.ipAddresses,
 		// ── NOT SUBSCRIBED, AND HERE FOR THE CHANNEL ────────────────────────
 		//
 		// `traffic` schedules nothing: it is set B, an open channel with no
@@ -1597,6 +1602,7 @@ func (m *Manager) idleOut(routerID string, s *Session) {
 	// `TestReleaseStopsEveryCollectorTheConnectBlockStarted` counts both sides
 	// out of this file and fails if they ever diverge again.
 	s.dns.Stop()
+	s.ipAddresses.Stop()
 	s.bridges.Stop()
 	s.vlans.Stop()
 	s.wan.Stop()
@@ -1674,6 +1680,7 @@ func (m *Manager) Shutdown() {
 		m.history.Flush(s.RouterID)
 
 		s.dns.Stop()
+		s.ipAddresses.Stop()
 		s.bridges.Stop()
 		s.vlans.Stop()
 		s.wan.Stop()
@@ -1889,6 +1896,9 @@ func (s *Session) connectLoop() {
 			if s.conf().Enabled["dns"] {
 				s.dns.Start()
 			}
+			if s.conf().Enabled["ipAddresses"] {
+				s.ipAddresses.Start()
+			}
 			if s.conf().Enabled["bridges"] {
 				s.bridges.Start()
 			}
@@ -2089,6 +2099,9 @@ func (s *Session) connectLoop() {
 			if s.conf().Enabled["dns"] {
 				s.dns.Reconnected()
 			}
+			if s.conf().Enabled["ipAddresses"] {
+				s.ipAddresses.Reconnected()
+			}
 			if s.conf().Enabled["bridges"] {
 				s.bridges.Reconnected()
 			}
@@ -2266,6 +2279,7 @@ func (s *Session) connectLoop() {
 		reason := c.Err()
 		_ = c.Close()
 		s.dns.Suspend()
+		s.ipAddresses.Suspend()
 		s.bridges.Suspend()
 		s.vlans.Suspend()
 		s.wan.Suspend()

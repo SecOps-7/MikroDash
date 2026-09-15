@@ -48,6 +48,7 @@ import { initFirewallPage } from './pages/firewall';
 import { initWifiPage } from './pages/wifi';
 import { initCapsmanPage } from './pages/capsman';
 import { initInterfacesPage } from './pages/interfaces';
+import { initIpAddressesPage } from './pages/ip-addresses';
 import { initLogsPage } from './pages/logs';
 import { initTopologyPage } from './pages/topology';
 import { initWirelessPage } from './pages/wireless';
@@ -593,6 +594,7 @@ async function main(): Promise<void> {
   initWifiPage(socket, pageVisible);
   initCapsmanPage(socket, pageVisible);
   initInterfacesPage(socket, pageVisible);
+  initIpAddressesPage(socket, pageVisible);
   initLogsPage(socket, pageVisible);
   initTopologyPage(socket, pageVisible);
   initWirelessPage(socket, pageVisible);

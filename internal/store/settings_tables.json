@@ -33,6 +33,7 @@
     "pollPpp": 5000,
     "pollBridges": 5000,
     "pollDns": 10000,
+    "pollIpAddresses": 30000,
     "pollCapsman": 10000,
     "pollPackages": 60000,
     "pollRosusers": 60000,
@@ -91,6 +92,7 @@
     "pageWireless": true,
     "pageWifiMap": true,
     "pageNetwatch": true,
+    "pageIpAddresses": true,
     "pageInterfaces": true,
     "pageDhcp": true,
     "pageVpn": true,
@@ -150,6 +152,7 @@
     "pollPpp",
     "pollBridges",
     "pollDns",
+    "pollIpAddresses",
     "pollCapsman",
     "pollPackages",
     "pollRosusers",
@@ -208,6 +211,7 @@
     "pageWireless",
     "pageWifiMap",
     "pageNetwatch",
+    "pageIpAddresses",
     "pageInterfaces",
     "pageDhcp",
     "pageVpn",
@@ -351,6 +355,10 @@
       "env": "DNS_POLL_MS",
       "kind": "int"
     },
+    "pollIpAddresses": {
+      "env": "IP_ADDRESSES_POLL_MS",
+      "kind": "int"
+    },
     "pollCapsman": {
       "env": "CAPSMAN_POLL_MS",
       "kind": "int"
@@ -482,6 +490,10 @@
       60000
     ],
     "pollDns": [
+      1000,
+      60000
+    ],
+    "pollIpAddresses": [
       1000,
       60000
     ],

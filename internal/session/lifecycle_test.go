@@ -228,7 +228,13 @@ func TestTheBackgroundCollectorCountIsRecorded(t *testing.T) {
 	// `wireless` and `topology` can join an IP to a MAC. The number is the basis
 	// of the background-pool decision, so it is moved with the reason rather
 	// than nudged.
-	const recorded = 16
+	//
+	// 16 -> 17 on 2026-09-15: `ipAddresses`, for the IP Addresses page (#97). It
+	// starts at connect exactly as `dns` does, and like `dns` it is gated by
+	// demand from there, so it reads only while somebody has its page open. It
+	// feeds no alert, so a background session would never need it; it is here
+	// because every page collector is.
+	const recorded = 17
 
 	body, err := os.ReadFile("session.go")
 	if err != nil {

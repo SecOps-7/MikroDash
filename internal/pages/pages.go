@@ -107,6 +107,8 @@ var All = []Page{
 	{Key: "wifi-networks", Title: "Wifi Networks", Collector: "wifi"},
 	{Key: "capsman", Title: "CAPsMAN", Collector: "capsman"},
 	{Key: "interfaces", Title: "Interfaces", Collector: "ifStatus"},
+	// The IP Addresses page (#97): both families, fed by its own collector.
+	{Key: "ip-addresses", Title: "IP Addresses", Collector: "ipAddresses"},
 	{Key: "logs", Title: "Logs", Collector: "logs"},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},

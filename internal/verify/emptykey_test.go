@@ -45,6 +45,11 @@ func TestCollectorsWithoutAnEmptyKeyHaveAMeasuredReason(t *testing.T) {
 		"logs": "STRUCTURAL: no payload object exists. It emits `logs:history` and `logs:new` " +
 			"as events, so `Last()` returns entries rather than a payload and there is " +
 			"nothing for PayloadEmpty to read.",
+		"ipAddresses": "STRUCTURAL: `addresses` is its only array, and it cannot be empty " +
+			"while MikroDash is connected. The API session arrives on one of the router's " +
+			"own addresses, and every IPv6-capable interface carries a link-local one " +
+			"besides, so an emptyKey naming it would never fire. Added 2026-09-15 with " +
+			"the IP Addresses page (#97).",
 	}
 
 	var tables struct {

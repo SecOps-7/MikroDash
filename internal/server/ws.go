@@ -1007,6 +1007,14 @@ func (cn *conn) resumePage(page string) {
 			replay.TS = time.Now().UnixMilli()
 			collect.EvCapsmanUpdate.Send(cn.srv.hub, cn.c, replay)
 		}
+	// The IP Addresses page (#97). Its collector runs only while somebody has
+	// the page open, so without the replay the table would sit empty for a poll.
+	case "ip-addresses":
+		if last := cn.rsession.IPAddresses().Last(); last != nil {
+			replay := *last
+			replay.TS = time.Now().UnixMilli()
+			collect.EvIPAddressesUpdate.Send(cn.srv.hub, cn.c, replay)
+		}
 	// The NetWatch page (#97). The same collector feeds the Dashboard card, so it
 	// is often running already; the replay saves an empty table for a poll
 	// interval that can be a minute long.

@@ -9,6 +9,7 @@
     "pageWireless",
     "pageWifiMap",
     "pageNetwatch",
+    "pageIpAddresses",
     "pageCapsman",
     "pageDhcp",
     "pageDns",

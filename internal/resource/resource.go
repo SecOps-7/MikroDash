@@ -843,6 +843,80 @@ var BridgePort = &Resource{
 	},
 }
 
+// IPAddress and IPv6Address are the rows of the IP Addresses page (#97), one per
+// family, the way Routes has route and route6. New in this port.
+//
+// ── DYNAMIC ROWS ARE READ-ONLY ─────────────────────────────────────────────
+//
+// A dynamic address belongs to whatever made it: a DHCP client, a PPP or VPN
+// session, IPv6 link-local autoconfiguration. An edit here would be undone by its
+// owner, or would fight it.
+//
+// ── GUARDED BY addressPath ─────────────────────────────────────────────────
+//
+// Changing, disabling or removing the address on the subnet MikroDash reaches
+// the router from is the lockout #97 names for Phase 3. The guard warns and asks
+// for an acknowledgement, and warns when it cannot tell where MikroDash is.
+//
+// ── ONLY WHAT IS DOCUMENTED ────────────────────────────────────────────────
+//
+// `network` and `broadcast` are derived by RouterOS from the address and are not
+// offered. On IPv6, `from-pool`, `from-pool-policy`, `no-dad` and
+// `auto-link-local` are not documented beyond their names, so a save never sends
+// them and a row keeps its own.
+var IPAddress = &Resource{
+	Key: "ipAddress", Page: "ip-addresses", Label: "IPv4 Address",
+	Title: "IPv4 Address", Menu: "/ip/address", Identity: []string{"address"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Guard:          []string{"addressPath"},
+	Fields: []Field{
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeCidr, Required: true, Placeholder: "192.168.88.1/24"},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			Placeholder: "bridge", OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+	Check: addressFamily("ipv4"),
+}
+
+// IPv6Address is the IPv6 half. See IPAddress.
+var IPv6Address = &Resource{
+	Key: "ipv6Address", Page: "ip-addresses", Label: "IPv6 Address",
+	Title: "IPv6 Address", Menu: "/ipv6/address", Identity: []string{"address"},
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Guard:          []string{"addressPath"},
+	Fields: []Field{
+		{Name: "address", ROS: "address", Label: "Address", Type: TypeCidr, Required: true, Placeholder: "2001:db8::1/64"},
+		{Name: "interface", ROS: "interface", Label: "Interface", Type: TypeText, Required: true,
+			Placeholder: "bridge", OptionsFrom: &OptionsFrom{Menu: "/interface", Value: "name"}},
+		{Name: "advertise", ROS: "advertise", Label: "Advertise", Type: TypeBool, Clearable: true,
+			Help: "Advertise this prefix to hosts on the interface."},
+		{Name: "eui64", ROS: "eui-64", Label: "EUI-64", Type: TypeBool, Clearable: true,
+			Help: "Generate the last 64 bits from the interface identifier. Leave them zero in the address."},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+	Check: addressFamily("ipv6"),
+}
+
+// addressFamily refuses an address of the other family, so an IPv6 address is
+// never sent to /ip/address or an IPv4 one to /ipv6/address. TypeCidr accepts
+// both, because a route destination is legitimately either.
+func addressFamily(want string) func(map[string]string) []Error {
+	return func(v map[string]string) []Error {
+		isV6 := strings.Contains(v["address"], ":")
+		switch {
+		case want == "ipv4" && isV6:
+			return []Error{{"address", "Address is an IPv6 address; add it as IPv6"}}
+		case want == "ipv6" && !isV6 && v["address"] != "":
+			return []Error{{"address", "Address is an IPv4 address; add it as IPv4"}}
+		}
+		return nil
+	}
+}
+
 // Netwatch is a host on the NetWatch page (#97). New in this port.
 //
 // ── NO SCRIPTS ──────────────────────────────────────────────────────────────
@@ -1121,6 +1195,8 @@ var byKey = map[string]*Resource{
 	Vlan.Key:                Vlan,
 	Iface.Key:               Iface,
 	Netwatch.Key:            Netwatch,
+	IPAddress.Key:           IPAddress,
+	IPv6Address.Key:         IPv6Address,
 	WifiNet.Key:             WifiNet,
 	WlNet.Key:               WlNet,
 	WlSecProfile.Key:        WlSecProfile,

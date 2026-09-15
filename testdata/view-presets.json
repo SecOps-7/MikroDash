@@ -6,6 +6,7 @@
     "pageWireless": "wifi-clients",
     "pageWifiMap": "wifi-map",
     "pageNetwatch": "netwatch",
+    "pageIpAddresses": "ip-addresses",
     "pageInterfaces": "interfaces",
     "pageDhcp": "dhcp",
     "pageVpn": "vpn",

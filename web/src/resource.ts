@@ -300,6 +300,22 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
         why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell ' +
           'whether changing the route <code>' + esc(str(w.destination) || '?') + '</code> cuts its own connection.',
       };
+    case 'address-cutoff': {
+      const verb = str(w.action) === 'delete' ? 'removes' : 'changes';
+      return {
+        headline: cut,
+        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') +
+          '</code>, on the subnet of <code>' + esc(str(w.prefix) || '?') + '</code>' +
+          (str(w.interface) ? ' on <code>' + esc(str(w.interface)) + '</code>' : '') +
+          ', and this change ' + verb + ' that address.',
+      };
+    }
+    case 'address-cutoff-unknown':
+      return {
+        headline: cut,
+        why: 'MikroDash could not read where the router sees it connecting from, so it cannot tell ' +
+          'whether changing the address <code>' + esc(str(w.prefix) || '?') + '</code> cuts its own connection.',
+      };
     case 'self-lockout':
       return { headline: cut, why: 'This firewall rule could match MikroDash\'s own traffic to the router.' };
     case 'wifi-inherit':

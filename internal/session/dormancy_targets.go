@@ -27,7 +27,7 @@ package session
 // needs the names without constructing a Session — and
 // `TestTargetKeysMatchesTheTable` fails the moment the two disagree.
 var targetKeys = []string{
-	"dns", "bridges", "vlans", "wan", "packages", "routing", "ppp", "vpn",
+	"dns", "ipAddresses", "bridges", "vlans", "wan", "packages", "routing", "ppp", "vpn",
 	"rosusers", "queues", "firewall", "wifi", "capsman", "netwatch", "ifStatus",
 	"topology", "wireless", "bandwidth", "talkers",
 	// NOT dormancy-eligible, but the page-focus path resumes them, and
@@ -115,6 +115,12 @@ func (s *Session) targets() map[string]collectorTarget {
 		}
 		return nil
 	}, s.dns.Suspend, s.dns.Resume, s.dns.RefreshNow)
+	add("ipAddresses", func() any {
+		if p := s.ipAddresses.Last(); p != nil {
+			return p
+		}
+		return nil
+	}, s.ipAddresses.Suspend, s.ipAddresses.Resume, s.ipAddresses.RefreshNow)
 	add("bridges", func() any {
 		if p := s.bridges.Last(); p != nil {
 			return p

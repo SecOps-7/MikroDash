@@ -169,7 +169,7 @@ spare capacity writes *through* to the caller's backing array, and a ring that h
 been trimmed always has spare capacity. Every fold copies, and each says so where
 it does.
 
-**24 of 27 collectors have an extracted derivation.** The three without are
+**25 of 28 collectors have an extracted derivation.** The three without are
 exactly the set B streams, whose derivation is per-pushed-row and lives in the
 fold. `internal/verify/derivations_test.go` is the ledger, and it fails both ways.
 
@@ -338,6 +338,7 @@ the rooms it emits to, and `—` means router-wide or nothing.
 | `dhcpLeases` | `/ip/dhcp-server/lease/print` | `BuildLeases` | — (router-wide) |
 | `dhcpNetworks` | `/ip/dhcp-server/network/print` | `BuildLanOverview` | `page-dhcp`, `dash-card-network` |
 | `dns` | `/ip/dns/print` | `ParseDNSSettings`, `ParseStaticEntries` | `page-dns` |
+| `ipAddresses` | `/ip/address/print` | `BuildIPAddresses` | `page-ip-addresses` |
 | `firewall` | the table on screen | `BuildFirewallRule` | `page-firewall`, `dash-card-firewall` |
 | `ifStatus` | `/interface/print` | `BuildIfStatus` | `page-interfaces`, `page-network-topology`, `dash-card-physports` |
 | `logs` | — `/log/listen` | fold: `FoldLog` | `page-logs`, `dash-card-logs` |
@@ -379,15 +380,15 @@ the document quietly lying.
 
 | fact | value |
 |---|---|
-| registry rows | 27 |
-| collectors with a Go implementation | 27 |
-| disableable by the operator | 22 |
+| registry rows | 28 |
+| collectors with a Go implementation | 28 |
+| disableable by the operator | 23 |
 | dormancy-eligible | 19 |
-| gated by demand (`session.TargetKeys`) | 25 |
+| gated by demand (`session.TargetKeys`) | 26 |
 | menus enabled for stream delivery | 14 |
-| collectors declaring rooms | 23 |
+| collectors declaring rooms | 24 |
 | `keepAliveFor` entries | 3 |
-| collectors with an extracted derivation | 24 |
+| collectors with an extracted derivation | 25 |
 
 ---
 
