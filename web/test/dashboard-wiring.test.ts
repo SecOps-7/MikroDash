@@ -472,6 +472,40 @@ const ts = require(path.join(ROOT, 'web', 'node_modules', 'typescript'));
   }
 }
 
+// ── the visibilitychange handler brings the traffic chart back to now ───────
+//
+// Structural, for the same reason as the main.ts checks above: this is the one
+// place a returning tab reaches `resumeTrafficChart`, whose behaviour
+// `traffic-resume.test.ts` drives directly. Without the call the chart comes
+// back on the axis it was left on, and no behavioural test can see the wiring.
+{
+  const dashPath = path.join(ROOT, 'web', 'src', 'pages', 'dashboard.ts');
+  const sf = ts.createSourceFile(dashPath, fs.readFileSync(dashPath, 'utf8'),
+    ts.ScriptTarget.ES2022, true);
+  let handler = null;
+  const find = (n) => {
+    if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) &&
+        n.expression.name.text === 'addEventListener' && n.arguments.length >= 2 &&
+        ts.isStringLiteral(n.arguments[0]) && n.arguments[0].text === 'visibilitychange') {
+      handler = n.arguments[1];
+    }
+    ts.forEachChild(n, find);
+  };
+  find(sf);
+  const calls = new Set();
+  const walk = (n) => {
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) calls.add(n.expression.text);
+    ts.forEachChild(n, walk);
+  };
+  if (handler) walk(handler);
+  if (!handler) {
+    problems.push('dashboard.ts has no visibilitychange listener this check can find');
+  } else if (!calls.has('resumeTrafficChart')) {
+    problems.push('the visibilitychange handler does not call resumeTrafficChart: a returning ' +
+      'tab shows the traffic chart on the axis it was left on');
+  }
+}
+
 if (problems.length) {
   console.error('dashboard-wiring-check: %d problem(s)\n', problems.length);
   for (const p of problems) console.error('  - ' + p);

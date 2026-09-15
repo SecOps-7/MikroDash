@@ -20,13 +20,15 @@
 // so a backgrounded tab costs nothing and a dead router's chart stops advancing
 // instead of scrolling away from its last data.
 //
-// ── AND THE FADE EXISTS TO HIDE A CATCH-UP, NOT TO LOOK NICE ────────────────
+// ── A RETURNING TAB IS REDRAWN BEFORE IT IS SEEN, NOT FADED IN ──────────────
 //
-// On hide the canvas is set to opacity 0. While hidden the keepalive is off, so
-// when the tab comes back the axis is stale by however long it was away and the
-// first frames jump forward to catch up. The fade covers exactly that: commit
-// opacity 0 with no transition, force a reflow so the browser registers a real
-// 0→1 change rather than collapsing it, then fade in once the axis has settled.
+// While hidden the keepalive is off, so the axis is stale by however long the
+// tab was away. That used to be covered by hiding the canvas and fading it back
+// in on the next sample, which blanked the chart for up to a second whenever the
+// browser reported the page hidden, a taskbar click included. Samples are still
+// buffered while hidden (`noteTrafficUpdate`), so `resumeTrafficChart` rebuilds
+// the chart at the current time from the visibilitychange handler instead, and
+// the browser paints the returning page with it already current.
 
 import type { Socket } from '../socket';
 import { el, fmtMbps } from '../dom';
@@ -231,17 +233,25 @@ export function initChart(points: TrafficPoint[] | undefined): void {
 }
 
 /**
- * Freeze the chart on hide.
+ * Bring a returning tab's chart up to now, from the handler that reports it visible.
  *
- * Clearing `lastSampleTs` is what stops the keepalive: it bails on a falsy one
- * and resumes from the smoothed offset when the next sample lands, so there is
- * no resume jump. Called on visibilitychange only, never on window blur: see
- * the note beside that handler in dashboard.ts.
+ * Nothing is hidden on the way out: the keepalive already stops while the tab is
+ * hidden, and samples keep landing in `allPoints`. So on return the newest
+ * sample is applied at once rather than on the next frame, and the chart is
+ * rebuilt from the buffer at the current time. This runs before the browser
+ * paints the returning page, so the first frame is already current: no blank,
+ * no fade and no catch-up scroll.
+ *
+ * Skipped under the same conditions the keepalive stops for, so the chart of a
+ * router that is down, or of a socket that is disconnected, is not scrolled away
+ * from its last data.
  */
-export function hideTrafficChart(): void {
-  lastSampleTs = 0;
-  const ctx = el('trafficChart');
-  if (ctx) { ctx.style.transition = 'none'; ctx.style.opacity = '0'; }
+export function resumeTrafficChart(): void {
+  if (!chart || document.hidden || isRosDisconnected() ||
+      document.body.classList.contains('is-disconnected')) return;
+  if (trafficRafId) { cancelAnimationFrame(trafficRafId); trafficRafId = null; }
+  flushTraffic();
+  redrawChart();
 }
 
 function keepaliveTick(): void {
@@ -271,16 +281,6 @@ function flushTraffic(): void {
     const rx = el('liveRx'), tx = el('liveTx');
     if (rx) rx.textContent = fmtMbps(p.rx_mbps);
     if (tx) tx.textContent = fmtMbps(p.tx_mbps);
-  }
-  const ctx = el('trafficChart');
-  // Guarded on !hidden: a throttled rAF can still fire while the page is
-  // occluded, and restoring opacity there un-hides the canvas before the
-  // reveal — killing the fade and exposing the catch-up jump it exists to hide.
-  if (!document.hidden && ctx && ctx.style.opacity === '0') {
-    ctx.style.transition = 'none';
-    void ctx.offsetHeight;
-    ctx.style.transition = 'opacity 0.4s ease';
-    ctx.style.opacity = '1';
   }
   lastSampleTs = p.ts;
   serverOffset = smoothOffset(serverOffset, p.ts - Date.now());

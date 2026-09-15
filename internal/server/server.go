@@ -749,6 +749,12 @@ func (s *Server) Handler() http.Handler {
 // path is routed by the client rather than 404ing.
 func (s *Server) spa() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// REVALIDATED ON EVERY LOAD. The shell, `app.js` and `app.css` keep their
+		// names across builds and carry only Last-Modified, which lets a browser
+		// keep running the copy it already has after a rebuild. `no-cache` still
+		// uses that copy once the server confirms it is current (a 304), so a
+		// reload costs a round trip rather than a download.
+		w.Header().Set("Cache-Control", "no-cache")
 		if ext := path.Ext(r.URL.Path); ext == "" {
 			r = r.Clone(r.Context())
 			r.URL.Path = "/"

@@ -42,7 +42,7 @@ import { renderConnListCards } from './dashboard-card-connlists';
 import { createConnMap } from './dashboard-card-map';
 import { renderConnFlowCard } from './dashboard-card-connflow';
 import { renderStreamHealth, renderWanStatus } from './dashboard-stream-health';
-import { initTraffic, hideTrafficChart, resetTraffic, resetTrafficOnReconnect } from './dashboard-traffic';
+import { initTraffic, resumeTrafficChart, resetTraffic, resetTrafficOnReconnect } from './dashboard-traffic';
 
 // The Connections Map, built once. `worldmap:ready` tells it when the world map
 // module has published its path data — until then a payload is held.
@@ -168,26 +168,21 @@ export function initDashboard(socket: Socket): void {
   // the outage, which makes a dead router look alive — the one thing the ROS
   // banner exists to prevent.
   //
-  // The live handler also unpauses the topology SVG and restores the traffic
-  // chart. Those belong to cards this port has not reached; they join here when
-  // they do.
+  // The live handler also unpauses the topology SVG, which belongs to a card
+  // this port has not reached; it joins here when it does.
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      // The canvas is hidden here so the keepalive's catch-up happens
-      // invisibly; the next sample fades it back in.
-      hideTrafficChart();
-      return;
-    }
+    // NOTHING IS HIDDEN ON THE WAY OUT. The traffic chart used to be blanked
+    // here and faded back in on the next sample, which blanked it for up to a
+    // second whenever the browser reported the page hidden. It is redrawn at
+    // the current time on the way back instead, before the page is painted.
+    if (document.hidden) return;
     if (isRosDisconnected()) return;
     flushPendingSystem();
     flushPendingConn();
+    resumeTrafficChart();
   });
-  // NOT bound to window blur, though the live app was. A window that loses
-  // focus while still on screen keeps painting, so there is no catch-up to hide,
-  // and hiding it blanked the Traffic chart until the next sample every time the
-  // operator clicked into another application. A browser that stops drawing
-  // without reporting the page hidden costs one jump of the axis on return, and
-  // a gap in samples is rebuilt by `needsFullRedraw`.
+  // NOT bound to window blur, though the live app was: a window that loses
+  // focus while still on screen keeps painting, so there is nothing to catch up.
 }
 
 /** The router-switch half of the card resets. See the header. */
