@@ -141,17 +141,23 @@ func (c *tableCore[P]) readShared(cmd routeros.Cmd) ([]routeros.Reply, error) {
 }
 
 // Tick reads the subscribed menu and derives from it. The poll loop calls it on
-// the polled path; RefreshNow calls it on both.
-func (c *tableCore[P]) Tick() { c.fetch() }
+// the polled path.
+func (c *tableCore[P]) Tick() { c.fetch(false) }
 
-func (c *tableCore[P]) fetch() bool {
+// fetch reads the subscribed menu, through the cache or, when `direct`, from the
+// router itself.
+func (c *tableCore[P]) fetch(direct bool) bool {
 	c.deriveMu.Lock()
 	retired := c.retired
 	c.deriveMu.Unlock()
 	if retired || !c.ros.Connected() {
 		return false
 	}
-	c.apply(c.readShared(c.cmd))
+	if direct {
+		c.apply(c.ros.Do(c.cmd))
+	} else {
+		c.apply(c.readShared(c.cmd))
+	}
 	return true
 }
 
@@ -207,7 +213,7 @@ func (c *tableCore[P]) Start() {
 // readFirst is the immediate read on the polled path. Recorded as the loop's
 // last run, or the loop starting next would read again straight away.
 func (c *tableCore[P]) readFirst() {
-	if !c.sched.scheduling() && c.fetch() {
+	if !c.sched.scheduling() && c.fetch(false) {
 		c.poll.ran()
 	}
 }
@@ -253,8 +259,17 @@ func (c *tableCore[P]) SetPollMs(ms int) {
 
 func (c *tableCore[P]) PollMs() int { return c.pollMs.ms() }
 
-// RefreshNow re-reads after a write: the subscribed menu past the cache, and the
-// slow lane with it, because a write is exactly what a slow lane would miss.
+// RefreshNow re-reads after a write: the subscribed menu, and the slow lane with
+// it, because a write is exactly what a slow lane would miss.
+//
+// ── FROM THE ROUTER, NOT THROUGH THE CACHE ──────────────────────────────────
+//
+// A stream-filled entry answers `Get` from its rolling snapshot and ignores
+// `Invalidate`, so a read through the cache after a write returns the rows from
+// the last round, which predates the write: a saved user, DNS entry or NetWatch
+// host would appear only when the next round arrived, up to a minute later. The
+// polled entry is still invalidated, so another consumer of the menu is not served
+// the rows from before the write either.
 func (c *tableCore[P]) RefreshNow() {
 	if !c.ros.Connected() {
 		return
@@ -265,7 +280,7 @@ func (c *tableCore[P]) RefreshNow() {
 	if c.cache != nil {
 		c.cache.Invalidate(c.cmd.Path)
 	}
-	c.Tick()
+	c.fetch(true)
 }
 
 // latchMenu records what a read said about whether the router has a menu, in

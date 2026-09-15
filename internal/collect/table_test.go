@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -357,5 +358,70 @@ func TestTableCollectorsKeepNoLifecycleOfTheirOwn(t *testing.T) {
 	}
 	if tables == 0 {
 		t.Fatal("no type embeds tableCore as its first field, so this check sees nothing")
+	}
+}
+
+// streamingTableReader answers a read with what the router holds now, and pushes
+// whatever the test hands its stream.
+type streamingTableReader struct {
+	tableTestReader
+	streamMu sync.Mutex
+	onRow    func(routeros.Reply)
+}
+
+func (s *streamingTableReader) Stream(_ routeros.Cmd, onRow func(routeros.Reply)) (func(), error) {
+	s.streamMu.Lock()
+	s.onRow = onRow
+	s.streamMu.Unlock()
+	return func() {}, nil
+}
+
+func (s *streamingTableReader) push(rows ...routeros.Reply) {
+	s.streamMu.Lock()
+	fn := s.onRow
+	s.streamMu.Unlock()
+	for _, r := range rows {
+		fn(r)
+	}
+}
+
+// TestRefreshNowReadsPastAStreamedEntry — the refresh after a write.
+//
+// A stream-filled entry answers Get from its last round and ignores Invalidate,
+// so a refresh through the cache derived the rows from before the write. On a
+// streaming router a saved user, DNS entry or NetWatch host appeared only when
+// the next round arrived.
+func TestRefreshNowReadsPastAStreamedEntry(t *testing.T) {
+	const menu = "/stub/print"
+	r := &streamingTableReader{}
+	r.answer(twoRows, nil) // what the router holds after the write
+	cache := roscache.New(r)
+	stop, err := cache.JoinStream(roscache.Join{
+		Menu: menu, Cmd: routeros.Cmd{Path: menu}, KeyOf: keyByID, Boundary: time.Hour,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stop()
+	// The last round, from before the write. The repeated key ends the round.
+	r.push(oneRow[0], oneRow[0])
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		rows, _ := cache.Get(menu, nil, time.Hour)
+		if len(rows) == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the stream never became the entry's answer: Get returned %d rows", len(rows))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	s := newStubTable(r, 0)
+	s.UseCache(cache)
+	s.RefreshNow()
+	if p := s.Last(); p == nil || p.Rows != 2 {
+		t.Errorf("after RefreshNow the payload is %+v, want the router's 2 rows: the refresh "+
+			"was answered by the stream's last round, which predates the write", p)
 	}
 }
