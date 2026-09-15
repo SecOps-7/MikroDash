@@ -2,6 +2,63 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.56] - Safer router writes, remote access through a Cloudflare Tunnel, and fleet DNS copy that works
+
+A security and fixes release on top of 0.8.55.
+
+### Merged contributions
+
+Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#136](https://github.com/SecOps-7/MikroDash/pull/136).
+
+- **Fleet DNS copy and Sync all missing work.** Both did nothing before, and a
+  refused copy now says why in the card.
+- **The topology Fleet merge places devices correctly.** It could not recognise the
+  router being viewed, so it rearranged flat networks and drew that router twice.
+- **Duplicate keeps toggles as they were.** A duplicated firewall rule is no longer
+  disabled.
+- **Wifi Map and topology pins never save over a plan that failed to load**, and a
+  refused save stays marked unsaved.
+- **WAN manual mode with nothing ticked stays manual** instead of flipping to Auto.
+- **Fleet views over 16 routers** list the routers they did not read.
+
+### New
+
+- **Remote access through a Cloudflare Tunnel.** See "Remote access through a
+  Cloudflare Tunnel" in the README for a docker-compose `cloudflared` sidecar.
+  Nothing extra ships in the image.
+- **Trusted proxies.** Behind a reverse proxy or tunnel, set
+  `MIKRODASH_TRUSTED_PROXIES` (or `-trusted-proxies`) to its address or range, for
+  example `172.18.0.0/16`. Without it, every visitor shares the proxy's address in
+  the audit trail and the login limit.
+- **Route changes that could cut MikroDash off ask first.** Editing or removing a
+  route on the path to MikroDash shows a warning to acknowledge before it saves.
+- **Collector switches apply when you save the device dialog**, with no reconnect.
+
+### Fixed
+
+- **Router changes need sign-in.** With sign-in off, or no audit database, write
+  pages are read-only. From [@HeisLuka](https://github.com/HeisLuka)'s review on
+  [#97](https://github.com/SecOps-7/MikroDash/issues/97).
+- **Router changes are limited to 30 a minute** per user per router.
+- **A change is confirmed on the router before it reports success.** If it cannot be
+  confirmed, MikroDash says so and refreshes the table.
+- **Firewall lockout, Wi-Fi and CAPsMAN warnings can be acknowledged.** They showed
+  "The change was refused." instead.
+- **Sign-in is limited to 10 attempts a minute** again, and a forged
+  `X-Forwarded-For` no longer dodges rate limits or fakes audit addresses. From
+  [@HeisLuka](https://github.com/HeisLuka)'s review on
+  [#111](https://github.com/SecOps-7/MikroDash/issues/111).
+- **The Dashboard's Wired count shows with Physical Ports and alerts off.** Follow-up
+  to [#132](https://github.com/SecOps-7/MikroDash/issues/132) from
+  [@ET1963](https://github.com/ET1963).
+- **Debug logging no longer writes router passwords and Wi-Fi keys to the log.**
+- **Hiding the page you are on moves you to a page you can open**, and Back no
+  longer returns to it.
+
+### Internal
+
+- Verify now fails when a generated frontend table is out of date.
+
 ## [0.8.55] - Legacy CAPsMAN and a Wi-Fi site map, app branding, and history and alerts recording again
 
 A feature release on top of 0.8.54, led by a large community contribution.
