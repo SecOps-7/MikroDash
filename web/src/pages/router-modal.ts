@@ -224,14 +224,26 @@ export function initRouterModal(opts: {
   // save succeeds, so a refused name never loses the rest of the dialog's edits.
   let identityLoaded = '';
 
+  // resetIdentity empties the field and forgets the name it was loaded with, so
+  // nothing from the last device opened carries into the next. Adding a device
+  // hides the field without reading anything, and it used to keep the previous
+  // router's name, enabled, behind the hidden wrapper.
+  function resetIdentity(hintText: string): void {
+    identityLoaded = '';
+    const box = input('rtrModalIdentity');
+    if (box) {
+      box.value = '';
+      box.disabled = true;
+    }
+    const hint = el('rtrModalIdentityHint');
+    if (hint) hint.textContent = hintText;
+  }
+
   async function loadIdentity(id: string): Promise<void> {
     const box = input('rtrModalIdentity');
     const hint = el('rtrModalIdentityHint');
-    identityLoaded = '';
+    resetIdentity('Reading from the router…');
     if (!box) return;
-    box.value = '';
-    box.disabled = true;
-    if (hint) hint.textContent = 'Reading from the router…';
     try {
       const r = await fetch('/api/routers/' + encodeURIComponent(id) + '/identity', { credentials: 'same-origin' });
       const j = r.ok ? await r.json() as { available?: boolean; name?: string } : null;
@@ -277,6 +289,7 @@ export function initRouterModal(opts: {
     const identityWrap = el('rtrModalIdentityWrap');
     if (identityWrap) identityWrap.style.display = f.id ? '' : 'none';
     if (f.id) void loadIdentity(f.id);
+    else resetIdentity('');
     // THE PRIMARY PICKER OFFERS ONLY THE SITES THIS DEVICE IS ALREADY IN, so it
     // cannot name one it does not belong to and no control here can add or
     // remove a membership by accident.
