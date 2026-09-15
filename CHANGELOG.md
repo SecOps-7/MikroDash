@@ -2,6 +2,43 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.57] - NetWatch and IP Addresses pages, interface and router name edits, and fewer open router channels
+
+Finishes the router management work tracked in
+[#97](https://github.com/SecOps-7/MikroDash/issues/97), on top of 0.8.56.
+
+### New
+
+- **NetWatch page** (IP Services, NetWatch). Add, edit, enable and disable the hosts
+  RouterOS NetWatch probes. A disabled host counts as unknown for alerts, not down.
+- **IP Addresses page** (Network, IP Addresses). Every IPv4 and IPv6 address with its
+  interface and state. Add, edit, enable, disable and remove static addresses;
+  changing the address MikroDash connects through asks first.
+- **Interface comments, enable and disable** on the Interfaces page. Disabling the
+  interface MikroDash is reached through asks first.
+- **Router name** (Settings, Devices, Edit Device). The System Identity field reads
+  and changes the router's name. Needs sign-in turned on.
+
+### Fixed
+
+- **The Traffic chart no longer blanks when the browser loses focus.** Returning to
+  the tab redraws it on the current time instead of fading it back in.
+- **Poll interval changes take effect for PPP, Users, DHCP Networks and CAPsMAN.**
+  The page showed the new interval while the router was still read at the old one.
+- **A page keeps its data after one failed read** instead of showing it empty.
+- **A page says when a router lacks its menu or refuses it** instead of never
+  updating.
+- **Configuration no longer holds a router channel open.** Only live data streams
+  now: WiFi, VLAN and DHCP network settings poll at the same interval on routers
+  set to Stream.
+
+### Internal
+
+- **Sixteen collectors share one lifecycle**, so start, stop, re-tune, refresh and
+  reconnect behave the same on every table page.
+- **An "Adding a collector" checklist** in Collector-Architecture.md, checked so it
+  cannot fall out of date.
+
 ## [0.8.56] - Safer router writes, remote access through a Cloudflare Tunnel, and fleet DNS copy that works
 
 A security and fixes release on top of 0.8.55.
