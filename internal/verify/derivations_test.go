@@ -101,7 +101,11 @@ func TestEveryCollectorDeclaresItsDerivation(t *testing.T) {
 	//
 	// Found while writing Collector-Architecture.md, by generating the
 	// per-collector table from the source and noticing two blanks.
-	start := regexp.MustCompile(`(?m)^func \([a-z]+ \*[A-Z]\w*\) (?:Start|Resume)\(\)`)
+	//
+	// AND A FILE EMBEDDING THE TABLE CORE, whose lifecycle is promoted rather
+	// than declared (internal/collect/table.go). Without this the thirteen table
+	// collectors would vanish from this ledger exactly as packages and routing did.
+	start := regexp.MustCompile(`(?m)^func \([a-z]+ \*[A-Z]\w*\) (?:Start|Resume)\(\)|^\ttableCore\[\w+\]$`)
 	// EXPORTED OR NOT. A derivation being package-level is what makes it callable
 	// from a test without a collector; being exported is a separate question
 	// about who outside this package needs it. Requiring a capital was a third

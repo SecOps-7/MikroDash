@@ -97,6 +97,49 @@ subscriber count understates how much is shared. The subscription-level share
 exists — `conns` and `bandwidth` on the connection table — but only while both are
 wanted at once; across seven pages on 2026-09-10 no menu had two.
 
+### Table collectors: one lifecycle
+
+**Sixteen collectors are plain tables**: one subscription whose cadence is simply
+"this table was read". They are `arp`, `bridges`, `capsman`, `dhcpLeases`,
+`dhcpNetworks`, `dns`, `ipAddresses`, `netwatch`, `packages`, `ppp`, `queues`,
+`rosusers`, `routing`, `system`, `talkers` and `wan`. Each embeds `tableCore`
+(`internal/collect/table.go`) and declares only what differs:
+
+| a table collector declares | where |
+|---|---|
+| its menu, interval bounds, slow lane, heartbeat and stream key | a `tableSpec`, in its constructor |
+| how rows become a payload, including any secondary menu it reads | `derive` |
+| where the payload goes | `send` |
+| what a new connection must learn again | `reset` |
+
+The core provides everything else, once:
+
+- `Start`, `Stop`, `Suspend`, `Resume`, `Reconnected`, `UseCache`, `SetPollMs`,
+  `Last`, `RefreshNow` and `Tick`;
+- the emit gate: send when the fingerprint changed or the heartbeat is due;
+- the slow lane, which `RefreshNow` runs at once after a write;
+- `retire`, which stops reading a menu the router does not have, or refuses,
+  until the next connection.
+
+A failed read keeps the last payload. The cadence is always the live interval, so
+a re-tune changes how often the router is read and not only the number the page
+shows. `internal/collect/table_test.go` fails if a table collector declares one of
+the core's methods itself; `System.Start`, which also starts the update check, is
+the one recorded override.
+
+**The other twelve keep their own mechanism, each for a stated reason:**
+
+- derived from another collector's output: `vlans`, `bandwidth`;
+- a set B stream: `logs`, `ping`, `traffic`;
+- a non-plain command: `vpn`;
+- a menu chosen at runtime: `firewall`, `wifi`, `wireless`;
+- a residual loop beside the subscription: `ifStatus`;
+- two payloads with separate emit gates: `conns`;
+- a second loop pinging each neighbour: `topology`.
+
+What every collector answers is uniform; the mechanism inside acquisition is not,
+and that is deliberate.
+
 ### Streams: a second filler for the same entry
 
 A cache entry can be kept current by an open channel instead of a read —
@@ -359,9 +402,10 @@ the rooms it emits to, and `—` means router-wide or nothing.
 | `wifi` | `/interface/wifi/print` | `BuildWifiView`, `BuildCapsLegacyNetworks` | `page-wifi-networks` |
 | `wireless` | `/interface/wifi/registration-table/print` | `BuildWirelessView` | `page-wifi-clients`, `dash-card-wireless` |
 
-**Two collectors have no `Start()`.** `packages` and `routing` are page-gated
-only: the session brings them up with `Resume()` and nothing else. That is what
-"page-gated" means in this design, not an omission.
+**Two collectors are never started.** `packages` and `routing` are page-gated
+only: the session brings them up with `Resume()` and never calls the `Start()`
+they have as table collectors. That is what "page-gated" means in this design,
+not an omission.
 
 **The in-process edges** — one collector reading another's output — are declared
 as capabilities, never as a pointer to the producer: `RateSource`, `LeaseSource`,

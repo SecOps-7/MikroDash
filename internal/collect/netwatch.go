@@ -4,12 +4,10 @@ package collect
 //
 //	/tool/netwatch   the monitored hosts and whether each is up
 //
-// ── THIS HAS NO PAGE ─────────────────────────────────────────────────────────
+// ── TWO VIEWS ────────────────────────────────────────────────────────────────
 //
-// It emits to `page-dashboard`, not to a page of its own: NetWatch is a card on
-// the Dashboard, and `public/index.html` has no `page-netwatch` at all. So this
-// queue item is the collector, and the card that renders the payload arrives
-// with the Dashboard.
+// The Dashboard's NetWatch card and, since #97, the NetWatch page, which draws and
+// edits every field. The alert rules read the same payload.
 //
 // ── EVENT-DRIVEN OVER THERE, POLLED HERE ─────────────────────────────────────
 //
@@ -18,23 +16,13 @@ package collect
 // timer never fires while nothing is changing. This side polls. The parsing is
 // the same code either way — `_loadInitial` there, Tick here — so adding the
 // stream later changes delivery and not the payload.
-//
-// ── A RENAME DOES NOT REACH THE BROWSER ──────────────────────────────────────
-//
-// The emit fingerprint is `id:status` per host and nothing else, so renaming a
-// NetWatch entry produces no update until its state next changes. That is the
-// live behaviour, reproduced deliberately: the card exists to show what is up
-// and what is down, and re-emitting the whole table on a cosmetic edit is what
-// the fingerprint is there to prevent.
 
 import (
 	"encoding/json"
 	"log"
 	"regexp"
-	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -72,41 +60,10 @@ type NetwatchPayload struct {
 	TS    int64          `json:"ts"`
 }
 
+// Netwatch is a table collector: see table.go for its lifecycle.
 type Netwatch struct {
-	ros  Reader
+	tableCore[NetwatchPayload]
 	emit Emit
-	poll *pollLoop
-
-	// ── PHASE 3.2: THE FIRST COLLECTOR OFF ITS OWN TIMER ────────────────────
-	//
-	// With a cache this collector does not decide when to read. It SUBSCRIBES to
-	// its menu at a cadence and the router's one scheduler decides, which is what
-	// gives "should this run" a single answer instead of five.
-	//
-	// THE POLL LOOP STAYS AS THE FALLBACK, and that is transitional rather than
-	// tidy. Both background pools build this collector with no cache -- a router
-	// nobody is watching still needs netwatch for its alerts -- so `cache == nil`
-	// has to keep working exactly as before. Same rule as `readVia`: nil falls
-	// through to the old path and nothing else changes.
-	// See scheduled.go: one menu, subscribed at a cadence, with the poll loop
-	// above as the no-cache fallback.
-	sched scheduled
-
-	mu sync.Mutex
-	// order is the ids in the order the router first mentioned them, and hosts
-	// is the row behind each — the JavaScript Map this payload's array order
-	// depends on. See dhcpleases.go for the same trap at length.
-	order  []string
-	hosts  map[string]routeros.Reply
-	lastFP string
-	last   *NetwatchPayload
-	// lastEmit is when a payload last went out, for netwatchHeartbeat.
-	lastEmit time.Time
-	now      func() time.Time
-	// denied latches when the router says this user may not read netwatch. A
-	// permission answer will not change on the next tick, and asking every
-	// minute for ever would be noise in the log and load on the router.
-	denied bool
 }
 
 // netwatchHeartbeat is how long an unchanged `netwatch:update` may be suppressed.
@@ -123,26 +80,14 @@ type Netwatch struct {
 const netwatchHeartbeat = 10 * time.Second
 
 func NewNetwatch(ros Reader, emit Emit, pollMs int) *Netwatch {
-	// The original computes a clamped interval from its argument and then
-	// OVERWRITES IT with a flat 60000 on the next line, so the configured value
-	// never takes effect. Reproduced rather than repaired: that interval is the
-	// heartbeat the browser's staleness threshold is tuned against, and quietly
-	// honouring the argument here would make this side poll at a cadence the
-	// live app never uses.
-	_ = clampPoll(pollMs, 30000, 500, 600000)
-	const ms = 60000
-
-	n := &Netwatch{ros: ros, emit: emit, hosts: map[string]routeros.Reply{}, now: time.Now}
-	n.poll = newPollLoop(func() { n.Tick() },
-		func() time.Duration { return time.Duration(ms) * time.Millisecond })
-	n.sched = scheduled{
-		// fields nil: /tool/netwatch has no proplist of its own.
-		loop: n.poll, menu: netwatchCmd.Path, fields: fieldsOf(netwatchCmd), apply: n.apply,
-		// NO FIELD LIST: this collector reads whole rows, and roscache's union
-		// rule makes saying so honestly better than naming a list that would
-		// widen the moment somebody adds a column to the card.
-		cadence: func() time.Duration { return time.Duration(ms) * time.Millisecond },
-	}
+	n := &Netwatch{emit: emit}
+	// PINNED AT SIXTY SECONDS, whatever is passed. The original computes a
+	// clamped interval from its argument and then OVERWRITES IT with a flat 60000
+	// on the next line, and that interval is what the browser's staleness
+	// threshold is tuned against. There is no poll setting for it.
+	n.setup(n, ros, pollMs, tableSpec{
+		cmd: netwatchCmd, poll: [3]int{60000, 60000, 60000}, heartbeat: netwatchHeartbeat,
+	})
 	return n
 }
 
@@ -164,112 +109,27 @@ func normaliseNetwatch(r routeros.Reply) NetwatchHost {
 	}
 }
 
-func (n *Netwatch) Tick() {
-	if !n.ros.Connected() {
-		return
-	}
-	n.apply(n.ros.Do(netwatchCmd))
-}
-
-// apply is everything Tick does with the rows once it has them, and is what the
-// scheduler calls when it refreshes this menu. Split so the two paths -- polled
-// and scheduled -- cannot drift into handling a denial differently.
-func (n *Netwatch) apply(rows []routeros.Reply, err error) {
-	n.mu.Lock()
-	denied := n.denied
-	n.mu.Unlock()
-	if denied {
-		return
-	}
-
+// derive is the host list. A denial retires the collector: a permission answer
+// will not change on the next reading.
+func (n *Netwatch) derive(rows []routeros.Reply, err error, _ bool) (*NetwatchPayload, string) {
 	if err != nil {
 		if netwatchDenied.MatchString(err.Error()) {
-			n.mu.Lock()
-			n.denied = true
-			n.mu.Unlock()
+			n.retire()
 			log.Printf("[netwatch] permission denied — netwatch alerts disabled")
-			return
+			return nil, ""
 		}
 		log.Printf("[netwatch] load failed: %v", err)
-		return
+		return nil, ""
 	}
-
-	n.mu.Lock()
 	hosts := BuildNetwatch(rows)
-	// The by-id map and its order are kept because `Hosts()` serves them to the
-	// alert wiring; the derivation above no longer depends on them.
-	clear(n.hosts)
-	n.order = n.order[:0]
-	for _, r := range rows {
-		id := netwatchID(r)
-		if id == "" {
-			continue
-		}
-		if _, seen := n.hosts[id]; !seen {
-			n.order = append(n.order, id)
-		}
-		n.hosts[id] = r
-	}
-
-	// ONLY id AND status. See the package note: a rename is invisible here on
-	// purpose.
-	fp := netwatchFingerprint(hosts)
-	now := n.now()
-	if fp == n.lastFP && n.last != nil && now.Sub(n.lastEmit) < netwatchHeartbeat {
-		n.mu.Unlock()
-		return
-	}
-	n.lastFP = fp
-	n.lastEmit = now
-	payload := &NetwatchPayload{Hosts: hosts, TS: time.Now().UnixMilli()}
-	n.last = payload
-	n.mu.Unlock()
-
-	EvNetwatchUpdate.Emit(n.emit, netwatchRooms.Join(), *payload)
+	return &NetwatchPayload{Hosts: hosts, TS: time.Now().UnixMilli()}, netwatchFingerprint(hosts)
 }
 
-func (n *Netwatch) Last() *NetwatchPayload {
-	n.mu.Lock()
-	defer n.mu.Unlock()
-	return n.last
+func (n *Netwatch) send(p NetwatchPayload) {
+	EvNetwatchUpdate.Emit(n.emit, netwatchRooms.Join(), p)
 }
 
-// UseCache moves this collector onto the router's scheduler. Set once, before
-// Start; nil leaves it on its own poll loop.
-func (n *Netwatch) UseCache(c *roscache.Cache) { n.sched.useCache(c) }
-
-func (n *Netwatch) Start() {
-	// The immediate read stays on the polled path only. Under the scheduler the
-	// first pass fetches a menu it has never seen, so the first payload arrives
-	// one scheduler tick later rather than synchronously.
-	if !n.sched.scheduling() {
-		n.Tick()
-	}
-	n.sched.begin()
-}
-
-// Reconnected clears the fingerprint so the first read after a reconnect always
-// reaches the browser, even if the table came back identical.
-func (n *Netwatch) Reconnected() {
-	n.sched.end()
-	n.mu.Lock()
-	n.lastFP = ""
-	n.mu.Unlock()
-	if !n.sched.scheduling() {
-		n.Tick()
-	}
-	n.sched.begin()
-}
-
-func (n *Netwatch) Suspend() { n.sched.end() }
-func (n *Netwatch) Resume()  { n.sched.begin() }
-
-func (n *Netwatch) Stop() {
-	n.sched.end()
-	n.mu.Lock()
-	n.lastFP = ""
-	n.mu.Unlock()
-}
+func (n *Netwatch) reset() {}
 
 // netwatchID is the row's identity. RouterOS answers `.id` on the API and `id`
 // through some paths, and a row with neither cannot be tracked at all.

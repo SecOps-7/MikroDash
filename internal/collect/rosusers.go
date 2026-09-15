@@ -33,15 +33,12 @@ package collect
 // rule is how they would.
 
 import (
-	"log"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"mikrodash/internal/guard"
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -214,20 +211,12 @@ type RosUsersPayload struct {
 }
 
 type RosUsers struct {
-	ros       Reader
+	tableCore[RosUsersPayload]
 	emit      Emit
-	poll      *pollLoop
-	pollMs    *pollInterval
 	usernames []string
-	// See scheduled.go. Subscribes to the USER list; groups, sessions and
-	// settings are read inside `apply`.
-	sched scheduled
 
-	mu       sync.Mutex
+	// settings is the slow lane, carried between readings.
 	settings routeros.Reply
-	ticks    int
-	lastFP   string
-	last     *RosUsersPayload
 	denied   bool
 	// nil = unprobed, false = this router has no such menu or refuses it.
 	userAvail     *bool
@@ -237,55 +226,25 @@ type RosUsers struct {
 }
 
 func NewRosUsers(ros Reader, emit Emit, usernames []string, pollMs int) *RosUsers {
+	r := &RosUsers{emit: emit, usernames: usernames}
 	// Node's clampPoll is (raw, def, hi, lo) and the call is
 	// (pollMs, 30000, 300000, 5000). Reordered for this side's (raw, def, lo, hi).
-	ms := clampPoll(pollMs, 30000, 5000, 300000)
-	r := &RosUsers{ros: ros, emit: emit, pollMs: newPollInterval(ms), usernames: usernames}
-	r.poll = newPollLoop(func() { r.Tick() },
-		func() time.Duration { return time.Duration(ms) * time.Millisecond })
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	r.sched = scheduled{loop: r.poll, menu: rosUserCmd.Path, fields: fieldsOf(rosUserCmd), apply: r.apply,
-		cadence: func() time.Duration { return time.Duration(ms) * time.Millisecond }}
+	// Subscribed to the USER list; groups and sessions are read every reading,
+	// and the settings row on the slow lane.
+	r.setup(r, ros, pollMs, tableSpec{
+		cmd: rosUserCmd, poll: [3]int{30000, 5000, 300000}, slowEvery: rosConfigEvery,
+	})
 	return r
 }
 
-// read fetches one menu, latching the flag off when the answer will not change.
-//
-// A PERMISSION REFUSAL IS THE COMMON CASE HERE, not an edge one: the documented
-// monitoring group denies `policy`, and RouterOS gates /user behind it. So a
-// refusal latches too, and sets `denied` so the page can say which of the two
-// empty states this is.
+// read runs one menu, latching an absent or refused one off. A refusal is
+// remembered, because the page shows a different banner for it: the fixes differ.
 func (r *RosUsers) read(cmd routeros.Cmd, flag **bool) []routeros.Reply {
-	if *flag != nil && !**flag {
-		return nil
+	rows, refused := readOptional(r.ros.Do, cmd, flag)
+	if refused {
+		r.denied = true
 	}
-	rows, err := r.ros.Do(cmd)
-	if err != nil {
-		msg := strings.ToLower(err.Error())
-		switch {
-		case strings.Contains(msg, "no such"), strings.Contains(msg, "unknown command"):
-			no := false
-			*flag = &no
-		case strings.Contains(msg, "not enough permission"),
-			strings.Contains(msg, "permission denied"),
-			strings.Contains(msg, "no permissions"):
-			no := false
-			*flag = &no
-			r.denied = true
-		default:
-			log.Printf("[rosusers] %s: %v", cmd.Path, err)
-		}
-		return nil
-	}
-	yes := true
-	*flag = &yes
-	out := make([]routeros.Reply, 0, len(rows))
-	for _, row := range rows {
-		if len(row) > 0 {
-			out = append(out, row)
-		}
-	}
-	return out
+	return rows
 }
 
 // numOrZero is `Number(x || 0) || 0` — anything unparseable becomes zero.
@@ -380,62 +339,40 @@ func BuildUsersView(userRows, groupRows, activeRows []routeros.Reply,
 	return wireSelf, users, groups, sessions, policy
 }
 
-func (r *RosUsers) Tick() {
-	if !r.ros.Connected() {
-		return
+// derive is the user list with its groups, sessions and settings. A user menu
+// this router does not have, or refuses, is sent once as unavailable and not
+// asked again on this connection.
+func (r *RosUsers) derive(rows []routeros.Reply, err error, slow bool) (*RosUsersPayload, string) {
+	if err != nil && !menuGone(err) {
+		return nil, ""
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if r.ticks%rosConfigEvery == 0 {
-		rows := r.read(rosSettingsCmd, &r.settingsAvail)
-		if len(rows) > 0 {
-			r.settings = rows[0]
-		} else {
-			r.settings = nil
+	if latchMenu(&r.userAvail, err) {
+		r.denied = true
+	}
+	if err != nil {
+		r.retire()
+		rows = nil
+	}
+	if slow {
+		r.settings = nil
+		if srows := r.read(rosSettingsCmd, &r.settingsAvail); len(srows) > 0 {
+			r.settings = srows[0]
 		}
 	}
-	r.ticks++
-
-	r.applyLocked(r.read(rosUserCmd, &r.userAvail))
+	return r.build(rows)
 }
 
-// apply is what the scheduler calls with the user list. The groups, sessions and
-// settings keep their own reads here -- see scheduled.go on why a collector
-// subscribes to ONE menu and reads the rest itself.
-func (r *RosUsers) apply(rows []routeros.Reply, err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *RosUsers) send(p RosUsersPayload) { EvRosusersUpdate.Emit(r.emit, rosUsersRooms.Join(), p) }
 
-	// The availability latch the polled path gets from `read`, derived from what
-	// the scheduler hands over, so a router that cannot answer this menu is not
-	// asked for ever on one path and never on the other.
-	if err != nil {
-		if menuMissing(err) {
-			no := false
-			r.userAvail = &no
-		}
-		return
-	}
-	if r.userAvail == nil {
-		yes := true
-		r.userAvail = &yes
-	}
-
-	if r.ticks%rosConfigEvery == 0 {
-		srows := r.read(rosSettingsCmd, &r.settingsAvail)
-		if len(srows) > 0 {
-			r.settings = srows[0]
-		} else {
-			r.settings = nil
-		}
-	}
-	r.ticks++
-	r.applyLocked(rows)
+// reset drops every latch and the refusal, which a permission change on the
+// router clears only for a new connection.
+func (r *RosUsers) reset() {
+	r.denied = false
+	r.userAvail, r.groupAvail, r.activeAvail, r.settingsAvail = nil, nil, nil, nil
 }
 
 // applyLocked builds and emits. The caller holds the lock.
-func (r *RosUsers) applyLocked(userRows []routeros.Reply) {
+func (r *RosUsers) build(userRows []routeros.Reply) (*RosUsersPayload, string) {
 	groupRows := r.read(rosGroupCmd, &r.groupAvail)
 	activeRows := r.read(rosActiveCmd, &r.activeAvail)
 
@@ -449,8 +386,6 @@ func (r *RosUsers) applyLocked(userRows []routeros.Reply) {
 		Available: MenuAvailable(r.userAvail),
 		Denied:    r.denied,
 	}
-	r.last = payload
-
 	var fp strings.Builder
 	for _, u := range users {
 		fp.WriteString(u.Name + "|" + u.Group + "|" + strconv.FormatBool(u.Disabled) + "|" +
@@ -464,67 +399,5 @@ func (r *RosUsers) applyLocked(userRows []routeros.Reply) {
 	for _, s := range sessions {
 		fp.WriteString(s.Name + "|" + s.Address + "|" + s.Via + "|" + s.When + ";")
 	}
-	if fp.String() == r.lastFP {
-		return
-	}
-	r.lastFP = fp.String()
-	EvRosusersUpdate.Emit(r.emit, rosUsersRooms.Join(), *payload)
-}
-
-func (r *RosUsers) Last() *RosUsersPayload {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.last
-}
-
-// RefreshNow is what an action calls, so the page shows what the router did. The
-// tick counter resets so the settings row is re-read too — a password policy can
-// change under an edit.
-func (r *RosUsers) RefreshNow() {
-	r.mu.Lock()
-	r.ticks = 0
-	r.mu.Unlock()
-	r.Tick()
-}
-
-// UseCache moves this collector onto the router's scheduler. Set once, before
-// Start; nil leaves it on its own poll loop.
-func (r *RosUsers) UseCache(c *roscache.Cache) { r.sched.useCache(c) }
-
-func (r *RosUsers) Start() {
-	if !r.sched.scheduling() {
-		r.Tick()
-	}
-	r.sched.begin()
-}
-
-func (r *RosUsers) Reconnected() {
-	r.sched.end()
-	r.mu.Lock()
-	r.lastFP = ""
-	r.ticks = 0
-	r.denied = false
-	r.userAvail, r.groupAvail, r.activeAvail, r.settingsAvail = nil, nil, nil, nil
-	r.mu.Unlock()
-	if !r.sched.scheduling() {
-		r.Tick()
-	}
-	r.sched.begin()
-}
-
-func (r *RosUsers) Suspend() { r.sched.end() }
-func (r *RosUsers) Resume()  { r.sched.begin() }
-
-func (r *RosUsers) Stop() {
-	r.sched.end()
-	r.mu.Lock()
-	r.lastFP = ""
-	r.mu.Unlock()
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (r *RosUsers) SetPollMs(ms int) {
-	r.pollMs.set(ms)
-	r.poll.retime()
+	return payload, fp.String()
 }

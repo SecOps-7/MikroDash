@@ -43,7 +43,6 @@ import (
 	"strings"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -255,29 +254,17 @@ func parseUpdate(row routeros.Reply) Update {
 
 // Packages is the collector.
 type Packages struct {
-	ros    Reader
-	emit   Emit
-	pollMs *pollInterval
-	// cache coalesces reads shared with another collector; nil outside a live
-	// session, which is every test. See collect/cache.go.
-	cache *roscache.Cache
-	// sched is this collector's subscription to the package list. See
-	// scheduled.go. The firmware and update rows keep their config cadence.
-	sched scheduled
+	tableCore[PackagesPayload]
+	emit Emit
 
-	packages []Package
+	// firmware and update are the slow lane, carried between readings.
 	firmware Firmware
 	update   Update
-	ticks    int
-	lastFp   string
 
 	// nil = unprobed, false = this router has no such menu, stop asking.
 	pkgOK    *bool
 	boardOK  *bool
 	updateOK *bool
-
-	last *PackagesPayload
-	loop *pollLoop
 }
 
 // NewPackages builds the collector. The bounds are Node's —
@@ -286,148 +273,28 @@ type Packages struct {
 // Package state changes on human action, so polling it hard buys nothing and
 // costs a router channel.
 func NewPackages(ros Reader, emit Emit, pollMs int) *Packages {
-	p := &Packages{
-		ros:      ros,
-		emit:     emit,
-		pollMs:   newPollInterval(clampPoll(pollMs, 30000, 5000, 300000)),
-		firmware: parseFirmware(nil),
-		update:   parseUpdate(nil),
-		packages: []Package{},
-	}
-	p.loop = newPollLoop(func() { p.Tick() }, func() time.Duration {
-		return p.pollMs.duration()
+	p := &Packages{emit: emit, firmware: parseFirmware(nil), update: parseUpdate(nil)}
+	// Firmware and the update row are the slow lane, once every configEvery
+	// readings: they change on a reboot or an explicit check, and reading them
+	// every time would triple this collector's channel use for data that has not
+	// moved.
+	p.setup(p, ros, pollMs, tableSpec{
+		cmd: packageCmd, poll: [3]int{30000, 5000, 300000}, slowEvery: configEvery,
 	})
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	p.sched = scheduled{loop: p.loop, menu: packageCmd.Path, fields: fieldsOf(packageCmd), apply: p.apply,
-		cadence: p.pollMs.duration}
 	return p
 }
 
-// UseCache moves this collector onto the router's scheduler. Set once, before
-// Start; nil leaves it on its own poll loop.
-// BOTH HALVES. This collector already routed its shared reads through the cache
-// in 1.4 (/system/routerboard and /system/package/update, with `system`), and now
-// also subscribes for its own scheduling. They are the same cache and two
-// different uses of it, so setting one and not the other would silently drop
-// whichever was missed.
-func (p *Packages) UseCache(c *roscache.Cache) {
-	p.cache = c
-	p.sched.useCache(c)
-}
-
-func (p *Packages) Suspend() { p.sched.end() }
-
-func (p *Packages) Resume() {
-	if p.ros.Connected() {
-		p.sched.begin()
-	}
-}
-
-func (p *Packages) Stop() {
-	p.sched.end()
-	p.lastFp = ""
-}
-
-// Reconnected drops every latch. A router that has just come back may be a
-// different build — and for THIS collector that is not a hypothetical: applying
-// package changes reboots the router, and the whole point of the reboot is that
-// the package set is different afterwards.
-func (p *Packages) Reconnected() {
-	p.sched.end()
-	p.lastFp = ""
-	p.ticks = 0
-	p.pkgOK, p.boardOK, p.updateOK = nil, nil, nil
-	if !p.sched.scheduling() {
-		p.Tick()
-	}
-	p.sched.begin()
-}
-
-// RefreshNow re-reads immediately. Called after an action so the pending-changes
-// banner reflects what the router actually did, rather than what the browser
-// hoped it did.
-func (p *Packages) RefreshNow() {
-	p.ticks = 0
-	p.Tick()
-}
-
-func (p *Packages) Last() *PackagesPayload { return p.last }
-
-// read runs one menu, latching a missing or forbidden one off.
-func (p *Packages) read(cmd routeros.Cmd, flag **bool) []routeros.Reply {
-	if *flag != nil && !**flag {
-		return nil
-	}
-	// THROUGH THE CACHE: `system` reads /system/routerboard and
-	// /system/package/update too. The routing is in the helper because the
-	// absent-menu latch below has to keep working whichever collector paid.
-	rows, err := readVia(p.cache, p.ros, cmd, p.pollMs.duration())
-	if err != nil {
-		if menuMissing(err) {
-			no := false
-			*flag = &no
-		}
-		return nil
-	}
-	yes := true
-	*flag = &yes
-	out := make([]routeros.Reply, 0, len(rows))
-	for _, r := range rows {
-		if len(r) > 0 {
-			out = append(out, r)
-		}
-	}
-	return out
-}
+// reset drops every latch. A router that has just come back may be a different
+// build — and for THIS collector that is not a hypothetical: applying package
+// changes reboots the router, and the whole point of the reboot is that the
+// package set is different afterwards.
+func (p *Packages) reset() { p.pkgOK, p.boardOK, p.updateOK = nil, nil, nil }
 
 func firstRow(rows []routeros.Reply) routeros.Reply {
 	if len(rows) == 0 {
 		return nil
 	}
 	return rows[0]
-}
-
-func (p *Packages) Tick() {
-	if !p.ros.Connected() {
-		return
-	}
-
-	// Firmware and the update row are re-read once every twelve ticks, not every
-	// one: they change on a reboot or an explicit check, and reading them every
-	// time would triple this collector's channel use for data that has not moved.
-	if p.ticks%configEvery == 0 {
-		p.firmware = parseFirmware(firstRow(p.read(routerboardCmd, &p.boardOK)))
-		p.update = parseUpdate(firstRow(p.read(packageUpdateCmd, &p.updateOK)))
-	}
-	p.ticks++
-
-	p.applyRows(p.read(packageCmd, &p.pkgOK), nil)
-}
-
-// apply is what the scheduler calls with the package list. The firmware and
-// update rows keep their own config cadence and are read here, as before -- see
-// scheduled.go on why a collector subscribes to ONE menu and reads the rest.
-func (p *Packages) apply(rows []routeros.Reply, err error) {
-	if err != nil {
-		// The availability latch the polled path gets from `read`, derived from
-		// what the scheduler hands over. Without it a router that cannot answer
-		// this menu would be asked for ever on one path and never on the other.
-		if menuMissing(err) {
-			no := false
-			p.pkgOK = &no
-		}
-		return
-	}
-	if p.pkgOK == nil {
-		yes := true
-		p.pkgOK = &yes
-	}
-	if p.ticks%configEvery == 0 {
-		p.firmware = parseFirmware(firstRow(p.read(routerboardCmd, &p.boardOK)))
-		p.update = parseUpdate(firstRow(p.read(packageUpdateCmd, &p.updateOK)))
-	}
-	p.ticks++
-	p.applyRows(rows, err)
 }
 
 // PackagesInput is one tick's worth of the outside world, for BuildPackages.
@@ -493,26 +360,34 @@ func BuildPackages(in PackagesInput) (*PackagesPayload, []Package) {
 	}, pkgs
 }
 
-// applyRows builds and emits from the package list.
-func (p *Packages) applyRows(rows []routeros.Reply, _ error) {
+// derive is the package list with the firmware and update rows. The firmware and
+// update menus are read THROUGH THE CACHE: `system` reads /system/routerboard and
+// /system/package/update too.
+func (p *Packages) derive(rows []routeros.Reply, err error, slow bool) (*PackagesPayload, string) {
+	if err != nil && !menuGone(err) {
+		return nil, ""
+	}
+	latchMenu(&p.pkgOK, err)
+	if err != nil {
+		p.retire()
+		rows = nil
+	}
+	if slow {
+		board, _ := readOptional(p.readShared, routerboardCmd, &p.boardOK)
+		update, _ := readOptional(p.readShared, packageUpdateCmd, &p.updateOK)
+		p.firmware, p.update = parseFirmware(firstRow(board)), parseUpdate(firstRow(update))
+	}
 	payload, pkgs := BuildPackages(PackagesInput{
 		Rows: rows, Firmware: p.firmware, Update: p.update,
-		Available: p.pkgOK, PollMs: p.pollMs.ms(), Now: time.Now().UnixMilli(),
+		Available: p.pkgOK, PollMs: p.PollMs(), Now: time.Now().UnixMilli(),
 	})
-	// THE PARSED LIST COMES BACK rather than being parsed twice: the collector
-	// keeps it for the fingerprint below, and two parses of one reply could
-	// diverge if `parsePackages` ever stopped being deterministic.
-	p.packages = pkgs
-	p.last = payload
+	// The fingerprint deliberately excludes ts and pollMs: a payload that says the
+	// same thing must not wake every subscribed browser once a reading.
+	return payload, packagesFingerprint(pkgs, p.firmware, p.update)
+}
 
-	// The fingerprint deliberately excludes ts and pollMs: newPollInterval(a) payload that says
-	// the same thing must not wake every subscribed browser once a tick.
-	fp := packagesFingerprint(p.packages, p.firmware, p.update)
-	if fp == p.lastFp {
-		return
-	}
-	p.lastFp = fp
-	EvPackagesUpdate.Emit(p.emit, packagesRooms.Join(), *payload)
+func (p *Packages) send(pl PackagesPayload) {
+	EvPackagesUpdate.Emit(p.emit, packagesRooms.Join(), pl)
 }
 
 func packagesFingerprint(pkgs []Package, f Firmware, u Update) string {
@@ -527,11 +402,4 @@ func packagesFingerprint(pkgs []Package, f Firmware, u Update) string {
 	}{rows, [2]string{f.CurrentFirmware, f.UpgradeFirmware},
 		[]any{u.LatestVersion, u.Status, u.UpdateAvailable}})
 	return string(b)
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (p *Packages) SetPollMs(ms int) {
-	p.pollMs.set(ms)
-	p.loop.retime()
 }

@@ -1,8 +1,9 @@
 package collect
 
-import "testing"
-
-import "mikrodash/internal/routeros"
+import (
+	"mikrodash/internal/routeros"
+	"testing"
+)
 
 // Device classification, against the rows real hardware sent.
 //

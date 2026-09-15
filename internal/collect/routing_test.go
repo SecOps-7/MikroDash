@@ -327,9 +327,7 @@ func TestOnlyStaticAndDynamicRoutesReachThePage(t *testing.T) {
 		"c": mapRoute(routeros.Reply{".id": "*3", ".flags": "AD"}, "ipv4"),
 	}
 	r.order = []string{"a", "b", "c"}
-	r.emitPayload([]Peer{})
-
-	p := r.Last()
+	p := r.build([]Peer{})
 	if len(p.Routes) != 2 {
 		t.Errorf("page got %d routes, want 2 (the connected one is excluded)", len(p.Routes))
 	}
@@ -340,12 +338,12 @@ func TestOnlyStaticAndDynamicRoutesReachThePage(t *testing.T) {
 
 func TestSummaryCountsPeerStates(t *testing.T) {
 	r := NewRouting(nil, hub.Relay{}, 10000)
-	r.emitPayload([]Peer{
+	p := r.build([]Peer{
 		{Key: "a", State: "established"},
 		{Key: "b", State: "idle"},
 		{Key: "c", State: "active"},
 	})
-	if got := r.Last().Summary; got != (PeerSummary{Total: 3, Established: 1, Down: 2}) {
+	if got := p.Summary; got != (PeerSummary{Total: 3, Established: 1, Down: 2}) {
 		t.Errorf("summary = %+v", got)
 	}
 }
@@ -354,8 +352,7 @@ func TestSummaryCountsPeerStates(t *testing.T) {
 // because the page iterates them.
 func TestEmptyPayloadMarshalsAsArrays(t *testing.T) {
 	r := NewRouting(nil, hub.Relay{}, 10000)
-	r.emitPayload([]Peer{})
-	p := r.Last()
+	p := r.build([]Peer{})
 	if p.Peers == nil || p.Routes == nil {
 		t.Errorf("peers=%v routes=%v — both must be empty slices, not nil", p.Peers, p.Routes)
 	}

@@ -81,7 +81,8 @@ func subscribedMenusInCollect(t *testing.T) map[string]bool {
 		t.Fatalf("read %s: %v", dir, err)
 	}
 	decl := regexp.MustCompile(`(\w+)\s*=\s*routeros\.Cmd\{\s*Path:\s*"(/[^"]+)"`)
-	sub := regexp.MustCompile(`menu:\s*(\w+)\.Path`)
+	// `cmd: xxxCmd,` is a table collector's tableSpec (internal/collect/table.go).
+	sub := regexp.MustCompile(`menu:\s*(\w+)\.Path|\bcmd:\s*(\w+),`)
 
 	out := map[string]bool{}
 	for _, e := range entries {
@@ -99,7 +100,7 @@ func subscribedMenusInCollect(t *testing.T) map[string]bool {
 			paths[m[1]] = m[2]
 		}
 		for _, m := range sub.FindAllStringSubmatch(src, -1) {
-			if p, ok := paths[m[1]]; ok {
+			if p, ok := paths[m[1]+m[2]]; ok {
 				out[p] = true
 			}
 		}

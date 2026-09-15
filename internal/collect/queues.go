@@ -41,7 +41,6 @@ import (
 	"time"
 
 	"mikrodash/internal/guard"
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -170,19 +169,13 @@ type FilterRowSource interface {
 }
 
 type Queues struct {
-	ros      Reader
+	tableCore[QueuesPayload]
 	emit     Emit
-	poll     *pollLoop
-	pollMs   *pollInterval
 	firewall FilterRowSource
-	// See scheduled.go. Subscribes to the SIMPLE queue menu; the tree is read
-	// inside `apply`.
-	sched scheduled
 
-	mu     sync.Mutex
-	prev   map[string]queueSample
-	lastFP string
-	last   *QueuesPayload
+	// mu guards prev, which ForgetRates clears from a write handler.
+	mu   sync.Mutex
+	prev map[string]queueSample
 	// nil = unprobed, false = this router has no such menu, stop asking.
 	simpleAvail *bool
 	treeAvail   *bool
@@ -190,19 +183,12 @@ type Queues struct {
 }
 
 func NewQueues(ros Reader, emit Emit, firewall FilterRowSource, pollMs int) *Queues {
-	q := &Queues{
-		ros: ros, emit: emit, firewall: firewall,
-		// The Node signature is clampPoll(raw, def, hi, lo) and the call is
-		// (pollMs, 5000, 60000, 2000). Reordered for this side's (raw, def, lo, hi).
-		pollMs: newPollInterval(clampPoll(pollMs, 5000, 2000, 60000)),
-		prev:   map[string]queueSample{},
-	}
-	q.poll = newPollLoop(func() { q.Tick() },
-		func() time.Duration { return q.pollMs.duration() })
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	q.sched = scheduled{loop: q.poll, // fields nil: /queue/simple is read whole -- see the read call site.
-		menu: queueSimpleCmd, fields: nil, apply: q.apply,
-		cadence: q.pollMs.duration}
+	q := &Queues{emit: emit, firewall: firewall, prev: map[string]queueSample{}}
+	// The Node signature is clampPoll(raw, def, hi, lo) and the call is
+	// (pollMs, 5000, 60000, 2000). Reordered for this side's (raw, def, lo, hi).
+	// Subscribed to the SIMPLE queue menu, read whole; the tree is read in
+	// `derive`.
+	q.setup(q, ros, pollMs, tableSpec{cmd: routeros.Cmd{Path: queueSimpleCmd}, poll: [3]int{5000, 2000, 60000}})
 	return q
 }
 
@@ -494,34 +480,14 @@ func ActiveFasttrack(filterRows []routeros.Reply) Fasttrack {
 	return Fasttrack{State: state, Count: len(hits), Scoped: scoped}
 }
 
+// read runs one menu, latching an absent or refused one off and remembering a
+// refusal, which the page words differently from an absent menu.
 func (q *Queues) read(cmd routeros.Cmd, flag **bool) []routeros.Reply {
-	if *flag != nil && !**flag {
-		return nil
+	rows, refused := readOptional(q.ros.Do, cmd, flag)
+	if refused {
+		q.denied = true
 	}
-	rows, err := q.ros.Do(cmd)
-	if err != nil {
-		msg := strings.ToLower(err.Error())
-		no := false
-		switch {
-		case strings.Contains(msg, "no such"), strings.Contains(msg, "unknown command"):
-			*flag = &no
-		case strings.Contains(msg, "not enough permission"),
-			strings.Contains(msg, "permission denied"),
-			strings.Contains(msg, "no permissions"):
-			*flag = &no
-			q.denied = true
-		}
-		return nil
-	}
-	yes := true
-	*flag = &yes
-	out := make([]routeros.Reply, 0, len(rows))
-	for _, r := range rows {
-		if len(r) > 0 {
-			out = append(out, r)
-		}
-	}
-	return out
+	return rows
 }
 
 func (q *Queues) fasttrack() Fasttrack {
@@ -539,54 +505,48 @@ func (q *Queues) fasttrack() Fasttrack {
 	return ActiveFasttrack(rows)
 }
 
-func (q *Queues) Tick() {
-	q.apply(q.read(routeros.Cmd{Path: queueSimpleCmd}, &q.simpleAvail), nil)
-}
-
-// apply is what the scheduler calls with the simple-queue rows. The tree is read
-// here, as before -- see scheduled.go on why a collector subscribes to ONE menu.
-//
-// SIMPLE IS THE ONE SUBSCRIBED, and the choice matters: `Available` on the
-// payload is derived from `simpleAvail`, so it is the menu whose absence the page
-// actually reports.
-func (q *Queues) apply(simpleRows []routeros.Reply, err error) {
-	if err != nil {
-		if menuMissing(err) {
-			no := false
-			q.simpleAvail = &no
-		}
-		return
+// derive is both queue kinds, with the FastTrack state the firewall collector
+// holds. A simple-queue menu this router does not have, or refuses, is sent once
+// as unavailable and not asked again on this connection.
+func (q *Queues) derive(simpleRows []routeros.Reply, err error, _ bool) (*QueuesPayload, string) {
+	if err != nil && !menuGone(err) {
+		return nil, ""
 	}
-	if q.simpleAvail == nil {
-		yes := true
-		q.simpleAvail = &yes
+	if latchMenu(&q.simpleAvail, err) {
+		q.denied = true
+	}
+	if err != nil {
+		q.retire()
+		simpleRows = nil
 	}
 	treeRows := q.read(routeros.Cmd{Path: queueTreeCmd}, &q.treeAvail)
-
 	now := time.Now()
 	q.mu.Lock()
 	simple, tree := BuildQueueRows(simpleRows, treeRows, q.prev, now)
+	q.mu.Unlock()
 	statsRows := simpleRows
 	if len(statsRows) == 0 {
 		statsRows = treeRows
 	}
 	payload := &QueuesPayload{
-		TS: now.UnixMilli(), PollMs: q.pollMs.ms(),
+		TS: now.UnixMilli(), PollMs: q.PollMs(),
 		Simple: simple, Tree: tree,
 		Fasttrack: q.fasttrack(),
 		Stats:     statsLevel(statsRows),
 		Available: MenuAvailable(q.simpleAvail),
 		Denied:    q.denied,
 	}
-	q.last = payload
-	fp := q.fingerprint(payload)
-	changed := fp != q.lastFP
-	q.lastFP = fp
-	q.mu.Unlock()
+	return payload, q.fingerprint(payload)
+}
 
-	if changed {
-		EvQueuesUpdate.Emit(q.emit, queuesRooms.Join(), *payload)
-	}
+func (q *Queues) send(p QueuesPayload) { EvQueuesUpdate.Emit(q.emit, queuesRooms.Join(), p) }
+
+// reset forgets the rate samples and every latch.
+func (q *Queues) reset() {
+	q.mu.Lock()
+	q.prev = map[string]queueSample{}
+	q.mu.Unlock()
+	q.simpleAvail, q.treeAvail, q.denied = nil, nil, false
 }
 
 // fingerprint decides whether this tick is worth emitting.
@@ -623,16 +583,6 @@ func kbit(f *float64) int {
 	return int(math.Round(*f / 1000))
 }
 
-func (q *Queues) Last() *QueuesPayload {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	return q.last
-}
-
-// RefreshNow re-reads immediately, after an action, so the page shows what the
-// router did.
-func (q *Queues) RefreshNow() { q.Tick() }
-
 // ForgetRates drops every rate baseline.
 //
 // `set` and `reset-counters` can drop a counter. The max(0, …) clamp hides that
@@ -642,47 +592,4 @@ func (q *Queues) ForgetRates() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.prev = map[string]queueSample{}
-}
-
-// UseCache moves this collector onto the router's scheduler. Set once, before
-// Start; nil leaves it on its own poll loop.
-func (q *Queues) UseCache(c *roscache.Cache) { q.sched.useCache(c) }
-
-func (q *Queues) Start() {
-	if !q.sched.scheduling() {
-		q.Tick()
-	}
-	q.sched.begin()
-}
-
-func (q *Queues) Reconnected() {
-	q.sched.end()
-	q.mu.Lock()
-	q.lastFP = ""
-	q.denied = false
-	q.prev = map[string]queueSample{}
-	q.simpleAvail, q.treeAvail = nil, nil
-	q.mu.Unlock()
-	if !q.sched.scheduling() {
-		q.Tick()
-	}
-	q.sched.begin()
-}
-
-func (q *Queues) Suspend() { q.sched.end() }
-func (q *Queues) Resume()  { q.sched.begin() }
-
-func (q *Queues) Stop() {
-	q.sched.end()
-	q.mu.Lock()
-	q.lastFP = ""
-	q.prev = map[string]queueSample{}
-	q.mu.Unlock()
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (q *Queues) SetPollMs(ms int) {
-	q.pollMs.set(ms)
-	q.poll.retime()
 }

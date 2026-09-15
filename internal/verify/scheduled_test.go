@@ -3,6 +3,7 @@ package verify
 import (
 	"encoding/json"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -115,11 +116,15 @@ func TestScheduledCollectorsAreDeclared(t *testing.T) {
 		// took one mechanism between them.
 	}
 
-	// A collector is on the scheduler when its file embeds the helper.
+	// A collector is on the scheduler when its file embeds the helper, or embeds
+	// the table core, which embeds it (table.go). table.go is the core itself and
+	// not a collector.
 	marker := "sched scheduled"
+	tableCore := regexp.MustCompile(`(?m)^\ttableCore\[\w+\]$`)
 	for _, name := range collectGoFiles(t, dir) {
 		src := mustRead(t, filepath.Join(dir, name))
-		has := strings.Contains(strings.Join(strings.Fields(src), " "), marker)
+		has := (name != "table.go" && strings.Contains(strings.Join(strings.Fields(src), " "), marker)) ||
+			tableCore.MatchString(src)
 		_, listed := scheduled[name]
 		switch {
 		case has && !listed:

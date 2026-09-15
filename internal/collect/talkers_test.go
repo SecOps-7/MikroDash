@@ -31,7 +31,7 @@ func talkersFor(t *testing.T, rows []routeros.Reply, topN int) *TalkersPayload {
 			got = &p
 		}
 	}), 30000, topN)
-	c.commit(rows)
+	c.apply(rows, nil)
 	if got == nil {
 		t.Fatal("nothing was emitted")
 	}
@@ -188,12 +188,12 @@ func TestNoDevicesIsStillAvailable(t *testing.T) {
 func TestTheFingerprintIgnoresTheName(t *testing.T) {
 	emits := 0
 	c := NewTalkers(nil, hub.NewRelay(func(room string, _ hub.Named, payload any) { emits++ }), 30000, 5)
-	c.commit([]routeros.Reply{row("before", "02:00:00:00:00:01", "1000000", "0")})
-	c.commit([]routeros.Reply{row("after", "02:00:00:00:00:01", "1000000", "0")})
+	c.apply([]routeros.Reply{row("before", "02:00:00:00:00:01", "1000000", "0")}, nil)
+	c.apply([]routeros.Reply{row("after", "02:00:00:00:00:01", "1000000", "0")}, nil)
 	if emits != 1 {
 		t.Errorf("emitted %d times; a rename with unchanged rates must not repaint", emits)
 	}
-	c.commit([]routeros.Reply{row("after", "02:00:00:00:00:01", "2000000", "0")})
+	c.apply([]routeros.Reply{row("after", "02:00:00:00:00:01", "2000000", "0")}, nil)
 	if emits != 2 {
 		t.Errorf("emitted %d times; a rate change must repaint", emits)
 	}

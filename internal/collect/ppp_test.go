@@ -230,9 +230,9 @@ func TestAnUnchangingRouterStillEmitsAHeartbeat(t *testing.T) {
 
 	// PAST the window. Reaching back to `lastEmit` rather than sleeping: the
 	// real wait is fifteen seconds and a test that takes that long gets deleted.
-	p.mu.Lock()
+	p.lastMu.Lock()
 	p.lastEmit = p.lastEmit.Add(-pppHeartbeat - time.Second)
-	p.mu.Unlock()
+	p.lastMu.Unlock()
 
 	p.Tick()
 	if emits != 2 {

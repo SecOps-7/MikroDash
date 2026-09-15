@@ -39,7 +39,6 @@ import (
 	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -95,29 +94,14 @@ type LanPayload struct {
 }
 
 type DHCPNetworks struct {
-	ros      Reader
+	tableCore[LanPayload]
 	emit     Emit
-	poll     *pollLoop
 	leases   LeaseIPs
 	wanIface string
-	pollMs   *pollInterval
-	// cache coalesces reads shared with another collector; nil outside a live
-	// session, which is every test. See collect/cache.go.
-	cache *roscache.Cache
-	// See scheduled.go: subscribes to the DHCP network menu, which is what
-	// defines this payload; the addresses, pools and detect state are read in
-	// `apply`.
-	sched scheduled
 
+	// mu guards lanCidrs, which LanCidrs serves to other collectors.
 	mu       sync.Mutex
 	lanCidrs []string
-	last     *LanPayload
-	// lastFP gates the emit: the four tables are re-read on a timer and almost
-	// never change, so an unchanged payload is not sent more often than
-	// dhcpNetworksHeartbeat.
-	lastFP   string
-	lastEmit time.Time
-	now      func() time.Time
 }
 
 // dhcpNetworksHeartbeat is how long an unchanged `lan:overview` may be suppressed.
@@ -137,14 +121,14 @@ func NewDHCPNetworks(ros Reader, emit Emit, leases LeaseIPs, wanIface string, po
 	if wanIface == "" {
 		wanIface = "WAN1"
 	}
-	ms := clampPoll(pollMs, 30000, 500, 600000)
-	d := &DHCPNetworks{ros: ros, emit: emit, leases: leases, wanIface: wanIface, pollMs: newPollInterval(ms),
-		now: time.Now}
-	d.poll = newPollLoop(func() { d.Tick() },
-		func() time.Duration { return time.Duration(ms) * time.Millisecond })
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	d.sched = scheduled{loop: d.poll, menu: dhcpNetCmd.Path, fields: fieldsOf(dhcpNetCmd), apply: d.apply,
-		cadence: func() time.Duration { return time.Duration(ms) * time.Millisecond }}
+	d := &DHCPNetworks{emit: emit, leases: leases, wanIface: wanIface}
+	// Subscribed to the DHCP network menu, which is what defines this payload;
+	// the addresses, pools and detect state are read in `derive`. The four tables
+	// almost never change, so an unchanged payload is sent no more often than
+	// dhcpNetworksHeartbeat.
+	d.setup(d, ros, pollMs, tableSpec{
+		cmd: dhcpNetCmd, poll: [3]int{30000, 500, 600000}, heartbeat: dhcpNetworksHeartbeat,
+	})
 	return d
 }
 
@@ -282,19 +266,12 @@ func (d *DHCPNetworks) read(cmd routeros.Cmd) []routeros.Reply {
 	return rows
 }
 
-func (d *DHCPNetworks) Tick() {
-	if !d.ros.Connected() {
-		return
-	}
-	d.apply(d.read(dhcpNetCmd), nil)
-}
-
 // apply is what the scheduler calls with the DHCP network rows -- the menu that
 // defines this payload -- and reads the other three here, as before. See
 // scheduled.go on why a collector subscribes to ONE menu.
-func (d *DHCPNetworks) apply(netRows []routeros.Reply, err error) {
+func (d *DHCPNetworks) derive(netRows []routeros.Reply, err error, _ bool) (*LanPayload, string) {
 	if err != nil {
-		return
+		return nil, ""
 	}
 	addrRows := d.read(dhcpAddrCmd)
 	poolRows := d.read(dhcpPoolCmd)
@@ -329,20 +306,14 @@ func (d *DHCPNetworks) apply(netRows []routeros.Reply, err error) {
 	for _, n := range networks {
 		fp.WriteString(n.CIDR + ":" + strconv.Itoa(n.LeaseCount) + ":" + strconv.Itoa(n.PoolSize) + ";")
 	}
-
 	d.mu.Lock()
 	d.lanCidrs = lanCidrs
-	d.last = payload
-	changed := fp.String() != d.lastFP || now.Sub(d.lastEmit) >= dhcpNetworksHeartbeat
-	d.lastFP = fp.String()
-	if changed {
-		d.lastEmit = now
-	}
 	d.mu.Unlock()
+	return payload, fp.String()
+}
 
-	if !changed {
-		return
-	}
+// send is the overview, and the WAN address router-wide.
+func (d *DHCPNetworks) send(p LanPayload) {
 	// Two rooms, as the original has it: the DHCP page renders the subnet table
 	// and the dashboard's Network card renders the same figures.
 	// ONE EMIT TO THE UNION, not one per room. `session.go`'s emit closure:
@@ -350,7 +321,7 @@ func (d *DHCPNetworks) apply(netRows []routeros.Reply, err error) {
 	// union — socket.io's `.to(a).to(b)` behaves the same way, and looping
 	// Broadcast would send that viewer the frame twice." This was two calls,
 	// so a viewer in both rooms received it twice.
-	EvLanOverview.Emit(d.emit, dhcpNetworksRooms.Join(), *payload)
+	EvLanOverview.Emit(d.emit, dhcpNetworksRooms.Join(), p)
 	// AND `lan:wan` ROUTER-WIDE, carrying just the WAN address.
 	//
 	// The empty room IS the router-wide convention — it broadcasts to
@@ -367,8 +338,11 @@ func (d *DHCPNetworks) apply(netRows []routeros.Reply, err error) {
 	// exists: `window._wanGeoDetect` is called and defined nowhere in the live
 	// repo, and `wanIpDisplay` is in that repo's own KNOWN orphan set. The port
 	// reproduces the one that works. See ToDo.md #23.
-	EvLanWan.Emit(d.emit, "", map[string]any{"ts": payload.TS, "wanIp": payload.WanIP})
+	EvLanWan.Emit(d.emit, "", map[string]any{"ts": p.TS, "wanIp": p.WanIP})
 }
+
+// reset has nothing to forget: every reading re-reads all four tables.
+func (d *DHCPNetworks) reset() {}
 
 // LanCidrs is what other collectors ask for when they need to know which subnets
 // are local.
@@ -378,56 +352,6 @@ func (d *DHCPNetworks) LanCidrs() []string {
 	out := make([]string, len(d.lanCidrs))
 	copy(out, d.lanCidrs)
 	return out
-}
-
-func (d *DHCPNetworks) Last() *LanPayload {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.last
-}
-
-func (d *DHCPNetworks) Start() {
-	if !d.sched.scheduling() {
-		d.Tick()
-	}
-	d.sched.begin()
-}
-
-func (d *DHCPNetworks) Reconnected() {
-	d.sched.end()
-	if !d.sched.scheduling() {
-		d.Tick()
-	}
-	d.sched.begin()
-}
-
-// RefreshNow reads now, whatever the poll loop was about to do.
-//
-// Its sibling DHCPLeases has always had one; this collector did not, and the
-// asymmetry mattered because `Resume` is `poll.start()`, which WAITS OUT THE
-// REMAINDER of the interval rather than firing (collect.go:188-194). At this
-// collector's 600s that is up to ten minutes, so a page opening with nothing to
-// replay had nothing to show until either the tick came round or a reconnect
-// forced one -- which is exactly how the operator saw it: an orange
-// disconnected banner, and the subnets appearing straight after.
-func (d *DHCPNetworks) RefreshNow() { d.Tick() }
-
-func (d *DHCPNetworks) Suspend() { d.sched.end() }
-func (d *DHCPNetworks) Resume()  { d.sched.begin() }
-func (d *DHCPNetworks) Stop()    { d.sched.end() }
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (d *DHCPNetworks) SetPollMs(ms int) {
-	d.pollMs.set(ms)
-	d.poll.retime()
-}
-
-// UseCache feeds BOTH halves: the 1.4 shared-read cache and the subscription.
-// Same cache, two uses.
-func (d *DHCPNetworks) UseCache(rc *roscache.Cache) {
-	d.cache = rc
-	d.sched.useCache(rc)
 }
 
 // LanInput is everything BuildLanOverview reads.

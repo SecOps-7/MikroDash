@@ -38,7 +38,6 @@ import (
 	"strings"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -326,17 +325,11 @@ type peerFlapState struct {
 
 // Routing is the collector.
 type Routing struct {
-	ros    Reader
-	emit   Emit
-	pollMs *pollInterval
-	// cache coalesces reads shared with another collector; nil outside a live
-	// session, which is every test. See collect/cache.go.
-	cache *roscache.Cache
+	tableCore[RoutingPayload]
+	emit Emit
 
 	routes map[string]Route
-	order  []string // insertion order, so the payload is stable across ticks
-	last   *RoutingPayload
-	loop   *pollLoop
+	order  []string // insertion order, so the payload is stable across readings
 
 	sessions      map[string]routeros.Reply
 	sessionOrder  []string
@@ -345,14 +338,8 @@ type Routing struct {
 	peerState     map[string]*peerFlapState
 
 	now func() int64
-
-	// bgpOnly, when set, skips the route tables. See Tick.
+	// bgpOnly, when set, skips the route tables. See derive.
 	bgpOnly bool
-
-	// ticks paces the route tables against the BGP menus. See routeConfigEvery.
-	ticks int
-	// See scheduled.go: subscribes to the BGP session menu for its CADENCE.
-	sched scheduled
 }
 
 // routeConfigEvery is how many polls apart the route tables are re-read.
@@ -383,9 +370,7 @@ const routeConfigEvery = 3
 
 func NewRouting(ros Reader, emit Emit, pollMs int) *Routing {
 	r := &Routing{
-		ros:           ros,
 		emit:          emit,
-		pollMs:        newPollInterval(clampPoll(pollMs, 10000, 2000, 60000)),
 		routes:        map[string]Route{},
 		sessions:      map[string]routeros.Reply{},
 		peerCfg:       map[string]routeros.Reply{},
@@ -393,33 +378,13 @@ func NewRouting(ros Reader, emit Emit, pollMs int) *Routing {
 		peerState:     map[string]*peerFlapState{},
 		now:           func() int64 { return time.Now().UnixMilli() },
 	}
-	r.loop = newPollLoop(func() { r.Tick() }, func() time.Duration {
-		return r.pollMs.duration()
+	// Subscribed to the BGP session menu for its CADENCE: `derive` reads the BGP
+	// menus itself, and the route tables are the slow lane.
+	r.setup(r, ros, pollMs, tableSpec{
+		cmd: routingBgpCmd, poll: [3]int{10000, 2000, 60000}, slowEvery: routeConfigEvery,
 	})
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	r.sched = scheduled{loop: r.loop, menu: routingBgpCmd.Path, fields: fieldsOf(routingBgpCmd), apply: r.apply,
-		cadence: r.pollMs.duration}
 	return r
 }
-
-// UseCache feeds BOTH halves: the 1.4 shared-read cache and the subscription.
-// Same cache, two uses.
-func (r *Routing) UseCache(rc *roscache.Cache) {
-	r.cache = rc
-	r.sched.useCache(rc)
-}
-
-func (r *Routing) Suspend() { r.sched.end() }
-
-func (r *Routing) Resume() {
-	if r.ros.Connected() {
-		r.sched.begin()
-	}
-}
-
-func (r *Routing) Stop() { r.sched.end() }
-
-func (r *Routing) Last() *RoutingPayload { return r.last }
 
 // safeRead is `_safeWrite`: a failure is an empty result, not an error. Every
 // menu here is optional — /ipv6/route is absent on a build without IPv6 and the
@@ -459,63 +424,34 @@ func (r *Routing) loadRoutes() {
 	add(v6, "ipv6", "v6:")
 }
 
-// RefreshNow re-reads the routes and emits, WITHOUT touching the BGP menus.
+// derive is the BGP sessions it was handed, the connection config behind them and,
+// on the slow lane, the route tables. The delivered rows ARE the session menu, so
+// it is never read a second time in the same reading.
 //
-// This is `refreshNow()` on the Node side, and it is the method the fixture was
-// captured with — which is why the capture holds two commands and not five. The
-// differential gate drives this, for the same reason.
-func (r *Routing) RefreshNow() {
-	if !r.ros.Connected() {
-		return
-	}
-	r.loadRoutes()
-	r.emitPayload(r.buildPeers())
-}
-
-// Tick is the poll body: the BGP menus every time, the routes every
-// routeConfigEvery.
-func (r *Routing) Tick() {
-	if !r.ros.Connected() {
-		return
-	}
-	// ── bgpOnly SKIPS THE ROUTE TABLES ────────────────────────────────────
-	//
-	// The alert pool runs this collector for a router nobody is looking at, and
-	// the alert rules read `peers` and nothing else. Reading `/ip/route/print`
-	// and `/ipv6/route/print` there is load for a payload no page renders — on
-	// hardware whose documented limit is concurrent API channels, and per
-	// alert-enabled router.
-	//
-	// The live pool passes `bgpOnly: true` for exactly this reason
-	// (`alertSessions.js`), and says so. Without the option this port would read
-	// both tables on every alert tick for every router.
-	// The route tables are the SLOW lane; the BGP menus are the fast one. Tick 0
-	// reads both, so the first payload is never missing its routes.
-	r.applyLocked()
-}
-
-// apply is what the scheduler calls when the BGP session menu refreshes. The
-// rows are discarded deliberately: `loadBGP` below re-reads that menu through its
-// own fallback path -- session first, then the legacy peer menu -- and modelling
-// that fallback in the subscription would mean subscribing to a menu this router
-// may not have. What the subscription buys here is the CADENCE, not the rows.
-func (r *Routing) apply([]routeros.Reply, error) {
-	if !r.ros.Connected() {
-		return
-	}
-	r.applyLocked()
-}
-
-// applyLocked is the poll body: the BGP menus every time, the routes every
-// routeConfigEvery.
-func (r *Routing) applyLocked() {
-	if !r.bgpOnly && r.ticks%routeConfigEvery == 0 {
+// ── bgpOnly SKIPS THE ROUTE TABLES ────────────────────────────────────
+//
+// The alert pool runs this collector for a router nobody is looking at, and
+// the alert rules read `peers` and nothing else. Reading `/ip/route/print`
+// and `/ipv6/route/print` there is load for a payload no page renders — on
+// hardware whose documented limit is concurrent API channels, and per
+// alert-enabled router.
+//
+// The live pool passes `bgpOnly: true` for exactly this reason
+// (`alertSessions.js`), and says so. Without the option this port would read
+// both tables on every alert tick for every router.
+// The route tables are the SLOW lane; the BGP menus are the fast one. Tick 0
+// reads both, so the first payload is never missing its routes.
+func (r *Routing) derive(rows []routeros.Reply, _ error, slow bool) (*RoutingPayload, string) {
+	if !r.bgpOnly && slow {
 		r.loadRoutes()
 	}
-	r.ticks++
-	r.loadBGP()
-	r.emitPayload(r.buildPeers())
+	r.loadBGP(rows)
+	return r.build(r.buildPeers()), ""
 }
+
+// reset keeps the prefix history and the flap windows: they describe peers, and a
+// reconnect is not a peer event.
+func (r *Routing) reset() {}
 
 // BGPOnly stops this collector reading the route tables. See Tick.
 //
@@ -539,8 +475,7 @@ var routingBgpCmd = routeros.Cmd{
 		"prefix-count,updates-sent,updates-received,last-notification,hold-time,keepalive-time"},
 }
 
-func (r *Routing) loadBGP() {
-	rows := r.safeRead(routingBgpCmd)
+func (r *Routing) loadBGP(rows []routeros.Reply) {
 	if len(rows) == 0 {
 		rows = r.safeRead(routeros.Cmd{
 			Path: "/routing/bgp/peer/print",
@@ -781,19 +716,23 @@ func BuildRouting(in RoutingInput) *RoutingPayload {
 	}
 }
 
-func (r *Routing) emitPayload(peers []Peer) {
+func (r *Routing) build(peers []Peer) *RoutingPayload {
 	all := make([]Route, 0, len(r.order))
 	for _, k := range r.order {
 		all = append(all, r.routes[k])
 	}
 	var lastPeers []Peer
-	if r.last != nil {
-		lastPeers = r.last.Peers
+	if last := r.Last(); last != nil {
+		lastPeers = last.Peers
 	}
 	payload := BuildRouting(RoutingInput{
 		Routes: all, Peers: peers, LastPeers: lastPeers, Now: r.now(),
 	})
-	r.last = payload
+	return payload
+}
+
+// send is the routing payload. NO FINGERPRINT: every reading is sent.
+func (r *Routing) send(p RoutingPayload) {
 	// ── ALSO THE DASHBOARD, WHICH IS A DELIBERATE DEPARTURE ─────────────────
 	//
 	// `dc-card-routes` and `dc-card-bgp` are dashboard cards fed by this event,
@@ -810,12 +749,5 @@ func (r *Routing) emitPayload(peers []Peer) {
 	// entry in `CARD_ROOMS` -- the grid never sends `dashcard:focus` for them, so
 	// there is no room to join. It is the same channel `netwatch:update`,
 	// `ping:update` and `talkers:update` already use to reach dashboard cards.
-	EvRoutingUpdate.Emit(r.emit, routingRooms.Join(), *payload)
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (r *Routing) SetPollMs(ms int) {
-	r.pollMs.set(ms)
-	r.loop.retime()
+	EvRoutingUpdate.Emit(r.emit, routingRooms.Join(), p)
 }

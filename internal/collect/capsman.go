@@ -30,7 +30,6 @@ import (
 	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -897,86 +896,47 @@ func namedOnly(rows []routeros.Reply) []routeros.Reply {
 }
 
 type Capsman struct {
-	ros    Reader
-	emit   Emit
-	poll   *pollLoop
-	pollMs *pollInterval
+	tableCore[CapsmanPayload]
+	emit Emit
 
-	// cache coalesces reads shared with another collector; nil outside a live
-	// session, which is every test. See collect/cache.go.
-	cache *roscache.Cache
-	// See scheduled.go: subscribes to the registration table, the clients, which
-	// is the only menu here that changes on its own.
-	sched scheduled
-
+	// mu guards the config below, which the slow lane replaces and the
+	// projections read.
 	mu       sync.Mutex
 	manager  routeros.Reply
 	cap      routeros.Reply
 	prov     []routeros.Reply
 	profiles map[string][]routeros.Reply
-	// The `/caps-man` tree's own config half, kept apart rather than merged into
-	// the maps above: the two trees answer with different field names and the
-	// projection has to know which it is holding.
+	// The legacy `/caps-man` tree, read behind one probe of its manager menu.
 	v1Manager  routeros.Reply
 	v1Prov     []routeros.Reply
 	v1Profiles map[string][]routeros.Reply
-	ticks      int
-	dirty      bool
-	lastFP     string
-	last       *CapsmanPayload
-	// nil = unprobed, false = this router has no such menu.
+
+	// nil = unprobed, false = this router has no such menu, stop asking.
 	managerAvail, capAvail, v1Avail *bool
 }
 
 func NewCapsman(ros Reader, emit Emit, pollMs int) *Capsman {
-	// The Node call is clampPoll(pollMs, 10000, 600000, 30000). Reordered for
-	// this side's (raw, def, lo, hi).
-	ms := clampPoll(pollMs, 10000, 30000, 600000)
-	c := &Capsman{ros: ros, emit: emit, pollMs: newPollInterval(ms), dirty: true,
+	c := &Capsman{emit: emit,
 		profiles: map[string][]routeros.Reply{}, v1Profiles: map[string][]routeros.Reply{}}
-	c.poll = newPollLoop(func() { c.Tick() },
-		func() time.Duration { return time.Duration(ms) * time.Millisecond })
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	//
-	// The scheduled path runs `loadConfigIfDue` too. An earlier version of this
-	// did not, on the reasoning that a write marks `dirty` and RefreshNow ticks --
-	// and that reasoning was wrong, because Resume begins a subscription without
-	// ticking, so a page refocus left the manager row empty for good. See
-	// loadConfigIfDue.
-	c.sched = scheduled{loop: c.poll, menu: capsRegCmd.Path, fields: fieldsOf(capsRegCmd), apply: c.apply,
-		cadence: func() time.Duration { return time.Duration(ms) * time.Millisecond }}
+	// Subscribed to the registration table, the clients, which is the only thing
+	// here that changes on its own. The manager, CAP, provisioning and profiles
+	// are the slow lane, and a write's RefreshNow re-reads them at once.
+	c.setup(c, ros, pollMs, tableSpec{
+		cmd: capsRegCmd, poll: [3]int{10000, 30000, 600000}, slowEvery: capsConfigEvery,
+	})
 	return c
 }
 
-// read latches a menu's absence. Each of the profile menus latches
-// INDEPENDENTLY, so a build without one costs a tab rather than a page.
+// read runs one menu, latching its absence when given a latch. Each of the
+// profile menus latches INDEPENDENTLY, so a build without one costs a tab rather
+// than a page.
 func (c *Capsman) read(cmd routeros.Cmd, avail **bool) []routeros.Reply {
-	if avail != nil && *avail != nil && !**avail {
-		return nil
-	}
-	rows, err := c.ros.Do(cmd)
-	if err != nil {
-		if avail != nil && isAbsentMenu(err) {
-			no := false
-			*avail = &no
-		}
-		return nil
-	}
-	if avail != nil {
-		yes := true
-		*avail = &yes
-	}
+	rows, _ := readOptional(c.ros.Do, cmd, avail)
 	return rows
 }
 
-func (c *Capsman) Tick() {
-	c.loadConfigIfDue()
-	reg, _ := readVia(c.cache, c.ros, capsRegCmd, c.pollMs.duration())
-	c.applyRest(reg)
-}
-
-// loadConfigIfDue reads the manager, the CAP, the provisioning rules and the
-// four profile menus, on the dirty-or-every-N cadence.
+// loadConfig reads the manager, the CAP, the provisioning rules and the four
+// profile menus. It is the slow lane.
 //
 // ── CALLED FROM BOTH PATHS, AND THAT IS A FIX ───────────────────────────────
 //
@@ -988,12 +948,8 @@ func (c *Capsman) Tick() {
 // which is what made it look fine.
 //
 // Found by reading the page against the router, not by a failing test.
-func (c *Capsman) loadConfigIfDue() {
-	c.mu.Lock()
-	needConfig := c.dirty || c.ticks%capsConfigEvery == 0
-	c.mu.Unlock()
-
-	if needConfig {
+func (c *Capsman) loadConfig() {
+	{
 		mgr := c.read(capsManagerCmd, &c.managerAvail)
 		cap_ := c.read(capsCapCmd, &c.capAvail)
 		prov := c.read(capsProvCmd, nil)
@@ -1035,25 +991,30 @@ func (c *Capsman) loadConfigIfDue() {
 			"configuration": namedOnly(v1Cfg), "security": namedOnly(v1Sec),
 			"channel": namedOnly(v1Chn), "datapath": namedOnly(v1Dpt),
 		}
-		c.dirty = false
 		c.mu.Unlock()
 	}
 }
 
-// apply is what the scheduler calls with the registration table -- the clients,
-// which is the only thing here that changes on its own. The CAP list, the radios
-// and the interface list are read alongside it, and the profiles keep their own
-// dirty-or-every-N cadence in Tick.
-func (c *Capsman) apply(reg []routeros.Reply, err error) {
+// derive is the registration table, the clients, with the menus that accompany it
+// and, on the slow lane, the config.
+func (c *Capsman) derive(reg []routeros.Reply, err error, slow bool) (*CapsmanPayload, string) {
 	if err != nil {
-		return
+		return nil, ""
 	}
-	c.loadConfigIfDue()
-	c.applyRest(reg)
+	if slow {
+		c.loadConfig()
+	}
+	return c.build(reg)
 }
 
-// applyRest reads the menus that accompany the registration table and emits.
-func (c *Capsman) applyRest(reg []routeros.Reply) {
+func (c *Capsman) send(p CapsmanPayload) { EvCapsmanUpdate.Emit(c.emit, capsmanRooms.Join(), p) }
+
+// reset drops every latch, so a router that came back as a different build is
+// probed again.
+func (c *Capsman) reset() { c.managerAvail, c.capAvail, c.v1Avail = nil, nil, nil }
+
+// build reads the menus that accompany the registration table and derives the payload.
+func (c *Capsman) build(reg []routeros.Reply) (*CapsmanPayload, string) {
 	remote := c.read(capsRemoteCmd, nil)
 	radios := c.read(capsRadioCmd, nil)
 	// THROUGH THE CACHE. Four collectors read each of these two menus, more
@@ -1078,7 +1039,6 @@ func (c *Capsman) applyRest(reg []routeros.Reply) {
 	}
 
 	c.mu.Lock()
-	c.ticks++
 	built := BuildCapsmanView(c.manager, c.cap, remote, c.prov, radios, ifaces, reg)
 	built.TS = time.Now().UnixMilli()
 	built.PollMs = c.pollMs.ms()
@@ -1089,15 +1049,9 @@ func (c *Capsman) applyRest(reg []routeros.Reply) {
 	if legacy {
 		c.mergeLegacy(&built, v1Remote, v1Radios, v1Ifaces, v1Reg)
 	}
-	c.last = &built
 	fp := capsFingerprintOf(&built)
-	changed := fp != c.lastFP
-	c.lastFP = fp
 	c.mu.Unlock()
-
-	if changed {
-		EvCapsmanUpdate.Emit(c.emit, capsmanRooms.Join(), built)
-	}
+	return &built, fp
 }
 
 // mergeLegacy folds the `/caps-man` tree into the payload the modern one built.
@@ -1321,61 +1275,4 @@ func capsFingerprintOf(p *CapsmanPayload) string {
 		"t": p.Totals,
 	})
 	return string(b)
-}
-
-func (c *Capsman) Last() *CapsmanPayload {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.last
-}
-
-func (c *Capsman) RefreshNow() {
-	c.mu.Lock()
-	c.dirty = true
-	c.mu.Unlock()
-	c.Tick()
-}
-
-func (c *Capsman) Start() {
-	if !c.sched.scheduling() {
-		c.Tick()
-	}
-	c.sched.begin()
-}
-
-func (c *Capsman) Reconnected() {
-	c.sched.end()
-	c.mu.Lock()
-	c.lastFP = ""
-	c.dirty = true
-	c.managerAvail, c.capAvail, c.v1Avail = nil, nil, nil
-	c.mu.Unlock()
-	if !c.sched.scheduling() {
-		c.Tick()
-	}
-	c.sched.begin()
-}
-
-func (c *Capsman) Suspend() { c.sched.end() }
-func (c *Capsman) Resume()  { c.sched.begin() }
-
-func (c *Capsman) Stop() {
-	c.sched.end()
-	c.mu.Lock()
-	c.lastFP = ""
-	c.mu.Unlock()
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (c *Capsman) SetPollMs(ms int) {
-	c.pollMs.set(ms)
-	c.poll.retime()
-}
-
-// UseCache routes this collector's shareable reads through a per-router cache.
-// Set once, before Start; nil leaves every read direct.
-func (c *Capsman) UseCache(rc *roscache.Cache) {
-	c.cache = rc
-	c.sched.useCache(rc)
 }

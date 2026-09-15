@@ -21,10 +21,8 @@ package collect
 import (
 	"encoding/json"
 	"strings"
-	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -100,19 +98,10 @@ func ipAddressesFingerprint(rows []IPAddress) string {
 const ipAddressesHeartbeat = 60 * time.Second
 
 type IPAddresses struct {
-	ros    Reader
-	emit   Emit
-	cache  *roscache.Cache
-	pollMs *pollInterval
-	poll   *pollLoop
-	sched  scheduled
-
-	mu       sync.Mutex
-	last     *IPAddressesPayload
-	lastFP   string
-	lastEmit time.Time
+	tableCore[IPAddressesPayload]
+	emit Emit
 	// lastV6 is the last IPv6 answer, kept so a transient failure of that read
-	// does not blank every IPv6 row until the next tick.
+	// does not blank every IPv6 row until the next reading.
 	lastV6 []routeros.Reply
 }
 
@@ -121,33 +110,19 @@ type IPAddresses struct {
 // rule says a collector polling under 30 s must split its slow reads off; at 30 s
 // there is nothing to split, and a third of the reads.
 func NewIPAddresses(ros Reader, emit Emit, pollMs int) *IPAddresses {
-	a := &IPAddresses{ros: ros, emit: emit,
-		pollMs: newPollInterval(clampPoll(pollMs, 30000, 2000, 60000))}
-	a.poll = newPollLoop(func() { a.Tick() }, func() time.Duration { return a.pollMs.duration() })
-	// AFTER the loop exists, as in NewDNS: `scheduled` holds it as the no-cache
-	// fallback.
-	a.sched = scheduled{loop: a.poll,
-		menu: ipv4AddressCmd.Path, fields: fieldsOf(ipv4AddressCmd), apply: a.apply,
-		cadence: a.pollMs.duration}
+	a := &IPAddresses{emit: emit}
+	a.setup(a, ros, pollMs, tableSpec{
+		cmd: ipv4AddressCmd, poll: [3]int{30000, 2000, 60000}, heartbeat: ipAddressesHeartbeat,
+	})
 	return a
 }
 
-// Tick reads both menus directly: the poll loop's path, and the refresh a write
-// path asks for.
-func (a *IPAddresses) Tick() {
-	if !a.ros.Connected() {
-		return
-	}
-	a.apply(readVia(a.cache, a.ros, ipv4AddressCmd, a.pollMs.duration()))
-}
-
-func (a *IPAddresses) apply(v4 []routeros.Reply, err error) {
+// derive is both families. The subscribed menu is IPv4; IPv6 is read here.
+func (a *IPAddresses) derive(v4 []routeros.Reply, err error, _ bool) (*IPAddressesPayload, string) {
 	if err != nil {
-		return // keep the last list rather than blanking the page on one failed read
+		return nil, "" // keep the last list rather than blanking the page on one failed read
 	}
 	v6, v6err := a.ros.Do(ipv6AddressCmd)
-
-	a.mu.Lock()
 	switch {
 	case v6err == nil:
 		a.lastV6 = v6
@@ -160,76 +135,11 @@ func (a *IPAddresses) apply(v4 []routeros.Reply, err error) {
 		v6 = a.lastV6
 	}
 	rows := BuildIPAddresses(v4, v6)
-	fp := ipAddressesFingerprint(rows)
-	now := time.Now()
-	if fp == a.lastFP && a.last != nil && now.Sub(a.lastEmit) < ipAddressesHeartbeat {
-		a.mu.Unlock()
-		return
-	}
-	a.lastFP, a.lastEmit = fp, now
-	payload := &IPAddressesPayload{Addresses: rows, TS: now.UnixMilli()}
-	a.last = payload
-	a.mu.Unlock()
-	EvIPAddressesUpdate.Emit(a.emit, ipAddressesRooms.Join(), *payload)
+	return &IPAddressesPayload{Addresses: rows, TS: time.Now().UnixMilli()}, ipAddressesFingerprint(rows)
 }
 
-// RefreshNow re-reads both menus at once for a write path. The cached IPv4 rows
-// are dropped first, or the re-read would be served the state from before the
-// write.
-func (a *IPAddresses) RefreshNow() {
-	if !a.ros.Connected() {
-		return
-	}
-	if a.cache != nil {
-		a.cache.Invalidate(ipv4AddressCmd.Path)
-	}
-	a.Tick()
+func (a *IPAddresses) send(p IPAddressesPayload) {
+	EvIPAddressesUpdate.Emit(a.emit, ipAddressesRooms.Join(), p)
 }
 
-func (a *IPAddresses) Last() *IPAddressesPayload {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.last
-}
-
-func (a *IPAddresses) UseCache(c *roscache.Cache) {
-	a.cache = c
-	a.sched.useCache(c)
-}
-
-func (a *IPAddresses) Start() {
-	if !a.sched.scheduling() {
-		a.Tick()
-	}
-	a.sched.begin()
-}
-
-func (a *IPAddresses) Reconnected() {
-	a.sched.end()
-	a.mu.Lock()
-	a.lastFP = ""
-	a.mu.Unlock()
-	if !a.sched.scheduling() {
-		a.Tick()
-	}
-	a.sched.begin()
-}
-
-func (a *IPAddresses) Suspend() { a.sched.end() }
-func (a *IPAddresses) Resume()  { a.sched.begin() }
-
-func (a *IPAddresses) Stop() {
-	a.sched.end()
-	a.mu.Lock()
-	a.lastFP = ""
-	a.mu.Unlock()
-}
-
-// SetPollMs applies a new poll period to a running collector.
-func (a *IPAddresses) SetPollMs(ms int) {
-	a.pollMs.set(ms)
-	a.poll.retime()
-}
-
-// PollMs is the collector's current poll period.
-func (a *IPAddresses) PollMs() int { return a.pollMs.ms() }
+func (a *IPAddresses) reset() { a.lastV6 = nil }

@@ -53,7 +53,6 @@ import (
 	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -245,26 +244,16 @@ func buildSystem(r routeros.Reply, health []routeros.Reply, update routeros.Repl
 
 // System is the collector.
 type System struct {
-	ros    Reader
-	emit   Emit
-	pollMs *pollInterval
-	// cache coalesces reads shared with another collector; nil outside a live
-	// session, which is every test. See collect/cache.go.
-	cache *roscache.Cache
-	// sched subscribes to /system/resource, the live gauge row. The static read
-	// and the health window keep their own cadences. See scheduled.go.
-	sched scheduled
+	tableCore[SystemPayload]
+	emit Emit
 
-	// mu guards everything the update goroutine touches. It is the only
-	// concurrency in this collector, and it exists because the update check can
-	// block for fifteen seconds and must not hold up the gauges.
+	// mu guards everything the update goroutine touches. It exists because the
+	// update check can block for fifteen seconds and must not hold up the gauges.
 	mu      sync.Mutex
 	health  []routeros.Reply
 	update  routeros.Reply
 	serial  *string
 	license *string
-	last    *SystemPayload
-	lastFp  string
 
 	// onIdentity is called when this router's hardware/firmware identity CHANGES.
 	// See SetOnIdentity.
@@ -272,35 +261,27 @@ type System struct {
 	lastIdentityKey string
 
 	staticRead  bool      // the serial and licence have been read for this connection
-	firstTick   bool      // one tick has run, so the static read may happen now
+	firstTick   bool      // one reading has run, so the static read may happen now
 	healthAt    time.Time // when health was last read
 	updateAt    time.Time // when the update check last ran
 	updateRuns  bool      // a check is in flight
 	updateTries int
-
-	loop *pollLoop
 }
 
 // NewSystem builds the collector. The bounds are Node's — the gauges are what
 // the dashboard animates, so this is the fastest poll in the app.
 func NewSystem(ros Reader, emit Emit, pollMs int) *System {
-	s := &System{
-		ros:    ros,
-		emit:   emit,
-		pollMs: newPollInterval(clampPoll(pollMs, 2000, 500, 60000)),
-		update: routeros.Reply{},
-	}
-	s.loop = newPollLoop(func() { s.Tick() }, func() time.Duration {
-		return s.pollMs.duration()
-	})
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	s.sched = scheduled{loop: s.loop, menu: systemResourceCmd.Path, fields: fieldsOf(systemResourceCmd), apply: s.apply,
-		cadence: s.pollMs.duration,
+	s := &System{emit: emit, update: routeros.Reply{}}
+	// Subscribed to /system/resource, the live gauge row. The static read and the
+	// health window keep their own cadences, in `preRead`.
+	s.setup(s, ros, pollMs, tableSpec{
+		cmd: systemResourceCmd, poll: [3]int{2000, 500, 60000},
 		// A SETTINGS MENU, NOT A TABLE. `/system/resource/print` returns one row
 		// and it carries no `.id`, so the default key would drop it into
 		// `FillFromStream`'s unkeyed counter and leave the entry empty -- which
 		// for this collector means the dashboard's gauges stop. See keySingleton.
-		streamKey: keySingleton}
+		streamKey: keySingleton,
+	})
 	return s
 }
 
@@ -364,40 +345,12 @@ type IdentityFunc func(Identity)
 // dedupes on the triple.
 func (s *System) SetOnIdentity(fn IdentityFunc) { s.onIdentity = fn }
 
-func (s *System) Suspend() { s.sched.end() }
-
-func (s *System) Resume() {
-	if s.ros.Connected() {
-		s.sched.begin()
-	}
-}
-
 // Start begins the gauge poll and kicks the one update check that runs at
 // startup. Everything slower than the tick is scheduled from inside Tick, so
 // there is one timer here rather than three.
 func (s *System) Start() {
-	s.sched.begin()
+	s.tableCore.Start()
 	go s.checkForUpdates()
-}
-
-func (s *System) Stop() { s.sched.end() }
-
-// SetPollMs applies a new poll period to a RUNNING collector.
-//
-// Two halves, and one alone is not enough:
-//
-//   - the stored period, because 21 of the 24 collectors send it to the browser
-//     in their payload and the live ones send the mutated value; and
-//   - `retime`, because `delay` is only consulted when the loop next schedules,
-//     so without it a change from sixty seconds to five would wait out the
-//     remaining fifty-nine first.
-//
-// The value arrives already clamped by `collection.PollRetunes` (500..600000).
-// It is NOT re-clamped to this collector's constructor range: the operator set a
-// fleet-wide interval and the live app applies it as given.
-func (s *System) SetPollMs(ms int) {
-	s.pollMs.set(ms)
-	s.loop.retime()
 }
 
 // Reconnected drops what cannot survive a new connection and restarts the poll,
@@ -409,39 +362,12 @@ func (s *System) SetPollMs(ms int) {
 // blanked the version card until the next check. The serial and the licence do
 // NOT survive: the usual reason a connection dropped is an upgrade, and the
 // router that came back need not be the same build.
-func (s *System) Reconnected() {
-	s.sched.end()
+func (s *System) reset() {
 	s.mu.Lock()
-	s.staticRead = false
+	s.staticRead, s.firstTick = false, false
 	s.serial, s.license = nil, nil
-	s.firstTick = false
 	s.healthAt = time.Time{}
-	s.lastFp = ""
 	s.mu.Unlock()
-	if !s.sched.scheduling() {
-		s.Tick()
-	}
-	s.sched.begin()
-}
-
-func (s *System) Last() *SystemPayload {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.last
-}
-
-// Tick reads the gauges, and whatever slower menu is due alongside them.
-func (s *System) Tick() {
-	if !s.ros.Connected() {
-		return
-	}
-
-	// The static read happens from the SECOND tick on. See the note at the top:
-	// the first payload carries no serial in the live app either.
-	s.preRead()
-
-	rows, err := s.ros.Do(systemResourceCmd)
-	s.applyResource(rows, err)
 }
 
 // applyResource is what the scheduler calls with the resource row, and is
@@ -491,32 +417,25 @@ func (s *System) preRead() {
 	}
 }
 
-// apply is the scheduler's entry point: the same two cadences, then the row.
-func (s *System) apply(rows []routeros.Reply, err error) {
-	if !s.ros.Connected() {
-		return
-	}
+// derive is the gauge row, after whatever `preRead` has due.
+func (s *System) derive(rows []routeros.Reply, err error, _ bool) (*SystemPayload, string) {
 	s.preRead()
-	s.applyResource(rows, err)
+	return s.applyResource(rows, err)
 }
 
-func (s *System) applyResource(rows []routeros.Reply, err error) {
+func (s *System) applyResource(rows []routeros.Reply, err error) (*SystemPayload, string) {
 	if err != nil || len(rows) == 0 {
-		return
+		return nil, ""
 	}
 
 	s.mu.Lock()
 	s.firstTick = true
 	payload := buildSystem(rows[0], s.health, s.update, s.serial, s.license, s.pollMs.ms())
-	s.last = payload
+	s.mu.Unlock()
 	// The fingerprint is what the ORIGINAL compares, field for field: a gauge
 	// that has not moved is not worth a frame. Note what is absent from it —
 	// memory and disk totals never change, and the serial cannot.
 	fp := systemFingerprint(payload)
-	changed := fp != s.lastFp
-	s.lastFp = fp
-	s.mu.Unlock()
-
 	// ── IDENTITY, OUTSIDE THE EMIT GATE ────────────────────────────────────
 	//
 	// The live call sits above its own `if (changed)`, and that placement is
@@ -528,13 +447,14 @@ func (s *System) applyResource(rows []routeros.Reply, err error) {
 	// It is deduped on its own triple instead, which is what makes it cheap
 	// enough to run every tick.
 	s.reportIdentity(payload)
+	return payload, fp
+}
 
-	if changed {
-		// ROUTER-WIDE, not a page room: these are the top bar's gauges, the
-		// uptime chip and the RouterOS version row. A viewer sees them on every
-		// page, so gating them on a page focus would blank the chrome.
-		EvSystemUpdate.Emit(s.emit, "", *payload)
-	}
+func (s *System) send(p SystemPayload) {
+	// ROUTER-WIDE, not a page room: these are the top bar's gauges, the
+	// uptime chip and the RouterOS version row. A viewer sees them on every
+	// page, so gating them on a page focus would blank the chrome.
+	EvSystemUpdate.Emit(s.emit, "", p)
 }
 
 // reportIdentity fires the hook when the triple has moved.
@@ -741,8 +661,10 @@ func UpdateUnknown(latest, status string) bool {
 func (s *System) applyUpdate(row routeros.Reply) {
 	s.mu.Lock()
 	s.update = row
+	s.mu.Unlock()
+	s.lastMu.Lock()
 	if s.last == nil {
-		s.mu.Unlock()
+		s.lastMu.Unlock()
 		return
 	}
 	updated := *s.last
@@ -753,10 +675,9 @@ func (s *System) applyUpdate(row routeros.Reply) {
 	updated.UpdateAvailable = updateVerdict(row["latest-version"], row["status"],
 		strings.TrimSpace(parenSuffix.ReplaceAllString(updated.Version, "")))
 	s.last = &updated
-	s.lastFp = ""
-	s.mu.Unlock()
-
-	EvSystemUpdate.Emit(s.emit, "", updated)
+	s.lastFP = ""
+	s.lastMu.Unlock()
+	s.send(updated)
 }
 
 func cloneReply(r routeros.Reply) routeros.Reply {
@@ -765,17 +686,4 @@ func cloneReply(r routeros.Reply) routeros.Reply {
 		out[k] = v
 	}
 	return out
-}
-
-// PollMs is the collector's current poll period. Exported for callers that
-// re-tune it and then need to confirm what took effect.
-func (s *System) PollMs() int { return s.pollMs.ms() }
-
-// UseCache feeds BOTH halves: the shared-read cache from 1.4 (/system/routerboard
-// and /system/package/update, with `packages`) and the subscription. Same cache,
-// two uses; setting one and missing the other would silently drop whichever was
-// missed.
-func (s *System) UseCache(rc *roscache.Cache) {
-	s.cache = rc
-	s.sched.useCache(rc)
 }

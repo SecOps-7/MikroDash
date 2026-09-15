@@ -24,10 +24,8 @@ package collect
 import (
 	"encoding/json"
 	"sort"
-	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -230,138 +228,65 @@ func BuildBridgeRows(bridgeRows, portRows, hostRows []routeros.Reply, rates Rate
 
 // Bridges is the collector.
 type Bridges struct {
-	ros    Reader
-	emit   Emit
-	rates  RateSource
-	pollMs *pollInterval
-	// cache coalesces reads shared with another collector; nil outside a live
-	// session, which is every test. See collect/cache.go.
-	cache *roscache.Cache
-	// sched subscribes to the HOST table, this collector's live menu. See
-	// scheduled.go.
-	sched scheduled
+	tableCore[BridgesPayload]
+	emit  Emit
+	rates RateSource
 
-	poll *pollLoop
-
-	mu     sync.Mutex
-	cfgB   []routeros.Reply
-	cfgP   []routeros.Reply
-	dirty  bool
-	ticks  int
-	lastFp string
+	// cfgB and cfgP are the bridge and port config: the slow lane, carried
+	// between readings.
+	cfgB []routeros.Reply
+	cfgP []routeros.Reply
 	// nil = unprobed, false = this router has no such menu, stop asking.
 	bridgeAvailable *bool
 	portAvailable   *bool
 	hostAvailable   *bool
-
-	last    *BridgesPayload
-	lastErr string
 }
 
 // NewBridges builds the collector. `rates` may be nil — the page degrades to no
 // throughput column rather than not rendering, which is the same judgement
 // src/collection.js makes by declaring no `requires` for this collector.
 func NewBridges(ros Reader, emit Emit, rates RateSource, pollMs int) *Bridges {
-	b := &Bridges{
-		ros: ros, emit: emit, rates: rates,
-		pollMs: newPollInterval(clampPoll(pollMs, 5000, 2000, 60000)),
-		dirty:  true,
-	}
-	b.poll = newPollLoop(func() { b.Tick() }, func() time.Duration {
-		return b.pollMs.duration()
+	b := &Bridges{emit: emit, rates: rates}
+	// Subscribed to the host table, the live menu: a MAC is learned or ages out
+	// with no configuration change behind it. The bridge and port config are the
+	// slow lane, and a write's RefreshNow re-reads them at once.
+	b.setup(b, ros, pollMs, tableSpec{
+		cmd: bridgeHostCmd, poll: [3]int{5000, 2000, 60000}, slowEvery: bridgeConfigEvery,
 	})
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	b.sched = scheduled{loop: b.poll, menu: bridgeHostCmd.Path, fields: fieldsOf(bridgeHostCmd), apply: b.apply,
-		cadence: b.pollMs.duration}
 	return b
 }
 
+// read runs one menu THROUGH THE CACHE. Both of this collector's shared menus
+// arrive here: /interface/bridge/port, which vlans also reads, and
+// /interface/bridge/host, which topology reads.
 func (b *Bridges) read(cmd routeros.Cmd, avail **bool) []routeros.Reply {
-	if *avail != nil && !**avail {
-		return nil
-	}
-	// THROUGH THE CACHE. Both of this collector's shared menus arrive here:
-	// /interface/bridge/port, which vlans also reads, and /interface/bridge/host,
-	// which topology reads. The routing is in the helper because the denial latch
-	// below is what stops a denied menu being asked for every tick, and that must
-	// keep working whether the rows came from the router or from another
-	// collector's read.
-	rows, err := readVia(b.cache, b.ros, cmd, b.pollMs.duration())
-	if err != nil {
-		// The host table is the one menu a read-only API user can be denied
-		// while the rest still answers, so a denial latches rather than being
-		// asked for again every tick.
-		if menuMissing(err) {
-			no := false
-			*avail = &no
-		} else {
-			b.lastErr = err.Error()
-		}
-		return nil
-	}
-	yes := true
-	*avail = &yes
-	out := make([]routeros.Reply, 0, len(rows))
-	for _, r := range rows {
-		if len(r) > 0 {
-			out = append(out, r)
-		}
-	}
-	return out
+	rows, _ := readOptional(b.readShared, cmd, avail)
+	return rows
 }
 
-// Tick reads what is due this cycle and emits when something changed.
-func (b *Bridges) Tick() {
-	if !b.ros.Connected() {
-		return
+// derive is the host table with the bridge and port config.
+//
+// A REFUSED HOST TABLE IS NOT RETIRED. It is the one menu a read-only API user can
+// be denied while the rest still answers, so the page still has bridges and ports
+// to show, and the slow lane must keep reading them: the payload is built without
+// hosts and says so.
+func (b *Bridges) derive(rows []routeros.Reply, err error, slow bool) (*BridgesPayload, string) {
+	if err != nil && !menuGone(err) {
+		return nil, ""
 	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	// Config on the slow cadence; hosts every tick, because a MAC is learned or
-	// ages out with no configuration change behind it.
-	if b.dirty || b.ticks%bridgeConfigEvery == 0 {
-		b.cfgB = b.read(bridgeCmd, &b.bridgeAvailable)
-		b.cfgP = b.read(bridgePortCmd, &b.portAvailable)
-		b.dirty = false
-	}
-	b.ticks++
-	b.applyLocked(b.read(bridgeHostCmd, &b.hostAvailable))
-}
-
-// apply is what the scheduler calls with the host table, which is this
-// collector's live menu: a MAC is learned or ages out with no configuration
-// change behind it. The bridge and port config keep their slow cadence here, as
-// before -- see scheduled.go on why a collector subscribes to ONE menu.
-func (b *Bridges) apply(rows []routeros.Reply, err error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
+	latchMenu(&b.hostAvailable, err)
 	if err != nil {
-		// The latch `read` would have set. The host table is the one menu a
-		// read-only API user can be denied while the rest still answers, so this
-		// must keep latching on the scheduled path too.
-		if menuMissing(err) {
-			no := false
-			b.hostAvailable = &no
-		}
-		return
+		rows = nil
 	}
-	if b.hostAvailable == nil {
-		yes := true
-		b.hostAvailable = &yes
-	}
-	if b.dirty || b.ticks%bridgeConfigEvery == 0 {
+	if slow {
 		b.cfgB = b.read(bridgeCmd, &b.bridgeAvailable)
 		b.cfgP = b.read(bridgePortCmd, &b.portAvailable)
-		b.dirty = false
 	}
-	b.ticks++
-	b.applyLocked(rows)
+	return b.build(rows)
 }
 
 // applyLocked builds and emits. The caller holds the lock.
-func (b *Bridges) applyLocked(hostRows []routeros.Reply) {
+func (b *Bridges) build(hostRows []routeros.Reply) (*BridgesPayload, string) {
 	built := BuildBridgeRows(b.cfgB, b.cfgP, hostRows, b.rates)
 	payload := &BridgesPayload{
 		TS: time.Now().UnixMilli(), PollMs: b.pollMs.ms(),
@@ -371,10 +296,6 @@ func (b *Bridges) applyLocked(hostRows []routeros.Reply) {
 		Available:      MenuAvailable(b.bridgeAvailable),
 		HostsAvailable: MenuAvailable(b.hostAvailable),
 	}
-	// Assigned unconditionally: a socket that connects during a quiet spell is
-	// replayed this, so it must be current even when nothing is emitted.
-	b.last = payload
-
 	// The whole rows, not a hand-picked tuple. The Node side learned this on the
 	// DNS collector: a tuple omits a field the page renders, an edit to that
 	// field recomputes an identical fingerprint, and the open page never hears
@@ -386,83 +307,10 @@ func (b *Bridges) applyLocked(hostRows []routeros.Reply) {
 		P []BridgePort `json:"p"`
 		H int          `json:"h"`
 	}{built.bridges, built.ports, built.hostTotal})
-	if string(fp) == b.lastFp {
-		return
-	}
-	b.lastFp = string(fp)
-	EvBridgesUpdate.Emit(b.emit, bridgesRooms.Join(), *payload)
+	return payload, string(fp)
 }
 
-// Last is the most recent payload, replayed to a socket that has just opened
-// the page so it is not blank for a whole poll interval.
-func (b *Bridges) Last() *BridgesPayload {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.last
-}
+func (b *Bridges) send(p BridgesPayload) { EvBridgesUpdate.Emit(b.emit, bridgesRooms.Join(), p) }
 
-// RefreshNow re-reads immediately, after a write.
-//
-// Sets `dirty` rather than reaching past Tick: that flag already means "config
-// changed, read it on this tick", which is exactly what a write creates.
-func (b *Bridges) RefreshNow() {
-	if !b.ros.Connected() {
-		return
-	}
-	b.mu.Lock()
-	b.dirty = true
-	b.mu.Unlock()
-	b.Tick()
-}
-
-// UseCache feeds BOTH halves: the shared-read cache from 1.4, and the
-// subscription. Same cache, two uses.
-func (b *Bridges) UseCache(rc *roscache.Cache) {
-	b.cache = rc
-	b.sched.useCache(rc)
-}
-
-func (b *Bridges) Start() {
-	if b.ros.Connected() && !b.sched.scheduling() {
-		b.Tick()
-	}
-	b.sched.begin()
-}
-
-// Reconnected drops every latch: a reconnect may be a different build, so an
-// "absent menu" decision taken against the old one must not persist.
-func (b *Bridges) Reconnected() {
-	b.sched.end()
-	b.mu.Lock()
-	b.lastFp = ""
-	b.dirty = true
-	b.ticks = 0
-	b.bridgeAvailable, b.portAvailable, b.hostAvailable = nil, nil, nil
-	b.mu.Unlock()
-	if !b.sched.scheduling() {
-		b.Tick()
-	}
-	b.sched.begin()
-}
-
-func (b *Bridges) Suspend() { b.sched.end() }
-
-func (b *Bridges) Resume() {
-	if b.ros.Connected() {
-		b.sched.begin()
-	}
-}
-
-func (b *Bridges) Stop() {
-	b.sched.end()
-	b.mu.Lock()
-	b.lastFp = ""
-	b.mu.Unlock()
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (b *Bridges) SetPollMs(ms int) {
-	b.pollMs.set(ms)
-	b.poll.retime()
-}
+// reset drops every latch.
+func (b *Bridges) reset() { b.bridgeAvailable, b.portAvailable, b.hostAvailable = nil, nil, nil }

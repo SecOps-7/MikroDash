@@ -41,9 +41,7 @@ package collect
 
 import (
 	"strings"
-	"sync"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -122,69 +120,45 @@ type ARPByMAC interface {
 
 // ARP is the collector.
 type ARP struct {
-	ros    Reader
-	poll   *pollLoop
-	sched  scheduled
-	pollMs *pollInterval
-
-	mu sync.Mutex
-	ix *ARPIndex
+	tableCore[ARPIndex]
 }
 
 // NewARP builds the collector. No `Emit`: see the header.
 func NewARP(ros Reader, pollMs int) *ARP {
-	a := &ARP{ros: ros, pollMs: newPollInterval(clampPoll(pollMs, 30000, 5000, 300000))}
-	a.poll = newPollLoop(func() { a.Tick() }, a.pollMs.duration)
-	a.sched = scheduled{
-		loop: a.poll, menu: arpCmd.Path, fields: fieldsOf(arpCmd), apply: a.apply,
-		cadence: a.pollMs.duration,
-	}
+	a := &ARP{}
+	a.setup(a, ros, pollMs, tableSpec{cmd: arpCmd, poll: [3]int{30000, 5000, 300000}})
 	return a
 }
 
-// UseCache moves this collector onto the router's scheduler.
-func (a *ARP) UseCache(c *roscache.Cache) { a.sched.useCache(c) }
-
-func (a *ARP) Tick() {
-	if !a.ros.Connected() {
-		return
-	}
-	a.apply(a.ros.Do(arpCmd))
-}
-
-// apply is what the scheduler calls with the table.
+// derive is the index, replaced wholesale.
 //
-// NO FINGERPRINT AND NO EMIT, so there is nothing to suppress: the index is
-// replaced wholesale and the next consumer to look sees the new one. The live
-// collector updated its Maps in place "so callers always see the latest data
-// without any coordination overhead"; replacing the whole index is the same
-// property with one lock instead of two maps mutated under none.
-func (a *ARP) apply(rows []routeros.Reply, err error) {
+// NO FINGERPRINT AND NO EMIT, so there is nothing to suppress: the next consumer
+// to look sees the new index. The live collector updated its Maps in place "so
+// callers always see the latest data without any coordination overhead";
+// replacing the whole index is the same property with one lock instead of two
+// maps mutated under none. A failed read keeps the last index.
+func (a *ARP) derive(rows []routeros.Reply, err error, _ bool) (*ARPIndex, string) {
 	if err != nil {
-		return
+		return nil, ""
 	}
-	ix := BuildARP(rows)
-	a.mu.Lock()
-	a.ix = ix
-	a.mu.Unlock()
+	return BuildARP(rows), ""
 }
 
-// Last is the current index, or nil before the first read.
-//
-// Exported because the dormancy target table needs a `last` closure like every
-// other collector's, and because a nil index is how "this collector has not
-// reported" is expressed everywhere else.
-func (a *ARP) Last() *ARPIndex {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.ix
+// send does nothing: this collector answers other collectors, not a page.
+func (a *ARP) send(ARPIndex) {}
+
+// reset DROPS THE INDEX. A reconnect may be to a router that has rebooted, and a
+// stale ARP table names devices at addresses they no longer hold, which is worse
+// than naming none, because a wrong name looks like a right one.
+func (a *ARP) reset() {
+	a.lastMu.Lock()
+	a.last = nil
+	a.lastMu.Unlock()
 }
 
 // MACForIP implements ARPByIP.
 func (a *ARP) MACForIP(ip string) (string, string) {
-	a.mu.Lock()
-	ix := a.ix
-	a.mu.Unlock()
+	ix := a.Last()
 	if ix == nil {
 		return "", ""
 	}
@@ -195,49 +169,9 @@ func (a *ARP) MACForIP(ip string) (string, string) {
 // IPForMAC implements ARPByMAC. The lookup is case-insensitive for the reason
 // `BuildARP` records: the tables this is joined against do not agree on case.
 func (a *ARP) IPForMAC(mac string) string {
-	a.mu.Lock()
-	ix := a.ix
-	a.mu.Unlock()
+	ix := a.Last()
 	if ix == nil {
 		return ""
 	}
 	return ix.ByMAC[strings.ToUpper(strings.TrimSpace(mac))].IP
-}
-
-func (a *ARP) Start() {
-	if !a.sched.scheduling() {
-		a.Tick()
-	}
-	a.sched.begin()
-}
-
-func (a *ARP) Reconnected() {
-	a.sched.end()
-	// THE INDEX IS DROPPED. A reconnect may be to a router that has rebooted, and
-	// a stale ARP table names devices at addresses they no longer hold — which is
-	// worse than naming none, because a wrong name looks like a right one.
-	a.mu.Lock()
-	a.ix = nil
-	a.mu.Unlock()
-	if !a.sched.scheduling() {
-		a.Tick()
-	}
-	a.sched.begin()
-}
-
-func (a *ARP) Suspend() { a.sched.end() }
-func (a *ARP) Resume()  { a.sched.begin() }
-
-func (a *ARP) Stop() { a.sched.end() }
-
-// SetPollMs re-tunes the interval. `pollArp` has been a persisted, validated,
-// writable setting since the port with nothing reading it; this is what makes it
-// mean something.
-func (a *ARP) SetPollMs(ms int) {
-	a.pollMs.set(clampPoll(ms, 30000, 5000, 300000))
-	// The loop is retimed and the SUBSCRIPTION is not, which is the same shape
-	// every other re-tunable collector has: `scheduled.cadence` is a closure over
-	// `pollMs`, so the scheduler reads the new value on its next pass without
-	// being told.
-	a.poll.retime()
 }

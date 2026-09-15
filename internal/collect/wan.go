@@ -30,10 +30,8 @@ import (
 	"net/netip"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/sitedoc"
 )
@@ -421,48 +419,34 @@ func distanceOr99(s string) float64 {
 
 // Wan is the collector.
 type Wan struct {
-	ros    Reader
-	emit   Emit
-	rates  RateSource
-	pollMs *pollInterval
-	// cache coalesces reads shared with another collector; see collect/cache.go.
-	cache *roscache.Cache
-	// See scheduled.go: subscribes to detect-internet, the live uplink state.
-	sched scheduled
+	tableCore[WANPayload]
+	emit  Emit
+	rates RateSource
 
-	poll *pollLoop
-
-	mu     sync.Mutex
+	// ifaces, dhcp and addrs are the slow lane, carried between readings.
 	ifaces []routeros.Reply
 	dhcp   []routeros.Reply
 	addrs  []routeros.Reply
-	ticks  int
-	lastFp string
-	// nil = unprobed, false = this router has no such menu, stop asking.
+	// nil = unprobed, false = this router has no detect-internet menu, stop asking.
 	detectAvailable *bool
 	denied          bool
-	// docs reads the operator's uplink list. Nil outside a live session.
-	docs DocSource
-	// manual is that list as of the last slow lane. Re-read there rather than
-	// every tick: it changes when somebody presses a button, and the button's
-	// handler calls RefreshNow.
-	manual []string
 
-	last    *WANPayload
-	lastErr string
+	// docs is the operator's own uplink list, and manual the uplinks it declares.
+	docs   DocSource
+	manual []string
 }
 
 // NewWan builds the collector. `rates` may be nil — `requires` is empty on the
 // Node side for the same reason, so switching Interface Rates off degrades the
 // rate column rather than blanking the page.
 func NewWan(ros Reader, emit Emit, rates RateSource, pollMs int) *Wan {
-	w := &Wan{ros: ros, emit: emit, rates: rates, pollMs: newPollInterval(clampPoll(pollMs, 10000, 2000, 60000))}
-	w.poll = newPollLoop(func() { w.Tick() }, func() time.Duration {
-		return w.pollMs.duration()
+	w := &Wan{emit: emit, rates: rates}
+	// Subscribed to the detect-internet state, the live menu: it is what says
+	// whether an uplink is actually carrying traffic. The routes are read with
+	// it, and the interface, DHCP and address config are the slow lane.
+	w.setup(w, ros, pollMs, tableSpec{
+		cmd: wanDetectCmd, poll: [3]int{10000, 2000, 60000}, slowEvery: wanConfigEvery,
 	})
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	w.sched = scheduled{loop: w.poll, menu: wanDetectCmd.Path, fields: fieldsOf(wanDetectCmd), apply: w.apply,
-		cadence: w.pollMs.duration}
 	return w
 }
 
@@ -477,111 +461,49 @@ func (w *Wan) readManual() {
 	w.manual = sitedoc.CleanWANUplinks(w.docs.Doc(sitedoc.KindWANUplinks)).Manual()
 }
 
-// read latches separately on "absent" and "denied", because the page says
-// different things about them: a menu this build does not have is not the same
-// as one this API user may not see.
+// read runs one menu THROUGH THE CACHE, and remembers a refusal apart from an
+// absence, because the page says different things about them: a menu this build
+// does not have is not the same as one this API user may not see. Every menu this
+// collector reads is shared: /interface/detect-internet/state with dhcpNetworks,
+// /ip/route with routing, /ip/address with ifStatus and dhcpNetworks, and
+// /ip/dhcp-client, which is this collector's alone.
 func (w *Wan) read(cmd routeros.Cmd, avail **bool) []routeros.Reply {
-	if avail != nil && *avail != nil && !**avail {
-		return nil
+	rows, refused := readOptional(w.readShared, cmd, avail)
+	if refused {
+		w.denied = true
 	}
-	// THROUGH THE CACHE. Every menu this collector reads is shared:
-	// /interface/detect-internet/state with dhcpNetworks, /ip/route with
-	// routing, /ip/address with ifStatus and dhcpNetworks, and
-	// /ip/dhcp-client, which is this collector's alone and therefore
-	// unaffected. The routing is in the helper because the availability latch
-	// below has to keep working whichever collector paid for the read.
-	rows, err := readVia(w.cache, w.ros, cmd, w.pollMs.duration())
-	if err != nil {
-		switch {
-		case menuAbsent(err):
-			if avail != nil {
-				no := false
-				*avail = &no
-			}
-		case menuDenied(err):
-			if avail != nil {
-				no := false
-				*avail = &no
-			}
-			w.denied = true
-		default:
-			w.lastErr = err.Error()
-		}
-		return nil
-	}
-	if avail != nil {
-		yes := true
-		*avail = &yes
-	}
-	out := make([]routeros.Reply, 0, len(rows))
-	for _, r := range rows {
-		if len(r) > 0 {
-			out = append(out, r)
-		}
-	}
-	return out
+	return rows
 }
 
-// Tick reads what is due this cycle and emits when something changed.
-func (w *Wan) Tick() {
-	if !w.ros.Connected() {
-		return
+// derive is the uplinks: the detect-internet state with the routes, and the slow
+// lane's interface, DHCP and address config.
+//
+// A DETECT MENU THIS ROUTER DOES NOT HAVE, OR REFUSES, IS NOT RETIRED. The page
+// still draws manually declared uplinks from the routes and addresses, so the
+// payload is built without detection and says why.
+func (w *Wan) derive(detect []routeros.Reply, err error, slow bool) (*WANPayload, string) {
+	if err != nil && !menuGone(err) {
+		return nil, ""
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if w.ticks%wanConfigEvery == 0 {
+	if latchMenu(&w.detectAvailable, err) {
+		w.denied = true
+	}
+	if err != nil {
+		detect = nil
+	}
+	if slow {
 		// THROUGH THE CACHE: ifStatus reads this menu with a superset of our
 		// proplist, so whichever gets there first pays and the other does not.
-		w.ifaces, _ = readVia(w.cache, w.ros, wanIfaceCmd, w.pollMs.duration())
+		w.ifaces, _ = w.readShared(wanIfaceCmd)
 		w.dhcp = w.read(wanDhcpCmd, nil)
 		w.addrs = w.read(wanAddrCmd, nil)
 		w.readManual()
 	}
-	w.ticks++
-
-	w.applyLocked(w.read(wanDetectCmd, &w.detectAvailable))
-}
-
-// apply is what the scheduler calls with the detect-internet state, which is
-// this collector's live menu: it is what says whether an uplink is actually
-// carrying traffic. The routes are read alongside it, and the interface, DHCP
-// and address config keeps its slow lane -- see scheduled.go on why a collector
-// subscribes to ONE menu.
-func (w *Wan) apply(detect []routeros.Reply, err error) {
-	if !w.ros.Connected() {
-		return
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if err != nil {
-		// The latch `read` would have set, derived from what the scheduler hands
-		// over: a router without the detect-internet menu must stop being asked
-		// on this path too.
-		if menuMissing(err) {
-			no := false
-			w.detectAvailable = &no
-		}
-		return
-	}
-	if w.detectAvailable == nil {
-		yes := true
-		w.detectAvailable = &yes
-	}
-
-	if w.ticks%wanConfigEvery == 0 {
-		w.ifaces, _ = readVia(w.cache, w.ros, wanIfaceCmd, w.pollMs.duration())
-		w.dhcp = w.read(wanDhcpCmd, nil)
-		w.addrs = w.read(wanAddrCmd, nil)
-		w.readManual()
-	}
-	w.ticks++
-	w.applyLocked(detect)
+	return w.build(detect)
 }
 
 // applyLocked builds and emits. The caller holds the lock.
-func (w *Wan) applyLocked(detect []routeros.Reply) {
+func (w *Wan) build(detect []routeros.Reply) (*WANPayload, string) {
 	routes := w.read(wanRouteCmd, nil)
 
 	built := BuildWanRows(detect, w.dhcp, routes, w.addrs, w.ifaces, w.rates, w.manual)
@@ -590,8 +512,6 @@ func (w *Wan) applyLocked(detect []routeros.Reply) {
 	built.DetectionEnabled = len(detect) > 0
 	built.Available = MenuAvailable(w.detectAvailable)
 	built.Denied = w.denied
-	w.last = &built
-
 	// Byte totals are excluded: they move every tick on a live uplink and would
 	// defeat the dirty check on their own. Rates are included, rounded, because
 	// they are what changes visibly.
@@ -640,79 +560,16 @@ func (w *Wan) applyLocked(detect []routeros.Reply) {
 		built.UplinkSource, built.ManualNames,
 		wanStates(built.Wans), built.Available, built.Denied,
 		wanIfaceNames(built.Interfaces)})
-	if string(fp) == w.lastFp {
-		return
-	}
-	w.lastFp = string(fp)
-	EvWanUpdate.Emit(w.emit, wanRooms.Join(), built)
+	return &built, string(fp)
 }
 
-// Last is the most recent payload, replayed on page:focus.
-func (w *Wan) Last() *WANPayload {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.last
-}
+func (w *Wan) send(p WANPayload) { EvWanUpdate.Emit(w.emit, wanRooms.Join(), p) }
 
-// RefreshNow re-reads immediately, after an action.
-func (w *Wan) RefreshNow() {
-	if !w.ros.Connected() {
-		return
-	}
-	w.mu.Lock()
-	w.ticks = 0
-	w.mu.Unlock()
-	w.Tick()
-}
-
-func (w *Wan) Start() {
-	if w.ros.Connected() && !w.sched.scheduling() {
-		w.Tick()
-	}
-	w.sched.begin()
-}
-
-func (w *Wan) Reconnected() {
-	w.sched.end()
-	w.mu.Lock()
-	w.lastFp = ""
-	w.ticks = 0
+// reset drops the latch and the refusal, which a permission change on the router
+// clears only for a new connection.
+func (w *Wan) reset() {
 	w.detectAvailable = nil
 	w.denied = false
-	w.mu.Unlock()
-	if !w.sched.scheduling() {
-		w.Tick()
-	}
-	w.sched.begin()
-}
-
-func (w *Wan) Suspend() { w.sched.end() }
-
-func (w *Wan) Resume() {
-	if w.ros.Connected() {
-		w.sched.begin()
-	}
-}
-
-func (w *Wan) Stop() {
-	w.sched.end()
-	w.mu.Lock()
-	w.lastFp = ""
-	w.mu.Unlock()
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (w *Wan) SetPollMs(ms int) {
-	w.pollMs.set(ms)
-	w.poll.retime()
-}
-
-// UseCache feeds BOTH halves: the 1.4 shared-read cache and the subscription.
-// Same cache, two uses.
-func (w *Wan) UseCache(c *roscache.Cache) {
-	w.cache = c
-	w.sched.useCache(c)
 }
 
 func wanStates(wans []WAN) []string {

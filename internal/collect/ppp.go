@@ -71,10 +71,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -221,26 +219,14 @@ type pppSample struct {
 }
 
 type PPP struct {
-	ros    Reader
-	emit   Emit
-	poll   *pollLoop
-	pollMs *pollInterval
-	// See scheduled.go: subscribes to /ppp/active, the live sessions.
-	sched scheduled
-	// cache coalesces reads shared with another collector; nil outside a live
-	// session, which is every test. See collect/cache.go.
-	cache *roscache.Cache
+	tableCore[PPPPayload]
+	emit Emit
 
-	mu       sync.Mutex
+	// prev is the last counter reading per session, which is what makes a rate.
 	prev     map[string]pppSample
-	sessions []PPPSession
 	secrets  []PPPSecret
 	profiles []PPPProfile
 	servers  []PPPServer
-	ticks    int
-	lastFP   string
-	lastEmit time.Time
-	last     *PPPPayload
 	// nil = unprobed, false = this router has no such menu, stop asking.
 	activeAvail  *bool
 	profileAvail *bool
@@ -249,15 +235,15 @@ type PPP struct {
 }
 
 func NewPPP(ros Reader, emit Emit, pollMs int) *PPP {
+	p := &PPP{emit: emit, prev: map[string]pppSample{}}
 	// The Node signature is clampPoll(raw, def, hi, lo) and the call is
 	// (pollMs, 5000, 60000, 2000). Reordered for this side's (raw, def, lo, hi).
-	ms := clampPoll(pollMs, 5000, 2000, 60000)
-	p := &PPP{ros: ros, emit: emit, pollMs: newPollInterval(ms), prev: map[string]pppSample{}}
-	p.poll = newPollLoop(func() { p.Tick() },
-		func() time.Duration { return time.Duration(ms) * time.Millisecond })
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback.
-	p.sched = scheduled{loop: p.poll, menu: pppActiveCmd.Path, fields: fieldsOf(pppActiveCmd), apply: p.apply,
-		cadence: func() time.Duration { return time.Duration(ms) * time.Millisecond }}
+	// Subscribed to /ppp/active, the live sessions; the config tables are the
+	// slow lane.
+	p.setup(p, ros, pollMs, tableSpec{
+		cmd: pppActiveCmd, poll: [3]int{5000, 2000, 60000},
+		slowEvery: pppConfigEvery, heartbeat: pppHeartbeat,
+	})
 	return p
 }
 
@@ -294,37 +280,12 @@ func pppLimit(v string) *int {
 	return &n
 }
 
-// read fetches one menu, latching the flag off when the router says the menu
-// does not exist.
-//
-// LATCHED OFF DELIBERATELY: a router without PPP should be asked once, not every
-// five seconds for ever. Any other error leaves the flag alone, because a
-// timeout is not evidence that the menu is absent.
+// read runs one menu THROUGH THE CACHE: `vpn` reads /ppp/active too, and reads
+// it with no proplist, so the union on that menu widens to the whole row. The
+// other three menus here have this collector alone and are unaffected.
 func (p *PPP) read(cmd routeros.Cmd, flag **bool) []routeros.Reply {
-	if *flag != nil && !**flag {
-		return nil
-	}
-	// THROUGH THE CACHE: `vpn` reads /ppp/active too, and reads it with no
-	// proplist, so the union on that menu widens to the whole row. The other
-	// three menus here have this collector alone and are unaffected.
-	rows, err := readVia(p.cache, p.ros, cmd, p.pollMs.duration())
-	if err != nil {
-		msg := strings.ToLower(err.Error())
-		if strings.Contains(msg, "no such") || strings.Contains(msg, "unknown command") {
-			no := false
-			*flag = &no
-		}
-		return nil
-	}
-	yes := true
-	*flag = &yes
-	out := make([]routeros.Reply, 0, len(rows))
-	for _, r := range rows {
-		if len(r) > 0 {
-			out = append(out, r)
-		}
-	}
-	return out
+	rows, _ := readOptional(p.readShared, cmd, flag)
+	return rows
 }
 
 // ParsePPPSessions turns /ppp/active rows into sessions with derived rates.
@@ -451,47 +412,31 @@ func (p *PPP) loadConfig() {
 	p.profiles, p.servers, p.secrets = profiles, servers, secrets
 }
 
-func (p *PPP) Tick() {
-	if !p.ros.Connected() {
-		return
+// derive is the live sessions, with the config tables on the slow lane. An
+// active-session menu this router does not have, or refuses, is sent once as
+// unavailable and not asked again on this connection.
+func (p *PPP) derive(rows []routeros.Reply, err error, slow bool) (*PPPPayload, string) {
+	if err != nil && !menuGone(err) {
+		return nil, ""
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.ticks%pppConfigEvery == 0 {
+	latchMenu(&p.activeAvail, err)
+	if err != nil {
+		p.retire()
+		rows = nil
+	}
+	if slow {
 		p.loadConfig()
 	}
-	p.ticks++
-	p.applyLocked(p.read(pppActiveCmd, &p.activeAvail))
+	return p.build(rows)
 }
 
-// apply is what the scheduler calls with the active sessions, this collector's
-// live menu. The secrets, profiles and PPPoE servers keep their config cadence
-// here -- see scheduled.go on why a collector subscribes to ONE menu.
-func (p *PPP) apply(rows []routeros.Reply, err error) {
-	if !p.ros.Connected() {
-		return
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (p *PPP) send(pl PPPPayload) { EvPppUpdate.Emit(p.emit, pppRooms.Join(), pl) }
 
-	if err != nil {
-		// The latch `read` would have set, derived from the scheduler's error.
-		if menuMissing(err) {
-			no := false
-			p.activeAvail = &no
-		}
-		return
-	}
-	if p.activeAvail == nil {
-		yes := true
-		p.activeAvail = &yes
-	}
-	if p.ticks%pppConfigEvery == 0 {
-		p.loadConfig()
-	}
-	p.ticks++
-	p.applyLocked(rows)
+// reset forgets the counter samples and every latch. A router that has just come
+// back may be a different build.
+func (p *PPP) reset() {
+	clear(p.prev)
+	p.activeAvail, p.profileAvail, p.serverAvail, p.secretAvail = nil, nil, nil, nil
 }
 
 // PPPInput is one tick's worth of the outside world, for BuildPPP.
@@ -581,21 +526,19 @@ func BuildPPP(in PPPInput) (*PPPPayload, []PPPSession, map[string]pppSample) {
 }
 
 // applyLocked builds and emits. The caller holds the lock.
-func (p *PPP) applyLocked(rows []routeros.Reply) {
+func (p *PPP) build(rows []routeros.Reply) (*PPPPayload, string) {
 	payload, sessions, nextPrev := BuildPPP(PPPInput{
 		Rows: rows, Prev: p.prev,
 		Secrets: p.secrets, Profiles: p.profiles, Servers: p.servers,
 		Available: p.activeAvail, PollMs: p.pollMs.ms(), Now: time.Now(),
 	})
-	p.sessions = sessions
 	// THE CARRIED STATE COMES BACK rather than having been written through the
 	// argument. See ParsePPPSessions.
 	p.prev = nextPrev
-	p.last = payload
 	secrets := payload.Secrets
 
 	var fp strings.Builder
-	for _, s := range p.sessions {
+	for _, s := range sessions {
 		fp.WriteString(s.ID + "|" + s.Name + "|" + s.Service + "|" + s.Address + "|" +
 			strconv.Itoa(s.RX) + "|" + strconv.Itoa(s.TX) + ";")
 	}
@@ -621,83 +564,5 @@ func (p *PPP) applyLocked(rows []routeros.Reply) {
 			sv.MaxSessions + "|" + sv.Auth + "|" + strconv.FormatBool(sv.Disabled) + ";")
 	}
 	fp.WriteString("|" + strconv.FormatBool(payload.Available))
-	// CHANGED, OR THE HEARTBEAT IS DUE. See pppHeartbeat: suppressing an
-	// unchanged frame is right, suppressing them all is what made an idle
-	// router's card claim to be stale.
-	now := time.Now()
-	if fp.String() == p.lastFP && now.Sub(p.lastEmit) < pppHeartbeat {
-		return
-	}
-	p.lastFP = fp.String()
-	p.lastEmit = now
-	EvPppUpdate.Emit(p.emit, pppRooms.Join(), *payload)
-}
-
-func (p *PPP) Last() *PPPPayload {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.last
-}
-
-// UseCache feeds BOTH halves: the 1.4 shared-read cache and the subscription.
-// Same cache, two uses.
-func (p *PPP) UseCache(rc *roscache.Cache) {
-	p.cache = rc
-	p.sched.useCache(rc)
-}
-
-func (p *PPP) Start() {
-	if !p.sched.scheduling() {
-		p.Tick()
-	}
-	p.sched.begin()
-}
-
-// Reconnected clears the rate baseline with everything else: a reconnect may be
-// a different router, and session byte counters restart in any case.
-func (p *PPP) Reconnected() {
-	p.sched.end()
-	p.mu.Lock()
-	clear(p.prev)
-	p.lastFP = ""
-	p.ticks = 0
-	p.activeAvail, p.profileAvail, p.serverAvail, p.secretAvail = nil, nil, nil, nil
-	p.mu.Unlock()
-	if !p.sched.scheduling() {
-		p.Tick()
-	}
-	p.sched.begin()
-}
-
-// RefreshNow re-reads everything at once, including the config tables.
-//
-// `ticks = 0` is what makes that true: the config menus — profiles, servers and
-// the secrets — are read only when `ticks%pppConfigEvery == 0`, so a plain Tick
-// would return the same subscriber list the write just changed. This is called
-// from the resource write path, which is the one moment the slow tables are
-// known to be stale.
-func (p *PPP) RefreshNow() {
-	if !p.ros.Connected() {
-		return
-	}
-	p.mu.Lock()
-	p.ticks = 0
-	p.mu.Unlock()
-	p.Tick()
-}
-
-func (p *PPP) Suspend() { p.sched.end() }
-func (p *PPP) Resume()  { p.sched.begin() }
-func (p *PPP) Stop() {
-	p.sched.end()
-	p.mu.Lock()
-	p.lastFP = ""
-	p.mu.Unlock()
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (p *PPP) SetPollMs(ms int) {
-	p.pollMs.set(ms)
-	p.poll.retime()
+	return payload, fp.String()
 }

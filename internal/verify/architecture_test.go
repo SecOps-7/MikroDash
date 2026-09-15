@@ -208,13 +208,17 @@ func registryCount(t *testing.T, pred func(archCollector) bool) int {
 
 // collectorFilesWithALifecycle counts the files that implement a collector.
 //
-// `Start` OR `Resume`: `packages` and `routing` are page-gated and declare no
+// `Start` OR `Resume`: `packages` and `routing` are page-gated and declared no
 // Start at all, which is the same omission that hid them from the derivations
 // ledger until 2026-09-10.
+//
+// OR THE TABLE CORE EMBEDDED: a table collector's lifecycle is promoted from
+// `tableCore` (internal/collect/table.go), so its file declares none of those
+// methods. table.go itself declares them on a lowercase type and is not counted.
 func collectorFilesWithALifecycle(t *testing.T) []string {
 	t.Helper()
 	dir := filepath.Join(repoRoot(t), "internal", "collect")
-	re := regexp.MustCompile(`(?m)^func \([a-z]+ \*[A-Z]\w*\) (?:Start|Resume)\(\)`)
+	re := regexp.MustCompile(`(?m)^func \([a-z]+ \*[A-Z]\w*\) (?:Start|Resume)\(\)|^\ttableCore\[\w+\]$`)
 	var out []string
 	for _, name := range collectGoFiles(t, dir) {
 		if re.MatchString(mustRead(t, filepath.Join(dir, name))) {

@@ -139,7 +139,10 @@ func TestEverySharedMenuIsRoutedOrExplained(t *testing.T) {
 			continue
 		}
 		for _, f := range files {
-			if !strings.Contains(mustRead(t, filepath.Join(dir, f)), "readVia(") {
+			// `readShared` is the table core's readVia at the collector's interval
+			// (internal/collect/table.go), so a table collector routes through it.
+			src := mustRead(t, filepath.Join(dir, f))
+			if !strings.Contains(src, "readVia(") && !strings.Contains(src, "readShared") {
 				t.Errorf("%s is marked routed, but %s neither calls readVia, subscribes "+
 					"to it, nor joins a shared fill. Either it stopped reading through the "+
 					"cache or the entry is wrong.", menu, f)
@@ -268,8 +271,10 @@ func subscribedMenus(t *testing.T, dir string) map[string]string {
 	}
 	// `xxxCmd = routeros.Cmd{Path: "/menu"` — the declaration, per file.
 	decl := regexp.MustCompile(`(\w+)\s*=\s*routeros\.Cmd\{\s*Path:\s*"(/[^"]+)"`)
-	// `menu: xxxCmd.Path` inside a scheduled literal.
-	sub := regexp.MustCompile(`menu:\s*(\w+)\.Path`)
+	// `menu: xxxCmd.Path` inside a scheduled literal, or `cmd: xxxCmd,` inside a
+	// table collector's tableSpec (internal/collect/table.go), which subscribes to
+	// that command's menu.
+	sub := regexp.MustCompile(`menu:\s*(\w+)\.Path|\bcmd:\s*(\w+),`)
 
 	out := map[string]string{}
 	for _, e := range entries {
@@ -283,7 +288,7 @@ func subscribedMenus(t *testing.T, dir string) map[string]string {
 			paths[m[1]] = m[2]
 		}
 		for _, m := range sub.FindAllStringSubmatch(src, -1) {
-			if p, ok := paths[m[1]]; ok {
+			if p, ok := paths[m[1]+m[2]]; ok {
 				out[p] = n
 			}
 		}

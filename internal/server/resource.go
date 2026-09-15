@@ -1201,9 +1201,9 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 			cn.rsession.IPAddresses().RefreshNow()
 		}
 	case "netwatch":
-		// Tick reads the menu directly, so the table shows the router's answer.
+		// RefreshNow re-reads past the cache, so the table shows the router's answer.
 		if cn.rsession.CollectorEnabled("netwatch") {
-			cn.rsession.Netwatch().Tick()
+			cn.rsession.Netwatch().RefreshNow()
 		}
 	case "interfaces":
 		if cn.rsession.CollectorEnabled("ifStatus") {

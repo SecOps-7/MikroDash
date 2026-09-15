@@ -231,8 +231,8 @@ func (s *stubReader) Connected() bool {
 func TestSetPollMsRetimesARunningCollector(t *testing.T) {
 	r := &stubReader{ticks: make(chan struct{}, 8)}
 	s := NewSystem(r, hub.Relay{}, 60000)
-	s.loop.start()
-	t.Cleanup(s.loop.stop)
+	s.poll.start()
+	t.Cleanup(s.poll.stop)
 
 	<-r.ticks // the immediate first run
 
@@ -361,6 +361,9 @@ func TestEveryMappedTypeActuallyHasTheMethod(t *testing.T) {
 		t.Fatal(err)
 	}
 	re := regexp.MustCompile(`func \(\w+ \*(\w+)\) SetPollMs\(`)
+	// A table collector's setter is the core's, promoted by embedding it as the
+	// struct's first field (table.go).
+	embeds := regexp.MustCompile(`(?m)^type (\w+) struct \{\n\ttableCore\[`)
 	for _, f := range files {
 		if strings.HasSuffix(f, "_test.go") {
 			continue
@@ -370,6 +373,9 @@ func TestEveryMappedTypeActuallyHasTheMethod(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, m := range re.FindAllStringSubmatch(string(src), -1) {
+			setters[m[1]] = true
+		}
+		for _, m := range embeds.FindAllStringSubmatch(string(src), -1) {
 			setters[m[1]] = true
 		}
 	}

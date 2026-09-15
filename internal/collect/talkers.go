@@ -36,7 +36,6 @@ import (
 	"strings"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -72,25 +71,9 @@ var talkersCmd = routeros.Cmd{
 
 // Talkers is the collector.
 type Talkers struct {
-	ros    Reader
-	emit   Emit
-	pollMs *pollInterval
-	topN   int
-	// streamMode only decides what PollMs reports. This port polls; the live
-	// collector can also subscribe, and the two agree on everything else.
-	streamMode bool
-
-	// unavailable latches. See the header.
-	unavailable bool
-	lastFp      string
-	lastEmit    time.Time
-	last        *TalkersPayload
-	loop        *pollLoop
-	now         func() time.Time
-
-	// See scheduled.go: one menu, subscribed at a cadence, with the loop above
-	// as the no-cache fallback.
-	sched scheduled
+	tableCore[TalkersPayload]
+	emit Emit
+	topN int
 }
 
 // NewTalkers builds the collector. `topN` of 0 takes the original's default of
@@ -99,82 +82,26 @@ func NewTalkers(ros Reader, emit Emit, pollMs, topN int) *Talkers {
 	if topN <= 0 {
 		topN = 5
 	}
-	t := &Talkers{
-		ros:    ros,
-		emit:   emit,
-		pollMs: newPollInterval(clampPoll(pollMs, 3000, 1000, 300000)),
-		topN:   topN,
-		now:    time.Now,
-	}
-	t.loop = newPollLoop(func() { t.Tick() }, func() time.Duration {
-		return t.pollMs.duration()
+	t := &Talkers{emit: emit, topN: topN}
+	t.setup(t, ros, pollMs, tableSpec{
+		cmd: talkersCmd, poll: [3]int{3000, 1000, 300000}, heartbeat: talkersHeartbeat,
 	})
-	t.sched = scheduled{
-		loop: t.loop, menu: talkersCmd.Path, fields: fieldsOf(talkersCmd), apply: t.apply,
-		cadence: t.pollMs.duration,
-	}
 	return t
 }
 
-// Start reads once and then polls, matching Netwatch.Start. The immediate tick
-// is what stops the card sitting empty for a whole interval after a connect.
-// UseCache moves this collector onto the router's scheduler. Set once, before
-// Start; nil leaves it on its own poll loop.
-func (t *Talkers) UseCache(c *roscache.Cache) { t.sched.useCache(c) }
-
-func (t *Talkers) Start() {
-	if !t.sched.scheduling() {
-		t.Tick()
-	}
-	t.sched.begin()
-}
-
-func (t *Talkers) Suspend() { t.sched.end() }
-
-func (t *Talkers) Resume() {
-	if t.ros.Connected() {
-		t.sched.begin()
-	}
-}
-
-func (t *Talkers) Stop() { t.sched.end() }
-
-// Reconnected CLEARS the latch, and that is the opposite of what an earlier
-// version of this comment claimed.
+// reset has nothing of its own to forget: the unavailable latch is the core's
+// retire, which a reconnect clears.
 //
-// The live collector separates two wake-ups: `resume()` is an idle or page-gate
-// wake-up and deliberately respects the latch — "resume() is an idle wake-up,
-// not a feature re-probe" — while `probe()` is the deliberate re-probe that
-// clears it, called by the dormancy supervisor on backoff expiry and page focus.
-//
-// This port has no dormancy supervisor, and `Reconnected` is its re-probe. The
-// convention is set by every other collector here and stated in session.go: "a
-// reconnect must drop every 'this menu is absent' latch, because the usual
-// reason a connection dropped is an upgrade, and the router that came back may
-// not be the same build." A router that gained kid-control in that upgrade would
-// otherwise stay latched off until the process restarted.
-//
-// The fingerprint is cleared too, so the first payload after a reconnect is
-// always sent — a browser that reconnected has nothing on screen to compare it
-// against.
-func (t *Talkers) Reconnected() {
-	t.sched.end()
-	t.unavailable = false
-	t.lastFp = ""
-	if !t.sched.scheduling() {
-		t.Tick()
-	}
-	t.sched.begin()
-}
-
-func (t *Talkers) Last() *TalkersPayload { return t.last }
-
-func (t *Talkers) reportedPollMs() int {
-	if t.streamMode {
-		return 0
-	}
-	return t.pollMs.ms()
-}
+// Clearing it is the opposite of what an earlier version of this comment
+// claimed. The live collector separates two wake-ups: `resume()` is an idle or
+// page-gate wake-up and deliberately respects the latch — "resume() is an idle
+// wake-up, not a feature re-probe" — while `probe()` is the deliberate re-probe
+// that clears it. Here a reconnect is the re-probe, and the convention is stated
+// in session.go: "a reconnect must drop every 'this menu is absent' latch,
+// because the usual reason a connection dropped is an upgrade, and the router
+// that came back may not be the same build." A router that gained kid-control in
+// that upgrade would otherwise stay latched off until the process restarted.
+func (t *Talkers) reset() {}
 
 // mbps is `+(n / 1_000_000).toFixed(3)`.
 //
@@ -209,48 +136,6 @@ func intOf(v string) int {
 		return 0
 	}
 	return n
-}
-
-// Tick reads the menu once and emits if the reading changed.
-func (t *Talkers) Tick() {
-	if !t.ros.Connected() || t.unavailable {
-		return
-	}
-	t.apply(t.ros.Do(talkersCmd))
-}
-
-// apply is everything Tick does once it has the rows, and is what the scheduler
-// calls. Split so the polled and the scheduled paths cannot drift into handling
-// the unavailable latch differently.
-func (t *Talkers) apply(rows []routeros.Reply, err error) {
-	if t.unavailable {
-		return
-	}
-	if err != nil {
-		m := strings.ToLower(err.Error())
-		if strings.Contains(m, "unknown command") || strings.Contains(m, "no such") {
-			t.markUnavailable()
-			return
-		}
-		// Transient: leave the previous payload standing rather than replacing it
-		// with an empty one, which would read as "nobody is using bandwidth".
-		return
-	}
-	t.commit(rows)
-}
-
-func (t *Talkers) markUnavailable() {
-	if t.unavailable {
-		return
-	}
-	t.unavailable = true
-	t.loop.stop()
-	p := &TalkersPayload{
-		TS: t.now().UnixMilli(), Devices: []TalkerDevice{},
-		PollMs: t.reportedPollMs(), Available: false,
-	}
-	t.last = p
-	EvTalkersUpdate.Emit(t.emit, talkersRoom, *p)
 }
 
 // talkersRoom keeps its name; the VALUE comes from rooms.go.
@@ -317,27 +202,31 @@ func BuildTalkers(rows []routeros.Reply, topN int) []TalkerDevice {
 // the shortest threshold the card can have.
 const talkersHeartbeat = 10 * time.Second
 
-func (t *Talkers) commit(rows []routeros.Reply) {
-	devices := BuildTalkers(rows, t.topN)
+// derive is the top devices. A router with no kid-control menu is sent once as
+// unavailable and retired. A transient failure leaves the previous payload
+// standing rather than replacing it with an empty one, which would read as
+// "nobody is using bandwidth".
+func (t *Talkers) derive(rows []routeros.Reply, err error, _ bool) (*TalkersPayload, string) {
 	now := t.now()
-
-	p := &TalkersPayload{
-		TS: now.UnixMilli(), Devices: devices,
-		PollMs: t.reportedPollMs(), Available: true,
+	if err != nil {
+		if !menuAbsent(err) {
+			return nil, ""
+		}
+		t.retire()
+		return &TalkersPayload{
+			TS: now.UnixMilli(), Devices: []TalkerDevice{}, PollMs: t.PollMs(), Available: false,
+		}, "unavailable"
 	}
-	t.last = p
-
+	devices := BuildTalkers(rows, t.topN)
 	// The fingerprint covers MAC and both rates but NOT the name, exactly as the
 	// original's does — a device renamed in Kid Control does not by itself
 	// justify a repaint, and the next real change carries the new name with it.
-	fp := talkersFingerprint(devices)
-	if fp == t.lastFp && now.Sub(t.lastEmit) < talkersHeartbeat {
-		return
-	}
-	t.lastFp = fp
-	t.lastEmit = now
-	EvTalkersUpdate.Emit(t.emit, talkersRoom, *p)
+	return &TalkersPayload{
+		TS: now.UnixMilli(), Devices: devices, PollMs: t.PollMs(), Available: true,
+	}, talkersFingerprint(devices)
 }
+
+func (t *Talkers) send(p TalkersPayload) { EvTalkersUpdate.Emit(t.emit, talkersRoom, p) }
 
 func talkersFingerprint(devices []TalkerDevice) string {
 	type fpRow struct {
@@ -354,11 +243,4 @@ func talkersFingerprint(devices []TalkerDevice) string {
 		return ""
 	}
 	return string(b)
-}
-
-// SetPollMs applies a new poll period to a running collector.
-// See `System.SetPollMs` for why both halves are needed.
-func (t *Talkers) SetPollMs(ms int) {
-	t.pollMs.set(ms)
-	t.loop.retime()
 }

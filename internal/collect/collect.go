@@ -237,6 +237,14 @@ func (p *pollLoop) retime() {
 	p.schedule(p.bounded())
 }
 
+// ran records a read made outside the loop, so a start that follows it waits
+// out the interval instead of reading again at once.
+func (p *pollLoop) ran() {
+	p.mu.Lock()
+	p.lastRun = time.Now()
+	p.mu.Unlock()
+}
+
 func (p *pollLoop) stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()

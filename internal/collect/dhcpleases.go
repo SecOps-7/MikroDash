@@ -43,7 +43,6 @@ import (
 	"sync"
 	"time"
 
-	"mikrodash/internal/roscache"
 	"mikrodash/internal/routeros"
 )
 
@@ -95,15 +94,11 @@ type serverMeta struct{ iface, vlanID string }
 
 // DHCPLeases is the collector.
 type DHCPLeases struct {
-	ros  Reader
+	tableCore[LeasesPayload]
 	emit Emit
-	poll *pollLoop
-	// cache coalesces reads shared with another collector; nil outside a live
-	// session, which is every test. See collect/cache.go.
-	cache *roscache.Cache
-	// See scheduled.go: subscribes to the lease table.
-	sched scheduled
 
+	// mu guards the tables below, which LeaseIPs and UsedLeaseIPs serve to other
+	// collectors while a reading may be replacing them.
 	mu sync.Mutex
 	// order is the IPs in the order first seen; byIP is the lease behind each.
 	// Together they are the JavaScript Map this payload depends on.
@@ -111,30 +106,17 @@ type DHCPLeases struct {
 	byIP   map[string]Lease
 	byMAC  map[string]string // mac → ip, for the name lookups other pages make
 	server map[string]serverMeta
-	last   *LeasesPayload
 }
 
 func NewDHCPLeases(ros Reader, emit Emit, pollMs int) *DHCPLeases {
 	d := &DHCPLeases{
-		ros: ros, emit: emit,
+		emit: emit,
 		byIP: map[string]Lease{}, byMAC: map[string]string{},
 		server: map[string]serverMeta{},
 	}
 	// The bounds src/collectors/dhcpLeases.js applies: a ten-minute default,
 	// because this is a table of configuration rather than a live gauge.
-	ms := clampPoll(pollMs, 600000, 500, 600000)
-	d.poll = newPollLoop(func() { d.RefreshNow() },
-		func() time.Duration { return time.Duration(ms) * time.Millisecond })
-	// AFTER the loop: `scheduled` holds it as the no-cache fallback. The
-	// server/VLAN map is refreshed before each scheduled read, because a
-	// reservation on a server this process has not seen before needs it -- which
-	// is the reason RefreshNow does the whole read rather than just the leases.
-	d.sched = scheduled{loop: d.poll, menu: dhcpLeasesCmd.Path, fields: fieldsOf(dhcpLeasesCmd),
-		apply: func(rows []routeros.Reply, err error) {
-			d.loadServerMap()
-			d.apply(rows, err)
-		},
-		cadence: func() time.Duration { return time.Duration(ms) * time.Millisecond }}
+	d.setup(d, ros, pollMs, tableSpec{cmd: dhcpLeasesCmd, poll: [3]int{600000, 500, 600000}})
 	return d
 }
 
@@ -324,27 +306,17 @@ func BuildLeases(order []string, byIP map[string]Lease,
 	}
 }
 
-// RefreshNow re-reads everything and emits.
-//
-// It is also what a write calls, and rebuilding the server map is the point of
-// doing the whole read rather than just the leases: a reservation created on a
-// server this process had not seen before needs it.
-func (d *DHCPLeases) RefreshNow() {
-	if !d.ros.Connected() {
-		return
-	}
-	d.loadServerMap()
-	d.apply(d.ros.Do(dhcpLeasesCmd))
-}
-
 // apply is what the scheduler calls with the lease table, and is everything
 // RefreshNow does once it has the rows. The server map keeps its own read, which
 // on the scheduled path happens in `preRead` below.
-func (d *DHCPLeases) apply(rows []routeros.Reply, err error) {
+func (d *DHCPLeases) derive(rows []routeros.Reply, err error, _ bool) (*LeasesPayload, string) {
 	if err != nil {
 		log.Printf("[leases] load failed: %v", err)
-		return
+		return nil, ""
 	}
+	// The server/VLAN map first: a reservation on a server this process has not
+	// seen before needs it.
+	d.loadServerMap()
 	d.mu.Lock()
 	// A FULL READ REPLACES. It must not merge.
 	//
@@ -367,9 +339,13 @@ func (d *DHCPLeases) apply(rows []routeros.Reply, err error) {
 		d.applyLease(l)
 	}
 	payload := d.build()
-	d.last = payload
 	d.mu.Unlock()
+	return payload, ""
+}
 
+// send is the lease list, router-wide. NO FINGERPRINT: it is read every ten
+// minutes by default, and every reading is sent.
+func (d *DHCPLeases) send(p LeasesPayload) {
 	// PAGE-SCOPED, where the live app broadcasts to the whole router room.
 	// Nothing user-visible turns on it today: the only consumer here is the DHCP
 	// page, and a viewer on the Dashboard was served by Node when this was written. When
@@ -387,15 +363,11 @@ func (d *DHCPLeases) apply(rows []routeros.Reply, err error) {
 	//
 	// Measured 2026-08-29 by comparing the two dashboards nine seconds after
 	// sign-in, after the operator reported cards with no data.
-	EvLeasesList.Emit(d.emit, "", *payload)
+	EvLeasesList.Emit(d.emit, "", p)
 }
 
-// Last is the payload a page focus replays.
-func (d *DHCPLeases) Last() *LeasesPayload {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.last
-}
+// reset has nothing to forget: a full reading replaces every table.
+func (d *DHCPLeases) reset() {}
 
 // LeaseIPs is every address currently known, whatever its state. dhcpNetworks
 // counts these per subnet.
@@ -443,30 +415,4 @@ func (d *DHCPLeases) UsedLeaseIPs() []string {
 		out = append(out, ip)
 	}
 	return out
-}
-
-func (d *DHCPLeases) Start() {
-	if !d.sched.scheduling() {
-		d.RefreshNow()
-	}
-	d.sched.begin()
-}
-
-func (d *DHCPLeases) Reconnected() {
-	d.sched.end()
-	if !d.sched.scheduling() {
-		d.RefreshNow()
-	}
-	d.sched.begin()
-}
-
-func (d *DHCPLeases) Suspend() { d.sched.end() }
-func (d *DHCPLeases) Resume()  { d.sched.begin() }
-func (d *DHCPLeases) Stop()    { d.sched.end() }
-
-// UseCache feeds BOTH halves: the 1.4 shared-read cache and the subscription.
-// Same cache, two uses.
-func (d *DHCPLeases) UseCache(rc *roscache.Cache) {
-	d.cache = rc
-	d.sched.useCache(rc)
 }

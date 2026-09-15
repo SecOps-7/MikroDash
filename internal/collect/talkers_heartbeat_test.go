@@ -21,7 +21,7 @@ func TestAQuietRoutersTalkersStillArrive(t *testing.T) {
 	clock := time.Unix(1_800_000_000, 0)
 	c.now = func() time.Time { return clock }
 	poll := func() {
-		c.commit([]routeros.Reply{}) // nobody using bandwidth: the same empty list every time
+		c.apply([]routeros.Reply{}, nil) // nobody using bandwidth: the same empty list every time
 		clock = clock.Add(3 * time.Second)
 	}
 

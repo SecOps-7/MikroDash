@@ -114,19 +114,19 @@ func (s *Session) targets() map[string]collectorTarget {
 			return p
 		}
 		return nil
-	}, s.dns.Suspend, s.dns.Resume, s.dns.RefreshNow)
+	}, func() { s.dns.Suspend() }, func() { s.dns.Resume() }, func() { s.dns.RefreshNow() })
 	add("ipAddresses", func() any {
 		if p := s.ipAddresses.Last(); p != nil {
 			return p
 		}
 		return nil
-	}, s.ipAddresses.Suspend, s.ipAddresses.Resume, s.ipAddresses.RefreshNow)
+	}, func() { s.ipAddresses.Suspend() }, func() { s.ipAddresses.Resume() }, func() { s.ipAddresses.RefreshNow() })
 	add("bridges", func() any {
 		if p := s.bridges.Last(); p != nil {
 			return p
 		}
 		return nil
-	}, s.bridges.Suspend, s.bridges.Resume, s.bridges.RefreshNow)
+	}, func() { s.bridges.Suspend() }, func() { s.bridges.Resume() }, func() { s.bridges.RefreshNow() })
 	add("vlans", func() any {
 		if p := s.vlans.Last(); p != nil {
 			return p
@@ -138,25 +138,25 @@ func (s *Session) targets() map[string]collectorTarget {
 			return p
 		}
 		return nil
-	}, s.wan.Suspend, s.wan.Resume, s.wan.RefreshNow)
+	}, func() { s.wan.Suspend() }, func() { s.wan.Resume() }, func() { s.wan.RefreshNow() })
 	add("packages", func() any {
 		if p := s.packages.Last(); p != nil {
 			return p
 		}
 		return nil
-	}, s.packages.Suspend, s.packages.Resume, s.packages.RefreshNow)
+	}, func() { s.packages.Suspend() }, func() { s.packages.Resume() }, func() { s.packages.RefreshNow() })
 	add("routing", func() any {
 		if p := s.routing.Last(); p != nil {
 			return p
 		}
 		return nil
-	}, s.routing.Suspend, s.routing.Resume, s.routing.RefreshNow)
+	}, func() { s.routing.Suspend() }, func() { s.routing.Resume() }, func() { s.routing.RefreshNow() })
 	add("ppp", func() any {
 		if p := s.ppp.Last(); p != nil {
 			return p
 		}
 		return nil
-	}, s.ppp.Suspend, s.ppp.Resume, s.ppp.RefreshNow)
+	}, func() { s.ppp.Suspend() }, func() { s.ppp.Resume() }, func() { s.ppp.RefreshNow() })
 	add("vpn", func() any {
 		if p := s.vpn.Last(); p != nil {
 			return p
@@ -168,13 +168,13 @@ func (s *Session) targets() map[string]collectorTarget {
 			return p
 		}
 		return nil
-	}, s.rosUsers.Suspend, s.rosUsers.Resume, s.rosUsers.RefreshNow)
+	}, func() { s.rosUsers.Suspend() }, func() { s.rosUsers.Resume() }, func() { s.rosUsers.RefreshNow() })
 	add("queues", func() any {
 		if p := s.queues.Last(); p != nil {
 			return p
 		}
 		return nil
-	}, s.queues.Suspend, s.queues.Resume, s.queues.RefreshNow)
+	}, func() { s.queues.Suspend() }, func() { s.queues.Resume() }, func() { s.queues.RefreshNow() })
 	add("firewall", func() any {
 		if p := s.firewall.Last(); p != nil {
 			return p
@@ -192,13 +192,13 @@ func (s *Session) targets() map[string]collectorTarget {
 			return p
 		}
 		return nil
-	}, s.capsman.Suspend, s.capsman.Resume, s.capsman.RefreshNow)
+	}, func() { s.capsman.Suspend() }, func() { s.capsman.Resume() }, func() { s.capsman.RefreshNow() })
 	add("netwatch", func() any {
 		if p := s.netwatch.Last(); p != nil {
 			return p
 		}
 		return nil
-	}, s.netwatch.Suspend, s.netwatch.Resume, s.netwatch.Tick)
+	}, func() { s.netwatch.Suspend() }, func() { s.netwatch.Resume() }, func() { s.netwatch.RefreshNow() })
 	add("ifStatus", func() any {
 		if p := s.ifStatus.Last(); p != nil {
 			return p
@@ -228,7 +228,7 @@ func (s *Session) targets() map[string]collectorTarget {
 			return p
 		}
 		return nil
-	}, s.talkers.Suspend, s.talkers.Resume, s.talkers.Tick)
+	}, func() { s.talkers.Suspend() }, func() { s.talkers.Resume() }, func() { s.talkers.RefreshNow() })
 	add("conns", func() any {
 		if p := s.conns.Last(); p != nil {
 			return p
@@ -240,13 +240,13 @@ func (s *Session) targets() map[string]collectorTarget {
 			return p
 		}
 		return nil
-	}, s.dhcpLeases.Suspend, s.dhcpLeases.Resume, s.dhcpLeases.RefreshNow)
+	}, func() { s.dhcpLeases.Suspend() }, func() { s.dhcpLeases.Resume() }, func() { s.dhcpLeases.RefreshNow() })
 	add("dhcpNetworks", func() any {
 		if p := s.dhcpNetworks.Last(); p != nil {
 			return p
 		}
 		return nil
-	}, s.dhcpNetworks.Suspend, s.dhcpNetworks.Resume, s.dhcpNetworks.RefreshNow)
+	}, func() { s.dhcpNetworks.Suspend() }, func() { s.dhcpNetworks.Resume() }, func() { s.dhcpNetworks.RefreshNow() })
 	// `Last()` returns a SLICE here, not a pointer, so the nil-into-interface
 	// trap the other entries guard against does not apply — but an empty ring
 	// must still read as "nothing reported" rather than as a report of nothing.
@@ -267,7 +267,7 @@ func (s *Session) targets() map[string]collectorTarget {
 			return ix
 		}
 		return nil
-	}, s.arp.Suspend, s.arp.Resume, s.arp.Tick)
+	}, func() { s.arp.Suspend() }, func() { s.arp.Resume() }, func() { s.arp.RefreshNow() })
 	return t
 }
 

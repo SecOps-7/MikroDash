@@ -79,7 +79,8 @@ func TestBuildARPNormalisesMACCase(t *testing.T) {
 	if _, ok := ix.ByMAC["AA:BB:CC:DD:EE:FF"]; !ok {
 		t.Fatalf("a lower-case row is not reachable by its upper-case MAC: %v", ix.ByMAC)
 	}
-	a := &ARP{ix: ix}
+	a := &ARP{}
+	a.last = ix
 	if got := a.IPForMAC("aa:bb:cc:DD:ee:FF"); got != "10.0.0.5" {
 		t.Errorf("IPForMAC is case-sensitive: %q", got)
 	}

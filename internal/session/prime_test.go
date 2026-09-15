@@ -43,7 +43,11 @@ func TestEveryTargetCanBeRefreshed(t *testing.T) {
 	// The property is unchanged and the exceptions are now named rather than
 	// avoided. `TestEveryPrimeTargetCanActuallyRefresh` fails a nil that is NOT
 	// recorded, and a recording for a key the table does not hold.
-	refreshers := strings.Count(src, ".RefreshNow)") + strings.Count(src, ".Tick)")
+	// A table collector's refresh is a closure, `func() { s.x.RefreshNow() }`: its
+	// method is promoted from the embedded core, and a promoted method value
+	// dereferences a collector the session did not build (dormancy_targets.go).
+	refreshers := strings.Count(src, ".RefreshNow)") + strings.Count(src, ".Tick)") +
+		strings.Count(src, ".RefreshNow() })")
 	if want := len(targetKeys) - len(noPrimePath); refreshers != want {
 		t.Errorf("%d of %d targets have a refresh closure, expected %d (%d recorded in "+
 			"noPrimePath). A target without one is skipped by primeAll and by the "+
