@@ -711,7 +711,7 @@
           <select class="sform-input" id="rtrModalPrimarySite" aria-label="Primary site, used for the map location">
             <option value="">— No site —</option>
           </select>
-          <div class="form-hint">Decides where this device is drawn on the map when it has no location of its own. To change which sites it belongs to, use Settings → Access Management → Sites.</div>
+          <p class="rtr-note">Decides where this device is drawn on the map when it has no location of its own. To change which sites it belongs to, use Settings → Access Management → Sites.</p>
         </div>
         <!-- Location (issue #96). Deliberately a search, not two number boxes:
              coordinates are derived from the town, never typed. Left blank the
@@ -743,7 +743,7 @@
         </div>
         <div class="sform-row sform-group">
           <div>
-            <label class="sform-label" for="rtrModalBwDown">Bandwidth Down (capacity)</label>
+            <label class="sform-label" for="rtrModalBwDown">Download capacity</label>
             <div style="display:flex;gap:.3rem">
               <input class="sform-input" id="rtrModalBwDown" type="number" min="1" step="1" value="1" style="flex:1" aria-label="Download capacity, Mbps">
               <input type="hidden" id="rtrModalBwDownUnit" value="gbps">
@@ -754,7 +754,7 @@
             </div>
           </div>
           <div>
-            <label class="sform-label" for="rtrModalBwUp">Bandwidth Up (capacity)</label>
+            <label class="sform-label" for="rtrModalBwUp">Upload capacity</label>
             <div style="display:flex;gap:.3rem">
               <input class="sform-input" id="rtrModalBwUp" type="number" min="1" step="1" value="1" style="flex:1" aria-label="Upload capacity, Mbps">
               <input type="hidden" id="rtrModalBwUpUnit" value="gbps">
