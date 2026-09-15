@@ -159,7 +159,7 @@ Two mechanisms make it safe:
   table rather than a broken one.
 
 **One entry point, `JoinStream`, and a `Join` declares whether the menu is
-shared.** A nil `Merge` means single-owner: thirteen of the fourteen streamed
+shared.** A nil `Merge` means single-owner: fourteen of the fifteen streamed
 menus have exactly one consumer, and a second holder is *refused* rather than
 merged, because two collectors quietly fighting over one channel is a real bug
 class. A non-nil `Merge` means shared — it combines the holders' commands (the
@@ -429,7 +429,7 @@ the document quietly lying.
 | disableable by the operator | 23 |
 | dormancy-eligible | 19 |
 | gated by demand (`session.TargetKeys`) | 26 |
-| menus enabled for stream delivery | 14 |
+| menus enabled for stream delivery | 15 |
 | collectors declaring rooms | 24 |
 | `keepAliveFor` entries | 3 |
 | collectors with an extracted derivation | 25 |

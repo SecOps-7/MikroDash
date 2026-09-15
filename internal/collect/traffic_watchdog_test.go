@@ -23,7 +23,7 @@ import (
 // ── WHAT MOVED, AND WHAT THESE TESTS ASSERT NOW ────────────────────────────
 //
 // The channel is shared with `ifStatus` since B.7, so the RESTARTING is
-// `roscache`'s: one watchdog for all fourteen streamed menus instead of a second
+// `roscache`'s: one watchdog for all fifteen streamed menus instead of a second
 // one here racing it. `internal/roscache` owns those tests.
 //
 // Two jobs stayed, because only this collector can do them:

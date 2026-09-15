@@ -118,8 +118,18 @@ func subscribedMenusInCollect(t *testing.T) map[string]bool {
 // automatic switch was rejected in favour of.
 func TestAPinnedPollRouterIsNotOverriddenByTheTable(t *testing.T) {
 	const menu, key = "/ip/dns/print", "dns"
+	// RESTORED, NOT DELETED. This was written when the table was empty, and the
+	// delete removed the real dns line for every test that ran after it, which
+	// TestEveryStreamableMenusOwnerCanResolveAStream then reported as missing.
+	prev, had := streamableMenus[menu]
 	streamableMenus[menu] = key
-	defer delete(streamableMenus, menu)
+	defer func() {
+		if had {
+			streamableMenus[menu] = prev
+		} else {
+			delete(streamableMenus, menu)
+		}
+	}()
 
 	s := &Session{}
 	s.eff.Store(&collection.Resolved{Stream: map[string]bool{key: false}}) // the operator pinned this router
@@ -137,5 +147,56 @@ func TestAPinnedPollRouterIsNotOverriddenByTheTable(t *testing.T) {
 	if s.streamsMenu("/ip/route/print") {
 		t.Error("a menu absent from the table streamed. The table is the gate that " +
 			"keeps B.4 to one collector at a time.")
+	}
+}
+
+// TestEveryStreamableMenusOwnerCanResolveAStream.
+//
+// A line in `streamableMenus` is half of the decision; the other half is
+// `Resolved.Stream[owner]`, and `collection.Resolve` can only answer true for a
+// collector that cannot poll or that has a `streamKey`. A line whose owner has
+// neither changes no delivery for any router while reading as enabled, and the
+// check above cannot see that: the menu is real and the owner exists.
+//
+// Found 2026-09-15 by checking the IP Addresses line on a live router, where the
+// Diagnostics card listed the menu as polled. `dns`, `rosusers` and `packages`
+// had been in the same state since they were added.
+//
+// A LEDGER, failing both ways: an unrecorded inert line fails, and so does a
+// recorded one whose owner has become able to stream.
+func TestEveryStreamableMenusOwnerCanResolveAStream(t *testing.T) {
+	inert := map[string]string{
+		"dns":         "no streamKey in the registry; making it stream is an open registry decision",
+		"rosusers":    "no streamKey in the registry; making it stream is an open registry decision",
+		"packages":    "no streamKey in the registry; making it stream is an open registry decision",
+		"ipAddresses": "no streamKey in the registry; making it stream is an open registry decision",
+	}
+	rows := map[string]collection.Collector{}
+	for _, c := range collection.Collectors() {
+		rows[c.Key] = c
+	}
+	seen := map[string]bool{}
+	for menu, key := range streamableMenus {
+		c, ok := rows[key]
+		if !ok {
+			continue // TestStreamableMenusAreRealAndOwned reports it
+		}
+		canStream := !c.Pollable || c.StreamKey != ""
+		_, recorded := inert[key]
+		switch {
+		case !canStream && !recorded:
+			t.Errorf("streamableMenus lists %q for %q, which has no streamKey and can poll, so "+
+				"collection.Resolve never lets it stream. The line changes no delivery.", menu, key)
+		case canStream && recorded:
+			t.Errorf("%q is recorded as unable to stream and now can; remove it from this ledger", key)
+		}
+		if recorded {
+			seen[key] = true
+		}
+	}
+	for key := range inert {
+		if !seen[key] {
+			t.Errorf("%q is recorded here and has no line in streamableMenus; remove the entry", key)
+		}
 	}
 }
