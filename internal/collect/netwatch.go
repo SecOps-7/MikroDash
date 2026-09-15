@@ -28,9 +28,9 @@ package collect
 // the fingerprint is there to prevent.
 
 import (
+	"encoding/json"
 	"log"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
@@ -55,10 +55,14 @@ type NetwatchHost struct {
 	// vpn.js:137 trims its own; the two collectors genuinely differ and the
 	// goldens record the difference, so do not unify them.
 	//
-	// It is deliberately absent from the emit fingerprint above: editing a
-	// comment must not cost a re-render, and nothing on the card draws it. It
-	// exists to feed the {{comment}} notification variable.
+	// It feeds the {{comment}} notification variable, and since the NetWatch
+	// page (#97) it is drawn and edited there, so it is in the emit fingerprint.
 	Comment string `json:"comment"`
+	// Disabled and Interval are for the NetWatch page, which shows and edits
+	// them. A disabled host is not probed, so alerting treats it as not yet
+	// probed rather than as down: see internal/alertwire.
+	Disabled bool   `json:"disabled"`
+	Interval string `json:"interval"`
 }
 
 // NetwatchPayload is `netwatch:update`. HOSTS FIRST, then ts — the field order
@@ -156,7 +160,7 @@ func normaliseNetwatch(r routeros.Reply) NetwatchHost {
 	}
 	return NetwatchHost{
 		ID: r[".id"], Host: r["host"], Type: typ, Status: status, Name: r["name"],
-		Comment: r["comment"],
+		Comment: r["comment"], Disabled: r["disabled"] == "true", Interval: r["interval"],
 	}
 }
 
@@ -209,16 +213,13 @@ func (n *Netwatch) apply(rows []routeros.Reply, err error) {
 
 	// ONLY id AND status. See the package note: a rename is invisible here on
 	// purpose.
-	var fp strings.Builder
-	for _, h := range hosts {
-		fp.WriteString(h.ID + ":" + h.Status + ";")
-	}
+	fp := netwatchFingerprint(hosts)
 	now := n.now()
-	if fp.String() == n.lastFP && n.last != nil && now.Sub(n.lastEmit) < netwatchHeartbeat {
+	if fp == n.lastFP && n.last != nil && now.Sub(n.lastEmit) < netwatchHeartbeat {
 		n.mu.Unlock()
 		return
 	}
-	n.lastFP = fp.String()
+	n.lastFP = fp
 	n.lastEmit = now
 	payload := &NetwatchPayload{Hosts: hosts, TS: time.Now().UnixMilli()}
 	n.last = payload
@@ -284,6 +285,15 @@ func netwatchID(r routeros.Reply) string {
 // Phase 4.1: no receiver, no I/O. ORDER-PRESERVING DEDUPLICATION BY ID, matching
 // what the collector did inline: a repeated id keeps the last row's values and
 // the first row's position.
+// netwatchFingerprint is EXTRACTED so it can be gated, like ifStatusFingerprint.
+// It was the id and status alone, which was right while the Dashboard card drew
+// nothing else. The NetWatch page draws and edits every field, and a field left
+// out would be re-read after a save, hash identically and never be emitted.
+func netwatchFingerprint(hosts []NetwatchHost) string {
+	b, _ := json.Marshal(hosts)
+	return string(b)
+}
+
 func BuildNetwatch(rows []routeros.Reply) []NetwatchHost {
 	order := make([]string, 0, len(rows))
 	byID := make(map[string]routeros.Reply, len(rows))

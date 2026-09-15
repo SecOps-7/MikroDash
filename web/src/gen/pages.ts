@@ -25,6 +25,7 @@ export const PAGES: readonly Page[] = [
   { key: "wan", title: "WAN", path: "wan" },
   { key: "packages", title: "Packages", path: "packages" },
   { key: "routing", title: "Routing", path: "routing" },
+  { key: "netwatch", title: "NetWatch", path: "netwatch" },
   { key: "dhcp", title: "DHCP", path: "dhcp" },
   { key: "ppp", title: "PPP", path: "ppp" },
   { key: "vpn", title: "VPN", path: "vpn" },

@@ -415,6 +415,12 @@ var addedSinceNode = map[string][]addedField{
 	"ifStatus": {
 		{Spec: "interfaces[].id", ProvenBy: "TestAnInterfaceCarriesItsRouterOSID"},
 	},
+	// Whether a host is disabled and how often it is probed, added 2026-09-15 for
+	// the NetWatch page (#97), which shows and edits both. Purely additive; the
+	// capture read the full row, so both are filled from the recording.
+	"netwatch": {
+		added("hosts[].disabled"), added("hosts[].interval"),
+	},
 	// The 802.11 generation a client negotiated. Added 2026-09-07 for the WiFi
 	// Clients page's Standard column: the Node app read the registration table's
 	// `band` and kept only the frequency half, so the generation was collected

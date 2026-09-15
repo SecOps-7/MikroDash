@@ -97,6 +97,7 @@ export const BOOL_FIELDS: readonly string[] = [
   "pageFirewall",
   "pageInterfaces",
   "pageLogs",
+  "pageNetwatch",
   "pagePackages",
   "pagePpp",
   "pageQueues",

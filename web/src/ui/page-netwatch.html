@@ -1,0 +1,25 @@
+  <div class="page-view" id="page-netwatch">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="netwatchPageCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">NetWatch</h3>
+            <span id="netwatchPageBadge" class="card-badge">0</span>
+          </div>
+          <div class="hdr-actions">
+            <span data-res-add="netwatch"></span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" style="max-height:640px;overflow-y:auto">
+            <table class="table table-vcenter mb-0">
+              <thead><tr><th style="width:80px">Status</th><th>Name</th><th>Host</th><th>Probe</th><th>Interval</th><th>Comment</th></tr></thead>
+              <tbody id="netwatchPageTable" data-res-rows="netwatch">
+                <tr><td colspan="6" class="empty-state">Waiting for NetWatch data&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

@@ -1154,6 +1154,11 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 		if cn.rsession.CollectorEnabled("capsman") {
 			cn.rsession.Capsman().RefreshNow()
 		}
+	case "netwatch":
+		// Tick reads the menu directly, so the table shows the router's answer.
+		if cn.rsession.CollectorEnabled("netwatch") {
+			cn.rsession.Netwatch().Tick()
+		}
 	case "interfaces":
 		if cn.rsession.CollectorEnabled("ifStatus") {
 			cn.rsession.IfStatus().RefreshNow()

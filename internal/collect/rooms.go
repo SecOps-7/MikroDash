@@ -71,7 +71,7 @@ var (
 	// nobody reads.
 	connsDetailRooms = Rooms{"page-connections"}
 	dnsRooms         = Rooms{"page-dns"}
-	netwatchRooms    = Rooms{"page-dashboard"}
+	netwatchRooms    = Rooms{"page-dashboard", "page-netwatch"}
 	firewallRooms    = Rooms{"page-firewall", "dash-card-firewall"}
 	ifStatusRooms    = Rooms{"page-interfaces", "page-network-topology", "dash-card-physports"}
 	logsRooms        = Rooms{"page-logs", "dash-card-logs"}

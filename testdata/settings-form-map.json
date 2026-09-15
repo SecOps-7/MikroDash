@@ -43,6 +43,7 @@
       "pageWan",
       "pageWifi",
       "pageWifiMap",
+      "pageNetwatch",
       "pageWireless",
       "pingEnabled"
     ],

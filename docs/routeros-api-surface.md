@@ -224,6 +224,7 @@ surface stays complete.
 | `/ip/firewall/nat` | fwNat | firewall | add, set, remove, move, enable, disable |
 | `/ip/firewall/raw` | fwRaw | firewall | add, set, remove, move, enable, disable |
 | `/ip/route` | route | routing | add, set, remove |
+| `/tool/netwatch` | netwatch | netwatch | add, set, remove (no scripts, no DNS record type) |
 | `/ipv6/route` | route6 | routing | add, set, remove |
 
 ## Proplists

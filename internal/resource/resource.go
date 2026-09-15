@@ -843,6 +843,41 @@ var BridgePort = &Resource{
 	},
 }
 
+// Netwatch is a host on the NetWatch page (#97). New in this port.
+//
+// ── NO SCRIPTS ──────────────────────────────────────────────────────────────
+//
+// `up-script`, `down-script` and `test-script` run as RouterOS's system user
+// with read, write, test and reboot policy. Offering them would let anybody with
+// NetWatch write on this page put code on the router, so they are not fields: a
+// save never sends them, and a row keeps whatever scripts it already has.
+//
+// ── NOR A DNS PROBE'S RECORD TYPE ───────────────────────────────────────────
+//
+// RouterOS documents no list of `record-type` values, and a select that misses
+// one rewrites the probe on save, which is the dnsStatic lesson in CLAUDE.md. A
+// DNS probe keeps its `dns-server` and `record-type`; the rest is editable.
+//
+// No guard: a probe watches a host, it is not a path to the router.
+var Netwatch = &Resource{
+	Key: "netwatch", Page: "netwatch", Label: "NetWatch Host",
+	Title: "NetWatch Host", Menu: "/tool/netwatch", Identity: []string{"host"},
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Clearable: true, Placeholder: "isp-gateway"},
+		{Name: "host", ROS: "host", Label: "Host", Type: TypeText, Required: true, Placeholder: "8.8.8.8",
+			Help: "The address to probe. For a DNS probe, the name to resolve."},
+		{Name: "type", ROS: "type", Label: "Probe", Type: TypeSelect, Required: true,
+			Options: []string{"simple", "icmp", "tcp-conn", "http-get", "https-get", "dns"}},
+		{Name: "port", ROS: "port", Label: "Port", Type: TypeInt, Min: intp(1), Max: intp(65535),
+			ShowIf: &ShowIf{Field: "type", In: []string{"tcp-conn", "http-get", "https-get"}}},
+		{Name: "interval", ROS: "interval", Label: "Interval", Type: TypeText, Placeholder: "10s",
+			Help: "How often to probe, in RouterOS time: 30s, 5m, 1h."},
+		{Name: "timeout", ROS: "timeout", Label: "Timeout", Type: TypeText, Placeholder: "1s"},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+}
+
 // Iface is any interface on the Interfaces page: its comment, and whether it is
 // enabled (#97). New in this port; the Node app had no equivalent.
 //
@@ -1085,6 +1120,7 @@ var byKey = map[string]*Resource{
 	BridgePort.Key:          BridgePort,
 	Vlan.Key:                Vlan,
 	Iface.Key:               Iface,
+	Netwatch.Key:            Netwatch,
 	WifiNet.Key:             WifiNet,
 	WlNet.Key:               WlNet,
 	WlSecProfile.Key:        WlSecProfile,

@@ -347,8 +347,16 @@ func tunnels(in []collect.Tunnel) []alert.VPNTunnel {
 func hosts(in []collect.NetwatchHost) []alert.NetwatchHost {
 	out := make([]alert.NetwatchHost, 0, len(in))
 	for _, h := range in {
+		// A DISABLED host is not probed, so its status says nothing about the host.
+		// Handed on as `unknown`, which the rule skips without touching its state:
+		// disabling a host from the NetWatch page cannot raise "down", and
+		// re-enabling it cannot raise "up" off a reading from before.
+		status := h.Status
+		if h.Disabled {
+			status = "unknown"
+		}
 		out = append(out, alert.NetwatchHost{
-			ID: h.ID, Host: h.Host, Name: h.Name, Status: h.Status,
+			ID: h.ID, Host: h.Host, Name: h.Name, Status: status,
 		})
 	}
 	return out

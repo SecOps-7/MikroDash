@@ -341,7 +341,7 @@ the rooms it emits to, and `—` means router-wide or nothing.
 | `firewall` | the table on screen | `BuildFirewallRule` | `page-firewall`, `dash-card-firewall` |
 | `ifStatus` | `/interface/print` | `BuildIfStatus` | `page-interfaces`, `page-network-topology`, `dash-card-physports` |
 | `logs` | — `/log/listen` | fold: `FoldLog` | `page-logs`, `dash-card-logs` |
-| `netwatch` | `/tool/netwatch/print` | `BuildNetwatch` | `page-dashboard` |
+| `netwatch` | `/tool/netwatch/print` | `BuildNetwatch` | `page-dashboard`, `page-netwatch` |
 | `packages` | `/system/package/print` | `BuildPackages` | `page-packages` |
 | `ping` | — `/tool/ping` | fold: `FoldPing` | `page-dashboard` |
 | `ppp` | `/ppp/active/print` | `ParsePPPSessions` | `page-ppp` |

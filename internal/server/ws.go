@@ -1007,6 +1007,15 @@ func (cn *conn) resumePage(page string) {
 			replay.TS = time.Now().UnixMilli()
 			collect.EvCapsmanUpdate.Send(cn.srv.hub, cn.c, replay)
 		}
+	// The NetWatch page (#97). The same collector feeds the Dashboard card, so it
+	// is often running already; the replay saves an empty table for a poll
+	// interval that can be a minute long.
+	case "netwatch":
+		if last := cn.rsession.Netwatch().Last(); last != nil {
+			replay := *last
+			replay.TS = time.Now().UnixMilli()
+			collect.EvNetwatchUpdate.Send(cn.srv.hub, cn.c, replay)
+		}
 	// interfaceStatus is the RATE SOURCE for five other collectors, so a bridges
 	// viewer who never opens this page would otherwise see every throughput
 	// column go blank. That used to be handled by never gating it at all; it is

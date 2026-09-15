@@ -597,6 +597,8 @@ export interface NetwatchHost {
   status: string;
   name: string;
   comment: string;
+  disabled: boolean;
+  interval: string;
 }
 
 export interface NetwatchPayload {

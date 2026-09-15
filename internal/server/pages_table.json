@@ -67,6 +67,11 @@
       "settingsKey": "pageRouting"
     },
     {
+      "key": "netwatch",
+      "title": "NetWatch",
+      "settingsKey": "pageNetwatch"
+    },
+    {
       "key": "ppp",
       "title": "PPP",
       "settingsKey": "pagePpp"

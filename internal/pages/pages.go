@@ -92,6 +92,8 @@ var All = []Page{
 	{Key: "wan", Title: "WAN", Collector: "wan"},
 	{Key: "packages", Title: "Packages", Collector: "packages"},
 	{Key: "routing", Title: "Routing", Collector: "routing"},
+	// The NetWatch page (#97). Its collector also feeds the Dashboard card.
+	{Key: "netwatch", Title: "NetWatch", Collector: "netwatch"},
 	// dhcp's owner is NOT disableable, so this page can never be emptied by
 	// turning a collector off. Deliberate: `conns` and `bandwidth` both read
 	// dhcpNetworks for LAN classification, so it is not the operator's to switch

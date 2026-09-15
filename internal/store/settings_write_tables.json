@@ -193,6 +193,7 @@
     "pageFirewall",
     "pageInterfaces",
     "pageLogs",
+    "pageNetwatch",
     "pagePackages",
     "pagePpp",
     "pageQueues",
