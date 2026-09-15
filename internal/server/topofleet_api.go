@@ -40,6 +40,7 @@ import (
 	"time"
 
 	"mikrodash/internal/collect"
+	"mikrodash/internal/routeros"
 	"mikrodash/internal/safe"
 )
 
@@ -73,13 +74,49 @@ func (s *Server) topoPeersGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ids := strings.Split(r.URL.Query().Get("routers"), ",")
-	targets := s.fleetTargets(sess, ids, "network-topology", "read")
+	targets, over := s.fleetTargets(sess, ids, "network-topology", "read")
+
+	// THE VIEWED ROUTER'S OWN ADDRESSES, WITHOUT WHICH THE MERGE CANNOT RUN.
+	//
+	// A peer's neighbour table names the viewed router like any other device, by
+	// MAC. The graph does not: its core node is keyed `core` and carries neither
+	// a MAC nor an identity — `BuildTopology` has no source for either. So the
+	// browser had no way to recognise the viewed router in a peer's answer, and
+	// the rule that decides what is BEHIND a peer had nothing to work from.
+	//
+	// Read here rather than polled, because that is what the rest of this
+	// endpoint does and it costs one command on a request nobody makes twice.
+	selfID := r.URL.Query().Get("self")
+	self := []string{}
+	if mine, _ := s.fleetTargets(sess, []string{selfID}, "network-topology", "read"); len(mine) == 1 {
+		self = s.routerMACs(r.Context(), mine[0].ID)
+	}
 
 	now := time.Now().UnixMilli()
 	out := fleetEach(r.Context(), targets, func(ctx context.Context, t fleetTarget) topoPeer {
 		return s.topoPeerOne(ctx, t, now)
 	})
-	writeJSON(w, map[string]any{"peers": out})
+	for _, t := range over {
+		out = append(out, topoPeer{ID: t.ID, Label: t.Label,
+			Error: "not read: too many routers in one request",
+			MACs:  []string{}, Neighbors: []collect.TopoNeighbor{}})
+	}
+	writeJSON(w, map[string]any{"peers": out, "self": self})
+}
+
+// routerMACs is every address one router answers to. Empty when it cannot be
+// read, which the page treats as "do not merge" rather than as "no matches".
+func (s *Server) routerMACs(ctx context.Context, routerID string) []string {
+	sn, drop, ok := s.fleetSession(ctx, routerID, topoFleetHold)
+	if !ok {
+		return []string{}
+	}
+	defer drop()
+	rows, err := sn.Exec(collect.PeerIfaceCmd())
+	if err != nil {
+		return []string{}
+	}
+	return macsOf(rows)
 }
 
 func (s *Server) topoPeerOne(ctx context.Context, t fleetTarget, now int64) topoPeer {
@@ -105,16 +142,23 @@ func (s *Server) topoPeerOne(ctx context.Context, t fleetTarget, now int64) topo
 	// it contributes nodes that cannot be attached to it, which is still more
 	// than the map had.
 	if ifaces, ierr := sn.Exec(collect.PeerIfaceCmd()); ierr == nil {
-		seen := map[string]bool{}
-		for _, row := range ifaces {
-			mac := strings.ToUpper(strings.TrimSpace(row["mac-address"]))
-			if mac == "" || seen[mac] {
-				continue
-			}
-			seen[mac] = true
-			peer.MACs = append(peer.MACs, mac)
-		}
+		peer.MACs = macsOf(ifaces)
 	}
 	peer.OK = true
 	return peer
+}
+
+// macsOf is the deduplicated addresses of one `/interface/print` answer.
+func macsOf(rows []routeros.Reply) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, row := range rows {
+		mac := strings.ToUpper(strings.TrimSpace(row["mac-address"]))
+		if mac == "" || seen[mac] {
+			continue
+		}
+		seen[mac] = true
+		out = append(out, mac)
+	}
+	return out
 }

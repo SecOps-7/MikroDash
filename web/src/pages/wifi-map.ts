@@ -260,6 +260,9 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   let labelFields: LabelFields =
     { ...LABEL_DEFAULT, ...lsGet<Partial<LabelFields>>('mkd_wifi_map_labels', {}) };
   let fixedSize = lsGet('mkd_wifi_map_fixed', true);
+  /** Did the last load actually answer? A plan that never arrived must not be
+   *  saved over: an empty canvas and a failed read look identical on screen. */
+  let loaded = false;
   /** Clients whose access point is not on the map, from the last render. */
   let unplacedCount = 0;
 
@@ -941,30 +944,53 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
     };
   }
 
+  /** Say something in the footer that the next render will take back. */
+  function note(msg: string): void {
+    const foot = el('wmFoot');
+    if (!foot || !msg) return;
+    foot.innerHTML = esc(msg);
+    window.setTimeout(renderStats, 6000);
+  }
+
   function load(): void {
     if (!routerID) return;
     fetch('/api/router-doc?kind=wifi-map&routerId=' + encodeURIComponent(routerID),
       { credentials: 'same-origin' })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('unreadable'))))
       .then((d) => {
         doc = adopt((d && d.doc) as WifiMapDoc | undefined);
         saved = JSON.parse(JSON.stringify(doc)) as WifiMapDoc;
+        loaded = true;
         dirty = false;
         syncFloors();
         syncChrome();
         render();
       })
-      .catch(() => { /* a plan that will not load leaves the page empty, not broken */ });
+      .catch(() => {
+        // A PLAN THAT WILL NOT LOAD LEAVES THE PAGE EMPTY, NOT BROKEN — and not
+        // saveable, because an empty canvas and a failed read look the same and
+        // one Save would replace the site plan with whatever is on screen.
+        loaded = false;
+        note('The stored plan could not be read, so saving is off until it can.');
+      });
   }
 
   function save(): void {
     if (!routerID) return;
+    if (!loaded) {
+      note('Not saving: the stored plan was never read, and this would replace it.');
+      return;
+    }
     fetch('/api/router-doc', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ routerId: routerID, kind: 'wifi-map', doc }),
     })
-      .then((r) => (r.ok ? r.json() : null))
+      // A REFUSAL IS NOT A SAVE. `r.ok` was not tested, so a 403 from a
+      // read-only grant — or a 500 — landed on the success branch: the star came
+      // off the button, `saved` became the unsaved document, and Discard could no
+      // longer get the work back. The plan was gone on the next reload.
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('refused'))))
       .then((d) => {
         // THE SERVER'S COPY WINS. `sitedoc.Clean` bounds and normalises, so what
         // comes back is what every other viewer will see — keeping the local one
@@ -976,7 +1002,11 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
         syncChrome();
         render();
       })
-      .catch(() => { /* left dirty on purpose: nothing was stored */ });
+      .catch(() => {
+        // LEFT DIRTY ON PURPOSE: nothing was stored, and the operator's drawing
+        // is still the only copy of it.
+        note('The plan was not saved. You may not have permission to edit it.');
+      });
   }
 
   // ── interaction ───────────────────────────────────────────────────────────
@@ -1325,20 +1355,26 @@ export function initWifiMapPage(socket: Socket, isVisible: (page: string) => boo
   socket.on('router:active', (d) => {
     const id = (d && d.activeId) || '';
     if (!id || id === routerID) return;
-    routerID = id;
-    load();
+    // A PLAN BELONGS TO ONE ROUTER, on this path too. `router:active` arrives
+    // without `router:switched` when somebody else activates a router, or when
+    // the active one is removed and the next is promoted — and leaving the old
+    // drawing on screen invited a Save that wrote one site's buildings over
+    // another's.
+    switchTo(id);
   });
-  socket.on('router:switched', (d) => {
-    const id = (d && d.activeId) || '';
-    // A PLAN BELONGS TO ONE ROUTER. Leaving the old one on screen would invite
-    // an edit that saves another site's buildings onto this one.
+  function switchTo(id: string): void {
     doc = emptyDoc();
     saved = emptyDoc();
+    loaded = false;
     dirty = false;
+    sel = null;
+    disarm();
     routerID = id;
     render();
     load();
-  });
+  }
+
+  socket.on('router:switched', (d) => switchTo((d && d.activeId) || ''));
 
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent).detail !== 'wifi-map') return;

@@ -23,7 +23,9 @@ package server
 
 import (
 	"context"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"mikrodash/internal/session"
@@ -43,6 +45,16 @@ const fleetDeadline = 35 * time.Second
 // fleetTarget is one router this caller may reach, with the name to show.
 type fleetTarget struct{ ID, Label string }
 
+// fleetHoldSeq numbers the holds. See fleetSession.
+var fleetHoldSeq atomic.Uint64
+
+// fleetHoldReason numbers one hold. It keeps the endpoint's name in front of the
+// number, because `session.Manager.Retain` documents the reason as what explains
+// a stuck hold to a person reading the diagnostics.
+func fleetHoldReason(base string) string {
+	return base + "#" + strconv.FormatUint(fleetHoldSeq.Add(1), 10)
+}
+
 // fleetTargets resolves the requested ids against the stored fleet, keeping only
 // those this caller may reach the named page on.
 //
@@ -55,7 +67,12 @@ type fleetTarget struct{ ID, Label string }
 // THE PAGE IS THE PERMISSION. A caller allowed to read DNS across the fleet is
 // not thereby allowed to read everybody's neighbour tables, so each endpoint
 // names its own page and the grant is checked per router.
-func (s *Server) fleetTargets(sess *Session, ids []string, page, access string) []fleetTarget {
+//
+// OVER THE CAP IS RETURNED, NOT DROPPED. The second list is what this request
+// will not read, and every caller turns it into a row saying so — a router
+// missing from a fleet answer reads as a router with nothing on it, which is the
+// opposite of the truth and the reason `Error` exists on these payloads at all.
+func (s *Server) fleetTargets(sess *Session, ids []string, page, access string) ([]fleetTarget, []fleetTarget) {
 	known := map[string]string{}
 	all, _ := s.store.Routers()
 	for _, r := range all {
@@ -67,7 +84,7 @@ func (s *Server) fleetTargets(sess *Session, ids []string, page, access string) 
 		}
 	}
 	uid := s.userIDFor(sess.Username)
-	out := []fleetTarget{}
+	out, over := []fleetTarget{}, []fleetTarget{}
 	seen := map[string]bool{}
 	for _, id := range ids {
 		if id == "" || seen[id] || !topology.IsValidRouterID(id) {
@@ -82,11 +99,12 @@ func (s *Server) fleetTargets(sess *Session, ids []string, page, access string) 
 			continue
 		}
 		if len(out) >= fleetMaxRouters {
-			break
+			over = append(over, fleetTarget{id, label})
+			continue
 		}
 		out = append(out, fleetTarget{id, label})
 	}
-	return out
+	return out, over
 }
 
 // fleetEach runs fn for every target at once and returns the answers in the
@@ -118,7 +136,13 @@ func fleetEach[T any](ctx context.Context, targets []fleetTarget,
 // `unreachable` for every router the operator was not already watching.
 //
 // The returned function gives the hold back and must be called.
+//
+// THE REASON IS MADE UNIQUE PER CALL. `Retain` is idempotent by name and `Drop`
+// deletes that name, so two requests sharing one reason share one hold — and the
+// first to finish released it for the other. `Sync all missing` sends a request
+// per record at once, so that was one button away.
 func (s *Server) fleetSession(ctx context.Context, routerID, reason string) (*session.Session, func(), bool) {
+	reason = fleetHoldReason(reason)
 	sn, err := s.sessions.Retain(routerID, reason)
 	if err != nil || sn == nil {
 		return nil, func() {}, false

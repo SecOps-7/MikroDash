@@ -122,6 +122,22 @@ function selectHtml(f: SchemaField, id: string, value: unknown, list: string[]):
       esc(o) + '</option>').join('') + '</select>';
 }
 
+/**
+ * Is this stored value a switched-ON toggle?
+ *
+ * ── `'false'` IS A STRING AND EVERY STRING IS TRUTHY ────────────────────
+ *
+ * `res:row` fills a form from `resource.RowValues`, which sends a real bool, so
+ * the first render of a row was right. DUPLICATE re-renders from `readValues`,
+ * which sends `String(node.checked)` — and a bare `value ?` turned every OFF
+ * toggle ON. Duplicating a working firewall rule produced a DISABLED one, and a
+ * DNS entry came back with Match Subdomains set; both fields are `Clearable`, so
+ * the wrong value reached the router on Add.
+ */
+export function checkedValue(value: unknown): boolean {
+  return value === true || value === 'true' || value === 'yes';
+}
+
 function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
   const id = 'resf_' + f.name;
 
@@ -130,7 +146,7 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
     return '<label class="stoggle" style="margin-top:.7rem" data-res-field="' + esc(f.name) + '">' +
       '<span class="stoggle-label">' + esc(f.label) + '</span>' +
       '<span class="stoggle-switch"><input type="checkbox" id="' + id + '"' +
-      (value ? ' checked' : '') + '><span class="stoggle-track"></span>' +
+      (checkedValue(value) ? ' checked' : '') + '><span class="stoggle-track"></span>' +
       '<span class="stoggle-thumb"></span></span></label>';
   }
 
@@ -942,6 +958,9 @@ function wire(socket: Socket): void {
     if (done) extras.get(done.key)?.saved?.(done.values);
   });
 
+  // Which refusals carry the ROUTER's own message rather than MikroDash's.
+  const routerSaid: Record<string, boolean> = { 'router-denied': true, 'write-failed': true };
+
   socket.on('res:error', (d) => {
     // ANY GUARD WARNING: ackGate always sends a fingerprint with one.
     if (d && (d.fingerprint || d.code === 'stale-warning')) {
@@ -964,7 +983,16 @@ function wire(socket: Socket): void {
       setError(d.errors.map((e) => e.message).join('; '));
       return;
     }
-    setError((d && codes[d.code]) || (d && d.message) || 'The change was refused.');
+    // THE ROUTER'S OWN WORDS TOO, BUT ONLY WHERE THEY ARE THE ROUTER'S. The
+    // mapped sentence says what KIND of refusal it was; the trap says which menu
+    // and which property, and dropping it turned a policy problem into a dead
+    // end. `rate-limited` and `outcome-unknown` are MikroDash speaking rather
+    // than the router, so a "Router:" on those would be a lie.
+    const said = (d && d.message) || '';
+    const mapped = (d && codes[d.code]) || '';
+    setError(mapped
+      ? mapped + (routerSaid[d.code] && said && said !== mapped ? ' Router: ' + said : '')
+      : said || 'The change was refused.');
   });
 
   // ── the preview ───────────────────────────────────────────────────────────

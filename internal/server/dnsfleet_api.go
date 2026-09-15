@@ -84,8 +84,12 @@ func (s *Server) dnsFleetGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ids := strings.Split(r.URL.Query().Get("routers"), ",")
-	targets := s.fleetTargets(sess, ids, "dns", "read")
+	targets, over := s.fleetTargets(sess, ids, "dns", "read")
 	out := fleetEach(r.Context(), targets, s.dnsFleetReadOne)
+	for _, t := range over {
+		out = append(out, dnsFleetRouter{ID: t.ID, Label: t.Label,
+			Error: "not read: too many routers in one request", Entries: []dnsFleetEntry{}})
+	}
 	writeJSON(w, map[string]any{"routers": out})
 }
 
@@ -119,8 +123,13 @@ func (s *Server) dnsFleetAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		RouterIDs []string          `json:"routerIds"`
-		Values    map[string]string `json:"values"`
+		RouterIDs []string `json:"routerIds"`
+		// NOT `map[string]string`. The read projects each row through
+		// `resource.RowValues`, which emits a BOOL for a checkbox field, and the
+		// copy button posts that object straight back. `flattenValues` is what
+		// turns it into what the validator works in — the same function the
+		// socket's write path uses, so the two cannot drift.
+		Values map[string]any `json:"values"`
 	}
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64*1024)).Decode(&body); err != nil {
 		writeJSON400OK(w)
@@ -130,7 +139,7 @@ func (s *Server) dnsFleetAdd(w http.ResponseWriter, r *http.Request) {
 	// this path has no guard chain, so it may only ever write the one resource
 	// that declares no guard.
 	res := resource.DNSStatic
-	validated, errs := res.Validate(body.Values, false)
+	validated, errs := res.Validate(flattenValues(body.Values), false)
 	if len(errs) > 0 {
 		writeJSON(w, map[string]any{"ok": false, "code": "invalid", "errors": errs})
 		return
@@ -142,7 +151,7 @@ func (s *Server) dnsFleetAdd(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, http.StatusForbidden, "Router changes are unavailable: the audit database is not open")
 		return
 	}
-	targets := s.fleetTargets(sess, body.RouterIDs, "dns", "write")
+	targets, over := s.fleetTargets(sess, body.RouterIDs, "dns", "write")
 	if len(targets) == 0 {
 		writeJSONErr(w, http.StatusForbidden, "Not permitted")
 		return
@@ -151,6 +160,9 @@ func (s *Server) dnsFleetAdd(w http.ResponseWriter, r *http.Request) {
 	results := fleetEach(r.Context(), targets, func(ctx context.Context, t fleetTarget) dnsFleetAddResult {
 		return s.dnsFleetAddOne(ctx, r, sess, res, validated, name, t.ID)
 	})
+	for _, t := range over {
+		results = append(results, dnsFleetAddResult{ID: t.ID, Code: "not-attempted"})
+	}
 	writeJSON(w, map[string]any{"ok": true, "results": results})
 }
 

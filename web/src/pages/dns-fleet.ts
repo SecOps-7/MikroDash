@@ -127,6 +127,17 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
   let busy = '';
   /** The router the dialog and the live table are bound to. */
   let activeID = '';
+  /**
+   * What the last write said, held across the re-read that follows it.
+   *
+   * ── THE MESSAGE USED TO LIVE FOR ONE FRAME ────────────────────────────
+   *
+   * Every writer here reloads the table when it is done, and `render` paints the
+   * same element with the read's own status. So a refusal was written into the
+   * note and taken straight back out a frame later, which looks exactly like the
+   * button doing nothing — the symptom the write path was just fixed for.
+   */
+  let notice = '';
   /** Which other routers the open dialog should also reach. CLEARED EVERY TIME
    *  THE DIALOG OPENS: a tick left over from the record before it would write to
    *  a router nobody looked at on this form. */
@@ -156,6 +167,15 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
         if (!picked.length && fleet.length) {
           picked = fleet.map((r) => String(r.id));
           lsSet(PICK_KEY, picked);
+        } else if (list.length) {
+          // A PICK OUTLIVES THE ROUTER IT NAMES. Pruned only when the fetch
+          // actually answered, or a failed one would throw the selection away.
+          const known = new Set(fleet.map((r) => String(r.id)));
+          const kept = picked.filter((id) => known.has(id));
+          if (kept.length !== picked.length) {
+            picked = kept;
+            lsSet(PICK_KEY, picked);
+          }
         }
       })
       .catch(() => { /* the comparison still works; the names are ids */ });
@@ -255,10 +275,10 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     if (badge) badge.textContent = String(rows.length);
     if (note) {
       const failed = data.filter((r) => !r.ok);
-      note.textContent = loading ? 'reading…'
+      note.textContent = notice || (loading ? 'reading…'
         : takenAt ? new Date(takenAt).toLocaleTimeString() +
           (failed.length ? ' · ' + failed.length + ' unreachable' : '')
-        : '';
+        : '');
     }
     renderHead();
     if (!tb) return;
@@ -308,6 +328,42 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
       .then(() => { loading = false; render(); });
   }
 
+  /**
+   * Write one record to some routers and SAY WHAT HAPPENED.
+   *
+   * ── A SILENT WRITE IS WHY THIS WENT UNNOTICED ─────────────────────────
+   *
+   * The endpoint refused every copy with a 400 — it decoded a checkbox as a
+   * string — and this threw the answer away and reloaded the table, which looks
+   * exactly like a button that does nothing. The per-router result now goes in
+   * the card's note, the same place the Add dialog puts it.
+   */
+  function push(routerIds: string[], values: Record<string, unknown>): Promise<void> {
+    notice = '';
+    return fetch('/api/dns/fleet-add', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ routerIds, values }),
+    })
+      .then((r) => (r.ok ? r.json() : { ok: false, code: 'refused' }))
+      .then((d) => {
+        if (d && d.ok === false) {
+          // THE FIELD ERRORS TOO: `invalid` alone says a record was refused
+          // without saying which property the descriptor would not take.
+          const errs = (d.errors || []) as Array<{ field?: string; message?: string }>;
+          notice = 'the write was refused' + (d.code ? ': ' + d.code : '') +
+            (errs.length ? ' — ' + errs.map((e) => e.message || e.field).join('; ') : '');
+          return;
+        }
+        const bad = (((d && d.results) || []) as Array<{ id: string; ok: boolean; code: string }>)
+          .filter((x) => !x.ok);
+        if (bad.length) {
+          notice = bad.map((x) => named(x.id).label + ': ' + x.code).join(' · ');
+        }
+      })
+      .catch(() => { notice = 'the write did not reach the server'; });
+  }
+
   /** Copy one record to one or more routers, then re-read so the table is the
    *  router's answer rather than this page's assumption. */
   function copy(rowID: string, toIDs: string[]): void {
@@ -317,14 +373,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     if (!from) return;
     busy = rowID;
     render();
-    fetch('/api/dns/fleet-add', {
-      method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ routerIds: toIDs, values: from.values }),
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null)
-      .then(() => { busy = ''; load(); });
+    void push(toIDs, from.values).then(() => { busy = ''; load(); });
   }
 
   // ── wiring ────────────────────────────────────────────────────────────────
@@ -350,9 +399,15 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
   // ONE WINDOW, TWO WRITES, AND THE SECOND IS NOT SILENT: a router that refuses
   // is named in the card's note rather than rolled up into a tick.
 
-  /** The routers an Add could also reach: picked, less the one being written. */
+  /** The routers an Add could also reach: picked, less the one being written.
+   *
+   *  ONLY ROUTERS THAT STILL EXIST. `picked` is remembered in localStorage, so a
+   *  router that has since been removed left a checkbox behind naming an id the
+   *  server would drop anyway. */
   function others(): Array<{ id: string; label: string; host: string }> {
-    return picked.filter((id) => id !== activeID).map(named);
+    return picked
+      .filter((id) => id !== activeID && fleet.some((r) => String(r.id) === id))
+      .map(named);
   }
 
   registerExtra('dnsStatic', {
@@ -387,24 +442,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     saved(values) {
       const to = alsoIDs.slice();
       if (scope !== 'fleet' || !to.length) { if (scope === 'fleet') load(); return; }
-      const note = el('dnsFleetNote');
-      if (note) note.textContent = 'writing to ' + to.length + ' more…';
-      fetch('/api/dns/fleet-add', {
-        method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ routerIds: to, values }),
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((d) => {
-          const bad = (((d && d.results) || []) as Array<{ id: string; ok: boolean; code: string }>)
-            .filter((x) => !x.ok);
-          if (note && bad.length) {
-            note.textContent = bad.map((x) => named(x.id).label + ': ' + x.code)
-              .join(' \u00b7 ');
-          }
-        })
-        .catch(() => { if (note) note.textContent = 'the other routers were not written'; })
-        .then(() => load());
+      void push(to, values).then(() => load());
     },
   });
 
@@ -425,11 +463,7 @@ export function initDnsFleet(socket: Socket, isVisible: (page: string) => boolea
     work.forEach((row) => {
       const from = Object.values(row.on)[0];
       if (!from) { left--; return; }
-      fetch('/api/dns/fleet-add', {
-        method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ routerIds: row.missing, values: from.values }),
-      }).catch(() => null).then(() => { if (--left <= 0) load(); });
+      void push(row.missing, from.values).then(() => { if (--left <= 0) load(); });
     });
   });
 

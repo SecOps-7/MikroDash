@@ -24,6 +24,16 @@
  * The flat-segment case is the third one: every router sees every other on its
  * uplink, so the merge moves nothing. That is the honest answer and it is pinned
  * here so a later "improvement" that guesses cannot land quietly.
+ *
+ * ── THE CORE NODE CARRIES NO MAC, AND THIS TEST USED TO PRETEND IT DID ─────
+ *
+ * `BuildTopology` builds the core with neither a MAC nor an identity — it has no
+ * source for either — so a fixture that set one made every case below pass while
+ * production took the opposite branch: the uplink set was empty, everything read
+ * as "behind" the peer, and the peer's row for the viewed router was added as a
+ * second copy of it. The addresses now come in as `selfMacs`, `base()` builds a
+ * core with `mac: ''` the way the collector does, and the last case pins what
+ * happens when they are missing.
  */
 import assert from 'node:assert';
 import fs from 'node:fs';
@@ -67,7 +77,8 @@ function base(): Record<string, unknown> {
     pingDenied: false, neighborCount: 2, pinsEnabled: true, vlans: [],
     clientCount: 0, clientsTruncated: 0,
     nodes: [
-      node({ key: 'core', kind: 'core', name: 'gw', mac: CORE_MAC }),
+      // NO MAC AND NO IDENTITY, as BuildTopology writes it.
+      node({ key: 'core', kind: 'core', name: 'gw' }),
       node({ key: AP_MAC, name: 'ap-yard', mac: AP_MAC, ifaces: ['ether8'], port: 'ether8' }),
       node({ key: SWITCH_MAC, name: 'swos', mac: SWITCH_MAC, ifaces: ['ether8'], port: 'ether8' }),
     ],
@@ -96,7 +107,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
   const m = mergePeers(base(), [apPeer([
     { key: CORE_MAC, mac: CORE_MAC, ifaces: ['ether1'], name: 'gw' },
     { key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether3'], name: 'cam-gate' },
-  ])], 0);
+  ])], [CORE_MAC], 0);
   const cam = find(m, CAM_MAC);
   assert.ok(cam, 'the camera only the access point can see was not added');
   assert.strictEqual(cam!.parent, AP_MAC,
@@ -121,7 +132,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
   const m = mergePeers(b, [apPeer([
     { key: CORE_MAC, mac: CORE_MAC, ifaces: ['ether1'] },
     { key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether3'] },
-  ])], 0);
+  ])], [CORE_MAC], 0);
   assert.strictEqual(find(m, CAM_MAC)!.parent, AP_MAC,
     'a device the peer reports on ether3 was left hanging off the core');
   assert.strictEqual(m.moved, 1, 'moved = ' + m.moved);
@@ -147,7 +158,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
     { key: CORE_MAC, mac: CORE_MAC, ifaces: ['ether1'] },
     { key: SWITCH_MAC, mac: SWITCH_MAC, ifaces: ['ether1'] },
     { key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether1'] },
-  ])], 0);
+  ])], [CORE_MAC], 0);
   assert.strictEqual(m.moved, 0, 'a flat segment was rearranged: moved = ' + m.moved);
   assert.strictEqual(m.added, 0, 'a flat segment invented a device: added = ' + m.added);
   assert.strictEqual(find(m, CAM_MAC)!.parent, null,
@@ -161,8 +172,11 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
 {
   const m = mergePeers(base(), [{
     id: 'c', label: 'shed-ap', ok: true, error: '', macs: [FAR_MAC],
-    neighbors: [node({ key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether2'] })],
-  }], 0);
+    neighbors: [
+      node({ key: CORE_MAC, mac: CORE_MAC, ifaces: ['ether1'] }),
+      node({ key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether2'] }),
+    ],
+  }], [CORE_MAC], 0);
   const far = find(m, FAR_MAC);
   assert.ok(far, 'a managed router the core cannot hear was dropped');
   assert.strictEqual(far!.name, 'shed-ap', 'it has no name to draw');
@@ -179,7 +193,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
 {
   const m = mergePeers(base(), [
     { id: 'b', label: 'ap-yard', ok: false, error: 'unreachable', macs: [], neighbors: [] },
-  ], 0);
+  ], [CORE_MAC], 0);
   assert.strictEqual(m.failed, 1, 'failed = ' + m.failed);
   assert.strictEqual(m.answered, 0, 'a peer that failed was counted as having answered');
   assert.strictEqual(m.added, 0, 'a peer that failed still put something on the map');
@@ -191,7 +205,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
   const m = mergePeers(base(), [{
     id: 'a', label: 'gw', ok: true, error: '', macs: [CORE_MAC],
     neighbors: [node({ key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether3'] })],
-  }], 0);
+  }], [CORE_MAC], 0);
   assert.strictEqual(m.answered, 0, 'the viewed router was merged into itself');
   assert.strictEqual(m.added, 0, 'and it added its own neighbours a second time');
   say('ok  the router being viewed is skipped: it is already the graph');
@@ -206,7 +220,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
   const m = mergePeers(b, [apPeer([
     { key: CORE_MAC, mac: CORE_MAC, ifaces: ['ether1'] },
     { key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether3'] },
-  ])], 0);
+  ])], [CORE_MAC], 0);
   assert.strictEqual(find(m, CAM_MAC)!.parent, SWITCH_MAC,
     'the merge overrode a link the operator pinned by hand');
   assert.strictEqual(m.moved, 0, 'moved = ' + m.moved);
@@ -220,7 +234,7 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
       neighbors: [node({ key: SWITCH_MAC, mac: SWITCH_MAC, ifaces: ['ether3'] })] },
     { id: 'c', label: 'swos-rb', ok: true, error: '', macs: [SWITCH_MAC],
       neighbors: [node({ key: AP_MAC, mac: AP_MAC, ifaces: ['ether3'] })] },
-  ], 0);
+  ], [CORE_MAC], 0);
   const walk = (key: string): number => {
     const seen = new Set<string>();
     let cur = find(m, key);
@@ -236,6 +250,37 @@ const find = (m: { nodes: Array<Record<string, unknown>> }, key: string) =>
   walk(AP_MAC);
   walk(SWITCH_MAC);
   say('ok  two peers claiming each other leave a tree, not a loop');
+}
+
+// ── 9. with no addresses for the viewed router, nothing is merged ────────
+//
+// The endpoint could not read them — the router went away, or the grant is gone.
+// Guessing without them is what the flat-segment rule exists to prevent, so the
+// map is left exactly as the collector built it.
+{
+  const m = mergePeers(base(), [apPeer([
+    { key: CORE_MAC, mac: CORE_MAC, ifaces: ['ether1'] },
+    { key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether3'] },
+  ])], [], 0);
+  assert.strictEqual(m.added, 0, 'a device was invented with nothing to measure against');
+  assert.strictEqual(m.moved, 0, 'the graph was rearranged with nothing to measure against');
+  assert.strictEqual(m.answered, 0, 'a peer was counted as merged');
+  assert.strictEqual(m.nodes.length, base().nodes.length, 'the node list changed');
+  say('ok  with no addresses for the viewed router the map is left alone');
+}
+
+// ── 10. a peer that cannot see the viewed router still contributes ───────
+//
+// No uplink to measure against, so nothing MOVES — but a device only that peer
+// can see is still a device only that peer can see.
+{
+  const m = mergePeers(base(), [apPeer([
+    { key: CAM_MAC, mac: CAM_MAC, ifaces: ['ether3'], name: 'cam-gate' },
+  ])], [CORE_MAC], 0);
+  assert.strictEqual(m.added, 1, 'added = ' + m.added);
+  assert.strictEqual(find(m, CAM_MAC)!.parent, AP_MAC, 'it did not hang off the peer');
+  assert.strictEqual(m.moved, 0, 'a peer with no visible uplink rearranged the graph');
+  say('ok  a peer that cannot see the viewed router adds but never moves');
 }
 
 fs.rmSync(OUT, { force: true });

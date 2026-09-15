@@ -2022,13 +2022,24 @@ func (t *Topology) readWifi() (map[string]string, map[string]string, map[string]
 func (t *Topology) readLegacyCapsWifi(ifaceRadio, capByPrefix map[string]string,
 	assoc map[string]TopoAssoc) {
 
-	if t.v1Absent {
+	// UNDER THE LOCK, BECAUSE `Reconnected` CLEARS IT UNDER THE LOCK. This runs
+	// from `readWifi`, which `apply` calls BEFORE taking `t.mu`, while the
+	// connect goroutine resets the latch when the router comes back. Unguarded,
+	// a reset could be lost to a write still in flight and the latch would stay
+	// shut for good: a router that gained the caps-man package would keep
+	// attributing its legacy CAP clients to the core.
+	t.mu.Lock()
+	absent := t.v1Absent
+	t.mu.Unlock()
+	if absent {
 		return
 	}
 	ifaces, err := readVia(t.cache, t.ros, capsV1IfaceCmd, t.pollMs.duration())
 	if err != nil {
 		if isAbsentMenu(err) {
+			t.mu.Lock()
 			t.v1Absent = true
+			t.mu.Unlock()
 		}
 		return
 	}
