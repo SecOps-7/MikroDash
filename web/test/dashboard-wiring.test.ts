@@ -409,13 +409,14 @@ if (!subscribed.has('connect')) {
   problems.push('nothing re-arms the System card meta line on connect — a reconnect to a ' +
     'different board would keep the old board name under the new gauges');
 }
-// The chart freezes on BLUR as well as on visibilitychange. Dropping behind
-// another application does not reliably fire visibilitychange, and without the
-// blur binding the keepalive keeps advancing an axis nobody can see — then the
-// catch-up it exists to hide happens in full view on return.
-if (!winEvents.some((e) => e.type === 'blur')) {
-  problems.push('no window blur handler — the traffic chart never freezes when the browser ' +
-    'drops behind another application, so its catch-up happens in full view');
+// The chart freezes on visibilitychange ONLY, NOT on window blur. It used to
+// bind blur too, as the live app did, but a window that loses focus while still
+// on screen keeps painting: there was no catch-up to hide, so the hide blanked
+// the Traffic chart until the next sample every time the operator clicked into
+// another application. Re-aimed deliberately from "a blur handler must exist".
+if (winEvents.some((e) => e.type === 'blur')) {
+  problems.push('a window blur handler is back: the traffic chart blanks whenever the ' +
+    'browser loses focus while still on screen, until the next sample fades it in');
 }
 if (!docEvents.some((e) => e.type === 'visibilitychange')) {
   problems.push('no visibilitychange handler — a tab that was hidden holds its last payload ' +

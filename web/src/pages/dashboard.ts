@@ -182,9 +182,12 @@ export function initDashboard(socket: Socket): void {
     flushPendingSystem();
     flushPendingConn();
   });
-  // Bound to BLUR as well, as the live app is: dropping behind another
-  // application does not reliably fire visibilitychange, and blur does.
-  window.addEventListener('blur', () => hideTrafficChart());
+  // NOT bound to window blur, though the live app was. A window that loses
+  // focus while still on screen keeps painting, so there is no catch-up to hide,
+  // and hiding it blanked the Traffic chart until the next sample every time the
+  // operator clicked into another application. A browser that stops drawing
+  // without reporting the page hidden costs one jump of the axis on return, and
+  // a gap in samples is rebuilt by `needsFullRedraw`.
 }
 
 /** The router-switch half of the card resets. See the header. */

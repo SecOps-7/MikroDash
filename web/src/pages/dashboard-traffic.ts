@@ -235,9 +235,8 @@ export function initChart(points: TrafficPoint[] | undefined): void {
  *
  * Clearing `lastSampleTs` is what stops the keepalive: it bails on a falsy one
  * and resumes from the smoothed offset when the next sample lands, so there is
- * no resume jump. The live app binds this to window BLUR as well as
- * visibilitychange — dropping behind another application does not always fire
- * visibilitychange, and blur does.
+ * no resume jump. Called on visibilitychange only, never on window blur: see
+ * the note beside that handler in dashboard.ts.
  */
 export function hideTrafficChart(): void {
   lastSampleTs = 0;
