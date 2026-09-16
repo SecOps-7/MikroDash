@@ -254,10 +254,6 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     html += '</div>';
 
     html += '<div class="pkg-rb-actions">';
-    if (caps.permitted) {
-      html += '<button id="pkgFwUpgradeBtn" class="sbtn ' + (pending ? 'sbtn-warn' : 'sbtn-outline') +
-        '" type="button"' + (pending ? '' : ' disabled') + '>Upgrade &amp; Reboot</button>';
-    }
     if (f.autoUpgrade === null || f.autoUpgrade === undefined) {
       html += '<span class="muted-note">Auto-upgrade could not be read from this router.</span>';
     } else if (caps.permitted) {
@@ -269,6 +265,10 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     } else {
       html += '<span class="muted-note">Upgrades automatically: ' +
         (f.autoUpgrade ? 'yes' : 'no') + '</span>';
+    }
+    if (caps.permitted) {
+      html += '<button id="pkgFwUpgradeBtn" class="sbtn ' + (pending ? 'sbtn-warn' : 'sbtn-outline') +
+        '" type="button"' + (pending ? '' : ' disabled') + '>Upgrade &amp; Reboot</button>';
     }
     html += '</div>';
     html += '</div>';
