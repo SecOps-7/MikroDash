@@ -185,22 +185,66 @@ func ParseHeaders(s string) (map[string]string, error) {
 
 // chatRequest is the request body. Only the fields this app sends.
 type chatRequest struct {
-	Model     string        `json:"model"`
-	Messages  []ChatMessage `json:"messages"`
-	MaxTokens int           `json:"max_tokens,omitempty"`
-	Stream    bool          `json:"stream"`
+	Model    string        `json:"model"`
+	Messages []ChatMessage `json:"messages"`
+	// Tools is OMITTED WHEN EMPTY, and that omission is what makes degrading to
+	// advisory free rather than a branch: an endpoint that does not speak
+	// tool-calling receives exactly the request it received before this existed.
+	Tools     []toolSpec `json:"tools,omitempty"`
+	MaxTokens int        `json:"max_tokens,omitempty"`
+	Stream    bool       `json:"stream"`
+}
+
+// toolSpec wraps one callable in the envelope the wire format expects.
+type toolSpec struct {
+	Type     string `json:"type"`
+	Function any    `json:"function"`
+}
+
+// toolSpecs wraps each advertised callable. `any` for the function body because
+// the catalogue lives in internal/aitools and this package owes it nothing —
+// which is also what keeps the wire format here and the tool list there from
+// having to agree about a Go type.
+func toolSpecs(tools []any) []toolSpec {
+	out := make([]toolSpec, 0, len(tools))
+	for _, t := range tools {
+		out = append(out, toolSpec{Type: "function", Function: t})
+	}
+	return out
+}
+
+// ToolCall is one call the model asked for.
+type ToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name string `json:"name"`
+		// Arguments is a JSON STRING, not an object — the wire format encodes it
+		// that way, and a model may emit invalid JSON inside it. The caller
+		// parses it and must treat a failure as a refusal rather than a crash.
+		Arguments string `json:"arguments"`
+	} `json:"function"`
 }
 
 // ChatMessage is one turn.
+//
+// ── FOUR ROLES, AND THE TOOL ONE CARRIES AN ID ──────────────────────────────
+//
+// A `role: "tool"` message answers a specific call and must name it, or an
+// endpoint cannot pair the result with the request that asked for it. Both
+// tool fields are omitempty so an ordinary turn serialises exactly as before.
 type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string     `json:"role"`
+	Content    string     `json:"content"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
 }
 
 // chatReply is the part of the response this app reads.
 type chatReply struct {
 	Choices []struct {
-		Message ChatMessage `json:"message"`
+		Message      ChatMessage `json:"message"`
+		FinishReason string      `json:"finish_reason"`
 	} `json:"choices"`
 	Error *struct {
 		Message string `json:"message"`
@@ -216,28 +260,54 @@ type chatReply struct {
 // `error.message`, so it is read out and used when present — and the caller is
 // responsible for running it through `safe.Message` before it reaches a browser
 // or a log, because a transport error can carry the host and the port.
-func Complete(ctx context.Context, c Doer, cfg Config, msgs []ChatMessage, maxTokens int) (string, error) {
+// Reply is one answer: prose, or a request to call tools, never usefully both.
+//
+// ── WHY A STRUCT RATHER THAN A SECOND RETURN ────────────────────────────────
+//
+// A model that wants to call something returns `finish_reason: "tool_calls"`
+// and, on most endpoints, empty content. Returning `(string, error)` forced the
+// caller to read an empty answer as a failure, which is exactly what an endpoint
+// that does not speak tool-calling produces for a different reason — and
+// conflating the two is how "degrade to advisory" turns into "report a broken
+// endpoint".
+type Reply struct {
+	Text      string
+	ToolCalls []ToolCall
+	// Finish is the endpoint's own word for why it stopped. Carried rather than
+	// interpreted: `length`, `stop` and `tool_calls` all mean something, and a
+	// caller that only wanted the text should not have to know which.
+	Finish string
+}
+
+// Complete performs one non-streaming chat completion.
+//
+// `tools` may be nil, and when it is, the request carries no `tools` key at all
+// — see chatRequest. So an endpoint with no tool support sees the request it saw
+// before tools existed, and the caller degrades by simply getting prose back.
+func Complete(ctx context.Context, c Doer, cfg Config, msgs []ChatMessage, maxTokens int,
+	tools ...any) (Reply, error) {
 	u, err := endpoint(cfg.BaseURL)
 	if err != nil {
-		return "", err
+		return Reply{}, err
 	}
 	if strings.TrimSpace(cfg.Model) == "" {
-		return "", errors.New("no model is configured")
+		return Reply{}, errors.New("no model is configured")
 	}
 	extra, err := ParseHeaders(cfg.Headers)
 	if err != nil {
-		return "", err
+		return Reply{}, err
 	}
 
 	body, err := json.Marshal(chatRequest{
 		Model: cfg.Model, Messages: msgs, MaxTokens: maxTokens, Stream: false,
+		Tools: toolSpecs(tools),
 	})
 	if err != nil {
-		return "", err
+		return Reply{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
-		return "", err
+		return Reply{}, err
 	}
 	for k, v := range extra {
 		req.Header.Set(k, v)
@@ -253,7 +323,7 @@ func Complete(ctx context.Context, c Doer, cfg Config, msgs []ChatMessage, maxTo
 
 	resp, err := c.Do(req)
 	if err != nil {
-		return "", err
+		return Reply{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -263,20 +333,27 @@ func Complete(ctx context.Context, c Doer, cfg Config, msgs []ChatMessage, maxTo
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if parsed.Error != nil && parsed.Error.Message != "" {
-			return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, parsed.Error.Message)
+			return Reply{}, fmt.Errorf("HTTP %d: %s", resp.StatusCode, parsed.Error.Message)
 		}
-		return "", fmt.Errorf("HTTP %d", resp.StatusCode)
+		return Reply{}, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 	if parsed.Error != nil && parsed.Error.Message != "" {
 		// SOME SERVERS ANSWER 200 WITH AN ERROR OBJECT. Treating that as a
 		// successful empty reply would show the operator a blank answer and no
 		// reason for it.
-		return "", errors.New(parsed.Error.Message)
+		return Reply{}, errors.New(parsed.Error.Message)
 	}
 	if len(parsed.Choices) == 0 {
-		return "", errors.New("the endpoint returned no choices; check the model name")
+		return Reply{}, errors.New("the endpoint returned no choices; check the model name")
 	}
-	return parsed.Choices[0].Message.Content, nil
+	ch := parsed.Choices[0]
+	// EMPTY CONTENT IS NOT AN ERROR when the model asked to call something. It
+	// is the normal shape of a tool-calling turn.
+	return Reply{
+		Text:      ch.Message.Content,
+		ToolCalls: ch.Message.ToolCalls,
+		Finish:    ch.FinishReason,
+	}, nil
 }
 
 // TestPrompt is what the Test button sends. The answer is never read; only
@@ -305,6 +382,10 @@ const testTokens = 16
 
 // TestEndpoint checks one configuration end to end, returning nil when it works.
 func TestEndpoint(ctx context.Context, c Doer, cfg Config) error {
+	// NO TOOLS ON THE TEST. The button answers "can this endpoint hold a
+	// conversation", and advertising a catalogue would make it also answer "does
+	// it support tool-calling" — a different question, whose failure would be
+	// reported as a broken endpoint.
 	_, err := Complete(ctx, c, cfg, TestPrompt, testTokens)
 	return err
 }

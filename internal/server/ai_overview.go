@@ -164,7 +164,7 @@ func (cn *conn) sendOverview() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout())
 	defer cancel()
-	text, err := aiprovider.Complete(ctx, cfg.Client(), cfg, msgs, overviewMaxTokens)
+	reply, err := aiprovider.Complete(ctx, cfg.Client(), cfg, msgs, overviewMaxTokens)
 	if err != nil {
 		msg := safe.Message(err.Error())
 		log.Printf("[ai-overview] %s", msg)
@@ -172,7 +172,7 @@ func (cn *conn) sendOverview() {
 		return
 	}
 	EvAIOverview.Send(cn.srv.hub, cn.c, map[string]any{
-		"text":  text,
+		"text":  reply.Text,
 		"error": "",
 		"model": cfg.Model,
 		"at":    time.Now().UnixMilli(),

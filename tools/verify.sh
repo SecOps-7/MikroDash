@@ -84,9 +84,10 @@ else
       go run ./cmd/tsgen -check
       go run ./cmd/pagesgen -check
       go run ./cmd/settingswritegen -check
-      go run ./cmd/gridgen -check' 2>&1)
+      go run ./cmd/gridgen -check
+      go run ./cmd/toolgen -check' 2>&1)
   if [ $? -eq 0 ]; then
-    note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); tsgen + pagesgen + settingswritegen + gridgen current"
+    note "  gofmt, vet, test ok ($(printf '%s\n' "$out" | grep -c '^ok') package(s)); tsgen + pagesgen + settingswritegen + gridgen + toolgen current"
   else
     fail=$((fail + 1))
     note '  FAIL go'
