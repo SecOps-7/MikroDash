@@ -201,11 +201,69 @@ func find(res *resource.Resource, rows []routeros.Reply, id, expected string) ro
 	return nil
 }
 
+// ── THE PIPELINE AND THE REPORTING ARE NOW SEPARATE (#98) ───────────────────
+//
+// This used to be one function that wrote and emitted browser events as it
+// went. The AI Agent needs the SAME sequence — permission, rate limit, fresh
+// read, staleness, read-only rows, guards, the write, read-back confirmation,
+// history, audit — but has to learn the result as a value it can hand back to a
+// model rather than as a frame sent to a page.
+//
+// The alternative was a second copy of the sequence, and `dnsfleet_api.go` shows
+// what that costs: it reuses `Validate` and `BuildArgs` and states the rest
+// itself, which is defensible for one endpoint and would not be for a writer a
+// MODEL drives. A second copy is how one of them eventually loses the read-back
+// or the guard, and the copy that loses it is the one nobody is watching.
+//
+// So `writeRow` decides and `resSave` reports. Nothing about the order changed.
+
+// writeOutcome is what the pipeline decided, with no opinion about who is
+// asking. An empty Code is success.
+//
+// `Detail` carries whatever the refusal needs — the validator's errors, the
+// router's message, or a guard's warning and fingerprint. A guard gate is NOT a
+// special case here: `resErr` already builds exactly the frame the gate path
+// used to send by hand, so it travels as an ordinary refusal with a fingerprint
+// in it.
+type writeOutcome struct {
+	Code   string
+	Action string
+	Name   string
+	Detail map[string]any
+}
+
+// resSave is the socket handler: resolve, write, tell the browser.
 func (cn *conn) resSave(raw json.RawMessage) {
 	res, req := cn.resolve(raw, true)
 	if res == nil {
 		return
 	}
+	// A human at a form: no provenance to add.
+	out := cn.writeRow(res, req, "")
+	if out.Code == "" {
+		EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
+			"resource": res.Key, "action": out.Action, "name": out.Name})
+		return
+	}
+	cn.resErr(res.Key, out.Code, out.Name, out.Detail)
+}
+
+// writeRow is the write path itself. It performs every side effect a write has
+// — the audit rows, the history push, the collector refresh — and returns what
+// happened instead of announcing it.
+//
+// ── `via` IS A PARAMETER, WHICH IS THE WHOLE POINT ──────────────────────────
+//
+// It records WHO ASKED, and it is passed by the caller that knows. It is not
+// read off the request, because the request comes from a browser and a browser
+// could claim to be the agent — or claim not to be. And it is not held on the
+// connection, because the agent answers on a goroutine while a form on the same
+// socket may be mid-save: a field there is a race whose loser writes the wrong
+// provenance into an audit row that is supposed to be the record of record.
+//
+// An empty `via` adds nothing at all, so a human at a form produces exactly the
+// audit Extra it always did.
+func (cn *conn) writeRow(res *resource.Resource, req *resRequest, via string) writeOutcome {
 	editing := req.ID != ""
 
 	// A resource that cannot be created refuses before anything is read. The
@@ -216,14 +274,12 @@ func (cn *conn) resSave(raw json.RawMessage) {
 			Action: res.Key + ".create", TargetType: res.Key, RouterID: cn.routerID,
 			Note: "not-creatable",
 		})
-		cn.resErr(res.Key, "not-creatable", "", nil)
-		return
+		return writeOutcome{Code: "not-creatable"}
 	}
 
 	validated, errs := res.Validate(req.strValues(), editing)
 	if len(errs) > 0 {
-		cn.resErr(res.Key, "invalid", "", map[string]any{"errors": errs})
-		return
+		return writeOutcome{Code: "invalid", Detail: map[string]any{"errors": errs}}
 	}
 	// A COMPOSITE identity yields no name here, and that is the original's
 	// behaviour rather than an omission: `validated.values[resource.identity]`
@@ -239,6 +295,7 @@ func (cn *conn) resSave(raw json.RawMessage) {
 		name = req.ExpectedIdentity
 	}
 
+	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
 		rows, err := cn.readMenu(res)
 		if err != nil {
@@ -253,7 +310,7 @@ func (cn *conn) resSave(raw json.RawMessage) {
 		if editing {
 			before = find(res, rows, req.ID, req.ExpectedIdentity)
 			if before == nil {
-				cn.resErr(res.Key, "stale-row", name, nil)
+				out = writeOutcome{Code: "stale-row", Name: name}
 				return nil
 			}
 		}
@@ -262,7 +319,7 @@ func (cn *conn) resSave(raw json.RawMessage) {
 				Action: res.Key + ".update", TargetType: res.Key, RouterID: cn.routerID,
 				TargetID: req.ID, TargetName: name, Note: "read-only-row",
 			})
-			cn.resErr(res.Key, res.ReadOnlyReason, name, nil)
+			out = writeOutcome{Code: res.ReadOnlyReason, Name: name}
 			return nil
 		}
 
@@ -283,14 +340,16 @@ func (cn *conn) resSave(raw json.RawMessage) {
 				Action: res.Key + "." + what, TargetType: res.Key, RouterID: cn.routerID,
 				TargetID: req.ID, TargetName: name, Note: "guard-not-ported: " + gerr.Error(),
 			})
-			cn.resErr(res.Key, "guard-not-ported", name,
-				map[string]any{"message": safe.Message(gerr.Error())})
+			out = writeOutcome{Code: "guard-not-ported", Name: name,
+				Detail: map[string]any{"message": safe.Message(gerr.Error())}}
 			return nil
 		}
 		if gate := ackGate(verdict, req.Ack); gate != nil {
-			gate["resource"] = res.Key
-			gate["name"] = name
-			EvResError.Send(cn.srv.hub, cn.c, gate)
+			// The code travels in the outcome; the warning and fingerprint stay
+			// in the detail, which is the same frame the caller used to build.
+			code, _ := gate["code"].(string)
+			delete(gate, "code")
+			out = writeOutcome{Code: code, Name: name, Detail: gate}
 			return nil
 		}
 
@@ -347,7 +406,8 @@ func (cn *conn) resSave(raw json.RawMessage) {
 			}
 		}
 		if !confirmed {
-			return cn.outcomeUnknown(res, res.Key+"."+action, req.ID, name, req.Ack)
+			out = cn.unknownOutcome(res, res.Key+"."+action, req.ID, name, req.Ack, via)
+			return nil
 		}
 		newID := observed[".id"]
 		if newID != "" {
@@ -371,17 +431,18 @@ func (cn *conn) resSave(raw json.RawMessage) {
 			Before: beforeVals,
 			// OBSERVED, not requested: the row as read back. See write_verify.go.
 			After: auditValues(res, observedValues(res, observed, validated.Values)),
-			Extra: ackExtra(req.Ack),
+			Extra: writeExtra(req.Ack, via),
 		})
 
 		cn.refreshFor(res)
-		EvResOk.Send(cn.srv.hub, cn.c, map[string]any{
-			"resource": res.Key, "action": action, "name": name})
+		out = writeOutcome{Action: action, Name: name}
 		return nil
 	})
 	if err != nil {
-		cn.resErr(res.Key, writeFailCode(err), name, map[string]any{"message": safe.Message(err.Error())})
+		return writeOutcome{Code: writeFailCode(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
+	return out
 }
 
 func (cn *conn) resRemove(raw json.RawMessage) {
@@ -513,6 +574,27 @@ func ackExtra(ack string) []audit.KV {
 		return nil
 	}
 	return []audit.KV{{Key: "selfCutoffAcknowledged", Value: true}}
+}
+
+// writeExtra is ackExtra plus who asked for the write.
+//
+// ── NO SCHEMA CHANGE, WHICH IS WHY THE TRAIL CAN ANSWER THIS AT ALL ─────────
+//
+// `audit.Event.Extra` already carries arbitrary pairs — it is how
+// `selfCutoffAcknowledged` is recorded — so "what did the assistant change" is a
+// question the existing Audit Trail can answer without a migration or a new
+// column. A separate agent log would have been a second record of the same
+// events, and the one nobody thinks to read during an incident.
+//
+// EMPTY MEANS A PERSON, and adds nothing. Stamping every human write with
+// `via: ui` would rewrite the shape of every audit row in every install to say
+// something already implied by the absence of anything else.
+func writeExtra(ack, via string) []audit.KV {
+	kv := ackExtra(ack)
+	if via != "" {
+		kv = append(kv, audit.KV{Key: "via", Value: via})
+	}
+	return kv
 }
 
 // writeFailCode separates "the router refused" from "we could not reach it".

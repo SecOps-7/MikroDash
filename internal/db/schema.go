@@ -22,7 +22,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 16
+const schemaVersion = 17
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -50,6 +50,29 @@ var portMigrations = map[int][]string{
           updated_at INTEGER NOT NULL,
           PRIMARY KEY (router_id, kind)
         )`},
+	// 17: the AI Agent page, for the two seeded roles that already existed.
+	//
+	// ── seedRoles DOES NOT REACH AN INSTALL THAT IS ALREADY BUILT ────────────
+	//
+	// It runs inside `createSchema` and nowhere else, so editing `roleReadPages`
+	// changes what a NEW database is born with and nothing about an existing
+	// one. Without this, the decision to give Operator and Read Only the AI
+	// Agent page would apply only to installs created after it — which is the
+	// quietest possible way for a permission change to half-happen.
+	//
+	// `RenamePageGrants` is the precedent for touching `role_pages` outside
+	// creation. This is additive rather than corrective, and it is bounded to
+	// the two BUILTIN roles: a custom role somebody wrote is theirs, and an
+	// upgrade must not decide what it confers.
+	//
+	// Safe to run twice, as every statement here must be: the primary key makes
+	// the second insert a no-op rather than a duplicate row.
+	17: {
+		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
+		 VALUES ('readonly', 'ai-agent', 'read')`,
+		`INSERT OR IGNORE INTO role_pages (role_id, page, access)
+		 VALUES ('operator', 'ai-agent', 'read')`,
+	},
 }
 
 // createSchema builds a new database at `path`.
@@ -188,6 +211,19 @@ var roleReadPages = []string{
 	"dashboard", "network-topology", "wifi-clients", "interfaces", "dhcp",
 	"vpn", "connections", "routing", "bandwidth", "firewall",
 	"logs", "devices",
+	// ── ai-agent IS A DELIBERATE WIDENING, DECIDED RATHER THAN INHERITED ──
+	//
+	// It is not in live's READ_ONLY_PAGES because live had no such page. Adding
+	// it gives both seeded roles an assistant over everything they can already
+	// read — which is the point, and is also why it is not silent: the page
+	// itself stays invisible until an administrator enables and configures the
+	// agent, so this grants reach to a feature that is off by default.
+	//
+	// It confers NOTHING a role could not already see. The context assembler is
+	// handed the same per-page permission check the nav is, and every tool is
+	// filtered by it before being advertised, so a viewer denied the Firewall
+	// page gets an assistant that has never seen firewall data.
+	"ai-agent",
 }
 
 // operatorWritePages: the two pages whose actions the role holds — dashboard

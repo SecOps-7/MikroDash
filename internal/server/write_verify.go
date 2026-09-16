@@ -116,16 +116,36 @@ func observedValues(res *resource.Resource, row routeros.Reply, requested map[st
 //   - the table is refreshed, so the page shows what the router really has;
 //   - the page is told `outcome-unknown` rather than ok or failed.
 //
-// It returns nil so the caller's write-queue error path does not report twice.
-func (cn *conn) outcomeUnknown(res *resource.Resource, action, id, name, ack string) error {
+// ── THE EFFECTS AND THE REPORTING ARE SPLIT, FOR THE REASON writeRow IS ─────
+//
+// `unknownOutcome` does the four things above and RETURNS the verdict;
+// `outcomeUnknown` is the socket wrapper that also tells the browser. The agent
+// write path needs the same dropped history, the same audit note and the same
+// refresh, and it must learn the result as a value rather than as a frame.
+//
+// Splitting it rather than copying it matters more here than almost anywhere
+// else in this file: an unconfirmed write is the case where the app does not
+// know what the router did, and a second implementation that forgot to drop the
+// undo history would leave a stack pointing at rows that may not exist.
+func (cn *conn) unknownOutcome(res *resource.Resource, action, id, name, ack, via string) writeOutcome {
 	cn.histDrop(res.Key)
 	cn.recorder().Record(audit.Event{
 		Action: action, TargetType: res.Key, RouterID: cn.routerID,
 		TargetID: id, TargetName: name,
 		Note:  "outcome-unknown: the router accepted the change, but reading it back did not confirm it",
-		Extra: ackExtra(ack),
+		Extra: writeExtra(ack, via),
 	})
 	cn.refreshFor(res)
-	cn.resErr(res.Key, "outcome-unknown", name, map[string]any{"message": safe.Message(errOutcomeUnknown.Error())})
+	return writeOutcome{
+		Code: "outcome-unknown", Name: name,
+		Detail: map[string]any{"message": safe.Message(errOutcomeUnknown.Error())},
+	}
+}
+
+// It returns nil so the caller's write-queue error path does not report twice.
+func (cn *conn) outcomeUnknown(res *resource.Resource, action, id, name, ack string) error {
+	// A person at a form, so no provenance: see writeExtra.
+	out := cn.unknownOutcome(res, action, id, name, ack, "")
+	cn.resErr(res.Key, out.Code, out.Name, out.Detail)
 	return nil
 }
