@@ -136,19 +136,94 @@ func tempFromHealth(rows []routeros.Reply) *float64 {
 	return nil
 }
 
-// updateVerdict is the same reading of an update row that the Packages page
-// makes — deliberately, because the same router state must not produce two
-// different answers on two pages.
+// updateVerdict is the reading of an update row that BOTH the dashboard's
+// system card and the Packages page make — literally the same function, because
+// the same router state must not produce two different answers on two pages.
+// `parseUpdate` in packages.go called it by copying it until 2026-09-16, which
+// is how the two drifted apart for as long as they did.
 //
 // `latest-version` decides when the router has one. Otherwise the STATUS TEXT
 // does, and the string matched is RouterOS's own: MikroTik's upgrade
 // documentation scripts against `[/system/package/update get status] = "New
 // version is available"`.
+//
+// ── AN OLDER `latest-version` IS NOT AN UPDATE ────────────────────────────
+//
+// The live app asked `latest !== installed`, and `testdata/system-update-cases.json`
+// recorded that as "it is inequality, not ordering". MEASURED on the hAP ax³ on
+// 2026-09-16: RouterOS 7.24.3 reported `latest-version: 7.24.2`, and both pages
+// offered an Update button that would have DOWNGRADED the router. A stable
+// channel that has pulled a build, or a router moved from testing to stable,
+// reaches this state on its own.
+//
+// So the versions are ORDERED when both are plain dotted numbers, and the
+// recorded case was changed deliberately. Anything this does not recognise —
+// a development build like `7.25rc3` — still falls back to inequality rather
+// than being ordered by a guess.
 func updateVerdict(latest, status, installed string) bool {
 	if latest != "" {
+		if cmp, ok := rosVersionCmp(latest, installed); ok {
+			return cmp > 0
+		}
 		return latest != installed
 	}
 	return strings.Contains(strings.ToLower(status), "new version")
+}
+
+// rosVersionCmp orders two RouterOS versions, reporting ok only when BOTH are
+// plain dotted numbers — digits and dots, at least one component, nothing else.
+//
+// A missing component is zero, so `7.24` and `7.24.0` are the same version.
+// `rc` and `beta` builds deliberately do not parse: ordering `7.25rc3` against
+// `7.25beta5` has a real answer, and it is not one worth inventing here for a
+// channel this app does not otherwise model.
+func rosVersionCmp(a, b string) (int, bool) {
+	av, aok := rosVersionParts(a)
+	bv, bok := rosVersionParts(b)
+	if !aok || !bok {
+		return 0, false
+	}
+	for i := 0; i < len(av) || i < len(bv); i++ {
+		x, y := 0, 0
+		if i < len(av) {
+			x = av[i]
+		}
+		if i < len(bv) {
+			y = bv[i]
+		}
+		if x != y {
+			if x < y {
+				return -1, true
+			}
+			return 1, true
+		}
+	}
+	return 0, true
+}
+
+func rosVersionParts(v string) ([]int, bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil, false
+	}
+	parts := strings.Split(v, ".")
+	out := make([]int, 0, len(parts))
+	for _, p := range parts {
+		if p == "" {
+			return nil, false
+		}
+		for _, r := range p {
+			if r < '0' || r > '9' {
+				return nil, false
+			}
+		}
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, false
+		}
+		out = append(out, n)
+	}
+	return out, true
 }
 
 // buildSystem is the whole payload, pure. The arithmetic is the original's,

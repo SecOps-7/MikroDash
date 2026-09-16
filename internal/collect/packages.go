@@ -267,18 +267,15 @@ func parseUpdate(row routeros.Reply) Update {
 	installed := strings.TrimSpace(parenSuffix.ReplaceAllString(row["installed-version"], ""))
 	latest := row["latest-version"]
 	status := row["status"]
-	available := false
-	if latest != "" {
-		available = latest != installed
-	} else {
-		available = strings.Contains(strings.ToLower(status), "new version")
-	}
 	return Update{
 		Channel:          row["channel"],
 		InstalledVersion: installed,
 		LatestVersion:    latest,
 		Status:           status,
-		UpdateAvailable:  available,
+		// The SAME function the dashboard's system card uses, not a copy of it.
+		// This was a copy, and the copy is why an older `latest-version` offered
+		// an Update button on this page: see `updateVerdict` in system.go.
+		UpdateAvailable: updateVerdict(latest, status, installed),
 	}
 }
 

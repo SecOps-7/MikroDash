@@ -1,5 +1,13 @@
 {
   "generatedFrom": "src/collectors/system.js",
+  "divergences": [
+    {
+      "case": "an OLDER latest than installed is NOT an update",
+      "changed": "2026-09-16",
+      "was": "updateAvailable: true, matching the live app's `latest !== installed`",
+      "why": "MEASURED on the hAP ax3: RouterOS 7.24.3 reported latest-version 7.24.2, and both the dashboard system card and the Packages page offered an Update button that would have DOWNGRADED the router. This port orders plain dotted versions instead (rosVersionCmp in internal/collect/system.go). Regenerating this corpus from the live app reintroduces the defect: change the generator too, or keep this case."
+    }
+  ],
   "cases": [
     {
       "name": "a plain newer version",
@@ -28,7 +36,7 @@
       "updateAvailable": false
     },
     {
-      "name": "an OLDER latest than installed is still \"available\" — it is inequality, not ordering",
+      "name": "an OLDER latest than installed is NOT an update: this port orders versions where the live app only compared them",
       "row": {
         "latest-version": "7.23",
         "status": ""
@@ -38,7 +46,7 @@
       "latestVersion": "7.23",
       "updateStatus": "",
       "installedBase": "7.24",
-      "updateAvailable": true
+      "updateAvailable": false
     },
     {
       "name": "no latest-version, status says a new version exists",
