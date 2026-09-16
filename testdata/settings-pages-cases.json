@@ -47,7 +47,8 @@
     "notifIfaceWlan",
     "notifIfaceBridge",
     "notifIfaceVlan",
-    "notifIfaceOther"
+    "notifIfaceOther",
+    "aiReady"
   ],
   "cases": {
     "defaults": {

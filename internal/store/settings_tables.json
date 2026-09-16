@@ -117,7 +117,14 @@
     "dbRetentionDays": 90,
     "dbAlertRetentionDays": 365,
     "dbAuditRetentionDays": 365,
-    "displayTimezone": ""
+    "displayTimezone": "",
+    "aiEnabled": false,
+    "aiBaseUrl": "",
+    "aiApiKey": "",
+    "aiModel": "",
+    "aiTimeoutMs": 60000,
+    "aiTlsInsecure": false,
+    "aiHeaders": ""
   },
   "defaultsOrder": [
     "routerHost",
@@ -236,7 +243,14 @@
     "dbRetentionDays",
     "dbAlertRetentionDays",
     "dbAuditRetentionDays",
-    "displayTimezone"
+    "displayTimezone",
+    "aiEnabled",
+    "aiBaseUrl",
+    "aiApiKey",
+    "aiModel",
+    "aiTimeoutMs",
+    "aiTlsInsecure",
+    "aiHeaders"
   ],
   "encrypted": [
     "routerPass",
@@ -244,7 +258,8 @@
     "pushbulletApiKey",
     "smtpUser",
     "smtpPass",
-    "ntfyToken"
+    "ntfyToken",
+    "aiApiKey"
   ],
   "envMap": {
     "routerHost": {

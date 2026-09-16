@@ -156,6 +156,10 @@
     "pollWan": [
       1000,
       60000
+    ],
+    "aiTimeoutMs": [
+      1000,
+      600000
     ]
   },
   "strFields": [
@@ -165,7 +169,9 @@
     "smtpHost",
     "smtpFrom",
     "smtpTo",
-    "ntfyUrl"
+    "ntfyUrl",
+    "aiBaseUrl",
+    "aiModel"
   ],
   "boolFields": [
     "notifBackupDrift",
@@ -217,14 +223,17 @@
     "smtpEnabled",
     "smtpSecure",
     "telegramEnabled",
-    "userNotifyEnabled"
+    "userNotifyEnabled",
+    "aiEnabled",
+    "aiTlsInsecure"
   ],
   "credFields": [
     "telegramBotToken",
     "pushbulletApiKey",
     "smtpUser",
     "smtpPass",
-    "ntfyToken"
+    "ntfyToken",
+    "aiApiKey"
   ],
   "specialCases": [
     "authMode",
@@ -232,6 +241,7 @@
     "displayTimezone",
     "notifBody",
     "notifBodyUp",
-    "sessionTimeoutMs"
+    "sessionTimeoutMs",
+    "aiHeaders"
   ]
 }

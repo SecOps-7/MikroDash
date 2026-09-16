@@ -230,7 +230,16 @@ func TestTheTablesCoverTheRealSurface(t *testing.T) {
 	if n := len(wtables.BoolFields); n < 40 {
 		t.Errorf("only %d boolean fields — the page toggles alone are ~24", n)
 	}
-	if len(wtables.CredFields) != 5 || len(wtables.StrFields) < 5 {
+	// CREDENTIALS ARE COUNTED EXACTLY, where every other table here has a floor,
+	// and that asymmetry is the point: a new credential field widens the
+	// disclosure surface. It has to reach `CredentialFields` in disclose.go to be
+	// masked on read AND `encrypted` in settings_tables.json to be sealed at
+	// rest, and neither is inferred from this table. So the number moves only
+	// when somebody has added one deliberately and checked both places.
+	//
+	// SIX since `aiApiKey` (#98). Relaxing this to a floor would delete the one
+	// check that notices a credential arriving.
+	if len(wtables.CredFields) != 6 || len(wtables.StrFields) < 5 {
 		t.Errorf("cred=%d str=%d", len(wtables.CredFields), len(wtables.StrFields))
 	}
 }
@@ -259,6 +268,7 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		"notifBodyUp":       {"a recovery body"},
 		"customPollProfile": {"", `{"pollConns":2000}`},
 		"displayTimezone":   {"", "Europe/Berlin"},
+		"aiHeaders":         {"X-Example: one"},
 	}
 
 	for _, key := range wtables.SpecialCases {

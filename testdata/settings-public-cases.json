@@ -7,7 +7,9 @@
     "smtpUser",
     "smtpPass",
     "ntfyToken"
-  ],
+  ,
+    "aiApiKey"
+],
   "viewerFields": [
     "activeRouterId",
     "alertCpuThreshold",
@@ -55,6 +57,7 @@
       "note": "an empty settings file",
       "stored": {},
       "public": {
+        "aiApiKey": "",
         "routerHost": "192.168.88.1",
         "routerPort": 8729,
         "routerTls": true,
@@ -227,6 +230,7 @@
         "ntfyToken": "NOT-A-REAL-NTFY-TOKEN"
       },
       "public": {
+        "aiApiKey": "",
         "routerHost": "192.168.88.1",
         "routerPort": 8729,
         "routerTls": true,
@@ -399,6 +403,7 @@
         "ntfyToken": ""
       },
       "public": {
+        "aiApiKey": "",
         "routerHost": "192.168.88.1",
         "routerPort": 8729,
         "routerTls": true,
@@ -567,6 +572,7 @@
         "smtpPass": "NOT-A-REAL-SMTP-PASS"
       },
       "public": {
+        "aiApiKey": "",
         "routerHost": "192.168.88.1",
         "routerPort": 8729,
         "routerTls": true,
@@ -741,6 +747,7 @@
         "pushbulletApiKey": "NOT-A-REAL-KEY"
       },
       "public": {
+        "aiApiKey": "",
         "routerHost": "198.51.100.1",
         "routerPort": 8729,
         "routerTls": true,
@@ -919,6 +926,7 @@
         "pageBackups": true
       },
       "public": {
+        "aiApiKey": "",
         "routerHost": "192.168.88.1",
         "routerPort": 8729,
         "routerTls": true,
@@ -1086,6 +1094,7 @@
         "somethingNobodyDefined": "x"
       },
       "public": {
+        "aiApiKey": "",
         "routerHost": "192.168.88.1",
         "routerPort": 8729,
         "routerTls": true,

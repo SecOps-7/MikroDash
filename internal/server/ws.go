@@ -28,7 +28,6 @@ import (
 	"mikrodash/internal/db"
 	"mikrodash/internal/hub"
 	"mikrodash/internal/session"
-	"mikrodash/internal/store"
 )
 
 // A frame the browser sends. `data` is decoded per event, because page:focus
@@ -727,7 +726,7 @@ func (cn *conn) sendPageSettings() {
 		log.Printf("[settings] page settings: %v", err)
 		return
 	}
-	EvSettingsPages.Send(cn.srv.hub, cn.c, store.PageSettings(cfg))
+	EvSettingsPages.Send(cn.srv.hub, cn.c, pageSettingsFor(cfg))
 }
 
 // sendOpenAlerts is the notification bell's INITIAL state.

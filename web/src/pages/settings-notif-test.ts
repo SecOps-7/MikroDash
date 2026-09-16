@@ -30,15 +30,71 @@ export interface TestChannelSpec {
   btnId: string;
   resultId: string;
   channel: string;
+  /** Where to post. Defaults to the notification route. */
+  url?: string;
+  /** What to post. Defaults to `testPayload(channel)`. */
+  payload?: () => Record<string, unknown>;
+  /** The word for a success. A notification is SENT; a connection is not. */
+  okText?: string;
 }
 
-/** The four buttons, in the order the live app registers them. */
+/**
+ * Every Test button on the Settings page.
+ *
+ * ── ONE BINDER, NOT TWO ────────────────────────────────────────────────────
+ *
+ * The AI Agent tab's button posts to a different route with a different body, so
+ * it would have been easy to give it a module of its own. That would also have
+ * given it a second mount point in `main.ts` to forget — and a Test button bound
+ * by a module nothing mounts is precisely the shape
+ * `TestInteractiveControlsAreBoundBeyondCaps` exists to catch, having shipped
+ * twice already as `rtrAddBtn` and `settingsSaveBtn`.
+ *
+ * Extending the table instead means the AI button inherits the existing mount,
+ * the disable-on-press rule, and the result line's clearing behaviour, none of
+ * which is worth a second copy.
+ */
 export const TEST_CHANNELS: TestChannelSpec[] = [
   { btnId: 'btn-test-telegram', resultId: 'test-telegram-result', channel: 'telegram' },
   { btnId: 'btn-test-pushbullet', resultId: 'test-pushbullet-result', channel: 'pushbullet' },
   { btnId: 'btn-test-smtp', resultId: 'test-smtp-result', channel: 'smtp' },
   { btnId: 'btn-test-ntfy', resultId: 'test-ntfy-result', channel: 'ntfy' },
+  {
+    btnId: 'btn-test-ai', resultId: 'test-ai-result', channel: 'ai',
+    url: '/api/settings/test-ai', payload: aiTestPayload,
+    // NOT "Sent!". Nothing was delivered to anybody: the endpoint answered, the
+    // key was accepted and the model name exists, which is a different claim.
+    okText: '✓ Connected',
+  },
 ];
+
+/**
+ * What the AI Agent tab's Test button sends.
+ *
+ * ── THE SAME TWO GUARDS AS THE CHANNELS ABOVE, FOR THE SAME REASON ─────────
+ *
+ * Text fields go only when non-empty, so an untouched box falls back to what is
+ * stored and Test works before a Save. The checkbox goes whether or not it is
+ * ticked, because `aiTlsInsecure` off is a value an operator sets deliberately —
+ * guarding it on truthiness would make it impossible to test with verification
+ * turned back ON without saving first. `aiConfigFor` on the server is the other
+ * half of this pair.
+ *
+ * THE MASKED KEY IS SENT AS IT STANDS. The server's `store.IsMasked` drops it
+ * and falls back to the stored key, which is the same round trip `smtpUser`
+ * makes; blanking it here would instead read as "no key configured".
+ */
+export function aiTestPayload(): Record<string, unknown> {
+  const p: Record<string, unknown> = {};
+  if (val('s_aiBaseUrl')) p.aiBaseUrl = val('s_aiBaseUrl').trim();
+  if (val('s_aiModel')) p.aiModel = val('s_aiModel').trim();
+  if (val('s_aiApiKey')) p.aiApiKey = val('s_aiApiKey');
+  if (val('s_aiHeaders')) p.aiHeaders = val('s_aiHeaders');
+  if (val('s_aiTimeoutMs')) p.aiTimeoutMs = parseInt(val('s_aiTimeoutMs'), 10);
+  const insecure = el<HTMLInputElement>('s_aiTlsInsecure');
+  if (insecure) p.aiTlsInsecure = insecure.checked;
+  return p;
+}
 
 const val = (id: string): string => el<HTMLInputElement>(id)?.value ?? '';
 
@@ -97,8 +153,8 @@ export function testPayload(channel: string): Record<string, unknown> {
  * guard on sight is obvious. If the live app ever guards it, the gate fails and
  * this note goes with it.
  */
-export function resultText(d: { ok?: boolean; error?: string }): string {
-  return d.ok ? '✓ Sent!' : '✗ ' + (d.error || 'failed');
+export function resultText(d: { ok?: boolean; error?: string }, okText?: string): string {
+  return d.ok ? (okText || '✓ Sent!') : '✗ ' + (d.error || 'failed');
 }
 
 export function resultColour(ok: boolean): string {
@@ -119,11 +175,11 @@ function wire(spec: TestChannelSpec): void {
       result.textContent = 'Sending…';
       result.style.color = 'var(--text-muted)';
     }
-    void fetch('/api/settings/test-notification', {
+    void fetch(spec.url || '/api/settings/test-notification', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify(testPayload(spec.channel)),
+      body: JSON.stringify(spec.payload ? spec.payload() : testPayload(spec.channel)),
     })
       .then((r) => r.json())
       .then((d) => {
@@ -133,7 +189,7 @@ function wire(spec: TestChannelSpec): void {
         // — exactly as the live code does, where the throw happens on `data.ok`
         // in the same expression. Reading `d.ok` for the colour first would
         // write a colour and then throw, leaving a coloured empty line.
-        const text = resultText(d);
+        const text = resultText(d, spec.okText);
         result.textContent = text;
         result.style.color = resultColour(!!d.ok);
         // FIVE SECONDS, on success AND on refusal. The live app clears both,

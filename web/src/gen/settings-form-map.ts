@@ -25,6 +25,8 @@ export interface ValueDefault {
 export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
   "checkOff": [
     "ntfyEnabled",
+    "aiEnabled",
+    "aiTlsInsecure",
     "pushbulletEnabled",
     "rosDebug",
     "routerTls",
@@ -67,6 +69,10 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
   ],
   "value": [
     "alertCpuThreshold",
+    "aiBaseUrl",
+    "aiHeaders",
+    "aiModel",
+    "aiTimeoutMs",
     "alertPingLoss",
     "dbAlertRetentionDays",
     "dbRetentionDays",
@@ -263,6 +269,10 @@ export const VALUE_DEFAULTS: Record<string, ValueDefault> = {
  * isMasked guard exists to catch.
  */
 export const PLACEHOLDER_CREDENTIALS: Record<string, { whenSet: string; whenNot: string }> = {
+  "aiApiKey": {
+    "whenSet": "leave blank to keep current",
+    "whenNot": "paste key here, or leave blank for a local model"
+  },
   "routerPass": {
     "whenSet": "leave blank to keep current",
     "whenNot": "not set"

@@ -11,6 +11,7 @@
         <button class="stab" data-tab="notifications">Notifications</button>
         <button class="stab" data-tab="appearance">Appearance</button>
         <button class="stab" data-tab="auth">Authentication</button>
+        <button class="stab" data-tab="ai">AI Agent</button>
         <button class="stab" data-tab="about">About</button>
       </div>
 
@@ -1171,6 +1172,60 @@
       </div>
 
       <!-- ── About tab ──────────────────────────────────────────────────── -->
+      <!-- ── AI Agent tab ──────────────────────────────────────────────── -->
+      <div class="stab-panel" id="stab-ai">
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M12 2a3 3 0 0 1 3 3v1h1a3 3 0 0 1 3 3v1h1a2 2 0 0 1 0 4h-1v1a3 3 0 0 1-3 3h-1v1a3 3 0 0 1-6 0v-1H8a3 3 0 0 1-3-3v-1H4a2 2 0 0 1 0-4h1V9a3 3 0 0 1 3-3h1V5a3 3 0 0 1 3-3z"/><circle cx="12" cy="12" r="2.5"/></svg>
+            <span class="scard-title">AI Agent</span>
+            <label class="stoggle" style="margin:0 0 0 auto"><span class="stoggle-switch"><input type="checkbox" id="s_aiEnabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.8rem">
+              Connects to any OpenAI-compatible endpoint: a hosted provider, a gateway, or a
+              model running on your own hardware. <strong>A hosted endpoint sends router
+              names, addresses and network shape to that provider.</strong> A local one
+              (Ollama, LM Studio, vLLM, LiteLLM) sends nothing outside your network.
+              The AI Agent page appears once this is switched on and an endpoint and model are set.
+            </p>
+            <div class="sform-row">
+              <div class="sform-group" style="flex:2">
+                <label class="sform-label">Endpoint</label>
+                <input type="text" id="s_aiBaseUrl" class="sform-input" placeholder="http://192.0.2.10:11434/v1" autocomplete="off">
+              </div>
+              <div class="sform-group" style="flex:1">
+                <label class="sform-label">Model</label>
+                <input type="text" id="s_aiModel" class="sform-input" placeholder="llama3.1:8b" autocomplete="off">
+              </div>
+            </div>
+            <div class="sform-row" style="margin-top:.5rem">
+              <div class="sform-group" style="flex:2">
+                <label class="sform-label">API Key</label>
+                <input type="password" id="s_aiApiKey" class="sform-input" placeholder="paste key here, or leave blank for a local model" autocomplete="off">
+              </div>
+              <div class="sform-group" style="flex:1">
+                <label class="sform-label">Timeout (ms)</label>
+                <input type="number" id="s_aiTimeoutMs" class="sform-input" min="1000" max="600000" placeholder="60000" autocomplete="off">
+              </div>
+            </div>
+            <div class="sform-group" style="margin-top:.5rem">
+              <label class="sform-label">Extra headers</label>
+              <textarea id="s_aiHeaders" class="sform-input" rows="2" placeholder="X-Tenant: acme" autocomplete="off" style="resize:vertical;font-family:var(--font-mono);font-size:.72rem"></textarea>
+            </div>
+            <div class="sform-group" style="margin-top:.5rem">
+              <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
+                <input type="checkbox" id="s_aiTlsInsecure">
+                <span>Accept a self-signed certificate &mdash; only for an endpoint on your own network</span>
+              </label>
+            </div>
+            <div style="display:flex;align-items:center;gap:.6rem;margin-top:.7rem">
+              <button id="btn-test-ai" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Test Connection</button>
+              <span id="test-ai-result" style="font-size:.75rem"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="stab-panel" id="stab-about">
         <div class="scard">
           <div class="scard-body" style="text-align:center;padding:1.75rem 1.5rem">

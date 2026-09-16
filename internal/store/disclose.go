@@ -23,6 +23,10 @@ package store
 var CredentialFields = []string{
 	"routerPass", "telegramBotToken", "pushbulletApiKey",
 	"smtpUser", "smtpPass", "ntfyToken",
+	// The AI provider's key (#98). Being in `encrypted` seals it on DISK; this
+	// is what masks it on the way OUT, and the two lists are separate — a field
+	// in one and not the other is stored safely and disclosed in full.
+	"aiApiKey",
 }
 
 // Mask is the sentinel the browser receives in place of a configured credential.

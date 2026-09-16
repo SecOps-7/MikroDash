@@ -144,6 +144,16 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 		}
 	}
 
+	// aiHeaders is a SPECIAL CASE rather than a string field, and the reason is
+	// the cap: every `strFields` entry is cut to 256, which is a hostname or an
+	// email address. This holds one header per line for a gateway that needs
+	// them, and 256 would truncate the second one mid-name — silently, since an
+	// invalid value here is ignored rather than refused, so the operator would
+	// see their headers revert with nothing on screen to explain it.
+	if raw, ok := body["aiHeaders"]; ok {
+		updates["aiHeaders"] = cut(strings.TrimSpace(asString(raw)), 1024)
+	}
+
 	// customPollProfile is either cleared or a JSON OBJECT. `typeof
 	// JSON.parse(v) === 'object'` — which in JavaScript is also true of an
 	// array and of null, and both are accepted there, so both are accepted

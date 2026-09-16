@@ -46,5 +46,6 @@
   "notifIfaceWlan",
   "notifIfaceBridge",
   "notifIfaceVlan",
-  "notifIfaceOther"
+  "notifIfaceOther",
+  "aiReady"
 ]

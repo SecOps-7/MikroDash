@@ -15,6 +15,7 @@
 
 /** Integer keys and their inclusive [min, max]. Out of range is IGNORED server-side. */
 export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
+  "aiTimeoutMs": [1000, 600000],
   "alertCpuThreshold": [1, 100],
   "alertPingLoss": [1, 100],
   "dbAlertRetentionDays": [1, 3650],
@@ -58,6 +59,8 @@ export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
 
 /** Trimmed and cut to 256 by the server. */
 export const STR_FIELDS: readonly string[] = [
+  "aiBaseUrl",
+  "aiModel",
   "notifTitle",
   "ntfyUrl",
   "pingTarget",
@@ -69,6 +72,8 @@ export const STR_FIELDS: readonly string[] = [
 
 /** Only a real `true` or the string "true" counts as true. */
 export const BOOL_FIELDS: readonly string[] = [
+  "aiEnabled",
+  "aiTlsInsecure",
   "notifBackupDrift",
   "notifBackupFail",
   "notifBgp",
@@ -123,6 +128,7 @@ export const BOOL_FIELDS: readonly string[] = [
 
 /** Sealed at rest and NOT trimmed. A masked value is dropped; an EMPTY STRING is a destructive clear. */
 export const CRED_FIELDS: readonly string[] = [
+  "aiApiKey",
   "ntfyToken",
   "pushbulletApiKey",
   "smtpPass",
@@ -132,6 +138,7 @@ export const CRED_FIELDS: readonly string[] = [
 
 /** Validated outside the four tables — see internal/store/settings_write.go. */
 export const SPECIAL_CASES: readonly string[] = [
+  "aiHeaders",
   "authMode",
   "customPollProfile",
   "displayTimezone",

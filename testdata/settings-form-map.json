@@ -8,6 +8,8 @@
   "fields": {
     "checkOff": [
       "ntfyEnabled",
+      "aiEnabled",
+      "aiTlsInsecure",
       "pushbulletEnabled",
       "rosDebug",
       "routerTls",
@@ -50,6 +52,10 @@
     ],
     "value": [
       "alertCpuThreshold",
+      "aiBaseUrl",
+      "aiHeaders",
+      "aiModel",
+      "aiTimeoutMs",
       "alertPingLoss",
       "dbAlertRetentionDays",
       "dbRetentionDays",
@@ -235,6 +241,10 @@
     }
   },
   "placeholderCredentials": {
+    "aiApiKey": {
+      "whenSet": "leave blank to keep current",
+      "whenNot": "paste key here, or leave blank for a local model"
+    },
     "routerPass": {
       "whenSet": "leave blank to keep current",
       "whenNot": "not set"

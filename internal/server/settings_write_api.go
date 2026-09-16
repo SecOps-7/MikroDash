@@ -86,7 +86,7 @@ func (s *Server) settingsSave(w http.ResponseWriter, r *http.Request) {
 		}
 		// The alert rules and the sender read settings too; see refreshAlertSettings.
 		s.refreshAlertSettings()
-		EvSettingsPages.BroadcastAll(s.hub, store.PageSettings(store.Defaults()))
+		EvSettingsPages.BroadcastAll(s.hub, pageSettingsFor(store.Defaults()))
 		writeJSON(w, map[string]any{"ok": true, "requiresRestart": false})
 		return
 	}
@@ -138,7 +138,7 @@ func (s *Server) settingsSave(w http.ResponseWriter, r *http.Request) {
 	// refreshAlertSettings.
 	s.refreshAlertSettings()
 
-	EvSettingsPages.BroadcastAll(s.hub, store.PageSettings(next))
+	EvSettingsPages.BroadcastAll(s.hub, pageSettingsFor(next))
 	writeJSON(w, map[string]any{"ok": true, "requiresRestart": false})
 }
 

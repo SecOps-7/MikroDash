@@ -84,6 +84,27 @@ func (s *Server) settingsPayload(sess *Session) store.Settings {
 	return merged.ViewerPublic()
 }
 
+// pageSettingsFor is the `settings:pages` payload: the visibility projection,
+// with the derived flags added FIRST.
+//
+// ── WHY THE DERIVATION WRAPS THE PROJECTION ─────────────────────────────────
+//
+// `store.PageSettings` copies only the keys its source has, and a derived key is
+// in no source by definition — so computing it inside would mean teaching that
+// function about features, and it is compared against seven recorded payloads
+// that predate this one. Wrapping leaves those recordings exact.
+//
+// ── AND WHY IT IS A FUNCTION RATHER THAN THREE WRAPPED CALLS ────────────────
+//
+// Three sites send this payload: the connect replay in ws.go, and the save and
+// reset broadcasts in settings_write_api.go. A derived flag added at two of them
+// is worse than one added at none — the browser would be told the feature is
+// usable on connect and not after a save, so the page would appear and then
+// vanish when the operator pressed Save, which reads as the save having failed.
+func pageSettingsFor(s store.Settings) store.Settings {
+	return store.PageSettings(store.WithAIReady(s))
+}
+
 // maySeeAllSettings answers `Rbac.can(session, 'system:settings')`.
 //
 // FAILS CLOSED. An unanswerable question yields the VIEWER payload, not the

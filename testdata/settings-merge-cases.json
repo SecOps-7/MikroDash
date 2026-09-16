@@ -122,7 +122,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -249,7 +256,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -376,7 +390,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -504,7 +525,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -632,7 +660,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -760,7 +795,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -888,7 +930,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -1016,7 +1065,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -1142,7 +1198,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -1268,7 +1331,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -1394,7 +1464,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -1522,7 +1599,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -1648,7 +1732,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -1774,7 +1865,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -1900,7 +1998,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -2026,7 +2131,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -2153,7 +2265,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -2280,7 +2399,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -2406,7 +2532,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -2532,7 +2665,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -2658,7 +2798,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     },
     {
@@ -2785,7 +2932,14 @@
         "dbRetentionDays": 90,
         "dbAlertRetentionDays": 365,
         "dbAuditRetentionDays": 365,
-        "displayTimezone": ""
+        "displayTimezone": "",
+        "aiEnabled": false,
+        "aiBaseUrl": "",
+        "aiApiKey": "",
+        "aiModel": "",
+        "aiTimeoutMs": 60000,
+        "aiTlsInsecure": false,
+        "aiHeaders": ""
       }
     }
   ]

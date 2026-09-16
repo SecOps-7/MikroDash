@@ -646,6 +646,11 @@ func (s *Server) Handler() http.Handler {
 		// harmless — see the file header on why blocker 5 does not reach it — but
 		// the button belongs to the app the operator is actually configuring.
 		s.registerTestNotification(mux)
+		// The AI Agent tab's Test button. Beside the notification tests for
+		// the same reason they are here: it makes the server connect OUT to a
+		// host named in the request, so it belongs to the app the operator is
+		// actually configuring.
+		s.registerAITest(mux)
 		s.registerHealth(mux)
 	}
 	s.registerNavPrefs(mux)

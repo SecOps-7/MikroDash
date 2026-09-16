@@ -51,6 +51,16 @@ func isIllustrative(p string) bool { return strings.Contains(p, "...") }
 // something deleted, or a file a later change will add. Each needs a reason, and
 // an entry that starts existing is itself a failure, so the list cannot rot.
 var expectedAbsent = map[string]string{
+	// The AI Agent's slice 1 (#98). `notes/ai-agent-design.md` is the design for a
+	// feature being built in slices, so it names the files the NEXT slice adds —
+	// which is what a plan is. These three entries are the ledger doing its job in
+	// both directions: each must be deleted the moment its file exists, or this
+	// check fails on an entry that has stopped being true.
+	"web/src/markdown.ts": "slice 1 of the AI Agent (#98) adds it: the Markdown subset renderer, " +
+		"which builds DOM nodes and never touches innerHTML",
+	"web/src/pages/ai-agent.ts": "slice 1 of the AI Agent (#98) adds it: the chat page module",
+	"web/src/ui/page-ai-agent.html": "slice 1 of the AI Agent (#98) adds it: the page markup, " +
+		"which cmd/webbuild requires before the page key can exist",
 	"docs/architecture-next.md": "cited by CHANGELOG.md's release notes, which are history and " +
 		"name files as they were when released. Deleted 2026-09-11: its three items were " +
 		"delivered or overtaken, bar the frontend's move onto cmd/tsgen's generated payload types.",
