@@ -125,8 +125,9 @@ export function flushSysUpdate(): void {
     let ur = '';
     // Held rather than dispatched here — see the dirty check below.
     let updEvent: UpdInfo | null = null;
+    // The version the router is RUNNING. Hoisted because BOTH branches need it.
+    const installedBase = (d.version || '').replace(/\s*\(.*\)/, '').trim();
     if (d.updateAvailable && d.latestVersion) {
-      const installedBase = (d.version || '').replace(/\s*\(.*\)/, '').trim();
       // The Update button lands in #sysUpdateAction, filled by the upgrade
       // module once it knows whether the viewer may reboot this router. Empty
       // for everyone else, so the row is unchanged for a viewer who cannot act.
@@ -142,8 +143,15 @@ export function flushSysUpdate(): void {
       // the row had just re-created.
       updEvent = { installed: installedBase, latest: d.latestVersion, channel: d.updateChannel || '' };
     } else if (d.latestVersion) {
+      // THE INSTALLED VERSION, NOT THE REPORTED LATEST. They are the same on a
+      // router that is genuinely current, and they are NOT when `latest-version`
+      // is OLDER than what is installed: the hAP ax3 reported 7.24.2 while
+      // running 7.24.3, and this row then read "RouterOS 7.24.2 - Up to date"
+      // about a router on 7.24.3. That state only reaches this branch since
+      // `updateVerdict` started ordering versions rather than comparing them
+      // (internal/collect/system.go); before, it drew a downgrade arrow instead.
       ur = '<div class="ros-update-row ok"><span class="ros-update-dot"></span>&#10003; RouterOS <strong>' +
-        esc(d.latestVersion) + '</strong> &mdash; Up to date</div>';
+        esc(installedBase || d.latestVersion) + '</strong> &mdash; Up to date</div>';
     } else if (d.updateStatus) {
       const isUnavail = /unavailable|cannot|error|failed/i.test(d.updateStatus);
       const rowCls = isUnavail ? 'ros-update-row muted' : 'ros-update-row pending';
