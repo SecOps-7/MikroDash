@@ -2,6 +2,55 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [0.8.58] - Collectors are no longer switched off per device, and Edit Device is regrouped
+
+The per-device collector switches are gone. They existed to spare small routers
+work that MikroDash no longer does anyway, and the app has two better answers for
+it already.
+
+**A collector only runs while something needs it.** Open a page, or show a
+dashboard card, and its collector starts; leave, and it stops. The exceptions are
+deliberate: alerting, history recording and the Devices page keep the collectors
+they need running in the background. So a collector whose page nobody opens costs
+a router nothing, switch or no switch.
+
+**A collector that finds nothing puts itself to sleep.** One that keeps reporting
+an empty table backs off and stops asking until there is something to report, so a
+router with no queues, no VPN peers or no CAPsMAN is not repeatedly asked about
+them.
+
+Against that, a switch could only make a page permanently empty, with no hint on
+the page itself of why. The setting that does still matter is kept.
+
+### Changed
+
+- **Collectors can no longer be switched off per device.** The grid is gone from
+  Settings → Devices → edit, with the mechanism behind it.
+- **A device that had collectors switched off now runs them all.** The stored list
+  is ignored, not deleted, and is dropped the next time that device is saved.
+- **Stream / Poll stays** (Settings → Devices → edit). Poll replaces persistent API
+  streams with periodic requests at the same interval, which is what helps a
+  smaller router: its limit is concurrent API channels, not data volume.
+- **Ping is still switchable install-wide** under Settings → Notifications →
+  Ping / Latency.
+
+### New
+
+- **Edit Device is laid out in six titled sections**: Device, Connection and
+  Collection on the left; Location, Network and Monitoring on the right.
+- **"Router identity" is now "Device identity"**, matching the rest of the dialog.
+
+### Fixed
+
+- **Add Device no longer opens carrying the last device's identity.** The field was
+  hidden and kept the previous router's name.
+
+### Internal
+
+- `GET /api/collectors` is removed, `collection:config` no longer carries `off`,
+  and the Bandwidth-follows-Connections cascade is gone. `disableable` stays in the
+  collector registry, where it now means only "may be put to sleep when idle".
+
 ## [0.8.57] - NetWatch and IP Addresses pages, interface and router name edits, and fewer open router channels
 
 Finishes the router management work tracked in

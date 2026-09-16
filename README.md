@@ -284,7 +284,7 @@ recent release rather than unreleased work on `main`. Each release is a multi-ar
 To pin to a specific release:
 
 ```bash
-docker pull ghcr.io/secops-7/mikrodash:0.8.57
+docker pull ghcr.io/secops-7/mikrodash:0.8.58
 ```
 
 Run with Docker Compose — create a `docker-compose.yml`:
@@ -369,10 +369,10 @@ Most configuration is managed through the **Settings page** in the UI (gear icon
 
 | Section | What you can configure |
 |---|---|
-| Devices | Add, edit, and delete device connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. The table also shows each router's model, serial number, and RouterOS version, learned from the device and stored against the entry so they stay visible while a router is offline or disabled. Test Connection validates credentials before saving; leaving the password blank on an edit keeps the stored one, and it is reused for the test itself as long as the host, port, username and TLS settings are unchanged. The active router is selected from the picker in the page header, which lists each router with its host and a live online/offline dot, and gains a search box once you have five or more Each router also carries its own collection settings — Stream or Poll, which collectors run, and interval overrides. **Primary site** picks which of the device's sites places it on the map; which sites it belongs to is set under Access Management, not here. **Location** is a city or town picker used by the Devices Map view: leave it empty and the location is derived automatically from the router's WAN IP, falling back to its primary site's location; set it and your choice wins. Nothing is sent anywhere to resolve it — the lookup uses the geo-IP data already bundled in the image. |
+| Devices | Add, edit, and delete device connections. Each entry stores host, port, username, password (encrypted), TLS options, WAN interface, and ping target. The table also shows each router's model, serial number, and RouterOS version, learned from the device and stored against the entry so they stay visible while a router is offline or disabled. Test Connection validates credentials before saving; leaving the password blank on an edit keeps the stored one, and it is reused for the test itself as long as the host, port, username and TLS settings are unchanged. The active router is selected from the picker in the page header, which lists each router with its host and a live online/offline dot, and gains a search box once you have five or more Each router also carries its own collection settings — Stream or Poll, and interval overrides. **Primary site** picks which of the device's sites places it on the map; which sites it belongs to is set under Access Management, not here. **Location** is a city or town picker used by the Devices Map view: leave it empty and the location is derived automatically from the router's WAN IP, falling back to its primary site's location; set it and your choice wins. Nothing is sent anywhere to resolve it — the lookup uses the geo-IP data already bundled in the image. |
 | Authentication | Auth mode (`none` / `modern` cookie sessions) and session timeout. In `modern` mode, **Access Management** holds four tabs: **Users**, **Groups**, **Sites** and **Roles** — a role is a per-page read/write matrix, granted to a user or group over all devices, a site, or one device. A device may belong to **several sites at once**, and a grant on any of them reaches it. Membership is assigned on the Sites tab, since it decides who can reach a device; the device editor only chooses which of those sites is its primary, which is what the map uses to place it. Passwords are scrypt-hashed |
 | Poll Intervals | Per-collector update intervals with **Polling Profile** preset buttons (Fast / Faster / Standard / Slow / Slower / Custom). Drag any slider to enter Custom mode; **Save Custom Profile** persists your values as a reusable template. Changes apply immediately without restart. Pure event-driven collectors (ARP, Routing, DHCP Leases, Firewall rule changes) show an Event-driven badge instead of a slider. Sliders sit on exactly two scales — **1s–30s** for live data (rates, sessions, uplinks) and **10s–10m** for things that change when somebody edits the router (packages, DHCP networks, topology) — laid out in two columns under Advanced and grouped under a heading for each scale. |
-| Collection Method | **Moved to each device** (Settings → Devices → edit). A per-router Stream/Poll master switch, per-collector enable/disable for **every** disableable collector (the grid is generated from the collector registry, so it cannot fall behind), and interval overrides. Poll replaces persistent API streams with periodic requests, which suits lower-end hardware where concurrent open channels — not data volume — are the constraint. Logs and the traffic graph always stream. |
+| Collection Method | **Moved to each device** (Settings → Devices → edit): a per-router Stream/Poll switch and interval overrides. Poll replaces persistent API streams with periodic requests, which suits lower-end hardware where concurrent open channels — not data volume — are the constraint. Logs and the traffic graph always stream. Collectors cannot be switched off per device: one runs only while a page or card it feeds is open, or while alerts, history or the Devices page need it, and one that keeps reporting nothing backs off on its own. |
 | Limits | Top N values for connections, talkers, firewall rules, and VPN dashboard peers; max connection rows; traffic history window |
 | Alert Thresholds | CPU alert threshold (%) and ping loss alert (%) for browser notifications |
 | Notifications | Push notification channels — Telegram Bot, Pushbullet, SMTP email, and ntfy (all four can be active simultaneously); per-type toggles (interface up/down, WireGuard, CPU, ping, NetWatch, router status, RouterOS update); separate ⚠️ alert and ✅ recovery message templates with `{{variable}}` substitution; configurable cooldown (10 s – 60 min) per alert subject; test-send button per channel. **Allow personal channels** lets each user add their own destination under My Account — off by default, since a personal ntfy topic or SMTP recipient is an address the user chooses |
@@ -617,10 +617,13 @@ see its `PATCHES.md`), and `github.com/go-pdf/fpdf` for the PDF reports.
 | System metrics (CPU, RAM, temp, uptime) | `/system/resource/print =interval=N` |
 | WAN Traffic RX/TX per interface | `/interface/monitor-traffic =interface=X =interval=1` |
 | Ping RTT + loss | `/tool/ping =address=X =interval=N` |
-| Top Talkers (Kid Control) | `/ip/kid-control/device/print =interval=N` |
-| Interface metadata (name, IP, state) | `/interface/print =interval=N` + `/ip/address/print =interval=N` |
 | Interface byte counters (all interfaces) | `/interface/monitor-traffic =interface=all =interval=N` |
 | Firewall connection table, geo-IP | `/ip/firewall/connection/print =interval=N` |
+| WiFi clients | `/interface/wifi/registration-table/print =interval=N` |
+| PPP sessions | `/ppp/active/print =interval=N` |
+| Bridge host table | `/interface/bridge/host/print =interval=N` |
+| NetWatch host status | `/tool/netwatch/print =interval=N` |
+| WAN uplink state | `/interface/detect-internet/state/print =interval=N` |
 | Router Logs | `/log/listen` |
 | DHCP Lease changes | `/ip/dhcp-server/lease/listen` |
 | Firewall structural changes (rule add/remove/edit) | `/ip/firewall/filter\|nat\|mangle/listen` |
@@ -631,10 +634,12 @@ see its `PATCHES.md`), and `github.com/go-pdf/fpdf` for the PDF reports.
 
 ### Polled (concurrent via tagged API multiplexing)
 
-Bridges, VLANs, CAPsMAN, PPP, WAN and Queues additionally hold a `/listen` channel each in Stream
-mode, so a change appears the moment the router makes it; the interval below governs how often the
-volatile tables are re-read. Setting a router to Poll closes those channels. DNS, Packages and Router
-Users are poll-only by design — see `internal/collection/` for why.
+**Only live data streams.** A stream holds a router channel open for as long as the
+subscription lasts, which pays for gauges, sessions, clients and state, and never for
+configuration that changes when somebody edits the router. So DNS, Packages, Router Users,
+IP Addresses, WiFi and VLAN configuration and DHCP networks are polled whatever the device's
+mode, while the menus above stream when the device is set to Stream and are polled when it is
+set to Poll — at the same interval either way.
 | Collector | Default interval | Data |
 |---|---|---|
 | Bandwidth | 3 s | Per-connection live RX/TX/Total Mbps (reads from the shared connection-table cache populated by the Connections stream) |
