@@ -395,8 +395,10 @@ func (cn *conn) dispatch(in inbound) {
 		cn.resNew(in.Data)
 	case "res:schema":
 		cn.resSchema(in.Data)
-	// One question to the configured model (#98). Advisory only: it
-	// advertises no tools, so nothing it answers can change a router.
+	// One question to the configured model (#98). It may call READ tools: the
+	// catalogue is generated from the resource registry and every entry is a
+	// list, with `resource.Action` excluded by name, so nothing it can call
+	// changes a router. See internal/aitools.
 	case "ai:ask":
 		cn.aiAsk(in.Data)
 	case "res:undo":

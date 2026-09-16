@@ -256,9 +256,14 @@ func (cn *conn) snapshot() aicontext.Snapshot {
 // A custom system prompt is a feature worth having and is also an attack
 // surface: "ignore your safety instructions" is a sentence somebody can type
 // into a settings box. So the operator's text is added AFTER this, and this
-// cannot be removed from the tab. It is not the security boundary either — in
-// this slice that is simply that no tools exist — but a preamble a form can
-// delete is not even a mitigation.
+// cannot be removed from the tab.
+//
+// IT IS STILL NOT THE SECURITY BOUNDARY. That is structural and lives elsewhere:
+// every tool is a list, generated from the resource registry with
+// `resource.Action` excluded BY NAME, and `runAITool` re-checks the page
+// permission before reading. A prompt is what makes an ordinary model behave
+// well; none of it survives a model that does not. But a preamble a form can
+// delete is not even a mitigation, which is why this one cannot be.
 const aiSafetyPreamble = `You are an assistant built into MikroDash, a dashboard for MikroTik RouterOS devices.
 
 You have READ-ONLY tools. Each one lists the rows of one RouterOS menu on the device the
