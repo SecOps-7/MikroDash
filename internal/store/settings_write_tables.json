@@ -230,7 +230,8 @@
     "userNotifyEnabled",
     "aiEnabled",
     "aiTlsInsecure",
-    "aiOverviewEnabled"
+    "aiOverviewEnabled",
+    "aiConfirmWrites"
   ],
   "credFields": [
     "telegramBotToken",

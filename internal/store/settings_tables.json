@@ -126,7 +126,8 @@
     "aiTlsInsecure": false,
     "aiHeaders": "",
     "aiOverviewEnabled": false,
-    "aiOverviewIntervalSec": 300
+    "aiOverviewIntervalSec": 300,
+    "aiConfirmWrites": true
   },
   "defaultsOrder": [
     "routerHost",
@@ -254,7 +255,8 @@
     "aiTlsInsecure",
     "aiHeaders",
     "aiOverviewEnabled",
-    "aiOverviewIntervalSec"
+    "aiOverviewIntervalSec",
+    "aiConfirmWrites"
   ],
   "encrypted": [
     "routerPass",

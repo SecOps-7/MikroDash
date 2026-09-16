@@ -139,6 +139,30 @@ export interface HandEvents {
    * card shipped with for the whole life of the port.
    */
   'ai:overview': { text: string; error: string; model: string; at: number };
+  /**
+   * A change the assistant wants to make, awaiting the operator's answer.
+   *
+   * EVERY FIELD HERE IS BUILT BY THE SERVER. `command` comes from the resource's
+   * own PreviewCommand with secrets masked, and `name` from the row the router
+   * actually holds — never from the model's account of what it is doing. The
+   * model chose the resource and the values; it does not get to narrate them.
+   *
+   * `token` is single use: approving consumes it, so a dialog cannot be replayed.
+   */
+  'ai:propose': {
+    token: string;
+    resource: string;
+    label: string;
+    action: string;
+    name: string;
+    command: string;
+    /** Present only when a guard warned. The dialog must then always be shown. */
+    warnCode: string;
+    warning: Record<string, unknown>;
+    values: Record<string, string>;
+  };
+  /** What became of a proposal, once the operator answered it. */
+  'ai:written': { applied: boolean; text: string; resource: string; name: string };
   'access:none': Nothing;
   'access:revoked': Nothing;
   'alerts:cleared-all': { routerId: string; ids: number[]; clearedAt: number; clearedBy: string | null };

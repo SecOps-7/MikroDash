@@ -84,3 +84,32 @@ func WithAIReady(s Settings) Settings {
 	out[AIReadyKey] = AIReady(s)
 	return out
 }
+
+// AIConfirmWrites reports whether a change the assistant proposes must be put to
+// the operator before it happens.
+//
+// ── IT DEFAULTS TO TRUE, AND THE DEFAULT IS THE POINT ───────────────────────
+//
+// A model that can change a router with nobody watching is a different product
+// from one that suggests changes, and which of the two an operator has should
+// never be decided by a key that happens to be missing. `Merge` supplies the
+// default for a settings.json written before this existed, so an install that
+// upgrades into the write tool gets prompts until somebody turns them off.
+//
+// ── AND IT IS NOT THE ONLY THING THAT PROMPTS ───────────────────────────────
+//
+// Switching it off does not switch the guards off. A write that could cut
+// MikroDash off from the router — `selfPath`, `routePath`, `addressPath`,
+// `fwGuard` — returns a warning from the write path with a fingerprint and
+// changes nothing, and the assistant raises that as a proposal whatever this
+// says. The setting governs ORDINARY writes; the guards are not ordinary.
+func AIConfirmWrites(s Settings) bool {
+	// ABSENT MEANS TRUE, not false. A bool type assertion on a missing key
+	// yields false, which would be the unsafe direction, so the presence of the
+	// key is what is tested rather than its zero value.
+	v, ok := s["aiConfirmWrites"].(bool)
+	if !ok {
+		return true
+	}
+	return v
+}

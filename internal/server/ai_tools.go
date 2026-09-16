@@ -2,6 +2,10 @@ package server
 
 // Running a tool the model asked for (#98, slice 3).
 //
+// Reads only. `change_row` lives in ai_write.go, because a write is a different
+// question at every step: which permission, which pipeline, and whether a human
+// is asked first.
+//
 // ── THE MODEL PICKS THE MENU; THIS DECIDES WHETHER IT MAY HAVE IT ───────────
 //
 // `aitools.Permitted` already filtered the catalogue before it was advertised,
@@ -54,6 +58,12 @@ const (
 // on and let the model tell the operator what it could not read — an aborted
 // exchange gives them a blank page and no reason.
 func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
+	// THE WRITE TOOL IS ITS OWN PATH. It is not bound to a resource — the model
+	// names one in its arguments — so everything below, which resolves a tool to
+	// a menu and reads it, does not apply. See ai_write.go.
+	if tc.Function.Name == aitools.WriteToolName {
+		return cn.runAIWriteTool(tc)
+	}
 	t, ok := aitools.ByName(tc.Function.Name)
 	if !ok {
 		// THE NAME IS NOT ECHOED. It was chosen by the model, and repeating it

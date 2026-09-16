@@ -1218,6 +1218,20 @@
                 <span>Accept a self-signed certificate &mdash; only for an endpoint on your own network</span>
               </label>
             </div>
+            <div class="sform-group" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border)">
+              <label class="sform-label">Changing the router</label>
+              <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
+                <input type="checkbox" id="s_aiConfirmWrites">
+                <span>Ask me before the assistant changes anything</span>
+              </label>
+              <p style="font-size:.7rem;color:var(--text-muted);margin:.35rem 0 0">
+                The assistant can only change things you are allowed to change yourself, and
+                every change goes through the same checks, confirmation and audit trail as the
+                forms. <strong>Turning this off lets it apply ordinary changes without
+                asking.</strong> A change that could cut MikroDash off from the router is always
+                put to you, whatever this is set to.
+              </p>
+            </div>
             <div class="sform-row" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border)">
               <div class="sform-group" style="flex:2">
                 <label class="sform-label">Agent Overview card</label>

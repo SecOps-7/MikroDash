@@ -102,6 +102,13 @@ type conn struct {
 	agentMu   sync.Mutex
 	agentTick *time.Ticker
 	agentStop chan struct{}
+	// proposals are the assistant's unanswered write proposals, PER SOCKET and
+	// deliberately so: a proposal is a question put to the person looking at
+	// this page, and a token minted for them must not be answerable from
+	// another browser, another tab or another session. They die with the
+	// socket, which is the right lifetime for a question nobody answered.
+	proposeMu sync.Mutex
+	proposals map[string]*aiWriteProposal
 	// mu guards `cards`. The grid can send dashcard:focus while another
 	// goroutine is selecting a router, and the map is written by both.
 	mu sync.Mutex
@@ -401,6 +408,13 @@ func (cn *conn) dispatch(in inbound) {
 	// changes a router. See internal/aitools.
 	case "ai:ask":
 		cn.aiAsk(in.Data)
+	// The operator's answer to a change the assistant proposed. The token is
+	// single use and belongs to this socket; everything else about the write is
+	// re-derived server-side, so neither frame carries values to be trusted.
+	case "ai:write:approve":
+		cn.aiWriteApprove(in.Data)
+	case "ai:write:reject":
+		cn.aiWriteReject(in.Data)
 	case "res:undo":
 		cn.resUndo(in.Data)
 	case "res:redo":

@@ -26,10 +26,37 @@
                 Ask about this router
               </div>
               <div style="font-size:.76rem;line-height:1.5">
-                The assistant can see what this device is reporting right now, limited to the
-                pages you are allowed to open. It answers questions and suggests commands;
-                it cannot change anything.
+                The assistant can see what this device is reporting right now, and can change
+                only what you are allowed to change yourself. Every change goes through the same
+                checks and audit trail as the forms, and unless you have turned that off in
+                Settings it asks you first.
               </div>
+            </div>
+          </div>
+
+          <!-- ── A CHANGE AWAITING AN ANSWER ────────────────────────────────
+               Every field here is built by the server: the command comes from the
+               resource's own PreviewCommand with secrets masked, and the row name
+               from what the router actually holds. The model chose the resource
+               and the values; it does not get to narrate them. -->
+          <div id="aiProposeBox" hidden
+               style="border-top:1px solid var(--border);padding:.85rem 1rem;background:rgba(251,191,36,.07)">
+            <div id="aiProposeWarn" hidden
+                 style="font-size:.76rem;line-height:1.45;margin-bottom:.55rem;padding:.5rem .65rem;
+                        border:1px solid var(--accent-red,#f87171);border-radius:.4rem"></div>
+            <div id="aiProposeWhat"
+                 style="font-size:.79rem;font-weight:600;color:var(--text-main);margin-bottom:.4rem"></div>
+            <pre id="aiProposeCmd"
+                 style="margin:0;padding:.5rem .65rem;border:1px solid var(--border);border-radius:.4rem;
+                        font-family:var(--font-mono);font-size:.71rem;white-space:pre-wrap;
+                        word-break:break-all;color:var(--text-main)"></pre>
+            <div id="aiProposeValues"
+                 style="font-size:.71rem;color:var(--text-muted);margin-top:.45rem"></div>
+            <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
+              <button id="aiProposeReject" class="sbtn sbtn-outline" type="button"
+                      style="padding:.32rem .8rem;font-size:.73rem">Don&rsquo;t change it</button>
+              <button id="aiProposeApprove" class="sbtn sbtn-danger" type="button"
+                      style="padding:.32rem .8rem;font-size:.73rem">Apply this change</button>
             </div>
           </div>
 

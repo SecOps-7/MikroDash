@@ -25,6 +25,7 @@
 import type { Socket } from '../socket';
 import { el } from '../dom';
 import { renderMarkdown } from '../markdown';
+import { warningText } from '../resource';
 
 type Role = 'you' | 'assistant' | 'error';
 
@@ -119,6 +120,91 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
   socket.on('ai:error', (d) => {
     setWaiting(false);
     add('error', d.error || 'The request failed.');
+  });
+
+  // ── A CHANGE THE ASSISTANT WANTS TO MAKE ──────────────────────────────────
+  //
+  // The model's turn has already ended by the time this arrives: it proposed,
+  // was told the operator would be asked, and said so. Nothing here is fed back
+  // to it. The answer goes to the server, which runs the whole write pipeline
+  // afresh — so approving is not replaying a decision, it is making one.
+  let proposal = '';
+
+  function closeProposal(): void {
+    proposal = '';
+    const box = el('aiProposeBox');
+    if (box) box.hidden = true;
+  }
+
+  socket.on('ai:propose', (d) => {
+    proposal = d.token;
+    const what = el('aiProposeWhat');
+    if (what) {
+      // TEXT, NEVER MARKUP. `name` is a row identity the router supplied and
+      // `label` comes from the registry, but this whole panel exists because a
+      // model chose what goes in it.
+      what.textContent =
+        (d.action === 'create' ? 'Create a ' : 'Change the ') + d.label +
+        (d.name ? ' \u201c' + d.name + '\u201d' : '');
+    }
+    const cmd = el('aiProposeCmd');
+    if (cmd) cmd.textContent = d.command || '(no command could be built)';
+
+    const vals = el('aiProposeValues');
+    if (vals) {
+      const pairs = Object.entries(d.values || {});
+      vals.textContent = pairs.length
+        ? pairs.map(([k, v]) => k + ' = ' + v).join('   ·   ')
+        : '';
+    }
+
+    const warn = el('aiProposeWarn');
+    if (warn) {
+      if (d.warnCode) {
+        // ── innerHTML HERE, AND ONLY HERE ─────────────────────────────────
+        //
+        // `warningText` is the SAME function the resource form's own guard
+        // dialog uses, and it escapes every value it interpolates. Writing a
+        // second vocabulary for lockout warnings would mean the assistant and
+        // the form describing one danger in two different ways — and the one
+        // nobody re-reads would be the one that goes stale.
+        //
+        // Its input is a server-built guard verdict, not model output. Every
+        // model-chosen string on this panel is set with textContent above.
+        const { headline, why } = warningText(d.warnCode, d.warning || {});
+        warn.innerHTML = '<strong>' + headline + '</strong><br>' + why;
+        warn.hidden = false;
+      } else {
+        warn.textContent = '';
+        warn.hidden = true;
+      }
+    }
+
+    const box = el('aiProposeBox');
+    if (box) box.hidden = false;
+  });
+
+  socket.on('ai:written', (d) => {
+    closeProposal();
+    // Shown as a turn so the outcome sits in the transcript beside what was
+    // proposed, rather than as a toast that is gone before it is read.
+    add(d.applied ? 'assistant' : 'error', d.text || '');
+  });
+
+  el<HTMLButtonElement>('aiProposeApprove')?.addEventListener('click', () => {
+    if (!proposal) return;
+    const token = proposal;
+    // CLOSED FIRST. The token is single use server-side, but a second press
+    // before the reply lands should not send a second frame at all.
+    closeProposal();
+    socket.emit('ai:write:approve', { token });
+  });
+
+  el<HTMLButtonElement>('aiProposeReject')?.addEventListener('click', () => {
+    if (!proposal) return;
+    const token = proposal;
+    closeProposal();
+    socket.emit('ai:write:reject', { token });
   });
 
   // ── WIRED ONCE, GUARDED EVERYWHERE ────────────────────────────────────────

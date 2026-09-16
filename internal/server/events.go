@@ -35,7 +35,9 @@ var (
 var (
 	EvAIError            = hub.Declare[map[string]any]("ai:error")
 	EvAIOverview         = hub.Declare[map[string]any]("ai:overview")
+	EvAIPropose          = hub.Declare[map[string]any]("ai:propose")
 	EvAIReply            = hub.Declare[map[string]any]("ai:reply")
+	EvAIWritten          = hub.Declare[map[string]any]("ai:written")
 	EvAccessNone         = hub.Declare[map[string]any]("access:none")
 	EvAccessRevoked      = hub.Declare[map[string]any]("access:revoked")
 	EvAlertsClearedAll   = hub.Declare[map[string]any]("alerts:cleared-all")

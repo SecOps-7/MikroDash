@@ -263,7 +263,39 @@ func (cn *conn) resSave(raw json.RawMessage) {
 //
 // An empty `via` adds nothing at all, so a human at a form produces exactly the
 // audit Extra it always did.
-func (cn *conn) writeRow(res *resource.Resource, req *resRequest, via string) writeOutcome {
+// preparedWrite is a write that has been CHECKED but not performed.
+//
+// ── IT EXISTS SO THE PROPOSAL AND THE WRITE CANNOT DISAGREE (#98) ───────────
+//
+// With confirmation prompts on, the agent shows the operator what it intends
+// before anything happens. That dialog must be built from what the SERVER
+// worked out — the row as the router currently holds it, the guard's verdict,
+// the exact command — and never from the model's own account of what it is
+// about to do.
+//
+// Building that separately would have meant a second sequence that validates,
+// reads and runs guards, which is the duplication the writeRow split was for.
+// So the checking half is named and shared: `prepareWrite` decides, and either
+// `commitWrite` performs it or a proposal describes it.
+type preparedWrite struct {
+	res       *resource.Resource
+	req       *resRequest
+	validated resource.Validated
+	before    routeros.Reply
+	seenIDs   map[string]bool
+	editing   bool
+	action    string
+	name      string
+	verdict   guard.Verdict
+}
+
+// prepareWrite validates, reads the menu fresh, checks the row is still there
+// and still writable, and runs the guards. It changes nothing.
+//
+// A nil prepared write means the returned outcome is a refusal and the caller
+// must stop. Every refusal it can produce is one the write would have produced
+// anyway, at the same point, for the same reason.
+func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*preparedWrite, writeOutcome) {
 	editing := req.ID != ""
 
 	// A resource that cannot be created refuses before anything is read. The
@@ -274,12 +306,12 @@ func (cn *conn) writeRow(res *resource.Resource, req *resRequest, via string) wr
 			Action: res.Key + ".create", TargetType: res.Key, RouterID: cn.routerID,
 			Note: "not-creatable",
 		})
-		return writeOutcome{Code: "not-creatable"}
+		return nil, writeOutcome{Code: "not-creatable"}
 	}
 
 	validated, errs := res.Validate(req.strValues(), editing)
 	if len(errs) > 0 {
-		return writeOutcome{Code: "invalid", Detail: map[string]any{"errors": errs}}
+		return nil, writeOutcome{Code: "invalid", Detail: map[string]any{"errors": errs}}
 	}
 	// A COMPOSITE identity yields no name here, and that is the original's
 	// behaviour rather than an omission: `validated.values[resource.identity]`
@@ -295,151 +327,177 @@ func (cn *conn) writeRow(res *resource.Resource, req *resRequest, via string) wr
 		name = req.ExpectedIdentity
 	}
 
+	rows, err := cn.readMenu(res)
+	if err != nil {
+		return nil, writeOutcome{Code: writeFailCode(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+	// The ids present BEFORE the write, so a create can find the row it made.
+	seenIDs := make(map[string]bool, len(rows))
+	for _, r := range rows {
+		seenIDs[r[".id"]] = true
+	}
+	var before routeros.Reply
+	if editing {
+		before = find(res, rows, req.ID, req.ExpectedIdentity)
+		if before == nil {
+			return nil, writeOutcome{Code: "stale-row", Name: name}
+		}
+	}
+	if before != nil && res.ReadOnlyWhen != nil && res.ReadOnlyWhen(before) {
+		cn.recorder().Denied(audit.Event{
+			Action: res.Key + ".update", TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: req.ID, TargetName: name, Note: "read-only-row",
+		})
+		return nil, writeOutcome{Code: res.ReadOnlyReason, Name: name}
+	}
+
+	// The guard runs AFTER the fresh read and BEFORE the write, so the verdict
+	// is about the row as it is now rather than as the browser remembers it.
+	//
+	// AND THE SAME IS TRUE OF A PROPOSAL. An approval re-runs this whole
+	// function rather than trusting what was computed when the proposal was
+	// raised, so a row that changed while the operator was reading the dialog is
+	// caught by the staleness check and the guard, not waved through by them.
+	action := "update"
+	if !editing {
+		action = "create"
+	}
+	verdict, gerr := cn.verdictFor(res, action, validated.Values, before)
+	if gerr != nil {
+		// No equivalent in Node, which has every guard. Recorded as a denial
+		// rather than only logged, because "the port refused a write it could
+		// not check" is exactly the kind of gap that must be visible in the
+		// trail rather than in a container log nobody reads.
+		cn.recorder().Denied(audit.Event{
+			Action: res.Key + "." + action, TargetType: res.Key, RouterID: cn.routerID,
+			TargetID: req.ID, TargetName: name, Note: "guard-not-ported: " + gerr.Error(),
+		})
+		return nil, writeOutcome{Code: "guard-not-ported", Name: name,
+			Detail: map[string]any{"message": safe.Message(gerr.Error())}}
+	}
+
+	return &preparedWrite{
+		res: res, req: req, validated: validated, before: before, seenIDs: seenIDs,
+		editing: editing, action: action, name: name, verdict: verdict,
+	}, writeOutcome{}
+}
+
+// commitWrite performs a prepared write and records it.
+//
+// It does NOT re-check anything: `prepareWrite` ran immediately before it, under
+// the same write-queue slot, so re-reading here would only widen the window
+// rather than narrow it.
+func (cn *conn) commitWrite(p *preparedWrite, via string) writeOutcome {
+	res, req := p.res, p.req
+
+	args := res.BuildArgs(p.validated)
+	verb := "/add"
+	if p.editing {
+		verb = "/set"
+		args = append([]string{"=.id=" + req.ID}, args...)
+	}
+	if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + verb, Args: args}); err != nil {
+		return writeOutcome{Code: writeFailCode(err), Name: p.name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+
+	// BOTH SIDES GO THROUGH auditValues, which masks by field type. On the
+	// `before` side that is a no-op — RowValues already drops secrets, since
+	// the router's stored value is never read back into a form — and it runs
+	// anyway so the two sides are built the same way and cannot drift apart.
+	//
+	// A create has NO before, and `{}` rather than nil is the difference
+	// between "every field appeared" and "nothing to compare": Diff only
+	// walks keys present in `after`, so an empty before reports the whole
+	// row as new, which is what a create is.
+	//
+	// The bool quirk is NORMALISED, in both places. RowValues gives a real
+	// boolean and Validate gives the string "yes"/"no", so `false` against
+	// `"no"` once read as a change and every save of every resource carrying
+	// a checkbox recorded one nobody made. This port found it, reported it,
+	// and the live app fixed it in `_resAuditValues`; `auditValues` here is
+	// re-synced to that, and `TestUnchangedCheckboxIsNotAChange` pins it.
+	// The id the row NOW has. A create does not know it — RouterOS assigns
+	// one — so the table is diffed against itself rather than the new row
+	// being assumed last. Only undo needs this, which is why nothing read it
+	// before; the audit row addresses a create by its name.
+	// ── CONFIRMED BY READING IT BACK (#97) ─────────────────────────────
+	//
+	// The router's answer says the command was accepted, not what the table
+	// holds, so the menu is read again before anything reports success: an
+	// edited row must still be there, and a create must have produced exactly
+	// one new row. Otherwise the outcome is unknown. See write_verify.go.
+	after, rerr := cn.readMenu(res)
+	var observed routeros.Reply
+	confirmed := false
+	if rerr == nil {
+		if p.editing {
+			observed = rowByID(after, req.ID)
+			confirmed = observed != nil
+		} else {
+			observed, confirmed = confirmCreated(p.seenIDs, after)
+		}
+	}
+	if !confirmed {
+		return cn.unknownOutcome(res, res.Key+"."+p.action, req.ID, p.name, req.Ack, via)
+	}
+	newID := observed[".id"]
+	if newID != "" {
+		var beforeHist map[string]string
+		if p.before != nil {
+			beforeHist = histValues(res.RowValues(p.before))
+		}
+		cn.histPush(res.Key, history.Build(res.Key, res.Label, p.action,
+			newID, p.name, beforeHist, p.validated.Values))
+	}
+
+	var beforeVals map[string]any
+	if p.before != nil {
+		beforeVals = auditValues(res, res.RowValues(p.before))
+	} else {
+		beforeVals = map[string]any{}
+	}
+	cn.recorder().Record(audit.Event{
+		Action: res.Key + "." + p.action, TargetType: res.Key, RouterID: cn.routerID,
+		TargetID: newID, TargetName: p.name,
+		Before: beforeVals,
+		// OBSERVED, not requested: the row as read back. See write_verify.go.
+		After: auditValues(res, observedValues(res, observed, p.validated.Values)),
+		Extra: writeExtra(req.Ack, via),
+	})
+
+	cn.refreshFor(res)
+	return writeOutcome{Action: p.action, Name: p.name}
+}
+
+// writeRow is prepare, then the acknowledgement gate, then commit — all under
+// one write-queue slot, which is what keeps the guard's verdict and the write it
+// guards from being separated by another writer.
+func (cn *conn) writeRow(res *resource.Resource, req *resRequest, via string) writeOutcome {
 	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
-		rows, err := cn.readMenu(res)
-		if err != nil {
-			return err
-		}
-		// The ids present BEFORE the write, so a create can find the row it made.
-		seenIDs := make(map[string]bool, len(rows))
-		for _, r := range rows {
-			seenIDs[r[".id"]] = true
-		}
-		var before routeros.Reply
-		if editing {
-			before = find(res, rows, req.ID, req.ExpectedIdentity)
-			if before == nil {
-				out = writeOutcome{Code: "stale-row", Name: name}
-				return nil
-			}
-		}
-		if before != nil && res.ReadOnlyWhen != nil && res.ReadOnlyWhen(before) {
-			cn.recorder().Denied(audit.Event{
-				Action: res.Key + ".update", TargetType: res.Key, RouterID: cn.routerID,
-				TargetID: req.ID, TargetName: name, Note: "read-only-row",
-			})
-			out = writeOutcome{Code: res.ReadOnlyReason, Name: name}
+		p, refusal := cn.prepareWrite(res, req)
+		if p == nil {
+			out = refusal
 			return nil
 		}
-
-		// The guard runs AFTER the fresh read and BEFORE the write, so the
-		// verdict is about the row as it is now rather than as the browser
-		// remembers it.
-		what := "update"
-		if !editing {
-			what = "create"
-		}
-		verdict, gerr := cn.verdictFor(res, what, validated.Values, before)
-		if gerr != nil {
-			// No equivalent in Node, which has every guard. Recorded as a
-			// denial rather than only logged, because "the port refused a write
-			// it could not check" is exactly the kind of gap that must be
-			// visible in the trail rather than in a container log nobody reads.
-			cn.recorder().Denied(audit.Event{
-				Action: res.Key + "." + what, TargetType: res.Key, RouterID: cn.routerID,
-				TargetID: req.ID, TargetName: name, Note: "guard-not-ported: " + gerr.Error(),
-			})
-			out = writeOutcome{Code: "guard-not-ported", Name: name,
-				Detail: map[string]any{"message": safe.Message(gerr.Error())}}
-			return nil
-		}
-		if gate := ackGate(verdict, req.Ack); gate != nil {
+		if gate := ackGate(p.verdict, req.Ack); gate != nil {
 			// The code travels in the outcome; the warning and fingerprint stay
 			// in the detail, which is the same frame the caller used to build.
 			code, _ := gate["code"].(string)
 			delete(gate, "code")
-			out = writeOutcome{Code: code, Name: name, Detail: gate}
+			out = writeOutcome{Code: code, Name: p.name, Detail: gate}
 			return nil
 		}
-
-		args := res.BuildArgs(validated)
-		verb := "/add"
-		if editing {
-			verb = "/set"
-			args = append([]string{"=.id=" + req.ID}, args...)
-		}
-		if _, err := cn.rsession.Exec(routeros.Cmd{Path: res.Menu + verb, Args: args}); err != nil {
-			return err
-		}
-
-		action := "create"
-		if editing {
-			action = "update"
-		}
-
-		// BOTH SIDES GO THROUGH auditValues, which masks by field type. On the
-		// `before` side that is a no-op — RowValues already drops secrets, since
-		// the router's stored value is never read back into a form — and it runs
-		// anyway so the two sides are built the same way and cannot drift apart.
-		//
-		// A create has NO before, and `{}` rather than nil is the difference
-		// between "every field appeared" and "nothing to compare": Diff only
-		// walks keys present in `after`, so an empty before reports the whole
-		// row as new, which is what a create is.
-		//
-		// The bool quirk is NORMALISED, in both places. RowValues gives a real
-		// boolean and Validate gives the string "yes"/"no", so `false` against
-		// `"no"` once read as a change and every save of every resource carrying
-		// a checkbox recorded one nobody made. This port found it, reported it,
-		// and the live app fixed it in `_resAuditValues`; `auditValues` here is
-		// re-synced to that, and `TestUnchangedCheckboxIsNotAChange` pins it.
-		// The id the row NOW has. A create does not know it — RouterOS assigns
-		// one — so the table is diffed against itself rather than the new row
-		// being assumed last. Only undo needs this, which is why nothing read it
-		// before; the audit row addresses a create by its name.
-		// ── CONFIRMED BY READING IT BACK (#97) ─────────────────────────────
-		//
-		// The router's answer says the command was accepted, not what the table
-		// holds, so the menu is read again before anything reports success: an
-		// edited row must still be there, and a create must have produced exactly
-		// one new row. Otherwise the outcome is unknown. See write_verify.go.
-		after, rerr := cn.readMenu(res)
-		var observed routeros.Reply
-		confirmed := false
-		if rerr == nil {
-			if editing {
-				observed = rowByID(after, req.ID)
-				confirmed = observed != nil
-			} else {
-				observed, confirmed = confirmCreated(seenIDs, after)
-			}
-		}
-		if !confirmed {
-			out = cn.unknownOutcome(res, res.Key+"."+action, req.ID, name, req.Ack, via)
-			return nil
-		}
-		newID := observed[".id"]
-		if newID != "" {
-			var beforeHist map[string]string
-			if before != nil {
-				beforeHist = histValues(res.RowValues(before))
-			}
-			cn.histPush(res.Key, history.Build(res.Key, res.Label, action,
-				newID, name, beforeHist, validated.Values))
-		}
-
-		var beforeVals map[string]any
-		if before != nil {
-			beforeVals = auditValues(res, res.RowValues(before))
-		} else {
-			beforeVals = map[string]any{}
-		}
-		cn.recorder().Record(audit.Event{
-			Action: res.Key + "." + action, TargetType: res.Key, RouterID: cn.routerID,
-			TargetID: newID, TargetName: name,
-			Before: beforeVals,
-			// OBSERVED, not requested: the row as read back. See write_verify.go.
-			After: auditValues(res, observedValues(res, observed, validated.Values)),
-			Extra: writeExtra(req.Ack, via),
-		})
-
-		cn.refreshFor(res)
-		out = writeOutcome{Action: action, Name: name}
+		out = cn.commitWrite(p, via)
 		return nil
 	})
 	if err != nil {
-		return writeOutcome{Code: writeFailCode(err), Name: name,
+		// The limiter refuses BEFORE the closure runs, so there is no validated
+		// name to report here. The browser's sentence for `rate-limited` is
+		// fixed and does not read one.
+		return writeOutcome{Code: writeFailCode(err),
 			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
 	return out
