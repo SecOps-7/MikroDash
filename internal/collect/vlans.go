@@ -48,6 +48,11 @@ const (
 	vlanConfigEvery = 12
 )
 
+// vlansHeartbeat is how long an unchanged `vlans:update` may be suppressed. See
+// packagesHeartbeat in packages.go: a VLAN table nobody is editing sent nothing
+// after the first reading, and the card went stale on a working router.
+const vlansHeartbeat = 10 * time.Second
+
 // LeaseCounts supplies DHCP client counts per VLAN.
 //
 // Keyed by STRING, because that is how dhcpLeases stores a vlanId while every
@@ -440,6 +445,8 @@ type Vlans struct {
 	dirty  bool
 	ticks  int
 	lastFp string
+	// lastEmit is when a payload last went out, for vlansHeartbeat.
+	lastEmit time.Time
 
 	last    *VlansPayload
 	lastErr string
@@ -584,10 +591,11 @@ func (v *Vlans) emitLocked() {
 		B []BridgeVlan `json:"b"`
 		P []VlanPort   `json:"p"`
 	}{built.Vlans, built.BridgeVlans, built.Ports})
-	if string(fp) == v.lastFp {
+	now := time.Now()
+	if string(fp) == v.lastFp && now.Sub(v.lastEmit) < vlansHeartbeat {
 		return
 	}
-	v.lastFp = string(fp)
+	v.lastFp, v.lastEmit = string(fp), now
 	EvVlansUpdate.Emit(v.emit, vlansRooms.Join(), built)
 }
 

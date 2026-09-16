@@ -242,6 +242,10 @@ type Bridges struct {
 	hostAvailable   *bool
 }
 
+// bridgesHeartbeat is how long an unchanged `bridges:update` may be suppressed.
+// See packagesHeartbeat.
+const bridgesHeartbeat = 10 * time.Second
+
 // NewBridges builds the collector. `rates` may be nil — the page degrades to no
 // throughput column rather than not rendering, which is the same judgement
 // src/collection.js makes by declaring no `requires` for this collector.
@@ -251,7 +255,7 @@ func NewBridges(ros Reader, emit Emit, rates RateSource, pollMs int) *Bridges {
 	// with no configuration change behind it. The bridge and port config are the
 	// slow lane, and a write's RefreshNow re-reads them at once.
 	b.setup(b, ros, pollMs, tableSpec{
-		cmd: bridgeHostCmd, poll: [3]int{5000, 2000, 60000}, slowEvery: bridgeConfigEvery,
+		cmd: bridgeHostCmd, poll: [3]int{5000, 2000, 60000}, slowEvery: bridgeConfigEvery, heartbeat: bridgesHeartbeat,
 	})
 	return b
 }

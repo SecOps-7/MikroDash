@@ -181,13 +181,18 @@ type DNS struct {
 	staticAvailable   *bool
 }
 
+// dnsHeartbeat is how long an unchanged `dns:update` may be suppressed. See
+// packagesHeartbeat: a resolver whose settings and static entries are steady
+// sent nothing, and the DNS card went stale on a working router.
+const dnsHeartbeat = 10 * time.Second
+
 // NewDNS builds the collector. pollMs of 0 takes the registry default.
 func NewDNS(ros Reader, emit Emit, pollMs int) *DNS {
 	d := &DNS{emit: emit, static: []DNSStaticEntry{}}
 	// The settings row carries cache-used, which is live, so it is read every
 	// reading; the static entries only every dnsConfigEvery.
 	d.setup(d, ros, pollMs, tableSpec{
-		cmd: dnsSettingsCmd, poll: [3]int{10000, 2000, 60000}, slowEvery: dnsConfigEvery,
+		cmd: dnsSettingsCmd, poll: [3]int{10000, 2000, 60000}, slowEvery: dnsConfigEvery, heartbeat: dnsHeartbeat,
 	})
 	return d
 }

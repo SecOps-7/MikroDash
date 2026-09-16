@@ -148,10 +148,17 @@ type VPN struct {
 	ipsec  []IpsecTunnel
 	last   *VPNPayload
 	lastFP string
+	// lastEmit is when a payload last went out, for vpnHeartbeat.
+	lastEmit time.Time
 	// nil = unprobed, false = this router has no such subsystem, stop asking.
 	pppAvail   *bool
 	ipsecAvail *bool
 }
+
+// vpnHeartbeat is how long an unchanged `vpn:update` may be suppressed. See
+// packagesHeartbeat in packages.go: an idle tunnel list sent nothing after the
+// first reading, and the VPN card went stale on a working router.
+const vpnHeartbeat = 10 * time.Second
 
 func NewVPN(ros Reader, emit Emit, pollMs int) *VPN {
 	ms := clampPoll(pollMs, 10000, 500, 30000)
@@ -485,8 +492,12 @@ func (v *VPN) build() {
 	for _, s := range v.ipsec {
 		fp.WriteString(s.Name + "|" + s.State + "|" + s.Enc + "|" + s.Auth + ";")
 	}
-	changed := fp.String() != v.lastFP
+	now := time.Now()
+	changed := fp.String() != v.lastFP || now.Sub(v.lastEmit) >= vpnHeartbeat
 	v.lastFP = fp.String()
+	if changed {
+		v.lastEmit = now
+	}
 	v.mu.Unlock()
 
 	if !changed {

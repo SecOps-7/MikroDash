@@ -267,6 +267,16 @@ type Packages struct {
 	updateOK *bool
 }
 
+// packagesHeartbeat is how long an unchanged `packages:update` may be suppressed.
+//
+// There was none, and the operator reported the Packages card going stale after
+// a few minutes on a router nobody was installing anything on. A package
+// inventory is exactly the kind of table that does not change, so the
+// fingerprint suppressed every reading after the first and the card's staleness
+// timer ran out. The card judges by the payload's own pollMs plus a 20s grace
+// (web/src/stale.ts), so any heartbeat at or under the poll keeps it fresh.
+const packagesHeartbeat = 10 * time.Second
+
 // NewPackages builds the collector. The bounds are Node's —
 // clampPoll(pollMs, 30000, 300000, 5000), which is (raw, def, HI, LO) there and
 // (raw, def, LO, HI) here: five minutes at the top, five seconds at the bottom.
@@ -279,7 +289,7 @@ func NewPackages(ros Reader, emit Emit, pollMs int) *Packages {
 	// every time would triple this collector's channel use for data that has not
 	// moved.
 	p.setup(p, ros, pollMs, tableSpec{
-		cmd: packageCmd, poll: [3]int{30000, 5000, 300000}, slowEvery: configEvery,
+		cmd: packageCmd, poll: [3]int{30000, 5000, 300000}, slowEvery: configEvery, heartbeat: packagesHeartbeat,
 	})
 	return p
 }

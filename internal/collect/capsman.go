@@ -915,6 +915,10 @@ type Capsman struct {
 	managerAvail, capAvail, v1Avail *bool
 }
 
+// capsmanHeartbeat is how long an unchanged `capsman:update` may be suppressed.
+// See packagesHeartbeat.
+const capsmanHeartbeat = 10 * time.Second
+
 func NewCapsman(ros Reader, emit Emit, pollMs int) *Capsman {
 	c := &Capsman{emit: emit,
 		profiles: map[string][]routeros.Reply{}, v1Profiles: map[string][]routeros.Reply{}}
@@ -922,7 +926,7 @@ func NewCapsman(ros Reader, emit Emit, pollMs int) *Capsman {
 	// here that changes on its own. The manager, CAP, provisioning and profiles
 	// are the slow lane, and a write's RefreshNow re-reads them at once.
 	c.setup(c, ros, pollMs, tableSpec{
-		cmd: capsRegCmd, poll: [3]int{10000, 30000, 600000}, slowEvery: capsConfigEvery,
+		cmd: capsRegCmd, poll: [3]int{10000, 30000, 600000}, slowEvery: capsConfigEvery, heartbeat: capsmanHeartbeat,
 	})
 	return c
 }
