@@ -1,21 +1,43 @@
 package server
 
-import "testing"
+import (
+	"testing"
+
+	"mikrodash/internal/dashcards"
+)
 
 // TestDashCardPageResolvesEveryRoom pins the table the RBAC gate reads.
 //
-// The values are checked against the LIVE registry by tools/grid-tables.js,
-// which can run Node; this is the Go-side half — that every room the grid can
-// ask for is present, and that an unknown key falls back to the dashboard rather
-// than to the empty string, which would gate on a page nobody has.
+// ── THE LIST WAS HARDCODED, AND ITS CROSS-CHECK DID NOT EXIST ───────────────
+//
+// This named its eight rooms in a literal and said the values were checked
+// against the live registry by a JavaScript generator under tools/. That
+// generator is not in the repository, so nothing tied this list to the cards the
+// grid can actually ask for: a ninth room would have been added with this test
+// still passing, and a deleted one would have left a literal describing nothing.
+//
+// (Its filename is deliberately not spelled as a path here. The citation check
+// cannot tell a location from the name of something absent.)
+//
+// It reads the declaration now, so the list cannot drift from it.
 func TestDashCardPageResolvesEveryRoom(t *testing.T) {
-	// The eight rooms CARD_ROOMS can produce.
-	for _, room := range []string{
-		"firewall", "logs", "vpn", "diagnostics",
-		"connections", "wireless", "interfaces", "dhcp",
-	} {
+	rooms := dashcards.Rooms()
+	if len(rooms) < 5 {
+		t.Fatalf("only %d card rooms declared — the table is truncated", len(rooms))
+	}
+	for _, room := range rooms {
 		if got := dashCardPage(room); got == "" {
 			t.Errorf("dashCardPage(%q) is empty — that gates the card on a page nobody has", room)
+		}
+		// ── THE KEY SHAPE, AT BUILD TIME RATHER THAN AT RUNTIME ──────────
+		//
+		// `dashCardFocus` returns early on a key this regexp refuses, silently.
+		// A card declared with a hyphen or an over-long room would therefore
+		// never subscribe, and nothing would say so — the card would simply
+		// never receive a payload.
+		if !dashCardKeyRe.MatchString(room) {
+			t.Errorf("card room %q does not match %s — dashCardFocus drops it in silence, "+
+				"so the card would never subscribe", room, dashCardKeyRe)
 		}
 	}
 	if got := dashCardPage("somethingelse"); got != "dashboard" {

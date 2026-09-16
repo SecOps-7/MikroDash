@@ -25,76 +25,36 @@ package server
 import (
 	"regexp"
 	"sort"
+
+	"mikrodash/internal/dashcards"
 )
 
 var dashCardKeyRe = regexp.MustCompile(`^[a-z]{2,20}$`)
 
-// dashCardPage is the page a card room borrows its data from.
+// dashCardPage resolves a card room key to the page that gates it.
 //
-// The live app resolves this as "the page with this key, else the page owning
-// the collector with this key, else dashboard". Seven of the eight rooms the
-// grid can ask for ARE page keys and resolve to themselves; `diagnostics` is
-// neither a page nor a collector and falls back to `dashboard`.
+// ── THE TABLE MOVED, AND THE CROSS-CHECK CAME BACK WITH IT ──────────────────
 //
-// Written as an explicit map rather than a lookup through a page registry this
-// port does not have, and checked against the live resolution by
-// The grid table generator — so a room added over there fails here rather than
-// silently resolving to `dashboard` and being gated on the wrong page.
-var dashCardPages = map[string]string{
-	"firewall":    "firewall",
-	"logs":        "logs",
-	"vpn":         "vpn",
-	"connections": "connections",
-	"wireless":    "wifi-clients",
-	"interfaces":  "interfaces",
-	"dhcp":        "dhcp",
-	"diagnostics": "dashboard",
-}
+// This used to be a map here, beside a second map of emit aliases, while the
+// browser held three more tables of the same fact. The comment on it said it was
+// "checked against the live resolution by the grid table generator" — a
+// generator that is not in `tools/` and has not run since the cutover, so the
+// check it named had quietly stopped existing.
+//
+// `internal/dashcards` is the one declaration now, `cmd/gridgen` emits the
+// browser's view of it, and `-check` runs in tools/verify.sh.
+func dashCardPage(key string) string { return dashcards.PageFor(key) }
 
-// dashCardPage resolves a card room key to the page that gates it. An unknown
-// key gates on the dashboard alone, which is the live fallback.
-func dashCardPage(key string) string {
-	if p, ok := dashCardPages[key]; ok {
-		return p
-	}
-	return "dashboard"
-}
-
-// dashCardRooms maps a card's room KEY to the room its collector actually emits
-// to, where the two differ.
+// dashCardRoom is the room this client joins for a card.
 //
-// ── TWO KEYS DO NOT NAME THEIR OWN ROOM ───────────────────────────────────
-//
-// `CARD_ROOMS` (lifted verbatim from live's `dashboard-grid.js`) gives
-// `dc-card-physports` the key `interfaces` and `card-network` the key `dhcp`,
-// while the collectors emit to `dash-card-physports` and `dash-card-network`.
-// Joining `dash-card-` + key therefore subscribes a browser to a room NOTHING
-// EVER SENDS TO, for both cards.
-//
-// Live has the identical mismatch and gets away with it: its cards are painted
-// by the connect-time replay in `sendInitialState`, and its router session is
-// long-lived so a payload is already waiting. This port creates the session when
-// a browser selects a router, so the replay races the collector's first tick —
-// `ifStatus` polls every 5s and usually wins, `dhcpNetworks` polls every 600s and
-// does not. That is the whole difference between Physical Ports looking fine and
-// Network showing an em dash.
-//
-// Aliasing the JOIN is the smallest change that makes both correct: the emitted
-// rooms stay exactly live's (so `emit-rooms-audit` still passes), the blur guards
-// in ws.go already name `dash-card-network`, and the cards now receive ONGOING
-// updates rather than one replay they might have missed.
-//
-// `TestEveryCardRoomIsEmittedTo` pins the property this table exists to hold.
-var dashCardRooms = map[string]string{
-	"interfaces": "physports",
-	"dhcp":       "network",
-}
-
+// TWO KEYS DO NOT NAME THEIR OWN ROOM. `dc-card-physports` carries the key
+// `interfaces` and `card-network` carries `dhcp`, while the collectors emit to
+// `dash-card-physports` and `dash-card-network`. Joining `dash-card-` + key
+// would subscribe a browser to a room NOTHING EVER SENDS TO, which is
+// indistinguishable from a quiet one — the card shows whatever the connect-time
+// replay happened to catch and never updates again.
 func (cn *conn) dashCardRoom(key string) string {
-	if alias, ok := dashCardRooms[key]; ok {
-		key = alias
-	}
-	return "router-" + cn.routerID + "-dash-card-" + key
+	return "router-" + cn.routerID + "-dash-card-" + dashcards.EmitRoom(key)
 }
 
 func (cn *conn) dashCardFocus(key string) {

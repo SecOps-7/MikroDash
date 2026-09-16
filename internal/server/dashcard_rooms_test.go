@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"mikrodash/internal/dashcards"
 )
 
 // EVERY CARD ROOM A BROWSER JOINS MUST BE A ROOM SOMETHING EMITS TO.
@@ -30,26 +32,21 @@ import (
 // table. No request exercises it: the browser subscribes, the server accepts,
 // and nothing fails — the card simply never updates.
 func TestEveryCardRoomIsEmittedTo(t *testing.T) {
-	// What the browser asks for: the values of CARD_ROOMS.
-	gen, err := os.ReadFile("../../web/src/gen/grid-tables.ts")
-	if err != nil {
-		t.Fatalf("reading the generated grid tables: %v", err)
-	}
-	src := string(gen)
-	i := strings.Index(src, "CARD_ROOMS")
-	if i < 0 {
-		t.Fatal("CARD_ROOMS is gone from the generated tables — this test measures nothing")
-	}
-	block := src[i:]
-	if j := strings.Index(block, "};"); j >= 0 {
-		block = block[:j]
-	}
+	// ── THE SOURCE MOVED, AND SO DID THIS ────────────────────────────────────
+	//
+	// This used to regex-scan `web/src/gen/grid-tables.ts` for CARD_ROOMS. That
+	// file is now GENERATED from `internal/dashcards`, so scanning it would ask
+	// the generated copy a question its source can answer — and would keep
+	// passing if the generator broke.
+	//
+	// Reading the declaration also makes the REVERSE direction possible, which
+	// the old shape could not express: see below.
 	keys := map[string]bool{}
-	for _, m := range regexp.MustCompile(`"[^"]+":\s*"([^"]+)"`).FindAllStringSubmatch(block, -1) {
-		keys[m[1]] = true
+	for _, r := range dashcards.Rooms() {
+		keys[r] = true
 	}
 	if len(keys) == 0 {
-		t.Fatal("no card room keys found — this test measures nothing")
+		t.Fatal("no card room keys declared — this test measures nothing")
 	}
 
 	// What the collectors emit to.
@@ -71,31 +68,54 @@ func TestEveryCardRoomIsEmittedTo(t *testing.T) {
 			emitted[m[1]] = true
 		}
 	}
+	if len(emitted) == 0 {
+		t.Fatal("no dash-card emits found — the scan has stopped matching")
+	}
 
+	// ── FORWARD: a card joining a room nothing sends to ──────────────────────
+	//
+	// The browser is subscribed to silence. The card shows whatever the
+	// connect-time replay happened to catch and never updates, which is
+	// indistinguishable from a quiet router.
 	var orphans []string
 	for k := range keys {
-		room := k
-		if alias, ok := dashCardRooms[k]; ok {
-			room = alias
+		// `diagnostics` has no collector at all — it reports on this process and
+		// is computed in the handler — so it is the one key legitimately without
+		// an emit site.
+		if k == "diagnostics" {
+			continue
 		}
-		if !emitted[room] {
+		if room := dashcards.EmitRoom(k); !emitted[room] {
 			orphans = append(orphans, k+" -> dash-card-"+room)
 		}
 	}
 	sort.Strings(orphans)
+	if len(orphans) > 0 {
+		t.Errorf("%d card room(s) that no collector emits to: %v\n"+
+			"A browser joining one of these is subscribed to silence. Give the card an "+
+			"Emits alias, or fix the emit.", len(orphans), orphans)
+	}
 
-	// `diagnostics` has no collector at all — live computes it in the handler —
-	// so it is the one key legitimately without an emit site.
-	var real []string
-	for _, o := range orphans {
-		if !strings.HasPrefix(o, "diagnostics ") {
-			real = append(real, o)
+	// ── REVERSE: a collector emitting to a room no card claims ───────────────
+	//
+	// NEW, and only expressible now that the rooms are declared rather than
+	// scraped. Work the server does for nobody, and indistinguishable from a
+	// card whose declaration was deleted by accident — which is exactly how the
+	// forward half started.
+	claimed := map[string]bool{}
+	for _, r := range dashcards.Rooms() {
+		claimed[dashcards.EmitRoom(r)] = true
+	}
+	var unclaimed []string
+	for room := range emitted {
+		if !claimed[room] {
+			unclaimed = append(unclaimed, "dash-card-"+room)
 		}
 	}
-	if len(real) > 0 {
-		t.Errorf("%d card room(s) that no collector emits to: %v\n"+
-			"A browser joining one of these is subscribed to silence — the card shows "+
-			"whatever the connect-time replay happened to catch and never updates. Add an "+
-			"entry to dashCardRooms, or fix the emit.", len(real), real)
+	sort.Strings(unclaimed)
+	if len(unclaimed) > 0 {
+		t.Errorf("%d room(s) a collector emits to that no card claims: %v\n"+
+			"Either a card declaration was lost, or the emit is work done for nobody.",
+			len(unclaimed), unclaimed)
 	}
 }
