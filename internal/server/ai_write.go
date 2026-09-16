@@ -109,7 +109,7 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 			return fmt.Sprintf("Applied. The %s %s was %sd on the router and confirmed by "+
 				"reading it back.", res.Label, quoted(out.Name), out.Action)
 		}
-		if fp, _ := out.Detail["fingerprint"].(string); fp != "" {
+		if fp, gate := guardGate(out); gate {
 			return cn.raiseAIProposal(res, req, out.Name, fp, out)
 		}
 		return aiRefusalText(res, out)
@@ -306,6 +306,31 @@ func aiProposalToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// guardGate reports whether an outcome is a guard ASKING rather than refusing.
+//
+// ── THE ONE GENUINELY NEW LINK, SO IT IS NAMED AND TESTED ───────────────────
+//
+// Everything else about an agent write is the pipeline the forms already use.
+// This is the exception: a warned verdict comes back from `writeRow` as an
+// outcome carrying a fingerprint, with nothing written, and the assistant has to
+// turn that into a proposal instead of reporting a failure. That is what makes a
+// lockout guard prompt even when prompts are switched off.
+//
+// It was inline, wrapped around a `writeRow` call that needs a router, so
+// nothing could exercise it — and "covered by tests" was a claim about the
+// guards themselves rather than about this step.
+//
+// A FINGERPRINT IS THE SIGNAL. `ackGate` puts one on every warning and on
+// nothing else, which is also what the browser routes on, so the assistant and
+// the form agree by construction rather than by coincidence.
+func guardGate(out writeOutcome) (string, bool) {
+	if out.Code == "" {
+		return "", false // a success is not a question
+	}
+	fp, _ := out.Detail["fingerprint"].(string)
+	return fp, fp != ""
 }
 
 // aiRefusalText turns a write outcome into something the model can relay.
