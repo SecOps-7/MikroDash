@@ -187,7 +187,10 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     html += kv('RouterOS', esc(u.installedVersion || '—') +
       (u.updateAvailable ? ' → ' + esc(u.latestVersion) : '') + updateBtn,
       u.updateAvailable ? 'warn' : 'on');
-    html += kv('Channel', esc(u.channel || '—'));
+    if (f.isRouterboard) {
+      html += kv('Firmware', esc(f.currentFirmware || '—') +
+        (f.upgradeAvailable ? ' → ' + esc(f.upgradeFirmware) : ''), f.upgradeAvailable ? 'warn' : 'on');
+    }
     // THE ROUTER'S STATUS TEXT IS NOT ALWAYS TRUE, and saying it anyway made
     // this card contradict the row above it: the hAP ax3 reported
     // "New version is available" while `latest-version` (7.24.2) was OLDER than
@@ -202,9 +205,8 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     const upToDate = !u.updateAvailable && !!u.latestVersion;
     html += kv('Update status', esc(upToDate ? 'Up to date' : (u.status || '—')),
       u.updateAvailable ? 'warn' : 'off');
+    html += kv('Channel', esc(u.channel || '—'));
     if (f.isRouterboard) {
-      html += kv('Firmware', esc(f.currentFirmware || '—') +
-        (f.upgradeAvailable ? ' → ' + esc(f.upgradeFirmware) : ''), f.upgradeAvailable ? 'warn' : 'on');
       html += kv('Minimum firmware', esc(f.minimumFirmware || '—'));
       html += kv('Board', esc(f.boardName || '—') + (f.model ? ' (' + esc(f.model) + ')' : ''));
     }
