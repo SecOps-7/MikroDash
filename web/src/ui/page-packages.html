@@ -49,20 +49,29 @@
         </div>
       </div>
 
-      <div class="card" id="packagesFwCard" style="margin-top:.85rem">
-        <div class="card-header"><h3 class="card-title mb-0">Firmware &amp; Update</h3></div>
-        <div class="card-body">
-          <div id="pkgFwBody" class="kv-grid"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
-        </div>
-      </div>
+      <!-- THE TWO FIRMWARE CARDS ARE A PAIR: side by side on a wide page, stacked
+           on a narrow one. The top margin lives on the wrapper rather than on
+           each card, or the grid rows inherit a stray one.
 
-      <!-- RouterBOOT, the bootloader: upgraded apart from RouterOS and applied by
-           a reboot. Hidden until a payload says this device has one at all — a
-           CHR and an x86 install do not. -->
-      <div class="card" id="pkgRbCard" style="margin-top:.85rem;display:none">
-        <div class="card-header"><h3 class="card-title mb-0">RouterBOARD Firmware</h3></div>
-        <div class="card-body">
-          <div id="pkgRbBody"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
+           A device with no RouterBOOT hides the second card, and a display:none
+           grid child takes no track, so Firmware & Update then spans the full
+           width on its own rather than leaving a hole. -->
+      <div class="pkg-fw-pair">
+        <div class="card" id="packagesFwCard">
+          <div class="card-header"><h3 class="card-title mb-0">Firmware &amp; Update</h3></div>
+          <div class="card-body">
+            <div id="pkgFwBody" class="kv-grid"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
+          </div>
+        </div>
+
+        <!-- RouterBOOT, the bootloader: upgraded apart from RouterOS and applied by
+             a reboot. Hidden until a payload says this device has one at all — a
+             CHR and an x86 install do not. -->
+        <div class="card" id="pkgRbCard" style="display:none">
+          <div class="card-header"><h3 class="card-title mb-0">RouterBOARD Firmware</h3></div>
+          <div class="card-body">
+            <div id="pkgRbBody"><span class="empty-state">Waiting for firmware data&hellip;</span></div>
+          </div>
         </div>
       </div>
 

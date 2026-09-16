@@ -709,11 +709,20 @@
     /* ── Shared: key/value panel used by DNS and Packages ───────── */
     .kv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.5rem .9rem}
     .kv-item{min-width:0}
+    /* Firmware & Update beside RouterBOARD Firmware. `auto-fit` rather than a
+       fixed two columns, so the pair stacks on a narrow page and a lone card
+       (no RouterBOOT, so the second is display:none and takes no track) spans
+       the full width instead of sitting in a half-width column. */
+    .pkg-fw-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(22rem,1fr));
+                 gap:.85rem;margin-top:.85rem}
     /* The RouterBOARD card. The controls belong beside the readings they act on,
-       not stranded in a row underneath them; they wrap below on a narrow card. */
+       not stranded in a row underneath them. Side by side there is room for both;
+       in a half-width card there is not, so the controls wrap BELOW the readings
+       and `margin-left:auto` keeps them right-aligned either way. */
     .pkg-rb-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
     .pkg-rb-row>.kv-grid{flex:1 1 320px}
-    .pkg-rb-actions{display:flex;align-items:center;justify-content:flex-end;gap:.9rem;flex-wrap:wrap}
+    .pkg-rb-actions{display:flex;align-items:center;justify-content:flex-end;gap:.9rem;
+                    flex-wrap:wrap;margin-left:auto}
     .kv-key{font-family:var(--font-ui);font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;
             color:var(--text-muted);margin-bottom:.1rem}
     .kv-val{font-family:var(--font-mono);font-size:.78rem;word-break:break-all}
