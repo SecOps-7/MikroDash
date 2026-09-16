@@ -152,11 +152,19 @@ export interface HandEvents {
   'packages:error': {
     code: string; name?: string; message?: string; routerName?: string;
     installed?: string; latest?: string;
+    // The firmware refusals carry the pair they were judged on.
+    current?: string; upgrade?: string;
   };
   'packages:notes': { version: string; error: string } | { version: string; notes: string };
   // `routerId` is on the upgrade's replies only: the router it went to, which
   // the dialog watches come back.
-  'packages:ok': { action: string; name?: string; routerName?: string; routerId?: string; latest?: string; rebooting?: boolean };
+  'packages:ok': {
+    action: string; name?: string; routerName?: string; routerId?: string;
+    latest?: string; rebooting?: boolean;
+    // `on` is the autoupgrade reply only: what the router holds after the write,
+    // read back rather than echoed from the request.
+    on?: boolean;
+  };
   'perms:changed': Nothing;
   // minRtt / maxRtt are added only once a ping has landed, and then may be
   // null — unlike PingPayload, where they are omitted when absent.

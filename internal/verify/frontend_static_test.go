@@ -100,8 +100,14 @@ func TestRouterStatusRecordsBeforeItPaints(t *testing.T) {
 // literal binding expression can exist for it. Recorded rather than ignored, and
 // an entry that stops being constructed becomes a failure.
 var templateIDsUnbound = map[string]string{
-	"s_":  "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",
-	"sv_": "constructed: `sv_<pollKey>` per slider label, written by the same loop",
+	// The System card's Update button. It is found by `data-upgrade-open` rather
+	// than by id since 2026-09-16, when the Packages page gained a second control
+	// that opens the SAME dialog: matching on an id would have meant two elements
+	// sharing one id, or two dialogs. The id stays because it is the slot
+	// button's handle in the markup and in web/test/update-seam.test.ts.
+	"sysUpdateBtn": "found by [data-upgrade-open], which two buttons carry",
+	"s_":           "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",
+	"sv_":          "constructed: `sv_<pollKey>` per slider label, written by the same loop",
 }
 
 // TestTemplateIDsAreBound: every id the port's markup creates is looked up

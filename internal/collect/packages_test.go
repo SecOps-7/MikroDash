@@ -101,3 +101,34 @@ func TestCarriedFirmwareAndUpdatePassThrough(t *testing.T) {
 			got.Firmware, got.Update)
 	}
 }
+
+// TestFirmwareCarriesTheAutoUpgradeSetting — `/system/routerboard/settings`
+// `auto-upgrade`, which the Packages page shows and toggles.
+//
+// THREE STATES, which is why the field is a pointer. No capture in this
+// repository holds this menu, so the fixture replay cannot show it and
+// `addedSinceNode` points at this test instead.
+func TestFirmwareCarriesTheAutoUpgradeSetting(t *testing.T) {
+	board := routeros.Reply{"routerboard": "true", "current-firmware": "7.24.1"}
+
+	on := parseFirmware(board, routeros.Reply{"auto-upgrade": "yes"})
+	if on.AutoUpgrade == nil || !*on.AutoUpgrade {
+		t.Errorf("auto-upgrade=yes read as %v, want true", on.AutoUpgrade)
+	}
+	off := parseFirmware(board, routeros.Reply{"auto-upgrade": "no"})
+	if off.AutoUpgrade == nil || *off.AutoUpgrade {
+		t.Errorf("auto-upgrade=no read as %v, want false", off.AutoUpgrade)
+	}
+	// A CHR has no routerboard menu at all, and a read-only API user can be
+	// refused it. Neither is "off": the page must draw nothing rather than a
+	// switch that claims the router said no.
+	if unknown := parseFirmware(board, nil); unknown.AutoUpgrade != nil {
+		t.Errorf("an unread settings menu produced %v, want nil", unknown.AutoUpgrade)
+	}
+
+	// AND IT MOVES THE FINGERPRINT, or toggling it would never reach the page:
+	// the payload is suppressed while nothing it hashes has changed.
+	if packagesFingerprint(nil, on, Update{}) == packagesFingerprint(nil, off, Update{}) {
+		t.Error("auto-upgrade does not move the fingerprint, so a toggle would not be sent")
+	}
+}

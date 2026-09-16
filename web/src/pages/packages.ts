@@ -173,9 +173,20 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       '<div class="kv-item"><div class="kv-key">' + esc(k) + '</div>' +
       '<div class="kv-val' + (cls ? ' ' + cls : '') + '">' + v + '</div></div>';
 
+    // The same dialog the System card opens, not a second one: the button
+    // carries `data-upgrade-open` and `upgrade.ts` fills it from what the card
+    // published. Drawn only with write permission and a known newer version,
+    // for the reason `updateSlotHtml` gives — a button with nothing to do, or
+    // one that refuses on click, is worse than none.
+    const updateBtn = (caps.permitted && u.updateAvailable && u.latestVersion)
+      ? ' <button class="sbtn sbtn-warn" data-upgrade-open'
+        + ' style="padding:.1rem .45rem;font-size:.64rem;margin-left:.4rem">Update</button>'
+      : '';
+
     let html = '';
     html += kv('RouterOS', esc(u.installedVersion || '—') +
-      (u.updateAvailable ? ' → ' + esc(u.latestVersion) : ''), u.updateAvailable ? 'warn' : 'on');
+      (u.updateAvailable ? ' → ' + esc(u.latestVersion) : '') + updateBtn,
+      u.updateAvailable ? 'warn' : 'on');
     html += kv('Channel', esc(u.channel || '—'));
     html += kv('Update status', esc(u.status || '—'), u.updateAvailable ? 'warn' : 'off');
     if (f.isRouterboard) {
@@ -185,6 +196,97 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       html += kv('Board', esc(f.boardName || '—') + (f.model ? ' (' + esc(f.model) + ')' : ''));
     }
     body.innerHTML = html;
+    renderRouterboard();
+  }
+
+  /**
+   * The RouterBOOT section: what the board is running, the upgrade it carries,
+   * and whether it upgrades itself.
+   *
+   * ── ONLY ON A ROUTERBOARD, AND ONLY WITH WRITE ACCESS ─────────────────────
+   *
+   * A CHR or an x86 install has no routerboard menu at all, so there is nothing
+   * to draw. A reader sees the firmware figures above and no controls, because a
+   * control that refuses on click is a control that should not have been drawn.
+   *
+   * ── auto-upgrade HAS THREE STATES ─────────────────────────────────────────
+   *
+   * On, off, and unknown — the collector could not read the settings menu, which
+   * a read-only API user can be refused. The switch is drawn only for the first
+   * two; the third says so instead of showing a switch that claims the router
+   * said no.
+   */
+  function renderRouterboard(): void {
+    const box = el('pkgRbBody');
+    const card = el('pkgRbCard');
+    if (!box || !card || !data) return;
+    const f = data.firmware || ({} as Firmware);
+    if (!f.isRouterboard) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = '';
+
+    const pending = !!f.upgradeAvailable;
+    let html = '<div class="kv-grid">';
+    html += '<div class="kv-item"><div class="kv-key">RouterBOOT</div><div class="kv-val' +
+      (pending ? ' warn' : ' on') + '">' + esc(f.currentFirmware || '—') +
+      (pending ? ' → ' + esc(f.upgradeFirmware) : '') + '</div></div>';
+    html += '<div class="kv-item"><div class="kv-key">Status</div><div class="kv-val' +
+      (pending ? ' warn' : ' on') + '">' +
+      (pending ? 'An upgrade is available' : 'Up to date with RouterOS') + '</div></div>';
+    html += '</div>';
+
+    html += '<div class="d-flex align-items-center gap-2" style="margin-top:.7rem;flex-wrap:wrap">';
+    if (caps.permitted) {
+      html += '<button id="pkgFwUpgradeBtn" class="sbtn ' + (pending ? 'sbtn-warn' : 'sbtn-outline') +
+        '" type="button"' + (pending ? '' : ' disabled') + '>Upgrade &amp; Reboot</button>';
+    }
+    if (f.autoUpgrade === null || f.autoUpgrade === undefined) {
+      html += '<span class="muted-note">Auto-upgrade could not be read from this router.</span>';
+    } else if (caps.permitted) {
+      html += '<label class="stoggle" style="margin-left:.3rem">' +
+        '<span class="stoggle-label">Upgrade automatically</span>' +
+        '<span class="stoggle-switch"><input type="checkbox" id="pkgAutoUpgrade"' +
+        (f.autoUpgrade ? ' checked' : '') +
+        '><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span></label>';
+    } else {
+      html += '<span class="muted-note">Upgrades automatically: ' +
+        (f.autoUpgrade ? 'yes' : 'no') + '</span>';
+    }
+    html += '</div>';
+    html += '<p class="muted-note" style="margin:.5rem 0 0">RouterBOOT is the bootloader, upgraded ' +
+      'separately from RouterOS and applied by a reboot. With auto-upgrade on, the board writes it ' +
+      'itself on the next boot after a RouterOS upgrade.</p>';
+    box.innerHTML = html;
+
+    const up = el<HTMLButtonElement>('pkgFwUpgradeBtn');
+    if (up) {
+      up.addEventListener('click', () => {
+        if (!caps.permitted) return;
+        const name = caps.routerName || '';
+        // Typed confirmation, as Apply uses: this reboots a production router,
+        // and the name is what makes the wrong router a hard mistake to make.
+        const typed = window.prompt(
+          'This writes the RouterBOOT firmware and REBOOTS the router.\n\n' +
+          'Type the router name to confirm: ' + name);
+        if (typed === null) return;
+        setStatus('Upgrading RouterBOOT — the router will reboot');
+        socket.emit('packages:fwupgrade', { confirm: typed });
+      });
+    }
+    const auto = el<HTMLInputElement>('pkgAutoUpgrade');
+    if (auto) {
+      auto.addEventListener('change', () => {
+        if (!caps.permitted) return;
+        // The switch shows what the ROUTER holds, so it is put back where it was
+        // until a reply says otherwise: the collector's refresh redraws it.
+        const on = auto.checked;
+        auto.checked = !!(data && data.firmware && data.firmware.autoUpgrade);
+        setStatus(on ? 'Turning auto-upgrade on…' : 'Turning auto-upgrade off…');
+        socket.emit('packages:autoupgrade', { on });
+      });
+    }
   }
 
   function renderSummary(): void {
@@ -217,6 +319,10 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     busy = '';
     if (d && d.action === 'apply') setStatus('Applying changes — the router is rebooting');
     else if (d && d.action === 'check') setStatus('Update check finished');
+    else if (d && d.action === 'fwupgrade') setStatus('RouterBOOT written — the router is rebooting');
+    else if (d && d.action === 'autoupgrade') {
+      setStatus(d.on ? 'Auto-upgrade is on' : 'Auto-upgrade is off');
+    }
   });
 
   socket.on('packages:error', (d) => {
@@ -230,6 +336,10 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       unsupported: 'This router does not support that command',
       'confirm-mismatch': 'The router name did not match — nothing was applied',
       'nothing-scheduled': 'There are no scheduled changes to apply',
+      'no-routerboard': 'This device has no RouterBOOT to upgrade',
+      'firmware-current': 'The bootloader already matches the firmware on the board',
+      'outcome-unknown': 'The router accepted the change but it could not be confirmed',
+      'rate-limited': 'Too many changes to this router in the last minute',
     };
     setStatus((d && d.code && msg[d.code]) || (d && d.message) || 'Action failed');
     if (isVisible('packages')) render();

@@ -16,10 +16,10 @@ for what a ported collector has to cover.
 
 | Kind | Count |
 |---|---|
-| read | 75 |
+| read | 76 |
 | stream | 16 |
-| write | 11 |
-| action | 11 |
+| write | 12 |
+| action | 13 |
 | menu | 34 |
 | distinct proplists | 70 |
 
@@ -98,6 +98,7 @@ for what a ported collector has to cover.
 | `/system/package/update/print` | src/collectors/packages.js, src/collectors/system.js, src/index.js |
 | `/system/resource/print` | src/backups/runner.js, src/collectors/system.js, src/index.js |
 | `/system/routerboard/print` | src/backups/runner.js, src/collectors/packages.js, src/collectors/system.js, src/index.js |
+| `/system/routerboard/settings/print` | internal/collect/packages.go, internal/server/packages.go |
 | `/tool/netwatch/print` | src/collectors/netwatch.js |
 | `/user/active/print` | src/collectors/rosusers.js, src/index.js |
 | `/user/group/print` | src/collectors/rosusers.js, src/index.js |
@@ -138,6 +139,8 @@ for what a ported collector has to cover.
 | `/system/package/apply-changes` | src/index.js |
 | `/system/package/update/check-for-updates` | src/collectors/system.js, src/index.js |
 | `/system/package/update/install` | src/index.js |
+| `/system/reboot` | internal/server/packages.go |
+| `/system/routerboard/upgrade` | internal/server/packages.go |
 | `/tool/fetch` | src/index.js |
 | `/tool/ping` | src/collectors/ping.js, src/collectors/topology.js |
 
@@ -150,6 +153,7 @@ for what a ported collector has to cover.
 | `/system/identity/set` | internal/server/routers_identity.go |
 | `/system/package/disable` | src/index.js |
 | `/system/package/enable` | src/index.js |
+| `/system/routerboard/settings/set` | internal/server/packages.go |
 | `/user/active/remove` | src/index.js |
 | `/user/add` | src/index.js |
 | `/user/group/add` | src/index.js |

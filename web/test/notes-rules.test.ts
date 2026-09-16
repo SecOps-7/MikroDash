@@ -66,7 +66,11 @@ if (painted === CASES.length) problems.push('rule 2: every case paints; the guar
 
 // ── Rule 1: asked on OPEN, not on the update-available path ─────────────────
 const body = SRC.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
-const openAt = body.indexOf("closest('#sysUpdateBtn')");
+// The open branch matches any control carrying `data-upgrade-open`, not one id:
+// the System card's slot button and the Packages page's Firmware & Update button
+// both open THIS dialog. Following the matcher rather than loosening the search,
+// so "asked on open" is still pinned to the branch that opens it.
+const openAt = body.indexOf("closest('[data-upgrade-open]')");
 if (openAt < 0) {
   problems.push('rule 1: the modal-open branch could not be found');
 } else {

@@ -53,6 +53,10 @@ type pkgApplyReq struct {
 	Confirm string `json:"confirm"`
 }
 
+type pkgAutoUpgradeReq struct {
+	On bool `json:"on"`
+}
+
 func (cn *conn) pkgErr(code string, extra map[string]any) {
 	m := map[string]any{"code": code}
 	for k, v := range extra {
@@ -458,3 +462,210 @@ func (cn *conn) packagesNotes(raw json.RawMessage) {
 	EvPackagesNotes.Send(cn.srv.hub, cn.c, map[string]any{
 		"version": version, "notes": notes})
 }
+
+// packagesFwUpgrade answers `packages:fwupgrade` — write the RouterBOOT
+// firmware the board is carrying, and reboot into it.
+//
+// ── TWO COMMANDS, AND THE SECOND IS THE POINT ───────────────────────────────
+//
+// `/system/routerboard/upgrade` stages the bootloader; the board runs the new
+// one only after a restart, which is why MikroTik's own instruction is "execute
+// the command, followed by a reboot". Staging it and leaving the reboot to
+// somebody else would report success for a change nothing has applied.
+//
+// ── THE SAME TWO GATES AS AN APPLY, FOR THE SAME REASON ─────────────────────
+//
+// Write permission, then the router's name typed back. This reboots a production
+// router, and the name is what makes "the wrong router" a hard mistake rather
+// than an easy one.
+//
+// ── AND THE ROW IS RE-READ, NEVER TRUSTED FROM THE PAYLOAD ──────────────────
+//
+// The button was drawn from a payload that may be minutes old. A board already
+// carrying its upgrade firmware has nothing to gain from a reboot, so the pair
+// is read fresh and the action refused when they match.
+func (cn *conn) packagesFwUpgrade(raw json.RawMessage) {
+	if cn.routerID == "" || cn.rsession == nil {
+		cn.pkgErr("unavailable", nil)
+		return
+	}
+	if !cn.canPage("packages", "write") {
+		cn.recorder().Denied(audit.Event{Action: "package.fwupgrade", TargetType: "router",
+			TargetID: cn.routerID, RouterID: cn.routerID})
+		cn.pkgErr("denied", nil)
+		return
+	}
+
+	var req pkgApplyReq
+	_ = json.Unmarshal(raw, &req)
+	name := cn.rsession.Label
+	if name == "" || !strings.EqualFold(strings.TrimSpace(req.Confirm), name) {
+		cn.pkgErr("confirm-mismatch", map[string]any{"routerName": name})
+		return
+	}
+
+	err := cn.inWriteQueue(func() error {
+		rows, rerr := cn.rsession.Exec(routeros.Cmd{Path: "/system/routerboard/print"})
+		if rerr != nil {
+			return rerr
+		}
+		row := routeros.Reply{}
+		if len(rows) > 0 {
+			row = rows[0]
+		}
+		// A CHR or an x86 install has no routerboard at all, which is not a
+		// failure and not something to reboot for.
+		if !isTruthy(row["routerboard"]) {
+			cn.pkgErr("no-routerboard", nil)
+			return nil
+		}
+		current, upgrade := row["current-firmware"], row["upgrade-firmware"]
+		if upgrade == "" || (current != "" && current == upgrade) {
+			cn.pkgErr("firmware-current", map[string]any{"current": current, "upgrade": upgrade})
+			return nil
+		}
+
+		log.Printf("[packages] routerboot upgrade on %s — %s to %s, router will reboot",
+			name, orQuestion(current), upgrade)
+		EvPackagesApplying.Send(cn.srv.hub, cn.c, map[string]any{"routerName": name, "count": 1, "upgrade": true})
+
+		// BEFORE THE CALL, as the apply and the RouterOS upgrade both record: the
+		// router reboots while the command is in flight, so a row written
+		// afterwards is lost exactly when it matters.
+		cn.recorder().Record(audit.Event{
+			Action: "package.fwupgrade", TargetType: "router",
+			TargetID: cn.routerID, TargetName: name, RouterID: cn.routerID,
+			Extra: []audit.KV{
+				{Key: "from", Value: current},
+				{Key: "to", Value: upgrade},
+			},
+			Note: "upgraded the RouterBOOT firmware and rebooted the router",
+		})
+
+		if _, werr := cn.rsession.Exec(routeros.Cmd{Path: "/system/routerboard/upgrade"}); werr != nil {
+			return werr
+		}
+		// THE REBOOT IS WHAT APPLIES IT. A failure here is reported as the reboot
+		// happening, below, which is the same shape the apply path has.
+		if _, werr := cn.rsession.Exec(routeros.Cmd{Path: "/system/reboot"}); werr != nil {
+			return werr
+		}
+		EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{
+			"action": "fwupgrade", "routerName": name, "routerId": cn.routerID, "latest": upgrade})
+		return nil
+	})
+	if err != nil {
+		// A LOST CONNECTION HERE IS THE EXPECTED OUTCOME, not a failure: the
+		// router is rebooting because it was told to.
+		if code := rosWriteFail(err); code == "failed" {
+			EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{
+				"action": "fwupgrade", "routerName": name, "routerId": cn.routerID, "rebooting": true})
+		} else {
+			cn.pkgErr(code, map[string]any{"message": safe.Message(err.Error())})
+		}
+	}
+}
+
+// packagesAutoUpgrade answers `packages:autoupgrade` — turn RouterBOOT's own
+// `auto-upgrade` on or off.
+//
+// ── NO REBOOT, AND NO CONFIRMATION ──────────────────────────────────────────
+//
+// This writes one boolean that decides what the board does at its NEXT boot, so
+// there is nothing to interrupt and nothing to type back. It is the one
+// RouterBOARD setting this app writes: `protected-routerboot` and the boot
+// device are not offered, and RouterOS asks for a physical button press for
+// those anyway.
+//
+// ── READ BACK BEFORE IT REPORTS SUCCESS ─────────────────────────────────────
+//
+// The #97 contract for every write here: the row is re-read and compared, and an
+// acknowledgement the router did not apply is reported as an unknown outcome
+// rather than as success. The audit row carries what the setting was and what it
+// became, from the reads rather than from the request.
+func (cn *conn) packagesAutoUpgrade(raw json.RawMessage) {
+	if cn.routerID == "" || cn.rsession == nil {
+		cn.pkgErr("unavailable", nil)
+		return
+	}
+	if !cn.canPage("packages", "write") {
+		cn.recorder().Denied(audit.Event{Action: "package.autoupgrade", TargetType: "router",
+			TargetID: cn.routerID, RouterID: cn.routerID})
+		cn.pkgErr("denied", nil)
+		return
+	}
+
+	var req pkgAutoUpgradeReq
+	_ = json.Unmarshal(raw, &req)
+	want := "no"
+	if req.On {
+		want = "yes"
+	}
+	name := cn.rsession.Label
+
+	err := cn.inWriteQueue(func() error {
+		before, rerr := cn.autoUpgradeNow()
+		if rerr != nil {
+			return rerr
+		}
+		if _, werr := cn.rsession.Exec(routeros.Cmd{
+			Path: "/system/routerboard/settings/set", Args: []string{"=auto-upgrade=" + want},
+		}); werr != nil {
+			return werr
+		}
+		after, rerr := cn.autoUpgradeNow()
+		if rerr != nil {
+			// The write was accepted and the read was not, so what the router
+			// holds is unknown. Said plainly rather than reported as success.
+			cn.recorder().Record(audit.Event{
+				Action: "package.autoupgrade", TargetType: "router",
+				TargetID: cn.routerID, TargetName: name, RouterID: cn.routerID,
+				Outcome: "outcome-unknown",
+				Before:  map[string]any{"autoUpgrade": before},
+				After:   map[string]any{"autoUpgrade": want},
+			})
+			cn.pkgErr("outcome-unknown", nil)
+			return nil
+		}
+		cn.recorder().Record(audit.Event{
+			Action: "package.autoupgrade", TargetType: "router",
+			TargetID: cn.routerID, TargetName: name, RouterID: cn.routerID,
+			Before: map[string]any{"autoUpgrade": before},
+			After:  map[string]any{"autoUpgrade": after},
+			Note:   "changed the RouterBOOT auto-upgrade setting",
+		})
+		if after != want {
+			cn.pkgErr("outcome-unknown", nil)
+			return nil
+		}
+		// The collector's slow lane would carry the new value in its own time;
+		// the page asked for this change and should see it now.
+		if coll := cn.rsession.Packages(); coll != nil {
+			coll.RefreshNow()
+		}
+		EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{
+			"action": "autoupgrade", "routerName": name, "on": after == "yes"})
+		return nil
+	})
+	if err != nil {
+		cn.pkgErr(rosWriteFail(err), map[string]any{"message": safe.Message(err.Error())})
+	}
+}
+
+// autoUpgradeNow reads the setting as the router holds it, "yes" or "no".
+func (cn *conn) autoUpgradeNow() (string, error) {
+	rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/system/routerboard/settings/print"})
+	if err != nil {
+		return "", err
+	}
+	if len(rows) == 0 {
+		return "", nil
+	}
+	if isTruthy(rows[0]["auto-upgrade"]) {
+		return "yes", nil
+	}
+	return "no", nil
+}
+
+// isTruthy is RouterOS's own spelling of a boolean on the wire.
+func isTruthy(v string) bool { return v == "true" || v == "yes" }

@@ -56,6 +56,10 @@ var (
 		"=.proplist=routerboard,board-name,model,serial-number,firmware-type," +
 			"current-firmware,upgrade-firmware,minimum-firmware"}}
 	packageUpdateCmd = routeros.Cmd{Path: "/system/package/update/print"}
+	// The RouterBOOT settings row, for `auto-upgrade`. Read whole: the menu is a
+	// singleton of about a dozen boot settings, and naming a proplist of one
+	// would widen the moment the page shows a second.
+	routerboardSettingsCmd = routeros.Cmd{Path: "/system/routerboard/settings/print"}
 )
 
 // configEvery: firmware and the update row change on a reboot or a check, not on
@@ -94,6 +98,15 @@ type Firmware struct {
 	UpgradeFirmware  string `json:"upgradeFirmware"`
 	MinimumFirmware  string `json:"minimumFirmware"`
 	UpgradeAvailable bool   `json:"upgradeAvailable"`
+	// AutoUpgrade is `/system/routerboard/settings` `auto-upgrade`: RouterBOOT
+	// upgrades itself on the next boot after a RouterOS upgrade.
+	//
+	// A POINTER, for the reason SystemPayload's arch and serial are: three
+	// states, not two. Absent means the setting could not be read — a CHR or an
+	// x86 install has no routerboard menu at all, and a read-only API user may be
+	// refused it — and the page must say nothing there rather than draw a switch
+	// that reads "off" for a router that never answered.
+	AutoUpgrade *bool `json:"autoUpgrade"`
 }
 
 // Update mirrors the system page's interpretation deliberately — the same router
@@ -215,7 +228,9 @@ func parsePackages(rows []routeros.Reply) []Package {
 	return out
 }
 
-func parseFirmware(row routeros.Reply) Firmware {
+// parseFirmware reads the routerboard row. `settings` is the RouterBOOT settings
+// row, absent when that menu could not be read.
+func parseFirmware(row, settings routeros.Reply) Firmware {
 	current := row["current-firmware"]
 	upgrade := row["upgrade-firmware"]
 	return Firmware{
@@ -230,7 +245,22 @@ func parseFirmware(row routeros.Reply) Firmware {
 		// Only claim an upgrade when both are known and differ. A missing field
 		// must not read as "up to date" any more than it reads as "out of date".
 		UpgradeAvailable: current != "" && upgrade != "" && current != upgrade,
+		AutoUpgrade:      autoUpgradeOf(settings),
 	}
+}
+
+// autoUpgradeOf reads `auto-upgrade` from the settings row.
+//
+// NIL FOR A ROW THAT DOES NOT CARRY IT, rather than false: a router that never
+// answered the menu and one that answered "no" are different answers, and only
+// the second is a setting the page may offer to change.
+func autoUpgradeOf(settings routeros.Reply) *bool {
+	v, ok := settings["auto-upgrade"]
+	if !ok || v == "" {
+		return nil
+	}
+	on := boolOf(v)
+	return &on
 }
 
 func parseUpdate(row routeros.Reply) Update {
@@ -262,9 +292,10 @@ type Packages struct {
 	update   Update
 
 	// nil = unprobed, false = this router has no such menu, stop asking.
-	pkgOK    *bool
-	boardOK  *bool
-	updateOK *bool
+	pkgOK      *bool
+	boardOK    *bool
+	updateOK   *bool
+	settingsOK *bool
 }
 
 // packagesHeartbeat is how long an unchanged `packages:update` may be suppressed.
@@ -283,7 +314,7 @@ const packagesHeartbeat = 10 * time.Second
 // Package state changes on human action, so polling it hard buys nothing and
 // costs a router channel.
 func NewPackages(ros Reader, emit Emit, pollMs int) *Packages {
-	p := &Packages{emit: emit, firmware: parseFirmware(nil), update: parseUpdate(nil)}
+	p := &Packages{emit: emit, firmware: parseFirmware(nil, nil), update: parseUpdate(nil)}
 	// Firmware and the update row are the slow lane, once every configEvery
 	// readings: they change on a reboot or an explicit check, and reading them
 	// every time would triple this collector's channel use for data that has not
@@ -298,7 +329,9 @@ func NewPackages(ros Reader, emit Emit, pollMs int) *Packages {
 // build — and for THIS collector that is not a hypothetical: applying package
 // changes reboots the router, and the whole point of the reboot is that the
 // package set is different afterwards.
-func (p *Packages) reset() { p.pkgOK, p.boardOK, p.updateOK = nil, nil, nil }
+func (p *Packages) reset() {
+	p.pkgOK, p.boardOK, p.updateOK, p.settingsOK = nil, nil, nil, nil
+}
 
 func firstRow(rows []routeros.Reply) routeros.Reply {
 	if len(rows) == 0 {
@@ -385,7 +418,11 @@ func (p *Packages) derive(rows []routeros.Reply, err error, slow bool) (*Package
 	if slow {
 		board, _ := readOptional(p.readShared, routerboardCmd, &p.boardOK)
 		update, _ := readOptional(p.readShared, packageUpdateCmd, &p.updateOK)
-		p.firmware, p.update = parseFirmware(firstRow(board)), parseUpdate(firstRow(update))
+		// The settings row rides the same lane behind its own latch: a CHR has no
+		// routerboard menu, and one refusal is enough to stop asking.
+		settings, _ := readOptional(p.ros.Do, routerboardSettingsCmd, &p.settingsOK)
+		p.firmware = parseFirmware(firstRow(board), firstRow(settings))
+		p.update = parseUpdate(firstRow(update))
 	}
 	payload, pkgs := BuildPackages(PackagesInput{
 		Rows: rows, Firmware: p.firmware, Update: p.update,
@@ -407,9 +444,9 @@ func packagesFingerprint(pkgs []Package, f Firmware, u Update) string {
 	}
 	b, _ := json.Marshal(struct {
 		P [][4]string `json:"p"`
-		F [2]string   `json:"f"`
+		F []any       `json:"f"`
 		U []any       `json:"u"`
-	}{rows, [2]string{f.CurrentFirmware, f.UpgradeFirmware},
+	}{rows, []any{f.CurrentFirmware, f.UpgradeFirmware, f.AutoUpgrade},
 		[]any{u.LatestVersion, u.Status, u.UpdateAvailable}})
 	return string(b)
 }

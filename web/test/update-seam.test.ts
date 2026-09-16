@@ -122,7 +122,9 @@ function run(payload, o) {
     mod.noteSystemUpdate(payload);
 
     // Press Update, which is where the dialog reads what it was told.
-    const btn = { closest: (sel) => (sel === '#sysUpdateBtn' ? btn : null) };
+    // The dialog opens for any control carrying `data-upgrade-open`; the System
+    // card's button keeps its id, and the Packages page draws a second one.
+    const btn = { closest: (sel) => (sel === '[data-upgrade-open]' ? btn : null) };
     doc.dispatch('click', btn);
 
     // ── THE REFUSAL PATH ────────────────────────────────────────────────

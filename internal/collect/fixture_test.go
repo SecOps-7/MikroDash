@@ -430,6 +430,14 @@ var addedSinceNode = map[string][]addedField{
 	// answers and the map lets either be switched off. No capture in this
 	// repository has a lease comment — the capture tool drops the field — so
 	// the proof is a named test. See `ProvenBy`.
+	// The RouterBOOT `auto-upgrade` setting, added 2026-09-16 for the Packages
+	// page's RouterBoard firmware section, which shows it and toggles it. Purely
+	// additive. No capture in this repository holds
+	// `/system/routerboard/settings` — the menu was never read before — so the
+	// proof is a named test. See `ProvenBy`.
+	"packages": {
+		{Spec: "firmware.autoUpgrade", ProvenBy: "TestFirmwareCarriesTheAutoUpgradeSetting"},
+	},
 	"wireless": {
 		added("clients[].standard"),
 		{Spec: "clients[].comment", ProvenBy: "TestWirelessClientCarriesTheLeaseComment"},

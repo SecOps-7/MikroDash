@@ -650,6 +650,7 @@ export interface Firmware {
   upgradeFirmware: string;
   minimumFirmware: string;
   upgradeAvailable: boolean;
+  autoUpgrade: boolean | null;
 }
 
 export interface Update {

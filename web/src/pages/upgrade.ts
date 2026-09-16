@@ -47,7 +47,8 @@ export function upgradeErrorText(code: string | undefined, routerName: string): 
  */
 export function updateSlotHtml(permitted: boolean, latest: string): string {
   return (permitted && latest)
-    ? '<button class="sbtn sbtn-warn" id="sysUpdateBtn" style="padding:.1rem .45rem;font-size:.64rem">Update</button>'
+    ? '<button class="sbtn sbtn-warn" id="sysUpdateBtn" data-upgrade-open'
+      + ' style="padding:.1rem .45rem;font-size:.64rem">Update</button>'
     : '';
 }
 
@@ -223,7 +224,11 @@ export function initUpgrade(socket: Socket): void {
   document.addEventListener('click', (e) => {
     const t = e.target as HTMLElement | null;
     if (!t?.closest) return;
-    if (t.closest('#sysUpdateBtn')) {
+    // ANY CONTROL THAT ASKS, not one id. The System card's slot button is the
+    // original and keeps its id; the Packages page draws a second one in its
+    // Firmware & Update card, and both open THIS dialog rather than a copy of
+    // it. Matching on the id would have meant duplicating the id or the dialog.
+    if (t.closest('[data-upgrade-open]')) {
       const set = (id: string, v: string): void => { const n = el(id); if (n) n.textContent = v; };
       set('upd_from', upd.installed || '—');
       set('upd_to', upd.latest || '—');
