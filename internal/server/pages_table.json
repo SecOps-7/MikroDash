@@ -127,6 +127,11 @@
       "settingsKey": "pageDevices"
     },
     {
+      "key": "ai-agent",
+      "title": "AI Agent",
+      "settingsKey": null
+    },
+    {
       "key": "reports",
       "title": "Reports",
       "settingsKey": null

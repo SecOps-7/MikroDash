@@ -172,6 +172,13 @@ type Server struct {
 	originPatterns []string
 	// writeLimit bounds router writes per user per router (#97). See write_limit.go.
 	writeLimit *rateLimiter
+	// aiLimit bounds questions to the model, per user per router (#98).
+	//
+	// EVERY ASK IS AN OUTBOUND REQUEST to an endpoint the operator named, which
+	// is the same reason the Test button has a limiter of its own. A socket
+	// frame is cheaper to send than an HTTP request, so the need is greater
+	// here, not smaller.
+	aiLimit *rateLimiter
 	// idleGrace is how long a page-level suspend waits after the last viewer
 	// leaves a collector's rooms. Zero means session.DefaultIdleGrace; only
 	// tests set it, because two minutes is not a thing a test can wait for.
@@ -369,6 +376,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 		web:            http.FileServer(http.Dir(opts.WebDir)),
 		originPatterns: opts.OriginPatterns,
 		writeLimit:     newWriteLimiter(),
+		aiLimit:        newRateLimiter(20, time.Minute),
 	}
 	// Installed AFTER construction because it closes over the server. In
 	// standalone mode this is the whole of authentication; while Node runs it

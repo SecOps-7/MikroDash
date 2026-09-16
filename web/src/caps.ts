@@ -173,7 +173,19 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
     // than offered and then bounced. Composed with the other three so the
     // "move off a page that just became hidden" branch below covers it too.
     const byBuild = host ? host.serves(pageName) : true;
-    const visible = byInstall && byRole && byBuild;
+    // ── THE AI AGENT IS GATED ON READINESS, NOT ON A PAGE TOGGLE ──────────
+    //
+    // `aiReady` is derived server-side: enabled AND an endpoint AND a model.
+    // A page that can reach no model renders an empty chat with nothing on it
+    // to say why, so it is not offered until it can work.
+    //
+    // NOT VIA PAGE_NAV_MAP, deliberately. The view presets walk that map and
+    // write to `el('s_' + settingsKey)`, which searches the whole document —
+    // so `aiEnabled` there would let the Advanced preset find the toggle in
+    // the AI tab and switch the assistant on as a side effect of choosing a
+    // nav layout.
+    const byFeature = pageName !== 'ai-agent' || p.aiReady === true;
+    const visible = byInstall && byRole && byBuild && byFeature;
 
     document.querySelectorAll<HTMLElement>('.nav-item[data-page="' + pageName + '"]')
       .forEach((navEl) => { navEl.style.display = visible ? '' : 'none'; });

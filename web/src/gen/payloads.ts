@@ -1593,6 +1593,8 @@ export interface Events {
 export type HandEventName =
   | 'access:none'
   | 'access:revoked'
+  | 'ai:error'
+  | 'ai:reply'
   | 'alerts:cleared-all'
   | 'alerts:open'
   | 'backups:diff'

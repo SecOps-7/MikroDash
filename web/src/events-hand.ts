@@ -126,6 +126,10 @@ export interface PageSettings {
 }
 
 export interface HandEvents {
+  /** One finished answer. Markdown, rendered as DOM nodes — never as markup. */
+  'ai:reply': { text: string; model: string };
+  /** A refusal, already sanitised: it can carry the endpoint's host. */
+  'ai:error': { error: string };
   'access:none': Nothing;
   'access:revoked': Nothing;
   'alerts:cleared-all': { routerId: string; ids: number[]; clearedAt: number; clearedBy: string | null };

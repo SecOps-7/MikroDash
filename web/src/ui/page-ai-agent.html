@@ -1,0 +1,60 @@
+  <div class="page-view" id="page-ai-agent">
+    <div class="container-fluid px-0" style="width:100%">
+      <div class="card" id="aiAgentCard">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">AI Agent</h3>
+            <span id="aiAgentModel" class="card-badge" title="The configured model">&mdash;</span>
+          </div>
+          <div class="hdr-actions">
+            <button id="aiAgentClear" class="sbtn sbtn-ghost" type="button"
+                    style="padding:.3rem .8rem;font-size:.72rem"
+                    title="Clear this conversation. It is never saved, and reloading the page clears it too.">
+              Clear
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <!-- ── THE TRANSCRIPT ────────────────────────────────────────────
+               Filled by web/src/pages/ai-agent.ts, which builds DOM nodes
+               rather than assigning innerHTML: model output is untrusted and
+               must never be parsed as markup. -->
+          <div id="aiAgentLog" class="data-scroll"
+               style="height:min(58vh,560px);overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.9rem">
+            <div id="aiAgentEmpty" style="margin:auto;text-align:center;max-width:34rem;color:var(--text-muted)">
+              <div style="font-size:.86rem;font-weight:600;color:var(--text-main);margin-bottom:.4rem">
+                Ask about this router
+              </div>
+              <div style="font-size:.76rem;line-height:1.5">
+                The assistant can see what this device is reporting right now, limited to the
+                pages you are allowed to open. It answers questions and suggests commands;
+                it cannot change anything.
+              </div>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border);padding:.7rem 1rem">
+            <div style="display:flex;gap:.6rem;align-items:flex-end">
+              <textarea id="aiAgentInput" class="sform-input" rows="2"
+                        placeholder="Ask about this router&hellip;  (Enter to send, Shift+Enter for a new line)"
+                        autocomplete="off"
+                        style="resize:vertical;flex:1;font-size:.8rem"></textarea>
+              <button id="aiAgentSend" class="sbtn sbtn-primary" type="button"
+                      style="padding:.45rem 1rem;font-size:.75rem;white-space:nowrap">Send</button>
+            </div>
+            <div id="aiAgentStatus" style="font-size:.72rem;color:var(--text-muted);margin-top:.45rem;min-height:1.1em"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── WHAT LEAVES THIS NETWORK ──────────────────────────────────────
+           Stated on the page rather than only in Settings. An operator reading
+           an answer should be able to see, without navigating away, that the
+           question and the router summary went to the configured endpoint. -->
+      <p style="font-size:.71rem;color:var(--text-muted);margin:.7rem .2rem 0">
+        Questions and a summary of this router are sent to the endpoint configured in
+        Settings &rarr; AI Agent. Conversations are never saved: they are held in this page
+        only, and reloading clears them.
+      </p>
+    </div>
+  </div>

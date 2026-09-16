@@ -386,6 +386,10 @@ func (cn *conn) dispatch(in inbound) {
 		cn.resNew(in.Data)
 	case "res:schema":
 		cn.resSchema(in.Data)
+	// One question to the configured model (#98). Advisory only: it
+	// advertises no tools, so nothing it answers can change a router.
+	case "ai:ask":
+		cn.aiAsk(in.Data)
 	case "res:undo":
 		cn.resUndo(in.Data)
 	case "res:redo":

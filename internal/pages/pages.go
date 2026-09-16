@@ -121,6 +121,10 @@ var All = []Page{
 	{Key: "wifi-map", Title: "Wifi Map"},
 	{Key: "bandwidth", Title: "Bandwidth", Collector: "bandwidth"},
 	{Key: "connections", Title: "Connections", Collector: "conns"},
+	// The AI Agent (#98). NO COLLECTOR, like dashboard and reports: it is fed by
+	// whatever the viewer may already read, assembled per question, so there is
+	// nothing to switch off that would empty it.
+	{Key: "ai-agent", Title: "AI Agent"},
 	{Key: "reports", Title: "Reports"},
 	{Key: "audit-trail", Title: "Audit Trail"},
 	{Key: "backups", Title: "Backups"},

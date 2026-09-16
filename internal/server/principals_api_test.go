@@ -121,9 +121,18 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// empty one in JSON, which is why the generator writes an explicit null.
 	//
 	// Wifi Map was a fourth from PR #134 until it gained `pageWifiMap`; the count
-	// is back where it was, so a page added without a toggle fails here again.
-	if noToggle != 3 {
-		t.Errorf("%d pages have no settings toggle, want 3 (dashboard, reports, settings)", noToggle)
+	// went back to three, so a page added without a toggle fails here again.
+	//
+	// FOUR SINCE THE AI AGENT (#98), and for a different reason from the other
+	// three. Dashboard, Reports and Settings cannot be hidden at all. The AI
+	// Agent CAN be, and is — by `aiReady`, derived from the AI tab: enabled, with
+	// an endpoint and a model. A `pageAiAgent` toggle beside it would be a second
+	// switch for one page, and the Visible Pages presets walk that same table
+	// writing to `el('s_' + key)` across the whole document, so the Advanced
+	// preset would have found the enable toggle in the AI tab and switched the
+	// assistant on as a side effect of choosing a nav layout.
+	if noToggle != 4 {
+		t.Errorf("%d pages have no settings toggle, want 4 (dashboard, reports, settings, ai-agent)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

@@ -39,6 +39,7 @@ import { initWanPage } from './pages/wan';
 import { initPackagesPage } from './pages/packages';
 import { initRoutingPage } from './pages/routing';
 import { initNetwatchPage } from './pages/netwatch';
+import { initAiAgentPage } from './pages/ai-agent';
 import { initDhcpPage } from './pages/dhcp';
 import { initPppPage } from './pages/ppp';
 import { initVpnPage } from './pages/vpn';
@@ -585,6 +586,7 @@ async function main(): Promise<void> {
   initPackagesPage(socket, pageVisible);
   initRoutingPage(socket, pageVisible);
   initNetwatchPage(socket, pageVisible);
+  initAiAgentPage(socket, pageVisible);
   initDhcpPage(socket, pageVisible);
   initPppPage(socket, pageVisible);
   initVpnPage(socket, pageVisible);

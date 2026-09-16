@@ -42,6 +42,7 @@ export const PAGES: readonly Page[] = [
   { key: "wifi-map", title: "Wifi Map", path: "wifi-map" },
   { key: "bandwidth", title: "Bandwidth", path: "bandwidth" },
   { key: "connections", title: "Connections", path: "connections" },
+  { key: "ai-agent", title: "AI Agent", path: "ai-agent" },
   { key: "reports", title: "Reports", path: "reports" },
   { key: "audit-trail", title: "Audit Trail", path: "audit-trail" },
   { key: "backups", title: "Backups", path: "backups" },
