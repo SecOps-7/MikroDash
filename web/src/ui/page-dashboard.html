@@ -335,6 +335,26 @@
         </div>
       </div>
 
+      <!-- dc-card-agent: Agent Overview (#98) ──────────────────────────────
+           A one-line status written by the configured model, on a cadence, with
+           a blinking cursor. The text is MODEL OUTPUT and is set with
+           textContent by the renderer, never as markup. -->
+      <div id="dc-card-agent" class="dash-card">
+        <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>
+        <div class="dash-resize n" data-dir="n"></div><div class="dash-resize s" data-dir="s"></div><div class="dash-resize e" data-dir="e"></div><div class="dash-resize w" data-dir="w"></div>
+        <div class="dash-resize ne" data-dir="ne"></div><div class="dash-resize nw" data-dir="nw"></div><div class="dash-resize se" data-dir="se"></div><div class="dash-resize sw" data-dir="sw"></div>
+        <button class="dash-remove-btn" data-card="dc-card-agent" type="button" title="Remove card">&#x2715;</button>
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Agent Overview</h3></div>
+          <div class="card-body" style="padding:.75rem">
+            <div class="agent-line" style="font-family:var(--font-mono);font-size:.76rem;line-height:1.5;color:var(--text-main)">
+              <span id="dc-agentText">&mdash;</span><span class="agent-cursor" id="dc-agentCursor">&#x2588;</span>
+            </div>
+            <div id="dc-agentMeta" style="font-size:.66rem;color:var(--text-muted);margin-top:.45rem"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- dc-card-signal: Signal Health -->
       <div id="dc-card-signal" class="dash-card">
         <div class="dash-drag-handle"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15" x2="16" y2="15"/></svg></div>

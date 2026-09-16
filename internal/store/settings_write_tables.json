@@ -160,6 +160,10 @@
     "aiTimeoutMs": [
       1000,
       600000
+    ],
+    "aiOverviewIntervalSec": [
+      60,
+      86400
     ]
   },
   "strFields": [
@@ -225,7 +229,8 @@
     "telegramEnabled",
     "userNotifyEnabled",
     "aiEnabled",
-    "aiTlsInsecure"
+    "aiTlsInsecure",
+    "aiOverviewEnabled"
   ],
   "credFields": [
     "telegramBotToken",

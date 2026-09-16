@@ -93,6 +93,15 @@ type conn struct {
 	diagMu   sync.Mutex
 	diagTick *time.Ticker
 	diagStop chan struct{}
+	// The Agent Overview's cadence, PER SOCKET for the same reason the
+	// diagnostics ticker is: the sentence describes the router THIS connection
+	// has selected, so two viewers on two routers must not share one answer.
+	// A ticker that exists only while the card is on somebody's Dashboard is
+	// also what makes "generates nothing while unwatched" structural rather
+	// than a condition somebody has to remember to check.
+	agentMu   sync.Mutex
+	agentTick *time.Ticker
+	agentStop chan struct{}
 	// mu guards `cards`. The grid can send dashcard:focus while another
 	// goroutine is selecting a router, and the map is written by both.
 	mu sync.Mutex

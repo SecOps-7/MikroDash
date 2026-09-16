@@ -79,10 +79,18 @@ func TestEveryCardRoomIsEmittedTo(t *testing.T) {
 	// indistinguishable from a quiet router.
 	var orphans []string
 	for k := range keys {
-		// `diagnostics` has no collector at all — it reports on this process and
-		// is computed in the handler — so it is the one key legitimately without
-		// an emit site.
-		if k == "diagnostics" {
+		// TWO ROOMS ARE FED BY THIS PROCESS, not by a collector, so they have no
+		// emit site to find and are not orphans.
+		//
+		// `diagnostics` reports on this process's own counters. `agent` (#98) is
+		// the model's status line, assembled in `ai_overview.go` from payloads
+		// the collectors already produced — no menu, no cadence to negotiate,
+		// nothing to put in internal/collect.
+		//
+		// Recorded by name rather than by widening the rule: a card added with a
+		// genuinely missing emit must still fail here, and "cards fed by the
+		// server" is not a property this scan can see for itself.
+		if k == "diagnostics" || k == "agent" {
 			continue
 		}
 		if room := dashcards.EmitRoom(k); !emitted[room] {

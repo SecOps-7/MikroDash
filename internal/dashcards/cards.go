@@ -128,6 +128,13 @@ var All = []Card{
 	// computed in the handler and gated on the Dashboard alone.
 	{ID: "dc-card-diagnostics", Label: "API Diagnostics", Room: "diagnostics",
 		X: 1, Y: 1, W: 6, H: 10},
+	// The Agent Overview (#98). ALSO fed by this process rather than a collector,
+	// like diagnostics — but unlike it, this one is gated on a real page, because
+	// its sentence is written from whatever the viewer may already read. Gating on
+	// the Dashboard alone would let somebody without the AI Agent page read a
+	// summary of pages they cannot open.
+	{ID: "dc-card-agent", Label: "Agent Overview", Room: "agent", Page: "ai-agent",
+		X: 1, Y: 1, W: 8, H: 3},
 }
 
 // PageFor is the page a card room borrows its data from, and therefore the

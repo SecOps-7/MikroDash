@@ -1594,6 +1594,7 @@ export type HandEventName =
   | 'access:none'
   | 'access:revoked'
   | 'ai:error'
+  | 'ai:overview'
   | 'ai:reply'
   | 'alerts:cleared-all'
   | 'alerts:open'

@@ -111,6 +111,17 @@ func (cn *conn) dashCardFocus(key string) {
 	if key == "diagnostics" {
 		cn.diagFocus()
 	}
+	// ── THE SECOND CARD NO COLLECTOR FEEDS (#98) ───────────────────────────
+	//
+	// Same shape as diagnostics and for the same reason: its content is written
+	// by this process, so there is nothing for `resumePage` to wake and nothing
+	// would ever arrive. Unlike diagnostics it IS gated on a real page, which
+	// the check above has already applied — its sentence is assembled from
+	// whatever the viewer may read, so a viewer without the AI Agent page never
+	// reaches here.
+	if key == "agent" {
+		cn.agentFocus()
+	}
 }
 
 func (cn *conn) dashCardBlur(key string) {
@@ -129,6 +140,9 @@ func (cn *conn) dashCardBlur(key string) {
 	cn.srv.hub.Leave(cn.c, cn.dashCardRoom(key))
 	if key == "diagnostics" {
 		cn.diagBlur()
+	}
+	if key == "agent" {
+		cn.agentBlur()
 	}
 	// ── PHASE 4.2b: A CARD BLUR NOW STOPS SOMETHING ───────────────────────
 	//

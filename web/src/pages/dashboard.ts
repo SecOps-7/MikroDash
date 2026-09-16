@@ -38,6 +38,7 @@ import { renderBandwidthCard, setBwRouters, setBwActiveRouter, resetBandwidthCar
 import { renderFwActionsCard } from './dashboard-card-fwactions';
 import { onLogsHistory, onLogsNew, resetLogsCard } from './dashboard-card-logs';
 import { renderDiagnosticsCard } from './dashboard-card-diagnostics';
+import { renderAgentCard } from './dashboard-card-agent';
 import { renderConnListCards } from './dashboard-card-connlists';
 import { createConnMap } from './dashboard-card-map';
 import { renderConnFlowCard } from './dashboard-card-connflow';
@@ -95,6 +96,7 @@ export function initDashboard(socket: Socket): void {
   socket.on('traffic:update', (d) => renderBandwidthCard(d));
   socket.on('firewall:update', (d) => renderFwActionsCard(d));
   socket.on('diagnostics:update', (d) => renderDiagnosticsCard(d));
+  socket.on('ai:overview', (d) => renderAgentCard(d));
   socket.on('stream:health', (d) => renderStreamHealth(d));
   socket.on('wan:status', (d) => renderWanStatus(d));
   socket.on('logs:history', (d) => onLogsHistory(d));

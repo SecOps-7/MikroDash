@@ -9,6 +9,7 @@
     "checkOff": [
       "ntfyEnabled",
       "aiEnabled",
+      "aiOverviewEnabled",
       "aiTlsInsecure",
       "pushbulletEnabled",
       "rosDebug",
@@ -53,6 +54,7 @@
     "value": [
       "alertCpuThreshold",
       "aiBaseUrl",
+      "aiOverviewIntervalSec",
       "aiHeaders",
       "aiModel",
       "aiTimeoutMs",

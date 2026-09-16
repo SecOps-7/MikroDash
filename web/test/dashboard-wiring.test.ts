@@ -81,6 +81,11 @@ const CARDS = {
   'dashboard-card-routing': 'routing:update',
   'dashboard-card-fwactions': 'firewall:update',
   'dashboard-card-diagnostics': 'diagnostics:update',
+  // The Agent Overview card (#98). Like diagnostics, it is fed by the SERVER
+  // rather than by a collector — there is no menu behind it — so its event
+  // arrives on a per-socket ticker that runs only while the card is on a
+  // Dashboard.
+  'dashboard-card-agent': 'ai:overview',
   'dashboard-card-connlists': 'conn:update',
   'dashboard-card-logs': { event: 'logs:new', also: ['logs:history'] },
   // Shares traffic:update with the chart, and owns two more events of its own.

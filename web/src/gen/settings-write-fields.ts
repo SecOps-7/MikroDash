@@ -15,6 +15,7 @@
 
 /** Integer keys and their inclusive [min, max]. Out of range is IGNORED server-side. */
 export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
+  "aiOverviewIntervalSec": [60, 86400],
   "aiTimeoutMs": [1000, 600000],
   "alertCpuThreshold": [1, 100],
   "alertPingLoss": [1, 100],
@@ -73,6 +74,7 @@ export const STR_FIELDS: readonly string[] = [
 /** Only a real `true` or the string "true" counts as true. */
 export const BOOL_FIELDS: readonly string[] = [
   "aiEnabled",
+  "aiOverviewEnabled",
   "aiTlsInsecure",
   "notifBackupDrift",
   "notifBackupFail",

@@ -129,7 +129,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -263,7 +265,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -397,7 +401,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -532,7 +538,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -667,7 +675,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -802,7 +812,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -937,7 +949,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -1072,7 +1086,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -1205,7 +1221,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -1338,7 +1356,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -1471,7 +1491,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -1606,7 +1628,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -1739,7 +1763,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -1872,7 +1898,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -2005,7 +2033,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -2138,7 +2168,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -2272,7 +2304,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -2406,7 +2440,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -2539,7 +2575,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -2672,7 +2710,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -2805,7 +2845,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     },
     {
@@ -2939,7 +2981,9 @@
         "aiModel": "",
         "aiTimeoutMs": 60000,
         "aiTlsInsecure": false,
-        "aiHeaders": ""
+        "aiHeaders": "",
+        "aiOverviewEnabled": false,
+        "aiOverviewIntervalSec": 300
       }
     }
   ]

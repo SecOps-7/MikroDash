@@ -26,6 +26,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
   "checkOff": [
     "ntfyEnabled",
     "aiEnabled",
+    "aiOverviewEnabled",
     "aiTlsInsecure",
     "pushbulletEnabled",
     "rosDebug",
@@ -70,6 +71,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
   "value": [
     "alertCpuThreshold",
     "aiBaseUrl",
+    "aiOverviewIntervalSec",
     "aiHeaders",
     "aiModel",
     "aiTimeoutMs",

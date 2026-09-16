@@ -1218,6 +1218,23 @@
                 <span>Accept a self-signed certificate &mdash; only for an endpoint on your own network</span>
               </label>
             </div>
+            <div class="sform-row" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border)">
+              <div class="sform-group" style="flex:2">
+                <label class="sform-label">Agent Overview card</label>
+                <label style="display:flex;align-items:center;gap:.5rem;font-size:.78rem;cursor:pointer;color:var(--text-main)">
+                  <input type="checkbox" id="s_aiOverviewEnabled">
+                  <span>Write a one-line router status on the Dashboard</span>
+                </label>
+              </div>
+              <div class="sform-group" style="flex:1">
+                <label class="sform-label">Refresh (seconds)</label>
+                <input type="number" id="s_aiOverviewIntervalSec" class="sform-input" min="60" max="86400" placeholder="300" autocomplete="off">
+              </div>
+            </div>
+            <p style="font-size:.7rem;color:var(--text-muted);margin:.4rem 0 0">
+              The card asks the model only while it is on your Dashboard, so a card nobody
+              is watching costs nothing. On a hosted endpoint every refresh is billable.
+            </p>
             <div style="display:flex;align-items:center;gap:.6rem;margin-top:.7rem">
               <button id="btn-test-ai" class="sbtn sbtn-ghost" type="button" style="padding:.3rem .8rem;font-size:.72rem">Test Connection</button>
               <span id="test-ai-result" style="font-size:.75rem"></span>

@@ -130,6 +130,15 @@ export interface HandEvents {
   'ai:reply': { text: string; model: string };
   /** A refusal, already sanitised: it can carry the endpoint's host. */
   'ai:error': { error: string };
+  /**
+   * One line for the Agent Overview card, on a cadence.
+   *
+   * `text` is MODEL OUTPUT and is set with textContent, never as markup.
+   * `error` carries a sanitised refusal instead, so the card can say why it is
+   * blank rather than looking merely quiet — the failure mode the diagnostics
+   * card shipped with for the whole life of the port.
+   */
+  'ai:overview': { text: string; error: string; model: string; at: number };
   'access:none': Nothing;
   'access:revoked': Nothing;
   'alerts:cleared-all': { routerId: string; ids: number[]; clearedAt: number; clearedBy: string | null };

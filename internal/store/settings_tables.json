@@ -124,7 +124,9 @@
     "aiModel": "",
     "aiTimeoutMs": 60000,
     "aiTlsInsecure": false,
-    "aiHeaders": ""
+    "aiHeaders": "",
+    "aiOverviewEnabled": false,
+    "aiOverviewIntervalSec": 300
   },
   "defaultsOrder": [
     "routerHost",
@@ -250,7 +252,9 @@
     "aiModel",
     "aiTimeoutMs",
     "aiTlsInsecure",
-    "aiHeaders"
+    "aiHeaders",
+    "aiOverviewEnabled",
+    "aiOverviewIntervalSec"
   ],
   "encrypted": [
     "routerPass",
