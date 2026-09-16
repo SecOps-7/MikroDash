@@ -33,7 +33,7 @@ export const INT_FIELDS: Readonly<Record<string, readonly [number, number]>> = {
   "pollFirewall": [1000, 30000],
   "pollIfaces": [10000, 600000],
   "pollIfstatus": [1000, 60000],
-  "pollIpAddresses": [1000, 60000],
+  "pollIpAddresses": [1000, 600000],
   "pollPackages": [5000, 600000],
   "pollPing": [1000, 30000],
   "pollPpp": [1000, 60000],

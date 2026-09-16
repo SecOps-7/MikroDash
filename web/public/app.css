@@ -253,6 +253,10 @@
     .stoggle-switch input:checked + .stoggle-track{background:rgba(56,189,248,.35);border-color:var(--accent-rx)}
     .stoggle-thumb{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--text-muted);transition:transform .2s,background .2s;pointer-events:none}
     .stoggle-switch input:checked ~ .stoggle-thumb{transform:translateX(16px);background:var(--accent-rx)}
+    /* .stoggle carries the settings-form treatment: its own panel background, a
+       border and padding, which is right in a form and reads as a black slab
+       when one sits inside a card. This drops the box and keeps the switch. */
+    .stoggle-bare{background:none;border:none;padding:0}
     .sbtn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1.1rem;border-radius:6px;font-size:.8rem;font-weight:600;cursor:pointer;border:none;transition:opacity .15s,transform .1s}
     .sbtn:active{transform:scale(.97)}
     .sbtn-primary{background:rgba(56,189,248,.15);color:var(--accent-rx);border:1px solid rgba(56,189,248,.3)}
@@ -705,6 +709,11 @@
     /* ── Shared: key/value panel used by DNS and Packages ───────── */
     .kv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.5rem .9rem}
     .kv-item{min-width:0}
+    /* The RouterBOARD card. The controls belong beside the readings they act on,
+       not stranded in a row underneath them; they wrap below on a narrow card. */
+    .pkg-rb-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+    .pkg-rb-row>.kv-grid{flex:1 1 320px}
+    .pkg-rb-actions{display:flex;align-items:center;justify-content:flex-end;gap:.9rem;flex-wrap:wrap}
     .kv-key{font-family:var(--font-ui);font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;
             color:var(--text-muted);margin-bottom:.1rem}
     .kv-val{font-family:var(--font-mono);font-size:.78rem;word-break:break-all}

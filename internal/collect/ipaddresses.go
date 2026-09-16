@@ -112,7 +112,7 @@ type IPAddresses struct {
 func NewIPAddresses(ros Reader, emit Emit, pollMs int) *IPAddresses {
 	a := &IPAddresses{emit: emit}
 	a.setup(a, ros, pollMs, tableSpec{
-		cmd: ipv4AddressCmd, poll: [3]int{30000, 2000, 60000}, heartbeat: ipAddressesHeartbeat,
+		cmd: ipv4AddressCmd, poll: [3]int{30000, 2000, 600000}, heartbeat: ipAddressesHeartbeat,
 	})
 	return a
 }

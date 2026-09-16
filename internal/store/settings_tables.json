@@ -495,7 +495,7 @@
     ],
     "pollIpAddresses": [
       1000,
-      60000
+      600000
     ],
     "pollCapsman": [
       1000,

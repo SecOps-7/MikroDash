@@ -188,7 +188,20 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       (u.updateAvailable ? ' → ' + esc(u.latestVersion) : '') + updateBtn,
       u.updateAvailable ? 'warn' : 'on');
     html += kv('Channel', esc(u.channel || '—'));
-    html += kv('Update status', esc(u.status || '—'), u.updateAvailable ? 'warn' : 'off');
+    // THE ROUTER'S STATUS TEXT IS NOT ALWAYS TRUE, and saying it anyway made
+    // this card contradict the row above it: the hAP ax3 reported
+    // "New version is available" while `latest-version` (7.24.2) was OLDER than
+    // what is installed (7.24.3), so the RouterOS row correctly offered no
+    // update and this row still announced one.
+    //
+    // Same order as the dashboard's `rosUpdateRow` (web/src/pages/dashboard-system.ts):
+    // available, then up to date, then whatever the router is still saying —
+    // which is what a transient "finding out latest version..." or an
+    // "unavailable" needs to reach the operator. Kept in step by hand; the two
+    // render differently enough that one function would not serve both.
+    const upToDate = !u.updateAvailable && !!u.latestVersion;
+    html += kv('Update status', esc(upToDate ? 'Up to date' : (u.status || '—')),
+      u.updateAvailable ? 'warn' : 'off');
     if (f.isRouterboard) {
       html += kv('Firmware', esc(f.currentFirmware || '—') +
         (f.upgradeAvailable ? ' → ' + esc(f.upgradeFirmware) : ''), f.upgradeAvailable ? 'warn' : 'on');
@@ -228,7 +241,10 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     card.style.display = '';
 
     const pending = !!f.upgradeAvailable;
-    let html = '<div class="kv-grid">';
+    // Two columns: the readings on the left, the controls on the right and in
+    // line with them, rather than a row of buttons stranded underneath.
+    let html = '<div class="pkg-rb-row">';
+    html += '<div class="kv-grid">';
     html += '<div class="kv-item"><div class="kv-key">RouterBOOT</div><div class="kv-val' +
       (pending ? ' warn' : ' on') + '">' + esc(f.currentFirmware || '—') +
       (pending ? ' → ' + esc(f.upgradeFirmware) : '') + '</div></div>';
@@ -237,7 +253,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
       (pending ? 'An upgrade is available' : 'Up to date with RouterOS') + '</div></div>';
     html += '</div>';
 
-    html += '<div class="d-flex align-items-center gap-2" style="margin-top:.7rem;flex-wrap:wrap">';
+    html += '<div class="pkg-rb-actions">';
     if (caps.permitted) {
       html += '<button id="pkgFwUpgradeBtn" class="sbtn ' + (pending ? 'sbtn-warn' : 'sbtn-outline') +
         '" type="button"' + (pending ? '' : ' disabled') + '>Upgrade &amp; Reboot</button>';
@@ -245,7 +261,7 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
     if (f.autoUpgrade === null || f.autoUpgrade === undefined) {
       html += '<span class="muted-note">Auto-upgrade could not be read from this router.</span>';
     } else if (caps.permitted) {
-      html += '<label class="stoggle" style="margin-left:.3rem">' +
+      html += '<label class="stoggle stoggle-bare">' +
         '<span class="stoggle-label">Upgrade automatically</span>' +
         '<span class="stoggle-switch"><input type="checkbox" id="pkgAutoUpgrade"' +
         (f.autoUpgrade ? ' checked' : '') +
@@ -255,7 +271,8 @@ export function initPackagesPage(socket: Socket, isVisible: (page: string) => bo
         (f.autoUpgrade ? 'yes' : 'no') + '</span>';
     }
     html += '</div>';
-    html += '<p class="muted-note" style="margin:.5rem 0 0">RouterBOOT is the bootloader, upgraded ' +
+    html += '</div>';
+    html += '<p class="muted-note" style="margin:.7rem 0 0">RouterBOOT is the bootloader, upgraded ' +
       'separately from RouterOS and applied by a reboot. With auto-upgrade on, the board writes it ' +
       'itself on the next boot after a RouterOS upgrade.</p>';
     box.innerHTML = html;

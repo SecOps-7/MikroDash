@@ -134,7 +134,7 @@ export const POLL_SLIDERS: PollSlider[] = [
     "key": "pollIpAddresses",
     "label": "IP Addresses",
     "min": 1000,
-    "max": 60000,
+    "max": 600000,
     "step": 1000,
     "unit": "ms"
   },
@@ -245,7 +245,7 @@ export const POLL_PROFILES: Record<string, Record<string, number>> = {
     "pollPpp": 5000,
     "pollBridges": 5000,
     "pollDns": 10000,
-    "pollIpAddresses": 30000,
+    "pollIpAddresses": 60000,
     "pollCapsman": 10000,
     "pollPackages": 60000,
     "pollWan": 10000
