@@ -123,11 +123,11 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 	}
 
 	// ADVERTISED ONCE, FROM THIS VIEWER'S PERMISSIONS. `Permitted` decides what
-	// the model is told exists; `runAITool` re-checks before reading anything.
+	// the model is told exists; the executor re-checks before reading or writing
+	// anything. `canPage` is handed over directly because its shape is already
+	// the question being asked: may this viewer read, or write, this page.
 	tools := []any{}
-	for _, t := range aitools.Permitted(func(page string) bool {
-		return cn.canPage(page, "read")
-	}) {
+	for _, t := range aitools.Permitted(cn.canPage) {
 		tools = append(tools, t)
 	}
 

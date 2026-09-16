@@ -14,8 +14,12 @@ import (
 // that decides what one viewer is offered, and the descriptions that decide what
 // the model reaches for.
 
-func allowAll(string) bool { return true }
-func denyAll(string) bool  { return false }
+func allowAll(string, string) bool { return true }
+func denyAll(string, string) bool  { return false }
+
+// readOnly is the common case and the one worth naming: a viewer who may look at
+// everything and change nothing.
+func readOnly(_, access string) bool { return access == AccessRead }
 
 // TestPermittedHidesAToolWhosePageIsDenied, and shows it when the page is not.
 //
@@ -33,11 +37,10 @@ func TestPermittedHidesAToolWhosePageIsDenied(t *testing.T) {
 		t.Errorf("a viewer allowed everything was offered %d of %d tools", len(got), len(all))
 	}
 
-	denied := Permitted(denyAll)
-	for _, tool := range denied {
-		// The only survivor of a blanket denial would be an UNGATED tool, and
-		// there must not be one: every tool reads a menu some page owns.
-		t.Errorf("tool %q survived a blanket denial — it is gated on page %q", tool.Name, tool.Page)
+	for _, tool := range Permitted(denyAll) {
+		// Nothing survives a blanket denial. The write tool is not advertised
+		// either, because its resource enum is built from write permissions.
+		t.Errorf("tool %q survived a blanket denial", tool.Name)
 	}
 
 	// And one page at a time, which is the real case.
@@ -45,7 +48,7 @@ func TestPermittedHidesAToolWhosePageIsDenied(t *testing.T) {
 	if target == "" {
 		t.Fatal("the first tool has no owning page")
 	}
-	one := Permitted(func(p string) bool { return p != target })
+	one := Permitted(func(p, _ string) bool { return p != target })
 	for _, tool := range one {
 		if tool.Page == target {
 			t.Errorf("tool %q was offered though page %q is denied", tool.Name, target)
@@ -53,6 +56,78 @@ func TestPermittedHidesAToolWhosePageIsDenied(t *testing.T) {
 	}
 	if len(one) == len(all) {
 		t.Errorf("denying page %q removed nothing", target)
+	}
+}
+
+// TestAViewerWhoMayChangeNothingIsNotOfferedTheWriteTool.
+//
+// Offering a tool whose every call would be refused teaches the model that
+// writing is something this app does badly, rather than something this person
+// may not do — and an operator reads that as a fault.
+func TestAViewerWhoMayChangeNothingIsNotOfferedTheWriteTool(t *testing.T) {
+	var sawWrite bool
+	reads := 0
+	for _, tool := range Permitted(readOnly) {
+		if tool.Access == AccessWrite {
+			sawWrite = true
+		}
+		if tool.Access == AccessRead {
+			reads++
+		}
+	}
+	if sawWrite {
+		t.Error("a read-only viewer was offered the write tool")
+	}
+	// THE CONTROL. Without it a filter that returned nothing at all would pass
+	// the assertion above and prove nothing.
+	if reads == 0 {
+		t.Error("a read-only viewer was offered no read tools either, so this proved nothing")
+	}
+}
+
+// TestTheWriteToolOffersOnlyTheResourcesThisViewerMayChange.
+//
+// The enum IS the permission, made visible. A resource that reached it without
+// a write grant would be a change the model proposes, the operator is asked to
+// approve, and the server then refuses.
+func TestTheWriteToolOffersOnlyTheResourcesThisViewerMayChange(t *testing.T) {
+	// One page, chosen from the registry rather than named here.
+	target := resource.All()[0].Page
+	only := func(p, access string) bool {
+		if access == AccessWrite {
+			return p == target
+		}
+		return true
+	}
+	var write *Tool
+	for _, tool := range Permitted(only) {
+		if tool.Access == AccessWrite {
+			cp := tool
+			write = &cp
+		}
+	}
+	if write == nil {
+		t.Fatalf("no write tool was offered to a viewer who may write page %q", target)
+	}
+	props, _ := write.Parameters["properties"].(map[string]any)
+	res, _ := props["resource"].(map[string]any)
+	enum, _ := res["enum"].([]string)
+	if len(enum) == 0 {
+		t.Fatal("the write tool offered no resources at all")
+	}
+	for _, key := range enum {
+		r := resource.ByKey(key)
+		if r == nil {
+			t.Errorf("the write tool offers %q, which is not a resource", key)
+			continue
+		}
+		if r.Page != target {
+			t.Errorf("the write tool offers %q on page %q, which this viewer may not write",
+				key, r.Page)
+		}
+	}
+	if len(enum) == len(resource.All()) {
+		t.Error("denying every other page narrowed the enum not at all")
 	}
 }
 
@@ -71,14 +146,15 @@ func TestPermittedReturnsAnEmptySliceRatherThanNil(t *testing.T) {
 // attack, and the answer is the same either way: this app runs what it declared.
 func TestByNameRefusesAnInventedName(t *testing.T) {
 	for _, bad := range []string{"", "list_", "list_nothingHere", "run_command",
-		"LIST_DNSSTATIC", "list_dnsStatic "} {
+		"LIST_DNSSTATIC", "list_dnsStatic ", "change_", "changerow"} {
 		if _, ok := ByName(bad); ok {
 			t.Errorf("ByName accepted %q", bad)
 		}
 	}
-	real := All()[0].Name
-	if _, ok := ByName(real); !ok {
-		t.Errorf("ByName refused %q, which it generated itself", real)
+	for _, good := range []string{All()[0].Name, WriteToolName} {
+		if _, ok := ByName(good); !ok {
+			t.Errorf("ByName refused %q, which it generated itself", good)
+		}
 	}
 }
 
@@ -89,7 +165,12 @@ func TestByNameRefusesAnInventedName(t *testing.T) {
 // between thirty similarly-named tools matches on the key, which is this app's
 // word rather than MikroTik's.
 func TestEveryDescriptionNamesItsMenu(t *testing.T) {
+	checked := 0
 	for _, tool := range All() {
+		if tool.Access != AccessRead {
+			continue
+		}
+		checked++
 		res := resource.ByKey(tool.Resource)
 		if res == nil {
 			t.Errorf("tool %q names no live resource", tool.Name)
@@ -102,6 +183,9 @@ func TestEveryDescriptionNamesItsMenu(t *testing.T) {
 			t.Errorf("tool %q does not say it cannot write; a model that believes it can "+
 				"will propose a call that does not exist and then explain what it did", tool.Name)
 		}
+	}
+	if checked == 0 {
+		t.Error("no read tools were checked")
 	}
 }
 
@@ -138,13 +222,21 @@ func TestNoSecretFieldIsAdvertised(t *testing.T) {
 	}
 }
 
-// TestEveryToolTakesNoArguments.
+// TestEveryReadToolTakesNoArguments.
 //
 // The resource decides the menu. A model that could pass one could pass a menu
 // this app never declared, and the read path would be executing a string the
 // model chose rather than a resource the registry owns.
-func TestEveryToolTakesNoArguments(t *testing.T) {
+//
+// The write tool is the exception BY DESIGN — it takes a resource, an optional
+// id and a set of values — and what bounds it is not the absence of arguments
+// but the enum, the validator and the write pipeline. Its own shape is pinned
+// below rather than waved through.
+func TestEveryReadToolTakesNoArguments(t *testing.T) {
 	for _, tool := range All() {
+		if tool.Access != AccessRead {
+			continue
+		}
 		props, ok := tool.Parameters["properties"].(map[string]any)
 		if !ok {
 			t.Errorf("tool %q declares no properties object; some endpoints reject that "+
@@ -160,15 +252,55 @@ func TestEveryToolTakesNoArguments(t *testing.T) {
 	}
 }
 
-// TestAllIsOrderedByName. It is generated into a committed file and sent on
-// every request: an unstable order produces a diff on every regeneration and
-// defeats any prompt caching the endpoint does.
-func TestAllIsOrderedByName(t *testing.T) {
+// TestTheWriteToolTakesExactlyResourceIdAndValues.
+//
+// Pinned because the argument list is the model's whole reach into the write
+// path. A fourth argument — a menu, a command, a router id — would be the model
+// choosing something the registry is supposed to decide.
+func TestTheWriteToolTakesExactlyResourceIdAndValues(t *testing.T) {
+	tool, ok := ByName(WriteToolName)
+	if !ok {
+		t.Fatalf("%q is not in the catalogue", WriteToolName)
+	}
+	if tool.Access != AccessWrite {
+		t.Errorf("%q declares access %q", WriteToolName, tool.Access)
+	}
+	props, _ := tool.Parameters["properties"].(map[string]any)
+	want := map[string]bool{"resource": true, "id": true, "values": true}
+	for name := range props {
+		if !want[name] {
+			t.Errorf("the write tool accepts %q, which the write path never asked for", name)
+		}
+		delete(want, name)
+	}
+	for name := range want {
+		t.Errorf("the write tool is missing argument %q", name)
+	}
+	if extra, _ := tool.Parameters["additionalProperties"].(bool); extra {
+		t.Error("the write tool permits additional properties, so a model can pass anything")
+	}
+}
+
+// TestTheReadCatalogueIsOrderedAndTheWriteToolIsLast.
+//
+// The read tools are generated into a committed file and sent on every request:
+// an unstable order produces a diff on every regeneration and defeats any prompt
+// caching the endpoint does. The write tool is appended AFTER that sort, so the
+// one tool that changes anything is not buried alphabetically among thirty that
+// cannot.
+func TestTheReadCatalogueIsOrderedAndTheWriteToolIsLast(t *testing.T) {
+	all := All()
 	prev := ""
-	for _, tool := range All() {
+	for _, tool := range all[:len(all)-1] {
 		if tool.Name <= prev {
 			t.Errorf("%q follows %q", tool.Name, prev)
 		}
 		prev = tool.Name
+		if tool.Access != AccessRead {
+			t.Errorf("tool %q is not a read tool but sits in the read catalogue", tool.Name)
+		}
+	}
+	if last := all[len(all)-1]; last.Name != WriteToolName {
+		t.Errorf("the catalogue ends with %q, not the write tool", last.Name)
 	}
 }

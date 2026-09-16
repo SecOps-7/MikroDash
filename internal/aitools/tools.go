@@ -14,12 +14,19 @@
 // assistant can call, and `cmd/toolgen` plus the ledger in internal/verify make
 // a resource with no tool, or a tool naming no resource, a build failure.
 //
-// ── READ ONLY, AND THE BOUNDARY IS STRUCTURAL ───────────────────────────────
+// ── ONE TOOL WRITES, AND IT IS NAMED ────────────────────────────────────────
 //
-// Every tool here is a LIST. There is no create, no set, no remove, and no
+// Every tool here is a LIST except exactly one, `change_row`. There is still no
 // `Action` — `resource.Action` carries a `Verb` that becomes a RouterOS command
-// under the resource's menu, which is a mutation by construction and is excluded
-// by name rather than by convention.
+// under the resource's menu, so an action is a command the model would be
+// choosing, and it is excluded by name rather than by convention.
+//
+// `change_row` proposes a change to one row of one declared resource. It cannot
+// name a menu, cannot send a command, and reaches the router only through the
+// same pipeline a human form does — permission, rate limit, fresh read,
+// staleness, guards, read-back, history and audit. What the model supplies is a
+// resource key this registry declares and a set of field values the validator
+// checks.
 //
 // That is not the whole safety argument, it is the first half. The second is
 // that nothing in this package executes anything: it describes tools and
@@ -63,10 +70,41 @@ type Tool struct {
 
 	// Resource is the registry key this tool reads. Not sent to the model —
 	// the caller resolves the tool back to a resource with it.
+	//
+	// EMPTY ON THE WRITE TOOL, which is not bound to one menu: the model names
+	// the resource in its arguments, and the caller resolves it there.
 	Resource string `json:"-"`
 	// Page is the permission that owns the data, checked before the read.
+	//
+	// EMPTY ON THE WRITE TOOL, for the same reason. It is not ungated: the
+	// resources it will accept are filtered per viewer before it is advertised,
+	// and the page is checked again per call against whichever one is named.
 	Page string `json:"-"`
+	// Access is "read" or "write". It decides which permission `Permitted`
+	// consults, and it is what a gate checks rather than inferring intent from
+	// a tool's name.
+	Access string `json:"-"`
 }
+
+// Access levels, spelled once.
+const (
+	AccessRead  = "read"
+	AccessWrite = "write"
+)
+
+// WriteToolName is the ONE tool that changes anything.
+//
+// ── ONE, NOT ONE PER RESOURCE ───────────────────────────────────────────────
+//
+// A `write_<resource>` beside every `list_<resource>` would double the
+// catalogue, and every one of those descriptions is sent on every request. The
+// model already learns a resource's field names from its list tool, so a second
+// per-resource tool would mostly repeat them.
+//
+// It is also the honest shape for what this does: the model is not calling
+// thirty different writers, it is proposing one change to one row, and the
+// resource is an argument to that.
+const WriteToolName = "change_row"
 
 // noArgs is the schema every tool carries.
 //
@@ -92,18 +130,79 @@ func noArgs() map[string]any {
 // prompt caching the endpoint does.
 func All() []Tool {
 	rs := resource.All()
-	out := make([]Tool, 0, len(rs))
+	out := make([]Tool, 0, len(rs)+1)
+	keys := make([]string, 0, len(rs))
 	for _, r := range rs {
-		out = append(out, Tool{
-			Name:        namePrefix + r.Key,
-			Description: describe(r),
-			Parameters:  noArgs(),
-			Resource:    r.Key,
-			Page:        r.Page,
-		})
+		out = append(out, listTool(r))
+		keys = append(keys, r.Key)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
+	sort.Strings(keys)
+	// LAST, and after the sort, so the read catalogue keeps its stable order and
+	// the one tool that changes anything is not buried alphabetically among
+	// thirty that cannot.
+	return append(out, writeTool(keys))
+}
+
+// listTool is one resource's read tool.
+func listTool(r *resource.Resource) Tool {
+	return Tool{
+		Name:        namePrefix + r.Key,
+		Description: describe(r),
+		Parameters:  noArgs(),
+		Resource:    r.Key,
+		Page:        r.Page,
+		Access:      AccessRead,
+	}
+}
+
+// writeTool builds the write tool over exactly the resources the caller says
+// this viewer may change.
+//
+// ── THE ENUM IS THE PERMISSION, MADE VISIBLE ────────────────────────────────
+//
+// A viewer who may write three pages is offered a tool that accepts three
+// resource names. The model is never told the others exist, so it does not
+// propose a change it would only be refused for — which matters because a
+// refusal reads to an operator as MikroDash being broken rather than as a
+// permission they do not have.
+//
+// The caller re-checks the named resource's page before anything is written.
+// This decides what is OFFERED; that decides what happens.
+func writeTool(resources []string) Tool {
+	return Tool{
+		Name: WriteToolName,
+		Description: "Propose a change to ONE row on the router the operator has selected. " +
+			"Set `resource` to one of the listed names and `values` to the fields you want. " +
+			"Call that resource's list_ tool first to see its field names and current rows. " +
+			"Omit `id` to create a row; pass the `id` from a list_ result to edit that row. " +
+			"Depending on how the operator configured MikroDash this either applies straight " +
+			"away or is put to them for approval, and a change that could cut MikroDash off " +
+			"from the router is ALWAYS put to them. Say what you proposed; never claim it was " +
+			"applied unless the result says so.",
+		Parameters: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"resource": map[string]any{
+					"type": "string", "enum": resources,
+					"description": "Which kind of row to change.",
+				},
+				"id": map[string]any{
+					"type": "string",
+					"description": "The RouterOS id of the row to edit, exactly as a list_ " +
+						"tool reported it. Omit it to create a new row.",
+				},
+				"values": map[string]any{
+					"type": "object",
+					"description": "Field name to value. Use the field names the resource's " +
+						"list_ tool describes, not RouterOS property names.",
+				},
+			},
+			"required":             []string{"resource", "values"},
+			"additionalProperties": false,
+		},
+		Access: AccessWrite,
+	}
 }
 
 // describe is what the model reads to decide whether to call this tool.
@@ -172,13 +271,25 @@ func ByName(name string) (Tool, bool) {
 //
 // The caller re-checks before reading anyway. This decides what is ADVERTISED;
 // that decides what happens.
-func Permitted(can func(page string) bool) []Tool {
+func Permitted(can func(page, access string) bool) []Tool {
 	out := []Tool{}
-	for _, t := range All() {
-		if t.Page != "" && !can(t.Page) {
-			continue
+	writable := []string{}
+	for _, r := range resource.All() {
+		if can(r.Page, AccessRead) {
+			out = append(out, listTool(r))
 		}
-		out = append(out, t)
+		if can(r.Page, AccessWrite) {
+			writable = append(writable, r.Key)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	sort.Strings(writable)
+	// NOT ADVERTISED AT ALL to a viewer who may change nothing. Offering a tool
+	// whose every call would be refused teaches the model that writing is
+	// something this app does badly, rather than something this person may not
+	// do.
+	if len(writable) > 0 {
+		out = append(out, writeTool(writable))
 	}
 	return out
 }

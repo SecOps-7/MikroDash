@@ -29,9 +29,16 @@ import (
 
 type toolRecord struct {
 	Name     string `json:"name"`
+	Access   string `json:"access"`
 	Resource string `json:"resource"`
 	Page     string `json:"page"`
 }
+
+// writeTool is the ONE tool allowed to change anything. Named here rather than
+// imported so this ledger does not agree with the package it checks by
+// construction: if `aitools` renames its write tool, this fails and somebody
+// decides, which is the entire point of recording it.
+const writeTool = "change_row"
 
 func loadToolArtefact(t *testing.T) []toolRecord {
 	t.Helper()
@@ -53,13 +60,32 @@ func loadToolArtefact(t *testing.T) []toolRecord {
 }
 
 // TestEveryResourceHasATool, and every recorded tool names a live resource.
+//
+// ── THE WRITE TOOL IS EXEMPT, AND THE EXEMPTION IS COUNTED ──────────────────
+//
+// `change_row` is not bound to one menu: the model names the resource in its
+// arguments. So it carries no `resource` and cannot be matched against the
+// registry here. An unbounded "skip anything with no resource" would quietly
+// absorb a read tool that had lost its key, so exactly one such tool is allowed
+// and its name is checked.
 func TestEveryResourceHasATool(t *testing.T) {
 	recorded := map[string]toolRecord{}
+	unbound := 0
 	for _, r := range loadToolArtefact(t) {
+		if r.Resource == "" {
+			unbound++
+			if r.Name != writeTool {
+				t.Errorf("tool %q names no resource; only %q may", r.Name, writeTool)
+			}
+			continue
+		}
 		if _, dup := recorded[r.Resource]; dup {
 			t.Errorf("two tools claim resource %q", r.Resource)
 		}
 		recorded[r.Resource] = r
+	}
+	if unbound != 1 {
+		t.Errorf("%d tools carry no resource; exactly one (%q) should", unbound, writeTool)
 	}
 
 	live := map[string]*resource.Resource{}
@@ -113,10 +139,25 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 	for _, k := range pages.Keys() {
 		livePages[k] = true
 	}
+	ungated := 0
 	for _, r := range loadToolArtefact(t) {
 		if r.Page == "" {
-			t.Errorf("tool %q has no owning page — it would be advertised to every viewer, "+
-				"including one denied the page whose menu it reads", r.Name)
+			// ── THE WRITE TOOL HAS NO SINGLE PAGE, AND IS NOT UNGATED ───────
+			//
+			// It spans every resource the viewer may change, so no one page
+			// owns it. Its gate is the resource enum, which `Permitted` builds
+			// from this viewer's write permissions, plus a per-call check of
+			// whichever resource the model actually named.
+			//
+			// That reasoning is only safe for a tool that declares itself a
+			// writer and is the one this ledger knows about. Anything else with
+			// no page is the original failure: advertised to every viewer,
+			// including one denied the page whose menu it reads.
+			ungated++
+			if r.Name != writeTool || r.Access != "write" {
+				t.Errorf("tool %q has no owning page — it would be advertised to every viewer, "+
+					"including one denied the page whose menu it reads", r.Name)
+			}
 			continue
 		}
 		if !livePages[r.Page] {
@@ -124,28 +165,50 @@ func TestEveryToolIsGatedByARealPage(t *testing.T) {
 				"for everybody, so the tool is invisible to every viewer", r.Name, r.Page)
 		}
 	}
+	if ungated != 1 {
+		t.Errorf("%d tools carry no page; exactly one (%q) should", ungated, writeTool)
+	}
 }
 
-// TestNoToolAdvertisesAMutation.
+// TestExactlyOneToolCanChangeAnything.
 //
-// The read-only boundary is structural — `internal/aitools` builds one `list_`
-// tool per resource and nothing else — but structure is only as good as the
-// thing that notices when it changes. A create, set, remove or action verb
-// appearing here is the whole feature changing character, and it must not be
+// ── THIS TEST USED TO SAY "NONE" ────────────────────────────────────────────
+//
+// It required every name to start `list_` and forbade a set of mutating verbs,
+// because slice 3 advertised nothing that could write. Re-aimed deliberately for
+// the write tool rather than deleted: the question it answers is still the one
+// that matters, and it is now "how many, and which", not "none".
+//
+// A SECOND writer appearing — or a verb-shaped name, which is what an action
+// tool would look like — is the feature changing character, and it must not be
 // possible to do that without this failing.
-func TestNoToolAdvertisesAMutation(t *testing.T) {
-	// Named rather than pattern-matched, so adding one is deliberate.
+func TestExactlyOneToolCanChangeAnything(t *testing.T) {
+	// Named rather than pattern-matched, so adding one is deliberate. These are
+	// the shapes a RouterOS ACTION tool would take, which is the thing
+	// `internal/aitools` excludes by name: a verb the model chooses.
 	forbidden := []string{"create_", "add_", "set_", "update_", "remove_", "delete_",
 		"move_", "enable_", "disable_", "apply_", "run_", "exec_"}
+	writers := []string{}
 	for _, r := range loadToolArtefact(t) {
 		for _, bad := range forbidden {
 			if strings.HasPrefix(r.Name, bad) {
-				t.Errorf("tool %q advertises a mutation. This slice is read-only: a model "+
-					"that can call it could change a router with no human in the loop", r.Name)
+				t.Errorf("tool %q is shaped like a RouterOS action. Writes go through one "+
+					"declared tool and the resource pipeline, never a verb the model picks", r.Name)
 			}
 		}
-		if !strings.HasPrefix(r.Name, "list_") {
-			t.Errorf("tool %q is not a list — every tool in this catalogue reads", r.Name)
+		switch r.Access {
+		case "read":
+			if !strings.HasPrefix(r.Name, "list_") {
+				t.Errorf("tool %q declares read access but is not a list", r.Name)
+			}
+		case "write":
+			writers = append(writers, r.Name)
+		default:
+			t.Errorf("tool %q declares access %q, which is neither read nor write", r.Name, r.Access)
 		}
+	}
+	if len(writers) != 1 || writers[0] != writeTool {
+		t.Errorf("the tools that can change a router are %v; exactly one (%q) should be able to",
+			writers, writeTool)
 	}
 }
