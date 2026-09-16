@@ -3,6 +3,7 @@ package aiprovider
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -280,5 +281,42 @@ func TestVerificationIsOnUnlessTheOperatorTurnedItOff(t *testing.T) {
 	tr, _ = (Config{TLSInsecure: true}).Client().Transport.(*http.Transport)
 	if tr.TLSClientConfig == nil || !tr.TLSClientConfig.InsecureSkipVerify {
 		t.Error("the explicit opt-in did not take effect")
+	}
+}
+
+// TestTheTestButtonAsksForEnoughTokensToGetAnAnswer.
+//
+// ── FOUND LIVE, NOT BY THIS SUITE ──────────────────────────────────────────
+//
+// `TestEndpoint` asked for ONE token. That is enough for a small local model to
+// say "ok", and NOT enough for a reasoning-capable model behind a gateway: the
+// model spends the single token on internal output, the completion comes back
+// with no usable content, and the gateway answers HTTP 502
+// `upstream_empty_response`.
+//
+// Measured against a live OpenAI-compatible gateway on 2026-09-16 — the
+// identical request failed at `max_tokens: 1` and returned "ok" at 64. So the
+// Test button reported a broken endpoint for a configuration that worked, and
+// the error named the operator's provider rather than this request, which sends
+// them to debug something that is fine.
+//
+// The stub cannot reproduce that (it answers whatever it is told to), so this
+// pins the REQUEST instead: the one property that would have prevented it.
+func TestTheTestButtonAsksForEnoughTokensToGetAnAnswer(t *testing.T) {
+	s := &stub{}
+	if err := TestEndpoint(context.Background(), s, cfg()); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(s.got.Body)
+	var req struct {
+		MaxTokens int `json:"max_tokens"`
+	}
+	if err := json.Unmarshal(b, &req); err != nil {
+		t.Fatalf("the test request is not JSON: %v", err)
+	}
+	if req.MaxTokens < 8 {
+		t.Errorf("the Test button asks for max_tokens=%d — a reasoning model spends that "+
+			"on internal output and the gateway returns an empty completion, so the button "+
+			"calls a working endpoint broken", req.MaxTokens)
 	}
 }

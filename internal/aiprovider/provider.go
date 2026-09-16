@@ -279,17 +279,32 @@ func Complete(ctx context.Context, c Doer, cfg Config, msgs []ChatMessage, maxTo
 	return parsed.Choices[0].Message.Content, nil
 }
 
-// TestPrompt is what the Test button sends.
-//
-// ONE TOKEN, and a prompt whose answer nobody reads. The button verifies that
-// the endpoint resolves, the key is accepted and the MODEL NAME EXISTS — which
-// is the failure operators actually hit, since model names share no vocabulary
-// between providers. Asking for more would spend the operator's money to tell
-// them nothing extra.
+// TestPrompt is what the Test button sends. The answer is never read; only
+// whether one arrived.
 var TestPrompt = []ChatMessage{{Role: "user", Content: "Reply with the single word: ok"}}
+
+// testTokens is the budget for that one exchange.
+//
+// ── IT WAS 1, AND THAT BROKE THE BUTTON AGAINST REAL GATEWAYS ──────────────
+//
+// One token is enough for a small local model to say "ok", and asking for more
+// looked like spending the operator's money to learn nothing extra. It is not
+// enough for a reasoning-capable model behind a proxy: the model spends the
+// single token on internal output, returns a completion with no usable content,
+// and the gateway answers HTTP 502 `upstream_empty_response`.
+//
+// Measured against a live OpenAI-compatible gateway on 2026-09-16: the identical
+// request failed at `max_tokens: 1` and returned "ok" at 64. So the button
+// reported a broken endpoint for a configuration that works, and the error named
+// the operator's provider rather than this request — the worst shape of wrong,
+// because it sends them to debug something that is fine.
+//
+// Sixteen is still a rounding error in cost and leaves room for a model that
+// thinks before it speaks.
+const testTokens = 16
 
 // TestEndpoint checks one configuration end to end, returning nil when it works.
 func TestEndpoint(ctx context.Context, c Doer, cfg Config) error {
-	_, err := Complete(ctx, c, cfg, TestPrompt, 1)
+	_, err := Complete(ctx, c, cfg, TestPrompt, testTokens)
 	return err
 }
