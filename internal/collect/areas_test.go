@@ -258,3 +258,141 @@ func TestAreaRoomsFollowTheDeclarations(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryAreaRendersItsCapture: the generic replay, over every declared area.
+//
+// ── WHY GENERIC AND NOT ONE TEST PER AREA ───────────────────────────────────
+//
+// An area is a declaration, so the thing that can be wrong is the same for all
+// of them: a column that names nothing the router returns, a row that renders
+// with no identity to round-trip, a secret carried into a payload that goes to
+// the browser. A test per area would be that list retyped forty times, and the
+// fortieth would be the one nobody wrote.
+//
+// The fixture is found by the RESOURCE key, which is what
+// `internal/verify`'s ledger requires each area's resource to have. A missing
+// one fails there; here it fails loudly rather than skipping, because a replay
+// that quietly tests nothing is the failure this whole file exists to prevent.
+func TestEveryAreaRendersItsCapture(t *testing.T) {
+	if len(areas.All()) == 0 {
+		t.Fatal("no areas declared — this replay would measure nothing")
+	}
+	checked := 0
+	for _, area := range areas.All() {
+		for _, decl := range area.Tables {
+			res := resource.ByKey(decl.Resource)
+			if res == nil {
+				t.Errorf("area %q names resource %q, which does not exist", area.Key, decl.Resource)
+				continue
+			}
+			rows, from := captureFor(t, decl.Resource)
+			table := BuildAreaRows(res, decl.Title, decl.Columns, rows)
+			checked++
+
+			// EVERY CAPTURED ROW IS RENDERED, except the id-less one RouterOS
+			// returns for an empty menu.
+			want := 0
+			for _, r := range rows {
+				if r[".id"] != "" {
+					want++
+				}
+			}
+			if len(table.Rows) != want {
+				t.Errorf("%s/%s: %d rows from %d captured (%s)",
+					area.Key, decl.Resource, len(table.Rows), want, from)
+			}
+
+			for _, row := range table.Rows {
+				if row.ID == "" {
+					t.Errorf("%s/%s: a row has no id, so it cannot be addressed", area.Key, decl.Resource)
+				}
+				// THE IDENTITY IS WHAT STOPS A WRITE HITTING THE WRONG ROW:
+				// RouterOS reuses `*N` after a delete, so a row with no identity
+				// is one an edit cannot confirm it is still looking at.
+				if row.Identity == "" {
+					t.Errorf("%s/%s: row %s has no identity to round-trip",
+						area.Key, decl.Resource, row.ID)
+				}
+				for _, f := range res.Fields {
+					if f.Type == resource.TypeSecret {
+						if _, leaked := row.Values[f.Name]; leaked {
+							t.Errorf("%s/%s: the secret field %q reached a payload the browser reads",
+								area.Key, decl.Resource, f.Name)
+						}
+					}
+				}
+			}
+
+			// EVERY DECLARED COLUMN MUST RESOLVE FOR AT LEAST ONE ROW. A column
+			// naming a property no router returns is a header over a column of
+			// dashes, and it renders perfectly happily.
+			for _, col := range table.Columns {
+				seen := false
+				for _, row := range table.Rows {
+					if row.Values[col] != "" {
+						seen = true
+						break
+					}
+				}
+				if !seen && len(table.Rows) > 0 && !optionalColumn(res, col) {
+					t.Errorf("%s/%s: column %q is empty for every captured row (%s) — either the "+
+						"capture does not exercise it or the field names a property the router "+
+						"does not return", area.Key, decl.Resource, col, from)
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no area tables were replayed")
+	}
+	t.Logf("%d area table(s) replayed against their captures", checked)
+}
+
+// optionalColumn: a column whose emptiness is ordinary rather than suspicious.
+// A comment and a clearable field are legitimately blank on a row nobody
+// commented on, and requiring a capture to exercise every one of them would mean
+// writing fixtures to satisfy a test rather than to record a router.
+func optionalColumn(res *resource.Resource, col string) bool {
+	for _, f := range res.Fields {
+		if f.Name == col {
+			return f.Clearable || !f.Required
+		}
+	}
+	return false
+}
+
+// captureFor finds a resource's fixture by key, and returns its rows and where
+// they came from. Fails rather than skips: `internal/verify` requires the
+// fixture to exist, so a missing one here is a broken lookup, not an absence.
+func captureFor(t *testing.T, key string) ([]routeros.Reply, string) {
+	t.Helper()
+	dirs, err := os.ReadDir(filepath.Join("..", "..", "testdata", "fixtures"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range dirs {
+		path := filepath.Join("..", "..", "testdata", "fixtures", d.Name(), key+".json")
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var f struct {
+			Exchanges []struct {
+				Rows []routeros.Reply `json:"rows"`
+			} `json:"exchanges"`
+		}
+		if err := json.Unmarshal(raw, &f); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		var rows []routeros.Reply
+		for _, ex := range f.Exchanges {
+			rows = append(rows, ex.Rows...)
+		}
+		if len(rows) == 0 {
+			t.Fatalf("%s holds no rows, so replaying it proves nothing", path)
+		}
+		return rows, d.Name()
+	}
+	t.Fatalf("no fixture for resource %q under testdata/fixtures", key)
+	return nil, ""
+}
