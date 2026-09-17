@@ -314,6 +314,20 @@ func liveTools() []Tool {
 		Freshness:  FreshLive,
 		Page:       "bandwidth",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "topology",
+		Description: "Read only. Describe the network around the router, discovered from " +
+			"/ip/neighbor (MNDP, LLDP and CDP): the router itself, each neighbouring device " +
+			"with identity, platform, board, RouterOS or software version, address, which local " +
+			"port it was seen on and its own port on the other end, reachability (ping time and " +
+			"loss) and whether it has gone; the links between them; and how many clients hang " +
+			"off each device. Use it for questions about what is connected to what, switches " +
+			"and access points, or a device that disappeared.",
+		Parameters: noArgs(),
+		Collector:  "topology",
+		Freshness:  FreshMetadata,
+		Page:       "network-topology",
+		Access:     AccessRead,
 	}}
 }
 

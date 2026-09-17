@@ -201,6 +201,13 @@
       "page": "users"
     },
     {
+      "name": "list_topology",
+      "access": "read",
+      "resource": "",
+      "collector": "topology",
+      "page": "network-topology"
+    },
+    {
       "name": "list_vlan",
       "access": "read",
       "resource": "vlan",

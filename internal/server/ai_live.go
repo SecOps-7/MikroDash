@@ -57,6 +57,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"wireless":  (*conn).liveWifiClients,
 	"conns":     (*conn).liveConnections,
 	"bandwidth": (*conn).liveBandwidth,
+	"topology":  (*conn).liveTopology,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -1018,4 +1019,114 @@ func renderBandwidth(p *collect.BandwidthPayload) any {
 		Idle      int                `json:"idleConnections"`
 		Truncated bool               `json:"truncated"`
 	}{math.Round(total*1000) / 1000, kept, idle, truncated}
+}
+
+// ── list_topology ───────────────────────────────────────────────────────────
+
+func (cn *conn) liveTopology(t aitools.Tool) string {
+	col := cn.rsession.Topology()
+	return liveAnswer(t, liveSource[collect.TopologyPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.TopologyPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.Tick, // Tick reads /ip/neighbor directly
+		menu:    "/ip/neighbor",
+		absent:  "The topology readings are not available from this router yet.",
+	}, renderTopology)
+}
+
+type liveTopoDevice struct {
+	Role        string   `json:"role"` // this router | neighbour
+	Name        string   `json:"name"`
+	Identity    string   `json:"identity,omitempty"`
+	IP          string   `json:"ip,omitempty"`
+	MAC         string   `json:"mac,omitempty"`
+	Type        string   `json:"type,omitempty"`
+	Platform    string   `json:"platform,omitempty"`
+	Board       string   `json:"board,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	SeenOn      []string `json:"seenOnLocalPorts,omitempty"`
+	RemoteIface string   `json:"theirPort,omitempty"`
+	RTT         *float64 `json:"pingMs,omitempty"`
+	Loss        *float64 `json:"pingLossPct,omitempty"`
+	Status      string   `json:"status,omitempty"`
+	Gone        bool     `json:"gone,omitempty"`
+	Clients     int      `json:"clients"`
+}
+
+type liveTopoLink struct {
+	From        string `json:"from"`
+	To          string `json:"to"`
+	Iface       string `json:"localPort,omitempty"`
+	RemoteIface string `json:"remotePort,omitempty"`
+	Inferred    bool   `json:"inferred,omitempty"`
+	Pinned      bool   `json:"pinnedByOperator,omitempty"`
+	Gone        bool   `json:"gone,omitempty"`
+}
+
+// renderTopology keeps the infrastructure and counts the clients.
+//
+// ── CLIENTS ARE COUNTED, NOT LISTED ─────────────────────────────────────────
+//
+// The node list mixes the router, its neighbours and every client below them.
+// Clients are already answered in more detail by list_wifi_clients and
+// list_connections, and listing them here would spend the budget on the part of
+// the graph this tool is not for. Links are kept only between infrastructure
+// nodes, named rather than keyed, so the model can say "sw1 port 3".
+func renderTopology(p *collect.TopologyPayload) any {
+	devices := []liveTopoDevice{}
+	names := map[string]string{}
+	for _, n := range p.Nodes {
+		switch v := n.(type) {
+		case *collect.TopoCore:
+			names[v.Key] = firstNonEmpty(v.Identity, v.Name)
+			devices = append(devices, liveTopoDevice{Role: "this router", Name: v.Name, Identity: v.Identity,
+				IP: v.IP, MAC: v.MAC, Type: v.Type, Platform: v.Platform, Board: v.Board, Version: v.Version,
+				Status: v.Status, Clients: v.ClientCount})
+		case collect.TopoCore:
+			names[v.Key] = firstNonEmpty(v.Identity, v.Name)
+			devices = append(devices, liveTopoDevice{Role: "this router", Name: v.Name, Identity: v.Identity,
+				IP: v.IP, MAC: v.MAC, Type: v.Type, Platform: v.Platform, Board: v.Board, Version: v.Version,
+				Status: v.Status, Clients: v.ClientCount})
+		case *collect.TopoNeighbor:
+			names[v.Key] = firstNonEmpty(v.Identity, v.Name)
+			devices = append(devices, topoNeighbourRow(*v))
+		case collect.TopoNeighbor:
+			names[v.Key] = firstNonEmpty(v.Identity, v.Name)
+			devices = append(devices, topoNeighbourRow(v))
+		}
+	}
+	links := []liveTopoLink{}
+	for _, e := range p.Edges {
+		from, okF := names[e.From]
+		to, okT := names[e.To]
+		if e.Client || !okF || !okT {
+			continue
+		}
+		links = append(links, liveTopoLink{From: from, To: to, Iface: firstNonEmpty(e.ViaPort, e.Iface),
+			RemoteIface: e.RemoteIface, Inferred: e.Inferred, Pinned: e.Pinned, Gone: e.Gone})
+	}
+	keptD, tD := capRows(devices)
+	keptL, tL := capRows(links)
+	note := ""
+	switch {
+	case p.PermissionDenied:
+		note = "The router refused /ip/neighbor to MikroDash's API user, so no topology can be discovered; this is a permission on the router."
+	case len(devices) <= 1:
+		note = "No neighbouring devices were discovered. Neighbour discovery may be switched off or limited to some interfaces (see discovery below)."
+	}
+	return struct {
+		Note      string                 `json:"note,omitempty"`
+		Discovery *collect.TopoDiscovery `json:"discovery,omitempty"`
+		Devices   []liveTopoDevice       `json:"devices"`
+		Links     []liveTopoLink         `json:"links"`
+		Clients   int                    `json:"totalClients"`
+		Truncated bool                   `json:"truncated"`
+	}{note, p.Discovery, keptD, keptL, p.ClientCount, tD || tL}
+}
+
+func topoNeighbourRow(v collect.TopoNeighbor) liveTopoDevice {
+	return liveTopoDevice{Role: "neighbour", Name: v.Name, Identity: v.Identity, IP: v.IP, MAC: v.MAC,
+		Type: v.Type, Platform: v.Platform, Board: v.Board, Version: v.Version, SeenOn: v.Via,
+		RemoteIface: v.RemoteIface, RTT: v.RTT, Loss: v.Loss, Status: v.Status, Gone: v.Gone,
+		Clients: v.ClientCount}
 }

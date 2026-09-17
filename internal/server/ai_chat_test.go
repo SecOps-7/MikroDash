@@ -788,3 +788,37 @@ func TestRenderBandwidthIsBusiestFirst(t *testing.T) {
 		t.Error("nothing newer and no fillable MAC triggered a re-derive (control)")
 	}
 }
+
+// TestRenderTopologyKeepsInfrastructure. The router and neighbours are listed,
+// links between them are named, clients are counted and not listed, and a
+// denied neighbour read explains itself.
+func TestRenderTopologyKeepsInfrastructure(t *testing.T) {
+	rtt := 1.5
+	p := &collect.TopologyPayload{TS: 1, PollMs: 30_000, ClientCount: 12,
+		Nodes: []any{
+			&collect.TopoCore{Key: "core", Name: "gw", Identity: "gw-router", ClientCount: 4},
+			&collect.TopoNeighbor{Key: "n1", Name: "sw1", Identity: "sw1", Platform: "MikroTik", Version: "7.24.3",
+				Via: []string{"ether2"}, RemoteIface: "sfp1", RTT: &rtt, ClientCount: 8},
+			&collect.TopoClient{Key: "c1", Name: "CLIENT-SHOULD-NOT-BE-LISTED"},
+		},
+		Edges: []collect.TopoEdge{
+			{From: "core", To: "n1", Iface: "ether2", RemoteIface: "sfp1"},
+			{From: "n1", To: "c1", Client: true},
+		},
+	}
+	b, _ := json.Marshal(renderTopology(p))
+	got := string(b)
+	for _, want := range []string{`"role":"this router"`, `"identity":"sw1"`, `"version":"7.24.3"`,
+		`"seenOnLocalPorts":["ether2"]`, `"theirPort":"sfp1"`, `"pingMs":1.5`,
+		`"from":"gw-router","to":"sw1","localPort":"ether2","remotePort":"sfp1"`, `"totalClients":12`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "CLIENT-SHOULD-NOT-BE-LISTED") {
+		t.Errorf("a client was listed: %s", got)
+	}
+	if b, _ := json.Marshal(renderTopology(&collect.TopologyPayload{TS: 1, PermissionDenied: true})); !strings.Contains(string(b), "permission on the router") {
+		t.Errorf("a denied read does not say why: %s", b)
+	}
+}
