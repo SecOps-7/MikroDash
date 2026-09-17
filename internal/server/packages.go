@@ -71,6 +71,15 @@ func (cn *conn) pkgErr(code string, extra map[string]any) {
 // to target and nothing to show afterwards. The writes go through the session
 // rather than the collector precisely because the collector may be idle — but
 // without its payload the actions have no subject.
+// refreshPackages re-reads the package menus, when that collector is enabled.
+// Gated, because a disabled collector must not be started by an action (#105);
+// the action itself still runs against whatever the payload holds.
+func (cn *conn) refreshPackages(coll *collect.Packages) {
+	if coll != nil && cn.rsession != nil && cn.rsession.CollectorEnabled("packages") {
+		coll.RefreshNow()
+	}
+}
+
 // pkgCollector is pkgReady WITHOUT the error frame: the extracted run*
 // functions report "unavailable" in their outcome, and the socket adapter sends
 // it once. Sending it here as well put two frames on the wire for one click, and
@@ -153,7 +162,14 @@ func (cn *conn) runPackageSchedule(action, name, via string) writeOutcome {
 		return writeOutcome{Code: "bad-request"}
 	}
 
-	// RESOLVED AGAINST WHAT THE COLLECTOR LAST READ, never against an id the
+	// RE-READ FIRST. The row is resolved from the collector's payload, and a
+	// package's `.id` CHANGES when it is installed or removed — measured on the
+	// CHR: scheduling a package straight after an apply-and-reboot addressed the
+	// id it had before, and the router answered "no such item". The collector's
+	// copy can also be a minute old on a page nobody has open.
+	cn.refreshPackages(coll)
+
+	// RESOLVED AGAINST WHAT THE COLLECTOR HAS JUST READ, never against an id the
 	// browser sent. A stale or crafted page cannot then address a row that was
 	// never on screen.
 	var target *collect.Package
@@ -387,6 +403,12 @@ func (cn *conn) runPackageApply(confirm, via string) writeOutcome {
 		return writeOutcome{Code: "confirm-mismatch", Name: name,
 			Detail: map[string]any{"routerName": name}}
 	}
+
+	// RE-READ FIRST, for the reason the schedule path re-reads: this decides
+	// whether to REBOOT. Measured on the CHR — after an apply, the collector's
+	// payload still listed the change it had just applied, so a second apply
+	// found "pending" work and rebooted the router for nothing.
+	cn.refreshPackages(coll)
 
 	var pending []collect.Package
 	if last := coll.Last(); last != nil {

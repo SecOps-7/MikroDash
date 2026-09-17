@@ -189,3 +189,43 @@ func TestAnActionIsNeverRunWithoutItsArgument(t *testing.T) {
 		t.Errorf("a complete call was refused or not trimmed: %q %q %q", target, mode, refusal)
 	}
 }
+
+// TestThePackageActionsReadBeforeTheyDecide.
+//
+// A package's `.id` changes when it is installed or removed, and the scheduled
+// set changes when an apply runs — so both actions resolve against a payload
+// that can describe a router that no longer exists. Measured on the CHR: right
+// after an apply-and-reboot, scheduling the same package addressed its OLD id
+// and the router answered "no such item", and a second apply found the change it
+// had already applied still listed as pending and REBOOTED THE ROUTER for
+// nothing.
+//
+// Both must re-read before they resolve anything. Read from the source, because
+// what matters is the ORDER: a refresh after the decision is no refresh at all.
+func TestThePackageActionsReadBeforeTheyDecide(t *testing.T) {
+	src, err := os.ReadFile("packages.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(src)
+	for _, fn := range []string{"runPackageSchedule", "runPackageApply"} {
+		start := strings.Index(body, "func (cn *conn) "+fn+"(")
+		if start < 0 {
+			t.Fatalf("%s is gone — this check is measuring nothing", fn)
+		}
+		sw := body[start:]
+		if end := strings.Index(sw[1:], "\nfunc "); end > 0 {
+			sw = sw[:end]
+		}
+		refresh := strings.Index(sw, "cn.refreshPackages(")
+		read := strings.Index(sw, "coll.Last()")
+		if refresh < 0 {
+			t.Errorf("%s never re-reads the packages: it can act on an id or a pending list "+
+				"the router no longer has", fn)
+			continue
+		}
+		if read >= 0 && refresh > read {
+			t.Errorf("%s re-reads AFTER it reads the payload, which is no re-read at all", fn)
+		}
+	}
+}
