@@ -246,6 +246,7 @@
     "aiApiKey"
   ],
   "specialCases": [
+    "hiddenAreas",
     "authMode",
     "customPollProfile",
     "displayTimezone",

@@ -182,6 +182,21 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 		}
 	}
 
+	// ── hiddenAreas: ONE LIST FOR EVERY GENERATED PAGE ──────────────────────
+	//
+	// A per-area boolean would be a settings key each, a corpus re-aim each and a
+	// row in the Visible Pages grid each — forty of those for forty areas. One
+	// list says the same thing once.
+	//
+	// FILTERED AGAINST THE DECLARATIONS, and that is not tidiness: an unknown key
+	// here would hide nothing while looking like a setting, and a key left behind
+	// by an area that was removed would sit in settings.json for ever. What is
+	// stored is the intersection with what exists, sorted so the file does not
+	// churn on every save.
+	if raw, ok := body["hiddenAreas"]; ok {
+		updates["hiddenAreas"] = CleanHiddenAreas(raw)
+	}
+
 	// customPollProfile is either cleared or a JSON OBJECT. `typeof
 	// JSON.parse(v) === 'object'` — which in JavaScript is also true of an
 	// array and of null, and both are accepted there, so both are accepted

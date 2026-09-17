@@ -131,7 +131,8 @@
     "dbAiRetentionDays": 30,
     "aiOverviewPrompt": "",
     "aiOverviewTextColor": "#38bdf8",
-    "aiAllowRawCommands": false
+    "aiAllowRawCommands": false,
+    "hiddenAreas": []
   },
   "defaultsOrder": [
     "routerHost",
@@ -264,7 +265,8 @@
     "dbAiRetentionDays",
     "aiOverviewPrompt",
     "aiOverviewTextColor",
-    "aiAllowRawCommands"
+    "aiAllowRawCommands",
+    "hiddenAreas"
   ],
   "encrypted": [
     "routerPass",

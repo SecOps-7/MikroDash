@@ -46,5 +46,6 @@
   "notifIfaceBridge",
   "notifIfaceVlan",
   "notifIfaceOther",
-  "aiReady"
+  "aiReady",
+  "hiddenAreas"
 ]

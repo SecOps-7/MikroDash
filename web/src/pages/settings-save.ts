@@ -81,6 +81,18 @@ export function collectSettingsForm(
     out[key] = input.checked;
   }
 
+  // ── THE GENERATED PAGES, AS ONE LIST ──────────────────────────────────────
+  //
+  // Ticked means visible, so what is SENT is the unticked ones. Sent only when
+  // at least one toggle is on screen: a build with no areas must not send an
+  // empty list that would clear a stored one it knows nothing about.
+  const areaBoxes = Array.from(
+    document.querySelectorAll<HTMLInputElement>('input[data-area-toggle]'));
+  if (areaBoxes.length > 0) {
+    out.hiddenAreas = areaBoxes.filter((b) => !b.checked)
+      .map((b) => b.getAttribute('data-area-toggle') || '');
+  }
+
   for (const key of FORM_FIELDS.value) {
     // The write-only credentials are handled below; `smtpUser` is NOT one of
     // them and belongs here — see the note on it there.

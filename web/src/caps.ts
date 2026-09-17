@@ -145,9 +145,13 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
   // Node app and its generator is gone — so an area would never be swept, and
   // the nav entry this app composes at runtime would stay visible to a role that
   // may not read it. The same loop gates both kinds.
+  // An area is switched off by being IN `hiddenAreas`, not by a `pageX` key of
+  // its own: see store.CleanHiddenAreas. A page not in the list is visible,
+  // which is the right default for a page the operator has never heard of.
+  const hiddenAreas: string[] = Array.isArray(p.hiddenAreas) ? p.hiddenAreas as string[] : [];
   for (const pageName of [...ALL_NAV_PAGES, ...AREA_KEY_SET]) {
     const sKey = settingKeyFor[pageName];
-    const byInstall = !sKey || p[sKey] !== false;
+    const byInstall = (!sKey || p[sKey] !== false) && !hiddenAreas.includes(pageName);
     const byRole = !pageAccess || !!pageAccess[pageName];
     // ── THERE WAS A FOURTH TERM HERE AND IT IS NOT COMING BACK ────────────
     //

@@ -34,6 +34,7 @@ import { el, esc } from '../dom';
 // just cleared.
 import { siteIdsOf } from './routers';
 import { PAGE_NAV_MAP, VIEW_PRESETS, VIEW_PRESET_KEY } from '../gen/view-presets';
+import { AREAS } from '../gen/areas';
 import {
   FORM_FIELDS, VALUE_DEFAULTS, PLACEHOLDER_CREDENTIALS,
   type ValueDefault,
@@ -76,8 +77,45 @@ function valueFor(raw: unknown, rule: ValueDefault | undefined): string {
   }
 }
 
+/**
+ * The generated pages' toggles, rendered into the Visible Pages grid.
+ *
+ * ── ONE LIST, AND DELIBERATELY NOT IN PAGE_NAV_MAP ──────────────────────────
+ *
+ * Each of these is an entry in `hiddenAreas`, not a `pageX` boolean of its own:
+ * forty areas would otherwise be forty settings keys. They are also kept OUT of
+ * `PAGE_NAV_MAP`, which the view presets walk writing to `el('s_' + settingsKey)`
+ * across the whole document — an area in that map would be switched by choosing
+ * a nav preset, which is the trap the AI Agent page's note records.
+ *
+ * Rendered rather than written into the markup, because the markup is a fixed
+ * document and the areas are a declaration.
+ */
+function renderAreaToggles(hidden: readonly string[]): void {
+  const grid = el('visiblePagesGrid');
+  if (!grid || AREAS.length === 0) return;
+  for (const area of AREAS) {
+    const id = 'sarea_' + area.key;
+    let box = el<HTMLInputElement>(id);
+    if (!box) {
+      const label = document.createElement('label');
+      label.className = 'stoggle';
+      label.innerHTML = '<span class="stoggle-label">' + esc(area.title) + '</span>' +
+        '<span class="stoggle-switch"><input type="checkbox" id="' + id + '" data-area-toggle="' +
+        esc(area.key) + '"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>';
+      grid.appendChild(label);
+      box = el<HTMLInputElement>(id);
+    }
+    // TICKED MEANS VISIBLE, as every other toggle in this grid reads.
+    if (box) box.checked = !hidden.includes(area.key);
+  }
+}
+
 /** Fill the form from a settings payload. */
 export function populateSettings(data: SettingsPayload): void {
+  const hidden = Array.isArray(data.hiddenAreas) ? data.hiddenAreas as string[] : [];
+  renderAreaToggles(hidden);
+
   for (const key of FORM_FIELDS.value) {
     const input = el<HTMLInputElement>('s_' + key);
     if (!input) continue;

@@ -116,6 +116,8 @@ export interface PageSettings {
    *  model. The three settings behind it stay on the server — `aiBaseUrl` is
    *  infrastructure config a viewer has no business reading. */
   aiReady: boolean;
+  /** The generated pages this install has switched off; see store.CleanHiddenAreas. */
+  hiddenAreas: string[];
   notifIfaceUpDown: boolean; notifVpn: boolean; notifCpu: boolean; notifPing: boolean;
   notifNetwatch: boolean; notifRouterStatus: boolean; notifBackupDrift: boolean;
   notifBackupFail: boolean; notifReportFail: boolean; notifRouterUpdate: boolean;

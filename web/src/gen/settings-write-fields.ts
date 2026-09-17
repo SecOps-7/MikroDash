@@ -149,6 +149,7 @@ export const SPECIAL_CASES: readonly string[] = [
   "authMode",
   "customPollProfile",
   "displayTimezone",
+  "hiddenAreas",
   "notifBody",
   "notifBodyUp",
   "sessionTimeoutMs",

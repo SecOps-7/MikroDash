@@ -279,6 +279,11 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		"aiSystemPrompt":      {"", "You are a network administrator."},
 		"aiOverviewPrompt":    {"", "Write one line."},
 		"aiOverviewTextColor": {"#38bdf8"},
+		// BOTH PROBES MATTER for the generated pages too. An EMPTY list is not a
+		// rejected write: it is "nothing is hidden", which is exactly what an
+		// operator does by ticking the last box back on, and a handler that
+		// dropped it would leave the previous selection in place for ever.
+		"hiddenAreas": {[]any{}, []any{"ip-pools"}},
 	}
 
 	for _, key := range wtables.SpecialCases {

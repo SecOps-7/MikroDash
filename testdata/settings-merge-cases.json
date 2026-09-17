@@ -136,7 +136,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -277,7 +278,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -418,7 +420,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -560,7 +563,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -702,7 +706,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -844,7 +849,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -986,7 +992,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -1128,7 +1135,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -1268,7 +1276,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -1408,7 +1417,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -1548,7 +1558,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -1690,7 +1701,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -1830,7 +1842,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -1970,7 +1983,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -2110,7 +2124,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -2250,7 +2265,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -2391,7 +2407,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -2532,7 +2549,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -2672,7 +2690,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -2812,7 +2831,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -2952,7 +2972,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     },
     {
@@ -3093,7 +3114,8 @@
         "dbAiRetentionDays": 30,
         "aiOverviewPrompt": "",
         "aiOverviewTextColor": "#38bdf8",
-        "aiAllowRawCommands": false
+        "aiAllowRawCommands": false,
+        "hiddenAreas": []
       }
     }
   ]
