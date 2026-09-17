@@ -21,6 +21,7 @@ package server
 import (
 	"encoding/json"
 	"math"
+	"sort"
 	"time"
 
 	"mikrodash/internal/aicontext"
@@ -52,6 +53,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"rosusers": (*conn).liveRouterUsers,
 	"queues":   (*conn).liveQueues,
 	"logs":     (*conn).liveLogs,
+	"wireless": (*conn).liveWifiClients,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -629,4 +631,126 @@ func renderLogs(r *logsReading) any {
 		Total     int           `json:"linesHeld"`
 		Truncated bool          `json:"olderLinesOmitted"`
 	}{kept, len(r.entries), truncated}
+}
+
+// ── list_wifi_clients ───────────────────────────────────────────────────────
+
+// liveWifiClients re-derives the client list when it is out of date with the
+// tables it is JOINED against, whether or not the list itself is due.
+//
+// ── A REGISTRATION ROW CARRIES A MAC AND NOTHING ELSE ───────────────────────
+//
+// A client's name comes from the DHCP lease table and its address from ARP, both
+// separate collectors. The tool reported 0 of 32 clients named and none with an
+// address on the hAP ax3, while the Wifi Clients page received 23 named and 32
+// with addresses.
+//
+// ── MEASURED BEFORE IT WAS FIXED, AFTER TWO WRONG GUESSES ───────────────────
+//
+// Loading the joins inside the list's refresh changed nothing, and nor did
+// loading them whenever they were absent. Logging the state at call time showed
+// why: the lease table (46) and ARP (47) WERE loaded. The list had been derived
+// before they were, just after the session started, and was still inside its
+// freshness bound, so nothing re-derived it. The staleness is of the JOIN, not
+// of the list and not of the sources.
+//
+// So the list is re-derived when a join could now fill it: a source that has
+// never loaded is loaded first; the lease table being newer than the list, or
+// ARP knowing an address for a client the list shows without one, re-derives it.
+// Both checks read memory, so a list that is already joined costs nothing.
+func (cn *conn) liveWifiClients(t aitools.Tool) string {
+	col := cn.rsession.Wireless()
+	leases, arp := cn.rsession.DHCPLeases(), cn.rsession.ARP()
+	rederive := false
+	if leases != nil && leases.Last() == nil {
+		leases.RefreshNow()
+		rederive = true
+	}
+	if arp != nil && arp.Last() == nil {
+		arp.RefreshNow()
+		rederive = true
+	}
+	if w := col.Last(); w != nil && !rederive {
+		rederive = wifiJoinOutOfDate(w, leases, arp)
+	}
+	if rederive {
+		col.RefreshNow()
+	}
+	return liveAnswer(t, liveSource[collect.WirelessPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.WirelessPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.RefreshNow,
+		menu:    "/interface/wifi/registration-table",
+		absent:  "The wireless client readings are not available from this router yet.",
+	}, renderWifiClients)
+}
+
+// wifiJoinOutOfDate reports whether a client list was derived before the tables
+// it joins against could fill it. Pure over its inputs, so it is tested without a
+// router.
+func wifiJoinOutOfDate(w *collect.WirelessPayload, leases interface {
+	Last() *collect.LeasesPayload
+}, arp interface{ IPForMAC(string) string }) bool {
+	if leases != nil {
+		if l := leases.Last(); l != nil && l.TS > w.TS {
+			return true
+		}
+	}
+	if arp != nil {
+		for _, c := range w.Clients {
+			if c.IP == "" && arp.IPForMAC(c.MAC) != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type liveWifiClient struct {
+	Name     string `json:"name,omitempty"`
+	Comment  string `json:"dhcpComment,omitempty"`
+	MAC      string `json:"mac"`
+	IP       string `json:"ip,omitempty"`
+	SSID     string `json:"ssid,omitempty"`
+	Iface    string `json:"interface,omitempty"`
+	Band     string `json:"band,omitempty"`
+	Standard string `json:"standard,omitempty"`
+	Signal   int    `json:"signalDbm"`
+	TxRate   string `json:"txRate,omitempty"`
+	RxRate   string `json:"rxRate,omitempty"`
+	Uptime   string `json:"connectedFor,omitempty"`
+	CAPsMAN  bool   `json:"viaCapsman,omitempty"`
+}
+
+// renderWifiClients shapes the registration table for the model, strongest
+// signal first so a cap keeps the clients most likely to be asked about by name
+// and drops the fringe of a busy site.
+func renderWifiClients(p *collect.WirelessPayload) any {
+	rows := make([]liveWifiClient, 0, len(p.Clients))
+	for _, c := range p.Clients {
+		rows = append(rows, liveWifiClient{Name: c.Name, Comment: c.Comment, MAC: c.MAC, IP: c.IP,
+			SSID: c.SSID, Iface: c.Iface, Band: c.Band, Standard: c.Standard, Signal: c.Signal,
+			TxRate: c.TxRate, RxRate: c.RxRate, Uptime: c.Uptime, CAPsMAN: c.Source != ""})
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Signal > rows[j].Signal })
+	kept, truncated := capRows(rows)
+	note := ""
+	switch {
+	case p.Mode == "none":
+		note = "This router has no wireless stack (neither /interface/wifi nor /interface/wireless), so it has no wireless clients of its own."
+	case len(p.Clients) == 0 && p.SSIDsManagedElsewhere > 0:
+		note = "This router's radios take their SSIDs from a CAPsMAN manager; its clients may be listed on that manager instead."
+	}
+	ssids := p.SSIDs
+	if ssids == nil {
+		ssids = []collect.WirelessSSID{}
+	}
+	return struct {
+		Note      string                 `json:"note,omitempty"`
+		Stack     string                 `json:"wirelessStack,omitempty"`
+		SSIDs     []collect.WirelessSSID `json:"ssids"`
+		Clients   []liveWifiClient       `json:"clientsStrongestFirst"`
+		Total     int                    `json:"totalClients"`
+		Truncated bool                   `json:"truncated"`
+	}{note, p.Mode, ssids, kept, len(p.Clients), truncated}
 }

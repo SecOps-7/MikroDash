@@ -269,6 +269,24 @@ func liveTools() []Tool {
 		Freshness:  FreshLive,
 		Page:       "logs",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "wifi_clients",
+		Description: "Read only. List the wireless clients connected right now, read from " +
+			"/interface/wifi/registration-table (or the legacy wireless and CAPsMAN tables): " +
+			"each client's name and the DHCP comment written against it, MAC, IP address, SSID, " +
+			"interface, band, negotiated Wi-Fi standard, signal in dBm, tx and rx rate and how " +
+			"long it has been connected; plus every SSID the router broadcasts with its bands " +
+			"and client count. Use it for any question about who is on the wifi, weak signal or " +
+			"a specific device.",
+		Parameters: noArgs(),
+		Collector:  "wireless",
+		// THE COLLECTOR'S OWN RULE, NOT 5 SECONDS. The registration table is polled
+		// every 30s by default; re-reading it on every question would ask the router
+		// more often than the page that owns it does, for a list that rarely changes
+		// inside half a minute.
+		Freshness: FreshMetadata,
+		Page:      "wifi-clients",
+		Access:    AccessRead,
 	}}
 }
 

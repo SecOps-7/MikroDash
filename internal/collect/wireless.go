@@ -652,6 +652,25 @@ func (w *Wireless) leaseComment(mac string) string {
 	return ""
 }
 
+// RefreshNow re-reads the registration tables past the cache, for a reader that
+// needs the clients connected now rather than as of the last shared read (the
+// assistant's `list_wifi_clients`). The IfStatus pattern: invalidate, then tick.
+//
+// `Tick` reads through the cache with a TTL of the poll interval, so without the
+// invalidation a refresh could hand back a table up to one interval old, and the
+// caller would report it as fresh.
+func (w *Wireless) RefreshNow() {
+	if !w.ros.Connected() {
+		return
+	}
+	if w.cache != nil {
+		for _, cmd := range []routeros.Cmd{wlRegWifiCmd, wlRegLegacyCmd, capsV1RegCmd} {
+			w.cache.Invalidate(cmd.Path)
+		}
+	}
+	w.Tick()
+}
+
 // Tick reads the registration tables and builds the payload.
 func (w *Wireless) Tick() {
 	if !w.ros.Connected() {

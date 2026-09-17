@@ -655,3 +655,57 @@ func TestRenderLogsIsNewestFirst(t *testing.T) {
 		t.Errorf("truncation is not reported: %.300s", got[len(got)-120:])
 	}
 }
+
+// TestRenderWifiClients. Clients reach the model strongest signal first, with
+// the DHCP comment and CAPsMAN origin; a router with no wireless stack says so.
+func TestRenderWifiClients(t *testing.T) {
+	p := &collect.WirelessPayload{TS: 1, PollMs: 30_000, Mode: "wifi",
+		SSIDs: []collect.WirelessSSID{{SSID: "Home", Bands: []string{"5GHz"}, Running: true, Clients: 2}},
+		Clients: []collect.WirelessClient{
+			{MAC: "02:00:00:00:00:01", Name: "laptop", Signal: -71, SSID: "Home", Band: "5GHz"},
+			{MAC: "02:00:00:00:00:02", Name: "phone", Comment: "Alice's phone", Signal: -48, Source: "capsman"},
+		}}
+	b, _ := json.Marshal(renderWifiClients(p))
+	got := string(b)
+	if i, j := strings.Index(got, `"phone"`), strings.Index(got, `"laptop"`); i < 0 || j < 0 || i > j {
+		t.Errorf("clients are not strongest signal first: %s", got)
+	}
+	for _, want := range []string{`"dhcpComment":"Alice's phone"`, `"viaCapsman":true`, `"signalDbm":-48`,
+		`"ssid":"Home"`, `"totalClients":2`, `"wirelessStack":"wifi"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	none, _ := json.Marshal(renderWifiClients(&collect.WirelessPayload{TS: 1, Mode: "none"}))
+	if !strings.Contains(string(none), "no wireless stack") || !strings.Contains(string(none), `"ssids":[]`) {
+		t.Errorf("a router with no wireless stack does not say so: %s", none)
+	}
+}
+
+type fakeLeases struct{ p *collect.LeasesPayload }
+
+func (f fakeLeases) Last() *collect.LeasesPayload { return f.p }
+
+type fakeARP map[string]string
+
+func (f fakeARP) IPForMAC(mac string) string { return f[mac] }
+
+// TestWifiJoinOutOfDate. The case measured on the hAP ax3: the client list was
+// derived before the lease and ARP tables loaded, and stayed that way while it
+// was still "fresh". Each trigger is checked with its control.
+func TestWifiJoinOutOfDate(t *testing.T) {
+	list := &collect.WirelessPayload{TS: 1000, Clients: []collect.WirelessClient{{MAC: "02:00:00:00:00:01"}}}
+	if !wifiJoinOutOfDate(list, fakeLeases{&collect.LeasesPayload{TS: 2000}}, fakeARP{}) {
+		t.Error("a lease table newer than the list did not trigger a re-derive")
+	}
+	if wifiJoinOutOfDate(list, fakeLeases{&collect.LeasesPayload{TS: 500}}, fakeARP{}) {
+		t.Error("an older lease table triggered a re-derive (control)")
+	}
+	if !wifiJoinOutOfDate(list, nil, fakeARP{"02:00:00:00:00:01": "192.0.2.10"}) {
+		t.Error("ARP knowing an address the list lacks did not trigger a re-derive")
+	}
+	joined := &collect.WirelessPayload{TS: 1000, Clients: []collect.WirelessClient{{MAC: "02:00:00:00:00:01", IP: "192.0.2.10"}}}
+	if wifiJoinOutOfDate(joined, fakeLeases{&collect.LeasesPayload{TS: 500}}, fakeARP{"02:00:00:00:00:01": "192.0.2.10"}) {
+		t.Error("an already joined list triggered a re-derive (control)")
+	}
+}

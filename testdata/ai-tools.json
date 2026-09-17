@@ -212,6 +212,13 @@
       "page": "wifi-networks"
     },
     {
+      "name": "list_wifi_clients",
+      "access": "read",
+      "resource": "",
+      "collector": "wireless",
+      "page": "wifi-clients"
+    },
+    {
       "name": "list_wlNet",
       "access": "read",
       "resource": "wlNet",
