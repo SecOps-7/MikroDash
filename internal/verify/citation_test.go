@@ -54,6 +54,14 @@ var expectedAbsent = map[string]string{
 	"docs/architecture-next.md": "cited by CHANGELOG.md's release notes, which are history and " +
 		"name files as they were when released. Deleted 2026-09-11: its three items were " +
 		"delivered or overtaken, bar the frontend's move onto cmd/tsgen's generated payload types.",
+	// MikroMCP parity, slice 5 (the areas mechanism). The parity spec and
+	// notes/loop.md name the files that slice creates, which is what a plan
+	// does. Each entry must be deleted the moment its file exists, or this
+	// check fails on an entry that has stopped being true.
+	"web/src/gen/areas.ts": "slice 5 of MikroMCP parity adds it: the generated area " +
+		"declaration table, written by cmd/areagen",
+	"web/src/pages/area.ts": "slice 5 of MikroMCP parity adds it: the one module that " +
+		"renders every generated area page",
 }
 
 func TestCitedPathsExist(t *testing.T) {

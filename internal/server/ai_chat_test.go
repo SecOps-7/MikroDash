@@ -434,3 +434,32 @@ func TestEveryLiveToolHasAReader(t *testing.T) {
 		t.Error("no live tools found; this ledger is measuring nothing")
 	}
 }
+
+// TestLiveReadingDue: the per-tool freshness rule. Live data is re-read after 5s;
+// metadata only once the collector's own staleness rule calls it old; a missing
+// reading, or one with no timestamp, is always re-read.
+func TestLiveReadingDue(t *testing.T) {
+	const now = int64(10_000_000)
+	for _, c := range []struct {
+		name      string
+		freshness string
+		present   bool
+		ts        int64
+		pollMs    int
+		want      bool
+	}{
+		{"live, absent", aitools.FreshLive, false, 0, 0, true},
+		{"live, no timestamp", aitools.FreshLive, true, 0, 0, true},
+		{"live, 2s old", aitools.FreshLive, true, now - 2_000, 0, false},
+		{"live, 6s old", aitools.FreshLive, true, now - 6_000, 0, true},
+		{"metadata, 6s old on a 60s poll", aitools.FreshMetadata, true, now - 6_000, 60_000, false},
+		{"metadata, 70s old on a 60s poll (inside the grace)", aitools.FreshMetadata, true, now - 70_000, 60_000, false},
+		{"metadata, 90s old on a 60s poll", aitools.FreshMetadata, true, now - 90_000, 60_000, true},
+		{"metadata, absent", aitools.FreshMetadata, false, 0, 60_000, true},
+		{"undeclared falls to the live bound", "", true, now - 6_000, 60_000, true},
+	} {
+		if got := liveReadingDue(c.freshness, c.present, now, c.ts, c.pollMs); got != c.want {
+			t.Errorf("%s: due = %v, want %v", c.name, got, c.want)
+		}
+	}
+}

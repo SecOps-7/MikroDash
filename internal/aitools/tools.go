@@ -84,11 +84,30 @@ type Tool struct {
 	// menu. Not sent to the model. Empty on every resource tool and on the write
 	// tool; see liveTools.
 	Collector string `json:"-"`
+	// Freshness is how old a LIVE tool's reading may be before it is re-read:
+	// FreshLive or FreshMetadata. Empty on resource tools, which always read
+	// the menu fresh.
+	Freshness string `json:"-"`
 	// Access is "read" or "write". It decides which permission `Permitted`
 	// consults, and it is what a gate checks rather than inferring intent from
 	// a tool's name.
 	Access string `json:"-"`
 }
+
+// Freshness bounds for live tools, spelled once.
+//
+// ── TWO, BECAUSE A RE-READ COSTS DIFFERENT AMOUNTS ───────────────────────────
+//
+// LIVE data (rates, sessions, clients) is worth a re-read after a few seconds:
+// the question is "what is it doing now", and the collector usually already has
+// a reading that young because the page is open. METADATA (packages, users,
+// neighbours) changes when somebody edits the router; re-reading it on every
+// question spends router commands to learn what was already known, so it is
+// refreshed only once the collector's own staleness rule calls it old.
+const (
+	FreshLive     = "live"
+	FreshMetadata = "metadata"
+)
 
 // Access levels, spelled once.
 const (
@@ -180,6 +199,7 @@ func liveTools() []Tool {
 			"seconds old.",
 		Parameters: noArgs(),
 		Collector:  "ifStatus",
+		Freshness:  FreshLive,
 		Page:       "interfaces",
 		Access:     AccessRead,
 	}}

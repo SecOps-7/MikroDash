@@ -344,3 +344,25 @@ func TestTheInterfaceTrafficToolIsOfferedByTheInterfacesPage(t *testing.T) {
 		t.Errorf("%s resolves to %+v", name, tool)
 	}
 }
+
+// TestEveryLiveToolDeclaresItsFreshness. A live tool with no bound would fall
+// through to whatever the reader defaults to, which is a decision nobody made.
+func TestEveryLiveToolDeclaresItsFreshness(t *testing.T) {
+	live := 0
+	for _, tl := range All() {
+		if tl.Collector == "" {
+			if tl.Freshness != "" {
+				t.Errorf("tool %q declares freshness %q but reads no collector", tl.Name, tl.Freshness)
+			}
+			continue
+		}
+		live++
+		if tl.Freshness != FreshLive && tl.Freshness != FreshMetadata {
+			t.Errorf("live tool %q declares freshness %q; want %q or %q",
+				tl.Name, tl.Freshness, FreshLive, FreshMetadata)
+		}
+	}
+	if live == 0 {
+		t.Error("no live tools found; this check measured nothing")
+	}
+}

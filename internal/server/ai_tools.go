@@ -143,7 +143,7 @@ func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
 	return aicontext.Wrap(string(body))
 }
 
-// aiLiveMaxAge is how old a live reading may be before a tool re-reads it.
+// aiLiveMaxAge is how old a FreshLive reading may be before a tool re-reads it.
 //
 // ── SECONDS, NOT THE STALENESS RULE ─────────────────────────────────────────
 //
@@ -163,6 +163,26 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"ifStatus": (*conn).liveInterfaceTraffic,
 }
 
+// liveReadingDue decides whether a live tool must re-read its collector before
+// answering. Pure, so the rule is tested without a router.
+//
+// ── NO READING, OR NO TIME ON IT, IS ALWAYS DUE ─────────────────────────────
+//
+// `aicontext.IsStale` calls a zero timestamp "unknown, not stale", which is the
+// honest thing for a summary to say about a reading. A tool is asked to ANSWER,
+// and a reading it cannot date is not one it should hand over as current.
+func liveReadingDue(freshness string, present bool, now, ts int64, pollMs int) bool {
+	if !present || ts <= 0 {
+		return true
+	}
+	if freshness == aitools.FreshMetadata {
+		return aicontext.IsStale(now, ts, pollMs)
+	}
+	// FreshLive, and anything undeclared: the stricter bound.
+	// TestEveryLiveToolDeclaresItsFreshness keeps "undeclared" from happening.
+	return now-ts > aiLiveMaxAge.Milliseconds()
+}
+
 func (cn *conn) runLiveTool(t aitools.Tool) string {
 	read, ok := liveToolReaders[t.Collector]
 	if !ok {
@@ -179,7 +199,11 @@ func (cn *conn) runLiveTool(t aitools.Tool) string {
 func (cn *conn) liveInterfaceTraffic(t aitools.Tool) string {
 	col := cn.rsession.IfStatus()
 	p := col.Last()
-	if p == nil || time.Since(time.UnixMilli(p.TS)) > aiLiveMaxAge {
+	var ts int64
+	if p != nil {
+		ts = p.TS
+	}
+	if liveReadingDue(t.Freshness, p != nil, time.Now().UnixMilli(), ts, 0) {
 		col.RefreshNow()
 		p = col.Last()
 	}
