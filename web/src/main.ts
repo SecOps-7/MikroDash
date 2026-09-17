@@ -75,7 +75,7 @@ import { initSettingsRoutersTable, renderRoutersInto, updateRouterStatusBadge } 
 import { initRouterModal } from './pages/router-modal';
 import { initAlertFilters } from './pages/settings-alert-filters';
 import { initNotifTestButtons } from './pages/settings-notif-test';
-import { mountSettingsTabs, populateSettings } from './pages/settings';
+import { mountSettingsTabs, populateSettings, initAiPromptControls } from './pages/settings';
 import { initDashboard, resetSysMeta, resetConnCaches, resetTraffic, resetPing, resetRoutingCards, resetBandwidthCard, resetLogsCard } from './pages/dashboard';
 import { initIpTip } from './iptip';
 import { initDashboardGrid } from './pages/dashboard-grid';
@@ -783,6 +783,9 @@ async function main(): Promise<void> {
   });
 
   initPollAndBanner(loadSettings);
+  // The System Prompt box's Reset button and character counter. Bound once, like
+  // the poll controls beside it; populate fills the box on every load.
+  initAiPromptControls();
   // The Save button beside Reset, which was bound to nothing at all until
   // 0.8.15 — so no server-side setting could be saved from any tab. Given the
   // SAME loader as Reset, so the two refresh the page identically.

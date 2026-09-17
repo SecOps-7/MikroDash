@@ -142,6 +142,7 @@ export const CRED_FIELDS: readonly string[] = [
 /** Validated outside the four tables — see internal/store/settings_write.go. */
 export const SPECIAL_CASES: readonly string[] = [
   "aiHeaders",
+  "aiSystemPrompt",
   "authMode",
   "customPollProfile",
   "displayTimezone",

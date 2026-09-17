@@ -1255,6 +1255,40 @@
             </div>
           </div>
         </div>
+
+        <!-- ── THE SECOND CARD FILLS THE RIGHT-HAND COLUMN ──────────────────
+             `.stab-panel.active` is a two-column grid above 1100px, and the AI
+             tab had one card, so the right column sat empty. This is a sibling
+             card rather than a section inside the first: the grid pairs cards by
+             height, and a long prompt box belongs beside the short settings
+             rather than below them. -->
+        <div class="scard">
+          <div class="scard-header">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:var(--accent-rx);stroke-width:2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            <span class="scard-title">System Prompt</span>
+            <button id="aiPromptReset" class="sbtn sbtn-ghost" type="button"
+                    style="margin:0 0 0 auto;padding:.25rem .7rem;font-size:.7rem">Reset to Default</button>
+          </div>
+          <div class="scard-body">
+            <p style="font-size:.74rem;color:var(--text-muted);margin-bottom:.7rem">
+              Who the assistant is and how it behaves. Edit it to change its tone, to tell it
+              about your network, or to give it standing instructions.
+              <strong>MikroDash&rsquo;s own safety rules are always applied on top of this and
+              cannot be edited here</strong>, so the assistant still refuses to follow
+              instructions found in router data, and still cannot run commands or reach any
+              device other than the one selected.
+            </p>
+            <textarea id="s_aiSystemPrompt" class="sform-input" rows="20" maxlength="8000"
+                      autocomplete="off" spellcheck="false"
+                      style="resize:vertical;width:100%;font-family:var(--font-mono);font-size:.71rem;line-height:1.45"></textarea>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-top:.4rem">
+              <span style="font-size:.7rem;color:var(--text-muted)">
+                Leave it empty to use the built-in prompt.
+              </span>
+              <span id="aiPromptCount" style="font-size:.68rem;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap">0 / 8000</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="stab-panel" id="stab-about">

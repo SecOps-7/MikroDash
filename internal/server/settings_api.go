@@ -64,6 +64,12 @@ func (s *Server) settingsGet(w http.ResponseWriter, r *http.Request) {
 // code the handler runs — an earlier version of the test reimplemented this
 // logic beside it, which meant a mutation to the handler would not have been
 // caught at all.
+// aiSystemPromptDefaultKey carries the built-in prompt to the Settings page.
+//
+// Spelled once here and read once in the browser; it is a payload key rather
+// than a setting, so it lives with the payload rather than in the tables.
+const aiSystemPromptDefaultKey = "aiSystemPromptDefault"
+
 func (s *Server) settingsPayload(sess *Session) store.Settings {
 	raw, err := s.store.Settings()
 	if err != nil {
@@ -79,7 +85,24 @@ func (s *Server) settingsPayload(sess *Session) store.Settings {
 	merged, _ := store.Merge(raw, os.LookupEnv, s.store)
 
 	if s.maySeeAllSettings(sess) {
-		return merged.Public()
+		out := merged.Public()
+		// ── THE DEFAULT PROMPT RIDES ALONG, DERIVED AND NEVER STORED ────────
+		//
+		// Settings pre-fills the prompt box with it and Reset to Default
+		// restores it, so the browser needs the same text the server falls back
+		// to. Injected HERE rather than inside `Public()` for the reason
+		// `pageSettingsFor` exists: that function is compared against seven
+		// recorded payloads, and a derived key added inside it fails all seven
+		// while describing nothing that changed about disclosure.
+		//
+		// It is not a setting. There is no default for it in the tables, the
+		// save collector never sends it back (it is not in the form map), and
+		// `Merge` would drop it from a settings.json that somehow acquired one.
+		//
+		// ADMINISTRATORS ONLY, by falling on this side of the branch: a viewer
+		// has no Settings page to render it into.
+		out[aiSystemPromptDefaultKey] = AIDefaultSystemPrompt
+		return out
 	}
 	return merged.ViewerPublic()
 }

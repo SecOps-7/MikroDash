@@ -269,6 +269,10 @@ func TestEverySpecialCaseIsActuallyHandled(t *testing.T) {
 		"customPollProfile": {"", `{"pollConns":2000}`},
 		"displayTimezone":   {"", "Europe/Berlin"},
 		"aiHeaders":         {"X-Example: one"},
+		// BOTH PROBES MATTER. An empty prompt is not a rejected write: the
+		// server reads it as "use the built-in default", so it must reach the
+		// updates rather than being dropped as blank.
+		"aiSystemPrompt": {"", "You are a network administrator."},
 	}
 
 	for _, key := range wtables.SpecialCases {
@@ -335,4 +339,39 @@ func TestTheFormsSaveCannotClearSmtpUserOrOpenTheDoor(t *testing.T) {
 					bad["authMode"])
 			}
 		})
+}
+
+// TestTheSystemPromptIsTrimmedAndCappedAt8000.
+//
+// ── THE LEDGER ABOVE ONLY ASKS WHETHER IT IS HANDLED ────────────────────────
+//
+// `TestEverySpecialCaseIsActuallyHandled` proves the key reaches the updates. It
+// says nothing about the cap, and the cap is the reason this is a special case
+// at all: `strFields` cuts to 256, which is a hostname, and a prompt truncated
+// at 256 would lose almost all of itself SILENTLY — an invalid value here is
+// ignored rather than refused, so the operator would see their prompt revert
+// with nothing on screen to explain it.
+func TestTheSystemPromptIsTrimmedAndCappedAt8000(t *testing.T) {
+	up, _ := SettingsUpdate(map[string]any{"aiSystemPrompt": "  You are MikroDash.  "})
+	if got := up["aiSystemPrompt"]; got != "You are MikroDash." {
+		t.Errorf("not trimmed: %q", got)
+	}
+
+	// ASCII on purpose: `cut`'s unit semantics are pinned by
+	// TestTheLengthLimitCountsUTF16Units, and repeating that here would be a
+	// second opinion about the same rule.
+	long := strings.Repeat("a", 9000)
+	up, _ = SettingsUpdate(map[string]any{"aiSystemPrompt": long})
+	got, _ := up["aiSystemPrompt"].(string)
+	if len(got) != 8000 {
+		t.Errorf("a 9000-character prompt was stored as %d characters; the box caps at 8000",
+			len(got))
+	}
+
+	// AND EMPTY SURVIVES. It is how an operator restores the default, so a save
+	// that dropped it would leave their edited prompt in place for ever.
+	up, _ = SettingsUpdate(map[string]any{"aiSystemPrompt": "   "})
+	if v, present := up["aiSystemPrompt"]; !present || v != "" {
+		t.Errorf("clearing the prompt did not reach the updates (present=%v value=%q)", present, v)
+	}
 }

@@ -154,6 +154,19 @@ func SettingsUpdate(body map[string]any) (updates Settings, reset bool) {
 		updates["aiHeaders"] = cut(strings.TrimSpace(asString(raw)), 1024)
 	}
 
+	// aiSystemPrompt is a special case for the same reason as aiHeaders and a
+	// bigger one: 256 would cut it off mid-sentence.
+	//
+	// ── 8000, AND EMPTY IS MEANINGFUL ───────────────────────────────────────
+	//
+	// An empty value is not a rejected write, it is "use the built-in prompt":
+	// the server falls back to its own default, so clearing the box restores
+	// the shipped behaviour rather than leaving the assistant with no
+	// instructions at all.
+	if raw, ok := body["aiSystemPrompt"]; ok {
+		updates["aiSystemPrompt"] = cut(strings.TrimSpace(asString(raw)), 8000)
+	}
+
 	// customPollProfile is either cleared or a JSON OBJECT. `typeof
 	// JSON.parse(v) === 'object'` — which in JavaScript is also true of an
 	// array and of null, and both are accepted there, so both are accepted

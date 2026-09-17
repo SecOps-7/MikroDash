@@ -66,7 +66,8 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "pageNetwatch",
     "pageIpAddresses",
     "pageWireless",
-    "pingEnabled"
+    "pingEnabled",
+    "aiConfirmWrites"
   ],
   "value": [
     "alertCpuThreshold",
@@ -74,6 +75,7 @@ export const FORM_FIELDS: Record<FieldKind, readonly string[]> = {
     "aiOverviewIntervalSec",
     "aiHeaders",
     "aiModel",
+    "aiSystemPrompt",
     "aiTimeoutMs",
     "alertPingLoss",
     "dbAlertRetentionDays",

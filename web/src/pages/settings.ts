@@ -124,6 +124,29 @@ export function populateSettings(data: SettingsPayload): void {
     if (input) input.checked = !!data[key];
   }
 
+  // ── THE SYSTEM PROMPT BOX SHOWS THE DEFAULT RATHER THAN NOTHING ──────────
+  //
+  // The stored value is empty until somebody edits it, and the server reads
+  // empty as "use the built-in prompt". An empty box would therefore be honest
+  // about the stored value and useless about the behaviour: the operator could
+  // not see what the assistant is being told, let alone adjust it.
+  //
+  // So an unset prompt renders as the default the server would use. Saving then
+  // stores that text verbatim, which is the readable outcome — what you see is
+  // what is sent.
+  //
+  // THE DEFAULT IS CARRIED ON THE ELEMENT, not in a module variable, so Reset
+  // needs no shared state and no import back into this half of the page. It
+  // arrives as a derived key on the settings payload; see settings_api.go.
+  const promptBox = el<HTMLTextAreaElement>('s_aiSystemPrompt');
+  if (promptBox) {
+    const fallback = typeof data.aiSystemPromptDefault === 'string' ? data.aiSystemPromptDefault : '';
+    promptBox.dataset.default = fallback;
+    const stored = typeof data.aiSystemPrompt === 'string' ? data.aiSystemPrompt : '';
+    promptBox.value = stored.trim() === '' ? fallback : stored;
+    updateAiPromptCount();
+  }
+
   // THREE SLIDERS, TWO SUFFIXES. The two thresholds read as a percentage and the
   // cooldown reads as seconds — `' s'`, with the space. Assuming one suffix for
   // all three would put "30%" beside a control measured in seconds.
@@ -1042,4 +1065,38 @@ export function setViewPresetUI(name: string): void {
     e.classList.toggle('active', e.dataset.viewPreset === name);
   });
   try { localStorage.setItem(VIEW_PRESET_KEY, name); } catch { /* site data blocked */ }
+}
+
+/** The live character count beside the prompt box. */
+function updateAiPromptCount(): void {
+  const box = el<HTMLTextAreaElement>('s_aiSystemPrompt');
+  const out = el('aiPromptCount');
+  if (!box || !out) return;
+  // `maxlength` counts UTF-16 units and so does `.length`, so this is the same
+  // number the browser enforces rather than a second opinion about it.
+  out.textContent = box.value.length + ' / 8000';
+}
+
+/**
+ * Reset to Default, and the character counter.
+ *
+ * ── RESET WRITES THE BOX, IT DOES NOT SAVE ───────────────────────────────────
+ *
+ * Pressing it puts the built-in prompt back in the textarea and nothing else, so
+ * it is undoable by pressing Cancel or navigating away, and takes effect only
+ * when the operator saves like any other edit. A reset that wrote straight
+ * through would be a destructive action behind a button labelled like a
+ * convenience.
+ */
+export function initAiPromptControls(): void {
+  const box = el<HTMLTextAreaElement>('s_aiSystemPrompt');
+  if (box) box.addEventListener('input', updateAiPromptCount);
+
+  const reset = el<HTMLButtonElement>('aiPromptReset');
+  reset?.addEventListener('click', () => {
+    const target = el<HTMLTextAreaElement>('s_aiSystemPrompt');
+    if (!target) return;
+    target.value = target.dataset.default || '';
+    updateAiPromptCount();
+  });
 }

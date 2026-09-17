@@ -248,6 +248,7 @@
     "notifBody",
     "notifBodyUp",
     "sessionTimeoutMs",
-    "aiHeaders"
+    "aiHeaders",
+    "aiSystemPrompt"
   ]
 }
