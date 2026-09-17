@@ -52,15 +52,26 @@ func (cn *conn) runAIActionTool(tc aiprovider.ToolCall) string {
 	if cn.rsession == nil {
 		return "No device is selected, so nothing was proposed."
 	}
-	target := strings.TrimSpace(args.Target)
-	if spec.Target != "" && target == "" {
-		return fmt.Sprintf("That action needs the %s name in `target`, so nothing was proposed.",
-			spec.Target)
+	target, mode, refusal := actionArgs(spec, args.Target, args.Mode)
+	if refusal != "" {
+		return refusal
 	}
-	mode := strings.TrimSpace(args.Mode)
+	return cn.raiseAIAction(spec, target, mode)
+}
+
+// actionArgs checks what the named action needs, and returns the refusal when it
+// is missing or outside the declared set. Pure, so the rules can be exercised
+// without a router.
+func actionArgs(spec aitools.ActionSpec, rawTarget, rawMode string) (target, mode, refusal string) {
+	target = strings.TrimSpace(rawTarget)
+	if spec.Target != "" && target == "" {
+		return "", "", fmt.Sprintf(
+			"That action needs the %s name in `target`, so nothing was proposed.", spec.Target)
+	}
+	mode = strings.TrimSpace(rawMode)
 	if len(spec.Modes) > 0 {
 		if mode == "" {
-			return fmt.Sprintf("That action needs `mode`: one of %s. Nothing was proposed.",
+			return "", "", fmt.Sprintf("That action needs `mode`: one of %s. Nothing was proposed.",
 				strings.Join(spec.Modes, ", "))
 		}
 		known := false
@@ -71,11 +82,11 @@ func (cn *conn) runAIActionTool(tc aiprovider.ToolCall) string {
 			}
 		}
 		if !known {
-			return fmt.Sprintf("`mode` must be one of %s, so nothing was proposed.",
+			return "", "", fmt.Sprintf("`mode` must be one of %s, so nothing was proposed.",
 				strings.Join(spec.Modes, ", "))
 		}
 	}
-	return cn.raiseAIAction(spec, target, mode)
+	return target, mode, ""
 }
 
 // raiseAIAction stores the intent and puts it in front of the operator. It
