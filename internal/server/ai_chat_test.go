@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"mikrodash/internal/aitools"
 	"mikrodash/internal/collect"
 	"mikrodash/internal/guard"
@@ -628,5 +629,29 @@ func TestRenderQueues(t *testing.T) {
 	}
 	if b, _ := json.Marshal(renderQueues(&collect.QueuesPayload{TS: 1, Denied: true})); !strings.Contains(string(b), "permission on the router") {
 		t.Errorf("a refused read does not say so: %s", b)
+	}
+}
+
+// TestRenderLogsIsNewestFirst. The recent lines are the ones a question is
+// about, so they lead and survive the cap; the oldest are what drop off.
+func TestRenderLogsIsNewestFirst(t *testing.T) {
+	entries := make([]collect.LogEntry, 0, aiToolMaxRows+20)
+	for i := 0; i < aiToolMaxRows+20; i++ {
+		entries = append(entries, collect.LogEntry{Time: fmt.Sprintf("t%03d", i), Message: fmt.Sprintf("line %d", i), Severity: "info"})
+	}
+	b, _ := json.Marshal(renderLogs(&logsReading{entries: entries, ts: 1}))
+	got := string(b)
+	newest := fmt.Sprintf(`"message":"line %d"`, aiToolMaxRows+19)
+	if i := strings.Index(got, `"linesNewestFirst":[`); i < 0 || !strings.HasPrefix(got[i+len(`"linesNewestFirst":[`):], `{"time":"t`+fmt.Sprintf("%03d", aiToolMaxRows+19)) {
+		t.Errorf("the newest line is not first: %.200s", got)
+	}
+	if !strings.Contains(got, newest) {
+		t.Errorf("the newest line was dropped by the cap")
+	}
+	if strings.Contains(got, `"message":"line 0"`) {
+		t.Errorf("the oldest line survived the cap while newer ones should have filled it")
+	}
+	if !strings.Contains(got, `"olderLinesOmitted":true`) || !strings.Contains(got, fmt.Sprintf(`"linesHeld":%d`, aiToolMaxRows+20)) {
+		t.Errorf("truncation is not reported: %.300s", got[len(got)-120:])
 	}
 }

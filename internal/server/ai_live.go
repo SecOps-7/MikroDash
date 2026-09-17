@@ -51,6 +51,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"packages": (*conn).livePackages,
 	"rosusers": (*conn).liveRouterUsers,
 	"queues":   (*conn).liveQueues,
+	"logs":     (*conn).liveLogs,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -575,4 +576,57 @@ func renderQueues(p *collect.QueuesPayload) any {
 		Tree      []liveTreeQueue   `json:"queueTree"`
 		Truncated bool              `json:"truncated"`
 	}{note, p.Fasttrack, p.Stats, keptS, keptT, tS || tT}
+}
+
+// ── list_logs ───────────────────────────────────────────────────────────────
+
+// logsReading is the ring plus how current it is. The logs collector has no
+// payload with a timestamp: it is a stream into a ring, and "fresh" means "the
+// channel is open", which `ReadingTS` reports.
+type logsReading struct {
+	entries []collect.LogEntry
+	ts      int64
+}
+
+func (cn *conn) liveLogs(t aitools.Tool) string {
+	col := cn.rsession.Logs()
+	return liveAnswer(t, liveSource[logsReading]{
+		last: func() *logsReading {
+			h := col.Last()
+			if h == nil {
+				return nil
+			}
+			return &logsReading{entries: h, ts: col.ReadingTS()}
+		},
+		stamp:   func(r *logsReading) (int64, int) { return r.ts, 0 },
+		refresh: col.Reload,
+		menu:    "/log",
+		absent:  "No log lines are available from this router.",
+	}, renderLogs)
+}
+
+type liveLogLine struct {
+	Time     string `json:"time"`
+	Severity string `json:"severity,omitempty"`
+	Topics   string `json:"topics,omitempty"`
+	Message  string `json:"message"`
+}
+
+// renderLogs puts the NEWEST line first, then caps.
+//
+// The ring is oldest first, as the router prints it. Capping that order would
+// keep the oldest lines and drop the recent ones, which are the ones a question
+// about "what just happened" is asking for.
+func renderLogs(r *logsReading) any {
+	lines := make([]liveLogLine, 0, len(r.entries))
+	for i := len(r.entries) - 1; i >= 0; i-- {
+		e := r.entries[i]
+		lines = append(lines, liveLogLine{Time: e.Time, Severity: e.Severity, Topics: e.Topics, Message: e.Message})
+	}
+	kept, truncated := capRows(lines)
+	return struct {
+		Lines     []liveLogLine `json:"linesNewestFirst"`
+		Total     int           `json:"linesHeld"`
+		Truncated bool          `json:"olderLinesOmitted"`
+	}{kept, len(r.entries), truncated}
 }

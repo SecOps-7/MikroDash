@@ -4,6 +4,7 @@ import (
 	"mikrodash/internal/hub"
 	"sync"
 	"testing"
+	"time"
 
 	"mikrodash/internal/routeros"
 )
@@ -262,5 +263,38 @@ func TestLogsResumeReloadsWithoutDuplicating(t *testing.T) {
 	if prints, _, _ := d.counts(); prints != 2 {
 		t.Errorf("%d /log/print read(s) across Start and Resume, want 2 — a resume "+
 			"after a real suspend MUST reload, or the ring keeps its gap", prints)
+	}
+}
+
+// TestLogsReloadForAReaderOffThePage. The assistant's log tool reads the ring
+// while nobody is on the Logs page. A suspended ring is reloaded without
+// duplicating and without opening a channel; a listening one is left alone and
+// reports itself current.
+func TestLogsReloadForAReaderOffThePage(t *testing.T) {
+	d := &logDoer{rows: logRows("one", "two", "three")}
+	l := NewLogs(d, hub.Relay{})
+	if l.ReadingTS() != 0 {
+		t.Errorf("a never-loaded ring reports reading time %d, want 0", l.ReadingTS())
+	}
+	l.Start()
+	if age := time.Now().UnixMilli() - l.ReadingTS(); age > 1000 {
+		t.Errorf("a listening ring reports a reading %dms old, want current", age)
+	}
+	l.Reload()
+	if prints, _, _ := d.counts(); prints != 1 {
+		t.Errorf("Reload while listening issued a /log/print (%d total); the ring was already complete", prints)
+	}
+
+	l.Suspend()
+	suspendedAt := l.ReadingTS()
+	l.Reload()
+	if got := len(l.Last()); got != 3 {
+		t.Errorf("after a reload the ring holds %d line(s), want 3 (appended, not replaced?)", got)
+	}
+	if prints, opens, _ := d.counts(); prints != 2 || opens != 1 {
+		t.Errorf("reload while suspended: %d prints, %d channel opens; want 2 prints and no new channel", prints, opens)
+	}
+	if l.ReadingTS() < suspendedAt {
+		t.Errorf("a reload did not advance the reading time")
 	}
 }

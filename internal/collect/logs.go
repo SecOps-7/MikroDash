@@ -99,6 +99,10 @@ type Logs struct {
 	mu      sync.Mutex
 	history []LogEntry
 	stop    func()
+	// loadedAt is when the backlog was last read whole (ms). While the channel is
+	// open the ring is complete up to now; once it is closed, this is the last
+	// moment the ring is known to have had no gap. See ReadingTS.
+	loadedAt int64
 }
 
 // The two rooms this collector serves. The page and the dashboard card show the
@@ -194,6 +198,7 @@ func (l *Logs) LoadInitial() {
 		}
 		l.push(entryOf(row, now))
 	}
+	l.loadedAt = now
 	out := l.snapshot()
 	l.mu.Unlock()
 	EvLogsHistory.Emit(l.emit, logRooms, out)
@@ -304,6 +309,40 @@ func (l *Logs) Resume() {
 	l.history = nil
 	l.mu.Unlock()
 	l.Start()
+}
+
+// ReadingTS is how current the ring is, in ms: now while the channel is open,
+// because every line reaches it as the router writes it; otherwise the time of
+// the last full backlog read, after which the ring has a gap. Zero means the
+// ring has never been loaded.
+//
+// For a reader outside the page (the assistant's `list_logs`), which has to know
+// whether the lines it would hand over are the router's recent log or an old
+// snapshot with a hole in it.
+func (l *Logs) ReadingTS() int64 {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.stop != nil {
+		return time.Now().UnixMilli()
+	}
+	return l.loadedAt
+}
+
+// Reload replaces the ring with the router's current backlog WITHOUT opening the
+// channel, for a reader that needs recent lines while nobody is on the Logs page.
+//
+// A NO-OP WHILE LISTENING: the ring is already complete, and reading the backlog
+// on top of it would duplicate every line, since `push` does not deduplicate.
+// Cleared first for the same reason `Resume` clears.
+func (l *Logs) Reload() {
+	l.mu.Lock()
+	if l.stop != nil {
+		l.mu.Unlock()
+		return
+	}
+	l.history = nil
+	l.mu.Unlock()
+	l.LoadInitial()
 }
 
 // snapshot copies the ring under the caller's lock.

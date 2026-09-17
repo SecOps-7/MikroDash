@@ -129,6 +129,13 @@
       "page": "ip-addresses"
     },
     {
+      "name": "list_logs",
+      "access": "read",
+      "resource": "",
+      "collector": "logs",
+      "page": "logs"
+    },
+    {
       "name": "list_netwatch",
       "access": "read",
       "resource": "netwatch",
