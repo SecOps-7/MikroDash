@@ -71,6 +71,17 @@ func (cn *conn) pkgErr(code string, extra map[string]any) {
 // to target and nothing to show afterwards. The writes go through the session
 // rather than the collector precisely because the collector may be idle — but
 // without its payload the actions have no subject.
+// pkgCollector is pkgReady WITHOUT the error frame: the extracted run*
+// functions report "unavailable" in their outcome, and the socket adapter sends
+// it once. Sending it here as well put two frames on the wire for one click, and
+// an assistant-run action would have sent a page error nobody asked for.
+func (cn *conn) pkgCollector() *collect.Packages {
+	if cn.routerID == "" || cn.rsession == nil {
+		return nil
+	}
+	return cn.rsession.Packages()
+}
+
 func (cn *conn) pkgReady() *collect.Packages {
 	if cn.routerID == "" || cn.rsession == nil {
 		cn.pkgErr("unavailable", nil)
@@ -122,27 +133,24 @@ func (cn *conn) packagesCaps() {
 }
 
 // packagesSchedule runs one reversible per-package verb.
-func (cn *conn) packagesSchedule(raw json.RawMessage) {
-	coll := cn.pkgReady()
+// runPackageSchedule schedules or cancels one package change and REPORTS what
+// happened. Split out for `run_action`; `via` is the audit provenance.
+func (cn *conn) runPackageSchedule(action, name, via string) writeOutcome {
+	coll := cn.pkgCollector()
 	if coll == nil {
-		return
+		return writeOutcome{Code: "unavailable"}
 	}
-	var req pkgScheduleReq
-	_ = json.Unmarshal(raw, &req)
-
 	if !cn.canPage("packages", "write") {
 		cn.recorder().Denied(audit.Event{
 			Action: "package.schedule", TargetType: "package",
-			RouterID: cn.routerID, TargetName: req.Name,
+			RouterID: cn.routerID, TargetName: name,
 		})
-		cn.pkgErr("denied", nil)
-		return
+		return writeOutcome{Code: "denied"}
 	}
 
-	cmd := pkgScheduleCmd[req.Action]
-	if cmd == "" || req.Name == "" {
-		cn.pkgErr("bad-request", nil)
-		return
+	cmd := pkgScheduleCmd[action]
+	if cmd == "" || name == "" {
+		return writeOutcome{Code: "bad-request"}
 	}
 
 	// RESOLVED AGAINST WHAT THE COLLECTOR LAST READ, never against an id the
@@ -151,15 +159,14 @@ func (cn *conn) packagesSchedule(raw json.RawMessage) {
 	var target *collect.Package
 	if last := coll.Last(); last != nil {
 		for i := range last.Packages {
-			if last.Packages[i].Name == req.Name {
+			if last.Packages[i].Name == name {
 				target = &last.Packages[i]
 				break
 			}
 		}
 	}
 	if target == nil || target.ID == "" {
-		cn.pkgErr("no-such-package", map[string]any{"name": req.Name})
-		return
+		return writeOutcome{Code: "no-such-package", Name: name}
 	}
 
 	// Queued, unlike the Node original — whose own comment says its three
@@ -172,17 +179,22 @@ func (cn *conn) packagesSchedule(raw json.RawMessage) {
 		return e
 	})
 	if err != nil {
-		cn.pkgErr(rosWriteFail(err), map[string]any{"name": req.Name, "message": safe.Message(err.Error())})
-		return
+		return writeOutcome{Code: rosWriteFail(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
 	}
 
 	note := "scheduled; inert until apply-changes reboots the router"
-	if req.Action == "unschedule" {
+	if action == "unschedule" {
 		note = "scheduled change cancelled"
 	}
+	extra := []audit.KV(nil)
+	if via != "" {
+		extra = append(extra, audit.KV{Key: "via", Value: via})
+	}
 	cn.recorder().Record(audit.Event{
-		Action: "package." + req.Action, TargetType: "package",
-		TargetID: target.ID, TargetName: target.Name, RouterID: cn.routerID, Note: note,
+		Action: "package." + action, TargetType: "package",
+		TargetID: target.ID, TargetName: target.Name, RouterID: cn.routerID,
+		Note: note, Extra: extra,
 	})
 	// Re-read rather than assume: the pending banner must show what the router
 	// did, not what the browser hoped it did.
@@ -194,7 +206,25 @@ func (cn *conn) packagesSchedule(raw json.RawMessage) {
 	if cn.rsession.CollectorEnabled("packages") {
 		coll.RefreshNow()
 	}
-	EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{"action": req.Action, "name": req.Name})
+	return writeOutcome{Action: action, Name: name}
+}
+
+func (cn *conn) packagesSchedule(raw json.RawMessage) {
+	var req pkgScheduleReq
+	_ = json.Unmarshal(raw, &req)
+	out := cn.runPackageSchedule(req.Action, req.Name, "")
+	if out.Code != "" {
+		detail := map[string]any{}
+		for k, v := range out.Detail {
+			detail[k] = v
+		}
+		if out.Name != "" {
+			detail["name"] = out.Name
+		}
+		cn.pkgErr(out.Code, detail)
+		return
+	}
+	EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{"action": out.Action, "name": out.Name})
 }
 
 // packagesCheck asks the router to contact MikroTik's update servers.
@@ -335,27 +365,27 @@ func orQuestion(s string) string {
 	return s
 }
 
-func (cn *conn) packagesApply(raw json.RawMessage) {
-	coll := cn.pkgReady()
+// runPackageApply applies scheduled package changes, which REBOOTS the router,
+// and reports what happened. Split out for `run_action`.
+//
+// `confirm` is the router's name typed back — the second gate, and the only one
+// of its kind here.
+func (cn *conn) runPackageApply(confirm, via string) writeOutcome {
+	coll := cn.pkgCollector()
 	if coll == nil {
-		return
+		return writeOutcome{Code: "unavailable"}
 	}
 	if !cn.canPage("packages", "write") {
 		cn.recorder().Denied(audit.Event{Action: "package.apply", RouterID: cn.routerID})
-		cn.pkgErr("denied", nil)
-		return
+		return writeOutcome{Code: "denied"}
 	}
 
-	var req pkgApplyReq
-	_ = json.Unmarshal(raw, &req)
-
-	// The second gate, and the only one of its kind here. Case-insensitive and
-	// trimmed, matching the live app: the point is to prove the operator knows
-	// which router this is, not to test their typing.
+	// Case-insensitive and trimmed, matching the live app: the point is to prove
+	// the operator knows which router this is, not to test their typing.
 	name := cn.rsession.Label
-	if name == "" || !strings.EqualFold(strings.TrimSpace(req.Confirm), name) {
-		cn.pkgErr("confirm-mismatch", map[string]any{"routerName": name})
-		return
+	if name == "" || !strings.EqualFold(strings.TrimSpace(confirm), name) {
+		return writeOutcome{Code: "confirm-mismatch", Name: name,
+			Detail: map[string]any{"routerName": name}}
 	}
 
 	var pending []collect.Package
@@ -367,8 +397,7 @@ func (cn *conn) packagesApply(raw json.RawMessage) {
 		}
 	}
 	if len(pending) == 0 {
-		cn.pkgErr("nothing-scheduled", nil)
-		return
+		return writeOutcome{Code: "nothing-scheduled", Name: name}
 	}
 
 	names := make([]string, 0, len(pending))
@@ -386,10 +415,14 @@ func (cn *conn) packagesApply(raw json.RawMessage) {
 	// reboots as it answers, so the connection is expected to drop while the
 	// command is in flight; writing the row afterwards would lose the record of
 	// the most consequential action this app can take.
+	extra := []audit.KV{{Key: "scheduled", Value: names}}
+	if via != "" {
+		extra = append(extra, audit.KV{Key: "via", Value: via})
+	}
 	cn.recorder().Record(audit.Event{
 		Action: "package.apply", TargetType: "router",
 		TargetID: cn.routerID, TargetName: name, RouterID: cn.routerID,
-		Extra: []audit.KV{{Key: "scheduled", Value: names}},
+		Extra: extra,
 		Note:  "applied scheduled package changes and rebooted the router",
 	})
 
@@ -403,13 +436,27 @@ func (cn *conn) packagesApply(raw json.RawMessage) {
 		// actually articulated — a permission policy, an absent command — is
 		// worth reporting; anything else is the reboot happening.
 		if code := rosWriteFail(err); code != "failed" {
-			cn.pkgErr(code, map[string]any{"message": safe.Message(err.Error())})
-			return
+			return writeOutcome{Code: code, Name: name,
+				Detail: map[string]any{"message": safe.Message(err.Error())}}
 		}
-		EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{"action": "apply", "routerName": name, "rebooting": true})
+		return writeOutcome{Action: "apply", Name: name, Detail: map[string]any{"rebooting": true}}
+	}
+	return writeOutcome{Action: "apply", Name: name}
+}
+
+func (cn *conn) packagesApply(raw json.RawMessage) {
+	var req pkgApplyReq
+	_ = json.Unmarshal(raw, &req)
+	out := cn.runPackageApply(req.Confirm, "")
+	if out.Code != "" {
+		cn.pkgErr(out.Code, out.Detail)
 		return
 	}
-	EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{"action": "apply", "routerName": name})
+	body := map[string]any{"action": "apply", "routerName": out.Name}
+	if reboot, _ := out.Detail["rebooting"].(bool); reboot {
+		body["rebooting"] = true
+	}
+	EvPackagesOk.Send(cn.srv.hub, cn.c, body)
 }
 
 // packagesNotes answers the Update dialog's request for a RouterOS changelog.
@@ -484,26 +531,26 @@ func (cn *conn) packagesNotes(raw json.RawMessage) {
 // The button was drawn from a payload that may be minutes old. A board already
 // carrying its upgrade firmware has nothing to gain from a reboot, so the pair
 // is read fresh and the action refused when they match.
-func (cn *conn) packagesFwUpgrade(raw json.RawMessage) {
+// runFirmwareUpgrade upgrades the RouterBOOT firmware and reboots, and reports
+// what happened. Split out for `run_action`; `confirm` is the router's name
+// typed back.
+func (cn *conn) runFirmwareUpgrade(confirm, via string) writeOutcome {
 	if cn.routerID == "" || cn.rsession == nil {
-		cn.pkgErr("unavailable", nil)
-		return
+		return writeOutcome{Code: "unavailable"}
 	}
 	if !cn.canPage("packages", "write") {
 		cn.recorder().Denied(audit.Event{Action: "package.fwupgrade", TargetType: "router",
 			TargetID: cn.routerID, RouterID: cn.routerID})
-		cn.pkgErr("denied", nil)
-		return
+		return writeOutcome{Code: "denied"}
 	}
 
-	var req pkgApplyReq
-	_ = json.Unmarshal(raw, &req)
 	name := cn.rsession.Label
-	if name == "" || !strings.EqualFold(strings.TrimSpace(req.Confirm), name) {
-		cn.pkgErr("confirm-mismatch", map[string]any{"routerName": name})
-		return
+	if name == "" || !strings.EqualFold(strings.TrimSpace(confirm), name) {
+		return writeOutcome{Code: "confirm-mismatch", Name: name,
+			Detail: map[string]any{"routerName": name}}
 	}
 
+	var out writeOutcome
 	err := cn.inWriteQueue(func() error {
 		rows, rerr := cn.rsession.Exec(routeros.Cmd{Path: "/system/routerboard/print"})
 		if rerr != nil {
@@ -516,12 +563,13 @@ func (cn *conn) packagesFwUpgrade(raw json.RawMessage) {
 		// A CHR or an x86 install has no routerboard at all, which is not a
 		// failure and not something to reboot for.
 		if !isTruthy(row["routerboard"]) {
-			cn.pkgErr("no-routerboard", nil)
+			out = writeOutcome{Code: "no-routerboard", Name: name}
 			return nil
 		}
 		current, upgrade := row["current-firmware"], row["upgrade-firmware"]
 		if upgrade == "" || (current != "" && current == upgrade) {
-			cn.pkgErr("firmware-current", map[string]any{"current": current, "upgrade": upgrade})
+			out = writeOutcome{Code: "firmware-current", Name: name,
+				Detail: map[string]any{"current": current, "upgrade": upgrade}}
 			return nil
 		}
 
@@ -532,14 +580,18 @@ func (cn *conn) packagesFwUpgrade(raw json.RawMessage) {
 		// BEFORE THE CALL, as the apply and the RouterOS upgrade both record: the
 		// router reboots while the command is in flight, so a row written
 		// afterwards is lost exactly when it matters.
+		extra := []audit.KV{
+			{Key: "from", Value: current},
+			{Key: "to", Value: upgrade},
+		}
+		if via != "" {
+			extra = append(extra, audit.KV{Key: "via", Value: via})
+		}
 		cn.recorder().Record(audit.Event{
 			Action: "package.fwupgrade", TargetType: "router",
 			TargetID: cn.routerID, TargetName: name, RouterID: cn.routerID,
-			Extra: []audit.KV{
-				{Key: "from", Value: current},
-				{Key: "to", Value: upgrade},
-			},
-			Note: "upgraded the RouterBOOT firmware and rebooted the router",
+			Extra: extra,
+			Note:  "upgraded the RouterBOOT firmware and rebooted the router",
 		})
 
 		if _, werr := cn.rsession.Exec(routeros.Cmd{Path: "/system/routerboard/upgrade"}); werr != nil {
@@ -550,20 +602,36 @@ func (cn *conn) packagesFwUpgrade(raw json.RawMessage) {
 		if _, werr := cn.rsession.Exec(routeros.Cmd{Path: "/system/reboot"}); werr != nil {
 			return werr
 		}
-		EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{
-			"action": "fwupgrade", "routerName": name, "routerId": cn.routerID, "latest": upgrade})
+		out = writeOutcome{Action: "fwupgrade", Name: name, Detail: map[string]any{"latest": upgrade}}
 		return nil
 	})
 	if err != nil {
 		// A LOST CONNECTION HERE IS THE EXPECTED OUTCOME, not a failure: the
 		// router is rebooting because it was told to.
 		if code := rosWriteFail(err); code == "failed" {
-			EvPackagesOk.Send(cn.srv.hub, cn.c, map[string]any{
-				"action": "fwupgrade", "routerName": name, "routerId": cn.routerID, "rebooting": true})
-		} else {
-			cn.pkgErr(code, map[string]any{"message": safe.Message(err.Error())})
+			return writeOutcome{Action: "fwupgrade", Name: name, Detail: map[string]any{"rebooting": true}}
+		}
+		return writeOutcome{Code: rosWriteFail(err), Name: name,
+			Detail: map[string]any{"message": safe.Message(err.Error())}}
+	}
+	return out
+}
+
+func (cn *conn) packagesFwUpgrade(raw json.RawMessage) {
+	var req pkgApplyReq
+	_ = json.Unmarshal(raw, &req)
+	out := cn.runFirmwareUpgrade(req.Confirm, "")
+	if out.Code != "" {
+		cn.pkgErr(out.Code, out.Detail)
+		return
+	}
+	body := map[string]any{"action": "fwupgrade", "routerName": out.Name, "routerId": cn.routerID}
+	for _, k := range []string{"latest", "rebooting"} {
+		if v, ok := out.Detail[k]; ok {
+			body[k] = v
 		}
 	}
+	EvPackagesOk.Send(cn.srv.hub, cn.c, body)
 }
 
 // packagesAutoUpgrade answers `packages:autoupgrade` — turn RouterBOOT's own
