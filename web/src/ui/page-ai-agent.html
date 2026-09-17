@@ -71,6 +71,18 @@
                         word-break:break-all;color:var(--text-main)"></pre>
             <div id="aiProposeValues"
                  style="font-size:.71rem;color:var(--text-muted);margin-top:.45rem"></div>
+            <!-- ── THE TYPED-BACK ROUTER NAME ─────────────────────────────────
+                 Shown only for an action that reboots the router, and the same
+                 gate the Packages page uses: the point is to prove the operator
+                 knows which router this is. The server checks it again against
+                 the router's own label; this box cannot be bypassed by sending
+                 the frame directly, because that check is not here. -->
+            <div id="aiProposeTyped" hidden style="margin-top:.55rem">
+              <label for="aiProposeConfirm" id="aiProposeTypedLabel"
+                     style="display:block;font-size:.72rem;color:var(--text-main);margin-bottom:.3rem"></label>
+              <input id="aiProposeConfirm" class="sform-input" type="text" autocomplete="off"
+                     spellcheck="false" style="font-size:.75rem"/>
+            </div>
             <div style="display:flex;gap:.45rem;justify-content:flex-end;margin-top:.7rem">
               <button id="aiProposeReject" class="sbtn sbtn-outline" type="button"
                       style="padding:.32rem .8rem;font-size:.73rem">Don&rsquo;t change it</button>

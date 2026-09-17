@@ -262,21 +262,47 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
   // afresh — so approving is not replaying a decision, it is making one.
   let proposal = '';
 
+  // The router name an action proposal wants typed back, "" when it wants none.
+  let proposalTyped = '';
+
   function closeProposal(): void {
     proposal = '';
+    proposalTyped = '';
     const box = el('aiProposeBox');
     if (box) box.hidden = true;
+    const typed = el('aiProposeTyped');
+    if (typed) typed.hidden = true;
+    const confirm = el<HTMLInputElement>('aiProposeConfirm');
+    if (confirm) confirm.value = '';
+  }
+
+  /** The approve button is live only once a typed name, if one is wanted, matches. */
+  function syncApprove(): void {
+    const approve = el<HTMLButtonElement>('aiProposeApprove');
+    if (!approve) return;
+    if (!proposalTyped) {
+      approve.disabled = false;
+      return;
+    }
+    const got = (el<HTMLInputElement>('aiProposeConfirm')?.value || '').trim().toLowerCase();
+    approve.disabled = got !== proposalTyped.trim().toLowerCase();
   }
 
   socket.on('ai:propose', (d) => {
     proposal = d.token;
+    const isAction = d.kind === 'action';
     const what = el('aiProposeWhat');
     if (what) {
       // TEXT, NEVER MARKUP. `name` is a row identity the router supplied and
       // `label` comes from the registry, but this whole panel exists because a
       // model chose what goes in it.
+      //
+      // An ACTION is not a row: its label is the verb itself ("Apply package
+      // changes and reboot"), so it reads as one rather than as "Change the …".
       const verb = d.action === 'create' ? 'Create a ' : d.action === 'delete' ? 'Delete the ' : 'Change the ';
-      what.textContent = verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
+      what.textContent = isAction
+        ? d.label + (d.name ? ' \u2014 ' + d.name : '')
+        : verb + d.label + (d.name ? ' \u201c' + d.name + '\u201d' : '');
     }
     const cmd = el('aiProposeCmd');
     if (cmd) cmd.textContent = d.command || '(no command could be built)';
@@ -311,9 +337,30 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
       }
     }
 
-    // A delete says so on the button too: "Apply this change" undersells it.
+    // A delete says so on the button too: "Apply this change" undersells it, and
+    // so does it for an action that reboots a router.
     const approve = el('aiProposeApprove');
-    if (approve) approve.textContent = d.action === 'delete' ? 'Delete it' : 'Apply this change';
+    if (approve) {
+      approve.textContent = d.action === 'delete' ? 'Delete it'
+        : d.typedName ? 'Run it and reboot'
+        : isAction ? 'Run it' : 'Apply this change';
+    }
+
+    // ── THE SECOND GATE, FOR AN ACTION THAT REBOOTS ────────────────────────
+    //
+    // The same one the Packages page uses, and for the same reason: the point is
+    // to prove the operator knows which router this is. The word is sent on the
+    // approval frame and checked SERVER-SIDE against the router's own label, so
+    // this box is a prompt rather than the check.
+    proposalTyped = d.typedName ? (d.routerName || '') : '';
+    const typed = el('aiProposeTyped');
+    if (typed) typed.hidden = !proposalTyped;
+    const label = el('aiProposeTypedLabel');
+    if (label && proposalTyped) {
+      label.textContent = 'This reboots the router. Type its name \u2014 ' + proposalTyped +
+        ' \u2014 to confirm.';
+    }
+    syncApprove();
 
     const box = el('aiProposeBox');
     if (box) box.hidden = false;
@@ -329,10 +376,11 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
   el<HTMLButtonElement>('aiProposeApprove')?.addEventListener('click', () => {
     if (!proposal) return;
     const token = proposal;
+    const confirm = (el<HTMLInputElement>('aiProposeConfirm')?.value || '').trim();
     // CLOSED FIRST. The token is single use server-side, but a second press
     // before the reply lands should not send a second frame at all.
     closeProposal();
-    socket.emit('ai:write:approve', { token });
+    socket.emit('ai:write:approve', confirm ? { token, confirm } : { token });
   });
 
   el<HTMLButtonElement>('aiProposeReject')?.addEventListener('click', () => {
@@ -347,6 +395,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
   // The markup is composed into the document at build time, so these elements
   // exist from the start; the guards are for the tests, which mount the module
   // against a partial DOM.
+  el<HTMLInputElement>('aiProposeConfirm')?.addEventListener('input', syncApprove);
   sendBtn()?.addEventListener('click', send);
   input()?.addEventListener('keydown', (e) => {
     const ev = e as KeyboardEvent;
