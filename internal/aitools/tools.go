@@ -287,6 +287,20 @@ func liveTools() []Tool {
 		Freshness: FreshMetadata,
 		Page:      "wifi-clients",
 		Access:    AccessRead,
+	}, {
+		Name: namePrefix + "connections",
+		Description: "Read only. Summarise the router's tracked connections, read from " +
+			"/ip/firewall/connection: the total and the tcp, udp, icmp and other split; the top " +
+			"local sources by connection count with name, IP and MAC; the top destinations as " +
+			"ip:port/protocol with country, city and owning organisation; the top destination " +
+			"countries with their busiest organisations; and the top destination ports. A " +
+			"summary, not the connection table. Use it for questions about who is using the " +
+			"network, where traffic is going, or unusual destinations.",
+		Parameters: noArgs(),
+		Collector:  "conns",
+		Freshness:  FreshLive,
+		Page:       "connections",
+		Access:     AccessRead,
 	}}
 }
 

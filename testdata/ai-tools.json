@@ -44,6 +44,13 @@
       "page": "capsman"
     },
     {
+      "name": "list_connections",
+      "access": "read",
+      "resource": "",
+      "collector": "conns",
+      "page": "connections"
+    },
+    {
       "name": "list_dhcpLease",
       "access": "read",
       "resource": "dhcpLease",

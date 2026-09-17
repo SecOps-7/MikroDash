@@ -709,3 +709,51 @@ func TestWifiJoinOutOfDate(t *testing.T) {
 		t.Error("an already joined list triggered a re-derive (control)")
 	}
 }
+
+type fakeARPByIP map[string]string
+
+func (f fakeARPByIP) MACForIP(ip string) (string, string) { return f[ip], "" }
+
+// TestConnsJoinOutOfDate. Each trigger with its control, as for wifi clients:
+// a newer lease or network table, and ARP able to fill a source's MAC.
+func TestConnsJoinOutOfDate(t *testing.T) {
+	p := &collect.ConnsPayload{TS: 1000, TopSources: []collect.ConnSource{{IP: "192.0.2.10"}}}
+	if !connsJoinOutOfDate(p, nil, fakeARPByIP{}, 2000) {
+		t.Error("a network table newer than the summary did not trigger a re-derive")
+	}
+	if !connsJoinOutOfDate(p, fakeLeases{&collect.LeasesPayload{TS: 2000}}, fakeARPByIP{}, 0) {
+		t.Error("a lease table newer than the summary did not trigger a re-derive")
+	}
+	if !connsJoinOutOfDate(p, nil, fakeARPByIP{"192.0.2.10": "02:00:00:00:00:01"}, 0) {
+		t.Error("ARP able to fill a source's MAC did not trigger a re-derive")
+	}
+	joined := &collect.ConnsPayload{TS: 1000, TopSources: []collect.ConnSource{{IP: "192.0.2.10", MAC: "02:00:00:00:00:01"}}}
+	if connsJoinOutOfDate(joined, fakeLeases{&collect.LeasesPayload{TS: 500}}, fakeARPByIP{"192.0.2.10": "02:00:00:00:00:01"}, 500) {
+		t.Error("an already joined, newer summary triggered a re-derive (control)")
+	}
+}
+
+// TestRenderConnectionsIsASummary. The top lists reach the model with names and
+// organisations; the drill-down indexes do not; a capped aggregation says so.
+func TestRenderConnectionsIsASummary(t *testing.T) {
+	org, cat := "Example Org", "cdn"
+	p := &collect.ConnsPayload{TS: 1, PollMs: 3000, Total: 900, Processed: 500, ProcessingCapped: true,
+		ProtoCounts:     collect.ConnProtoCounts{TCP: 600, UDP: 290, ICMP: 10},
+		TopSources:      []collect.ConnSource{{IP: "192.0.2.10", Name: "laptop", MAC: "02:00:00:00:00:01", Count: 120}},
+		TopDestinations: []collect.ConnDestination{{Key: "198.51.100.5:443/tcp", Count: 80, Country: "DE", Org: &org, Cat: &cat}},
+		TopCountries:    []collect.ConnCountry{{CC: "DE", Count: 200, Orgs: []collect.ConnOrgCount{{Org: "Example Org", Count: 80}}}},
+		TopPorts:        []collect.ConnPort{{Port: "443", Count: 500}},
+		CountryDests:    map[string][]collect.ConnDestEntry{"DE": {{Key: "DRILLDOWN-ONLY"}}},
+	}
+	b, _ := json.Marshal(renderConnections(p))
+	got := string(b)
+	for _, want := range []string{`"totalConnections":900`, `"name":"laptop"`, `"destination":"198.51.100.5:443/tcp"`,
+		`"organisation":"Example Org"`, `"topOrganisations":["Example Org (80)"]`, `"port":"443"`, "a sample"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "DRILLDOWN-ONLY") {
+		t.Errorf("a drill-down index reached the model's view: %s", got)
+	}
+}

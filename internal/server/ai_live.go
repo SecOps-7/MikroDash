@@ -20,6 +20,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"sort"
 	"time"
@@ -54,6 +55,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"queues":   (*conn).liveQueues,
 	"logs":     (*conn).liveLogs,
 	"wireless": (*conn).liveWifiClients,
+	"conns":    (*conn).liveConnections,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -753,4 +755,142 @@ func renderWifiClients(p *collect.WirelessPayload) any {
 		Total     int                    `json:"totalClients"`
 		Truncated bool                   `json:"truncated"`
 	}{note, p.Mode, ssids, kept, len(p.Clients), truncated}
+}
+
+// ── list_connections ────────────────────────────────────────────────────────
+
+// liveConnections joins like list_wifi_clients, with one more table.
+//
+// A source's name and MAC come from the DHCP leases and ARP, and whether an
+// address is LOCAL at all comes from the DHCP networks' LAN ranges. With those
+// unloaded every source would read as remote and nameless. Learned the hard way
+// on list_wifi_clients, and applied here from the start: load a join that has
+// never loaded, and re-derive the summary when a join is newer than it or ARP can
+// now name a source it lists without a MAC.
+func (cn *conn) liveConnections(t aitools.Tool) string {
+	col := cn.rsession.Conns()
+	leases, arp, nets := cn.rsession.DHCPLeases(), cn.rsession.ARP(), cn.rsession.DHCPNetworks()
+	rederive := false
+	if leases != nil && leases.Last() == nil {
+		leases.RefreshNow()
+		rederive = true
+	}
+	if arp != nil && arp.Last() == nil {
+		arp.RefreshNow()
+		rederive = true
+	}
+	if nets != nil && nets.Last() == nil {
+		nets.RefreshNow()
+		rederive = true
+	}
+	if p := col.Last(); p != nil && !rederive {
+		var netTS int64
+		if nets != nil {
+			if n := nets.Last(); n != nil {
+				netTS = n.TS
+			}
+		}
+		rederive = connsJoinOutOfDate(p, leases, arp, netTS)
+	}
+	if rederive {
+		col.Tick()
+	}
+	return liveAnswer(t, liveSource[collect.ConnsPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.ConnsPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.Tick, // Tick reads the router directly, not through the cache
+		menu:    "/ip/firewall/connection",
+		absent:  "The connection readings are not available from this router yet.",
+	}, renderConnections)
+}
+
+// connsJoinOutOfDate reports whether a connection summary was built before the
+// tables it joins against could fill it.
+func connsJoinOutOfDate(p *collect.ConnsPayload, leases interface {
+	Last() *collect.LeasesPayload
+}, arp interface{ MACForIP(string) (string, string) }, networksTS int64) bool {
+	if networksTS > p.TS {
+		return true
+	}
+	if leases != nil {
+		if l := leases.Last(); l != nil && l.TS > p.TS {
+			return true
+		}
+	}
+	if arp != nil {
+		for _, s := range p.TopSources {
+			if s.MAC == "" {
+				if mac, _ := arp.MACForIP(s.IP); mac != "" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+type liveConnDest struct {
+	Destination string `json:"destination"`
+	Count       int    `json:"connections"`
+	Country     string `json:"country,omitempty"`
+	City        string `json:"city,omitempty"`
+	Org         string `json:"organisation,omitempty"`
+	Category    string `json:"category,omitempty"`
+}
+
+type liveConnCountry struct {
+	Country string   `json:"country"`
+	City    string   `json:"city,omitempty"`
+	Count   int      `json:"connections"`
+	TopOrgs []string `json:"topOrganisations"`
+}
+
+func strOf(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+// renderConnections is the SUMMARY only. The four per-country and per-source
+// indexes the page builds for drill-down are left out: they are large, they are
+// built only while the page is open, and a question the summary cannot answer is
+// one for the Connections page rather than for a context window.
+func renderConnections(p *collect.ConnsPayload) any {
+	dests := make([]liveConnDest, 0, len(p.TopDestinations))
+	for _, d := range p.TopDestinations {
+		dests = append(dests, liveConnDest{Destination: d.Key, Count: d.Count, Country: d.Country,
+			City: d.City, Org: strOf(d.Org), Category: strOf(d.Cat)})
+	}
+	countries := make([]liveConnCountry, 0, len(p.TopCountries))
+	for _, c := range p.TopCountries {
+		orgs := []string{}
+		for i, o := range c.Orgs {
+			if i == 3 {
+				break
+			}
+			orgs = append(orgs, fmt.Sprintf("%s (%d)", o.Org, o.Count))
+		}
+		countries = append(countries, liveConnCountry{Country: c.CC, City: c.City, Count: c.Count, TopOrgs: orgs})
+	}
+	sources, tS := capRows(p.TopSources)
+	destKept, tD := capRows(dests)
+	note := ""
+	if p.ProcessingCapped {
+		note = fmt.Sprintf("Only %d of %d connections were aggregated, so the top lists are a sample.", p.Processed, p.Total)
+	}
+	ports := p.TopPorts
+	if ports == nil {
+		ports = []collect.ConnPort{}
+	}
+	return struct {
+		Note         string                  `json:"note,omitempty"`
+		Total        int                     `json:"totalConnections"`
+		Protocols    collect.ConnProtoCounts `json:"protocols"`
+		Sources      []collect.ConnSource    `json:"topSources"`
+		Destinations []liveConnDest          `json:"topDestinations"`
+		Countries    []liveConnCountry       `json:"topCountries"`
+		Ports        []collect.ConnPort      `json:"topPorts"`
+		Truncated    bool                    `json:"truncated"`
+	}{note, p.Total, p.ProtoCounts, sources, destKept, countries, ports, tS || tD}
 }
