@@ -282,7 +282,13 @@ func (p bkPruner) ForgetRow(id int64) (bool, error) {
 	return p.db.DeleteBackup(id)
 }
 
-// backupsRun answers `backups:run` — the manual "Back Up Now".
+// runBackupNow takes a backup and REPORTS what happened, rather than sending it.
+//
+// Split out for `run_action` (slice 3 of the MikroMCP parity work): an action the
+// assistant runs must be the same code the page runs, or the claim, the audit row
+// and the retention sweep have two homes. `backupsRun` below is the socket
+// adapter; `via` is the audit provenance, "" for a human and "agent" for the
+// assistant.
 //
 // ── IT REUSES THE SESSION'S CONNECTION, AND THAT IS PROTOCOL REALITY 3 ──────
 //
@@ -298,17 +304,15 @@ func (p bkPruner) ForgetRow(id int64) (bool, error) {
 // Through `InWriteQueue`, the same chain a firewall edit goes through. A backup
 // occupies flash and an API channel for as long as it takes, on hardware whose
 // documented limit is concurrent channels.
-func (cn *conn) backupsRun() {
+func (cn *conn) runBackupNow(via string) writeOutcome {
 	if cn.routerID == "" || cn.rsession == nil || !cn.bkMayWrite() {
 		cn.recorder().Denied(audit.Event{
 			Action: "backup.run", TargetType: "router", RouterID: cn.routerID,
 		})
-		cn.bkErr("denied", nil)
-		return
+		return writeOutcome{Code: "denied"}
 	}
 	if cn.srv.auditDB == nil {
-		cn.bkErr("unavailable", nil)
-		return
+		return writeOutcome{Code: "unavailable"}
 	}
 
 	rec := cn.backupRecordFor(cn.routerID)
@@ -316,13 +320,21 @@ func (cn *conn) backupsRun() {
 		// Enabling generates the password; without one there is nothing to
 		// encrypt the binary with, and an UNENCRYPTED backup is not an option —
 		// it holds every key on the device in the clear.
-		cn.bkErr("not-configured", nil)
-		return
+		return writeOutcome{Code: "not-configured"}
 	}
 
-	// EMITTED BEFORE THE CLAIM, as the original emits it before calling runFor.
-	// So a click that turns out to be a duplicate still gets its `running` echo
-	// and the button state follows the same path either way.
+	label := cn.rsession.Label
+	extraVia := func(kv []audit.KV) []audit.KV {
+		if via != "" {
+			kv = append(kv, audit.KV{Key: "via", Value: via})
+		}
+		return kv
+	}
+
+	// EMITTED BEFORE THE CLAIM, as the original emits it before calling runFor,
+	// and after the refusals above so a denied click does not flash the button.
+	// The assistant's run emits it too: the page shows the same state whoever
+	// asked for the backup.
 	EvBackupsRunning.Send(cn.srv.hub, cn.c, map[string]any{"routerId": cn.routerID})
 
 	// A backup already in flight for this router is SKIPPED, not queued behind
@@ -331,21 +343,21 @@ func (cn *conn) backupsRun() {
 	if !cn.srv.bkClaim(cn.routerID) {
 		cn.recorder().Record(audit.Event{
 			Action: "backup.run", TargetType: "router", Scope: "router",
-			RouterID: cn.routerID, TargetName: cn.rsession.Label, Outcome: "ok",
-			Extra: []audit.KV{
+			RouterID: cn.routerID, TargetName: label, Outcome: "ok",
+			Extra: extraVia([]audit.KV{
 				{Key: "outcome", Value: backups.OutcomeSkipped},
 				{Key: "changed", Value: false},
-			},
+			}),
 		})
-		cn.backupsList()
-		return
+		return writeOutcome{Action: "run", Name: label,
+			Detail: map[string]any{"outcome": backups.OutcomeSkipped, "changed": false}}
 	}
 	// RELEASED BEFORE THE STATE PAYLOAD IS BUILT, not after. `backupsList` reads
-	// the same set to fill `running`, so a release deferred to the end of this
-	// function would send a final payload still claiming a run is in flight and
-	// leave the page's buttons disabled until something else refreshed it. The
-	// original deletes in runFor's `finally`, which is likewise before its
-	// `_bkPayload`. The defer stays as a panic net; Delete is idempotent.
+	// the same set to fill `running`, so a release deferred past it would send a
+	// final payload still claiming a run is in flight and leave the page's
+	// buttons disabled until something else refreshed it. The original deletes in
+	// runFor's `finally`, which is likewise before its `_bkPayload`. The defer
+	// stays as a panic net; Delete is idempotent.
 	defer cn.srv.bkRelease(cn.routerID)
 
 	actor := ""
@@ -366,7 +378,7 @@ func (cn *conn) backupsRun() {
 	err := cn.inWriteQueue(func() error {
 		var runErr error
 		res, _, runErr = backups.RunFor(backups.RunForConfig{
-			RouterID: cn.routerID, Label: cn.rsession.Label, Password: rec.password,
+			RouterID: cn.routerID, Label: label, Password: rec.password,
 			DataDir: cn.srv.store.Dir, Source: "manual", Actor: actor,
 			Recorder: bkRecorder{db: cn.srv.auditDB, routerID: cn.routerID},
 			Pruner:   bkPruner{db: cn.srv.auditDB}, Retention: keep,
@@ -382,7 +394,7 @@ func (cn *conn) backupsRun() {
 			},
 			WritePair: backups.WritePair,
 			Now:       func() int64 { return time.Now().UnixMilli() },
-			Log:       func(m string) { log.Printf("[backup][%s] %s", cn.rsession.Label, m) },
+			Log:       func(m string) { log.Printf("[backup][%s] %s", label, m) },
 		})
 		return runErr
 	})
@@ -391,9 +403,8 @@ func (cn *conn) backupsRun() {
 		// The RECORDING failed, not the backup — see RunFor. Worth saying,
 		// because the next scheduled tick will take this backup again.
 		log.Printf("[backups] run %s: %v", cn.routerID, err)
-		cn.bkErr("failed", map[string]any{"message": "the run could not be recorded"})
-		cn.backupsList()
-		return
+		return writeOutcome{Code: "failed", Name: label,
+			Detail: map[string]any{"message": "the run could not be recorded"}}
 	}
 
 	outcome := "ok"
@@ -402,13 +413,27 @@ func (cn *conn) backupsRun() {
 	}
 	cn.recorder().Record(audit.Event{
 		Action: "backup.run", TargetType: "router", Scope: "router",
-		RouterID: cn.routerID, TargetName: cn.rsession.Label, Outcome: outcome,
-		Extra: []audit.KV{
+		RouterID: cn.routerID, TargetName: label, Outcome: outcome,
+		Extra: extraVia([]audit.KV{
 			{Key: "outcome", Value: res.Outcome},
 			{Key: "changed", Value: res.Changed},
-		},
+		}),
 	})
-	cn.backupsList()
+	return writeOutcome{Action: "run", Name: label,
+		Detail: map[string]any{"outcome": res.Outcome, "changed": res.Changed}}
+}
+
+// backupsRun answers `backups:run` — the manual "Back Up Now".
+func (cn *conn) backupsRun() {
+	out := cn.runBackupNow("")
+	if out.Code != "" {
+		cn.bkErr(out.Code, out.Detail)
+	}
+	// THE LIST IS SENT WHATEVER HAPPENED: the page's buttons are drawn from it,
+	// including `running`, so a refusal that skipped it left them disabled.
+	if out.Code != "denied" && out.Code != "unavailable" && out.Code != "not-configured" {
+		cn.backupsList()
+	}
 }
 
 // bkWriter adapts the session to the one command shape a backup run needs.
