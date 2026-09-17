@@ -225,6 +225,8 @@ export interface HandEvents {
   'res:error': {
     code: string; resource?: string; name?: string; message?: string;
     errors?: ResFieldError[];
+    // A `guard-refused` write: the guard rule that refused it, and the value.
+    rule?: string; value?: string;
   } & GuardWarning;
   'res:history': { resource: string; canUndo: boolean; canRedo: boolean; undoLabel: string; redoLabel: string };
   'res:new': { resource: string; options: Record<string, string[]> };

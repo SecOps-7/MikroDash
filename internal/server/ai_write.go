@@ -418,6 +418,24 @@ func guardGate(out writeOutcome) (string, bool) {
 // A refusal code means nothing to an operator, and a model handed `stale-row`
 // will invent an explanation for it. These say what the page says, so the
 // assistant and the form describe one refusal the same way.
+// guardRefusalText names the rule a refused write broke, in words.
+func guardRefusalText(out writeOutcome) string {
+	rule, _ := out.Detail["rule"].(string)
+	switch rule {
+	case "protected-account":
+		return "that is the RouterOS account MikroDash signs in with."
+	case "protected-group":
+		return "that is the RouterOS group MikroDash signs in with."
+	case "protected-name-value":
+		return "that name belongs to the account MikroDash signs in with."
+	case "protected-group-value":
+		return "users cannot be placed in, or edited while in, the group MikroDash signs in with."
+	case "self-unresolved":
+		return "MikroDash cannot identify its own account on this router, so user changes are refused."
+	}
+	return "a safety rule refused it."
+}
+
 func aiRefusalText(res *resource.Resource, out writeOutcome) string {
 	switch out.Code {
 	case "denied":
@@ -441,6 +459,9 @@ func aiRefusalText(res *resource.Resource, out writeOutcome) string {
 			"with lacks permission."
 	case "write-failed":
 		return "Not applied: the router refused the change."
+	case "guard-refused":
+		return "Not applied, and it cannot be approved: " + guardRefusalText(out) + " Tell the " +
+			"operator to make this change in WinBox if it is really wanted."
 	case "guard-not-ported":
 		return "Not applied: that change needs a safety check MikroDash cannot run yet, so it " +
 			"was refused rather than attempted."

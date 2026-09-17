@@ -247,6 +247,10 @@ func (cn *conn) histRun(dir string, raw json.RawMessage) {
 			map[string]any{"message": safe.Message(gerr.Error())})
 		return
 	}
+	if r := cn.guardRefusal(res, opMeans[op.Op], op.ID, entry.Identity, verdict); r != nil {
+		cn.resErr(res.Key, r.Code, entry.Label, r.Detail)
+		return
+	}
 	if gate := ackGate(verdict, req.Ack); gate != nil {
 		gate["resource"] = res.Key
 		gate["name"] = entry.Label

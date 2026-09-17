@@ -347,6 +347,22 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
   }
 }
 
+/**
+ * The sentence for a write a guard REFUSED. Unlike a warning there is nothing to
+ * acknowledge: these are the lockout rules for the account MikroDash signs in
+ * with, where a mistake is only recoverable from WinBox.
+ */
+export function guardRefusedText(rule: unknown): string {
+  switch (rule) {
+    case 'protected-account': return 'That is the account MikroDash signs in with. Manage it in WinBox.';
+    case 'protected-group': return 'That is the group MikroDash signs in with. Manage it in WinBox.';
+    case 'protected-name-value': return 'That name belongs to the account MikroDash signs in with.';
+    case 'protected-group-value': return 'Users cannot be placed in, or edited while in, the group MikroDash signs in with.';
+    case 'self-unresolved': return 'MikroDash cannot identify its own account on this router, so changes are refused.';
+    default: return 'A safety rule refused this change.';
+  }
+}
+
 /** The guard code a prompt was first raised with; a stale-warning keeps it. */
 let warnCode = '';
 
@@ -1026,6 +1042,7 @@ function wire(socket: Socket): void {
       'write-failed': 'The router refused the change.',
       'bad-request': 'That request was incomplete.',
       'guard-not-ported': 'This change needs a safety check that is not available yet, so it was refused.',
+      'guard-refused': guardRefusedText(d && d.rule),
       'rate-limited': 'Too many changes to this router in the last minute. Wait a moment and try again.',
       'outcome-unknown': 'The router accepted the change, but it could not be confirmed. The table has been refreshed; check it before trying again.',
     };

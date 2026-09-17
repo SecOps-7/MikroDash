@@ -376,6 +376,9 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 		return nil, writeOutcome{Code: "guard-not-ported", Name: name,
 			Detail: map[string]any{"message": safe.Message(gerr.Error())}}
 	}
+	if r := cn.guardRefusal(res, action, req.ID, name, verdict); r != nil {
+		return nil, *r
+	}
 
 	return &preparedWrite{
 		res: res, req: req, validated: validated, before: before, seenIDs: seenIDs,
@@ -626,6 +629,9 @@ func (cn *conn) prepareRemove(res *resource.Resource, req *resRequest) (*prepare
 		return nil, writeOutcome{Code: "guard-not-ported", Name: name,
 			Detail: map[string]any{"message": safe.Message(gerr.Error())}}
 	}
+	if r := cn.guardRefusal(res, "delete", req.ID, name, verdict); r != nil {
+		return nil, *r
+	}
 	return &preparedRemove{res: res, req: req, row: row, name: name, verdict: verdict}, writeOutcome{}
 }
 
@@ -836,6 +842,10 @@ func (cn *conn) resAction(raw json.RawMessage) {
 			})
 			cn.resErr(res.Key, "guard-not-ported", name,
 				map[string]any{"message": safe.Message(gerr.Error())})
+			return nil
+		}
+		if r := cn.guardRefusal(res, def.Key, req.ID, name, verdict); r != nil {
+			cn.resErr(res.Key, r.Code, name, r.Detail)
 			return nil
 		}
 		if gate := ackGate(verdict, req.Ack); gate != nil {
@@ -1053,6 +1063,21 @@ func (cn *conn) managementPath() guard.ManagementPath {
 // carried from one row to another or replayed against a different write. An ack
 // that no longer matches is `stale-warning`: the ground moved between the
 // prompt and the answer, and the operator must look again.
+// guardRefusal is a refused verdict as the outcome every write path reports, or
+// nil. The refusal is AUDITED, unlike a warning: a warning is a question, and a
+// refusal is an attempt that was stopped. It is checked before ackGate, so no
+// acknowledgement can carry a refused write through.
+func (cn *conn) guardRefusal(res *resource.Resource, action, id, name string, v guard.Verdict) *writeOutcome {
+	if !v.Refused() {
+		return nil
+	}
+	cn.recorder().Denied(audit.Event{
+		Action: res.Key + "." + action, TargetType: res.Key, RouterID: cn.routerID,
+		TargetID: id, TargetName: name, Note: "guard-refused: " + v.Code,
+	})
+	return &writeOutcome{Code: "guard-refused", Name: name, Detail: map[string]any{"rule": v.Code, "value": v.Detail["value"]}}
+}
+
 func ackGate(v guard.Verdict, ack string) map[string]any {
 	if !v.Warned() {
 		return nil
@@ -1073,7 +1098,7 @@ func ackGate(v guard.Verdict, ack string) map[string]any {
 // declaring anything else cannot be written through here — see verdictFor.
 var portedGuards = map[string]bool{
 	"selfPath": true, "fwGuard": true, "wifiInherit": true, "capsmanPush": true,
-	"routePath": true, "addressPath": true, "queueThrottle": true,
+	"routePath": true, "addressPath": true, "queueThrottle": true, "selfAccount": true,
 }
 
 // errUnportedGuard is returned when a resource declares a guard this server
@@ -1138,6 +1163,10 @@ func (cn *conn) verdictFor(res *resource.Resource, action string, values, before
 			}
 		case "queueThrottle":
 			if v := cn.queueVerdict(res, action, values, before); v.Warned() {
+				return v, nil
+			}
+		case "selfAccount":
+			if v := cn.selfAccountVerdict(res, action, values, before); v.Warned() || v.Refused() {
 				return v, nil
 			}
 		}
@@ -1354,6 +1383,86 @@ func queueThrottleVerdict(self []string, action string, values, before map[strin
 		return guard.CheckSimpleQueue(self, q, nil, guard.SelfThrottleFloorBps)
 	}
 	return none
+}
+
+// selfAccountVerdict asks the lockout guard about a /user or /user/group write.
+//
+// The three tables are read FRESH, as the Router Users handlers read them, and a
+// table that cannot be read leaves MikroDash unidentified, which REFUSES: this
+// guard fails closed (see guard/selfguard.go), because a missed refusal here
+// breaks the login and the fix is WinBox.
+func (cn *conn) selfAccountVerdict(res *resource.Resource, action string,
+	values, before map[string]string) guard.Verdict {
+
+	var users, active []routeros.Reply
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/print"}); err == nil {
+		users = rows
+	}
+	if rows, err := cn.rsession.Exec(routeros.Cmd{Path: "/user/active/print"}); err == nil {
+		active = rows
+	}
+	self := guard.ResolveSelf(users, active, []string{cn.rsession.Username()})
+	return selfAccountDecision(self, res.Menu, action, values, routeros.Reply(before))
+}
+
+// selfAccountDecision is the pure half: the guard's Refusal as a Verdict, with
+// the same values the Router Users handlers passed.
+//
+//   - a user write always carries its name and group as values, so moving any
+//     user INTO MikroDash's group is refused, and so is editing a user already
+//     in it: the guard's own "deliberately blunt" rule, unchanged;
+//   - a group write carries its name;
+//   - delete targets the row; enable and disable are edits of the row.
+func selfAccountDecision(self guard.Self, menu, action string, values map[string]string,
+	before routeros.Reply) guard.Verdict {
+
+	verb := "set"
+	switch action {
+	case "create":
+		verb = "add"
+	case "delete":
+		verb = "remove"
+	}
+	var target routeros.Reply
+	if before != nil {
+		target = routeros.Reply{"name": before["name"], "group": before["group"]}
+	}
+	pick := func(keys ...string) (map[string]string, map[string]bool) {
+		vals, set := map[string]string{}, map[string]bool{}
+		if verb == "remove" {
+			return vals, set
+		}
+		for _, k := range keys {
+			v, ok := values[k]
+			if !ok && before != nil {
+				v, ok = before[k], before[k] != ""
+			}
+			if ok {
+				vals[k], set[k] = strings.TrimSpace(v), true
+			}
+		}
+		return vals, set
+	}
+	var r guard.Refusal
+	switch menu {
+	case "/user":
+		vals, set := pick("name", "group")
+		r = guard.CheckUser(self, guard.UserAction{Verb: verb, Target: target, Values: vals, ValueSet: set})
+	case "/user/group":
+		if target != nil {
+			target = routeros.Reply{"name": before["name"]}
+		}
+		vals, set := pick("name")
+		r = guard.CheckGroup(self, guard.UserAction{Verb: verb, Target: target, Values: vals, ValueSet: set})
+	default:
+		// Declared on a menu this guard knows nothing about: refuse rather than
+		// pass, as an unported guard does.
+		r = guard.Refusal{Code: "self-unresolved"}
+	}
+	if r.OK {
+		return guard.Verdict{Level: "none"}
+	}
+	return guard.Verdict{Level: "refuse", Code: r.Code, Detail: map[string]any{"value": r.Detail}}
 }
 
 // addressChangeOf reads an address in the registry's field names, laid over base.
@@ -1575,6 +1684,10 @@ func (cn *conn) resMove(raw json.RawMessage) {
 			})
 			cn.resErr(res.Key, "guard-not-ported", name,
 				map[string]any{"message": safe.Message(gerr.Error())})
+			return nil
+		}
+		if r := cn.guardRefusal(res, "move", req.ID, name, verdict); r != nil {
+			cn.resErr(res.Key, r.Code, name, r.Detail)
 			return nil
 		}
 		if gate := ackGate(verdict, req.Ack); gate != nil {

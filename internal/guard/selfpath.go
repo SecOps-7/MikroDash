@@ -144,6 +144,11 @@ type Verdict struct {
 // Warned reports whether this verdict needs acknowledging.
 func (v Verdict) Warned() bool { return v.Level == "warn" }
 
+// Refused reports whether this verdict forbids the write outright. A refusal has
+// no fingerprint and cannot be acknowledged: it is for a write that cannot be
+// undone from inside MikroDash, such as breaking the login it signs in with.
+func (v Verdict) Refused() bool { return v.Level == "refuse" }
+
 // CheckInterfaceEdit answers: would this edit touch the interface we are
 // reachable on?
 //
