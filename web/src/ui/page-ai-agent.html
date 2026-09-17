@@ -40,10 +40,16 @@
               </div>
             </div>
             <!-- ── WAITING ────────────────────────────────────────────────
-                 The label is one of a rotating set; see ai-agent.ts. -->
-            <div id="aiAgentThinking" class="ai-thinking" hidden>
-              <span class="ai-thinking-spin" aria-hidden="true"></span>
-              <span class="ai-thinking-label" id="aiAgentThinkingLabel">Wiring bits</span>
+                 Pinned to the bottom of the window, inside a row that shares the
+                 composer's column, so its left edge meets the input box's at any
+                 width. The label is one of a rotating set; see ai-agent.ts. -->
+            <div class="ai-thinking-row">
+              <div class="ai-column">
+                <div id="aiAgentThinking" class="ai-thinking" hidden>
+                  <span class="ai-thinking-spin" aria-hidden="true"></span>
+                  <span class="ai-thinking-label" id="aiAgentThinkingLabel">Wiring bits</span>
+                </div>
+              </div>
             </div>
           </div>
 

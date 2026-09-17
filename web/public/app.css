@@ -1918,20 +1918,35 @@
        wide screen. Your turns right-align WITHIN the column and the assistant's
        fill it, which is the shape of a conversation without the text running
        from one edge of the window to the other. The composer shares the width
-       so the box you type in sits under what you are reading. */
-    .ai-column,.ai-turn{width:100%;max-width:48rem;margin-left:auto;margin-right:auto}
+       so the box you type in sits under what you are reading.
+
+       IT SCALES WITH THE DISPLAY. A fixed 48rem looked right on a laptop and
+       like a narrow strip on a large monitor. So: never narrower than 48rem
+       (or the whole window, on a small one), otherwise three quarters of the
+       chat area, and never wider than 100rem, where an answer's lines would get
+       too long to follow on an ultrawide. Every user of `.ai-column` resolves
+       the percentage against a box the same width -- the transcript, the
+       composer and the indicator row are all the window less 1rem each side --
+       which is what keeps the indicator and the input box lined up. */
+    .ai-column,.ai-turn{width:100%;max-width:min(100rem,max(48rem,75%));margin-left:auto;margin-right:auto}
     .ai-turn{display:flex;flex-direction:column;align-items:flex-start;flex:none}
     .ai-turn-you{align-items:flex-end}
     .ai-turn-you>.ai-turn-body{max-width:85%}
     .ai-turn-assistant>.ai-turn-body,.ai-turn-error>.ai-turn-body{width:100%;box-sizing:border-box}
 
-    /* ── THE THINKING INDICATOR, PINNED TO THE WINDOW'S BOTTOM-LEFT CORNER ──
-       Absolute against #aiAgentWindow, which does not scroll. It used to be
-       sticky inside the transcript, and sticky only pins once the content
-       overflows: in a short conversation it sat under the last message, part
-       way up the window. Absolute inside the SCROLLING box would scroll away
-       with the content instead, which is why the wrapper exists. */
-    .ai-thinking{position:absolute;left:1rem;bottom:.75rem;z-index:2;
+    /* ── THE THINKING INDICATOR, PINNED ABOVE THE INPUT BOX ──────────────────
+       The ROW is absolute against #aiAgentWindow, which does not scroll. It used
+       to be sticky inside the transcript, and sticky only pins once the content
+       overflows: in a short conversation it sat under the last message, part way
+       up the window. Absolute inside the SCROLLING box would scroll away with the
+       content instead, which is why the wrapper exists.
+
+       The row's 1rem insets are the composer's padding and its child is the same
+       `.ai-column`, so the indicator's left edge meets the input box's at every
+       width rather than at one. `pointer-events:none` on the row keeps the empty
+       width of it from swallowing clicks on the transcript underneath. */
+    .ai-thinking-row{position:absolute;left:1rem;right:1rem;bottom:1.25rem;z-index:2;pointer-events:none}
+    .ai-thinking{pointer-events:auto;width:max-content;
       display:flex;align-items:center;gap:.5rem;
       font-size:.74rem;color:var(--accent-rx);font-family:var(--font-ui);
       padding:.25rem .6rem;border-radius:999px;
