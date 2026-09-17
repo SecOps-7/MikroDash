@@ -58,6 +58,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"conns":     (*conn).liveConnections,
 	"bandwidth": (*conn).liveBandwidth,
 	"topology":  (*conn).liveTopology,
+	"vpn":       (*conn).liveWireguardStatus,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -1129,4 +1130,77 @@ func topoNeighbourRow(v collect.TopoNeighbor) liveTopoDevice {
 		Type: v.Type, Platform: v.Platform, Board: v.Board, Version: v.Version, SeenOn: v.Via,
 		RemoteIface: v.RemoteIface, RTT: v.RTT, Loss: v.Loss, Status: v.Status, Gone: v.Gone,
 		Clients: v.ClientCount}
+}
+
+// ── list_wireguard_status ───────────────────────────────────────────────────
+
+// liveWireguardStatus samples twice when the VPN page is not measuring, for the
+// reason list_bandwidth does: peer rates are byte-counter deltas against the
+// previous reading, which after a suspend is old, and a first reading is 0.
+func (cn *conn) liveWireguardStatus(t aitools.Tool) string {
+	col := cn.rsession.VPN()
+	return liveAnswer(t, liveSource[collect.VPNPayload]{
+		last:  col.Last,
+		stamp: func(p *collect.VPNPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: func() {
+			col.RefreshNow()
+			time.Sleep(bandwidthSampleGap)
+			col.RefreshNow()
+		},
+		menu:   "/interface/wireguard/peers",
+		absent: "The VPN readings are not available from this router yet.",
+	}, renderWireguardStatus)
+}
+
+type liveWgPeer struct {
+	Name          string  `json:"name,omitempty"`
+	Comment       string  `json:"comment,omitempty"`
+	KeyPrefix     string  `json:"publicKeyPrefix,omitempty"`
+	Interface     string  `json:"interface,omitempty"`
+	State         string  `json:"state,omitempty"`
+	LastHandshake string  `json:"lastHandshake,omitempty"`
+	Endpoint      string  `json:"currentEndpoint,omitempty"`
+	AllowedIP     string  `json:"allowedAddresses,omitempty"`
+	Keepalive     string  `json:"persistentKeepalive,omitempty"`
+	RxMbps        float64 `json:"downloadMbps"`
+	TxMbps        float64 `json:"uploadMbps"`
+}
+
+// renderWireguardStatus shapes the VPN payload's WireGuard and IPsec halves.
+//
+// ── A KEY PREFIX, NOT THE KEY ───────────────────────────────────────────────
+//
+// A WireGuard public key is not a secret, but it is a stable identifier of the
+// far end, and 44 characters of it per peer spend the budget on nothing a person
+// reads. Eight characters tell two peers apart and match what an operator sees
+// in Winbox's truncated column. Row ids are not passed.
+func renderWireguardStatus(p *collect.VPNPayload) any {
+	peers := make([]liveWgPeer, 0, len(p.Tunnels))
+	active := 0
+	for _, tn := range p.Tunnels {
+		key := tn.PublicKey
+		if len(key) > 8 {
+			key = key[:8]
+		}
+		if tn.State == "active" {
+			active++
+		}
+		peers = append(peers, liveWgPeer{Name: tn.Name, Comment: tn.Comment, KeyPrefix: key,
+			Interface: tn.Interface, State: tn.State, LastHandshake: tn.LastHandshake,
+			Endpoint: tn.Endpoint, AllowedIP: tn.AllowedIP, Keepalive: tn.Keepalive,
+			RxMbps: math.Round(tn.RXRate*8/1e6*1000) / 1000, TxMbps: math.Round(tn.TXRate*8/1e6*1000) / 1000})
+	}
+	keptW, tW := capRows(peers)
+	ipsec := p.Ipsec
+	if ipsec == nil {
+		ipsec = []collect.IpsecTunnel{}
+	}
+	keptI, tI := capRows(ipsec)
+	return struct {
+		ActiveWireguard int                   `json:"activeWireguardPeers"`
+		TotalWireguard  int                   `json:"totalWireguardPeers"`
+		Wireguard       []liveWgPeer          `json:"wireguardPeers"`
+		Ipsec           []collect.IpsecTunnel `json:"activeIpsecPeers"`
+		Truncated       bool                  `json:"truncated"`
+	}{active, len(p.Tunnels), keptW, keptI, tW || tI}
 }

@@ -240,6 +240,13 @@
       "page": "wifi-clients"
     },
     {
+      "name": "list_wireguard_status",
+      "access": "read",
+      "resource": "",
+      "collector": "vpn",
+      "page": "vpn"
+    },
+    {
       "name": "list_wlNet",
       "access": "read",
       "resource": "wlNet",

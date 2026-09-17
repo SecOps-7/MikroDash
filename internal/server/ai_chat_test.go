@@ -822,3 +822,30 @@ func TestRenderTopologyKeepsInfrastructure(t *testing.T) {
 		t.Errorf("a denied read does not say why: %s", b)
 	}
 }
+
+// TestRenderWireguardStatus. Peer state and live rates reach the model in Mbps,
+// the public key is cut to an identifying prefix, and row ids do not appear.
+func TestRenderWireguardStatus(t *testing.T) {
+	p := &collect.VPNPayload{TS: 1, PollMs: 10_000,
+		Tunnels: []collect.Tunnel{
+			{ID: "*W1", PublicKey: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefg=", Name: "office", State: "active",
+				LastHandshake: "12s", Endpoint: "198.51.100.20:51820", AllowedIP: "10.8.0.2/32",
+				RXRate: 250_000, TXRate: 12_500},
+			{ID: "*W2", PublicKey: "zzzzzzzzzzzz", Name: "laptop", State: "idle", LastHandshake: "3h"},
+		},
+		Ipsec: []collect.IpsecTunnel{{Name: "branch", State: "established", Enc: "aes-256-gcm"}},
+	}
+	b, _ := json.Marshal(renderWireguardStatus(p))
+	got := string(b)
+	for _, want := range []string{`"activeWireguardPeers":1`, `"totalWireguardPeers":2`, `"publicKeyPrefix":"ABCDEFGH"`,
+		`"downloadMbps":2`, `"uploadMbps":0.1`, `"currentEndpoint":"198.51.100.20:51820"`, `"enc":"aes-256-gcm"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	for _, leak := range []string{"*W1", "*W2", "IJKLMNOP"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("%q reached the model's view: %s", leak, got)
+		}
+	}
+}

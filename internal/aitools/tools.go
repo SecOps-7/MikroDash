@@ -328,6 +328,20 @@ func liveTools() []Tool {
 		Freshness:  FreshMetadata,
 		Page:       "network-topology",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "wireguard_status",
+		Description: "Read only. Show the live state of the router's WireGuard peers, read from " +
+			"/interface/wireguard/peers, and its active IPsec peers from /ip/ipsec/active-peers: " +
+			"for each WireGuard peer its name and comment, interface, whether it is active, time " +
+			"since the last handshake, current endpoint, allowed addresses, and live download " +
+			"and upload in Mbps; for each IPsec peer its state, uptime, side and ciphers. Use " +
+			"list_wgPeer for the peer configuration; use this for whether a tunnel is up and " +
+			"carrying traffic.",
+		Parameters: noArgs(),
+		Collector:  "vpn",
+		Freshness:  FreshLive,
+		Page:       "vpn",
+		Access:     AccessRead,
 	}}
 }
 
