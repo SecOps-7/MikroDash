@@ -31,10 +31,6 @@ import (
 
 // eventsUnconsumed: emitted by the server, deliberately nobody listens.
 var eventsUnconsumed = map[string]string{
-	"area:update": "the generated pages' payload. The renderer that listens for it — " +
-		"web/src/pages/area.ts — is the next item of slice 5; until it lands the collector " +
-		"emits to a room the browser does not join yet, which is visible here rather than " +
-		"in a page that renders nothing.",
 	"packages:applying": "vestigial in the live app too — it was emitted and nothing listened. " +
 		"Reproduced rather than dropped, so a future reader finds this note instead of " +
 		"'fixing' a consumer into existence.",

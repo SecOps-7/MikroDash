@@ -198,6 +198,15 @@ func (a *Areas) Tick() {
 }
 
 // RefreshNow re-reads one area at once, after a write.
+//
+// ── PAST THE CACHE, WHICH IS THE WHOLE POINT OF CALLING IT ──────────────────
+//
+// The ordinary read is served from the per-router cache for the area's own
+// interval, so a forced refresh straight after a write was answered with the
+// rows from BEFORE it — measured on the CHR: the dialog closed, the router held
+// the new comment, and the table went on showing the old one for a minute. Each
+// of the area's menus is invalidated first, exactly as `tableCore.RefreshNow`
+// invalidates its own.
 func (a *Areas) RefreshNow(key string) {
 	if !a.ros.Connected() {
 		return
@@ -205,6 +214,13 @@ func (a *Areas) RefreshNow(key string) {
 	area, ok := areas.ByKey(key)
 	if !ok {
 		return
+	}
+	if a.cache != nil {
+		for _, t := range area.Tables {
+			if res := resource.ByKey(t.Resource); res != nil {
+				a.cache.Invalidate(res.Menu + "/print")
+			}
+		}
 	}
 	a.readArea(area, a.now())
 }

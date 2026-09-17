@@ -115,6 +115,15 @@ type Field struct {
 	NegateUnset bool
 
 	Required bool
+	// ClearAs is what CLEARING this field sends, when the empty string is not
+	// what RouterOS means by "nothing".
+	//
+	// Measured on the CHR: `/ip/pool/set =next-pool=` is refused with "ambiguous
+	// value of next-pool, more than one possible value matches input", because
+	// the menu's own word for no next pool is `none`. An empty value is right for
+	// most fields — a comment, an address — and wrong for the ones that carry a
+	// sentinel, so the field says which it is rather than the write path guessing.
+	ClearAs string
 	// Clearable means "send this even when empty, so the operator can empty it".
 	Clearable   bool
 	Options     []string
@@ -526,9 +535,10 @@ func (r *Resource) BuildArgs(v Validated) []string {
 			continue
 		}
 		// Only on an edit, and only when declared clearable: on a create an
-		// omitted property should keep RouterOS's own default.
+		// omitted property should keep RouterOS's own default. `ClearAs` is the
+		// value that means "nothing" where the empty string does not.
 		if v.Editing && f.Clearable {
-			args = append(args, "="+f.ROS+"=")
+			args = append(args, "="+f.ROS+"="+f.ClearAs)
 		}
 	}
 	return args
@@ -854,9 +864,10 @@ var IPPool = &Resource{
 		{Name: "ranges", ROS: "ranges", Label: "Ranges", Type: TypeText, Required: true,
 			Placeholder: "10.0.0.50-10.0.0.254",
 			Help:        "One or more ranges or prefixes, comma separated."},
-		{Name: "nextPool", ROS: "next-pool", Label: "Next Pool", Type: TypeText, Clearable: true,
+		{Name: "nextPool", ROS: "next-pool", Label: "Next Pool", Type: TypeText,
+			Clearable: true, ClearAs: "none",
 			OptionsFrom: &OptionsFrom{Menu: "/ip/pool", Value: "name"},
-			Help:        "Where addresses come from once this pool is exhausted."},
+			Help:        "Where addresses come from once this pool is exhausted. Empty means none."},
 		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
 		// READ-ONLY, and SHOWN: the router reports how big a pool is and how much
 		// of it is handed out, which is the question a pools page exists to

@@ -34,6 +34,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"mikrodash/internal/areas"
 	"sort"
 	"strconv"
 	"strings"
@@ -1626,6 +1627,20 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 			cn.rsession.PPP().RefreshNow()
 		}
 	default:
+		// ── A GENERATED PAGE, AND ONE CASE FOR ALL OF THEM ──────────────────
+		//
+		// An area's rows come from the `areas` collector, which holds one payload
+		// per area and re-reads that area alone. Without this a write through the
+		// generated page's own dialog reached the router and the table kept
+		// showing the old value until the next poll — measured on the CHR, where
+		// an edited comment sat unchanged for a minute behind a dialog that had
+		// already closed.
+		if _, ok := areas.ByKey(res.Page); ok {
+			if cn.rsession.CollectorEnabled("areas") {
+				cn.rsession.Areas().RefreshNow(res.Page)
+			}
+			return
+		}
 		log.Printf("[res] %s belongs to page %q, which has no collector to refresh",
 			res.Key, res.Page)
 	}

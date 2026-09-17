@@ -28,6 +28,7 @@
 import { PAGE_NAV_MAP } from './gen/view-presets.js';
 import type { NavMode } from './routing';
 import { ALL_NAV_PAGES } from './gen/page-keys.js';
+import { AREA_KEY_SET } from './gen/areas.js';
 import { applyMyAlertsTab } from './account.js';
 
 export interface Caps {
@@ -140,7 +141,11 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
 
   let firstVisible: string | null = null;
   let currentHidden = false;
-  for (const pageName of ALL_NAV_PAGES) {
+  // THE GENERATED PAGES TOO. `ALL_NAV_PAGES` is frozen — it was read out of the
+  // Node app and its generator is gone — so an area would never be swept, and
+  // the nav entry this app composes at runtime would stay visible to a role that
+  // may not read it. The same loop gates both kinds.
+  for (const pageName of [...ALL_NAV_PAGES, ...AREA_KEY_SET]) {
     const sKey = settingKeyFor[pageName];
     const byInstall = !sKey || p[sKey] !== false;
     const byRole = !pageAccess || !!pageAccess[pageName];

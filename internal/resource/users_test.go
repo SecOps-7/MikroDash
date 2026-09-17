@@ -93,3 +93,43 @@ func TestRouterUserPasswordIsNeverReadOrPreviewed(t *testing.T) {
 		t.Errorf("the preview shows the password: %s", cmd)
 	}
 }
+
+// TestClearingAFieldSendsWhatTheMenuMeansByNothing.
+//
+// Measured on the CHR through the generated IP Pools page: clearing Next Pool
+// sent `=next-pool=` and the router refused it — "ambiguous value of next-pool,
+// more than one possible value matches input" — because that menu's word for no
+// next pool is `none`. An empty value is right for a comment and wrong for a
+// field carrying a sentinel, so the field declares which it is.
+func TestClearingAFieldSendsWhatTheMenuMeansByNothing(t *testing.T) {
+	v, errs := IPPool.Validate(map[string]string{
+		"name": "dhcp", "ranges": "10.0.0.10-10.0.0.20"}, true)
+	if len(errs) != 0 {
+		t.Fatalf("a valid pool was refused: %v", errs)
+	}
+	var next, comment string
+	for _, a := range IPPool.BuildArgs(v) {
+		if strings.HasPrefix(a, "=next-pool=") {
+			next = a
+		}
+		if strings.HasPrefix(a, "=comment=") {
+			comment = a
+		}
+	}
+	if next != "=next-pool=none" {
+		t.Errorf("clearing next-pool sends %q, want =next-pool=none", next)
+	}
+	// THE CONTROL: a field with no sentinel still clears to empty, which is what
+	// every other clearable field in the registry relies on.
+	if comment != "=comment=" {
+		t.Errorf("clearing the comment sends %q, want =comment=", comment)
+	}
+	// And a CREATE sends neither: an omitted property keeps RouterOS's default.
+	create, _ := IPPool.Validate(map[string]string{
+		"name": "dhcp", "ranges": "10.0.0.10-10.0.0.20"}, false)
+	for _, a := range IPPool.BuildArgs(create) {
+		if strings.HasPrefix(a, "=next-pool=") || strings.HasPrefix(a, "=comment=") {
+			t.Errorf("a create sends %q for a field nobody filled in", a)
+		}
+	}
+}

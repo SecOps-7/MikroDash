@@ -10,16 +10,7 @@ import (
 )
 
 // modulesKnownUnreachable: TypeScript modules nothing imports, on purpose.
-var modulesKnownUnreachable = map[string]string{
-	// The generated area declarations. `web/src/pages/area.ts` — the one module
-	// that renders any generated page — is the next item of slice 5 and is what
-	// will import this. Recorded rather than left to fail: the generator and its
-	// `-check` are in place, so the table is committed and current, and the
-	// module that consumes it lands next. This entry fails BOTH ways, so it
-	// cannot outlive the import.
-	"gen/areas.ts": "the generated area table; web/src/pages/area.ts imports it, and that " +
-		"module is the next item of slice 5",
-}
+var modulesKnownUnreachable = map[string]string{}
 
 var (
 	importFrom   = regexp.MustCompile(`(?m)^\s*(?:import|export)\b[^;]*?from\s*'([^']+)'`)
