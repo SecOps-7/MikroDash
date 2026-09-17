@@ -131,3 +131,79 @@ func TestRenamedNamesNoLivePage(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryNavItemIsSwept — the direction the ledger was missing.
+//
+// ── A CORRECT EXPRESSION THAT NEVER RUNS ────────────────────────────────────
+//
+// `applyPageVisibility` iterates `ALL_NAV_PAGES` and hides the nav items for
+// pages a role denies, an install toggles off, or a feature gate refuses. A nav
+// item whose page is NOT in that list is never visited, so nothing can hide it —
+// and on screen that is indistinguishable from "considered and allowed".
+//
+// `TestFrozenPageTablesNameRealPages` checks that every entry in the table names
+// a real page. That is one direction. This is the other, and its absence is why
+// four nav items shipped unhideable: `ai-agent` (reported from the running app
+// on 2026-09-17, after the server had been verified to broadcast the gate
+// correctly), plus `ip-addresses`, `wifi-map` and `netwatch`, which had been
+// that way for longer and which no toggle or role could hide.
+//
+// The comment above the generated list already claimed this was pinned: "an
+// entry with no nav item is a page the sweep believes it hid and did not". It
+// pinned the harmless direction. This pins the one that bites.
+func TestEveryNavItemIsSwept(t *testing.T) {
+	root := repoRoot(t)
+
+	b, err := os.ReadFile(filepath.Join(root, "web", "src", "ui", "shell.html"))
+	if err != nil {
+		t.Fatalf("reading shell.html: %v", err)
+	}
+	// Only real nav items: `data-page` on an element that is one. Matching the
+	// attribute alone would sweep up anything else that carries it.
+	navItem := regexp.MustCompile(`<a[^>]*\bclass="[^"]*\bnav-item\b[^"]*"[^>]*\bdata-page="([^"]+)"`)
+	var nav []string
+	for _, m := range navItem.FindAllStringSubmatch(string(b), -1) {
+		nav = append(nav, m[1])
+	}
+	if len(nav) < 20 {
+		t.Fatalf("found %d nav items in shell.html — the pattern stopped matching", len(nav))
+	}
+
+	var pt struct {
+		AllNavPages []string `json:"allNavPages"`
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "testdata", "pages-table.json"))
+	if err != nil {
+		t.Fatalf("reading pages-table.json: %v", err)
+	}
+	if err := json.Unmarshal(raw, &pt); err != nil {
+		t.Fatal(err)
+	}
+	swept := map[string]bool{}
+	for _, k := range pt.AllNavPages {
+		swept[k] = true
+	}
+
+	seen := map[string]bool{}
+	for _, key := range nav {
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		if !swept[key] {
+			t.Errorf("the nav item for %q is in shell.html but not in allNavPages, so the "+
+				"visibility sweep never visits it: no role, no Visible Pages toggle and no "+
+				"feature gate can hide it. Add it to testdata/pages-table.json at its nav "+
+				"position and run: node tools/pages-table-ts.js", key)
+		}
+	}
+
+	// AND BACK THE OTHER WAY, which is what the generated comment claimed to
+	// guarantee: an entry with no nav item is a page the sweep believes it hid.
+	for _, key := range pt.AllNavPages {
+		if !seen[key] {
+			t.Errorf("allNavPages carries %q, which has no nav item in shell.html — the sweep "+
+				"hides something that is not there", key)
+		}
+	}
+}
