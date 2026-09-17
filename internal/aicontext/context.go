@@ -96,6 +96,15 @@ type Snapshot struct {
 	DNS      *collect.DNSPayload
 	Lan      *collect.LanPayload
 	Wireless *collect.WirelessPayload
+	// ── THE LIVE-TRAFFIC HALF ───────────────────────────────────────────────
+	//
+	// Added because the assistant, asked about WAN throughput, correctly said it
+	// could not see any: its tools are generated from the CONFIGURATION registry
+	// and the summary carried none of this. All three are payloads the
+	// collectors already hold for the browser, so this costs no router read.
+	WAN       *collect.WANPayload
+	Bandwidth *collect.BandwidthPayload
+	Conns     *collect.ConnsPayload
 }
 
 // Build assembles the items this viewer may see.
@@ -148,6 +157,15 @@ func Build(s Snapshot, now int64, can func(page string) bool) []Item {
 	}
 	if p := s.Wireless; p != nil {
 		add("wifi-clients", "wireless", p.TS, p.PollMs, wirelessLine(p))
+	}
+	if p := s.WAN; p != nil {
+		add("wan", "wan", p.TS, p.PollMs, wanLine(p))
+	}
+	if p := s.Bandwidth; p != nil {
+		add("bandwidth", "bandwidth", p.TS, p.PollMs, bandwidthLine(p))
+	}
+	if p := s.Conns; p != nil {
+		add("connections", "conns", p.TS, p.PollMs, connsLine(p))
 	}
 	return out
 }
@@ -237,6 +255,64 @@ func interfaceLine(p *collect.IfStatusPayload) string {
 	if len(down) > 0 {
 		sort.Strings(down)
 		line += " (down: " + strings.Join(down, ", ") + ")"
+	}
+
+	// ── THE THROUGHPUT WAS HERE ALL ALONG AND THIS LINE THREW IT AWAY ───────
+	//
+	// Every `Interface` carries RxMbps, TxMbps and cumulative error and drop
+	// counters, and this summary reported only how many were up. So the
+	// assistant was handed the SHAPE of the network and nothing about what it
+	// was doing, and when asked about WAN throughput it correctly said it could
+	// not see any -- a true statement about what it had been told, and a wrong
+	// one about what the server knew.
+	//
+	// Rates come from the same payload the Interfaces page draws, so this costs
+	// no extra router read: it is a field that was already in memory.
+	var totalRx, totalTx float64
+	type rate struct {
+		name   string
+		rx, tx float64
+	}
+	var busy []rate
+	var faulty []string
+	for _, i := range p.Interfaces {
+		if i.Disabled || !i.Running {
+			continue
+		}
+		totalRx += i.RxMbps
+		totalTx += i.TxMbps
+		if i.RxMbps > 0 || i.TxMbps > 0 {
+			busy = append(busy, rate{i.Name, i.RxMbps, i.TxMbps})
+		}
+		// DELTAS, NOT TOTALS. A cumulative error count is large on any router
+		// that has been up for a year and says nothing about now; movement
+		// since the last reading is what an operator would act on.
+		if (i.ErrorsDelta != nil && *i.ErrorsDelta > 0) || (i.DropsDelta != nil && *i.DropsDelta > 0) {
+			faulty = append(faulty, i.Name)
+		}
+	}
+	line += fmt.Sprintf(". Throughput now %.2f Mbps in / %.2f Mbps out across running interfaces",
+		totalRx, totalTx)
+
+	if len(busy) > 0 {
+		sort.Slice(busy, func(a, b int) bool {
+			if busy[a].rx+busy[a].tx != busy[b].rx+busy[b].tx {
+				return busy[a].rx+busy[a].tx > busy[b].rx+busy[b].tx
+			}
+			return busy[a].name < busy[b].name // stable when rates tie
+		})
+		if len(busy) > 5 {
+			busy = busy[:5]
+		}
+		parts := make([]string, 0, len(busy))
+		for _, b := range busy {
+			parts = append(parts, fmt.Sprintf("%s %.2f in/%.2f out", b.name, b.rx, b.tx))
+		}
+		line += "; busiest: " + strings.Join(parts, ", ") + " (Mbps)"
+	}
+	if len(faulty) > 0 {
+		sort.Strings(faulty)
+		line += "; errors or drops since the last reading on: " + strings.Join(faulty, ", ")
 	}
 	return line
 }
@@ -344,6 +420,105 @@ func lanLine(p *collect.LanPayload) string {
 	}
 	return fmt.Sprintf("%d DHCP networks, %d leases of %d addresses",
 		len(p.Networks), p.TotalLeases, p.TotalPoolSize)
+}
+
+// wanLine is the uplinks, and what they are carrying.
+//
+// ── A NULL RATE IS NOT A ZERO RATE ──────────────────────────────────────────
+//
+// `WAN.RxMbps` and `TxMbps` are pointers precisely so that "the router did not
+// report this" stays tellable apart from "this uplink is idle" -- the payload's
+// own comment records a page showing a confident 0 Mbps on a saturated link
+// during the startup window. Printing 0.00 here would hand the model that same
+// wrong number and it would repeat it as fact, so an unreported rate says so.
+func wanLine(p *collect.WANPayload) string {
+	if len(p.Wans) == 0 {
+		if !p.DetectionEnabled {
+			return "WAN uplinks: none listed, because uplink detection is switched off"
+		}
+		return ""
+	}
+	parts := make([]string, 0, len(p.Wans))
+	for _, w := range p.Wans {
+		s := w.Name
+		if w.State != "" {
+			s += " (" + w.State + ")"
+		}
+		if w.RxMbps != nil && w.TxMbps != nil {
+			s += fmt.Sprintf(" %.2f in/%.2f out Mbps", *w.RxMbps, *w.TxMbps)
+		} else {
+			s += " (no rate reported)"
+		}
+		if w.Address != "" {
+			s += ", " + w.Address
+		}
+		if w.RouteActive {
+			s += ", carrying the default route"
+		}
+		parts = append(parts, s)
+	}
+	line := fmt.Sprintf("%d WAN uplink(s): %s", len(p.Wans), strings.Join(parts, "; "))
+	if p.ActiveDefaultWan != "" {
+		line += ". Active default uplink: " + p.ActiveDefaultWan
+	}
+	if p.PublicIP != "" {
+		line += ". Public address: " + p.PublicIP
+	}
+	if !p.RatesAvailable {
+		line += ". This router does not report per-uplink rates"
+	}
+	return line
+}
+
+// bandwidthLine is who is actually using the link right now.
+func bandwidthLine(p *collect.BandwidthPayload) string {
+	if len(p.Devices) == 0 {
+		return ""
+	}
+	var total float64
+	for _, d := range p.Devices {
+		total += d.TotalMbps
+	}
+	busy := append([]collect.BandwidthDevice(nil), p.Devices...)
+	sort.Slice(busy, func(a, b int) bool {
+		if busy[a].TotalMbps != busy[b].TotalMbps {
+			return busy[a].TotalMbps > busy[b].TotalMbps
+		}
+		return busy[a].SrcIP < busy[b].SrcIP // stable when rates tie
+	})
+	if len(busy) > 5 {
+		busy = busy[:5]
+	}
+	parts := make([]string, 0, len(busy))
+	for _, d := range busy {
+		who := d.Name
+		if who == "" {
+			who = d.SrcIP
+		}
+		seg := fmt.Sprintf("%s %.2f Mbps", who, d.TotalMbps)
+		if d.Iface != "" {
+			seg += " on " + d.Iface
+		}
+		parts = append(parts, seg)
+	}
+	return fmt.Sprintf("%d live flows, %.2f Mbps in total; busiest: %s",
+		len(p.Devices), total, strings.Join(parts, ", "))
+}
+
+// connsLine is the connection table, with its own honesty about sampling.
+func connsLine(p *collect.ConnsPayload) string {
+	if p.Total == 0 && p.Processed == 0 {
+		return ""
+	}
+	line := fmt.Sprintf("%d tracked connections (tcp %d, udp %d, icmp %d, other %d)",
+		p.Total, p.ProtoCounts.TCP, p.ProtoCounts.UDP, p.ProtoCounts.ICMP, p.ProtoCounts.Other)
+	if p.ProcessingCapped {
+		// SAID OUT LOUD. The breakdown is of a sample, and a model given a
+		// partial count with no caveat will present it as the whole truth.
+		line += fmt.Sprintf("; only %d rows were aggregated, so that breakdown is a sample",
+			p.Processed)
+	}
+	return line
 }
 
 func wirelessLine(p *collect.WirelessPayload) string {

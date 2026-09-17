@@ -336,3 +336,128 @@ func TestWrapDoesNotRebuildADelimiterItJustRemoved(t *testing.T) {
 		}
 	}
 }
+
+// ── WHAT THE ASSISTANT CAN SEE ABOUT TRAFFIC ────────────────────────────────
+//
+// Asked about WAN throughput, the assistant said it had no visibility into
+// interface counters or bandwidth. That was true of what it had been TOLD and
+// false of what the server knew: `IfStatus` carries a rate for every interface
+// and was being summarised down to how many were up.
+
+func TestTheInterfaceLineCarriesThroughput(t *testing.T) {
+	errs := 4.0
+	p := &collect.IfStatusPayload{TS: 1000, Interfaces: []collect.Interface{
+		{Name: "ether1", Running: true, RxMbps: 11.5, TxMbps: 2.25},
+		{Name: "ether2", Running: true, RxMbps: 0.5, TxMbps: 0.25, ErrorsDelta: &errs},
+		{Name: "ether3", Running: false},
+		{Name: "ether4", Disabled: true},
+	}}
+	got := interfaceLine(p)
+
+	for _, want := range []string{
+		"12.00 Mbps in", // 11.5 + 0.5, and a disabled port contributes nothing
+		"2.50 Mbps out", // 2.25 + 0.25
+		"busiest: ether1",
+		"ether2",
+		"errors or drops since the last reading on: ether2",
+		"down: ether3",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the interface line lost %q:\n  %s", want, got)
+		}
+	}
+}
+
+// TestAnUnreportedWanRateIsNotPresentedAsZero.
+//
+// The payload keeps these as pointers so "not reported" and "idle" stay
+// tellable apart; its own comment records a page showing a confident 0 Mbps on
+// a saturated link. A model handed 0.00 will repeat it as fact.
+func TestAnUnreportedWanRateIsNotPresentedAsZero(t *testing.T) {
+	silent := &collect.WANPayload{TS: 1000, DetectionEnabled: true, Wans: []collect.WAN{
+		{Name: "ether1", State: "connected"},
+	}}
+	got := wanLine(silent)
+	if !strings.Contains(got, "no rate reported") {
+		t.Errorf("an unreported rate did not say so:\n  %s", got)
+	}
+	if strings.Contains(got, "0.00") {
+		t.Errorf("an unreported rate was rendered as a number:\n  %s", got)
+	}
+
+	// THE OTHER DIRECTION: a real rate must actually appear, or the check above
+	// would pass against a function that never prints one.
+	rx, tx := 94.5, 12.25
+	live := &collect.WANPayload{TS: 1000, DetectionEnabled: true, RatesAvailable: true,
+		ActiveDefaultWan: "ether1", PublicIP: "198.51.100.7",
+		Wans: []collect.WAN{{Name: "ether1", State: "connected", RxMbps: &rx, TxMbps: &tx,
+			Address: "198.51.100.7", RouteActive: true}}}
+	got = wanLine(live)
+	for _, want := range []string{
+		"94.50 in/12.25 out Mbps",
+		"carrying the default route",
+		"Active default uplink: ether1",
+		"Public address: 198.51.100.7",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the WAN line lost %q:\n  %s", want, got)
+		}
+	}
+}
+
+func TestASampledConnectionBreakdownSaysSo(t *testing.T) {
+	p := &collect.ConnsPayload{TS: 1000, Total: 9000, Processed: 2000, ProcessingCapped: true,
+		ProtoCounts: collect.ConnProtoCounts{TCP: 1500, UDP: 400, ICMP: 50, Other: 50}}
+	got := connsLine(p)
+	if !strings.Contains(got, "9000 tracked connections") {
+		t.Errorf("the total is missing: %s", got)
+	}
+	if !strings.Contains(got, "sample") {
+		t.Errorf("a capped breakdown was presented as the whole truth: %s", got)
+	}
+	// And an uncapped one must NOT carry the caveat, or it means nothing.
+	if s := connsLine(&collect.ConnsPayload{TS: 1, Total: 12,
+		ProtoCounts: collect.ConnProtoCounts{TCP: 12}}); strings.Contains(s, "sample") {
+		t.Errorf("an uncapped breakdown claimed to be a sample: %s", s)
+	}
+}
+
+// TestTheTrafficItemsAreGatedLikeEverythingElse, both directions.
+func TestTheTrafficItemsAreGatedLikeEverythingElse(t *testing.T) {
+	rx, tx := 1.0, 2.0
+	snap := Snapshot{
+		WAN: &collect.WANPayload{TS: 1000, DetectionEnabled: true, Wans: []collect.WAN{
+			{Name: "ether1", RxMbps: &rx, TxMbps: &tx}}},
+		Bandwidth: &collect.BandwidthPayload{TS: 1000, Devices: []collect.BandwidthDevice{
+			{SrcIP: "10.0.0.5", TotalMbps: 3.5, Iface: "ether1"}}},
+		Conns: &collect.ConnsPayload{TS: 1000, Total: 40,
+			ProtoCounts: collect.ConnProtoCounts{TCP: 40}},
+	}
+
+	pages := func(items []Item) map[string]bool {
+		out := map[string]bool{}
+		for _, i := range items {
+			out[i.Page] = true
+		}
+		return out
+	}
+
+	all := pages(Build(snap, 1000, func(string) bool { return true }))
+	for _, want := range []string{"wan", "bandwidth", "connections"} {
+		if !all[want] {
+			t.Errorf("a viewer allowed everything was not given the %q item", want)
+		}
+	}
+
+	// Denied one page at a time: the others must survive, so this measures the
+	// gate rather than a Build that returns nothing.
+	for _, deny := range []string{"wan", "bandwidth", "connections"} {
+		got := pages(Build(snap, 1000, func(p string) bool { return p != deny }))
+		if got[deny] {
+			t.Errorf("%q was included for a viewer denied that page", deny)
+		}
+		if len(got) != 2 {
+			t.Errorf("denying %q left %d items, expected the other two", deny, len(got))
+		}
+	}
+}

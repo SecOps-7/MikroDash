@@ -246,6 +246,14 @@ func (cn *conn) snapshot() aicontext.Snapshot {
 		DNS:      s.DNS().Last(),
 		Lan:      s.DHCPNetworks().Last(),
 		Wireless: s.Wireless().Last(),
+		// The live-traffic half. `Traffic` is deliberately NOT here: it retains
+		// history only for interfaces something is actively watching, so it
+		// would answer for whichever chart happened to be open and stay silent
+		// otherwise. `IfStatus` already carries per-interface rates for every
+		// interface, which is the honest source.
+		WAN:       s.Wan().Last(),
+		Bandwidth: s.Bandwidth().Last(),
+		Conns:     s.Conns().Last(),
 	}
 }
 

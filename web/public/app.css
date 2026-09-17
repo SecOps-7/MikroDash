@@ -1909,14 +1909,25 @@
     #aiAgentLog{flex:1;min-height:0}
 
     /* The thinking indicator, inside the transcript at the bottom left. */
-    .ai-thinking{display:flex;align-items:center;gap:.5rem;align-self:flex-start;
-      font-size:.74rem;color:var(--text-muted);font-family:var(--font-ui);padding:.1rem .1rem}
+    /* STICKY, NOT ABSOLUTE. The log is the scroll container, so an absolutely
+       positioned child scrolls away with the content and only looks pinned
+       until you scroll. Sticky keeps it in flow and holds it against the bottom
+       edge of what is visible, which is what "in the corner" has to mean in a
+       box you can scroll. */
+    .ai-thinking{position:sticky;bottom:0;z-index:2;
+      display:flex;align-items:center;gap:.5rem;align-self:flex-start;
+      font-size:.74rem;color:var(--accent-rx);font-family:var(--font-ui);
+      padding:.25rem .6rem;border-radius:999px;
+      background:var(--bg-card);border:1px solid var(--border)}
     .ai-thinking[hidden]{display:none}
     /* Reuses the existing `spin` keyframes rather than declaring a second one. */
     .ai-thinking-spin{width:.85rem;height:.85rem;flex:none;border-radius:50%;
       border:2px solid var(--border);border-top-color:var(--accent-rx);
       animation:spin .7s linear infinite}
-    .ai-thinking-label{animation:ai-think-fade 1.8s ease-in-out infinite}
+    .ai-thinking-label{color:var(--accent-rx);animation:ai-think-fade 1.8s ease-in-out infinite}
+    /* The trailing dots live here rather than in the label text, so the 73
+       phrases stay clean data and nothing has to remember to append them. */
+    .ai-thinking-label::after{content:"..."}
     @keyframes ai-think-fade{0%,100%{opacity:.5}50%{opacity:1}}
     @media (prefers-reduced-motion:reduce){
       .ai-thinking-spin{animation-duration:2.4s}
