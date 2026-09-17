@@ -112,8 +112,8 @@ type Peer struct {
 	UptimeSec     int    `json:"uptimeSec"`
 	Prefixes      int    `json:"prefixes"`
 	PrefixHistory []int  `json:"prefixHistory"`
-	UpdatesSent   int    `json:"updatesSent"`
-	UpdatesRecv   int    `json:"updatesRecv"`
+	MessagesSent  int    `json:"messagesSent"`
+	MessagesRecv  int    `json:"messagesRecv"`
 	LastError     string `json:"lastError"`
 	HoldTime      int    `json:"holdTime"`
 	Keepalive     int    `json:"keepalive"`
@@ -242,13 +242,14 @@ func mapRoute(r routeros.Reply, family string) Route {
 
 var (
 	hmsRe = regexp.MustCompile(`^(\d+):(\d+):(\d+)$`)
-	dRe   = regexp.MustCompile(`(\d+)d`)
-	hRe   = regexp.MustCompile(`(\d+)h`)
-	mRe   = regexp.MustCompile(`(\d+)m`)
-	sRe   = regexp.MustCompile(`(\d+)s`)
+	// ms is an alternative of its own, listed first, so the 930 of "24s930ms" is
+	// not read as 930 minutes. A bare number is the legacy seconds spelling.
+	durRe    = regexp.MustCompile(`(\d+)(ms|w|d|h|m|s)`)
+	digitsRe = regexp.MustCompile(`^\d+$`)
 )
 
-// parseUptime reads RouterOS's two duration spellings: "01:02:03" and "1d2h3m4s".
+// parseUptime reads RouterOS durations into seconds: "01:02:03", "2w1d2h3m4s", "24s930ms"
+// (milliseconds dropped) and a bare "90".
 func parseUptime(s string) int {
 	if s == "" {
 		return 0
@@ -256,14 +257,13 @@ func parseUptime(s string) int {
 	if m := hmsRe.FindStringSubmatch(s); m != nil {
 		return safeInt(m[1])*3600 + safeInt(m[2])*60 + safeInt(m[3])
 	}
+	if digitsRe.MatchString(s) {
+		return safeInt(s)
+	}
+	scale := map[string]int{"w": 604800, "d": 86400, "h": 3600, "m": 60, "s": 1, "ms": 0}
 	sec := 0
-	for _, u := range []struct {
-		re    *regexp.Regexp
-		scale int
-	}{{dRe, 86400}, {hRe, 3600}, {mRe, 60}, {sRe, 1}} {
-		if m := u.re.FindStringSubmatch(s); m != nil {
-			sec += safeInt(m[1]) * u.scale
-		}
+	for _, m := range durRe.FindAllStringSubmatch(s, -1) {
+		sec += safeInt(m[1]) * scale[m[2]]
 	}
 	return sec
 }
@@ -471,8 +471,8 @@ func (r *Routing) BGPOnly() *Routing { r.bgpOnly = true; return r }
 // would be two statements of the same want, drifting apart.
 var routingBgpCmd = routeros.Cmd{
 	Path: "/routing/bgp/session/print",
-	Args: []string{"=.proplist=name,remote.address,remote.as,local.role,established,uptime," +
-		"prefix-count,updates-sent,updates-received,last-notification,hold-time,keepalive-time"},
+	Args: []string{"=.proplist=name,remote.address,remote.as,established,uptime," +
+		"prefix-count,local.messages,remote.messages,output.last-notification,hold-time,keepalive-time"},
 }
 
 func (r *Routing) loadBGP(rows []routeros.Reply) {
@@ -580,12 +580,17 @@ func (r *Routing) buildPeers() []Peer {
 			UptimeSec:     parseUptime(s["uptime"]),
 			Prefixes:      prefixes,
 			PrefixHistory: append([]int{}, hist...),
-			UpdatesSent:   safeInt(s["updates-sent"]),
-			UpdatesRecv:   safeInt(s["updates-received"]),
-			LastError:     firstNonEmpty(s["last-notification"], s["inactive-reason"], s["last-error"]),
-			HoldTime:      safeInt(s["hold-time"]),
-			Keepalive:     safeInt(s["keepalive-time"]),
-			Flapping:      flapping,
+			// v7's session menu counts BGP messages, not updates: local.messages
+			// sent, remote.messages received. The legacy peer menu's update
+			// counters are the fallback. Hold and keepalive are durations there
+			// ("3m"), which safeInt read as 3 and the hold-timer rule then took
+			// for a three-second hold.
+			MessagesSent: safeInt(firstNonEmpty(s["local.messages"], s["updates-sent"])),
+			MessagesRecv: safeInt(firstNonEmpty(s["remote.messages"], s["updates-received"])),
+			LastError:    firstNonEmpty(s["output.last-notification"], s["inactive-reason"], s["last-error"]),
+			HoldTime:     parseUptime(s["hold-time"]),
+			Keepalive:    parseUptime(s["keepalive-time"]),
+			Flapping:     flapping,
 		})
 	}
 

@@ -127,6 +127,15 @@ func TestParseUptime(t *testing.T) {
 		{"45s", 45},
 		{"2h30m", 9000},
 		{"garbage", 0},
+		// Measured on RouterOS 7.24 BGP sessions: milliseconds are not minutes,
+		// weeks count, and hold-time and keepalive-time use the same spelling.
+		{"24s930ms", 24},
+		{"4s70ms", 4},
+		{"2w3d", 1468800},
+		{"3m", 180},
+		{"1m", 60},
+		{"infinity", 0},
+		{"90", 90},
 	} {
 		if got := parseUptime(tc.in); got != tc.want {
 			t.Errorf("parseUptime(%q) = %d, want %d", tc.in, got, tc.want)

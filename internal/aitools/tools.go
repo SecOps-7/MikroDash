@@ -355,6 +355,19 @@ func liveTools() []Tool {
 		Freshness:  FreshLive,
 		Page:       "ppp",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "bgp_sessions",
+		Description: "Read only. List the router's BGP sessions right now, read from " +
+			"/routing/bgp/session: each peer's name, description, remote address and AS, whether " +
+			"the AS is private, an exchange or upstream, state, uptime, prefixes received, " +
+			"BGP messages sent and received, the last error or notification, hold and keepalive " +
+			"times, and whether it is flapping; with established and down counts. Routes are " +
+			"in list_route.",
+		Parameters: noArgs(),
+		Collector:  "routing",
+		Freshness:  FreshLive,
+		Page:       "routing",
+		Access:     AccessRead,
 	}}
 }
 

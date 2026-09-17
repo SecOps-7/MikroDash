@@ -127,8 +127,8 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
         bv = bo === undefined ? 9 : bo;
       } else if (sortKey === 'uptime') { av = a.uptimeSec; bv = b.uptimeSec; }
       else if (sortKey === 'prefixes') { av = a.prefixes; bv = b.prefixes; }
-      else if (sortKey === 'sent') { av = a.updatesSent; bv = b.updatesSent; }
-      else if (sortKey === 'recv') { av = a.updatesRecv; bv = b.updatesRecv; }
+      else if (sortKey === 'sent') { av = a.messagesSent; bv = b.messagesSent; }
+      else if (sortKey === 'recv') { av = a.messagesRecv; bv = b.messagesRecv; }
       else { av = 0; bv = 0; }
       if (typeof av === 'string') return sortDir * av.localeCompare(bv as string);
       return sortDir * (av - (bv as number));
@@ -274,8 +274,8 @@ export function initRoutingPage(socket: Socket, isVisible: (page: string) => boo
         '<td>' + stateBadge(p.state, p.flapping) + '</td>' +
         '<td style="font-family:var(--font-mono)">' + fmtUptime(p.uptimeSec) + '</td>' +
         '<td style="font-family:var(--font-mono);text-align:right">' + (p.prefixes || 0).toLocaleString() + '</td>' +
-        '<td style="font-family:var(--font-mono);text-align:right">' + (p.updatesSent || 0).toLocaleString() + '</td>' +
-        '<td style="font-family:var(--font-mono);text-align:right">' + (p.updatesRecv || 0).toLocaleString() + '</td>' +
+        '<td style="font-family:var(--font-mono);text-align:right">' + (p.messagesSent || 0).toLocaleString() + '</td>' +
+        '<td style="font-family:var(--font-mono);text-align:right">' + (p.messagesRecv || 0).toLocaleString() + '</td>' +
         '<td>' + errCell + '</td>' +
         '<td>' + sparkSvg(p.prefixHistory) + '</td>' +
         '</tr>';

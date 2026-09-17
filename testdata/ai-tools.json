@@ -9,6 +9,13 @@
       "page": "bandwidth"
     },
     {
+      "name": "list_bgp_sessions",
+      "access": "read",
+      "resource": "",
+      "collector": "routing",
+      "page": "routing"
+    },
+    {
       "name": "list_bridge",
       "access": "read",
       "resource": "bridge",

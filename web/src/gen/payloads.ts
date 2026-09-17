@@ -946,8 +946,8 @@ export interface Peer {
   uptimeSec: number;
   prefixes: number;
   prefixHistory: number[];
-  updatesSent: number;
-  updatesRecv: number;
+  messagesSent: number;
+  messagesRecv: number;
   lastError: string;
   holdTime: number;
   keepalive: number;

@@ -881,3 +881,37 @@ func TestRenderPPPSessions(t *testing.T) {
 		t.Errorf("no sessions does not read as an empty list: %s", empty)
 	}
 }
+
+// TestRenderBGPSessions. Peers reach the model with state, AS and counters, and
+// the summary counts; the prefix-history sparkline data and the internal key do
+// not.
+func TestRenderBGPSessions(t *testing.T) {
+	p := &collect.RoutingPayload{TS: 1, PollMs: 10000,
+		Peers: []collect.Peer{
+			{Key: "key-203.0.113.1", Name: "transit", Description: "upstream A", RemoteAddr: "203.0.113.1",
+				RemoteAs: 4200000001, PeerType: "private", State: "established", UptimeSec: 3600,
+				Prefixes: 12, PrefixHistory: []int{918273, 12}, MessagesSent: 4, MessagesRecv: 9, HoldTime: 180, Keepalive: 60},
+			{Key: "key-198.51.100.9", Name: "ix-rs1", RemoteAddr: "198.51.100.9", PeerType: "ix", State: "idle",
+				LastError: "hold timer expired", Flapping: true},
+		},
+		Summary: collect.PeerSummary{Total: 2, Established: 1, Down: 1},
+	}
+	b, _ := json.Marshal(renderBGPSessions(p))
+	got := string(b)
+	for _, want := range []string{`"name":"transit","description":"upstream A","remoteAddress":"203.0.113.1","remoteAs":4200000001`,
+		`"state":"established","uptimeSeconds":3600,"prefixes":12`, `"lastError":"hold timer expired"`,
+		`"flapping":true`, `"total":2,"established":1,"down":1`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	for _, leak := range []string{"key-203", "918273", "History"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("%q reached the model's view: %s", leak, got)
+		}
+	}
+	empty, _ := json.Marshal(renderBGPSessions(&collect.RoutingPayload{TS: 1}))
+	if !strings.Contains(string(empty), `"sessions":[]`) {
+		t.Errorf("no sessions does not read as an empty list: %s", empty)
+	}
+}

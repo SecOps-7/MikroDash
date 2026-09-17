@@ -61,6 +61,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"topology":  (*conn).liveTopology,
 	"vpn":       (*conn).liveWireguardStatus,
 	"ppp":       (*conn).livePPPSessions,
+	"routing":   (*conn).liveBGPSessions,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -1268,4 +1269,58 @@ func pppInterfaceName(service, user string) string {
 		return ""
 	}
 	return "<" + strings.ToLower(service) + "-" + user + ">"
+}
+
+// ── list_bgp_sessions ───────────────────────────────────────────────────────
+
+// liveBGPSessions answers from the routing collector, whose fast lane is the BGP
+// session menu. A forced refresh also re-reads the route tables (RefreshNow
+// resets the slow-lane count), which costs more than the question needs but keeps
+// one refresh path for the collector.
+func (cn *conn) liveBGPSessions(t aitools.Tool) string {
+	col := cn.rsession.Routing()
+	return liveAnswer(t, liveSource[collect.RoutingPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.RoutingPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.RefreshNow,
+		menu:    "/routing/bgp/session",
+		absent:  "The routing readings are not available from this router yet.",
+	}, renderBGPSessions)
+}
+
+type liveBGPPeer struct {
+	Name         string `json:"name"`
+	Description  string `json:"description,omitempty"`
+	RemoteAddr   string `json:"remoteAddress,omitempty"`
+	RemoteAs     int64  `json:"remoteAs,omitempty"`
+	PeerType     string `json:"peerType"`
+	State        string `json:"state"`
+	UptimeSec    int    `json:"uptimeSeconds"`
+	Prefixes     int    `json:"prefixes"`
+	MessagesSent int    `json:"messagesSent"`
+	MessagesRecv int    `json:"messagesReceived"`
+	LastError    string `json:"lastError,omitempty"`
+	HoldTime     int    `json:"holdTimeSeconds,omitempty"`
+	Keepalive    int    `json:"keepaliveSeconds,omitempty"`
+	Flapping     bool   `json:"flapping"`
+}
+
+// renderBGPSessions leaves out the prefix history (a sparkline's data) and the
+// route table, which list_route carries.
+func renderBGPSessions(p *collect.RoutingPayload) any {
+	rows := make([]liveBGPPeer, 0, len(p.Peers))
+	for _, x := range p.Peers {
+		rows = append(rows, liveBGPPeer{Name: x.Name, Description: x.Description, RemoteAddr: x.RemoteAddr,
+			RemoteAs: x.RemoteAs, PeerType: x.PeerType, State: x.State, UptimeSec: x.UptimeSec,
+			Prefixes: x.Prefixes, MessagesSent: x.MessagesSent, MessagesRecv: x.MessagesRecv,
+			LastError: x.LastError, HoldTime: x.HoldTime, Keepalive: x.Keepalive, Flapping: x.Flapping})
+	}
+	kept, truncated := capRows(rows)
+	return struct {
+		Sessions    []liveBGPPeer `json:"sessions"`
+		Total       int           `json:"total"`
+		Established int           `json:"established"`
+		Down        int           `json:"down"`
+		Truncated   bool          `json:"truncated"`
+	}{kept, p.Summary.Total, p.Summary.Established, p.Summary.Down, truncated}
 }
