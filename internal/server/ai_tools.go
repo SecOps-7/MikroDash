@@ -69,6 +69,13 @@ func (cn *conn) runAITool(tc aiprovider.ToolCall) string {
 	if tc.Function.Name == aitools.ActionToolName {
 		return cn.runAIActionTool(tc)
 	}
+	// THE RAW COMMAND TOOLS ARE NOT ADVERTISED, and are still answered by name.
+	// A model can invent a name, and this one must meet the gates rather than
+	// "no such tool", which would read as the feature being merely hidden. See
+	// ai_raw.go.
+	if tc.Function.Name == aitools.RawCommandToolName {
+		return cn.runAIRawCommandTool(tc)
+	}
 	t, ok := aitools.ByName(tc.Function.Name)
 	if !ok {
 		// THE NAME IS NOT ECHOED. It was chosen by the model, and repeating it

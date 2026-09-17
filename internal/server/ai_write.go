@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"mikrodash/internal/aiprovider"
+	"mikrodash/internal/rawcmd"
 	"mikrodash/internal/resource"
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/store"
@@ -63,7 +64,10 @@ type aiWriteProposal struct {
 	actionKey string
 	target    string
 	mode      string
-	raisedAt  time.Time
+	// raw is a `run_command` proposal: one parsed RouterOS command. Set on
+	// neither of the other two kinds.
+	raw      *rawcmd.Command
+	raisedAt time.Time
 }
 
 // runAIWriteTool is `change_row`.
@@ -295,6 +299,14 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 // aiWriteApprove performs a proposal the operator accepted.
 func (cn *conn) aiWriteApprove(raw json.RawMessage) {
 	p := cn.takeAIProposal(raw)
+	if p != nil && p.raw != nil {
+		var in struct {
+			Confirm string `json:"confirm"`
+		}
+		_ = json.Unmarshal(raw, &in)
+		cn.approveAIRawCommand(p, in.Confirm)
+		return
+	}
 	if p != nil && p.actionKey != "" {
 		// The operator's typed-back router name travels on THIS frame, never on
 		// the tool call: see aitools/actions.go.

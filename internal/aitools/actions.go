@@ -32,8 +32,30 @@ import (
 // approval the operator sends, and this tool takes no `confirm` argument at all:
 // a model that could supply it would be answering its own confirmation.
 
-// ActionToolName is the second — and last — tool that changes anything.
+// ActionToolName is the second tool that changes anything through a DECLARED
+// action. The two raw command tools below are a different thing again, and are
+// not advertised at all.
 const ActionToolName = "run_action"
+
+// RawCommandToolName and BulkToolName are the raw command tools: one RouterOS
+// command the model composed, and an ordered list of them.
+//
+// ── DECLARED HERE, ADVERTISED NOWHERE ───────────────────────────────────────
+//
+// They are NOT in `All()` and not in `Permitted()`, so no model is ever told
+// they exist, and the generated catalogue does not carry them. The names live
+// here because the executor has to recognise a call by name — a model can invent
+// a name, and inventing this one must reach the gates rather than a "no such
+// tool" that would read as the feature being merely hidden.
+//
+// The gates are in internal/server: a signed-in global administrator, the
+// `aiAllowRawCommands` setting, and the router's name typed back on every single
+// command. Slice 4 of the MikroMCP parity work builds them; the frontend is not
+// wired, deliberately.
+const (
+	RawCommandToolName = "run_command"
+	BulkToolName       = "bulk_execute"
+)
 
 // ActionSpec is one declared action: what it is called, which page's write
 // permission owns it, and what it needs.
