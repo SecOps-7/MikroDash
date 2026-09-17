@@ -49,7 +49,6 @@
       "pageNetwatch",
       "pageIpAddresses",
       "pageWireless",
-      "pingEnabled",
       "aiConfirmWrites"
     ],
     "value": [
@@ -285,7 +284,6 @@
     "s_ntfyEnabled",
     "s_ntfyToken",
     "s_ntfyUrl",
-    "s_pingEnabled",
     "s_pushbulletApiKey",
     "s_rosDebug",
     "s_routerPass",

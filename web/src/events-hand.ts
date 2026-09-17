@@ -111,7 +111,7 @@ export interface PageSettings {
   pageVpn: boolean; pageBandwidth: boolean; pageQueues: boolean; pageConnections: boolean;
   pageFirewall: boolean; pageRosusers: boolean; pageLogs: boolean; pagePackages: boolean;
   pageDevices: boolean; pageAudit: boolean; pageBackups: boolean;
-  pingEnabled: boolean; userNotifyEnabled: boolean;
+  userNotifyEnabled: boolean;
   /** DERIVED, not stored: the assistant is enabled AND has an endpoint and a
    *  model. The three settings behind it stay on the server — `aiBaseUrl` is
    *  infrastructure config a viewer has no business reading. */

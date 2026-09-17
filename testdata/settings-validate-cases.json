@@ -256,58 +256,58 @@
     },
     "boolTrue": {
       "body": {
-        "pingEnabled": true
+        "rosDebug": true
       },
       "updates": {
-        "pingEnabled": true
+        "rosDebug": true
       }
     },
     "boolStringTrue": {
       "body": {
-        "pingEnabled": "true"
+        "rosDebug": "true"
       },
       "updates": {
-        "pingEnabled": true
+        "rosDebug": true
       }
     },
     "boolStringTrueUpper": {
       "body": {
-        "pingEnabled": "TRUE"
+        "rosDebug": "TRUE"
       },
       "updates": {
-        "pingEnabled": false
+        "rosDebug": false
       }
     },
     "boolOne": {
       "body": {
-        "pingEnabled": 1
+        "rosDebug": 1
       },
       "updates": {
-        "pingEnabled": false
+        "rosDebug": false
       }
     },
     "boolFalse": {
       "body": {
-        "pingEnabled": false
+        "rosDebug": false
       },
       "updates": {
-        "pingEnabled": false
+        "rosDebug": false
       }
     },
     "boolStringFalse": {
       "body": {
-        "pingEnabled": "false"
+        "rosDebug": "false"
       },
       "updates": {
-        "pingEnabled": false
+        "rosDebug": false
       }
     },
     "boolYes": {
       "body": {
-        "pingEnabled": "yes"
+        "rosDebug": "yes"
       },
       "updates": {
-        "pingEnabled": false
+        "rosDebug": false
       }
     },
     "boolPageKey": {
@@ -487,7 +487,7 @@
       "body": {
         "topN": 30,
         "pingTarget": " host ",
-        "pingEnabled": "true",
+        "rosDebug": "true",
         "authMode": "none",
         "telegramBotToken": "tok",
         "displayTimezone": "UTC",
@@ -497,7 +497,7 @@
         "authMode": "none",
         "topN": 30,
         "pingTarget": "host",
-        "pingEnabled": true,
+        "rosDebug": true,
         "telegramBotToken": "tok",
         "displayTimezone": "UTC"
       }

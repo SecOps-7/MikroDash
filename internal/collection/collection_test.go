@@ -209,7 +209,28 @@ func TestAStoredOffListIsIgnored(t *testing.T) {
 	if got.Mode != "poll" {
 		t.Errorf("the rest of the block was lost with the off list: mode = %q", got.Mode)
 	}
-	if Resolve(map[string]any{"pingEnabled": false}, nil).Enabled["ping"] {
-		t.Error("the install-wide ping switch no longer disables ping")
+	// ── NOTHING DISABLES A COLLECTOR ANY MORE ──────────────────────────────
+	//
+	// This checked that the install-wide ping switch turned ping off. That
+	// switch was removed on 2026-09-17, so the check is replaced by the
+	// invariant it became rather than dropped: no input leaves any collector
+	// disabled. The uniformity is what lets every consumer stop asking whether
+	// a collector is on before using what it holds.
+	for _, in := range []map[string]any{
+		{},
+		{"pingEnabled": false},
+		{"pingEnabled": "false"},
+		{"pingEnabled": false, "rosDebug": true},
+	} {
+		got := Resolve(in, nil).Enabled
+		if len(got) < 10 {
+			t.Fatalf("settings %v resolved only %d collectors; the registry is not being read",
+				in, len(got))
+		}
+		for key, on := range got {
+			if !on {
+				t.Errorf("settings %v left %q disabled; no collector can be switched off", in, key)
+			}
+		}
 	}
 }

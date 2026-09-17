@@ -172,6 +172,11 @@ var dashboardIDsUnwritten = map[string]string{
 	"ndWanGroup":      "static SVG in the network diagram",
 	"dc-worldMapWrap": "the map's wrapper. The card reaches it as `svg.parentElement` to position " +
 		"the tooltip, which is traversal rather than a lookup, so it has no writer and needs none.",
+	"ndPingSection": "a wrapper whose children are all driven — pingTargetLabel, ndPingRtt, " +
+		"ndPingMin, ndPingMax, ndPingLoss and pingChartNet are each written by the ping card. " +
+		"Its only reference was the caps.ts line that hid the section when ping collection was " +
+		"switched off, and ping can no longer be switched off (2026-09-17), so there is nothing " +
+		"left to toggle and the section is always shown.",
 }
 
 // TestDashboardMarkupIsDriven: every id in the dashboard's markup is referenced by

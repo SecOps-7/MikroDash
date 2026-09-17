@@ -127,19 +127,13 @@ export function applyPageVisibility(pages?: Record<string, unknown>): void {
   // previous value alone, and a cleared one must replace it. The default of 5 is
   // the original's.
   if (p.vpnDashTopN != null) vpnDashTopN = Number(p.vpnDashTopN) || 5;
-  // The ping block on the network diagram. Its four stat ids are written by this
-  // port already — what was missing is the SECTION being hidden when ping
-  // collection is switched off, which left an operator who disabled ping looking
-  // at a permanently empty block where the live app shows nothing at all.
+  // ── THE PING SECTION IS ALWAYS SHOWN NOW ─────────────────────────────────
   //
-  // `!= null` for the same reason as the two above: absent leaves it alone,
-  // explicitly false hides it. And `style.display`, not a class, because that is
-  // what the live app sets — a class here would not survive the next render of
-  // anything that writes the same attribute.
-  if (p.pingEnabled != null) {
-    const pingSection = document.getElementById('ndPingSection');
-    if (pingSection) pingSection.style.display = p.pingEnabled ? '' : 'none';
-  }
+  // This hid `ndPingSection` when ping collection was switched off, so an
+  // operator who disabled ping did not sit looking at a permanently empty
+  // block. Ping can no longer be switched off (the install-wide toggle went on
+  // 2026-09-17), so the empty-block state it guarded against cannot occur and
+  // the section is unconditionally visible.
 
   const settingKeyFor: Record<string, string> = {};
   for (const k of Object.keys(PAGE_NAV_MAP)) settingKeyFor[PAGE_NAV_MAP[k]!] = k;

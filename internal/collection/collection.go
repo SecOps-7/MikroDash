@@ -40,7 +40,6 @@
 //	an unknown mode is honoured                        1
 //	a non-pollable collector may poll                 29
 //	pollIfaces takes the wrong default                27
-//	the pingEnabled kill switch is ignored             2
 //	the clamp bounds are not applied                   2
 package collection
 
@@ -213,8 +212,13 @@ func Resolve(settings map[string]any, r *Router) Resolved {
 			out.Stream[c.Key] = false
 		}
 
-		// EVERY COLLECTOR RUNS unless the install-wide ping switch says otherwise
-		// below. A router record's `off` list is ignored: see ParseRouter.
+		// EVERY COLLECTOR RUNS, with no way left to switch one off. The
+		// install-wide ping switch was the last and went on 2026-09-17; a
+		// router record's `off` list is ignored, see ParseRouter.
+		//
+		// The uniformity is the point rather than a side effect: a consumer no
+		// longer has to ask whether a collector is enabled before using what it
+		// holds, which is one fewer gate on every path that reads a payload.
 		out.Enabled[c.Key] = true
 	}
 
@@ -230,12 +234,6 @@ func Resolve(settings map[string]any, r *Router) Resolved {
 		out.Poll["ifaces"] = n
 	} else {
 		out.Poll["ifaces"] = defaultPollIfacesMs
-	}
-
-	// The install-wide ping switch (Settings, Ping / Latency), the one thing that
-	// still disables a collector.
-	if v, ok := settings["pingEnabled"]; ok && v == false {
-		out.Enabled["ping"] = false
 	}
 
 	return out

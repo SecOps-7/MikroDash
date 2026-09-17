@@ -46,7 +46,7 @@ const Mask = "••••••••"
 // for. Copied from the list.
 var ViewerFields = []string{
 	"authMode",
-	"pingEnabled", "pingTarget",
+	"pingTarget",
 	"topN", "topTalkersN", "firewallTopN", "vpnDashTopN", "maxConns", "historyMinutes",
 	"alertCpuThreshold", "alertPingLoss",
 	"activeRouterId",

@@ -98,7 +98,7 @@ func TestWithoutTheResolverTheViewerPayloadIsServed(t *testing.T) {
 		}
 	}
 	// AND IT IS STILL USABLE: the fields a dashboard needs are there.
-	for _, want := range []string{"authMode", "pingEnabled", "topN", "displayTimezone"} {
+	for _, want := range []string{"authMode", "pingTarget", "topN", "displayTimezone"} {
 		if _, present := got[want]; !present {
 			t.Errorf("the viewer payload is missing %q, which a rendering page reads", want)
 		}

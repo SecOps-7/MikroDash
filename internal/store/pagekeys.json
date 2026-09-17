@@ -28,7 +28,6 @@
   "alertCpuThreshold",
   "alertPingLoss",
   "vpnDashTopN",
-  "pingEnabled",
   "displayTimezone",
   "userNotifyEnabled",
   "notifIfaceUpDown",

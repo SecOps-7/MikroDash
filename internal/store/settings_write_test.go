@@ -120,9 +120,13 @@ func TestOnlyTrueAndTheStringTrueAreTrue(t *testing.T) {
 	cases := map[any]bool{true: true, "true": true, false: false, "false": false,
 		"1": false, 1: false, "TRUE": false, "": false}
 	for in, want := range cases {
-		up, _ := SettingsUpdate(map[string]any{"pingEnabled": in})
-		if up["pingEnabled"] != want {
-			t.Errorf("pingEnabled=%#v gave %#v, want %v", in, up["pingEnabled"], want)
+		// SUBJECT CHANGED, RULE UNCHANGED. `pingEnabled` was removed on
+		// 2026-09-17; `rosDebug` is an ordinary bool field and the coercion
+		// being pinned here is the subtle part: only a real true or the string
+		// "true" counts, and 1, "TRUE" and "yes" are all false.
+		up, _ := SettingsUpdate(map[string]any{"rosDebug": in})
+		if up["rosDebug"] != want {
+			t.Errorf("rosDebug=%#v gave %#v, want %v", in, up["rosDebug"], want)
 		}
 	}
 }

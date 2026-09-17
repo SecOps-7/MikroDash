@@ -120,7 +120,6 @@ export const BOOL_FIELDS: readonly string[] = [
   "pageWifi",
   "pageWifiMap",
   "pageWireless",
-  "pingEnabled",
   "pushbulletEnabled",
   "rosDebug",
   "smtpEnabled",
