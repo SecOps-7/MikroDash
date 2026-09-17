@@ -154,6 +154,70 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     redraw();
   }
 
+  // ── STREAMING ─────────────────────────────────────────────────────────────
+  //
+  // `ai:chunk` delivers an answer as it is written. The first piece opens an
+  // assistant bubble; later pieces repaint only that bubble, at most once a
+  // frame, rather than rebuilding the whole transcript per token. A `reset`
+  // starts a new model round (the last one ended in tool calls), so what it had
+  // written is dropped. `ai:reply` then settles the bubble on the whole answer,
+  // which is also what the server saved. An endpoint that does not stream sends
+  // no chunks, and the reply simply lands as before.
+  let streamIdx = -1;
+  let streamText = '';
+  let streamPaint = false;
+
+  function endStream(): void {
+    streamIdx = -1;
+    streamText = '';
+  }
+
+  function paintStream(): void {
+    streamPaint = false;
+    const box = log();
+    if (!box || streamIdx === -1) return;
+    const bubbles = box.querySelectorAll('.ai-turn');
+    const body = bubbles[bubbles.length - 1]?.querySelector('.ai-turn-body');
+    if (!body) return;
+    // FOLLOW THE TEXT only when the reader is already at the bottom: someone who
+    // scrolled up to re-read an earlier answer is not dragged back down.
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+    body.replaceChildren(renderMarkdown(streamText));
+    if (atBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  function schedulePaint(): void {
+    if (streamPaint) return;
+    streamPaint = true;
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(paintStream);
+    else setTimeout(paintStream, 16);
+  }
+
+  socket.on('ai:chunk', (d) => {
+    // A chunk with no question outstanding belongs to an answer this page has
+    // already abandoned (a router switch, or Clear).
+    if (!waiting) return;
+    if (d.reset) {
+      streamText = '';
+      if (streamIdx !== -1) {
+        turns.splice(streamIdx, 1);
+        streamIdx = -1;
+        redraw();
+      }
+      return;
+    }
+    streamText += d.text || '';
+    if (!streamText) return;
+    if (streamIdx === -1) {
+      turns.push({ role: 'assistant', text: streamText });
+      streamIdx = turns.length - 1;
+      redraw();
+      return;
+    }
+    turns[streamIdx]!.text = streamText;
+    schedulePaint();
+  });
+
   function send(): void {
     if (waiting) return;
     const box = input();
@@ -167,15 +231,26 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
 
   socket.on('ai:reply', (d) => {
     setWaiting(false);
-    add('assistant', d.text || '');
+    if (streamIdx !== -1) {
+      // THE WHOLE ANSWER WINS over what was streamed: it is what was saved, and
+      // it is the text a later question replays.
+      turns[streamIdx]!.text = d.text || '';
+      endStream();
+      redraw();
+    } else {
+      add('assistant', d.text || '');
+    }
     const badge = el('aiAgentModel');
-    // Shown once an answer has come back, so the badge reports what actually
-    // answered rather than what is configured.
+    // Updated from what actually answered, in case the setting changed since
+    // the page loaded and seeded it.
     if (badge && d.model) badge.textContent = d.model;
   });
 
   socket.on('ai:error', (d) => {
     setWaiting(false);
+    // Whatever streamed before the failure stays on screen, and the error
+    // follows it; it is simply no longer being written to.
+    endStream();
     add('error', d.error || 'The request failed.');
   });
 
@@ -284,6 +359,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     }
   });
   el('aiAgentClear')?.addEventListener('click', () => {
+    endStream();
     turns.length = 0;
     setWaiting(false);
     redraw();
@@ -298,6 +374,10 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
   // sends that only once it has processed the select: asking earlier would
   // fetch the thread for no router, or for the previous one.
   socket.on('ai:history', (d) => {
+    // THE MODEL BADGE, SEEDED FROM SETTINGS, so it names the model from the
+    // moment the page loads rather than showing a dash until the first answer.
+    const seed = el('aiAgentModel');
+    if (seed && d.model) seed.textContent = d.model;
     // AN ANSWER IN FLIGHT KEEPS THE SCREEN. Replacing it would drop the question
     // bubble that answer belongs under; the reply arrives and is appended.
     if (waiting) return;
@@ -314,6 +394,7 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     historyRouter = id;
     // ANOTHER ROUTER, ANOTHER CONVERSATION. An answer still outstanding belongs
     // to the device it was asked about and is saved there by the server.
+    endStream();
     setWaiting(false);
     socket.emit('ai:history', {});
   });

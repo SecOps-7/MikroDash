@@ -172,17 +172,17 @@ func listTool(r *resource.Resource) Tool {
 func writeTool(resources []string) Tool {
 	return Tool{
 		Name: WriteToolName,
-		Description: "Propose a change to ONE row on the router the operator has selected: " +
+		Description: "Make a change to ONE row on the router the operator has selected: " +
 			"create it, edit it, or delete it. " +
 			"Set `resource` to one of the listed names. Call that resource's list_ tool first " +
 			"to see its field names, current rows and their ids. " +
 			"To CREATE, omit `id` and give `values`. To EDIT, pass the row's `id` and the " +
-			"`values` to change. To DELETE, pass the row's `id` and `delete: true`; `values` " +
-			"is not needed, and a delete is always put to the operator to approve. " +
-			"Depending on how the operator configured MikroDash this either applies straight " +
-			"away or is put to them for approval, and a change that could cut MikroDash off " +
-			"from the router is ALWAYS put to them. Say what you proposed; never claim it was " +
-			"applied unless the result says so.",
+			"`values` to change. To DELETE, pass the row's `id` and `delete: true`. " +
+			"The change goes through MikroDash's own checks, audit trail and undo history. " +
+			"The result says what happened: applied, or waiting for the operator to confirm " +
+			"it, which is always the case for a delete and for a change that could cut " +
+			"MikroDash off from the router. Never say a change was applied unless the result " +
+			"says so.",
 		Parameters: map[string]any{
 			"type": "object",
 			"properties": map[string]any{

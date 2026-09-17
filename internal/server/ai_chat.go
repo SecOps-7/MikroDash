@@ -175,9 +175,23 @@ func (cn *conn) aiAsk(raw json.RawMessage) {
 		msgs = append(msgs, cn.srv.aiHistory(histUser, histRouter)...)
 		msgs = append(msgs, aiprovider.ChatMessage{Role: "user", Content: question})
 
+		// ── STREAMED TO THE PAGE AS IT IS WRITTEN ─────────────────────────────
+		//
+		// Each model round starts with `reset`, because a round can end in tool
+		// calls: the "let me check" text it wrote is superseded by the next
+		// round's answer, and the page shows only the round in progress. The
+		// final `ai:reply` still carries the whole answer and is what the page
+		// settles on, what history saves and what is replayed; the chunks change
+		// only when the words appear. An endpoint that does not stream sends no
+		// chunks, and the page shows the reply when it lands, as it always did.
+		chunk := func(text string, reset bool) {
+			EvAIChunk.Send(cn.srv.hub, cn.c, map[string]any{"text": text, "reset": reset})
+		}
 		text, err := aiChatLoop(msgs, tools,
 			func(m []aiprovider.ChatMessage, tl []any) (aiprovider.Reply, error) {
-				return aiprovider.Complete(ctx, cfg.Client(), cfg, m, aiMaxReplyTokens, tl...)
+				chunk("", true)
+				return aiprovider.Stream(ctx, cfg.Client(), cfg, m, aiMaxReplyTokens,
+					func(piece string) { chunk(piece, false) }, tl...)
 			},
 			cn.runAITool)
 		if err != nil {
@@ -294,9 +308,19 @@ func (cn *conn) aiSendHistory() {
 	for _, m := range cn.srv.aiHistory(user, cn.routerID) {
 		turns = append(turns, map[string]any{"role": m.Role, "text": m.Content})
 	}
+	// THE MODEL RIDES ALONG, so the page's badge names it from the moment the
+	// page loads rather than showing a dash until the first answer. Read from the
+	// settings the answer would use; empty when there are none to read.
+	model := ""
+	if cn.srv.store != nil {
+		if settings, err := cn.srv.mergedSettings(); err == nil {
+			model, _ = settings["aiModel"].(string)
+		}
+	}
 	EvAIHistory.Send(cn.srv.hub, cn.c, map[string]any{
 		"routerId": cn.routerID,
 		"turns":    turns,
+		"model":    model,
 	})
 }
 
@@ -575,11 +599,19 @@ func freshenFor(rs *session.Session, now int64) []string {
 // delete is not even a mitigation, which is why this one cannot be.
 const aiSafetyPreamble = `You are an assistant built into MikroDash, a dashboard for MikroTik RouterOS devices.
 
-You have READ-ONLY tools. Each one lists the rows of one RouterOS menu on the device the
-operator has selected. You cannot change anything: there is no tool that creates, edits,
-removes or runs a command, and nothing you write is executed. If a change is warranted,
-describe it and show the RouterOS command in a fenced code block so the operator can
-review and run it themselves.
+You have tools. The list tools each read the rows of one RouterOS menu on the device the
+operator has selected. change_row makes changes on that device: it creates a row, edits a
+row or deletes a row, one row at a time, through the same checks, audit trail and undo
+history as MikroDash's own forms. It is the only tool that changes anything.
+
+When the operator asks for a change, make it with change_row rather than telling them to
+run a command themselves. The tool result says what happened. If it says the change was
+applied, say it is done. If it says MikroDash is waiting for the operator to confirm, tell
+them it is ready for their confirmation. Never say a change was applied unless the result
+says so.
+
+You cannot run arbitrary RouterOS commands, reboot, back up or upgrade the device, and you
+cannot reach any device other than the one selected.
 
 Call a tool when the observations you were given do not answer the question. They are a
 summary; a tool returns the actual rows. Do not call a tool whose answer you already have,
@@ -612,8 +644,8 @@ question, say which page of MikroDash would show it rather than guessing. Be bri
 // depend on it. `aiSafetyPreamble` is prepended to whatever this becomes and
 // cannot be edited from the UI, and the real boundary is neither of them: it is
 // that every tool is a list except one, that `change_row` goes through the same
-// pipeline a form does, and that a write is proposed rather than performed
-// unless the operator turned that off.
+// pipeline a form does, and that a write waits for the operator's confirmation
+// unless they turned that off (a delete and a guard warning always wait).
 //
 // The injection rule appears in BOTH. Here because an operator reading their own
 // prompt should see it and be able to strengthen it, and in the preamble because
@@ -641,11 +673,13 @@ that from here" is more useful than a confident answer that turns out to be inve
 WHAT YOU CAN DO
 
 You can read any RouterOS menu the operator is allowed to see, using the list tools. You can
-propose a change to a single row with change_row. Depending on how MikroDash is configured
-that is either applied straight away or put to the operator to approve.
+make changes with change_row: create, edit or delete one row at a time. When the operator
+asks for a change, make it. Depending on how MikroDash is configured the change is applied
+straight away, or MikroDash asks the operator to confirm it first. Deletes, and anything that
+could cut MikroDash off from the router, always ask.
 
-Never say a change has been applied unless the tool result says so. If it says the change was
-proposed, tell the operator it is waiting for them.
+Never say a change has been applied unless the tool result says so. If the result says it is
+waiting for confirmation, tell the operator to confirm it.
 
 You cannot run arbitrary commands, and you cannot reach any device other than the one
 selected.
@@ -671,9 +705,9 @@ Never use em dashes. Use a comma, a colon, a semicolon or brackets instead.
 
 BEING CAREFUL WITH A LIVE ROUTER
 
-This is production infrastructure. Before proposing a change, say what it will do and what it
+This is production infrastructure. When you make a change, say what it will do and what it
 could break. Prefer the smallest change that answers the need. If a change could cut MikroDash
-off from the router, or lock the operator out, say so in plain words before proposing it.`
+off from the router, or lock the operator out, say so in plain words before making it.`
 
 // aiSystemPrompt is the fixed preamble plus the operator's prompt, or the
 // default when they have not written one.

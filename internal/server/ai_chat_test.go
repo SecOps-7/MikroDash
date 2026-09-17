@@ -383,3 +383,28 @@ func TestOverviewIntervalDefaultsToThreeHours(t *testing.T) {
 		t.Error("the Agent Overview card is not off by default")
 	}
 }
+
+// TestThePreambleDescribesTheToolsItIsGiven.
+//
+// ── THE FIXED PREAMBLE SAID "READ-ONLY" FOR TWO SLICES AFTER IT WAS NOT ─────
+//
+// It told the model "You have READ-ONLY tools ... there is no tool that creates,
+// edits, removes" while `change_row` could do all three. The model, told both,
+// hedged: it described itself as able to "propose" changes and, asked to delete
+// something, said it could not. The operator cannot edit this text, so a stale
+// claim here cannot be fixed from Settings, only here.
+func TestThePreambleDescribesTheToolsItIsGiven(t *testing.T) {
+	for _, stale := range []string{"READ-ONLY", "cannot change anything", "no tool that creates"} {
+		if strings.Contains(aiSafetyPreamble, stale) {
+			t.Errorf("the preamble still says %q, while change_row can create, edit and delete", stale)
+		}
+	}
+	for _, want := range []string{"change_row", "delete", "Never say a change was applied"} {
+		if !strings.Contains(aiSafetyPreamble, want) {
+			t.Errorf("the preamble does not mention %q", want)
+		}
+	}
+	if !strings.Contains(AIDefaultSystemPrompt, "delete") {
+		t.Error("the default prompt does not say the assistant can delete")
+	}
+}

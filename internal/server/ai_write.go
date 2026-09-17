@@ -262,13 +262,26 @@ func (cn *conn) raiseAIProposal(res *resource.Resource, req *resRequest,
 		"warnCode": warnCode, "warning": warning, "values": shown,
 	})
 
+	// ── WORDED AS A CHANGE IN PROGRESS, NOT A SUGGESTION ────────────────────
+	//
+	// The operator asked for the assistant to act rather than to propose. It
+	// does: the change is built, checked and waiting on one press. What it must
+	// not do is call it applied, because nothing has reached the router yet, and
+	// the operator would act on that claim.
 	if warnCode != "" {
-		return "Not applied. That change carries a safety warning, so it has been put to the " +
-			"operator to confirm. Tell them what you proposed and why, and that MikroDash " +
-			"flagged it."
+		return "Waiting for confirmation. MikroDash flagged a safety warning on this change and " +
+			"is showing it to the operator in a confirmation dialog; it is applied when they " +
+			"confirm. Tell them what the change does and why it was flagged. It has not been " +
+			"applied yet."
 	}
-	return "Not applied yet. The change has been put to the operator for approval. Tell them " +
-		"what you proposed and why; do not say it has been done."
+	if removing != nil {
+		return "Waiting for confirmation. MikroDash is showing the operator this delete in a " +
+			"confirmation dialog, as it does for every delete; the row is removed when they " +
+			"confirm. Tell them what will be deleted. It has not been deleted yet."
+	}
+	return "Waiting for confirmation. MikroDash is showing the operator this change in a " +
+		"confirmation dialog, and it is applied when they confirm. Tell them what the change " +
+		"does. It has not been applied yet."
 }
 
 // aiWriteApprove performs a proposal the operator accepted.

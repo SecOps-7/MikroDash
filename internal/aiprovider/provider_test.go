@@ -17,10 +17,11 @@ import (
 // non-deterministic and asserting on one would pin nothing; what has to be true
 // every time is where the request went, what it carried, and what it did not.
 type stub struct {
-	got    *http.Request
-	body   []byte
-	status int
-	err    error
+	got         *http.Request
+	body        []byte
+	status      int
+	err         error
+	contentType string
 }
 
 func (s *stub) Do(r *http.Request) (*http.Response, error) {
@@ -36,10 +37,14 @@ func (s *stub) Do(r *http.Request) (*http.Response, error) {
 	if b == nil {
 		b = []byte(`{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`)
 	}
+	ct := s.contentType
+	if ct == "" {
+		ct = "application/json"
+	}
 	return &http.Response{
 		StatusCode: st,
 		Body:       io.NopCloser(bytes.NewReader(b)),
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Header:     http.Header{"Content-Type": []string{ct}},
 	}, nil
 }
 
@@ -318,5 +323,84 @@ func TestTheTestButtonAsksForEnoughTokensToGetAnAnswer(t *testing.T) {
 		t.Errorf("the Test button asks for max_tokens=%d — a reasoning model spends that "+
 			"on internal output and the gateway returns an empty completion, so the button "+
 			"calls a working endpoint broken", req.MaxTokens)
+	}
+}
+
+// TestAStreamIsDeliveredPieceByPieceAndAssembled.
+//
+// The deltas reach `onText` in order as they arrive, and the returned Reply is
+// the same text joined: what the page shows while streaming and what is saved
+// and replayed afterwards cannot disagree.
+func TestAStreamIsDeliveredPieceByPieceAndAssembled(t *testing.T) {
+	sse := "data: {\"choices\":[{\"delta\":{\"role\":\"assistant\"}}]}\n\n" +
+		": keep-alive\n\n" +
+		"data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n\n" +
+		"data: {\"choices\":[{\"delta\":{\"content\":\", router\"}}]}\n\n" +
+		"data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n" +
+		"data: [DONE]\n\n"
+	s := &stub{body: []byte(sse), contentType: "text/event-stream; charset=utf-8"}
+	var pieces []string
+	r, err := Stream(context.Background(), s, cfg(), TestPrompt, 64, func(p string) { pieces = append(pieces, p) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(pieces, "|") != "Hello|, router" {
+		t.Errorf("onText received %q", pieces)
+	}
+	if r.Text != "Hello, router" || r.Finish != "stop" {
+		t.Errorf("assembled reply %+v", r)
+	}
+	var sent map[string]any
+	b, _ := io.ReadAll(s.got.Body)
+	_ = json.Unmarshal(b, &sent)
+	if sent["stream"] != true {
+		t.Errorf("the request asked for stream=%v", sent["stream"])
+	}
+}
+
+// TestStreamedToolCallsAreJoinedByIndex. Arguments arrive split, and two calls
+// interleave; each must come back whole, in index order.
+func TestStreamedToolCallsAreJoinedByIndex(t *testing.T) {
+	sse := `data: {"choices":[{"delta":{"tool_calls":[{"index":1,"id":"b","type":"function","function":{"name":"list_dns","arguments":""}}]}}]}` + "\n" +
+		`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"a","type":"function","function":{"name":"change_row","arguments":"{\"resource\":"}}]}}]}` + "\n" +
+		`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"dnsStatic\"}"}}]}}]}` + "\n" +
+		`data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}` + "\n" +
+		"data: [DONE]\n"
+	s := &stub{body: []byte(sse), contentType: "text/event-stream"}
+	called := false
+	r, err := Stream(context.Background(), s, cfg(), TestPrompt, 64, func(string) { called = true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if called {
+		t.Error("onText was called for a turn that carried no prose")
+	}
+	if len(r.ToolCalls) != 2 || r.ToolCalls[0].ID != "a" || r.ToolCalls[1].ID != "b" {
+		t.Fatalf("tool calls %+v", r.ToolCalls)
+	}
+	if got := r.ToolCalls[0].Function.Arguments; got != `{"resource":"dnsStatic"}` {
+		t.Errorf("arguments were not joined: %q", got)
+	}
+	if r.Finish != "tool_calls" {
+		t.Errorf("finish %q", r.Finish)
+	}
+}
+
+// TestAnEndpointThatIgnoresStreamStillAnswers. The control for the two above: a
+// plain JSON reply to a streaming request is read as a whole reply.
+func TestAnEndpointThatIgnoresStreamStillAnswers(t *testing.T) {
+	s := &stub{} // JSON body, application/json
+	called := false
+	r, err := Stream(context.Background(), s, cfg(), TestPrompt, 64, func(string) { called = true })
+	if err != nil || r.Text != "ok" {
+		t.Fatalf("reply %+v err %v", r, err)
+	}
+	if called {
+		t.Error("onText was called for a non-streamed reply")
+	}
+	// And an error status is still the provider's own words.
+	s = &stub{status: 401, body: []byte(`{"error":{"message":"bad key"}}`)}
+	if _, err := Stream(context.Background(), s, cfg(), TestPrompt, 64, nil); err == nil || !strings.Contains(err.Error(), "bad key") {
+		t.Errorf("an HTTP 401 produced %v", err)
 	}
 }

@@ -22,6 +22,7 @@
 package aiprovider
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -31,6 +32,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 )
@@ -286,56 +288,211 @@ type Reply struct {
 // before tools existed, and the caller degrades by simply getting prose back.
 func Complete(ctx context.Context, c Doer, cfg Config, msgs []ChatMessage, maxTokens int,
 	tools ...any) (Reply, error) {
-	u, err := endpoint(cfg.BaseURL)
+	req, err := newChatRequest(ctx, cfg, msgs, maxTokens, false, tools)
 	if err != nil {
 		return Reply{}, err
 	}
-	if strings.TrimSpace(cfg.Model) == "" {
-		return Reply{}, errors.New("no model is configured")
-	}
-	extra, err := ParseHeaders(cfg.Headers)
+	resp, err := c.Do(req)
 	if err != nil {
 		return Reply{}, err
 	}
+	defer func() { _ = resp.Body.Close() }()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, bodyLimit))
+	return parseReply(resp.StatusCode, raw)
+}
 
-	body, err := json.Marshal(chatRequest{
-		Model: cfg.Model, Messages: msgs, MaxTokens: maxTokens, Stream: false,
-		Tools: toolSpecs(tools),
-	})
+// Stream performs one chat completion with `stream: true`, handing each piece of
+// prose to `onText` as it arrives, and returns the whole reply as `Complete`
+// would.
+//
+// ── WHY, AND WHAT IT CHANGES ────────────────────────────────────────────────
+//
+// The chat page used to wait for the entire answer and show it in one go, so a
+// long answer read as a page that had stopped. Streaming changes when the text
+// is SEEN and nothing about what it IS: the returned Reply is assembled from the
+// same deltas and is what the caller acts on, saves and replays.
+//
+// ── AN ENDPOINT THAT DOES NOT STREAM STILL WORKS ────────────────────────────
+//
+// Some OpenAI-compatible servers ignore `stream` and answer with ordinary JSON.
+// That is read by Content-Type rather than assumed, and parsed exactly as
+// `Complete` parses it, with `onText` simply never called. So turning streaming
+// on cannot break an endpoint that worked before.
+//
+// ── TOOL CALLS ARRIVE IN PIECES ─────────────────────────────────────────────
+//
+// A streamed tool call comes as fragments keyed by `index`: the id and name in
+// one delta, the JSON arguments split across many. They are joined per index and
+// returned in index order, so the caller sees the same ToolCalls a
+// non-streaming reply would have carried.
+func Stream(ctx context.Context, c Doer, cfg Config, msgs []ChatMessage, maxTokens int,
+	onText func(string), tools ...any) (Reply, error) {
+	req, err := newChatRequest(ctx, cfg, msgs, maxTokens, true, tools)
 	if err != nil {
 		return Reply{}, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
-	if err != nil {
-		return Reply{}, err
-	}
-	for k, v := range extra {
-		req.Header.Set(k, v)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	// OMITTED WHEN EMPTY, not sent blank. A local endpoint that needs no key
-	// will reject `Authorization: Bearer ` from some proxies, and an empty
-	// credential header is not the same as no credential.
-	if k := strings.TrimSpace(cfg.APIKey); k != "" {
-		req.Header.Set("Authorization", "Bearer "+k)
-	}
-
 	resp, err := c.Do(req)
 	if err != nil {
 		return Reply{}, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, bodyLimit))
+	body := io.LimitReader(resp.Body, bodyLimit)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 ||
+		!strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "text/event-stream") {
+		raw, _ := io.ReadAll(body)
+		return parseReply(resp.StatusCode, raw)
+	}
+
+	var (
+		text   strings.Builder
+		finish string
+		calls  = map[int]*ToolCall{}
+		order  []int
+	)
+	sc := bufio.NewScanner(body)
+	sc.Buffer(make([]byte, 0, 64<<10), bodyLimit)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if !strings.HasPrefix(line, "data:") {
+			continue // blank separators, `event:` and `:` comment lines
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			break
+		}
+		var chunk streamChunk
+		if json.Unmarshal([]byte(data), &chunk) != nil {
+			continue // a keep-alive or a line this app does not read
+		}
+		if chunk.Error != nil && chunk.Error.Message != "" {
+			return Reply{}, errors.New(chunk.Error.Message)
+		}
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+		ch := chunk.Choices[0]
+		if ch.Delta.Content != "" {
+			text.WriteString(ch.Delta.Content)
+			if onText != nil {
+				onText(ch.Delta.Content)
+			}
+		}
+		for _, tc := range ch.Delta.ToolCalls {
+			call, ok := calls[tc.Index]
+			if !ok {
+				call = &ToolCall{Type: "function"}
+				calls[tc.Index] = call
+				order = append(order, tc.Index)
+			}
+			if tc.ID != "" {
+				call.ID = tc.ID
+			}
+			if tc.Type != "" {
+				call.Type = tc.Type
+			}
+			call.Function.Name += tc.Function.Name
+			call.Function.Arguments += tc.Function.Arguments
+		}
+		if ch.FinishReason != nil && *ch.FinishReason != "" {
+			finish = *ch.FinishReason
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return Reply{}, err
+	}
+
+	sort.Ints(order)
+	out := Reply{Text: text.String(), Finish: finish}
+	for _, i := range order {
+		out.ToolCalls = append(out.ToolCalls, *calls[i])
+	}
+	if out.Text == "" && len(out.ToolCalls) == 0 && finish == "" {
+		// A stream that closed having said nothing at all. Reported, for the
+		// reason `parseReply` refuses a reply with no choices: a blank answer
+		// with no explanation is the worst thing to show an operator.
+		return Reply{}, errors.New("the endpoint's stream ended without a reply; check the model name")
+	}
+	return out, nil
+}
+
+// streamChunk is one `data:` event of a streamed reply.
+type streamChunk struct {
+	Choices []struct {
+		Delta struct {
+			Content   string `json:"content"`
+			ToolCalls []struct {
+				Index    int    `json:"index"`
+				ID       string `json:"id"`
+				Type     string `json:"type"`
+				Function struct {
+					Name      string `json:"name"`
+					Arguments string `json:"arguments"`
+				} `json:"function"`
+			} `json:"tool_calls"`
+		} `json:"delta"`
+		FinishReason *string `json:"finish_reason"`
+	} `json:"choices"`
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error"`
+}
+
+// newChatRequest builds the POST both calls send. `stream` is the only
+// difference, plus the Accept header that says a stream is welcome.
+func newChatRequest(ctx context.Context, cfg Config, msgs []ChatMessage, maxTokens int,
+	stream bool, tools []any) (*http.Request, error) {
+	u, err := endpoint(cfg.BaseURL)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(cfg.Model) == "" {
+		return nil, errors.New("no model is configured")
+	}
+	extra, err := ParseHeaders(cfg.Headers)
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := json.Marshal(chatRequest{
+		Model: cfg.Model, Messages: msgs, MaxTokens: maxTokens, Stream: stream,
+		Tools: toolSpecs(tools),
+	})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range extra {
+		req.Header.Set(k, v)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if stream {
+		req.Header.Set("Accept", "text/event-stream, application/json")
+	} else {
+		req.Header.Set("Accept", "application/json")
+	}
+	// OMITTED WHEN EMPTY, not sent blank. A local endpoint that needs no key
+	// will reject `Authorization: Bearer ` from some proxies, and an empty
+	// credential header is not the same as no credential.
+	if k := strings.TrimSpace(cfg.APIKey); k != "" {
+		req.Header.Set("Authorization", "Bearer "+k)
+	}
+	return req, nil
+}
+
+// parseReply reads a whole JSON reply, or the error it carries.
+func parseReply(status int, raw []byte) (Reply, error) {
 	var parsed chatReply
 	_ = json.Unmarshal(raw, &parsed)
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if status < 200 || status >= 300 {
 		if parsed.Error != nil && parsed.Error.Message != "" {
-			return Reply{}, fmt.Errorf("HTTP %d: %s", resp.StatusCode, parsed.Error.Message)
+			return Reply{}, fmt.Errorf("HTTP %d: %s", status, parsed.Error.Message)
 		}
-		return Reply{}, fmt.Errorf("HTTP %d", resp.StatusCode)
+		return Reply{}, fmt.Errorf("HTTP %d", status)
 	}
 	if parsed.Error != nil && parsed.Error.Message != "" {
 		// SOME SERVERS ANSWER 200 WITH AN ERROR OBJECT. Treating that as a

@@ -131,10 +131,17 @@ export interface HandEvents {
   /** A refusal, already sanitised: it can carry the endpoint's host. */
   'ai:error': { error: string };
   /**
+   * One piece of an answer being written. `reset` starts a new model round:
+   * discard what was streamed so far. MODEL OUTPUT, rendered through the
+   * Markdown renderer as nodes, never as markup. `ai:reply` still follows with
+   * the whole answer, and that is what the page settles on.
+   */
+  'ai:chunk': { text: string; reset: boolean };
+  /**
    * The saved conversation for this person on the selected router, oldest first:
    * the last ten exchanges, which is exactly what the assistant is replayed.
    */
-  'ai:history': { routerId: string; turns: { role: string; text: string }[] };
+  'ai:history': { routerId: string; turns: { role: string; text: string }[]; model: string };
   /**
    * One line for the Agent Overview card, on a cadence.
    *

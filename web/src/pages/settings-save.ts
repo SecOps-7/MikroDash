@@ -106,6 +106,19 @@ export function collectSettingsForm(
       out[key] = parseInt(raw, 10) || 587;
       continue;
     }
+    if (key === 'aiSystemPrompt' || key === 'aiOverviewPrompt') {
+      // ── AN UNCHANGED DEFAULT IS SAVED AS "USE THE DEFAULT" ───────────────
+      //
+      // The box is pre-filled with the built-in prompt, so pressing Save for any
+      // other setting used to store that text verbatim, as though the operator
+      // had written it. From then on a change to the shipped prompt never
+      // reached them: their copy was a frozen snapshot of an old default. That
+      // is how the assistant kept a preamble-era "propose" wording after the
+      // default had moved on. Empty is what the server reads as the default.
+      const def = input.dataset?.default;
+      out[key] = def !== undefined && raw.trim() === def.trim() ? '' : raw;
+      continue;
+    }
     if (INT_FIELDS[key]) {
       const n = parseInt(raw, 10);
       // NOT SENT when unparseable. The server would ignore a NaN anyway, but
