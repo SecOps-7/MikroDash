@@ -48,6 +48,7 @@ var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
 	"ifStatus": (*conn).liveInterfaceTraffic,
 	"wan":      (*conn).liveWanStatus,
 	"packages": (*conn).livePackages,
+	"rosusers": (*conn).liveRouterUsers,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -360,4 +361,100 @@ func renderPackages(p *collect.PackagesPayload) any {
 			UpgradeAvailable: fw.UpgradeAvailable, AutoUpgrade: fw.AutoUpgrade},
 		PendingReboot: p.PendingReboot, Counts: p.Counts, Packages: kept, Truncated: truncated,
 	}
+}
+
+// ── list_router_users ───────────────────────────────────────────────────────
+
+func (cn *conn) liveRouterUsers(t aitools.Tool) string {
+	col := cn.rsession.RosUsers()
+	return liveAnswer(t, liveSource[collect.RosUsersPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.RosUsersPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.RefreshNow,
+		menu:    "/user",
+		absent:  "The router's user readings are not available yet.",
+	}, renderRouterUsers)
+}
+
+type liveRosUser struct {
+	Name              string `json:"name"`
+	Group             string `json:"group"`
+	Address           string `json:"allowedAddress,omitempty"`
+	Comment           string `json:"comment,omitempty"`
+	Disabled          bool   `json:"disabled"`
+	Expired           bool   `json:"expired,omitempty"`
+	LastLogin         string `json:"lastLogin,omitempty"`
+	InactivityTimeout string `json:"inactivityTimeout,omitempty"`
+	UsedByMikroDash   bool   `json:"usedByMikroDash,omitempty"`
+}
+
+type liveRosGroup struct {
+	Name            string   `json:"name"`
+	Granted         []string `json:"grantedPolicies"`
+	Denied          []string `json:"deniedPolicies"`
+	Comment         string   `json:"comment,omitempty"`
+	Members         int      `json:"members"`
+	UsedByMikroDash bool     `json:"usedByMikroDash,omitempty"`
+}
+
+type liveRosSession struct {
+	Name            string `json:"user"`
+	Address         string `json:"address,omitempty"`
+	Via             string `json:"via,omitempty"`
+	When            string `json:"since,omitempty"`
+	UsedByMikroDash bool   `json:"usedByMikroDash,omitempty"`
+}
+
+// renderRouterUsers shapes the RouterOS accounts for the model.
+//
+// ── `protected` IS NAMED FOR WHAT IT MEANS ──────────────────────────────────
+//
+// The payload's flag marks the account and group MikroDash signs in with, which
+// the Users page refuses to edit because changing them can lock the dashboard
+// out of the router for good. `usedByMikroDash` says that in words a model will
+// act on; `protected` alone reads as a RouterOS attribute it could reason around.
+func renderRouterUsers(p *collect.RosUsersPayload) any {
+	users := make([]liveRosUser, 0, len(p.Users))
+	for _, u := range p.Users {
+		users = append(users, liveRosUser{Name: u.Name, Group: u.Group, Address: u.Address,
+			Comment: u.Comment, Disabled: u.Disabled, Expired: u.Expired, LastLogin: u.LastLogin,
+			InactivityTimeout: u.InactivityTimeout, UsedByMikroDash: u.Protected})
+	}
+	groups := make([]liveRosGroup, 0, len(p.Groups))
+	for _, g := range p.Groups {
+		groups = append(groups, liveRosGroup{Name: g.Name, Granted: nonNil(g.Granted),
+			Denied: nonNil(g.Denied), Comment: g.Comment, Members: g.Members, UsedByMikroDash: g.Protected})
+	}
+	sessions := make([]liveRosSession, 0, len(p.Sessions))
+	for _, a := range p.Sessions {
+		sessions = append(sessions, liveRosSession{Name: a.Name, Address: a.Address, Via: a.Via,
+			When: a.When, UsedByMikroDash: a.Protected})
+	}
+	keptU, tU := capRows(users)
+	keptG, tG := capRows(groups)
+	keptS, tS := capRows(sessions)
+	note := ""
+	switch {
+	case p.Denied:
+		note = "The router refused to list its users to MikroDash's API user; this is a permission on the router."
+	case !p.Available:
+		note = "The router's user list could not be read, so empty lists below do not mean there are no users."
+	}
+	return struct {
+		Note           string                    `json:"note,omitempty"`
+		Users          []liveRosUser             `json:"users"`
+		Groups         []liveRosGroup            `json:"groups"`
+		Sessions       []liveRosSession          `json:"activeSessions"`
+		PasswordPolicy collect.RosPasswordPolicy `json:"passwordPolicy"`
+		Truncated      bool                      `json:"truncated"`
+	}{note, keptU, keptG, keptS, p.PasswordPolicy, tU || tG || tS}
+}
+
+// nonNil is a slice that marshals as [] rather than null, for a list the model
+// should read as "none" rather than "unknown".
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
 }

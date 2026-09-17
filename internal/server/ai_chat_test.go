@@ -563,3 +563,38 @@ func TestRenderPackages(t *testing.T) {
 		t.Errorf("an unreadable package list does not say so: %s", unread)
 	}
 }
+
+// TestRenderRouterUsers. Accounts, groups and sessions reach the model; the
+// MikroDash account is named as such; row ids do not leak; and the unreadable
+// and refused cases explain themselves.
+func TestRenderRouterUsers(t *testing.T) {
+	p := &collect.RosUsersPayload{TS: 1, PollMs: 30_000, Available: true,
+		Users: []collect.RosUser{
+			{ID: "*U1", Name: "mikrodash", Group: "mikrodash-api", Protected: true},
+			{ID: "*U2", Name: "alice", Group: "full", Address: "192.0.2.0/24", LastLogin: "2026-09-17 10:00:00"},
+		},
+		Groups:         []collect.RosGroup{{ID: "*G1", Name: "full", Granted: []string{"write", "api"}, Members: 1}},
+		Sessions:       []collect.RosSession{{ID: "*S1", Name: "alice", Address: "192.0.2.10", Via: "winbox"}},
+		PasswordPolicy: collect.RosPasswordPolicy{MinLength: 8},
+	}
+	b, _ := json.Marshal(renderRouterUsers(p))
+	got := string(b)
+	for _, want := range []string{`"name":"mikrodash","group":"mikrodash-api","disabled":false,"usedByMikroDash":true`,
+		`"allowedAddress":"192.0.2.0/24"`, `"grantedPolicies":["write","api"]`, `"deniedPolicies":[]`,
+		`"user":"alice","address":"192.0.2.10","via":"winbox"`, `"minLength":8`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	for _, leak := range []string{"*U1", "*G1", "*S1", "password\":"} {
+		if strings.Contains(got, leak) {
+			t.Errorf("%q reached the model's view: %s", leak, got)
+		}
+	}
+	if b, _ := json.Marshal(renderRouterUsers(&collect.RosUsersPayload{TS: 1, Denied: true})); !strings.Contains(string(b), "permission on the router") {
+		t.Errorf("a refused read does not say so: %s", b)
+	}
+	if b, _ := json.Marshal(renderRouterUsers(&collect.RosUsersPayload{TS: 1})); !strings.Contains(string(b), "could not be read") {
+		t.Errorf("an unreadable list does not say so: %s", b)
+	}
+}

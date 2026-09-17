@@ -166,6 +166,13 @@
       "page": "routing"
     },
     {
+      "name": "list_router_users",
+      "access": "read",
+      "resource": "",
+      "collector": "rosusers",
+      "page": "users"
+    },
+    {
       "name": "list_vlan",
       "access": "read",
       "resource": "vlan",

@@ -229,6 +229,20 @@ func liveTools() []Tool {
 		Freshness:  FreshMetadata,
 		Page:       "packages",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "router_users",
+		Description: "Read only. List the router's OWN user accounts (RouterOS logins, not " +
+			"MikroDash users), read from /user with /user/group and /user/active: each user's " +
+			"group, allowed address, comment, disabled and expired state and last login; each " +
+			"group's granted and denied policies and member count; the sessions logged in now " +
+			"with address and method; and the password policy. The account and group MikroDash " +
+			"itself signs in with are marked usedByMikroDash and must never be changed. No " +
+			"passwords are ever returned.",
+		Parameters: noArgs(),
+		Collector:  "rosusers",
+		Freshness:  FreshMetadata,
+		Page:       "users",
+		Access:     AccessRead,
 	}}
 }
 
