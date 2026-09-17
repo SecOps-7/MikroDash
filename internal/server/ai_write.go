@@ -102,7 +102,9 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 	if err != nil {
 		return "The settings could not be read, so nothing was changed."
 	}
-	req := &resRequest{Resource: res.Key, ID: args.ID, Values: args.Values}
+	// PARTIAL, because the tool is documented as "the `values` to change": an
+	// edit that names three fields must leave the rest as the router holds them.
+	req := &resRequest{Resource: res.Key, ID: args.ID, Values: args.Values, Partial: args.ID != ""}
 
 	if !store.AIConfirmWrites(settings) {
 		// ── PROMPTS ARE OFF, SO THE WRITE IS ATTEMPTED ──────────────────────
@@ -118,6 +120,7 @@ func (cn *conn) runAIWriteTool(tc aiprovider.ToolCall) string {
 				"reading it back.", res.Label, quoted(out.Name), out.Action)
 		}
 		if fp, gate := guardGate(out); gate {
+			out.Detail = gateDetail(out)
 			return cn.raiseAIProposal(res, req, out.Name, fp, out, nil)
 		}
 		return aiRefusalText(res, out)
@@ -411,6 +414,22 @@ func guardGate(out writeOutcome) (string, bool) {
 	return fp, fp != ""
 }
 
+// gateDetail is a guard gate's detail with its CODE put back.
+//
+// `ackGate` moves the code out of the detail and into the outcome, so a proposal
+// built straight from that outcome carried a warning with no code — and
+// `raiseAIProposal` reads the code to decide whether to say anything about it.
+// Measured on the CHR: a queue covering MikroDash's own address was proposed
+// with an empty `warnCode`, so the dialog showed the change with no warning.
+func gateDetail(out writeOutcome) map[string]any {
+	detail := map[string]any{}
+	for k, v := range out.Detail {
+		detail[k] = v
+	}
+	detail["code"] = out.Code
+	return detail
+}
+
 // aiRefusalText turns a write outcome into something the model can relay.
 //
 // ── THE SAME SENTENCES THE BROWSER SHOWS, AND FOR THE SAME REASON ───────────
@@ -458,6 +477,12 @@ func aiRefusalText(res *resource.Resource, out writeOutcome) string {
 		return "Not applied: the router refused it, because the API user MikroDash signs in " +
 			"with lacks permission."
 	case "write-failed":
+		// THE ROUTER'S OWN WORDS, as the page shows them: they name the menu and
+		// the property, and without them the model can only say "refused" and
+		// then guess why out loud.
+		if msg, _ := out.Detail["message"].(string); msg != "" {
+			return "Not applied: the router refused the change: " + msg
+		}
 		return "Not applied: the router refused the change."
 	case "guard-refused":
 		return "Not applied, and it cannot be approved: " + guardRefusalText(out) + " Tell the " +

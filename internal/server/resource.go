@@ -59,6 +59,13 @@ type resRequest struct {
 	Values map[string]any `json:"values"`
 	// Ack is the fingerprint of a warning the operator has seen and accepted.
 	Ack string `json:"ack"`
+	// Partial says Values names only the fields to CHANGE, the rest being taken
+	// from the row as the router holds it. Never decoded from a browser frame:
+	// a form always sends its whole self, and BuildArgs clears an omitted
+	// clearable field. The assistant's write tool is the opposite — it is
+	// documented as "the values to change" — so a partial edit that omitted a
+	// comment or a rate was CLEARING it, and RouterOS refuses some fields blank.
+	Partial bool `json:"-"`
 	// Direction and Anchor are res:move's two spellings — an arrow says which
 	// way, a drag says which row to land before. HasAnchor distinguishes "land
 	// at the end" (an empty anchor, deliberately) from "no anchor sent", which
@@ -309,7 +316,18 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 		return nil, writeOutcome{Code: "not-creatable"}
 	}
 
-	validated, errs := res.Validate(req.strValues(), editing)
+	// READ FIRST WHEN THE VALUES ARE PARTIAL, because what is being validated is
+	// then the stored row with the caller's changes laid over it.
+	var rows []routeros.Reply
+	var readErr error
+	if editing && req.Partial {
+		rows, readErr = cn.readMenu(res)
+	}
+	submitted := req.strValues()
+	if editing && req.Partial && readErr == nil {
+		submitted = overStoredRow(res, find(res, rows, req.ID, req.ExpectedIdentity), submitted)
+	}
+	validated, errs := res.Validate(submitted, editing)
 	if len(errs) > 0 {
 		return nil, writeOutcome{Code: "invalid", Detail: map[string]any{"errors": errs}}
 	}
@@ -327,7 +345,10 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 		name = req.ExpectedIdentity
 	}
 
-	rows, err := cn.readMenu(res)
+	err := readErr
+	if rows == nil && err == nil {
+		rows, err = cn.readMenu(res)
+	}
 	if err != nil {
 		return nil, writeOutcome{Code: writeFailCode(err), Name: name,
 			Detail: map[string]any{"message": safe.Message(err.Error())}}
@@ -384,6 +405,23 @@ func (cn *conn) prepareWrite(res *resource.Resource, req *resRequest) (*prepared
 		res: res, req: req, validated: validated, before: before, seenIDs: seenIDs,
 		editing: editing, action: action, name: name, verdict: verdict,
 	}, writeOutcome{}
+}
+
+// overStoredRow lays partial values over the row as the router holds it.
+//
+// A field the caller did not name keeps its stored value rather than being
+// cleared. A secret is not in RowValues, so it stays absent and BuildArgs leaves
+// the stored one alone. A nil row (no longer there) yields the values as sent,
+// and the staleness check reports it.
+func overStoredRow(res *resource.Resource, row routeros.Reply, sent map[string]string) map[string]string {
+	if row == nil {
+		return sent
+	}
+	merged := histValues(res.RowValues(row))
+	for k, v := range sent {
+		merged[k] = v
+	}
+	return merged
 }
 
 // commitWrite performs a prepared write and records it.

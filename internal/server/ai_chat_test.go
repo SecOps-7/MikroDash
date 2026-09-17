@@ -7,6 +7,8 @@ import (
 	"mikrodash/internal/aitools"
 	"mikrodash/internal/collect"
 	"mikrodash/internal/guard"
+	"mikrodash/internal/resource"
+	"mikrodash/internal/routeros"
 	"strings"
 	"testing"
 	"time"
@@ -992,5 +994,55 @@ func TestDHCPJoinOutOfDate(t *testing.T) {
 	}
 	if dhcpJoinOutOfDate(&collect.LanPayload{}, used) {
 		t.Error("leases outside every network made an empty payload out of date")
+	}
+}
+
+// TestOverStoredRowKeepsWhatWasNotSent. The assistant's write tool is documented
+// as "the `values` to change", and BuildArgs CLEARS an omitted clearable field —
+// so a partial edit was wiping a comment or a rate the caller never mentioned,
+// and RouterOS refuses some fields blank. Measured on the CHR: editing a simple
+// queue's max limit through the agent was refused by the router.
+func TestOverStoredRowKeepsWhatWasNotSent(t *testing.T) {
+	row := routeros.Reply{".id": "*5", "name": "shape", "target": "10.9.0.0/24",
+		"max-limit": "5000000/5000000", "limit-at": "1000000/1000000", "comment": "keep me",
+		"disabled": "false"}
+	got := overStoredRow(resource.SimpleQueue, row, map[string]string{"maxLimit": "2000000/2000000"})
+	for k, want := range map[string]string{
+		"maxLimit": "2000000/2000000", "name": "shape", "target": "10.9.0.0/24",
+		"limitAt": "1000000/1000000", "comment": "keep me", "disabled": "false"} {
+		if got[k] != want {
+			t.Errorf("%s = %q, want %q (whole: %v)", k, got[k], want, got)
+		}
+	}
+	// A secret is not in RowValues, so it stays absent and the stored one is left
+	// alone by BuildArgs.
+	user := routeros.Reply{".id": "*3", "name": "alice", "group": "read", "password": "hunter2"}
+	merged := overStoredRow(resource.RosUser, user, map[string]string{"comment": "x"})
+	if _, ok := merged["password"]; ok {
+		t.Errorf("a partial edit carried a password: %v", merged)
+	}
+	if merged["group"] != "read" || merged["name"] != "alice" {
+		t.Errorf("the stored identity was not kept: %v", merged)
+	}
+	// A row that has gone yields exactly what was sent; the staleness check
+	// reports it rather than this.
+	if only := overStoredRow(resource.RosUser, nil, map[string]string{"comment": "x"}); len(only) != 1 {
+		t.Errorf("a missing row invented values: %v", only)
+	}
+}
+
+// TestGateDetailCarriesTheGuardCode. ackGate moves the code out of the detail, so
+// a proposal built from that outcome had an empty warnCode and the dialog showed
+// the change with no warning on it.
+func TestGateDetailCarriesTheGuardCode(t *testing.T) {
+	out := writeOutcome{Code: "self-throttle", Name: "q",
+		Detail: map[string]any{"warning": map[string]any{"address": "10.0.0.5"}, "fingerprint": "fp1"}}
+	d := gateDetail(out)
+	if d["code"] != "self-throttle" || d["fingerprint"] != "fp1" || d["warning"] == nil {
+		t.Errorf("gateDetail = %v", d)
+	}
+	// And it does not mutate the outcome it was built from.
+	if _, ok := out.Detail["code"]; ok {
+		t.Errorf("gateDetail wrote back into the outcome: %v", out.Detail)
 	}
 }
