@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
 	"sort"
 	"strings"
 	"time"
@@ -49,20 +50,21 @@ const aiLiveMaxAge = 5 * time.Second
 // no reader would be advertised and then answer "not available", and a reader no
 // tool names is code nothing can reach.
 var liveToolReaders = map[string]func(cn *conn, t aitools.Tool) string{
-	"ifStatus":  (*conn).liveInterfaceTraffic,
-	"wan":       (*conn).liveWanStatus,
-	"packages":  (*conn).livePackages,
-	"rosusers":  (*conn).liveRouterUsers,
-	"queues":    (*conn).liveQueues,
-	"logs":      (*conn).liveLogs,
-	"wireless":  (*conn).liveWifiClients,
-	"conns":     (*conn).liveConnections,
-	"bandwidth": (*conn).liveBandwidth,
-	"topology":  (*conn).liveTopology,
-	"vpn":       (*conn).liveWireguardStatus,
-	"ppp":       (*conn).livePPPSessions,
-	"routing":   (*conn).liveBGPSessions,
-	"capsman":   (*conn).liveCapsman,
+	"ifStatus":     (*conn).liveInterfaceTraffic,
+	"wan":          (*conn).liveWanStatus,
+	"packages":     (*conn).livePackages,
+	"rosusers":     (*conn).liveRouterUsers,
+	"queues":       (*conn).liveQueues,
+	"logs":         (*conn).liveLogs,
+	"wireless":     (*conn).liveWifiClients,
+	"conns":        (*conn).liveConnections,
+	"bandwidth":    (*conn).liveBandwidth,
+	"topology":     (*conn).liveTopology,
+	"vpn":          (*conn).liveWireguardStatus,
+	"ppp":          (*conn).livePPPSessions,
+	"routing":      (*conn).liveBGPSessions,
+	"capsman":      (*conn).liveCapsman,
+	"dhcpNetworks": (*conn).liveDHCPNetworks,
 }
 
 func (cn *conn) runLiveTool(t aitools.Tool) string {
@@ -1409,4 +1411,93 @@ func renderCapsman(p *collect.CapsmanPayload) any {
 		manager{p.Manager.Enabled, ifaces, p.Manager.UpgradePolicy},
 		capMode{p.Cap.Enabled, p.Cap.CurrentAddress, p.Cap.CurrentIdentity},
 		kept, capsRadios(p.LocalRadios), p.Totals, truncated}
+}
+
+// ── list_dhcp_networks ──────────────────────────────────────────────────────
+
+// liveDHCPNetworks re-derives when the lease counts disagree with the lease
+// table as it stands. The counts are a join against the leases collector, so a
+// payload derived before the leases loaded says 0 leased while it is still fresh
+// (the list_wifi_clients trap). Checked in memory, so it costs no router read.
+func (cn *conn) liveDHCPNetworks(t aitools.Tool) string {
+	col := cn.rsession.DHCPNetworks()
+	leases := cn.rsession.DHCPLeases()
+	if leases != nil && leases.Last() == nil {
+		leases.RefreshNow()
+	}
+	if p := col.Last(); p != nil && leases != nil && dhcpJoinOutOfDate(p, leases.UsedLeaseIPs()) {
+		col.RefreshNow()
+	}
+	return liveAnswer(t, liveSource[collect.LanPayload]{
+		last:    col.Last,
+		stamp:   func(p *collect.LanPayload) (int64, int) { return p.TS, p.PollMs },
+		refresh: col.RefreshNow,
+		menu:    "/ip/dhcp-server/network",
+		absent:  "The DHCP network readings are not available from this router yet.",
+	}, renderDHCPNetworks)
+}
+
+// dhcpJoinOutOfDate reports whether the used leases that fall inside the
+// payload's networks number differently from the payload's total.
+func dhcpJoinOutOfDate(p *collect.LanPayload, used []string) bool {
+	nets := make([]*net.IPNet, 0, len(p.Networks))
+	for _, n := range p.Networks {
+		if _, cidr, err := net.ParseCIDR(strings.TrimSpace(n.CIDR)); err == nil {
+			nets = append(nets, cidr)
+		}
+	}
+	count := 0
+	for _, ip := range used {
+		addr := net.ParseIP(strings.TrimSpace(ip))
+		if addr == nil {
+			continue
+		}
+		for _, cidr := range nets {
+			if cidr.Contains(addr) {
+				count++
+			}
+		}
+	}
+	return count != p.TotalLeases
+}
+
+type liveDHCPNetwork struct {
+	Subnet   string   `json:"subnet"`
+	Gateway  string   `json:"gateway,omitempty"`
+	DNS      string   `json:"dnsServers,omitempty"`
+	Leased   int      `json:"leased"`
+	PoolSize int      `json:"poolSize"`
+	InUsePct *float64 `json:"inUsePercent"`
+}
+
+// usePercent is null for a network with no pool: a static-only subnet is not
+// 0% used, it has nothing to run out of.
+func usePercent(leased, pool int) *float64 {
+	if pool <= 0 {
+		return nil
+	}
+	v := math.Round(float64(leased)*1000/float64(pool)) / 10
+	return &v
+}
+
+func renderDHCPNetworks(p *collect.LanPayload) any {
+	rows := make([]liveDHCPNetwork, 0, len(p.Networks))
+	for _, n := range p.Networks {
+		rows = append(rows, liveDHCPNetwork{Subnet: n.CIDR, Gateway: n.Gateway, DNS: n.DNS,
+			Leased: n.LeaseCount, PoolSize: n.PoolSize, InUsePct: usePercent(n.LeaseCount, n.PoolSize)})
+	}
+	kept, truncated := capRows(rows)
+	internet := make([]string, 0, len(p.InternetIface))
+	for _, i := range p.InternetIface {
+		internet = append(internet, i.Name)
+	}
+	return struct {
+		Networks      []liveDHCPNetwork `json:"networks"`
+		TotalLeased   int               `json:"totalLeased"`
+		TotalPoolSize int               `json:"totalPoolSize"`
+		TotalInUsePct *float64          `json:"totalInUsePercent"`
+		WanAddress    string            `json:"wanAddress,omitempty"`
+		Internet      []string          `json:"internetInterfaces"`
+		Truncated     bool              `json:"truncated"`
+	}{kept, p.TotalLeases, p.TotalPoolSize, usePercent(p.TotalLeases, p.TotalPoolSize), p.WanIP, internet, truncated}
 }

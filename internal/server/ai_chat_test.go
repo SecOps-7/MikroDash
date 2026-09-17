@@ -948,3 +948,49 @@ func TestRenderCapsman(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderDHCPNetworks. Each network carries its leased count, pool size and
+// a percentage, and a network with no pool has a null percentage, not 0.
+func TestRenderDHCPNetworks(t *testing.T) {
+	p := &collect.LanPayload{TS: 1, PollMs: 30000, WanIP: "203.0.113.4/24", TotalLeases: 48, TotalPoolSize: 200,
+		Networks: []collect.Network{
+			{CIDR: "192.168.88.0/24", Gateway: "192.168.88.1", DNS: "192.168.88.1", LeaseCount: 48, PoolSize: 200},
+			{CIDR: "10.20.0.0/24", Gateway: "10.20.0.1"},
+		},
+		InternetIface: []collect.InternetIface{{Name: "ether1", IP: "203.0.113.4"}},
+	}
+	b, _ := json.Marshal(renderDHCPNetworks(p))
+	got := string(b)
+	for _, want := range []string{
+		`"subnet":"192.168.88.0/24","gateway":"192.168.88.1","dnsServers":"192.168.88.1","leased":48,"poolSize":200,"inUsePercent":24`,
+		`"subnet":"10.20.0.0/24","gateway":"10.20.0.1","leased":0,"poolSize":0,"inUsePercent":null`,
+		`"totalLeased":48,"totalPoolSize":200,"totalInUsePercent":24`, `"internetInterfaces":["ether1"]`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render is missing %s: %s", want, got)
+		}
+	}
+	empty, _ := json.Marshal(renderDHCPNetworks(&collect.LanPayload{TS: 1}))
+	for _, want := range []string{`"networks":[]`, `"internetInterfaces":[]`, `"totalInUsePercent":null`} {
+		if !strings.Contains(string(empty), want) {
+			t.Errorf("an empty payload is missing %s: %s", want, empty)
+		}
+	}
+}
+
+// TestDHCPJoinOutOfDate. A payload derived before the leases loaded counts 0
+// while the lease table holds addresses inside its networks; that must re-derive.
+// A payload that agrees, and leases outside every network, must not.
+func TestDHCPJoinOutOfDate(t *testing.T) {
+	p := &collect.LanPayload{TotalLeases: 0, Networks: []collect.Network{{CIDR: "192.168.88.0/24"}}}
+	used := []string{"192.168.88.10", "192.168.88.11", "10.9.9.9"}
+	if !dhcpJoinOutOfDate(p, used) {
+		t.Error("a payload counting 0 against two leases in its network was taken as current")
+	}
+	p.TotalLeases = 2
+	if dhcpJoinOutOfDate(p, used) {
+		t.Error("a payload agreeing with the lease table was taken as out of date")
+	}
+	if dhcpJoinOutOfDate(&collect.LanPayload{}, used) {
+		t.Error("leases outside every network made an empty payload out of date")
+	}
+}

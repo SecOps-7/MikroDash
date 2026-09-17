@@ -383,6 +383,19 @@ func liveTools() []Tool {
 		Freshness:  FreshMetadata,
 		Page:       "capsman",
 		Access:     AccessRead,
+	}, {
+		Name: namePrefix + "dhcp_networks",
+		Description: "Read only. Summarise the router's DHCP networks, read from " +
+			"/ip/dhcp-server/network joined with /ip/pool and the lease table: each network's " +
+			"subnet, gateway and DNS servers, how many addresses are leased, the pool size and " +
+			"the percentage in use; with totals, the WAN address and which interfaces reach the " +
+			"internet. Use it for pool exhaustion and subnet questions; list_dhcpLease has the " +
+			"leases themselves.",
+		Parameters: noArgs(),
+		Collector:  "dhcpNetworks",
+		Freshness:  FreshMetadata,
+		Page:       "dhcp",
+		Access:     AccessRead,
 	}}
 }
 

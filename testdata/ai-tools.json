@@ -78,6 +78,13 @@
       "page": "dhcp"
     },
     {
+      "name": "list_dhcp_networks",
+      "access": "read",
+      "resource": "",
+      "collector": "dhcpNetworks",
+      "page": "dhcp"
+    },
+    {
       "name": "list_dnsStatic",
       "access": "read",
       "resource": "dnsStatic",
