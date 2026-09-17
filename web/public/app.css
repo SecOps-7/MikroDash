@@ -1895,3 +1895,87 @@
 .dns-extra-title{font-size:.72rem;font-weight:600;color:var(--text-main);margin-bottom:.4rem}
 .dns-extra-pick{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.35rem}
 .dns-extra-host{font-family:var(--font-mono);font-size:.62rem;color:var(--text-muted)}
+
+    /* ── THE AI AGENT PAGE ──────────────────────────────────────────────────
+       The transcript fills the page instead of stopping at a fixed height.
+       `#main` is already a bounded flex column, so the chain only needs
+       `flex:1` at each level plus `min-height:0` -- without that last part a
+       flex item refuses to shrink below its content and the scroll container
+       never appears, which is the usual way this goes wrong. */
+    #page-ai-agent.active{display:flex;flex-direction:column;overflow:hidden}
+    #page-ai-agent>.container-fluid{flex:1;display:flex;flex-direction:column;min-height:0}
+    #aiAgentCard{flex:1;display:flex;flex-direction:column;min-height:0}
+    #aiAgentCard>.card-body{flex:1;display:flex;flex-direction:column;min-height:0}
+    #aiAgentLog{flex:1;min-height:0}
+
+    /* The thinking indicator, inside the transcript at the bottom left. */
+    .ai-thinking{display:flex;align-items:center;gap:.5rem;align-self:flex-start;
+      font-size:.74rem;color:var(--text-muted);font-family:var(--font-ui);padding:.1rem .1rem}
+    .ai-thinking[hidden]{display:none}
+    /* Reuses the existing `spin` keyframes rather than declaring a second one. */
+    .ai-thinking-spin{width:.85rem;height:.85rem;flex:none;border-radius:50%;
+      border:2px solid var(--border);border-top-color:var(--accent-rx);
+      animation:spin .7s linear infinite}
+    .ai-thinking-label{animation:ai-think-fade 1.8s ease-in-out infinite}
+    @keyframes ai-think-fade{0%,100%{opacity:.5}50%{opacity:1}}
+    @media (prefers-reduced-motion:reduce){
+      .ai-thinking-spin{animation-duration:2.4s}
+      .ai-thinking-label{animation:none;opacity:.8}
+    }
+
+    /* ── RENDERED MARKDOWN ──────────────────────────────────────────────────
+       These classes are produced by web/src/markdown.ts and had no styling at
+       all, so headings and tables rendered at browser defaults. Colours come
+       from the palette variables rather than literals, so every theme keeps
+       its own. Only `--accent-rx`, `--accent-tx`, `--text-main` and
+       `--text-muted` are redefined by every palette; the others fall back to
+       the `:root` value, which is why the load-bearing parts use the first
+       four. */
+    .md{font-size:.8rem;line-height:1.55;color:var(--text-main)}
+    .md>*:first-child{margin-top:0}
+    .md>*:last-child{margin-bottom:0}
+    .md-p{margin:.45rem 0}
+    .md-h{color:var(--accent-rx);font-family:var(--font-ui);font-weight:600;
+      letter-spacing:.02em;margin:.9rem 0 .35rem;line-height:1.3}
+    h4.md-h{font-size:.92rem}
+    h5.md-h{font-size:.85rem}
+    h6.md-h{font-size:.8rem;color:var(--accent-tx)}
+    .md strong{color:var(--accent-tx);font-weight:600}
+    .md em{color:var(--text-main);font-style:italic;opacity:.92}
+    .md-list{margin:.4rem 0;padding-left:1.15rem}
+    .md-list li{margin:.18rem 0}
+    .md-list li::marker{color:var(--accent-rx)}
+    .md-code{font-family:var(--font-mono);font-size:.72rem;color:var(--accent-rx);
+      background:rgba(56,189,248,.09);border:1px solid var(--border);
+      border-radius:4px;padding:.05rem .3rem}
+    .md-pre{margin:.55rem 0;padding:.6rem .75rem;border:1px solid var(--border);
+      border-radius:7px;background:rgba(2,5,14,.55);overflow-x:auto}
+    .md-pre code{font-family:var(--font-mono);font-size:.72rem;line-height:1.5;
+      color:var(--text-main);white-space:pre}
+
+    /* Tables. The wrapper scrolls so a wide table does not stretch the bubble. */
+    .md-table-wrap{margin:.55rem 0;border:1px solid var(--border);border-radius:7px;
+      overflow:auto;max-width:100%}
+    .md-table{border-collapse:collapse;width:100%;font-size:.74rem}
+    .md-table th{background:rgba(56,189,248,.10);color:var(--accent-rx);
+      font-family:var(--font-ui);font-weight:600;font-size:.68rem;
+      letter-spacing:.06em;text-transform:uppercase;text-align:left;
+      padding:.42rem .6rem;border-bottom:1px solid var(--border);white-space:nowrap}
+    .md-table td{padding:.38rem .6rem;border-bottom:1px solid var(--border);
+      color:var(--text-main);vertical-align:top}
+    .md-table tbody tr:last-child td{border-bottom:0}
+    .md-table tbody tr:nth-child(even){background:rgba(99,130,190,.05)}
+    .md-table tbody tr:hover{background:rgba(56,189,248,.07)}
+    .md-table td .md-code{background:transparent;border:0;padding:0}
+
+    /* ── ROUTEROS COMMANDS, COLOURED BY PART ────────────────────────────────
+       The tokeniser is a strict partition, so the text is unchanged and a
+       command copied out of here still runs. */
+    .md-ros .ros-path{color:var(--accent-rx);font-weight:600}
+    .md-ros .ros-verb{color:var(--accent-warn);font-weight:600}
+    .md-ros .ros-key{color:var(--accent-tx)}
+    .md-ros .ros-op{color:var(--text-muted)}
+    .md-ros .ros-value{color:var(--text-main)}
+    .md-ros .ros-num{color:var(--accent-alt)}
+    .md-ros .ros-string{color:var(--accent-ok)}
+    .md-ros .ros-comment{color:var(--text-muted);font-style:italic}

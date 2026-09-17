@@ -75,7 +75,8 @@ function fragment(): any { const f = node(''); f.nodeType = 11; return f; }
   createDocumentFragment: () => fragment(),
 };
 
-const { renderMarkdown, parseBlocks } = bundle('web/src/markdown.ts', 'port-markdown.cjs');
+const { renderMarkdown, parseBlocks, tokenizeRouterOS, looksLikeRouterOS } =
+  bundle('web/src/markdown.ts', 'port-markdown.cjs');
 
 /** Every descendant with this tag, walked rather than queried. */
 function byTag(root: any, tag: string): any[] {
@@ -195,3 +196,89 @@ if (failed) {
   say('markdown: ' + failed + ' failing');
   process.exitCode = 1;
 }
+
+// ── ROUTEROS HIGHLIGHTING ───────────────────────────────────────────────────
+//
+// The colouring must not change the text. An operator copies a command out of
+// the transcript and runs it, so a highlighter that inserts, drops or reorders
+// a single character is worse than no highlighter at all.
+
+/** The text of every span carrying one token class, in order. */
+function tokens(root: any, cls: string): string[] {
+  return byTag(root, 'span').filter((s: any) => s.className === cls)
+    .map((s: any) => s.textContent);
+}
+
+check('highlighting is a strict partition: nothing is added or lost', () => {
+  for (const src of [
+    '/ip/dns/static/add name=server.lan address=10.0.0.1',
+    '/ip firewall filter add chain=input action=drop',
+    '# a note\n/interface set comment="on the roof"',
+    '   leading spaces and  odd   gaps   ',
+    '=====',
+    '',
+  ]) {
+    const joined = tokenizeRouterOS(src).map((t: any) => t.text).join('');
+    assert.strictEqual(joined, src,
+      'the tokens do not reproduce the source, so a copied command would differ');
+  }
+});
+
+check('a RouterOS command is coloured by part and still copies verbatim', () => {
+  const src = '/ip/dns/static/add name=server.lan address=10.0.0.1';
+  const out = renderMarkdown('```\n' + src + '\n```');
+  const code = byTag(out, 'code')[0];
+  // THE ASSERTION THAT MATTERS MOST, repeated here against the tokenised path.
+  assert.strictEqual(code.textContent, src, 'highlighting altered the command');
+  assert.strictEqual(String(code.className), 'md-ros');
+  assert.deepStrictEqual(tokens(out, 'ros-path'), ['/ip/dns/static/add']);
+  assert.deepStrictEqual(tokens(out, 'ros-key'), ['name', 'address']);
+  assert.deepStrictEqual(tokens(out, 'ros-value'), ['server.lan']);
+  assert.deepStrictEqual(tokens(out, 'ros-num'), ['10.0.0.1'],
+    'an address should not be coloured as an ordinary word');
+});
+
+check('the space-separated form colours its verb and its pairs', () => {
+  const out = renderMarkdown('```\n/ip firewall filter add chain=input action=drop\n```');
+  assert.deepStrictEqual(tokens(out, 'ros-path'), ['/ip']);
+  assert.deepStrictEqual(tokens(out, 'ros-verb'), ['add']);
+  assert.deepStrictEqual(tokens(out, 'ros-key'), ['chain', 'action']);
+  assert.deepStrictEqual(tokens(out, 'ros-value'), ['input', 'drop']);
+});
+
+check('comments and quoted values are their own colours', () => {
+  const out = renderMarkdown('```\n# a note\n/interface set comment="on the roof"\n```');
+  assert.deepStrictEqual(tokens(out, 'ros-comment'), ['# a note']);
+  assert.deepStrictEqual(tokens(out, 'ros-string'), ['"on the roof"'],
+    'a quoted value must read as a string, not as an ordinary value');
+});
+
+check('a command introduced by a comment is still RouterOS', () => {
+  // A model explains before it commands. Judging only the first line left every
+  // commented example rendering as plain text, which is most of them.
+  assert.strictEqual(
+    looksLikeRouterOS('# add a static entry\n/ip/dns/static/add name=x', ''), true);
+  // BOTH DIRECTIONS: a block that is only prose after its comment is not a
+  // command, and must not be coloured as one.
+  assert.strictEqual(looksLikeRouterOS('# just a note\nnot a command', ''), false);
+  assert.strictEqual(looksLikeRouterOS('# only a comment', ''), false);
+});
+
+check('a named language is believed, even when it looks like RouterOS', () => {
+  // A block the model labelled `json` is not run through a RouterOS
+  // highlighter because it happens to start with a slash.
+  assert.strictEqual(looksLikeRouterOS('/ip/dns/print', 'json'), false);
+  assert.strictEqual(looksLikeRouterOS('/ip/dns/print', 'routeros'), true);
+  assert.strictEqual(looksLikeRouterOS('/ip/dns/print', ''), true);
+  assert.strictEqual(looksLikeRouterOS('{"a":1}', ''), false);
+});
+
+check('a non-RouterOS block is left as plain text', () => {
+  const out = renderMarkdown('```json\n{"name":"server.lan"}\n```');
+  const code = byTag(out, 'code')[0];
+  assert.strictEqual(code.textContent, '{"name":"server.lan"}');
+  assert.ok(!String(code.className).includes('md-ros'),
+    'a JSON block was run through the RouterOS highlighter');
+  assert.strictEqual(byTag(out, 'span').length, 0,
+    'plain code should produce no token spans at all');
+});

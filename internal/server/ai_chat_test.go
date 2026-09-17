@@ -259,3 +259,44 @@ func TestTheDefaultPromptStillSaysWhatItIsFor(t *testing.T) {
 			"data, so an operator who clears the prompt box removes that rule entirely")
 	}
 }
+
+// TestNoEmDashes.
+//
+// ── THE RULE IS IN THE PREAMBLE, WHICH IS WHY IT SURVIVES ───────────────────
+//
+// The operator can rewrite the whole prompt box, so a rule that lived only there
+// would last until somebody cleared it. This one is in the fixed preamble, and
+// restated in the default so that anyone reading their own prompt can see it.
+//
+// AND THE TEXT OBEYS ITS OWN RULE. A prompt forbidding em dashes while using one
+// tells the model that the rule is decorative, which is exactly how an
+// instruction gets ignored. One had already slipped into the default.
+func TestNoEmDashes(t *testing.T) {
+	const em = "—"
+
+	if !strings.Contains(aiSafetyPreamble, "NEVER USE EM DASHES") {
+		t.Error("the fixed preamble does not forbid em dashes, so clearing the prompt box " +
+			"would remove the rule entirely")
+	}
+	if !strings.Contains(AIDefaultSystemPrompt, "Never use em dashes") {
+		t.Error("the default prompt does not mention the rule, so an operator reading their " +
+			"own prompt cannot see it")
+	}
+
+	for _, c := range []struct{ name, text string }{
+		{"aiSafetyPreamble", aiSafetyPreamble},
+		{"AIDefaultSystemPrompt", AIDefaultSystemPrompt},
+		{"overviewPrompt", overviewPrompt},
+	} {
+		if strings.Contains(c.text, em) {
+			t.Errorf("%s contains an em dash while instructing the model not to use one", c.name)
+		}
+	}
+
+	// AND IT REACHES THE MODEL. The rule is worth nothing if it is in a constant
+	// that the assembled prompt does not include.
+	got := aiSystemPrompt(store.Settings{"aiSystemPrompt": "Be brief."})
+	if !strings.Contains(got, "NEVER USE EM DASHES") {
+		t.Error("the assembled prompt drops the rule when the operator has written their own")
+	}
+}

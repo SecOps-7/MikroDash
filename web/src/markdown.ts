@@ -130,6 +130,134 @@ export function parseBlocks(src: string): Block[] {
   return out;
 }
 
+
+/**
+ * RouterOS commands, coloured by part.
+ *
+ * ── A STRICT PARTITION, WHICH IS THE WHOLE CONTRACT ─────────────────────────
+ *
+ * Every character of the input lands in exactly one token, in order, and nothing
+ * is inserted. So joining the tokens reproduces the source byte for byte, and
+ * the rendered `<code>` still has the command as its `textContent` -- which is
+ * what makes a highlighted command still copyable, and what lets the existing
+ * "survives verbatim" test keep passing rather than being re-aimed.
+ *
+ * Anything unrecognised falls through as plain text rather than being dropped.
+ * A highlighter that loses what it cannot classify is worse than none: the
+ * operator copies a command with a piece missing.
+ */
+export type RosToken = { cls: string; text: string };
+
+/** Languages a model actually labels RouterOS blocks with. */
+const ROS_LANGS = new Set(['routeros', 'ros', 'mikrotik', 'rsc', 'winbox', 'terminal']);
+
+/**
+ * Is this block RouterOS?
+ *
+ * A NAMED LANGUAGE IS BELIEVED, INCLUDING WHEN IT SAYS SOMETHING ELSE. A block
+ * marked `json` is not run through a RouterOS highlighter just because it starts
+ * with a slash. Only an UNLABELLED block is sniffed, and then only by the one
+ * signal that is reliable: a RouterOS command begins at a menu path.
+ */
+export function looksLikeRouterOS(text: string, lang: string): boolean {
+  if (lang) return ROS_LANGS.has(lang.toLowerCase());
+  // ── COMMENTS AND BLANKS ARE SKIPPED WHEN SNIFFING ───────────────────────
+  //
+  // A model habitually explains before it commands, so the first line of an
+  // unlabelled block is often `# add a static entry` rather than the command.
+  // Judging that line alone left every commented example uncoloured, which is
+  // most of them.
+  for (const line of text.split('\n')) {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) continue;
+    return t.startsWith('/');
+  }
+  return false;
+}
+
+/** Matched at the start of what is left, in this order. Order is meaning. */
+const ROS_RULES: { cls: string; re: RegExp }[] = [
+  { cls: 'ros-comment', re: /^#[^\n]*/ },
+  { cls: 'ros-string', re: /^"(?:[^"\\]|\\.)*"/ },
+  // A menu path: /ip, /ip/dns/static. The space-separated CLI form leaves its
+  // later words plain, deliberately -- consuming them risks swallowing the verb,
+  // and a wrong colour reads worse than none.
+  { cls: 'ros-path', re: /^\/[A-Za-z][\w-]*(?:\/[A-Za-z][\w-]*)*/ },
+  { cls: 'ros-verb', re: /^(?:add|set|remove|print|enable|disable|move|export|import|find|monitor|unset)\b/ },
+  { cls: 'ros-key', re: /^[A-Za-z][\w-]*(?==)/ },
+  { cls: 'ros-op', re: /^=/ },
+  { cls: 'ros-num', re: /^\d+(?:\.\d+)*(?:\/\d+)?(?::\d+)?/ },
+];
+
+export function tokenizeRouterOS(src: string): RosToken[] {
+  const out: RosToken[] = [];
+  const push = (cls: string, text: string): void => {
+    if (!text) return;
+    const last = out[out.length - 1];
+    // Merge runs of plain text so the DOM does not gain a node per character.
+    if (last && last.cls === '' && cls === '') last.text += text;
+    else out.push({ cls, text });
+  };
+
+  let i = 0;
+  let afterOp = false;
+  while (i < src.length) {
+    const rest = src.slice(i);
+
+    // A VALUE IS POSITIONAL, not lexical: it is whatever follows an `=`. Without
+    // this, `address=10.0.0.1` colours the number and leaves `server.lan` looking
+    // like prose.
+    if (afterOp) {
+      // A QUOTED VALUE IS A STRING FIRST. `comment="on the roof"` is the common
+      // shape, and without this the value branch swallows the quotes and the
+      // string colour is unreachable in practice.
+      const str = /^"(?:[^"\\]|\\.)*"/.exec(rest);
+      if (str) { push('ros-string', str[0]); i += str[0].length; afterOp = false; continue; }
+      const key = /^[A-Za-z][\w-]*(?==)/.exec(rest);
+      if (key) { push('ros-key', key[0]); i += key[0].length; afterOp = false; continue; }
+      const val = /^[^\s=]+/.exec(rest);
+      if (val) {
+        // AN ADDRESS IS NOT A WORD. Numbers, IPs, prefixes and ports get their
+        // own colour, so `address=10.0.0.1/24` reads differently from
+        // `name=server.lan` at a glance.
+        const numeric = /^\d[\d.:/]*$/.test(val[0]);
+        push(numeric ? 'ros-num' : 'ros-value', val[0]);
+        i += val[0].length;
+        afterOp = false;
+        continue;
+      }
+      afterOp = false;
+    }
+
+    let hit = false;
+    for (const rule of ROS_RULES) {
+      const m = rule.re.exec(rest);
+      if (m && m[0]) {
+        push(rule.cls, m[0]);
+        i += m[0].length;
+        afterOp = rule.cls === 'ros-op';
+        hit = true;
+        break;
+      }
+    }
+    if (!hit) { push('', src[i]!); i += 1; }
+  }
+  return out;
+}
+
+/** The tokens as nodes. Every branch ends in textContent, as everywhere here. */
+function rosNodes(src: string): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  for (const t of tokenizeRouterOS(src)) {
+    if (!t.cls) { frag.appendChild(document.createTextNode(t.text)); continue; }
+    const span = document.createElement('span');
+    span.className = t.cls;
+    span.textContent = t.text;
+    frag.appendChild(span);
+  }
+  return frag;
+}
+
 /** `**bold**`, `*italic*`, `_italic_` and `` `code` ``, as nodes. */
 const INLINE = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/;
 
@@ -183,7 +311,16 @@ export function renderMarkdown(src: string): HTMLElement {
       // VERBATIM, and the language is a data attribute rather than part of a
       // class name: a class built from model output would let it choose a
       // selector the stylesheet defines.
-      code.textContent = b.text;
+      //
+      // HIGHLIGHTING DOES NOT CHANGE THE TEXT. `tokenizeRouterOS` partitions the
+      // source, so `code.textContent` is still the command exactly as the model
+      // wrote it, and the operator still copies something that runs.
+      if (looksLikeRouterOS(b.text, b.lang)) {
+        code.className = 'md-ros';
+        code.appendChild(rosNodes(b.text));
+      } else {
+        code.textContent = b.text;
+      }
       if (b.lang) code.setAttribute('data-lang', b.lang);
       pre.appendChild(code);
       root.appendChild(pre);

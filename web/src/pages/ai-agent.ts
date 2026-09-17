@@ -29,22 +29,80 @@ import { warningText } from '../resource';
 
 type Role = 'you' | 'assistant' | 'error';
 
+/**
+ * What the assistant is doing while you wait.
+ *
+ * One is chosen at random and swapped every couple of seconds, so a slow answer
+ * reads as work in progress rather than as a page that has stopped. They are
+ * jokes about networking because that is what the person reading them does.
+ */
+const PUNS: readonly string[] = [
+  'Wiring bits', 'Sorting Frames', 'Handling Packets', 'Hauling Bytes', 'Routing Crumbs',
+  'Counting Collisions', 'Bending Light', 'Surfing Radio Waves', 'Chasing Broadcasts',
+  'Flooding Unknowns', 'Aging MAC Tables', 'Poisoning Routes', 'Splitting Horizons',
+  'Summarizing Prefixes', 'Electing Root Bridges', 'Converging Topology',
+  'Reconverging Anyway', 'Trunking VLANs', 'Untagging Frames', 'Decrementing TTL',
+  'Fragmenting Packets', 'Reassembling Packets', 'Shaping Traffic', 'Dropping Tail',
+  'Queueing Politely', 'Buffering Bloat', 'Herding Datagrams', 'Draining Buckets',
+  'Marking DSCP', 'Hopping Channels', 'Dodging Interference', 'Negotiating Beacons',
+  'Roaming Aimlessly', 'Measuring RSSI', 'Blaming Microwaves', 'Surviving 2.4GHz',
+  'Steering Bands', 'Counting Retries', 'Deauthing Nobody', 'Polishing Fiber',
+  'Terminating Cables', 'Untangling Patch Leads', 'Crimping RJ45s', 'Reversing Polarity',
+  'Warming Transceivers', 'Wiggling SFPs', 'Blowing Dust', 'Chasing Attenuation',
+  'Blaming DNS', 'Asking Upstream', 'Leasing Addresses', 'Renewing Leases', 'Shouting ARP',
+  'Resolving Eventually', 'Caching Negatively', 'Expiring TTLs', 'Doing Kessel Runs',
+  'Pinging the Void', 'Consulting the Oracle', 'Rerouting Auxiliary Power',
+  'Engaging Warp Cores', 'Finding the Way', 'Dividing by Zero Safely', 'Turning It Off And On',
+  'Waiting on SNMP', 'Politely Polling', 'Counting Octets', 'Averaging Nonsense',
+  'Interpolating Gaps', 'Arguing With RouterOS', 'Reading Winbox Tea Leaves', 'Tailing Logs',
+  'Ignoring Warnings',
+];
+
+
 export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boolean): void {
   /** Kept so a page change can redraw what is on screen. Never persisted. */
   const turns: { role: Role; text: string }[] = [];
   let waiting = false;
 
   const log = (): HTMLElement | null => el('aiAgentLog');
-  const status = (): HTMLElement | null => el('aiAgentStatus');
   const input = (): HTMLTextAreaElement | null => el<HTMLTextAreaElement>('aiAgentInput');
   const sendBtn = (): HTMLButtonElement | null => el<HTMLButtonElement>('aiAgentSend');
+  const thinking = (): HTMLElement | null => el('aiAgentThinking');
+
+  let punTimer: ReturnType<typeof setInterval> | undefined;
+  let lastPun = -1;
+
+  /** A different one each time, never the same one twice running. */
+  function rollPun(): void {
+    const label = el('aiAgentThinkingLabel');
+    if (!label) return;
+    let n = Math.floor(Math.random() * PUNS.length);
+    if (n === lastPun) n = (n + 1) % PUNS.length;
+    lastPun = n;
+    label.textContent = PUNS[n]!;
+  }
 
   function setWaiting(on: boolean): void {
     waiting = on;
     const b = sendBtn();
     if (b) b.disabled = on;
-    const s = status();
-    if (s) s.textContent = on ? 'Thinking…' : '';
+
+    const box = thinking();
+    if (box) {
+      box.hidden = !on;
+      // MOVED TO THE END, not just shown. `redraw` appends turns after it, so
+      // without this the indicator would sit above the conversation it belongs
+      // under.
+      if (on) {
+        rollPun();
+        log()?.appendChild(box);
+      }
+    }
+    if (punTimer !== undefined) { clearInterval(punTimer); punTimer = undefined; }
+    if (on) punTimer = setInterval(rollPun, 2400);
+
+    const l = log();
+    if (l && on) l.scrollTop = l.scrollHeight;
   }
 
   /** One bubble. Built as nodes; the only text assignment is `textContent`. */
@@ -89,6 +147,11 @@ export function initAiAgentPage(socket: Socket, isVisible: (page: string) => boo
     // Remove previous turns, leaving the empty-state node in place.
     box.querySelectorAll('.ai-turn').forEach((n) => n.remove());
     for (const t of turns) box.appendChild(bubble(t.role, t.text));
+    // LAST, ALWAYS. The turns are appended after it was shown, so it has to be
+    // put back at the end or an answer renders underneath the spinner that is
+    // waiting for it.
+    const busy = thinking();
+    if (busy && !busy.hidden) box.appendChild(busy);
     box.scrollTop = box.scrollHeight;
   }
 
