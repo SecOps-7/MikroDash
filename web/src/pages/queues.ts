@@ -26,13 +26,17 @@
 // `global`, so a queue can look perfectly configured and do nothing at all. The
 // banner says so, and only when a queue is actually affected.
 //
-// This module is the RENDERING half. The dialog and the write actions, including
-// the self-throttle acknowledgement, are their own piece of work.
+// ── WRITES GO THROUGH THE RESOURCE ENGINE ──────────────────────────────────
+//
+// `simpleQueue` and `queueTree` are registry resources: clicking a row opens the
+// engine's edit dialog (with Enable, Disable, Reset Counters and Delete), the Add
+// slot and the move arrows are the engine's, and the self-throttle warning is the
+// `queueThrottle` guard answered in the engine's own prompt. This module renders.
 
-import { esc, el, renderSortHeader, fmtBytes, type SortCol } from '../dom';
+import { esc, el, renderSortHeader, fmtBytes, resRow, type SortCol } from '../dom';
+import { mountAdds, mountRows } from '../resource';
 import type { Socket } from '../socket';
-import type { SimpleQueue, TreeQueue, QueuesPayload } from '../gen/payloads';
-import type { HandEvents } from '../events-hand';
+import type { QueuesPayload } from '../gen/payloads';
 
 // Order first, and it is not cosmetic — see the header.
 //
@@ -66,29 +70,10 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
   const treeTb: HTMLElement = treeTbEl;
 
   let data: QueuesPayload | null = null;
-  let caps: HandEvents['queues:caps'] = { permitted: false, routerName: '' };
   let tab = 'simple';
-  let busy = '';
-
-  // The status line. Eight seconds, then it clears itself. See the Router Users
-  // page for why what it writes rarely survives to be read — `render()` owns
-  // this element too, and the same collision applies here.
-  let statusTimer: ReturnType<typeof setTimeout> | null = null;
-  function setStatus(text: string): void {
-    const e = el('qActionNote');
-    if (!e) return;
-    e.textContent = text || '';
-    // Marked while a message is showing. render() writes this same element from
-    // caps.permitted and runs again on the next payload — the server calls
-    // RefreshNow after every write — so unmarked it erased the message in the
-    // same tick on a failure, and one round trip later on a success. The 8 s
-    // timer never got to expire and the operator saw nothing either way.
-    if (text) e.dataset.status = '1'; else delete e.dataset.status;
-    if (statusTimer) clearTimeout(statusTimer);
-    if (text) {
-      statusTimer = setTimeout(() => { e.textContent = ''; delete e.dataset.status; }, 8000);
-    }
-  }
+  // Whether this viewer may write each resource, from the engine's schema answer.
+  const writable: Record<string, boolean> = {};
+  const resKey = (menu: string): string => (menu === 'tree' ? 'queueTree' : 'simpleQueue');
 
   function q(): string {
     return (el<HTMLInputElement>('qSearch')?.value || '').toLowerCase().trim();
@@ -189,24 +174,22 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
       (down === null ? '' : rateLine('rx', down, h.down)) + '</div>';
   }
 
-  function actions(row: { id: string; name: string; disabled: boolean; dynamic: boolean },
-                   menu: string): string {
-    if (row.dynamic) {
-      return '<span class="muted-note" title="Created automatically by another RouterOS feature — Kid Control, a DHCP lease, or a PPP profile. Change the feature that creates it.">&#128274; dynamic</span>';
-    }
-    if (!caps.permitted) return '';
-    const b = (act: string, label: string, cls?: string, extra?: string): string =>
-      '<button class="ru-act' + (cls ? ' ' + cls : '') + '" data-qact="' + act +
-      '" data-id="' + esc(row.id) + '" data-menu="' + menu + '" data-name="' + esc(row.name) + '"' +
-      (extra || '') + (busy === row.id ? ' disabled' : '') + '>' + label + '</button>';
+  // Dynamic rows belong to another RouterOS feature; the engine refuses them
+  // too, and here they simply do not open a dialog.
+  function lockNote(dynamic: boolean): string {
+    return dynamic
+      ? '<span class="muted-note" title="Created automatically by another RouterOS feature — Kid Control, a DHCP lease, or a PPP profile. Change the feature that creates it.">&#128274; dynamic</span>'
+      : '';
+  }
 
-    let out = b('edit', 'Edit') + ' ' + b('toggle', row.disabled ? 'Enable' : 'Disable');
-    if (menu === 'simple') {
-      out += ' ' + b('up', '&uarr;', '', ' title="Move earlier — the first matching queue wins"') +
-             b('down', '&darr;', '', ' title="Move later"');
-    }
-    out += ' ' + b('reset', 'Reset') + ' ' + b('remove', 'Remove', 'danger');
-    return out;
+  // Move arrows for the simple table only: its order is first-match-wins. Not
+  // drawn while searching, where a move would pass rows the operator cannot see.
+  function moveCell(at: number, last: number, dynamic: boolean): string {
+    if (dynamic || !writable.simpleQueue || q()) return '';
+    return '<button class="fw-move" data-res-move="up" title="Move earlier — the first matching queue wins"' +
+      (at === 0 ? ' disabled' : '') + '>&#9650;</button>' +
+      '<button class="fw-move" data-res-move="down" title="Move later"' +
+      (at === last ? ' disabled' : '') + '>&#9660;</button>';
   }
 
   /**
@@ -222,7 +205,7 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     if (data.denied) return 'This router\'s MikroDash account cannot read queues.';
     return menu === 'simple'
       ? 'No simple queues on this router. A simple queue caps the bandwidth of one target &mdash; an address, a subnet, or an interface.' +
-        (caps.permitted ? ' Use <strong>Add Queue</strong> to create one.' : '')
+        (writable.simpleQueue ? ' Use <strong>Add</strong> to create one.' : '')
       : 'No queue trees on this router. A tree shapes traffic that firewall mangle rules have marked, which makes it the tool for shaping by protocol or application rather than by address.';
   }
 
@@ -236,16 +219,18 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
     const badge = el('qSimpleBadge');
     if (badge) badge.textContent = String((data?.simple || []).length);
 
+    const last = (data?.simple || []).length - 1;
     simpleTb.innerHTML = rows.length ? rows.map((x) => {
       const flags = (x.disabled ? '<span class="wl-band wl-band-24">disabled</span> ' : '') +
                     (x.invalid ? '<span class="wl-band wl-band-24">invalid</span> ' : '');
-      return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + '>' +
+      return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') +
+        (x.dynamic ? '' : resRow(x.id, x.name, 'simpleQueue')) + '>' +
         '<td class="q-order">' + (x.order + 1) + '</td>' +
         '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
         '<td>' + (x.target ? esc(x.target) : dash()) + '</td>' +
         '<td><div style="font-size:.72rem">&uarr; ' + fmtLimit(x.maxLimit.up) + '<br>&darr; ' + fmtLimit(x.maxLimit.down) + '</div></td>' +
         '<td>' + rateCell('s' + x.id, x.rateBps.up, x.rateBps.down, x.rateSource, x.rateWindowMs) + '</td>' +
-        '<td>' + actions(x, 'simple') + '</td>' +
+        '<td>' + moveCell(x.order, last, x.dynamic) + lockNote(x.dynamic) + '</td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="6" class="empty-state">' + emptyState(term, 'simple') + '</td></tr>';
   }
@@ -266,13 +251,13 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
       // interface still works, so the chip is per row rather than per table.
       const ft = (ftActive && x.fasttrackBypassable && !x.disabled)
         ? ' <span class="wl-band wl-band-24" title="FastTrack bypasses queue trees parented to global">bypassed</span>' : '';
-      return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + '>' +
+      return '<tr' + (x.disabled ? ' style="opacity:.62"' : '') + resRow(x.id, x.name, 'queueTree') + '>' +
         '<td>' + flags + esc(x.name) + (x.comment ? '<div class="muted-note">' + esc(x.comment) + '</div>' : '') + '</td>' +
         '<td>' + esc(x.parent || '—') + ft + '</td>' +
         '<td>' + (x.packetMark ? esc(x.packetMark) : dash()) + '</td>' +
         '<td style="font-size:.72rem">' + fmtLimit(x.maxLimit) + '</td>' +
         '<td>' + rateCell('t' + x.id, x.rateBps, null, x.rateSource, x.rateWindowMs) + '</td>' +
-        '<td>' + actions(x, 'tree') + '</td>' +
+        '<td></td>' +
       '</tr>';
     }).join('') : '<tr><td colspan="6" class="empty-state">' + emptyState(term, 'tree') + '</td></tr>';
   }
@@ -329,258 +314,40 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
 
   function render(): void {
     renderSimple(); renderTree(); renderFasttrack(); renderSummary();
-    const add = el('qAddBtn');
-    if (add) {
-      add.textContent = tab === 'tree' ? '+ Add Tree Queue' : '+ Add Simple Queue';
-      add.style.display = caps.permitted ? '' : 'none';
-    }
     const note = el('qActionNote');
-    // Never clears a message it did not write — see setStatus.
-    if (note && !note.dataset.status) {
-      note.textContent = !caps.permitted ? 'read-only — you do not have write access to this router'
+    if (note) {
+      note.textContent = !writable[resKey(tab)] ? 'read-only — you do not have write access to this router'
         : (data && data.stats === 'none') ? 'this router reports no queue statistics' : '';
     }
   }
 
-  // ── Dialog ────────────────────────────────────────────────────────────────
-
-  function setVal(id: string, v: string): void {
-    const e = el<HTMLInputElement>(id);
-    if (e) e.value = v;
-  }
-  function show(id: string, on: boolean): void {
-    const e = el(id);
-    if (e) e.style.display = on ? '' : 'none';
+  /** Point the Add slot at the table now on screen. */
+  function syncAddSlot(): void {
+    const slot = el('qAddSlot');
+    if (!slot) return;
+    slot.setAttribute('data-res-add', resKey(tab));
+    document.dispatchEvent(new CustomEvent('mikrodash:resmount'));
   }
 
-  /** Raw bps back to the suffixed form, so an edit round-trips what was typed. */
-  function bpsToShort(bps: number | null | undefined): string {
-    if (bps === null || bps === undefined) return '';
-    if (bps === 0) return '0';
-    if (bps % 1e9 === 0) return (bps / 1e9) + 'G';
-    if (bps % 1e6 === 0) return (bps / 1e6) + 'M';
-    if (bps % 1e3 === 0) return (bps / 1e3) + 'k';
-    return String(bps);
-  }
+  mountAdds(socket);
+  mountRows(socket);
 
-  function formError(msg: string): void {
-    const e = el('qf_error');
-    if (!e) return;
-    e.textContent = msg;
-    e.style.display = '';
-  }
-
-  function openForm(menu: string, row: SimpleQueue | TreeQueue | null): void {
-    const title = el('qf_title');
-    if (title) title.textContent = (row ? 'Edit ' : 'Add ') + (menu === 'tree' ? 'Tree Queue' : 'Simple Queue');
-    setVal('qf_menu', menu);
-    setVal('qf_id', row ? row.id : '');
-    setVal('qf_expectedName', row ? row.name : '');
-    setVal('qf_ack', '');
-    setVal('qf_name', row ? row.name : '');
-    setVal('qf_comment', row ? row.comment : '');
-    setVal('qf_priority', row ? row.priority : '');
-    const dis = el<HTMLInputElement>('qf_disabled');
-    if (dis) dis.checked = row ? !!row.disabled : false;
-
-    const simple = menu === 'simple';
-    show('qf_targetWrap', simple);
-    show('qf_parentWrap', !simple);
-    const markLabel = el('qf_markLabel');
-    if (markLabel) markLabel.textContent = simple ? 'Packet Marks' : 'Packet Mark';
-    const maxHint = el('qf_maxHint');
-    if (maxHint) maxHint.textContent = simple ? '(up/down, e.g. 15M/20M)' : '(e.g. 10M)';
-
-    const sq = simple ? (row as SimpleQueue | null) : null;
-    const tq = simple ? null : (row as TreeQueue | null);
-    setVal('qf_target', sq ? sq.target : '');
-    // A tree defaults to `global` on create; a simple queue to empty.
-    setVal('qf_parent', tq ? tq.parent : (simple ? '' : 'global'));
-    setVal('qf_packetMark', row ? (sq ? sq.packetMarks : (tq ? tq.packetMark : '')) : '');
-
-    // The router answers in raw bps; the form shows the same suffixed form the
-    // operator would have typed.
-    const lim = bpsToShort;
-    setVal('qf_maxLimit', row
-      ? (sq ? lim(sq.maxLimit.up) + '/' + lim(sq.maxLimit.down) : lim(tq!.maxLimit))
-      : '');
-    setVal('qf_limitAt', row
-      ? (sq ? lim(sq.limitAt.up) + '/' + lim(sq.limitAt.down) : lim(tq!.limitAt))
-      : '');
-
-    show('qf_error', false);
-    show('qf_warn', false);
-    el('qFormWrap')?.classList.add('open');
-  }
-
-  function submit(ack?: string): void {
-    const menu = el<HTMLInputElement>('qf_menu')?.value || 'simple';
-    const name = (el<HTMLInputElement>('qf_name')?.value || '').trim();
-    if (!name) return formError('A queue name is required');
-    const val = (id: string) => (el<HTMLInputElement>(id)?.value || '').trim();
-
-    const payload: Record<string, unknown> = {
-      menu,
-      id: el<HTMLInputElement>('qf_id')?.value || undefined,
-      expectedName: el<HTMLInputElement>('qf_expectedName')?.value || undefined,
-      name,
-      maxLimit: val('qf_maxLimit'),
-      limitAt: val('qf_limitAt'),
-      priority: val('qf_priority'),
-      comment: val('qf_comment'),
-      disabled: !!el<HTMLInputElement>('qf_disabled')?.checked,
-      ack: ack || undefined,
-    };
-    if (menu === 'simple') {
-      payload.target = val('qf_target');
-      payload.packetMarks = val('qf_packetMark');
-      if (!payload.target) {
-        return formError('A target is required — an address, a subnet, or an interface');
-      }
-    } else {
-      payload.parent = val('qf_parent');
-      payload.packetMark = val('qf_packetMark');
-      if (!payload.parent) {
-        return formError('A parent is required — "global", or an interface name');
-      }
-    }
-    busy = (payload.id as string) || '';
-    socket.emit('queue:save', payload);
-  }
-
-  // ── Row actions ───────────────────────────────────────────────────────────
-
-  document.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement | null)?.closest?.('[data-qact]');
-    if (!b) return;
-    const act = b.getAttribute('data-qact') || '';
-    const id = b.getAttribute('data-id') || '';
-    const menu = b.getAttribute('data-menu') || 'simple';
-    const name = b.getAttribute('data-name') || '';
-    const list: Array<SimpleQueue | TreeQueue> =
-      (menu === 'tree' ? data?.tree : data?.simple) || [];
-    const row = list.find((x) => x.id === id);
-    if (!row) return;
-
-    if (act === 'edit') { openForm(menu, row); return; }
-    if (act === 'up' || act === 'down') {
-      busy = id; render();
-      // No menu: only simple queues have meaningful order.
-      socket.emit('queue:move', { id, expectedName: name, direction: act });
-      return;
-    }
-    if (act === 'toggle') {
-      busy = id; render();
-      socket.emit('queue:toggle', { id, expectedName: name, menu });
-      return;
-    }
-    if (act === 'reset') {
-      busy = id; render();
-      socket.emit('queue:resetCounters', { id, expectedName: name, menu });
-      return;
-    }
-    if (act === 'remove') {
-      if (!window.confirm('Remove the queue "' + name +
-          '"?\n\nTraffic it was limiting will no longer be shaped.')) return;
-      busy = id; render();
-      socket.emit('queue:remove', { id, expectedName: name, menu });
-    }
-  });
-
-  el('qAddBtn')?.addEventListener('click', () => {
-    if (!caps.permitted) return;
-    openForm(tab === 'tree' ? 'tree' : 'simple', null);
-  });
-
-  el('qf_save')?.addEventListener('click', () => {
-    submit(el<HTMLInputElement>('qf_ack')?.value || undefined);
-  });
-
-  socket.on('queues:error', (d) => {
-    busy = '';
-    const code = d && d.code;
-
-    // THE SELF-THROTTLE PROMPT IS NOT AN ERROR — it is a question, asked once,
-    // and answered by re-submitting with the fingerprint the server issued. The
-    // fingerprint is recomputed server-side from a fresh read every time, which
-    // is what stops an acknowledgement being carried to a harsher queue.
-    if (code === 'self-throttle' || code === 'stale-warning') {
-      // `warning` is the guard's raw map, so its keys are `unknown` here. The
-      // strings are only escaped, which any value survives; the rate is checked
-      // at runtime, and anything but a number reads as null — which bpsToShort
-      // renders exactly as it renders a missing one.
-      const w: Record<string, unknown> = (d && d.warning) || {};
-      const cap = w.maxLimit;
-      const capUp = cap && typeof cap === 'object' && 'up' in cap && typeof cap.up === 'number' ? cap.up : null;
-      const capDown = cap && typeof cap === 'object' && 'down' in cap && typeof cap.down === 'number'
-        ? cap.down : null;
-      const e = el('qf_warn');
-      if (!e) return;
-      e.innerHTML = '<strong>This queue covers MikroDash\'s own connection to this router.</strong><br>' +
-        'MikroDash reaches ' + esc(caps.routerName || 'this router') + ' from <code>' + esc(w.address || '') + '</code>, ' +
-        'which is inside <code>' + esc(w.target || '') + '</code>, and this queue caps traffic at <code>' +
-        esc(bpsToShort(capUp) + '/' + bpsToShort(capDown)) + '</code>.<br>' +
-        'The dashboard\'s own polling will be throttled and this page may become slow. ' +
-        'You will still be able to edit or remove the queue from its row.' +
-        (code === 'stale-warning' ? '<br><em>The values changed since you confirmed, so please confirm again.</em>' : '') +
-        '<div style="margin-top:.5rem;display:flex;gap:.5rem;justify-content:flex-end">' +
-        '<button class="sbtn sbtn-outline" id="qf_warnCancel" style="padding:.3rem .7rem;font-size:.72rem">Cancel</button>' +
-        '<button class="sbtn sbtn-danger" id="qf_warnGo" style="padding:.3rem .7rem;font-size:.72rem">Create anyway</button></div>';
-      e.style.display = '';
-      setVal('qf_ack', (d && d.fingerprint) || '');
-      el('qf_warnCancel')?.addEventListener('click', () => {
-        e.style.display = 'none';
-        setVal('qf_ack', '');
-      });
-      el('qf_warnGo')?.addEventListener('click', () => {
-        e.style.display = 'none';
-        submit(el<HTMLInputElement>('qf_ack')?.value);
-      });
-      // A TOGGLE that trips the warning has no dialog open, so open one.
-      if (!el('qFormWrap')?.classList.contains('open')) el('qFormWrap')?.classList.add('open');
-      return;
-    }
-
-    const msg: Record<string, string> = {
-      denied: 'You do not have write access to this router',
-      unavailable: 'Queue collection is not running for this router',
-      'bad-request': 'Invalid request',
-      'stale-row': 'That queue changed on the router — the page has been refreshed',
-      'dynamic-row': 'That queue is created automatically by another RouterOS feature (Kid Control, a DHCP lease, or a PPP profile) and cannot be edited here',
-      'limit-above-max': 'Max Limit must be at least as large as Limit At — the router refuses otherwise',
-      'router-write-policy': 'The RouterOS user needs write permission for this',
-      unsupported: 'This router does not support that command',
-    };
-    const text = (code && msg[code]) || (d && d.message) || 'Action failed';
-    if (el('qFormWrap')?.classList.contains('open')) formError(text); else setStatus(text);
+  // The page draws its arrows and note from `permitted`; every gate is re-checked
+  // server-side against a fresh read regardless.
+  socket.on('res:schema', (d) => {
+    if (!d || (d.key !== 'simpleQueue' && d.key !== 'queueTree')) return;
+    writable[d.key] = !!d.permitted;
     if (isVisible('queues')) render();
   });
 
   socket.on('queues:update', (d) => {
     if (!d) return;
     data = d;
-    busy = '';
     pushHistory(d);
     // The summary updates whether or not the page is showing; the tables only
     // when it is. The asymmetry is the original's.
     renderSummary();
     if (isVisible('queues')) render();
-  });
-
-  socket.on('queues:caps', (d) => {
-    if (!d) return;
-    caps = d;
-    if (isVisible('queues')) render();
-  });
-
-  socket.on('queues:ok', (d) => {
-    busy = '';
-    el('qFormWrap')?.classList.remove('open');
-    const what: Record<string, string> = {
-      create: 'Created ', update: 'Updated ', delete: 'Removed ', enable: 'Enabled ',
-      disable: 'Disabled ', reset: 'Reset counters for ', move: 'Reordered ',
-    };
-    setStatus(((d && d.action && what[d.action]) || 'Done: ') + ((d && d.name) || ''));
   });
 
   const search = el<HTMLInputElement>('qSearch');
@@ -597,14 +364,13 @@ export function initQueuesPage(socket: Socket, isVisible: (page: string) => bool
       document.querySelectorAll('#queuesCard .brtab-panel').forEach((pnl) => {
         pnl.classList.toggle('active', pnl.id === 'qtab-' + tab);
       });
+      syncAddSlot();
       render();
     });
   });
 
   document.addEventListener('mikrodash:pagechange', (e) => {
     if ((e as CustomEvent).detail !== 'queues') return;
-    // Permission is a property of this socket, not of the shared payload.
-    socket.emit('queues:caps', {});
     if (data) render();
   });
 }

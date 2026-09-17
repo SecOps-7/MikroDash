@@ -451,18 +451,6 @@ func (cn *conn) dispatch(in inbound) {
 		cn.ruSessionRemove(in.Data)
 	// Queues is five handlers of its own, for the same reason Router Users is:
 	// see internal/server/queues.go.
-	case "queues:caps":
-		cn.qCaps()
-	case "queue:save":
-		cn.qSave(in.Data)
-	case "queue:remove":
-		cn.qRemove(in.Data)
-	case "queue:toggle":
-		cn.qToggle(in.Data)
-	case "queue:resetCounters":
-		cn.qResetCounters(in.Data)
-	case "queue:move":
-		cn.qMove(in.Data)
 	// WAN is two verbs over one body — see internal/server/wan.go. Registered
 	// separately rather than as a loop for the same reason the original gives:
 	// the next person looking for where this is handled will grep for the
@@ -1153,13 +1141,6 @@ func (cn *conn) resumePage(page string) {
 			collect.EvFirewallUpdate.Send(cn.srv.hub, cn.c, replay)
 		}
 	case "queues":
-		// Caps first, for the reason Router Users gives: the page draws its
-		// buttons from `permitted`, and a payload arriving before them renders a
-		// read-only table that then has to be redrawn.
-		EvQueuesCaps.Send(cn.srv.hub, cn.c, map[string]any{
-			"permitted":  cn.canPage("queues", "write"),
-			"routerName": cn.rsession.Label,
-		})
 		if last := cn.rsession.Queues().Last(); last != nil {
 			replay := *last
 			replay.TS = time.Now().UnixMilli()

@@ -203,6 +203,12 @@
       "page": "ppp"
     },
     {
+      "name": "list_queueTree",
+      "access": "read",
+      "resource": "queueTree",
+      "page": "queues"
+    },
+    {
       "name": "list_queues",
       "access": "read",
       "resource": "",
@@ -227,6 +233,12 @@
       "resource": "",
       "collector": "rosusers",
       "page": "users"
+    },
+    {
+      "name": "list_simpleQueue",
+      "access": "read",
+      "resource": "simpleQueue",
+      "page": "queues"
     },
     {
       "name": "list_topology",

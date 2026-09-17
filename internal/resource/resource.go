@@ -21,6 +21,8 @@ package resource
 
 import (
 	"fmt"
+
+	"mikrodash/internal/guard"
 	"net"
 	"regexp"
 	"sort"
@@ -772,6 +774,121 @@ var PPPSecret = &Resource{
 //
 // NO GUARD, for the same reason as the secret: a profile is addressing and rate
 // policy for dial-in clients, not a path to the router.
+// ── Queues ──────────────────────────────────────────────────────────────────
+//
+// Two menus with different row shapes, measured on RouterOS 7.24 (CHR): a simple
+// queue caps a TARGET in both directions, so its limits and priority are
+// `upload/download` pairs ("15000000/20000000", "8/8"), and it is ORDERED, first
+// match wins; a queue tree shapes marked traffic under a PARENT in one direction,
+// with single values and no order. Only simple queues can be dynamic (Kid
+// Control, DHCP rate limits, PPP profiles create them), and only they can be
+// aimed at an address, so only they carry the self-throttle guard.
+//
+// Limits are typed as RouterOS accepts them, with suffixes ("15M/20M"), and read
+// back as raw bits per second, which is how the edit form shows them.
+
+var queueActions = []Action{
+	{Key: "enable", Verb: "enable", Label: "Enable",
+		When: func(r map[string]string) bool { return r["disabled"] == "true" },
+		Note: "enabled a queue"},
+	{Key: "disable", Verb: "disable", Label: "Disable",
+		When: func(r map[string]string) bool { return r["disabled"] != "true" },
+		Note: "disabled a queue"},
+	{Key: "reset", Verb: "reset-counters", Label: "Reset Counters",
+		Note: "zeroed the queue statistics"},
+}
+
+var queuePriorityPair = regexp.MustCompile(`^[1-8](/[1-8])?$`)
+
+// queueCheck validates the rates and the priority, and that the guaranteed rate
+// is not above the cap: RouterOS refuses that with "download-max-limit less than
+// download-limit", which names neither field the operator typed.
+func queueCheck(pair bool) func(clean map[string]string) []Error {
+	return func(clean map[string]string) []Error {
+		var errs []Error
+		parse := func(field string) guard.Pair {
+			raw := strings.TrimSpace(clean[field])
+			if raw == "" {
+				return guard.Pair{}
+			}
+			halves := strings.Split(raw, "/")
+			if (pair && len(halves) > 2) || (!pair && len(halves) != 1) {
+				errs = append(errs, Error{Field: field, Message: queueRateHelp(pair)})
+				return guard.Pair{}
+			}
+			for _, h := range halves {
+				if !guard.ParseRate(h).Set {
+					errs = append(errs, Error{Field: field, Message: queueRateHelp(pair)})
+					return guard.Pair{}
+				}
+			}
+			return guard.ParsePair(raw)
+		}
+		maxLimit, limitAt := parse("maxLimit"), parse("limitAt")
+		above := func(mx, lo guard.Rate) bool { return mx.Set && mx.Bps > 0 && lo.Set && lo.Bps > mx.Bps }
+		if len(errs) == 0 && (above(maxLimit.Up, limitAt.Up) || above(maxLimit.Down, limitAt.Down)) {
+			errs = append(errs, Error{Field: "limitAt",
+				Message: "Limit At cannot be above Max Limit: the router refuses a guaranteed rate larger than the cap"})
+		}
+		if p := strings.TrimSpace(clean["priority"]); pair && p != "" && !queuePriorityPair.MatchString(p) {
+			errs = append(errs, Error{Field: "priority", Message: "Priority is 1 (highest) to 8, or a pair such as 8/8"})
+		}
+		return errs
+	}
+}
+
+func queueRateHelp(pair bool) string {
+	if pair {
+		return "A rate in bits per second, or upload/download such as 15M/20M (k, M and G are accepted)"
+	}
+	return "One rate in bits per second, such as 10M (k, M and G are accepted)"
+}
+
+var SimpleQueue = &Resource{
+	Key: "simpleQueue", Page: "queues", Label: "Simple Queue",
+	Title: "Simple Queue", Menu: "/queue/simple", Identity: []string{"name"},
+	Ordered:        true,
+	ReadOnlyWhen:   func(r map[string]string) bool { return r["dynamic"] == "true" },
+	ReadOnlyReason: "read-only-row",
+	Guard:          []string{"queueThrottle"},
+	Actions:        queueActions,
+	Check:          queueCheck(true),
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "queue name"},
+		{Name: "target", ROS: "target", Label: "Target", Type: TypeText, Required: true,
+			Placeholder: "10.0.0.5/32 or an interface"},
+		{Name: "maxLimit", ROS: "max-limit", Label: "Max Limit", Type: TypeText, Clearable: true,
+			Placeholder: "15M/20M", Help: "Upload/download cap. 0 is unlimited."},
+		{Name: "limitAt", ROS: "limit-at", Label: "Limit At", Type: TypeText, Clearable: true,
+			Placeholder: "5M/5M", Help: "Guaranteed upload/download rate."},
+		{Name: "priority", ROS: "priority", Label: "Priority", Type: TypeText, Clearable: true,
+			Placeholder: "8/8", Help: "1 is the highest, 8 the lowest."},
+		{Name: "packetMarks", ROS: "packet-marks", Label: "Packet Marks", Type: TypeText, Clearable: true},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+}
+
+var QueueTree = &Resource{
+	Key: "queueTree", Page: "queues", Label: "Queue Tree",
+	Title: "Queue Tree", Menu: "/queue/tree", Identity: []string{"name"},
+	Actions: queueActions,
+	Check:   queueCheck(false),
+	Fields: []Field{
+		{Name: "name", ROS: "name", Label: "Name", Type: TypeText, Required: true, Placeholder: "queue name"},
+		{Name: "parent", ROS: "parent", Label: "Parent", Type: TypeText, Required: true,
+			Placeholder: "global", Help: "global, an interface, or another tree queue."},
+		{Name: "packetMark", ROS: "packet-mark", Label: "Packet Mark", Type: TypeText, Clearable: true},
+		{Name: "maxLimit", ROS: "max-limit", Label: "Max Limit", Type: TypeText, Clearable: true,
+			Placeholder: "10M", Help: "0 is unlimited."},
+		{Name: "limitAt", ROS: "limit-at", Label: "Limit At", Type: TypeText, Clearable: true, Placeholder: "5M"},
+		{Name: "priority", ROS: "priority", Label: "Priority", Type: TypeInt, Min: intp(1), Max: intp(8), Clearable: true,
+			Placeholder: "8"},
+		{Name: "comment", ROS: "comment", Label: "Comment", Type: TypeText, Clearable: true},
+		{Name: "disabled", ROS: "disabled", Label: "Disabled", Type: TypeBool, Clearable: true},
+	},
+}
+
 var PPPProfile = &Resource{
 	Key: "pppProfile", Page: "ppp", Label: "PPP Profile",
 	Title: "PPP Profile", Menu: "/ppp/profile", Identity: []string{"name"},
@@ -1190,6 +1307,8 @@ var byKey = map[string]*Resource{
 	DNSStatic.Key:           DNSStatic,
 	PPPSecret.Key:           PPPSecret,
 	PPPProfile.Key:          PPPProfile,
+	SimpleQueue.Key:         SimpleQueue,
+	QueueTree.Key:           QueueTree,
 	Bridge.Key:              Bridge,
 	BridgePort.Key:          BridgePort,
 	Vlan.Key:                Vlan,

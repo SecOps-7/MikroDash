@@ -211,8 +211,8 @@ the cheapest code here to test. A guard is reached one of two ways:
   `selfPath`, `fwGuard`, `wifiInherit`, `capsmanPush`, `routePath`, `addressPath`, `queueThrottle`. **A resource declaring any other guard has
   its writes refused**, not logged and allowed — pinned by `internal/server/guard_test.go`. Adding a
   guard to that path means adding it to the map, deliberately.
-- **Called directly by a page handler**: the queue, user and WAN pages call their guards' `Check…`
-  functions themselves (`internal/server/queues.go`, `rosusers.go`, `wan.go`).
+- **Called directly by a page handler**: the user and WAN pages call their guards' `Check…`
+  functions themselves (`internal/server/rosusers.go`, `wan.go`).
 
 Guard names do not map one-to-one onto file names — `capsmanguard.go` is what provides
 `capsmanPush`. Read `internal/guard/` before concluding one is missing, and read the map rather than

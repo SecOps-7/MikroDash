@@ -318,6 +318,26 @@ export function warningText(code: string, w: Record<string, unknown>): { headlin
       };
     case 'self-lockout':
       return { headline: cut, why: 'This firewall rule could match MikroDash\'s own traffic to the router.' };
+    case 'self-throttle': {
+      // The cap arrives as the guard's {up, down} pair of raw bits per second,
+      // null for a half that is not set.
+      const cap = w.maxLimit && typeof w.maxLimit === 'object' ? w.maxLimit as Record<string, unknown> : {};
+      const rate = (v: unknown): string => {
+        if (typeof v !== 'number') return '?';
+        if (v === 0) return 'unlimited';
+        if (v >= 1e9 && v % 1e9 === 0) return (v / 1e9) + 'G';
+        if (v >= 1e6 && v % 1e6 === 0) return (v / 1e6) + 'M';
+        if (v >= 1e3 && v % 1e3 === 0) return (v / 1e3) + 'k';
+        return String(v);
+      };
+      return {
+        headline: 'This queue covers MikroDash\'s own connection to this router.',
+        why: 'The router sees MikroDash at <code>' + esc(str(w.address) || '?') + '</code>, inside <code>' +
+          esc(str(w.target) || '?') + '</code>, and this queue caps it at <code>' +
+          esc(rate(cap.up) + '/' + rate(cap.down)) + '</code>. The dashboard may become slow; the queue ' +
+          'can still be edited or removed from its row.',
+      };
+    }
     case 'wifi-inherit':
       return { headline: 'This change needs confirming.', why: 'It overrides a setting this network inherits from a shared configuration profile.' };
     case 'capsman-push':

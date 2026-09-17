@@ -171,7 +171,7 @@ One socket per browser. Frames are `{"event": "...", "data": ...}`.
 Inbound events are page subscriptions (`dashboard`, `dns`, `firewall`, `queues`,
 `wireless`, …), lifecycle (`router:select`, `page:focus`, `page:blur`,
 `dashcard:focus`, `dashcard:blur`), and the write verbs above plus per-page ones
-(`wan:renew`, `wan:release`, `queue:save`, `rosuser:save`, `packages:schedule`,
+(`wan:renew`, `wan:release`, `rosuser:save`, `packages:schedule`,
 `backups:run`, `wifiscan:start`, …).
 
 **Rooms carry the fan-out.** `router-<id>` is router-wide; `router-<id>-<page>` is

@@ -222,9 +222,6 @@ export interface HandEvents {
   // minRtt / maxRtt are added only once a ping has landed, and then may be
   // null — unlike PingPayload, where they are omitted when absent.
   'ping:history': { target: string; history: PingPoint[]; minRtt?: number | null; maxRtt?: number | null };
-  'queues:caps': { permitted: boolean; routerName: string };
-  'queues:error': { code: string; name?: string; message?: string } & GuardWarning;
-  'queues:ok': { action: string; name: string; menu: string };
   'res:error': {
     code: string; resource?: string; name?: string; message?: string;
     errors?: ResFieldError[];

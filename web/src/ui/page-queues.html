@@ -29,7 +29,9 @@
             <span id="qActionNote" class="muted-note"></span>
             <input id="qSearch" class="form-control form-control-sm"
                    placeholder="Search&hellip;" style="flex:0 1 200px;width:200px"/>
-            <button class="sbtn sbtn-primary" id="qAddBtn" style="padding:.32rem .7rem;font-size:.72rem">+ Add Queue</button>
+            <!-- The resource engine fills this with the Add button for the table on
+                 screen; queues.ts re-points it when the tab changes. -->
+            <span id="qAddSlot" data-res-add="simpleQueue"></span>
           </div>
         </div>
         <div class="card-body p-0">
@@ -40,7 +42,7 @@
                 <colgroup><col style="width:4%"><col style="width:17%"><col style="width:15%"><col style="width:16%">
                           <col style="width:22%"><col style="width:26%"></colgroup>
                 <thead><tr id="qSimpleThead"></tr></thead>
-                <tbody id="qSimpleTable">
+                <tbody id="qSimpleTable" data-res-rows="simpleQueue">
                   <tr><td colspan="6" class="empty-state">Waiting for queue data&hellip;</td></tr>
                 </tbody>
               </table>
@@ -53,7 +55,7 @@
                 <colgroup><col style="width:18%"><col style="width:14%"><col style="width:16%"><col style="width:14%">
                           <col style="width:18%"><col style="width:20%"></colgroup>
                 <thead><tr id="qTreeThead"></tr></thead>
-                <tbody id="qTreeTable">
+                <tbody id="qTreeTable" data-res-rows="queueTree">
                   <tr><td colspan="6" class="empty-state">Waiting for queue data&hellip;</td></tr>
                 </tbody>
               </table>
@@ -61,74 +63,6 @@
           </div>
 
         </div>
-      </div>
-
-      <!-- ── Add / edit a queue ────────────────────────────────────────── -->
-      <div class="rtr-modal-bg" id="qFormWrap">
-       <div class="rtr-modal pmodal">
-        <div class="rtr-modal-hdr">
-          <span class="rtr-modal-title" id="qf_title">Add Queue</span>
-          <button class="rtr-modal-close" data-modal-close="qFormWrap" aria-label="Close">&#10005;</button>
-        </div>
-        <div class="rtr-modal-body">
-          <input type="hidden" id="qf_id">
-          <input type="hidden" id="qf_menu">
-          <input type="hidden" id="qf_expectedName">
-          <input type="hidden" id="qf_ack">
-          <div class="sform-row">
-            <div>
-              <label class="sform-label">Name</label>
-              <input class="sform-input" id="qf_name" type="text" placeholder="queue name" autocomplete="off">
-            </div>
-            <div id="qf_targetWrap">
-              <label class="sform-label">Target</label>
-              <input class="sform-input" id="qf_target" type="text" placeholder="10.0.0.5/32 or an interface" autocomplete="off">
-            </div>
-            <div id="qf_parentWrap" style="display:none">
-              <label class="sform-label">Parent</label>
-              <input class="sform-input" id="qf_parent" type="text" placeholder="global, or an interface" autocomplete="off">
-            </div>
-          </div>
-          <div class="sform-row" style="margin-top:.6rem">
-            <div>
-              <!-- Suffixes are what the router accepts and what people type; it
-                   answers in raw bps, which the page converts back for display. -->
-              <label class="sform-label">Max Limit <span style="font-weight:400;text-transform:none;letter-spacing:0" id="qf_maxHint">(up/down, e.g. 15M/20M)</span></label>
-              <input class="sform-input" id="qf_maxLimit" type="text" placeholder="15M/20M" autocomplete="off">
-            </div>
-            <div>
-              <label class="sform-label">Limit At <span style="font-weight:400;text-transform:none;letter-spacing:0">(guaranteed, optional)</span></label>
-              <input class="sform-input" id="qf_limitAt" type="text" placeholder="5M/5M" autocomplete="off">
-            </div>
-          </div>
-          <div class="sform-row" style="margin-top:.6rem">
-            <div id="qf_markWrap">
-              <label class="sform-label" id="qf_markLabel">Packet Marks</label>
-              <input class="sform-input" id="qf_packetMark" type="text" placeholder="Optional" autocomplete="off">
-            </div>
-            <div>
-              <label class="sform-label">Priority <span style="font-weight:400;text-transform:none;letter-spacing:0">(1 highest, 8 lowest)</span></label>
-              <input class="sform-input" id="qf_priority" type="text" placeholder="8" autocomplete="off">
-            </div>
-          </div>
-          <div style="margin-top:.6rem">
-            <label class="sform-label">Comment</label>
-            <input class="sform-input" id="qf_comment" type="text" placeholder="Optional" autocomplete="off">
-          </div>
-          <label class="stoggle" style="margin-top:.7rem">
-            <span class="stoggle-label">Disabled</span>
-            <span class="stoggle-switch"><input type="checkbox" id="qf_disabled"><span class="stoggle-track"></span><span class="stoggle-thumb"></span></span>
-          </label>
-          <div class="login-error" id="qf_error" style="display:none;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:6px;color:#f87171;font-size:.78rem;padding:.45rem .65rem;margin-top:.6rem;text-align:center"></div>
-          <!-- The self-throttle prompt lives inside the dialog rather than in a
-               window.confirm, so it can name the address, the CIDR and the cap. -->
-          <div id="qf_warn" style="display:none;background:rgba(245,159,0,.1);border:1px solid rgba(245,159,0,.3);border-radius:6px;color:var(--text);font-size:.78rem;padding:.55rem .7rem;margin-top:.6rem"></div>
-        </div>
-        <div class="rtr-modal-footer">
-          <button class="sbtn sbtn-outline" data-modal-close="qFormWrap">Cancel</button>
-          <button class="sbtn sbtn-primary" id="qf_save">Save Queue</button>
-        </div>
-       </div>
       </div>
 
     </div>

@@ -1456,6 +1456,15 @@ func (cn *conn) refreshFor(res *resource.Resource) {
 		if cn.rsession.CollectorEnabled("ifStatus") {
 			cn.rsession.IfStatus().RefreshNow()
 		}
+	case "queues":
+		// Rates are counter deltas, and a set or a reset-counters can zero a
+		// counter: the next window would be measured against a baseline the
+		// router no longer agrees with, so the baseline goes first. Forgetting
+		// a baseline starts nothing, so only the re-read is gated.
+		cn.rsession.Queues().ForgetRates()
+		if cn.rsession.CollectorEnabled("queues") {
+			cn.rsession.Queues().RefreshNow()
+		}
 	case "ppp":
 		// The PPP collector reads its config tables — profiles, servers and the
 		// secrets — only every `pppConfigEvery` ticks, so without this a saved
